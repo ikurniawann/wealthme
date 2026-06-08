@@ -1,6 +1,6 @@
 # EPIC-001: Backend Foundation
 
-status: planned
+status: on-progress
 environment: dev
 phase: 1
 priority: P0
@@ -20,12 +20,12 @@ serta menyambungkan frontend ke Auth.js + query client.
 - [x] ConfigModule + validasi env (Zod), logger pino, endpoint `/health`
 - [x] Bootstrap Swagger/OpenAPI + CORS untuk web
 
-### Prisma + Postgres + base schema & migrations
+### Prisma + Postgres + base schema & migrations ✅
 
-- [ ] Setup Prisma + koneksi Postgres (Docker)
-- [ ] Skema inti: `users`, `family_groups`, `members`, `accounts`, `transactions`, `categories`
-- [ ] Uang sebagai `BIGINT` rupiah; relasi + index
-- [ ] Migrasi awal + seed dari mock `apps/web/src/lib/data.ts`
+- [x] Setup Prisma + koneksi Postgres (Docker)
+- [x] Skema inti: `users`, `family_groups`, `members`, `accounts`, `transactions`, `categories`
+- [x] Uang sebagai `BIGINT` rupiah; relasi + index
+- [x] Migrasi awal + seed dari mock `apps/web/src/lib/data.ts`
 
 ### Auth: email/password + JWT access/refresh + rotation
 
@@ -77,6 +77,7 @@ serta menyambungkan frontend ke Auth.js + query client.
 ## Automation Log
 
 - 2026-06-09 /task-work EPIC-001 #1 "Scaffold NestJS app at apps/api" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/90
+- 2026-06-09 /task-work EPIC-001 #2 "Prisma + Postgres + base schema & migrations" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/92
 
 ## Dependencies
 

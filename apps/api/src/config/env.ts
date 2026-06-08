@@ -6,8 +6,9 @@ const envSchema = z.object({
     .default("development"),
   PORT: z.coerce.number().int().positive().default(4000),
   WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
+  // Required — Prisma connects to Postgres at startup; fail fast if absent.
+  DATABASE_URL: z.string().url(),
   // Optional vars — consumed by later tasks
-  DATABASE_URL: z.string().optional(),
   REDIS_URL: z.string().optional(),
   JWT_SECRET: z.string().optional(),
   JWT_EXPIRES_IN: z.string().optional(),
