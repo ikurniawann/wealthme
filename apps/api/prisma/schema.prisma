@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ─────────────────────────────────────────────────────────────────────
+
+enum Role {
+  owner
+  member
+  admin_staff
+}
+
+enum AccountType {
+  bank
+  ewallet
+  cash
+  investment
+  property
+}
+
+enum CategoryKind {
+  income
+  expense
+}
+
+enum TransactionType {
+  income
+  expense
+  transfer
+}
+
+// ── Models ────────────────────────────────────────────────────────────────────
+
+model User {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  name           String
+  passwordHash   String?
+  avatarInitials String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  memberships    Member[]
+
+  @@map("users")
+}
+
+model FamilyGroup {
+  id           String        @id @default(uuid())
+  name         String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  members      Member[]
+  accounts     Account[]
+  categories   Category[]
+  transactions Transaction[]
+
+  @@map("family_groups")
+}
+
+model Member {
+  id            String      @id @default(uuid())
+  userId        String
+  familyGroupId String
+  role          Role
+  createdAt     DateTime    @default(now())
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyGroup   FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, familyGroupId])
+  @@index([familyGroupId])
+  @@map("members")
+}
+
+model Account {
+  id            String        @id @default(uuid())
+  familyGroupId String
+  name          String
+  type          AccountType
+  institution   String?
+  maskedNumber  String?
+  balance       BigInt
+  currency      String        @default("IDR")
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  familyGroup   FamilyGroup   @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
+
+  @@unique([familyGroupId, name])
+  @@index([familyGroupId])
+  @@map("accounts")
+}
+
+model Category {
+  id            String        @id @default(uuid())
+  familyGroupId String
+  name          String
+  kind          CategoryKind
+  color         String?
+  icon          String?
+  createdAt     DateTime      @default(now())
+  familyGroup   FamilyGroup   @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
+
+  @@unique([familyGroupId, name, kind])
+  @@index([familyGroupId])
+  @@map("categories")
+}
+
+model Transaction {
+  id            String          @id @default(uuid())
+  familyGroupId String
+  accountId     String
+  categoryId    String?
+  amount        BigInt
+  type          TransactionType
+  description   String?
+  occurredAt    DateTime
+  createdAt     DateTime        @default(now())
+  familyGroup   FamilyGroup     @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  account       Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category      Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([familyGroupId, occurredAt])
+  @@index([accountId])
+  @@index([categoryId])
+  @@map("transactions")
+}
