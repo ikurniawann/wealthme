@@ -25,7 +25,9 @@ pnpm-debug.log*
 .vscode/
 
 # claude local config
-.claude/
 
 # vercel
 .vercel
+.claude/settings.local.json
+.claude/plugins/
+.claude/*.local.json
