@@ -1,4 +1,4 @@
-# EPIC-001: Halaman Anggaran (Budget Page Port)
+# EPIC-001: Backend Foundation (Phase 1)
 
 status: on-progress
 environment: dev
@@ -6,37 +6,40 @@ retries: 0
 
 ## Goal
 
-Port the Anggaran (Budget) page from the WealthMe HTML demo (`id="page-budget"`)
-into a production-grade Next.js 16 App Router page.
+Scaffold the NestJS API, wire authentication and authorization, set up the database,
+and connect the Next.js frontend to real sessions. This phase unlocks all subsequent
+API integrations — nothing in Phase 2+ can start until this is complete.
 
-The page must match the demo's layout, Indonesian copy, and interactions — using
-React state, the project's shared primitives (`@/components/wm`, `@/lib/format`),
-and Tailwind v4 token-based styling.
+GitHub Milestone: Phase 1 (issues #7–#15)
 
 ## Tasks
 
-- [ ] Create `src/app/(app)/budget/page.tsx` with `"use client"` and inner content only
-- [ ] Port budget summary cards (total budget, spent, remaining) using `SummaryCard`
-- [ ] Port budget category list with `ProgressBar` per category
-- [ ] Port "Tambah Anggaran" modal using `Dialog` from `@/components/ui/dialog`
-- [ ] Wire Indonesian copy, `formatRupiah` formatting, and toast notifications
-- [ ] Add responsive grid (`grid-cols-1 md:grid-cols-2`) for summary cards
-- [ ] Verify no foundation files modified (`globals.css`, `lib/*`, `components/ui/*`, etc.)
-- [ ] Add TypeScript props interfaces for all local components
+### Backend
+- [ ] #7 Scaffold NestJS app at apps/api (pino logger, /health, ConfigModule, Swagger bootstrap)
+- [ ] #8 Prisma + Postgres base schema + migrations (users, family_groups, members, accounts, transactions, categories — money as BIGINT rupiah) + seed from mock data
+- [ ] #9 Auth: email/password (argon2) + JWT access/refresh + rotation (Redis) — Passport strategies; login/refresh/logout/register
+- [ ] #10 Google OAuth login — OAuth2 strategy; link to existing user by email
+- [ ] #11 RBAC (CASL) + TenantInterceptor (userId/familyGroupId scoping) — abilities per role owner/member/admin-staff; enforce tenant scope on every query
+- [ ] #12 Audit logging module — record who-did-what (esp. admin/staff inputs) for compliance
+- [ ] #13 OpenAPI/Swagger + typed client generation pipeline — auto-gen typed client from OpenAPI spec; consume in web
+
+### Frontend
+- [ ] #14 Web: Auth.js integration (Credentials → API) + session — replace mock auth-provider; httpOnly session carrying API JWT; Google button
+- [ ] #15 Web: API client + TanStack Query setup — QueryClient/Provider; typed fetch wrapper; error/toast handling
 
 ## Acceptance Criteria
 
-- Page renders at `/budget` without errors
-- All text is Indonesian (no translation artifacts)
-- `formatRupiah` used for all currency values — no hardcoded `Rp` strings
-- `SummaryCard`, `ProgressBar`, and `StatusBadge` from `@/components/wm` used
-- "Tambah Anggaran" modal opens and closes correctly
-- `toast.success()` fires on successful budget save
-- No `console.log` in production code
-- No hardcoded hex colors — CSS variable tokens only
-- Foundation files not modified
-- `npm run build` passes with zero TypeScript errors
-- No hardcoded secrets or credentials
+- `GET /health` returns 200 on running NestJS instance
+- User can register and login with email/password → receives JWT
+- User can login with Google OAuth
+- JWT refresh rotation works; revoked tokens are rejected
+- All API routes enforce tenant scoping (no cross-user data leakage)
+- Audit log records create/update/delete events with userId and timestamp
+- OpenAPI spec auto-generates typed client consumed by apps/web
+- Login page (`/login`) authenticates against real API (not mock localStorage)
+- TanStack Query provider wraps the app; all API calls use typed hooks
+- `npm run build` passes for both apps/web and apps/api
+- No hardcoded secrets; all credentials from environment variables
 
 ## Automation Log
 
