@@ -9,7 +9,11 @@ bad()  { echo "[security][BLOCK] $1"; fail=1; }
 
 # Determine scan scope: changed files vs base branch if possible, else tracked files.
 if git rev-parse --git-dir >/dev/null 2>&1; then
-  base="$(git merge-base HEAD origin/main 2>/dev/null || git merge-base HEAD origin/development 2>/dev/null || true)"
+  # Prefer the integration branch (development) as the diff base: feature branches
+  # target development, so diffing against origin/main would re-scan everything that
+  # landed on development since it forked from main (false positives on already-merged
+  # files). Fall back to origin/main, then any base.
+  base="$(git merge-base HEAD origin/development 2>/dev/null || git merge-base HEAD origin/main 2>/dev/null || true)"
   if [ -n "$base" ]; then
     mapfile -t files < <( { git diff --name-only "$base"...HEAD; git diff --name-only; git ls-files --others --exclude-standard; } | sort -u )
   else
@@ -29,6 +33,16 @@ for f in "${files[@]:-}"; do
 done
 [ "${#src[@]}" -eq 0 ] && { note "no files to scan"; exit 0; }
 note "scanning ${#src[@]} file(s)..."
+
+# Executable-source subset (excludes Markdown/text docs). The destructive-DB and
+# dynamic-exec heuristics target runnable code; documentation that *describes*
+# prohibited patterns (e.g. CLAUDE.md security rules) is not a runtime hazard and
+# would otherwise produce false positives. Secret/env-file checks still cover docs.
+code_src=()
+for f in "${src[@]}"; do
+  case "$f" in *.md|*.markdown|*.txt|*.mdx) continue;; esac
+  code_src+=("$f")
+done
 
 # --- 1. Hardcoded secrets ---
 patterns=(
@@ -54,18 +68,20 @@ done
 
 # --- 3. Destructive DB statements in source (blocking) ---
 DDL="DR""OP"  # split literal to avoid tooling self-trigger
-if grep -REnIi "${DDL} +(DATABASE|SCHEMA|TABLE)|TRUNCATE +TABLE" "${src[@]}" 2>/dev/null; then
+if [ "${#code_src[@]}" -gt 0 ] && grep -REnIi "${DDL} +(DATABASE|SCHEMA|TABLE)|TRUNCATE +TABLE" "${code_src[@]}" 2>/dev/null; then
   bad "destructive DB statement present in source"
 fi
 
 # --- 4. Dynamic-exec patterns (informational) ---
-if grep -REnI 'child_process|new Function\(' "${src[@]}" 2>/dev/null | grep -vE '(test|spec|\.md$)'; then
+if [ "${#code_src[@]}" -gt 0 ] && grep -REnI 'child_process|new Function\(' "${code_src[@]}" 2>/dev/null | grep -vE '(test|spec)'; then
   note "dynamic-exec patterns found above — review manually"
 fi
 
 # --- 5. Dependency advisories (high/critical block) ---
-if command -v corepack >/dev/null 2>&1; then
-  if corepack pnpm audit --prod --audit-level high >/tmp/wm_audit.txt 2>&1; then
+# Use pnpm directly (matching CI / the other gate scripts) rather than `corepack pnpm`.
+command -v corepack >/dev/null 2>&1 && corepack enable >/dev/null 2>&1 || true
+if command -v pnpm >/dev/null 2>&1; then
+  if pnpm audit --prod --audit-level high >/tmp/wm_audit.txt 2>&1; then
     note "pnpm audit: no high/critical advisories"
   else
     note "pnpm audit reported high/critical advisories:"; tail -20 /tmp/wm_audit.txt; fail=1
