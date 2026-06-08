@@ -2,7 +2,8 @@
   "extends": "@wealthme/config/tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    "noEmit": true
   },
-  "include": ["src"]
+  "include": ["src", "tsup.config.ts"]
 }
