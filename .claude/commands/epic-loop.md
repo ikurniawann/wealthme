@@ -17,6 +17,18 @@ If `$ARGUMENTS` is empty, scan `docs/epics/EPIC-*.md` and pick the first with `s
   database commands. Do not delete files unless necessary and explained. Do not change CI/CD deploy
   targets without explicit user review. No hardcoded secrets in any change.
 
+## Gate design (who runs in each gate)
+The ECC reviewer agents do the generic React/TS/security review; the custom agents cover the
+WealthMe-specific slice. Run them **from this main session** (sub-agents cannot spawn sub-agents)
+and aggregate their findings into one verdict per gate.
+
+- **Review gate** = `ecc:react-reviewer` (when `.tsx/.jsx` changed) + `ecc:typescript-reviewer`
+  (when `.ts/.tsx` changed) + `review-qa-agent` (acceptance criteria + WM conventions + tenant scoping).
+  **FAIL** if any reviewer reports a CRITICAL/HIGH finding or returns `VERDICT: FAIL`.
+- **Security gate** = `ecc:security-reviewer` + `security-agent` (runs `scripts/security-check.sh`).
+  **FAIL** if any CRITICAL/HIGH finding, a `VERDICT: FAIL`, or the script exits non-zero.
+- **Test gate** = `test-agent` (`scripts/qa.sh` then `scripts/test.sh`). **FAIL** if a script exits non-zero.
+
 ## Algorithm
 1. **Read** the epic. Extract Goal, acceptance criteria, and the unchecked tasks (`- [ ]`).
    Build an ordered plan (lowest-risk / dependency-first). Print the plan.
@@ -25,11 +37,14 @@ If `$ARGUMENTS` is empty, scan `docs/epics/EPIC-*.md` and pick the first with `s
    - While attempt <= 3:
      1. **Implement** -> Task(subagent_type: "code-agent") with the task, acceptance criteria,
         relevant paths, and (if retry) the prior findings.
-     2. **Review** -> Task(subagent_type: "review-qa-agent"); parse the first `VERDICT:` line.
-     3. **Security** -> Task(subagent_type: "security-agent"); parse `VERDICT:`.
-     4. **Test** -> Task(subagent_type: "test-agent"); parse `VERDICT:`.
-     5. If all three are PASS: mark the task `- [x]` in the epic (Edit), log it, break.
-        Else: collect the FAIL findings, attempt += 1, continue (back to code-agent).
+     2. **Review gate** -> run the Review-gate agents above (ECC reviewers only for the file types that
+        changed) and aggregate into a single PASS/FAIL.
+     3. **Security gate** -> run `ecc:security-reviewer` and `security-agent`; aggregate into PASS/FAIL.
+     4. **Test gate** -> Task(subagent_type: "test-agent"); parse `VERDICT:`.
+        If it FAILs on a TypeScript/compile/build error, route the fix to
+        Task(subagent_type: "ecc:react-build") instead of code-agent, then re-run the gates.
+     5. If all gates PASS: mark the task `- [x]` in the epic (Edit), log it, break.
+        Else: collect the FAIL findings, attempt += 1, continue (back to code-agent / ecc:react-build).
    - If still failing after attempt 3: record the task as a blocker and stop the loop.
 3. **If all tasks passed**:
    - Task(subagent_type: "deploy-agent") -> runs scripts/deploy-dev.sh (DEV only); parse VERDICT.
@@ -44,3 +59,6 @@ If `$ARGUMENTS` is empty, scan `docs/epics/EPIC-*.md` and pick the first with `s
 - Never weaken or skip tests to make them pass.
 - The repo scripts (scripts/test.sh, scripts/qa.sh, scripts/security-check.sh, scripts/deploy-dev.sh)
   are used by the test/security/deploy agents.
+- ECC agents (`ecc:react-reviewer`, `ecc:typescript-reviewer`, `ecc:security-reviewer`,
+  `ecc:react-build`) are invoked from this main session as part of the gates above — never from inside
+  a custom sub-agent (sub-agents cannot spawn sub-agents).

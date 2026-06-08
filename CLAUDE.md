@@ -77,16 +77,24 @@ Goal: Minimize token usage · Reduce context consumption · Improve execution sp
 |-------|------|---------|
 | `epic-orchestrator` | `.claude/agents/epic-orchestrator.md` | Reads docs/epics/, drives the task loop |
 | `code-agent` | `.claude/agents/code-agent.md` | Implements tasks (WM-conventions-aware) |
-| `review-qa-agent` | `.claude/agents/review-qa-agent.md` | Wraps react-reviewer + acceptance criteria check |
+| `review-qa-agent` | `.claude/agents/review-qa-agent.md` | Project-specific QA: acceptance criteria + WM conventions + tenant scoping (complements `ecc:react-reviewer`/`ecc:typescript-reviewer`) |
 | `test-agent` | `.claude/agents/test-agent.md` | Runs scripts/test.sh + scripts/qa.sh |
 | `deploy-agent` | `.claude/agents/deploy-agent.md` | DEV-only deploy via scripts/deploy-dev.sh |
-| `security-agent` | `.claude/agents/security-agent.md` | Wraps security-reviewer + scripts/security-check.sh |
+| `security-agent` | `.claude/agents/security-agent.md` | Runs scripts/security-check.sh + tenant-scoping (complements `ecc:security-reviewer`) |
+
+> **How the gates use ECC.** The orchestrator/commands run from the main session and invoke the ECC
+> reviewers directly (sub-agents cannot spawn sub-agents). Generic React/TS/security quality is done by
+> `ecc:react-reviewer`, `ecc:typescript-reviewer`, `ecc:security-reviewer`, and build fixes by
+> `ecc:react-build`; the custom agents above cover only the project-specific slice. Neither side is
+> redundant. (Earlier docs said the custom agents "wrap" the ECC reviewers — they do not; the orchestrator does.)
 
 ### Custom Commands
 
 | Command | File | Purpose |
 |---------|------|---------|
-| `/epic-loop` | `.claude/commands/epic-loop.md` | Entry point for epic automation |
+| `/epic-loop` | `.claude/commands/epic-loop.md` | Run a full epic end-to-end (all tasks) with ECC-wired gates, DEV deploy |
+| `/task-work` | `.claude/commands/task-work.md` | Work ONE task (`### group`) from an epic → ECC gates → auto branch/push/PR to `development` |
+| `/epic-new` | `.claude/commands/epic-new.md` | `/ecc:plan` → write a local `docs/epics/EPIC-XXX` file only (push/sync to GitHub manually) |
 
 ---
 
@@ -112,9 +120,11 @@ Only create project-specific agents when no equivalent exists.
 
 ### How to add a new epic
 
-1. Create `docs/epics/EPIC-XXX.md` following the format below
-2. Set `status: on-progress`
-3. Run `/epic-loop docs/epics/EPIC-XXX.md`
+1. Generate it with `/epic-new "<feature>"` (runs `/ecc:plan`, writes `docs/epics/EPIC-XXX-*.md`
+   locally only) — or hand-write a file following the format below.
+2. Review/edit the file; push & sync to GitHub manually (optionally via `scripts/setup-github-project.sh`).
+3. To run it: set `status: on-progress` and `/epic-loop docs/epics/EPIC-XXX.md`,
+   or work a single task with `/task-work EPIC-XXX <n>`.
 
 ### Epic file format
 
@@ -241,6 +251,9 @@ Run security review before deployment.
 | Task | Use |
 |------|-----|
 | Plan a feature | `/ecc:plan`, `planner` agent |
+| Generate a new epic (local) | `/epic-new "<feature>"` (writes `docs/epics/`, push manually) |
+| Work ONE epic task → PR | `/task-work EPIC-XXX <n>` (ECC gates → branch/push/PR to `development`) |
+| Run a whole epic | `/epic-loop docs/epics/EPIC-XXX.md` (set `status: on-progress` first) |
 | Port/build a WealthMe page | `code-agent` + `shadcn` skill |
 | Review React/TSX | `/ecc:react-review` (MANDATORY after edits) |
 | Fix failing build | `/ecc:react-build` |
