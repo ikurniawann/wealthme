@@ -1,9 +1,8 @@
-# @wealthme/api (placeholder)
+# @wealthme/api
 
-NestJS modular-monolith backend. Scaffolded in **Epic 1 · Backend foundation**
-(`nest new` here) per `docs/WealthMe_Backend_Plan.md`.
+NestJS modular-monolith backend for WealthMe personal finance platform.
 
-## Environment
+## Getting started
 
 Copy `.env.example` to `.env` before running the API:
 
@@ -11,35 +10,50 @@ Copy `.env.example` to `.env` before running the API:
 cp apps/api/.env.example apps/api/.env
 ```
 
-### Required variables
+Start dependent services (Postgres 17 + Redis):
 
-| Variable             | Description                                                     |
-| -------------------- | --------------------------------------------------------------- |
-| `NODE_ENV`           | Runtime environment (`development`, `test`, `production`)       |
-| `PORT`               | HTTP server port (default `4000`)                               |
-| `DATABASE_URL`       | PostgreSQL connection URL                                       |
-| `REDIS_URL`          | Redis connection URL                                            |
-| `JWT_SECRET`         | Secret for signing JWT access tokens — **replace placeholder**  |
-| `JWT_REFRESH_SECRET` | Secret for signing JWT refresh tokens — **replace placeholder** |
+```bash
+pnpm db:up
+```
 
-### Optional variables
+Run in development mode:
 
-| Variable                 | Default     | Description                    |
-| ------------------------ | ----------- | ------------------------------ |
-| `JWT_EXPIRES_IN`         | `15m`       | Access token expiry            |
-| `JWT_REFRESH_EXPIRES_IN` | `7d`        | Refresh token expiry           |
-| `MINIO_ENDPOINT`         | —           | S3-compatible storage endpoint |
-| `MINIO_ACCESS_KEY`       | —           | MinIO / S3 access key          |
-| `MINIO_SECRET_KEY`       | —           | MinIO / S3 secret key          |
-| `MINIO_BUCKET`           | —           | Default upload bucket          |
-| `MAIL_HOST`              | `localhost` | SMTP host                      |
-| `MAIL_PORT`              | `1025`      | SMTP port                      |
-| `MAIL_USER`              | —           | SMTP username                  |
-| `MAIL_PASS`              | —           | SMTP password                  |
-| `MAIL_FROM`              | —           | Sender address                 |
+```bash
+pnpm api dev
+```
 
-> A Zod-validated `ConfigModule` (NestJS config) that enforces these variables
-> at startup is scaffolded as part of **Epic 1 · Backend foundation**.
+## Scripts
+
+| Script  | Command              | Description                   |
+| ------- | -------------------- | ----------------------------- |
+| `build` | `nest build`         | Compile TypeScript to `dist/` |
+| `dev`   | `nest start --watch` | Watch-mode dev server         |
+| `start` | `node dist/main.js`  | Run compiled output           |
+| `lint`  | `eslint`             | Lint with shared flat config  |
+| `test`  | `jest`               | Run unit tests                |
+
+## Endpoints
+
+| Method | Path        | Description                     |
+| ------ | ----------- | ------------------------------- |
+| GET    | `/health`   | Health check (no DB dependency) |
+| GET    | `/api/docs` | Swagger / OpenAPI UI            |
+
+## Environment variables
+
+| Variable                 | Required | Default                 | Description                          |
+| ------------------------ | -------- | ----------------------- | ------------------------------------ |
+| `NODE_ENV`               | yes      | `development`           | Runtime environment                  |
+| `PORT`                   | yes      | `4000`                  | HTTP server port                     |
+| `WEB_ORIGIN`             | no       | `http://localhost:3000` | Allowed CORS origin                  |
+| `DATABASE_URL`           | no       | —                       | PostgreSQL URL (Prisma — Epic 2)     |
+| `REDIS_URL`              | no       | —                       | Redis URL (BullMQ — later epic)      |
+| `JWT_SECRET`             | no       | —                       | JWT access token secret (Epic 3)     |
+| `JWT_REFRESH_SECRET`     | no       | —                       | JWT refresh token secret (Epic 3)    |
+| `JWT_EXPIRES_IN`         | no       | `15m`                   | Access token expiry                  |
+| `JWT_REFRESH_EXPIRES_IN` | no       | `7d`                    | Refresh token expiry                 |
+| `MINIO_*`                | no       | —                       | Object storage (enabled per feature) |
+| `MAIL_*`                 | no       | —                       | SMTP mail (enabled per feature)      |
 
 Planned domain modules: `auth`, `users`, `family`, `accounts`, `transactions`,
 `categories`, `budgets`, `goals`, `investments`, `assets`, `liabilities`,
