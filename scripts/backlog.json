@@ -1,0 +1,141 @@
+{
+  "project": "WealthMe Roadmap",
+  "owner": "andrsrjld",
+  "repo": "wealthme",
+  "fields": {
+    "Status": ["Backlog", "Todo", "In Progress", "In Review", "Done"],
+    "Area": ["Frontend", "Backend", "Infra"],
+    "Priority": ["P0", "P1", "P2"]
+  },
+  "milestones": [
+    { "phase": 0, "title": "Phase 0 — Foundation & Infra" },
+    { "phase": 1, "title": "Phase 1 — Backend Foundation" },
+    { "phase": 2, "title": "Phase 2 — Core Money Tracking (MVP)" },
+    { "phase": 3, "title": "Phase 3 — Wealth" },
+    { "phase": 4, "title": "Phase 4 — Reports & Calculators" },
+    { "phase": 5, "title": "Phase 5 — Family & Tools" },
+    { "phase": 6, "title": "Phase 6 — Integrations & AI" },
+    { "phase": 7, "title": "Phase 7 — Hardening & Launch" }
+  ],
+  "epics": [
+    {
+      "key": "E0", "title": "Foundation & Infra", "phase": 0,
+      "issues": [
+        { "title": "Restructure repo into pnpm monorepo (web → apps/web)", "area": "Infra", "priority": "P0", "body": "Promote git root, move web → apps/web, add pnpm-workspace/turbo/root package.json, packages/contracts + packages/config. (Done via chore/monorepo.)" },
+        { "title": "Shared packages: @wealthme/contracts (Zod) + @wealthme/config (tsconfig)", "area": "Infra", "priority": "P0", "body": "Single source of truth for DTOs/validation shared by web + api + mobile; base tsconfig." },
+        { "title": "Local dev stack via Docker Compose (postgres, redis, minio, mailhog)", "area": "Infra", "priority": "P0", "body": "One-command local infra for api + jobs + object storage + email testing." },
+        { "title": "CI: GitHub Actions (lint + build + test for web & api)", "area": "Infra", "priority": "P0", "body": "Turbo-aware pipeline on PR + main; cache pnpm + turbo." },
+        { "title": "Env management: .env.example + typed config loading", "area": "Infra", "priority": "P1", "body": "Document required env vars per app; validate at boot." },
+        { "title": "Commit hooks: husky + lint-staged + conventional commits", "area": "Infra", "priority": "P2", "body": "Enforce format/lint on staged files and commit message style." }
+      ]
+    },
+    {
+      "key": "E1", "title": "Backend Foundation", "phase": 1,
+      "issues": [
+        { "title": "Scaffold NestJS app at apps/api (config, health, logging)", "area": "Backend", "priority": "P0", "body": "nest new apps/api; pino logger; /health; ConfigModule; Swagger bootstrap." },
+        { "title": "Prisma + Postgres + base schema & migrations", "area": "Backend", "priority": "P0", "body": "users, family_groups, members, accounts, transactions, categories. Money as BIGINT rupiah. Seed from apps/web mock." },
+        { "title": "Auth: email/password (argon2) + JWT access/refresh + rotation (Redis)", "area": "Backend", "priority": "P0", "body": "Passport strategies; refresh-token store in Redis; login/refresh/logout/register." },
+        { "title": "Google OAuth login", "area": "Backend", "priority": "P1", "body": "OAuth2 strategy; link to existing user by email." },
+        { "title": "RBAC (CASL) + TenantInterceptor (userId/familyGroupId scoping)", "area": "Backend", "priority": "P0", "body": "Abilities per role owner/member/admin-staff; enforce tenant scope on every query; optional Postgres RLS." },
+        { "title": "Audit logging module", "area": "Backend", "priority": "P1", "body": "Record who-did-what (esp. admin/staff inputs) for compliance." },
+        { "title": "OpenAPI/Swagger + typed client generation pipeline", "area": "Backend", "priority": "P0", "body": "Auto-gen typed client from OpenAPI; consume in web." },
+        { "title": "Web: Auth.js integration (Credentials → API) + session", "area": "Frontend", "priority": "P0", "body": "Replace mock auth-provider; httpOnly session carrying API JWT; Google button." },
+        { "title": "Web: API client + TanStack Query setup", "area": "Frontend", "priority": "P0", "body": "Query client/provider; typed fetch wrapper; error/toast handling." }
+      ]
+    },
+    {
+      "key": "E2", "title": "Core Money Tracking + Wiring (MVP)", "phase": 2,
+      "issues": [
+        { "title": "Accounts API (bank & e-wallet) + balances", "area": "Backend", "priority": "P0", "body": "CRUD, sync status, balance rollup." },
+        { "title": "Web: wire Rekening + Dana pages to API", "area": "Frontend", "priority": "P0", "body": "Replace mock; real balances/actions." },
+        { "title": "Transactions API (CRUD, filters, categories)", "area": "Backend", "priority": "P0", "body": "Type income/expense/transfer/credit; pagination; per-day grouping; summary." },
+        { "title": "Web: wire Transaksi page + add-transaction modal", "area": "Frontend", "priority": "P0", "body": "Real list/filters; create via global modal." },
+        { "title": "OCR adapter (mock) + receipt → transaction endpoint", "area": "Backend", "priority": "P1", "body": "OcrPort interface + MockOcr; parse → prefilled transaction." },
+        { "title": "Categories API + default seed", "area": "Backend", "priority": "P1", "body": "System + user categories with icons." },
+        { "title": "Dashboard aggregation API (net worth, cashflow, sparkline, allocation)", "area": "Backend", "priority": "P0", "body": "Computed endpoints for Beranda/Ringkasan." },
+        { "title": "Web: wire Beranda + Ringkasan dashboards", "area": "Frontend", "priority": "P0", "body": "Charts fed by aggregation API." },
+        { "title": "Budgets API", "area": "Backend", "priority": "P1", "body": "Categories with limits/period; spend rollup; 80% alert flag." },
+        { "title": "Web: wire Anggaran page + add-category", "area": "Frontend", "priority": "P1", "body": "Real budgets + create category." },
+        { "title": "Goals API", "area": "Backend", "priority": "P1", "body": "Target/current/auto-debit/status." },
+        { "title": "Web: wire Tujuan page", "area": "Frontend", "priority": "P1", "body": "Real goals + progress." },
+        { "title": "Notifications API + in-app delivery", "area": "Backend", "priority": "P1", "body": "Notification entity; mark-read; WebSocket/SSE push." },
+        { "title": "Web: wire Notifikasi page + topbar badge", "area": "Frontend", "priority": "P1", "body": "Real list + unread count." },
+        { "title": "Search API (Postgres FTS) + wire ⌘K", "area": "Backend", "priority": "P2", "body": "Index pages/accounts/investments/goals; FE command palette hits API." }
+      ]
+    },
+    {
+      "key": "E3", "title": "Wealth", "phase": 3,
+      "issues": [
+        { "title": "Investments API + portfolio P&L", "area": "Backend", "priority": "P1", "body": "Holdings, cost basis, returns." },
+        { "title": "investment_prices + MarketDataPort (mock) + refresh cron (BullMQ)", "area": "Backend", "priority": "P1", "body": "Scheduled price refresh; pluggable provider." },
+        { "title": "Realtime price push (WebSocket)", "area": "Backend", "priority": "P2", "body": "Push price/portfolio updates to clients." },
+        { "title": "Web: wire Investasi page", "area": "Frontend", "priority": "P1", "body": "Real portfolio table + live returns." },
+        { "title": "Assets API + net-worth rollup", "area": "Backend", "priority": "P1", "body": "Physical/financial assets grouped." },
+        { "title": "Web: wire Aset page", "area": "Frontend", "priority": "P1", "body": "Real grouped assets + tabs." },
+        { "title": "Liabilities API", "area": "Backend", "priority": "P1", "body": "Credit cards/loans; ratios." },
+        { "title": "Web: wire Liabilitas page", "area": "Frontend", "priority": "P1", "body": "Real liabilities + payoff bars." },
+        { "title": "Insurance API", "area": "Backend", "priority": "P2", "body": "Policies, premium, renewal." },
+        { "title": "Web: wire Asuransi page", "area": "Frontend", "priority": "P2", "body": "Real policies." }
+      ]
+    },
+    {
+      "key": "E4", "title": "Reports & Calculators", "phase": 4,
+      "issues": [
+        { "title": "Reports read-models: Ringkasan/Harian/Bulanan/Tahunan", "area": "Backend", "priority": "P1", "body": "Aggregated period reports." },
+        { "title": "Reports: Group Family / Bank / Detail", "area": "Backend", "priority": "P1", "body": "Per-member, per-bank, full transaction detail." },
+        { "title": "Reports: PNL / Balance Sheet / Cashflow / Aliran Dana", "area": "Backend", "priority": "P1", "body": "Financial statements + Sankey flow data." },
+        { "title": "Web: wire Laporan page (all 16 tabs) to API", "area": "Frontend", "priority": "P1", "body": "Tab content fed by report endpoints." },
+        { "title": "Export reports to PDF/Excel", "area": "Backend", "priority": "P2", "body": "Server-side export jobs." },
+        { "title": "Zakat Maal calculator service + wire", "area": "Backend", "priority": "P1", "body": "Deterministic 2.5% + nisab; reused by Donasi." },
+        { "title": "PPh 21 calculator service (UU HPP brackets) + wire", "area": "Backend", "priority": "P1", "body": "Progressive 5/15/25/30/35%, PTKP, biaya jabatan, zakat deduction." },
+        { "title": "Web: financial calculators parity (investasi/KPR/pensiun/tabungan/split)", "area": "Frontend", "priority": "P2", "body": "Confirm parity; optional shared calc in contracts." }
+      ]
+    },
+    {
+      "key": "E5", "title": "Family & Tools", "phase": 5,
+      "issues": [
+        { "title": "Family group + members + email invitations", "area": "Backend", "priority": "P1", "body": "Create group, invite/join, shared balance." },
+        { "title": "Admin/staff roles + scoped permissions", "area": "Backend", "priority": "P1", "body": "Input-only access, category restrictions, no private balances." },
+        { "title": "Web: wire Akun → Family + add-admin modal", "area": "Frontend", "priority": "P1", "body": "Real members/admins + invites." },
+        { "title": "Split bills + participants + share-link API", "area": "Backend", "priority": "P1", "body": "Create split, per-person split, public share link, settle." },
+        { "title": "Web: wire Split Bill page + modals", "area": "Frontend", "priority": "P1", "body": "Real splits + share/detail." },
+        { "title": "Inheritance + heirs + visibility API", "area": "Backend", "priority": "P1", "body": "Assets per category; heir access flags." },
+        { "title": "Web: wire Warisan page + add-asset modal", "area": "Frontend", "priority": "P1", "body": "Real inheritance + heirs." },
+        { "title": "Donations/Zakat records API", "area": "Backend", "priority": "P1", "body": "Records + institutions; feed tax deduction." },
+        { "title": "Web: wire Donasi & Zakat page", "area": "Frontend", "priority": "P1", "body": "Real history + calculator + record modal." },
+        { "title": "Tax records + documents API + StoragePort (MinIO)", "area": "Backend", "priority": "P1", "body": "Records, document upload/download via S3-compatible storage." },
+        { "title": "Web: wire Tax Center page", "area": "Frontend", "priority": "P1", "body": "Real records/docs + PPh calculator." },
+        { "title": "Multi-currency: FxPort (BI rates) + currency switch", "area": "Backend", "priority": "P2", "body": "Daily rates; convert displayed values." },
+        { "title": "Bank reconciliation: statement upload + parser + matching", "area": "Backend", "priority": "P2", "body": "Parse PDF/Excel per bank; match vs recorded txns; suggestions." },
+        { "title": "Web: wire Rekonsiliasi stepper to API", "area": "Frontend", "priority": "P2", "body": "Real upload/scan/match/finish flow." }
+      ]
+    },
+    {
+      "key": "E6", "title": "Integrations & AI", "phase": 6,
+      "issues": [
+        { "title": "OCR real provider (Google Vision/Textract) + BullMQ pipeline", "area": "Backend", "priority": "P2", "body": "Replace MockOcr; image storage; async processing." },
+        { "title": "Open-banking adapter (Brick/Ayoconnect) replace mock bank sync", "area": "Backend", "priority": "P2", "body": "Consent, account sync, transaction feed." },
+        { "title": "Market data real (IDX/RTI) replace mock", "area": "Backend", "priority": "P2", "body": "Live prices for stocks/funds/gold/bonds." },
+        { "title": "AI Advisor → Claude via AI SDK (streaming chat)", "area": "Backend", "priority": "P2", "body": "AiAdvisorPort; claude-sonnet-4-6 streaming; grounded on user data." },
+        { "title": "Web: wire AI Advisor page to streaming API", "area": "Frontend", "priority": "P2", "body": "Streamed responses; keep chips." },
+        { "title": "AI transaction categorization (claude-haiku-4-5)", "area": "Backend", "priority": "P2", "body": "Auto-categorize/anomaly detection." },
+        { "title": "Email/push notifications real (SendGrid/SES/FCM)", "area": "Backend", "priority": "P2", "body": "Replace mock NotificationPort channels." },
+        { "title": "Search upgrade to Meilisearch", "area": "Backend", "priority": "P2", "body": "If FTS outgrown; sync index." }
+      ]
+    },
+    {
+      "key": "E7", "title": "Hardening & Launch", "phase": 7,
+      "issues": [
+        { "title": "Encryption at rest + column-level for sensitive fields", "area": "Backend", "priority": "P2", "body": "AES-GCM/pgcrypto for account numbers, documents." },
+        { "title": "Rate limiting + throttling", "area": "Backend", "priority": "P2", "body": "@nestjs/throttler; per-route limits." },
+        { "title": "Secrets management (Vault/Doppler)", "area": "Infra", "priority": "P2", "body": "No secrets in env files in prod." },
+        { "title": "Compliance: PDP/OJK, data residency, audit retention", "area": "Infra", "priority": "P2", "body": "Indonesia region; retention policy; consent records." },
+        { "title": "Observability: pino + OpenTelemetry + Sentry + Grafana", "area": "Infra", "priority": "P2", "body": "Logs, traces, metrics, error tracking." },
+        { "title": "E2E test suite (Playwright web + supertest api)", "area": "Infra", "priority": "P2", "body": "Critical flows: auth, txn, RBAC." },
+        { "title": "Load testing (k6)", "area": "Infra", "priority": "P2", "body": "Baseline capacity + regressions." },
+        { "title": "Deploy: K8s/Swarm manifests + backups + runbook", "area": "Infra", "priority": "P2", "body": "Self-host prod; DB backups; on-call runbook." },
+        { "title": "Accessibility & i18n pass (WCAG, EN locale)", "area": "Frontend", "priority": "P2", "body": "A11y audit + language switch (id/en)." }
+      ]
+    }
+  ]
+}
