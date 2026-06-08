@@ -77,7 +77,7 @@ serta menyambungkan frontend ke Auth.js + query client.
 ## Automation Log
 
 - 2026-06-09 /task-work EPIC-001 #1 "Scaffold NestJS app at apps/api" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/90
-- 2026-06-09 /task-work EPIC-001 #2 "Prisma + Postgres + base schema & migrations" → PASS (attempts: 2), PR: **PR_URL**
+- 2026-06-09 /task-work EPIC-001 #2 "Prisma + Postgres + base schema & migrations" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/92
 
 ## Dependencies
 
