@@ -1,7 +1,4 @@
 {
-  "enabledPlugins": {
-    "ecc@ecc": true
-  },
   "permissions": {
     "deny": [
       "Bash(git push --force:*)",
@@ -20,9 +17,15 @@
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "bash .claude/hooks/guardrail.sh" }
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/guardrail.sh"
+          }
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "ecc@ecc": true
   }
 }
