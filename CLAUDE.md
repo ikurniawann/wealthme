@@ -20,6 +20,7 @@ Epic -> Plan -> Code -> Review & QA -> Security -> Test -> Deploy DEV -> Update 
 - The command lives at `.claude/commands/epic-loop.md` (also registered as the `epic-loop` skill).
 
 What it does (full algorithm in the command file):
+
 1. Reads the epic; only proceeds if `status: on-progress`.
 2. Splits it into the unchecked `- [ ]` tasks and orders them (dependency / low-risk first).
 3. For each task, runs the gates with **max 3 retries**:
@@ -33,28 +34,40 @@ What it does (full algorithm in the command file):
 
 ## Agents (`.claude/agents/`)
 
-| Agent | Role |
-|---|---|
-| `epic-orchestrator` | Drives the loop: read epic -> tasks -> coordinate agents -> retries -> status. |
-| `code-agent` | Implements ONE small task, convention-following, no secrets, no scope creep. |
-| `review-qa-agent` | Reviews the diff for correctness/quality. Returns `VERDICT: PASS/FAIL`. |
-| `security-agent` | Secrets, vulnerabilities, unsafe code, authn/authz, config risks. `VERDICT: PASS/FAIL`. |
-| `test-agent` | Runs `scripts/qa.sh` + `scripts/test.sh`. `VERDICT: PASS/FAIL`. |
-| `deploy-agent` | Runs `scripts/deploy-dev.sh` (DEV only). Refuses production. |
+| Agent               | Role                                                                                    |
+| ------------------- | --------------------------------------------------------------------------------------- |
+| `epic-orchestrator` | Drives the loop: read epic -> tasks -> coordinate agents -> retries -> status.          |
+| `code-agent`        | Implements ONE small task, convention-following, no secrets, no scope creep.            |
+| `review-qa-agent`   | Reviews the diff for correctness/quality. Returns `VERDICT: PASS/FAIL`.                 |
+| `security-agent`    | Secrets, vulnerabilities, unsafe code, authn/authz, config risks. `VERDICT: PASS/FAIL`. |
+| `test-agent`        | Runs `scripts/qa.sh` + `scripts/test.sh`. `VERDICT: PASS/FAIL`.                         |
+| `deploy-agent`      | Runs `scripts/deploy-dev.sh` (DEV only). Refuses production.                            |
 
 > Note: orchestration runs in the **main session** (via `/epic-loop`) because Claude Code sub-agents
 > cannot spawn other sub-agents. The main session delegates to the agents above via the Task tool.
 
 ## Scripts (`scripts/`)
 
-| Script | Purpose |
-|---|---|
-| `scripts/qa.sh` | Lint / static checks (`turbo run lint`). |
-| `scripts/test.sh` | Install, build (type-check), run tests. |
+| Script                      | Purpose                                                                   |
+| --------------------------- | ------------------------------------------------------------------------- |
+| `scripts/qa.sh`             | Lint / static checks (`turbo run lint`).                                  |
+| `scripts/test.sh`           | Install, build (type-check), run tests.                                   |
 | `scripts/security-check.sh` | Secret scan, committed-env check, destructive-SQL scan, dependency audit. |
-| `scripts/deploy-dev.sh` | Build + deploy to **DEV only**; refuses production targets. |
+| `scripts/deploy-dev.sh`     | Build + **backend DEV** deploy only; refuses production targets.          |
 
 Run any of them directly, e.g. `bash scripts/qa.sh`.
+
+## Deployment
+
+See `docs/DEPLOYMENT.md` for the full strategy. In short:
+
+- **Web (`apps/web`)** deploys via **Vercel Git integration** — push/PR → preview,
+  `main` → production. No script, no Action; the loop's `deploy-agent` does NOT touch it.
+- **Backend (`apps/api`)** deploys to a separate host; **DEV** goes through
+  `scripts/deploy-dev.sh` (DEV-only). Production backend deploys are a human-run,
+  approval-gated action — never the autonomous loop.
+- **CI (`.github/workflows/ci.yml`)** is a quality gate (`lint/build/test`), not a
+  deployer — it has no deploy steps.
 
 ## Epic format
 
@@ -68,9 +81,11 @@ status: on-progress
 environment: dev
 
 ## Goal
+
 Implement login, logout, and refresh token.
 
 ## Tasks
+
 - [ ] Create login endpoint
 - [ ] Create logout endpoint
 - [ ] Add refresh token
@@ -78,6 +93,7 @@ Implement login, logout, and refresh token.
 - [ ] Add tests
 
 ## Acceptance Criteria
+
 - Valid user can login
 - Invalid login returns 401
 - Refresh token works

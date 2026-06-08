@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# Deploy to the DEV environment ONLY. Refuses any production target.
+# Backend DEV deploy ONLY. Refuses any production target.
+#
+# Scope: this script deploys the BACKEND (apps/api) + infra to DEV. The web
+# frontend (apps/web) deploys automatically via Vercel's Git integration
+# (see docs/DEPLOYMENT.md) and is intentionally NOT handled here.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -19,9 +23,11 @@ echo "[deploy] target=DEV — building..."
 $PNPM install --frozen-lockfile 2>/dev/null || $PNPM install
 $PNPM turbo run build
 
-# --- DEV deploy step (extend here when DEV infra is ready) ---
-# Examples (commented until configured):
-#   vercel deploy            # preview/DEV deploy (NEVER --prod)
-#   docker compose -f docker-compose.dev.yml up -d --build
-echo "[deploy] DEV build complete. (Wire your DEV target here — preview deploy / docker compose dev.)"
+# --- Backend DEV deploy step (wire up when the API host is chosen; EPIC-001+) ---
+# Examples (commented until configured) — backend only, NEVER production:
+#   docker compose -f docker-compose.dev.yml up -d --build   # self-hosted DEV
+#   railway up --environment dev                             # Railway DEV
+#   flyctl deploy --config fly.dev.toml                      # Fly.io DEV
+# NOTE: the web frontend is NOT deployed here — Vercel Git integration handles it.
+echo "[deploy] DEV build complete. (Wire the backend DEV target here — see docs/DEPLOYMENT.md.)"
 echo "[deploy] OK (env=dev)"
