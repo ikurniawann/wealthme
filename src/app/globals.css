@@ -1,0 +1,215 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* next-themes toggles `.dark` on <html>; make the dark: variant class-based. */
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-dm-mono), ui-monospace, monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* shadcn semantic tokens */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* WealthMe brand extensions */
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-strong: var(--primary-strong);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
+  --color-brand-purple: var(--brand-purple);
+  --color-brand-purple-soft: var(--brand-purple-soft);
+  --color-brand-cyan: var(--brand-cyan);
+  --color-brand-orange: var(--brand-orange);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+}
+
+:root {
+  --radius: 0.875rem; /* 14px — matches WealthMe --radius */
+
+  --background: #f8f9fc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+  --primary-soft: #eef2ff;
+  --primary-strong: #3730a3;
+
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #eef2ff;
+  --accent-foreground: #4f46e5;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  --success: #10b981;
+  --success-foreground: #ffffff;
+  --success-soft: #dcfce7;
+  --warning: #f59e0b;
+  --warning-foreground: #ffffff;
+  --warning-soft: #fef9c3;
+  --brand-purple: #8b5cf6;
+  --brand-purple-soft: #ede9fe;
+  --brand-cyan: #06b6d4;
+  --brand-orange: #f97316;
+
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #4f46e5;
+
+  --chart-1: #4f46e5;
+  --chart-2: #10b981;
+  --chart-3: #f59e0b;
+  --chart-4: #8b5cf6;
+  --chart-5: #06b6d4;
+}
+
+.dark {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+  --card: #1e293b;
+  --card-foreground: #f1f5f9;
+  --popover: #1e293b;
+  --popover-foreground: #f1f5f9;
+
+  --primary: #6366f1;
+  --primary-foreground: #ffffff;
+  --primary-soft: #1e1b4b;
+  --primary-strong: #818cf8;
+
+  --secondary: #263348;
+  --secondary-foreground: #f1f5f9;
+  --muted: #263348;
+  --muted-foreground: #94a3b8;
+  --accent: #1e1b4b;
+  --accent-foreground: #818cf8;
+
+  --destructive: #f87171;
+  --destructive-foreground: #ffffff;
+
+  --success: #34d399;
+  --success-foreground: #052e1b;
+  --success-soft: #064e3b;
+  --warning: #fbbf24;
+  --warning-foreground: #422006;
+  --warning-soft: #422006;
+  --brand-purple: #a78bfa;
+  --brand-purple-soft: #2e1065;
+  --brand-cyan: #22d3ee;
+  --brand-orange: #fb923c;
+
+  --border: #334155;
+  --input: #334155;
+  --ring: #6366f1;
+
+  --chart-1: #818cf8;
+  --chart-2: #34d399;
+  --chart-3: #fbbf24;
+  --chart-4: #a78bfa;
+  --chart-5: #22d3ee;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 10px;
+  }
+}
+
+@utility mono {
+  font-family: var(--font-mono);
+}
+
+/* Reusable brand gradients (hero / profile / ai cards) */
+@utility gradient-wealth {
+  background-image: linear-gradient(135deg, #312e81 0%, #4338ca 55%, #6366f1 100%);
+}
+@utility gradient-emerald {
+  background-image: linear-gradient(135deg, #059669, #10b981);
+}
+@utility gradient-profile {
+  background-image: linear-gradient(135deg, #312e81, #4f46e5);
+}
+@utility gradient-ai {
+  background-image: linear-gradient(135deg, #0f172a, #1e293b);
+}
+@utility hide-scrollbar {
+  scrollbar-width: none;
+}
+
+.dark .gradient-wealth {
+  background-image: linear-gradient(135deg, #1e1b4b 0%, #312e81 55%, #4f46e5 100%);
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* OCR scan-line sweep */
+@keyframes wm-scan {
+  0% {
+    top: 8%;
+    opacity: 1;
+  }
+  80% {
+    top: 88%;
+    opacity: 1;
+  }
+  100% {
+    top: 88%;
+    opacity: 0;
+  }
+}
+.animate-scan {
+  animation: wm-scan 2s ease-in-out infinite;
+}
