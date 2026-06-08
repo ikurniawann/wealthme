@@ -1,0 +1,67 @@
+# EPIC-001: Backend Foundation
+
+status: planned
+environment: dev
+phase: 1
+priority: P0
+area: Backend
+
+## Goal
+Membangun pondasi backend NestJS (modular monolith): database + skema inti, autentikasi
+(email/password + Google) dengan JWT access/refresh, RBAC multi-tenant, audit, dan OpenAPI;
+serta menyambungkan frontend ke Auth.js + query client.
+
+## Tasks
+
+### Scaffold NestJS app at apps/api
+- [ ] `nest new apps/api` (selaras pnpm workspace)
+- [ ] ConfigModule + validasi env (Zod), logger pino, endpoint `/health`
+- [ ] Bootstrap Swagger/OpenAPI + CORS untuk web
+
+### Prisma + Postgres + base schema & migrations
+- [ ] Setup Prisma + koneksi Postgres (Docker)
+- [ ] Skema inti: `users`, `family_groups`, `members`, `accounts`, `transactions`, `categories`
+- [ ] Uang sebagai `BIGINT` rupiah; relasi + index
+- [ ] Migrasi awal + seed dari mock `apps/web/src/lib/data.ts`
+
+### Auth: email/password + JWT access/refresh + rotation
+- [ ] Hash password argon2id; endpoint register/login/logout
+- [ ] JWT access (pendek) + refresh (panjang); rotasi refresh di Redis
+- [ ] Guard `JwtAuthGuard`; `/auth/me`
+
+### Google OAuth login
+- [ ] Strategy OAuth2 Google + callback
+- [ ] Tautkan ke user berdasarkan email; buat bila belum ada
+
+### RBAC (CASL) + TenantInterceptor
+- [ ] Definisi ability per peran: owner / member / admin-staff
+- [ ] `TenantInterceptor` inject & enforce `userId` / `familyGroupId` di setiap query
+- [ ] (Opsional) Postgres RLS sebagai lapis kedua
+
+### Audit logging module
+- [ ] Interceptor mencatat mutasi (actor, action, entity, before/after ringkas) → `audit_logs`
+
+### OpenAPI/Swagger + typed client generation
+- [ ] Anotasi DTO + tag Swagger lengkap
+- [ ] Generate typed client (orval / openapi-typescript) untuk dipakai web
+
+### Web: Auth.js integration (Credentials → API) + session
+- [ ] Auth.js Credentials provider memanggil `/auth/login` API
+- [ ] Provider Google; sesi httpOnly membawa token API + refresh
+- [ ] Ganti `auth-provider.tsx` mock; proteksi route grup `(app)`
+
+### Web: API client + TanStack Query setup
+- [ ] `QueryClientProvider` + wrapper fetch ber-otentikasi (auto refresh)
+- [ ] Standar error → toast; util query/mutation keys
+
+## Acceptance Criteria
+- User valid bisa login → menerima JWT; login invalid → 401.
+- Refresh token bekerja; logout meng-invalidasi refresh token.
+- Login Google membuat/menautkan akun dengan benar.
+- Member tidak bisa mengakses resource milik user/keluarga lain (403) — scoping teruji.
+- Swagger di `/api/docs` tampil; typed client ter-generate dan dipakai web.
+- Login nyata di web menggantikan mock; sesi bertahan setelah refresh halaman.
+- Migrasi + seed berjalan; unit/e2e auth lulus.
+
+## Dependencies
+- EPIC-000 (monorepo, contracts, Docker, CI).
