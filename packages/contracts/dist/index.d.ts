@@ -31,4 +31,18 @@ declare const AuthUserSchema: z.ZodObject<{
 }>;
 type AuthUser = z.infer<typeof AuthUserSchema>;
 
-export { type AuthUser, AuthUserSchema, CONTRACTS_VERSION, type LoginInput, LoginInputSchema, type Rupiah, RupiahSchema };
+type SearchResultType = "account" | "transaction" | "category";
+interface SearchResultDto {
+    type: SearchResultType;
+    id: string;
+    label: string;
+    sub: string;
+    href: string;
+    icon: string;
+}
+interface SearchResponseDto {
+    results: SearchResultDto[];
+    query: string;
+}
+
+export { type AuthUser, AuthUserSchema, CONTRACTS_VERSION, type LoginInput, LoginInputSchema, type Rupiah, RupiahSchema, type SearchResponseDto, type SearchResultDto, type SearchResultType };
