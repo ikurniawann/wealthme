@@ -1,8 +1,15 @@
 import { PrismaClient } from "@prisma/client";
+import * as argon2 from "argon2";
 
 const prisma = new PrismaClient();
 
+const DEMO_PASSWORD = "demo1234";
+
 async function main(): Promise<void> {
+  const passwordHash = await argon2.hash(DEMO_PASSWORD, {
+    type: argon2.argon2id,
+  });
+
   // ── Family Group ────────────────────────────────────────────────────────────
 
   const family = await prisma.familyGroup.upsert({
@@ -18,14 +25,13 @@ async function main(): Promise<void> {
     update: {
       name: "Irfan Arsandi",
       avatarInitials: "IA",
-      passwordHash: null,
     },
     create: {
       id: "seed-user-irfan",
       email: "irfan.arsandi@wealthme.id",
       name: "Irfan Arsandi",
       avatarInitials: "IA",
-      passwordHash: null,
+      passwordHash,
     },
   });
 
