@@ -8,12 +8,12 @@ const envSchema = z.object({
   WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
   // Required — Prisma connects to Postgres at startup; fail fast if absent.
   DATABASE_URL: z.string().url(),
-  // Optional vars — consumed by later tasks
-  REDIS_URL: z.string().optional(),
-  JWT_SECRET: z.string().optional(),
-  JWT_EXPIRES_IN: z.string().optional(),
-  JWT_REFRESH_SECRET: z.string().optional(),
-  JWT_REFRESH_EXPIRES_IN: z.string().optional(),
+  // Auth / Redis — required by Task 3 (auth module)
+  REDIS_URL: z.string().url(),
+  JWT_SECRET: z.string().min(32),
+  JWT_EXPIRES_IN: z.string().default("15m"),
+  JWT_REFRESH_SECRET: z.string().min(32),
+  JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
   MINIO_ENDPOINT: z.string().optional(),
   MINIO_ACCESS_KEY: z.string().optional(),
   MINIO_SECRET_KEY: z.string().optional(),
