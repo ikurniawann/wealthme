@@ -1,79 +1,47 @@
 "use client";
 
+import { useEffect } from "react";
 import { toast } from "sonner";
+import { useSession, signOut } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
+
 import { SectionCard, HeroCard, CardLink } from "@/components/wm";
+import { apiFetch } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
+import { formatRupiah } from "@/lib/format";
 
-type WalletItem = {
-  icon: string;
-  iconBg: string;
-  name: string;
-  sub: string;
-  amount: string;
-  status?: string;
-  border?: boolean;
-};
+import type { AccountDto } from "@wealthme/contracts";
 
-const CASH_ITEMS: WalletItem[] = [
-  {
-    icon: "👛",
-    iconBg: "#DCFCE7",
-    name: "Dompet Fisik",
-    sub: "Cash on hand",
-    amount: "Rp 1.500.000",
-    border: true,
-  },
-  {
-    icon: "🏧",
-    iconBg: "#EEF2FF",
-    name: "Dana Darurat (Terpisah)",
-    sub: "Tabungan khusus darurat",
-    amount: "Rp 24.000.000",
-    border: false,
-  },
-];
+const EWALLET_TYPES = new Set(["ewallet"]);
+const CASH_TYPES = new Set(["cash"]);
+const DANA_TYPES = new Set(["ewallet", "cash"]);
 
-const WALLET_ITEMS: WalletItem[] = [
-  {
-    icon: "💚",
-    iconBg: "#DCFCE7",
-    name: "GoPay",
-    sub: "082345678901",
-    amount: "Rp 45.000.000",
-    status: "Active",
-    border: true,
-  },
-  {
-    icon: "🔴",
-    iconBg: "#FEE2E2",
-    name: "LinkAja",
-    sub: "081234567890",
-    amount: "Rp 19.000.000",
-    status: "Active",
-    border: false,
-  },
-];
+function WalletRow({ item, border }: { item: AccountDto; border: boolean }) {
+  const icon = EWALLET_TYPES.has(item.type) ? "💳" : "👛";
+  const iconBg = EWALLET_TYPES.has(item.type) ? "#DCFCE7" : "#EEF2FF";
 
-function WalletRow({ item }: { item: WalletItem }) {
   return (
-    <div
-      className={`flex items-center gap-3 py-3 ${
-        item.border ? "border-b" : ""
-      }`}
-    >
+    <div className={`flex items-center gap-3 py-3 ${border ? "border-b" : ""}`}>
       <div
         className="flex size-10 items-center justify-center rounded-[10px] text-[18px]"
-        style={{ background: item.iconBg }}
+        style={{ background: iconBg }}
       >
-        {item.icon}
+        {icon}
       </div>
       <div className="flex-1">
         <div className="text-[13.5px] font-semibold">{item.name}</div>
-        <div className="text-[11.5px] text-muted-foreground">{item.sub}</div>
+        <div className="text-[11.5px] text-muted-foreground">
+          {item.maskedNumber ?? item.institution ?? "—"}
+        </div>
       </div>
       <div className="text-right">
-        <div className="text-[15px] font-extrabold">{item.amount}</div>
-        {item.status && (
-          <div className="text-[11px] text-muted-foreground">{item.status}</div>
+        <div className="text-[15px] font-extrabold">
+          {formatRupiah(parseFloat(item.balance))}
+        </div>
+        {item.institution && (
+          <div className="text-[11px] text-muted-foreground">
+            {item.institution}
+          </div>
         )}
       </div>
     </div>
@@ -81,23 +49,77 @@ function WalletRow({ item }: { item: WalletItem }) {
 }
 
 export default function DanaPage() {
+  const { data: session } = useSession();
+
+  useEffect(() => {
+    if ((session as { error?: string } | null)?.error === "RefreshTokenError") {
+      void signOut({ callbackUrl: "/login" });
+    }
+  }, [session]);
+
+  const token = session?.accessToken as string | undefined;
+  const familyGroupId = session?.user?.memberships?.[0]?.familyGroupId;
+
+  const {
+    data: allAccounts,
+    isLoading,
+    isError,
+  } = useQuery<AccountDto[]>({
+    queryKey: queryKeys.accounts.all(familyGroupId ?? ""),
+    queryFn: () =>
+      apiFetch<AccountDto[]>(`/family-groups/${familyGroupId}/accounts`, {
+        token,
+      }),
+    enabled: !!token && !!familyGroupId,
+  });
+
+  const danaAccounts = (allAccounts ?? []).filter((a) =>
+    DANA_TYPES.has(a.type),
+  );
+  const cashItems = danaAccounts.filter((a) => CASH_TYPES.has(a.type));
+  const ewalletItems = danaAccounts.filter((a) => EWALLET_TYPES.has(a.type));
+  const totalBalance = danaAccounts.reduce(
+    (sum, a) => sum + parseFloat(a.balance),
+    0,
+  );
+
   return (
     <div className="space-y-4">
       <HeroCard className="gradient-emerald">
         <div className="mb-1 text-xs opacity-80">
           💵 Total Dana Tunai &amp; E-Wallet
         </div>
-        <div className="text-[28px] font-black">Rp 68.450.000</div>
-        <div className="mt-1.5 text-xs text-[#86EFAC]">
-          ▲ 5,20% dari bulan lalu
+        <div className="text-[28px] font-black">
+          {isLoading ? "Memuat..." : formatRupiah(totalBalance)}
         </div>
+        {!isLoading && (
+          <div className="mt-1.5 text-xs text-[#86EFAC]">
+            {danaAccounts.length} akun terhubung
+          </div>
+        )}
       </HeroCard>
 
-      <SectionCard title="Dompet & Cash" bodyClassName="-my-3">
-        {CASH_ITEMS.map((item) => (
-          <WalletRow key={item.name} item={item} />
-        ))}
-      </SectionCard>
+      {isError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive bg-destructive/5 px-4 py-2.5 text-[13px] text-destructive"
+        >
+          <span className="font-semibold">Kesalahan: </span>Gagal memuat data.
+          Silakan refresh halaman.
+        </div>
+      )}
+
+      {cashItems.length > 0 && (
+        <SectionCard title="Dompet &amp; Cash" bodyClassName="-my-3">
+          {cashItems.map((item, i) => (
+            <WalletRow
+              key={item.id}
+              item={item}
+              border={i < cashItems.length - 1}
+            />
+          ))}
+        </SectionCard>
+      )}
 
       <SectionCard
         title="E-Wallet"
@@ -111,8 +133,22 @@ export default function DanaPage() {
         }
         bodyClassName="-my-3"
       >
-        {WALLET_ITEMS.map((item) => (
-          <WalletRow key={item.name} item={item} />
+        {isLoading && (
+          <div className="py-3 text-[13px] text-muted-foreground">
+            Memuat...
+          </div>
+        )}
+        {!isLoading && ewalletItems.length === 0 && (
+          <div className="py-3 text-[13px] text-muted-foreground">
+            Belum ada e-wallet.
+          </div>
+        )}
+        {ewalletItems.map((item, i) => (
+          <WalletRow
+            key={item.id}
+            item={item}
+            border={i < ewalletItems.length - 1}
+          />
         ))}
       </SectionCard>
     </div>

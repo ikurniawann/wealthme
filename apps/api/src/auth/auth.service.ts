@@ -25,12 +25,19 @@ export interface TokenPair {
   refreshToken: string;
 }
 
+type MembershipInfo = {
+  id: string;
+  familyGroupId: string;
+  role: string;
+};
+
 type UserProfile = {
   id: string;
   email: string;
   name: string;
   avatarInitials: string | null;
   createdAt: Date;
+  memberships: MembershipInfo[];
 };
 
 @Injectable()
@@ -98,7 +105,7 @@ export class AuthService {
   }
 
   async getMe(userId: string): Promise<UserProfile> {
-    return this.prisma.user.findUniqueOrThrow({
+    const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: {
         id: true,
@@ -106,8 +113,16 @@ export class AuthService {
         name: true,
         avatarInitials: true,
         createdAt: true,
+        memberships: {
+          select: {
+            id: true,
+            familyGroupId: true,
+            role: true,
+          },
+        },
       },
     });
+    return user;
   }
 
   async loginWithGoogle(profile: GoogleProfile): Promise<TokenPair> {

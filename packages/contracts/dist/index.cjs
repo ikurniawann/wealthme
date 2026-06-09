@@ -20,10 +20,14 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/index.ts
 var index_exports = {};
 __export(index_exports, {
+  AccountDtoSchema: () => AccountDtoSchema,
+  AccountTypeSchema: () => AccountTypeSchema,
   AuthUserSchema: () => AuthUserSchema,
   CONTRACTS_VERSION: () => CONTRACTS_VERSION,
+  CreateAccountInputSchema: () => CreateAccountInputSchema,
   LoginInputSchema: () => LoginInputSchema,
-  RupiahSchema: () => RupiahSchema
+  RupiahSchema: () => RupiahSchema,
+  UpdateAccountInputSchema: () => UpdateAccountInputSchema
 });
 module.exports = __toCommonJS(index_exports);
 
@@ -43,10 +47,45 @@ var AuthUserSchema = import_zod2.z.object({
   name: import_zod2.z.string(),
   email: import_zod2.z.string().email()
 });
+
+// src/accounts/index.ts
+var import_zod3 = require("zod");
+var AccountTypeSchema = import_zod3.z.enum([
+  "bank",
+  "ewallet",
+  "cash",
+  "investment",
+  "property"
+]);
+var CreateAccountInputSchema = import_zod3.z.object({
+  name: import_zod3.z.string().min(1),
+  type: AccountTypeSchema,
+  institution: import_zod3.z.string().optional(),
+  maskedNumber: import_zod3.z.string().optional(),
+  balance: import_zod3.z.number().int(),
+  currency: import_zod3.z.string().default("IDR")
+});
+var UpdateAccountInputSchema = CreateAccountInputSchema.partial();
+var AccountDtoSchema = import_zod3.z.object({
+  id: import_zod3.z.string(),
+  familyGroupId: import_zod3.z.string(),
+  name: import_zod3.z.string(),
+  type: AccountTypeSchema,
+  institution: import_zod3.z.string().nullable(),
+  maskedNumber: import_zod3.z.string().nullable(),
+  balance: import_zod3.z.string(),
+  currency: import_zod3.z.string(),
+  createdAt: import_zod3.z.string(),
+  updatedAt: import_zod3.z.string()
+});
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  AccountDtoSchema,
+  AccountTypeSchema,
   AuthUserSchema,
   CONTRACTS_VERSION,
+  CreateAccountInputSchema,
   LoginInputSchema,
-  RupiahSchema
+  RupiahSchema,
+  UpdateAccountInputSchema
 });

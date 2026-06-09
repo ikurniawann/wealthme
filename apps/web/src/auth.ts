@@ -38,6 +38,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             id: string;
             email: string;
             name: string;
+            memberships?: Array<{
+              id: string;
+              familyGroupId: string;
+              role: string;
+            }>;
           };
           return {
             id: user.id,
@@ -45,6 +50,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             name: user.name,
             accessToken: tokens.accessToken,
             refreshToken: tokens.refreshToken,
+            memberships: user.memberships ?? [],
           };
         } catch {
           return null;
@@ -65,6 +71,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.refreshToken = (user as { refreshToken?: string }).refreshToken;
         token.userId = user.id;
         token.accessTokenExpiresAt = Date.now() + ACCESS_TOKEN_TTL_MS;
+        token.memberships =
+          (
+            user as {
+              memberships?: Array<{
+                id: string;
+                familyGroupId: string;
+                role: string;
+              }>;
+            }
+          ).memberships ?? [];
         return token;
       }
 
@@ -84,9 +100,26 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             token.accessToken = tokens.accessToken;
             token.refreshToken = tokens.refreshToken;
             token.accessTokenExpiresAt = Date.now() + ACCESS_TOKEN_TTL_MS;
+
+            const meRes = await fetch(`${API_URL}/auth/me`, {
+              headers: { Authorization: `Bearer ${tokens.accessToken}` },
+            });
+            if (meRes.ok) {
+              const me = (await meRes.json()) as {
+                id: string;
+                memberships?: Array<{
+                  id: string;
+                  familyGroupId: string;
+                  role: string;
+                }>;
+              };
+              token.userId = me.id;
+              token.memberships = me.memberships ?? [];
+            }
           }
-        } catch {
-          /* keep existing token */
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return { ...token, error: `GoogleAuthError: ${msg}` };
         }
         return token;
       }
@@ -125,6 +158,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         accessToken: token.accessToken as string | undefined,
         userId: token.userId as string | undefined,
         error: token.error as string | undefined,
+        user: {
+          ...session.user,
+          memberships: token.memberships ?? [],
+        },
       };
     },
   },

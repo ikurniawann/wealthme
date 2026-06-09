@@ -5,6 +5,9 @@ declare module "next-auth" {
     accessToken?: string;
     userId?: string;
     error?: string;
+    user: DefaultSession["user"] & {
+      memberships?: Array<{ id: string; familyGroupId: string; role: string }>;
+    };
   }
 }
 
@@ -15,5 +18,6 @@ declare module "next-auth/jwt" {
     userId?: string;
     accessTokenExpiresAt?: number;
     error?: string;
+    memberships?: Array<{ id: string; familyGroupId: string; role: string }>;
   }
 }

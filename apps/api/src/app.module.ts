@@ -4,6 +4,7 @@ import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
 
+import { AccountsModule } from "./accounts/accounts.module";
 import { AuditInterceptor } from "./audit/audit.interceptor";
 import { AuditModule } from "./audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
@@ -35,6 +36,7 @@ import { RedisModule } from "./redis/redis.module";
     PrismaModule,
     HealthModule,
     AuthModule,
+    AccountsModule,
     CaslModule,
     CommonModule,
     AuditModule,

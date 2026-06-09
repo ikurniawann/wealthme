@@ -226,6 +226,7 @@ describe("AuthService", () => {
         name: "Jane Doe",
         avatarInitials: "JD",
         createdAt: new Date("2024-01-01"),
+        memberships: [{ id: "m-1", familyGroupId: "fg-1", role: "owner" }],
       };
       mockPrisma.user.findUniqueOrThrow.mockResolvedValue(profile);
 
@@ -243,6 +244,13 @@ describe("AuthService", () => {
           name: true,
           avatarInitials: true,
           createdAt: true,
+          memberships: {
+            select: {
+              id: true,
+              familyGroupId: true,
+              role: true,
+            },
+          },
         },
       });
     });
