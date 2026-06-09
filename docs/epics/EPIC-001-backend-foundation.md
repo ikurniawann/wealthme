@@ -38,10 +38,10 @@ serta menyambungkan frontend ke Auth.js + query client.
 - [x] Strategy OAuth2 Google + callback
 - [x] Tautkan ke user berdasarkan email; buat bila belum ada
 
-### RBAC (CASL) + TenantInterceptor
+### RBAC (CASL) + TenantInterceptor ✅
 
-- [ ] Definisi ability per peran: owner / member / admin-staff
-- [ ] `TenantInterceptor` inject & enforce `userId` / `familyGroupId` di setiap query
+- [x] Definisi ability per peran: owner / member / admin-staff
+- [x] `TenantInterceptor` inject & enforce `userId` / `familyGroupId` di setiap query
 - [ ] (Opsional) Postgres RLS sebagai lapis kedua
 
 ### Audit logging module
@@ -80,6 +80,7 @@ serta menyambungkan frontend ke Auth.js + query client.
 - 2026-06-09 /task-work EPIC-001 #2 "Prisma + Postgres + base schema & migrations" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/92
 - 2026-06-09 /task-work EPIC-001 #3 "Auth: email/password + JWT access/refresh + rotation" → PASS (attempts: 3), PR: https://github.com/andrsrjld/wealthme-web/pull/94
 - 2026-06-09 /epic-loop EPIC-001 #4 "Google OAuth login" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/95
+- 2026-06-09 /epic-loop EPIC-001 #5 "RBAC (CASL) + TenantInterceptor" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/96
 
 ## Dependencies
 
