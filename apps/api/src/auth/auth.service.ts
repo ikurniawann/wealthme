@@ -18,6 +18,7 @@ import { RedisService } from "../redis/redis.service";
 import type { Env } from "../config/env";
 import type { LoginDto } from "./dto/login.dto";
 import type { RegisterDto } from "./dto/register.dto";
+import type { GoogleProfile } from "./strategies/google.strategy";
 
 export interface TokenPair {
   accessToken: string;
@@ -107,6 +108,44 @@ export class AuthService {
         createdAt: true,
       },
     });
+  }
+
+  async loginWithGoogle(profile: GoogleProfile): Promise<TokenPair> {
+    // Look up by googleId first to detect already-linked accounts.
+    const byGoogleId = await this.prisma.user.findUnique({
+      where: { googleId: profile.googleId },
+    });
+    if (byGoogleId) {
+      return this.issueTokens(byGoogleId.id, byGoogleId.email);
+    }
+
+    // Check for an existing email-only account — prevent account-takeover.
+    const byEmail = await this.prisma.user.findUnique({
+      where: { email: profile.email },
+    });
+    if (byEmail) {
+      throw new ConflictException(
+        "An account with this email already exists. Please log in with your password and link Google from your profile settings.",
+      );
+    }
+
+    const initials = profile.name
+      .split(" ")
+      .slice(0, 2)
+      .map((w) => w[0]?.toUpperCase() ?? "")
+      .join("");
+
+    const created = await this.prisma.user.create({
+      data: {
+        email: profile.email,
+        name: profile.name,
+        googleId: profile.googleId,
+        passwordHash: null,
+        avatarInitials: initials,
+      },
+    });
+
+    return this.issueTokens(created.id, created.email);
   }
 
   private async issueTokens(userId: string, email: string): Promise<TokenPair> {

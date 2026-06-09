@@ -33,10 +33,10 @@ serta menyambungkan frontend ke Auth.js + query client.
 - [x] JWT access (pendek) + refresh (panjang); rotasi refresh di Redis
 - [x] Guard `JwtAuthGuard`; `/auth/me`
 
-### Google OAuth login
+### Google OAuth login ✅
 
-- [ ] Strategy OAuth2 Google + callback
-- [ ] Tautkan ke user berdasarkan email; buat bila belum ada
+- [x] Strategy OAuth2 Google + callback
+- [x] Tautkan ke user berdasarkan email; buat bila belum ada
 
 ### RBAC (CASL) + TenantInterceptor
 
@@ -79,6 +79,7 @@ serta menyambungkan frontend ke Auth.js + query client.
 - 2026-06-09 /task-work EPIC-001 #1 "Scaffold NestJS app at apps/api" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/90
 - 2026-06-09 /task-work EPIC-001 #2 "Prisma + Postgres + base schema & migrations" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/92
 - 2026-06-09 /task-work EPIC-001 #3 "Auth: email/password + JWT access/refresh + rotation" → PASS (attempts: 3), PR: https://github.com/andrsrjld/wealthme-web/pull/94
+- 2026-06-09 /epic-loop EPIC-001 #4 "Google OAuth login" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/95
 
 ## Dependencies
 
