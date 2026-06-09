@@ -25,8 +25,9 @@ WealthMe-specific slice. Run them **from this main session** (sub-agents cannot 
 and aggregate their findings into one verdict per gate.
 
 - **Review gate** = `ecc:react-reviewer` (when `.tsx/.jsx` changed) + `ecc:typescript-reviewer`
-  (when `.ts/.tsx` changed) + `review-qa-agent` (acceptance criteria + WM conventions + tenant scoping).
-  **FAIL** if any reviewer reports a CRITICAL/HIGH finding or returns `VERDICT: FAIL`.
+  (when `.ts/.tsx` changed) + `nestjs-best-practices` skill (when `apps/api` `.ts` files with NestJS patterns changed)
+  - `review-qa-agent` (acceptance criteria + WM conventions + tenant scoping).
+    **FAIL** if any reviewer reports a CRITICAL/HIGH finding or returns `VERDICT: FAIL`.
 - **Security gate** = `ecc:security-reviewer` + `security-agent` (runs `scripts/security-check.sh`).
   **FAIL** if any CRITICAL/HIGH finding, a `VERDICT: FAIL`, or the script exits non-zero.
 - **Test gate** = `test-agent` (`scripts/qa.sh` then `scripts/test.sh`). **FAIL** if a script exits non-zero.
