@@ -1,6 +1,6 @@
 # EPIC-002: Core Money Tracking (MVP)
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 phase: 2
 priority: P0
@@ -101,6 +101,7 @@ sehingga aplikasi benar-benar bisa dipakai mencatat dan memantau keuangan. **Ini
 - 2026-06-09 /epic-loop EPIC-002 #5 "Goals" → PASS (attempts: 1), PR: https://github.com/andrsrjld/wealthme-web/pull/107
 - 2026-06-09 /epic-loop EPIC-002 #6 "Notifications" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/108
 - 2026-06-10 /epic-loop EPIC-002 #7 "Search" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/109
+- 2026-06-10 /epic-loop EPIC-002 retry — task-1 (Accounts) PR: #113 MERGED; tasks 2-6 consolidated (TOCTOU+DoS fixes applied) PR: #115 MERGED; qa ✅ test 50/50 ✅ security ✅ deploy-dev ✅; status → ready-for-qa
 
 ## Dependencies
 
