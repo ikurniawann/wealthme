@@ -25,8 +25,9 @@ Run ECC + custom agents **from this main session** (sub-agents cannot spawn sub-
 findings into one verdict per gate.
 
 - **Review gate** = `ecc:react-reviewer` (when `.tsx/.jsx` changed) + `ecc:typescript-reviewer`
-  (when `.ts/.tsx` changed) + `review-qa-agent` (acceptance criteria + WM conventions + tenant scoping).
-  **FAIL** on any CRITICAL/HIGH finding or `VERDICT: FAIL`.
+  (when `.ts/.tsx` changed) + `nestjs-best-practices` skill (when `apps/api` `.ts` files with NestJS patterns changed)
+  - `review-qa-agent` (acceptance criteria + WM conventions + tenant scoping).
+    **FAIL** on any CRITICAL/HIGH finding or `VERDICT: FAIL`.
 - **Security gate** = `ecc:security-reviewer` + `security-agent` (runs `scripts/security-check.sh`).
   **FAIL** on any CRITICAL/HIGH finding, `VERDICT: FAIL`, or non-zero script exit.
 - **Test gate** = `test-agent` (`scripts/qa.sh` then `scripts/test.sh`). **FAIL** on non-zero exit.

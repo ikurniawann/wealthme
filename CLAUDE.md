@@ -24,7 +24,8 @@ Priority order:
 3. RTK memory/context
 4. ECC agents
 5. ECC skills
-6. Direct repository inspection
+6. MCP tools (Context7, GitHub, Playwright, Exa, Memory)
+7. Direct repository inspection
 
 Read only the files necessary to complete the task.
 Avoid repository-wide scans unless explicitly required.
@@ -33,54 +34,153 @@ Goal: Minimize token usage · Reduce context consumption · Improve execution sp
 
 ---
 
+## MCP Tool Routing
+
+Use MCP tools proactively — they are faster and cheaper than free-form web searches or manual inspection.
+
+| MCP                     | Tool prefix                              | When to use                                                                                                                              |
+| ----------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| **Context7**            | `mcp__plugin_ecc_context7__*`            | Library/framework docs **before** implementing anything library-specific (NestJS decorators, Next.js APIs, shadcn props, Prisma methods) |
+| **GitHub**              | `mcp__plugin_ecc_github__*`              | Issue queries, PR reviews, file contents from GitHub — prefer over `gh` CLI for read queries                                             |
+| **Playwright**          | `mcp__plugin_ecc_playwright__*`          | Browser-based QA, screenshot verification, E2E flows in a real browser                                                                   |
+| **Exa**                 | `mcp__plugin_ecc_exa__*`                 | Web research when Context7 + GitHub search are insufficient                                                                              |
+| **Memory**              | `mcp__plugin_ecc_memory__*`              | Store cross-session patterns, architectural decisions, team conventions                                                                  |
+| **Sequential Thinking** | `mcp__plugin_ecc_sequential-thinking__*` | Complex multi-step architectural reasoning; use before writing a plan                                                                    |
+| **Next DevTools**       | `mcp__next-devtools__*`                  | Next.js 16 diagnostics, cache inspection, component tracing                                                                              |
+
+**Research priority for implementation tasks:**
+
+1. Context7 docs → 2. GitHub code search → 3. Exa web → 4. Repository inspection
+
+---
+
 ## ECC Components
 
 ### Reused ECC Agents (do not duplicate)
 
-| Agent | Purpose |
-|-------|---------|
-| `planner` | Epic task breakdown and feature planning |
-| `react-reviewer` | TSX/React code review (mandatory after edits) |
-| `typescript-reviewer` | TypeScript type safety review |
-| `code-reviewer` | General code quality review |
-| `security-reviewer` | Security audit before commits |
-| `tdd-guide` | Test-first development |
-| `react-build-resolver` | Broken Next.js/React builds |
-| `build-error-resolver` | TypeScript/compile errors |
-| `e2e-runner` | Critical user flow testing |
-| `refactor-cleaner` | Dead code cleanup |
-| `performance-optimizer` | Render and bundle performance |
-| `loop-operator` | Loop management and safety |
-| `architect` | System design decisions |
+**Frontend / Universal**
+
+| Agent                   | Purpose                                       |
+| ----------------------- | --------------------------------------------- |
+| `planner`               | Epic task breakdown and feature planning      |
+| `architect`             | System design decisions                       |
+| `react-reviewer`        | TSX/React code review (mandatory after edits) |
+| `typescript-reviewer`   | TypeScript type safety review                 |
+| `code-reviewer`         | General code quality review                   |
+| `code-simplifier`       | Simplify/clean up recently modified code      |
+| `security-reviewer`     | Security audit before commits                 |
+| `tdd-guide`             | Test-first development                        |
+| `react-build-resolver`  | Broken Next.js/React builds                   |
+| `build-error-resolver`  | TypeScript/compile errors                     |
+| `e2e-runner`            | Critical user flow testing                    |
+| `refactor-cleaner`      | Dead code cleanup                             |
+| `performance-optimizer` | Render and bundle performance                 |
+| `loop-operator`         | Loop management and safety                    |
+| `a11y-architect`        | WCAG 2.2 accessibility audit                  |
+| `docs-lookup`           | Library/API docs via Context7                 |
+
+**Backend (NestJS / API)**
+
+| Agent                             | Purpose                                   |
+| --------------------------------- | ----------------------------------------- |
+| `ecc:nestjs-best-practices` skill | NestJS module/service/controller review   |
+| `database-reviewer`               | SQL queries, schema design, Prisma safety |
+
+**Quality & Docs**
+
+| Agent                   | Purpose                                              |
+| ----------------------- | ---------------------------------------------------- |
+| `silent-failure-hunter` | Swallowed errors, bad fallbacks, missing propagation |
+| `pr-test-analyzer`      | Test coverage completeness review for PRs            |
+| `doc-updater`           | Update codemaps, README, guides after changes        |
+| `comment-analyzer`      | Accuracy and freshness of code comments              |
+| `type-design-analyzer`  | Type encapsulation and invariant expression          |
 
 ### Reused ECC Commands / Skills
 
-| Command | Use for |
-|---------|---------|
-| `/ecc:plan` | Feature planning (wait for confirm before coding) |
-| `/ecc:react-review` | Mandatory post-edit React/TSX review |
-| `/ecc:react-test` | TDD with React Testing Library |
-| `/ecc:react-build` | Build failure recovery |
-| `/ecc:security-scan` | Pre-commit security check |
-| `/ecc:orch-add-feature` | End-to-end feature orchestration |
-| `/ecc:orch-fix-defect` | Bug fix orchestration |
-| `/ecc:loop-start` | Managed loop scaffolding |
-| `/ecc:santa-loop` | Dual-review convergence |
-| `/ecc:prp-implement` | Implementation with validation loops |
-| `shadcn` skill | Base UI component work |
-| `frontend-design` skill | UI/layout polish |
-| `vercel:nextjs` skill | Next.js 16 App Router specifics |
+**Planning & Architecture**
+
+| Command           | Use for                                                          |
+| ----------------- | ---------------------------------------------------------------- |
+| `/ecc:plan`       | Feature planning (wait for confirm before coding)                |
+| `/ecc:blueprint`  | Architecture blueprint — concrete files, interfaces, build order |
+| `/ecc:api-design` | REST/OpenAPI design before implementation                        |
+| `/ecc:prp-plan`   | Plan-Review-Plan cycle for complex tasks                         |
+| `/ecc:prp-prd`    | Generate a PRD from a brief                                      |
+
+**Implementation**
+
+| Command                        | Use for                                        |
+| ------------------------------ | ---------------------------------------------- |
+| `/ecc:prp-implement`           | Implementation with validation loops           |
+| `/ecc:orch-add-feature`        | End-to-end feature orchestration               |
+| `/ecc:orch-fix-defect`         | Bug fix orchestration                          |
+| `/ecc:orch-change-feature`     | Feature modification orchestration             |
+| `/ecc:nestjs-patterns`         | NestJS module/service/controller patterns      |
+| `/ecc:database-migrations`     | Safe DB migration patterns                     |
+| `/ecc:prisma-patterns`         | Prisma ORM query patterns                      |
+| `/ecc:postgres-patterns`       | PostgreSQL query/schema patterns               |
+| `shadcn` skill                 | Base UI component work                         |
+| `frontend-design` skill        | UI/layout polish                               |
+| `vercel:nextjs` skill          | Next.js 16 App Router specifics                |
+| `vercel:next-cache-components` | Next.js caching strategy                       |
+| `vercel:auth` skill            | Authentication patterns (Auth.js / Supabase)   |
+| `vercel:vercel-functions`      | Edge/serverless function patterns              |
+| `nestjs-best-practices` skill  | NestJS guards, pipes, interceptors, decorators |
+| `nestjs-expert` skill          | Deep NestJS architecture (advanced)            |
+
+**Review & Quality**
+
+| Command              | Use for                                     |
+| -------------------- | ------------------------------------------- |
+| `/ecc:react-review`  | Mandatory post-edit React/TSX review        |
+| `/ecc:react-test`    | TDD with React Testing Library              |
+| `/ecc:tdd-workflow`  | Full TDD red-green-refactor cycle           |
+| `/ecc:code-review`   | General code review (low/medium/high/ultra) |
+| `/simplify`          | Simplify recently changed code              |
+| `/ecc:quality-gate`  | Pre-merge quality gate                      |
+| `/ecc:test-coverage` | Coverage analysis and gap identification    |
+| `/ecc:prp-commit`    | Validate before committing                  |
+| `/ecc:prp-pr`        | Validate before opening a PR                |
+
+**Build & Deploy**
+
+| Command               | Use for                          |
+| --------------------- | -------------------------------- |
+| `/ecc:react-build`    | Build failure recovery           |
+| `/ecc:loop-start`     | Managed loop scaffolding         |
+| `/ecc:santa-loop`     | Dual-review convergence loop     |
+| `vercel:deploy` skill | Vercel deployment management     |
+| `vercel:env` skill    | Environment variable management  |
+| `vercel:status` skill | Deployment status and monitoring |
+
+**Security & Audit**
+
+| Command              | Use for                          |
+| -------------------- | -------------------------------- |
+| `/ecc:security-scan` | Pre-commit security check        |
+| `/security-review`   | Deep OWASP-style security review |
+
+**Docs & Maintenance**
+
+| Command                | Use for                                           |
+| ---------------------- | ------------------------------------------------- |
+| `/ecc:update-docs`     | Update README and guides after changes            |
+| `/ecc:update-codemaps` | Update `docs/CODEMAPS/*` after structural changes |
+| `/ecc:refactor-clean`  | Dead code cleanup                                 |
+| `/ecc:prune`           | Remove dead/unused code                           |
+| `/ecc:checkpoint`      | Save progress checkpoint mid-task                 |
 
 ### Custom Project Agents (created for this repo)
 
-| Agent | File | Purpose |
-|-------|------|---------|
-| `epic-orchestrator` | `.claude/agents/epic-orchestrator.md` | Reads docs/epics/, drives the task loop |
-| `code-agent` | `.claude/agents/code-agent.md` | Implements tasks (WM-conventions-aware) |
-| `review-qa-agent` | `.claude/agents/review-qa-agent.md` | Project-specific QA: acceptance criteria + WM conventions + tenant scoping (complements `ecc:react-reviewer`/`ecc:typescript-reviewer`) |
-| `test-agent` | `.claude/agents/test-agent.md` | Runs scripts/test.sh + scripts/qa.sh |
-| `deploy-agent` | `.claude/agents/deploy-agent.md` | DEV-only deploy via scripts/deploy-dev.sh |
-| `security-agent` | `.claude/agents/security-agent.md` | Runs scripts/security-check.sh + tenant-scoping (complements `ecc:security-reviewer`) |
+| Agent               | File                                  | Purpose                                                                                                                                 |
+| ------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `epic-orchestrator` | `.claude/agents/epic-orchestrator.md` | Reads docs/epics/, drives the task loop                                                                                                 |
+| `code-agent`        | `.claude/agents/code-agent.md`        | Implements tasks (WM-conventions-aware)                                                                                                 |
+| `review-qa-agent`   | `.claude/agents/review-qa-agent.md`   | Project-specific QA: acceptance criteria + WM conventions + tenant scoping (complements `ecc:react-reviewer`/`ecc:typescript-reviewer`) |
+| `test-agent`        | `.claude/agents/test-agent.md`        | Runs scripts/test.sh + scripts/qa.sh                                                                                                    |
+| `deploy-agent`      | `.claude/agents/deploy-agent.md`      | DEV-only deploy via scripts/deploy-dev.sh                                                                                               |
+| `security-agent`    | `.claude/agents/security-agent.md`    | Runs scripts/security-check.sh + tenant-scoping (complements `ecc:security-reviewer`)                                                   |
 
 > **How the gates use ECC.** The orchestrator/commands run from the main session and invoke the ECC
 > reviewers directly (sub-agents cannot spawn sub-agents). Generic React/TS/security quality is done by
@@ -90,11 +190,11 @@ Goal: Minimize token usage · Reduce context consumption · Improve execution sp
 
 ### Custom Commands
 
-| Command | File | Purpose |
-|---------|------|---------|
-| `/epic-loop` | `.claude/commands/epic-loop.md` | Run a full epic end-to-end (all tasks) with ECC-wired gates, DEV deploy |
+| Command      | File                            | Purpose                                                                                     |
+| ------------ | ------------------------------- | ------------------------------------------------------------------------------------------- |
+| `/epic-loop` | `.claude/commands/epic-loop.md` | Run a full epic end-to-end (all tasks) with ECC-wired gates, DEV deploy                     |
 | `/task-work` | `.claude/commands/task-work.md` | Work ONE task (`### group`) from an epic → ECC gates → auto branch/push/PR to `development` |
-| `/epic-new` | `.claude/commands/epic-new.md` | `/ecc:plan` → write a local `docs/epics/EPIC-XXX` file only (push/sync to GitHub manually) |
+| `/epic-new`  | `.claude/commands/epic-new.md`  | `/ecc:plan` → write a local `docs/epics/EPIC-XXX` file only (push/sync to GitHub manually)  |
 
 ---
 
@@ -136,17 +236,21 @@ environment: dev
 retries: 0
 
 ## Goal
+
 Describe the goal.
 
 ## Tasks
+
 - [ ] Task 1
 - [ ] Task 2
 
 ## Acceptance Criteria
+
 - Criteria 1
 - Criteria 2
 
 ## Automation Log
+
 Append automation results here.
 ```
 
@@ -157,17 +261,17 @@ backlog → on-progress → coding → review → testing → deploying-dev → 
                                                                    ↘ blocked (on failure)
 ```
 
-| Status | Meaning |
-|--------|---------|
-| `backlog` | Ignored by automation |
-| `on-progress` | Will be processed |
-| `coding` | Currently implementing |
-| `review` | Currently reviewing |
-| `testing` | Currently testing |
-| `deploying-dev` | Deploying to DEV |
-| `ready-for-qa` | All tasks passed — human QA required |
-| `blocked` | Failed after max retries — human action required |
-| `done` | Completed — ignored by automation |
+| Status          | Meaning                                          |
+| --------------- | ------------------------------------------------ |
+| `backlog`       | Ignored by automation                            |
+| `on-progress`   | Will be processed                                |
+| `coding`        | Currently implementing                           |
+| `review`        | Currently reviewing                              |
+| `testing`       | Currently testing                                |
+| `deploying-dev` | Deploying to DEV                                 |
+| `ready-for-qa`  | All tasks passed — human QA required             |
+| `blocked`       | Failed after max retries — human action required |
+| `done`          | Completed — ignored by automation                |
 
 ---
 
@@ -208,6 +312,7 @@ Record: reason · logs · recommended action
 **Allowed:** DEV deployment only (`scripts/deploy-dev.sh`)
 
 **Forbidden:**
+
 - Production deployment
 - Production infrastructure changes
 - Force push
@@ -223,6 +328,7 @@ Record: reason · logs · recommended action
 ## Security Rules
 
 Never:
+
 - Commit secrets
 - Print credentials
 - Disable security checks
@@ -237,40 +343,107 @@ Run security review before deployment.
 
 ## Scripts
 
-| Script | Purpose |
-|--------|---------|
-| `scripts/test.sh` | Lint + TypeScript + Build |
-| `scripts/qa.sh` | Formatting, bugs, unsafe patterns |
+| Script                      | Purpose                                   |
+| --------------------------- | ----------------------------------------- |
+| `scripts/test.sh`           | Lint + TypeScript + Build                 |
+| `scripts/qa.sh`             | Formatting, bugs, unsafe patterns         |
 | `scripts/security-check.sh` | Secrets, auth risks, destructive commands |
-| `scripts/deploy-dev.sh` | DEV-only deployment (refuses production) |
+| `scripts/deploy-dev.sh`     | DEV-only deployment (refuses production)  |
 
 ---
 
 ## Task → ECC Routing
 
-| Task | Use |
-|------|-----|
-| Plan a feature | `/ecc:plan`, `planner` agent |
-| Generate a new epic (local) | `/epic-new "<feature>"` (writes `docs/epics/`, push manually) |
-| Work ONE epic task → PR | `/task-work EPIC-XXX <n>` (ECC gates → branch/push/PR to `development`) |
-| Run a whole epic | `/epic-loop docs/epics/EPIC-XXX.md` (set `status: on-progress` first) |
-| Port/build a WealthMe page | `code-agent` + `shadcn` skill |
-| Review React/TSX | `/ecc:react-review` (MANDATORY after edits) |
-| Fix failing build | `/ecc:react-build` |
-| Write tests first | `/ecc:react-test`, `tdd-guide` agent |
-| Accessibility | `ecc:accessibility`, `a11y-architect` agent |
-| Next.js 16 specifics | `vercel:nextjs`, `vercel:next-cache-components` |
-| shadcn / Base UI | `shadcn` skill — use `render={<el/>}`, NOT `asChild` |
-| Library/API docs | `docs-lookup` agent (Context7) |
-| Performance | `performance-optimizer` agent |
-| Dead code cleanup | `/ecc:refactor-clean` |
-| Full feature end-to-end | `/ecc:orch-add-feature` |
+**Epic & Planning**
+
+| Task                        | Use                                                                     |
+| --------------------------- | ----------------------------------------------------------------------- |
+| Plan a feature              | `/ecc:plan`, `planner` agent                                            |
+| Design architecture         | `/ecc:blueprint`, `architect` agent, `/ecc:api-design`                  |
+| Generate a new epic (local) | `/epic-new "<feature>"` (writes `docs/epics/`, push manually)           |
+| Work ONE epic task → PR     | `/task-work EPIC-XXX <n>` (ECC gates → branch/push/PR to `development`) |
+| Run a whole epic            | `/epic-loop docs/epics/EPIC-XXX.md` (set `status: on-progress` first)   |
+
+**Frontend (Next.js / React)**
+
+| Task                       | Use                                                    |
+| -------------------------- | ------------------------------------------------------ |
+| Port/build a WealthMe page | `code-agent` + `shadcn` skill                          |
+| Review React/TSX           | `/ecc:react-review` (MANDATORY after edits)            |
+| Fix failing build          | `/ecc:react-build`                                     |
+| Write tests first          | `/ecc:react-test`, `tdd-guide` agent                   |
+| Accessibility              | `/ecc:accessibility`, `a11y-architect` agent           |
+| Next.js 16 specifics       | `vercel:nextjs`, `vercel:next-cache-components`        |
+| shadcn / Base UI           | `shadcn` skill — use `render={<el/>}`, NOT `asChild`   |
+| Performance                | `performance-optimizer` agent                          |
+| Auth (frontend)            | `vercel:auth` skill                                    |
+| Caching strategy           | `vercel:next-cache-components`, `vercel:runtime-cache` |
+
+**Backend (NestJS / API — `apps/api`)**
+
+| Task                               | Use                                               |
+| ---------------------------------- | ------------------------------------------------- |
+| NestJS module/service/controller   | `nestjs-expert` skill + `/ecc:nestjs-patterns`    |
+| NestJS guards, pipes, interceptors | `nestjs-best-practices` skill                     |
+| REST API design                    | `/ecc:api-design` (before implementing)           |
+| OpenAPI/Swagger annotations        | `nestjs-expert` skill + `ecc:docs-lookup`         |
+| Backend auth/JWT                   | `nestjs-best-practices` + `ecc:security-reviewer` |
+| NestJS build errors                | `ecc:build-error-resolver`                        |
+
+**Database**
+
+| Task                   | Use                                                    |
+| ---------------------- | ------------------------------------------------------ |
+| Database migration     | `/ecc:database-migrations` + `database-reviewer` agent |
+| Prisma schema/query    | `/ecc:prisma-patterns` + `database-reviewer` agent     |
+| PostgreSQL query/index | `/ecc:postgres-patterns` + `database-reviewer` agent   |
+| Schema design review   | `database-reviewer` agent                              |
+
+**Quality & Testing**
+
+| Task                        | Use                                            |
+| --------------------------- | ---------------------------------------------- |
+| Test-driven development     | `/ecc:tdd-workflow`, `tdd-guide` agent         |
+| Check test coverage gaps    | `/ecc:test-coverage`, `pr-test-analyzer` agent |
+| Find swallowed errors       | `silent-failure-hunter` agent                  |
+| Type design review          | `type-design-analyzer` agent                   |
+| Comment quality             | `comment-analyzer` agent                       |
+| Pre-merge quality gate      | `/ecc:quality-gate`                            |
+| Simplify code after feature | `/simplify` or `code-simplifier` agent         |
+| Dead code cleanup           | `/ecc:refactor-clean`, `/ecc:prune`            |
+
+**Security**
+
+| Task                | Use                                           |
+| ------------------- | --------------------------------------------- |
+| Pre-commit security | `/ecc:security-scan`                          |
+| Deep OWASP review   | `/security-review`, `security-reviewer` agent |
+
+**Research & Docs**
+
+| Task                 | Use                                     |
+| -------------------- | --------------------------------------- |
+| Library/API docs     | `docs-lookup` agent (Context7 MCP)      |
+| Web research         | `deep-research` skill or Exa MCP        |
+| Complex reasoning    | Sequential Thinking MCP                 |
+| Update README/guides | `/ecc:update-docs`, `doc-updater` agent |
+| Update codemaps      | `/ecc:update-codemaps`                  |
+
+**Deploy & Infra**
+
+| Task                    | Use                                                        |
+| ----------------------- | ---------------------------------------------------------- |
+| DEV deployment          | `deploy-agent` (via `/epic-loop`) or `vercel:deploy` skill |
+| Deployment status       | `vercel:status` skill                                      |
+| Environment variables   | `vercel:env` skill                                         |
+| Full feature end-to-end | `/ecc:orch-add-feature`                                    |
 
 ---
 
 ## Token Optimization
 
 Always:
+
 - Use RTK repository knowledge first
 - Use ECC agents first
 - Read only required files
