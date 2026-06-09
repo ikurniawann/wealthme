@@ -44,9 +44,9 @@ serta menyambungkan frontend ke Auth.js + query client.
 - [x] `TenantInterceptor` inject & enforce `userId` / `familyGroupId` di setiap query
 - [ ] (Opsional) Postgres RLS sebagai lapis kedua
 
-### Audit logging module
+### Audit logging module ✅
 
-- [ ] Interceptor mencatat mutasi (actor, action, entity, before/after ringkas) → `audit_logs`
+- [x] Interceptor mencatat mutasi (actor, action, entity, before/after ringkas) → `audit_logs`
 
 ### OpenAPI/Swagger + typed client generation
 
@@ -81,6 +81,7 @@ serta menyambungkan frontend ke Auth.js + query client.
 - 2026-06-09 /task-work EPIC-001 #3 "Auth: email/password + JWT access/refresh + rotation" → PASS (attempts: 3), PR: https://github.com/andrsrjld/wealthme-web/pull/94
 - 2026-06-09 /epic-loop EPIC-001 #4 "Google OAuth login" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/95
 - 2026-06-09 /epic-loop EPIC-001 #5 "RBAC (CASL) + TenantInterceptor" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/96
+- 2026-06-09 /epic-loop EPIC-001 #6 "Audit logging module" → PASS (attempts: 3), PR: https://github.com/andrsrjld/wealthme-web/pull/97
 
 ## Dependencies
 
