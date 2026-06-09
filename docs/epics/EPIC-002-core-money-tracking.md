@@ -64,7 +64,7 @@ sehingga aplikasi benar-benar bisa dipakai mencatat dan memantau keuangan. **Ini
 
 ## Automation Log
 
-- 2026-06-09 /epic-loop EPIC-002 #1 "Accounts (bank & e-wallet)" → PASS (attempts: 3), PR: pending
+- 2026-06-09 /epic-loop EPIC-002 #1 "Accounts (bank & e-wallet)" → PASS (attempts: 3), PR: https://github.com/andrsrjld/wealthme-web/pull/103
 
 ## Dependencies
 
