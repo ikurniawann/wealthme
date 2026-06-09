@@ -31,4 +31,44 @@ declare const AuthUserSchema: z.ZodObject<{
 }>;
 type AuthUser = z.infer<typeof AuthUserSchema>;
 
-export { type AuthUser, AuthUserSchema, CONTRACTS_VERSION, type LoginInput, LoginInputSchema, type Rupiah, RupiahSchema };
+interface CashflowDto {
+    months: string[];
+    income: number[];
+    expense: number[];
+    max: number;
+}
+interface AllocationItemDto {
+    label: string;
+    value: number;
+    amount: number;
+    color: string;
+}
+interface AccountSummaryItemDto {
+    type: string;
+    label: string;
+    total: number;
+}
+interface DashboardSummaryDto {
+    netWorth: number;
+    cashflow: CashflowDto;
+    sparkline: number[];
+    allocation: AllocationItemDto[];
+    accountSummary: AccountSummaryItemDto[];
+    currentMonth: {
+        income: number;
+        expense: number;
+        net: number;
+        savingsRate: number;
+    };
+    recentTransactions: {
+        id: string;
+        description: string | null;
+        amount: number;
+        type: "income" | "expense" | "transfer";
+        categoryName: string | null;
+        accountName: string;
+        occurredAt: string;
+    }[];
+}
+
+export { type AccountSummaryItemDto, type AllocationItemDto, type AuthUser, AuthUserSchema, CONTRACTS_VERSION, type CashflowDto, type DashboardSummaryDto, type LoginInput, LoginInputSchema, type Rupiah, RupiahSchema };

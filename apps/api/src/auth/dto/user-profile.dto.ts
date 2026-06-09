@@ -23,4 +23,11 @@ export class UserProfileDto {
     description: "Account creation timestamp",
   })
   createdAt!: Date;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: "Primary family group ID",
+  })
+  familyGroupId!: string | null;
 }

@@ -18,4 +18,8 @@ export const queryKeys = {
   accounts: {
     all: (familyGroupId: string) => ["accounts", familyGroupId] as const,
   },
+  dashboard: {
+    summary: (familyGroupId: string) =>
+      ["dashboard", familyGroupId, "summary"] as const,
+  },
 } as const;

@@ -31,6 +31,7 @@ type UserProfile = {
   name: string;
   avatarInitials: string | null;
   createdAt: Date;
+  familyGroupId: string | null;
 };
 
 @Injectable()
@@ -98,7 +99,7 @@ export class AuthService {
   }
 
   async getMe(userId: string): Promise<UserProfile> {
-    return this.prisma.user.findUniqueOrThrow({
+    const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: {
         id: true,
@@ -106,8 +107,21 @@ export class AuthService {
         name: true,
         avatarInitials: true,
         createdAt: true,
+        memberships: {
+          select: { familyGroupId: true },
+          orderBy: { createdAt: "asc" },
+          take: 1,
+        },
       },
     });
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      avatarInitials: user.avatarInitials,
+      createdAt: user.createdAt,
+      familyGroupId: user.memberships[0]?.familyGroupId ?? null,
+    };
   }
 
   async loginWithGoogle(profile: GoogleProfile): Promise<TokenPair> {

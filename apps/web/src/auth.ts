@@ -38,6 +38,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             id: string;
             email: string;
             name: string;
+            familyGroupId?: string | null;
           };
           return {
             id: user.id,
@@ -45,6 +46,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             name: user.name,
             accessToken: tokens.accessToken,
             refreshToken: tokens.refreshToken,
+            familyGroupId: user.familyGroupId ?? null,
           };
         } catch {
           return null;
@@ -65,6 +67,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.refreshToken = (user as { refreshToken?: string }).refreshToken;
         token.userId = user.id;
         token.accessTokenExpiresAt = Date.now() + ACCESS_TOKEN_TTL_MS;
+        token.familyGroupId =
+          (user as { familyGroupId?: string | null }).familyGroupId ?? null;
         return token;
       }
 
@@ -84,6 +88,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             token.accessToken = tokens.accessToken;
             token.refreshToken = tokens.refreshToken;
             token.accessTokenExpiresAt = Date.now() + ACCESS_TOKEN_TTL_MS;
+            try {
+              const meRes = await fetch(`${API_URL}/auth/me`, {
+                headers: { Authorization: `Bearer ${tokens.accessToken}` },
+              });
+              if (meRes.ok) {
+                const me = (await meRes.json()) as {
+                  familyGroupId?: string | null;
+                };
+                token.familyGroupId = me.familyGroupId ?? null;
+              }
+            } catch {
+              /* familyGroupId remains unset */
+            }
           }
         } catch {
           /* keep existing token */
@@ -124,6 +141,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         ...session,
         accessToken: token.accessToken as string | undefined,
         userId: token.userId as string | undefined,
+        familyGroupId: token.familyGroupId as string | null | undefined,
         error: token.error as string | undefined,
       };
     },

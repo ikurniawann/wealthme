@@ -226,6 +226,7 @@ describe("AuthService", () => {
         name: "Jane Doe",
         avatarInitials: "JD",
         createdAt: new Date("2024-01-01"),
+        memberships: [{ familyGroupId: "family-1" }],
       };
       mockPrisma.user.findUniqueOrThrow.mockResolvedValue(profile);
 
@@ -233,7 +234,14 @@ describe("AuthService", () => {
       const result = await service.getMe("user-1");
 
       // Assert
-      expect(result).toEqual(profile);
+      expect(result).toEqual({
+        id: "user-1",
+        email: "user@example.com",
+        name: "Jane Doe",
+        avatarInitials: "JD",
+        createdAt: new Date("2024-01-01"),
+        familyGroupId: "family-1",
+      });
       expect(result).not.toHaveProperty("passwordHash");
       expect(mockPrisma.user.findUniqueOrThrow).toHaveBeenCalledWith({
         where: { id: "user-1" },
@@ -243,8 +251,32 @@ describe("AuthService", () => {
           name: true,
           avatarInitials: true,
           createdAt: true,
+          memberships: {
+            select: { familyGroupId: true },
+            orderBy: { createdAt: "asc" },
+            take: 1,
+          },
         },
       });
+    });
+
+    it("returns null familyGroupId when user has no memberships", async () => {
+      // Arrange
+      const profile = {
+        id: "user-2",
+        email: "new@example.com",
+        name: "New User",
+        avatarInitials: "NU",
+        createdAt: new Date("2024-01-01"),
+        memberships: [],
+      };
+      mockPrisma.user.findUniqueOrThrow.mockResolvedValue(profile);
+
+      // Act
+      const result = await service.getMe("user-2");
+
+      // Assert
+      expect(result.familyGroupId).toBeNull();
     });
   });
 
