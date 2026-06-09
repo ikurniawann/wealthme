@@ -1,0 +1,17 @@
+---
+source_file: "packages/config/package.json"
+type: "code"
+community: "Shared Config Package"
+location: "L4"
+tags:
+  - graphify/code
+  - graphify/EXTRACTED
+  - community/Shared_Config_Package
+---
+
+# private
+
+## Connections
+- [[package.json_3]] - `contains` [EXTRACTED]
+
+#graphify/code #graphify/EXTRACTED #community/Shared_Config_Package
