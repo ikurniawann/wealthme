@@ -1,6 +1,6 @@
 # EPIC-001: Backend Foundation
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 phase: 1
 priority: P0
@@ -53,16 +53,16 @@ serta menyambungkan frontend ke Auth.js + query client.
 - [x] Anotasi DTO + tag Swagger lengkap
 - [x] Generate typed client (orval / openapi-typescript) untuk dipakai web
 
-### Web: Auth.js integration (Credentials → API) + session
+### Web: Auth.js integration (Credentials → API) + session ✅
 
-- [ ] Auth.js Credentials provider memanggil `/auth/login` API
-- [ ] Provider Google; sesi httpOnly membawa token API + refresh
-- [ ] Ganti `auth-provider.tsx` mock; proteksi route grup `(app)`
+- [x] Auth.js Credentials provider memanggil `/auth/login` API
+- [x] Provider Google; sesi httpOnly membawa token API + refresh
+- [x] Ganti `auth-provider.tsx` mock; proteksi route grup `(app)`
 
-### Web: API client + TanStack Query setup
+### Web: API client + TanStack Query setup ✅
 
-- [ ] `QueryClientProvider` + wrapper fetch ber-otentikasi (auto refresh)
-- [ ] Standar error → toast; util query/mutation keys
+- [x] `QueryClientProvider` + wrapper fetch ber-otentikasi (auto refresh)
+- [x] Standar error → toast; util query/mutation keys
 
 ## Acceptance Criteria
 
@@ -83,6 +83,8 @@ serta menyambungkan frontend ke Auth.js + query client.
 - 2026-06-09 /epic-loop EPIC-001 #5 "RBAC (CASL) + TenantInterceptor" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/96
 - 2026-06-09 /epic-loop EPIC-001 #6 "Audit logging module" → PASS (attempts: 3), PR: https://github.com/andrsrjld/wealthme-web/pull/97
 - 2026-06-09 /epic-loop EPIC-001 #7 "OpenAPI/Swagger + typed client generation" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/98
+- 2026-06-09 /epic-loop EPIC-001 #8 "Web: Auth.js integration (Credentials → API) + session" → PASS (attempts: 3), PR: https://github.com/andrsrjld/wealthme-web/pull/99
+- 2026-06-09 /epic-loop EPIC-001 #9 "Web: API client + TanStack Query setup" → PASS (attempts: 1), PR: https://github.com/andrsrjld/wealthme-web/pull/100
 
 ## Dependencies
 
