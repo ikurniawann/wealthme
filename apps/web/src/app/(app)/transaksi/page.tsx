@@ -1,180 +1,176 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronRight, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { useSession, signOut } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
+
 import { SectionCard, MoneyStat } from "@/components/wm";
+import { apiFetch } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
+import { formatRupiah } from "@/lib/format";
+import type {
+  TransactionDto,
+  TransactionListResponse,
+} from "@wealthme/contracts";
 
-type TxnType = "income" | "expense" | "transfer" | "credit";
+type TxnType = "income" | "expense" | "transfer" | "all";
 
-type Txn = {
-  icon: string;
-  iconBg: string;
+type MeResponse = {
+  id: string;
+  email: string;
   name: string;
-  meta: string;
-  amount: string;
-  positive: boolean;
-  time: string;
-  type: TxnType;
+  familyGroupId: string | null;
 };
 
-type TxnGroup = { label: string; rows: Txn[] };
-
-const GROUPS: TxnGroup[] = [
-  {
-    label: "Hari ini",
-    rows: [
-      {
-        icon: "📥",
-        iconBg: "#DCFCE7",
-        name: "Transfer masuk dari BCA",
-        meta: "Pemasukan · BCA Tahapan",
-        amount: "+Rp 5.000.000",
-        positive: true,
-        time: "09:21",
-        type: "income",
-      },
-      {
-        icon: "💳",
-        iconBg: "#FEE2E2",
-        name: "Pembayaran Kartu Kredit",
-        meta: "Pengeluaran · BCA",
-        amount: "-Rp 1.250.000",
-        positive: false,
-        time: "08:45",
-        type: "credit",
-      },
-      {
-        icon: "👜",
-        iconBg: "#FEE2E2",
-        name: "Top up GoPay",
-        meta: "Pengeluaran · GoPay",
-        amount: "-Rp 200.000",
-        positive: false,
-        time: "08:12",
-        type: "expense",
-      },
-    ],
-  },
-  {
-    label: "Kemarin",
-    rows: [
-      {
-        icon: "🛒",
-        iconBg: "#FEE2E2",
-        name: "Belanja di Shopee",
-        meta: "Pengeluaran · e-Wallet",
-        amount: "-Rp 150.000",
-        positive: false,
-        time: "20:15",
-        type: "expense",
-      },
-      {
-        icon: "↗️",
-        iconBg: "#FEE2E2",
-        name: "Transfer ke Mandiri",
-        meta: "Transfer · BCA → Mandiri",
-        amount: "-Rp 2.000.000",
-        positive: false,
-        time: "17:30",
-        type: "transfer",
-      },
-      {
-        icon: "🏦",
-        iconBg: "#DCFCE7",
-        name: "Bunga Tabungan BNI",
-        meta: "Pemasukan · BNI Taplus",
-        amount: "+Rp 45.000",
-        positive: true,
-        time: "06:21",
-        type: "income",
-      },
-    ],
-  },
-  {
-    label: "28 April 2025",
-    rows: [
-      {
-        icon: "☕",
-        iconBg: "#FEE2E2",
-        name: "Makan di Starbucks",
-        meta: "Makanan & Minuman",
-        amount: "-Rp 85.000",
-        positive: false,
-        time: "19:45",
-        type: "expense",
-      },
-      {
-        icon: "✈️",
-        iconBg: "#FEE2E2",
-        name: "Tiket Pesawat ke Bali",
-        meta: "Transportasi · Kartu Kredit",
-        amount: "-Rp 1.350.000",
-        positive: false,
-        time: "14:20",
-        type: "credit",
-      },
-    ],
-  },
-  {
-    label: "27 April 2025",
-    rows: [
-      {
-        icon: "💰",
-        iconBg: "#DCFCE7",
-        name: "Gaji Bulanan",
-        meta: "Pemasukan · BCA Tahapan",
-        amount: "+Rp 18.000.000",
-        positive: true,
-        time: "07:00",
-        type: "income",
-      },
-      {
-        icon: "🏥",
-        iconBg: "#FEE2E2",
-        name: "Apotek & Suplemen",
-        meta: "Kesehatan",
-        amount: "-Rp 320.000",
-        positive: false,
-        time: "12:30",
-        type: "expense",
-      },
-    ],
-  },
-];
-
-const FILTERS: { label: string; value: TxnType | "all" }[] = [
+const FILTERS: { label: string; value: TxnType }[] = [
   { label: "Semua", value: "all" },
   { label: "Masuk", value: "income" },
   { label: "Keluar", value: "expense" },
   { label: "Transfer", value: "transfer" },
-  { label: "Kartu Kredit", value: "credit" },
 ];
 
-export default function TransaksiPage() {
-  const [filter, setFilter] = useState<TxnType | "all">("all");
+function formatTime(isoString: string): string {
+  return isoString.slice(11, 16);
+}
 
-  const groups = GROUPS.map((g) => ({
-    ...g,
-    rows: filter === "all" ? g.rows : g.rows.filter((r) => r.type === filter),
-  })).filter((g) => g.rows.length > 0);
+function formatDayLabel(dateStr: string): string {
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  if (dateStr === today) return "Hari ini";
+  if (dateStr === yesterday) return "Kemarin";
+  const [year, month, day] = dateStr.split("-");
+  const d = new Date(Number(year), Number(month) - 1, Number(day));
+  return d.toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function TxRow({ tx }: { tx: TransactionDto }) {
+  const isIncome = tx.type === "income";
+  const amount = parseFloat(tx.amount);
+  const amountStr = (isIncome ? "+" : "-") + formatRupiah(amount);
+  const iconBg = isIncome ? "#DCFCE7" : "#FEE2E2";
+  const icon = isIncome ? "📥" : tx.type === "transfer" ? "↗️" : "💳";
+
+  return (
+    <button
+      onClick={() => toast("Detail transaksi")}
+      className="flex w-full items-center gap-3 rounded-[12px] border bg-card p-3 text-left transition-colors hover:bg-accent/40"
+    >
+      <div
+        className="flex size-[38px] shrink-0 items-center justify-center rounded-[10px] text-[15px]"
+        style={{ background: iconBg }}
+      >
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[13.5px] font-semibold">
+          {tx.description ?? "—"}
+        </div>
+        <div className="truncate text-[11.5px] text-muted-foreground capitalize">
+          {tx.type}
+        </div>
+      </div>
+      <div className="text-right">
+        <div
+          className={
+            "text-[13.5px] font-bold " +
+            (isIncome ? "text-success" : "text-destructive")
+          }
+        >
+          {amountStr}
+        </div>
+        <div className="text-[11px] text-muted-foreground">
+          {formatTime(tx.occurredAt)}
+        </div>
+      </div>
+      <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
+    </button>
+  );
+}
+
+export default function TransaksiPage() {
+  const [filter, setFilter] = useState<TxnType>("all");
+  const { data: session } = useSession();
+  const token = session?.accessToken as string | undefined;
+
+  useEffect(() => {
+    if ((session as { error?: string } | null)?.error === "RefreshTokenError") {
+      void signOut({ callbackUrl: "/login" });
+    }
+  }, [session]);
+
+  const { data: me } = useQuery<MeResponse>({
+    queryKey: [...queryKeys.auth.me(), token],
+    queryFn: () => apiFetch<MeResponse>("/auth/me", { token }),
+    enabled: !!token,
+  });
+
+  const familyGroupId = me?.familyGroupId ?? "";
+
+  const { data, isLoading, isError } = useQuery<TransactionListResponse>({
+    queryKey: [...queryKeys.transactions.all(familyGroupId), token],
+    queryFn: () =>
+      apiFetch<TransactionListResponse>(
+        `/family-groups/${familyGroupId}/transactions?limit=50`,
+        { token },
+      ),
+    enabled: !!token && !!familyGroupId,
+  });
+
+  const transactions = data?.data ?? [];
+  const summary = data?.summary;
+
+  const filtered =
+    filter === "all"
+      ? transactions
+      : transactions.filter((tx) => tx.type === filter);
+
+  const groups = filtered.reduce<Record<string, TransactionDto[]>>(
+    (acc, tx) => {
+      const day = tx.occurredAt.slice(0, 10);
+      const existing = acc[day];
+      return { ...acc, [day]: existing ? [...existing, tx] : [tx] };
+    },
+    {},
+  );
+
+  const sortedDays = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+
+  const totalIncome = summary ? parseFloat(summary.totalIncome) : 0;
+  const totalExpense = summary ? parseFloat(summary.totalExpense) : 0;
+  const netBalance = summary ? parseFloat(summary.netBalance) : 0;
 
   return (
     <div className="space-y-4">
       {/* Summary bar */}
       <div className="rounded-[14px] border bg-card p-4">
         <div className="grid grid-cols-3 gap-3">
-          <MoneyStat label="Total Pemasukan" value="Rp 25.850.000" valueClass="text-success" />
+          <MoneyStat
+            label="Total Pemasukan"
+            value={isLoading ? "…" : formatRupiah(totalIncome)}
+            valueClass="text-success"
+          />
           <MoneyStat
             label="Total Pengeluaran"
-            value="Rp 18.340.000"
+            value={isLoading ? "…" : formatRupiah(totalExpense)}
             valueClass="text-destructive"
           />
-          <MoneyStat label="Selisih" value="Rp 7.510.000" valueClass="text-success" />
+          <MoneyStat
+            label="Selisih"
+            value={isLoading ? "…" : formatRupiah(netBalance)}
+            valueClass={netBalance >= 0 ? "text-success" : "text-destructive"}
+          />
         </div>
       </div>
 
-      {/* Filter tabs + sort */}
+      {/* Filter tabs + add button */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="hide-scrollbar flex gap-2 overflow-x-auto">
           {FILTERS.map((f) => (
@@ -192,55 +188,49 @@ export default function TransaksiPage() {
             </button>
           ))}
         </div>
-        <select className="rounded-md border bg-background px-3 py-[7px] text-xs text-muted-foreground outline-none">
-          <option>Urutkan: Terbaru</option>
-          <option>Terlama</option>
-          <option>Terbesar</option>
-        </select>
+        <button
+          onClick={() => toast("Tambah transaksi")}
+          className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground"
+        >
+          <Plus className="size-3.5" /> Tambah
+        </button>
       </div>
+
+      {/* Error state */}
+      {isError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive bg-destructive/5 px-4 py-2.5 text-[13px] text-destructive"
+        >
+          Gagal memuat transaksi. Silakan refresh halaman.
+        </div>
+      )}
 
       {/* Transaction list */}
       <div className="space-y-1">
-        {groups.map((group) => (
-          <div key={group.label}>
-            <div className="mt-3 mb-1.5 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-              {group.label}
+        {isLoading && (
+          <SectionCard>
+            <div className="py-6 text-center text-[13px] text-muted-foreground">
+              Memuat transaksi…
             </div>
-            <div className="space-y-1.5">
-              {group.rows.map((row) => (
-                <button
-                  key={row.name + row.time}
-                  onClick={() => toast("📋 Detail transaksi")}
-                  className="flex w-full items-center gap-3 rounded-[12px] border bg-card p-3 text-left transition-colors hover:bg-accent/40"
-                >
-                  <div
-                    className="flex size-[38px] shrink-0 items-center justify-center rounded-[10px] text-[15px]"
-                    style={{ background: row.iconBg }}
-                  >
-                    {row.icon}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[13.5px] font-semibold">{row.name}</div>
-                    <div className="truncate text-[11.5px] text-muted-foreground">{row.meta}</div>
-                  </div>
-                  <div className="text-right">
-                    <div
-                      className={
-                        "text-[13.5px] font-bold " +
-                        (row.positive ? "text-success" : "text-destructive")
-                      }
-                    >
-                      {row.amount}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">{row.time}</div>
-                  </div>
-                  <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
-                </button>
-              ))}
+          </SectionCard>
+        )}
+
+        {!isLoading &&
+          sortedDays.map((day) => (
+            <div key={day}>
+              <div className="mt-3 mb-1.5 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+                {formatDayLabel(day)}
+              </div>
+              <div className="space-y-1.5">
+                {groups[day]?.map((tx) => (
+                  <TxRow key={tx.id} tx={tx} />
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
-        {groups.length === 0 && (
+          ))}
+
+        {!isLoading && sortedDays.length === 0 && !isError && (
           <SectionCard>
             <div className="py-6 text-center text-[13px] text-muted-foreground">
               Tidak ada transaksi pada filter ini.
