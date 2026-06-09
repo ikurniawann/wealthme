@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Eye, EyeOff, Info, Lock, LogIn, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { signIn } from "next-auth/react";
@@ -12,10 +13,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const doLogin = async () => {
+    setError("");
     if (!email || !password) {
-      toast.warning("Isi email dan password");
+      setError("Email dan password harus diisi");
+      toast.warning("Email dan password harus diisi");
       return;
     }
     setLoading(true);
@@ -26,7 +30,9 @@ export default function LoginPage() {
         redirect: false,
       });
       if (!result?.ok) {
-        toast.error(result?.error ?? "Login failed");
+        const errorMsg = result?.error ?? "Login gagal";
+        setError(errorMsg);
+        toast.error(errorMsg);
         return;
       }
       router.push("/beranda");
@@ -92,7 +98,10 @@ export default function LoginPage() {
               id="email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (error) setError("");
+              }}
               className="w-full rounded-md border-[1.5px] border-slate-200 bg-white py-2.5 pl-[38px] pr-3.5 text-sm text-slate-900 outline-none transition-colors focus:border-primary"
             />
           </InputWrap>
@@ -108,11 +117,16 @@ export default function LoginPage() {
               id="password"
               type={show ? "text" : "password"}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (error) setError("");
+              }}
               className="w-full rounded-md border-[1.5px] border-slate-200 bg-white py-2.5 pl-[38px] pr-10 text-sm text-slate-900 outline-none transition-colors focus:border-primary"
             />
             <button
               type="button"
+              aria-label={show ? "Sembunyikan password" : "Tampilkan password"}
+              aria-pressed={show}
               onClick={() => setShow((s) => !s)}
               className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary"
             >
@@ -124,6 +138,16 @@ export default function LoginPage() {
             </button>
           </InputWrap>
 
+          {error && (
+            <p
+              id="login-error"
+              role="alert"
+              className="mb-3 text-xs text-red-500"
+            >
+              {error}
+            </p>
+          )}
+
           <div className="mb-4 mt-1 flex items-center justify-between">
             <label className="flex cursor-pointer items-center gap-1.5 text-[12.5px] text-slate-600">
               <input
@@ -133,9 +157,14 @@ export default function LoginPage() {
               />{" "}
               Ingat saya
             </label>
-            <span className="cursor-pointer text-[12.5px] font-semibold text-primary">
+            <button
+              type="button"
+              disabled
+              aria-label="Lupa password? (Fitur belum tersedia)"
+              className="text-[12.5px] font-semibold text-slate-400 cursor-not-allowed"
+            >
               Lupa password?
-            </span>
+            </button>
           </div>
 
           <button
@@ -162,12 +191,12 @@ export default function LoginPage() {
 
         <div className="mt-5 text-center text-xs text-slate-400">
           Belum punya akun?{" "}
-          <span
-            onClick={() => toast("Fitur registrasi segera hadir!")}
-            className="cursor-pointer font-semibold text-primary"
+          <Link
+            href="/register"
+            className="font-semibold text-primary hover:text-primary-strong transition-colors"
           >
             Daftar Sekarang
-          </span>
+          </Link>
         </div>
       </div>
     </div>
@@ -193,7 +222,7 @@ function InputWrap({
 
 function GoogleIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="size-4">
+    <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
       <path
         fill="#EA4335"
         d="M12 10.2v3.9h5.4c-.2 1.4-1.6 4.1-5.4 4.1-3.3 0-5.9-2.7-5.9-6s2.6-6 5.9-6c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.9 3.1 14.7 2 12 2 6.9 2 2.8 6.1 2.8 11.2S6.9 20.4 12 20.4c5.9 0 9.8-4.1 9.8-9.9 0-.7-.1-1.1-.2-1.6H12z"

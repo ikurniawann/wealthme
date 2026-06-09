@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
 import {
   ChevronRight,
   User,
@@ -39,16 +43,8 @@ import { toast } from "sonner";
 import { SectionCard, StatusBadge } from "@/components/wm";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import {
-  Sheet,
-  SheetContent,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Accordion,
   AccordionItem,
@@ -67,6 +63,12 @@ type SubPageId =
   | "hubungi"
   | "tentang"
   | "family";
+
+type MeResponse = {
+  id: string;
+  email: string;
+  name: string;
+};
 
 const SUBPAGE_TITLES: Record<SubPageId, string> = {
   profil: "Profil Saya",
@@ -105,7 +107,9 @@ function Field({
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mb-2.5 text-[13px] font-bold text-foreground">{children}</div>
+    <div className="mb-2.5 text-[13px] font-bold text-foreground">
+      {children}
+    </div>
   );
 }
 
@@ -143,7 +147,9 @@ function SetRow({
       </div>
       <div className="min-w-0 flex-1">
         <div className="text-[13.5px] font-bold text-foreground">{name}</div>
-        {sub && <div className="mt-0.5 text-[12px] text-muted-foreground">{sub}</div>}
+        {sub && (
+          <div className="mt-0.5 text-[12px] text-muted-foreground">{sub}</div>
+        )}
       </div>
       {right}
     </div>
@@ -163,8 +169,12 @@ function ToggleBox({
           className="flex items-center justify-between gap-3 border-b py-3 first:pt-0 last:border-b-0 last:pb-0"
         >
           <div>
-            <div className="text-[13px] font-semibold text-foreground">{r.label}</div>
-            <div className="mt-0.5 text-[11.5px] text-muted-foreground">{r.sub}</div>
+            <div className="text-[13px] font-semibold text-foreground">
+              {r.label}
+            </div>
+            <div className="mt-0.5 text-[11.5px] text-muted-foreground">
+              {r.sub}
+            </div>
           </div>
           <Switch defaultChecked={r.defaultChecked} className="shrink-0" />
         </div>
@@ -179,28 +189,32 @@ const CHEVRON = (
 
 /* ─────────────────────────── Sub-page bodies ─────────────────────────── */
 
-function ProfilBody() {
+function ProfilBody({ name, email }: { name: string; email: string }) {
+  const initials = name
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
   return (
     <SetSection>
       <div className="mb-6 text-center">
         <div
           className="mx-auto mb-3 flex h-[72px] w-[72px] items-center justify-center rounded-full text-[28px] font-extrabold text-white"
           style={{
-            background: "linear-gradient(135deg,var(--primary),var(--brand-purple))",
+            background:
+              "linear-gradient(135deg,var(--primary),var(--brand-purple))",
           }}
         >
-          IA
+          {initials}
         </div>
-        <div className="text-[16px] font-extrabold text-foreground">Irfan Arsandi</div>
-        <div className="mt-0.5 text-[12px] text-muted-foreground">
-          irfan.arsandi@wealthme.id
-        </div>
+        <div className="text-[16px] font-extrabold text-foreground">{name}</div>
+        <div className="mt-0.5 text-[12px] text-muted-foreground">{email}</div>
       </div>
       <Field label="Nama Lengkap">
-        <input className={FIELD_CLASS} defaultValue="Irfan Arsandi" />
+        <input className={FIELD_CLASS} defaultValue={name} />
       </Field>
       <Field label="Email">
-        <input className={FIELD_CLASS} defaultValue="irfan.arsandi@wealthme.id" />
+        <input className={FIELD_CLASS} defaultValue={email} />
       </Field>
       <Field label="No. Telepon">
         <input className={FIELD_CLASS} defaultValue="+62 812 3456 7890" />
@@ -249,7 +263,9 @@ function KeamananBody() {
           name="PIN Aplikasi"
           sub="6 digit PIN untuk buka aplikasi"
           right={
-            <span className="text-[12px] font-semibold text-foreground">Aktif</span>
+            <span className="text-[12px] font-semibold text-foreground">
+              Aktif
+            </span>
           }
           onClick={() => toast("Atur PIN")}
         />
@@ -320,21 +336,42 @@ function KoneksiBody() {
           </span>
         </div>
         <SetRow
-          icon={<span className="text-[13px] font-extrabold" style={{ color: "#0061AF" }}>BCA</span>}
+          icon={
+            <span
+              className="text-[13px] font-extrabold"
+              style={{ color: "#0061AF" }}
+            >
+              BCA
+            </span>
+          }
           iconBg="#DBEAFE"
           name="BCA Tahapan ···9010"
           sub="Terhubung · Sinkronisasi otomatis aktif"
           right={<StatusBadge variant="success">Aktif</StatusBadge>}
         />
         <SetRow
-          icon={<span className="text-[11px] font-extrabold" style={{ color: "#F9A01B" }}>MDR</span>}
+          icon={
+            <span
+              className="text-[11px] font-extrabold"
+              style={{ color: "#F9A01B" }}
+            >
+              MDR
+            </span>
+          }
           iconBg="#FFF7ED"
           name="Mandiri ···5586"
           sub="Terhubung · Sinkronisasi aktif"
           right={<StatusBadge variant="success">Aktif</StatusBadge>}
         />
         <SetRow
-          icon={<span className="text-[13px] font-extrabold" style={{ color: "#FF6600" }}>BNI</span>}
+          icon={
+            <span
+              className="text-[13px] font-extrabold"
+              style={{ color: "#FF6600" }}
+            >
+              BNI
+            </span>
+          }
           iconBg="#FFF7ED"
           name="BNI Taplus ···5544"
           sub="Terhubung · Sinkronisasi aktif"
@@ -395,11 +432,31 @@ function KoneksiBody() {
 }
 
 const CURRENCIES = [
-  { code: "IDR", flag: "🇮🇩", title: "IDR — Rupiah Indonesia", name: "Rp · Rupiah" },
-  { code: "USD", flag: "🇺🇸", title: "USD — US Dollar", name: "$ · Dollar Amerika" },
-  { code: "SGD", flag: "🇸🇬", title: "SGD — Singapore Dollar", name: "S$ · Dollar Singapura" },
+  {
+    code: "IDR",
+    flag: "🇮🇩",
+    title: "IDR — Rupiah Indonesia",
+    name: "Rp · Rupiah",
+  },
+  {
+    code: "USD",
+    flag: "🇺🇸",
+    title: "USD — US Dollar",
+    name: "$ · Dollar Amerika",
+  },
+  {
+    code: "SGD",
+    flag: "🇸🇬",
+    title: "SGD — Singapore Dollar",
+    name: "S$ · Dollar Singapura",
+  },
   { code: "EUR", flag: "🇪🇺", title: "EUR — Euro", name: "€ · Euro" },
-  { code: "JPY", flag: "🇯🇵", title: "JPY — Japanese Yen", name: "¥ · Yen Jepang" },
+  {
+    code: "JPY",
+    flag: "🇯🇵",
+    title: "JPY — Japanese Yen",
+    name: "¥ · Yen Jepang",
+  },
 ];
 
 function PengaturanBody() {
@@ -427,8 +484,12 @@ function PengaturanBody() {
               >
                 <div className="text-[22px]">{c.flag}</div>
                 <div className="flex-1">
-                  <div className="text-[13px] font-bold text-foreground">{c.title}</div>
-                  <div className="mt-0.5 text-[11.5px] text-muted-foreground">{c.name}</div>
+                  <div className="text-[13px] font-bold text-foreground">
+                    {c.title}
+                  </div>
+                  <div className="mt-0.5 text-[11.5px] text-muted-foreground">
+                    {c.name}
+                  </div>
                 </div>
                 {selected && (
                   <span className="text-[16px] font-bold text-primary">✓</span>
@@ -645,8 +706,8 @@ const FAQS = [
     a: (
       <>
         Pergi ke <strong>Akun → Pengaturan Umum → Mata Uang</strong>. Pilih mata
-        uang yang kamu inginkan. Kurs konversi diperbarui setiap hari dari sumber
-        Bank Indonesia.
+        uang yang kamu inginkan. Kurs konversi diperbarui setiap hari dari
+        sumber Bank Indonesia.
       </>
     ),
   },
@@ -655,8 +716,8 @@ const FAQS = [
     a: (
       <>
         Buka halaman <strong>Tujuan Keuangan</strong> lalu klik &quot;+ Tambah
-        Tujuan&quot;. Isi nama tujuan, target jumlah, dan tanggal target. Aktifkan
-        auto-debit agar setoran otomatis setiap bulan.
+        Tujuan&quot;. Isi nama tujuan, target jumlah, dan tanggal target.
+        Aktifkan auto-debit agar setoran otomatis setiap bulan.
       </>
     ),
   },
@@ -761,7 +822,9 @@ function HubungiBody() {
           onClick={() => toast("Menghubungi 0800-1234-5678")}
         />
         <SetRow
-          icon={<MessageCircle className="size-4" style={{ color: "#25D366" }} />}
+          icon={
+            <MessageCircle className="size-4" style={{ color: "#25D366" }} />
+          }
           iconBg="#DCFCE7"
           name="WhatsApp"
           sub="+62 811 2345 6789 · Chat langsung"
@@ -798,7 +861,9 @@ function TentangBody() {
         <div className="mx-auto mb-3 flex h-[72px] w-[72px] items-center justify-center rounded-[20px] bg-primary text-[30px] font-black text-primary-foreground">
           W
         </div>
-        <div className="text-[20px] font-extrabold text-foreground">WealthMe</div>
+        <div className="text-[20px] font-extrabold text-foreground">
+          WealthMe
+        </div>
         <div className="mt-0.5 text-[13px] text-muted-foreground">
           Personal Wealth Operating System
         </div>
@@ -812,14 +877,20 @@ function TentangBody() {
           icon={<Code className="size-4 text-primary" />}
           iconBg="#EEF2FF"
           name="Versi"
-          right={<span className="text-[12px] font-semibold text-foreground">1.0.0</span>}
+          right={
+            <span className="text-[12px] font-semibold text-foreground">
+              1.0.0
+            </span>
+          }
         />
         <SetRow
           icon={<Calendar className="size-4 text-success" />}
           iconBg="#DCFCE7"
           name="Terakhir Diperbarui"
           right={
-            <span className="text-[12px] font-semibold text-foreground">1 Apr 2025</span>
+            <span className="text-[12px] font-semibold text-foreground">
+              1 Apr 2025
+            </span>
           }
         />
         <SetRow
@@ -887,14 +958,25 @@ function MemberRow({
   );
 }
 
-function FamilyBody({ onAddAdmin }: { onAddAdmin: () => void }) {
+function FamilyBody({
+  onAddAdmin,
+  name,
+  email,
+  initials,
+}: {
+  onAddAdmin: () => void;
+  name: string;
+  email: string;
+  initials: string;
+}) {
   return (
     <>
       <SetSection>
         <div
           className="mb-5 flex items-center gap-3.5 rounded-xl p-5 text-white"
           style={{
-            background: "linear-gradient(135deg,var(--primary),var(--brand-purple))",
+            background:
+              "linear-gradient(135deg,var(--primary),var(--brand-purple))",
           }}
         >
           <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[14px] bg-white/20 text-[24px]">
@@ -902,7 +984,9 @@ function FamilyBody({ onAddAdmin }: { onAddAdmin: () => void }) {
           </div>
           <div>
             <div className="text-[17px] font-extrabold">Arsandi Family</div>
-            <div className="mt-0.5 text-[12px] opacity-80">4 anggota · Group Owner</div>
+            <div className="mt-0.5 text-[12px] opacity-80">
+              4 anggota · Group Owner
+            </div>
             <div className="mt-1.5 text-[14px] font-bold">
               Saldo Bersama: Rp 625.750.000
             </div>
@@ -910,11 +994,15 @@ function FamilyBody({ onAddAdmin }: { onAddAdmin: () => void }) {
         </div>
         <SectionTitle>Anggota (4)</SectionTitle>
         <MemberRow
-          initials="IA"
+          initials={initials}
           gradient="linear-gradient(135deg,var(--primary),var(--brand-purple))"
-          name="Irfan Arsandi"
-          badge={<StatusBadge variant="info" className="text-[10px]">Kamu</StatusBadge>}
-          sub="Owner · irfan.arsandi@wealthme.id"
+          name={name}
+          badge={
+            <StatusBadge variant="info" className="text-[10px]">
+              Kamu
+            </StatusBadge>
+          }
+          sub={`Owner · ${email}`}
         />
         <MemberRow
           initials="SA"
@@ -947,13 +1035,19 @@ function FamilyBody({ onAddAdmin }: { onAddAdmin: () => void }) {
       <SetSection>
         <div className="mb-2.5 flex items-center justify-between">
           <SectionTitle>Admin / Staf (2)</SectionTitle>
-          <span className="text-[11px] text-muted-foreground">Bisa input transaksi</span>
+          <span className="text-[11px] text-muted-foreground">
+            Bisa input transaksi
+          </span>
         </div>
         <MemberRow
           initials="DW"
           gradient="linear-gradient(135deg,#0EA5E9,#22D3EE)"
           name="Dewi Wulandari"
-          badge={<StatusBadge variant="purple" className="text-[10px]">Admin</StatusBadge>}
+          badge={
+            <StatusBadge variant="purple" className="text-[10px]">
+              Admin
+            </StatusBadge>
+          }
           sub="Sekretaris · Akses input transaksi"
           right={
             <EllipsisVertical
@@ -966,7 +1060,11 @@ function FamilyBody({ onAddAdmin }: { onAddAdmin: () => void }) {
           initials="PJ"
           gradient="linear-gradient(135deg,#64748B,#94A3B8)"
           name="Pak Joko"
-          badge={<StatusBadge variant="purple" className="text-[10px]">Admin</StatusBadge>}
+          badge={
+            <StatusBadge variant="purple" className="text-[10px]">
+              Admin
+            </StatusBadge>
+          }
           sub="Supir · Input transaksi transport & bensin"
           right={
             <EllipsisVertical
@@ -1026,14 +1124,17 @@ function AddAdminDialog({
           Tambah Admin / Staf
         </DialogTitle>
         <div className="mb-4 text-[12px] text-muted-foreground">
-          Admin bisa mencatat transaksi atas nama family (cocok untuk sekretaris,
-          supir, ART, atau asisten).
+          Admin bisa mencatat transaksi atas nama family (cocok untuk
+          sekretaris, supir, ART, atau asisten).
         </div>
         <Field label="Nama Lengkap">
           <input className={FIELD_CLASS} placeholder="cth: Dewi Wulandari" />
         </Field>
         <Field label="Email / No. HP">
-          <input className={FIELD_CLASS} placeholder="email atau nomor telepon" />
+          <input
+            className={FIELD_CLASS}
+            placeholder="email atau nomor telepon"
+          />
         </Field>
         <Field label="Peran">
           <select className={FIELD_CLASS} defaultValue="Sekretaris">
@@ -1048,18 +1149,38 @@ function AddAdminDialog({
         <Field label="Hak Akses">
           <div className="rounded-md border bg-card px-3.5 py-3">
             {[
-              { label: "Input Transaksi", sub: "Catat pemasukan & pengeluaran", on: true },
-              { label: "Scan Struk OCR", sub: "Input via foto bon/struk", on: true },
-              { label: "Lihat Saldo", sub: "Akses melihat total saldo family", on: false },
-              { label: "Batasi Kategori", sub: "Hanya kategori tertentu (cth: transport)", on: false },
+              {
+                label: "Input Transaksi",
+                sub: "Catat pemasukan & pengeluaran",
+                on: true,
+              },
+              {
+                label: "Scan Struk OCR",
+                sub: "Input via foto bon/struk",
+                on: true,
+              },
+              {
+                label: "Lihat Saldo",
+                sub: "Akses melihat total saldo family",
+                on: false,
+              },
+              {
+                label: "Batasi Kategori",
+                sub: "Hanya kategori tertentu (cth: transport)",
+                on: false,
+              },
             ].map((r, i) => (
               <div
                 key={i}
                 className="flex items-center justify-between gap-3 border-b py-2.5 first:pt-0 last:border-b-0 last:pb-0"
               >
                 <div>
-                  <div className="text-[13px] font-semibold text-foreground">{r.label}</div>
-                  <div className="mt-0.5 text-[11.5px] text-muted-foreground">{r.sub}</div>
+                  <div className="text-[13px] font-semibold text-foreground">
+                    {r.label}
+                  </div>
+                  <div className="mt-0.5 text-[11.5px] text-muted-foreground">
+                    {r.sub}
+                  </div>
                 </div>
                 <Switch defaultChecked={r.on} className="shrink-0" />
               </div>
@@ -1110,9 +1231,13 @@ function MenuRow({
       </div>
       <div className="min-w-0 flex-1">
         <div className="text-[13.5px] font-bold text-foreground">{name}</div>
-        <div className="mt-0.5 truncate text-[12px] text-muted-foreground">{sub}</div>
+        <div className="mt-0.5 truncate text-[12px] text-muted-foreground">
+          {sub}
+        </div>
       </div>
-      {right ?? <ChevronRight className="size-3 shrink-0 text-muted-foreground" />}
+      {right ?? (
+        <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
+      )}
     </button>
   );
 }
@@ -1124,13 +1249,37 @@ export default function AkunPage() {
   const [subpage, setSubpage] = useState<SubPageId | null>(null);
   const [addAdminOpen, setAddAdminOpen] = useState(false);
 
+  const { data: session } = useSession();
+  const token = session?.accessToken as string | undefined;
+
+  const {
+    data: me,
+    isLoading: meLoading,
+    isError: meError,
+  } = useQuery<MeResponse>({
+    queryKey: [...queryKeys.auth.me(), token],
+    queryFn: () => apiFetch<MeResponse>("/auth/me", { token }),
+    enabled: !!token,
+  });
+
+  const displayName = me?.name ?? session?.user?.name ?? "—";
+  const displayEmail = me?.email ?? session?.user?.email ?? "—";
+  const displayInitials =
+    displayName === "—"
+      ? ""
+      : displayName
+          .split(" ")
+          .slice(0, 2)
+          .map((w) => w[0]?.toUpperCase() ?? "")
+          .join("");
+
   const open = (id: SubPageId) => setSubpage(id);
   const closeSheet = () => setSubpage(null);
 
   function renderBody(id: SubPageId) {
     switch (id) {
       case "profil":
-        return <ProfilBody />;
+        return <ProfilBody name={displayName} email={displayEmail} />;
       case "keamanan":
         return <KeamananBody />;
       case "koneksi":
@@ -1157,6 +1306,9 @@ export default function AkunPage() {
       case "family":
         return (
           <FamilyBody
+            name={displayName}
+            email={displayEmail}
+            initials={displayInitials}
             onAddAdmin={() => {
               closeSheet();
               setAddAdminOpen(true);
@@ -1171,14 +1323,22 @@ export default function AkunPage() {
       {/* Profile hero */}
       <div className="gradient-profile flex items-center gap-4 rounded-2xl p-5 text-white">
         <div className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-full bg-white/20 text-[22px] font-extrabold">
-          IA
+          {meLoading ? "…" : displayInitials || <User className="size-5" />}
         </div>
         <div>
-          <div className="text-[18px] font-extrabold">Irfan Arsandi</div>
-          <div className="text-[13px] opacity-90">irfan.arsandi@wealthme.id</div>
-          <div className="mt-0.5 text-[12px] opacity-75">Member sejak Januari 2024</div>
+          <div className="text-[18px] font-extrabold">{displayName}</div>
+          <div className="text-[13px] opacity-90">{displayEmail}</div>
+          <div className="mt-0.5 text-[12px] opacity-75">
+            Member sejak Januari 2024
+          </div>
         </div>
       </div>
+
+      {meError && (
+        <div className="rounded-lg border border-destructive bg-destructive/5 px-4 py-2.5 text-[13px] text-destructive">
+          Gagal memuat profil. Silakan refresh halaman.
+        </div>
+      )}
 
       {/* Group Family card */}
       <Card className="p-4">
@@ -1218,7 +1378,7 @@ export default function AkunPage() {
           icon={<User className="size-4 text-primary" />}
           iconBg="#EEF2FF"
           name="Profil Saya"
-          sub="Irfan Arsandi · irfan.arsandi@wealthme.id"
+          sub={`${displayName} · ${displayEmail}`}
           onClick={() => open("profil")}
         />
         <MenuRow
