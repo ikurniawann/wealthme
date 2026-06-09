@@ -48,10 +48,10 @@ serta menyambungkan frontend ke Auth.js + query client.
 
 - [x] Interceptor mencatat mutasi (actor, action, entity, before/after ringkas) → `audit_logs`
 
-### OpenAPI/Swagger + typed client generation
+### OpenAPI/Swagger + typed client generation ✅
 
-- [ ] Anotasi DTO + tag Swagger lengkap
-- [ ] Generate typed client (orval / openapi-typescript) untuk dipakai web
+- [x] Anotasi DTO + tag Swagger lengkap
+- [x] Generate typed client (orval / openapi-typescript) untuk dipakai web
 
 ### Web: Auth.js integration (Credentials → API) + session
 
@@ -82,6 +82,7 @@ serta menyambungkan frontend ke Auth.js + query client.
 - 2026-06-09 /epic-loop EPIC-001 #4 "Google OAuth login" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/95
 - 2026-06-09 /epic-loop EPIC-001 #5 "RBAC (CASL) + TenantInterceptor" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/96
 - 2026-06-09 /epic-loop EPIC-001 #6 "Audit logging module" → PASS (attempts: 3), PR: https://github.com/andrsrjld/wealthme-web/pull/97
+- 2026-06-09 /epic-loop EPIC-001 #7 "OpenAPI/Swagger + typed client generation" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/98
 
 ## Dependencies
 
