@@ -5,6 +5,9 @@ environment: dev
 phase: 1
 priority: P0
 area: Backend
+prd: ../product/PRD.md
+stories: ../product/USER-STORIES.md (§1 Authentication & Profile)
+tasks: ../product/ENGINEERING-TASKS.md (T-101 … T-109)
 
 ## Goal
 
@@ -12,59 +15,52 @@ Membangun pondasi backend NestJS (modular monolith): database + skema inti, aute
 (email/password + Google) dengan JWT access/refresh, RBAC multi-tenant, audit, dan OpenAPI;
 serta menyambungkan frontend ke Auth.js + query client.
 
+## User Stories
+
+- **US-AUTH-1** — register email/password.
+- **US-AUTH-2** — login email/password.
+- **US-AUTH-3** — sign in dengan Google.
+- **US-FAM-7** (fondasi) — RBAC dipaksakan server-side; member tak akses resource user/keluarga lain.
+- **US-PLAT-6** — As a developer, I want a typed client generated from OpenAPI, so that web calls the API type-safely.
+
 ## Tasks
 
 ### Scaffold NestJS app at apps/api ✅
 
-- [x] `nest new apps/api` (selaras pnpm workspace)
-- [x] ConfigModule + validasi env (Zod), logger pino, endpoint `/health`
-- [x] Bootstrap Swagger/OpenAPI + CORS untuk web
+- [x] **T-101** `nest new apps/api`; ConfigModule + validasi env (Zod); logger pino; `/health`; bootstrap Swagger/OpenAPI + CORS
 
 ### Prisma + Postgres + base schema & migrations ✅
 
-- [x] Setup Prisma + koneksi Postgres (Docker)
-- [x] Skema inti: `users`, `family_groups`, `members`, `accounts`, `transactions`, `categories`
-- [x] Uang sebagai `BIGINT` rupiah; relasi + index
-- [x] Migrasi awal + seed dari mock `apps/web/src/lib/data.ts`
+- [x] **T-102** Setup Prisma + Postgres (Docker); skema inti (`users`, `family_groups`, `members`, `accounts`, `transactions`, `categories`); uang `BIGINT` rupiah; migrasi awal + seed dari mock `apps/web/src/lib/data.ts`
 
 ### Auth: email/password + JWT access/refresh + rotation ✅
 
-- [x] Hash password argon2id; endpoint register/login/logout
-- [x] JWT access (pendek) + refresh (panjang); rotasi refresh di Redis
-- [x] Guard `JwtAuthGuard`; `/auth/me`
+- [x] **T-103** Hash argon2id; register/login/logout; JWT access (pendek) + refresh (panjang) rotasi di Redis; `JwtAuthGuard`; `/auth/me`
 
 ### Google OAuth login ✅
 
-- [x] Strategy OAuth2 Google + callback
-- [x] Tautkan ke user berdasarkan email; buat bila belum ada
+- [x] **T-104** Strategy OAuth2 Google + callback; tautkan ke user by email (buat bila belum ada)
 
 ### RBAC (CASL) + TenantInterceptor ✅
 
-- [x] Definisi ability per peran: owner / member / admin-staff
-- [x] `TenantInterceptor` inject & enforce `userId` / `familyGroupId` di setiap query
-- [ ] (Opsional) Postgres RLS sebagai lapis kedua
+- [x] **T-105** Ability per peran (owner/member/admin-staff); `TenantInterceptor` inject & enforce `userId`/`familyGroupId`
+- [ ] **T-106** (Opsional) Postgres RLS sebagai lapis kedua — _belum, lanjut di EPIC-005 T-503 / EPIC-007 T-704_
 
 ### Audit logging module ✅
 
-- [x] Interceptor mencatat mutasi (actor, action, entity, before/after ringkas) → `audit_logs`
+- [x] **T-107** Interceptor mencatat mutasi (actor, action, entity, before/after ringkas) → `audit_logs`
 
 ### OpenAPI/Swagger + typed client generation ✅
 
-- [x] Anotasi DTO + tag Swagger lengkap
-- [x] Generate typed client (orval / openapi-typescript) untuk dipakai web
+- [x] **T-108** Anotasi DTO + tag Swagger; generate typed client (orval/openapi-typescript) untuk web
 
-### Web: Auth.js integration (Credentials → API) + session ✅
+### Web: Auth.js integration + API client ✅
 
-- [x] Auth.js Credentials provider memanggil `/auth/login` API
-- [x] Provider Google; sesi httpOnly membawa token API + refresh
-- [x] Ganti `auth-provider.tsx` mock; proteksi route grup `(app)`
-
-### Web: API client + TanStack Query setup ✅
-
-- [x] `QueryClientProvider` + wrapper fetch ber-otentikasi (auto refresh)
-- [x] Standar error → toast; util query/mutation keys
+- [x] **T-109** Auth.js Credentials → `/auth/login`; provider Google; sesi httpOnly membawa token API; ganti `auth-provider.tsx` mock; proteksi route `(app)`; `QueryClientProvider` + fetch ber-otentikasi (auto refresh) + standar error→toast
 
 ## Acceptance Criteria
+
+**Epic-level**
 
 - User valid bisa login → menerima JWT; login invalid → 401.
 - Refresh token bekerja; logout meng-invalidasi refresh token.
@@ -73,6 +69,22 @@ serta menyambungkan frontend ke Auth.js + query client.
 - Swagger di `/api/docs` tampil; typed client ter-generate dan dipakai web.
 - Login nyata di web menggantikan mock; sesi bertahan setelah refresh halaman.
 - Migrasi + seed berjalan; unit/e2e auth lulus.
+
+**Per-task**
+
+- **T-101** — `/health` hijau; Swagger ter-bootstrap; env tervalidasi.
+- **T-102** — migrasi + seed jalan; uang sebagai BIGINT; relasi/index ada.
+- **T-103** — argon2id; refresh rotation di Redis; logout invalidasi refresh.
+- **T-104** — OAuth Google menautkan/membuat akun by email.
+- **T-105** — scoping tenant dipaksakan di setiap query; member di-403 untuk resource lain.
+- **T-107** — mutasi tercatat di `audit_logs` dengan aktor/aksi/entitas.
+- **T-108** — typed client ter-generate & dipakai web tanpa error tipe.
+- **T-109** — sesi bertahan setelah reload; auto-refresh token; route `(app)` terproteksi.
+
+## Residual / Not-100% (untuk QA)
+
+- **T-106** — Postgres RLS belum dipasang (interceptor app-layer aktif). Lapis kedua RLS dikerjakan di **EPIC-005 T-503** + **EPIC-007 T-704**.
+- Verifikasi cakupan uji RBAC E2E (member-isolation) memadai sebelum tutup epic.
 
 ## Automation Log
 

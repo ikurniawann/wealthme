@@ -5,23 +5,38 @@ environment: dev
 phase: 7
 priority: P2
 area: Backend + Infra + Frontend
+prd: ../product/PRD.md
+stories: ../product/USER-STORIES.md (§1 Auth & Profile / PDP, §9 RBAC isolation)
+tasks: ../product/ENGINEERING-TASKS.md (T-701 … T-710)
 
 ## Goal
+
 Menyiapkan produk untuk produksi: keamanan, kepatuhan (PDP/OJK), observability, pengujian
 menyeluruh, dan deployment self-host yang andal.
 
+## User Stories
+
+- **US-AUTH-8** — ekspor data & hapus akun (PDP).
+- **US-FAM-4, US-FAM-7** — isolasi data antar-member diverifikasi end-to-end.
+- Cross-cutting non-functional: keamanan, kepatuhan, observability, a11y, i18n.
+
 ## Tasks
-- [ ] Enkripsi at-rest + kolom sensitif (nomor rekening, dokumen) via AES-GCM/pgcrypto
-- [ ] Rate limiting + throttling (@nestjs/throttler)
-- [ ] Secrets management (Vault/Doppler) - tanpa secret di env produksi
-- [ ] Kepatuhan PDP/OJK: residensi data Indonesia, retensi audit, catatan consent
-- [ ] Observability: pino + OpenTelemetry + Sentry + Grafana (log/trace/metric/error)
-- [ ] E2E test suite (Playwright web + supertest api) untuk alur kritis
-- [ ] Load testing (k6) + baseline kapasitas
-- [ ] Deploy: manifest K8s/Swarm + backup DB + runbook on-call
-- [ ] Accessibility & i18n pass (WCAG 2.2, locale EN)
+
+- [ ] **T-701** Enkripsi at-rest + kolom sensitif (nomor rekening, dokumen) via AES-GCM/pgcrypto
+- [ ] **T-702** Rate limiting + throttling (@nestjs/throttler)
+- [ ] **T-703** Secrets management (Vault/Doppler) — tanpa secret di env produksi
+- [ ] **T-704** Kepatuhan PDP/OJK: residensi data Indonesia, retensi audit, catatan consent
+- [ ] **T-705** Observability: pino + OpenTelemetry + Sentry + Grafana (log/trace/metric/error)
+- [ ] **T-706** E2E test suite (Playwright web + supertest api) untuk alur kritis termasuk isolasi RBAC
+- [ ] **T-707** Load testing (k6) + baseline kapasitas
+- [ ] **T-708** Deploy: manifest K8s/Swarm + backup DB + runbook on-call
+- [ ] **T-709** Accessibility pass (WCAG 2.2) di seluruh halaman
+- [ ] **T-710** i18n: locale EN berdampingan dengan ID
 
 ## Acceptance Criteria
+
+**Epic-level**
+
 - Data sensitif terenkripsi; tidak ada secret di env produksi.
 - Rate limit aktif; penyalahgunaan tertahan.
 - Log/trace/metric/error termonitor dengan dashboard + alert.
@@ -29,6 +44,20 @@ menyeluruh, dan deployment self-host yang andal.
 - Deployment reproducible; backup & restore teruji; runbook tersedia.
 - Audit aksesibilitas lulus; pergantian bahasa id/en berfungsi.
 
+**Per-task**
+
+- **T-701** — kolom sensitif terenkripsi (AES-GCM/pgcrypto); data at-rest terlindungi.
+- **T-702** — rate limit di semua endpoint; abuse tertahan.
+- **T-703** — tidak ada secret di env produksi; rotasi terdukung.
+- **T-704** — data di region ID; retensi audit & catatan consent sesuai PDP.
+- **T-705** — dashboard log/trace/metric/error dengan alert aktif.
+- **T-706** — alur kritis (login→tambah transaksi→dashboard) + isolasi RBAC member lulus E2E.
+- **T-707** — baseline kapasitas terdokumentasi; target throughput tercapai.
+- **T-708** — deploy reproducible; backup/restore teruji; runbook on-call tersedia.
+- **T-709** — audit WCAG 2.2 lulus di seluruh 21 halaman.
+- **T-710** — switch bahasa id/en berfungsi penuh.
+
 ## Dependencies
+
 - Idealnya seluruh epic fungsional (EPIC-001..006) selesai; sebagian item (observability,
   CI security, secrets) dapat dimulai lebih awal secara paralel.
