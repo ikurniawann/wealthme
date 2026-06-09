@@ -1,6 +1,6 @@
 # EPIC-002: Core Money Tracking (MVP)
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 phase: 2
 priority: P0
