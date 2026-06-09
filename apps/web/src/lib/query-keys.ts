@@ -18,4 +18,8 @@ export const queryKeys = {
   accounts: {
     all: (familyGroupId: string) => ["accounts", familyGroupId] as const,
   },
+  search: {
+    results: (familyGroupId: string, q: string) =>
+      ["search", familyGroupId, q] as const,
+  },
 } as const;
