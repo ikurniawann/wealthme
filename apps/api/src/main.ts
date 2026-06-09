@@ -1,5 +1,6 @@
 import "reflect-metadata";
 
+import { ValidationPipe } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
@@ -23,6 +24,8 @@ async function bootstrap(): Promise<void> {
   // Security headers baseline (CSP, HSTS, X-Frame-Options, …).
   app.use(helmet());
 
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+
   app.enableCors({
     origin: webOrigin,
     credentials: true,
@@ -34,6 +37,7 @@ async function bootstrap(): Promise<void> {
       .setTitle("WealthMe API")
       .setDescription("WealthMe personal finance platform API")
       .setVersion("0.1.0")
+      .addBearerAuth()
       .build();
 
     const document = SwaggerModule.createDocument(app, swaggerConfig);

@@ -1,13 +1,19 @@
 import { validateEnv } from "../../src/config/env";
 
 describe("validateEnv", () => {
-  // DATABASE_URL is required; supply it wherever defaults are exercised.
+  // Minimum required vars for a valid env.
   const DB_URL = "postgresql://localhost:5432/db";
+  const BASE = {
+    DATABASE_URL: DB_URL,
+    REDIS_URL: "redis://localhost:6379",
+    JWT_SECRET: "test-secret-that-is-at-least-32-chars-long!!",
+    JWT_REFRESH_SECRET: "test-refresh-secret-at-least-32-chars-long!",
+  };
 
   describe("defaults", () => {
     it("applies defaults when optional vars are absent", () => {
       // Arrange
-      const raw = { DATABASE_URL: DB_URL };
+      const raw = { ...BASE };
 
       // Act
       const env = validateEnv(raw);
@@ -22,7 +28,7 @@ describe("validateEnv", () => {
   describe("coercion", () => {
     it("coerces a numeric PORT string into a number", () => {
       // Arrange
-      const raw = { DATABASE_URL: DB_URL, PORT: "8080" };
+      const raw = { ...BASE, PORT: "8080" };
 
       // Act
       const env = validateEnv(raw);
@@ -53,20 +59,20 @@ describe("validateEnv", () => {
   describe("optional passthrough", () => {
     it("preserves provided optional vars", () => {
       // Arrange
-      const raw = { DATABASE_URL: "postgresql://localhost:5432/db" };
+      const raw = { ...BASE };
 
       // Act
       const env = validateEnv(raw);
 
       // Assert
-      expect(env.DATABASE_URL).toBe("postgresql://localhost:5432/db");
+      expect(env.DATABASE_URL).toBe(DB_URL);
     });
   });
 
   describe("failure branch", () => {
     it("throws when PORT is not numeric", () => {
       // Arrange
-      const raw = { DATABASE_URL: DB_URL, PORT: "not-a-port" };
+      const raw = { ...BASE, PORT: "not-a-port" };
 
       // Act + Assert
       expect(() => validateEnv(raw)).toThrow(/Invalid environment variables/);
@@ -74,7 +80,7 @@ describe("validateEnv", () => {
 
     it("throws when WEB_ORIGIN is not a valid URL", () => {
       // Arrange
-      const raw = { DATABASE_URL: DB_URL, WEB_ORIGIN: "not-a-url" };
+      const raw = { ...BASE, WEB_ORIGIN: "not-a-url" };
 
       // Act + Assert
       expect(() => validateEnv(raw)).toThrow(/WEB_ORIGIN/);
@@ -82,7 +88,7 @@ describe("validateEnv", () => {
 
     it("throws when NODE_ENV is outside the allowed enum", () => {
       // Arrange
-      const raw = { DATABASE_URL: DB_URL, NODE_ENV: "staging" };
+      const raw = { ...BASE, NODE_ENV: "staging" };
 
       // Act + Assert
       expect(() => validateEnv(raw)).toThrow(/Invalid environment variables/);
