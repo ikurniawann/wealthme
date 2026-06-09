@@ -43,5 +43,8 @@ jobs:
           restore-keys: |
             turbo-${{ runner.os }}-
 
+      - name: Generate Prisma Client
+        run: pnpm --filter @wealthme/api run db:generate
+
       - name: Lint, Build & Test
         run: pnpm turbo run lint build test --cache-dir=.turbo
