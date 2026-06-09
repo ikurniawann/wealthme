@@ -22,8 +22,15 @@ var index_exports = {};
 __export(index_exports, {
   AuthUserSchema: () => AuthUserSchema,
   CONTRACTS_VERSION: () => CONTRACTS_VERSION,
+  CategoryDtoSchema: () => CategoryDtoSchema,
+  CategoryKindSchema: () => CategoryKindSchema,
+  CreateTransactionInputSchema: () => CreateTransactionInputSchema,
   LoginInputSchema: () => LoginInputSchema,
-  RupiahSchema: () => RupiahSchema
+  RupiahSchema: () => RupiahSchema,
+  TransactionDtoSchema: () => TransactionDtoSchema,
+  TransactionListResponseSchema: () => TransactionListResponseSchema,
+  TransactionSummarySchema: () => TransactionSummarySchema,
+  TransactionTypeSchema: () => TransactionTypeSchema
 });
 module.exports = __toCommonJS(index_exports);
 
@@ -43,10 +50,72 @@ var AuthUserSchema = import_zod2.z.object({
   name: import_zod2.z.string(),
   email: import_zod2.z.string().email()
 });
+
+// src/categories/index.ts
+var import_zod3 = require("zod");
+var CategoryKindSchema = import_zod3.z.enum(["income", "expense"]);
+var CategoryDtoSchema = import_zod3.z.object({
+  id: import_zod3.z.string().uuid(),
+  familyGroupId: import_zod3.z.string().uuid(),
+  name: import_zod3.z.string(),
+  kind: CategoryKindSchema,
+  color: import_zod3.z.string().nullable(),
+  icon: import_zod3.z.string().nullable(),
+  createdAt: import_zod3.z.string()
+});
+
+// src/transactions/index.ts
+var import_zod4 = require("zod");
+var TransactionTypeSchema = import_zod4.z.enum(["income", "expense", "transfer"]);
+var CreateTransactionInputSchema = import_zod4.z.object({
+  accountId: import_zod4.z.string().uuid(),
+  categoryId: import_zod4.z.string().uuid().optional(),
+  amount: import_zod4.z.number().int().positive(),
+  type: TransactionTypeSchema,
+  description: import_zod4.z.string().optional(),
+  occurredAt: import_zod4.z.string(),
+  toAccountId: import_zod4.z.string().uuid().optional()
+});
+var TransactionDtoSchema = import_zod4.z.object({
+  id: import_zod4.z.string().uuid(),
+  familyGroupId: import_zod4.z.string().uuid(),
+  accountId: import_zod4.z.string().uuid(),
+  categoryId: import_zod4.z.string().uuid().nullable(),
+  amount: import_zod4.z.string(),
+  type: TransactionTypeSchema,
+  description: import_zod4.z.string().nullable(),
+  occurredAt: import_zod4.z.string(),
+  createdAt: import_zod4.z.string()
+});
+var TransactionSummarySchema = import_zod4.z.object({
+  totalIncome: import_zod4.z.string(),
+  totalExpense: import_zod4.z.string(),
+  netBalance: import_zod4.z.string(),
+  period: import_zod4.z.object({
+    from: import_zod4.z.string().nullable(),
+    to: import_zod4.z.string().nullable()
+  })
+});
+var TransactionListResponseSchema = import_zod4.z.object({
+  data: import_zod4.z.array(TransactionDtoSchema),
+  meta: import_zod4.z.object({
+    total: import_zod4.z.number(),
+    page: import_zod4.z.number(),
+    limit: import_zod4.z.number()
+  }),
+  summary: TransactionSummarySchema
+});
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   AuthUserSchema,
   CONTRACTS_VERSION,
+  CategoryDtoSchema,
+  CategoryKindSchema,
+  CreateTransactionInputSchema,
   LoginInputSchema,
-  RupiahSchema
+  RupiahSchema,
+  TransactionDtoSchema,
+  TransactionListResponseSchema,
+  TransactionSummarySchema,
+  TransactionTypeSchema
 });

@@ -226,6 +226,7 @@ describe("AuthService", () => {
         name: "Jane Doe",
         avatarInitials: "JD",
         createdAt: new Date("2024-01-01"),
+        memberships: [],
       };
       mockPrisma.user.findUniqueOrThrow.mockResolvedValue(profile);
 
@@ -233,7 +234,14 @@ describe("AuthService", () => {
       const result = await service.getMe("user-1");
 
       // Assert
-      expect(result).toEqual(profile);
+      expect(result).toEqual({
+        id: profile.id,
+        email: profile.email,
+        name: profile.name,
+        avatarInitials: profile.avatarInitials,
+        createdAt: profile.createdAt,
+        familyGroupId: null,
+      });
       expect(result).not.toHaveProperty("passwordHash");
       expect(mockPrisma.user.findUniqueOrThrow).toHaveBeenCalledWith({
         where: { id: "user-1" },
@@ -243,6 +251,11 @@ describe("AuthService", () => {
           name: true,
           avatarInitials: true,
           createdAt: true,
+          memberships: {
+            select: { familyGroupId: true },
+            orderBy: { createdAt: "asc" },
+            take: 1,
+          },
         },
       });
     });
