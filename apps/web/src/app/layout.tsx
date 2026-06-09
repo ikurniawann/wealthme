@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Sora, DM_Mono } from "next/font/google";
 import "./globals.css";
+import { SessionProviderWrapper } from "@/components/providers/session-provider-wrapper";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -31,9 +32,15 @@ export const viewport: Viewport = {
   themeColor: "#4f46e5",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="id" suppressHydrationWarning className={`${sora.variable} ${dmMono.variable}`}>
+    <html
+      lang="id"
+      suppressHydrationWarning
+      className={`${sora.variable} ${dmMono.variable}`}
+    >
       <body className="min-h-screen bg-background text-foreground antialiased">
         <ThemeProvider
           attribute="class"
@@ -42,7 +49,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           storageKey="wealthme-theme"
           disableTransitionOnChange
         >
-          <AuthProvider>{children}</AuthProvider>
+          <SessionProviderWrapper>
+            <AuthProvider>{children}</AuthProvider>
+          </SessionProviderWrapper>
           <Toaster position="bottom-center" />
         </ThemeProvider>
       </body>
