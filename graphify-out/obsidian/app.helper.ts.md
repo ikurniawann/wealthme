@@ -1,0 +1,23 @@
+---
+source_file: "apps/api/test/e2e/helpers/app.helper.ts"
+type: "code"
+community: "Audit Logging Service"
+location: "L1"
+tags:
+  - graphify/code
+  - graphify/EXTRACTED
+  - community/Audit_Logging_Service
+---
+
+# app.helper.ts
+
+## Connections
+- [[AppModule]] - `imports` [EXTRACTED]
+- [[PrismaService]] - `imports` [EXTRACTED]
+- [[TestApp]] - `contains` [EXTRACTED]
+- [[app.module.ts]] - `imports_from` [EXTRACTED]
+- [[createTestApp()]] - `contains` [EXTRACTED]
+- [[prisma.service.ts]] - `imports_from` [EXTRACTED]
+- [[redis.module.ts]] - `imports_from` [EXTRACTED]
+
+#graphify/code #graphify/EXTRACTED #community/Audit_Logging_Service

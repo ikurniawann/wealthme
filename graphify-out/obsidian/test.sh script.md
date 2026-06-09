@@ -1,0 +1,17 @@
+---
+source_file: "scripts/test.sh"
+type: "code"
+community: "Test Script"
+location: "L1"
+tags:
+  - graphify/code
+  - graphify/EXTRACTED
+  - community/Test_Script
+---
+
+# test.sh script
+
+## Connections
+- [[test.sh]] - `contains` [EXTRACTED]
+
+#graphify/code #graphify/EXTRACTED #community/Test_Script

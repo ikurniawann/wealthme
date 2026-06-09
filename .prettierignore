@@ -21,3 +21,6 @@ yarn.lock
 # Generated / env
 .env
 .env.*
+
+# Generated knowledge graph (graphify)
+graphify-out/
