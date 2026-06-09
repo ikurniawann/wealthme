@@ -25,13 +25,19 @@ export interface TokenPair {
   refreshToken: string;
 }
 
+type MembershipInfo = {
+  id: string;
+  familyGroupId: string;
+  role: string;
+};
+
 type UserProfile = {
   id: string;
   email: string;
   name: string;
   avatarInitials: string | null;
   createdAt: Date;
-  familyGroupId: string | null;
+  memberships: MembershipInfo[];
 };
 
 @Injectable()
@@ -108,21 +114,15 @@ export class AuthService {
         avatarInitials: true,
         createdAt: true,
         memberships: {
-          select: { familyGroupId: true },
-          take: 1,
-          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            familyGroupId: true,
+            role: true,
+          },
         },
       },
     });
-
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      avatarInitials: user.avatarInitials,
-      createdAt: user.createdAt,
-      familyGroupId: user.memberships[0]?.familyGroupId ?? null,
-    };
+    return user;
   }
 
   async loginWithGoogle(profile: GoogleProfile): Promise<TokenPair> {

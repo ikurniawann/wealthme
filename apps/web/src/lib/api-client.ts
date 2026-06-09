@@ -1,7 +1,7 @@
 // Authenticated fetch wrapper — attaches Bearer token from the session,
 // retries once after a 401 by signing out (token rotation is handled by Auth.js).
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 export type ApiError = {
   status: number;
