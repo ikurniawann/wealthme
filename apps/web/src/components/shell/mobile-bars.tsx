@@ -2,14 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Menu, Plus, Search } from "lucide-react";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Menu, Plus, Search } from "lucide-react";
+import { useState } from "react";
+
+import { NotifBell } from "@/components/NotifBell";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { PAGE_TITLES, MOBILE_NAV } from "@/lib/nav";
 import { cn } from "@/lib/utils";
+
 import { SidebarNav } from "./sidebar";
 import { ThemeToggle } from "./theme-toggle";
 import { useShell } from "./shell-context";
-import { useState } from "react";
 
 export function MobileHeader() {
   const pathname = usePathname();
@@ -43,14 +51,7 @@ export function MobileHeader() {
         >
           <Search className="size-[15px]" />
         </button>
-        <Link
-          href="/notifikasi"
-          aria-label="Notifikasi"
-          className="relative flex size-9 items-center justify-center rounded-md bg-secondary text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
-        >
-          <Bell className="size-[15px]" />
-          <span className="absolute right-1.5 top-1.5 size-[7px] rounded-full border-2 border-card bg-destructive" />
-        </Link>
+        <NotifBell />
       </div>
     </div>
   );

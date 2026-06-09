@@ -22,6 +22,9 @@ const mockPrisma = {
     create: jest.fn(),
     update: jest.fn(),
   },
+  member: {
+    findUnique: jest.fn(),
+  },
 };
 
 const mockJwt = {
@@ -218,22 +221,30 @@ describe("AuthService", () => {
   });
 
   describe("getMe()", () => {
-    it("returns user profile without passwordHash", async () => {
+    it("returns user profile with familyGroupId from first membership", async () => {
       // Arrange
-      const profile = {
+      const rawUser = {
         id: "user-1",
         email: "user@example.com",
         name: "Jane Doe",
         avatarInitials: "JD",
         createdAt: new Date("2024-01-01"),
+        memberships: [{ familyGroupId: "fg-1" }],
       };
-      mockPrisma.user.findUniqueOrThrow.mockResolvedValue(profile);
+      mockPrisma.user.findUniqueOrThrow.mockResolvedValue(rawUser);
 
       // Act
       const result = await service.getMe("user-1");
 
       // Assert
-      expect(result).toEqual(profile);
+      expect(result).toEqual({
+        id: "user-1",
+        email: "user@example.com",
+        name: "Jane Doe",
+        avatarInitials: "JD",
+        createdAt: new Date("2024-01-01"),
+        familyGroupId: "fg-1",
+      });
       expect(result).not.toHaveProperty("passwordHash");
       expect(mockPrisma.user.findUniqueOrThrow).toHaveBeenCalledWith({
         where: { id: "user-1" },
@@ -243,8 +254,32 @@ describe("AuthService", () => {
           name: true,
           avatarInitials: true,
           createdAt: true,
+          memberships: {
+            select: { familyGroupId: true },
+            take: 1,
+            orderBy: { createdAt: "asc" },
+          },
         },
       });
+    });
+
+    it("returns familyGroupId as null when user has no memberships", async () => {
+      // Arrange
+      const rawUser = {
+        id: "user-2",
+        email: "user2@example.com",
+        name: "No Group",
+        avatarInitials: "NG",
+        createdAt: new Date("2024-01-01"),
+        memberships: [],
+      };
+      mockPrisma.user.findUniqueOrThrow.mockResolvedValue(rawUser);
+
+      // Act
+      const result = await service.getMe("user-2");
+
+      // Assert
+      expect(result.familyGroupId).toBeNull();
     });
   });
 

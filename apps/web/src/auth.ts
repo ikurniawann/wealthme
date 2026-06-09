@@ -38,6 +38,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             id: string;
             email: string;
             name: string;
+            familyGroupId?: string | null;
           };
           return {
             id: user.id,
@@ -45,6 +46,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             name: user.name,
             accessToken: tokens.accessToken,
             refreshToken: tokens.refreshToken,
+            familyGroupId: user.familyGroupId ?? null,
           };
         } catch {
           return null;
@@ -61,9 +63,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user, account }) {
       // Initial sign-in via credentials
       if (user) {
-        token.accessToken = (user as { accessToken?: string }).accessToken;
-        token.refreshToken = (user as { refreshToken?: string }).refreshToken;
+        const u = user as {
+          accessToken?: string;
+          refreshToken?: string;
+          familyGroupId?: string | null;
+        };
+        token.accessToken = u.accessToken;
+        token.refreshToken = u.refreshToken;
         token.userId = user.id;
+        token.familyGroupId = u.familyGroupId ?? null;
         token.accessTokenExpiresAt = Date.now() + ACCESS_TOKEN_TTL_MS;
         return token;
       }
@@ -84,6 +92,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             token.accessToken = tokens.accessToken;
             token.refreshToken = tokens.refreshToken;
             token.accessTokenExpiresAt = Date.now() + ACCESS_TOKEN_TTL_MS;
+
+            try {
+              const meRes = await fetch(`${API_URL}/auth/me`, {
+                headers: { Authorization: `Bearer ${tokens.accessToken}` },
+              });
+              if (meRes.ok) {
+                const me = (await meRes.json()) as {
+                  id?: string;
+                  familyGroupId?: string | null;
+                };
+                token.userId = me.id;
+                token.familyGroupId = me.familyGroupId ?? null;
+              }
+            } catch {
+              /* familyGroupId remains unset */
+            }
           }
         } catch {
           /* keep existing token */
@@ -124,6 +148,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         ...session,
         accessToken: token.accessToken as string | undefined,
         userId: token.userId as string | undefined,
+        familyGroupId: token.familyGroupId as string | null | undefined,
         error: token.error as string | undefined,
       };
     },

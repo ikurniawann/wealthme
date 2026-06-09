@@ -1,10 +1,5 @@
 import { z } from 'zod';
 
-/** Rupiah amounts are stored as whole-rupiah integers (no minor unit). */
-declare const RupiahSchema: z.ZodNumber;
-type Rupiah = z.infer<typeof RupiahSchema>;
-declare const CONTRACTS_VERSION: "0.0.0";
-
 declare const LoginInputSchema: z.ZodObject<{
     email: z.ZodString;
     password: z.ZodString;
@@ -31,4 +26,18 @@ declare const AuthUserSchema: z.ZodObject<{
 }>;
 type AuthUser = z.infer<typeof AuthUserSchema>;
 
-export { type AuthUser, AuthUserSchema, CONTRACTS_VERSION, type LoginInput, LoginInputSchema, type Rupiah, RupiahSchema };
+/** Rupiah amounts are stored as whole-rupiah integers (no minor unit). */
+declare const RupiahSchema: z.ZodNumber;
+type Rupiah = z.infer<typeof RupiahSchema>;
+declare const CONTRACTS_VERSION: "0.0.0";
+
+interface NotificationDto {
+    id: string;
+    title: string;
+    body: string;
+    icon: string | null;
+    isRead: boolean;
+    createdAt: string;
+}
+
+export { type AuthUser, AuthUserSchema, CONTRACTS_VERSION, type LoginInput, LoginInputSchema, type NotificationDto, type Rupiah, RupiahSchema };

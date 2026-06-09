@@ -13,6 +13,7 @@ import { AbilitiesGuard } from "./common/guards/abilities.guard";
 import { TenantGuard } from "./common/guards/tenant.guard";
 import { validateEnv } from "./config/env";
 import { HealthModule } from "./health/health.module";
+import { NotificationsModule } from "./notifications/notifications.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis/redis.module";
 
@@ -38,6 +39,7 @@ import { RedisModule } from "./redis/redis.module";
     CaslModule,
     CommonModule,
     AuditModule,
+    NotificationsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: TenantGuard },

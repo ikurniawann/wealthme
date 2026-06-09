@@ -4,5 +4,6 @@
  * backend grows (auth, transactions, accounts, …) and import them on both ends.
  */
 
-export * from "./common/index.js";
 export * from "./auth/index.js";
+export * from "./common/index.js";
+export * from "./notifications/index.js";

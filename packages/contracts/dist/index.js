@@ -1,19 +1,19 @@
-// src/common/index.ts
-import { z } from "zod";
-var RupiahSchema = z.number().int().nonnegative();
-var CONTRACTS_VERSION = "0.0.0";
-
 // src/auth/index.ts
+import { z } from "zod";
+var LoginInputSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8)
+});
+var AuthUserSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string().email()
+});
+
+// src/common/index.ts
 import { z as z2 } from "zod";
-var LoginInputSchema = z2.object({
-  email: z2.string().email(),
-  password: z2.string().min(8)
-});
-var AuthUserSchema = z2.object({
-  id: z2.string(),
-  name: z2.string(),
-  email: z2.string().email()
-});
+var RupiahSchema = z2.number().int().nonnegative();
+var CONTRACTS_VERSION = "0.0.0";
 export {
   AuthUserSchema,
   CONTRACTS_VERSION,

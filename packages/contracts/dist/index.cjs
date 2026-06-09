@@ -27,22 +27,22 @@ __export(index_exports, {
 });
 module.exports = __toCommonJS(index_exports);
 
-// src/common/index.ts
-var import_zod = require("zod");
-var RupiahSchema = import_zod.z.number().int().nonnegative();
-var CONTRACTS_VERSION = "0.0.0";
-
 // src/auth/index.ts
+var import_zod = require("zod");
+var LoginInputSchema = import_zod.z.object({
+  email: import_zod.z.string().email(),
+  password: import_zod.z.string().min(8)
+});
+var AuthUserSchema = import_zod.z.object({
+  id: import_zod.z.string(),
+  name: import_zod.z.string(),
+  email: import_zod.z.string().email()
+});
+
+// src/common/index.ts
 var import_zod2 = require("zod");
-var LoginInputSchema = import_zod2.z.object({
-  email: import_zod2.z.string().email(),
-  password: import_zod2.z.string().min(8)
-});
-var AuthUserSchema = import_zod2.z.object({
-  id: import_zod2.z.string(),
-  name: import_zod2.z.string(),
-  email: import_zod2.z.string().email()
-});
+var RupiahSchema = import_zod2.z.number().int().nonnegative();
+var CONTRACTS_VERSION = "0.0.0";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   AuthUserSchema,
