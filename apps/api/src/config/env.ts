@@ -14,6 +14,18 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default("15m"),
   JWT_REFRESH_SECRET: z.string().min(32),
   JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
+  // Google OAuth — optional; both must be set together to enable Google login
+  GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
+  GOOGLE_CALLBACK_URL: z
+    .string()
+    .url()
+    .default("http://localhost:4000/auth/google/callback")
+    .refine(
+      (url) =>
+        process.env["NODE_ENV"] !== "production" || url.startsWith("https://"),
+      { message: "GOOGLE_CALLBACK_URL must use HTTPS in production" },
+    ),
   MINIO_ENDPOINT: z.string().optional(),
   MINIO_ACCESS_KEY: z.string().optional(),
   MINIO_SECRET_KEY: z.string().optional(),

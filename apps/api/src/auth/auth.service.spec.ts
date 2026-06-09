@@ -20,6 +20,7 @@ const mockPrisma = {
     findUnique: jest.fn(),
     findUniqueOrThrow: jest.fn(),
     create: jest.fn(),
+    update: jest.fn(),
   },
 };
 
@@ -244,6 +245,119 @@ describe("AuthService", () => {
           createdAt: true,
         },
       });
+    });
+  });
+
+  describe("loginWithGoogle()", () => {
+    const googleProfile = {
+      googleId: "g-123",
+      email: "jane@gmail.com",
+      name: "Jane Doe",
+    };
+
+    it("issues tokens when user is found by googleId (already linked)", async () => {
+      // Arrange
+      const linkedUser = {
+        id: "user-1",
+        email: "jane@gmail.com",
+        googleId: "g-123",
+      };
+      // First findUnique call (by googleId) returns the linked user.
+      mockPrisma.user.findUnique.mockResolvedValueOnce(linkedUser);
+      mockJwt.sign
+        .mockReturnValueOnce("access-token")
+        .mockReturnValueOnce("refresh-token");
+      mockRedis.set.mockResolvedValue(undefined);
+
+      // Act
+      const result = await service.loginWithGoogle(googleProfile);
+
+      // Assert — no update should happen; user already linked
+      expect(mockPrisma.user.update).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
+      });
+    });
+
+    it("throws ConflictException when an email-only account exists (different googleId)", async () => {
+      // Arrange — no user by googleId, but email account exists (password-only user)
+      const emailOnlyUser = {
+        id: "user-1",
+        email: "jane@gmail.com",
+        googleId: null,
+      };
+      mockPrisma.user.findUnique
+        .mockResolvedValueOnce(null) // lookup by googleId → not found
+        .mockResolvedValueOnce(emailOnlyUser); // lookup by email → found
+
+      // Act & Assert
+      await expect(service.loginWithGoogle(googleProfile)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(mockPrisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it("creates a new user and issues tokens when no account exists", async () => {
+      // Arrange — no user by googleId, no user by email
+      mockPrisma.user.findUnique
+        .mockResolvedValueOnce(null) // lookup by googleId → not found
+        .mockResolvedValueOnce(null); // lookup by email → not found
+      mockPrisma.user.create.mockResolvedValue({
+        id: "user-new",
+        email: "jane@gmail.com",
+        name: "Jane Doe",
+        googleId: "g-123",
+        avatarInitials: "JD",
+        passwordHash: null,
+      });
+      mockJwt.sign
+        .mockReturnValueOnce("access-token")
+        .mockReturnValueOnce("refresh-token");
+      mockRedis.set.mockResolvedValue(undefined);
+
+      // Act
+      const result = await service.loginWithGoogle(googleProfile);
+
+      // Assert
+      expect(mockPrisma.user.create).toHaveBeenCalledWith({
+        data: {
+          email: "jane@gmail.com",
+          name: "Jane Doe",
+          googleId: "g-123",
+          passwordHash: null,
+          avatarInitials: "JD",
+        },
+      });
+      expect(result).toEqual({
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
+      });
+    });
+
+    it("throws when called with an empty email (guard at strategy level)", async () => {
+      // Arrange — profile has empty email string; service receives it only if guard is bypassed
+      const emptyEmailProfile = {
+        googleId: "g-456",
+        email: "",
+        name: "Bad Actor",
+      };
+      // googleId lookup returns nothing, email lookup also returns nothing (empty string won't match)
+      mockPrisma.user.findUnique
+        .mockResolvedValueOnce(null) // lookup by googleId
+        .mockResolvedValueOnce(null); // lookup by email (empty string)
+
+      // Act — Prisma create would be called with email: "" which is invalid at DB level,
+      // but we verify the service does not silently produce tokens for an empty email.
+      mockPrisma.user.create.mockRejectedValue(
+        new Error("DB constraint: email cannot be empty"),
+      );
+
+      // Assert
+      await expect(service.loginWithGoogle(emptyEmailProfile)).rejects.toThrow(
+        "DB constraint: email cannot be empty",
+      );
+      expect(mockPrisma.user.create).toHaveBeenCalled();
     });
   });
 });

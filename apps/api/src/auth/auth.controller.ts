@@ -8,7 +8,12 @@ import {
   Request,
   UseGuards,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiExcludeEndpoint,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 
 /* eslint-disable @typescript-eslint/consistent-type-imports */
@@ -16,14 +21,20 @@ import { AuthService } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
 /* eslint-enable @typescript-eslint/consistent-type-imports */
+import { GoogleAuthGuard } from "./guards/google-auth.guard";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { JwtRefreshGuard } from "./guards/jwt-refresh.guard";
 
+import type { GoogleProfile } from "./strategies/google.strategy";
 import type { JwtPayload } from "./strategies/jwt.strategy";
 import type { Request as ExpressRequest } from "express";
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: JwtPayload;
+}
+
+interface GoogleCallbackRequest extends ExpressRequest {
+  user: GoogleProfile;
 }
 
 @ApiTags("auth")
@@ -72,5 +83,23 @@ export class AuthController {
   @ApiOperation({ summary: "Get current user profile" })
   me(@Request() req: AuthenticatedRequest) {
     return this.auth.getMe(req.user.sub);
+  }
+
+  @Get("google")
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @UseGuards(GoogleAuthGuard)
+  @ApiOperation({
+    summary: "Initiate Google OAuth login (redirects to Google)",
+  })
+  googleLogin(): void {
+    // Passport intercepts and redirects — no body needed.
+  }
+
+  @Get("google/callback")
+  @Throttle({ default: { ttl: 60000, limit: 20 } })
+  @UseGuards(GoogleAuthGuard)
+  @ApiExcludeEndpoint()
+  googleCallback(@Request() req: GoogleCallbackRequest) {
+    return this.auth.loginWithGoogle(req.user);
   }
 }
