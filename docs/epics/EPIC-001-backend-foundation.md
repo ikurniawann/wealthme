@@ -27,11 +27,11 @@ serta menyambungkan frontend ke Auth.js + query client.
 - [x] Uang sebagai `BIGINT` rupiah; relasi + index
 - [x] Migrasi awal + seed dari mock `apps/web/src/lib/data.ts`
 
-### Auth: email/password + JWT access/refresh + rotation
+### Auth: email/password + JWT access/refresh + rotation ✅
 
-- [ ] Hash password argon2id; endpoint register/login/logout
-- [ ] JWT access (pendek) + refresh (panjang); rotasi refresh di Redis
-- [ ] Guard `JwtAuthGuard`; `/auth/me`
+- [x] Hash password argon2id; endpoint register/login/logout
+- [x] JWT access (pendek) + refresh (panjang); rotasi refresh di Redis
+- [x] Guard `JwtAuthGuard`; `/auth/me`
 
 ### Google OAuth login
 
@@ -78,6 +78,7 @@ serta menyambungkan frontend ke Auth.js + query client.
 
 - 2026-06-09 /task-work EPIC-001 #1 "Scaffold NestJS app at apps/api" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/90
 - 2026-06-09 /task-work EPIC-001 #2 "Prisma + Postgres + base schema & migrations" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/92
+- 2026-06-09 /task-work EPIC-001 #3 "Auth: email/password + JWT access/refresh + rotation" → PASS (attempts: 3), PR: https://github.com/andrsrjld/wealthme-web/pull/94
 
 ## Dependencies
 
