@@ -131,3 +131,22 @@ model Transaction {
   @@index([categoryId])
   @@map("transactions")
 }
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  userId        String
+  familyGroupId String?
+  action        String
+  entity        String
+  entityId      String?
+  before        Json?
+  after         Json?
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([familyGroupId])
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}
