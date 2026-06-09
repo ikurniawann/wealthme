@@ -7,6 +7,7 @@ import { LoggerModule } from "nestjs-pino";
 import { AuditInterceptor } from "./audit/audit.interceptor";
 import { AuditModule } from "./audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
+import { BudgetsModule } from "./budgets/budgets.module";
 import { CaslModule } from "./casl/casl.module";
 import { CommonModule } from "./common/common.module";
 import { AbilitiesGuard } from "./common/guards/abilities.guard";
@@ -38,6 +39,7 @@ import { RedisModule } from "./redis/redis.module";
     CaslModule,
     CommonModule,
     AuditModule,
+    BudgetsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: TenantGuard },

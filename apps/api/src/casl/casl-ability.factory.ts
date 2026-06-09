@@ -7,7 +7,13 @@ import { Injectable } from "@nestjs/common";
 import { Role } from "@prisma/client";
 
 export type Action = "manage" | "create" | "read" | "update" | "delete";
-export type Subject = "Account" | "Category" | "Transaction" | "Member" | "all";
+export type Subject =
+  | "Account"
+  | "Budget"
+  | "Category"
+  | "Transaction"
+  | "Member"
+  | "all";
 
 export type AppAbility = MongoAbility<[Action, Subject]>;
 
@@ -19,6 +25,7 @@ export class CaslAbilityFactory {
     switch (member.role) {
       case Role.owner:
         can("manage", "Account");
+        can("manage", "Budget");
         can("manage", "Category");
         can("manage", "Transaction");
         can("manage", "Member");
@@ -26,6 +33,7 @@ export class CaslAbilityFactory {
 
       case Role.member:
         can("read", "Account");
+        can("manage", "Budget");
         can("read", "Category");
         can("manage", "Transaction");
         can("read", "Member");
@@ -33,6 +41,7 @@ export class CaslAbilityFactory {
 
       case Role.admin_staff:
         can("read", "Account");
+        can("read", "Budget");
         can("read", "Category");
         can("read", "Transaction");
         can("read", "Member");

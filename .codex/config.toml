@@ -1,0 +1,51 @@
+# Project-local Codex baseline for WealthMe.
+#
+# This file is separate from `.claude/settings.json`. Keep both when using
+# Claude Code and Codex side by side.
+
+sandbox_mode = "workspace-write"
+
+[features]
+multi_agent = true
+
+[agents.explorer]
+config = ".codex/agents/explorer.toml"
+
+[agents.reviewer]
+config = ".codex/agents/reviewer.toml"
+
+[agents.docs-researcher]
+config = ".codex/agents/docs-researcher.toml"
+
+[agents.epic-orchestrator]
+config = ".codex/agents/epic-orchestrator.toml"
+
+[agents.code-agent]
+config = ".codex/agents/code-agent.toml"
+
+[agents.review-qa-agent]
+config = ".codex/agents/review-qa-agent.toml"
+
+[agents.test-agent]
+config = ".codex/agents/test-agent.toml"
+
+[agents.security-agent]
+config = ".codex/agents/security-agent.toml"
+
+[agents.deploy-agent]
+config = ".codex/agents/deploy-agent.toml"
+
+[agents.bug-fixer]
+config = ".codex/agents/bug-fixer.toml"
+
+[mcp_servers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp"]
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["-y", "@playwright/mcp@latest"]
+
+[mcp_servers.sequential-thinking]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-sequential-thinking"]

@@ -31,4 +31,28 @@ declare const AuthUserSchema: z.ZodObject<{
 }>;
 type AuthUser = z.infer<typeof AuthUserSchema>;
 
-export { type AuthUser, AuthUserSchema, CONTRACTS_VERSION, type LoginInput, LoginInputSchema, type Rupiah, RupiahSchema };
+type BudgetPeriod = 'monthly' | 'weekly' | 'yearly';
+interface BudgetDto {
+    id: string;
+    categoryId: string;
+    categoryName: string;
+    categoryIcon: string | null;
+    period: BudgetPeriod;
+    limitAmount: number;
+    spentAmount: number;
+    remainingAmount: number;
+    usagePercent: number;
+    isOverBudget: boolean;
+    isNearLimit: boolean;
+}
+interface CreateBudgetDto {
+    categoryId: string;
+    period: BudgetPeriod;
+    limitAmount: number;
+}
+interface UpdateBudgetDto {
+    limitAmount?: number;
+    period?: BudgetPeriod;
+}
+
+export { type AuthUser, AuthUserSchema, type BudgetDto, type BudgetPeriod, CONTRACTS_VERSION, type CreateBudgetDto, type LoginInput, LoginInputSchema, type Rupiah, RupiahSchema, type UpdateBudgetDto };

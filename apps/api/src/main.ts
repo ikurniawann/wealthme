@@ -24,7 +24,13 @@ async function bootstrap(): Promise<void> {
   // Security headers baseline (CSP, HSTS, X-Frame-Options, …).
   app.use(helmet());
 
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
   app.enableCors({
     origin: webOrigin,
