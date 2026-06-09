@@ -1,9 +1,11 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
-import { APP_GUARD } from "@nestjs/core";
+import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
 
+import { AuditInterceptor } from "./audit/audit.interceptor";
+import { AuditModule } from "./audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
 import { CaslModule } from "./casl/casl.module";
 import { CommonModule } from "./common/common.module";
@@ -35,10 +37,12 @@ import { RedisModule } from "./redis/redis.module";
     AuthModule,
     CaslModule,
     CommonModule,
+    AuditModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: TenantGuard },
     { provide: APP_GUARD, useClass: AbilitiesGuard },
+    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],
 })
 export class AppModule {}
