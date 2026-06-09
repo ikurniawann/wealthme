@@ -7,3 +7,4 @@
 export * from "./common/index.js";
 export * from "./auth/index.js";
 export * from "./search/index.js";
+export * from "./accounts/index.js";

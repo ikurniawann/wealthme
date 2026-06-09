@@ -1,87 +1,103 @@
 "use client";
 
+import { useEffect } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
+import { useSession, signOut } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
+
 import { StatusBadge } from "@/components/wm";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { apiFetch } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
+import { formatRupiah } from "@/lib/format";
 
-type AccountAction = { label: string; toast: string };
+import type { AccountDto } from "@wealthme/contracts";
 
-type Account = {
+type AccountAction = { label: string; ariaLabel: string; toast: string };
+
+type AccountCard = {
+  id: string;
   logo: string;
   logoBg: string;
-  logoColor?: string;
   name: string;
   number: string;
   badge: { variant: "success" | "gray"; label: string };
   balanceLabel: string;
   balance: string;
   type: string;
-  detailToast: string;
   actions: AccountAction[];
 };
 
-const ACCOUNTS: Account[] = [
-  {
-    logo: "BCA",
-    logoBg: "#0061AF",
-    name: "BCA Tahapan",
-    number: "•••• •••• 9010",
-    badge: { variant: "success", label: "Utama" },
-    balanceLabel: "Saldo Tersedia",
-    balance: "Rp 128.450.000",
-    type: "Tabungan · BCA Prioritas",
-    detailToast: "Detail BCA Tahapan",
-    actions: [
-      { label: "↗ Transfer", toast: "Transfer" },
-      { label: "📥 Top Up", toast: "Topup" },
-      { label: "📋 Mutasi", toast: "Mutasi" },
-    ],
-  },
-  {
-    logo: "MDR",
-    logoBg: "#F9A01B",
-    logoColor: "#000",
-    name: "Bank Mandiri",
-    number: "•••• •••• 5586",
-    badge: { variant: "gray", label: "Aktif" },
-    balanceLabel: "Saldo",
-    balance: "Rp 85.000.000",
-    type: "Tabungan Rupiah",
-    detailToast: "Detail Mandiri",
-    actions: [
-      { label: "↗ Transfer", toast: "Transfer" },
-      { label: "📋 Mutasi", toast: "Mutasi" },
-    ],
-  },
-  {
-    logo: "BNI",
-    logoBg: "#FF6600",
-    name: "BNI Taplus",
-    number: "•••• •••• 5544",
-    badge: { variant: "gray", label: "Aktif" },
-    balanceLabel: "Saldo",
-    balance: "Rp 62.000.000",
-    type: "Tabungan Taplus",
-    detailToast: "Detail BNI",
-    actions: [
-      { label: "↗ Transfer", toast: "Transfer" },
-      { label: "📋 Mutasi", toast: "Mutasi" },
-    ],
-  },
-];
+const TYPE_LABELS: Record<string, string> = {
+  bank: "Tabungan",
+  ewallet: "E-Wallet",
+  cash: "Tunai",
+  investment: "Investasi",
+  property: "Properti",
+};
 
-function AccountCard({ account }: { account: Account }) {
+const TYPE_LOGO_BG: Record<string, string> = {
+  bank: "#0061AF",
+  ewallet: "#10B981",
+  cash: "#6B7280",
+  investment: "#8B5CF6",
+  property: "#F59E0B",
+};
+
+function toLogoText(name: string): string {
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("")
+    .slice(0, 3);
+}
+
+function toCardData(account: AccountDto): AccountCard {
+  return {
+    id: account.id,
+    logo: account.institution
+      ? toLogoText(account.institution)
+      : toLogoText(account.name),
+    logoBg: TYPE_LOGO_BG[account.type] ?? "#6B7280",
+    name: account.name,
+    number: account.maskedNumber ?? "—",
+    badge: {
+      variant: "success",
+      label: TYPE_LABELS[account.type] ?? account.type,
+    },
+    balanceLabel: "Saldo",
+    balance: formatRupiah(parseFloat(account.balance)),
+    type: account.institution
+      ? `${TYPE_LABELS[account.type] ?? account.type} · ${account.institution}`
+      : (TYPE_LABELS[account.type] ?? account.type),
+    actions: [
+      { label: "↗ Transfer", ariaLabel: "Transfer", toast: "Transfer" },
+      { label: "Mutasi", ariaLabel: "Lihat Mutasi", toast: "Mutasi" },
+    ],
+  };
+}
+
+function AccountCardItem({ account }: { account: AccountCard }) {
   return (
     <Card
+      role="button"
+      tabIndex={0}
       className="cursor-pointer gap-0 space-y-3.5 p-5 transition-shadow hover:shadow-md"
-      onClick={() => toast(account.detailToast)}
+      onClick={() => toast(account.name)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          toast(account.name);
+        }
+      }}
     >
       <div className="flex items-center gap-3">
         <div
           className="flex h-9 w-12 items-center justify-center rounded-md text-[12px] font-extrabold text-white"
-          style={{ background: account.logoBg, color: account.logoColor }}
+          style={{ background: account.logoBg }}
         >
           {account.logo}
         </div>
@@ -101,13 +117,17 @@ function AccountCard({ account }: { account: Account }) {
           {account.balanceLabel}
         </div>
         <div className="text-[22px] font-black">{account.balance}</div>
-        <div className="text-[11.5px] text-muted-foreground">{account.type}</div>
+        <div className="text-[11.5px] text-muted-foreground">
+          {account.type}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
         {account.actions.map((action) => (
           <button
             key={action.label}
+            type="button"
+            aria-label={action.ariaLabel}
             className="cursor-pointer rounded-md border bg-background px-3 py-2 text-[12px] font-semibold transition-colors hover:bg-accent"
             onClick={(e) => {
               e.stopPropagation();
@@ -123,22 +143,78 @@ function AccountCard({ account }: { account: Account }) {
 }
 
 export default function RekeningPage() {
+  const { data: session } = useSession();
+
+  useEffect(() => {
+    if ((session as { error?: string } | null)?.error === "RefreshTokenError") {
+      void signOut({ callbackUrl: "/login" });
+    }
+  }, [session]);
+
+  const token = session?.accessToken as string | undefined;
+  const familyGroupId = session?.user?.memberships?.[0]?.familyGroupId;
+
+  const {
+    data: accounts,
+    isLoading,
+    isError,
+  } = useQuery<AccountDto[]>({
+    queryKey: queryKeys.accounts.all(familyGroupId ?? ""),
+    queryFn: () =>
+      apiFetch<AccountDto[]>(`/family-groups/${familyGroupId}/accounts`, {
+        token,
+      }),
+    enabled: !!token && !!familyGroupId,
+  });
+
+  const totalBalance = (accounts ?? []).reduce(
+    (sum, a) => sum + parseFloat(a.balance),
+    0,
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2.5">
         <div>
-          <div className="text-[13px] font-bold">5 Rekening Terhubung</div>
+          <div className="text-[13px] font-bold">
+            {isLoading
+              ? "Memuat..."
+              : `${accounts?.length ?? 0} Rekening Terhubung`}
+          </div>
           <div className="text-[11px] text-muted-foreground">
-            Total: Rp 339.450.000
+            {!isLoading && accounts && `Total: ${formatRupiah(totalBalance)}`}
           </div>
         </div>
-        <Button onClick={() => toast("➕ Tambah rekening")}>
+        <Button type="button" onClick={() => toast("➕ Tambah rekening")}>
           <Plus className="size-4" /> Tambah
         </Button>
       </div>
 
-      {ACCOUNTS.map((account) => (
-        <AccountCard key={account.name} account={account} />
+      {isError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive bg-destructive/5 px-4 py-2.5 text-[13px] text-destructive"
+        >
+          <span className="font-semibold">Kesalahan: </span>Gagal memuat
+          rekening. Silakan refresh halaman.
+        </div>
+      )}
+
+      {!isLoading && !isError && accounts?.length === 0 && (
+        <div className="rounded-lg border border-dashed p-8 text-center text-[13px] text-muted-foreground">
+          Belum ada rekening.{" "}
+          <button
+            type="button"
+            className="font-semibold text-primary"
+            onClick={() => toast("Tambah rekening")}
+          >
+            Tambah sekarang
+          </button>
+        </div>
+      )}
+
+      {accounts?.map((account) => (
+        <AccountCardItem key={account.id} account={toCardData(account)} />
       ))}
     </div>
   );

@@ -17,6 +17,8 @@ import {
 } from "@nestjs/swagger";
 import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 
+import { Public } from "../common/decorators/public.decorator";
+
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 import { AuthService } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";
@@ -47,6 +49,7 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Post("register")
+  @Public()
   @Throttle({ default: { ttl: 60000, limit: 3 } })
   @ApiOperation({ summary: "Register a new user" })
   @ApiResponse({ status: 201, type: TokenPairDto })
@@ -55,6 +58,7 @@ export class AuthController {
   }
 
   @Post("login")
+  @Public()
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   @ApiOperation({ summary: "Login with email/password" })
@@ -75,6 +79,7 @@ export class AuthController {
   }
 
   @Post("refresh")
+  @Public()
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   @UseGuards(JwtRefreshGuard)
@@ -95,6 +100,7 @@ export class AuthController {
   }
 
   @Get("google")
+  @Public()
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({
@@ -106,6 +112,7 @@ export class AuthController {
   }
 
   @Get("google/callback")
+  @Public()
   @Throttle({ default: { ttl: 60000, limit: 20 } })
   @UseGuards(GoogleAuthGuard)
   @ApiExcludeEndpoint()

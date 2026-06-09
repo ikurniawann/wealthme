@@ -38,7 +38,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             id: string;
             email: string;
             name: string;
-            familyGroupId?: string | null;
+            memberships?: Array<{
+              id: string;
+              familyGroupId: string;
+              role: string;
+            }>;
           };
           return {
             id: user.id,
@@ -46,7 +50,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             name: user.name,
             accessToken: tokens.accessToken,
             refreshToken: tokens.refreshToken,
-            familyGroupId: user.familyGroupId ?? null,
+            memberships: user.memberships ?? [],
           };
         } catch {
           return null;
@@ -69,6 +73,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.familyGroupId =
           (user as { familyGroupId?: string | null }).familyGroupId ?? null;
         token.accessTokenExpiresAt = Date.now() + ACCESS_TOKEN_TTL_MS;
+        token.memberships =
+          (
+            user as {
+              memberships?: Array<{
+                id: string;
+                familyGroupId: string;
+                role: string;
+              }>;
+            }
+          ).memberships ?? [];
         return token;
       }
 
@@ -95,14 +109,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             if (meRes.ok) {
               const me = (await meRes.json()) as {
                 id: string;
-                familyGroupId?: string | null;
+                memberships?: Array<{
+                  id: string;
+                  familyGroupId: string;
+                  role: string;
+                }>;
               };
               token.userId = me.id;
-              token.familyGroupId = me.familyGroupId ?? null;
+              token.memberships = me.memberships ?? [];
             }
           }
-        } catch {
-          /* keep existing token */
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return { ...token, error: `GoogleAuthError: ${msg}` };
         }
         return token;
       }
@@ -142,6 +161,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         userId: token.userId as string | undefined,
         familyGroupId: token.familyGroupId as string | null | undefined,
         error: token.error as string | undefined,
+        user: {
+          ...session.user,
+          memberships: token.memberships ?? [],
+        },
       };
     },
   },
