@@ -4,6 +4,7 @@ import "./globals.css";
 import { SessionProviderWrapper } from "@/components/providers/session-provider-wrapper";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
+import { AppQueryClientProvider } from "@/components/providers/query-client-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 const sora = Sora({
@@ -49,9 +50,11 @@ export default function RootLayout({
           storageKey="wealthme-theme"
           disableTransitionOnChange
         >
-          <SessionProviderWrapper>
-            <AuthProvider>{children}</AuthProvider>
-          </SessionProviderWrapper>
+          <AppQueryClientProvider>
+            <SessionProviderWrapper>
+              <AuthProvider>{children}</AuthProvider>
+            </SessionProviderWrapper>
+          </AppQueryClientProvider>
           <Toaster position="bottom-center" />
         </ThemeProvider>
       </body>
