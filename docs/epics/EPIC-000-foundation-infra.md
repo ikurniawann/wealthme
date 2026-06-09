@@ -72,6 +72,10 @@ bisa berkembang paralel dengan kontrak tipe tunggal dan pipeline yang konsisten.
 - **T-004** — mengaktifkan _branch protection_ (status check wajib) adalah langkah admin-repo satu kali; lihat `docs/CI.md`. Verifikasi sudah aktif di `development`/`main`.
 - Verifikasi `db:reset` idempotent dan seed konsisten lintas mesin tim.
 
+## Automation Log
+
+- 2026-06-10 /epic-loop EPIC-000 — all 6 tasks PASS (qa ✅ security ✅ test: 50/50 ✅); status → ready-for-qa
+
 ## Dependencies
 
 - Tidak ada (epic pembuka).
