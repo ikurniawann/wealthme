@@ -34,6 +34,13 @@ enum TransactionType {
   transfer
 }
 
+enum GoalStatus {
+  on_track
+  needs_boost
+  achieved
+  at_risk
+}
+
 // ── Models ────────────────────────────────────────────────────────────────────
 
 model User {
@@ -59,6 +66,7 @@ model FamilyGroup {
   accounts     Account[]
   categories   Category[]
   transactions Transaction[]
+  goals        Goal[]
 
   @@map("family_groups")
 }
@@ -130,6 +138,25 @@ model Transaction {
   @@index([accountId])
   @@index([categoryId])
   @@map("transactions")
+}
+
+model Goal {
+  id              String      @id @default(uuid())
+  familyGroupId   String
+  name            String
+  icon            String?
+  targetAmount    BigInt
+  currentAmount   BigInt      @default(0)
+  targetDate      DateTime?
+  autoDebitAmount BigInt?
+  status          GoalStatus  @default(on_track)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  familyGroup FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@index([familyGroupId])
+  @@map("goals")
 }
 
 model AuditLog {

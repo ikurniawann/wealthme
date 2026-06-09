@@ -31,4 +31,33 @@ declare const AuthUserSchema: z.ZodObject<{
 }>;
 type AuthUser = z.infer<typeof AuthUserSchema>;
 
-export { type AuthUser, AuthUserSchema, CONTRACTS_VERSION, type LoginInput, LoginInputSchema, type Rupiah, RupiahSchema };
+type GoalStatus = "on_track" | "needs_boost" | "achieved" | "at_risk";
+interface GoalDto {
+    id: string;
+    name: string;
+    icon: string | null;
+    targetAmount: number;
+    currentAmount: number;
+    targetDate: string | null;
+    autoDebitAmount: number | null;
+    status: GoalStatus;
+    progressPercent: number;
+    remainingAmount: number;
+}
+interface CreateGoalDto {
+    name: string;
+    icon?: string;
+    targetAmount: number;
+    targetDate?: string;
+    autoDebitAmount?: number;
+}
+interface UpdateGoalDto {
+    name?: string;
+    icon?: string;
+    targetAmount?: number;
+    currentAmount?: number;
+    targetDate?: string;
+    autoDebitAmount?: number;
+}
+
+export { type AuthUser, AuthUserSchema, CONTRACTS_VERSION, type CreateGoalDto, type GoalDto, type GoalStatus, type LoginInput, LoginInputSchema, type Rupiah, RupiahSchema, type UpdateGoalDto };
