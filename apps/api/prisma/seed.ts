@@ -175,6 +175,196 @@ async function main(): Promise<void> {
     },
   });
 
+  // ── Additional Categories ────────────────────────────────────────────────────
+
+  await prisma.category.upsert({
+    where: {
+      familyGroupId_name_kind: {
+        familyGroupId: family.id,
+        name: "Makanan & Minuman",
+        kind: "expense",
+      },
+    },
+    update: {},
+    create: {
+      familyGroupId: family.id,
+      name: "Makanan & Minuman",
+      kind: "expense",
+      icon: "🍜",
+      color: "#EF4444",
+    },
+  });
+  await prisma.category.upsert({
+    where: {
+      familyGroupId_name_kind: {
+        familyGroupId: family.id,
+        name: "Transportasi",
+        kind: "expense",
+      },
+    },
+    update: {},
+    create: {
+      familyGroupId: family.id,
+      name: "Transportasi",
+      kind: "expense",
+      icon: "🚗",
+      color: "#F97316",
+    },
+  });
+  await prisma.category.upsert({
+    where: {
+      familyGroupId_name_kind: {
+        familyGroupId: family.id,
+        name: "Belanja",
+        kind: "expense",
+      },
+    },
+    update: {},
+    create: {
+      familyGroupId: family.id,
+      name: "Belanja",
+      kind: "expense",
+      icon: "🛍️",
+      color: "#8B5CF6",
+    },
+  });
+  await prisma.category.upsert({
+    where: {
+      familyGroupId_name_kind: {
+        familyGroupId: family.id,
+        name: "Tagihan & Utilitas",
+        kind: "expense",
+      },
+    },
+    update: {},
+    create: {
+      familyGroupId: family.id,
+      name: "Tagihan & Utilitas",
+      kind: "expense",
+      icon: "💡",
+      color: "#EAB308",
+    },
+  });
+  await prisma.category.upsert({
+    where: {
+      familyGroupId_name_kind: {
+        familyGroupId: family.id,
+        name: "Kesehatan",
+        kind: "expense",
+      },
+    },
+    update: {},
+    create: {
+      familyGroupId: family.id,
+      name: "Kesehatan",
+      kind: "expense",
+      icon: "🏥",
+      color: "#10B981",
+    },
+  });
+  await prisma.category.upsert({
+    where: {
+      familyGroupId_name_kind: {
+        familyGroupId: family.id,
+        name: "Hiburan",
+        kind: "expense",
+      },
+    },
+    update: {},
+    create: {
+      familyGroupId: family.id,
+      name: "Hiburan",
+      kind: "expense",
+      icon: "🎬",
+      color: "#06B6D4",
+    },
+  });
+  await prisma.category.upsert({
+    where: {
+      familyGroupId_name_kind: {
+        familyGroupId: family.id,
+        name: "Pendidikan",
+        kind: "expense",
+      },
+    },
+    update: {},
+    create: {
+      familyGroupId: family.id,
+      name: "Pendidikan",
+      kind: "expense",
+      icon: "📚",
+      color: "#3B82F6",
+    },
+  });
+  await prisma.category.upsert({
+    where: {
+      familyGroupId_name_kind: {
+        familyGroupId: family.id,
+        name: "Lainnya Pengeluaran",
+        kind: "expense",
+      },
+    },
+    update: {},
+    create: {
+      familyGroupId: family.id,
+      name: "Lainnya Pengeluaran",
+      kind: "expense",
+      icon: "📦",
+      color: "#6B7280",
+    },
+  });
+  await prisma.category.upsert({
+    where: {
+      familyGroupId_name_kind: {
+        familyGroupId: family.id,
+        name: "Investasi",
+        kind: "income",
+      },
+    },
+    update: {},
+    create: {
+      familyGroupId: family.id,
+      name: "Investasi",
+      kind: "income",
+      icon: "📈",
+      color: "#3B82F6",
+    },
+  });
+  await prisma.category.upsert({
+    where: {
+      familyGroupId_name_kind: {
+        familyGroupId: family.id,
+        name: "Transfer Masuk",
+        kind: "income",
+      },
+    },
+    update: {},
+    create: {
+      familyGroupId: family.id,
+      name: "Transfer Masuk",
+      kind: "income",
+      icon: "📥",
+      color: "#8B5CF6",
+    },
+  });
+  await prisma.category.upsert({
+    where: {
+      familyGroupId_name_kind: {
+        familyGroupId: family.id,
+        name: "Lainnya Pemasukan",
+        kind: "income",
+      },
+    },
+    update: {},
+    create: {
+      familyGroupId: family.id,
+      name: "Lainnya Pemasukan",
+      kind: "income",
+      icon: "📦",
+      color: "#6B7280",
+    },
+  });
+
   // ── Transactions ─────────────────────────────────────────────────────────────
   // Amounts in rupiah (BigInt).
   // Cashflow April 2025: income ~25_850_000, expense ~18_340_000 (from data.ts CASHFLOW).
@@ -274,7 +464,7 @@ async function main(): Promise<void> {
       `  FamilyGroup: ${family.name} (${family.id})\n` +
       `  User: ${user.name} <${user.email}>\n` +
       `  Accounts: BCA, Mandiri, GoPay\n` +
-      `  Categories: Gaji, Makan & Minum, Lifestyle\n` +
+      `  Categories: Gaji, Makan & Minum, Lifestyle + full set (11 additional)\n` +
       `  Transactions: 6 records seeded\n`,
   );
 }

@@ -22,4 +22,19 @@ export const queryKeys = {
     results: (familyGroupId: string, q: string) =>
       ["search", familyGroupId, q] as const,
   },
+  dashboard: {
+    summary: (familyGroupId: string) =>
+      ["dashboard", familyGroupId, "summary"] as const,
+  },
+  budgets: {
+    all: (familyGroupId: string) => ["budgets", familyGroupId] as const,
+  },
+  goals: {
+    all: (familyGroupId: string) => ["goals", familyGroupId] as const,
+  },
+  notifications: {
+    all: (familyGroupId: string) => ["notifications", familyGroupId] as const,
+    unreadCount: (familyGroupId: string) =>
+      ["notifications", familyGroupId, "unread-count"] as const,
+  },
 } as const;

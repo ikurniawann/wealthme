@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
 import { Gem, Eye, ArrowUp, ArrowDown } from "lucide-react";
-import { CASHFLOW, SPARKLINE_POINTS } from "@/lib/data";
 import { Sparkline } from "@/components/charts/sparkline";
 import {
   Donut,
@@ -19,117 +19,22 @@ import {
   SummaryCard,
   ProgressBar,
 } from "@/components/wm";
+import { apiFetch } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
+import { formatRupiah, formatRupiahCompact } from "@/lib/format";
+import type { DashboardSummaryDto } from "@wealthme/contracts";
 
 const PERIODS = ["1M", "3M", "6M", "1Y", "All"] as const;
 
-// TODO: EPIC-002 — Replace with real data from /accounts, /transactions, /goals endpoints
-const ALLOCATION: DonutSegment[] = [
-  { label: "Investasi", value: 46, color: "#4F46E5", sub: "Rp 577.200.000" },
-  {
-    label: "Rekening & Dana",
-    value: 27,
-    color: "#06B6D4",
-    sub: "Rp 339.450.000",
-  },
-  { label: "Aset", value: 20, color: "#10B981", sub: "Rp 251.300.000" },
-  { label: "Lainnya", value: 7, color: "#F59E0B" },
-];
+const ACCOUNT_TYPE_ICON: Record<string, { icon: string; iconBg: string }> = {
+  bank: { icon: "🏦", iconBg: "#DBEAFE" },
+  ewallet: { icon: "💵", iconBg: "#DCFCE7" },
+  investment: { icon: "📈", iconBg: "#EDE9FE" },
+  property: { icon: "🏠", iconBg: "#FEF9C3" },
+  cash: { icon: "💵", iconBg: "#DCFCE7" },
+};
 
-// TODO: EPIC-002 — Replace with real data from /accounts, /transactions, /goals endpoints
-const SUMMARY = [
-  {
-    icon: "💵",
-    iconBg: "#DCFCE7",
-    label: "Dana Tersedia",
-    amount: "Rp 68,45 jt",
-    delta: "5,20%",
-    up: true,
-  },
-  {
-    icon: "🏦",
-    iconBg: "#DBEAFE",
-    label: "Rekening",
-    amount: "Rp 271 jt",
-    delta: "3,15%",
-    up: true,
-  },
-  {
-    icon: "📈",
-    iconBg: "#EDE9FE",
-    label: "Investasi",
-    amount: "Rp 577,2 jt",
-    delta: "12,40%",
-    up: true,
-  },
-  {
-    icon: "🏠",
-    iconBg: "#FEF9C3",
-    label: "Aset",
-    amount: "Rp 251,3 jt",
-    delta: "6,37%",
-    up: true,
-  },
-  {
-    icon: "🎯",
-    iconBg: "#FEE2E2",
-    label: "Liabilitas",
-    amount: "-Rp 40,17 jt",
-    delta: "1,08%",
-    up: false,
-    danger: true,
-  },
-];
-
-// TODO: EPIC-002 — Replace with real data from /accounts, /transactions, /goals endpoints
-const ACTIVITIES = [
-  {
-    icon: "📥",
-    iconBg: "#DCFCE7",
-    name: "Transfer masuk BCA",
-    cat: "Pemasukan",
-    amt: "+Rp 5.000.000",
-    inc: true,
-    date: "Hari ini",
-  },
-  {
-    icon: "💳",
-    iconBg: "#FEE2E2",
-    name: "Bayar Kartu Kredit",
-    cat: "Pengeluaran",
-    amt: "-Rp 1.250.000",
-    inc: false,
-    date: "Kemarin",
-  },
-  {
-    icon: "👜",
-    iconBg: "#FEE2E2",
-    name: "Top up GoPay",
-    cat: "Pengeluaran",
-    amt: "-Rp 200.000",
-    inc: false,
-    date: "2 Mei",
-  },
-  {
-    icon: "📊",
-    iconBg: "#DCFCE7",
-    name: "Dividen Saham BBCA",
-    cat: "Pemasukan",
-    amt: "+Rp 750.000",
-    inc: true,
-    date: "1 Mei",
-  },
-  {
-    icon: "🏦",
-    iconBg: "#FEE2E2",
-    name: "Transfer ke Mandiri",
-    cat: "Transfer",
-    amt: "-Rp 2.000.000",
-    inc: false,
-    date: "30 Apr",
-  },
-];
-
-// TODO: EPIC-002 — Replace with real data from /accounts, /transactions, /goals endpoints
+// TODO: EPIC-002 Task 5 — Replace with real data from /goals endpoint
 const GOALS = [
   {
     icon: "🛡️",
@@ -169,7 +74,7 @@ const GOALS = [
   },
 ];
 
-const SPARK_LABELS = ["1 Apr", "8 Apr", "15 Apr", "22 Apr", "30 Apr"];
+const SPARK_LABELS = ["Hari 1", "Hari 8", "Hari 15", "Hari 22", "Hari 30"];
 
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -179,11 +84,111 @@ function getGreeting(): string {
   return "Selamat malam";
 }
 
+function formatRelativeDate(isoString: string): string {
+  const date = new Date(isoString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffDays === 0) return "Hari ini";
+  if (diffDays === 1) return "Kemarin";
+  return date.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
+}
+
 export default function BerandaPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const firstName = session?.user?.name?.split(" ")[0] ?? "Kamu";
   const [period, setPeriod] = useState<(typeof PERIODS)[number]>("1M");
+
+  const familyGroupId = session?.familyGroupId ?? null;
+
+  const {
+    data: summary,
+    isLoading,
+    isError,
+  } = useQuery<DashboardSummaryDto>({
+    queryKey: queryKeys.dashboard.summary(familyGroupId ?? ""),
+    queryFn: () =>
+      apiFetch<DashboardSummaryDto>(
+        `/family-groups/${familyGroupId}/dashboard/summary`,
+        { token: session?.accessToken },
+      ),
+    enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
+    staleTime: 60_000,
+  });
+
+  const allocation: DonutSegment[] = (summary?.allocation ?? []).map(
+    (item) => ({
+      label: item.label,
+      value: item.value,
+      color: item.color,
+      sub: formatRupiah(item.amount),
+    }),
+  );
+
+  const summaryCards = (summary?.accountSummary ?? []).map((s) => {
+    const cfg = ACCOUNT_TYPE_ICON[s.type] ?? { icon: "💰", iconBg: "#F3F4F6" };
+    return {
+      icon: cfg.icon,
+      iconBg: cfg.iconBg,
+      label: s.label,
+      amount: formatRupiahCompact(s.total),
+      delta: "—",
+      up: true as boolean,
+    };
+  });
+
+  const hasLiability = false;
+  if (!hasLiability) {
+    summaryCards.push({
+      icon: "🎯",
+      iconBg: "#FEE2E2",
+      label: "Liabilitas",
+      amount: "Rp 0",
+      delta: "—",
+      up: false,
+    });
+  }
+
+  const activities = (summary?.recentTransactions ?? []).map((tx) => ({
+    icon: tx.type === "income" ? "📥" : tx.type === "expense" ? "💳" : "🔄",
+    iconBg: tx.type === "income" ? "#DCFCE7" : "#FEE2E2",
+    name: tx.description ?? tx.accountName,
+    cat:
+      tx.categoryName ??
+      (tx.type === "income"
+        ? "Pemasukan"
+        : tx.type === "expense"
+          ? "Pengeluaran"
+          : "Transfer"),
+    amt: (tx.type === "income" ? "+" : "-") + formatRupiah(tx.amount),
+    inc: tx.type === "income",
+    date: formatRelativeDate(tx.occurredAt),
+  }));
+
+  const sparklinePoints =
+    summary?.sparkline && summary.sparkline.length > 0
+      ? summary.sparkline
+      : (Array(30).fill(50) as number[]);
+
+  const cashflow = summary?.cashflow;
+  const netWorth = summary?.netWorth ?? 0;
+  const currentMonth = summary?.currentMonth;
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center py-16 text-[13px] text-muted-foreground">
+        Gagal memuat data beranda. Coba muat ulang halaman.
+      </div>
+    );
+  }
+
+  const donutCenterValue =
+    netWorth >= 1_000_000_000
+      ? (netWorth / 1_000_000_000).toFixed(2).replace(".", ",") + "M"
+      : netWorth >= 1_000_000
+        ? (netWorth / 1_000_000).toFixed(0) + " jt"
+        : formatRupiah(netWorth);
 
   return (
     <div className="space-y-3.5">
@@ -204,14 +209,25 @@ export default function BerandaPage() {
             <Eye className="ml-0.5 size-[13px] cursor-pointer opacity-60" />
           </div>
           <div className="mt-1 text-[28px] font-extrabold tracking-tight">
-            Rp 1.256.780.000
+            {isLoading ? "Memuat..." : formatRupiah(netWorth)}
           </div>
-          <div className="mt-1 text-[12.5px]">
-            <span className="font-semibold text-emerald-300">
-              ▲ 8,45% (Rp 97.850.000)
-            </span>{" "}
-            <span className="opacity-60">dibanding bulan lalu</span>
-          </div>
+          {currentMonth && (
+            <div className="mt-1 text-[12.5px]">
+              <span
+                className={
+                  currentMonth.net >= 0
+                    ? "font-semibold text-emerald-300"
+                    : "font-semibold text-red-300"
+                }
+              >
+                {currentMonth.net >= 0 ? "▲" : "▼"}{" "}
+                {formatRupiah(Math.abs(currentMonth.net))} bulan ini
+              </span>{" "}
+              <span className="opacity-60">
+                (tabungan {currentMonth.savingsRate}%)
+              </span>
+            </div>
+          )}
 
           <div className="mt-3.5 flex gap-1.5">
             {PERIODS.map((p) => (
@@ -230,7 +246,7 @@ export default function BerandaPage() {
           </div>
 
           <div className="mt-3 -mx-[22px]">
-            <Sparkline points={SPARKLINE_POINTS} />
+            <Sparkline points={sparklinePoints} />
             <div className="mt-1 flex justify-between px-[22px] text-[10px] opacity-60">
               {SPARK_LABELS.map((l) => (
                 <span key={l}>{l}</span>
@@ -248,43 +264,62 @@ export default function BerandaPage() {
             </CardLink>
           }
         >
-          <div className="flex flex-wrap items-center gap-3.5">
-            <Donut
-              segments={ALLOCATION}
-              size={105}
-              thickness={17}
-              centerValue="1.256M"
-              centerLabel="Total"
-            />
-            <div className="min-w-[110px] flex-1">
-              <DonutLegend segments={ALLOCATION} total={100} />
+          {isLoading ? (
+            <div className="flex h-[105px] items-center justify-center text-[13px] text-muted-foreground">
+              Memuat...
             </div>
-          </div>
+          ) : allocation.length === 0 ? (
+            <div className="flex h-[105px] items-center justify-center text-[13px] text-muted-foreground">
+              Belum ada data
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3.5">
+              <Donut
+                segments={allocation}
+                size={105}
+                thickness={17}
+                centerValue={donutCenterValue}
+                centerLabel="Total"
+              />
+              <div className="min-w-[110px] flex-1">
+                <DonutLegend segments={allocation} total={100} />
+              </div>
+            </div>
+          )}
         </SectionCard>
       </div>
 
-      {/* Summary 5 cards */}
+      {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {SUMMARY.map((s) => (
-          <SummaryCard
-            key={s.label}
-            icon={s.icon}
-            iconBg={s.iconBg}
-            label={s.label}
-            amount={s.amount}
-            delta={
-              <>
-                {s.up ? (
-                  <ArrowUp className="size-[9px]" />
-                ) : (
-                  <ArrowDown className="size-[9px]" />
-                )}
-                {s.delta}
-              </>
-            }
-            deltaUp={s.up}
-          />
-        ))}
+        {isLoading
+          ? Array(5)
+              .fill(null)
+              .map((_, i) => (
+                <div
+                  key={i}
+                  className="h-[88px] animate-pulse rounded-[14px] bg-muted"
+                />
+              ))
+          : summaryCards.slice(0, 5).map((s) => (
+              <SummaryCard
+                key={s.label}
+                icon={s.icon}
+                iconBg={s.iconBg}
+                label={s.label}
+                amount={s.amount}
+                delta={
+                  <>
+                    {s.up ? (
+                      <ArrowUp className="size-[9px]" />
+                    ) : (
+                      <ArrowDown className="size-[9px]" />
+                    )}
+                    {s.delta}
+                  </>
+                }
+                deltaUp={s.up}
+              />
+            ))}
       </div>
 
       {/* Row 3 */}
@@ -294,8 +329,9 @@ export default function BerandaPage() {
           title="Arus Kas Bulanan"
           action={
             <select className="rounded-md border bg-background px-2 py-[3px] text-[11px] text-muted-foreground outline-none">
-              <option>April 2025</option>
-              <option>Maret 2025</option>
+              <option>
+                {cashflow?.months[cashflow.months.length - 1] ?? "—"} (terkini)
+              </option>
             </select>
           }
         >
@@ -305,7 +341,7 @@ export default function BerandaPage() {
                 Pemasukan
               </div>
               <div className="text-[15px] font-extrabold text-success">
-                Rp 25.850.000
+                {isLoading ? "..." : formatRupiah(currentMonth?.income ?? 0)}
               </div>
             </div>
             <div>
@@ -313,21 +349,25 @@ export default function BerandaPage() {
                 Pengeluaran
               </div>
               <div className="text-[15px] font-extrabold text-destructive">
-                Rp 18.340.000
+                {isLoading ? "..." : formatRupiah(currentMonth?.expense ?? 0)}
               </div>
             </div>
           </div>
           <div className="mb-2 text-[11px] text-muted-foreground">
             Surplus:{" "}
-            <span className="font-bold text-success">Rp 7.510.000</span>
+            <span className="font-bold text-success">
+              {isLoading ? "..." : formatRupiah(currentMonth?.net ?? 0)}
+            </span>
           </div>
-          <BarChart
-            months={CASHFLOW.months}
-            income={CASHFLOW.income}
-            expense={CASHFLOW.expense}
-            max={CASHFLOW.max}
-            height={90}
-          />
+          {cashflow && (
+            <BarChart
+              months={cashflow.months}
+              income={cashflow.income}
+              expense={cashflow.expense}
+              max={cashflow.max}
+              height={90}
+            />
+          )}
         </SectionCard>
 
         {/* Recent activity */}
@@ -339,40 +379,57 @@ export default function BerandaPage() {
             </CardLink>
           }
         >
-          <div className="divide-y">
-            {ACTIVITIES.map((a, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
-              >
-                <div
-                  className="flex size-[34px] items-center justify-center rounded-md text-[15px]"
-                  style={{ background: a.iconBg }}
-                >
-                  {a.icon}
-                </div>
-                <div className="flex-1">
-                  <div className="text-[13px] font-semibold">{a.name}</div>
-                  <div className="text-[11px] text-muted-foreground">
-                    {a.cat}
-                  </div>
-                </div>
-                <div className="text-right">
+          {isLoading ? (
+            <div className="space-y-2">
+              {Array(3)
+                .fill(null)
+                .map((_, i) => (
                   <div
-                    className={`text-[13px] font-bold ${a.inc ? "text-success" : "text-destructive"}`}
+                    key={i}
+                    className="h-[42px] animate-pulse rounded-md bg-muted"
+                  />
+                ))}
+            </div>
+          ) : activities.length === 0 ? (
+            <div className="py-4 text-center text-[13px] text-muted-foreground">
+              Belum ada transaksi
+            </div>
+          ) : (
+            <div className="divide-y">
+              {activities.map((a, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
+                >
+                  <div
+                    className="flex size-[34px] items-center justify-center rounded-md text-[15px]"
+                    style={{ background: a.iconBg }}
                   >
-                    {a.amt}
+                    {a.icon}
                   </div>
-                  <div className="text-[11px] text-muted-foreground">
-                    {a.date}
+                  <div className="flex-1">
+                    <div className="text-[13px] font-semibold">{a.name}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {a.cat}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div
+                      className={`text-[13px] font-bold ${a.inc ? "text-success" : "text-destructive"}`}
+                    >
+                      {a.amt}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {a.date}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </SectionCard>
 
-        {/* Goals */}
+        {/* Goals — kept as mock until Task 5 */}
         <SectionCard
           title="Tujuan Keuangan"
           action={

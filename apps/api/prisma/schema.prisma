@@ -34,6 +34,19 @@ enum TransactionType {
   transfer
 }
 
+enum BudgetPeriod {
+  monthly
+  weekly
+  yearly
+}
+
+enum GoalStatus {
+  on_track
+  needs_boost
+  achieved
+  at_risk
+}
+
 // ── Models ────────────────────────────────────────────────────────────────────
 
 model User {
@@ -41,7 +54,7 @@ model User {
   email          String    @unique
   name           String
   passwordHash   String?
-  googleId       String?  @unique
+  googleId       String?   @unique
   avatarInitials String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -51,14 +64,17 @@ model User {
 }
 
 model FamilyGroup {
-  id           String        @id @default(uuid())
-  name         String
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  members      Member[]
-  accounts     Account[]
-  categories   Category[]
-  transactions Transaction[]
+  id            String         @id @default(uuid())
+  name          String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  members       Member[]
+  accounts      Account[]
+  categories    Category[]
+  transactions  Transaction[]
+  budgets       Budget[]
+  goals         Goal[]
+  notifications Notification[]
 
   @@map("family_groups")
 }
@@ -106,6 +122,7 @@ model Category {
   createdAt     DateTime      @default(now())
   familyGroup   FamilyGroup   @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
   transactions  Transaction[]
+  budgets       Budget[]
 
   @@unique([familyGroupId, name, kind])
   @@index([familyGroupId])
@@ -130,6 +147,54 @@ model Transaction {
   @@index([accountId])
   @@index([categoryId])
   @@map("transactions")
+}
+
+model Budget {
+  id            String       @id @default(uuid())
+  familyGroupId String
+  categoryId    String
+  period        BudgetPeriod
+  limitAmount   BigInt
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  familyGroup   FamilyGroup  @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  category      Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([familyGroupId, categoryId, period])
+  @@index([familyGroupId])
+  @@map("budgets")
+}
+
+model Goal {
+  id              String     @id @default(uuid())
+  familyGroupId   String
+  name            String
+  icon            String?
+  targetAmount    BigInt
+  currentAmount   BigInt     @default(0)
+  targetDate      DateTime?
+  autoDebitAmount BigInt?
+  status          GoalStatus @default(on_track)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  familyGroup     FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@index([familyGroupId])
+  @@map("goals")
+}
+
+model Notification {
+  id            String      @id @default(uuid())
+  familyGroupId String
+  title         String
+  body          String
+  icon          String?
+  isRead        Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  familyGroup   FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@index([familyGroupId])
+  @@map("notifications")
 }
 
 model AuditLog {

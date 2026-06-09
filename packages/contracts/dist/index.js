@@ -45,13 +45,75 @@ var AccountDtoSchema = z3.object({
   createdAt: z3.string(),
   updatedAt: z3.string()
 });
+
+// src/categories/index.ts
+import { z as z4 } from "zod";
+var CategoryKindSchema = z4.enum(["income", "expense"]);
+var CategoryDtoSchema = z4.object({
+  id: z4.string().uuid(),
+  familyGroupId: z4.string().uuid(),
+  name: z4.string(),
+  kind: CategoryKindSchema,
+  color: z4.string().nullable(),
+  icon: z4.string().nullable(),
+  createdAt: z4.string()
+});
+
+// src/transactions/index.ts
+import { z as z5 } from "zod";
+var TransactionTypeSchema = z5.enum(["income", "expense", "transfer"]);
+var CreateTransactionInputSchema = z5.object({
+  accountId: z5.string().uuid(),
+  categoryId: z5.string().uuid().optional(),
+  amount: z5.number().int().positive(),
+  type: TransactionTypeSchema,
+  description: z5.string().optional(),
+  occurredAt: z5.string(),
+  toAccountId: z5.string().uuid().optional()
+});
+var TransactionDtoSchema = z5.object({
+  id: z5.string().uuid(),
+  familyGroupId: z5.string().uuid(),
+  accountId: z5.string().uuid(),
+  categoryId: z5.string().uuid().nullable(),
+  amount: z5.string(),
+  type: TransactionTypeSchema,
+  description: z5.string().nullable(),
+  occurredAt: z5.string(),
+  createdAt: z5.string()
+});
+var TransactionSummarySchema = z5.object({
+  totalIncome: z5.string(),
+  totalExpense: z5.string(),
+  netBalance: z5.string(),
+  period: z5.object({
+    from: z5.string().nullable(),
+    to: z5.string().nullable()
+  })
+});
+var TransactionListResponseSchema = z5.object({
+  data: z5.array(TransactionDtoSchema),
+  meta: z5.object({
+    total: z5.number(),
+    page: z5.number(),
+    limit: z5.number()
+  }),
+  summary: TransactionSummarySchema
+});
 export {
   AccountDtoSchema,
   AccountTypeSchema,
   AuthUserSchema,
   CONTRACTS_VERSION,
+  CategoryDtoSchema,
+  CategoryKindSchema,
   CreateAccountInputSchema,
+  CreateTransactionInputSchema,
   LoginInputSchema,
   RupiahSchema,
+  TransactionDtoSchema,
+  TransactionListResponseSchema,
+  TransactionSummarySchema,
+  TransactionTypeSchema,
   UpdateAccountInputSchema
 };

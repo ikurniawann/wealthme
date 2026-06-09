@@ -1,112 +1,166 @@
 "use client";
 
-import { toast } from "sonner";
+import { useSession } from "next-auth/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { SectionCard, CardLink, StatusBadge } from "@/components/wm";
+import { CardLink, SectionCard, StatusBadge } from "@/components/wm";
+import { apiFetch } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
 
-type Notif = {
-  icon: string;
-  iconBg: string;
-  title: string;
-  desc: string;
-  time: string;
-  badge?: { variant: "success" | "danger"; label: string };
-  dimmed?: boolean;
-  noBorder?: boolean;
-};
+import type { NotificationDto } from "@wealthme/contracts";
 
-const NOTIFS: Notif[] = [
-  {
-    icon: "📥",
-    iconBg: "#DCFCE7",
-    title: "Transfer masuk dari BCA",
-    desc: "+Rp 5.000.000 berhasil diterima di BCA Tahapan",
-    time: "09:21 · Hari ini",
-    badge: { variant: "success", label: "Baru" },
-  },
-  {
-    icon: "🎯",
-    iconBg: "#FEF9C3",
-    title: "Dana Darurat hampir tercapai!",
-    desc: "80% dari target Rp 30.000.000 sudah terkumpul",
-    time: "08:00 · Hari ini",
-    badge: { variant: "success", label: "Baru" },
-  },
-  {
-    icon: "⚠️",
-    iconBg: "#FEE2E2",
-    title: "Anggaran Gaya Hidup melebihi batas",
-    desc: "115% dari budget Rp 4.000.000 sudah terpakai",
-    time: "07:30 · Hari ini",
-    badge: { variant: "danger", label: "Alert" },
-  },
-  {
-    icon: "📊",
-    iconBg: "#EDE9FE",
-    title: "Laporan April siap",
-    desc: "Ringkasan keuangan April 2025 tersedia",
-    time: "3 hari lalu",
-    dimmed: true,
-  },
-  {
-    icon: "📈",
-    iconBg: "#DCFCE7",
-    title: "Dividen BBCA masuk",
-    desc: "+Rp 750.000 dari dividen saham BBCA",
-    time: "1 Mei 2025",
-    dimmed: true,
-  },
-  {
-    icon: "💳",
-    iconBg: "#FEF9C3",
-    title: "Tagihan kartu kredit jatuh tempo",
-    desc: "Kartu Kredit Mandiri — 5 hari lagi",
-    time: "28 Apr 2025",
-    dimmed: true,
-    noBorder: true,
-  },
-];
+function formatRelativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1) return "Baru saja";
+  if (minutes < 60) return `${minutes} menit lalu`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} jam lalu`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "Kemarin";
+  if (days < 7) return `${days} hari lalu`;
+  return new Date(iso).toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function NotifSkeleton() {
+  return (
+    <div className="flex animate-pulse flex-col gap-4 py-2">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="flex items-start gap-3 border-b pb-3.5">
+          <div className="size-10 shrink-0 rounded-xl bg-muted" />
+          <div className="flex-1 space-y-2">
+            <div className="h-3 w-2/3 rounded bg-muted" />
+            <div className="h-3 w-full rounded bg-muted" />
+            <div className="h-2.5 w-1/4 rounded bg-muted" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function NotifikasiPage() {
+  const { data: session } = useSession();
+  const familyGroupId = session?.familyGroupId;
+  const token = session?.accessToken;
+  const queryClient = useQueryClient();
+
+  const {
+    data: notifications,
+    isLoading,
+    isError,
+  } = useQuery<NotificationDto[]>({
+    queryKey: queryKeys.notifications.all(familyGroupId ?? ""),
+    queryFn: ({ signal }) => {
+      if (!familyGroupId) throw new Error("no familyGroupId");
+      return apiFetch<NotificationDto[]>(
+        `/family-groups/${familyGroupId}/notifications`,
+        { token, signal },
+      );
+    },
+    enabled: Boolean(familyGroupId) && Boolean(token),
+  });
+
+  const { data: unreadData } = useQuery<{ count: number }>({
+    queryKey: queryKeys.notifications.unreadCount(familyGroupId ?? ""),
+    queryFn: ({ signal }) => {
+      if (!familyGroupId) throw new Error("no familyGroupId");
+      return apiFetch<{ count: number }>(
+        `/family-groups/${familyGroupId}/notifications/unread-count`,
+        { token, signal },
+      );
+    },
+    enabled: Boolean(familyGroupId) && Boolean(token),
+    refetchInterval: 30_000,
+  });
+
+  const unreadCount = unreadData?.count ?? 0;
+
+  const markAllRead = useMutation({
+    mutationFn: (fgId: string) =>
+      apiFetch<{ updated: number }>(
+        `/family-groups/${fgId}/notifications/mark-read`,
+        { method: "PATCH", token, body: JSON.stringify({}) },
+      ),
+    onSuccess: (_data, fgId) => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.notifications.all(fgId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.notifications.unreadCount(fgId),
+      });
+    },
+  });
+
   return (
     <SectionCard
       title={
         <span className="flex items-center gap-2">
-          Notifikasi <StatusBadge variant="danger">3 Baru</StatusBadge>
+          Notifikasi
+          {unreadCount > 0 && (
+            <StatusBadge variant="danger">{unreadCount} Baru</StatusBadge>
+          )}
         </span>
       }
       action={
-        <CardLink onClick={() => toast.success("✅ Semua ditandai dibaca")}>
-          Tandai semua dibaca
+        <CardLink
+          onClick={() => familyGroupId && markAllRead.mutate(familyGroupId)}
+          disabled={markAllRead.isPending || unreadCount === 0}
+        >
+          {markAllRead.isPending ? "Memproses..." : "Tandai semua dibaca"}
         </CardLink>
       }
       bodyClassName="flex flex-col"
     >
-      {NOTIFS.map((n, i) => (
-        <div
-          key={i}
-          className={`flex items-start gap-3 py-3.5 ${
-            n.noBorder ? "" : "border-b"
-          } ${n.dimmed ? "opacity-60" : ""} ${i === 0 ? "pt-0" : ""}`}
-        >
-          <div
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[18px]"
-            style={{ background: n.iconBg }}
-          >
-            {n.icon}
-          </div>
-          <div className="flex-1">
-            <div className="text-[13.5px] font-bold text-foreground">{n.title}</div>
-            <div className="mt-0.5 text-[12.5px] text-muted-foreground">{n.desc}</div>
-            <div className="mt-1 text-[11px] text-muted-foreground">{n.time}</div>
-          </div>
-          {n.badge && (
-            <StatusBadge variant={n.badge.variant} className="text-[10px]">
-              {n.badge.label}
-            </StatusBadge>
-          )}
-        </div>
-      ))}
+      {isLoading && <NotifSkeleton />}
+
+      {isError && (
+        <p className="py-6 text-center text-sm text-muted-foreground">
+          Gagal memuat notifikasi. Silakan coba lagi.
+        </p>
+      )}
+
+      {!isLoading && !isError && notifications?.length === 0 && (
+        <p className="py-6 text-center text-sm text-muted-foreground">
+          Tidak ada notifikasi.
+        </p>
+      )}
+
+      {!isLoading &&
+        !isError &&
+        notifications?.map((n, i) => {
+          const isLast = i === (notifications.length ?? 0) - 1;
+          return (
+            <div
+              key={n.id}
+              className={`flex items-start gap-3 py-3.5 ${isLast ? "" : "border-b"} ${n.isRead ? "opacity-60" : ""} ${i === 0 ? "pt-0" : ""}`}
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-[18px]">
+                {n.icon ?? "🔔"}
+              </div>
+              <div className="flex-1">
+                <div className="text-[13.5px] font-bold text-foreground">
+                  {n.title}
+                </div>
+                <div className="mt-0.5 text-[12.5px] text-muted-foreground">
+                  {n.body}
+                </div>
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  {formatRelativeTime(n.createdAt)}
+                </div>
+              </div>
+              {!n.isRead && (
+                <StatusBadge variant="success" className="text-[10px]">
+                  Baru
+                </StatusBadge>
+              )}
+            </div>
+          );
+        })}
     </SectionCard>
   );
 }
