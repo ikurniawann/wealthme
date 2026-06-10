@@ -1,6 +1,6 @@
 # EPIC-003: Wealth
 
-status: planned
+status: on-progress
 environment: dev
 phase: 3
 priority: P1
@@ -44,10 +44,10 @@ dan asuransi — serta memastikan perhitungan net worth konsisten di seluruh apl
 - [ ] **T-308** Liabilities API: kartu kredit & pinjaman, rasio pembayaran, sisa saldo
 - [ ] **T-310** Wire halaman **Liabilitas**
 
-### Insurance
+### Insurance ✅
 
-- [ ] **T-311** Insurance API: polis, premi, tanggal perpanjangan, status; renewal → trigger notifikasi
-- [ ] **T-312** Wire halaman **Asuransi** (polis aktif + ringkasan proteksi)
+- [x] **T-311** Insurance API: polis, premi, tanggal perpanjangan, status; renewal → trigger notifikasi
+- [x] **T-312** Wire halaman **Asuransi** (polis aktif + ringkasan proteksi)
 
 ## Acceptance Criteria
 
@@ -67,6 +67,13 @@ dan asuransi — serta memastikan perhitungan net worth konsisten di seluruh apl
 - **T-308** — rasio pembayaran & sisa saldo dihitung benar di BE.
 - **T-309/T-310** — grouped list & kartu liabilitas dari data nyata.
 - **T-311/T-312** — polis CRUD dengan status; tanggal perpanjangan memicu notifikasi.
+
+## Automation Log
+
+- 2026-06-10 /epic-loop EPIC-003 #1 "Investments" → PASS (attempts: 1), PR: https://github.com/andrsrjld/wealthme-web/pull/116
+- 2026-06-10 /epic-loop EPIC-003 #2 "Assets" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/117
+- 2026-06-10 /epic-loop EPIC-003 #3 "Liabilities" → PASS (attempts: 1), PR: https://github.com/andrsrjld/wealthme-web/pull/118
+- 2026-06-10 /epic-loop EPIC-003 #4 "Insurance" → PASS (attempts: 1), PR: https://github.com/andrsrjld/wealthme-web/pull/119
 
 ## Dependencies
 
