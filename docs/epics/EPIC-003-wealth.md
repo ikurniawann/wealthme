@@ -70,7 +70,7 @@ dan asuransi — serta memastikan perhitungan net worth konsisten di seluruh apl
 
 ## Automation Log
 
-- 2026-06-10 /epic-loop EPIC-003 #1 "Investments" → PASS (attempts: 3), PR: pending
+- 2026-06-10 /epic-loop EPIC-003 #1 "Investments" → PASS (attempts: 3), PR: https://github.com/andrsrjld/wealthme-web/pull/116
 
 ## Dependencies
 
