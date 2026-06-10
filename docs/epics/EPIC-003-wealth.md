@@ -33,11 +33,11 @@ dan asuransi — serta memastikan perhitungan net worth konsisten di seluruh apl
 - [ ] **T-304** Realtime price push (WebSocket gateway)
 - [ ] **T-305** Wire halaman **Investasi** (tabel portofolio + return live, scroll horizontal mobile)
 
-### Assets
+### Assets ✅
 
-- [ ] **T-306** Assets API + `asset_history`
-- [ ] **T-307** Net-worth rollup service (dana + investasi + aset − liabilitas), shared di `contracts`
-- [ ] **T-309** Wire halaman **Aset** (grouped + tabs)
+- [x] **T-306** Assets API + `asset_history`
+- [x] **T-307** Net-worth rollup service (dana + investasi + aset − liabilitas), shared di `contracts`
+- [x] **T-309** Wire halaman **Aset** (grouped + tabs)
 
 ### Liabilities
 
@@ -67,6 +67,10 @@ dan asuransi — serta memastikan perhitungan net worth konsisten di seluruh apl
 - **T-308** — rasio pembayaran & sisa saldo dihitung benar di BE.
 - **T-309/T-310** — grouped list & kartu liabilitas dari data nyata.
 - **T-311/T-312** — polis CRUD dengan status; tanggal perpanjangan memicu notifikasi.
+
+## Automation Log
+
+- 2026-06-10 /epic-loop EPIC-003 #2 "Assets" → PASS (attempts: 2), PR: pending
 
 ## Dependencies
 

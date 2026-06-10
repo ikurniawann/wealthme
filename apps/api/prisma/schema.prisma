@@ -47,6 +47,14 @@ enum GoalStatus {
   at_risk
 }
 
+enum AssetType {
+  properti
+  kendaraan
+  elektronik
+  perhiasan
+  lainnya
+}
+
 // ── Models ────────────────────────────────────────────────────────────────────
 
 model User {
@@ -75,6 +83,7 @@ model FamilyGroup {
   budgets       Budget[]
   goals         Goal[]
   notifications Notification[]
+  assets        Asset[]
 
   @@map("family_groups")
 }
@@ -195,6 +204,34 @@ model Notification {
 
   @@index([familyGroupId])
   @@map("notifications")
+}
+
+model Asset {
+  id            String        @id @default(uuid())
+  familyGroupId String
+  name          String
+  type          AssetType
+  currentValue  BigInt
+  currency      String        @default("IDR")
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  familyGroup   FamilyGroup   @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  history       AssetHistory[]
+
+  @@index([familyGroupId])
+  @@map("assets")
+}
+
+model AssetHistory {
+  id         String   @id @default(uuid())
+  assetId    String
+  value      BigInt
+  recordedAt DateTime @default(now())
+  asset      Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId, recordedAt])
+  @@map("asset_history")
 }
 
 model AuditLog {

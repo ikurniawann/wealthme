@@ -8,6 +8,7 @@ import type {
   AllocationItemDto,
   CashflowDto,
   DashboardSummaryDto,
+  NetWorthDto,
 } from "@wealthme/contracts";
 
 type MonthKey = string;
@@ -46,7 +47,22 @@ export class DashboardService {
       where: { familyGroupId },
       select: { balance: true, type: true, name: true },
     });
-    const netWorth = accounts.reduce((sum, a) => sum + Number(a.balance), 0);
+    const accountsBalanceBigInt = accounts.reduce(
+      (sum, a) => sum + a.balance,
+      0n,
+    );
+
+    const assetsList = await this.prisma.asset.findMany({
+      where: { familyGroupId },
+      select: { currentValue: true },
+    });
+    const assetsTotalBigInt = assetsList.reduce(
+      (sum, a) => sum + a.currentValue,
+      0n,
+    );
+    const assetsTotal = Number(assetsTotalBigInt);
+
+    const netWorth = Number(accountsBalanceBigInt) + assetsTotal;
 
     const byType = new Map<string, number>();
     for (const a of accounts) {
@@ -182,6 +198,7 @@ export class DashboardService {
 
     return {
       netWorth,
+      assetsTotal,
       cashflow,
       sparkline: sparkNormalized,
       allocation,
@@ -193,6 +210,35 @@ export class DashboardService {
         savingsRate,
       },
       recentTransactions,
+    };
+  }
+
+  async getNetWorth(familyGroupId: string): Promise<NetWorthDto> {
+    const accounts = await this.prisma.account.findMany({
+      where: { familyGroupId },
+      select: { balance: true },
+    });
+    const accountsTotal = accounts.reduce((sum, a) => sum + a.balance, 0n);
+
+    const assets = await this.prisma.asset.findMany({
+      where: { familyGroupId },
+      select: { currentValue: true },
+    });
+    const assetsTotal = assets.reduce((sum, a) => sum + a.currentValue, 0n);
+
+    const investmentsTotal = 0n;
+    const liabilitiesTotal = 0n;
+
+    const netWorth =
+      accountsTotal + investmentsTotal + assetsTotal - liabilitiesTotal;
+
+    return {
+      accountsTotal: accountsTotal.toString(),
+      investmentsTotal: investmentsTotal.toString(),
+      assetsTotal: assetsTotal.toString(),
+      liabilitiesTotal: liabilitiesTotal.toString(),
+      netWorth: netWorth.toString(),
+      currency: "IDR",
     };
   }
 }
