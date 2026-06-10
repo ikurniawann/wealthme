@@ -14,6 +14,7 @@ export type Subject =
   | "Member"
   | "Budget"
   | "Goal"
+  | "Insurance"
   | "Notification"
   | "all";
 
@@ -32,6 +33,7 @@ export class CaslAbilityFactory {
         can("manage", "Member");
         can("manage", "Budget");
         can("manage", "Goal");
+        can("manage", "Insurance");
         can("manage", "Notification");
         break;
 
@@ -42,6 +44,7 @@ export class CaslAbilityFactory {
         can("read", "Member");
         can("manage", "Budget");
         can("manage", "Goal");
+        can("manage", "Insurance");
         can("read", "Notification");
         can("manage", "Notification");
         break;
@@ -53,6 +56,7 @@ export class CaslAbilityFactory {
         can("read", "Member");
         can("read", "Budget");
         can("read", "Goal");
+        can("read", "Insurance");
         can("read", "Notification");
         break;
 

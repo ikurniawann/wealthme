@@ -47,6 +47,26 @@ enum GoalStatus {
   at_risk
 }
 
+enum InsuranceType {
+  jiwa
+  kesehatan
+  kendaraan
+  properti
+  lainnya
+}
+
+enum InsuranceStatus {
+  aktif
+  tidak_aktif
+  kadaluarsa
+}
+
+enum PremiumPeriod {
+  monthly
+  quarterly
+  yearly
+}
+
 // ── Models ────────────────────────────────────────────────────────────────────
 
 model User {
@@ -75,6 +95,7 @@ model FamilyGroup {
   budgets       Budget[]
   goals         Goal[]
   notifications Notification[]
+  insurances    Insurance[]
 
   @@map("family_groups")
 }
@@ -214,4 +235,26 @@ model AuditLog {
   @@index([familyGroupId])
   @@index([entity, entityId])
   @@map("audit_logs")
+}
+
+model Insurance {
+  id              String          @id @default(uuid())
+  familyGroupId   String
+  name            String          @db.VarChar(150)
+  provider        String?         @db.VarChar(150)
+  type            InsuranceType
+  status          InsuranceStatus @default(aktif)
+  coverageAmount  BigInt?
+  premiumAmount   BigInt
+  premiumPeriod   PremiumPeriod   @default(monthly)
+  renewalDate     DateTime?
+  policyNumber    String?         @db.VarChar(100)
+  notes           String?         @db.VarChar(500)
+  currency        String          @default("IDR") @db.VarChar(3)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  familyGroup     FamilyGroup     @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@index([familyGroupId])
+  @@map("insurances")
 }

@@ -19,6 +19,7 @@ import { validateEnv } from "./config/env";
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { GoalsModule } from "./goals/goals.module";
 import { HealthModule } from "./health/health.module";
+import { InsurancesModule } from "./insurances/insurances.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis/redis.module";
@@ -54,6 +55,7 @@ import { TransactionsModule } from "./transactions/transactions.module";
     DashboardModule,
     BudgetsModule,
     GoalsModule,
+    InsurancesModule,
     NotificationsModule,
   ],
   providers: [
