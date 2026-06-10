@@ -47,6 +47,14 @@ enum GoalStatus {
   at_risk
 }
 
+enum LiabilityType {
+  kartu_kredit
+  pinjaman_pribadi
+  kpr
+  kendaraan
+  lainnya
+}
+
 // ── Models ────────────────────────────────────────────────────────────────────
 
 model User {
@@ -75,6 +83,7 @@ model FamilyGroup {
   budgets       Budget[]
   goals         Goal[]
   notifications Notification[]
+  liabilities   Liability[]
 
   @@map("family_groups")
 }
@@ -214,4 +223,25 @@ model AuditLog {
   @@index([familyGroupId])
   @@index([entity, entityId])
   @@map("audit_logs")
+}
+
+model Liability {
+  id               String        @id @default(uuid())
+  familyGroupId    String
+  name             String
+  institution      String?
+  type             LiabilityType
+  totalDebt        BigInt
+  remainingBalance BigInt
+  minimumPayment   BigInt        @default(0)
+  interestRate     Decimal       @default(0) @db.Decimal(5, 2)
+  dueDate          DateTime?
+  notes            String?
+  currency         String        @default("IDR")
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  familyGroup      FamilyGroup   @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@index([familyGroupId])
+  @@map("liabilities")
 }
