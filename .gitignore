@@ -45,3 +45,6 @@ next-env.d.ts
 
 # claude code local settings (machine-specific)
 .claude/settings.local.json
+
+# graphify — generated AST/parse cache (large, machine-specific)
+graphify-out/cache/
