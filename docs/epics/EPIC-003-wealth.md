@@ -1,6 +1,6 @@
 # EPIC-003: Wealth
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 phase: 3
 priority: P1
