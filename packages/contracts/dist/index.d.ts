@@ -483,4 +483,31 @@ interface NotificationDto {
     createdAt: string;
 }
 
-export { type AccountDto, AccountDtoSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AuthUser, AuthUserSchema, type BudgetDto, type BudgetPeriod, CONTRACTS_VERSION, type CashflowDto, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CreateAccountInput, CreateAccountInputSchema, type CreateBudgetDto, type CreateGoalDto, type CreateTransactionInput, CreateTransactionInputSchema, type DashboardSummaryDto, type GoalDto, type GoalStatus, type LoginInput, LoginInputSchema, type NotificationDto, type Rupiah, RupiahSchema, type SearchResponseDto, type SearchResultDto, type SearchResultType, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateBudgetDto, type UpdateGoalDto };
+type InvestmentType = "saham" | "reksa_dana" | "obligasi" | "emas" | "kripto" | "lainnya";
+interface InvestmentDto {
+    id: string;
+    familyGroupId: string;
+    ticker: string;
+    name: string;
+    type: InvestmentType;
+    quantity: string;
+    costBasisPerUnit: string;
+    currentPrice: string | null;
+    currentValue: string | null;
+    returnRp: string | null;
+    returnPct: number | null;
+    currency: string;
+    notes: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+interface InvestmentSummaryDto {
+    totalCostBasis: string;
+    totalCurrentValue: string;
+    totalReturnRp: string;
+    totalReturnPct: number;
+    todayReturnRp: string;
+    todayReturnPct: number;
+}
+
+export { type AccountDto, AccountDtoSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AuthUser, AuthUserSchema, type BudgetDto, type BudgetPeriod, CONTRACTS_VERSION, type CashflowDto, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CreateAccountInput, CreateAccountInputSchema, type CreateBudgetDto, type CreateGoalDto, type CreateTransactionInput, CreateTransactionInputSchema, type DashboardSummaryDto, type GoalDto, type GoalStatus, type InvestmentDto, type InvestmentSummaryDto, type InvestmentType, type LoginInput, LoginInputSchema, type NotificationDto, type Rupiah, RupiahSchema, type SearchResponseDto, type SearchResultDto, type SearchResultType, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateBudgetDto, type UpdateGoalDto };

@@ -1,6 +1,6 @@
 # EPIC-003: Wealth
 
-status: planned
+status: on-progress
 environment: dev
 phase: 3
 priority: P1
@@ -25,13 +25,13 @@ dan asuransi — serta memastikan perhitungan net worth konsisten di seluruh apl
 
 > Pola: tiap domain = modul **Backend** + **wiring Frontend** (TanStack Query, kontrak `@wealthme/contracts`).
 
-### Investments
+### Investments ✅
 
-- [ ] **T-301** Investments API + P&L: holdings, cost basis (modal), nilai kini, return Rp & %
-- [ ] **T-302** `investment_prices` + `MarketDataPort` (mock)
-- [ ] **T-303** Cron refresh harga (BullMQ) menulis ke `investment_prices`
-- [ ] **T-304** Realtime price push (WebSocket gateway)
-- [ ] **T-305** Wire halaman **Investasi** (tabel portofolio + return live, scroll horizontal mobile)
+- [x] **T-301** Investments API + P&L: holdings, cost basis (modal), nilai kini, return Rp & %
+- [x] **T-302** `investment_prices` + `MarketDataPort` (mock)
+- [x] **T-303** Cron refresh harga (BullMQ) menulis ke `investment_prices`
+- [x] **T-304** Realtime price push (WebSocket gateway)
+- [x] **T-305** Wire halaman **Investasi** (tabel portofolio + return live, scroll horizontal mobile)
 
 ### Assets
 
@@ -67,6 +67,10 @@ dan asuransi — serta memastikan perhitungan net worth konsisten di seluruh apl
 - **T-308** — rasio pembayaran & sisa saldo dihitung benar di BE.
 - **T-309/T-310** — grouped list & kartu liabilitas dari data nyata.
 - **T-311/T-312** — polis CRUD dengan status; tanggal perpanjangan memicu notifikasi.
+
+## Automation Log
+
+- 2026-06-10 /epic-loop EPIC-003 #1 "Investments" → PASS (attempts: 3), PR: pending
 
 ## Dependencies
 
