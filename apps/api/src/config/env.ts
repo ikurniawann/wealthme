@@ -37,6 +37,11 @@ const envSchema = z.object({
   MAIL_FROM: z.string().optional(),
   // Anthropic — optional; enables real Claude OCR when set
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  // Brick Open Banking — optional; both must be set to enable real adapter
+  BRICK_CLIENT_ID: z.string().min(1).optional(),
+  BRICK_CLIENT_SECRET: z.string().min(1).optional(),
+  // Market data — optional; set to "true" to use Yahoo Finance instead of mock
+  USE_REAL_MARKET_DATA: z.enum(["true", "false"]).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
