@@ -21,7 +21,8 @@ import {
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
-import { type AccountsService } from "./accounts.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { AccountsService } from "./accounts.service";
 import { AccountResponseDto } from "./dto/account-response.dto";
 import { type CreateAccountDto } from "./dto/create-account.dto";
 import { type UpdateAccountDto } from "./dto/update-account.dto";

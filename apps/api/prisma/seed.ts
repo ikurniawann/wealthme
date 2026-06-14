@@ -366,12 +366,21 @@ async function main(): Promise<void> {
   });
 
   // ── Transactions ─────────────────────────────────────────────────────────────
-  // Amounts in rupiah (BigInt).
-  // Cashflow April 2025: income ~25_850_000, expense ~18_340_000 (from data.ts CASHFLOW).
+  // Amounts in rupiah (BigInt). Dates are relative to "now" so the dashboard
+  // (which only looks at the last 6 months / 30 days) always has data.
+  // Monthly cashflow: income ~25_850_000, expense ~18_340_000 (from data.ts CASHFLOW).
+
+  const now = new Date();
+  const daysAgo = (n: number): Date => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - n);
+    d.setHours(12, 0, 0, 0);
+    return d;
+  };
 
   await prisma.transaction.upsert({
     where: { id: "seed-tx-gaji-apr-2025" },
-    update: {},
+    update: { occurredAt: daysAgo(28), description: "Gaji bulanan" },
     create: {
       id: "seed-tx-gaji-apr-2025",
       familyGroupId: family.id,
@@ -379,14 +388,14 @@ async function main(): Promise<void> {
       categoryId: catGaji.id,
       amount: 25_850_000n,
       type: "income",
-      description: "Gaji April 2025",
-      occurredAt: new Date("2025-04-01"),
+      description: "Gaji bulanan",
+      occurredAt: daysAgo(28),
     },
   });
 
   await prisma.transaction.upsert({
     where: { id: "seed-tx-makan-apr-2025-a" },
-    update: {},
+    update: { occurredAt: daysAgo(24) },
     create: {
       id: "seed-tx-makan-apr-2025-a",
       familyGroupId: family.id,
@@ -395,13 +404,13 @@ async function main(): Promise<void> {
       amount: 850_000n,
       type: "expense",
       description: "Makan siang & malam minggu ke-1",
-      occurredAt: new Date("2025-04-05"),
+      occurredAt: daysAgo(24),
     },
   });
 
   await prisma.transaction.upsert({
     where: { id: "seed-tx-lifestyle-apr-2025-a" },
-    update: {},
+    update: { occurredAt: daysAgo(19) },
     create: {
       id: "seed-tx-lifestyle-apr-2025-a",
       familyGroupId: family.id,
@@ -410,13 +419,13 @@ async function main(): Promise<void> {
       amount: 4_580_000n,
       type: "expense",
       description: "Belanja online lifestyle",
-      occurredAt: new Date("2025-04-10"),
+      occurredAt: daysAgo(19),
     },
   });
 
   await prisma.transaction.upsert({
     where: { id: "seed-tx-makan-apr-2025-b" },
-    update: {},
+    update: { occurredAt: daysAgo(13) },
     create: {
       id: "seed-tx-makan-apr-2025-b",
       familyGroupId: family.id,
@@ -425,13 +434,13 @@ async function main(): Promise<void> {
       amount: 720_000n,
       type: "expense",
       description: "Makan minggu ke-2",
-      occurredAt: new Date("2025-04-14"),
+      occurredAt: daysAgo(13),
     },
   });
 
   await prisma.transaction.upsert({
     where: { id: "seed-tx-makan-apr-2025-c" },
-    update: {},
+    update: { occurredAt: daysAgo(7) },
     create: {
       id: "seed-tx-makan-apr-2025-c",
       familyGroupId: family.id,
@@ -440,13 +449,13 @@ async function main(): Promise<void> {
       amount: 630_000n,
       type: "expense",
       description: "Makan minggu ke-3",
-      occurredAt: new Date("2025-04-21"),
+      occurredAt: daysAgo(7),
     },
   });
 
   await prisma.transaction.upsert({
     where: { id: "seed-tx-lifestyle-apr-2025-b" },
-    update: {},
+    update: { occurredAt: daysAgo(2) },
     create: {
       id: "seed-tx-lifestyle-apr-2025-b",
       familyGroupId: family.id,
@@ -455,9 +464,73 @@ async function main(): Promise<void> {
       amount: 2_400_000n,
       type: "expense",
       description: "Langganan & hiburan",
-      occurredAt: new Date("2025-04-28"),
+      occurredAt: daysAgo(2),
     },
   });
+
+  // ── Goals ────────────────────────────────────────────────────────────────────
+  // Amounts in rupiah (BigInt) — mirror the original demo goals.
+
+  const goalSeeds = [
+    {
+      id: "seed-goal-dana-darurat",
+      name: "Dana Darurat",
+      icon: "🛡️",
+      targetAmount: 30_000_000n,
+      currentAmount: 24_000_000n,
+      status: "on_track",
+      autoDebitAmount: 1_000_000n,
+    },
+    {
+      id: "seed-goal-liburan-jepang",
+      name: "Liburan Jepang",
+      icon: "✈️",
+      targetAmount: 25_000_000n,
+      currentAmount: 15_600_000n,
+      status: "on_track",
+      autoDebitAmount: null,
+    },
+    {
+      id: "seed-goal-dp-rumah",
+      name: "DP Rumah",
+      icon: "🏠",
+      targetAmount: 300_000_000n,
+      currentAmount: 120_000_000n,
+      status: "needs_boost",
+      autoDebitAmount: 5_000_000n,
+    },
+    {
+      id: "seed-goal-dana-pensiun",
+      name: "Dana Pensiun",
+      icon: "🏖️",
+      targetAmount: 1_000_000_000n,
+      currentAmount: 250_000_000n,
+      status: "at_risk",
+      autoDebitAmount: null,
+    },
+  ] as const;
+
+  for (const g of goalSeeds) {
+    await prisma.goal.upsert({
+      where: { id: g.id },
+      update: {
+        currentAmount: g.currentAmount,
+        targetAmount: g.targetAmount,
+        status: g.status,
+      },
+      create: {
+        id: g.id,
+        familyGroupId: family.id,
+        name: g.name,
+        icon: g.icon,
+        targetAmount: g.targetAmount,
+        currentAmount: g.currentAmount,
+        status: g.status,
+        autoDebitAmount: g.autoDebitAmount,
+        targetDate: daysAgo(-365),
+      },
+    });
+  }
 
   process.stdout.write(
     `Seed complete:\n` +
@@ -465,7 +538,8 @@ async function main(): Promise<void> {
       `  User: ${user.name} <${user.email}>\n` +
       `  Accounts: BCA, Mandiri, GoPay\n` +
       `  Categories: Gaji, Makan & Minum, Lifestyle + full set (11 additional)\n` +
-      `  Transactions: 6 records seeded\n`,
+      `  Transactions: 6 records seeded (dates relative to today)\n` +
+      `  Goals: ${goalSeeds.length} records seeded\n`,
   );
 }
 
