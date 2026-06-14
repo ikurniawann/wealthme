@@ -44,6 +44,8 @@ import { StorageModule } from "./storage/storage.module";
 import { TaxModule } from "./tax/tax.module";
 import { TransactionsModule } from "./transactions/transactions.module";
 
+import type { IncomingMessage } from "node:http";
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -53,10 +55,19 @@ import { TransactionsModule } from "./transactions/transactions.module";
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     LoggerModule.forRoot({
       pinoHttp: {
+        level:
+          process.env["LOG_LEVEL"] ??
+          (process.env["NODE_ENV"] === "production" ? "info" : "debug"),
+        customProps: (req: IncomingMessage) => ({
+          requestId: (req.headers as Record<string, string | string[]>)[
+            "x-request-id"
+          ],
+        }),
         transport:
           process.env["NODE_ENV"] !== "production"
             ? { target: "pino-pretty", options: { colorize: true } }
             : undefined,
+        redact: ["req.headers.authorization", "req.headers.cookie"],
       },
     }),
     RedisModule,

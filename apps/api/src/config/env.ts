@@ -55,6 +55,12 @@ const envSchema = z.object({
   // Email notifications — optional; both must be set to enable real SendGrid sender
   SENDGRID_API_KEY: z.string().min(1).optional(),
   NOTIFICATION_FROM_EMAIL: z.string().email().optional(),
+  // Observability — optional; Sentry error tracking
+  SENTRY_DSN: z.string().url().optional(),
+  // Optional; structured log level override (default: info in prod, debug in dev)
+  LOG_LEVEL: z
+    .enum(["fatal", "error", "warn", "info", "debug", "trace"])
+    .optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
