@@ -38,6 +38,7 @@ type UserProfile = {
   name: string;
   avatarInitials: string | null;
   createdAt: Date;
+  familyGroupId: string | null;
   memberships: MembershipInfo[];
 };
 
@@ -123,7 +124,10 @@ export class AuthService {
         },
       },
     });
-    return user;
+    return {
+      ...user,
+      familyGroupId: user.memberships[0]?.familyGroupId ?? null,
+    };
   }
 
   async updateProfile(
@@ -153,7 +157,10 @@ export class AuthService {
         },
       },
     });
-    return updated;
+    return {
+      ...updated,
+      familyGroupId: updated.memberships[0]?.familyGroupId ?? null,
+    };
   }
 
   async loginWithGoogle(profile: GoogleProfile): Promise<TokenPair> {

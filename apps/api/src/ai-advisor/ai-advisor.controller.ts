@@ -1,16 +1,15 @@
 import { Body, Controller, Param, Post, Res, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
+import { type Response } from "express";
 
+import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AiAdvisorService } from "./ai-advisor.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ChatRequestDto } from "./dto/chat-request.dto";
-
-import type { AppAbility } from "../casl/casl-ability.factory";
-import type { Response } from "express";
 
 @ApiTags("ai-advisor")
 @ApiBearerAuth()

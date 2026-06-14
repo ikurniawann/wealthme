@@ -19,6 +19,7 @@ import {
 } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
 
+import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
 import { type CreateTransactionDto } from "./dto/create-transaction.dto";
@@ -32,8 +33,6 @@ import {
 import { type UpdateTransactionDto } from "./dto/update-transaction.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { TransactionsService } from "./transactions.service";
-
-import type { AppAbility } from "../casl/casl-ability.factory";
 
 @ApiTags("transactions")
 @ApiBearerAuth()

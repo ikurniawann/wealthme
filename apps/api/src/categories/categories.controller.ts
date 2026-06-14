@@ -7,13 +7,12 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 
+import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CategoriesService } from "./categories.service";
 import { CategoryResponseDto } from "./dto/category-response.dto";
-
-import type { AppAbility } from "../casl/casl-ability.factory";
 
 @ApiTags("categories")
 @ApiBearerAuth()

@@ -22,7 +22,9 @@ import {
   IsString,
 } from "class-validator";
 
+import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { type Env } from "../config/env";
 
 import {
   ConsentUrlDto,
@@ -31,9 +33,6 @@ import {
 } from "./dto/open-banking-response.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { OpenBankingPort, OPEN_BANKING_PORT } from "./open-banking.port";
-
-import type { AppAbility } from "../casl/casl-ability.factory";
-import type { Env } from "../config/env";
 
 class InitiateConsentDto {
   @IsString()

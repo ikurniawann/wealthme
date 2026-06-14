@@ -6,14 +6,16 @@ import {
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
+import {
+  type DashboardSummaryDto,
+  type NetWorthDto,
+} from "@wealthme/contracts";
 
+import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { DashboardService } from "./dashboard.service";
-
-import type { AppAbility } from "../casl/casl-ability.factory";
-import type { DashboardSummaryDto, NetWorthDto } from "@wealthme/contracts";
 
 @ApiTags("dashboard")
 @ApiBearerAuth()

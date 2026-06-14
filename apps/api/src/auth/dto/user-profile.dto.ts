@@ -36,6 +36,13 @@ export class UserProfileDto {
   createdAt!: Date;
 
   @ApiProperty({
+    type: String,
+    nullable: true,
+    description: "Primary family group ID (first membership)",
+  })
+  familyGroupId!: string | null;
+
+  @ApiProperty({
     type: [MembershipDto],
     description: "Family group memberships",
   })

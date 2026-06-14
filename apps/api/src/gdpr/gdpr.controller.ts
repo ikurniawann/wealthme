@@ -8,14 +8,13 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { type Request as ExpressRequest } from "express";
 
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { type JwtPayload } from "../auth/strategies/jwt.strategy";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { GdprService } from "./gdpr.service";
-
-import type { JwtPayload } from "../auth/strategies/jwt.strategy";
-import type { Request as ExpressRequest } from "express";
 
 interface AuthRequest extends ExpressRequest {
   user: JwtPayload;

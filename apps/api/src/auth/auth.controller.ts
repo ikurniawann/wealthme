@@ -17,6 +17,7 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
+import { type Request as ExpressRequest } from "express";
 
 import { Public } from "../common/decorators/public.decorator";
 
@@ -30,10 +31,8 @@ import { UserProfileDto } from "./dto/user-profile.dto";
 import { GoogleAuthGuard } from "./guards/google-auth.guard";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { JwtRefreshGuard } from "./guards/jwt-refresh.guard";
-
-import type { GoogleProfile } from "./strategies/google.strategy";
-import type { JwtPayload } from "./strategies/jwt.strategy";
-import type { Request as ExpressRequest } from "express";
+import { type GoogleProfile } from "./strategies/google.strategy";
+import { type JwtPayload } from "./strategies/jwt.strategy";
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: JwtPayload;

@@ -19,6 +19,7 @@ import {
 } from "@nestjs/swagger";
 
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
 import { type CreateLiabilityDto } from "./dto/create-liability.dto";
@@ -28,8 +29,6 @@ import {
 } from "./dto/liability-response.dto";
 import { type UpdateLiabilityDto } from "./dto/update-liability.dto";
 import { type LiabilitiesService } from "./liabilities.service";
-
-import type { AppAbility } from "../casl/casl-ability.factory";
 
 @ApiTags("liabilities")
 @UseGuards(JwtAuthGuard)

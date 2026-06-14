@@ -19,6 +19,7 @@ import {
 } from "@nestjs/swagger";
 
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -26,8 +27,6 @@ import { AccountsService } from "./accounts.service";
 import { AccountResponseDto } from "./dto/account-response.dto";
 import { type CreateAccountDto } from "./dto/create-account.dto";
 import { type UpdateAccountDto } from "./dto/update-account.dto";
-
-import type { AppAbility } from "../casl/casl-ability.factory";
 
 @ApiTags("accounts")
 @UseGuards(JwtAuthGuard)

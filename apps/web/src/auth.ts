@@ -71,7 +71,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.refreshToken = (user as { refreshToken?: string }).refreshToken;
         token.userId = user.id;
         token.familyGroupId =
-          (user as { familyGroupId?: string | null }).familyGroupId ?? null;
+          (user as { memberships?: Array<{ familyGroupId: string }> })
+            .memberships?.[0]?.familyGroupId ?? null;
         token.accessTokenExpiresAt = Date.now() + ACCESS_TOKEN_TTL_MS;
         token.memberships =
           (

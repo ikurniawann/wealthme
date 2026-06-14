@@ -16,6 +16,11 @@ import {
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
+import {
+  type InvestmentDto,
+  type InvestmentSummaryDto,
+} from "@wealthme/contracts";
+import { type Request as ExpressRequest } from "express";
 
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
@@ -25,9 +30,6 @@ import { CreateInvestmentDto } from "./dto/create-investment.dto";
 import { UpdateInvestmentDto } from "./dto/update-investment.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { InvestmentsService } from "./investments.service";
-
-import type { InvestmentDto, InvestmentSummaryDto } from "@wealthme/contracts";
-import type { Request as ExpressRequest } from "express";
 
 @ApiTags("investments")
 @ApiBearerAuth()

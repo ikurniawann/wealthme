@@ -19,14 +19,13 @@ import {
 } from "@nestjs/swagger";
 
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
 import { type CreateInheritanceAssetDto } from "./dto/create-inheritance-asset.dto";
 import { InheritanceAssetResponseDto } from "./dto/inheritance-asset-response.dto";
 import { type UpdateInheritanceAssetDto } from "./dto/update-inheritance-asset.dto";
 import { type InheritanceService } from "./inheritance.service";
-
-import type { AppAbility } from "../casl/casl-ability.factory";
 
 @ApiTags("inheritance")
 @UseGuards(JwtAuthGuard)

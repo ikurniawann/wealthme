@@ -11,8 +11,7 @@ import {
   RetirementCalcResultDto,
 } from "./dto/investment.dto";
 import { Pph21ResultDto, type Pph21RequestDto } from "./dto/pph21.dto";
-import { ZakatResultDto } from "./dto/zakat.dto";
-import { type ZakatRequestDto } from "./dto/zakat.dto";
+import { ZakatResultDto, type ZakatRequestDto } from "./dto/zakat.dto";
 
 import type {
   InvestmentCalcRequestDto,
