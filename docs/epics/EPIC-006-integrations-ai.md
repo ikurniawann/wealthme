@@ -33,10 +33,10 @@ dan menghadirkan AI Advisor serta kategorisasi transaksi berbasis LLM.
 - [x] **T-602** Adapter open-banking (Brick/Ayoconnect): consent, sinkron akun, feed transaksi (`BankSyncPort` real)
 - [x] **T-603** Market data nyata (Yahoo Finance / IDX) menggantikan mock
 
-### AI Advisor
+### AI Advisor ✅
 
-- [ ] **T-604** AI Advisor → Claude via AI SDK (streaming chat), grounded pada data user (`claude-sonnet-4-6`) di balik `AiAdvisorPort`
-- [ ] **T-605** Wire halaman **AI Advisor** ke API streaming + shortcut pertanyaan + disclaimer
+- [x] **T-604** AI Advisor → Claude via AI SDK (streaming chat), grounded pada data user (`claude-sonnet-4-6`) di balik `AiAdvisorPort`
+- [x] **T-605** Wire halaman **AI Advisor** ke API streaming + shortcut pertanyaan + disclaimer
 
 ### Auto Categorization & Notifications
 
@@ -70,6 +70,7 @@ dan menghadirkan AI Advisor serta kategorisasi transaksi berbasis LLM.
 ## Automation Log
 
 - 2026-06-14 /epic-loop EPIC-006 #1 "OCR Provider" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/130
+- 2026-06-14 /epic-loop EPIC-006 #2 "Open Banking & Market Data" → PASS (attempts: 3), PR: https://github.com/andrsrjld/wealthme-web/pull/131
 
 ## Dependencies
 
