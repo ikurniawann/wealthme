@@ -10,16 +10,14 @@ import {
   KprCalcResultDto,
   RetirementCalcResultDto,
 } from "./dto/investment.dto";
-import { Pph21ResultDto } from "./dto/pph21.dto";
-import { ZakatResultDto } from "./dto/zakat.dto";
+import { Pph21ResultDto, type Pph21RequestDto } from "./dto/pph21.dto";
+import { ZakatResultDto, type ZakatRequestDto } from "./dto/zakat.dto";
 
 import type {
   InvestmentCalcRequestDto,
   KprCalcRequestDto,
   RetirementCalcRequestDto,
 } from "./dto/investment.dto";
-import type { Pph21RequestDto } from "./dto/pph21.dto";
-import type { ZakatRequestDto } from "./dto/zakat.dto";
 
 @ApiTags("calculators")
 @Public()

@@ -16,6 +16,7 @@ import {
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
+import { type Request as ExpressRequest } from "express";
 
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
@@ -29,7 +30,6 @@ import type {
   AssetHistoryResponseDto,
   AssetResponseDto,
 } from "./dto/asset-response.dto";
-import type { Request as ExpressRequest } from "express";
 
 @ApiTags("assets")
 @ApiBearerAuth()

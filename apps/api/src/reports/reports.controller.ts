@@ -8,12 +8,12 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 
+import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ReportsService } from "./reports.service";
 
-import type { AppAbility } from "../casl/casl-ability.factory";
 import type {
   BalanceSheetDto,
   BankReportDto,

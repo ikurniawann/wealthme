@@ -19,15 +19,14 @@ import {
 } from "@nestjs/swagger";
 
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
+import { type CreateInheritanceAssetDto } from "./dto/create-inheritance-asset.dto";
 import { InheritanceAssetResponseDto } from "./dto/inheritance-asset-response.dto";
+import { type UpdateInheritanceAssetDto } from "./dto/update-inheritance-asset.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { InheritanceService } from "./inheritance.service";
-
-import type { AppAbility } from "../casl/casl-ability.factory";
-import type { CreateInheritanceAssetDto } from "./dto/create-inheritance-asset.dto";
-import type { UpdateInheritanceAssetDto } from "./dto/update-inheritance-asset.dto";
 
 @ApiTags("inheritance")
 @UseGuards(JwtAuthGuard)

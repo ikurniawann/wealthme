@@ -19,15 +19,14 @@ import {
 } from "@nestjs/swagger";
 
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
+import { type CreateTaxRecordDto } from "./dto/create-tax-record.dto";
 import { TaxRecordResponseDto } from "./dto/tax-record-response.dto";
+import { type UpdateTaxRecordDto } from "./dto/update-tax-record.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { TaxService } from "./tax.service";
-
-import type { AppAbility } from "../casl/casl-ability.factory";
-import type { CreateTaxRecordDto } from "./dto/create-tax-record.dto";
-import type { UpdateTaxRecordDto } from "./dto/update-tax-record.dto";
 
 @ApiTags("tax")
 @UseGuards(JwtAuthGuard)

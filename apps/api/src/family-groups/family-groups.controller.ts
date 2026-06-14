@@ -18,21 +18,20 @@ import {
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
+import { type Request as ExpressRequest } from "express";
 
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { type JwtPayload } from "../auth/strategies/jwt.strategy";
 import { Public } from "../common/decorators/public.decorator";
 
+import { type CreateFamilyGroupDto } from "./dto/create-family-group.dto";
+import { type CreateInvitationDto } from "./dto/create-invitation.dto";
 import { FamilyGroupResponseDto } from "./dto/family-group-response.dto";
 import { InvitationResponseDto } from "./dto/invitation-response.dto";
 import { MemberResponseDto } from "./dto/member-response.dto";
+import { type UpdateMemberRoleDto } from "./dto/update-member-role.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { FamilyGroupsService } from "./family-groups.service";
-
-import type { CreateFamilyGroupDto } from "./dto/create-family-group.dto";
-import type { CreateInvitationDto } from "./dto/create-invitation.dto";
-import type { UpdateMemberRoleDto } from "./dto/update-member-role.dto";
-import type { JwtPayload } from "../auth/strategies/jwt.strategy";
-import type { Request as ExpressRequest } from "express";
 
 interface AuthRequest extends ExpressRequest {
   user: JwtPayload;
