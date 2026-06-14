@@ -202,6 +202,7 @@ export default function TransaksiPage() {
             <button
               key={f.value}
               onClick={() => setFilter(f.value)}
+              aria-pressed={filter === f.value}
               className={
                 "whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors " +
                 (filter === f.value
