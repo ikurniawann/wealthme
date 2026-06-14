@@ -9,6 +9,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/wm";
+import {
+  CardSideActions,
+  ConfirmDeleteDialog,
+  CrudModal,
+  type CrudModalState,
+} from "@/components/crud";
 import { apiFetch } from "@/lib/api-client";
 import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
@@ -112,7 +118,14 @@ function PolicyCardSkeleton() {
   );
 }
 
-function PolicyCard({ item }: { item: InsuranceDto }) {
+interface PolicyCardProps {
+  item: InsuranceDto;
+  onEdit: () => void;
+  onPay: () => void;
+  onDelete: () => void;
+}
+
+function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
   const icon = INSURANCE_TYPE_ICON[item.type] ?? "📋";
   const iconBg = INSURANCE_TYPE_BG[item.type] ?? "#F3F4F6";
   const typeLabel = INSURANCE_TYPE_LABEL[item.type] ?? item.type;
@@ -128,76 +141,86 @@ function PolicyCard({ item }: { item: InsuranceDto }) {
 
   return (
     <Card className="gap-0 p-[18px]">
-      <div className="mb-3.5 flex items-center gap-2.5">
-        <div
-          className="flex size-[38px] shrink-0 items-center justify-center rounded-[10px] text-[17px]"
-          style={{ background: iconBg }}
-        >
-          {icon}
-        </div>
-        <div className="flex-1">
-          <div className="text-[14px] font-bold">{item.name}</div>
-          <div className="text-[11px] text-muted-foreground">
-            {item.provider ? `${item.provider} · ` : ""}
-            {typeLabel}
-          </div>
-        </div>
-        <StatusBadge variant={statusVariant}>
-          {item.status === "aktif"
-            ? "Aktif"
-            : item.status === "kadaluarsa"
-              ? "Kadaluarsa"
-              : "Tidak Aktif"}
-        </StatusBadge>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
-        {item.coverageAmount && (
-          <div>
-            <div className="mb-[3px] text-[11px] text-muted-foreground">
-              Uang Pertanggungan
+      <div className="flex items-stretch gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="mb-3.5 flex items-center gap-2.5">
+            <div
+              className="flex size-[38px] shrink-0 items-center justify-center rounded-[10px] text-[17px]"
+              style={{ background: iconBg }}
+            >
+              {icon}
             </div>
-            <div className="text-[13.5px] font-bold">
-              {formatRupiah(Number(BigInt(item.coverageAmount)))}
-            </div>
-          </div>
-        )}
-        <div>
-          <div className="mb-[3px] text-[11px] text-muted-foreground">
-            Premi
-          </div>
-          <div className="text-[13.5px] font-bold">
-            {formatRupiah(Number(BigInt(item.premiumAmount)))}
-            <span className="font-normal text-muted-foreground">
-              {periodLabel}
-            </span>
-          </div>
-        </div>
-        {item.renewalDate && (
-          <div>
-            <div className="mb-[3px] text-[11px] text-muted-foreground">
-              Jatuh Tempo
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="text-[13.5px] font-bold">
-                {formatIndonesianDate(item.renewalDate)}
+            <div className="flex-1">
+              <div className="text-[14px] font-bold">{item.name}</div>
+              <div className="text-[11px] text-muted-foreground">
+                {item.provider ? `${item.provider} · ` : ""}
+                {typeLabel}
               </div>
-              {item.daysUntilRenewal !== null && (
-                <StatusBadge variant={renewalVariant} className="text-[10px]">
-                  {item.daysUntilRenewal} hari
-                </StatusBadge>
-              )}
             </div>
+            <StatusBadge variant={statusVariant}>
+              {item.status === "aktif"
+                ? "Aktif"
+                : item.status === "kadaluarsa"
+                  ? "Kadaluarsa"
+                  : "Tidak Aktif"}
+            </StatusBadge>
           </div>
-        )}
-        {item.policyNumber && (
-          <div>
-            <div className="mb-[3px] text-[11px] text-muted-foreground">
-              No. Polis
+
+          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
+            {item.coverageAmount && (
+              <div>
+                <div className="mb-[3px] text-[11px] text-muted-foreground">
+                  Uang Pertanggungan
+                </div>
+                <div className="text-[13.5px] font-bold">
+                  {formatRupiah(Number(BigInt(item.coverageAmount)))}
+                </div>
+              </div>
+            )}
+            <div>
+              <div className="mb-[3px] text-[11px] text-muted-foreground">
+                Premi
+              </div>
+              <div className="text-[13.5px] font-bold">
+                {formatRupiah(Number(BigInt(item.premiumAmount)))}
+                <span className="font-normal text-muted-foreground">
+                  {periodLabel}
+                </span>
+              </div>
             </div>
-            <div className="text-[13.5px] font-bold">{item.policyNumber}</div>
+            {item.renewalDate && (
+              <div>
+                <div className="mb-[3px] text-[11px] text-muted-foreground">
+                  Jatuh Tempo
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="text-[13.5px] font-bold">
+                    {formatIndonesianDate(item.renewalDate)}
+                  </div>
+                  {item.daysUntilRenewal !== null && (
+                    <StatusBadge
+                      variant={renewalVariant}
+                      className="text-[10px]"
+                    >
+                      {item.daysUntilRenewal} hari
+                    </StatusBadge>
+                  )}
+                </div>
+              </div>
+            )}
+            {item.policyNumber && (
+              <div>
+                <div className="mb-[3px] text-[11px] text-muted-foreground">
+                  No. Polis
+                </div>
+                <div className="text-[13.5px] font-bold">
+                  {item.policyNumber}
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+        <CardSideActions onEdit={onEdit} onPay={onPay} onDelete={onDelete} />
       </div>
     </Card>
   );
@@ -548,12 +571,64 @@ function AddInsuranceModal({
   );
 }
 
+const CRUD_JENIS_BY_TYPE: Record<string, string> = {
+  jiwa: "Jiwa",
+  kesehatan: "Kesehatan",
+  kendaraan: "Kendaraan",
+  properti: "Properti",
+};
+
 export default function AsuransiPage() {
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
   const familyGroupId = session?.familyGroupId as string | undefined;
+  const queryClient = useQueryClient();
 
   const [showModal, setShowModal] = useState(false);
+  const [crud, setCrud] = useState<CrudModalState | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<InsuranceDto | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<void>(`/family-groups/${familyGroupId}/insurances/${id}`, {
+        method: "DELETE",
+        token,
+      }).catch((err: unknown) => {
+        // DELETE returns 204 No Content — apiFetch's res.json() rejects on the
+        // empty body; real API errors carry a `status` and must keep throwing.
+        if (err && typeof err === "object" && "status" in err) throw err;
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.insurances.all(familyGroupId ?? ""),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.insurances.summary(familyGroupId ?? ""),
+      });
+      toast.success("Asuransi dihapus");
+    },
+    onError: (err: { message?: string }) => {
+      toast.error(err.message ?? "Gagal menghapus asuransi");
+    },
+  });
+
+  const openEdit = (item: InsuranceDto) => {
+    setCrud({
+      entity: "asuransi",
+      mode: "edit",
+      initialValues: {
+        nama: item.name,
+        ...(CRUD_JENIS_BY_TYPE[item.type] && {
+          jenis: CRUD_JENIS_BY_TYPE[item.type],
+        }),
+        premi: String(Number(BigInt(item.premiumAmount))),
+        pertanggungan: item.coverageAmount
+          ? String(Number(BigInt(item.coverageAmount)))
+          : "",
+        jatuhtempo: item.renewalDate ? item.renewalDate.slice(0, 10) : "",
+      },
+    });
+  };
 
   const {
     data: insurances,
@@ -633,7 +708,15 @@ export default function AsuransiPage() {
 
       {!isLoading &&
         !isError &&
-        insurances?.map((item) => <PolicyCard key={item.id} item={item} />)}
+        insurances?.map((item) => (
+          <PolicyCard
+            key={item.id}
+            item={item}
+            onEdit={() => openEdit(item)}
+            onPay={() => toast("💳 Bayar premi")}
+            onDelete={() => setDeleteTarget(item)}
+          />
+        ))}
 
       {showModal && familyGroupId && (
         <AddInsuranceModal
@@ -642,6 +725,15 @@ export default function AsuransiPage() {
           onClose={() => setShowModal(false)}
         />
       )}
+
+      <CrudModal state={crud} onClose={() => setCrud(null)} />
+      <ConfirmDeleteDialog
+        label={deleteTarget ? "Asuransi" : null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+        }}
+      />
     </div>
   );
 }

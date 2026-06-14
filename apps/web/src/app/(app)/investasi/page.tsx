@@ -1,8 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { toast } from "sonner";
-import { SectionCard, StatusBadge, CardLink } from "@/components/wm";
+import { Plus } from "lucide-react";
+import { SectionCard, StatusBadge } from "@/components/wm";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  CrudModal,
+  RowActions,
+  ConfirmDeleteDialog,
+  type CrudModalState,
+} from "@/components/crud";
 
 type Holding = {
   logo: string;
@@ -95,8 +104,29 @@ const HOLDINGS: Holding[] = [
 ];
 
 export default function InvestasiPage() {
+  const [crudState, setCrudState] = useState<CrudModalState | null>(null);
+  const [deleteLabel, setDeleteLabel] = useState<string | null>(null);
+
   return (
     <div className="space-y-4">
+      {/* Page header */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
+        <div>
+          <div className="text-[15px] font-bold">Portofolio Investasi</div>
+          <div className="text-[12px] text-muted-foreground">
+            {HOLDINGS.length} instrumen · Total Rp 577.200.000
+          </div>
+        </div>
+        <Button
+          size="sm"
+          onClick={() => setCrudState({ entity: "investasi", mode: "add" })}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          Tambah
+        </Button>
+      </div>
+
+      {/* Summary cards */}
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
         <Card className="gap-0 p-5">
           <div className="mb-1 text-[11px] text-muted-foreground">
@@ -122,16 +152,10 @@ export default function InvestasiPage() {
         </Card>
       </div>
 
-      <SectionCard
-        title="Portofolio"
-        action={
-          <CardLink onClick={() => toast("➕ Tambah Investasi")}>
-            + Tambah Investasi
-          </CardLink>
-        }
-      >
+      {/* Portfolio table */}
+      <SectionCard title="Daftar Portofolio">
         <div className="w-full overflow-x-auto">
-          <table className="w-full min-w-[580px] border-collapse text-[12.5px]">
+          <table className="w-full min-w-[640px] border-collapse text-[12.5px]">
             <thead>
               <tr className="border-b text-left text-[11px] text-muted-foreground">
                 <th className="py-2.5 pr-3 font-semibold">Nama</th>
@@ -139,7 +163,8 @@ export default function InvestasiPage() {
                 <th className="py-2.5 pr-3 font-semibold">Modal</th>
                 <th className="py-2.5 pr-3 font-semibold">Nilai</th>
                 <th className="py-2.5 pr-3 font-semibold">Return</th>
-                <th className="py-2.5 font-semibold">%</th>
+                <th className="py-2.5 pr-3 font-semibold">%</th>
+                <th className="py-2.5 font-semibold">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -166,7 +191,9 @@ export default function InvestasiPage() {
                       {h.badge.label}
                     </StatusBadge>
                   </td>
-                  <td className="mono py-3 pr-3 whitespace-nowrap">{h.modal}</td>
+                  <td className="mono py-3 pr-3 whitespace-nowrap">
+                    {h.modal}
+                  </td>
                   <td className="mono py-3 pr-3 font-extrabold whitespace-nowrap">
                     {h.nilai}
                   </td>
@@ -178,11 +205,23 @@ export default function InvestasiPage() {
                     {h.ret}
                   </td>
                   <td
-                    className={`py-3 font-semibold whitespace-nowrap ${
+                    className={`py-3 pr-3 font-semibold whitespace-nowrap ${
                       h.up ? "text-success" : "text-destructive"
                     }`}
                   >
                     {h.pct}
+                  </td>
+                  <td className="py-3">
+                    <RowActions
+                      onEdit={() =>
+                        setCrudState({
+                          entity: "investasi",
+                          mode: "edit",
+                          initialValues: { nama: h.name },
+                        })
+                      }
+                      onDelete={() => setDeleteLabel("Investasi")}
+                    />
                   </td>
                 </tr>
               ))}
@@ -190,6 +229,17 @@ export default function InvestasiPage() {
           </table>
         </div>
       </SectionCard>
+
+      {/* Shared modals — rendered once at root */}
+      <CrudModal state={crudState} onClose={() => setCrudState(null)} />
+      <ConfirmDeleteDialog
+        label={deleteLabel}
+        onClose={() => setDeleteLabel(null)}
+        onConfirm={() => {
+          setDeleteLabel(null);
+          toast("🗑️ Investasi dihapus.");
+        }}
+      />
     </div>
   );
 }

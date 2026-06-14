@@ -6,6 +6,7 @@ import {
   Briefcase,
   Calculator,
   ClipboardList,
+  Database,
   FileText,
   GitCompare,
   HeartHandshake,
@@ -20,6 +21,7 @@ import {
   Target,
   User,
   Wallet,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 
@@ -57,12 +59,40 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     items: [
       { id: "beranda", label: "Beranda", href: "/beranda", icon: Home },
-      { id: "ringkasan", label: "Ringkasan", href: "/ringkasan", icon: PieChart },
-      { id: "transaksi", label: "Transaksi", href: "/transaksi", icon: ArrowUpDown },
-      { id: "anggaran", label: "Anggaran", href: "/anggaran", icon: ClipboardList },
-      { id: "laporan", label: "Laporan", href: "/laporan", icon: LineChart, children: REPORT_TABS },
+      {
+        id: "ringkasan",
+        label: "Ringkasan",
+        href: "/ringkasan",
+        icon: PieChart,
+      },
+      {
+        id: "transaksi",
+        label: "Transaksi",
+        href: "/transaksi",
+        icon: ArrowUpDown,
+      },
+      {
+        id: "anggaran",
+        label: "Anggaran",
+        href: "/anggaran",
+        icon: ClipboardList,
+      },
+      {
+        id: "laporan",
+        label: "Laporan",
+        href: "/laporan",
+        icon: LineChart,
+        children: REPORT_TABS,
+      },
       { id: "tujuan", label: "Tujuan Keuangan", href: "/tujuan", icon: Target },
-      { id: "notifikasi", label: "Notifikasi", href: "/notifikasi", icon: Bell, badge: "3", badgeVariant: "danger" },
+      {
+        id: "notifikasi",
+        label: "Notifikasi",
+        href: "/notifikasi",
+        icon: Bell,
+        badge: "3",
+        badgeVariant: "danger",
+      },
     ],
   },
   {
@@ -70,22 +100,89 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { id: "dana", label: "Dana", href: "/dana", icon: Wallet },
       { id: "rekening", label: "Rekening", href: "/rekening", icon: Landmark },
-      { id: "investasi", label: "Investasi", href: "/investasi", icon: BarChart3 },
+      {
+        id: "investasi",
+        label: "Investasi",
+        href: "/investasi",
+        icon: BarChart3,
+      },
       { id: "aset", label: "Aset", href: "/aset", icon: Briefcase },
-      { id: "liabilitas", label: "Liabilitas", href: "/liabilitas", icon: ReceiptText },
-      { id: "asuransi", label: "Asuransi", href: "/asuransi", icon: ShieldCheck },
-      { id: "warisan", label: "Warisan", href: "/warisan", icon: Scroll, badge: "New", badgeVariant: "new-purple" },
-      { id: "donation", label: "Donasi & Zakat", href: "/donation", icon: HeartHandshake, badge: "New", badgeVariant: "new-success" },
-      { id: "tax", label: "Tax Center", href: "/tax", icon: FileText, badge: "New", badgeVariant: "new-success" },
+      {
+        id: "liabilitas",
+        label: "Liabilitas",
+        href: "/liabilitas",
+        icon: ReceiptText,
+      },
+      {
+        id: "asuransi",
+        label: "Asuransi",
+        href: "/asuransi",
+        icon: ShieldCheck,
+      },
+      {
+        id: "warisan",
+        label: "Warisan",
+        href: "/warisan",
+        icon: Scroll,
+        badge: "New",
+        badgeVariant: "new-purple",
+      },
+      {
+        id: "donation",
+        label: "Donasi & Zakat",
+        href: "/donation",
+        icon: HeartHandshake,
+        badge: "New",
+        badgeVariant: "new-success",
+      },
+      {
+        id: "tax",
+        label: "Tax Center",
+        href: "/tax",
+        icon: FileText,
+        badge: "New",
+        badgeVariant: "new-success",
+      },
     ],
   },
   {
     label: "Alat",
     items: [
-      { id: "splitbill", label: "Split Bill", href: "/splitbill", icon: Receipt, badge: "New", badgeVariant: "new-success" },
-      { id: "rekonsiliasi", label: "Rekonsiliasi Bank", href: "/rekonsiliasi", icon: GitCompare },
+      {
+        id: "splitbill",
+        label: "Split Bill",
+        href: "/splitbill",
+        icon: Receipt,
+        badge: "New",
+        badgeVariant: "new-success",
+      },
+      {
+        id: "rekonsiliasi",
+        label: "Rekonsiliasi Bank",
+        href: "/rekonsiliasi",
+        icon: GitCompare,
+      },
       { id: "ai", label: "AI Advisor", href: "/ai", icon: Bot },
-      { id: "kalkulator", label: "Kalkulator", href: "/kalkulator", icon: Calculator },
+      {
+        id: "kalkulator",
+        label: "Kalkulator",
+        href: "/kalkulator",
+        icon: Calculator,
+      },
+      {
+        id: "quickinput",
+        label: "Quick Input",
+        href: "/quickinput",
+        icon: Zap,
+        badge: "New",
+        badgeVariant: "new-success",
+      },
+      {
+        id: "masterdata",
+        label: "Setup Master Data",
+        href: "/masterdata",
+        icon: Database,
+      },
     ],
   },
 ];
@@ -112,13 +209,25 @@ export const PAGE_TITLES: Record<string, string> = {
   warisan: "Warisan",
   donation: "Donasi & Zakat",
   tax: "Tax Center",
+  quickinput: "Quick Input",
+  masterdata: "Setup Master Data",
 };
 
-export type MobileNavItem = { id: string; label: string; href: string; icon: LucideIcon };
+export type MobileNavItem = {
+  id: string;
+  label: string;
+  href: string;
+  icon: LucideIcon;
+};
 
 export const MOBILE_NAV: MobileNavItem[] = [
   { id: "beranda", label: "Beranda", href: "/beranda", icon: Home },
-  { id: "transaksi", label: "Transaksi", href: "/transaksi", icon: ArrowUpDown },
+  {
+    id: "transaksi",
+    label: "Transaksi",
+    href: "/transaksi",
+    icon: ArrowUpDown,
+  },
   { id: "laporan", label: "Laporan", href: "/laporan", icon: LineChart },
   { id: "akun", label: "Akun", href: "/akun", icon: User },
 ];
