@@ -68,9 +68,15 @@ export const queryKeys = {
   splitBills: {
     list: (fgId: string) => ["split-bills", fgId] as const,
   },
+  donations: {
+    list: (fgId: string) => ["donations", fgId] as const,
+  },
   exports: {
     status: (familyGroupId: string, jobId: string) =>
       ["exports", familyGroupId, jobId] as const,
+  },
+  tax: {
+    list: (fgId: string) => ["tax", fgId] as const,
   },
   reports: {
     summary: (familyGroupId: string, months: number) =>

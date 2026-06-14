@@ -23,3 +23,5 @@ export * from "./split-bills/index.js";
 export * from "./reports/index.js";
 export * from "./exports/index.js";
 export * from "./calculators/index.js";
+export * from "./donations/index.js";
+export * from "./tax/index.js";

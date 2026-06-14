@@ -19,6 +19,7 @@ import { AbilitiesGuard } from "./common/guards/abilities.guard";
 import { TenantGuard } from "./common/guards/tenant.guard";
 import { validateEnv } from "./config/env";
 import { DashboardModule } from "./dashboard/dashboard.module";
+import { DonationsModule } from "./donations/donations.module";
 import { ExportsModule } from "./exports/exports.module";
 import { FamilyGroupsModule } from "./family-groups/family-groups.module";
 import { GoalsModule } from "./goals/goals.module";
@@ -33,6 +34,8 @@ import { RedisModule } from "./redis/redis.module";
 import { ReportsModule } from "./reports/reports.module";
 import { SearchModule } from "./search/search.module";
 import { SplitBillsModule } from "./split-bills/split-bills.module";
+import { StorageModule } from "./storage/storage.module";
+import { TaxModule } from "./tax/tax.module";
 import { TransactionsModule } from "./transactions/transactions.module";
 
 @Module({
@@ -69,12 +72,15 @@ import { TransactionsModule } from "./transactions/transactions.module";
     AssetsModule,
     ExportsModule,
     FamilyGroupsModule,
+    DonationsModule,
     InheritanceModule,
     InvestmentsModule,
     InsurancesModule,
     LiabilitiesModule,
     NotificationsModule,
     ReportsModule,
+    StorageModule,
+    TaxModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

@@ -107,6 +107,21 @@ enum InheritanceVisibility {
   heirs_only
   all_members
 }
+
+enum DonationType {
+  zakat_maal
+  zakat_fitrah
+  infaq
+  sedekah
+  wakaf
+  lainnya
+}
+
+enum SptStatus {
+  belum_lapor
+  sudah_lapor
+  terlambat
+}
 // ── Models ────────────────────────────────────────────────────────────────────
 
 model User {
@@ -142,6 +157,8 @@ model FamilyGroup {
   invitations        Invitation[]
   splitBills         SplitBill[]
   inheritanceAssets  InheritanceAsset[]
+  donations          Donation[]
+  taxRecords         TaxRecord[]
 
   @@map("family_groups")
 }
@@ -464,4 +481,43 @@ model InheritanceHeir {
 
   @@index([inheritanceAssetId])
   @@map("inheritance_heirs")
+}
+
+model Donation {
+  id              String       @id @default(uuid())
+  familyGroupId   String
+  type            DonationType
+  recipient       String       @db.VarChar(200)
+  amount          BigInt
+  currency        String       @default("IDR") @db.VarChar(3)
+  donatedAt       DateTime
+  isTaxDeductible Boolean      @default(false)
+  receiptUrl      String?
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  familyGroup     FamilyGroup  @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@index([familyGroupId, donatedAt])
+  @@map("donations")
+}
+
+model TaxRecord {
+  id             String      @id @default(uuid())
+  familyGroupId  String
+  taxYear        Int
+  grossIncome    BigInt
+  ptkp           BigInt
+  zakatDeduction BigInt      @default(0)
+  netTax         BigInt      @default(0)
+  sptStatus      SptStatus   @default(belum_lapor)
+  documentUrl    String?
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  familyGroup    FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([familyGroupId, taxYear])
+  @@index([familyGroupId])
+  @@map("tax_records")
 }

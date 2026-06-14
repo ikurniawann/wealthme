@@ -2,11 +2,23 @@
 
 import { useState } from "react";
 import { Send, FileText, Download } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { HeroCard, SectionCard, CardLink } from "@/components/wm";
+
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { HeroCard, SectionCard, CardLink } from "@/components/wm";
+import { apiFetch } from "@/lib/api-client";
 import { formatRupiah, parseRupiah, formatNumber } from "@/lib/format";
+import { queryKeys } from "@/lib/query-keys";
+
+import type {
+  CreateTaxRecordDto,
+  TaxRecordDto,
+  SptStatus,
+  UpdateTaxRecordDto,
+} from "@wealthme/contracts";
 
 const FIELD_CLASS =
   "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
@@ -28,7 +40,7 @@ const BRACKETS: [number, number][] = [
   [Infinity, 0.35],
 ];
 
-// Display rows for the progressive breakdown table (cumulative-range labels)
+// Display rows for the progressive breakdown table
 const BRACKET_ROWS = [
   { label: "0 – 60 jt", rate: "5%", idx: 0 },
   { label: "60 – 250 jt", rate: "15%", idx: 1 },
@@ -36,15 +48,50 @@ const BRACKET_ROWS = [
   { label: "> 5 M", rate: "35%", idx: 4 },
 ];
 
+const SPT_STATUS_LABEL: Record<SptStatus, string> = {
+  belum_lapor: "⏳ Belum Lapor",
+  sudah_lapor: "✅ Sudah Lapor",
+  terlambat: "⚠️ Terlambat",
+};
+
+const SPT_STATUS_CLASS: Record<SptStatus, string> = {
+  belum_lapor: "text-warning",
+  sudah_lapor: "text-success",
+  terlambat: "text-destructive",
+};
+
 type Doc = { icon: string; iconBg: string; name: string; meta: string };
 
 const DOCS: Doc[] = [
-  { icon: "📄", iconBg: "#DBEAFE", name: "Bukti Potong 1721-A1 (2024)", meta: "dari pemberi kerja" },
-  { icon: "✅", iconBg: "#DCFCE7", name: "Bukti Lapor SPT 2024 (BPE)", meta: "NTTE: 123456789" },
-  { icon: "🧾", iconBg: "#FEF9C3", name: "Bukti Setor Zakat (BAZNAS)", meta: "Pengurang penghasilan bruto" },
+  {
+    icon: "📄",
+    iconBg: "#DBEAFE",
+    name: "Bukti Potong 1721-A1 (2024)",
+    meta: "dari pemberi kerja",
+  },
+  {
+    icon: "✅",
+    iconBg: "#DCFCE7",
+    name: "Bukti Lapor SPT 2024 (BPE)",
+    meta: "NTTE: 123456789",
+  },
+  {
+    icon: "🧾",
+    iconBg: "#FEF9C3",
+    name: "Bukti Setor Zakat (BAZNAS)",
+    meta: "Pengurang penghasilan bruto",
+  },
 ];
 
+const CURRENT_YEAR = new Date().getFullYear();
+
 export default function TaxPage() {
+  const { data: session } = useSession();
+  const queryClient = useQueryClient();
+  const fgId = session?.familyGroupId ?? undefined;
+  const token = session?.accessToken;
+
+  // Local PPh 21 calculator state (kept local per task spec)
   const [gross, setGross] = useState("300.000.000");
   const [ptkp, setPtkp] = useState(54000000);
   const [zakat, setZakat] = useState("23.787.000");
@@ -56,7 +103,6 @@ export default function TaxPage() {
   let pkp = Math.max(0, grossN - jabatan - ptkp - zakatN);
   pkp = Math.floor(pkp / 1000) * 1000;
 
-  // Per-layer tax, tracked by bracket index for the breakdown table
   const layerTax: number[] = new Array(BRACKETS.length).fill(0);
   let tax = 0;
   let sisa = pkp;
@@ -70,38 +116,158 @@ export default function TaxPage() {
     sisa -= ken;
   }
   tax = Math.round(tax);
-  const effRate = grossN > 0 ? (tax / grossN * 100).toFixed(1).replace(".", ",") + "%" : "0%";
+  const effRate =
+    grossN > 0
+      ? ((tax / grossN) * 100).toFixed(1).replace(".", ",") + "%"
+      : "0%";
+
+  // Fetch tax records
+  const { data: taxRecords = [] } = useQuery<TaxRecordDto[]>({
+    queryKey: fgId ? queryKeys.tax.list(fgId) : ["tax-disabled"],
+    queryFn: () =>
+      apiFetch<TaxRecordDto[]>(`/family-groups/${fgId}/tax`, { token }),
+    enabled: !!fgId && !!token,
+  });
+
+  // Upsert tax record mutation
+  const upsertMutation = useMutation({
+    mutationFn: (dto: CreateTaxRecordDto) =>
+      apiFetch<TaxRecordDto>(`/family-groups/${fgId}/tax`, {
+        method: "POST",
+        body: JSON.stringify(dto),
+        token,
+      }),
+    onSuccess: () => {
+      if (fgId)
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.tax.list(fgId),
+        });
+      toast.success("✅ Data pajak berhasil disimpan!");
+    },
+    onError: () => {
+      toast.error("Gagal menyimpan data pajak");
+    },
+  });
+
+  // Update SPT status mutation
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: UpdateTaxRecordDto }) =>
+      apiFetch<TaxRecordDto>(`/family-groups/${fgId}/tax/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(dto),
+        token,
+      }),
+    onSuccess: () => {
+      if (fgId)
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.tax.list(fgId),
+        });
+      toast.success("✅ Status SPT diperbarui!");
+    },
+    onError: () => {
+      toast.error("Gagal memperbarui status SPT");
+    },
+  });
+
+  function handleSaveTaxRecord(): void {
+    upsertMutation.mutate({
+      taxYear: CURRENT_YEAR,
+      grossIncome: String(grossN),
+      ptkp: String(ptkp),
+      netTax: String(tax),
+    });
+  }
+
+  function handleUpdateSptStatus(id: string, sptStatus: SptStatus): void {
+    updateStatusMutation.mutate({ id, dto: { sptStatus } });
+  }
+
+  // Current year record (if any)
+  const currentRecord = taxRecords.find((r) => r.taxYear === CURRENT_YEAR);
+  const prevRecord = taxRecords.find((r) => r.taxYear === CURRENT_YEAR - 1);
 
   return (
     <div className="space-y-4">
       {/* Hero */}
       <HeroCard className="gradient-wealth">
         <div className="mb-1.5 flex items-center gap-2 text-xs opacity-85">
-          <FileText className="size-3.5" /> Estimasi Pajak Terutang 2025
+          <FileText className="size-3.5" /> Estimasi Pajak Terutang{" "}
+          {CURRENT_YEAR}
         </div>
-        <div className="text-[30px] font-black tracking-[-1px]">Rp 18.240.000</div>
+        <div className="text-[30px] font-black tracking-[-1px]">
+          {currentRecord
+            ? formatRupiah(Number(currentRecord.netTax))
+            : formatRupiah(tax)}
+        </div>
         <div className="mt-1.5 text-xs opacity-85">
-          PPh 21 · Status: WP Orang Pribadi · NPWP terdaftar
+          PPh 21 · Status: WP Orang Pribadi
         </div>
-        <div className="pointer-events-none absolute -top-5 -right-5 text-[140px] opacity-[0.12]">🧾</div>
+        <div className="pointer-events-none absolute -top-5 -right-5 text-[140px] opacity-[0.12]">
+          🧾
+        </div>
       </HeroCard>
 
       {/* Status SPT */}
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
         <Card className="gap-0 p-4">
-          <div className="mb-1 text-[10.5px] text-muted-foreground">Status SPT Tahunan 2024</div>
-          <div className="text-[16px] font-extrabold text-success">✅ Sudah Lapor</div>
-          <div className="text-[10.5px] text-muted-foreground">31 Mar 2025</div>
+          <div className="mb-1 text-[10.5px] text-muted-foreground">
+            Status SPT Tahunan {CURRENT_YEAR - 1}
+          </div>
+          {prevRecord ? (
+            <>
+              <div
+                className={`text-[16px] font-extrabold ${SPT_STATUS_CLASS[prevRecord.sptStatus as SptStatus]}`}
+              >
+                {SPT_STATUS_LABEL[prevRecord.sptStatus as SptStatus]}
+              </div>
+              <button
+                onClick={() =>
+                  handleUpdateSptStatus(prevRecord.id, "sudah_lapor")
+                }
+                className="mt-1 cursor-pointer text-[10.5px] text-primary hover:underline"
+              >
+                Tandai Sudah Lapor
+              </button>
+            </>
+          ) : (
+            <div className="text-[16px] font-extrabold text-muted-foreground">
+              Belum ada data
+            </div>
+          )}
         </Card>
         <Card className="gap-0 p-4">
-          <div className="mb-1 text-[10.5px] text-muted-foreground">SPT 2025</div>
-          <div className="text-[16px] font-extrabold text-warning">⏳ Belum Lapor</div>
-          <div className="text-[10.5px] text-muted-foreground">Deadline 31 Mar 2026</div>
+          <div className="mb-1 text-[10.5px] text-muted-foreground">
+            SPT {CURRENT_YEAR}
+          </div>
+          {currentRecord ? (
+            <>
+              <div
+                className={`text-[16px] font-extrabold ${SPT_STATUS_CLASS[currentRecord.sptStatus as SptStatus]}`}
+              >
+                {SPT_STATUS_LABEL[currentRecord.sptStatus as SptStatus]}
+              </div>
+              <div className="text-[10.5px] text-muted-foreground">
+                Deadline 31 Mar {CURRENT_YEAR + 1}
+              </div>
+            </>
+          ) : (
+            <div className="text-[16px] font-extrabold text-warning">
+              ⏳ Belum Lapor
+            </div>
+          )}
         </Card>
         <Card className="gap-0 p-4">
-          <div className="mb-1 text-[10.5px] text-muted-foreground">PPh Sudah Dipotong</div>
-          <div className="text-[16px] font-extrabold text-primary">Rp 15.000.000</div>
-          <div className="text-[10.5px] text-muted-foreground">via pemberi kerja</div>
+          <div className="mb-1 text-[10.5px] text-muted-foreground">
+            Zakat Pengurang Pajak
+          </div>
+          <div className="text-[16px] font-extrabold text-primary">
+            {currentRecord
+              ? formatRupiah(Number(currentRecord.zakatDeduction))
+              : "—"}
+          </div>
+          <div className="text-[10.5px] text-muted-foreground">
+            dari donasi tercatat
+          </div>
         </Card>
       </div>
 
@@ -119,12 +285,20 @@ export default function TaxPage() {
               type="text"
               inputMode="numeric"
               value={gross}
-              onChange={(e) => setGross(e.target.value === "" ? "" : formatNumber(parseRupiah(e.target.value)))}
+              onChange={(e) =>
+                setGross(
+                  e.target.value === ""
+                    ? ""
+                    : formatNumber(parseRupiah(e.target.value)),
+                )
+              }
               className={FIELD_CLASS}
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">Status</label>
+            <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
+              Status
+            </label>
             <select
               value={ptkp}
               onChange={(e) => setPtkp(Number(e.target.value))}
@@ -141,7 +315,12 @@ export default function TaxPage() {
             <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
               Biaya Jabatan (otomatis)
             </label>
-            <input type="text" value={formatNumber(jabatan)} disabled className={FIELD_CLASS + " opacity-70"} />
+            <input
+              type="text"
+              value={formatNumber(jabatan)}
+              disabled
+              className={FIELD_CLASS + " opacity-70"}
+            />
           </div>
           <div>
             <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
@@ -151,19 +330,39 @@ export default function TaxPage() {
               type="text"
               inputMode="numeric"
               value={zakat}
-              onChange={(e) => setZakat(e.target.value === "" ? "" : formatNumber(parseRupiah(e.target.value)))}
+              onChange={(e) =>
+                setZakat(
+                  e.target.value === ""
+                    ? ""
+                    : formatNumber(parseRupiah(e.target.value)),
+                )
+              }
               className={FIELD_CLASS}
             />
           </div>
         </div>
         <div className="mt-4 rounded-[12px] border border-primary/15 bg-accent p-4 text-center">
-          <div className="text-[11.5px] text-muted-foreground">Estimasi PPh 21 Terutang/Tahun</div>
-          <div className="mt-1 text-[24px] font-black text-primary">{formatRupiah(tax)}</div>
+          <div className="text-[11.5px] text-muted-foreground">
+            Estimasi PPh 21 Terutang/Tahun
+          </div>
+          <div className="mt-1 text-[24px] font-black text-primary">
+            {formatRupiah(tax)}
+          </div>
           <div className="mt-1.5 text-xs text-muted-foreground">
-            PKP: <strong className="text-primary">{formatRupiah(pkp)}</strong> · Efektif{" "}
-            <strong>{effRate}</strong>
+            PKP: <strong className="text-primary">{formatRupiah(pkp)}</strong> ·
+            Efektif <strong>{effRate}</strong>
           </div>
         </div>
+        <Button
+          onClick={handleSaveTaxRecord}
+          disabled={upsertMutation.isPending}
+          className="mt-3.5 h-auto px-4 py-2.5"
+          variant="outline"
+        >
+          {upsertMutation.isPending
+            ? "Menyimpan..."
+            : "💾 Simpan ke Catatan Pajak"}
+        </Button>
       </SectionCard>
 
       {/* Breakdown Tarif Progresif */}
@@ -172,9 +371,15 @@ export default function TaxPage() {
           <table className="w-full min-w-[420px] border-collapse text-[12.5px]">
             <thead>
               <tr className="border-b">
-                <th className="py-2 text-left font-semibold text-muted-foreground">Lapisan PKP</th>
-                <th className="py-2 text-center font-semibold text-muted-foreground">Tarif</th>
-                <th className="py-2 text-right font-semibold text-muted-foreground">Pajak</th>
+                <th className="py-2 text-left font-semibold text-muted-foreground">
+                  Lapisan PKP
+                </th>
+                <th className="py-2 text-center font-semibold text-muted-foreground">
+                  Tarif
+                </th>
+                <th className="py-2 text-right font-semibold text-muted-foreground">
+                  Pajak
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -183,12 +388,26 @@ export default function TaxPage() {
                 const muted = t <= 0;
                 return (
                   <tr key={row.label} className="border-b last:border-b-0">
-                    <td className={"py-2 " + (muted ? "text-muted-foreground" : "")}>{row.label}</td>
-                    <td className={"py-2 text-center " + (muted ? "text-muted-foreground" : "")}>
+                    <td
+                      className={
+                        "py-2 " + (muted ? "text-muted-foreground" : "")
+                      }
+                    >
+                      {row.label}
+                    </td>
+                    <td
+                      className={
+                        "py-2 text-center " +
+                        (muted ? "text-muted-foreground" : "")
+                      }
+                    >
                       {row.rate}
                     </td>
                     <td
-                      className={"mono py-2 text-right " + (muted ? "text-muted-foreground" : "")}
+                      className={
+                        "mono py-2 text-right " +
+                        (muted ? "text-muted-foreground" : "")
+                      }
                     >
                       {formatRupiah(Math.round(t))}
                     </td>
@@ -200,14 +419,61 @@ export default function TaxPage() {
         </div>
       </SectionCard>
 
+      {/* Riwayat Pajak */}
+      {taxRecords.length > 0 && (
+        <SectionCard title="Riwayat Catatan Pajak" bodyClassName="-mt-1">
+          {taxRecords.map((r) => (
+            <div
+              key={r.id}
+              className="flex items-center gap-3 border-b py-3 last:border-b-0"
+            >
+              <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-accent text-[15px]">
+                🧾
+              </div>
+              <div className="flex-1">
+                <div className="text-[13.5px] font-semibold">
+                  Pajak {r.taxYear}
+                </div>
+                <div className="text-[11.5px] text-muted-foreground">
+                  Bruto: {formatRupiah(Number(r.grossIncome))} · Zakat:{" "}
+                  {formatRupiah(Number(r.zakatDeduction))}
+                </div>
+              </div>
+              <div className="text-right">
+                <div
+                  className={`text-[12px] font-bold ${SPT_STATUS_CLASS[r.sptStatus as SptStatus]}`}
+                >
+                  {SPT_STATUS_LABEL[r.sptStatus as SptStatus]}
+                </div>
+                {r.sptStatus === "belum_lapor" && (
+                  <button
+                    onClick={() => handleUpdateSptStatus(r.id, "sudah_lapor")}
+                    className="mt-0.5 cursor-pointer text-[10px] text-primary hover:underline"
+                  >
+                    Tandai Lapor
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </SectionCard>
+      )}
+
       {/* Dokumen Pajak */}
       <SectionCard
         title="Dokumen Pajak"
-        action={<CardLink onClick={() => toast("📤 Upload dokumen")}>+ Upload</CardLink>}
+        action={
+          <CardLink onClick={() => toast("📤 Upload dokumen")}>
+            + Upload
+          </CardLink>
+        }
         bodyClassName="-mt-1"
       >
         {DOCS.map((d) => (
-          <div key={d.name} className="flex items-center gap-3 border-b py-3 last:border-b-0">
+          <div
+            key={d.name}
+            className="flex items-center gap-3 border-b py-3 last:border-b-0"
+          >
             <div
               className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] text-[15px]"
               style={{ background: d.iconBg }}
@@ -216,7 +482,9 @@ export default function TaxPage() {
             </div>
             <div className="flex-1">
               <div className="text-[13.5px] font-semibold">{d.name}</div>
-              <div className="text-[11.5px] text-muted-foreground">{d.meta}</div>
+              <div className="text-[11.5px] text-muted-foreground">
+                {d.meta}
+              </div>
             </div>
             <button
               onClick={() => toast("Mengunduh...")}
