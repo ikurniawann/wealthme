@@ -39,10 +39,10 @@ donasi/zakat, tax center, multi-mata uang, rekonsiliasi bank, dan halaman Akun/P
 - [x] **T-506** Split bills + participants + share-link API (link publik, settle/bayar)
 - [x] **T-507** Wire halaman **Split Bill** + modal buat/detail + reminder WhatsApp
 
-### Warisan
+### Warisan ✅
 
-- [ ] **T-508** Inheritance + heirs + visibility API
-- [ ] **T-509** Wire halaman **Warisan** + modal Tambah Aset + toggle visibilitas + unggah dokumen
+- [x] **T-508** Inheritance + heirs + visibility API
+- [x] **T-509** Wire halaman **Warisan** + modal Tambah Aset + toggle visibilitas + unggah dokumen
 
 ### Donations & Tax
 
@@ -82,7 +82,8 @@ donasi/zakat, tax center, multi-mata uang, rekonsiliasi bank, dan halaman Akun/P
 ## Automation Log
 
 - 2026-06-14 /epic-loop EPIC-005 #1 "Family & RBAC" → PASS (attempts: 3), PR: https://github.com/andrsrjld/wealthme-web/pull/124
-- 2026-06-14 /epic-loop EPIC-005 #2 "Split Bill" → PASS (attempts: 1), PR: pending
+- 2026-06-14 /epic-loop EPIC-005 #2 "Split Bill" → PASS (attempts: 1), PR: https://github.com/andrsrjld/wealthme-web/pull/125
+- 2026-06-14 /epic-loop EPIC-005 #3 "Warisan" → PASS (attempts: 2), PR: pending
 
 ## Dependencies
 

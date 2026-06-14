@@ -1,184 +1,62 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Save, Scroll, CloudUpload } from "lucide-react";
+import { CloudUpload, Plus, Save, Scroll } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Card } from "@/components/ui/card";
+
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { HeroCard, StatusBadge } from "@/components/wm";
-import { RowActions, ConfirmDeleteDialog } from "@/components/crud";
-import { formatAmountInput } from "@/lib/format";
+import { HeroCard } from "@/components/wm";
+import { ConfirmDeleteDialog, RowActions } from "@/components/crud";
+import { apiFetch } from "@/lib/api-client";
+import { formatAmountInput, formatRupiah } from "@/lib/format";
+import { queryKeys } from "@/lib/query-keys";
+
+import type {
+  CreateInheritanceAssetDto,
+  InheritanceAssetDto,
+  InheritanceVisibility,
+  UpdateInheritanceAssetDto,
+} from "@wealthme/contracts";
 
 const FIELD_CLASS =
   "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
 
-type Category = {
-  icon: string;
-  iconBg: string;
-  label: string;
-  amount: string;
-  pct: string;
-};
-
-const CATEGORIES: Category[] = [
-  {
-    icon: "🏠",
-    iconBg: "#FEF9C3",
-    label: "Aset / Properti",
-    amount: "Rp 1.250.000.000",
-    pct: "58% dari total",
-  },
-  {
-    icon: "💵",
-    iconBg: "#DCFCE7",
-    label: "Cash / Tunai",
-    amount: "Rp 385.300.000",
-    pct: "18% dari total",
-  },
-  {
-    icon: "📜",
-    iconBg: "#DBEAFE",
-    label: "Surat Berharga",
-    amount: "Rp 310.000.000",
-    pct: "14% dari total",
-  },
-  {
-    icon: "📈",
-    iconBg: "#EDE9FE",
-    label: "Saham",
-    amount: "Rp 200.000.000",
-    pct: "9% dari total",
-  },
+const ASSET_TYPE_OPTIONS = [
+  "Aset / Properti",
+  "Cash / Tunai",
+  "Surat Berharga",
+  "Saham",
+  "Lainnya",
 ];
 
-type Heir = {
-  initials: string;
-  name: string;
-  gradient: string;
-  badge?: string;
+const ASSET_TYPE_ICON: Record<string, string> = {
+  "Aset / Properti": "🏠",
+  "Cash / Tunai": "💵",
+  "Surat Berharga": "📜",
+  Saham: "📈",
+  Lainnya: "📋",
 };
 
-const HEIRS: Heir[] = [
-  {
-    initials: "IA",
-    name: "Irfan Arsandi",
-    gradient: "linear-gradient(135deg,var(--primary),var(--purple))",
-    badge: "Pewaris",
-  },
-  {
-    initials: "SA",
-    name: "Siti Arsandi",
-    gradient: "linear-gradient(135deg,#F97316,#FBBF24)",
-  },
-  {
-    initials: "BA",
-    name: "Budi Arsandi",
-    gradient: "linear-gradient(135deg,#10B981,#06B6D4)",
-  },
-  {
-    initials: "RA",
-    name: "Rina Arsandi",
-    gradient: "linear-gradient(135deg,#8B5CF6,#EC4899)",
-  },
-];
-
-type Asset = {
-  icon: string;
-  iconBg: string;
-  name: string;
-  detail: string;
-  amount: string;
+const ASSET_TYPE_BG: Record<string, string> = {
+  "Aset / Properti": "#FEF9C3",
+  "Cash / Tunai": "#DCFCE7",
+  "Surat Berharga": "#DBEAFE",
+  Saham: "#EDE9FE",
+  Lainnya: "#F3F4F6",
 };
 
-type AssetGroup = { title: string; assets: Asset[] };
+function visibilityToBoolean(v: InheritanceVisibility): boolean {
+  return v !== "private";
+}
 
-const ASSET_GROUPS: AssetGroup[] = [
-  {
-    title: "🏠 Aset / Properti",
-    assets: [
-      {
-        icon: "🏡",
-        iconBg: "#FEF9C3",
-        name: "Rumah Utama — Bandung",
-        detail: "SHM No. 1234 · Luas 350m²",
-        amount: "Rp 850.000.000",
-      },
-      {
-        icon: "🏢",
-        iconBg: "#FEF9C3",
-        name: "Apartemen Kelapa Gading",
-        detail: "SHM Sarusun · 2BR",
-        amount: "Rp 250.000.000",
-      },
-      {
-        icon: "🚗",
-        iconBg: "#DBEAFE",
-        name: "Kendaraan — Toyota Fortuner",
-        detail: "BPKB · Tahun 2023",
-        amount: "Rp 150.000.000",
-      },
-    ],
-  },
-  {
-    title: "💵 Cash / Tunai",
-    assets: [
-      {
-        icon: "🏦",
-        iconBg: "#DCFCE7",
-        name: "Deposito BCA",
-        detail: "Jatuh tempo Des 2025 · Bunga 5%",
-        amount: "Rp 250.000.000",
-      },
-      {
-        icon: "💰",
-        iconBg: "#DCFCE7",
-        name: "Tabungan Warisan",
-        detail: "Rekening khusus · Mandiri",
-        amount: "Rp 135.300.000",
-      },
-    ],
-  },
-  {
-    title: "📜 Surat Berharga",
-    assets: [
-      {
-        icon: "🏛️",
-        iconBg: "#DBEAFE",
-        name: "Obligasi Negara ORI024",
-        detail: "Jatuh tempo 2027 · Kupon 6,1%",
-        amount: "Rp 200.000.000",
-      },
-      {
-        icon: "🥇",
-        iconBg: "#FEF3C7",
-        name: "Emas Batangan Antam",
-        detail: "100 gram · Sertifikat resmi",
-        amount: "Rp 110.000.000",
-      },
-    ],
-  },
-  {
-    title: "📈 Saham",
-    assets: [
-      {
-        icon: "📊",
-        iconBg: "#EDE9FE",
-        name: "Portofolio Saham Blue Chip",
-        detail: "BBCA, TLKM, ASII · Sekuritas Mandiri",
-        amount: "Rp 140.000.000",
-      },
-      {
-        icon: "📈",
-        iconBg: "#EDE9FE",
-        name: "Reksa Dana Saham",
-        detail: "Bibit · Jangka panjang",
-        amount: "Rp 60.000.000",
-      },
-    ],
-  },
-];
+function booleanToVisibility(v: boolean): InheritanceVisibility {
+  return v ? "heirs_only" : "private";
+}
 
 function CardTitle({ children }: { children: React.ReactNode }) {
   return (
@@ -188,34 +66,48 @@ function CardTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-function AssetRow({
-  asset,
-  last,
-  onDelete,
-}: {
-  asset: Asset;
-  last: boolean;
+interface AssetRowProps {
+  item: InheritanceAssetDto;
   onDelete: () => void;
-}) {
+  onVisibilityToggle: (visible: boolean) => void;
+  last: boolean;
+}
+
+function AssetRow({ item, onDelete, onVisibilityToggle, last }: AssetRowProps) {
+  const icon = ASSET_TYPE_ICON[item.assetType] ?? "📋";
+  const iconBg = ASSET_TYPE_BG[item.assetType] ?? "#F3F4F6";
+  const heirSummary =
+    item.heirs.length > 0
+      ? item.heirs.map((h) => `${h.name} (${h.sharePercent}%)`).join(", ")
+      : null;
+
   return (
     <div
       className={"flex items-center gap-2.5 py-3 " + (last ? "" : "border-b")}
     >
       <div
         className="flex size-[36px] shrink-0 items-center justify-center rounded-[10px] text-[15px]"
-        style={{ background: asset.iconBg }}
+        style={{ background: iconBg }}
       >
-        {asset.icon}
+        {icon}
       </div>
-      <div className="flex-1">
-        <div className="text-[13.5px] font-semibold">{asset.name}</div>
-        <div className="text-[11.5px] text-muted-foreground">
-          {asset.detail}
+      <div className="flex-1 min-w-0">
+        <div className="text-[13.5px] font-semibold truncate">{item.name}</div>
+        <div className="text-[11.5px] text-muted-foreground truncate">
+          {item.assetType}
+          {heirSummary ? ` · ${heirSummary}` : ""}
         </div>
       </div>
-      <div className="text-right text-[13.5px] font-bold">{asset.amount}</div>
+      <div className="text-right text-[13.5px] font-bold shrink-0">
+        {formatRupiah(Number(BigInt(item.estimatedValue)))}
+      </div>
+      <Switch
+        checked={visibilityToBoolean(item.visibility)}
+        onCheckedChange={onVisibilityToggle}
+        className="shrink-0"
+      />
       <RowActions
-        className="ml-2.5"
+        className="ml-1"
         onEdit={() => toast("✏️ Edit Aset Warisan")}
         onDelete={onDelete}
       />
@@ -223,28 +115,154 @@ function AssetRow({
   );
 }
 
+function AssetSkeleton() {
+  return (
+    <div className="animate-pulse space-y-3 py-2">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="flex items-center gap-2.5">
+          <div className="size-[36px] rounded-[10px] bg-muted shrink-0" />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-3.5 w-40 rounded bg-muted" />
+            <div className="h-2.5 w-28 rounded bg-muted" />
+          </div>
+          <div className="h-4 w-24 rounded bg-muted shrink-0" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function WarisanPage() {
+  const { data: session } = useSession();
+  const token = session?.accessToken as string | undefined;
+  const familyGroupId = session?.familyGroupId ?? undefined;
+
+  const queryClient = useQueryClient();
+
   const [open, setOpen] = useState(false);
-  const [deleteLabel, setDeleteLabel] = useState<string | null>(null);
-  const [category, setCategory] = useState("🏠 Aset / Properti");
+  const [deleteTarget, setDeleteTarget] = useState<InheritanceAssetDto | null>(
+    null,
+  );
+  const [assetType, setAssetType] = useState(ASSET_TYPE_OPTIONS[0]);
   const [name, setName] = useState("");
-  const [value, setValue] = useState("");
-  const [document, setDocument] = useState("");
+  const [valueInput, setValueInput] = useState("");
+  const [notes, setNotes] = useState("");
   const [visible, setVisible] = useState(true);
 
+  const listKey = familyGroupId
+    ? queryKeys.inheritance.list(familyGroupId)
+    : null;
+
+  const { data: assets = [], isLoading } = useQuery<InheritanceAssetDto[]>({
+    queryKey: listKey ?? ["inheritance", "disabled"],
+    enabled: !!familyGroupId && !!token,
+    queryFn: () =>
+      apiFetch<InheritanceAssetDto[]>(
+        `/family-groups/${familyGroupId}/inheritance`,
+        { token },
+      ),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (dto: CreateInheritanceAssetDto) =>
+      apiFetch<InheritanceAssetDto>(
+        `/family-groups/${familyGroupId}/inheritance`,
+        { method: "POST", body: JSON.stringify(dto), token },
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: listKey ?? [] });
+      toast.success("Aset warisan ditambahkan!");
+      setOpen(false);
+      resetForm();
+    },
+    onError: () => toast.error("Gagal menyimpan aset warisan."),
+  });
+
+  const updateVisibilityMutation = useMutation({
+    mutationFn: ({
+      id,
+      visibility,
+    }: {
+      id: string;
+      visibility: InheritanceVisibility;
+    }) =>
+      apiFetch<InheritanceAssetDto>(
+        `/family-groups/${familyGroupId}/inheritance/${id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            visibility,
+          } satisfies UpdateInheritanceAssetDto),
+          token,
+        },
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: listKey ?? [] });
+    },
+    onError: () => toast.error("Gagal memperbarui visibilitas."),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<void>(`/family-groups/${familyGroupId}/inheritance/${id}`, {
+        method: "DELETE",
+        token,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: listKey ?? [] });
+      toast.success("Aset warisan dihapus.");
+      setDeleteTarget(null);
+    },
+    onError: () => toast.error("Gagal menghapus aset warisan."),
+  });
+
   function resetForm() {
-    setCategory("🏠 Aset / Properti");
+    setAssetType(ASSET_TYPE_OPTIONS[0] ?? "");
     setName("");
-    setValue("");
-    setDocument("");
+    setValueInput("");
+    setNotes("");
     setVisible(true);
   }
 
   function handleSave() {
-    setOpen(false);
-    resetForm();
-    toast.success("✅ Aset warisan ditambahkan!");
+    const raw = valueInput.replace(/\D/g, "");
+    const estimatedValue = parseInt(raw, 10);
+    if (!name.trim()) {
+      toast.error("Nama aset wajib diisi.");
+      return;
+    }
+    if (isNaN(estimatedValue) || estimatedValue < 0) {
+      toast.error("Nilai estimasi tidak valid.");
+      return;
+    }
+    createMutation.mutate({
+      name: name.trim(),
+      assetType,
+      estimatedValue,
+      notes: notes.trim() || undefined,
+      visibility: booleanToVisibility(visible),
+    });
   }
+
+  // Group assets by assetType
+  const grouped = assets.reduce<Record<string, InheritanceAssetDto[]>>(
+    (acc, item) => {
+      const key = item.assetType;
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(item);
+      return acc;
+    },
+    {},
+  );
+
+  const totalValue = assets.reduce(
+    (sum, a) => sum + BigInt(a.estimatedValue),
+    BigInt(0),
+  );
+
+  const heirNames = Array.from(
+    new Set(assets.flatMap((a) => a.heirs.map((h) => h.name))),
+  );
 
   return (
     <div className="space-y-4">
@@ -254,10 +272,11 @@ export default function WarisanPage() {
           <Scroll className="size-3.5" /> Total Nilai Warisan
         </div>
         <div className="text-[30px] font-black tracking-[-1px]">
-          Rp 2.145.300.000
+          {formatRupiah(Number(totalValue))}
         </div>
         <div className="mt-1.5 text-[12px] opacity-85">
-          Dialokasikan untuk 4 ahli waris · Terakhir diperbarui 18 Mei 2025
+          {assets.length} aset terdaftar
+          {heirNames.length > 0 ? ` · ${heirNames.length} ahli waris` : ""}
         </div>
         <div className="pointer-events-none absolute -top-5 -right-5 text-[140px] opacity-10">
           🏛️
@@ -274,63 +293,44 @@ export default function WarisanPage() {
         </Button>
       </div>
 
-      {/* Breakdown 4 kategori */}
-      <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
-        {CATEGORIES.map((c) => (
-          <Card key={c.label} className="gap-0 p-4">
-            <div
-              className="mb-2 flex size-[34px] items-center justify-center rounded-[9px] text-[16px]"
-              style={{ background: c.iconBg }}
-            >
-              {c.icon}
-            </div>
-            <div className="text-[10.5px] text-muted-foreground">{c.label}</div>
-            <div className="text-[16px] font-extrabold">{c.amount}</div>
-            <div className="text-[10.5px] text-muted-foreground">{c.pct}</div>
+      {/* Asset list grouped by type */}
+      {isLoading && (
+        <Card className="gap-0 p-5">
+          <AssetSkeleton />
+        </Card>
+      )}
+
+      {!isLoading && assets.length === 0 && (
+        <Card className="gap-0 p-5">
+          <div className="py-8 text-center text-[13px] text-muted-foreground">
+            Belum ada aset warisan. Klik &quot;Tambah Aset Warisan&quot; untuk
+            mulai.
+          </div>
+        </Card>
+      )}
+
+      {!isLoading &&
+        Object.entries(grouped).map(([type, items]) => (
+          <Card key={type} className="gap-0 p-5">
+            <CardTitle>
+              {ASSET_TYPE_ICON[type] ?? "📋"} {type}
+            </CardTitle>
+            {items.map((item, i) => (
+              <AssetRow
+                key={item.id}
+                item={item}
+                last={i === items.length - 1}
+                onDelete={() => setDeleteTarget(item)}
+                onVisibilityToggle={(v) =>
+                  updateVisibilityMutation.mutate({
+                    id: item.id,
+                    visibility: booleanToVisibility(v),
+                  })
+                }
+              />
+            ))}
           </Card>
         ))}
-      </div>
-
-      {/* Ahli Waris */}
-      <Card className="gap-0 p-5">
-        <CardTitle>Ahli Waris yang Dapat Mengakses</CardTitle>
-        <div className="flex flex-wrap gap-2.5">
-          {HEIRS.map((h) => (
-            <div
-              key={h.initials}
-              className="flex items-center gap-2 rounded-[20px] bg-background px-3 py-2"
-            >
-              <div
-                className="flex size-[28px] items-center justify-center rounded-full text-[11px] font-bold text-white"
-                style={{ background: h.gradient }}
-              >
-                {h.initials}
-              </div>
-              <span className="text-[12px] font-semibold">{h.name}</span>
-              {h.badge && (
-                <StatusBadge variant="info" className="text-[9px]">
-                  {h.badge}
-                </StatusBadge>
-              )}
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      {/* Daftar Aset per kategori */}
-      {ASSET_GROUPS.map((group) => (
-        <Card key={group.title} className="gap-0 p-5">
-          <CardTitle>{group.title}</CardTitle>
-          {group.assets.map((asset, i) => (
-            <AssetRow
-              key={asset.name}
-              asset={asset}
-              last={i === group.assets.length - 1}
-              onDelete={() => setDeleteLabel("Aset Warisan")}
-            />
-          ))}
-        </Card>
-      ))}
 
       {/* Insight banner */}
       <div className="flex items-center gap-3 rounded-[14px] border border-primary/20 bg-accent p-4">
@@ -345,22 +345,32 @@ export default function WarisanPage() {
           </div>
         </div>
         <button
-          onClick={() => toast("📎 Upload dokumen warisan")}
+          onClick={() =>
+            toast("Upload dokumen: coming soon (StoragePort belum tersedia)")
+          }
           className="shrink-0 cursor-pointer text-[12.5px] font-bold text-primary hover:underline"
         >
           Upload Dokumen →
         </button>
       </div>
 
-      {/* Confirm delete dialog */}
+      {/* Confirm delete */}
       <ConfirmDeleteDialog
-        label={deleteLabel}
-        onClose={() => setDeleteLabel(null)}
-        onConfirm={() => toast("🗑️ Aset Warisan dihapus.")}
+        label={deleteTarget?.name ?? null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+        }}
       />
 
       {/* Tambah Aset Warisan modal */}
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(v) => {
+          setOpen(v);
+          if (!v) resetForm();
+        }}
+      >
         <DialogContent className="max-w-[480px] p-6 sm:max-w-[480px]">
           <DialogTitle className="mb-4 text-[17px] font-extrabold">
             Tambah Aset Warisan
@@ -372,14 +382,13 @@ export default function WarisanPage() {
                 Kategori
               </label>
               <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                value={assetType}
+                onChange={(e) => setAssetType(e.target.value)}
                 className={FIELD_CLASS}
               >
-                <option>🏠 Aset / Properti</option>
-                <option>💵 Cash / Tunai</option>
-                <option>📜 Surat Berharga</option>
-                <option>📈 Saham</option>
+                {ASSET_TYPE_OPTIONS.map((o) => (
+                  <option key={o}>{o}</option>
+                ))}
               </select>
             </div>
 
@@ -405,8 +414,10 @@ export default function WarisanPage() {
                 <input
                   type="text"
                   inputMode="numeric"
-                  value={value}
-                  onChange={(e) => setValue(formatAmountInput(e.target.value))}
+                  value={valueInput}
+                  onChange={(e) =>
+                    setValueInput(formatAmountInput(e.target.value))
+                  }
                   placeholder="0"
                   className="w-full bg-transparent text-[13.5px] outline-none"
                 />
@@ -415,12 +426,12 @@ export default function WarisanPage() {
 
             <div>
               <label className="mb-1.5 block text-[12.5px] font-semibold">
-                No. Dokumen / Keterangan
+                Catatan / Keterangan
               </label>
               <input
                 type="text"
-                value={document}
-                onChange={(e) => setDocument(e.target.value)}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
                 placeholder="cth: SHM No. 1234, BPKB, Sertifikat..."
                 className={FIELD_CLASS}
               />
@@ -432,12 +443,16 @@ export default function WarisanPage() {
               </label>
               <button
                 type="button"
-                onClick={() => toast("📎 Pilih file dokumen")}
+                onClick={() =>
+                  toast(
+                    "Upload dokumen: coming soon (StoragePort belum tersedia)",
+                  )
+                }
                 className="w-full cursor-pointer rounded-md border-[1.5px] border-dashed p-[18px] text-center transition-colors hover:bg-accent/50"
               >
                 <CloudUpload className="mx-auto mb-1.5 size-[22px] text-primary" />
                 <div className="text-[12px] text-muted-foreground">
-                  Upload sertifikat, BPKB, atau polis (PDF/JPG)
+                  Upload sertifikat, BPKB, atau polis (PDF/JPG) — Coming soon
                 </div>
               </button>
             </div>
@@ -450,10 +465,12 @@ export default function WarisanPage() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-[13px] font-semibold">
-                      Terlihat oleh semua ahli waris
+                      Terlihat oleh ahli waris
                     </div>
                     <div className="text-[11.5px] text-muted-foreground">
-                      Siti, Budi, Rina dapat melihat
+                      {visible
+                        ? "Ahli waris dapat melihat aset ini"
+                        : "Hanya pemilik yang dapat melihat"}
                     </div>
                   </div>
                   <Switch checked={visible} onCheckedChange={setVisible} />
@@ -461,8 +478,15 @@ export default function WarisanPage() {
               </div>
             </div>
 
-            <Button onClick={handleSave} className="w-full">
-              <Save className="size-4" /> Simpan Aset Warisan
+            <Button
+              onClick={handleSave}
+              disabled={createMutation.isPending}
+              className="w-full"
+            >
+              <Save className="size-4" />
+              {createMutation.isPending
+                ? "Menyimpan..."
+                : "Simpan Aset Warisan"}
             </Button>
           </div>
         </DialogContent>

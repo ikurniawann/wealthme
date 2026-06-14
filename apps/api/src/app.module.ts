@@ -23,6 +23,7 @@ import { ExportsModule } from "./exports/exports.module";
 import { FamilyGroupsModule } from "./family-groups/family-groups.module";
 import { GoalsModule } from "./goals/goals.module";
 import { HealthModule } from "./health/health.module";
+import { InheritanceModule } from "./inheritance/inheritance.module";
 import { InsurancesModule } from "./insurances/insurances.module";
 import { InvestmentsModule } from "./investments/investments.module";
 import { LiabilitiesModule } from "./liabilities/liabilities.module";
@@ -68,6 +69,7 @@ import { TransactionsModule } from "./transactions/transactions.module";
     AssetsModule,
     ExportsModule,
     FamilyGroupsModule,
+    InheritanceModule,
     InvestmentsModule,
     InsurancesModule,
     LiabilitiesModule,
