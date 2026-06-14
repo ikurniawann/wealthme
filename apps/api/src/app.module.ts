@@ -5,6 +5,7 @@ import { ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
 
 import { AccountsModule } from "./accounts/accounts.module";
+import { AiAdvisorModule } from "./ai-advisor/ai-advisor.module";
 import { AssetsModule } from "./assets/assets.module";
 import { AuditInterceptor } from "./audit/audit.interceptor";
 import { AuditModule } from "./audit/audit.module";
@@ -61,6 +62,7 @@ import { TransactionsModule } from "./transactions/transactions.module";
     HealthModule,
     AuthModule,
     AccountsModule,
+    AiAdvisorModule,
     CaslModule,
     CategoriesModule,
     CommonModule,
