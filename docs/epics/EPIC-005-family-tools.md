@@ -1,6 +1,6 @@
 # EPIC-005: Family & Tools
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 phase: 5
 priority: P1
@@ -85,7 +85,7 @@ donasi/zakat, tax center, multi-mata uang, rekonsiliasi bank, dan halaman Akun/P
 - 2026-06-14 /epic-loop EPIC-005 #2 "Split Bill" → PASS (attempts: 1), PR: https://github.com/andrsrjld/wealthme-web/pull/125
 - 2026-06-14 /epic-loop EPIC-005 #3 "Warisan" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/126
 - 2026-06-14 /epic-loop EPIC-005 #4 "Donations & Tax" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/127
-- 2026-06-14 /epic-loop EPIC-005 #5 "Multi-currency & Reconciliation" → PASS (attempts: 2), PR: pending
+- 2026-06-14 /epic-loop EPIC-005 #5 "Multi-currency & Reconciliation" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/128
 
 ## Dependencies
 
