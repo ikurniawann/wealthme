@@ -22,7 +22,7 @@ import {
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, formatRupiahCompact } from "@/lib/format";
-import type { DashboardSummaryDto } from "@wealthme/contracts";
+import type { DashboardSummaryDto, GoalDto } from "@wealthme/contracts";
 
 const PERIODS = ["1M", "3M", "6M", "1Y", "All"] as const;
 
@@ -34,45 +34,15 @@ const ACCOUNT_TYPE_ICON: Record<string, { icon: string; iconBg: string }> = {
   cash: { icon: "💵", iconBg: "#DCFCE7" },
 };
 
-// TODO: EPIC-002 Task 5 — Replace with real data from /goals endpoint
-const GOALS = [
-  {
-    icon: "🛡️",
-    iconBg: "#EEF2FF",
-    name: "Dana Darurat",
-    pct: 80,
-    color: "var(--success)",
-    now: "Rp 24 jt",
-    target: "Rp 30 jt",
-  },
-  {
-    icon: "✈️",
-    iconBg: "#DBEAFE",
-    name: "Liburan Jepang",
-    pct: 62,
-    color: "var(--primary)",
-    now: "Rp 15,6 jt",
-    target: "Rp 25 jt",
-  },
-  {
-    icon: "🏠",
-    iconBg: "#FEF9C3",
-    name: "DP Rumah",
-    pct: 40,
-    color: "var(--warning)",
-    now: "Rp 120 jt",
-    target: "Rp 300 jt",
-  },
-  {
-    icon: "🏖️",
-    iconBg: "#EDE9FE",
-    name: "Dana Pensiun",
-    pct: 25,
-    color: "var(--brand-purple)",
-    now: "Rp 250 jt",
-    target: "Rp 1 M",
-  },
-];
+const GOAL_STATUS_STYLE: Record<
+  GoalDto["status"],
+  { color: string; iconBg: string }
+> = {
+  achieved: { color: "var(--success)", iconBg: "#DCFCE7" },
+  on_track: { color: "var(--primary)", iconBg: "#DBEAFE" },
+  needs_boost: { color: "var(--warning)", iconBg: "#FEF9C3" },
+  at_risk: { color: "var(--brand-purple)", iconBg: "#EDE9FE" },
+};
 
 const SPARK_LABELS = ["Hari 1", "Hari 8", "Hari 15", "Hari 22", "Hari 30"];
 
@@ -117,6 +87,31 @@ export default function BerandaPage() {
     staleTime: 60_000,
   });
 
+  const { data: goals, isLoading: isGoalsLoading } = useQuery<GoalDto[]>({
+    queryKey: queryKeys.goals.all(familyGroupId ?? ""),
+    queryFn: ({ signal }) =>
+      apiFetch<GoalDto[]>(`/family-groups/${familyGroupId}/goals`, {
+        token: session?.accessToken,
+        signal,
+      }),
+    enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
+    staleTime: 60_000,
+  });
+
+  const goalItems = (goals ?? []).slice(0, 4).map((g) => {
+    const style = GOAL_STATUS_STYLE[g.status] ?? GOAL_STATUS_STYLE.on_track;
+    return {
+      id: g.id,
+      icon: g.icon ?? "🎯",
+      iconBg: style.iconBg,
+      name: g.name,
+      pct: g.progressPercent,
+      color: style.color,
+      now: formatRupiahCompact(g.currentAmount),
+      target: formatRupiahCompact(g.targetAmount),
+    };
+  });
+
   const allocation: DonutSegment[] = (summary?.allocation ?? []).map(
     (item) => ({
       label: item.label,
@@ -137,18 +132,6 @@ export default function BerandaPage() {
       up: true as boolean,
     };
   });
-
-  const hasLiability = false;
-  if (!hasLiability) {
-    summaryCards.push({
-      icon: "🎯",
-      iconBg: "#FEE2E2",
-      label: "Liabilitas",
-      amount: "Rp 0",
-      delta: "—",
-      up: false,
-    });
-  }
 
   const activities = (summary?.recentTransactions ?? []).map((tx) => ({
     icon: tx.type === "income" ? "📥" : tx.type === "expense" ? "💳" : "🔄",
@@ -429,7 +412,7 @@ export default function BerandaPage() {
           )}
         </SectionCard>
 
-        {/* Goals — kept as mock until Task 5 */}
+        {/* Goals */}
         <SectionCard
           title="Tujuan Keuangan"
           action={
@@ -438,34 +421,51 @@ export default function BerandaPage() {
             </CardLink>
           }
         >
-          <div className="space-y-3.5">
-            {GOALS.map((g) => (
-              <div key={g.name}>
-                <div className="mb-1.5 flex items-center gap-2">
+          {isGoalsLoading ? (
+            <div className="space-y-3.5">
+              {Array(3)
+                .fill(null)
+                .map((_, i) => (
                   <div
-                    className="flex size-[26px] items-center justify-center rounded-md text-[13px]"
-                    style={{ background: g.iconBg }}
-                  >
-                    {g.icon}
+                    key={i}
+                    className="h-[52px] animate-pulse rounded-md bg-muted"
+                  />
+                ))}
+            </div>
+          ) : goalItems.length === 0 ? (
+            <div className="py-4 text-center text-[13px] text-muted-foreground">
+              Belum ada tujuan keuangan
+            </div>
+          ) : (
+            <div className="space-y-3.5">
+              {goalItems.map((g) => (
+                <div key={g.id}>
+                  <div className="mb-1.5 flex items-center gap-2">
+                    <div
+                      className="flex size-[26px] items-center justify-center rounded-md text-[13px]"
+                      style={{ background: g.iconBg }}
+                    >
+                      {g.icon}
+                    </div>
+                    <div className="flex-1 text-[13px] font-semibold">
+                      {g.name}
+                    </div>
+                    <div
+                      className="text-[13px] font-bold"
+                      style={{ color: g.color }}
+                    >
+                      {g.pct}%
+                    </div>
                   </div>
-                  <div className="flex-1 text-[13px] font-semibold">
-                    {g.name}
-                  </div>
-                  <div
-                    className="text-[13px] font-bold"
-                    style={{ color: g.color }}
-                  >
-                    {g.pct}%
+                  <ProgressBar value={g.pct} color={g.color} />
+                  <div className="mt-1 flex justify-between text-[10.5px] text-muted-foreground">
+                    <span>{g.now}</span>
+                    <span>{g.target}</span>
                   </div>
                 </div>
-                <ProgressBar value={g.pct} color={g.color} />
-                <div className="mt-1 flex justify-between text-[10.5px] text-muted-foreground">
-                  <span>{g.now}</span>
-                  <span>{g.target}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </SectionCard>
       </div>
 

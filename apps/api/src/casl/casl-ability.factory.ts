@@ -10,10 +10,12 @@ export type Action = "manage" | "create" | "read" | "update" | "delete";
 export type Subject =
   | "Account"
   | "Category"
+  | "Liability"
   | "Transaction"
   | "Member"
   | "Budget"
   | "Goal"
+  | "Insurance"
   | "Notification"
   | "Investment"
   | "all";
@@ -29,10 +31,12 @@ export class CaslAbilityFactory {
       case Role.owner:
         can("manage", "Account");
         can("manage", "Category");
+        can("manage", "Liability");
         can("manage", "Transaction");
         can("manage", "Member");
         can("manage", "Budget");
         can("manage", "Goal");
+        can("manage", "Insurance");
         can("manage", "Notification");
         can("manage", "Investment");
         break;
@@ -40,10 +44,12 @@ export class CaslAbilityFactory {
       case Role.member:
         can("read", "Account");
         can("read", "Category");
+        can("manage", "Liability");
         can("manage", "Transaction");
         can("read", "Member");
         can("manage", "Budget");
         can("manage", "Goal");
+        can("manage", "Insurance");
         can("read", "Notification");
         can("manage", "Notification");
         can("manage", "Investment");
@@ -52,10 +58,12 @@ export class CaslAbilityFactory {
       case Role.admin_staff:
         can("read", "Account");
         can("read", "Category");
+        can("read", "Liability");
         can("read", "Transaction");
         can("read", "Member");
         can("read", "Budget");
         can("read", "Goal");
+        can("read", "Insurance");
         can("read", "Notification");
         can("read", "Investment");
         break;

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronRight, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useSession, signOut } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 
 import { SectionCard, MoneyStat } from "@/components/wm";
+import { RowActions, ConfirmDeleteDialog } from "@/components/crud";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah } from "@/lib/format";
@@ -51,7 +52,13 @@ function formatDayLabel(dateStr: string): string {
   });
 }
 
-function TxRow({ tx }: { tx: TransactionDto }) {
+function TxRow({
+  tx,
+  onDeleteClick,
+}: {
+  tx: TransactionDto;
+  onDeleteClick: () => void;
+}) {
   const isIncome = tx.type === "income";
   const amount = parseFloat(tx.amount);
   const amountStr = (isIncome ? "+" : "-") + formatRupiah(amount);
@@ -90,13 +97,18 @@ function TxRow({ tx }: { tx: TransactionDto }) {
           {formatTime(tx.occurredAt)}
         </div>
       </div>
-      <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
+      <RowActions
+        onEdit={() => toast("✏️ Edit transaksi")}
+        onDelete={onDeleteClick}
+        className="ml-1"
+      />
     </button>
   );
 }
 
 export default function TransaksiPage() {
   const [filter, setFilter] = useState<TxnType>("all");
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
 
@@ -149,6 +161,19 @@ export default function TransaksiPage() {
 
   return (
     <div className="space-y-4">
+      {/* Header bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
+        <span className="text-[13px] text-muted-foreground">
+          Catat &amp; kelola semua transaksimu
+        </span>
+        <button
+          onClick={() => toast("Form tambah transaksi")}
+          className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground"
+        >
+          <Plus className="size-3.5" /> Tambah Transaksi
+        </button>
+      </div>
+
       {/* Summary bar */}
       <div className="rounded-[14px] border bg-card p-4">
         <div className="grid grid-cols-3 gap-3">
@@ -224,7 +249,11 @@ export default function TransaksiPage() {
               </div>
               <div className="space-y-1.5">
                 {groups[day]?.map((tx) => (
-                  <TxRow key={tx.id} tx={tx} />
+                  <TxRow
+                    key={tx.id}
+                    tx={tx}
+                    onDeleteClick={() => setDeleteTarget(tx.id)}
+                  />
                 ))}
               </div>
             </div>
@@ -238,6 +267,15 @@ export default function TransaksiPage() {
           </SectionCard>
         )}
       </div>
+
+      <ConfirmDeleteDialog
+        label={deleteTarget !== null ? "Transaksi" : null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          setDeleteTarget(null);
+          toast("🗑️ Transaksi dihapus.");
+        }}
+      />
     </div>
   );
 }

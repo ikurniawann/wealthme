@@ -510,4 +510,105 @@ interface InvestmentSummaryDto {
     todayReturnPct: number;
 }
 
-export { type AccountDto, AccountDtoSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AuthUser, AuthUserSchema, type BudgetDto, type BudgetPeriod, CONTRACTS_VERSION, type CashflowDto, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CreateAccountInput, CreateAccountInputSchema, type CreateBudgetDto, type CreateGoalDto, type CreateTransactionInput, CreateTransactionInputSchema, type DashboardSummaryDto, type GoalDto, type GoalStatus, type InvestmentDto, type InvestmentSummaryDto, type InvestmentType, type LoginInput, LoginInputSchema, type NotificationDto, type Rupiah, RupiahSchema, type SearchResponseDto, type SearchResultDto, type SearchResultType, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateBudgetDto, type UpdateGoalDto };
+type LiabilityType = "kartu_kredit" | "pinjaman_pribadi" | "kpr" | "kendaraan" | "lainnya";
+interface LiabilityDto {
+    id: string;
+    familyGroupId: string;
+    name: string;
+    institution: string | null;
+    type: LiabilityType;
+    totalDebt: string;
+    remainingBalance: string;
+    minimumPayment: string;
+    interestRate: string;
+    dueDate: string | null;
+    paymentRatio: number;
+    notes: string | null;
+    currency: string;
+    createdAt: string;
+    updatedAt: string;
+}
+interface LiabilitySummaryDto {
+    totalRemainingBalance: string;
+    totalDebt: string;
+    currency: string;
+}
+interface CreateLiabilityDto {
+    name: string;
+    institution?: string;
+    type: LiabilityType;
+    totalDebt: string;
+    remainingBalance: string;
+    minimumPayment?: string;
+    interestRate?: string;
+    dueDate?: string;
+    notes?: string;
+    currency?: string;
+}
+interface UpdateLiabilityDto {
+    name?: string;
+    institution?: string;
+    type?: LiabilityType;
+    totalDebt?: string;
+    remainingBalance?: string;
+    minimumPayment?: string;
+    interestRate?: string;
+    dueDate?: string;
+    notes?: string;
+    currency?: string;
+}
+
+type InsuranceType = "jiwa" | "kesehatan" | "kendaraan" | "properti" | "lainnya";
+type InsuranceStatus = "aktif" | "tidak_aktif" | "kadaluarsa";
+type PremiumPeriod = "monthly" | "quarterly" | "yearly";
+interface InsuranceDto {
+    id: string;
+    familyGroupId: string;
+    name: string;
+    provider: string | null;
+    type: InsuranceType;
+    status: InsuranceStatus;
+    coverageAmount: string | null;
+    premiumAmount: string;
+    premiumPeriod: PremiumPeriod;
+    renewalDate: string | null;
+    policyNumber: string | null;
+    daysUntilRenewal: number | null;
+    notes: string | null;
+    currency: string;
+    createdAt: string;
+    updatedAt: string;
+}
+interface InsuranceSummaryDto {
+    activePolicies: number;
+    totalMonthlyPremium: string;
+    currency: string;
+}
+interface CreateInsuranceDto {
+    name: string;
+    provider?: string;
+    type: InsuranceType;
+    status?: InsuranceStatus;
+    coverageAmount?: string;
+    premiumAmount: string;
+    premiumPeriod?: PremiumPeriod;
+    renewalDate?: string;
+    policyNumber?: string;
+    notes?: string;
+    currency?: string;
+}
+interface UpdateInsuranceDto {
+    name?: string;
+    provider?: string;
+    type?: InsuranceType;
+    status?: InsuranceStatus;
+    coverageAmount?: string;
+    premiumAmount?: string;
+    premiumPeriod?: PremiumPeriod;
+    renewalDate?: string;
+    policyNumber?: string;
+    notes?: string;
+    currency?: string;
+}
+
+export { type AccountDto, AccountDtoSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AuthUser, AuthUserSchema, type BudgetDto, type BudgetPeriod, CONTRACTS_VERSION, type CashflowDto, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CreateAccountInput, CreateAccountInputSchema, type CreateBudgetDto, type CreateGoalDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateTransactionInput, CreateTransactionInputSchema, type DashboardSummaryDto, type GoalDto, type GoalStatus, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentDto, type InvestmentSummaryDto, type InvestmentType, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type NotificationDto, type PremiumPeriod, type Rupiah, RupiahSchema, type SearchResponseDto, type SearchResultDto, type SearchResultType, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateBudgetDto, type UpdateGoalDto, type UpdateInsuranceDto, type UpdateLiabilityDto };
