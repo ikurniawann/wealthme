@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Calendar, Download, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
@@ -19,7 +19,12 @@ import type { DonutSegment } from "@/components/charts/donut";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah } from "@/lib/format";
-import type { ReportSummaryDto } from "@wealthme/contracts";
+import type {
+  ExportJobRequestDto,
+  ExportJobStatusDto,
+  ExportReportType,
+  ReportSummaryDto,
+} from "@wealthme/contracts";
 
 /* ───────────────────────── Tab definitions ───────────────────────── */
 
@@ -1641,6 +1646,202 @@ function PajakSection() {
   );
 }
 
+/* ───────────────────────── Export Section ───────────────────────── */
+
+const EXPORT_REPORT_TYPES: { id: ExportReportType; label: string }[] = [
+  { id: "summary", label: "Ringkasan" },
+  { id: "bank", label: "Bank" },
+  { id: "detail", label: "Detail" },
+  { id: "pnl", label: "PNL" },
+  { id: "balance-sheet", label: "Balance Sheet" },
+  { id: "cashflow", label: "Cashflow" },
+];
+
+function ExportSection({
+  familyGroupId,
+  accessToken,
+}: {
+  familyGroupId: string;
+  accessToken: string | undefined;
+}) {
+  const [reportType, setReportType] = useState<ExportReportType>("summary");
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [status, setStatus] = useState<ExportJobStatusDto | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current !== null) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => stopPolling();
+  }, [stopPolling]);
+
+  const pollStatus = useCallback(
+    async (id: string) => {
+      if (!familyGroupId || !accessToken) return;
+      try {
+        const res = await apiFetch<ExportJobStatusDto>(
+          `/family-groups/${familyGroupId}/exports/${id}`,
+          { token: accessToken },
+        );
+        setStatus(res);
+        if (res.status === "done" || res.status === "failed") {
+          stopPolling();
+          if (res.status === "done") {
+            toast.success("Ekspor selesai! Klik Download untuk mengunduh.");
+          } else {
+            toast.error(`Ekspor gagal: ${res.errorMessage ?? "unknown error"}`);
+          }
+        }
+      } catch {
+        stopPolling();
+        toast.error("Gagal mengambil status ekspor.");
+      }
+    },
+    [familyGroupId, accessToken, stopPolling],
+  );
+
+  const startExport = useCallback(
+    async (format: "pdf" | "excel") => {
+      if (!familyGroupId || !accessToken) {
+        toast.error("Sesi tidak valid.");
+        return;
+      }
+      stopPolling();
+      setIsSubmitting(true);
+      setJobId(null);
+      setStatus(null);
+
+      const reqBody: ExportJobRequestDto = { type: reportType, format };
+
+      try {
+        const res = await apiFetch<ExportJobStatusDto>(
+          `/family-groups/${familyGroupId}/exports`,
+          {
+            token: accessToken,
+            method: "POST",
+            body: JSON.stringify(reqBody),
+          },
+        );
+        setJobId(res.id);
+        setStatus(res);
+        toast(`Membuat ekspor ${format.toUpperCase()}...`);
+
+        pollRef.current = setInterval(() => {
+          void pollStatus(res.id);
+        }, 2000);
+      } catch {
+        toast.error("Gagal membuat ekspor.");
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [familyGroupId, accessToken, reportType, stopPolling, pollStatus],
+  );
+
+  const handleDownload = useCallback(() => {
+    if (!status?.downloadUrl) return;
+    const url = status.downloadUrl;
+    if (!url.startsWith("data:") && !url.startsWith("https://")) {
+      // invalid scheme — do not set href
+      return;
+    }
+    const mimeToExt: Record<string, string> = {
+      "data:text/csv": "csv",
+      "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+        "xlsx",
+      "data:application/pdf": "pdf",
+      "data:text/plain": "txt",
+    };
+    const prefix = Object.keys(mimeToExt).find((k) => url.startsWith(k));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `laporan-${reportType}.${prefix ? mimeToExt[prefix] : "bin"}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }, [status, reportType]);
+
+  const isActive =
+    status && status.status !== "done" && status.status !== "failed";
+  const isDone = status?.status === "done";
+
+  return (
+    <div className="rounded-[12px] border bg-card p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="text-[13px] font-bold">Export Laporan</div>
+        {isDone && status.downloadUrl && (
+          <button
+            onClick={handleDownload}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:opacity-90"
+          >
+            <Download className="size-3.5" /> Download
+          </button>
+        )}
+      </div>
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] text-muted-foreground">
+            Tipe Laporan
+          </label>
+          <select
+            value={reportType}
+            onChange={(e) => setReportType(e.target.value as ExportReportType)}
+            disabled={!!isActive || isSubmitting}
+            className="rounded-md border bg-background px-3 py-[7px] text-[13px] outline-none focus:border-primary disabled:opacity-50"
+          >
+            {EXPORT_REPORT_TYPES.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button
+          onClick={() => void startExport("pdf")}
+          disabled={!!isActive || isSubmitting}
+          className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3.5 py-[8px] text-[12px] font-semibold transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Download className="size-3.5" /> Export PDF
+        </button>
+        <button
+          onClick={() => void startExport("excel")}
+          disabled={!!isActive || isSubmitting}
+          className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3.5 py-[8px] text-[12px] font-semibold transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <FileSpreadsheet className="size-3.5" /> Export Excel
+        </button>
+      </div>
+      {status && (
+        <div className="mt-3 flex items-center gap-2 text-[12px]">
+          <span className="text-muted-foreground">Status:</span>
+          <span
+            className={
+              status.status === "done"
+                ? "font-semibold text-success"
+                : status.status === "failed"
+                  ? "font-semibold text-destructive"
+                  : "font-semibold text-primary"
+            }
+          >
+            {status.status === "pending" && "Menunggu..."}
+            {status.status === "processing" && "Memproses..."}
+            {status.status === "done" && "Selesai"}
+            {status.status === "failed" &&
+              `Gagal: ${status.errorMessage ?? ""}`}
+          </span>
+          {jobId && <span className="text-muted-foreground">#{jobId}</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ───────────────────────── Page shell ───────────────────────── */
 
 function LaporanInner() {
@@ -1650,6 +1851,7 @@ function LaporanInner() {
 
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId ?? "";
+  const accessToken = session?.accessToken;
 
   const SUMMARY_MONTHS = 6;
   const { data: summary, isLoading: isSummaryLoading } =
@@ -1763,6 +1965,14 @@ function LaporanInner() {
           );
         })}
       </div>
+
+      {/* Export */}
+      {familyGroupId && (
+        <ExportSection
+          familyGroupId={familyGroupId}
+          accessToken={accessToken}
+        />
+      )}
 
       {/* Active section */}
       {renderSection()}
