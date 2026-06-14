@@ -25,7 +25,8 @@ import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { type CreateInheritanceAssetDto } from "./dto/create-inheritance-asset.dto";
 import { InheritanceAssetResponseDto } from "./dto/inheritance-asset-response.dto";
 import { type UpdateInheritanceAssetDto } from "./dto/update-inheritance-asset.dto";
-import { type InheritanceService } from "./inheritance.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { InheritanceService } from "./inheritance.service";
 
 @ApiTags("inheritance")
 @UseGuards(JwtAuthGuard)

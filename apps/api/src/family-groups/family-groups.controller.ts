@@ -30,7 +30,8 @@ import { FamilyGroupResponseDto } from "./dto/family-group-response.dto";
 import { InvitationResponseDto } from "./dto/invitation-response.dto";
 import { MemberResponseDto } from "./dto/member-response.dto";
 import { type UpdateMemberRoleDto } from "./dto/update-member-role.dto";
-import { type FamilyGroupsService } from "./family-groups.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { FamilyGroupsService } from "./family-groups.service";
 
 interface AuthRequest extends ExpressRequest {
   user: JwtPayload;

@@ -28,7 +28,8 @@ import {
   type LiabilitySummaryResponseDto,
 } from "./dto/liability-response.dto";
 import { type UpdateLiabilityDto } from "./dto/update-liability.dto";
-import { type LiabilitiesService } from "./liabilities.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { LiabilitiesService } from "./liabilities.service";
 
 @ApiTags("liabilities")
 @UseGuards(JwtAuthGuard)

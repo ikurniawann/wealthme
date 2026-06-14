@@ -18,7 +18,8 @@ import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { MarkReadDto } from "./dto/mark-read.dto";
-import { type NotificationsService } from "./notifications.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { NotificationsService } from "./notifications.service";
 
 @ApiTags("notifications")
 @ApiBearerAuth()
