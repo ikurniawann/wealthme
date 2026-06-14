@@ -42,6 +42,9 @@ const envSchema = z.object({
   BRICK_CLIENT_SECRET: z.string().min(1).optional(),
   // Market data — optional; set to "true" to use Yahoo Finance instead of mock
   USE_REAL_MARKET_DATA: z.enum(["true", "false"]).optional(),
+  // Email notifications — optional; both must be set to enable real SendGrid sender
+  SENDGRID_API_KEY: z.string().min(1).optional(),
+  NOTIFICATION_FROM_EMAIL: z.string().email().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
