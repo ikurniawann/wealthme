@@ -1,6 +1,6 @@
 # EPIC-004: Reports & Calculators
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 phase: 4
 priority: P1
@@ -28,16 +28,16 @@ Zakat & PPh 21 yang deterministik di backend dan kalkulator finansial.
 - [x] **T-403** Reports: PNL / Balance Sheet / Cashflow / Aliran Dana (data Sankey)
 - [x] **T-404** Wire halaman **Laporan** (16 tab) ke API report (scroll tab horizontal)
 
-### Export
+### Export ✅
 
-- [ ] **T-405** Export laporan ke PDF/Excel (job server-side BullMQ)
+- [x] **T-405** Export laporan ke PDF/Excel (job server-side BullMQ)
 
-### Calculators
+### Calculators ✅
 
-- [ ] **T-406** Service Zakat Maal (2,5% + cek nisab ~Rp 102 jt) di `contracts` + BE; uji golden-value
-- [ ] **T-407** Service PPh 21 (tarif progresif UU HPP, PTKP, biaya jabatan, pengurang zakat); uji golden-value
-- [ ] **T-408** Kalkulator finansial (investasi/KPR/pensiun/tabungan/split) parity; rumus share di `@wealthme/contracts`
-- [ ] **T-409** Wire halaman **Kalkulator** (5 tab) + kalkulator inline di **Donasi & Zakat** dan **Tax Center**
+- [x] **T-406** Service Zakat Maal (2,5% + cek nisab ~Rp 102 jt) di `contracts` + BE; uji golden-value
+- [x] **T-407** Service PPh 21 (tarif progresif UU HPP, PTKP, biaya jabatan, pengurang zakat); uji golden-value
+- [x] **T-408** Kalkulator finansial (investasi/KPR/pensiun/tabungan/split) parity; rumus share di `@wealthme/contracts`
+- [x] **T-409** Wire halaman **Kalkulator** (5 tab) + kalkulator inline di **Donasi & Zakat** dan **Tax Center**
 
 ## Acceptance Criteria
 
@@ -65,3 +65,5 @@ Zakat & PPh 21 yang deterministik di backend dan kalkulator finansial.
 ## Automation Log
 
 - 2026-06-14 /epic-loop EPIC-004 #1 "Report read-models" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/120
+- 2026-06-14 /epic-loop EPIC-004 #2 "Export" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/121
+- 2026-06-14 /epic-loop EPIC-004 #3 "Calculators" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/122
