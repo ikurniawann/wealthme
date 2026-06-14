@@ -55,6 +55,26 @@ enum LiabilityType {
   lainnya
 }
 
+enum InsuranceType {
+  jiwa
+  kesehatan
+  kendaraan
+  properti
+  lainnya
+}
+
+enum InsuranceStatus {
+  aktif
+  tidak_aktif
+  kadaluarsa
+}
+
+enum PremiumPeriod {
+  monthly
+  quarterly
+  yearly
+}
+
 // ── Models ────────────────────────────────────────────────────────────────────
 
 model User {
@@ -84,6 +104,7 @@ model FamilyGroup {
   goals         Goal[]
   notifications Notification[]
   liabilities   Liability[]
+  insurances    Insurance[]
 
   @@map("family_groups")
 }
@@ -175,17 +196,17 @@ model Budget {
 }
 
 model Goal {
-  id              String     @id @default(uuid())
+  id              String      @id @default(uuid())
   familyGroupId   String
   name            String
   icon            String?
   targetAmount    BigInt
-  currentAmount   BigInt     @default(0)
+  currentAmount   BigInt      @default(0)
   targetDate      DateTime?
   autoDebitAmount BigInt?
-  status          GoalStatus @default(on_track)
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  status          GoalStatus  @default(on_track)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
   familyGroup     FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
 
   @@index([familyGroupId])
@@ -244,4 +265,26 @@ model Liability {
 
   @@index([familyGroupId])
   @@map("liabilities")
+}
+
+model Insurance {
+  id              String          @id @default(uuid())
+  familyGroupId   String
+  name            String          @db.VarChar(150)
+  provider        String?         @db.VarChar(150)
+  type            InsuranceType
+  status          InsuranceStatus @default(aktif)
+  coverageAmount  BigInt?
+  premiumAmount   BigInt
+  premiumPeriod   PremiumPeriod   @default(monthly)
+  renewalDate     DateTime?
+  policyNumber    String?         @db.VarChar(100)
+  notes           String?         @db.VarChar(500)
+  currency        String          @default("IDR") @db.VarChar(3)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  familyGroup     FamilyGroup     @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@index([familyGroupId])
+  @@map("insurances")
 }

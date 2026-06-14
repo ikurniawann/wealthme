@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useSession, signOut } from "next-auth/react";
@@ -9,13 +9,13 @@ import { useQuery } from "@tanstack/react-query";
 import { StatusBadge } from "@/components/wm";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { CrudModal, ConfirmDeleteDialog } from "@/components/crud";
+import type { CrudModalState } from "@/components/crud";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah } from "@/lib/format";
 
 import type { AccountDto } from "@wealthme/contracts";
-
-type AccountAction = { label: string; ariaLabel: string; toast: string };
 
 type AccountCard = {
   id: string;
@@ -26,8 +26,8 @@ type AccountCard = {
   badge: { variant: "success" | "gray"; label: string };
   balanceLabel: string;
   balance: string;
+  rawBalance: number;
   type: string;
-  actions: AccountAction[];
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -56,6 +56,7 @@ function toLogoText(name: string): string {
 }
 
 function toCardData(account: AccountDto): AccountCard {
+  const rawBalance = parseFloat(account.balance);
   return {
     id: account.id,
     logo: account.institution
@@ -69,31 +70,23 @@ function toCardData(account: AccountDto): AccountCard {
       label: TYPE_LABELS[account.type] ?? account.type,
     },
     balanceLabel: "Saldo",
-    balance: formatRupiah(parseFloat(account.balance)),
+    balance: formatRupiah(rawBalance),
+    rawBalance,
     type: account.institution
       ? `${TYPE_LABELS[account.type] ?? account.type} · ${account.institution}`
       : (TYPE_LABELS[account.type] ?? account.type),
-    actions: [
-      { label: "↗ Transfer", ariaLabel: "Transfer", toast: "Transfer" },
-      { label: "Mutasi", ariaLabel: "Lihat Mutasi", toast: "Mutasi" },
-    ],
   };
 }
 
-function AccountCardItem({ account }: { account: AccountCard }) {
+interface AccountCardItemProps {
+  account: AccountCard;
+  onEdit: (account: AccountCard) => void;
+  onDelete: () => void;
+}
+
+function AccountCardItem({ account, onEdit, onDelete }: AccountCardItemProps) {
   return (
-    <Card
-      role="button"
-      tabIndex={0}
-      className="cursor-pointer gap-0 space-y-3.5 p-5 transition-shadow hover:shadow-md"
-      onClick={() => toast(account.name)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          toast(account.name);
-        }
-      }}
-    >
+    <Card className="gap-0 space-y-3.5 p-5 transition-shadow hover:shadow-md">
       <div className="flex items-center gap-3">
         <div
           className="flex h-9 w-12 items-center justify-center rounded-md text-[12px] font-extrabold text-white"
@@ -123,20 +116,38 @@ function AccountCardItem({ account }: { account: AccountCard }) {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {account.actions.map((action) => (
-          <button
-            key={action.label}
-            type="button"
-            aria-label={action.ariaLabel}
-            className="cursor-pointer rounded-md border bg-background px-3 py-2 text-[12px] font-semibold transition-colors hover:bg-accent"
-            onClick={(e) => {
-              e.stopPropagation();
-              toast(action.toast);
-            }}
-          >
-            {action.label}
-          </button>
-        ))}
+        <button
+          type="button"
+          aria-label="Transfer"
+          className="cursor-pointer rounded-md border bg-background px-3 py-2 text-[12px] font-semibold transition-colors hover:bg-accent"
+          onClick={() => toast("Transfer")}
+        >
+          ↗ Transfer
+        </button>
+        <button
+          type="button"
+          aria-label="Lihat Mutasi"
+          className="cursor-pointer rounded-md border bg-background px-3 py-2 text-[12px] font-semibold transition-colors hover:bg-accent"
+          onClick={() => toast("Mutasi")}
+        >
+          📋 Mutasi
+        </button>
+        <button
+          type="button"
+          aria-label="Edit rekening"
+          className="cursor-pointer rounded-md border bg-background px-3 py-2 text-[12px] font-semibold transition-colors hover:bg-accent"
+          onClick={() => onEdit(account)}
+        >
+          ✏️ Edit
+        </button>
+        <button
+          type="button"
+          aria-label="Hapus rekening"
+          className="cursor-pointer rounded-md border bg-background px-3 py-2 text-[12px] font-semibold text-destructive transition-colors hover:bg-accent"
+          onClick={onDelete}
+        >
+          🗑️ Hapus
+        </button>
       </div>
     </Card>
   );
@@ -172,6 +183,25 @@ export default function RekeningPage() {
     0,
   );
 
+  const [crudState, setCrudState] = useState<CrudModalState | null>(null);
+  const [deleteLabel, setDeleteLabel] = useState<string | null>(null);
+
+  function openAdd() {
+    setCrudState({ entity: "rekening", mode: "add" });
+  }
+
+  function openEdit(account: AccountCard) {
+    setCrudState({
+      entity: "rekening",
+      mode: "edit",
+      initialValues: { nama: account.name, saldo: String(account.rawBalance) },
+    });
+  }
+
+  function openDelete() {
+    setDeleteLabel("Rekening");
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2.5">
@@ -185,7 +215,7 @@ export default function RekeningPage() {
             {!isLoading && accounts && `Total: ${formatRupiah(totalBalance)}`}
           </div>
         </div>
-        <Button type="button" onClick={() => toast("➕ Tambah rekening")}>
+        <Button type="button" onClick={openAdd}>
           <Plus className="size-4" /> Tambah
         </Button>
       </div>
@@ -206,16 +236,34 @@ export default function RekeningPage() {
           <button
             type="button"
             className="font-semibold text-primary"
-            onClick={() => toast("Tambah rekening")}
+            onClick={openAdd}
           >
             Tambah sekarang
           </button>
         </div>
       )}
 
-      {accounts?.map((account) => (
-        <AccountCardItem key={account.id} account={toCardData(account)} />
-      ))}
+      {accounts?.map((account) => {
+        const card = toCardData(account);
+        return (
+          <AccountCardItem
+            key={account.id}
+            account={card}
+            onEdit={openEdit}
+            onDelete={openDelete}
+          />
+        );
+      })}
+
+      <CrudModal state={crudState} onClose={() => setCrudState(null)} />
+      <ConfirmDeleteDialog
+        label={deleteLabel}
+        onClose={() => setDeleteLabel(null)}
+        onConfirm={() => {
+          setDeleteLabel(null);
+          toast("🗑️ Rekening dihapus.");
+        }}
+      />
     </div>
   );
 }

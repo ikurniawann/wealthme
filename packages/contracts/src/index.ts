@@ -15,3 +15,4 @@ export * from "./budgets/index.js";
 export * from "./goals/index.js";
 export * from "./notifications/index.js";
 export * from "./liabilities/index.js";
+export * from "./insurances/index.js";

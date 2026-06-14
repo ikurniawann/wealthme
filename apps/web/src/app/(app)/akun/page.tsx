@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { CrudModal, type CrudModalState } from "@/components/crud";
 import { SectionCard, StatusBadge } from "@/components/wm";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -322,7 +323,13 @@ function KeamananBody() {
   );
 }
 
-function KoneksiBody() {
+function KoneksiBody({
+  onAddRekening,
+  onAddEwallet,
+}: {
+  onAddRekening: () => void;
+  onAddEwallet: () => void;
+}) {
   return (
     <>
       <SetSection>
@@ -330,7 +337,7 @@ function KoneksiBody() {
           <SectionTitle>Rekening Bank Terhubung</SectionTitle>
           <span
             className="cursor-pointer text-[12px] font-bold text-primary"
-            onClick={() => toast("Tambah rekening")}
+            onClick={onAddRekening}
           >
             + Tambah
           </span>
@@ -383,7 +390,7 @@ function KoneksiBody() {
           <SectionTitle>E-Wallet</SectionTitle>
           <span
             className="cursor-pointer text-[12px] font-bold text-primary"
-            onClick={() => toast("Tambah e-wallet")}
+            onClick={onAddEwallet}
           >
             + Tambah
           </span>
@@ -960,11 +967,13 @@ function MemberRow({
 
 function FamilyBody({
   onAddAdmin,
+  onInviteMember,
   name,
   email,
   initials,
 }: {
   onAddAdmin: () => void;
+  onInviteMember: () => void;
   name: string;
   email: string;
   initials: string;
@@ -1027,7 +1036,7 @@ function FamilyBody({
         />
         <button
           className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-[13.5px] font-semibold text-primary"
-          onClick={() => toast("Undangan dikirim!")}
+          onClick={onInviteMember}
         >
           <UserPlus className="size-4" /> Undang Anggota
         </button>
@@ -1248,6 +1257,7 @@ export default function AkunPage() {
   const router = useRouter();
   const [subpage, setSubpage] = useState<SubPageId | null>(null);
   const [addAdminOpen, setAddAdminOpen] = useState(false);
+  const [crud, setCrud] = useState<CrudModalState | null>(null);
 
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
@@ -1283,7 +1293,12 @@ export default function AkunPage() {
       case "keamanan":
         return <KeamananBody />;
       case "koneksi":
-        return <KoneksiBody />;
+        return (
+          <KoneksiBody
+            onAddRekening={() => setCrud({ entity: "rekening", mode: "add" })}
+            onAddEwallet={() => setCrud({ entity: "ewallet", mode: "add" })}
+          />
+        );
       case "pengaturan":
         return <PengaturanBody />;
       case "notif-setting":
@@ -1313,6 +1328,7 @@ export default function AkunPage() {
               closeSheet();
               setAddAdminOpen(true);
             }}
+            onInviteMember={() => setCrud({ entity: "member", mode: "add" })}
           />
         );
     }
@@ -1480,6 +1496,7 @@ export default function AkunPage() {
       </Sheet>
 
       <AddAdminDialog open={addAdminOpen} onOpenChange={setAddAdminOpen} />
+      <CrudModal state={crud} onClose={() => setCrud(null)} />
     </div>
   );
 }

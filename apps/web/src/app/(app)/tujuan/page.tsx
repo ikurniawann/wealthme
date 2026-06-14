@@ -1,6 +1,7 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { useState } from "react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -10,6 +11,8 @@ import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 import { StatusBadge, ProgressBar } from "@/components/wm";
 import { Button } from "@/components/ui/button";
+import { CrudModal, ConfirmDeleteDialog } from "@/components/crud";
+import type { CrudModalState } from "@/components/crud";
 
 import type { GoalDto, GoalStatus } from "@wealthme/contracts";
 
@@ -98,7 +101,13 @@ function GoalCardSkeleton() {
   );
 }
 
-function GoalCard({ goal }: { goal: GoalDto }) {
+interface GoalCardProps {
+  goal: GoalDto;
+  onEdit: (goal: GoalDto) => void;
+  onDelete: (goal: GoalDto) => void;
+}
+
+function GoalCard({ goal, onEdit, onDelete }: GoalCardProps) {
   const { label, variant, color, borderColor, iconBg } = statusToBadge(
     goal.status,
   );
@@ -146,6 +155,26 @@ function GoalCard({ goal }: { goal: GoalDto }) {
           <span className="text-muted-foreground">Tanpa auto-debit</span>
         )}
       </div>
+
+      <div className="mt-2.5 flex gap-1.5">
+        <button
+          onClick={() => onEdit(goal)}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-[7px] px-3 py-[7px] text-[11px] font-semibold"
+          style={{
+            background: "var(--primary-light)",
+            color: "var(--primary)",
+          }}
+        >
+          <Pencil className="size-[13px]" /> Edit
+        </button>
+        <button
+          onClick={() => onDelete(goal)}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-[7px] px-3 py-[7px] text-[11px] font-semibold text-destructive"
+          style={{ background: "hsl(var(--destructive) / 0.1)" }}
+        >
+          <Trash2 className="size-[13px]" /> Hapus
+        </button>
+      </div>
     </div>
   );
 }
@@ -154,6 +183,9 @@ export default function TujuanPage() {
   const { data: session } = useSession();
   const token = session?.accessToken;
   const familyGroupId = session?.familyGroupId;
+
+  const [crud, setCrud] = useState<CrudModalState | null>(null);
+  const [deleteLabel, setDeleteLabel] = useState<string | null>(null);
 
   const {
     data: goals,
@@ -180,6 +212,26 @@ export default function TujuanPage() {
   const totalAllocated =
     goals?.reduce((sum, g) => sum + g.currentAmount, 0) ?? 0;
 
+  function handleEdit(goal: GoalDto) {
+    setCrud({
+      entity: "tujuan",
+      mode: "edit",
+      initialValues: {
+        nama: goal.name,
+        icon: goal.icon ?? "🛡️",
+        target: String(goal.targetAmount),
+        terkumpul: String(goal.currentAmount),
+        deadline: goal.targetDate ?? "",
+        autodebit:
+          goal.autoDebitAmount != null ? String(goal.autoDebitAmount) : "",
+      },
+    });
+  }
+
+  function handleDelete() {
+    setDeleteLabel("Tujuan");
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2.5">
@@ -192,7 +244,7 @@ export default function TujuanPage() {
           </div>
         </div>
         <Button
-          onClick={() => toast("Form tambah tujuan")}
+          onClick={() => setCrud({ entity: "tujuan", mode: "add" })}
           className="h-auto px-[18px] py-2.5"
         >
           <Plus className="size-4" /> Tambah Tujuan
@@ -238,7 +290,14 @@ export default function TujuanPage() {
           ? Array.from({ length: 3 }).map((_, i) => (
               <GoalCardSkeleton key={i} />
             ))
-          : goals?.map((g) => <GoalCard key={g.id} goal={g} />)}
+          : goals?.map((g) => (
+              <GoalCard
+                key={g.id}
+                goal={g}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+            ))}
         {!isLoading && !isError && goals?.length === 0 && (
           <div className="col-span-full rounded-[14px] border bg-card px-4 py-8 text-center text-[13px] text-muted-foreground">
             Belum ada tujuan keuangan. Klik &quot;Tambah Tujuan&quot; untuk
@@ -246,6 +305,16 @@ export default function TujuanPage() {
           </div>
         )}
       </div>
+
+      <CrudModal state={crud} onClose={() => setCrud(null)} />
+      <ConfirmDeleteDialog
+        label={deleteLabel}
+        onClose={() => setDeleteLabel(null)}
+        onConfirm={() => {
+          setDeleteLabel(null);
+          toast("🗑️ Tujuan dihapus.");
+        }}
+      />
     </div>
   );
 }

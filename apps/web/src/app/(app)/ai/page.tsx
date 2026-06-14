@@ -1,8 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { Send } from "lucide-react";
-import { AI_CHIPS, resolveAiResponse } from "@/lib/data";
+import { resolveAiResponse } from "@/lib/data";
+
+const CHIPS = [
+  "📊 Analisa keuangan bulan ini",
+  "🎯 Cara capai target DP Rumah lebih cepat",
+  "📈 Rekomendasi portofolio investasi",
+  "💡 Tips hemat pengeluaran",
+];
 
 type ChatMessage = {
   id: number;
@@ -12,15 +18,9 @@ type ChatMessage = {
 
 const WELCOME: React.ReactNode = (
   <>
-    Halo Irfan! 👋 Saya WealthMe AI Advisor.
-    <br />
-    <br />
-    Berdasarkan data keuanganmu, total kekayaan bersihmu sudah{" "}
-    <strong>Rp 1,256 Miliar</strong> — tumbuh <strong>8,45%</strong> bulan ini.
-    Luar biasa! 🎉
-    <br />
-    <br />
-    Ada yang ingin kamu tanyakan?
+    Halo Irfan! 👋 Saya WealthMe AI Advisor. Total kekayaan bersihmu{" "}
+    <strong>Rp 1,256 M</strong> tumbuh 8,45% bulan ini. Ada yang ingin
+    ditanyakan?
   </>
 );
 
@@ -104,11 +104,11 @@ export default function AiPage() {
       </div>
 
       {/* Popular questions */}
-      <div className="mb-2 text-[11.5px] font-bold text-muted-foreground">
-        💡 Pertanyaan Populer
+      <div className="mb-2 text-[12px] font-semibold text-muted-foreground">
+        Pertanyaan Populer
       </div>
       <div className="mb-4 flex flex-wrap gap-2">
-        {AI_CHIPS.map((chip) => (
+        {CHIPS.map((chip) => (
           <button
             key={chip}
             type="button"
@@ -140,7 +140,10 @@ export default function AiPage() {
                 </div>
               </div>
             ) : (
-              <div key={msg.id} className="flex items-start justify-end gap-2.5">
+              <div
+                key={msg.id}
+                className="flex items-start justify-end gap-2.5"
+              >
                 <div className="max-w-[78%] rounded-2xl rounded-tr-sm bg-primary px-3.5 py-2.5 text-[13px] leading-relaxed text-white">
                   {msg.text}
                 </div>
@@ -167,7 +170,7 @@ export default function AiPage() {
             aria-label="Kirim"
             className="flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-primary text-white transition-opacity hover:opacity-90"
           >
-            <Send className="size-[17px]" />
+            ➤
           </button>
         </div>
       </div>
