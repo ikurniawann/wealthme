@@ -150,14 +150,354 @@
   },
   "nodes": [
     {
+      "label": "CODEX_SYSTEM_PROMPT.md",
+      "file_type": "document",
+      "source_file": "docs/CODEX_SYSTEM_PROMPT.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_codex_system_prompt",
+      "community": 119,
+      "norm_label": "codex_system_prompt.md"
+    },
+    {
+      "label": "CODEX_SYSTEM_PROMPT.md",
+      "file_type": "document",
+      "source_file": "docs/CODEX_SYSTEM_PROMPT.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_codex_system_prompt_codex_system_prompt_md",
+      "community": 119,
+      "norm_label": "codex_system_prompt.md"
+    },
+    {
+      "label": "WealthMe_DATABASE.md",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_DATABASE.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_wealthme_database",
+      "community": 118,
+      "norm_label": "wealthme_database.md"
+    },
+    {
+      "label": "DATABASE.md",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_DATABASE.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_wealthme_database_database_md",
+      "community": 118,
+      "norm_label": "database.md"
+    },
+    {
+      "label": "WealthMe Database Schema",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_DATABASE.md",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "docs_wealthme_database_wealthme_database_schema",
+      "community": 118,
+      "norm_label": "wealthme database schema"
+    },
+    {
+      "label": "Formulas",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_DATABASE.md",
+      "source_location": "L23",
+      "_origin": "ast",
+      "id": "docs_wealthme_database_formulas",
+      "community": 118,
+      "norm_label": "formulas"
+    },
+    {
+      "label": "WealthMe_PROJECT.md",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_wealthme_project",
+      "community": 37,
+      "norm_label": "wealthme_project.md"
+    },
+    {
+      "label": "WealthMe",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_wealthme",
+      "community": 37,
+      "norm_label": "wealthme"
+    },
+    {
+      "label": "Overview",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_overview",
+      "community": 37,
+      "norm_label": "overview"
+    },
+    {
+      "label": "Core Formula",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L23",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_core_formula",
+      "community": 37,
+      "norm_label": "core formula"
+    },
+    {
+      "label": "User Types",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L27",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_user_types",
+      "community": 37,
+      "norm_label": "user types"
+    },
+    {
+      "label": "Personal User",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L29",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_personal_user",
+      "community": 37,
+      "norm_label": "personal user"
+    },
+    {
+      "label": "Family Owner",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L33",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_family_owner",
+      "community": 37,
+      "norm_label": "family owner"
+    },
+    {
+      "label": "Family Member",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L37",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_family_member",
+      "community": 37,
+      "norm_label": "family member"
+    },
+    {
+      "label": "Main Modules",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L41",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_main_modules",
+      "community": 37,
+      "norm_label": "main modules"
+    },
+    {
+      "label": "Dashboard",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L43",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_dashboard",
+      "community": 37,
+      "norm_label": "dashboard"
+    },
+    {
+      "label": "Transactions",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L53",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_transactions",
+      "community": 37,
+      "norm_label": "transactions"
+    },
+    {
+      "label": "Investments",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L57",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_investments",
+      "community": 37,
+      "norm_label": "investments"
+    },
+    {
+      "label": "Assets",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L68",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_assets",
+      "community": 37,
+      "norm_label": "assets"
+    },
+    {
+      "label": "Liabilities",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L77",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_liabilities",
+      "community": 37,
+      "norm_label": "liabilities"
+    },
+    {
+      "label": "Financial Goals",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L84",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_financial_goals",
+      "community": 37,
+      "norm_label": "financial goals"
+    },
+    {
+      "label": "Reports",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L92",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_reports",
+      "community": 37,
+      "norm_label": "reports"
+    },
+    {
+      "label": "Family Finance",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L100",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_family_finance",
+      "community": 37,
+      "norm_label": "family finance"
+    },
+    {
+      "label": "AI Financial Advisor",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L107",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_ai_financial_advisor",
+      "community": 37,
+      "norm_label": "ai financial advisor"
+    },
+    {
+      "label": "Navigation",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L114",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_navigation",
+      "community": 37,
+      "norm_label": "navigation"
+    },
+    {
+      "label": "Database Tables",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L122",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_database_tables",
+      "community": 37,
+      "norm_label": "database tables"
+    },
+    {
+      "label": "Tech Stack",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L141",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_tech_stack",
+      "community": 37,
+      "norm_label": "tech stack"
+    },
+    {
+      "label": "Roadmap",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L164",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_roadmap",
+      "community": 37,
+      "norm_label": "roadmap"
+    },
+    {
+      "label": "Phase 1",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L166",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_phase_1",
+      "community": 37,
+      "norm_label": "phase 1"
+    },
+    {
+      "label": "Phase 2",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L170",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_phase_2",
+      "community": 37,
+      "norm_label": "phase 2"
+    },
+    {
+      "label": "Phase 3",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L174",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_phase_3",
+      "community": 37,
+      "norm_label": "phase 3"
+    },
+    {
+      "label": "Phase 4",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L178",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_phase_4",
+      "community": 37,
+      "norm_label": "phase 4"
+    },
+    {
+      "label": "Phase 5",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L182",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_phase_5",
+      "community": 37,
+      "norm_label": "phase 5"
+    },
+    {
+      "label": "Phase 6",
+      "file_type": "document",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L186",
+      "_origin": "ast",
+      "id": "docs_wealthme_project_phase_6",
+      "community": 37,
+      "norm_label": "phase 6"
+    },
+    {
       "label": "seed.ts",
       "file_type": "code",
       "source_file": "apps/api/prisma/seed.ts",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "prisma_seed",
       "community": 64,
-      "norm_label": "seed.ts"
+      "norm_label": "seed.ts",
+      "id": "prisma_seed"
     },
     {
       "label": "prisma",
@@ -165,9 +505,9 @@
       "source_file": "apps/api/prisma/seed.ts",
       "source_location": "L4",
       "_origin": "ast",
-      "id": "prisma_seed_prisma",
       "community": 64,
-      "norm_label": "prisma"
+      "norm_label": "prisma",
+      "id": "prisma_seed_prisma"
     },
     {
       "label": "main()",
@@ -175,9 +515,9 @@
       "source_file": "apps/api/prisma/seed.ts",
       "source_location": "L8",
       "_origin": "ast",
-      "id": "prisma_seed_main",
       "community": 64,
-      "norm_label": "main()"
+      "norm_label": "main()",
+      "id": "prisma_seed_main"
     },
     {
       "label": "accounts.controller.ts",
@@ -185,9 +525,9 @@
       "source_file": "apps/api/src/accounts/accounts.controller.ts",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "accounts_accounts_controller",
       "community": 22,
-      "norm_label": "accounts.controller.ts"
+      "norm_label": "accounts.controller.ts",
+      "id": "accounts_accounts_controller"
     },
     {
       "label": "AccountsController",
@@ -195,9 +535,9 @@
       "source_file": "apps/api/src/accounts/accounts.controller.ts",
       "source_location": "L36",
       "_origin": "ast",
-      "id": "accounts_accounts_controller_accountscontroller",
       "community": 22,
-      "norm_label": "accountscontroller"
+      "norm_label": "accountscontroller",
+      "id": "accounts_accounts_controller_accountscontroller"
     },
     {
       "label": ".constructor()",
@@ -205,9 +545,9 @@
       "source_file": "apps/api/src/accounts/accounts.controller.ts",
       "source_location": "L37",
       "_origin": "ast",
-      "id": "accounts_accounts_controller_accountscontroller_constructor",
       "community": 22,
-      "norm_label": ".constructor()"
+      "norm_label": ".constructor()",
+      "id": "accounts_accounts_controller_accountscontroller_constructor"
     },
     {
       "label": ".findAll()",
@@ -215,9 +555,9 @@
       "source_file": "apps/api/src/accounts/accounts.controller.ts",
       "source_location": "L44",
       "_origin": "ast",
-      "id": "accounts_accounts_controller_accountscontroller_findall",
       "community": 22,
-      "norm_label": ".findall()"
+      "norm_label": ".findall()",
+      "id": "accounts_accounts_controller_accountscontroller_findall"
     },
     {
       "label": ".create()",
@@ -225,9 +565,9 @@
       "source_file": "apps/api/src/accounts/accounts.controller.ts",
       "source_location": "L55",
       "_origin": "ast",
-      "id": "accounts_accounts_controller_accountscontroller_create",
       "community": 22,
-      "norm_label": ".create()"
+      "norm_label": ".create()",
+      "id": "accounts_accounts_controller_accountscontroller_create"
     },
     {
       "label": ".findOne()",
@@ -235,9 +575,9 @@
       "source_file": "apps/api/src/accounts/accounts.controller.ts",
       "source_location": "L69",
       "_origin": "ast",
-      "id": "accounts_accounts_controller_accountscontroller_findone",
       "community": 22,
-      "norm_label": ".findone()"
+      "norm_label": ".findone()",
+      "id": "accounts_accounts_controller_accountscontroller_findone"
     },
     {
       "label": ".update()",
@@ -245,9 +585,9 @@
       "source_file": "apps/api/src/accounts/accounts.controller.ts",
       "source_location": "L83",
       "_origin": "ast",
-      "id": "accounts_accounts_controller_accountscontroller_update",
       "community": 22,
-      "norm_label": ".update()"
+      "norm_label": ".update()",
+      "id": "accounts_accounts_controller_accountscontroller_update"
     },
     {
       "label": ".remove()",
@@ -255,9 +595,9 @@
       "source_file": "apps/api/src/accounts/accounts.controller.ts",
       "source_location": "L99",
       "_origin": "ast",
-      "id": "accounts_accounts_controller_accountscontroller_remove",
       "community": 22,
-      "norm_label": ".remove()"
+      "norm_label": ".remove()",
+      "id": "accounts_accounts_controller_accountscontroller_remove"
     },
     {
       "label": "page.tsx",
@@ -14566,26 +14906,6 @@
       "id": "docs_ci_option_b_github_cli_gh_api"
     },
     {
-      "label": "CODEX_SYSTEM_PROMPT.md",
-      "file_type": "document",
-      "source_file": "docs/CODEX_SYSTEM_PROMPT.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 119,
-      "norm_label": "codex_system_prompt.md",
-      "id": "docs_codex_system_prompt"
-    },
-    {
-      "label": "CODEX_SYSTEM_PROMPT.md",
-      "file_type": "document",
-      "source_file": "docs/CODEX_SYSTEM_PROMPT.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 119,
-      "norm_label": "codex_system_prompt.md",
-      "id": "docs_codex_system_prompt_codex_system_prompt_md"
-    },
-    {
       "label": "DEPLOYMENT.md",
       "file_type": "document",
       "source_file": "docs/DEPLOYMENT.md",
@@ -14884,46 +15204,6 @@
       "community": 102,
       "norm_label": "verifikasi (saat implementasi)",
       "id": "docs_wealthme_backend_plan_verifikasi_saat_implementasi"
-    },
-    {
-      "label": "WealthMe_DATABASE.md",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_DATABASE.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 118,
-      "norm_label": "wealthme_database.md",
-      "id": "docs_wealthme_database"
-    },
-    {
-      "label": "DATABASE.md",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_DATABASE.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 118,
-      "norm_label": "database.md",
-      "id": "docs_wealthme_database_database_md"
-    },
-    {
-      "label": "WealthMe Database Schema",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_DATABASE.md",
-      "source_location": "L3",
-      "_origin": "ast",
-      "community": 118,
-      "norm_label": "wealthme database schema",
-      "id": "docs_wealthme_database_wealthme_database_schema"
-    },
-    {
-      "label": "Formulas",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_DATABASE.md",
-      "source_location": "L23",
-      "_origin": "ast",
-      "community": 118,
-      "norm_label": "formulas",
-      "id": "docs_wealthme_database_formulas"
     },
     {
       "label": "WealthMe_Development.md",
@@ -15384,286 +15664,6 @@
       "community": 26,
       "norm_label": "catatan teknis produksi",
       "id": "docs_wealthme_development_catatan_teknis_produksi"
-    },
-    {
-      "label": "WealthMe_PROJECT.md",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "wealthme_project.md",
-      "id": "docs_wealthme_project"
-    },
-    {
-      "label": "WealthMe",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "wealthme",
-      "id": "docs_wealthme_project_wealthme"
-    },
-    {
-      "label": "Overview",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L7",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "overview",
-      "id": "docs_wealthme_project_overview"
-    },
-    {
-      "label": "Core Formula",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L23",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "core formula",
-      "id": "docs_wealthme_project_core_formula"
-    },
-    {
-      "label": "User Types",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L27",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "user types",
-      "id": "docs_wealthme_project_user_types"
-    },
-    {
-      "label": "Personal User",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L29",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "personal user",
-      "id": "docs_wealthme_project_personal_user"
-    },
-    {
-      "label": "Family Owner",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L32",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "family owner",
-      "id": "docs_wealthme_project_family_owner"
-    },
-    {
-      "label": "Family Member",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L35",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "family member",
-      "id": "docs_wealthme_project_family_member"
-    },
-    {
-      "label": "Main Modules",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L38",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "main modules",
-      "id": "docs_wealthme_project_main_modules"
-    },
-    {
-      "label": "Dashboard",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L40",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "dashboard",
-      "id": "docs_wealthme_project_dashboard"
-    },
-    {
-      "label": "Transactions",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L49",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "transactions",
-      "id": "docs_wealthme_project_transactions"
-    },
-    {
-      "label": "Investments",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L52",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "investments",
-      "id": "docs_wealthme_project_investments"
-    },
-    {
-      "label": "Assets",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L62",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "assets",
-      "id": "docs_wealthme_project_assets"
-    },
-    {
-      "label": "Liabilities",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L70",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "liabilities",
-      "id": "docs_wealthme_project_liabilities"
-    },
-    {
-      "label": "Financial Goals",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L76",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "financial goals",
-      "id": "docs_wealthme_project_financial_goals"
-    },
-    {
-      "label": "Reports",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L83",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "reports",
-      "id": "docs_wealthme_project_reports"
-    },
-    {
-      "label": "Family Finance",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L90",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "family finance",
-      "id": "docs_wealthme_project_family_finance"
-    },
-    {
-      "label": "AI Financial Advisor",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L96",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "ai financial advisor",
-      "id": "docs_wealthme_project_ai_financial_advisor"
-    },
-    {
-      "label": "Navigation",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L102",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "navigation",
-      "id": "docs_wealthme_project_navigation"
-    },
-    {
-      "label": "Database Tables",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L110",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "database tables",
-      "id": "docs_wealthme_project_database_tables"
-    },
-    {
-      "label": "Tech Stack",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L129",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "tech stack",
-      "id": "docs_wealthme_project_tech_stack"
-    },
-    {
-      "label": "Roadmap",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L148",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "roadmap",
-      "id": "docs_wealthme_project_roadmap"
-    },
-    {
-      "label": "Phase 1",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L150",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "phase 1",
-      "id": "docs_wealthme_project_phase_1"
-    },
-    {
-      "label": "Phase 2",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L153",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "phase 2",
-      "id": "docs_wealthme_project_phase_2"
-    },
-    {
-      "label": "Phase 3",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L156",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "phase 3",
-      "id": "docs_wealthme_project_phase_3"
-    },
-    {
-      "label": "Phase 4",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L159",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "phase 4",
-      "id": "docs_wealthme_project_phase_4"
-    },
-    {
-      "label": "Phase 5",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L162",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "phase 5",
-      "id": "docs_wealthme_project_phase_5"
-    },
-    {
-      "label": "Phase 6",
-      "file_type": "document",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L165",
-      "_origin": "ast",
-      "community": 37,
-      "norm_label": "phase 6",
-      "id": "docs_wealthme_project_phase_6"
     },
     {
       "label": "EPIC-000-foundation-infra.md",
@@ -17825,6 +17825,316 @@
     }
   ],
   "links": [
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/CODEX_SYSTEM_PROMPT.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_codex_system_prompt",
+      "target": "docs_codex_system_prompt_codex_system_prompt_md"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_DATABASE.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_database",
+      "target": "docs_wealthme_database_database_md"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_DATABASE.md",
+      "source_location": "L23",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_database_database_md",
+      "target": "docs_wealthme_database_formulas"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_DATABASE.md",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_database_database_md",
+      "target": "docs_wealthme_database_wealthme_database_schema"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project",
+      "target": "docs_wealthme_project_wealthme"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L23",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_wealthme",
+      "target": "docs_wealthme_project_core_formula"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L110",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_wealthme",
+      "target": "docs_wealthme_project_database_tables"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L38",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_wealthme",
+      "target": "docs_wealthme_project_main_modules"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L102",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_wealthme",
+      "target": "docs_wealthme_project_navigation"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L7",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_wealthme",
+      "target": "docs_wealthme_project_overview"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L148",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_wealthme",
+      "target": "docs_wealthme_project_roadmap"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L129",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_wealthme",
+      "target": "docs_wealthme_project_tech_stack"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L27",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_wealthme",
+      "target": "docs_wealthme_project_user_types"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L35",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_user_types",
+      "target": "docs_wealthme_project_family_member"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L32",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_user_types",
+      "target": "docs_wealthme_project_family_owner"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L29",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_user_types",
+      "target": "docs_wealthme_project_personal_user"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L96",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_main_modules",
+      "target": "docs_wealthme_project_ai_financial_advisor"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L62",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_main_modules",
+      "target": "docs_wealthme_project_assets"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L40",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_main_modules",
+      "target": "docs_wealthme_project_dashboard"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L90",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_main_modules",
+      "target": "docs_wealthme_project_family_finance"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L76",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_main_modules",
+      "target": "docs_wealthme_project_financial_goals"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L52",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_main_modules",
+      "target": "docs_wealthme_project_investments"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L70",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_main_modules",
+      "target": "docs_wealthme_project_liabilities"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L83",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_main_modules",
+      "target": "docs_wealthme_project_reports"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L49",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_main_modules",
+      "target": "docs_wealthme_project_transactions"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L150",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_roadmap",
+      "target": "docs_wealthme_project_phase_1"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L153",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_roadmap",
+      "target": "docs_wealthme_project_phase_2"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L156",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_roadmap",
+      "target": "docs_wealthme_project_phase_3"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L159",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_roadmap",
+      "target": "docs_wealthme_project_phase_4"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L162",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_roadmap",
+      "target": "docs_wealthme_project_phase_5"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/WealthMe_PROJECT.md",
+      "source_location": "L165",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "docs_wealthme_project_roadmap",
+      "target": "docs_wealthme_project_phase_6"
+    },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
@@ -42774,16 +43084,6 @@
       "target": "docs_ci_option_b_github_cli_gh_api"
     },
     {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/CODEX_SYSTEM_PROMPT.md",
-      "source_location": "L1",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_codex_system_prompt",
-      "target": "docs_codex_system_prompt_codex_system_prompt_md"
-    },
-    {
       "relation": "describes",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
@@ -43324,36 +43624,6 @@
       "target": "docs_wealthme_backend_plan_verifikasi_saat_implementasi"
     },
     {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_DATABASE.md",
-      "source_location": "L1",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_database",
-      "target": "docs_wealthme_database_database_md"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_DATABASE.md",
-      "source_location": "L23",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_database_database_md",
-      "target": "docs_wealthme_database_formulas"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_DATABASE.md",
-      "source_location": "L3",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_database_database_md",
-      "target": "docs_wealthme_database_wealthme_database_schema"
-    },
-    {
       "relation": "describes",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
@@ -43842,276 +44112,6 @@
       "confidence_score": 1.0,
       "source": "docs_wealthme_development_9_roadmap_produksi_belum_diimplementasi",
       "target": "docs_wealthme_development_catatan_teknis_produksi"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L1",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project",
-      "target": "docs_wealthme_project_wealthme"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L23",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_wealthme",
-      "target": "docs_wealthme_project_core_formula"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L110",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_wealthme",
-      "target": "docs_wealthme_project_database_tables"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L38",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_wealthme",
-      "target": "docs_wealthme_project_main_modules"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L102",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_wealthme",
-      "target": "docs_wealthme_project_navigation"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L7",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_wealthme",
-      "target": "docs_wealthme_project_overview"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L148",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_wealthme",
-      "target": "docs_wealthme_project_roadmap"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L129",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_wealthme",
-      "target": "docs_wealthme_project_tech_stack"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L27",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_wealthme",
-      "target": "docs_wealthme_project_user_types"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L35",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_user_types",
-      "target": "docs_wealthme_project_family_member"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L32",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_user_types",
-      "target": "docs_wealthme_project_family_owner"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L29",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_user_types",
-      "target": "docs_wealthme_project_personal_user"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L96",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_main_modules",
-      "target": "docs_wealthme_project_ai_financial_advisor"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L62",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_main_modules",
-      "target": "docs_wealthme_project_assets"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L40",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_main_modules",
-      "target": "docs_wealthme_project_dashboard"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L90",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_main_modules",
-      "target": "docs_wealthme_project_family_finance"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L76",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_main_modules",
-      "target": "docs_wealthme_project_financial_goals"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L52",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_main_modules",
-      "target": "docs_wealthme_project_investments"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L70",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_main_modules",
-      "target": "docs_wealthme_project_liabilities"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L83",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_main_modules",
-      "target": "docs_wealthme_project_reports"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L49",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_main_modules",
-      "target": "docs_wealthme_project_transactions"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L150",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_roadmap",
-      "target": "docs_wealthme_project_phase_1"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L153",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_roadmap",
-      "target": "docs_wealthme_project_phase_2"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L156",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_roadmap",
-      "target": "docs_wealthme_project_phase_3"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L159",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_roadmap",
-      "target": "docs_wealthme_project_phase_4"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L162",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_roadmap",
-      "target": "docs_wealthme_project_phase_5"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/WealthMe_PROJECT.md",
-      "source_location": "L165",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_wealthme_project_roadmap",
-      "target": "docs_wealthme_project_phase_6"
     },
     {
       "relation": "contains",
@@ -46379,5 +46379,5 @@
       "source_file": "docs/DEPLOYMENT.md"
     }
   ],
-  "built_at_commit": "8d2a0cff3f31a07b57a5b5efb925de600806ff34"
+  "built_at_commit": "5c8a2723d7fd91ce22b509dde5e63b700ed8ff38"
 }

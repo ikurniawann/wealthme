@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `8d2a0cff`
+- Built from commit: `5c8a2723`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -619,7 +619,7 @@ Cohesion: 0.25
 Nodes (7): CreateInsuranceDto, InsuranceDto, InsuranceStatus, InsuranceSummaryDto, InsuranceType, PremiumPeriod, UpdateInsuranceDto
 
 ## Knowledge Gaps
-- **792 isolated node(s):** `prisma`, `CHIPS`, `ChatMessage`, `SubPageId`, `MeResponse` (+787 more)
+- **792 isolated node(s):** `WealthMe Database Schema`, `Formulas`, `Overview`, `Core Formula`, `Personal User` (+787 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **21 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -627,12 +627,12 @@ Nodes (7): CreateInsuranceDto, InsuranceDto, InsuranceStatus, InsuranceSummaryDt
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `cn()` connect `shadcn UI Components` to `Next.js App Shell & Routing`, `Community 99`, `Community 134`, `Account Management UI`, `Community 135`, `Wealth & Liability Tracking`, `Community 136`, `Community 139`, `Donation Tracking UI`, `Calculators & Donations UI`, `Dashboard Home UI`, `Utility & Theme Components`, `Tabs Component`, `Community 124`?**
-  _High betweenness centrality (0.016) - this node is a cross-community bridge._
+  _High betweenness centrality (0.018) - this node is a cross-community bridge._
 - **Why does `PrismaService` connect `Audit Logging Service` to `Auth & Session Management`, `NestJS Module Registry`, `Inheritance Planning UI`, `Audit Interceptor Logic`, `Community 68`, `Community 133`, `Budget Management UI`, `Cash & Funds UI`, `Tenant Guard Tests`, `Community 48`, `Insurance Management UI`, `CASL Authorization`, `Auth Domain Contracts`, `API Guards & Search`?**
-  _High betweenness centrality (0.011) - this node is a cross-community bridge._
+  _High betweenness centrality (0.007) - this node is a cross-community bridge._
 - **Why does `WealthMe — Personal Wealth Operating System` connect `Root Layout & Fonts` to `Community 89`?**
   _High betweenness centrality (0.005) - this node is a cross-community bridge._
-- **What connects `prisma`, `CHIPS`, `ChatMessage` to the rest of the system?**
+- **What connects `WealthMe Database Schema`, `Formulas`, `Overview` to the rest of the system?**
   _793 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Auth & Session Management` be split into smaller, more focused modules?**
   _Cohesion score 0.0915915915915916 - nodes in this community are weakly interconnected._
