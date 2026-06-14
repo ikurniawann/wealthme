@@ -26,7 +26,7 @@ menyeluruh, dan deployment self-host yang andal.
 - [x] **T-702** Rate limiting + throttling (@nestjs/throttler)
 - [x] **T-703** Secrets management (Vault/Doppler) — tanpa secret di env produksi
 - [x] **T-704** Kepatuhan PDP/OJK: residensi data Indonesia, retensi audit, catatan consent
-- [ ] **T-705** Observability: pino + OpenTelemetry + Sentry + Grafana (log/trace/metric/error)
+- [x] **T-705** Observability: pino + OpenTelemetry + Sentry + Grafana (log/trace/metric/error)
 - [ ] **T-706** E2E test suite (Playwright web + supertest api) untuk alur kritis termasuk isolasi RBAC
 - [ ] **T-707** Load testing (k6) + baseline kapasitas
 - [ ] **T-708** Deploy: manifest K8s/Swarm + backup DB + runbook on-call
@@ -61,7 +61,8 @@ menyeluruh, dan deployment self-host yang andal.
 
 - 2026-06-14 /epic-loop EPIC-007 #1 "Rate Limiting" → PASS (attempts: 1), PR: https://github.com/andrsrjld/wealthme-web/pull/135
 - 2026-06-14 /epic-loop EPIC-007 #2 "Encryption at-rest" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/136
-- 2026-06-14 /epic-loop EPIC-007 #3 "Secrets & PDP Compliance" → PASS (attempts: 2), PR: pending
+- 2026-06-14 /epic-loop EPIC-007 #3 "Secrets & PDP Compliance" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/137
+- 2026-06-14 /epic-loop EPIC-007 #4 "Observability" → PASS (attempts: 2), PR: pending
 
 ## Dependencies
 

@@ -8,6 +8,7 @@ import helmet from "helmet";
 import { Logger } from "nestjs-pino";
 
 import { AppModule } from "./app.module";
+import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 
 import type { Env } from "./config/env";
 
@@ -24,6 +25,7 @@ async function bootstrap(): Promise<void> {
   // Security headers baseline (CSP, HSTS, X-Frame-Options, …).
   app.use(helmet());
 
+  app.useGlobalFilters(new AllExceptionsFilter());
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   app.enableCors({
