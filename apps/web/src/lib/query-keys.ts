@@ -60,4 +60,20 @@ export const queryKeys = {
     summary: (familyGroupId: string) =>
       ["insurances", familyGroupId, "summary"] as const,
   },
+  reports: {
+    summary: (familyGroupId: string, months: number) =>
+      ["reports", familyGroupId, "summary", months] as const,
+    bank: (familyGroupId: string, start: string, end: string) =>
+      ["reports", familyGroupId, "bank", start, end] as const,
+    detail: (familyGroupId: string, start: string, end: string) =>
+      ["reports", familyGroupId, "detail", start, end] as const,
+    pnl: (familyGroupId: string, start: string, end: string) =>
+      ["reports", familyGroupId, "pnl", start, end] as const,
+    balanceSheet: (familyGroupId: string, date: string) =>
+      ["reports", familyGroupId, "balanceSheet", date] as const,
+    cashflow: (familyGroupId: string, start: string, end: string) =>
+      ["reports", familyGroupId, "cashflow", start, end] as const,
+    sankey: (familyGroupId: string, start: string, end: string) =>
+      ["reports", familyGroupId, "sankey", start, end] as const,
+  },
 } as const;

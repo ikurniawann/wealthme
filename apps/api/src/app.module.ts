@@ -26,6 +26,7 @@ import { LiabilitiesModule } from "./liabilities/liabilities.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis/redis.module";
+import { ReportsModule } from "./reports/reports.module";
 import { SearchModule } from "./search/search.module";
 import { TransactionsModule } from "./transactions/transactions.module";
 
@@ -63,6 +64,7 @@ import { TransactionsModule } from "./transactions/transactions.module";
     InsurancesModule,
     LiabilitiesModule,
     NotificationsModule,
+    ReportsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

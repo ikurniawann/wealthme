@@ -652,4 +652,124 @@ interface UpdateInsuranceDto {
     currency?: string;
 }
 
-export { type AccountDto, AccountDtoSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AssetDto, type AssetHistoryDto, type AuthUser, AuthUserSchema, type BudgetDto, type BudgetPeriod, CONTRACTS_VERSION, type CashflowDto, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CreateAccountInput, CreateAccountInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateGoalDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateTransactionInput, CreateTransactionInputSchema, type DashboardSummaryDto, type GoalDto, type GoalStatus, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentDto, type InvestmentSummaryDto, type InvestmentType, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type NetWorthDto, type NotificationDto, type PremiumPeriod, type Rupiah, RupiahSchema, type SearchResponseDto, type SearchResultDto, type SearchResultType, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateGoalDto, type UpdateInsuranceDto, type UpdateLiabilityDto };
+type ReportPeriod = "daily" | "monthly" | "yearly";
+interface PeriodPoint {
+    label: string;
+    income: number;
+    expense: number;
+    net: number;
+}
+interface SankeyNode {
+    id: string;
+    label: string;
+}
+interface SankeyLink {
+    source: string;
+    target: string;
+    value: number;
+}
+interface SankeyDto {
+    nodes: SankeyNode[];
+    links: SankeyLink[];
+}
+interface CategoryBreakdownItem {
+    categoryName: string;
+    amount: number;
+    percentage: number;
+    color: string | null;
+}
+interface ReportSummaryDto {
+    period: ReportPeriod;
+    points: PeriodPoint[];
+    totalIncome: number;
+    totalExpense: number;
+    netSavings: number;
+    savingsRate: number;
+    topIncomeCategories: CategoryBreakdownItem[];
+    topExpenseCategories: CategoryBreakdownItem[];
+}
+interface BankBreakdownItem {
+    accountName: string;
+    institution: string | null;
+    income: number;
+    expense: number;
+    balance: number;
+}
+interface BankReportDto {
+    period: ReportPeriod;
+    startDate: string;
+    endDate: string;
+    banks: BankBreakdownItem[];
+    totalIncome: number;
+    totalExpense: number;
+}
+interface DetailTransactionItem {
+    id: string;
+    occurredAt: string;
+    description: string | null;
+    categoryName: string | null;
+    accountName: string;
+    type: "income" | "expense" | "transfer";
+    amount: number;
+}
+interface DetailReportDto {
+    period: ReportPeriod;
+    startDate: string;
+    endDate: string;
+    transactions: DetailTransactionItem[];
+    totalIncome: number;
+    totalExpense: number;
+    count: number;
+}
+interface PnlDto {
+    startDate: string;
+    endDate: string;
+    revenue: number;
+    expenses: number;
+    netProfit: number;
+    previousRevenue: number;
+    previousExpenses: number;
+    previousNetProfit: number;
+    revenueGrowth: number;
+    expenseGrowth: number;
+    profitGrowth: number;
+    revenueBreakdown: CategoryBreakdownItem[];
+    expenseBreakdown: CategoryBreakdownItem[];
+}
+interface BalanceSheetDto {
+    asOfDate: string;
+    totalAssets: number;
+    totalLiabilities: number;
+    netWorth: number;
+    assets: {
+        category: string;
+        amount: number;
+        items: {
+            name: string;
+            amount: number;
+        }[];
+    }[];
+    liabilities: {
+        category: string;
+        amount: number;
+        items: {
+            name: string;
+            amount: number;
+        }[];
+    }[];
+}
+interface CashflowStatementDto {
+    startDate: string;
+    endDate: string;
+    operatingInflows: number;
+    operatingOutflows: number;
+    netOperating: number;
+    investingInflows: number;
+    investingOutflows: number;
+    netInvesting: number;
+    openingBalance: number;
+    closingBalance: number;
+    netChange: number;
+}
+
+export { type AccountDto, AccountDtoSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AssetDto, type AssetHistoryDto, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CreateAccountInput, CreateAccountInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateGoalDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateTransactionInput, CreateTransactionInputSchema, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type GoalDto, type GoalStatus, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentDto, type InvestmentSummaryDto, type InvestmentType, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type NetWorthDto, type NotificationDto, type PeriodPoint, type PnlDto, type PremiumPeriod, type ReportPeriod, type ReportSummaryDto, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateGoalDto, type UpdateInsuranceDto, type UpdateLiabilityDto };
