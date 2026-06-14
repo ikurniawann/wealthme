@@ -31,6 +31,7 @@ import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis/redis.module";
 import { ReportsModule } from "./reports/reports.module";
 import { SearchModule } from "./search/search.module";
+import { SplitBillsModule } from "./split-bills/split-bills.module";
 import { TransactionsModule } from "./transactions/transactions.module";
 
 @Module({
@@ -58,6 +59,7 @@ import { TransactionsModule } from "./transactions/transactions.module";
     CommonModule,
     AuditModule,
     SearchModule,
+    SplitBillsModule,
     TransactionsModule,
     DashboardModule,
     BudgetsModule,
