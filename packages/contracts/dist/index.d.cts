@@ -789,4 +789,112 @@ interface ExportJobStatusDto {
     errorMessage?: string;
 }
 
-export { type AccountDto, AccountDtoSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AssetDto, type AssetHistoryDto, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CreateAccountInput, CreateAccountInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateGoalDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateTransactionInput, CreateTransactionInputSchema, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, type GoalDto, type GoalStatus, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentDto, type InvestmentSummaryDto, type InvestmentType, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type NetWorthDto, type NotificationDto, type PeriodPoint, type PnlDto, type PremiumPeriod, type ReportPeriod, type ReportSummaryDto, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateGoalDto, type UpdateInsuranceDto, type UpdateLiabilityDto };
+interface ZakatRequestDto {
+    /** Total cash holdings (IDR) */
+    cash: number;
+    /** Total investment value (IDR) */
+    investments: number;
+    /** Total gold value (IDR) */
+    gold: number;
+    /** Total liabilities/debts (IDR) */
+    liabilities: number;
+}
+interface ZakatResultDto {
+    /** Total zakatable wealth = cash + investments + gold − liabilities */
+    zakatable: number;
+    /** Nisab threshold (85g gold × Rp 1,100,000) */
+    nisab: number;
+    /** Zakat amount due (2.5% of zakatable if obligated) */
+    zakat: number;
+    /** Whether zakat is obligated (zakatable >= nisab) */
+    isObligated: boolean;
+}
+interface Pph21RequestDto {
+    /** Annual gross income (IDR) */
+    grossIncome: number;
+    /** Zakat paid in the year (reduces PKP) */
+    zakatPaid?: number;
+}
+interface TaxBracketDto {
+    /** Bracket label e.g. "0 – 60 Juta" */
+    bracket: string;
+    /** Taxable amount within this bracket */
+    taxableAmount: number;
+    /** Tax rate as decimal (e.g. 0.05) */
+    rate: number;
+    /** Tax due for this bracket */
+    tax: number;
+}
+interface Pph21ResultDto {
+    grossIncome: number;
+    /** Biaya jabatan deduction (5% of gross, max Rp 6,000,000) */
+    biayaJabatan: number;
+    /** PTKP deduction (Rp 54,000,000 for TK/0) */
+    ptkp: number;
+    /** Zakat deduction applied */
+    zakatDeduction: number;
+    /** Penghasilan Kena Pajak */
+    pkp: number;
+    /** Per-bracket tax breakdown */
+    taxBreakdown: TaxBracketDto[];
+    /** Total annual tax */
+    totalTax: number;
+    /** Effective tax rate (totalTax / grossIncome) */
+    effectiveRate: number;
+}
+interface InvestmentCalcRequestDto {
+    /** Present value / initial investment (IDR) */
+    pv: number;
+    /** Periodic payment / regular contribution (IDR) */
+    pmt: number;
+    /** Annual interest/return rate as decimal (e.g. 0.12 for 12%) */
+    rate: number;
+    /** Investment duration in years */
+    years: number;
+    /** Number of compounding periods per year (default: 12) */
+    compoundsPerYear?: number;
+}
+interface InvestmentCalcResultDto {
+    /** Future value */
+    futureValue: number;
+    /** Total amount contributed (pv + pmt × total periods) */
+    totalContributions: number;
+    /** Total interest/gain earned */
+    totalInterest: number;
+}
+interface KprCalcRequestDto {
+    /** Principal loan amount (IDR) */
+    principal: number;
+    /** Annual interest rate as decimal (e.g. 0.07 for 7%) */
+    annualRate: number;
+    /** Loan duration in years */
+    years: number;
+}
+interface KprCalcResultDto {
+    /** Monthly instalment payment (IDR) */
+    monthlyPayment: number;
+    /** Total amount paid over the full term */
+    totalPayment: number;
+    /** Total interest paid */
+    totalInterest: number;
+}
+interface RetirementCalcRequestDto {
+    /** Target retirement fund (IDR) */
+    targetAmount: number;
+    /** Years until retirement */
+    years: number;
+    /** Annual investment return rate as decimal */
+    annualRate: number;
+    /** Existing savings already accumulated (IDR, default: 0) */
+    existingAmount?: number;
+}
+interface RetirementCalcResultDto {
+    /** Required monthly contribution to reach target */
+    monthlyContribution: number;
+    /** Total contributions over the period */
+    totalContributions: number;
+    /** Projected final value (existing + contributions + growth) */
+    projectedValue: number;
+}
+
+export { type AccountDto, AccountDtoSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AssetDto, type AssetHistoryDto, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CreateAccountInput, CreateAccountInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateGoalDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateTransactionInput, CreateTransactionInputSchema, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, type GoalDto, type GoalStatus, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDto, type InvestmentSummaryDto, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type NetWorthDto, type NotificationDto, type PeriodPoint, type PnlDto, type Pph21RequestDto, type Pph21ResultDto, type PremiumPeriod, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type TaxBracketDto, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateGoalDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type ZakatRequestDto, type ZakatResultDto };

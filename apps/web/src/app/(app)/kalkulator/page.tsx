@@ -1,11 +1,19 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { Share2 } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { SectionCard } from "@/components/wm";
 import { Button } from "@/components/ui/button";
-import { formatRupiah, parseRupiah, formatAmountInput, formatNumber } from "@/lib/format";
+import { apiFetch } from "@/lib/api-client";
+import {
+  formatRupiah,
+  parseRupiah,
+  formatAmountInput,
+  formatNumber,
+} from "@/lib/format";
+import type { Pph21ResultDto, ZakatResultDto } from "@wealthme/contracts";
 
 const FIELD_CLASS =
   "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
@@ -38,9 +46,18 @@ const GROUP_NAMES = [
   "Joko",
 ];
 
-type TabKey = "investasi" | "kredit" | "pensiun" | "tabungan" | "splitgroup";
+type TabKey =
+  | "zakat"
+  | "pph21"
+  | "investasi"
+  | "kredit"
+  | "pensiun"
+  | "tabungan"
+  | "splitgroup";
 
 const TABS: { key: TabKey; label: string }[] = [
+  { key: "zakat", label: "🌙 Zakat Maal" },
+  { key: "pph21", label: "🧾 PPh 21" },
   { key: "investasi", label: "📈 Investasi" },
   { key: "kredit", label: "💳 Kredit" },
   { key: "pensiun", label: "🏖️ Pensiun" },
@@ -48,16 +65,12 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "splitgroup", label: "🧾 Split Group" },
 ];
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <label className="mb-1.5 block text-[12.5px] font-semibold">{label}</label>
+      <label className="mb-1.5 block text-[12.5px] font-semibold">
+        {label}
+      </label>
       {children}
     </div>
   );
@@ -75,9 +88,275 @@ function ResultCard({
   return (
     <div className="mt-4 rounded-[14px] border border-primary/30 bg-accent p-[18px] text-center">
       <div className="text-[12px] text-muted-foreground">{label}</div>
-      <div className="mt-0.5 text-[26px] font-black text-primary-strong">{value}</div>
+      <div className="mt-0.5 text-[26px] font-black text-primary-strong">
+        {value}
+      </div>
       <div className="mt-1.5 text-[12px] text-muted-foreground">{detail}</div>
     </div>
+  );
+}
+
+/* ─────────────────────────── Zakat Maal ─────────────────────────── */
+
+function ZakatTab({ token }: { token: string | undefined }) {
+  const [cash, setCash] = useState("50.000.000");
+  const [investments, setInvestments] = useState("30.000.000");
+  const [gold, setGold] = useState("0");
+  const [liabilities, setLiabilities] = useState("0");
+  const [result, setResult] = useState<ZakatResultDto | null>(null);
+  const [loading, setLoading] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  async function handleCalculate() {
+    if (!token) {
+      toast.error("Sesi habis, silakan login ulang.");
+      return;
+    }
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setLoading(true);
+    try {
+      const res = await apiFetch<ZakatResultDto>("/calculators/zakat", {
+        method: "POST",
+        token,
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          cash: parseRupiah(cash),
+          investments: parseRupiah(investments),
+          gold: parseRupiah(gold),
+          liabilities: parseRupiah(liabilities),
+        }),
+      });
+      if (!ctrl.signal.aborted) setResult(res);
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      toast.error("Gagal menghitung zakat. Coba lagi.");
+    } finally {
+      if (!ctrl.signal.aborted) setLoading(false);
+    }
+  }
+
+  return (
+    <SectionCard title="Kalkulator Zakat Maal">
+      <div className="-mt-1 mb-3.5 text-[12px] text-muted-foreground">
+        Nisab = 85g emas × Rp 1.100.000/g ={" "}
+        <strong className="text-foreground">Rp 93.500.000</strong>
+      </div>
+      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+        <Field label="Kas & Tabungan (Rp)">
+          <input
+            type="text"
+            inputMode="numeric"
+            value={cash}
+            onChange={(e) => setCash(formatAmountInput(e.target.value))}
+            className={FIELD_CLASS}
+          />
+        </Field>
+        <Field label="Investasi (Rp)">
+          <input
+            type="text"
+            inputMode="numeric"
+            value={investments}
+            onChange={(e) => setInvestments(formatAmountInput(e.target.value))}
+            className={FIELD_CLASS}
+          />
+        </Field>
+        <Field label="Nilai Emas (Rp)">
+          <input
+            type="text"
+            inputMode="numeric"
+            value={gold}
+            onChange={(e) => setGold(formatAmountInput(e.target.value))}
+            className={FIELD_CLASS}
+          />
+        </Field>
+        <Field label="Hutang / Liabilitas (Rp)">
+          <input
+            type="text"
+            inputMode="numeric"
+            value={liabilities}
+            onChange={(e) => setLiabilities(formatAmountInput(e.target.value))}
+            className={FIELD_CLASS}
+          />
+        </Field>
+      </div>
+      <Button
+        className="mt-4 w-full"
+        onClick={handleCalculate}
+        disabled={loading}
+      >
+        {loading ? "Menghitung..." : "Hitung Zakat"}
+      </Button>
+      {result && (
+        <>
+          <ResultCard
+            label={
+              result.isObligated
+                ? "Zakat yang Wajib Dibayar"
+                : "Belum Wajib Zakat"
+            }
+            value={formatRupiah(result.zakat)}
+            detail={
+              <>
+                Harta zakatable:{" "}
+                <strong className="text-foreground">
+                  {formatRupiah(result.zakatable)}
+                </strong>{" "}
+                · Nisab:{" "}
+                <strong className="text-foreground">
+                  {formatRupiah(result.nisab)}
+                </strong>
+              </>
+            }
+          />
+          {!result.isObligated && (
+            <p className="mt-2 text-center text-[12px] text-muted-foreground">
+              Harta zakatable belum mencapai nisab ({formatRupiah(result.nisab)}
+              ).
+            </p>
+          )}
+        </>
+      )}
+    </SectionCard>
+  );
+}
+
+/* ─────────────────────────── PPh 21 ─────────────────────────── */
+
+function Pph21Tab({ token }: { token: string | undefined }) {
+  const [gross, setGross] = useState("120.000.000");
+  const [zakatPaid, setZakatPaid] = useState("0");
+  const [result, setResult] = useState<Pph21ResultDto | null>(null);
+  const [loading, setLoading] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  async function handleCalculate() {
+    if (!token) {
+      toast.error("Sesi habis, silakan login ulang.");
+      return;
+    }
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setLoading(true);
+    try {
+      const res = await apiFetch<Pph21ResultDto>("/calculators/pph21", {
+        method: "POST",
+        token,
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          grossIncome: parseRupiah(gross),
+          zakatPaid: parseRupiah(zakatPaid),
+        }),
+      });
+      if (!ctrl.signal.aborted) setResult(res);
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      toast.error("Gagal menghitung PPh 21. Coba lagi.");
+    } finally {
+      if (!ctrl.signal.aborted) setLoading(false);
+    }
+  }
+
+  return (
+    <SectionCard title="Kalkulator PPh 21 (UU HPP)">
+      <div className="-mt-1 mb-3.5 text-[12px] text-muted-foreground">
+        PTKP TK/0: Rp 54.000.000 · Biaya jabatan: 5% maks Rp 6.000.000
+      </div>
+      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+        <Field label="Penghasilan Bruto per Tahun (Rp)">
+          <input
+            type="text"
+            inputMode="numeric"
+            value={gross}
+            onChange={(e) => setGross(formatAmountInput(e.target.value))}
+            className={FIELD_CLASS}
+          />
+        </Field>
+        <Field label="Zakat yang Dibayar (Rp)">
+          <input
+            type="text"
+            inputMode="numeric"
+            value={zakatPaid}
+            onChange={(e) => setZakatPaid(formatAmountInput(e.target.value))}
+            className={FIELD_CLASS}
+          />
+        </Field>
+      </div>
+      <Button
+        className="mt-4 w-full"
+        onClick={handleCalculate}
+        disabled={loading}
+      >
+        {loading ? "Menghitung..." : "Hitung PPh 21"}
+      </Button>
+      {result && (
+        <>
+          <ResultCard
+            label="Total PPh 21 Terutang / Tahun"
+            value={formatRupiah(result.totalTax)}
+            detail={
+              <>
+                PKP:{" "}
+                <strong className="text-foreground">
+                  {formatRupiah(result.pkp)}
+                </strong>{" "}
+                · Tarif efektif:{" "}
+                <strong className="text-primary">
+                  {(result.effectiveRate * 100).toFixed(2)}%
+                </strong>
+              </>
+            }
+          />
+          <div className="mt-3.5 space-y-1.5">
+            <div className="text-[12px] font-semibold text-muted-foreground mb-1">
+              Rincian Pengurang:
+            </div>
+            <div className="flex justify-between rounded-md border px-3.5 py-2">
+              <span className="text-[13px]">Biaya Jabatan</span>
+              <span className="text-[13px] font-bold text-destructive">
+                −{formatRupiah(result.biayaJabatan)}
+              </span>
+            </div>
+            <div className="flex justify-between rounded-md border px-3.5 py-2">
+              <span className="text-[13px]">PTKP (TK/0)</span>
+              <span className="text-[13px] font-bold text-destructive">
+                −{formatRupiah(result.ptkp)}
+              </span>
+            </div>
+            {result.zakatDeduction > 0 && (
+              <div className="flex justify-between rounded-md border px-3.5 py-2">
+                <span className="text-[13px]">Zakat</span>
+                <span className="text-[13px] font-bold text-destructive">
+                  −{formatRupiah(result.zakatDeduction)}
+                </span>
+              </div>
+            )}
+            {result.taxBreakdown.length > 0 && (
+              <>
+                <div className="text-[12px] font-semibold text-muted-foreground mt-2 mb-1">
+                  Tarif Progresif:
+                </div>
+                {result.taxBreakdown.map((b) => (
+                  <div
+                    key={b.bracket}
+                    className="flex justify-between rounded-md border px-3.5 py-2"
+                  >
+                    <span className="text-[13px]">
+                      {b.bracket} ({(b.rate * 100).toFixed(0)}%)
+                    </span>
+                    <span className="text-[13px] font-bold text-primary">
+                      {formatRupiah(b.tax)}
+                    </span>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        </>
+      )}
+    </SectionCard>
   );
 }
 
@@ -97,7 +376,11 @@ function InvestasiTab() {
     const factor = Math.pow(1 + r, n);
     const fvCalc = r === 0 ? m + mo * n : m * factor + (mo * (factor - 1)) / r;
     const totalModalCalc = m + mo * n;
-    return { fv: fvCalc, totalModal: totalModalCalc, profit: fvCalc - totalModalCalc };
+    return {
+      fv: fvCalc,
+      totalModal: totalModalCalc,
+      profit: fvCalc - totalModalCalc,
+    };
   }, [modal, monthly, rate, years]);
 
   return (
@@ -147,8 +430,12 @@ function InvestasiTab() {
         value={formatRupiah(fv)}
         detail={
           <>
-            Modal total: <strong className="text-foreground">{formatRupiah(totalModal)}</strong> ·
-            Keuntungan: <strong className="text-success">{formatRupiah(profit)}</strong>
+            Modal total:{" "}
+            <strong className="text-foreground">
+              {formatRupiah(totalModal)}
+            </strong>{" "}
+            · Keuntungan:{" "}
+            <strong className="text-success">{formatRupiah(profit)}</strong>
           </>
         }
       />
@@ -170,7 +457,8 @@ function KreditTab() {
     const r = Number(bunga) / 100 / 12;
     const n = Number(tenor) * 12;
     const factor = Math.pow(1 + r, n);
-    const cicilanCalc = r === 0 ? pokokCalc / n : (pokokCalc * r * factor) / (factor - 1);
+    const cicilanCalc =
+      r === 0 ? pokokCalc / n : (pokokCalc * r * factor) / (factor - 1);
     return { cicilan: cicilanCalc, pokok: pokokCalc, total: cicilanCalc * n };
   }, [pinjaman, bunga, tenor, dp]);
 
@@ -222,8 +510,10 @@ function KreditTab() {
         value={formatRupiah(cicilan)}
         detail={
           <>
-            Pokok pinjaman: <strong className="text-foreground">{formatRupiah(pokok)}</strong> ·
-            Total bayar: <strong className="text-destructive">{formatRupiah(total)}</strong>
+            Pokok pinjaman:{" "}
+            <strong className="text-foreground">{formatRupiah(pokok)}</strong> ·
+            Total bayar:{" "}
+            <strong className="text-destructive">{formatRupiah(total)}</strong>
           </>
         }
       />
@@ -247,7 +537,11 @@ function PensiunTab() {
     const n = years * 12;
     const factor = Math.pow(1 + r, n);
     const pmtCalc =
-      n <= 0 ? 0 : r === 0 ? neededCalc / n : (neededCalc * r * factor) / (factor - 1);
+      n <= 0
+        ? 0
+        : r === 0
+          ? neededCalc / n
+          : (neededCalc * r * factor) / (factor - 1);
     return { needed: neededCalc, pmt: pmtCalc };
   }, [now, retire, monthly, ret]);
 
@@ -370,7 +664,8 @@ function TabunganTab() {
         value={`±${formatNumber(bln)} Bulan`}
         detail={
           <>
-            Target tercapai sekitar: <strong className="text-primary">{label}</strong>
+            Target tercapai sekitar:{" "}
+            <strong className="text-primary">{label}</strong>
           </>
         }
       />
@@ -441,7 +736,8 @@ function SplitGroupTab() {
         value={formatRupiah(per)}
         detail={
           <>
-            Total + pajak/tip: <strong className="text-primary">{formatRupiah(grand)}</strong>
+            Total + pajak/tip:{" "}
+            <strong className="text-primary">{formatRupiah(grand)}</strong>
           </>
         }
       />
@@ -452,7 +748,9 @@ function SplitGroupTab() {
             className="flex items-center justify-between rounded-md border px-3.5 py-2.5"
           >
             <span className="text-[13px] font-semibold">{name}</span>
-            <span className="text-[13px] font-bold text-primary">{formatRupiah(per)}</span>
+            <span className="text-[13px] font-bold text-primary">
+              {formatRupiah(per)}
+            </span>
           </div>
         ))}
       </div>
@@ -469,7 +767,9 @@ function SplitGroupTab() {
 /* ─────────────────────────── Page ─────────────────────────── */
 
 export default function KalkulatorPage() {
-  const [tab, setTab] = useState<TabKey>("investasi");
+  const [tab, setTab] = useState<TabKey>("zakat");
+  const { data: session } = useSession();
+  const token = session?.accessToken as string | undefined;
 
   return (
     <div className="space-y-4">
@@ -490,6 +790,8 @@ export default function KalkulatorPage() {
         ))}
       </div>
 
+      {tab === "zakat" && <ZakatTab token={token} />}
+      {tab === "pph21" && <Pph21Tab token={token} />}
       {tab === "investasi" && <InvestasiTab />}
       {tab === "kredit" && <KreditTab />}
       {tab === "pensiun" && <PensiunTab />}

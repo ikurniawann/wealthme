@@ -11,6 +11,7 @@ import { AuditModule } from "./audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
 import { JwtAuthGuard } from "./auth/guards/jwt-auth.guard";
 import { BudgetsModule } from "./budgets/budgets.module";
+import { CalculatorsModule } from "./calculators/calculators.module";
 import { CaslModule } from "./casl/casl.module";
 import { CategoriesModule } from "./categories/categories.module";
 import { CommonModule } from "./common/common.module";
@@ -59,6 +60,7 @@ import { TransactionsModule } from "./transactions/transactions.module";
     TransactionsModule,
     DashboardModule,
     BudgetsModule,
+    CalculatorsModule,
     GoalsModule,
     AssetsModule,
     ExportsModule,
