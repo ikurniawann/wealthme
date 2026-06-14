@@ -4,11 +4,22 @@ import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Calendar, Download, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
-import { SectionCard, CardLink, MoneyStat, ProgressBar, StatusBadge } from "@/components/wm";
+import { useSession } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  SectionCard,
+  CardLink,
+  MoneyStat,
+  ProgressBar,
+  StatusBadge,
+} from "@/components/wm";
 import { BarChart } from "@/components/charts/bar-chart";
 import { Donut, DonutLegend } from "@/components/charts/donut";
 import type { DonutSegment } from "@/components/charts/donut";
-import { CASHFLOW } from "@/lib/data";
+import { apiFetch } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
+import { formatRupiah } from "@/lib/format";
+import type { ReportSummaryDto } from "@wealthme/contracts";
 
 /* ───────────────────────── Tab definitions ───────────────────────── */
 
@@ -79,7 +90,8 @@ function ActItem({
   return (
     <div
       className={
-        "flex items-center gap-3 py-2.5 " + (last ? "" : "border-b border-border")
+        "flex items-center gap-3 py-2.5 " +
+        (last ? "" : "border-b border-border")
       }
     >
       <div
@@ -138,30 +150,61 @@ const WEALTH_ALLOC: DonutSegment[] = [
   { label: "Lainnya", value: 2, color: "#E2E8F0" },
 ];
 
-function RingkasanSection({ go }: { go: (id: string) => void }) {
+function RingkasanSection({
+  go,
+  summary,
+  isLoading,
+}: {
+  go: (id: string) => void;
+  summary?: ReportSummaryDto;
+  isLoading?: boolean;
+}) {
+  const chartMonths = summary?.points.map((p) => p.label) ?? [];
+  const chartIncome = summary?.points.map((p) => p.income / 1_000_000) ?? [];
+  const chartExpense = summary?.points.map((p) => p.expense / 1_000_000) ?? [];
+  const chartMax = Math.max(...chartIncome, ...chartExpense, 1);
+
+  const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
+
   return (
-    <div className="space-y-3.5">
-      <SectionCard title="Ringkasan Keuangan — April 2025">
+    <div className={"space-y-3.5 " + loadingClass}>
+      <SectionCard title="Ringkasan Keuangan">
         <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
-          <MoneyStat label="Total Pemasukan" value="Rp 25.850.000" valueClass="text-success" />
-          <MoneyStat label="Total Pengeluaran" value="Rp 18.340.000" valueClass="text-destructive" />
-          <MoneyStat label="Surplus" value="Rp 7.510.000" valueClass="text-success" />
+          <MoneyStat
+            label="Total Pemasukan"
+            value={summary ? formatRupiah(summary.totalIncome) : "Rp —"}
+            valueClass="text-success"
+          />
+          <MoneyStat
+            label="Total Pengeluaran"
+            value={summary ? formatRupiah(summary.totalExpense) : "Rp —"}
+            valueClass="text-destructive"
+          />
+          <MoneyStat
+            label="Surplus"
+            value={summary ? formatRupiah(summary.netSavings) : "Rp —"}
+            valueClass="text-success"
+          />
           <div>
-            <div className="mb-[3px] text-[11px] text-muted-foreground">Savings Rate</div>
+            <div className="mb-[3px] text-[11px] text-muted-foreground">
+              Savings Rate
+            </div>
             <div className="text-[17px] font-extrabold text-primary">
-              29% <span className="text-[11px] text-success">▲ 6%</span>
+              {summary ? `${summary.savingsRate}%` : "—"}
             </div>
           </div>
         </div>
-        <div className="mt-4">
-          <BarChart
-            months={CASHFLOW.months}
-            income={CASHFLOW.income}
-            expense={CASHFLOW.expense}
-            max={CASHFLOW.max}
-            height={100}
-          />
-        </div>
+        {chartMonths.length > 0 && (
+          <div className="mt-4">
+            <BarChart
+              months={chartMonths}
+              income={chartIncome}
+              expense={chartExpense}
+              max={chartMax}
+              height={100}
+            />
+          </div>
+        )}
       </SectionCard>
 
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
@@ -203,11 +246,20 @@ function RingkasanSection({ go }: { go: (id: string) => void }) {
           <div>
             <div className="text-[11px] text-muted-foreground">Total Nilai</div>
             <div className="text-[20px] font-black">Rp 565.551.000</div>
-            <div className="mt-1 text-[12px] text-success">+Rp 75.551.000 ▲ 15,4%</div>
-            <div className="text-[11px] text-success">Return hari ini: +Rp 1.250.000 (+0,22%)</div>
+            <div className="mt-1 text-[12px] text-success">
+              +Rp 75.551.000 ▲ 15,4%
+            </div>
+            <div className="text-[11px] text-success">
+              Return hari ini: +Rp 1.250.000 (+0,22%)
+            </div>
           </div>
           <div>
-            <svg viewBox="0 0 260 80" width="100%" height={70} preserveAspectRatio="none">
+            <svg
+              viewBox="0 0 260 80"
+              width="100%"
+              height={70}
+              preserveAspectRatio="none"
+            >
               <defs>
                 <linearGradient id="ig-laporan" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="rgba(79,70,229,.15)" />
@@ -234,10 +286,18 @@ function RingkasanSection({ go }: { go: (id: string) => void }) {
             </svg>
             <div className="mt-0.5 flex gap-2.5">
               <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <span className="size-2 rounded-[2px]" style={{ background: "#4F46E5" }} /> Nilai
+                <span
+                  className="size-2 rounded-[2px]"
+                  style={{ background: "#4F46E5" }}
+                />{" "}
+                Nilai
               </div>
               <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <span className="size-2 rounded-[2px]" style={{ background: "#10B981" }} /> Modal
+                <span
+                  className="size-2 rounded-[2px]"
+                  style={{ background: "#10B981" }}
+                />{" "}
+                Modal
               </div>
             </div>
           </div>
@@ -247,10 +307,12 @@ function RingkasanSection({ go }: { go: (id: string) => void }) {
       <div className="flex items-start gap-3 rounded-[12px] border border-primary/20 bg-accent p-3.5">
         <div className="text-[24px]">🤖</div>
         <div className="flex-1">
-          <div className="text-[13px] font-bold text-primary-strong">Insight AI</div>
+          <div className="text-[13px] font-bold text-primary-strong">
+            Insight AI
+          </div>
           <div className="text-[12px] text-muted-foreground">
-            Pengeluaran gaya hidupmu naik 18% dibanding bulan lalu. Coba atur budget agar savings
-            rate tetap sehat.
+            Pengeluaran gaya hidupmu naik 18% dibanding bulan lalu. Coba atur
+            budget agar savings rate tetap sehat.
           </div>
         </div>
         <a
@@ -267,21 +329,45 @@ function RingkasanSection({ go }: { go: (id: string) => void }) {
 /* ───────────────────────── Section: Harian ───────────────────────── */
 
 function HarianSection() {
+  const today = new Date().toISOString().slice(0, 10);
   return (
     <div className="space-y-3.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[15px] font-bold">Laporan Harian — 18 Mei 2025</div>
+        <div className="text-[15px] font-bold">
+          Laporan Harian —{" "}
+          {new Date().toLocaleDateString("id-ID", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })}
+        </div>
         <input
           type="date"
-          defaultValue="2025-05-18"
+          defaultValue={today}
           className="rounded-md border bg-background px-3 py-[7px] text-[13.5px] outline-none focus:border-primary"
         />
       </div>
       <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
-        <StatTile label="Pemasukan Hari Ini" value="Rp 5.000.000" valueClass="text-success" />
-        <StatTile label="Pengeluaran Hari Ini" value="Rp 1.508.000" valueClass="text-destructive" />
-        <StatTile label="Net Harian" value="+Rp 3.492.000" valueClass="text-success" />
-        <StatTile label="Jumlah Transaksi" value="6" valueClass="text-primary" />
+        <StatTile
+          label="Pemasukan Hari Ini"
+          value="Rp 5.000.000"
+          valueClass="text-success"
+        />
+        <StatTile
+          label="Pengeluaran Hari Ini"
+          value="Rp 1.508.000"
+          valueClass="text-destructive"
+        />
+        <StatTile
+          label="Net Harian"
+          value="+Rp 3.492.000"
+          valueClass="text-success"
+        />
+        <StatTile
+          label="Jumlah Transaksi"
+          value="6"
+          valueClass="text-primary"
+        />
       </div>
       <SectionCard title="Transaksi Hari Ini">
         <ActItem
@@ -289,35 +375,55 @@ function HarianSection() {
           iconBg="#DCFCE7"
           name="Transfer masuk dari BCA"
           cat="09:21 · Pemasukan"
-          right={<div className="text-[13px] font-bold text-success">+Rp 5.000.000</div>}
+          right={
+            <div className="text-[13px] font-bold text-success">
+              +Rp 5.000.000
+            </div>
+          }
         />
         <ActItem
           icon="🛒"
           iconBg="#FEF3C7"
           name="Alfamart Pahlawan"
           cat="14:32 · Belanja"
-          right={<div className="text-[13px] font-bold text-destructive">-Rp 58.000</div>}
+          right={
+            <div className="text-[13px] font-bold text-destructive">
+              -Rp 58.000
+            </div>
+          }
         />
         <ActItem
           icon="☕"
           iconBg="#DBEAFE"
           name="Kopi Kenangan"
           cat="15:10 · Makan & Minum"
-          right={<div className="text-[13px] font-bold text-destructive">-Rp 50.000</div>}
+          right={
+            <div className="text-[13px] font-bold text-destructive">
+              -Rp 50.000
+            </div>
+          }
         />
         <ActItem
           icon="⛽"
           iconBg="#FEE2E2"
           name="Pertamina"
           cat="16:45 · Transportasi"
-          right={<div className="text-[13px] font-bold text-destructive">-Rp 300.000</div>}
+          right={
+            <div className="text-[13px] font-bold text-destructive">
+              -Rp 300.000
+            </div>
+          }
         />
         <ActItem
           icon="🍽️"
           iconBg="#EDE9FE"
           name="Makan Malam"
           cat="19:30 · Makan & Minum"
-          right={<div className="text-[13px] font-bold text-destructive">-Rp 1.100.000</div>}
+          right={
+            <div className="text-[13px] font-bold text-destructive">
+              -Rp 1.100.000
+            </div>
+          }
           last
         />
       </SectionCard>
@@ -334,25 +440,36 @@ const BULANAN_ROWS = [
   { bulan: "Januari", masuk: "22,00 jt", keluar: "21,00 jt", net: "+1,00 jt" },
 ];
 
-function BulananSection() {
+function BulananSection({
+  summary,
+  isLoading,
+}: {
+  summary?: ReportSummaryDto;
+  isLoading?: boolean;
+}) {
+  const chartMonths = summary?.points.map((p) => p.label) ?? [];
+  const chartIncome = summary?.points.map((p) => p.income / 1_000_000) ?? [];
+  const chartExpense = summary?.points.map((p) => p.expense / 1_000_000) ?? [];
+  const chartMax = Math.max(...chartIncome, ...chartExpense, 1);
+
+  const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
+
   return (
-    <div className="space-y-3.5">
+    <div className={"space-y-3.5 " + loadingClass}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[15px] font-bold">Laporan Bulanan 2025</div>
-        <select className="rounded-md border bg-background px-3 py-[7px] text-[13.5px] outline-none focus:border-primary">
-          <option>April 2025</option>
-          <option>Maret 2025</option>
-        </select>
+        <div className="text-[15px] font-bold">Laporan Bulanan</div>
       </div>
-      <SectionCard title="Tren 6 Bulan Terakhir">
-        <BarChart
-          months={CASHFLOW.months}
-          income={CASHFLOW.income}
-          expense={CASHFLOW.expense}
-          max={CASHFLOW.max}
-          height={110}
-        />
-      </SectionCard>
+      {chartMonths.length > 0 && (
+        <SectionCard title="Tren 6 Bulan Terakhir">
+          <BarChart
+            months={chartMonths}
+            income={chartIncome}
+            expense={chartExpense}
+            max={chartMax}
+            height={110}
+          />
+        </SectionCard>
+      )}
       <SectionCard title="Rekap per Bulan">
         <div className="w-full overflow-x-auto">
           <table className="w-full text-[12.5px]">
@@ -365,14 +482,37 @@ function BulananSection() {
               </tr>
             </thead>
             <tbody>
-              {BULANAN_ROWS.map((r) => (
-                <tr key={r.bulan} className="border-b last:border-0">
-                  <td className="py-2.5 font-semibold">{r.bulan}</td>
-                  <td className="mono py-2.5 text-success">{r.masuk}</td>
-                  <td className="mono py-2.5 text-destructive">{r.keluar}</td>
-                  <td className="mono py-2.5 text-success">{r.net}</td>
-                </tr>
-              ))}
+              {summary
+                ? summary.points.map((p) => (
+                    <tr key={p.label} className="border-b last:border-0">
+                      <td className="py-2.5 font-semibold">{p.label}</td>
+                      <td className="mono py-2.5 text-success">
+                        {formatRupiah(p.income)}
+                      </td>
+                      <td className="mono py-2.5 text-destructive">
+                        {formatRupiah(p.expense)}
+                      </td>
+                      <td
+                        className={
+                          "mono py-2.5 " +
+                          (p.net >= 0 ? "text-success" : "text-destructive")
+                        }
+                      >
+                        {p.net >= 0 ? "+" : ""}
+                        {formatRupiah(p.net)}
+                      </td>
+                    </tr>
+                  ))
+                : BULANAN_ROWS.map((r) => (
+                    <tr key={r.bulan} className="border-b last:border-0">
+                      <td className="py-2.5 font-semibold">{r.bulan}</td>
+                      <td className="mono py-2.5 text-success">{r.masuk}</td>
+                      <td className="mono py-2.5 text-destructive">
+                        {r.keluar}
+                      </td>
+                      <td className="mono py-2.5 text-success">{r.net}</td>
+                    </tr>
+                  ))}
             </tbody>
           </table>
         </div>
@@ -384,8 +524,18 @@ function BulananSection() {
 /* ───────────────────────── Section: Tahunan ───────────────────────── */
 
 const TAHUNAN_GROWTH = [
-  { year: "2025 (YTD)", value: "Rp 1.256.780.000", pct: 100, color: "var(--primary)" },
-  { year: "2024", value: "Rp 1.085.000.000", pct: 86, color: "var(--brand-cyan)" },
+  {
+    year: "2025 (YTD)",
+    value: "Rp 1.256.780.000",
+    pct: 100,
+    color: "var(--primary)",
+  },
+  {
+    year: "2024",
+    value: "Rp 1.085.000.000",
+    pct: 86,
+    color: "var(--brand-cyan)",
+  },
   { year: "2023", value: "Rp 920.000.000", pct: 73, color: "var(--success)" },
 ];
 
@@ -401,10 +551,26 @@ function TahunanSection() {
         </select>
       </div>
       <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
-        <StatTile label="Total Pemasukan 2025" value="Rp 95.050.000" valueClass="text-success" />
-        <StatTile label="Total Pengeluaran" value="Rp 76.640.000" valueClass="text-destructive" />
-        <StatTile label="Net Tahunan" value="+Rp 18.410.000" valueClass="text-success" />
-        <StatTile label="Avg Savings Rate" value="19,4%" valueClass="text-primary" />
+        <StatTile
+          label="Total Pemasukan 2025"
+          value="Rp 95.050.000"
+          valueClass="text-success"
+        />
+        <StatTile
+          label="Total Pengeluaran"
+          value="Rp 76.640.000"
+          valueClass="text-destructive"
+        />
+        <StatTile
+          label="Net Tahunan"
+          value="+Rp 18.410.000"
+          valueClass="text-success"
+        />
+        <StatTile
+          label="Avg Savings Rate"
+          value="19,4%"
+          valueClass="text-primary"
+        />
       </div>
       <SectionCard title="Pertumbuhan Net Worth per Tahun">
         <div className="flex flex-col gap-2.5">
@@ -412,7 +578,11 @@ function TahunanSection() {
             <BarRow
               key={g.year}
               label={g.year}
-              right={<span style={{ color: g.color }} className="font-bold">{g.value}</span>}
+              right={
+                <span style={{ color: g.color }} className="font-bold">
+                  {g.value}
+                </span>
+              }
               value={g.pct}
               color={g.color}
             />
@@ -426,35 +596,84 @@ function TahunanSection() {
 /* ───────────────────────── Section: Group Family ───────────────────────── */
 
 const FAMILY_MEMBERS = [
-  { initials: "IA", grad: "linear-gradient(135deg,var(--primary),var(--brand-purple))", name: "Irfan Arsandi", role: "Owner", amount: "Rp 12.500.000" },
-  { initials: "SA", grad: "linear-gradient(135deg,#F97316,#FBBF24)", name: "Siti Arsandi", role: "Istri", amount: "Rp 9.800.000" },
-  { initials: "BA", grad: "linear-gradient(135deg,#10B981,#06B6D4)", name: "Budi Arsandi", role: "Ayah", amount: "Rp 5.400.000" },
-  { initials: "RA", grad: "linear-gradient(135deg,#8B5CF6,#EC4899)", name: "Rina Arsandi", role: "Adik", amount: "Rp 3.500.000" },
+  {
+    initials: "IA",
+    grad: "linear-gradient(135deg,var(--primary),var(--brand-purple))",
+    name: "Irfan Arsandi",
+    role: "Owner",
+    amount: "Rp 12.500.000",
+  },
+  {
+    initials: "SA",
+    grad: "linear-gradient(135deg,#F97316,#FBBF24)",
+    name: "Siti Arsandi",
+    role: "Istri",
+    amount: "Rp 9.800.000",
+  },
+  {
+    initials: "BA",
+    grad: "linear-gradient(135deg,#10B981,#06B6D4)",
+    name: "Budi Arsandi",
+    role: "Ayah",
+    amount: "Rp 5.400.000",
+  },
+  {
+    initials: "RA",
+    grad: "linear-gradient(135deg,#8B5CF6,#EC4899)",
+    name: "Rina Arsandi",
+    role: "Adik",
+    amount: "Rp 3.500.000",
+  },
 ];
 
 function FamilySection() {
   return (
     <div className="space-y-3.5">
-      <div className="text-[15px] font-bold">Laporan Group Family — Arsandi Family</div>
+      <div className="text-[15px] font-bold">
+        Laporan Group Family — Arsandi Family
+      </div>
       <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
-        <StatTile label="Saldo Bersama" value="Rp 625.750.000" valueClass="text-primary" />
-        <StatTile label="Pemasukan Family" value="Rp 42.000.000" valueClass="text-success" />
-        <StatTile label="Pengeluaran Family" value="Rp 31.200.000" valueClass="text-destructive" />
-        <StatTile label="Anggota Aktif" value="4 + 2 admin" valueClass="text-brand-purple" />
+        <StatTile
+          label="Saldo Bersama"
+          value="Rp 625.750.000"
+          valueClass="text-primary"
+        />
+        <StatTile
+          label="Pemasukan Family"
+          value="Rp 42.000.000"
+          valueClass="text-success"
+        />
+        <StatTile
+          label="Pengeluaran Family"
+          value="Rp 31.200.000"
+          valueClass="text-destructive"
+        />
+        <StatTile
+          label="Anggota Aktif"
+          value="4 + 2 admin"
+          valueClass="text-brand-purple"
+        />
       </div>
       <SectionCard title="Pengeluaran per Anggota">
         {FAMILY_MEMBERS.map((m, i) => (
           <ActItem
             key={m.initials}
             icon={
-              <span className="flex size-[38px] items-center justify-center rounded-full text-[12px] text-white" style={{ background: m.grad }}>
+              <span
+                className="flex size-[38px] items-center justify-center rounded-full text-[12px] text-white"
+                style={{ background: m.grad }}
+              >
                 {m.initials}
               </span>
             }
             iconBg="transparent"
             name={m.name}
             cat={m.role}
-            right={<div className="text-[13px] font-bold text-destructive">{m.amount}</div>}
+            right={
+              <div className="text-[13px] font-bold text-destructive">
+                {m.amount}
+              </div>
+            }
             last={i === FAMILY_MEMBERS.length - 1}
           />
         ))}
@@ -468,7 +687,9 @@ function FamilySection() {
 function BankSection() {
   return (
     <div className="space-y-3.5">
-      <div className="text-[15px] font-bold">Laporan Bank — Konsolidasi Rekening</div>
+      <div className="text-[15px] font-bold">
+        Laporan Bank — Konsolidasi Rekening
+      </div>
       <SectionCard title="Saldo per Rekening">
         <ActItem
           icon="BCA"
@@ -551,13 +772,69 @@ const DETAIL_ROWS: {
   jumlah: string;
   up: boolean;
 }[] = [
-  { tgl: "18/05", ket: "Transfer masuk BCA", kategori: "Pemasukan", variant: "success", akun: "BCA", jumlah: "+5.000.000", up: true },
-  { tgl: "18/05", ket: "Alfamart Pahlawan", kategori: "Belanja", variant: "info", akun: "GoPay", jumlah: "-58.000", up: false },
-  { tgl: "17/05", ket: "Gaji Bulanan", kategori: "Gaji", variant: "success", akun: "BCA", jumlah: "+18.000.000", up: true },
-  { tgl: "15/05", ket: "Pembayaran KK Mandiri", kategori: "Kartu Kredit", variant: "danger", akun: "Mandiri", jumlah: "-1.250.000", up: false },
-  { tgl: "14/05", ket: "Belanja Shopee", kategori: "Belanja", variant: "info", akun: "BCA", jumlah: "-450.000", up: false },
-  { tgl: "13/05", ket: "Top Up GoPay", kategori: "e-Wallet", variant: "purple", akun: "BCA", jumlah: "-200.000", up: false },
-  { tgl: "12/05", ket: "Dividen BBCA", kategori: "Dividen", variant: "success", akun: "BCA", jumlah: "+750.000", up: true },
+  {
+    tgl: "18/05",
+    ket: "Transfer masuk BCA",
+    kategori: "Pemasukan",
+    variant: "success",
+    akun: "BCA",
+    jumlah: "+5.000.000",
+    up: true,
+  },
+  {
+    tgl: "18/05",
+    ket: "Alfamart Pahlawan",
+    kategori: "Belanja",
+    variant: "info",
+    akun: "GoPay",
+    jumlah: "-58.000",
+    up: false,
+  },
+  {
+    tgl: "17/05",
+    ket: "Gaji Bulanan",
+    kategori: "Gaji",
+    variant: "success",
+    akun: "BCA",
+    jumlah: "+18.000.000",
+    up: true,
+  },
+  {
+    tgl: "15/05",
+    ket: "Pembayaran KK Mandiri",
+    kategori: "Kartu Kredit",
+    variant: "danger",
+    akun: "Mandiri",
+    jumlah: "-1.250.000",
+    up: false,
+  },
+  {
+    tgl: "14/05",
+    ket: "Belanja Shopee",
+    kategori: "Belanja",
+    variant: "info",
+    akun: "BCA",
+    jumlah: "-450.000",
+    up: false,
+  },
+  {
+    tgl: "13/05",
+    ket: "Top Up GoPay",
+    kategori: "e-Wallet",
+    variant: "purple",
+    akun: "BCA",
+    jumlah: "-200.000",
+    up: false,
+  },
+  {
+    tgl: "12/05",
+    ket: "Dividen BBCA",
+    kategori: "Dividen",
+    variant: "success",
+    akun: "BCA",
+    jumlah: "+750.000",
+    up: true,
+  },
 ];
 
 function DetailSection() {
@@ -593,7 +870,12 @@ function DetailSection() {
                     <StatusBadge variant={r.variant}>{r.kategori}</StatusBadge>
                   </td>
                   <td className="py-2.5">{r.akun}</td>
-                  <td className={"mono py-2.5 text-right " + (r.up ? "text-success" : "text-destructive")}>
+                  <td
+                    className={
+                      "mono py-2.5 text-right " +
+                      (r.up ? "text-success" : "text-destructive")
+                    }
+                  >
                     {r.jumlah}
                   </td>
                 </tr>
@@ -639,20 +921,54 @@ function AliranSection() {
       <SectionCard title="Sankey Aliran Dana — April 2025">
         <div className="flex flex-col gap-3.5">
           <div>
-            <div className="mb-2 text-[11px] font-bold text-success">SUMBER DANA MASUK</div>
+            <div className="mb-2 text-[11px] font-bold text-success">
+              SUMBER DANA MASUK
+            </div>
             <div className="flex flex-col gap-1.5">
-              <FlowBar width="70%" grad="linear-gradient(90deg,var(--success),#34D399)" label="Gaji" amount="Rp 18 jt" />
-              <FlowBar width="32%" grad="linear-gradient(90deg,#8B5CF6,#A78BFA)" label="Dividen" amount="Rp 5,15 jt" />
-              <FlowBar width="20%" grad="linear-gradient(90deg,#06B6D4,#22D3EE)" label="Bunga" amount="Rp 2,7 jt" />
+              <FlowBar
+                width="70%"
+                grad="linear-gradient(90deg,var(--success),#34D399)"
+                label="Gaji"
+                amount="Rp 18 jt"
+              />
+              <FlowBar
+                width="32%"
+                grad="linear-gradient(90deg,#8B5CF6,#A78BFA)"
+                label="Dividen"
+                amount="Rp 5,15 jt"
+              />
+              <FlowBar
+                width="20%"
+                grad="linear-gradient(90deg,#06B6D4,#22D3EE)"
+                label="Bunga"
+                amount="Rp 2,7 jt"
+              />
             </div>
           </div>
           <div className="text-center text-[18px] text-muted-foreground">⬇</div>
           <div>
-            <div className="mb-2 text-[11px] font-bold text-destructive">ALOKASI DANA KELUAR</div>
+            <div className="mb-2 text-[11px] font-bold text-destructive">
+              ALOKASI DANA KELUAR
+            </div>
             <div className="flex flex-col gap-1.5">
-              <FlowBar width="44%" grad="linear-gradient(90deg,#4F46E5,#6366F1)" label="Kebutuhan" amount="Rp 8,07 jt" />
-              <FlowBar width="28%" grad="linear-gradient(90deg,#10B981,#34D399)" label="Gaya Hidup" amount="Rp 4,58 jt" />
-              <FlowBar width="42%" grad="linear-gradient(90deg,#F59E0B,#FBBF24)" label="Tabungan & Investasi" amount="Rp 7,51 jt" />
+              <FlowBar
+                width="44%"
+                grad="linear-gradient(90deg,#4F46E5,#6366F1)"
+                label="Kebutuhan"
+                amount="Rp 8,07 jt"
+              />
+              <FlowBar
+                width="28%"
+                grad="linear-gradient(90deg,#10B981,#34D399)"
+                label="Gaya Hidup"
+                amount="Rp 4,58 jt"
+              />
+              <FlowBar
+                width="42%"
+                grad="linear-gradient(90deg,#F59E0B,#FBBF24)"
+                label="Tabungan & Investasi"
+                amount="Rp 7,51 jt"
+              />
             </div>
           </div>
         </div>
@@ -682,7 +998,11 @@ function StatementRow({
 }) {
   return (
     <tr className={className}>
-      <td className={"py-[7px] " + (indent ? "pl-3.5 " : "") + (labelClass ?? "")}>{label}</td>
+      <td
+        className={"py-[7px] " + (indent ? "pl-3.5 " : "") + (labelClass ?? "")}
+      >
+        {label}
+      </td>
       <td
         className={"mono py-[7px] text-right " + (valueClass ?? "")}
         style={valueColor ? { color: valueColor } : undefined}
@@ -696,13 +1016,23 @@ function StatementRow({
 function PnlSection() {
   return (
     <div className="space-y-3.5">
-      <div className="text-[15px] font-bold">Profit &amp; Loss Statement — April 2025</div>
+      <div className="text-[15px] font-bold">
+        Profit &amp; Loss Statement — April 2025
+      </div>
       <SectionCard>
         <table className="w-full border-collapse text-[13px]">
           <tbody>
-            <StatementRow label="PENDAPATAN" className="border-b-2 border-border" labelClass="py-2.5 font-bold text-success" />
+            <StatementRow
+              label="PENDAPATAN"
+              className="border-b-2 border-border"
+              labelClass="py-2.5 font-bold text-success"
+            />
             <StatementRow label="Gaji" value="Rp 18.000.000" indent />
-            <StatementRow label="Pendapatan Investasi" value="Rp 5.150.000" indent />
+            <StatementRow
+              label="Pendapatan Investasi"
+              value="Rp 5.150.000"
+              indent
+            />
             <StatementRow label="Pendapatan Lain" value="Rp 2.700.000" indent />
             <StatementRow
               label="Total Pendapatan"
@@ -711,7 +1041,11 @@ function PnlSection() {
               labelClass="py-2 font-bold"
               valueClass="font-extrabold text-success"
             />
-            <StatementRow label="BEBAN" className="border-b-2 border-border" labelClass="py-2.5 font-bold text-destructive" />
+            <StatementRow
+              label="BEBAN"
+              className="border-b-2 border-border"
+              labelClass="py-2.5 font-bold text-destructive"
+            />
             <StatementRow label="Kebutuhan Pokok" value="Rp 8.069.600" indent />
             <StatementRow label="Gaya Hidup" value="Rp 4.585.000" indent />
             <StatementRow label="Transportasi" value="Rp 2.200.000" indent />
@@ -748,15 +1082,23 @@ function PnlSection() {
 function BalanceSection() {
   return (
     <div className="space-y-3.5">
-      <div className="text-[15px] font-bold">Balance Sheet — Per 30 April 2025</div>
+      <div className="text-[15px] font-bold">
+        Balance Sheet — Per 30 April 2025
+      </div>
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
         <SectionCard title={<span className="text-success">ASET</span>}>
           <table className="w-full border-collapse text-[12.5px]">
             <tbody>
-              <StatementRow label="Aset Lancar" labelClass="py-1.5 font-bold text-muted-foreground" />
+              <StatementRow
+                label="Aset Lancar"
+                labelClass="py-1.5 font-bold text-muted-foreground"
+              />
               <StatementRow label="Kas & Setara Kas" value="339,45 jt" indent />
               <StatementRow label="Investasi Likuid" value="577,20 jt" indent />
-              <StatementRow label="Aset Tetap" labelClass="py-1.5 font-bold text-muted-foreground" />
+              <StatementRow
+                label="Aset Tetap"
+                labelClass="py-1.5 font-bold text-muted-foreground"
+              />
               <StatementRow label="Properti" value="200,00 jt" indent />
               <StatementRow label="Kendaraan & Lain" value="52,30 jt" indent />
               <StatementRow
@@ -769,10 +1111,17 @@ function BalanceSection() {
             </tbody>
           </table>
         </SectionCard>
-        <SectionCard title={<span className="text-destructive">LIABILITAS &amp; EKUITAS</span>}>
+        <SectionCard
+          title={
+            <span className="text-destructive">LIABILITAS &amp; EKUITAS</span>
+          }
+        >
           <table className="w-full border-collapse text-[12.5px]">
             <tbody>
-              <StatementRow label="Liabilitas" labelClass="py-1.5 font-bold text-muted-foreground" />
+              <StatementRow
+                label="Liabilitas"
+                labelClass="py-1.5 font-bold text-muted-foreground"
+              />
               <StatementRow label="Kartu Kredit" value="15,17 jt" indent />
               <StatementRow label="Pinjaman" value="25,00 jt" indent />
               <StatementRow
@@ -782,7 +1131,10 @@ function BalanceSection() {
                 labelClass="py-1.5 font-bold"
                 valueClass="font-bold text-destructive"
               />
-              <StatementRow label="Ekuitas" labelClass="py-1.5 font-bold text-muted-foreground" />
+              <StatementRow
+                label="Ekuitas"
+                labelClass="py-1.5 font-bold text-muted-foreground"
+              />
               <StatementRow label="Net Worth" value="1.128,78 jt" indent />
               <StatementRow
                 label="Total L + E"
@@ -798,9 +1150,12 @@ function BalanceSection() {
       <div className="flex items-start gap-3 rounded-[12px] border border-primary/20 bg-accent p-3.5">
         <div className="text-[22px]">✅</div>
         <div>
-          <div className="text-[13px] font-bold text-primary-strong">Balance Sheet Seimbang</div>
+          <div className="text-[13px] font-bold text-primary-strong">
+            Balance Sheet Seimbang
+          </div>
           <div className="text-[12px] text-muted-foreground">
-            Total Aset = Total Liabilitas + Ekuitas. Debt-to-Asset ratio 3,2% (sangat sehat).
+            Total Aset = Total Liabilitas + Ekuitas. Debt-to-Asset ratio 3,2%
+            (sangat sehat).
           </div>
         </div>
       </div>
@@ -813,13 +1168,29 @@ function BalanceSection() {
 function CashflowSection() {
   return (
     <div className="space-y-3.5">
-      <div className="text-[15px] font-bold">Cashflow Statement — April 2025</div>
+      <div className="text-[15px] font-bold">
+        Cashflow Statement — April 2025
+      </div>
       <SectionCard>
         <table className="w-full border-collapse text-[13px]">
           <tbody>
-            <StatementRow label="ARUS KAS OPERASI" className="border-b-2 border-border" labelClass="py-2.5 font-bold text-primary" />
-            <StatementRow label="Penerimaan Gaji" value="+18.000.000" indent valueColor="var(--success)" />
-            <StatementRow label="Pengeluaran Operasional" value="-15.340.000" indent valueColor="var(--destructive)" />
+            <StatementRow
+              label="ARUS KAS OPERASI"
+              className="border-b-2 border-border"
+              labelClass="py-2.5 font-bold text-primary"
+            />
+            <StatementRow
+              label="Penerimaan Gaji"
+              value="+18.000.000"
+              indent
+              valueColor="var(--success)"
+            />
+            <StatementRow
+              label="Pengeluaran Operasional"
+              value="-15.340.000"
+              indent
+              valueColor="var(--destructive)"
+            />
             <StatementRow
               label="Net Operasi"
               value="+2.660.000"
@@ -827,9 +1198,23 @@ function CashflowSection() {
               labelClass="py-2 font-bold"
               valueClass="font-extrabold text-success"
             />
-            <StatementRow label="ARUS KAS INVESTASI" className="border-b-2 border-border" labelClass="py-2.5 font-bold text-brand-purple" />
-            <StatementRow label="Dividen & Bunga" value="+7.850.000" indent valueColor="var(--success)" />
-            <StatementRow label="Pembelian Investasi" value="-3.000.000" indent valueColor="var(--destructive)" />
+            <StatementRow
+              label="ARUS KAS INVESTASI"
+              className="border-b-2 border-border"
+              labelClass="py-2.5 font-bold text-brand-purple"
+            />
+            <StatementRow
+              label="Dividen & Bunga"
+              value="+7.850.000"
+              indent
+              valueColor="var(--success)"
+            />
+            <StatementRow
+              label="Pembelian Investasi"
+              value="-3.000.000"
+              indent
+              valueColor="var(--destructive)"
+            />
             <StatementRow
               label="Net Investasi"
               value="+4.850.000"
@@ -837,8 +1222,17 @@ function CashflowSection() {
               labelClass="py-2 font-bold"
               valueClass="font-extrabold text-success"
             />
-            <StatementRow label="ARUS KAS PENDANAAN" className="border-b-2 border-border" labelClass="py-2.5 font-bold text-warning" />
-            <StatementRow label="Pembayaran Cicilan" value="-3.000.000" indent valueColor="var(--destructive)" />
+            <StatementRow
+              label="ARUS KAS PENDANAAN"
+              className="border-b-2 border-border"
+              labelClass="py-2.5 font-bold text-warning"
+            />
+            <StatementRow
+              label="Pembayaran Cicilan"
+              value="-3.000.000"
+              indent
+              valueColor="var(--destructive)"
+            />
             <StatementRow
               label="NET CASHFLOW"
               value="+4.510.000"
@@ -855,25 +1249,56 @@ function CashflowSection() {
 
 /* ───────────────────────── Section: Arus Kas ───────────────────────── */
 
-function KasSection() {
+function KasSection({
+  summary,
+  isLoading,
+}: {
+  summary?: ReportSummaryDto;
+  isLoading?: boolean;
+}) {
+  const chartMonths = summary?.points.map((p) => p.label) ?? [];
+  const chartIncome = summary?.points.map((p) => p.income / 1_000_000) ?? [];
+  const chartExpense = summary?.points.map((p) => p.expense / 1_000_000) ?? [];
+  const chartMax = Math.max(...chartIncome, ...chartExpense, 1);
+
+  const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
+
   return (
-    <div className="space-y-3.5">
-      <SectionCard title="Arus Kas — April 2025">
+    <div className={"space-y-3.5 " + loadingClass}>
+      <SectionCard title="Arus Kas">
         <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
-          <MoneyStat label="Pemasukan" value="Rp 25.850.000" valueClass="text-success" />
-          <MoneyStat label="Pengeluaran" value="Rp 18.340.000" valueClass="text-destructive" />
-          <MoneyStat label="Surplus" value="Rp 7.510.000" valueClass="text-success" />
-          <MoneyStat label="Savings Rate" value="29%" valueClass="text-primary" />
-        </div>
-        <div className="mt-4">
-          <BarChart
-            months={CASHFLOW.months}
-            income={CASHFLOW.income}
-            expense={CASHFLOW.expense}
-            max={CASHFLOW.max}
-            height={110}
+          <MoneyStat
+            label="Pemasukan"
+            value={summary ? formatRupiah(summary.totalIncome) : "Rp —"}
+            valueClass="text-success"
+          />
+          <MoneyStat
+            label="Pengeluaran"
+            value={summary ? formatRupiah(summary.totalExpense) : "Rp —"}
+            valueClass="text-destructive"
+          />
+          <MoneyStat
+            label="Surplus"
+            value={summary ? formatRupiah(summary.netSavings) : "Rp —"}
+            valueClass="text-success"
+          />
+          <MoneyStat
+            label="Savings Rate"
+            value={summary ? `${summary.savingsRate}%` : "—"}
+            valueClass="text-primary"
           />
         </div>
+        {chartMonths.length > 0 && (
+          <div className="mt-4">
+            <BarChart
+              months={chartMonths}
+              income={chartIncome}
+              expense={chartExpense}
+              max={chartMax}
+              height={110}
+            />
+          </div>
+        )}
       </SectionCard>
       <SectionCard title="Sumber Pemasukan">
         <ActItem
@@ -882,7 +1307,9 @@ function KasSection() {
           name="Gaji"
           right={
             <>
-              <div className="text-[13px] font-bold text-success">Rp 18.000.000</div>
+              <div className="text-[13px] font-bold text-success">
+                Rp 18.000.000
+              </div>
               <StatusBadge variant="success">69,6%</StatusBadge>
             </>
           }
@@ -893,7 +1320,9 @@ function KasSection() {
           name="Dividen & Return"
           right={
             <>
-              <div className="text-[13px] font-bold text-success">Rp 5.150.000</div>
+              <div className="text-[13px] font-bold text-success">
+                Rp 5.150.000
+              </div>
               <StatusBadge variant="purple">19,9%</StatusBadge>
             </>
           }
@@ -904,7 +1333,9 @@ function KasSection() {
           name="Bunga Tabungan"
           right={
             <>
-              <div className="text-[13px] font-bold text-success">Rp 1.500.000</div>
+              <div className="text-[13px] font-bold text-success">
+                Rp 1.500.000
+              </div>
               <StatusBadge variant="info">5,8%</StatusBadge>
             </>
           }
@@ -915,7 +1346,9 @@ function KasSection() {
           name="Lainnya"
           right={
             <>
-              <div className="text-[13px] font-bold text-success">Rp 1.200.000</div>
+              <div className="text-[13px] font-bold text-success">
+                Rp 1.200.000
+              </div>
               <StatusBadge variant="warning">4,6%</StatusBadge>
             </>
           }
@@ -929,10 +1362,30 @@ function KasSection() {
 /* ───────────────────────── Section: Investasi ───────────────────────── */
 
 const INV_TYPES = [
-  { label: "📊 Reksa Dana", value: "Rp 245.600.000 · 43%", pct: 43, color: "var(--primary)" },
-  { label: "📉 Saham", value: "Rp 201.300.000 · 35%", pct: 35, color: "var(--brand-cyan)" },
-  { label: "🏛️ Obligasi", value: "Rp 80.300.000 · 14%", pct: 14, color: "var(--success)" },
-  { label: "🥇 Emas", value: "Rp 50.000.000 · 9%", pct: 9, color: "var(--warning)" },
+  {
+    label: "📊 Reksa Dana",
+    value: "Rp 245.600.000 · 43%",
+    pct: 43,
+    color: "var(--primary)",
+  },
+  {
+    label: "📉 Saham",
+    value: "Rp 201.300.000 · 35%",
+    pct: 35,
+    color: "var(--brand-cyan)",
+  },
+  {
+    label: "🏛️ Obligasi",
+    value: "Rp 80.300.000 · 14%",
+    pct: 14,
+    color: "var(--success)",
+  },
+  {
+    label: "🥇 Emas",
+    value: "Rp 50.000.000 · 9%",
+    pct: 9,
+    color: "var(--warning)",
+  },
 ];
 
 function InvSection() {
@@ -940,14 +1393,24 @@ function InvSection() {
     <div className="space-y-3.5">
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
         <div className="rounded-[12px] border bg-card p-4">
-          <div className="mb-1 text-[11px] text-muted-foreground">Total Portofolio</div>
-          <div className="text-[22px] font-black text-primary">Rp 577.200.000</div>
-          <div className="mt-1 text-[12px] text-success">▲ 12,40% · +Rp 75.551.000</div>
+          <div className="mb-1 text-[11px] text-muted-foreground">
+            Total Portofolio
+          </div>
+          <div className="text-[22px] font-black text-primary">
+            Rp 577.200.000
+          </div>
+          <div className="mt-1 text-[12px] text-success">
+            ▲ 12,40% · +Rp 75.551.000
+          </div>
         </div>
         <div className="rounded-[12px] border bg-card p-4">
-          <div className="mb-1 text-[11px] text-muted-foreground">Return YTD</div>
+          <div className="mb-1 text-[11px] text-muted-foreground">
+            Return YTD
+          </div>
           <div className="text-[22px] font-black text-success">+15,4%</div>
-          <div className="mt-1 text-[12px] text-muted-foreground">Benchmark IHSG: +8,2%</div>
+          <div className="mt-1 text-[12px] text-muted-foreground">
+            Benchmark IHSG: +8,2%
+          </div>
         </div>
       </div>
       <SectionCard title="Portofolio per Jenis">
@@ -956,7 +1419,11 @@ function InvSection() {
             <BarRow
               key={t.label}
               label={t.label}
-              right={<span className="font-bold" style={{ color: t.color }}>{t.value}</span>}
+              right={
+                <span className="font-bold" style={{ color: t.color }}>
+                  {t.value}
+                </span>
+              }
               value={t.pct}
               color={t.color}
             />
@@ -970,10 +1437,34 @@ function InvSection() {
 /* ───────────────────────── Section: Aset & Liabilitas ───────────────────────── */
 
 const RASIO = [
-  { label: "Debt-to-Asset Ratio", value: "3,2%", valueColor: "var(--success)", hint: "Sangat Aman (<30%)", hintColor: "var(--success)" },
-  { label: "Liquid Asset Ratio", value: "27%", valueColor: "var(--primary)", hint: "Baik (>20%)", hintColor: "var(--primary)" },
-  { label: "Emergency Fund Ratio", value: "3,7x", valueColor: "var(--warning)", hint: "Target: 6x (perlu boost)", hintColor: "var(--warning)" },
-  { label: "Net Worth Growth", value: "8,45%", valueColor: "var(--success)", hint: "▲ vs bulan lalu", hintColor: "var(--success)" },
+  {
+    label: "Debt-to-Asset Ratio",
+    value: "3,2%",
+    valueColor: "var(--success)",
+    hint: "Sangat Aman (<30%)",
+    hintColor: "var(--success)",
+  },
+  {
+    label: "Liquid Asset Ratio",
+    value: "27%",
+    valueColor: "var(--primary)",
+    hint: "Baik (>20%)",
+    hintColor: "var(--primary)",
+  },
+  {
+    label: "Emergency Fund Ratio",
+    value: "3,7x",
+    valueColor: "var(--warning)",
+    hint: "Target: 6x (perlu boost)",
+    hintColor: "var(--warning)",
+  },
+  {
+    label: "Net Worth Growth",
+    value: "8,45%",
+    valueColor: "var(--success)",
+    hint: "▲ vs bulan lalu",
+    hintColor: "var(--success)",
+  },
 ];
 
 function AslSection() {
@@ -981,23 +1472,42 @@ function AslSection() {
     <div className="space-y-3.5">
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
         <div className="rounded-[12px] border bg-card p-4">
-          <div className="mb-1 text-[11px] text-muted-foreground">Total Aset</div>
-          <div className="text-[22px] font-black text-success">Rp 1.168.950.000</div>
+          <div className="mb-1 text-[11px] text-muted-foreground">
+            Total Aset
+          </div>
+          <div className="text-[22px] font-black text-success">
+            Rp 1.168.950.000
+          </div>
           <div className="mt-1 text-[12px] text-success">▲ 8,45% bulan ini</div>
         </div>
         <div className="rounded-[12px] border bg-card p-4">
-          <div className="mb-1 text-[11px] text-muted-foreground">Total Liabilitas</div>
-          <div className="text-[22px] font-black text-destructive">-Rp 40.170.000</div>
-          <div className="mt-1 text-[12px] text-success">▼ Turun 1,08% (berkurang)</div>
+          <div className="mb-1 text-[11px] text-muted-foreground">
+            Total Liabilitas
+          </div>
+          <div className="text-[22px] font-black text-destructive">
+            -Rp 40.170.000
+          </div>
+          <div className="mt-1 text-[12px] text-success">
+            ▼ Turun 1,08% (berkurang)
+          </div>
         </div>
       </div>
       <SectionCard title="Rasio Keuangan">
         <div className="grid grid-cols-2 gap-3">
           {RASIO.map((r) => (
             <div key={r.label} className="rounded-md bg-muted p-3">
-              <div className="text-[10.5px] text-muted-foreground">{r.label}</div>
-              <div className="text-[20px] font-extrabold" style={{ color: r.valueColor }}>{r.value}</div>
-              <div className="text-[10.5px]" style={{ color: r.hintColor }}>{r.hint}</div>
+              <div className="text-[10.5px] text-muted-foreground">
+                {r.label}
+              </div>
+              <div
+                className="text-[20px] font-extrabold"
+                style={{ color: r.valueColor }}
+              >
+                {r.value}
+              </div>
+              <div className="text-[10.5px]" style={{ color: r.hintColor }}>
+                {r.hint}
+              </div>
             </div>
           ))}
         </div>
@@ -1015,10 +1525,34 @@ const PERFORMA: {
   pct: number;
   color: string;
 }[] = [
-  { label: "Savings Rate Target 30%", badge: "29% · Hampir", badgeVariant: "warning", pct: 29, color: "var(--warning)" },
-  { label: "Investment Return Target 12%", badge: "15,4% · Terlampaui ✓", badgeVariant: "success", pct: 100, color: "var(--success)" },
-  { label: "Net Worth Growth Target 10%", badge: "8,45% · Perlu Boost", badgeVariant: "info", pct: 84, color: "var(--primary)" },
-  { label: "Budget Adherence Target 95%", badge: "88% · Perlu Perbaikan", badgeVariant: "danger", pct: 88, color: "var(--destructive)" },
+  {
+    label: "Savings Rate Target 30%",
+    badge: "29% · Hampir",
+    badgeVariant: "warning",
+    pct: 29,
+    color: "var(--warning)",
+  },
+  {
+    label: "Investment Return Target 12%",
+    badge: "15,4% · Terlampaui ✓",
+    badgeVariant: "success",
+    pct: 100,
+    color: "var(--success)",
+  },
+  {
+    label: "Net Worth Growth Target 10%",
+    badge: "8,45% · Perlu Boost",
+    badgeVariant: "info",
+    pct: 84,
+    color: "var(--primary)",
+  },
+  {
+    label: "Budget Adherence Target 95%",
+    badge: "88% · Perlu Perbaikan",
+    badgeVariant: "danger",
+    pct: 88,
+    color: "var(--destructive)",
+  },
 ];
 
 function PerfSection() {
@@ -1030,7 +1564,9 @@ function PerfSection() {
             <BarRow
               key={p.label}
               label={p.label}
-              right={<StatusBadge variant={p.badgeVariant}>{p.badge}</StatusBadge>}
+              right={
+                <StatusBadge variant={p.badgeVariant}>{p.badge}</StatusBadge>
+              }
               value={p.pct}
               color={p.color}
             />
@@ -1049,12 +1585,18 @@ function PajakSection() {
       <SectionCard title="Estimasi Pajak 2025">
         <div className="mb-3 grid grid-cols-1 gap-3.5 md:grid-cols-2">
           <div>
-            <div className="mb-1 text-[11px] text-muted-foreground">Penghasilan Kena Pajak (est.)</div>
+            <div className="mb-1 text-[11px] text-muted-foreground">
+              Penghasilan Kena Pajak (est.)
+            </div>
             <div className="text-[20px] font-extrabold">Rp 216.000.000</div>
           </div>
           <div>
-            <div className="mb-1 text-[11px] text-muted-foreground">Estimasi PPh 21</div>
-            <div className="text-[20px] font-extrabold text-destructive">Rp 21.600.000</div>
+            <div className="mb-1 text-[11px] text-muted-foreground">
+              Estimasi PPh 21
+            </div>
+            <div className="text-[20px] font-extrabold text-destructive">
+              Rp 21.600.000
+            </div>
           </div>
         </div>
         <ActItem
@@ -1063,7 +1605,11 @@ function PajakSection() {
           iconSize="13px"
           name="PPh 21 (Gaji)"
           cat="Tarif 5%-15%"
-          right={<div className="text-[13px] font-bold text-destructive">Rp 18.000.000</div>}
+          right={
+            <div className="text-[13px] font-bold text-destructive">
+              Rp 18.000.000
+            </div>
+          }
         />
         <ActItem
           icon="📊"
@@ -1071,7 +1617,11 @@ function PajakSection() {
           iconSize="13px"
           name="PPh Dividen"
           cat="Tarif final 10%"
-          right={<div className="text-[13px] font-bold text-destructive">Rp 2.100.000</div>}
+          right={
+            <div className="text-[13px] font-bold text-destructive">
+              Rp 2.100.000
+            </div>
+          }
         />
         <ActItem
           icon="🏦"
@@ -1079,7 +1629,11 @@ function PajakSection() {
           iconSize="13px"
           name="PPh Bunga Deposito"
           cat="Tarif final 20%"
-          right={<div className="text-[13px] font-bold text-destructive">Rp 1.500.000</div>}
+          right={
+            <div className="text-[13px] font-bold text-destructive">
+              Rp 1.500.000
+            </div>
+          }
           last
         />
       </SectionCard>
@@ -1094,14 +1648,33 @@ function LaporanInner() {
   const router = useRouter();
   const tab = sp.get("tab") ?? "rsum";
 
-  const go = (id: string) => router.push("/laporan?tab=" + id, { scroll: false });
+  const { data: session } = useSession();
+  const familyGroupId = session?.familyGroupId ?? "";
+
+  const SUMMARY_MONTHS = 6;
+  const { data: summary, isLoading: isSummaryLoading } =
+    useQuery<ReportSummaryDto>({
+      queryKey: queryKeys.reports.summary(familyGroupId, SUMMARY_MONTHS),
+      queryFn: () =>
+        apiFetch<ReportSummaryDto>(
+          `/family-groups/${familyGroupId}/reports/summary?months=${SUMMARY_MONTHS}`,
+          { token: session?.accessToken },
+        ),
+      enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
+      staleTime: 60_000,
+    });
+
+  const go = (id: string) =>
+    router.push("/laporan?tab=" + id, { scroll: false });
 
   function renderSection() {
     switch (tab) {
       case "rharian":
         return <HarianSection />;
       case "rbulanan":
-        return <BulananSection />;
+        return (
+          <BulananSection summary={summary} isLoading={isSummaryLoading} />
+        );
       case "rtahunan":
         return <TahunanSection />;
       case "rfamily":
@@ -1119,7 +1692,7 @@ function LaporanInner() {
       case "rcashflow":
         return <CashflowSection />;
       case "rkas":
-        return <KasSection />;
+        return <KasSection summary={summary} isLoading={isSummaryLoading} />;
       case "rinv":
         return <InvSection />;
       case "rasl":
@@ -1130,7 +1703,13 @@ function LaporanInner() {
         return <PajakSection />;
       case "rsum":
       default:
-        return <RingkasanSection go={go} />;
+        return (
+          <RingkasanSection
+            go={go}
+            summary={summary}
+            isLoading={isSummaryLoading}
+          />
+        );
     }
   }
 
@@ -1138,7 +1717,9 @@ function LaporanInner() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[13px] text-muted-foreground">Pantau keuangan dan investasi kamu</div>
+        <div className="text-[13px] text-muted-foreground">
+          Pantau keuangan dan investasi kamu
+        </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => toast("📅 Pilih rentang tanggal")}
