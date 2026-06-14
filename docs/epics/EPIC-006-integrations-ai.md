@@ -43,9 +43,9 @@ dan menghadirkan AI Advisor serta kategorisasi transaksi berbasis LLM.
 - [x] **T-606** Kategorisasi transaksi otomatis (`claude-haiku-4-5`)
 - [x] **T-607** Notifikasi email/push nyata (SendGrid/SES/FCM) menggantikan mock `NotificationPort`
 
-### Search Upgrade
+### Search Upgrade ✅
 
-- [ ] **T-608** Upgrade pencarian ke Meilisearch (bila FTS tak memadai)
+- [x] **T-608** Upgrade pencarian ke Meilisearch (bila FTS tak memadai)
 
 ## Acceptance Criteria
 
@@ -72,6 +72,7 @@ dan menghadirkan AI Advisor serta kategorisasi transaksi berbasis LLM.
 - 2026-06-14 /epic-loop EPIC-006 #1 "OCR Provider" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/130
 - 2026-06-14 /epic-loop EPIC-006 #2 "Open Banking & Market Data" → PASS (attempts: 3), PR: https://github.com/andrsrjld/wealthme-web/pull/131
 - 2026-06-14 /epic-loop EPIC-006 #3 "AI Advisor" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/132
+- 2026-06-14 /epic-loop EPIC-006 #4 "Auto Categorization & Notifications" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/133
 
 ## Dependencies
 
