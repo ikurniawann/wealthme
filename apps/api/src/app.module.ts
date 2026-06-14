@@ -25,6 +25,7 @@ import { DonationsModule } from "./donations/donations.module";
 import { ExportsModule } from "./exports/exports.module";
 import { FamilyGroupsModule } from "./family-groups/family-groups.module";
 import { FxModule } from "./fx/fx.module";
+import { GdprModule } from "./gdpr/gdpr.module";
 import { GoalsModule } from "./goals/goals.module";
 import { HealthModule } from "./health/health.module";
 import { InheritanceModule } from "./inheritance/inheritance.module";
@@ -89,6 +90,7 @@ import { TransactionsModule } from "./transactions/transactions.module";
     StorageModule,
     TaxModule,
     FxModule,
+    GdprModule,
     ReconciliationModule,
     OpenBankingModule,
   ],
