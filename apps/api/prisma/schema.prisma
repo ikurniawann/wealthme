@@ -91,6 +91,16 @@ enum PremiumPeriod {
   quarterly
   yearly
 }
+
+enum SplitStatus {
+  open
+  settled
+}
+
+enum ParticipantStatus {
+  pending
+  paid
+}
 // ── Models ────────────────────────────────────────────────────────────────────
 
 model User {
@@ -124,6 +134,7 @@ model FamilyGroup {
   liabilities   Liability[]
   insurances    Insurance[]
   invitations   Invitation[]
+  splitBills    SplitBill[]
 
   @@map("family_groups")
 }
@@ -381,4 +392,37 @@ model Insurance {
 
   @@index([familyGroupId])
   @@map("insurances")
+}
+
+model SplitBill {
+  id            String             @id @default(uuid())
+  familyGroupId String
+  title         String             @db.VarChar(200)
+  totalAmount   BigInt
+  currency      String             @default("IDR") @db.VarChar(3)
+  shareToken    String             @unique @default(uuid())
+  status        SplitStatus        @default(open)
+  notes         String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  familyGroup   FamilyGroup        @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  participants  SplitParticipant[]
+
+  @@index([familyGroupId])
+  @@index([shareToken])
+  @@map("split_bills")
+}
+
+model SplitParticipant {
+  id           String            @id @default(uuid())
+  splitBillId  String
+  name         String            @db.VarChar(100)
+  amountOwed   BigInt
+  status       ParticipantStatus @default(pending)
+  paidAt       DateTime?
+  createdAt    DateTime          @default(now())
+  splitBill    SplitBill         @relation(fields: [splitBillId], references: [id], onDelete: Cascade)
+
+  @@index([splitBillId])
+  @@map("split_participants")
 }

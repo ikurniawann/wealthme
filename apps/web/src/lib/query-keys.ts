@@ -62,6 +62,9 @@ export const queryKeys = {
     summary: (familyGroupId: string) =>
       ["insurances", familyGroupId, "summary"] as const,
   },
+  splitBills: {
+    list: (fgId: string) => ["split-bills", fgId] as const,
+  },
   exports: {
     status: (familyGroupId: string, jobId: string) =>
       ["exports", familyGroupId, jobId] as const,
