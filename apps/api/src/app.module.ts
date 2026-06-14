@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
-import { ThrottlerModule } from "@nestjs/throttler";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
 
 import { AccountsModule } from "./accounts/accounts.module";
@@ -48,7 +48,7 @@ import { TransactionsModule } from "./transactions/transactions.module";
       isGlobal: true,
       validate: validateEnv,
     }),
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 30 }]),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     LoggerModule.forRoot({
       pinoHttp: {
         transport:
@@ -91,6 +91,7 @@ import { TransactionsModule } from "./transactions/transactions.module";
     OpenBankingModule,
   ],
   providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: TenantGuard },
     { provide: APP_GUARD, useClass: AbilitiesGuard },
