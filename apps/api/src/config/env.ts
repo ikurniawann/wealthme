@@ -35,6 +35,8 @@ const envSchema = z.object({
   MAIL_USER: z.string().optional(),
   MAIL_PASS: z.string().optional(),
   MAIL_FROM: z.string().optional(),
+  // Anthropic — optional; enables real Claude OCR when set
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

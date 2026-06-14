@@ -17,6 +17,7 @@ import {
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
+import { Throttle } from "@nestjs/throttler";
 
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
@@ -65,6 +66,7 @@ export class TransactionsController {
   }
 
   @Post("scan")
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   @CheckAbility((ab: AppAbility) => ab.can("manage", "Transaction"))
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiOperation({

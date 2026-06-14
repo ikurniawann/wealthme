@@ -1,15 +1,28 @@
 import { Module } from "@nestjs/common";
+import { ConfigModule, ConfigService } from "@nestjs/config";
 
+import { ClaudeVisionOcrAdapter } from "./ocr/claude-vision-ocr.adapter";
 import { MockOcrService } from "./ocr/mock-ocr.service";
 import { OCR_PORT } from "./ocr/ocr.port";
 import { TransactionsController } from "./transactions.controller";
 import { TransactionsService } from "./transactions.service";
 
+import type { Env } from "../config/env";
+
 @Module({
+  imports: [ConfigModule],
   controllers: [TransactionsController],
   providers: [
     TransactionsService,
-    { provide: OCR_PORT, useClass: MockOcrService },
+    {
+      provide: OCR_PORT,
+      useFactory: (config: ConfigService<Env, true>) => {
+        const apiKey = config.get("ANTHROPIC_API_KEY", { infer: true });
+        if (apiKey) return new ClaudeVisionOcrAdapter(apiKey);
+        return new MockOcrService();
+      },
+      inject: [ConfigService],
+    },
   ],
 })
 export class TransactionsModule {}
