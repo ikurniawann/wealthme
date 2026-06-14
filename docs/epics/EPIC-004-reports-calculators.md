@@ -21,12 +21,12 @@ Zakat & PPh 21 yang deterministik di backend dan kalkulator finansial.
 
 ## Tasks
 
-### Report read-models
+### Report read-models ✅
 
-- [ ] **T-401** Reports: Ringkasan / Harian / Bulanan / Tahunan
-- [ ] **T-402** Reports: Group Family / Bank / Detail
-- [ ] **T-403** Reports: PNL / Balance Sheet / Cashflow / Aliran Dana (data Sankey)
-- [ ] **T-404** Wire halaman **Laporan** (16 tab) ke API report (scroll tab horizontal)
+- [x] **T-401** Reports: Ringkasan / Harian / Bulanan / Tahunan
+- [x] **T-402** Reports: Group Family / Bank / Detail
+- [x] **T-403** Reports: PNL / Balance Sheet / Cashflow / Aliran Dana (data Sankey)
+- [x] **T-404** Wire halaman **Laporan** (16 tab) ke API report (scroll tab horizontal)
 
 ### Export
 
@@ -61,3 +61,7 @@ Zakat & PPh 21 yang deterministik di backend dan kalkulator finansial.
 
 - EPIC-002 & EPIC-003 (sumber data transaksi, investasi, aset, liabilitas).
 - **Catatan:** T-402 (Group Family/Bank) lunak bergantung pada model family EPIC-005; bila EPIC-004 jalan duluan, kirim T-402 sebagai follow-up setelah T-503.
+
+## Automation Log
+
+- 2026-06-14 /epic-loop EPIC-004 #1 "Report read-models" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/120

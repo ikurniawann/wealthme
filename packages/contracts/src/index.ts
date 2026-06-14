@@ -19,3 +19,4 @@ export * from "./investments/index.js";
 export * from "./liabilities/index.js";
 export * from "./insurances/index.js";
 export * from "./reports/index.js";
+export * from "./exports/index.js";

@@ -60,6 +60,10 @@ export const queryKeys = {
     summary: (familyGroupId: string) =>
       ["insurances", familyGroupId, "summary"] as const,
   },
+  exports: {
+    status: (familyGroupId: string, jobId: string) =>
+      ["exports", familyGroupId, jobId] as const,
+  },
   reports: {
     summary: (familyGroupId: string, months: number) =>
       ["reports", familyGroupId, "summary", months] as const,
