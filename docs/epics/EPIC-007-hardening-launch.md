@@ -1,6 +1,6 @@
 # EPIC-007: Hardening & Launch
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 phase: 7
 priority: P2
@@ -27,11 +27,11 @@ menyeluruh, dan deployment self-host yang andal.
 - [x] **T-703** Secrets management (Vault/Doppler) — tanpa secret di env produksi
 - [x] **T-704** Kepatuhan PDP/OJK: residensi data Indonesia, retensi audit, catatan consent
 - [x] **T-705** Observability: pino + OpenTelemetry + Sentry + Grafana (log/trace/metric/error)
-- [ ] **T-706** E2E test suite (Playwright web + supertest api) untuk alur kritis termasuk isolasi RBAC
-- [ ] **T-707** Load testing (k6) + baseline kapasitas
-- [ ] **T-708** Deploy: manifest K8s/Swarm + backup DB + runbook on-call
-- [ ] **T-709** Accessibility pass (WCAG 2.2) di seluruh halaman
-- [ ] **T-710** i18n: locale EN berdampingan dengan ID
+- [x] **T-706** E2E test suite (Playwright web + supertest api) untuk alur kritis termasuk isolasi RBAC ✅
+- [x] **T-707** Load testing (k6) + baseline kapasitas ✅
+- [x] **T-708** Deploy: manifest K8s/Swarm + backup DB + runbook on-call ✅
+- [x] **T-709** Accessibility pass (WCAG 2.2) di seluruh halaman ✅
+- [x] **T-710** i18n: locale EN berdampingan dengan ID ✅
 
 ## Acceptance Criteria
 
@@ -62,7 +62,10 @@ menyeluruh, dan deployment self-host yang andal.
 - 2026-06-14 /epic-loop EPIC-007 #1 "Rate Limiting" → PASS (attempts: 1), PR: https://github.com/andrsrjld/wealthme-web/pull/135
 - 2026-06-14 /epic-loop EPIC-007 #2 "Encryption at-rest" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/136
 - 2026-06-14 /epic-loop EPIC-007 #3 "Secrets & PDP Compliance" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/137
-- 2026-06-14 /epic-loop EPIC-007 #4 "Observability" → PASS (attempts: 2), PR: pending
+- 2026-06-14 /epic-loop EPIC-007 #4 "Observability" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/138
+- 2026-06-14 /epic-loop EPIC-007 #5 "E2E Tests" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/139
+- 2026-06-14 /epic-loop EPIC-007 #6 "Load Testing + Deploy Manifests" → PASS (attempts: 1), PR: https://github.com/andrsrjld/wealthme-web/pull/140
+- 2026-06-14 /epic-loop EPIC-007 #7 "Accessibility + i18n" → PASS (attempts: 3), PR: https://github.com/andrsrjld/wealthme-web/pull/141
 
 ## Dependencies
 
