@@ -5,6 +5,7 @@ import { ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
 
 import { AccountsModule } from "./accounts/accounts.module";
+import { AssetsModule } from "./assets/assets.module";
 import { AuditInterceptor } from "./audit/audit.interceptor";
 import { AuditModule } from "./audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
@@ -57,9 +58,10 @@ import { TransactionsModule } from "./transactions/transactions.module";
     DashboardModule,
     BudgetsModule,
     GoalsModule,
+    AssetsModule,
     InvestmentsModule,
-    LiabilitiesModule,
     InsurancesModule,
+    LiabilitiesModule,
     NotificationsModule,
   ],
   providers: [

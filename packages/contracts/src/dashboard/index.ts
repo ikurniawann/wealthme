@@ -18,8 +18,18 @@ export interface AccountSummaryItemDto {
   total: number;
 }
 
+export interface NetWorthDto {
+  accountsTotal: string;
+  investmentsTotal: string;
+  assetsTotal: string;
+  liabilitiesTotal: string;
+  netWorth: string;
+  currency: string;
+}
+
 export interface DashboardSummaryDto {
   netWorth: number;
+  assetsTotal: number;
   cashflow: CashflowDto;
   sparkline: number[];
   allocation: AllocationItemDto[];

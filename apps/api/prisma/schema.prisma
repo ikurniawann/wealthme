@@ -47,6 +47,14 @@ enum GoalStatus {
   at_risk
 }
 
+enum AssetType {
+  properti
+  kendaraan
+  elektronik
+  perhiasan
+  lainnya
+}
+
 enum InvestmentType {
   saham
   reksa_dana
@@ -111,6 +119,7 @@ model FamilyGroup {
   budgets       Budget[]
   goals         Goal[]
   notifications Notification[]
+  assets        Asset[]
   investments   Investment[]
   liabilities   Liability[]
   insurances    Insurance[]
@@ -236,19 +245,47 @@ model Notification {
   @@map("notifications")
 }
 
+model Asset {
+  id            String         @id @default(uuid())
+  familyGroupId String
+  name          String
+  type          AssetType
+  currentValue  BigInt
+  currency      String         @default("IDR")
+  notes         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  familyGroup   FamilyGroup    @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  history       AssetHistory[]
+
+  @@index([familyGroupId])
+  @@map("assets")
+}
+
+model AssetHistory {
+  id         String   @id @default(uuid())
+  assetId    String
+  value      BigInt
+  recordedAt DateTime @default(now())
+  asset      Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId, recordedAt])
+  @@map("asset_history")
+}
+
 model Investment {
-  id               String           @id @default(uuid())
+  id               String            @id @default(uuid())
   familyGroupId    String
   ticker           String
   name             String
   type             InvestmentType
-  quantity         Decimal          @db.Decimal(18, 8)
-  costBasisPerUnit Decimal          @db.Decimal(18, 2)
-  currency         String           @default("IDR")
+  quantity         Decimal           @db.Decimal(18, 8)
+  costBasisPerUnit Decimal           @db.Decimal(18, 2)
+  currency         String            @default("IDR")
   notes            String?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  familyGroup      FamilyGroup      @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  familyGroup      FamilyGroup       @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
   prices           InvestmentPrice[]
 
   @@index([familyGroupId])

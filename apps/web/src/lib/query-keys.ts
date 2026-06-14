@@ -37,6 +37,14 @@ export const queryKeys = {
     unreadCount: (familyGroupId: string) =>
       ["notifications", familyGroupId, "unread-count"] as const,
   },
+  assets: {
+    all: (familyGroupId: string) => ["assets", familyGroupId] as const,
+    history: (familyGroupId: string, assetId: string) =>
+      ["assets", familyGroupId, assetId, "history"] as const,
+  },
+  netWorth: {
+    summary: (familyGroupId: string) => ["netWorth", familyGroupId] as const,
+  },
   investments: {
     all: (familyGroupId: string) => ["investments", familyGroupId] as const,
     summary: (familyGroupId: string) =>

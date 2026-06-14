@@ -13,7 +13,7 @@ import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { DashboardService } from "./dashboard.service";
 
 import type { AppAbility } from "../casl/casl-ability.factory";
-import type { DashboardSummaryDto } from "@wealthme/contracts";
+import type { DashboardSummaryDto, NetWorthDto } from "@wealthme/contracts";
 
 @ApiTags("dashboard")
 @ApiBearerAuth()
@@ -30,5 +30,16 @@ export class DashboardController {
     @Param("familyGroupId") familyGroupId: string,
   ): Promise<DashboardSummaryDto> {
     return this.dashboardService.getSummary(familyGroupId);
+  }
+
+  @Get("net-worth")
+  @CheckAbility((ab: AppAbility) => ab.can("read", "Account"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiOperation({ summary: "Get net-worth rollup for a family group" })
+  @ApiResponse({ status: 200, description: "Net-worth breakdown by category" })
+  getNetWorth(
+    @Param("familyGroupId") familyGroupId: string,
+  ): Promise<NetWorthDto> {
+    return this.dashboardService.getNetWorth(familyGroupId);
   }
 }

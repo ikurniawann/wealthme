@@ -9,6 +9,7 @@ import { Role } from "@prisma/client";
 export type Action = "manage" | "create" | "read" | "update" | "delete";
 export type Subject =
   | "Account"
+  | "Asset"
   | "Category"
   | "Liability"
   | "Transaction"
@@ -30,6 +31,7 @@ export class CaslAbilityFactory {
     switch (member.role) {
       case Role.owner:
         can("manage", "Account");
+        can("manage", "Asset");
         can("manage", "Category");
         can("manage", "Liability");
         can("manage", "Transaction");
@@ -43,6 +45,7 @@ export class CaslAbilityFactory {
 
       case Role.member:
         can("read", "Account");
+        can("manage", "Asset");
         can("read", "Category");
         can("manage", "Liability");
         can("manage", "Transaction");
@@ -57,6 +60,7 @@ export class CaslAbilityFactory {
 
       case Role.admin_staff:
         can("read", "Account");
+        can("read", "Asset");
         can("read", "Category");
         can("read", "Liability");
         can("read", "Transaction");

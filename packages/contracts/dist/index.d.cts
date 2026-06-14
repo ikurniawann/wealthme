@@ -398,8 +398,17 @@ interface AccountSummaryItemDto {
     label: string;
     total: number;
 }
+interface NetWorthDto {
+    accountsTotal: string;
+    investmentsTotal: string;
+    assetsTotal: string;
+    liabilitiesTotal: string;
+    netWorth: string;
+    currency: string;
+}
 interface DashboardSummaryDto {
     netWorth: number;
+    assetsTotal: number;
     cashflow: CashflowDto;
     sparkline: number[];
     allocation: AllocationItemDto[];
@@ -481,6 +490,38 @@ interface NotificationDto {
     icon: string | null;
     isRead: boolean;
     createdAt: string;
+}
+
+interface AssetDto {
+    id: string;
+    familyGroupId: string;
+    name: string;
+    type: string;
+    currentValue: string;
+    currency: string;
+    notes: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+interface AssetHistoryDto {
+    id: string;
+    assetId: string;
+    value: string;
+    recordedAt: string;
+}
+interface CreateAssetDto {
+    name: string;
+    type: string;
+    currentValue: string;
+    currency?: string;
+    notes?: string;
+}
+interface UpdateAssetDto {
+    name?: string;
+    type?: string;
+    currentValue?: string;
+    currency?: string;
+    notes?: string;
 }
 
 type InvestmentType = "saham" | "reksa_dana" | "obligasi" | "emas" | "kripto" | "lainnya";
@@ -611,4 +652,4 @@ interface UpdateInsuranceDto {
     currency?: string;
 }
 
-export { type AccountDto, AccountDtoSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AuthUser, AuthUserSchema, type BudgetDto, type BudgetPeriod, CONTRACTS_VERSION, type CashflowDto, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CreateAccountInput, CreateAccountInputSchema, type CreateBudgetDto, type CreateGoalDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateTransactionInput, CreateTransactionInputSchema, type DashboardSummaryDto, type GoalDto, type GoalStatus, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentDto, type InvestmentSummaryDto, type InvestmentType, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type NotificationDto, type PremiumPeriod, type Rupiah, RupiahSchema, type SearchResponseDto, type SearchResultDto, type SearchResultType, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateBudgetDto, type UpdateGoalDto, type UpdateInsuranceDto, type UpdateLiabilityDto };
+export { type AccountDto, AccountDtoSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AssetDto, type AssetHistoryDto, type AuthUser, AuthUserSchema, type BudgetDto, type BudgetPeriod, CONTRACTS_VERSION, type CashflowDto, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CreateAccountInput, CreateAccountInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateGoalDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateTransactionInput, CreateTransactionInputSchema, type DashboardSummaryDto, type GoalDto, type GoalStatus, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentDto, type InvestmentSummaryDto, type InvestmentType, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type NetWorthDto, type NotificationDto, type PremiumPeriod, type Rupiah, RupiahSchema, type SearchResponseDto, type SearchResultDto, type SearchResultType, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateGoalDto, type UpdateInsuranceDto, type UpdateLiabilityDto };
