@@ -1,6 +1,6 @@
 # EPIC-006: Integrations & AI
 
-status: planned
+status: on-progress
 environment: dev
 phase: 6
 priority: P2
@@ -24,13 +24,27 @@ dan menghadirkan AI Advisor serta kategorisasi transaksi berbasis LLM.
 
 ## Tasks
 
-- [ ] **T-601** OCR nyata (Google Vision/Textract) menggantikan `MockOcr` + pipeline BullMQ + penyimpanan gambar
+### OCR Provider ✅
+
+- [x] **T-601** OCR nyata (Claude Vision via AI SDK) menggantikan `MockOcr` + pipeline BullMQ + penyimpanan gambar
+
+### Open Banking & Market Data
+
 - [ ] **T-602** Adapter open-banking (Brick/Ayoconnect): consent, sinkron akun, feed transaksi (`BankSyncPort` real)
-- [ ] **T-603** Market data nyata (IDX/RTI) menggantikan mock
+- [ ] **T-603** Market data nyata (Yahoo Finance / IDX) menggantikan mock
+
+### AI Advisor
+
 - [ ] **T-604** AI Advisor → Claude via AI SDK (streaming chat), grounded pada data user (`claude-sonnet-4-6`) di balik `AiAdvisorPort`
 - [ ] **T-605** Wire halaman **AI Advisor** ke API streaming + shortcut pertanyaan + disclaimer
+
+### Auto Categorization & Notifications
+
 - [ ] **T-606** Kategorisasi transaksi otomatis (`claude-haiku-4-5`)
 - [ ] **T-607** Notifikasi email/push nyata (SendGrid/SES/FCM) menggantikan mock `NotificationPort`
+
+### Search Upgrade
+
 - [ ] **T-608** Upgrade pencarian ke Meilisearch (bila FTS tak memadai)
 
 ## Acceptance Criteria
