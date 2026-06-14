@@ -1,5 +1,13 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 
+import {
+  CATEGORIZATION_PORT,
+  type CategorizationPort,
+} from "../categorization/categorization.port";
+import {
+  NOTIFICATION_SENDER_PORT,
+  type NotificationSenderPort,
+} from "../notifications/notification-sender.port";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -15,11 +23,26 @@ import type {
 import type { UpdateTransactionDto } from "./dto/update-transaction.dto";
 import type { TransactionType } from "@prisma/client";
 
+function escapeHtml(raw: string): string {
+  return raw
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;");
+}
+
 @Injectable()
 export class TransactionsService {
+  private readonly logger = new Logger(TransactionsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(OCR_PORT) private readonly ocrPort: OcrPort,
+    @Inject(CATEGORIZATION_PORT)
+    private readonly categorizationPort: CategorizationPort,
+    @Inject(NOTIFICATION_SENDER_PORT)
+    private readonly notificationSender: NotificationSenderPort,
   ) {}
 
   async findAll(
@@ -72,12 +95,30 @@ export class TransactionsService {
     if (!account)
       throw new NotFoundException(`Account ${dto.accountId} not found`);
 
-    if (dto.categoryId) {
+    let resolvedCategoryId = dto.categoryId ?? null;
+
+    if (resolvedCategoryId) {
       const category = await this.prisma.category.findUnique({
-        where: { id: dto.categoryId, familyGroupId },
+        where: { id: resolvedCategoryId, familyGroupId },
       });
       if (!category)
-        throw new NotFoundException(`Category ${dto.categoryId} not found`);
+        throw new NotFoundException(`Category ${resolvedCategoryId} not found`);
+    } else if (dto.type === "expense" && dto.description) {
+      const candidates = await this.prisma.category.findMany({
+        where: { familyGroupId, kind: "expense" },
+        select: { id: true, name: true, kind: true },
+      });
+      try {
+        resolvedCategoryId = await this.categorizationPort.suggest(
+          dto.description,
+          Number(dto.amount),
+          dto.type,
+          candidates,
+        );
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Auto-categorization skipped: ${msg}`);
+      }
     }
 
     const created = await this.prisma.$transaction(async (prisma) => {
@@ -85,7 +126,7 @@ export class TransactionsService {
         data: {
           familyGroupId,
           accountId: dto.accountId,
-          categoryId: dto.categoryId ?? null,
+          categoryId: resolvedCategoryId,
           amount: BigInt(dto.amount),
           type: dto.type,
           description: dto.description ?? null,
@@ -105,7 +146,85 @@ export class TransactionsService {
       return tx;
     });
 
+    if (resolvedCategoryId && dto.type === "expense") {
+      void this.checkBudgetAlert(familyGroupId, resolvedCategoryId);
+    }
+
     return this.toDto(created);
+  }
+
+  private async checkBudgetAlert(
+    familyGroupId: string,
+    categoryId: string,
+  ): Promise<void> {
+    try {
+      const budget = await this.prisma.budget.findFirst({
+        where: { familyGroupId, categoryId },
+        select: { id: true, limitAmount: true },
+      });
+      if (!budget || budget.limitAmount <= BigInt(0)) return;
+
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+      const agg = await this.prisma.transaction.aggregate({
+        where: {
+          familyGroupId,
+          categoryId,
+          type: "expense",
+          occurredAt: { gte: monthStart, lt: nextMonthStart },
+        },
+        _sum: { amount: true },
+      });
+
+      // The new transaction is already committed when this runs, so the
+      // aggregate includes it — no manual addition needed.
+      const spent = agg._sum.amount ?? BigInt(0);
+      const usagePct = Number((spent * BigInt(100)) / budget.limitAmount);
+      if (usagePct < 80) return;
+
+      const [owner, category] = await Promise.all([
+        this.prisma.member.findFirst({
+          where: { familyGroupId, role: "owner" },
+          include: { user: { select: { email: true, name: true } } },
+        }),
+        this.prisma.category.findUnique({
+          where: { id: categoryId, familyGroupId },
+          select: { name: true },
+        }),
+      ]);
+      if (!owner) return;
+
+      const safeName = escapeHtml(category?.name ?? "kategori ini");
+      const subject =
+        usagePct >= 100
+          ? `Anggaran ${safeName} terlampaui!`
+          : `Anggaran ${safeName} sudah ${usagePct}%`;
+      const htmlBody = `<p>Halo ${escapeHtml(owner.user.name)},</p>
+<p>Pengeluaran untuk <strong>${safeName}</strong> bulan ini telah mencapai <strong>${usagePct}%</strong> dari anggaran.</p>
+<p>Segera tinjau anggaran Anda di WealthMe.</p>`;
+
+      await Promise.all([
+        this.notificationSender.sendEmail(
+          owner.user.email,
+          owner.user.name,
+          subject,
+          htmlBody,
+        ),
+        this.prisma.notification.create({
+          data: {
+            familyGroupId,
+            title: subject,
+            body: `Pengeluaran ${safeName} sudah ${usagePct}% dari anggaran bulan ini.`,
+            icon: "💸",
+          },
+        }),
+      ]);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Budget alert skipped: ${msg}`);
+    }
   }
 
   async update(

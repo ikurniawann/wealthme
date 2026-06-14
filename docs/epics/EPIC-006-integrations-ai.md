@@ -38,10 +38,10 @@ dan menghadirkan AI Advisor serta kategorisasi transaksi berbasis LLM.
 - [x] **T-604** AI Advisor → Claude via AI SDK (streaming chat), grounded pada data user (`claude-sonnet-4-6`) di balik `AiAdvisorPort`
 - [x] **T-605** Wire halaman **AI Advisor** ke API streaming + shortcut pertanyaan + disclaimer
 
-### Auto Categorization & Notifications
+### Auto Categorization & Notifications ✅
 
-- [ ] **T-606** Kategorisasi transaksi otomatis (`claude-haiku-4-5`)
-- [ ] **T-607** Notifikasi email/push nyata (SendGrid/SES/FCM) menggantikan mock `NotificationPort`
+- [x] **T-606** Kategorisasi transaksi otomatis (`claude-haiku-4-5`)
+- [x] **T-607** Notifikasi email/push nyata (SendGrid/SES/FCM) menggantikan mock `NotificationPort`
 
 ### Search Upgrade
 
@@ -71,6 +71,7 @@ dan menghadirkan AI Advisor serta kategorisasi transaksi berbasis LLM.
 
 - 2026-06-14 /epic-loop EPIC-006 #1 "OCR Provider" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/130
 - 2026-06-14 /epic-loop EPIC-006 #2 "Open Banking & Market Data" → PASS (attempts: 3), PR: https://github.com/andrsrjld/wealthme-web/pull/131
+- 2026-06-14 /epic-loop EPIC-006 #3 "AI Advisor" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/132
 
 ## Dependencies
 
