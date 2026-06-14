@@ -38,32 +38,36 @@ export class CaslAbilityFactory {
       case Role.owner:
         can("manage", "Account");
         can("manage", "Asset");
-        can("manage", "Category");
-        can("manage", "Inheritance");
-        can("manage", "Liability");
-        can("manage", "Transaction");
-        can("manage", "Member");
         can("manage", "Budget");
+        can("manage", "Category");
+        can("manage", "Donation");
         can("manage", "Goal");
+        can("manage", "Inheritance");
         can("manage", "Insurance");
-        can("manage", "Notification");
         can("manage", "Investment");
+        can("manage", "Liability");
+        can("manage", "Member");
+        can("manage", "Notification");
+        can("manage", "TaxRecord");
+        can("manage", "Transaction");
         break;
 
       case Role.member:
         can("read", "Account");
         can("manage", "Asset");
-        can("read", "Category");
-        can("manage", "Inheritance");
-        can("manage", "Liability");
-        can("manage", "Transaction");
-        can("read", "Member");
         can("manage", "Budget");
+        can("read", "Category");
+        can("manage", "Donation");
         can("manage", "Goal");
+        can("manage", "Inheritance");
         can("manage", "Insurance");
-        can("read", "Notification");
-        can("manage", "Notification");
         can("manage", "Investment");
+        can("manage", "Liability");
+        can("read", "Member");
+        can("manage", "Notification");
+        can("read", "Notification");
+        can("manage", "TaxRecord");
+        can("manage", "Transaction");
         break;
 
       case Role.admin_staff:
@@ -71,6 +75,7 @@ export class CaslAbilityFactory {
         can("read", "Asset");
         can("read", "Budget");
         can("read", "Category");
+        can("read", "Donation");
         can("read", "Goal");
         can("read", "Inheritance");
         can("read", "Insurance");
@@ -78,6 +83,7 @@ export class CaslAbilityFactory {
         can("read", "Liability");
         can("read", "Member");
         can("read", "Notification");
+        can("read", "TaxRecord");
         can("create", "Transaction");
         can("read", "Transaction");
         break;

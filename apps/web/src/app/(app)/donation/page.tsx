@@ -2,125 +2,64 @@
 
 import { useState } from "react";
 import { Plus, HandHeart } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
 import { HeroCard, SectionCard, StatusBadge } from "@/components/wm";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { apiFetch } from "@/lib/api-client";
 import { formatRupiah, parseRupiah, formatAmountInput } from "@/lib/format";
+import { queryKeys } from "@/lib/query-keys";
+
+import type {
+  CreateDonationDto,
+  DonationDto,
+  DonationType,
+} from "@wealthme/contracts";
 
 const FIELD_CLASS =
   "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
 
 const NISAB = 102_000_000; // ≈85gr emas
 
-const CATEGORIES = [
-  {
-    icon: "🕌",
-    iconBg: "#DCFCE7",
-    label: "Zakat",
-    amount: "Rp 28.500.000",
-    pct: "67% dari total",
-  },
-  {
-    icon: "💝",
-    iconBg: "#DBEAFE",
-    label: "Sedekah / Infak",
-    amount: "Rp 8.350.000",
-    pct: "19% dari total",
-  },
-  {
-    icon: "🎗️",
-    iconBg: "#FEF9C3",
-    label: "Donasi Sosial",
-    amount: "Rp 4.500.000",
-    pct: "11% dari total",
-  },
-  {
-    icon: "🏫",
-    iconBg: "#EDE9FE",
-    label: "Wakaf",
-    amount: "Rp 1.500.000",
-    pct: "3% dari total",
-  },
-];
-
-type HistoryItem = {
-  icon: string;
-  iconBg: string;
-  name: string;
-  meta: string;
-  amount: string;
-  lunas?: boolean;
+const DONATION_TYPE_LABEL: Record<string, string> = {
+  zakat_maal: "Zakat Maal",
+  zakat_fitrah: "Zakat Fitrah",
+  infaq: "Sedekah / Infak",
+  sedekah: "Sedekah",
+  wakaf: "Wakaf",
+  lainnya: "Lainnya",
 };
 
-const HISTORY: HistoryItem[] = [
-  {
-    icon: "🕌",
-    iconBg: "#DCFCE7",
-    name: "Zakat Maal — BAZNAS",
-    meta: "15 Mei 2025 · Zakat",
-    amount: "-Rp 23.787.000",
-    lunas: true,
-  },
-  {
-    icon: "💝",
-    iconBg: "#DBEAFE",
-    name: "Infak Masjid Al-Ikhlas",
-    meta: "10 Mei 2025 · Sedekah",
-    amount: "-Rp 2.000.000",
-  },
-  {
-    icon: "🎗️",
-    iconBg: "#FEF9C3",
-    name: "Donasi Korban Bencana — Dompet Dhuafa",
-    meta: "5 Mei 2025 · Donasi Sosial",
-    amount: "-Rp 1.500.000",
-  },
-  {
-    icon: "🍚",
-    iconBg: "#DCFCE7",
-    name: "Zakat Fitrah Keluarga (4 orang)",
-    meta: "28 Mar 2025 · Zakat",
-    amount: "-Rp 200.000",
-    lunas: true,
-  },
-  {
-    icon: "🏫",
-    iconBg: "#EDE9FE",
-    name: "Wakaf Pendidikan — Rumah Tahfidz",
-    meta: "20 Feb 2025 · Wakaf",
-    amount: "-Rp 1.500.000",
-  },
+const DONATION_TYPE_ICON: Record<string, string> = {
+  zakat_maal: "🕌",
+  zakat_fitrah: "🍚",
+  infaq: "💝",
+  sedekah: "💝",
+  wakaf: "🏫",
+  lainnya: "🎗️",
+};
+
+const DONATION_TYPE_BG: Record<string, string> = {
+  zakat_maal: "#DCFCE7",
+  zakat_fitrah: "#DCFCE7",
+  infaq: "#DBEAFE",
+  sedekah: "#DBEAFE",
+  wakaf: "#EDE9FE",
+  lainnya: "#FEF9C3",
+};
+
+const JENIS_OPTIONS: { value: DonationType; label: string; group: string }[] = [
+  { value: "zakat_maal", label: "Zakat Maal", group: "🕌 Islam" },
+  { value: "zakat_fitrah", label: "Zakat Fitrah", group: "🕌 Islam" },
+  { value: "infaq", label: "Sedekah / Infak", group: "🕌 Islam" },
+  { value: "wakaf", label: "Wakaf", group: "🕌 Islam" },
+  { value: "sedekah", label: "Sedekah", group: "❤️ Umum" },
+  { value: "lainnya", label: "Lainnya / Donasi Sosial", group: "❤️ Umum" },
 ];
 
-const JENIS_GROUPS = [
-  {
-    label: "🕌 Islam",
-    options: ["Zakat Maal", "Zakat Fitrah", "Sedekah / Infak", "Wakaf"],
-  },
-  {
-    label: "✝️ Kristen / Katolik",
-    options: [
-      "Perpuluhan (Tithe)",
-      "Persembahan / Kolekte",
-      "Persembahan Syukur",
-      "Dana Pembangunan Gereja",
-    ],
-  },
-  {
-    label: "🕉️ Hindu",
-    options: ["Dana Punia"],
-  },
-  {
-    label: "☸️ Buddha",
-    options: ["Dana Paramita"],
-  },
-  {
-    label: "❤️ Umum",
-    options: ["Donasi Sosial", "Donasi Bencana", "Donasi Pendidikan"],
-  },
-];
 const LEMBAGA_OPTIONS = [
   "BAZNAS",
   "Dompet Dhuafa",
@@ -132,11 +71,6 @@ const LEMBAGA_OPTIONS = [
   "Vihara",
   "Yayasan Sosial",
   "Lainnya",
-];
-const SUMBER_OPTIONS = [
-  "🏦 BCA Tahapan ···9010",
-  "🏦 Mandiri ···5586",
-  "💚 GoPay",
 ];
 
 function ZkInput({
@@ -164,8 +98,21 @@ function ZkInput({
   );
 }
 
+function formatIndonesianDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export default function DonationPage() {
-  // Zakat Maal calculator state
+  const { data: session } = useSession();
+  const queryClient = useQueryClient();
+  const fgId = session?.familyGroupId ?? undefined;
+  const token = session?.accessToken;
+
+  // Zakat Maal calculator state (local — no API)
   const [cash, setCash] = useState("339.450.000");
   const [gold, setGold] = useState("50.000.000");
   const [invest, setInvest] = useState("577.200.000");
@@ -184,39 +131,86 @@ export default function DonationPage() {
 
   // Donation modal state
   const [open, setOpen] = useState(false);
-  const [jenis, setJenis] = useState(JENIS_GROUPS[0].options[0]);
+  const [jenis, setJenis] = useState<DonationType>("zakat_maal");
   const [jumlah, setJumlah] = useState("");
   const [lembaga, setLembaga] = useState(LEMBAGA_OPTIONS[0]);
-  const [sumber, setSumber] = useState(SUMBER_OPTIONS[0]);
-  const [tanggal, setTanggal] = useState("2025-05-18");
+  const [tanggal, setTanggal] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
+  const [isTaxDeductible, setIsTaxDeductible] = useState(false);
 
-  function openModal(prefillZakat?: boolean) {
+  // Fetch donations list
+  const { data: donations = [], isLoading } = useQuery<DonationDto[]>({
+    queryKey: fgId ? queryKeys.donations.list(fgId) : ["donations-disabled"],
+    queryFn: () =>
+      apiFetch<DonationDto[]>(`/family-groups/${fgId}/donations`, { token }),
+    enabled: !!fgId && !!token,
+  });
+
+  // Create donation mutation
+  const createMutation = useMutation({
+    mutationFn: (dto: CreateDonationDto) =>
+      apiFetch<DonationDto>(`/family-groups/${fgId}/donations`, {
+        method: "POST",
+        body: JSON.stringify(dto),
+        token,
+      }),
+    onSuccess: () => {
+      if (fgId)
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.donations.list(fgId),
+        });
+      setOpen(false);
+      toast.success("✅ Donasi berhasil dicatat!");
+    },
+    onError: () => {
+      toast.error("Gagal menyimpan donasi");
+    },
+  });
+
+  function openModal(prefillZakat?: boolean): void {
     if (prefillZakat) {
-      setJenis(JENIS_GROUPS[0].options[0]);
-      setJumlah("23.787.000");
+      setJenis("zakat_maal");
+      setJumlah(formatAmountInput(String(zakat)));
+      setLembaga("BAZNAS");
+      setIsTaxDeductible(true);
     } else {
       setJumlah("");
+      setIsTaxDeductible(false);
     }
     setOpen(true);
   }
 
-  function handleSave() {
-    setOpen(false);
-    toast.success("✅ Donasi berhasil dicatat!");
+  function handleSave(): void {
+    const amountNum = parseRupiah(jumlah);
+    if (!amountNum || amountNum <= 0) {
+      toast.error("Jumlah donasi tidak valid");
+      return;
+    }
+    createMutation.mutate({
+      type: jenis,
+      recipient: lembaga,
+      amount: String(amountNum),
+      donatedAt: new Date(tanggal).toISOString(),
+      isTaxDeductible,
+    });
   }
+
+  // Compute category totals from API data
+  const totalAmount = donations.reduce((s, d) => s + Number(d.amount), 0);
 
   return (
     <div className="space-y-4">
       {/* Hero */}
       <HeroCard className="gradient-emerald">
         <div className="mb-1.5 flex items-center gap-2 text-xs opacity-85">
-          <HandHeart className="size-3.5" /> Total Donasi &amp; Zakat 2025
+          <HandHeart className="size-3.5" /> Total Donasi &amp; Zakat
         </div>
         <div className="text-[30px] font-black tracking-[-1px]">
-          Rp 42.850.000
+          {formatRupiah(totalAmount)}
         </div>
         <div className="mt-1.5 text-xs opacity-85">
-          18 transaksi · 2,1% dari penghasilan tahunan
+          {donations.length} transaksi
         </div>
         <div className="pointer-events-none absolute -top-5 -right-5 text-[140px] opacity-[0.12]">
           🤲
@@ -231,23 +225,6 @@ export default function DonationPage() {
         <Button onClick={() => openModal()} className="h-auto px-4 py-2.5">
           <Plus className="size-4" /> Catat Donasi
         </Button>
-      </div>
-
-      {/* Breakdown kategori */}
-      <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
-        {CATEGORIES.map((c) => (
-          <Card key={c.label} className="gap-0 p-4">
-            <div
-              className="mb-2 flex size-[34px] items-center justify-center rounded-[9px] text-[16px]"
-              style={{ background: c.iconBg }}
-            >
-              {c.icon}
-            </div>
-            <div className="text-[10.5px] text-muted-foreground">{c.label}</div>
-            <div className="text-[16px] font-extrabold">{c.amount}</div>
-            <div className="text-[10.5px] text-muted-foreground">{c.pct}</div>
-          </Card>
-        ))}
       </div>
 
       {/* Kalkulator Zakat */}
@@ -292,35 +269,47 @@ export default function DonationPage() {
 
       {/* Riwayat Donasi */}
       <SectionCard title="Riwayat Donasi & Zakat" bodyClassName="-mt-1">
-        {HISTORY.map((h) => (
-          <div
-            key={h.name}
-            className="flex items-center gap-3 border-b py-3 last:border-b-0"
-          >
-            <div
-              className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] text-[15px]"
-              style={{ background: h.iconBg }}
-            >
-              {h.icon}
-            </div>
-            <div className="flex-1">
-              <div className="text-[13.5px] font-semibold">{h.name}</div>
-              <div className="text-[11.5px] text-muted-foreground">
-                {h.meta}
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-[13.5px] font-bold text-destructive">
-                {h.amount}
-              </div>
-              {h.lunas && (
-                <StatusBadge variant="success" className="mt-0.5 text-[10px]">
-                  Lunas
-                </StatusBadge>
-              )}
-            </div>
+        {isLoading ? (
+          <div className="py-6 text-center text-[13px] text-muted-foreground">
+            Memuat...
           </div>
-        ))}
+        ) : donations.length === 0 ? (
+          <div className="py-6 text-center text-[13px] text-muted-foreground">
+            Belum ada catatan donasi
+          </div>
+        ) : (
+          donations.map((d) => (
+            <div
+              key={d.id}
+              className="flex items-center gap-3 border-b py-3 last:border-b-0"
+            >
+              <div
+                className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] text-[15px]"
+                style={{ background: DONATION_TYPE_BG[d.type] ?? "#F3F4F6" }}
+              >
+                {DONATION_TYPE_ICON[d.type] ?? "🤲"}
+              </div>
+              <div className="flex-1">
+                <div className="text-[13.5px] font-semibold">
+                  {DONATION_TYPE_LABEL[d.type] ?? d.type} — {d.recipient}
+                </div>
+                <div className="text-[11.5px] text-muted-foreground">
+                  {formatIndonesianDate(d.donatedAt)}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[13.5px] font-bold text-destructive">
+                  -{formatRupiah(Number(d.amount))}
+                </div>
+                {d.isTaxDeductible && (
+                  <StatusBadge variant="success" className="mt-0.5 text-[10px]">
+                    Pengurang Pajak
+                  </StatusBadge>
+                )}
+              </div>
+            </div>
+          ))
+        )}
       </SectionCard>
 
       {/* Insight banner */}
@@ -335,12 +324,6 @@ export default function DonationPage() {
             penghasilan kena pajak. Cek di Tax Center.
           </div>
         </div>
-        <button
-          onClick={() => toast("Buka Tax Center")}
-          className="shrink-0 cursor-pointer text-[12.5px] font-bold text-primary hover:underline"
-        >
-          Buka Tax Center →
-        </button>
       </div>
 
       {/* Donation modal */}
@@ -357,17 +340,13 @@ export default function DonationPage() {
               </label>
               <select
                 value={jenis}
-                onChange={(e) => setJenis(e.target.value)}
+                onChange={(e) => setJenis(e.target.value as DonationType)}
                 className={FIELD_CLASS}
               >
-                {JENIS_GROUPS.map((group) => (
-                  <optgroup key={group.label} label={group.label}>
-                    {group.options.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
-                      </option>
-                    ))}
-                  </optgroup>
+                {JENIS_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.group} — {o.label}
+                  </option>
                 ))}
               </select>
             </div>
@@ -406,21 +385,6 @@ export default function DonationPage() {
 
             <div>
               <label className="mb-1.5 block text-[12.5px] font-semibold">
-                Sumber Dana
-              </label>
-              <select
-                value={sumber}
-                onChange={(e) => setSumber(e.target.value)}
-                className={FIELD_CLASS}
-              >
-                {SUMBER_OPTIONS.map((o) => (
-                  <option key={o}>{o}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-[12.5px] font-semibold">
                 Tanggal
               </label>
               <input
@@ -431,17 +395,29 @@ export default function DonationPage() {
               />
             </div>
 
-            <div className="flex items-center gap-2 rounded-md bg-success-soft px-3 py-2.5">
-              <span className="text-[13px] text-emerald-700 dark:text-emerald-300">
-                ℹ️
-              </span>
-              <span className="text-xs text-emerald-700 dark:text-emerald-300">
-                Zakat ke lembaga resmi bisa jadi pengurang pajak penghasilan
-              </span>
+            <div className="flex items-center gap-2">
+              <input
+                id="tax-deductible"
+                type="checkbox"
+                checked={isTaxDeductible}
+                onChange={(e) => setIsTaxDeductible(e.target.checked)}
+                className="size-4 accent-primary"
+              />
+              <label
+                htmlFor="tax-deductible"
+                className="text-[12.5px] text-muted-foreground"
+              >
+                Pengurang pajak penghasilan (zakat ke lembaga resmi)
+              </label>
             </div>
 
-            <Button onClick={handleSave} className="w-full">
-              <HandHeart className="size-4" /> Simpan Catatan
+            <Button
+              onClick={handleSave}
+              disabled={createMutation.isPending}
+              className="w-full"
+            >
+              <HandHeart className="size-4" />{" "}
+              {createMutation.isPending ? "Menyimpan..." : "Simpan Catatan"}
             </Button>
           </div>
         </DialogContent>

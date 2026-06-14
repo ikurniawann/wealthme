@@ -44,13 +44,13 @@ donasi/zakat, tax center, multi-mata uang, rekonsiliasi bank, dan halaman Akun/P
 - [x] **T-508** Inheritance + heirs + visibility API
 - [x] **T-509** Wire halaman **Warisan** + modal Tambah Aset + toggle visibilitas + unggah dokumen
 
-### Donations & Tax
+### Donations & Tax ✅
 
-- [ ] **T-510** `StoragePort` (MinIO) upload/download dokumen (warisan, pajak)
-- [ ] **T-511** Donations/Zakat records API (memberi input pengurang pajak)
-- [ ] **T-512** Wire halaman **Donasi & Zakat** + kalkulator zakat inline
-- [ ] **T-513** Tax records + documents API (konsumsi pengurang zakat)
-- [ ] **T-514** Wire halaman **Tax Center** + kalkulator PPh 21 + status SPT + dokumen
+- [x] **T-510** `StoragePort` (MinIO) upload/download dokumen (warisan, pajak)
+- [x] **T-511** Donations/Zakat records API (memberi input pengurang pajak)
+- [x] **T-512** Wire halaman **Donasi & Zakat** + kalkulator zakat inline
+- [x] **T-513** Tax records + documents API (konsumsi pengurang zakat)
+- [x] **T-514** Wire halaman **Tax Center** + kalkulator PPh 21 + status SPT + dokumen
 
 ### Multi-currency & Reconciliation
 
@@ -83,7 +83,8 @@ donasi/zakat, tax center, multi-mata uang, rekonsiliasi bank, dan halaman Akun/P
 
 - 2026-06-14 /epic-loop EPIC-005 #1 "Family & RBAC" → PASS (attempts: 3), PR: https://github.com/andrsrjld/wealthme-web/pull/124
 - 2026-06-14 /epic-loop EPIC-005 #2 "Split Bill" → PASS (attempts: 1), PR: https://github.com/andrsrjld/wealthme-web/pull/125
-- 2026-06-14 /epic-loop EPIC-005 #3 "Warisan" → PASS (attempts: 2), PR: pending
+- 2026-06-14 /epic-loop EPIC-005 #3 "Warisan" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/126
+- 2026-06-14 /epic-loop EPIC-005 #4 "Donations & Tax" → PASS (attempts: 2), PR: pending
 
 ## Dependencies
 
