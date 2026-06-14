@@ -40,6 +40,16 @@ const envSchema = z.object({
   // Brick Open Banking — optional; both must be set to enable real adapter
   BRICK_CLIENT_ID: z.string().min(1).optional(),
   BRICK_CLIENT_SECRET: z.string().min(1).optional(),
+  // Encryption at rest — optional; 64 hex chars = 32 bytes for AES-256-GCM
+  ENCRYPTION_KEY: z
+    .string()
+    .length(64)
+    .regex(/^[0-9a-f]+$/)
+    .optional()
+    .refine(
+      (key) => process.env["NODE_ENV"] !== "production" || key !== undefined,
+      { message: "ENCRYPTION_KEY is required in production" },
+    ),
   // Market data — optional; set to "true" to use Yahoo Finance instead of mock
   USE_REAL_MARKET_DATA: z.enum(["true", "false"]).optional(),
   // Email notifications — optional; both must be set to enable real SendGrid sender

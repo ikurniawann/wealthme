@@ -22,7 +22,7 @@ menyeluruh, dan deployment self-host yang andal.
 
 ## Tasks
 
-- [ ] **T-701** Enkripsi at-rest + kolom sensitif (nomor rekening, dokumen) via AES-GCM/pgcrypto
+- [x] **T-701** Enkripsi at-rest + kolom sensitif (nomor rekening, dokumen) via AES-GCM/pgcrypto
 - [x] **T-702** Rate limiting + throttling (@nestjs/throttler)
 - [ ] **T-703** Secrets management (Vault/Doppler) — tanpa secret di env produksi
 - [ ] **T-704** Kepatuhan PDP/OJK: residensi data Indonesia, retensi audit, catatan consent
@@ -59,7 +59,8 @@ menyeluruh, dan deployment self-host yang andal.
 
 ## Automation Log
 
-- 2026-06-14 /epic-loop EPIC-007 #1 "Rate Limiting" → PASS (attempts: 1), PR: pending
+- 2026-06-14 /epic-loop EPIC-007 #1 "Rate Limiting" → PASS (attempts: 1), PR: https://github.com/andrsrjld/wealthme-web/pull/135
+- 2026-06-14 /epic-loop EPIC-007 #2 "Encryption at-rest" → PASS (attempts: 2), PR: pending
 
 ## Dependencies
 

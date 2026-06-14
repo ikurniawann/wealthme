@@ -19,6 +19,7 @@ import { CommonModule } from "./common/common.module";
 import { AbilitiesGuard } from "./common/guards/abilities.guard";
 import { TenantGuard } from "./common/guards/tenant.guard";
 import { validateEnv } from "./config/env";
+import { CryptoModule } from "./crypto/crypto.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { DonationsModule } from "./donations/donations.module";
 import { ExportsModule } from "./exports/exports.module";
@@ -66,6 +67,7 @@ import { TransactionsModule } from "./transactions/transactions.module";
     CaslModule,
     CategoriesModule,
     CommonModule,
+    CryptoModule,
     AuditModule,
     SearchModule,
     SplitBillsModule,
