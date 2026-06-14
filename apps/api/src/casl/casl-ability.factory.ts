@@ -39,6 +39,7 @@ export class CaslAbilityFactory {
         can("manage", "Account");
         can("manage", "Asset");
         can("manage", "Category");
+        can("manage", "Inheritance");
         can("manage", "Liability");
         can("manage", "Transaction");
         can("manage", "Member");
@@ -53,6 +54,7 @@ export class CaslAbilityFactory {
         can("read", "Account");
         can("manage", "Asset");
         can("read", "Category");
+        can("manage", "Inheritance");
         can("manage", "Liability");
         can("manage", "Transaction");
         can("read", "Member");
@@ -70,6 +72,7 @@ export class CaslAbilityFactory {
         can("read", "Budget");
         can("read", "Category");
         can("read", "Goal");
+        can("read", "Inheritance");
         can("read", "Insurance");
         can("read", "Investment");
         can("read", "Liability");

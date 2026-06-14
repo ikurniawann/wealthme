@@ -17,6 +17,7 @@ export * from "./notifications/index.js";
 export * from "./assets/index.js";
 export * from "./investments/index.js";
 export * from "./liabilities/index.js";
+export * from "./inheritance/index.js";
 export * from "./insurances/index.js";
 export * from "./split-bills/index.js";
 export * from "./reports/index.js";

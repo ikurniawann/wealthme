@@ -1,0 +1,56 @@
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { InheritanceVisibility } from "@prisma/client";
+import { Type } from "class-transformer";
+import {
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+  ValidateNested,
+} from "class-validator";
+
+import { CreateHeirDto } from "./create-heir.dto";
+
+export class CreateInheritanceAssetDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  name!: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  assetType!: string;
+
+  @ApiProperty({ description: "Estimated value in smallest currency unit" })
+  @IsInt()
+  @Min(0)
+  estimatedValue!: number;
+
+  @ApiPropertyOptional({ default: "IDR" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(3)
+  currency?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @ApiPropertyOptional({ enum: InheritanceVisibility })
+  @IsOptional()
+  @IsEnum(InheritanceVisibility)
+  visibility?: InheritanceVisibility;
+
+  @ApiPropertyOptional({ type: [CreateHeirDto] })
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => CreateHeirDto)
+  heirs?: CreateHeirDto[];
+}

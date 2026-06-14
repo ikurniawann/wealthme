@@ -101,6 +101,12 @@ enum ParticipantStatus {
   pending
   paid
 }
+
+enum InheritanceVisibility {
+  private
+  heirs_only
+  all_members
+}
 // ── Models ────────────────────────────────────────────────────────────────────
 
 model User {
@@ -122,19 +128,20 @@ model FamilyGroup {
   name          String
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
-  members       Member[]
-  accounts      Account[]
-  categories    Category[]
-  transactions  Transaction[]
-  budgets       Budget[]
-  goals         Goal[]
-  notifications Notification[]
-  assets        Asset[]
-  investments   Investment[]
-  liabilities   Liability[]
-  insurances    Insurance[]
-  invitations   Invitation[]
-  splitBills    SplitBill[]
+  members            Member[]
+  accounts           Account[]
+  categories         Category[]
+  transactions       Transaction[]
+  budgets            Budget[]
+  goals              Goal[]
+  notifications      Notification[]
+  assets             Asset[]
+  investments        Investment[]
+  liabilities        Liability[]
+  insurances         Insurance[]
+  invitations        Invitation[]
+  splitBills         SplitBill[]
+  inheritanceAssets  InheritanceAsset[]
 
   @@map("family_groups")
 }
@@ -425,4 +432,36 @@ model SplitParticipant {
 
   @@index([splitBillId])
   @@map("split_participants")
+}
+
+model InheritanceAsset {
+  id             String                @id @default(uuid())
+  familyGroupId  String
+  name           String                @db.VarChar(200)
+  assetType      String                @db.VarChar(100)
+  estimatedValue BigInt
+  currency       String                @default("IDR") @db.VarChar(3)
+  notes          String?
+  visibility     InheritanceVisibility @default(heirs_only)
+  documentUrl    String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  familyGroup    FamilyGroup           @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  heirs          InheritanceHeir[]
+
+  @@index([familyGroupId])
+  @@map("inheritance_assets")
+}
+
+model InheritanceHeir {
+  id                 String           @id @default(uuid())
+  inheritanceAssetId String
+  name               String           @db.VarChar(100)
+  relationship       String           @db.VarChar(100)
+  sharePercent       Decimal          @db.Decimal(5, 2)
+  createdAt          DateTime         @default(now())
+  inheritanceAsset   InheritanceAsset @relation(fields: [inheritanceAssetId], references: [id], onDelete: Cascade)
+
+  @@index([inheritanceAssetId])
+  @@map("inheritance_heirs")
 }

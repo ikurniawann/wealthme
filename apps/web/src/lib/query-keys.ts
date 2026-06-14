@@ -62,6 +62,9 @@ export const queryKeys = {
     summary: (familyGroupId: string) =>
       ["insurances", familyGroupId, "summary"] as const,
   },
+  inheritance: {
+    list: (fgId: string) => ["inheritance", fgId] as const,
+  },
   splitBills: {
     list: (fgId: string) => ["split-bills", fgId] as const,
   },
