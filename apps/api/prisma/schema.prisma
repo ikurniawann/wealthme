@@ -55,6 +55,42 @@ enum AssetType {
   lainnya
 }
 
+enum InvestmentType {
+  saham
+  reksa_dana
+  obligasi
+  emas
+  kripto
+  lainnya
+}
+
+enum LiabilityType {
+  kartu_kredit
+  pinjaman_pribadi
+  kpr
+  kendaraan
+  lainnya
+}
+
+enum InsuranceType {
+  jiwa
+  kesehatan
+  kendaraan
+  properti
+  lainnya
+}
+
+enum InsuranceStatus {
+  aktif
+  tidak_aktif
+  kadaluarsa
+}
+
+enum PremiumPeriod {
+  monthly
+  quarterly
+  yearly
+}
 // ── Models ────────────────────────────────────────────────────────────────────
 
 model User {
@@ -84,6 +120,9 @@ model FamilyGroup {
   goals         Goal[]
   notifications Notification[]
   assets        Asset[]
+  investments   Investment[]
+  liabilities   Liability[]
+  insurances    Insurance[]
 
   @@map("family_groups")
 }
@@ -175,17 +214,17 @@ model Budget {
 }
 
 model Goal {
-  id              String     @id @default(uuid())
+  id              String      @id @default(uuid())
   familyGroupId   String
   name            String
   icon            String?
   targetAmount    BigInt
-  currentAmount   BigInt     @default(0)
+  currentAmount   BigInt      @default(0)
   targetDate      DateTime?
   autoDebitAmount BigInt?
-  status          GoalStatus @default(on_track)
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  status          GoalStatus  @default(on_track)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
   familyGroup     FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
 
   @@index([familyGroupId])
@@ -207,16 +246,16 @@ model Notification {
 }
 
 model Asset {
-  id            String        @id @default(uuid())
+  id            String         @id @default(uuid())
   familyGroupId String
   name          String
   type          AssetType
   currentValue  BigInt
-  currency      String        @default("IDR")
+  currency      String         @default("IDR")
   notes         String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  familyGroup   FamilyGroup   @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  familyGroup   FamilyGroup    @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
   history       AssetHistory[]
 
   @@index([familyGroupId])
@@ -232,6 +271,37 @@ model AssetHistory {
 
   @@index([assetId, recordedAt])
   @@map("asset_history")
+}
+
+model Investment {
+  id               String            @id @default(uuid())
+  familyGroupId    String
+  ticker           String
+  name             String
+  type             InvestmentType
+  quantity         Decimal           @db.Decimal(18, 8)
+  costBasisPerUnit Decimal           @db.Decimal(18, 2)
+  currency         String            @default("IDR")
+  notes            String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  familyGroup      FamilyGroup       @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  prices           InvestmentPrice[]
+
+  @@index([familyGroupId])
+  @@map("investments")
+}
+
+model InvestmentPrice {
+  id           String     @id @default(uuid())
+  investmentId String
+  price        Decimal    @db.Decimal(18, 2)
+  source       String     @default("mock")
+  recordedAt   DateTime   @default(now())
+  investment   Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+
+  @@index([investmentId, recordedAt])
+  @@map("investment_prices")
 }
 
 model AuditLog {
@@ -251,4 +321,47 @@ model AuditLog {
   @@index([familyGroupId])
   @@index([entity, entityId])
   @@map("audit_logs")
+}
+
+model Liability {
+  id               String        @id @default(uuid())
+  familyGroupId    String
+  name             String
+  institution      String?
+  type             LiabilityType
+  totalDebt        BigInt
+  remainingBalance BigInt
+  minimumPayment   BigInt        @default(0)
+  interestRate     Decimal       @default(0) @db.Decimal(5, 2)
+  dueDate          DateTime?
+  notes            String?
+  currency         String        @default("IDR")
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  familyGroup      FamilyGroup   @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@index([familyGroupId])
+  @@map("liabilities")
+}
+
+model Insurance {
+  id              String          @id @default(uuid())
+  familyGroupId   String
+  name            String          @db.VarChar(150)
+  provider        String?         @db.VarChar(150)
+  type            InsuranceType
+  status          InsuranceStatus @default(aktif)
+  coverageAmount  BigInt?
+  premiumAmount   BigInt
+  premiumPeriod   PremiumPeriod   @default(monthly)
+  renewalDate     DateTime?
+  policyNumber    String?         @db.VarChar(100)
+  notes           String?         @db.VarChar(500)
+  currency        String          @default("IDR") @db.VarChar(3)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  familyGroup     FamilyGroup     @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@index([familyGroupId])
+  @@map("insurances")
 }

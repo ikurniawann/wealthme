@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useSession, signOut } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
@@ -9,6 +9,8 @@ import { SectionCard, HeroCard, CardLink } from "@/components/wm";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah } from "@/lib/format";
+import { CrudModal, RowActions, ConfirmDeleteDialog } from "@/components/crud";
+import type { CrudModalState } from "@/components/crud";
 
 import type { AccountDto } from "@wealthme/contracts";
 
@@ -16,9 +18,20 @@ const EWALLET_TYPES = new Set(["ewallet"]);
 const CASH_TYPES = new Set(["cash"]);
 const DANA_TYPES = new Set(["ewallet", "cash"]);
 
-function WalletRow({ item, border }: { item: AccountDto; border: boolean }) {
-  const icon = EWALLET_TYPES.has(item.type) ? "💳" : "👛";
-  const iconBg = EWALLET_TYPES.has(item.type) ? "#DCFCE7" : "#EEF2FF";
+function WalletRow({
+  item,
+  border,
+  onEdit,
+  onDelete,
+}: {
+  item: AccountDto;
+  border: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
+}) {
+  const isEwallet = EWALLET_TYPES.has(item.type);
+  const icon = isEwallet ? "💳" : "👛";
+  const iconBg = isEwallet ? "#DCFCE7" : "#EEF2FF";
 
   return (
     <div className={`flex items-center gap-3 py-3 ${border ? "border-b" : ""}`}>
@@ -44,6 +57,9 @@ function WalletRow({ item, border }: { item: AccountDto; border: boolean }) {
           </div>
         )}
       </div>
+      {onEdit && onDelete && (
+        <RowActions className="ml-2" onEdit={onEdit} onDelete={onDelete} />
+      )}
     </div>
   );
 }
@@ -82,6 +98,9 @@ export default function DanaPage() {
     (sum, a) => sum + parseFloat(a.balance),
     0,
   );
+
+  const [crudState, setCrudState] = useState<CrudModalState | null>(null);
+  const [deleteLabel, setDeleteLabel] = useState<string | null>(null);
 
   return (
     <div className="space-y-4">
@@ -126,7 +145,7 @@ export default function DanaPage() {
         action={
           <CardLink
             className="rounded-md bg-accent px-3 py-[5px] text-[11px]"
-            onClick={() => toast("➕ Tambah e-wallet")}
+            onClick={() => setCrudState({ entity: "ewallet", mode: "add" })}
           >
             + Tambah
           </CardLink>
@@ -148,9 +167,31 @@ export default function DanaPage() {
             key={item.id}
             item={item}
             border={i < ewalletItems.length - 1}
+            onEdit={() =>
+              setCrudState({
+                entity: "ewallet",
+                mode: "edit",
+                initialValues: {
+                  nama: item.name,
+                  saldo: String(item.balance),
+                },
+              })
+            }
+            onDelete={() => setDeleteLabel("E-Wallet")}
           />
         ))}
       </SectionCard>
+
+      <CrudModal state={crudState} onClose={() => setCrudState(null)} />
+
+      <ConfirmDeleteDialog
+        label={deleteLabel}
+        onClose={() => setDeleteLabel(null)}
+        onConfirm={() => {
+          toast("🗑️ E-Wallet dihapus.");
+          setDeleteLabel(null);
+        }}
+      />
     </div>
   );
 }

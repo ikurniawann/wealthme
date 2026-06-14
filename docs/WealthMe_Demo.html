@@ -742,6 +742,44 @@ html.dark .split-status-row{border-color:var(--border)}
 .nav-subitem::before{content:'';position:absolute;left:26px;top:50%;transform:translateY(-50%);width:5px;height:5px;border-radius:50%;background:var(--border)}
 .nav-subitem.active::before{background:var(--primary)}
 html.dark .nav-subitem:hover{background:var(--surface2)}
+/* ══ ROW ACTIONS (edit/delete) ══ */
+.row-actions{display:flex;gap:5px}
+.ract{width:28px;height:28px;border-radius:7px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .15s;flex-shrink:0}
+.ract.edit{background:var(--primary-light);color:var(--primary)}
+.ract.edit:hover{background:var(--primary);color:white}
+.ract.del{background:#FEE2E2;color:var(--danger)}
+.ract.del:hover{background:var(--danger);color:white}
+html.dark .ract.edit{background:var(--surface2)}
+html.dark .ract.del{background:#3B1518}
+/* ══ CARD SIDE ACTIONS (liabilitas/asuransi) ══ */
+.card-flex-wrap{display:flex;gap:12px;align-items:stretch}
+.card-flex-main{flex:1;min-width:0}
+.card-side-actions{display:flex;flex-direction:column;gap:6px;justify-content:center;flex-shrink:0;padding-left:10px;border-left:1px solid var(--border)}
+.csa-btn{width:34px;height:34px;border-radius:9px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .15s}
+.csa-btn.edit{background:var(--primary-light);color:var(--primary)}
+.csa-btn.edit:hover{background:var(--primary);color:#fff}
+.csa-btn.pay{background:#DCFCE7;color:var(--success)}
+.csa-btn.pay:hover{background:var(--success);color:#fff}
+.csa-btn.del{background:#FEE2E2;color:var(--danger)}
+.csa-btn.del:hover{background:var(--danger);color:#fff}
+html.dark .csa-btn.edit{background:var(--surface2)}
+html.dark .csa-btn.pay{background:#0F2A1E}
+html.dark .csa-btn.del{background:#3B1518}
+/* ══ QUICK INPUT GRID ══ */
+.qi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.qi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 16px;cursor:pointer;transition:all .18s;text-align:center}
+.qi-card:hover{border-color:var(--primary);transform:translateY(-3px);box-shadow:0 8px 24px rgba(79,70,229,.14)}
+.qi-ic{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:21px;margin:0 auto 12px}
+.qi-name{font-size:13.5px;font-weight:700;margin-bottom:3px}
+.qi-desc{font-size:11px;color:var(--text3);line-height:1.4}
+html.dark .qi-card{background:var(--surface);border-color:var(--border)}
+
+/* ══ MASTER DATA ══ */
+.md-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.md-chip{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:20px;font-size:12.5px;font-weight:600;margin:0 6px 6px 0}
+.md-x{cursor:pointer;color:var(--text3);font-size:15px;line-height:1;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;transition:all .15s}
+.md-x:hover{background:var(--danger);color:white}
+html.dark .md-chip{background:var(--surface2);border-color:var(--border)}
 </style>
 </head>
 <body>
@@ -887,6 +925,12 @@ html.dark .nav-subitem:hover{background:var(--surface2)}
     </div>
     <div class="nav-item" data-page="kalkulator" onclick="nav('kalkulator',this)">
       <i class="fa-solid fa-calculator"></i> Kalkulator
+    </div>
+    <div class="nav-item" data-page="quickinput" onclick="nav('quickinput',this)">
+      <i class="fa-solid fa-bolt"></i> Quick Input <span class="nav-badge" style="background:var(--warning)">New</span>
+    </div>
+    <div class="nav-item" data-page="masterdata" onclick="nav('masterdata',this)">
+      <i class="fa-solid fa-database"></i> Setup Master Data
     </div>
   </nav>
   <div class="sidebar-footer">
@@ -1095,6 +1139,10 @@ html.dark .nav-subitem:hover{background:var(--surface2)}
 
 <!-- ═══════════════════════════════════ PAGE: TRANSAKSI ═══════════════════════════════════ -->
 <div class="page" id="page-transaksi">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+    <div style="font-size:13px;color:var(--text3)">Catat & kelola semua transaksimu</div>
+    <button class="btn btn-primary" style="width:auto;padding:10px 18px" onclick="openTxnModal()"><i class="fa-solid fa-plus"></i> Tambah Transaksi</button>
+  </div>
   <div class="txn-summary-bar" style="margin-bottom:16px">
     <div class="tsb-grid">
       <div><div class="tsb-label">Total Pemasukan</div><div class="tsb-val" style="color:var(--success)">Rp 25.850.000</div></div>
@@ -1113,19 +1161,19 @@ html.dark .nav-subitem:hover{background:var(--surface2)}
     <select style="font-size:12px;border:1px solid var(--border);border-radius:6px;padding:7px 12px;background:var(--bg);font-family:'Sora',sans-serif;color:var(--text2)"><option>Urutkan: Terbaru</option><option>Terlama</option><option>Terbesar</option></select>
   </div>
   <div class="txn-group-label">Hari ini</div>
-  <div class="txn-row" onclick="showToast('📋 Detail transaksi')"><div class="txn-icon" style="background:#DCFCE7">📥</div><div style="flex:1"><div class="txn-name">Transfer masuk dari BCA</div><div class="txn-meta">Pemasukan · BCA Tahapan</div></div><div style="text-align:right"><div class="txn-amt" style="color:var(--success)">+Rp 5.000.000</div><div class="txn-time">09:21</div></div><i class="fa-solid fa-chevron-right" style="color:var(--text3);font-size:11px;flex-shrink:0"></i></div>
-  <div class="txn-row" onclick="showToast('📋 Detail transaksi')"><div class="txn-icon" style="background:#FEE2E2">💳</div><div style="flex:1"><div class="txn-name">Pembayaran Kartu Kredit</div><div class="txn-meta">Pengeluaran · BCA</div></div><div style="text-align:right"><div class="txn-amt" style="color:var(--danger)">-Rp 1.250.000</div><div class="txn-time">08:45</div></div><i class="fa-solid fa-chevron-right" style="color:var(--text3);font-size:11px;flex-shrink:0"></i></div>
-  <div class="txn-row" onclick="showToast('📋 Detail transaksi')"><div class="txn-icon" style="background:#FEE2E2">👜</div><div style="flex:1"><div class="txn-name">Top up GoPay</div><div class="txn-meta">Pengeluaran · GoPay</div></div><div style="text-align:right"><div class="txn-amt" style="color:var(--danger)">-Rp 200.000</div><div class="txn-time">08:12</div></div><i class="fa-solid fa-chevron-right" style="color:var(--text3);font-size:11px;flex-shrink:0"></i></div>
+  <div class="txn-row" onclick="openTxnModal()"><div class="txn-icon" style="background:#DCFCE7">📥</div><div style="flex:1"><div class="txn-name">Transfer masuk dari BCA</div><div class="txn-meta">Pemasukan · BCA Tahapan</div></div><div style="text-align:right"><div class="txn-amt" style="color:var(--success)">+Rp 5.000.000</div><div class="txn-time">09:21</div></div><div class="row-actions" style="flex-shrink:0;margin-left:4px"><button class="ract edit" onclick="event.stopPropagation();openTxnModal()"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="event.stopPropagation();confirmDelete('Transaksi',function(){showToast('🗑️ Transaksi dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
+  <div class="txn-row" onclick="openTxnModal()"><div class="txn-icon" style="background:#FEE2E2">💳</div><div style="flex:1"><div class="txn-name">Pembayaran Kartu Kredit</div><div class="txn-meta">Pengeluaran · BCA</div></div><div style="text-align:right"><div class="txn-amt" style="color:var(--danger)">-Rp 1.250.000</div><div class="txn-time">08:45</div></div><div class="row-actions" style="flex-shrink:0;margin-left:4px"><button class="ract edit" onclick="event.stopPropagation();openTxnModal()"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="event.stopPropagation();confirmDelete('Transaksi',function(){showToast('🗑️ Transaksi dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
+  <div class="txn-row" onclick="openTxnModal()"><div class="txn-icon" style="background:#FEE2E2">👜</div><div style="flex:1"><div class="txn-name">Top up GoPay</div><div class="txn-meta">Pengeluaran · GoPay</div></div><div style="text-align:right"><div class="txn-amt" style="color:var(--danger)">-Rp 200.000</div><div class="txn-time">08:12</div></div><div class="row-actions" style="flex-shrink:0;margin-left:4px"><button class="ract edit" onclick="event.stopPropagation();openTxnModal()"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="event.stopPropagation();confirmDelete('Transaksi',function(){showToast('🗑️ Transaksi dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
   <div class="txn-group-label">Kemarin</div>
-  <div class="txn-row" onclick="showToast('📋 Detail transaksi')"><div class="txn-icon" style="background:#FEE2E2">🛒</div><div style="flex:1"><div class="txn-name">Belanja di Shopee</div><div class="txn-meta">Pengeluaran · e-Wallet</div></div><div style="text-align:right"><div class="txn-amt" style="color:var(--danger)">-Rp 150.000</div><div class="txn-time">20:15</div></div><i class="fa-solid fa-chevron-right" style="color:var(--text3);font-size:11px;flex-shrink:0"></i></div>
-  <div class="txn-row" onclick="showToast('📋 Detail transaksi')"><div class="txn-icon" style="background:#FEE2E2">↗️</div><div style="flex:1"><div class="txn-name">Transfer ke Mandiri</div><div class="txn-meta">Transfer · BCA → Mandiri</div></div><div style="text-align:right"><div class="txn-amt" style="color:var(--danger)">-Rp 2.000.000</div><div class="txn-time">17:30</div></div><i class="fa-solid fa-chevron-right" style="color:var(--text3);font-size:11px;flex-shrink:0"></i></div>
-  <div class="txn-row" onclick="showToast('📋 Detail transaksi')"><div class="txn-icon" style="background:#DCFCE7">🏦</div><div style="flex:1"><div class="txn-name">Bunga Tabungan BNI</div><div class="txn-meta">Pemasukan · BNI Taplus</div></div><div style="text-align:right"><div class="txn-amt" style="color:var(--success)">+Rp 45.000</div><div class="txn-time">06:21</div></div><i class="fa-solid fa-chevron-right" style="color:var(--text3);font-size:11px;flex-shrink:0"></i></div>
+  <div class="txn-row" onclick="openTxnModal()"><div class="txn-icon" style="background:#FEE2E2">🛒</div><div style="flex:1"><div class="txn-name">Belanja di Shopee</div><div class="txn-meta">Pengeluaran · e-Wallet</div></div><div style="text-align:right"><div class="txn-amt" style="color:var(--danger)">-Rp 150.000</div><div class="txn-time">20:15</div></div><div class="row-actions" style="flex-shrink:0;margin-left:4px"><button class="ract edit" onclick="event.stopPropagation();openTxnModal()"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="event.stopPropagation();confirmDelete('Transaksi',function(){showToast('🗑️ Transaksi dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
+  <div class="txn-row" onclick="openTxnModal()"><div class="txn-icon" style="background:#FEE2E2">↗️</div><div style="flex:1"><div class="txn-name">Transfer ke Mandiri</div><div class="txn-meta">Transfer · BCA → Mandiri</div></div><div style="text-align:right"><div class="txn-amt" style="color:var(--danger)">-Rp 2.000.000</div><div class="txn-time">17:30</div></div><div class="row-actions" style="flex-shrink:0;margin-left:4px"><button class="ract edit" onclick="event.stopPropagation();openTxnModal()"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="event.stopPropagation();confirmDelete('Transaksi',function(){showToast('🗑️ Transaksi dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
+  <div class="txn-row" onclick="openTxnModal()"><div class="txn-icon" style="background:#DCFCE7">🏦</div><div style="flex:1"><div class="txn-name">Bunga Tabungan BNI</div><div class="txn-meta">Pemasukan · BNI Taplus</div></div><div style="text-align:right"><div class="txn-amt" style="color:var(--success)">+Rp 45.000</div><div class="txn-time">06:21</div></div><div class="row-actions" style="flex-shrink:0;margin-left:4px"><button class="ract edit" onclick="event.stopPropagation();openTxnModal()"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="event.stopPropagation();confirmDelete('Transaksi',function(){showToast('🗑️ Transaksi dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
   <div class="txn-group-label">28 April 2025</div>
-  <div class="txn-row" onclick="showToast('📋 Detail transaksi')"><div class="txn-icon" style="background:#FEE2E2">☕</div><div style="flex:1"><div class="txn-name">Makan di Starbucks</div><div class="txn-meta">Makanan & Minuman</div></div><div style="text-align:right"><div class="txn-amt" style="color:var(--danger)">-Rp 85.000</div><div class="txn-time">19:45</div></div><i class="fa-solid fa-chevron-right" style="color:var(--text3);font-size:11px;flex-shrink:0"></i></div>
-  <div class="txn-row" onclick="showToast('📋 Detail transaksi')"><div class="txn-icon" style="background:#FEE2E2">✈️</div><div style="flex:1"><div class="txn-name">Tiket Pesawat ke Bali</div><div class="txn-meta">Transportasi · Kartu Kredit</div></div><div style="text-align:right"><div class="txn-amt" style="color:var(--danger)">-Rp 1.350.000</div><div class="txn-time">14:20</div></div><i class="fa-solid fa-chevron-right" style="color:var(--text3);font-size:11px;flex-shrink:0"></i></div>
+  <div class="txn-row" onclick="openTxnModal()"><div class="txn-icon" style="background:#FEE2E2">☕</div><div style="flex:1"><div class="txn-name">Makan di Starbucks</div><div class="txn-meta">Makanan & Minuman</div></div><div style="text-align:right"><div class="txn-amt" style="color:var(--danger)">-Rp 85.000</div><div class="txn-time">19:45</div></div><div class="row-actions" style="flex-shrink:0;margin-left:4px"><button class="ract edit" onclick="event.stopPropagation();openTxnModal()"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="event.stopPropagation();confirmDelete('Transaksi',function(){showToast('🗑️ Transaksi dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
+  <div class="txn-row" onclick="openTxnModal()"><div class="txn-icon" style="background:#FEE2E2">✈️</div><div style="flex:1"><div class="txn-name">Tiket Pesawat ke Bali</div><div class="txn-meta">Transportasi · Kartu Kredit</div></div><div style="text-align:right"><div class="txn-amt" style="color:var(--danger)">-Rp 1.350.000</div><div class="txn-time">14:20</div></div><div class="row-actions" style="flex-shrink:0;margin-left:4px"><button class="ract edit" onclick="event.stopPropagation();openTxnModal()"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="event.stopPropagation();confirmDelete('Transaksi',function(){showToast('🗑️ Transaksi dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
   <div class="txn-group-label">27 April 2025</div>
-  <div class="txn-row" onclick="showToast('📋 Detail transaksi')"><div class="txn-icon" style="background:#DCFCE7">💰</div><div style="flex:1"><div class="txn-name">Gaji Bulanan</div><div class="txn-meta">Pemasukan · BCA Tahapan</div></div><div style="text-align:right"><div class="txn-amt" style="color:var(--success)">+Rp 18.000.000</div><div class="txn-time">07:00</div></div><i class="fa-solid fa-chevron-right" style="color:var(--text3);font-size:11px;flex-shrink:0"></i></div>
-  <div class="txn-row" onclick="showToast('📋 Detail transaksi')"><div class="txn-icon" style="background:#FEE2E2">🏥</div><div style="flex:1"><div class="txn-name">Apotek & Suplemen</div><div class="txn-meta">Kesehatan</div></div><div style="text-align:right"><div class="txn-amt" style="color:var(--danger)">-Rp 320.000</div><div class="txn-time">12:30</div></div><i class="fa-solid fa-chevron-right" style="color:var(--text3);font-size:11px;flex-shrink:0"></i></div>
+  <div class="txn-row" onclick="openTxnModal()"><div class="txn-icon" style="background:#DCFCE7">💰</div><div style="flex:1"><div class="txn-name">Gaji Bulanan</div><div class="txn-meta">Pemasukan · BCA Tahapan</div></div><div style="text-align:right"><div class="txn-amt" style="color:var(--success)">+Rp 18.000.000</div><div class="txn-time">07:00</div></div><div class="row-actions" style="flex-shrink:0;margin-left:4px"><button class="ract edit" onclick="event.stopPropagation();openTxnModal()"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="event.stopPropagation();confirmDelete('Transaksi',function(){showToast('🗑️ Transaksi dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
+  <div class="txn-row" onclick="openTxnModal()"><div class="txn-icon" style="background:#FEE2E2">🏥</div><div style="flex:1"><div class="txn-name">Apotek & Suplemen</div><div class="txn-meta">Kesehatan</div></div><div style="text-align:right"><div class="txn-amt" style="color:var(--danger)">-Rp 320.000</div><div class="txn-time">12:30</div></div><div class="row-actions" style="flex-shrink:0;margin-left:4px"><button class="ract edit" onclick="event.stopPropagation();openTxnModal()"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="event.stopPropagation();confirmDelete('Transaksi',function(){showToast('🗑️ Transaksi dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
 </div>
 
 <!-- ═══════════════════════════════════ PAGE: ANGGARAN ═══════════════════════════════════ -->
@@ -1603,7 +1651,7 @@ html.dark .nav-subitem:hover{background:var(--surface2)}
 <div class="page" id="page-tujuan">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
     <div><div style="font-size:15px;font-weight:700">4 Tujuan Aktif</div><div style="font-size:12px;color:var(--text3)">Total dialokasikan: Rp 409.600.000</div></div>
-    <button class="btn btn-primary" style="width:auto;padding:10px 18px" onclick="showToast('➕ Form tambah tujuan')"><i class="fa-solid fa-plus"></i> Tambah Tujuan</button>
+    <button class="btn btn-primary" style="width:auto;padding:10px 18px" onclick="crudOpen('tujuan','add')"><i class="fa-solid fa-plus"></i> Tambah Tujuan</button>
   </div>
   <div class="tujuan-stats">
     <div class="card" style="background:#DCFCE7;border-color:#86EFAC"><div style="font-size:10.5px;color:#15803D">On Track</div><div style="font-size:22px;font-weight:900;color:#15803D">2</div><div style="font-size:11px;color:#15803D">tujuan berjalan baik</div></div>
@@ -1616,28 +1664,28 @@ html.dark .nav-subitem:hover{background:var(--surface2)}
       <div class="goal-card-pct" style="color:var(--success)">80%</div>
       <div class="goal-card-bar-bg"><div class="goal-card-bar" style="width:80%;background:var(--success)"></div></div>
       <div class="goal-amts"><span>Rp 24.000.000 terkumpul</span><span>Target Rp 30.000.000</span></div>
-      <div class="goal-card-footer"><span>Sisa: Rp 6.000.000</span><span>Auto-debit Rp 2 jt/bln</span></div>
+      <div class="goal-card-footer"><span>Sisa: Rp 6.000.000</span><span>Auto-debit Rp 2 jt/bln</span></div><div style="display:flex;gap:6px;margin-top:10px"><button class="btn" style="flex:1;padding:7px;font-size:11px;background:var(--primary-light);color:var(--primary)" onclick="crudOpen('tujuan','edit')"><i class="fa-solid fa-pen"></i> Edit</button><button class="btn" style="flex:1;padding:7px;font-size:11px;background:#FEE2E2;color:var(--danger)" onclick="confirmDelete('Tujuan',function(){showToast('🗑️ Tujuan dihapus.')})"><i class="fa-solid fa-trash"></i> Hapus</button></div>
     </div>
     <div class="goal-card" style="border-color:var(--primary)">
       <div class="goal-card-hdr"><div class="goal-card-icon" style="background:#DBEAFE">✈️</div><div><div class="goal-card-name">Liburan ke Jepang</div><div class="goal-card-target">Target: Desember 2025</div></div><span class="badge info" style="margin-left:auto">On Track</span></div>
       <div class="goal-card-pct" style="color:var(--primary)">62%</div>
       <div class="goal-card-bar-bg"><div class="goal-card-bar" style="width:62%;background:var(--primary)"></div></div>
       <div class="goal-amts"><span>Rp 15.600.000 terkumpul</span><span>Target Rp 25.000.000</span></div>
-      <div class="goal-card-footer"><span>Sisa: Rp 9.400.000</span><span>Auto-debit Rp 1,5 jt/bln</span></div>
+      <div class="goal-card-footer"><span>Sisa: Rp 9.400.000</span><span>Auto-debit Rp 1,5 jt/bln</span></div><div style="display:flex;gap:6px;margin-top:10px"><button class="btn" style="flex:1;padding:7px;font-size:11px;background:var(--primary-light);color:var(--primary)" onclick="crudOpen('tujuan','edit')"><i class="fa-solid fa-pen"></i> Edit</button><button class="btn" style="flex:1;padding:7px;font-size:11px;background:#FEE2E2;color:var(--danger)" onclick="confirmDelete('Tujuan',function(){showToast('🗑️ Tujuan dihapus.')})"><i class="fa-solid fa-trash"></i> Hapus</button></div>
     </div>
     <div class="goal-card" style="border-color:var(--warning)">
       <div class="goal-card-hdr"><div class="goal-card-icon" style="background:#FEF9C3">🏠</div><div><div class="goal-card-name">DP Rumah</div><div class="goal-card-target">Target: 2027</div></div><span class="badge warning" style="margin-left:auto">Perlu Boost</span></div>
       <div class="goal-card-pct" style="color:var(--warning)">40%</div>
       <div class="goal-card-bar-bg"><div class="goal-card-bar" style="width:40%;background:var(--warning)"></div></div>
       <div class="goal-amts"><span>Rp 120.000.000 terkumpul</span><span>Target Rp 300.000.000</span></div>
-      <div class="goal-card-footer"><span>Sisa: Rp 180.000.000</span><span>Auto-debit Rp 5 jt/bln</span></div>
+      <div class="goal-card-footer"><span>Sisa: Rp 180.000.000</span><span>Auto-debit Rp 5 jt/bln</span></div><div style="display:flex;gap:6px;margin-top:10px"><button class="btn" style="flex:1;padding:7px;font-size:11px;background:var(--primary-light);color:var(--primary)" onclick="crudOpen('tujuan','edit')"><i class="fa-solid fa-pen"></i> Edit</button><button class="btn" style="flex:1;padding:7px;font-size:11px;background:#FEE2E2;color:var(--danger)" onclick="confirmDelete('Tujuan',function(){showToast('🗑️ Tujuan dihapus.')})"><i class="fa-solid fa-trash"></i> Hapus</button></div>
     </div>
     <div class="goal-card" style="border-color:var(--purple)">
       <div class="goal-card-hdr"><div class="goal-card-icon" style="background:#EDE9FE">🏖️</div><div><div class="goal-card-name">Dana Pensiun</div><div class="goal-card-target">Target: 2045</div></div><span class="badge purple" style="margin-left:auto">Berjalan</span></div>
       <div class="goal-card-pct" style="color:var(--purple)">25%</div>
       <div class="goal-card-bar-bg"><div class="goal-card-bar" style="width:25%;background:var(--purple)"></div></div>
       <div class="goal-amts"><span>Rp 250.000.000 terkumpul</span><span>Target Rp 1.000.000.000</span></div>
-      <div class="goal-card-footer"><span>Sisa: Rp 750.000.000</span><span>Auto-debit Rp 3 jt/bln</span></div>
+      <div class="goal-card-footer"><span>Sisa: Rp 750.000.000</span><span>Auto-debit Rp 3 jt/bln</span></div><div style="display:flex;gap:6px;margin-top:10px"><button class="btn" style="flex:1;padding:7px;font-size:11px;background:var(--primary-light);color:var(--primary)" onclick="crudOpen('tujuan','edit')"><i class="fa-solid fa-pen"></i> Edit</button><button class="btn" style="flex:1;padding:7px;font-size:11px;background:#FEE2E2;color:var(--danger)" onclick="confirmDelete('Tujuan',function(){showToast('🗑️ Tujuan dihapus.')})"><i class="fa-solid fa-trash"></i> Hapus</button></div>
     </div>
   </div>
 </div>
@@ -1655,53 +1703,56 @@ html.dark .nav-subitem:hover{background:var(--surface2)}
     <div class="act-item" style="border:none"><div class="act-icon" style="background:#EEF2FF;font-size:18px">🏧</div><div style="flex:1"><div class="act-name">Dana Darurat (Terpisah)</div><div class="act-cat">Tabungan khusus darurat</div></div><div style="text-align:right"><div style="font-size:15px;font-weight:800">Rp 24.000.000</div></div></div>
   </div>
   <div class="card">
-    <div class="card-title">E-Wallet <button class="btn" style="font-size:11px;padding:5px 12px;background:var(--primary-light);color:var(--primary)" onclick="showToast('➕ Tambah e-wallet')">+ Tambah</button></div>
-    <div class="act-item"><div class="act-icon" style="background:#DCFCE7;font-size:18px">💚</div><div style="flex:1"><div class="act-name">GoPay</div><div class="act-cat">082345678901</div></div><div style="text-align:right"><div style="font-size:15px;font-weight:800">Rp 45.000.000</div><div style="font-size:11px;color:var(--text3)">Active</div></div></div>
-    <div class="act-item" style="border:none"><div class="act-icon" style="background:#FEE2E2;font-size:18px">🔴</div><div style="flex:1"><div class="act-name">LinkAja</div><div class="act-cat">081234567890</div></div><div style="text-align:right"><div style="font-size:15px;font-weight:800">Rp 19.000.000</div><div style="font-size:11px;color:var(--text3)">Active</div></div></div>
+    <div class="card-title">E-Wallet <button class="btn" style="font-size:11px;padding:5px 12px;background:var(--primary-light);color:var(--primary)" onclick="crudOpen('ewallet','add')">+ Tambah</button></div>
+    <div class="act-item"><div class="act-icon" style="background:#DCFCE7;font-size:18px">💚</div><div style="flex:1"><div class="act-name">GoPay</div><div class="act-cat">082345678901</div></div><div style="text-align:right"><div style="font-size:15px;font-weight:800">Rp 45.000.000</div><div style="font-size:11px;color:var(--text3)">Active</div></div><div class="row-actions" style="margin-left:8px"><button class="ract edit" onclick="crudOpen('ewallet','edit')"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="confirmDelete('E-Wallet',function(){showToast('🗑️ E-Wallet dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
+    <div class="act-item" style="border:none"><div class="act-icon" style="background:#FEE2E2;font-size:18px">🔴</div><div style="flex:1"><div class="act-name">LinkAja</div><div class="act-cat">081234567890</div></div><div style="text-align:right"><div style="font-size:15px;font-weight:800">Rp 19.000.000</div><div style="font-size:11px;color:var(--text3)">Active</div></div><div class="row-actions" style="margin-left:8px"><button class="ract edit" onclick="crudOpen('ewallet','edit')"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="confirmDelete('E-Wallet',function(){showToast('🗑️ E-Wallet dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
   </div>
 </div>
 
 <!-- ═══════════════════════════════════ PAGE: REKENING ═══════════════════════════════════ -->
 <div class="page" id="page-rekening">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">
-    <div><div style="font-size:13px;font-weight:700">5 Rekening Terhubung</div><div style="font-size:11px;color:var(--text3)">Total: Rp 339.450.000</div></div>
-    <button class="btn btn-primary" style="width:auto;padding:9px 16px" onclick="showToast('➕ Tambah rekening')"><i class="fa-solid fa-plus"></i> Tambah</button>
+    <div><div style="font-size:13px;font-weight:700">3 Rekening Terhubung</div><div style="font-size:11px;color:var(--text3)">Total: Rp 275.450.000</div></div>
+    <button class="btn btn-primary" style="width:auto;padding:9px 16px" onclick="crudOpen('rekening','add')"><i class="fa-solid fa-plus"></i> Tambah</button>
   </div>
-  <div class="rekening-card" onclick="showToast('Detail BCA Tahapan')">
+  <div class="rekening-card">
     <div class="rek-header"><div class="rek-logo" style="background:#0061AF">BCA</div><div style="flex:1"><div class="rek-name">BCA Tahapan</div><div class="rek-no">•••• •••• 9010</div></div><span class="badge success">Utama</span></div>
     <div><div style="font-size:11px;color:var(--text3)">Saldo Tersedia</div><div class="rek-balance">Rp 128.450.000</div><div class="rek-type">Tabungan · BCA Prioritas</div></div>
-    <div class="rek-actions"><button class="rek-action-btn" onclick="event.stopPropagation();showToast('Transfer')">↗ Transfer</button><button class="rek-action-btn" onclick="event.stopPropagation();showToast('Topup')">📥 Top Up</button><button class="rek-action-btn" onclick="event.stopPropagation();showToast('Mutasi')">📋 Mutasi</button></div>
+    <div class="rek-actions"><button class="rek-action-btn" onclick="showToast('Transfer')">↗ Transfer</button><button class="rek-action-btn" onclick="showToast('Mutasi')">📋 Mutasi</button><button class="rek-action-btn" onclick="crudOpen('rekening','edit')">✏️ Edit</button><button class="rek-action-btn" style="color:var(--danger)" onclick="confirmDelete('Rekening',function(){showToast('🗑️ Rekening dihapus.')})">🗑️ Hapus</button></div>
   </div>
-  <div class="rekening-card" onclick="showToast('Detail Mandiri')">
+  <div class="rekening-card">
     <div class="rek-header"><div class="rek-logo" style="background:#F9A01B;color:#000">MDR</div><div style="flex:1"><div class="rek-name">Bank Mandiri</div><div class="rek-no">•••• •••• 5586</div></div><span class="badge gray">Aktif</span></div>
     <div><div style="font-size:11px;color:var(--text3)">Saldo</div><div class="rek-balance">Rp 85.000.000</div><div class="rek-type">Tabungan Rupiah</div></div>
-    <div class="rek-actions"><button class="rek-action-btn" onclick="event.stopPropagation();showToast('Transfer')">↗ Transfer</button><button class="rek-action-btn" onclick="event.stopPropagation();showToast('Mutasi')">📋 Mutasi</button></div>
+    <div class="rek-actions"><button class="rek-action-btn" onclick="showToast('Transfer')">↗ Transfer</button><button class="rek-action-btn" onclick="showToast('Mutasi')">📋 Mutasi</button><button class="rek-action-btn" onclick="crudOpen('rekening','edit')">✏️ Edit</button><button class="rek-action-btn" style="color:var(--danger)" onclick="confirmDelete('Rekening',function(){showToast('🗑️ Rekening dihapus.')})">🗑️ Hapus</button></div>
   </div>
-  <div class="rekening-card" onclick="showToast('Detail BNI')">
+  <div class="rekening-card">
     <div class="rek-header"><div class="rek-logo" style="background:#FF6600">BNI</div><div style="flex:1"><div class="rek-name">BNI Taplus</div><div class="rek-no">•••• •••• 5544</div></div><span class="badge gray">Aktif</span></div>
-    <div><div style="font-size:11px;color:var(--text3)">Saldo</div><div class="rek-balance">Rp 62.000.000</div><div class="rek-type">Tabungan Taplus</div></div>
-    <div class="rek-actions"><button class="rek-action-btn" onclick="event.stopPropagation();showToast('Transfer')">↗ Transfer</button><button class="rek-action-btn" onclick="event.stopPropagation();showToast('Mutasi')">📋 Mutasi</button></div>
+    <div><div style="font-size:11px;color:var(--text3)">Saldo</div><div class="rek-balance">Rp 62.000.000</div><div class="rek-type">Tabungan</div></div>
+    <div class="rek-actions"><button class="rek-action-btn" onclick="showToast('Transfer')">↗ Transfer</button><button class="rek-action-btn" onclick="showToast('Mutasi')">📋 Mutasi</button><button class="rek-action-btn" onclick="crudOpen('rekening','edit')">✏️ Edit</button><button class="rek-action-btn" style="color:var(--danger)" onclick="confirmDelete('Rekening',function(){showToast('🗑️ Rekening dihapus.')})">🗑️ Hapus</button></div>
   </div>
 </div>
 
 <!-- ═══════════════════════════════════ PAGE: INVESTASI ═══════════════════════════════════ -->
 <div class="page" id="page-investasi">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+    <div><div style="font-size:15px;font-weight:700">Portofolio Investasi</div><div style="font-size:12px;color:var(--text3)">6 instrumen · Total Rp 577.200.000</div></div>
+    <button class="btn btn-primary" style="width:auto;padding:9px 16px" onclick="crudOpen('investasi','add')"><i class="fa-solid fa-plus"></i> Tambah</button>
+  </div>
   <div class="inv-summary-row">
     <div class="card"><div style="font-size:11px;color:var(--text3);margin-bottom:4px">Total Nilai Investasi</div><div style="font-size:24px;font-weight:900;color:var(--primary)">Rp 577.200.000</div><div style="font-size:12px;color:var(--success);margin-top:4px">▲ 12,40% · +Rp 75.551.000 total return</div></div>
     <div class="card"><div style="font-size:11px;color:var(--text3);margin-bottom:4px">Return Hari Ini</div><div style="font-size:24px;font-weight:900;color:var(--success)">+Rp 1.250.000</div><div style="font-size:12px;color:var(--success);margin-top:4px">▲ +0,22% dari kemarin</div></div>
   </div>
   <div class="card">
-    <div class="card-title">Portofolio <span class="card-link" onclick="openTxnModal('investasi')">+ Tambah Investasi</span></div>
+    <div class="card-title">Daftar Portofolio</div>
     <div class="inv-table-wrap">
     <table class="inv-table">
-      <thead><tr><th>Nama</th><th>Jenis</th><th>Modal</th><th>Nilai</th><th>Return</th><th>%</th></tr></thead>
+      <thead><tr><th>Nama</th><th>Jenis</th><th>Modal</th><th>Nilai</th><th>Return</th><th>%</th><th>Aksi</th></tr></thead>
       <tbody>
-        <tr><td><div style="display:flex;align-items:center;gap:9px"><div class="inv-logo" style="background:#0061AF">BCA</div><div><div style="font-weight:600">Bank Central Asia</div><div class="inv-ticker">BBCA · Saham</div></div></div></td><td><span class="badge info">Saham</span></td><td class="mono">Rp 50.000.000</td><td class="mono" style="font-weight:800">Rp 62.300.000</td><td class="mono pct-up">+Rp 12.300.000</td><td class="pct-up">+24,6%</td></tr>
-        <tr><td><div style="display:flex;align-items:center;gap:9px"><div class="inv-logo" style="background:#E31937">BRI</div><div><div style="font-weight:600">Bank Rakyat Indonesia</div><div class="inv-ticker">BBRI · Saham</div></div></div></td><td><span class="badge info">Saham</span></td><td class="mono">Rp 30.000.000</td><td class="mono" style="font-weight:800">Rp 28.500.000</td><td class="mono pct-dn">-Rp 1.500.000</td><td class="pct-dn">-5,0%</td></tr>
-        <tr><td><div style="display:flex;align-items:center;gap:9px"><div class="inv-logo" style="background:#7C3AED">RD</div><div><div style="font-weight:600">Reksa Dana Bibit</div><div class="inv-ticker">Campuran</div></div></div></td><td><span class="badge purple">Reksa Dana</span></td><td class="mono">Rp 100.000.000</td><td class="mono" style="font-weight:800">Rp 124.800.000</td><td class="mono pct-up">+Rp 24.800.000</td><td class="pct-up">+24,8%</td></tr>
-        <tr><td><div style="display:flex;align-items:center;gap:9px"><div class="inv-logo" style="background:#D97706;color:#fff">Au</div><div><div style="font-weight:600">Emas Digital</div><div class="inv-ticker">Antam / Pegadaian</div></div></div></td><td><span class="badge warning">Emas</span></td><td class="mono">Rp 45.000.000</td><td class="mono" style="font-weight:800">Rp 50.000.000</td><td class="mono pct-up">+Rp 5.000.000</td><td class="pct-up">+11,1%</td></tr>
-        <tr><td><div style="display:flex;align-items:center;gap:9px"><div class="inv-logo" style="background:#1E3A5F">ORI</div><div><div style="font-weight:600">ORI024</div><div class="inv-ticker">Obligasi Negara</div></div></div></td><td><span class="badge success">Obligasi</span></td><td class="mono">Rp 80.000.000</td><td class="mono" style="font-weight:800">Rp 80.300.000</td><td class="mono pct-up">+Rp 300.000</td><td class="pct-up">+0,4%</td></tr>
-        <tr><td><div style="display:flex;align-items:center;gap:9px"><div class="inv-logo" style="background:#F97316">RDT</div><div><div style="font-weight:600">Reksa Dana Trimegah</div><div class="inv-ticker">Saham</div></div></div></td><td><span class="badge purple">Reksa Dana</span></td><td class="mono">Rp 120.400.000</td><td class="mono" style="font-weight:800">Rp 231.300.000</td><td class="mono pct-up">+Rp 110.900.000</td><td class="pct-up">+92,1%</td></tr>
+        <tr><td><div style="display:flex;align-items:center;gap:9px"><div class="inv-logo" style="background:#0061AF">BCA</div><div><div style="font-weight:600">Bank Central Asia</div><div class="inv-ticker">BBCA · Saham</div></div></div></td><td><span class="badge info">Saham</span></td><td class="mono">Rp 50.000.000</td><td class="mono" style="font-weight:800">Rp 62.300.000</td><td class="mono pct-up">+Rp 12.300.000</td><td class="pct-up">+24,6%</td><td><div class="row-actions"><button class="ract edit" onclick="crudOpen('investasi','edit')"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="confirmDelete('Investasi',function(){showToast('🗑️ Investasi dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></td></tr>
+        <tr><td><div style="display:flex;align-items:center;gap:9px"><div class="inv-logo" style="background:#E31937">BRI</div><div><div style="font-weight:600">Bank Rakyat Indonesia</div><div class="inv-ticker">BBRI · Saham</div></div></div></td><td><span class="badge info">Saham</span></td><td class="mono">Rp 30.000.000</td><td class="mono" style="font-weight:800">Rp 28.500.000</td><td class="mono pct-dn">-Rp 1.500.000</td><td class="pct-dn">-5,0%</td><td><div class="row-actions"><button class="ract edit" onclick="crudOpen('investasi','edit')"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="confirmDelete('Investasi',function(){showToast('🗑️ Investasi dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></td></tr>
+        <tr><td><div style="display:flex;align-items:center;gap:9px"><div class="inv-logo" style="background:#7C3AED">RD</div><div><div style="font-weight:600">Reksa Dana Bibit</div><div class="inv-ticker">Campuran</div></div></div></td><td><span class="badge purple">Reksa Dana</span></td><td class="mono">Rp 100.000.000</td><td class="mono" style="font-weight:800">Rp 124.800.000</td><td class="mono pct-up">+Rp 24.800.000</td><td class="pct-up">+24,8%</td><td><div class="row-actions"><button class="ract edit" onclick="crudOpen('investasi','edit')"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="confirmDelete('Investasi',function(){showToast('🗑️ Investasi dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></td></tr>
+        <tr><td><div style="display:flex;align-items:center;gap:9px"><div class="inv-logo" style="background:#D97706;color:#fff">Au</div><div><div style="font-weight:600">Emas Digital</div><div class="inv-ticker">Antam / Pegadaian</div></div></div></td><td><span class="badge warning">Emas</span></td><td class="mono">Rp 45.000.000</td><td class="mono" style="font-weight:800">Rp 50.000.000</td><td class="mono pct-up">+Rp 5.000.000</td><td class="pct-up">+11,1%</td><td><div class="row-actions"><button class="ract edit" onclick="crudOpen('investasi','edit')"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="confirmDelete('Investasi',function(){showToast('🗑️ Investasi dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></td></tr>
+        <tr><td><div style="display:flex;align-items:center;gap:9px"><div class="inv-logo" style="background:#1E3A5F">ORI</div><div><div style="font-weight:600">ORI024</div><div class="inv-ticker">Obligasi Negara</div></div></div></td><td><span class="badge success">Obligasi</span></td><td class="mono">Rp 80.000.000</td><td class="mono" style="font-weight:800">Rp 80.300.000</td><td class="mono pct-up">+Rp 300.000</td><td class="pct-up">+0,4%</td><td><div class="row-actions"><button class="ract edit" onclick="crudOpen('investasi','edit')"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="confirmDelete('Investasi',function(){showToast('🗑️ Investasi dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></td></tr>
       </tbody>
     </table>
     </div>
@@ -1710,56 +1761,25 @@ html.dark .nav-subitem:hover{background:var(--surface2)}
 
 <!-- ═══════════════════════════════════ PAGE: ASET ═══════════════════════════════════ -->
 <div class="page" id="page-aset">
-  <div class="asset-tabs-wrap">
-    <button class="atab active" onclick="setAtab(this)">Semua</button>
-    <button class="atab" onclick="setAtab(this)">Dana</button>
-    <button class="atab" onclick="setAtab(this)">Rekening</button>
-    <button class="atab" onclick="setAtab(this)">Investasi</button>
-    <button class="atab" onclick="setAtab(this)">Aset Fisik</button>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+    <div><div style="font-size:13px;font-weight:700">Total Aset Fisik</div><div style="font-size:11px;color:var(--text3)">Rp 251.300.000</div></div>
+    <button class="btn btn-primary" style="width:auto;padding:9px 16px" onclick="crudOpen('aset','add')"><i class="fa-solid fa-plus"></i> Tambah Aset</button>
   </div>
-  <div style="background:var(--primary-light);border:1.5px solid #C7D2FE;border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-    <div><div style="font-size:11px;color:var(--text3);margin-bottom:3px">Total Aset</div><div style="font-size:24px;font-weight:900;color:var(--primary-dark)">Rp 1.168.950.000</div><div style="font-size:12px;color:var(--success);margin-top:3px">▲ 8,45% (Rp 91.000.000) bulan ini</div></div>
-    <button class="icon-btn"><i class="fa-solid fa-lock" style="font-size:14px"></i></button>
-  </div>
-  <div class="asset-group"><div class="asset-group-hdr"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:17px">💳</span><span class="agh-name">Dana & Rekening</span></div><div class="agh-total">Rp 339.450.000</div></div>
-    <div class="asset-rows">
-      <div class="asset-row"><div class="ar-icon" style="background:#DBEAFE">🏦</div><div style="flex:1"><div class="ar-name">BCA Tahapan</div><div class="ar-sub">•••• 9010</div></div><div><div class="ar-val">Rp 128.450.000</div><div class="ar-growth" style="color:var(--text3)">Rekening Tabungan</div></div></div>
-      <div class="asset-row"><div class="ar-icon" style="background:#FFF7ED">🏦</div><div style="flex:1"><div class="ar-name">Mandiri</div><div class="ar-sub">•••• 5586</div></div><div><div class="ar-val">Rp 85.000.000</div></div></div>
-      <div class="asset-row"><div class="ar-icon" style="background:#ECFDF5">🏦</div><div style="flex:1"><div class="ar-name">BNI Taplus</div><div class="ar-sub">•••• 5544</div></div><div><div class="ar-val">Rp 62.000.000</div></div></div>
-      <div class="asset-row"><div class="ar-icon" style="background:#DCFCE7">💚</div><div style="flex:1"><div class="ar-name">GoPay</div><div class="ar-sub">e-Wallet</div></div><div><div class="ar-val">Rp 45.000.000</div></div></div>
-      <div class="asset-row"><div class="ar-icon" style="background:#FEF3C7">🔴</div><div style="flex:1"><div class="ar-name">LinkAja</div><div class="ar-sub">e-Wallet</div></div><div><div class="ar-val">Rp 19.000.000</div></div></div>
-    </div>
-  </div>
-  <div class="asset-group"><div class="asset-group-hdr"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:17px">📈</span><span class="agh-name">Investasi</span></div><div class="agh-total">Rp 577.200.000</div></div>
-    <div class="asset-rows">
-      <div class="asset-row"><div class="ar-icon" style="background:#EDE9FE">📊</div><div style="flex:1"><div class="ar-name">Reksa Dana</div></div><div><div class="ar-val">Rp 356.100.000</div><div class="ar-growth pct-up">▲ 18,6%</div></div></div>
-      <div class="asset-row"><div class="ar-icon" style="background:#DBEAFE">📉</div><div style="flex:1"><div class="ar-name">Saham</div></div><div><div class="ar-val">Rp 90.800.000</div><div class="ar-growth pct-up">▲ 5,9%</div></div></div>
-      <div class="asset-row"><div class="ar-icon" style="background:#FEF9C3">🥇</div><div style="flex:1"><div class="ar-name">Obligasi</div></div><div><div class="ar-val">Rp 80.300.000</div><div class="ar-growth pct-up">▲ 0,4%</div></div></div>
-      <div class="asset-row"><div class="ar-icon" style="background:#FFF7ED">✨</div><div style="flex:1"><div class="ar-name">Emas Digital</div></div><div><div class="ar-val">Rp 50.000.000</div><div class="ar-growth pct-up">▲ 11,1%</div></div></div>
-    </div>
-  </div>
-  <div class="asset-group"><div class="asset-group-hdr"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:17px">🏠</span><span class="agh-name">Aset Fisik</span></div><div class="agh-total">Rp 251.300.000</div></div>
-    <div class="asset-rows">
-      <div class="asset-row"><div class="ar-icon" style="background:#FEF9C3">🏠</div><div style="flex:1"><div class="ar-name">Properti</div><div class="ar-sub">Apartemen Kelapa Gading</div></div><div><div class="ar-val">Rp 200.000.000</div><div class="ar-growth pct-up">▲ 6,4%</div></div></div>
-      <div class="asset-row"><div class="ar-icon" style="background:#DBEAFE">🚗</div><div style="flex:1"><div class="ar-name">Toyota Avanza 2022</div></div><div><div class="ar-val">Rp 45.000.000</div></div></div>
-      <div class="asset-row"><div class="ar-icon" style="background:#F3F4F6">💻</div><div style="flex:1"><div class="ar-name">Elektronik</div></div><div><div class="ar-val">Rp 6.300.000</div></div></div>
-    </div>
-  </div>
-  <div class="asset-group"><div class="asset-group-hdr"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:17px">⚠️</span><span class="agh-name">Liabilitas</span></div><div style="font-size:14px;font-weight:800;color:var(--danger)">-Rp 40.170.000</div></div>
-    <div class="asset-rows">
-      <div class="asset-row"><div class="ar-icon" style="background:#FEE2E2">💳</div><div style="flex:1"><div class="ar-name">Kartu Kredit</div></div><div><div class="ar-val" style="color:var(--danger)">-Rp 15.170.000</div></div></div>
-      <div class="asset-row"><div class="ar-icon" style="background:#FEE2E2">📋</div><div style="flex:1"><div class="ar-name">Pinjaman</div></div><div><div class="ar-val" style="color:var(--danger)">-Rp 25.000.000</div></div></div>
-    </div>
+  <div class="card">
+    <div class="card-title">Daftar Aset</div>
+    <div class="act-item"><div class="act-icon" style="background:#FEF9C3">🏠</div><div style="flex:1"><div class="act-name">Apartemen Kelapa Gading</div><div class="act-cat">Properti · SHM Sarusun</div></div><div style="text-align:right"><div class="act-amt" style="color:var(--text)">Rp 200.000.000</div></div><div class="row-actions" style="margin-left:10px"><button class="ract edit" onclick="crudOpen('aset','edit')"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="confirmDelete('Aset',function(){showToast('🗑️ Aset dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
+    <div class="act-item"><div class="act-icon" style="background:#DBEAFE">🚗</div><div style="flex:1"><div class="act-name">Toyota Avanza 2022</div><div class="act-cat">Kendaraan · BPKB</div></div><div style="text-align:right"><div class="act-amt" style="color:var(--text)">Rp 45.000.000</div></div><div class="row-actions" style="margin-left:10px"><button class="ract edit" onclick="crudOpen('aset','edit')"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="confirmDelete('Aset',function(){showToast('🗑️ Aset dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
+    <div class="act-item" style="border:none"><div class="act-icon" style="background:#F3F4F6">💻</div><div style="flex:1"><div class="act-name">Elektronik & Lainnya</div><div class="act-cat">Gadget, perabot</div></div><div style="text-align:right"><div class="act-amt" style="color:var(--text)">Rp 6.300.000</div></div><div class="row-actions" style="margin-left:10px"><button class="ract edit" onclick="crudOpen('aset','edit')"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="confirmDelete('Aset',function(){showToast('🗑️ Aset dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
   </div>
 </div>
 
 <!-- ═══════════════════════════════════ PAGE: LIABILITAS ═══════════════════════════════════ -->
 <div class="page" id="page-liabilitas">
-  <div class="grid-2 keep2" style="margin-bottom:18px">
-    <div class="card" style="background:#FEE2E2;border-color:#FECACA"><div style="font-size:11px;color:#B91C1C;margin-bottom:4px">Total Liabilitas</div><div style="font-size:22px;font-weight:900;color:var(--danger)">Rp 40.170.000</div><div style="font-size:11px;color:#B91C1C">▼ Turun 1,08% (membaik)</div></div>
-    <div class="card"><div style="font-size:11px;color:var(--text3);margin-bottom:4px">Debt-to-Asset Ratio</div><div style="font-size:22px;font-weight:900;color:var(--success)">3,2%</div><div style="font-size:11px;color:var(--success)">Sangat Aman (&lt;30%)</div></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+    <div><div style="font-size:13px;font-weight:700">Total Liabilitas</div><div style="font-size:11px;color:var(--danger)">Rp 40.170.000</div></div>
+    <button class="btn btn-primary" style="width:auto;padding:9px 16px" onclick="crudOpen('liabilitas','add')"><i class="fa-solid fa-plus"></i> Tambah</button>
   </div>
-  <div class="liability-card">
+  <div class="liability-card"><div class="card-flex-wrap"><div class="card-flex-main">
     <div class="lc-header"><div class="lc-icon" style="background:#FEE2E2">💳</div><div><div class="lc-name">Kartu Kredit BCA</div><div class="lc-bank">BCA · Visa Platinum</div></div><span class="badge warning" style="margin-left:auto">Jatuh Tempo 15 Mei</span></div>
     <div class="lc-meta">
       <div class="lcm-item"><div class="lcm-label">Tagihan Berjalan</div><div class="lcm-val" style="color:var(--danger)">Rp 8.170.000</div></div>
@@ -1767,23 +1787,17 @@ html.dark .nav-subitem:hover{background:var(--surface2)}
       <div class="lcm-item"><div class="lcm-label">Minimum Bayar</div><div class="lcm-val">Rp 817.000</div></div>
       <div class="lcm-item"><div class="lcm-label">Bunga/Bulan</div><div class="lcm-val" style="color:var(--danger)">2,25%</div></div>
     </div>
-    <div class="lc-progress">
-      <div class="lcp-label"><span style="font-size:11.5px;font-weight:600">Penggunaan Limit</span><span style="font-size:12px;font-weight:700;color:var(--warning)">27%</span></div>
-      <div class="lcp-bar-bg"><div class="lcp-bar" style="width:27%;background:var(--warning)"></div></div>
-    </div>
-  </div>
-  <div class="liability-card">
+    <div class="lc-progress"><div class="lcp-label"><span style="font-size:11.5px;font-weight:600">Penggunaan Limit</span><span style="font-size:12px;font-weight:700;color:var(--warning)">27%</span></div><div class="lcp-bar-bg"><div class="lcp-bar" style="width:27%;background:var(--warning)"></div></div></div>
+  </div><div class="card-side-actions"><button class="csa-btn edit" title="Edit" onclick="crudOpen('liabilitas','edit')"><i class="fa-solid fa-pen"></i></button><button class="csa-btn pay" title="Bayar" onclick="showToast('💳 Bayar tagihan')"><i class="fa-solid fa-money-bill"></i></button><button class="csa-btn del" title="Hapus" onclick="confirmDelete('Liabilitas',function(){showToast('🗑️ Liabilitas dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div></div>
+  <div class="liability-card"><div class="card-flex-wrap"><div class="card-flex-main">
     <div class="lc-header"><div class="lc-icon" style="background:#FEE2E2">💳</div><div><div class="lc-name">Kartu Kredit Mandiri</div><div class="lc-bank">Mandiri · Visa Gold</div></div><span class="badge danger" style="margin-left:auto">Sudah Jatuh Tempo</span></div>
     <div class="lc-meta">
       <div class="lcm-item"><div class="lcm-label">Tagihan</div><div class="lcm-val" style="color:var(--danger)">Rp 7.000.000</div></div>
       <div class="lcm-item"><div class="lcm-label">Limit</div><div class="lcm-val">Rp 20.000.000</div></div>
     </div>
-    <div class="lc-progress">
-      <div class="lcp-label"><span style="font-size:11.5px;font-weight:600">Penggunaan Limit</span><span style="font-size:12px;font-weight:700;color:var(--danger)">35%</span></div>
-      <div class="lcp-bar-bg"><div class="lcp-bar" style="width:35%;background:var(--danger)"></div></div>
-    </div>
-  </div>
-  <div class="liability-card">
+    <div class="lc-progress"><div class="lcp-label"><span style="font-size:11.5px;font-weight:600">Penggunaan Limit</span><span style="font-size:12px;font-weight:700;color:var(--danger)">35%</span></div><div class="lcp-bar-bg"><div class="lcp-bar" style="width:35%;background:var(--danger)"></div></div></div>
+  </div><div class="card-side-actions"><button class="csa-btn edit" title="Edit" onclick="crudOpen('liabilitas','edit')"><i class="fa-solid fa-pen"></i></button><button class="csa-btn pay" title="Bayar" onclick="showToast('💳 Bayar tagihan')"><i class="fa-solid fa-money-bill"></i></button><button class="csa-btn del" title="Hapus" onclick="confirmDelete('Liabilitas',function(){showToast('🗑️ Liabilitas dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div></div>
+  <div class="liability-card"><div class="card-flex-wrap"><div class="card-flex-main">
     <div class="lc-header"><div class="lc-icon" style="background:#FEE2E2">📋</div><div><div class="lc-name">Pinjaman KTA BNI</div><div class="lc-bank">BNI · 36 Bulan</div></div><span class="badge success" style="margin-left:auto">Berjalan</span></div>
     <div class="lc-meta">
       <div class="lcm-item"><div class="lcm-label">Sisa Pokok</div><div class="lcm-val" style="color:var(--danger)">Rp 25.000.000</div></div>
@@ -1791,79 +1805,67 @@ html.dark .nav-subitem:hover{background:var(--surface2)}
       <div class="lcm-item"><div class="lcm-label">Sisa Tenor</div><div class="lcm-val">12 Bulan</div></div>
       <div class="lcm-item"><div class="lcm-label">Bunga</div><div class="lcm-val">10% per tahun</div></div>
     </div>
-    <div class="lc-progress">
-      <div class="lcp-label"><span style="font-size:11.5px;font-weight:600">Progres Pelunasan</span><span style="font-size:12px;font-weight:700;color:var(--success)">67%</span></div>
-      <div class="lcp-bar-bg"><div class="lcp-bar" style="width:67%;background:var(--success)"></div></div>
-    </div>
-  </div>
+    <div class="lc-progress"><div class="lcp-label"><span style="font-size:11.5px;font-weight:600">Progres Pelunasan</span><span style="font-size:12px;font-weight:700;color:var(--success)">67%</span></div><div class="lcp-bar-bg"><div class="lcp-bar" style="width:67%;background:var(--success)"></div></div></div>
+  </div><div class="card-side-actions"><button class="csa-btn edit" title="Edit" onclick="crudOpen('liabilitas','edit')"><i class="fa-solid fa-pen"></i></button><button class="csa-btn pay" title="Bayar" onclick="showToast('💳 Bayar tagihan')"><i class="fa-solid fa-money-bill"></i></button><button class="csa-btn del" title="Hapus" onclick="confirmDelete('Liabilitas',function(){showToast('🗑️ Liabilitas dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div></div>
 </div>
 
 <!-- ═══════════════════════════════════ PAGE: ASURANSI ═══════════════════════════════════ -->
 <div class="page" id="page-asuransi">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">
     <div><div style="font-size:15px;font-weight:700">3 Polis Aktif</div><div style="font-size:12px;color:var(--text3)">Total premi: Rp 2.400.000/bln</div></div>
-    <button class="btn btn-primary" style="width:auto;padding:9px 16px" onclick="showToast('➕ Tambah asuransi')"><i class="fa-solid fa-plus"></i> Tambah</button>
+    <button class="btn btn-primary" style="width:auto;padding:9px 16px" onclick="crudOpen('asuransi','add')"><i class="fa-solid fa-plus"></i> Tambah</button>
   </div>
-  <div class="insurance-card">
+  <div class="insurance-card"><div class="card-flex-wrap"><div class="card-flex-main">
     <div class="ins-header"><div class="ins-icon" style="background:#DCFCE7">🏥</div><div style="flex:1"><div style="font-size:14px;font-weight:700">Asuransi Jiwa & Kesehatan</div><div style="font-size:11px;color:var(--text3)">Prudential · PRUlink Assurance</div></div><span class="badge success">Aktif</span></div>
     <div class="ins-meta">
       <div class="insm"><div class="insm-label">Uang Pertanggungan</div><div class="insm-val">Rp 1.000.000.000</div></div>
       <div class="insm"><div class="insm-label">Premi/Bulan</div><div class="insm-val">Rp 1.500.000</div></div>
       <div class="insm"><div class="insm-label">Jatuh Tempo</div><div class="insm-val">15 Mei 2025</div></div>
     </div>
-  </div>
-  <div class="insurance-card">
+  </div><div class="card-side-actions"><button class="csa-btn edit" title="Edit" onclick="crudOpen('asuransi','edit')"><i class="fa-solid fa-pen"></i></button><button class="csa-btn pay" title="Bayar Premi" onclick="showToast('💳 Bayar premi')"><i class="fa-solid fa-money-bill"></i></button><button class="csa-btn del" title="Hapus" onclick="confirmDelete('Asuransi',function(){showToast('🗑️ Asuransi dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div></div>
+  <div class="insurance-card"><div class="card-flex-wrap"><div class="card-flex-main">
     <div class="ins-header"><div class="ins-icon" style="background:#DBEAFE">🚗</div><div style="flex:1"><div style="font-size:14px;font-weight:700">Asuransi Kendaraan</div><div style="font-size:11px;color:var(--text3)">Astra Insurance · All Risk</div></div><span class="badge success">Aktif</span></div>
     <div class="ins-meta">
       <div class="insm"><div class="insm-label">Kendaraan</div><div class="insm-val">Toyota Avanza 2022</div></div>
       <div class="insm"><div class="insm-label">Premi/Bulan</div><div class="insm-val">Rp 600.000</div></div>
       <div class="insm"><div class="insm-label">Jatuh Tempo</div><div class="insm-val">Oktober 2025</div></div>
     </div>
-  </div>
-  <div class="insurance-card">
+  </div><div class="card-side-actions"><button class="csa-btn edit" title="Edit" onclick="crudOpen('asuransi','edit')"><i class="fa-solid fa-pen"></i></button><button class="csa-btn pay" title="Bayar Premi" onclick="showToast('💳 Bayar premi')"><i class="fa-solid fa-money-bill"></i></button><button class="csa-btn del" title="Hapus" onclick="confirmDelete('Asuransi',function(){showToast('🗑️ Asuransi dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div></div>
+  <div class="insurance-card"><div class="card-flex-wrap"><div class="card-flex-main">
     <div class="ins-header"><div class="ins-icon" style="background:#FEF9C3">🏠</div><div style="flex:1"><div style="font-size:14px;font-weight:700">Asuransi Properti</div><div style="font-size:11px;color:var(--text3)">Tokio Marine · Properti</div></div><span class="badge success">Aktif</span></div>
     <div class="ins-meta">
       <div class="insm"><div class="insm-label">Objek</div><div class="insm-val">Apt Kelapa Gading</div></div>
       <div class="insm"><div class="insm-label">Premi/Bulan</div><div class="insm-val">Rp 300.000</div></div>
       <div class="insm"><div class="insm-label">Jatuh Tempo</div><div class="insm-val">Maret 2026</div></div>
     </div>
-  </div>
+  </div><div class="card-side-actions"><button class="csa-btn edit" title="Edit" onclick="crudOpen('asuransi','edit')"><i class="fa-solid fa-pen"></i></button><button class="csa-btn pay" title="Bayar Premi" onclick="showToast('💳 Bayar premi')"><i class="fa-solid fa-money-bill"></i></button><button class="csa-btn del" title="Hapus" onclick="confirmDelete('Asuransi',function(){showToast('🗑️ Asuransi dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div></div>
 </div>
 
 <!-- ═══════════════════════════════════ PAGE: AI ADVISOR ═══════════════════════════════════ -->
 <div class="page" id="page-ai">
   <div style="max-width:800px;margin:0 auto">
     <div class="ai-banner">
-      <div style="font-size:38px">🤖</div>
-      <div><div style="font-size:16px;font-weight:700">WealthMe AI Advisor</div><div style="font-size:12.5px;opacity:.65;margin-top:3px">Powered by Claude & GPT-4o · Analisa keuangan personal, rekomendasi investasi, dan insight cerdas.</div></div>
+      <div class="ai-robot">🤖</div>
+      <div class="ai-banner-text"><div class="abt">WealthMe AI Advisor</div><div class="abs">Powered by Claude & GPT-4o · Analisa keuangan personal, rekomendasi investasi, dan insight cerdas.</div></div>
     </div>
-    <div style="font-size:11.5px;color:var(--text3);margin-bottom:8px;font-weight:700">💡 Pertanyaan Populer</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:8px;font-weight:600">Pertanyaan Populer</div>
     <div class="ai-chips">
       <div class="ai-chip" onclick="sendChip(this)">📊 Analisa keuangan bulan ini</div>
-      <div class="ai-chip" onclick="sendChip(this)">🎯 Cara capai DP Rumah lebih cepat</div>
+      <div class="ai-chip" onclick="sendChip(this)">🎯 Cara capai target DP Rumah lebih cepat</div>
       <div class="ai-chip" onclick="sendChip(this)">📈 Rekomendasi portofolio investasi</div>
       <div class="ai-chip" onclick="sendChip(this)">💡 Tips hemat pengeluaran</div>
-      <div class="ai-chip" onclick="sendChip(this)">🏦 Apakah utang kartu kreditku aman?</div>
-      <div class="ai-chip" onclick="sendChip(this)">📅 Proyeksi kekayaan 5 tahun ke depan</div>
     </div>
     <div class="chat-wrap">
       <div class="chat-messages" id="chatMessages">
-        <div class="chat-msg ai">
-          <div class="msg-av" style="background:#EEF2FF">🤖</div>
-          <div class="msg-bubble">Halo Irfan! 👋 Saya WealthMe AI Advisor.<br><br>Berdasarkan data keuanganmu, total kekayaan bersihmu sudah <strong>Rp 1,256 Miliar</strong> — tumbuh <strong>8,45%</strong> bulan ini. Luar biasa! 🎉<br><br>Ada yang ingin kamu tanyakan?</div>
-        </div>
+        <div class="chat-msg ai"><div class="msg-avatar" style="background:#EEF2FF">🤖</div><div class="msg-bubble">Halo Irfan! 👋 Saya WealthMe AI Advisor. Total kekayaan bersihmu <strong>Rp 1,256 M</strong> tumbuh 8,45% bulan ini. Ada yang ingin ditanyakan?</div></div>
       </div>
-      <div class="chat-input-wrap">
-        <input type="text" class="chat-input" id="chatInput" placeholder="Tanya soal keuanganmu..." onkeydown="if(event.key==='Enter')sendChatInput()">
-        <button class="chat-send" onclick="sendChatInput()"><i class="fa-solid fa-paper-plane"></i></button>
-      </div>
+      <div class="chat-input-wrap"><input type="text" class="chat-input" id="chatInput" placeholder="Tanya soal keuanganmu..." onkeydown="if(event.key==='Enter')sendChatInput()"><button class="chat-send" onclick="sendChatInput()">➤</button></div>
     </div>
   </div>
 </div>
 
 <!-- ═══════════════════════════════════ PAGE: WARISAN ═══════════════════════════════════ -->
 <div class="page" id="page-warisan">
-  <!-- Hero -->
   <div style="background:linear-gradient(135deg,#5B21B6,#7C3AED,#A78BFA);border-radius:var(--radius);padding:24px;color:white;margin-bottom:16px;position:relative;overflow:hidden">
     <div style="position:relative;z-index:1">
       <div style="display:flex;align-items:center;gap:8px;font-size:12px;opacity:.85;margin-bottom:6px"><i class="fa-solid fa-scroll"></i> Total Nilai Warisan</div>
@@ -1872,21 +1874,16 @@ html.dark .nav-subitem:hover{background:var(--surface2)}
     </div>
     <div style="position:absolute;right:-20px;top:-20px;font-size:140px;opacity:.1">🏛️</div>
   </div>
-
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
     <div style="font-size:13px;color:var(--text3)">Catatan aset warisan yang dapat dilihat seluruh ahli waris</div>
     <button class="btn btn-primary" style="width:auto;padding:9px 16px" onclick="openWarisanModal()"><i class="fa-solid fa-plus"></i> Tambah Aset Warisan</button>
   </div>
-
-  <!-- Breakdown 4 kategori -->
   <div class="grid-4" style="margin-bottom:16px">
-    <div class="card"><div class="sc-ic" style="background:#FEF9C3;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:8px">🏠</div><div style="font-size:10.5px;color:var(--text3)">Aset / Properti</div><div style="font-size:16px;font-weight:800">Rp 1.250.000.000</div><div style="font-size:10.5px;color:var(--text3)">58% dari total</div></div>
-    <div class="card"><div class="sc-ic" style="background:#DCFCE7;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:8px">💵</div><div style="font-size:10.5px;color:var(--text3)">Cash / Tunai</div><div style="font-size:16px;font-weight:800">Rp 385.300.000</div><div style="font-size:10.5px;color:var(--text3)">18% dari total</div></div>
-    <div class="card"><div class="sc-ic" style="background:#DBEAFE;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:8px">📜</div><div style="font-size:10.5px;color:var(--text3)">Surat Berharga</div><div style="font-size:16px;font-weight:800">Rp 310.000.000</div><div style="font-size:10.5px;color:var(--text3)">14% dari total</div></div>
-    <div class="card"><div class="sc-ic" style="background:#EDE9FE;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:8px">📈</div><div style="font-size:10.5px;color:var(--text3)">Saham</div><div style="font-size:16px;font-weight:800">Rp 200.000.000</div><div style="font-size:10.5px;color:var(--text3)">9% dari total</div></div>
+    <div class="card"><div style="width:34px;height:34px;border-radius:9px;background:#FEF9C3;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:8px">🏠</div><div style="font-size:10.5px;color:var(--text3)">Aset / Properti</div><div style="font-size:16px;font-weight:800">Rp 1.250.000.000</div><div style="font-size:10.5px;color:var(--text3)">58% dari total</div></div>
+    <div class="card"><div style="width:34px;height:34px;border-radius:9px;background:#DCFCE7;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:8px">💵</div><div style="font-size:10.5px;color:var(--text3)">Cash / Tunai</div><div style="font-size:16px;font-weight:800">Rp 385.300.000</div><div style="font-size:10.5px;color:var(--text3)">18% dari total</div></div>
+    <div class="card"><div style="width:34px;height:34px;border-radius:9px;background:#DBEAFE;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:8px">📜</div><div style="font-size:10.5px;color:var(--text3)">Surat Berharga</div><div style="font-size:16px;font-weight:800">Rp 310.000.000</div><div style="font-size:10.5px;color:var(--text3)">14% dari total</div></div>
+    <div class="card"><div style="width:34px;height:34px;border-radius:9px;background:#EDE9FE;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:8px">📈</div><div style="font-size:10.5px;color:var(--text3)">Saham</div><div style="font-size:16px;font-weight:800">Rp 200.000.000</div><div style="font-size:10.5px;color:var(--text3)">9% dari total</div></div>
   </div>
-
-  <!-- Ahli Waris -->
   <div class="card" style="margin-bottom:16px">
     <div class="card-title">Ahli Waris yang Dapat Mengakses</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -1896,33 +1893,27 @@ html.dark .nav-subitem:hover{background:var(--surface2)}
       <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg);border-radius:20px"><div class="split-av" style="background:linear-gradient(135deg,#8B5CF6,#EC4899);width:28px;height:28px;font-size:11px">RA</div><span style="font-size:12px;font-weight:600">Rina Arsandi</span></div>
     </div>
   </div>
-
-  <!-- Daftar Aset per kategori -->
   <div class="card" style="margin-bottom:16px">
     <div class="card-title">🏠 Aset / Properti</div>
-    <div class="act-item"><div class="act-icon" style="background:#FEF9C3">🏡</div><div style="flex:1"><div class="act-name">Rumah Utama — Bandung</div><div class="act-cat">SHM No. 1234 · Luas 350m²</div></div><div style="text-align:right"><div class="act-amt" style="color:var(--text)">Rp 850.000.000</div></div></div>
-    <div class="act-item"><div class="act-icon" style="background:#FEF9C3">🏢</div><div style="flex:1"><div class="act-name">Apartemen Kelapa Gading</div><div class="act-cat">SHM Sarusun · 2BR</div></div><div style="text-align:right"><div class="act-amt" style="color:var(--text)">Rp 250.000.000</div></div></div>
-    <div class="act-item" style="border:none"><div class="act-icon" style="background:#DBEAFE">🚗</div><div style="flex:1"><div class="act-name">Kendaraan — Toyota Fortuner</div><div class="act-cat">BPKB · Tahun 2023</div></div><div style="text-align:right"><div class="act-amt" style="color:var(--text)">Rp 150.000.000</div></div></div>
+    <div class="act-item"><div class="act-icon" style="background:#FEF9C3">🏡</div><div style="flex:1"><div class="act-name">Rumah Utama — Bandung</div><div class="act-cat">SHM No. 1234 · Luas 350m²</div></div><div style="text-align:right"><div class="act-amt" style="color:var(--text)">Rp 850.000.000</div></div><div class="row-actions" style="margin-left:10px"><button class="ract edit" onclick="showToast('✏️ Edit Aset Warisan')"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="confirmDelete('Aset Warisan',function(){showToast('🗑️ Aset Warisan dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
+    <div class="act-item"><div class="act-icon" style="background:#FEF9C3">🏢</div><div style="flex:1"><div class="act-name">Apartemen Kelapa Gading</div><div class="act-cat">SHM Sarusun · 2BR</div></div><div style="text-align:right"><div class="act-amt" style="color:var(--text)">Rp 250.000.000</div></div><div class="row-actions" style="margin-left:10px"><button class="ract edit" onclick="showToast('✏️ Edit Aset Warisan')"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="confirmDelete('Aset Warisan',function(){showToast('🗑️ Aset Warisan dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
+    <div class="act-item" style="border:none"><div class="act-icon" style="background:#DBEAFE">🚗</div><div style="flex:1"><div class="act-name">Kendaraan — Toyota Fortuner</div><div class="act-cat">BPKB · Tahun 2023</div></div><div style="text-align:right"><div class="act-amt" style="color:var(--text)">Rp 150.000.000</div></div><div class="row-actions" style="margin-left:10px"><button class="ract edit" onclick="showToast('✏️ Edit Aset Warisan')"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="confirmDelete('Aset Warisan',function(){showToast('🗑️ Aset Warisan dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
   </div>
-
   <div class="card" style="margin-bottom:16px">
     <div class="card-title">💵 Cash / Tunai</div>
-    <div class="act-item"><div class="act-icon" style="background:#DCFCE7">🏦</div><div style="flex:1"><div class="act-name">Deposito BCA</div><div class="act-cat">Jatuh tempo Des 2025 · Bunga 5%</div></div><div style="text-align:right"><div class="act-amt" style="color:var(--text)">Rp 250.000.000</div></div></div>
-    <div class="act-item" style="border:none"><div class="act-icon" style="background:#DCFCE7">💰</div><div style="flex:1"><div class="act-name">Tabungan Warisan</div><div class="act-cat">Rekening khusus · Mandiri</div></div><div style="text-align:right"><div class="act-amt" style="color:var(--text)">Rp 135.300.000</div></div></div>
+    <div class="act-item"><div class="act-icon" style="background:#DCFCE7">🏦</div><div style="flex:1"><div class="act-name">Deposito BCA</div><div class="act-cat">Jatuh tempo Des 2025 · Bunga 5%</div></div><div style="text-align:right"><div class="act-amt" style="color:var(--text)">Rp 250.000.000</div></div><div class="row-actions" style="margin-left:10px"><button class="ract edit" onclick="showToast('✏️ Edit Aset Warisan')"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="confirmDelete('Aset Warisan',function(){showToast('🗑️ Aset Warisan dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
+    <div class="act-item" style="border:none"><div class="act-icon" style="background:#DCFCE7">💰</div><div style="flex:1"><div class="act-name">Tabungan Warisan</div><div class="act-cat">Rekening khusus · Mandiri</div></div><div style="text-align:right"><div class="act-amt" style="color:var(--text)">Rp 135.300.000</div></div><div class="row-actions" style="margin-left:10px"><button class="ract edit" onclick="showToast('✏️ Edit Aset Warisan')"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="confirmDelete('Aset Warisan',function(){showToast('🗑️ Aset Warisan dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
   </div>
-
   <div class="card" style="margin-bottom:16px">
     <div class="card-title">📜 Surat Berharga</div>
-    <div class="act-item"><div class="act-icon" style="background:#DBEAFE">🏛️</div><div style="flex:1"><div class="act-name">Obligasi Negara ORI024</div><div class="act-cat">Jatuh tempo 2027 · Kupon 6,1%</div></div><div style="text-align:right"><div class="act-amt" style="color:var(--text)">Rp 200.000.000</div></div></div>
-    <div class="act-item" style="border:none"><div class="act-icon" style="background:#FEF3C7">🥇</div><div style="flex:1"><div class="act-name">Emas Batangan Antam</div><div class="act-cat">100 gram · Sertifikat resmi</div></div><div style="text-align:right"><div class="act-amt" style="color:var(--text)">Rp 110.000.000</div></div></div>
+    <div class="act-item"><div class="act-icon" style="background:#DBEAFE">🏛️</div><div style="flex:1"><div class="act-name">Obligasi Negara ORI024</div><div class="act-cat">Jatuh tempo 2027 · Kupon 6,1%</div></div><div style="text-align:right"><div class="act-amt" style="color:var(--text)">Rp 200.000.000</div></div><div class="row-actions" style="margin-left:10px"><button class="ract edit" onclick="showToast('✏️ Edit Aset Warisan')"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="confirmDelete('Aset Warisan',function(){showToast('🗑️ Aset Warisan dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
+    <div class="act-item" style="border:none"><div class="act-icon" style="background:#FEF3C7">🥇</div><div style="flex:1"><div class="act-name">Emas Batangan Antam</div><div class="act-cat">100 gram · Sertifikat resmi</div></div><div style="text-align:right"><div class="act-amt" style="color:var(--text)">Rp 110.000.000</div></div><div class="row-actions" style="margin-left:10px"><button class="ract edit" onclick="showToast('✏️ Edit Aset Warisan')"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="confirmDelete('Aset Warisan',function(){showToast('🗑️ Aset Warisan dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
   </div>
-
   <div class="card" style="margin-bottom:16px">
     <div class="card-title">📈 Saham</div>
-    <div class="act-item"><div class="act-icon" style="background:#EDE9FE">📊</div><div style="flex:1"><div class="act-name">Portofolio Saham Blue Chip</div><div class="act-cat">BBCA, TLKM, ASII · Sekuritas Mandiri</div></div><div style="text-align:right"><div class="act-amt" style="color:var(--text)">Rp 140.000.000</div></div></div>
-    <div class="act-item" style="border:none"><div class="act-icon" style="background:#EDE9FE">📈</div><div style="flex:1"><div class="act-name">Reksa Dana Saham</div><div class="act-cat">Bibit · Jangka panjang</div></div><div style="text-align:right"><div class="act-amt" style="color:var(--text)">Rp 60.000.000</div></div></div>
+    <div class="act-item"><div class="act-icon" style="background:#EDE9FE">📊</div><div style="flex:1"><div class="act-name">Portofolio Saham Blue Chip</div><div class="act-cat">BBCA, TLKM, ASII · Sekuritas Mandiri</div></div><div style="text-align:right"><div class="act-amt" style="color:var(--text)">Rp 140.000.000</div></div><div class="row-actions" style="margin-left:10px"><button class="ract edit" onclick="showToast('✏️ Edit Aset Warisan')"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="confirmDelete('Aset Warisan',function(){showToast('🗑️ Aset Warisan dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
+    <div class="act-item" style="border:none"><div class="act-icon" style="background:#EDE9FE">📈</div><div style="flex:1"><div class="act-name">Reksa Dana Saham</div><div class="act-cat">Bibit · Jangka panjang</div></div><div style="text-align:right"><div class="act-amt" style="color:var(--text)">Rp 60.000.000</div></div><div class="row-actions" style="margin-left:10px"><button class="ract edit" onclick="showToast('✏️ Edit Aset Warisan')"><i class="fa-solid fa-pen"></i></button><button class="ract del" onclick="confirmDelete('Aset Warisan',function(){showToast('🗑️ Aset Warisan dihapus.')})"><i class="fa-solid fa-trash"></i></button></div></div>
   </div>
-
   <div class="insight-banner">
     <div style="font-size:24px">🛡️</div>
     <div><div style="font-size:13px;font-weight:700;color:var(--primary-dark)">Catatan Warisan Aman & Transparan</div><div style="font-size:12px;color:var(--text2);margin-top:2px">Seluruh ahli waris dapat melihat daftar ini kapan saja. Tambahkan dokumen pendukung (sertifikat, BPKB, polis) agar lebih lengkap.</div></div>
@@ -1930,7 +1921,7 @@ html.dark .nav-subitem:hover{background:var(--surface2)}
   </div>
 </div>
 
-<!-- ═══════════════════════════════════ PAGE: KALKULATOR ═══════════════════════════════════ -->
+<!-- ═══════════════════════════════════ PAGE: DONATION ═══════════════════════════════════ -->
 <div class="page" id="page-donation">
   <!-- Hero -->
   <div style="background:linear-gradient(135deg,#047857,#10B981,#34D399);border-radius:var(--radius);padding:24px;color:white;margin-bottom:16px;position:relative;overflow:hidden">
@@ -2200,6 +2191,110 @@ html.dark .nav-subitem:hover{background:var(--surface2)}
   <div class="insight-banner">
     <div style="font-size:24px">💡</div>
     <div><div style="font-size:13px;font-weight:700;color:var(--primary-dark)">Cara kerja Split Bill</div><div style="font-size:12px;color:var(--text2);margin-top:2px">Bikin tagihan, bagi rata atau custom, lalu kirim link ke teman. Mereka bisa bayar via transfer/e-wallet & kamu dapat notifikasi otomatis.</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ PAGE: QUICK INPUT ═══════════════════════════════════ -->
+<div class="page" id="page-quickinput">
+  <div style="margin-bottom:18px">
+    <div style="font-size:15px;font-weight:700">⚡ Quick Input</div>
+    <div style="font-size:12px;color:var(--text3)">Pilih jenis data yang ingin kamu input — langsung isi via popup</div>
+  </div>
+  <div class="qi-grid">
+    <div class="qi-card" onclick="openTxnModal()"><div class="qi-ic" style="background:#EEF2FF;color:var(--primary)"><i class="fa-solid fa-arrows-up-down"></i></div><div class="qi-name">Transaksi</div><div class="qi-desc">Pemasukan / pengeluaran</div></div>
+    <div class="qi-card" onclick="openOCRModal()"><div class="qi-ic" style="background:#FEF3C7;color:#D97706"><i class="fa-solid fa-camera"></i></div><div class="qi-name">Scan Struk</div><div class="qi-desc">Input via foto bon</div></div>
+    <div class="qi-card" onclick="crudOpen('investasi','add')"><div class="qi-ic" style="background:#DCFCE7;color:var(--success)"><i class="fa-solid fa-chart-column"></i></div><div class="qi-name">Investasi</div><div class="qi-desc">Saham, reksa dana, emas</div></div>
+    <div class="qi-card" onclick="crudOpen('rekening','add')"><div class="qi-ic" style="background:#DBEAFE;color:#1D4ED8"><i class="fa-solid fa-building-columns"></i></div><div class="qi-name">Rekening</div><div class="qi-desc">Tambah rekening bank</div></div>
+    <div class="qi-card" onclick="crudOpen('ewallet','add')"><div class="qi-ic" style="background:#DCFCE7;color:var(--success)"><i class="fa-solid fa-wallet"></i></div><div class="qi-name">E-Wallet</div><div class="qi-desc">GoPay, OVO, DANA</div></div>
+    <div class="qi-card" onclick="crudOpen('aset','add')"><div class="qi-ic" style="background:#FEF9C3;color:#A16207"><i class="fa-solid fa-briefcase"></i></div><div class="qi-name">Aset</div><div class="qi-desc">Properti, kendaraan</div></div>
+    <div class="qi-card" onclick="crudOpen('liabilitas','add')"><div class="qi-ic" style="background:#FEE2E2;color:var(--danger)"><i class="fa-solid fa-file-invoice-dollar"></i></div><div class="qi-name">Liabilitas</div><div class="qi-desc">Utang & cicilan</div></div>
+    <div class="qi-card" onclick="crudOpen('asuransi','add')"><div class="qi-ic" style="background:#EDE9FE;color:var(--purple)"><i class="fa-solid fa-shield-halved"></i></div><div class="qi-name">Asuransi</div><div class="qi-desc">Tambah polis</div></div>
+    <div class="qi-card" onclick="crudOpen('tujuan','add')"><div class="qi-ic" style="background:#CFFAFE;color:#0E7490"><i class="fa-solid fa-bullseye"></i></div><div class="qi-name">Tujuan</div><div class="qi-desc">Goal keuangan baru</div></div>
+    <div class="qi-card" onclick="openBudgetModal()"><div class="qi-ic" style="background:#EEF2FF;color:var(--primary)"><i class="fa-solid fa-clipboard-list"></i></div><div class="qi-name">Anggaran</div><div class="qi-desc">Kategori budget</div></div>
+    <div class="qi-card" onclick="openWarisanModal()"><div class="qi-ic" style="background:#EDE9FE;color:var(--purple)"><i class="fa-solid fa-scroll"></i></div><div class="qi-name">Aset Warisan</div><div class="qi-desc">Catat warisan</div></div>
+    <div class="qi-card" onclick="openDonationModal()"><div class="qi-ic" style="background:#DCFCE7;color:var(--success)"><i class="fa-solid fa-hand-holding-heart"></i></div><div class="qi-name">Donasi</div><div class="qi-desc">Zakat & sumbangan</div></div>
+    <div class="qi-card" onclick="openSplitModal()"><div class="qi-ic" style="background:#FEF3C7;color:#D97706"><i class="fa-solid fa-receipt"></i></div><div class="qi-name">Split Bill</div><div class="qi-desc">Patungan grup</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ PAGE: MASTER DATA ═══════════════════════════════════ -->
+<div class="page" id="page-masterdata">
+  <div style="margin-bottom:18px">
+    <div style="font-size:15px;font-weight:700">🗄️ Setup Master Data</div>
+    <div style="font-size:12px;color:var(--text3)">Kelola data referensi yang dipakai di seluruh aplikasi</div>
+  </div>
+
+  <div class="md-grid">
+    <!-- Bank -->
+    <div class="card">
+      <div class="card-title">🏦 Bank <span class="card-link" onclick="crudOpen('mdbank','add')">+ Tambah</span></div>
+      <div class="md-chip">BCA <span class="md-x" onclick="confirmDelete('Bank',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">Mandiri <span class="md-x" onclick="confirmDelete('Bank',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">BNI <span class="md-x" onclick="confirmDelete('Bank',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">BRI <span class="md-x" onclick="confirmDelete('Bank',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">CIMB Niaga <span class="md-x" onclick="confirmDelete('Bank',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">Permata <span class="md-x" onclick="confirmDelete('Bank',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+    </div>
+    <!-- Jenis Transaksi -->
+    <div class="card">
+      <div class="card-title">↕️ Jenis Transaksi <span class="card-link" onclick="crudOpen('mdtxntype','add')">+ Tambah</span></div>
+      <div class="md-chip">Pemasukan <span class="md-x" onclick="confirmDelete('Jenis Transaksi',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">Pengeluaran <span class="md-x" onclick="confirmDelete('Jenis Transaksi',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">Transfer <span class="md-x" onclick="confirmDelete('Jenis Transaksi',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">Kartu Kredit <span class="md-x" onclick="confirmDelete('Jenis Transaksi',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+    </div>
+    <!-- Kategori Transaksi -->
+    <div class="card">
+      <div class="card-title">🏷️ Kategori <span class="card-link" onclick="crudOpen('mdkategori','add')">+ Tambah</span></div>
+      <div class="md-chip">🍽️ Makanan <span class="md-x" onclick="confirmDelete('Kategori',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">🚗 Transportasi <span class="md-x" onclick="confirmDelete('Kategori',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">🏥 Kesehatan <span class="md-x" onclick="confirmDelete('Kategori',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">🎮 Hiburan <span class="md-x" onclick="confirmDelete('Kategori',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">🛒 Belanja <span class="md-x" onclick="confirmDelete('Kategori',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">💡 Kebutuhan <span class="md-x" onclick="confirmDelete('Kategori',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+    </div>
+    <!-- Jenis Investasi -->
+    <div class="card">
+      <div class="card-title">📈 Jenis Investasi <span class="card-link" onclick="crudOpen('mdinvtype','add')">+ Tambah</span></div>
+      <div class="md-chip">Saham <span class="md-x" onclick="confirmDelete('Jenis Investasi',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">Reksa Dana <span class="md-x" onclick="confirmDelete('Jenis Investasi',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">Obligasi <span class="md-x" onclick="confirmDelete('Jenis Investasi',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">Emas <span class="md-x" onclick="confirmDelete('Jenis Investasi',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">Crypto <span class="md-x" onclick="confirmDelete('Jenis Investasi',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+    </div>
+    <!-- E-Wallet Provider -->
+    <div class="card">
+      <div class="card-title">💳 E-Wallet <span class="card-link" onclick="crudOpen('mdewallet','add')">+ Tambah</span></div>
+      <div class="md-chip">GoPay <span class="md-x" onclick="confirmDelete('E-Wallet',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">OVO <span class="md-x" onclick="confirmDelete('E-Wallet',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">DANA <span class="md-x" onclick="confirmDelete('E-Wallet',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">LinkAja <span class="md-x" onclick="confirmDelete('E-Wallet',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">ShopeePay <span class="md-x" onclick="confirmDelete('E-Wallet',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+    </div>
+    <!-- Lembaga Donasi -->
+    <div class="card">
+      <div class="card-title">🤲 Lembaga Donasi <span class="card-link" onclick="crudOpen('mdlembaga','add')">+ Tambah</span></div>
+      <div class="md-chip">BAZNAS <span class="md-x" onclick="confirmDelete('Lembaga',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">Dompet Dhuafa <span class="md-x" onclick="confirmDelete('Lembaga',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">Gereja / Paroki <span class="md-x" onclick="confirmDelete('Lembaga',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">Pura / Vihara <span class="md-x" onclick="confirmDelete('Lembaga',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+    </div>
+    <!-- Kategori Aset -->
+    <div class="card">
+      <div class="card-title">🏠 Kategori Aset <span class="card-link" onclick="crudOpen('mdasettype','add')">+ Tambah</span></div>
+      <div class="md-chip">Properti <span class="md-x" onclick="confirmDelete('Kategori Aset',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">Kendaraan <span class="md-x" onclick="confirmDelete('Kategori Aset',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">Elektronik <span class="md-x" onclick="confirmDelete('Kategori Aset',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">Perhiasan <span class="md-x" onclick="confirmDelete('Kategori Aset',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+    </div>
+    <!-- Jenis Asuransi -->
+    <div class="card">
+      <div class="card-title">🛡️ Jenis Asuransi <span class="card-link" onclick="crudOpen('mdinstype','add')">+ Tambah</span></div>
+      <div class="md-chip">Jiwa <span class="md-x" onclick="confirmDelete('Jenis Asuransi',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">Kesehatan <span class="md-x" onclick="confirmDelete('Jenis Asuransi',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">Kendaraan <span class="md-x" onclick="confirmDelete('Jenis Asuransi',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+      <div class="md-chip">Properti <span class="md-x" onclick="confirmDelete('Jenis Asuransi',function(){showToast('🗑️ Dihapus.')})">×</span></div>
+    </div>
   </div>
 </div>
 
@@ -2808,20 +2903,41 @@ html.dark .nav-subitem:hover{background:var(--surface2)}
 <!-- ════════ MODAL: CATAT DONASI ════════ -->
 <div class="modal-overlay" id="donationModal">
   <div class="modal">
-    <div class="modal-hdr"><div class="modal-title">Catat Donasi & Zakat</div><button class="modal-close" onclick="closeDonationModal()"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-hdr"><div class="modal-title">Catat Donasi Keagamaan</div><button class="modal-close" onclick="closeDonationModal()"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="fg"><label class="flabel">Jenis</label>
       <select class="finput" id="donType">
-        <option>🕌 Zakat Maal</option>
-        <option>🍚 Zakat Fitrah</option>
-        <option>💝 Sedekah / Infak</option>
-        <option>🎗️ Donasi Sosial</option>
-        <option>🏫 Wakaf</option>
+        <optgroup label="🕌 Islam">
+          <option>Zakat Maal</option>
+          <option>Zakat Fitrah</option>
+          <option>Sedekah / Infak</option>
+          <option>Wakaf</option>
+        </optgroup>
+        <optgroup label="✝️ Kristen / Katolik">
+          <option>Perpuluhan (Tithe)</option>
+          <option>Persembahan / Kolekte</option>
+          <option>Persembahan Syukur</option>
+          <option>Dana Pembangunan Gereja</option>
+        </optgroup>
+        <optgroup label="🕉️ Hindu">
+          <option>Dana Punia</option>
+        </optgroup>
+        <optgroup label="☸️ Buddha">
+          <option>Dana Paramita</option>
+        </optgroup>
+        <optgroup label="❤️ Umum">
+          <option>Donasi Sosial</option>
+          <option>Donasi Bencana</option>
+          <option>Donasi Pendidikan</option>
+        </optgroup>
       </select>
     </div>
     <div class="fg"><label class="flabel">Jumlah</label><div class="amt-wrap"><span class="currency">Rp</span><input type="text" class="finput" id="donAmount" placeholder="0" oninput="fmtAmt(this)"></div></div>
     <div class="fg"><label class="flabel">Lembaga / Penerima</label>
       <select class="finput">
-        <option>BAZNAS</option><option>Dompet Dhuafa</option><option>Rumah Zakat</option><option>LAZ Lokal / Masjid</option><option>Yayasan Sosial</option><option>Lainnya</option>
+        <option>BAZNAS</option><option>Dompet Dhuafa</option><option>Rumah Zakat</option><option>LAZ Lokal / Masjid</option>
+        <option>Gereja / Paroki</option><option>Yayasan Keagamaan</option>
+        <option>Pura / Parisada</option><option>Vihara</option>
+        <option>Yayasan Sosial</option><option>Lainnya</option>
       </select>
     </div>
     <div class="fg"><label class="flabel">Sumber Dana</label><select class="finput"><option>🏦 BCA Tahapan ···9010</option><option>🏦 Mandiri ···5586</option><option>💚 GoPay</option></select></div>
@@ -2831,6 +2947,33 @@ html.dark .nav-subitem:hover{background:var(--surface2)}
       <span style="font-size:12px;color:#15803D">Zakat ke lembaga resmi bisa jadi pengurang pajak penghasilan</span>
     </div>
     <button class="btn btn-primary" onclick="closeDonationModal();showToast('✅ Donasi berhasil dicatat!')"><i class="fa-solid fa-hand-holding-heart"></i> Simpan Catatan</button>
+  </div>
+</div>
+
+<!-- ════════ UNIVERSAL CRUD MODAL ════════ -->
+<div class="modal-overlay" id="crudModal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title" id="crudTitle">Form</div>
+      <button class="modal-close" onclick="crudClose()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="crudFields"></div>
+    <div id="crudExtra"></div>
+    <button class="btn btn-primary" id="crudSaveBtn" onclick="crudSave()"><i class="fa-solid fa-floppy-disk"></i> Simpan</button>
+    <button class="btn" id="crudDeleteBtn" style="width:100%;background:var(--bg);color:var(--danger);border:1.5px solid #FEE2E2;margin-top:8px;display:none" onclick="crudConfirmDelete()"><i class="fa-solid fa-trash"></i> Hapus</button>
+  </div>
+</div>
+
+<!-- ════════ DELETE CONFIRM MODAL ════════ -->
+<div class="modal-overlay" id="confirmModal" style="z-index:600">
+  <div class="modal" style="width:380px;text-align:center">
+    <div style="width:60px;height:60px;background:#FEE2E2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:26px">⚠️</div>
+    <div style="font-size:17px;font-weight:800;margin-bottom:6px" id="confirmTitle">Hapus Data?</div>
+    <div style="font-size:13px;color:var(--text3);margin-bottom:20px" id="confirmDesc">Data yang dihapus tidak bisa dikembalikan.</div>
+    <div style="display:flex;gap:10px">
+      <button class="btn" style="flex:1;background:var(--bg);border:1.5px solid var(--border)" onclick="confirmClose()">Batal</button>
+      <button class="btn" style="flex:1;background:var(--danger);color:white" id="confirmYesBtn" onclick="confirmYes()">Ya, Hapus</button>
+    </div>
   </div>
 </div>
 
@@ -2970,13 +3113,13 @@ const subpageContents = {
   </div>`,
 
   koneksi:`<div class="set-section">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div class="set-section-title" style="margin-bottom:0">Rekening Bank Terhubung</div><span style="font-size:12px;font-weight:700;color:var(--primary);cursor:pointer" onclick="showToast('Tambah rekening')">+ Tambah</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div class="set-section-title" style="margin-bottom:0">Rekening Bank Terhubung</div><span style="font-size:12px;font-weight:700;color:var(--primary);cursor:pointer" onclick="crudOpen('rekening','add')">+ Tambah</span></div>
     <div class="set-row"><div class="set-row-icon" style="background:#DBEAFE;font-size:13px;font-weight:800;color:#0061AF">BCA</div><div class="set-row-info"><div class="set-row-name">BCA Tahapan ···9010</div><div class="set-row-sub">Terhubung · Sinkronisasi otomatis aktif</div></div><span class="badge success" style="flex-shrink:0">Aktif</span></div>
     <div class="set-row"><div class="set-row-icon" style="background:#FFF7ED;font-size:11px;font-weight:800;color:#F9A01B">MDR</div><div class="set-row-info"><div class="set-row-name">Mandiri ···5586</div><div class="set-row-sub">Terhubung · Sinkronisasi aktif</div></div><span class="badge success" style="flex-shrink:0">Aktif</span></div>
     <div class="set-row"><div class="set-row-icon" style="background:#FFF7ED;font-size:13px;font-weight:800;color:#FF6600">BNI</div><div class="set-row-info"><div class="set-row-name">BNI Taplus ···5544</div><div class="set-row-sub">Terhubung · Sinkronisasi aktif</div></div><span class="badge success" style="flex-shrink:0">Aktif</span></div>
   </div>
   <div class="set-section">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div class="set-section-title" style="margin-bottom:0">E-Wallet</div><span style="font-size:12px;font-weight:700;color:var(--primary);cursor:pointer" onclick="showToast('Tambah e-wallet')">+ Tambah</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div class="set-section-title" style="margin-bottom:0">E-Wallet</div><span style="font-size:12px;font-weight:700;color:var(--primary);cursor:pointer" onclick="crudOpen('ewallet','add')">+ Tambah</span></div>
     <div class="set-row"><div class="set-row-icon" style="background:#DCFCE7;font-size:16px">💚</div><div class="set-row-info"><div class="set-row-name">GoPay</div><div class="set-row-sub">082345678901 · Sinkronisasi aktif</div></div><span class="badge success" style="flex-shrink:0">Aktif</span></div>
     <div class="set-row"><div class="set-row-icon" style="background:#FEE2E2;font-size:16px">🔴</div><div class="set-row-info"><div class="set-row-name">LinkAja</div><div class="set-row-sub">081234567890 · Sinkronisasi aktif</div></div><span class="badge success" style="flex-shrink:0">Aktif</span></div>
     <div class="set-row" onclick="showToast('Hubungkan OVO')"><div class="set-row-icon" style="background:#F3F4F6;font-size:16px">🟣</div><div class="set-row-info"><div class="set-row-name">OVO</div><div class="set-row-sub">Belum terhubung</div></div><span style="font-size:12px;font-weight:700;color:var(--primary);flex-shrink:0">Hubungkan</span></div>
@@ -3110,12 +3253,12 @@ const subpageContents = {
     <div class="set-row"><div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#F97316,#FBBF24);display:flex;align-items:center;justify-content:center;color:white;font-size:13px;font-weight:800;flex-shrink:0">SA</div><div class="set-row-info"><div class="set-row-name">Siti Arsandi</div><div class="set-row-sub">Member · Istri</div></div><span class="badge gray" style="flex-shrink:0">Member</span></div>
     <div class="set-row"><div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#10B981,#06B6D4);display:flex;align-items:center;justify-content:center;color:white;font-size:13px;font-weight:800;flex-shrink:0">BA</div><div class="set-row-info"><div class="set-row-name">Budi Arsandi</div><div class="set-row-sub">Member · Ayah</div></div><span class="badge gray" style="flex-shrink:0">Member</span></div>
     <div class="set-row"><div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#8B5CF6,#EC4899);display:flex;align-items:center;justify-content:center;color:white;font-size:13px;font-weight:800;flex-shrink:0">RA</div><div class="set-row-info"><div class="set-row-name">Rina Arsandi</div><div class="set-row-sub">Member · Adik</div></div><span class="badge gray" style="flex-shrink:0">Member</span></div>
-    <button class="btn" style="width:100%;background:var(--primary-light);color:var(--primary);margin-top:8px" onclick="showToast('Undangan dikirim!')"><i class="fa-solid fa-user-plus"></i> Undang Anggota</button>
+    <button class="btn" style="width:100%;background:var(--primary-light);color:var(--primary);margin-top:8px" onclick="crudOpen('member','add')"><i class="fa-solid fa-user-plus"></i> Undang Anggota</button>
   </div>
   <div class="set-section">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div class="set-section-title" style="margin-bottom:0">Admin / Staf (2)</div><span style="font-size:11px;color:var(--text3)">Bisa input transaksi</span></div>
-    <div class="set-row"><div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#22D3EE);display:flex;align-items:center;justify-content:center;color:white;font-size:13px;font-weight:800;flex-shrink:0">DW</div><div class="set-row-info"><div class="set-row-name">Dewi Wulandari <span class="badge purple" style="font-size:10px">Admin</span></div><div class="set-row-sub">Sekretaris · Akses input transaksi</div></div><i class="fa-solid fa-ellipsis-vertical" style="color:var(--text3);cursor:pointer" onclick="showToast('Kelola akses Dewi')"></i></div>
-    <div class="set-row"><div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#64748B,#94A3B8);display:flex;align-items:center;justify-content:center;color:white;font-size:13px;font-weight:800;flex-shrink:0">PJ</div><div class="set-row-info"><div class="set-row-name">Pak Joko <span class="badge purple" style="font-size:10px">Admin</span></div><div class="set-row-sub">Supir · Input transaksi transport & bensin</div></div><i class="fa-solid fa-ellipsis-vertical" style="color:var(--text3);cursor:pointer" onclick="showToast('Kelola akses Pak Joko')"></i></div>
+    <div class="set-row"><div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#22D3EE);display:flex;align-items:center;justify-content:center;color:white;font-size:13px;font-weight:800;flex-shrink:0">DW</div><div class="set-row-info"><div class="set-row-name">Dewi Wulandari <span class="badge purple" style="font-size:10px">Admin</span></div><div class="set-row-sub">Sekretaris · Akses input transaksi</div></div><i class="fa-solid fa-ellipsis-vertical" style="color:var(--text3);cursor:pointer" onclick="openAddAdminModal()"></i></div>
+    <div class="set-row"><div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#64748B,#94A3B8);display:flex;align-items:center;justify-content:center;color:white;font-size:13px;font-weight:800;flex-shrink:0">PJ</div><div class="set-row-info"><div class="set-row-name">Pak Joko <span class="badge purple" style="font-size:10px">Admin</span></div><div class="set-row-sub">Supir · Input transaksi transport & bensin</div></div><i class="fa-solid fa-ellipsis-vertical" style="color:var(--text3);cursor:pointer" onclick="openAddAdminModal()"></i></div>
     <button class="btn" style="width:100%;background:var(--surface);border:1.5px dashed var(--primary);color:var(--primary);margin-top:8px" onclick="openAddAdminModal()"><i class="fa-solid fa-user-shield"></i> Tambah Admin / Staf</button>
     <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5"><i class="fa-solid fa-circle-info" style="color:var(--primary)"></i> Admin (sekretaris, supir, ART, asisten) bisa mencatat transaksi atas nama family, tapi tidak bisa mengubah pengaturan group atau melihat saldo pribadi anggota.</div>
   </div>
@@ -3204,7 +3347,8 @@ const pageTitles = {
   investasi:'Investasi', aset:'Aset Saya', liabilitas:'Liabilitas',
   asuransi:'Asuransi', ai:'AI Advisor', kalkulator:'Kalkulator', akun:'Akun',
   splitbill:'Split Bill', rekonsiliasi:'Rekonsiliasi Bank', warisan:'Warisan',
-  donation:'Donasi & Zakat', tax:'Tax Center'
+  donation:'Donasi & Zakat', tax:'Tax Center',
+  quickinput:'Quick Input', masterdata:'Setup Master Data'
 };
 
 let prevPage = 'beranda';
@@ -3773,6 +3917,192 @@ function hitungPPh(){
   document.getElementById('txPkp').textContent='Rp '+pkp.toLocaleString('id-ID');
   document.getElementById('txRate').textContent=gross>0?(tax/gross*100).toFixed(1)+'%':'0%';
 }
+
+// ══════════════════════════════════════════════
+//  UNIVERSAL CRUD ENGINE
+// ══════════════════════════════════════════════
+// Field types: text, number, amount(Rp), date, select, textarea, toggle
+const crudConfig = {
+  rekening: {
+    title:'Rekening Bank', icon:'fa-building-columns',
+    fields:[
+      {k:'bank', label:'Nama Bank', type:'select', opts:['BCA','Mandiri','BNI','BRI','CIMB Niaga','Permata','Bank Lainnya']},
+      {k:'nama', label:'Nama Rekening', type:'text', ph:'cth: BCA Tahapan'},
+      {k:'norek', label:'Nomor Rekening', type:'text', ph:'cth: 1234567890'},
+      {k:'saldo', label:'Saldo Saat Ini', type:'amount'},
+      {k:'jenis', label:'Jenis', type:'select', opts:['Tabungan','Giro','Deposito']},
+    ]
+  },
+  ewallet: {
+    title:'E-Wallet', icon:'fa-wallet',
+    fields:[
+      {k:'nama', label:'E-Wallet', type:'select', opts:['GoPay','OVO','DANA','LinkAja','ShopeePay']},
+      {k:'phone', label:'Nomor Terdaftar', type:'text', ph:'08xxxxxxxxxx'},
+      {k:'saldo', label:'Saldo Saat Ini', type:'amount'},
+    ]
+  },
+  investasi: {
+    title:'Investasi', icon:'fa-chart-column',
+    fields:[
+      {k:'nama', label:'Nama Instrumen', type:'text', ph:'cth: Bank Central Asia'},
+      {k:'ticker', label:'Kode / Ticker', type:'text', ph:'cth: BBCA'},
+      {k:'jenis', label:'Jenis', type:'select', opts:['Saham','Reksa Dana','Obligasi','Emas','Crypto']},
+      {k:'modal', label:'Modal Awal', type:'amount'},
+      {k:'nilai', label:'Nilai Sekarang', type:'amount'},
+    ]
+  },
+  aset: {
+    title:'Aset', icon:'fa-briefcase',
+    fields:[
+      {k:'nama', label:'Nama Aset', type:'text', ph:'cth: Apartemen Kelapa Gading'},
+      {k:'kategori', label:'Kategori', type:'select', opts:['Properti','Kendaraan','Elektronik','Perhiasan','Lainnya']},
+      {k:'nilai', label:'Nilai Estimasi', type:'amount'},
+      {k:'dokumen', label:'No. Dokumen', type:'text', ph:'cth: SHM No. 1234'},
+    ]
+  },
+  liabilitas: {
+    title:'Liabilitas', icon:'fa-file-invoice-dollar',
+    fields:[
+      {k:'nama', label:'Nama Liabilitas', type:'text', ph:'cth: KTA Bank Mandiri'},
+      {k:'jenis', label:'Jenis', type:'select', opts:['Kartu Kredit','KTA','KPR','Cicilan Kendaraan','Pinjaman Lain']},
+      {k:'total', label:'Total Utang', type:'amount'},
+      {k:'cicilan', label:'Cicilan / Bulan', type:'amount'},
+      {k:'tenor', label:'Sisa Tenor (bulan)', type:'number'},
+    ]
+  },
+  asuransi: {
+    title:'Asuransi', icon:'fa-shield-halved',
+    fields:[
+      {k:'nama', label:'Nama Polis', type:'text', ph:'cth: Asuransi Jiwa Prudential'},
+      {k:'jenis', label:'Jenis', type:'select', opts:['Jiwa','Kesehatan','Kendaraan','Properti','Pendidikan']},
+      {k:'premi', label:'Premi / Bulan', type:'amount'},
+      {k:'pertanggungan', label:'Uang Pertanggungan', type:'amount'},
+      {k:'jatuhtempo', label:'Jatuh Tempo', type:'date'},
+    ]
+  },
+  tujuan: {
+    title:'Tujuan Keuangan', icon:'fa-bullseye',
+    fields:[
+      {k:'nama', label:'Nama Tujuan', type:'text', ph:'cth: Dana Liburan'},
+      {k:'icon', label:'Ikon', type:'iconpick', opts:['🛡️','✈️','🏠','🏖️','🚗','🎓','💍','👶']},
+      {k:'target', label:'Target Jumlah', type:'amount'},
+      {k:'terkumpul', label:'Sudah Terkumpul', type:'amount'},
+      {k:'deadline', label:'Target Tanggal', type:'date'},
+      {k:'autodebit', label:'Auto-debit / Bulan', type:'amount'},
+    ]
+  },
+  member: {
+    title:'Anggota Family', icon:'fa-user-plus',
+    fields:[
+      {k:'nama', label:'Nama Lengkap', type:'text', ph:'cth: Siti Arsandi'},
+      {k:'email', label:'Email / No. HP', type:'text', ph:'email atau nomor'},
+      {k:'hubungan', label:'Hubungan', type:'select', opts:['Pasangan','Anak','Orang Tua','Saudara','Lainnya']},
+      {k:'role', label:'Peran', type:'select', opts:['Member','Co-Owner']},
+    ]
+  },
+  // ── MASTER DATA ──
+  mdbank: { title:'Bank', icon:'fa-building-columns', fields:[
+    {k:'nama', label:'Nama Bank', type:'text', ph:'cth: Bank Jago'},
+    {k:'kode', label:'Kode Bank', type:'text', ph:'cth: 542'},
+  ]},
+  mdtxntype: { title:'Jenis Transaksi', icon:'fa-arrows-up-down', fields:[
+    {k:'nama', label:'Nama Jenis', type:'text', ph:'cth: Investasi'},
+    {k:'arah', label:'Arah', type:'select', opts:['Masuk','Keluar','Netral']},
+  ]},
+  mdkategori: { title:'Kategori', icon:'fa-tag', fields:[
+    {k:'icon', label:'Ikon', type:'iconpick', opts:['🍽️','🚗','🏥','🎮','🛒','💡','📱','🎓','🏠','✈️']},
+    {k:'nama', label:'Nama Kategori', type:'text', ph:'cth: Pendidikan'},
+    {k:'tipe', label:'Tipe', type:'select', opts:['Pengeluaran','Pemasukan']},
+  ]},
+  mdinvtype: { title:'Jenis Investasi', icon:'fa-chart-column', fields:[
+    {k:'nama', label:'Nama Jenis', type:'text', ph:'cth: P2P Lending'},
+    {k:'risiko', label:'Tingkat Risiko', type:'select', opts:['Rendah','Menengah','Tinggi']},
+  ]},
+  mdasettype: { title:'Jenis Aset', icon:'fa-briefcase', fields:[
+    {k:'nama', label:'Nama Jenis', type:'text', ph:'cth: Tanah'},
+    {k:'penyusutan', label:'Penyusutan/Apresiasi', type:'select', opts:['Apresiasi','Penyusutan','Stabil']},
+  ]},
+  mdewallet: { title:'E-Wallet', icon:'fa-wallet', fields:[
+    {k:'nama', label:'Nama E-Wallet', type:'text', ph:'cth: Jenius'},
+  ]},
+  mdinstype: { title:'Jenis Asuransi', icon:'fa-shield-halved', fields:[
+    {k:'nama', label:'Nama Jenis', type:'text', ph:'cth: Asuransi Perjalanan'},
+  ]},
+  mdlembaga: { title:'Lembaga Donasi', icon:'fa-hand-holding-heart', fields:[
+    {k:'nama', label:'Nama Lembaga', type:'text', ph:'cth: ACT, Kitabisa'},
+    {k:'jenis', label:'Jenis', type:'select', opts:['Zakat','Donasi Umum','Wakaf','Gereja','Lainnya']},
+  ]},
+};
+
+let crudState = { entity:null, mode:'add', onDone:null };
+
+function fmtNum(v){ return (parseInt((v||'0').toString().replace(/\D/g,''))||0).toLocaleString('id-ID'); }
+
+function crudOpen(entity, mode, data, onDone){
+  const cfg = crudConfig[entity];
+  if(!cfg) return;
+  crudState = { entity, mode:mode||'add', onDone:onDone||null };
+  data = data || {};
+  document.getElementById('crudTitle').innerHTML = '<i class="fa-solid '+cfg.icon+'" style="color:var(--primary);margin-right:8px"></i>'+(mode==='edit'?'Edit ':'Tambah ')+cfg.title;
+  // Build fields
+  let html='';
+  cfg.fields.forEach(f=>{
+    const val = data[f.k]!==undefined ? data[f.k] : '';
+    html += '<div class="fg"><label class="flabel">'+f.label+'</label>';
+    if(f.type==='select'){
+      html += '<select class="finput" data-k="'+f.k+'">'+f.opts.map(o=>'<option'+(o===val?' selected':'')+'>'+o+'</option>').join('')+'</select>';
+    } else if(f.type==='textarea'){
+      html += '<textarea class="finput" data-k="'+f.k+'" rows="2" style="resize:none" placeholder="'+(f.ph||'')+'">'+val+'</textarea>';
+    } else if(f.type==='amount'){
+      html += '<div class="amt-wrap"><span class="currency">Rp</span><input type="text" class="finput" data-k="'+f.k+'" value="'+(val?fmtNum(val):'')+'" placeholder="0" oninput="fmtAmt(this)"></div>';
+    } else if(f.type==='iconpick'){
+      html += '<div style="display:flex;gap:6px;flex-wrap:wrap" data-iconpick="'+f.k+'">'+f.opts.map((o,i)=>'<button type="button" class="bicon'+((val?o===val:i===0)?' active':'')+'" onclick="crudPickIcon(this)">'+o+'</button>').join('')+'</div>';
+    } else if(f.type==='date'){
+      html += '<input type="date" class="finput" data-k="'+f.k+'" value="'+(val||'2025-05-18')+'">';
+    } else if(f.type==='number'){
+      html += '<input type="number" class="finput" data-k="'+f.k+'" value="'+val+'" placeholder="'+(f.ph||'0')+'">';
+    } else {
+      html += '<input type="text" class="finput" data-k="'+f.k+'" value="'+val+'" placeholder="'+(f.ph||'')+'">';
+    }
+    html += '</div>';
+  });
+  document.getElementById('crudFields').innerHTML = html;
+  document.getElementById('crudExtra').innerHTML = '';
+  document.getElementById('crudDeleteBtn').style.display = mode==='edit' ? 'block' : 'none';
+  document.getElementById('crudModal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function crudClose(){ document.getElementById('crudModal').classList.remove('open'); document.body.style.overflow=''; }
+function crudPickIcon(el){ el.parentElement.querySelectorAll('.bicon').forEach(b=>b.classList.remove('active')); el.classList.add('active'); }
+function crudSave(){
+  const cfg = crudConfig[crudState.entity];
+  crudClose();
+  const verb = crudState.mode==='edit' ? 'diperbarui' : 'ditambahkan';
+  showToast('✅ '+cfg.title+' berhasil '+verb+'!');
+  if(crudState.onDone) crudState.onDone();
+}
+function crudConfirmDelete(){
+  const cfg = crudConfig[crudState.entity];
+  confirmDelete(cfg.title, ()=>{ crudClose(); showToast('🗑️ '+cfg.title+' dihapus.'); });
+}
+
+// ─── DELETE CONFIRM ───
+let confirmCallback = null;
+function confirmDelete(label, cb){
+  document.getElementById('confirmTitle').textContent = 'Hapus '+label+'?';
+  document.getElementById('confirmDesc').textContent = label+' yang dihapus tidak bisa dikembalikan.';
+  confirmCallback = cb;
+  document.getElementById('confirmModal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function confirmClose(){ document.getElementById('confirmModal').classList.remove('open'); if(!document.querySelector('.modal-overlay.open')) document.body.style.overflow=''; }
+function confirmYes(){ confirmClose(); if(confirmCallback) confirmCallback(); }
+
+// close on overlay click
+['crudModal','confirmModal'].forEach(id=>{
+  const m=document.getElementById(id);
+  if(m) m.addEventListener('click', function(e){ if(e.target===this){ this.classList.remove('open'); if(id==='confirmModal') confirmClose(); else crudClose(); } });
+});
 
 // enter key on login
 </script>
