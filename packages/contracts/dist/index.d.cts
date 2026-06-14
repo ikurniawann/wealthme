@@ -599,6 +599,53 @@ interface UpdateLiabilityDto {
     currency?: string;
 }
 
+type InheritanceVisibility = "private" | "heirs_only" | "all_members";
+interface InheritanceHeirDto {
+    id: string;
+    inheritanceAssetId: string;
+    name: string;
+    relationship: string;
+    sharePercent: string;
+    createdAt: string;
+}
+interface InheritanceAssetDto {
+    id: string;
+    familyGroupId: string;
+    name: string;
+    assetType: string;
+    estimatedValue: string;
+    currency: string;
+    notes: string | null;
+    visibility: InheritanceVisibility;
+    documentUrl: string | null;
+    heirs: InheritanceHeirDto[];
+    createdAt: string;
+    updatedAt: string;
+}
+interface CreateHeirDto {
+    name: string;
+    relationship: string;
+    sharePercent: number;
+}
+interface CreateInheritanceAssetDto {
+    name: string;
+    assetType: string;
+    estimatedValue: number;
+    currency?: string;
+    notes?: string;
+    visibility?: InheritanceVisibility;
+    heirs?: CreateHeirDto[];
+}
+interface UpdateInheritanceAssetDto {
+    name?: string;
+    assetType?: string;
+    estimatedValue?: number;
+    currency?: string;
+    notes?: string;
+    visibility?: InheritanceVisibility;
+    heirs?: CreateHeirDto[];
+}
+
 type InsuranceType = "jiwa" | "kesehatan" | "kendaraan" | "properti" | "lainnya";
 type InsuranceStatus = "aktif" | "tidak_aktif" | "kadaluarsa";
 type PremiumPeriod = "monthly" | "quarterly" | "yearly";
@@ -650,6 +697,41 @@ interface UpdateInsuranceDto {
     policyNumber?: string;
     notes?: string;
     currency?: string;
+}
+
+type SplitStatus = "open" | "settled";
+type ParticipantStatus = "pending" | "paid";
+interface SplitParticipantDto {
+    id: string;
+    splitBillId: string;
+    name: string;
+    amountOwed: string;
+    status: ParticipantStatus;
+    paidAt: string | null;
+    createdAt: string;
+}
+interface SplitBillDto {
+    id: string;
+    familyGroupId: string;
+    title: string;
+    totalAmount: string;
+    currency: string;
+    shareToken: string;
+    status: SplitStatus;
+    notes: string | null;
+    createdAt: string;
+    updatedAt: string;
+    participants: SplitParticipantDto[];
+}
+interface CreateSplitParticipantDto {
+    name: string;
+    amountOwed: number;
+}
+interface CreateSplitBillDto {
+    title: string;
+    totalAmount: number;
+    notes?: string;
+    participants: CreateSplitParticipantDto[];
 }
 
 type ReportPeriod = "daily" | "monthly" | "yearly";
@@ -897,4 +979,74 @@ interface RetirementCalcResultDto {
     projectedValue: number;
 }
 
-export { type AccountDto, AccountDtoSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AssetDto, type AssetHistoryDto, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CreateAccountInput, CreateAccountInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateGoalDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateTransactionInput, CreateTransactionInputSchema, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, type GoalDto, type GoalStatus, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDto, type InvestmentSummaryDto, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type NetWorthDto, type NotificationDto, type PeriodPoint, type PnlDto, type Pph21RequestDto, type Pph21ResultDto, type PremiumPeriod, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type TaxBracketDto, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateGoalDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type ZakatRequestDto, type ZakatResultDto };
+type DonationType = "zakat_maal" | "zakat_fitrah" | "infaq" | "sedekah" | "wakaf" | "lainnya";
+interface DonationDto {
+    id: string;
+    familyGroupId: string;
+    type: DonationType;
+    recipient: string;
+    amount: string;
+    currency: string;
+    donatedAt: string;
+    isTaxDeductible: boolean;
+    receiptUrl: string | null;
+    notes: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+interface CreateDonationDto {
+    type: DonationType;
+    recipient: string;
+    amount: string;
+    currency?: string;
+    donatedAt: string;
+    isTaxDeductible?: boolean;
+    receiptUrl?: string;
+    notes?: string;
+}
+interface UpdateDonationDto {
+    type?: DonationType;
+    recipient?: string;
+    amount?: string;
+    currency?: string;
+    donatedAt?: string;
+    isTaxDeductible?: boolean;
+    receiptUrl?: string;
+    notes?: string;
+}
+
+type SptStatus = "belum_lapor" | "sudah_lapor" | "terlambat";
+interface TaxRecordDto {
+    id: string;
+    familyGroupId: string;
+    taxYear: number;
+    grossIncome: string;
+    ptkp: string;
+    zakatDeduction: string;
+    netTax: string;
+    sptStatus: SptStatus;
+    documentUrl: string | null;
+    notes: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+interface CreateTaxRecordDto {
+    taxYear: number;
+    grossIncome: string;
+    ptkp: string;
+    netTax?: string;
+    sptStatus?: SptStatus;
+    documentUrl?: string;
+    notes?: string;
+}
+interface UpdateTaxRecordDto {
+    taxYear?: number;
+    grossIncome?: string;
+    ptkp?: string;
+    netTax?: string;
+    sptStatus?: SptStatus;
+    documentUrl?: string;
+    notes?: string;
+}
+
+export { type AccountDto, AccountDtoSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AssetDto, type AssetHistoryDto, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CreateAccountInput, CreateAccountInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, type GoalDto, type GoalStatus, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDto, type InvestmentSummaryDto, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type NetWorthDto, type NotificationDto, type ParticipantStatus, type PeriodPoint, type PnlDto, type Pph21RequestDto, type Pph21ResultDto, type PremiumPeriod, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SplitBillDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type TaxBracketDto, type TaxRecordDto, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto };

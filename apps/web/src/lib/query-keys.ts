@@ -78,6 +78,14 @@ export const queryKeys = {
   tax: {
     list: (fgId: string) => ["tax", fgId] as const,
   },
+  fx: {
+    rates: (base: string) => ["fx", "rates", base] as const,
+  },
+  reconciliation: {
+    list: (fgId: string) => ["reconciliation", fgId] as const,
+    entries: (fgId: string, syncId: string) =>
+      ["reconciliation", fgId, syncId, "entries"] as const,
+  },
   reports: {
     summary: (familyGroupId: string, months: number) =>
       ["reports", familyGroupId, "summary", months] as const,

@@ -1,16 +1,16 @@
 # Graph Report - wealthme2  (2026-06-14)
 
 ## Corpus Check
-- 286 files · ~129,939 words
+- 361 files · ~152,279 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1738 nodes · 2728 edges · 140 communities (119 shown, 21 thin omitted)
+- 2148 nodes · 3611 edges · 157 communities (135 shown, 22 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 4 edges (avg confidence: 0.82)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `5c8a2723`
+- Built from commit: `c94406a5`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -144,18 +144,35 @@
 - [[_COMMUNITY_Community 137|Community 137]]
 - [[_COMMUNITY_Community 138|Community 138]]
 - [[_COMMUNITY_Community 139|Community 139]]
+- [[_COMMUNITY_Community 140|Community 140]]
+- [[_COMMUNITY_Community 141|Community 141]]
+- [[_COMMUNITY_Community 142|Community 142]]
+- [[_COMMUNITY_Community 143|Community 143]]
+- [[_COMMUNITY_Community 144|Community 144]]
+- [[_COMMUNITY_Community 145|Community 145]]
+- [[_COMMUNITY_Community 146|Community 146]]
+- [[_COMMUNITY_Community 147|Community 147]]
+- [[_COMMUNITY_Community 148|Community 148]]
+- [[_COMMUNITY_Community 149|Community 149]]
+- [[_COMMUNITY_Community 150|Community 150]]
+- [[_COMMUNITY_Community 151|Community 151]]
+- [[_COMMUNITY_Community 152|Community 152]]
+- [[_COMMUNITY_Community 153|Community 153]]
+- [[_COMMUNITY_Community 154|Community 154]]
+- [[_COMMUNITY_Community 155|Community 155]]
+- [[_COMMUNITY_Community 156|Community 156]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `cn()` - 110 edges
-2. `PrismaService` - 35 edges
-3. `formatRupiah()` - 34 edges
+2. `PrismaService` - 56 edges
+3. `formatRupiah()` - 51 edges
 4. `Project CLAUDE.md — Operating System` - 25 edges
-5. `EPIC-001: Backend Foundation` - 20 edges
-6. `Button()` - 19 edges
-7. `SectionCard()` - 18 edges
-8. `5. Daftar Fitur Lengkap` - 18 edges
-9. `WealthMe — User Stories` - 18 edges
-10. `TransactionsService` - 16 edges
+5. `apiFetch()` - 21 edges
+6. `queryKeys` - 20 edges
+7. `EPIC-001: Backend Foundation` - 20 edges
+8. `Button()` - 19 edges
+9. `SectionCard()` - 18 edges
+10. `5. Daftar Fitur Lengkap` - 18 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `Playwright E2E Test Failure Screenshot — 404 Page Not Found on /beranda redirect` --tests--> `apps/web — Next.js 16 Frontend App`  [INFERRED]
@@ -184,23 +201,23 @@
 - **Epic Loop Agent Pipeline (code → review → security → test → deploy)** — concept_epic_loop, concept_epic_agents, concept_guardrails [EXTRACTED 1.00]
 - **CI/CD and Deployment Pipeline** — concept_ci_workflow, concept_vercel_deployment, concept_docker_compose_infra [EXTRACTED 1.00]
 
-## Communities (140 total, 21 thin omitted)
+## Communities (157 total, 22 thin omitted)
 
 ### Community 0 - "Auth & Session Management"
-Cohesion: 0.09
-Nodes (13): AuthController, GoogleCallbackRequest, AuthService, MembershipInfo, TokenPair, UserProfile, LoginDto, RegisterDto (+5 more)
+Cohesion: 0.13
+Nodes (11): AuthenticatedRequest, AuthModule, Env, envSchema, validateEnv(), AuthRequest, AppModule, GoogleStrategy (+3 more)
 
 ### Community 1 - "Next.js App Shell & Routing"
-Cohesion: 0.06
-Nodes (42): dmMono, metadata, sora, viewport, Home(), BadgeVariant, MOBILE_NAV, MobileNavItem (+34 more)
+Cohesion: 0.19
+Nodes (8): dmMono, metadata, sora, viewport, AppQueryClientProvider(), SessionProviderWrapper(), ThemeProvider(), Toaster()
 
 ### Community 2 - "Dev Tooling & Git Hooks"
 Cohesion: 0.05
 Nodes (41): husky.sh script, devDependencies, @commitlint/cli, @commitlint/config-conventional, husky, lint-staged, prettier, turbo (+33 more)
 
 ### Community 3 - "AI Agent Orchestration"
-Cohesion: 0.15
-Nodes (23): Output, Procedure, Rules, Output (REQUIRED format), What to check, Checks, Output (REQUIRED format), Output (REQUIRED format) (+15 more)
+Cohesion: 0.13
+Nodes (27): Output (REQUIRED format), Rules, Output, Procedure, Rules, Output (REQUIRED format), What to check, Checks (+19 more)
 
 ### Community 4 - "Product Architecture Concepts"
 Cohesion: 0.14
@@ -208,39 +225,39 @@ Nodes (17): apps/api — NestJS Backend API, apps/web — Next.js 16 Frontend Ap
 
 ### Community 5 - "Frontend UI Dependencies"
 Cohesion: 0.05
-Nodes (40): dependencies, @base-ui/react, class-variance-authority, clsx, lucide-react, next, next-auth, next-themes (+32 more)
+Nodes (41): dependencies, @base-ui/react, class-variance-authority, clsx, lucide-react, next, next-auth, next-themes (+33 more)
 
 ### Community 6 - "Account Management UI"
-Cohesion: 0.07
-Nodes (10): CURRENCIES, FAQS, MeResponse, SUBPAGE_TITLES, SubPageId, Accordion(), AccordionContent(), AccordionItem() (+2 more)
+Cohesion: 0.06
+Nodes (13): CURRENCIES, FamilyGroupMine, FamilyMember, FAQS, MEMBER_GRADIENTS, MeResponse, SUBPAGE_TITLES, SubPageId (+5 more)
 
 ### Community 7 - "Wealth & Liability Tracking"
-Cohesion: 0.12
-Nodes (9): DropdownMenuCheckboxItem(), DropdownMenuContent(), DropdownMenuItem(), DropdownMenuLabel(), DropdownMenuRadioItem(), DropdownMenuSeparator(), DropdownMenuShortcut(), DropdownMenuSubContent() (+1 more)
+Cohesion: 0.08
+Nodes (15): CreateInvestmentDto, UpdateInvestmentDto, InvestmentsController, InvestmentsModule, decimalToString(), InvestmentsService, startOfDay(), ZERO (+7 more)
 
 ### Community 8 - "Financial Reports UI"
 Cohesion: 0.06
-Nodes (10): BULANAN_ROWS, DETAIL_ROWS, EXPENSE_ALLOC, FAMILY_MEMBERS, INV_TYPES, PERFORMA, RASIO, TABS (+2 more)
+Nodes (13): BULANAN_ROWS, DETAIL_ROWS, EXPENSE_ALLOC, EXPORT_REPORT_TYPES, FAMILY_MEMBERS, INV_TYPES, KasSection(), PERFORMA (+5 more)
 
 ### Community 9 - "Budget Management UI"
-Cohesion: 0.16
-Nodes (5): CreateTransactionDto, ScanReceiptDto, TransactionResponseDto, UpdateTransactionDto, TransactionsController
+Cohesion: 0.10
+Nodes (16): CreateTransactionDto, ListTransactionsQueryDto, ScanReceiptDto, TransactionListMetaDto, TransactionListResponseDto, TransactionResponseDto, TransactionSummaryDto, UpdateTransactionDto (+8 more)
 
 ### Community 10 - "Calculators & Donations UI"
-Cohesion: 0.10
-Nodes (25): DonationPage(), GROUP_NAMES, InvestasiTab(), KreditTab(), MONTHS, PensiunTab(), SplitGroupTab(), TabKey (+17 more)
+Cohesion: 0.13
+Nodes (21): DonationPage(), GROUP_NAMES, InvestasiTab(), KreditTab(), MONTHS, PensiunTab(), Pph21Tab(), SplitGroupTab() (+13 more)
 
 ### Community 11 - "API Runtime Dependencies"
-Cohesion: 0.08
-Nodes (26): dependencies, argon2, @casl/ability, class-transformer, class-validator, helmet, ioredis, @nestjs/common (+18 more)
+Cohesion: 0.06
+Nodes (31): dependencies, argon2, bullmq, @casl/ability, class-transformer, class-validator, helmet, ioredis (+23 more)
 
 ### Community 12 - "Shared Contracts Package"
 Cohesion: 0.08
 Nodes (25): dependencies, zod, devDependencies, tsup, typescript, @wealthme/config, exports, files (+17 more)
 
 ### Community 13 - "shadcn UI Components"
-Cohesion: 0.12
-Nodes (26): cn(), Avatar(), AvatarBadge(), AvatarFallback(), AvatarGroup(), AvatarGroupCount(), AvatarImage(), ScrollArea() (+18 more)
+Cohesion: 0.09
+Nodes (37): cn(), Avatar(), AvatarBadge(), AvatarFallback(), AvatarGroup(), AvatarGroupCount(), AvatarImage(), CardAction() (+29 more)
 
 ### Community 14 - "Web App Component Config"
 Cohesion: 0.09
@@ -251,8 +268,8 @@ Cohesion: 0.10
 Nodes (20): devDependencies, eslint, globals, jest, @nestjs/cli, @nestjs/schematics, @nestjs/testing, prisma (+12 more)
 
 ### Community 16 - "Audit Logging Service"
-Cohesion: 0.11
-Nodes (7): AuditService, mockPrisma, CreateAuditLogDto, mockPrisma, TenantGuard, TestApp, PrismaService
+Cohesion: 0.10
+Nodes (12): AuditService, mockPrisma, BudgetWithCategory, ACCOUNT_TYPE_CONFIG, MONTH_LABELS, MonthKey, CreateAuditLogDto, TestApp (+4 more)
 
 ### Community 17 - "Frontend TypeScript Config"
 Cohesion: 0.10
@@ -260,11 +277,11 @@ Nodes (19): compilerOptions, allowJs, esModuleInterop, incremental, isolatedModu
 
 ### Community 18 - "Insurance Management UI"
 Cohesion: 0.13
-Nodes (9): BudgetsController, BudgetsModule, BudgetsService, BudgetWithCategory, BudgetResponseDto, BudgetPeriodEnum, CreateBudgetDto, BudgetPeriodEnum (+1 more)
+Nodes (8): BudgetsController, BudgetsModule, BudgetsService, BudgetResponseDto, BudgetPeriodEnum, CreateBudgetDto, BudgetPeriodEnum, UpdateBudgetDto
 
 ### Community 19 - "Dashboard Home UI"
-Cohesion: 0.15
-Nodes (13): ACCOUNT_TYPE_ICON, BerandaPage(), getGreeting(), GOAL_STATUS_STYLE, PERIODS, SPARK_LABELS, Donut(), DonutLegend() (+5 more)
+Cohesion: 0.11
+Nodes (15): CalculatorsController, CalculatorsModule, CalculatorsService, TAX_BRACKETS, InvestmentCalcRequestDto, InvestmentCalcResultDto, KprCalcRequestDto, KprCalcResultDto (+7 more)
 
 ### Community 20 - "Shared Config Package"
 Cohesion: 0.11
@@ -272,15 +289,15 @@ Nodes (17): devDependencies, eslint, eslint-config-prettier, eslint-plugin-impor
 
 ### Community 21 - "Utility & Theme Components"
 Cohesion: 0.12
-Nodes (6): ThemeToggle(), Input(), Label(), Separator(), Textarea(), TooltipContent()
+Nodes (7): Badge(), badgeVariants, Input(), Label(), Separator(), Textarea(), TooltipContent()
 
 ### Community 22 - "CASL Authorization"
 Cohesion: 0.20
 Nodes (5): AccountsController, AccountsService, AccountResponseDto, CreateAccountDto, UpdateAccountDto
 
 ### Community 23 - "Dropdown Menu Component"
-Cohesion: 0.26
-Nodes (5): ListTransactionsQueryDto, TransactionListMetaDto, TransactionListResponseDto, TransactionSummaryDto, TransactionsService
+Cohesion: 0.13
+Nodes (8): CreateFamilyGroupDto, CreateInvitationDto, FamilyGroupResponseDto, InvitationResponseDto, MemberResponseDto, UpdateMemberRoleDto, FamilyGroupsController, FamilyGroupsService
 
 ### Community 24 - "API TypeScript Config"
 Cohesion: 0.13
@@ -295,20 +312,20 @@ Cohesion: 0.04
 Nodes (47): Net Worth Formula: Aset + Investasi + Cash - Liabilitas, WealthMe_Demo.html — Self-Contained Interactive Prototype, 1. Ringkasan Produk, 2. Tech Stack Demo, 3. Sistem Desain, 4. Arsitektur Navigasi, 5.10 Tax Center — Pajak Pribadi ⭐ (New), 5.11 Split Bill ⭐ (New) (+39 more)
 
 ### Community 27 - "Auth Domain Contracts"
-Cohesion: 0.13
-Nodes (10): AuthenticatedRequest, AuthModule, Env, envSchema, validateEnv(), AppModule, GoogleStrategy, JwtRefreshStrategy (+2 more)
+Cohesion: 0.12
+Nodes (10): ExportsController, ExportsModule, ExportsProcessor, ExportJobData, ExportsService, formatCsv(), formatTxt(), jobStore (+2 more)
 
 ### Community 28 - "AI Chat Feature"
-Cohesion: 0.18
-Nodes (9): ChatMessage, CHIPS, AI_CHIPS, AI_RESPONSES, CASHFLOW, resolveAiResponse(), SearchEntry, SPARKLINE_POINTS (+1 more)
+Cohesion: 0.16
+Nodes (10): ChatMessage, CHIPS, AI_CHIPS, AI_RESPONSES, CASHFLOW, resolveAiResponse(), SEARCH_DATA, SearchEntry (+2 more)
 
 ### Community 29 - "API E2E Test Config"
 Cohesion: 0.15
 Nodes (12): forceExit, globalSetup, globalTeardown, maxWorkers, moduleFileExtensions, rootDir, roots, testEnvironment (+4 more)
 
 ### Community 30 - "API Guards & Search"
-Cohesion: 0.21
-Nodes (4): JwtAuthGuard, SearchController, SearchModule, SearchService
+Cohesion: 0.17
+Nodes (8): CreateGoalDto, UpdateGoalDto, GoalsController, computeStatus(), GoalDto, GoalsService, GoalStatus, toDto()
 
 ### Community 31 - "API Build Scripts"
 Cohesion: 0.18
@@ -316,11 +333,11 @@ Nodes (11): scripts, build, db:generate, db:migrate, db:migrate:dev, db:reset, d
 
 ### Community 32 - "NestJS Module Registry"
 Cohesion: 0.17
-Nodes (9): CreateGoalDto, UpdateGoalDto, GoalsController, GoalsModule, computeStatus(), GoalDto, GoalsService, GoalStatus (+1 more)
+Nodes (9): CreateLiabilityDto, LiabilityResponseDto, LiabilitySummaryResponseDto, UpdateLiabilityDto, LiabilitiesController, LiabilitiesModule, guardBigInt(), LiabilitiesService (+1 more)
 
 ### Community 33 - "Inheritance Planning UI"
-Cohesion: 0.35
-Nodes (6): MOCK_CATEGORIES, MOCK_MERCHANTS, MockOcrService, OcrPort, OcrResult, TransactionsModule
+Cohesion: 0.16
+Nodes (8): AssetsController, AssetsModule, AssetsService, toAssetDto(), AssetHistoryResponseDto, AssetResponseDto, CreateAssetDto, UpdateAssetDto
 
 ### Community 34 - "API Unit Test Config"
 Cohesion: 0.20
@@ -339,16 +356,16 @@ Cohesion: 0.07
 Nodes (27): AI Financial Advisor, Assets, Core Formula, Dashboard, Database Tables, Family Finance, Family Member, Family Owner (+19 more)
 
 ### Community 38 - "Donation Tracking UI"
-Cohesion: 0.18
-Nodes (8): Sheet(), SheetContent(), SheetDescription(), SheetFooter(), SheetHeader(), SheetOverlay(), SheetTitle(), SheetTrigger()
+Cohesion: 0.20
+Nodes (9): ThemeToggle(), Sheet(), SheetContent(), SheetDescription(), SheetFooter(), SheetHeader(), SheetOverlay(), SheetTitle() (+1 more)
 
 ### Community 39 - "Transactions List UI"
 Cohesion: 0.08
 Nodes (23): Agent Reuse Policy, Custom Commands, Custom Project Agents (created for this repo), Deployment Rules, ECC Components, Epic file format, Epic Loop, Epic Status Lifecycle (+15 more)
 
 ### Community 40 - "Asset Tracking UI"
-Cohesion: 0.11
-Nodes (24): ASSET_ITEMS, AssetItem, TOTAL, ConfirmDeleteDialog(), CRUD_CONFIG, CrudEntity, CrudEntityConfig, CrudField (+16 more)
+Cohesion: 0.07
+Nodes (32): AddAssetModalProps, AsetPage(), ASSET_TYPE_BG, ASSET_TYPE_EMOJI, ASSET_TYPE_LABEL, ASSET_TYPES, AssetGroupCard(), AssetTypeValue (+24 more)
 
 ### Community 41 - "Claude Code Settings"
 Cohesion: 0.29
@@ -359,16 +376,16 @@ Cohesion: 0.29
 Nodes (6): compilerOptions, noEmit, outDir, rootDir, extends, include
 
 ### Community 43 - "Cash & Funds UI"
-Cohesion: 0.16
-Nodes (7): mockConfig, mockJwt, mockPrisma, mockRedis, logger, RedisModule, RedisService
+Cohesion: 0.06
+Nodes (20): Public(), CreateParticipantDto, CreateSplitBillDto, SettleParticipantDto, SplitBillResponseDto, SplitParticipantResponseDto, JwtAuthGuard, HealthController (+12 more)
 
 ### Community 44 - "Tenant Guard Tests"
-Cohesion: 0.14
-Nodes (14): AccountsModule, ACTION_MAP, AuditInterceptor, deriveEntity(), MUTATING_METHODS, sanitize(), SENSITIVE_KEYS, mockAuditService (+6 more)
+Cohesion: 0.21
+Nodes (7): ACTION_MAP, AuditInterceptor, deriveEntity(), MUTATING_METHODS, sanitize(), SENSITIVE_KEYS, mockAuditService
 
 ### Community 45 - "Health Check Endpoint"
-Cohesion: 0.31
-Nodes (4): Public(), HealthController, HealthResponse, HealthModule
+Cohesion: 0.13
+Nodes (14): BalanceSheetDto, BankBreakdownItem, BankReportDto, CashflowStatementDto, CategoryBreakdownItem, DetailReportDto, DetailTransactionItem, PeriodPoint (+6 more)
 
 ### Community 46 - "GitHub Setup Script"
 Cohesion: 0.43
@@ -379,11 +396,11 @@ Cohesion: 0.29
 Nodes (4): GET, POST, { handlers, signIn, signOut, auth }, config
 
 ### Community 48 - "Community 48"
-Cohesion: 0.20
-Nodes (4): MarkReadDto, NotificationsController, NotificationDto, NotificationsService
+Cohesion: 0.19
+Nodes (5): MarkReadDto, NotificationsController, NotificationsModule, NotificationDto, NotificationsService
 
 ### Community 49 - "Community 49"
-Cohesion: 0.22
+Cohesion: 0.23
 Nodes (7): Action, AppAbility, CaslAbilityFactory, Subject, CheckAbility(), PolicyHandler, AbilitiesGuard
 
 ### Community 50 - "NestJS CLI Config"
@@ -396,11 +413,11 @@ Nodes (5): name, prisma, seed, private, version
 
 ### Community 53 - "Community 53"
 Cohesion: 0.13
-Nodes (13): AddInsuranceModalProps, CRUD_JENIS_BY_TYPE, formatIndonesianDate(), INSURANCE_TYPE_BG, INSURANCE_TYPE_ICON, INSURANCE_TYPE_LABEL, PERIOD_OPTIONS, PolicyCard() (+5 more)
+Nodes (14): AddInsuranceModalProps, AsuransiPage(), CRUD_JENIS_BY_TYPE, formatIndonesianDate(), INSURANCE_TYPE_BG, INSURANCE_TYPE_ICON, INSURANCE_TYPE_LABEL, PERIOD_OPTIONS (+6 more)
 
 ### Community 54 - "Tabs Component"
-Cohesion: 0.40
-Nodes (5): Tabs(), TabsContent(), TabsList(), tabsListVariants, TabsTrigger()
+Cohesion: 0.12
+Nodes (12): MATCH_ROWS, MatchRow, MatchStatus, SCAN_STEPS, STEPS, SUPPORTED_BANKS, AVATAR_GRADIENTS, computePaidAmount() (+4 more)
 
 ### Community 55 - "API Build TypeScript Config"
 Cohesion: 0.50
@@ -423,12 +440,12 @@ Cohesion: 1.00
 Nodes (3): Auth Login Redirect E2E Test (Chromium), Login Redirect Test Failure Screenshot (Chromium), Next.js 404 Not Found Page
 
 ### Community 62 - "Bar Chart Component"
-Cohesion: 0.31
-Nodes (7): AnggaranPage(), budgetAmountsLabel(), budgetBarColor(), BudgetItem(), budgetPctLabel(), ICON_OPTIONS, PERIOD_MAP
+Cohesion: 0.17
+Nodes (11): InvestmentCalcRequestDto, InvestmentCalcResultDto, KprCalcRequestDto, KprCalcResultDto, Pph21RequestDto, Pph21ResultDto, RetirementCalcRequestDto, RetirementCalcResultDto (+3 more)
 
 ### Community 68 - "Community 68"
-Cohesion: 0.20
-Nodes (6): DashboardController, DashboardModule, ACCOUNT_TYPE_CONFIG, DashboardService, MONTH_LABELS, MonthKey
+Cohesion: 0.14
+Nodes (11): CreateHeirDto, CreateInheritanceAssetDto, InheritanceAssetResponseDto, InheritanceHeirResponseDto, UpdateInheritanceAssetDto, InheritanceController, AssetRow, HeirRow (+3 more)
 
 ### Community 88 - "Community 88"
 Cohesion: 0.11
@@ -443,8 +460,8 @@ Cohesion: 0.24
 Nodes (13): apps/api — NestJS Backend, apps/web — Next.js 16 Frontend, pnpm Monorepo Layout (apps/web, apps/api, packages/contracts, packages/config), Docker Compose — Local Dev Stack, E2E Test Failure — /beranda redirect to /login, E2E Test Failure — /transaksi redirect to /login, GitHub Actions CI Workflow, MailHog SMTP Dev Server (Docker) (+5 more)
 
 ### Community 91 - "Community 91"
-Cohesion: 0.14
-Nodes (13): MinIO Object Storage (S3-compatible, self-hosted), Multi-Tenant Family Finance (shared-DB with app-layer scoping), Acceptance Criteria, Dependencies, Donations & Tax, EPIC-005: Family & Tools, Family & RBAC, Goal (+5 more)
+Cohesion: 0.13
+Nodes (14): MinIO Object Storage (S3-compatible, self-hosted), Multi-Tenant Family Finance (shared-DB with app-layer scoping), Acceptance Criteria, Automation Log, Dependencies, Donations & Tax, EPIC-005: Family & Tools, Family & RBAC ✅ (+6 more)
 
 ### Community 92 - "Community 92"
 Cohesion: 0.18
@@ -459,12 +476,12 @@ Cohesion: 0.15
 Nodes (13): Charts — `import { Sparkline, Donut, DonutLegend, BarChart } from "@/components/charts/..."`, Color token mapping (demo CSS var → use Tailwind class, or `var(--token)` inline), Formatters — `import { formatRupiah, parseRupiah, formatAmountInput, formatNumber } from "@/lib/format"`, Icons — `lucide-react`. (Use any valid lucide name; `FileInvoice` does NOT exist → use `FileText`.) Emoji in content stays as emoji., Language & fidelity, Quality bar, Responsive grid mapping (demo → Tailwind), Reusable components — `import { ... } from "@/components/wm"` (+5 more)
 
 ### Community 95 - "Community 95"
-Cohesion: 0.18
-Nodes (10): Deterministic Zakat & PPh 21 Calculators (not LLM), Acceptance Criteria, Calculators, Dependencies, EPIC-004: Reports & Calculators, Export, Goal, Report read-models (+2 more)
+Cohesion: 0.17
+Nodes (11): Deterministic Zakat & PPh 21 Calculators (not LLM), Acceptance Criteria, Automation Log, Calculators ✅, Dependencies, EPIC-004: Reports & Calculators, Export ✅, Goal (+3 more)
 
 ### Community 96 - "Community 96"
 Cohesion: 0.17
-Nodes (11): Acceptance Criteria, Assets, Automation Log, Dependencies, EPIC-003: Wealth, Goal, Insurance ✅, Investments (+3 more)
+Nodes (11): Acceptance Criteria, Assets (done), Automation Log, Dependencies, EPIC-003: Wealth, Goal, Insurance (done), Investments (done) (+3 more)
 
 ### Community 97 - "Community 97"
 Cohesion: 0.18
@@ -475,8 +492,8 @@ Cohesion: 0.20
 Nodes (10): Cara membuat board GitHub Projects, Phase 0 · Foundation & Infra  _(Epic 0)_, Phase 1 · Backend Foundation  _(Epic 1)_, Phase 2 · Core Money Tracking (MVP)  _(Epic 2)_, Phase 3 · Wealth  _(Epic 3)_, Phase 4 · Reports & Calculators  _(Epic 4)_, Phase 5 · Family & Tools  _(Epic 5)_, Phase 6 · Integrations & AI  _(Epic 6)_ (+2 more)
 
 ### Community 99 - "Community 99"
-Cohesion: 0.09
-Nodes (18): Holding, HOLDINGS, LIABILITIES, LiabilityCard, LiabilityItemProps, MetaItem, MATCH_ROWS, MatchRow (+10 more)
+Cohesion: 0.40
+Nodes (4): Donut(), DonutLegend(), DonutProps, DonutSegment
 
 ### Community 100 - "Community 100"
 Cohesion: 0.22
@@ -563,8 +580,8 @@ Cohesion: 0.25
 Nodes (7): AccountCard, AccountCardItemProps, RekeningPage(), toCardData(), toLogoText(), TYPE_LABELS, TYPE_LOGO_BG
 
 ### Community 124 - "Community 124"
-Cohesion: 0.09
-Nodes (21): CASH_TYPES, DANA_TYPES, DanaPage(), EWALLET_TYPES, WalletRow(), ApiError, apiFetch(), queryKeys (+13 more)
+Cohesion: 0.08
+Nodes (29): ACCOUNT_TYPE_ICON, BerandaPage(), getGreeting(), GOAL_STATUS_STYLE, PERIODS, SPARK_LABELS, Sparkline(), SparklineProps (+21 more)
 
 ### Community 125 - "Community 125"
 Cohesion: 0.40
@@ -575,28 +592,28 @@ Cohesion: 0.40
 Nodes (4): BudgetDto, BudgetPeriod, CreateBudgetDto, UpdateBudgetDto
 
 ### Community 127 - "Community 127"
-Cohesion: 0.40
-Nodes (4): CategoryDto, CategoryDtoSchema, CategoryKind, CategoryKindSchema
+Cohesion: 0.28
+Nodes (8): AccountsModule, AuditModule, FamilyGroupsModule, GoalsModule, InheritanceModule, InsurancesModule, PrismaModule, SplitBillsModule
 
 ### Community 128 - "Community 128"
-Cohesion: 0.40
-Nodes (4): AccountSummaryItemDto, AllocationItemDto, CashflowDto, DashboardSummaryDto
+Cohesion: 0.15
+Nodes (7): mockConfig, mockJwt, mockPrisma, mockRedis, logger, RedisModule, RedisService
 
 ### Community 129 - "Community 129"
-Cohesion: 0.29
-Nodes (4): CONTRACTS_VERSION, Rupiah, RupiahSchema, NotificationDto
+Cohesion: 0.12
+Nodes (9): DropdownMenuCheckboxItem(), DropdownMenuContent(), DropdownMenuItem(), DropdownMenuLabel(), DropdownMenuRadioItem(), DropdownMenuSeparator(), DropdownMenuShortcut(), DropdownMenuSubContent() (+1 more)
 
 ### Community 130 - "Community 130"
 Cohesion: 0.40
-Nodes (4): Output (REQUIRED format), Rules, DEV-Only Deployment Guardrail, scripts/deploy-dev.sh — DEV-only Deploy
+Nodes (5): Tabs(), TabsContent(), TabsList(), tabsListVariants, TabsTrigger()
 
 ### Community 131 - "Community 131"
 Cohesion: 0.40
 Nodes (4): CreateGoalDto, GoalDto, GoalStatus, UpdateGoalDto
 
 ### Community 132 - "Community 132"
-Cohesion: 0.50
-Nodes (3): SearchResponseDto, SearchResultDto, SearchResultType
+Cohesion: 0.18
+Nodes (7): CONTRACTS_VERSION, Rupiah, RupiahSchema, NotificationDto, SearchResponseDto, SearchResultDto, SearchResultType
 
 ### Community 133 - "Community 133"
 Cohesion: 0.32
@@ -604,39 +621,103 @@ Nodes (4): CategoriesController, CategoriesModule, CategoriesService, CategoryRe
 
 ### Community 134 - "Community 134"
 Cohesion: 0.07
-Nodes (33): ConfirmDeleteDialogProps, CATEGORIES, HISTORY, HistoryItem, JENIS_GROUPS, LEMBAGA_OPTIONS, SUMBER_OPTIONS, ZkInput() (+25 more)
+Nodes (31): AnggaranPage(), budgetAmountsLabel(), budgetBarColor(), BudgetItem(), budgetPctLabel(), ICON_OPTIONS, PERIOD_MAP, ConfirmDeleteDialogProps (+23 more)
 
 ### Community 135 - "Community 135"
-Cohesion: 0.29
-Nodes (6): CardAction(), CardContent(), CardDescription(), CardFooter(), CardHeader(), CardTitle()
+Cohesion: 0.22
+Nodes (3): DashboardController, DashboardModule, DashboardService
 
 ### Community 136 - "Community 136"
+Cohesion: 0.10
+Nodes (23): Home(), AuthContext, AuthProvider(), AuthState, useAuth(), AppShell(), MobileHeader(), MobileNav() (+15 more)
+
+### Community 137 - "Community 137"
 Cohesion: 0.33
-Nodes (5): Progress(), ProgressIndicator(), ProgressLabel(), ProgressTrack(), ProgressValue()
+Nodes (5): ExportFormat, ExportJobRequestDto, ExportJobStatus, ExportJobStatusDto, ExportReportType
 
 ### Community 138 - "Community 138"
 Cohesion: 0.25
 Nodes (7): CreateInsuranceDto, InsuranceDto, InsuranceStatus, InsuranceSummaryDto, InsuranceType, PremiumPeriod, UpdateInsuranceDto
 
+### Community 139 - "Community 139"
+Cohesion: 0.15
+Nodes (5): ReportsModule, buildCategoryBreakdown(), growthRate(), MONTH_LABELS, ReportsService
+
+### Community 140 - "Community 140"
+Cohesion: 0.18
+Nodes (8): AddLiabilityModalProps, CreateLiabilityBody, getDueDateStatus(), LiabilitasPage(), LIABILITY_TYPE_LABEL, LIABILITY_TYPES, LiabilityCard(), LiabilityTypeValue
+
+### Community 141 - "Community 141"
+Cohesion: 0.16
+Nodes (8): AddInvestmentForm, formatDecimalRupiah(), formatReturnPct(), InvestasiPage(), INVESTMENT_TYPES, InvestmentType, TYPE_BADGE, TYPE_LOGO_BG
+
+### Community 142 - "Community 142"
+Cohesion: 0.10
+Nodes (13): AuthController, GoogleCallbackRequest, MembershipInfo, TokenPair, UserProfile, LoginDto, RegisterDto, UpdateProfileDto (+5 more)
+
+### Community 143 - "Community 143"
+Cohesion: 0.28
+Nodes (6): BadgeVariant, formatTargetDate(), GoalCard(), GoalCardProps, statusToBadge(), TujuanPage()
+
+### Community 144 - "Community 144"
+Cohesion: 0.18
+Nodes (11): BadgeVariant, MOBILE_NAV, MobileNavItem, NAV_SECTIONS, NavItem, NavSection, PAGE_TITLES, REPORT_TABS (+3 more)
+
+### Community 145 - "Community 145"
+Cohesion: 0.29
+Nodes (6): CreateHeirDto, CreateInheritanceAssetDto, InheritanceAssetDto, InheritanceHeirDto, InheritanceVisibility, UpdateInheritanceAssetDto
+
+### Community 146 - "Community 146"
+Cohesion: 0.18
+Nodes (8): ApiError, FILTERS, formatTime(), MeResponse, TransaksiPage(), TxnType, TxRow(), MoneyStat()
+
+### Community 147 - "Community 147"
+Cohesion: 0.40
+Nodes (4): CategoryDto, CategoryDtoSchema, CategoryKind, CategoryKindSchema
+
+### Community 148 - "Community 148"
+Cohesion: 0.29
+Nodes (6): CreateSplitBillDto, CreateSplitParticipantDto, ParticipantStatus, SplitBillDto, SplitParticipantDto, SplitStatus
+
+### Community 149 - "Community 149"
+Cohesion: 0.33
+Nodes (5): CreateLiabilityDto, LiabilityDto, LiabilitySummaryDto, LiabilityType, UpdateLiabilityDto
+
+### Community 150 - "Community 150"
+Cohesion: 0.24
+Nodes (4): CaslModule, CommonModule, mockPrisma, TenantGuard
+
+### Community 151 - "Community 151"
+Cohesion: 0.40
+Nodes (3): InvestmentDto, InvestmentSummaryDto, InvestmentType
+
+### Community 153 - "Community 153"
+Cohesion: 0.40
+Nodes (4): AssetDto, AssetHistoryDto, CreateAssetDto, UpdateAssetDto
+
+### Community 156 - "Community 156"
+Cohesion: 0.33
+Nodes (5): AccountSummaryItemDto, AllocationItemDto, CashflowDto, DashboardSummaryDto, NetWorthDto
+
 ## Knowledge Gaps
-- **792 isolated node(s):** `WealthMe Database Schema`, `Formulas`, `Overview`, `Core Formula`, `Personal User` (+787 more)
+- **876 isolated node(s):** `deny`, `PreToolUse`, `ecc@ecc`, `husky.sh script`, `moduleFileExtensions` (+871 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **21 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **22 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `cn()` connect `shadcn UI Components` to `Next.js App Shell & Routing`, `Community 99`, `Community 134`, `Account Management UI`, `Community 135`, `Wealth & Liability Tracking`, `Community 136`, `Community 139`, `Donation Tracking UI`, `Calculators & Donations UI`, `Dashboard Home UI`, `Utility & Theme Components`, `Tabs Component`, `Community 124`?**
-  _High betweenness centrality (0.018) - this node is a cross-community bridge._
-- **Why does `PrismaService` connect `Audit Logging Service` to `Auth & Session Management`, `NestJS Module Registry`, `Inheritance Planning UI`, `Audit Interceptor Logic`, `Community 68`, `Community 133`, `Budget Management UI`, `Cash & Funds UI`, `Tenant Guard Tests`, `Community 48`, `Insurance Management UI`, `CASL Authorization`, `Auth Domain Contracts`, `API Guards & Search`?**
-  _High betweenness centrality (0.007) - this node is a cross-community bridge._
-- **Why does `WealthMe — Personal Wealth Operating System` connect `Root Layout & Fonts` to `Community 89`?**
-  _High betweenness centrality (0.005) - this node is a cross-community bridge._
-- **What connects `WealthMe Database Schema`, `Formulas`, `Overview` to the rest of the system?**
-  _793 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Why does `PrismaService` connect `Audit Logging Service` to `Auth & Session Management`, `Community 128`, `Community 133`, `Community 135`, `Wealth & Liability Tracking`, `Budget Management UI`, `Community 139`, `Community 142`, `Insurance Management UI`, `CASL Authorization`, `Dropdown Menu Component`, `Community 150`, `Auth Domain Contracts`, `API Guards & Search`, `NestJS Module Registry`, `Inheritance Planning UI`, `Audit Interceptor Logic`, `Cash & Funds UI`, `Community 48`, `Community 68`, `Community 127`?**
+  _High betweenness centrality (0.025) - this node is a cross-community bridge._
+- **Why does `cn()` connect `shadcn UI Components` to `Community 129`, `Community 130`, `Donation Tracking UI`, `Account Management UI`, `Community 136`, `Community 134`, `Asset Tracking UI`, `Community 144`, `Community 146`, `Utility & Theme Components`, `Tabs Component`, `Community 124`?**
+  _High betweenness centrality (0.017) - this node is a cross-community bridge._
+- **Why does `formatRupiah()` connect `Calculators & Donations UI` to `Community 134`, `Asset Tracking UI`, `Financial Reports UI`, `Community 140`, `Community 141`, `Community 143`, `Community 146`, `Community 53`, `Tabs Component`, `Community 123`, `Community 124`?**
+  _High betweenness centrality (0.006) - this node is a cross-community bridge._
+- **What connects `deny`, `PreToolUse`, `ecc@ecc` to the rest of the system?**
+  _877 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Auth & Session Management` be split into smaller, more focused modules?**
-  _Cohesion score 0.0915915915915916 - nodes in this community are weakly interconnected._
-- **Should `Next.js App Shell & Routing` be split into smaller, more focused modules?**
-  _Cohesion score 0.05573770491803279 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.12681159420289856 - nodes in this community are weakly interconnected._
 - **Should `Dev Tooling & Git Hooks` be split into smaller, more focused modules?**
   _Cohesion score 0.045454545454545456 - nodes in this community are weakly interconnected._
+- **Should `AI Agent Orchestration` be split into smaller, more focused modules?**
+  _Cohesion score 0.1265597147950089 - nodes in this community are weakly interconnected._

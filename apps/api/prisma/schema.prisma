@@ -122,6 +122,12 @@ enum SptStatus {
   sudah_lapor
   terlambat
 }
+
+enum ReconStatus {
+  matched
+  unmatched
+  suggested
+}
 // ── Models ────────────────────────────────────────────────────────────────────
 
 model User {
@@ -159,6 +165,7 @@ model FamilyGroup {
   inheritanceAssets  InheritanceAsset[]
   donations          Donation[]
   taxRecords         TaxRecord[]
+  bankSyncs          BankSync[]
 
   @@map("family_groups")
 }
@@ -520,4 +527,34 @@ model TaxRecord {
   @@unique([familyGroupId, taxYear])
   @@index([familyGroupId])
   @@map("tax_records")
+}
+
+model BankSync {
+  id            String         @id @default(uuid())
+  familyGroupId String
+  fileName      String
+  uploadedAt    DateTime       @default(now())
+  rowCount      Int            @default(0)
+  familyGroup   FamilyGroup    @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  entries       BankSyncEntry[]
+
+  @@index([familyGroupId])
+  @@map("bank_syncs")
+}
+
+model BankSyncEntry {
+  id              String      @id @default(uuid())
+  bankSyncId      String
+  date            DateTime
+  description     String
+  amount          BigInt
+  currency        String      @default("IDR")
+  reconStatus     ReconStatus @default(unmatched)
+  matchedTxId     String?
+  suggestedTxId   String?
+  createdAt       DateTime    @default(now())
+  bankSync        BankSync    @relation(fields: [bankSyncId], references: [id], onDelete: Cascade)
+
+  @@index([bankSyncId])
+  @@map("bank_sync_entries")
 }

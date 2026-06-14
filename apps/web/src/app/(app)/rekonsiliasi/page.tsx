@@ -18,7 +18,44 @@ import {
   X,
   ChevronRight,
 } from "lucide-react";
-import { SectionCard, StatusBadge, ProgressBar, CardLink } from "@/components/wm";
+import { useSession } from "next-auth/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  SectionCard,
+  StatusBadge,
+  ProgressBar,
+  CardLink,
+} from "@/components/wm";
+import { apiFetch } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
+
+/* ─────────────────────────── Types ─────────────────────────── */
+
+type BankSyncDto = {
+  id: string;
+  familyGroupId: string;
+  fileName: string;
+  uploadedAt: string;
+  rowCount: number;
+};
+
+type BankSyncEntryDto = {
+  id: string;
+  bankSyncId: string;
+  date: string;
+  description: string;
+  amount: string;
+  currency: string;
+  reconStatus: string;
+  matchedTxId: string | null;
+  suggestedTxId: string | null;
+  createdAt: string;
+};
+
+type AutoMatchResultDto = {
+  totalEntries: number;
+  suggested: number;
+};
 
 /* ─────────────────────────── Static data ─────────────────────────── */
 
@@ -27,15 +64,6 @@ const STEPS = [
   { num: 2, label: "Pindai", sub: "AI membaca data" },
   { num: 3, label: "Cocokkan", sub: "Samakan transaksi" },
   { num: 4, label: "Selesai", sub: "Simpan hasil" },
-] as const;
-
-const SCAN_STEPS = [
-  { t: 400, pct: 15, msg: "Membaca header dokumen..." },
-  { t: 900, pct: 32, msg: "Mendeteksi format rekening koran BCA..." },
-  { t: 1500, pct: 55, msg: "Mengekstrak 152 baris transaksi..." },
-  { t: 2100, pct: 72, msg: "Mencocokkan dengan data WealthMe..." },
-  { t: 2700, pct: 88, msg: "Menganalisa perbedaan..." },
-  { t: 3200, pct: 100, msg: "Selesai! 152 transaksi diproses." },
 ] as const;
 
 const SUPPORTED_BANKS = [
@@ -48,72 +76,6 @@ const SUPPORTED_BANKS = [
 ] as const;
 
 type MatchStatus = "ok" | "warn" | "err";
-type MatchRow = {
-  left: { meta: string; amount: string; amountClass: string };
-  status: MatchStatus;
-  right: {
-    meta: string;
-    metaClass: string;
-    amount: string;
-    amountClass: string;
-    cellClass?: string;
-  };
-};
-
-const MATCH_ROWS: MatchRow[] = [
-  {
-    left: { meta: "18 Mei · Alfamart", amount: "-Rp 58.000", amountClass: "text-destructive" },
-    status: "ok",
-    right: {
-      meta: "18 Mei · Belanja",
-      metaClass: "text-muted-foreground",
-      amount: "-Rp 58.000",
-      amountClass: "text-destructive",
-    },
-  },
-  {
-    left: { meta: "17 Mei · Transfer Masuk", amount: "+Rp 5.000.000", amountClass: "text-success" },
-    status: "ok",
-    right: {
-      meta: "17 Mei · Pemasukan",
-      metaClass: "text-muted-foreground",
-      amount: "+Rp 5.000.000",
-      amountClass: "text-success",
-    },
-  },
-  {
-    left: { meta: "15 Mei · KK BCA", amount: "-Rp 1.250.000", amountClass: "text-destructive" },
-    status: "warn",
-    right: {
-      meta: "Beda Kategori",
-      metaClass: "text-warning",
-      amount: "-Rp 1.250.000",
-      amountClass: "text-destructive",
-      cellClass: "bg-warning-soft border-amber-300",
-    },
-  },
-  {
-    left: { meta: "14 Mei · Shopee", amount: "-Rp 450.000", amountClass: "text-destructive" },
-    status: "err",
-    right: {
-      meta: "Tidak Ditemukan",
-      metaClass: "text-destructive",
-      amount: "—",
-      amountClass: "text-muted-foreground",
-      cellClass: "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900",
-    },
-  },
-  {
-    left: { meta: "13 Mei · GoPay TopUp", amount: "-Rp 200.000", amountClass: "text-destructive" },
-    status: "ok",
-    right: {
-      meta: "13 Mei · Top Up e-Wallet",
-      metaClass: "text-muted-foreground",
-      amount: "-Rp 200.000",
-      amountClass: "text-destructive",
-    },
-  },
-];
 
 /* ─────────────────────────── Stepper ─────────────────────────── */
 
@@ -176,10 +138,14 @@ function MatchIcon({ status }: { status: MatchStatus }) {
         : "bg-destructive";
   return (
     <div className="flex w-9 flex-shrink-0 items-center justify-center">
-      <div className={`flex size-6 items-center justify-center rounded-full ${cls}`}>
+      <div
+        className={`flex size-6 items-center justify-center rounded-full ${cls}`}
+      >
         {status === "ok" && <Check className="size-[13px] text-white" />}
         {status === "warn" && (
-          <span className="text-[12px] font-bold leading-none text-white">!</span>
+          <span className="text-[12px] font-bold leading-none text-white">
+            !
+          </span>
         )}
         {status === "err" && <X className="size-[13px] text-white" />}
       </div>
@@ -187,64 +153,175 @@ function MatchIcon({ status }: { status: MatchStatus }) {
   );
 }
 
+function entryStatus(reconStatus: string): MatchStatus {
+  if (reconStatus === "matched") return "ok";
+  if (reconStatus === "suggested") return "warn";
+  return "err";
+}
+
 /* ─────────────────────────── Page ─────────────────────────── */
 
 export default function RekonsiliasiPage() {
+  const { data: session } = useSession();
+  const token = session?.accessToken as string | undefined;
+  const familyGroupId = session?.familyGroupId ?? undefined;
+  const queryClient = useQueryClient();
+
   const [step, setStep] = React.useState(1);
-  const [progress, setProgress] = React.useState(0);
-  const [label, setLabel] = React.useState("Memulai pemindaian...");
-  const [scanLog, setScanLog] = React.useState<string[]>([]);
+  const [syncId, setSyncId] = React.useState<string | null>(null);
   const [showTips, setShowTips] = React.useState(true);
+  const [uploading, setUploading] = React.useState(false);
 
-  const timersRef = React.useRef<ReturnType<typeof setTimeout>[]>([]);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const clearTimers = React.useCallback(() => {
-    timersRef.current.forEach(clearTimeout);
-    timersRef.current = [];
+  const goto = React.useCallback((next: number) => {
+    setStep(next);
   }, []);
 
-  React.useEffect(() => clearTimers, [clearTimers]);
+  /* ─── Step 1: upload mutation ─── */
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (!familyGroupId || !token) throw new Error("Session non-aktif");
 
-  const goto = React.useCallback(
-    (next: number) => {
-      clearTimers();
-      setStep(next);
+      let rows: {
+        date: string;
+        description: string;
+        amount: number;
+        currency?: string;
+      }[] = [];
+
+      if (file.name.endsWith(".csv")) {
+        const text = await file.text();
+        const lines = text.split("\n").filter((l) => l.trim() !== "");
+        rows = lines.slice(1).map((l) => {
+          const [date, description, amount] = l.split(",");
+          return {
+            date: new Date(date.trim()).toISOString(),
+            description: description?.trim() ?? "",
+            amount: Math.round(parseFloat((amount ?? "0").trim()) * 100),
+          };
+        });
+      } else {
+        // Non-CSV: send empty rows as placeholder — server handles parsing
+        rows = [];
+      }
+
+      return apiFetch<BankSyncDto>(
+        `/family-groups/${familyGroupId}/reconciliation/upload`,
+        {
+          method: "POST",
+          token,
+          body: JSON.stringify({ fileName: file.name, rows }),
+        },
+      );
     },
-    [clearTimers],
-  );
+    onSuccess: (data) => {
+      setSyncId(data.id);
+      toast.success("File berhasil diunggah!");
+      goto(2);
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Gagal mengunggah file";
+      toast.error(msg);
+    },
+  });
 
-  // Step 1: simulate file upload then advance.
-  function simulateUpload() {
-    toast("📂 File BCA Rekening Koran Mei 2025.pdf dipilih");
-    const t = setTimeout(() => setStep(2), 800);
-    timersRef.current.push(t);
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    uploadMutation.mutate(file, {
+      onSettled: () => setUploading(false),
+    });
   }
 
-  // Step 2: run the scan whenever we enter it.
+  function handleUploadAreaClick() {
+    fileInputRef.current?.click();
+  }
+
+  /* ─── Step 2: auto-match mutation ─── */
+  const autoMatchMutation = useMutation({
+    mutationFn: ({
+      fgId,
+      sid,
+      tkn,
+    }: {
+      fgId: string;
+      sid: string;
+      tkn: string;
+    }) =>
+      apiFetch<AutoMatchResultDto>(
+        `/family-groups/${fgId}/reconciliation/${sid}/auto-match`,
+        { method: "POST", token: tkn },
+      ),
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Gagal memindai entri";
+      toast.error(msg);
+    },
+  });
+
   React.useEffect(() => {
-    if (step !== 2) return;
-    // Reset the scan UI each time we (re)enter step 2 before the timed simulation runs.
-    /* eslint-disable react-hooks/set-state-in-effect */
-    setProgress(0);
-    setLabel("Memulai pemindaian...");
-    setScanLog([]);
-    /* eslint-enable react-hooks/set-state-in-effect */
+    if (step !== 2 || !syncId || !familyGroupId || !token) return;
+    autoMatchMutation.mutate({ fgId: familyGroupId, sid: syncId, tkn: token });
+    // autoMatchMutation.mutate is stable; including it would cause infinite re-renders
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, syncId, familyGroupId, token]);
 
-    for (const s of SCAN_STEPS) {
-      const t = setTimeout(() => {
-        setProgress(s.pct);
-        setLabel(s.msg);
-        setScanLog((prev) => [...prev, s.msg]);
-        if (s.pct === 100) {
-          const adv = setTimeout(() => setStep(3), 600);
-          timersRef.current.push(adv);
-        }
-      }, s.t);
-      timersRef.current.push(t);
-    }
+  /* ─── Step 3: entries query ─── */
+  const entriesQuery = useQuery<BankSyncEntryDto[]>({
+    queryKey:
+      familyGroupId && syncId
+        ? queryKeys.reconciliation.entries(familyGroupId, syncId)
+        : ["reconciliation-entries-disabled"],
+    queryFn: () =>
+      apiFetch<BankSyncEntryDto[]>(
+        `/family-groups/${familyGroupId}/reconciliation/${syncId}/entries`,
+        { token },
+      ),
+    enabled: step === 3 && !!familyGroupId && !!syncId && !!token,
+  });
 
-    return clearTimers;
-  }, [step, clearTimers]);
+  const confirmMutation = useMutation({
+    mutationFn: ({
+      entryId,
+      transactionId,
+    }: {
+      entryId: string;
+      transactionId: string;
+    }) =>
+      apiFetch<BankSyncEntryDto>(
+        `/family-groups/${familyGroupId}/reconciliation/${syncId}/entries/${entryId}/match`,
+        {
+          method: "PATCH",
+          token,
+          body: JSON.stringify({ transactionId }),
+        },
+      ),
+    onSuccess: () => {
+      if (familyGroupId && syncId) {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.reconciliation.entries(familyGroupId, syncId),
+        });
+      }
+      toast.success("Entri berhasil dikonfirmasi!");
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Gagal mengkonfirmasi";
+      toast.error(msg);
+    },
+  });
+
+  /* ─── Step 4 summary counts ─── */
+  const entries = entriesQuery.data ?? [];
+  const matchedCount = entries.filter(
+    (e) => e.reconStatus === "matched",
+  ).length;
+  const suggestedCount = entries.filter(
+    (e) => e.reconStatus === "suggested",
+  ).length;
+  const unmatchedCount = entries.filter(
+    (e) => e.reconStatus === "unmatched",
+  ).length;
 
   return (
     <div>
@@ -261,18 +338,31 @@ export default function RekonsiliasiPage() {
               Upload file PDF, Excel, atau CSV dari bank Anda.
             </div>
 
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,.xlsx,.xls,.pdf"
+              className="sr-only"
+              onChange={handleFileChange}
+            />
+
             <button
               type="button"
-              onClick={simulateUpload}
-              className="w-full cursor-pointer rounded-[14px] border-2 border-dashed border-primary/40 bg-accent/40 px-5 py-8 text-center transition-colors hover:border-primary hover:bg-accent"
+              onClick={handleUploadAreaClick}
+              disabled={uploading || uploadMutation.isPending}
+              className="w-full cursor-pointer rounded-[14px] border-2 border-dashed border-primary/40 bg-accent/40 px-5 py-8 text-center transition-colors hover:border-primary hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
             >
               <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full bg-accent">
                 <CloudUpload className="size-7 text-primary" />
               </div>
               <div className="mb-1.5 text-[15px] font-bold text-primary-strong">
-                Seret &amp; lepas file di sini
+                {uploading || uploadMutation.isPending
+                  ? "Mengunggah..."
+                  : "Seret & lepas file di sini"}
               </div>
-              <div className="mb-4 text-[12.5px] text-muted-foreground">atau</div>
+              <div className="mb-4 text-[12.5px] text-muted-foreground">
+                atau
+              </div>
               <div className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-[11px] text-[13.5px] font-bold text-white">
                 <ArrowUpFromLine className="size-4" /> Pilih File
               </div>
@@ -322,7 +412,10 @@ export default function RekonsiliasiPage() {
                 onClick={() => setStep(2)}
                 className="flex w-full cursor-pointer items-center gap-3 rounded-lg border bg-card p-3 text-left transition-colors hover:bg-accent/50"
               >
-                <div className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg text-white" style={{ background: "#E53E3E" }}>
+                <div
+                  className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg text-white"
+                  style={{ background: "#E53E3E" }}
+                >
                   <FileText className="size-[18px]" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -334,10 +427,15 @@ export default function RekonsiliasiPage() {
                   </div>
                 </div>
                 <div className="flex-shrink-0 text-right">
-                  <StatusBadge variant="success" className="mb-[3px] text-[10px]">
+                  <StatusBadge
+                    variant="success"
+                    className="mb-[3px] text-[10px]"
+                  >
                     Berhasil dipindai
                   </StatusBadge>
-                  <div className="text-[11px] text-muted-foreground">152 transaksi</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    152 transaksi
+                  </div>
                 </div>
                 <ChevronRight className="size-3 flex-shrink-0 text-muted-foreground" />
               </button>
@@ -347,7 +445,10 @@ export default function RekonsiliasiPage() {
                 onClick={() => setStep(2)}
                 className="flex w-full cursor-pointer items-center gap-3 rounded-lg border bg-card p-3 text-left transition-colors hover:bg-accent/50"
               >
-                <div className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg text-white" style={{ background: "#217346" }}>
+                <div
+                  className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg text-white"
+                  style={{ background: "#217346" }}
+                >
                   <FileSpreadsheet className="size-[18px]" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -362,7 +463,9 @@ export default function RekonsiliasiPage() {
                   <StatusBadge variant="info" className="mb-[3px] text-[10px]">
                     Siap dicocokkan
                   </StatusBadge>
-                  <div className="text-[11px] text-muted-foreground">98 transaksi</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    98 transaksi
+                  </div>
                 </div>
                 <ChevronRight className="size-3 flex-shrink-0 text-muted-foreground" />
               </button>
@@ -383,7 +486,9 @@ export default function RekonsiliasiPage() {
               <div className="flex items-start gap-2.5">
                 <Lightbulb className="mt-0.5 size-4 flex-shrink-0 text-warning" />
                 <div>
-                  <div className="mb-1.5 text-[12.5px] font-bold">Tips Rekonsiliasi</div>
+                  <div className="mb-1.5 text-[12.5px] font-bold">
+                    Tips Rekonsiliasi
+                  </div>
                   <div className="flex flex-col gap-1 text-[12px] text-foreground/80">
                     <span className="flex items-center gap-1.5">
                       <Check className="size-3.5 text-success" />
@@ -429,22 +534,52 @@ export default function RekonsiliasiPage() {
             WealthMe AI mengekstrak data transaksi dari rekening koran...
           </div>
 
-          <ProgressBar
-            value={progress}
-            height={10}
-            color="linear-gradient(90deg,var(--primary),var(--brand-purple))"
-            className="mb-2.5"
-          />
-          <div className="mb-5 text-[12px] text-muted-foreground">{label}</div>
-
-          <div className="flex flex-col gap-2 text-left">
-            {scanLog.map((msg, i) => (
-              <div key={i} className="flex items-center gap-2 text-[12.5px]">
-                <Check className="size-4 flex-shrink-0 text-success" />
-                <span>{msg}</span>
+          {autoMatchMutation.isPending ? (
+            <>
+              <ProgressBar
+                value={50}
+                height={10}
+                color="linear-gradient(90deg,var(--primary),var(--brand-purple))"
+                className="mb-2.5"
+              />
+              <div className="mb-5 text-[12px] text-muted-foreground">
+                Mencocokkan dengan data WealthMe...
               </div>
-            ))}
-          </div>
+            </>
+          ) : autoMatchMutation.data ? (
+            <div className="mb-6 space-y-3">
+              <ProgressBar
+                value={100}
+                height={10}
+                color="linear-gradient(90deg,var(--primary),var(--brand-purple))"
+                className="mb-2.5"
+              />
+              <div className="flex items-center justify-center gap-2 text-[13px]">
+                <Check className="size-4 flex-shrink-0 text-success" />
+                <span>
+                  <span className="font-bold">
+                    {autoMatchMutation.data.suggested}
+                  </span>{" "}
+                  entri cocok tersarankan dari{" "}
+                  <span className="font-bold">
+                    {autoMatchMutation.data.totalEntries}
+                  </span>{" "}
+                  total
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => goto(3)}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-[13.5px] font-bold text-white transition-opacity hover:opacity-90"
+              >
+                Lanjut <ArrowRight className="size-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="mb-5 text-[12px] text-muted-foreground">
+              Memulai pemindaian...
+            </div>
+          )}
         </SectionCard>
       )}
 
@@ -453,79 +588,139 @@ export default function RekonsiliasiPage() {
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-2.5">
             <div className="flex flex-col items-center gap-0.5 rounded-lg bg-success-soft py-3 text-emerald-700 dark:text-emerald-300">
-              <div className="text-[22px] font-black">143</div>
+              <div className="text-[22px] font-black">{matchedCount}</div>
               <div className="text-[11px] font-semibold">✅ Cocok</div>
             </div>
             <div className="flex flex-col items-center gap-0.5 rounded-lg bg-warning-soft py-3 text-amber-700 dark:text-amber-300">
-              <div className="text-[22px] font-black">7</div>
+              <div className="text-[22px] font-black">{suggestedCount}</div>
               <div className="text-[11px] font-semibold">⚠️ Perlu Review</div>
             </div>
             <div className="flex flex-col items-center gap-0.5 rounded-lg bg-red-100 py-3 text-red-700 dark:bg-red-950 dark:text-red-300">
-              <div className="text-[22px] font-black">2</div>
+              <div className="text-[22px] font-black">{unmatchedCount}</div>
               <div className="text-[11px] font-semibold">❌ Tidak Cocok</div>
             </div>
           </div>
 
           <SectionCard
-            title="Hasil Pencocokan — BCA Mei 2025"
-            action={<StatusBadge variant="success">152 Transaksi</StatusBadge>}
+            title="Hasil Pencocokan"
+            action={
+              <StatusBadge variant="success">
+                {entries.length} Transaksi
+              </StatusBadge>
+            }
           >
             {/* Header */}
             <div className="mb-2 flex text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
               <div className="flex-1 px-3">Rekening Koran</div>
               <div className="w-9" />
-              <div className="flex-1 px-3">Sistem WealthMe</div>
+              <div className="flex-1 px-3">Status</div>
             </div>
+
+            {entriesQuery.isLoading && (
+              <div className="py-8 text-center text-[13px] text-muted-foreground">
+                Memuat entri...
+              </div>
+            )}
+
+            {entriesQuery.isError && (
+              <div className="py-8 text-center text-[13px] text-destructive">
+                Gagal memuat entri. Coba lagi.
+              </div>
+            )}
+
+            {!entriesQuery.isLoading &&
+              entries.length === 0 &&
+              !entriesQuery.isError && (
+                <div className="py-8 text-center text-[13px] text-muted-foreground">
+                  Belum ada entri rekonsiliasi.
+                </div>
+              )}
 
             <div className="space-y-2">
-              {MATCH_ROWS.map((row, i) => (
-                <div key={i} className="flex items-stretch">
-                  <div className="flex-1 rounded-lg border bg-card px-3 py-2">
-                    <div className="text-[11px] text-muted-foreground">{row.left.meta}</div>
-                    <div className={`text-[13px] font-bold ${row.left.amountClass}`}>
-                      {row.left.amount}
+              {entries.map((entry) => {
+                const status = entryStatus(entry.reconStatus);
+                const amtNum = parseInt(entry.amount, 10) / 100;
+                const amtFormatted = new Intl.NumberFormat("id-ID", {
+                  style: "currency",
+                  currency: entry.currency || "IDR",
+                  minimumFractionDigits: 0,
+                }).format(Math.abs(amtNum));
+                const amtDisplay =
+                  amtNum < 0 ? `-${amtFormatted}` : `+${amtFormatted}`;
+                const amtClass =
+                  amtNum < 0 ? "text-destructive" : "text-success";
+                const entryDate = new Date(entry.date).toLocaleDateString(
+                  "id-ID",
+                  {
+                    day: "numeric",
+                    month: "short",
+                  },
+                );
+
+                return (
+                  <div key={entry.id} className="flex items-stretch">
+                    <div className="flex-1 rounded-lg border bg-card px-3 py-2">
+                      <div className="text-[11px] text-muted-foreground">
+                        {entryDate} · {entry.description}
+                      </div>
+                      <div className={`text-[13px] font-bold ${amtClass}`}>
+                        {amtDisplay}
+                      </div>
+                    </div>
+                    <MatchIcon status={status} />
+                    <div
+                      className={[
+                        "flex flex-1 items-center rounded-lg border bg-card px-3 py-2",
+                        status === "warn"
+                          ? "bg-warning-soft border-amber-300"
+                          : status === "err"
+                            ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900"
+                            : "",
+                      ].join(" ")}
+                    >
+                      {status === "ok" && (
+                        <div>
+                          <div className="text-[11px] text-muted-foreground">
+                            Cocok
+                          </div>
+                          <div className={`text-[13px] font-bold ${amtClass}`}>
+                            {amtDisplay}
+                          </div>
+                        </div>
+                      )}
+                      {status === "warn" && (
+                        <div className="flex w-full items-center justify-between gap-2">
+                          <div className="text-[11px] text-warning">
+                            Tersarankan
+                          </div>
+                          <button
+                            type="button"
+                            disabled={confirmMutation.isPending}
+                            onClick={() => {
+                              if (entry.suggestedTxId) {
+                                confirmMutation.mutate({
+                                  entryId: entry.id,
+                                  transactionId: entry.suggestedTxId,
+                                });
+                              }
+                            }}
+                            className="rounded-md bg-primary px-2.5 py-1 text-[11px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                          >
+                            Konfirmasi
+                          </button>
+                        </div>
+                      )}
+                      {status === "err" && (
+                        <div className="text-[11px] text-destructive">
+                          Tidak Ditemukan
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <MatchIcon status={row.status} />
-                  <div
-                    className={`flex-1 rounded-lg border bg-card px-3 py-2 ${row.right.cellClass ?? ""}`}
-                  >
-                    <div className={`text-[11px] ${row.right.metaClass}`}>{row.right.meta}</div>
-                    <div className={`text-[13px] font-bold ${row.right.amountClass}`}>
-                      {row.right.amount}
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </SectionCard>
-
-          {/* AI suggestion */}
-          <div
-            className="flex items-center gap-3 rounded-[14px] border border-indigo-200 px-4 py-3.5 dark:border-indigo-900"
-            style={{ background: "var(--accent)" }}
-          >
-            <Bot className="size-5 flex-shrink-0 text-primary" />
-            <div className="flex-1">
-              <div className="text-[13px] font-bold text-primary-strong">
-                AI menemukan 1 transaksi tidak tercatat
-              </div>
-              <div className="text-[12px] text-foreground/80">
-                Belanja Shopee Rp 450.000 (14 Mei) belum ada di WealthMe. Tambahkan
-                otomatis?
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                toast.success("✅ Transaksi ditambahkan otomatis!");
-                setStep(4);
-              }}
-              className="flex-shrink-0 cursor-pointer whitespace-nowrap rounded-lg bg-primary px-3.5 py-2 text-[12px] font-bold text-white transition-opacity hover:opacity-90"
-            >
-              Tambah
-            </button>
-          </div>
 
           <div className="flex gap-2.5">
             <button
@@ -556,25 +751,35 @@ export default function RekonsiliasiPage() {
             Rekonsiliasi Selesai!
           </div>
           <div className="mb-6 text-[13px] text-muted-foreground">
-            BCA Rekening Koran Mei 2025 berhasil dicocokkan
+            Rekening koran berhasil dicocokkan
           </div>
 
           <div className="mb-6 grid grid-cols-2 gap-3">
             <div className="rounded-lg bg-muted p-3.5 text-left">
-              <div className="text-[11px] text-muted-foreground">Total Transaksi</div>
-              <div className="text-[20px] font-black">152</div>
+              <div className="text-[11px] text-muted-foreground">
+                Total Transaksi
+              </div>
+              <div className="text-[20px] font-black">
+                {entries.length || "—"}
+              </div>
             </div>
             <div className="rounded-lg bg-success-soft p-3.5 text-left text-emerald-700 dark:text-emerald-300">
               <div className="text-[11px]">Cocok</div>
-              <div className="text-[20px] font-black">143</div>
+              <div className="text-[20px] font-black">
+                {matchedCount || "—"}
+              </div>
             </div>
             <div className="rounded-lg bg-warning-soft p-3.5 text-left text-amber-700 dark:text-amber-300">
               <div className="text-[11px]">Perlu Review</div>
-              <div className="text-[20px] font-black">7</div>
+              <div className="text-[20px] font-black">
+                {suggestedCount || "—"}
+              </div>
             </div>
             <div className="rounded-lg bg-red-100 p-3.5 text-left text-red-700 dark:bg-red-950 dark:text-red-300">
               <div className="text-[11px]">Tidak Cocok</div>
-              <div className="text-[20px] font-black">2</div>
+              <div className="text-[20px] font-black">
+                {unmatchedCount || "—"}
+              </div>
             </div>
           </div>
 
@@ -595,7 +800,11 @@ export default function RekonsiliasiPage() {
             </button>
             <button
               type="button"
-              onClick={() => goto(1)}
+              onClick={() => {
+                setSyncId(null);
+                autoMatchMutation.reset();
+                goto(1);
+              }}
               className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-bold text-white transition-opacity hover:opacity-90"
             >
               <RotateCw className="size-4" /> Rekon Baru

@@ -178,6 +178,15 @@ export default function RekeningPage() {
     enabled: !!token && !!familyGroupId,
   });
 
+  const { data: fxRates } = useQuery({
+    queryKey: queryKeys.fx.rates("IDR"),
+    queryFn: () =>
+      apiFetch<{ base: string; rates: Record<string, number> }>(
+        "/fx/rates?base=IDR",
+      ),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const totalBalance = (accounts ?? []).reduce(
     (sum, a) => sum + parseFloat(a.balance),
     0,
@@ -212,7 +221,16 @@ export default function RekeningPage() {
               : `${accounts?.length ?? 0} Rekening Terhubung`}
           </div>
           <div className="text-[11px] text-muted-foreground">
-            {!isLoading && accounts && `Total: ${formatRupiah(totalBalance)}`}
+            {!isLoading && accounts && (
+              <>
+                {`Total: ${formatRupiah(totalBalance)}`}
+                {fxRates?.rates["USD"] != null && (
+                  <span className="ml-2 text-muted-foreground/70">
+                    {`≈ USD ${(totalBalance * fxRates.rates["USD"]).toFixed(2)}`}
+                  </span>
+                )}
+              </>
+            )}
           </div>
         </div>
         <Button type="button" onClick={openAdd}>
