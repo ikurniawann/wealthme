@@ -20,6 +20,7 @@ import { DashboardModule } from "./dashboard/dashboard.module";
 import { GoalsModule } from "./goals/goals.module";
 import { HealthModule } from "./health/health.module";
 import { InsurancesModule } from "./insurances/insurances.module";
+import { InvestmentsModule } from "./investments/investments.module";
 import { LiabilitiesModule } from "./liabilities/liabilities.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -56,6 +57,7 @@ import { TransactionsModule } from "./transactions/transactions.module";
     DashboardModule,
     BudgetsModule,
     GoalsModule,
+    InvestmentsModule,
     LiabilitiesModule,
     InsurancesModule,
     NotificationsModule,

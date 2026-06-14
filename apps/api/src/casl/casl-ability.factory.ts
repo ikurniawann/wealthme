@@ -17,6 +17,7 @@ export type Subject =
   | "Goal"
   | "Insurance"
   | "Notification"
+  | "Investment"
   | "all";
 
 export type AppAbility = MongoAbility<[Action, Subject]>;
@@ -37,6 +38,7 @@ export class CaslAbilityFactory {
         can("manage", "Goal");
         can("manage", "Insurance");
         can("manage", "Notification");
+        can("manage", "Investment");
         break;
 
       case Role.member:
@@ -50,6 +52,7 @@ export class CaslAbilityFactory {
         can("manage", "Insurance");
         can("read", "Notification");
         can("manage", "Notification");
+        can("manage", "Investment");
         break;
 
       case Role.admin_staff:
@@ -62,6 +65,7 @@ export class CaslAbilityFactory {
         can("read", "Goal");
         can("read", "Insurance");
         can("read", "Notification");
+        can("read", "Investment");
         break;
 
       default:
