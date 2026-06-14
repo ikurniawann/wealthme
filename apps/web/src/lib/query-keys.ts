@@ -5,7 +5,9 @@ export const queryKeys = {
   },
   familyGroups: {
     all: () => ["familyGroups"] as const,
+    mine: () => ["familyGroups", "mine"] as const,
     detail: (id: string) => ["familyGroups", id] as const,
+    members: (id: string) => ["familyGroups", id, "members"] as const,
   },
   transactions: {
     all: (familyGroupId: string) => ["transactions", familyGroupId] as const,

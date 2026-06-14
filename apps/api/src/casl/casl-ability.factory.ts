@@ -10,15 +10,21 @@ export type Action = "manage" | "create" | "read" | "update" | "delete";
 export type Subject =
   | "Account"
   | "Asset"
-  | "Category"
-  | "Liability"
-  | "Transaction"
-  | "Member"
   | "Budget"
+  | "Category"
+  | "Donation"
+  | "FamilyGroup"
   | "Goal"
+  | "Inheritance"
   | "Insurance"
-  | "Notification"
   | "Investment"
+  | "Liability"
+  | "Member"
+  | "Notification"
+  | "Report"
+  | "SplitBill"
+  | "TaxRecord"
+  | "Transaction"
   | "all";
 
 export type AppAbility = MongoAbility<[Action, Subject]>;
@@ -61,15 +67,16 @@ export class CaslAbilityFactory {
       case Role.admin_staff:
         can("read", "Account");
         can("read", "Asset");
-        can("read", "Category");
-        can("read", "Liability");
-        can("read", "Transaction");
-        can("read", "Member");
         can("read", "Budget");
+        can("read", "Category");
         can("read", "Goal");
         can("read", "Insurance");
-        can("read", "Notification");
         can("read", "Investment");
+        can("read", "Liability");
+        can("read", "Member");
+        can("read", "Notification");
+        can("create", "Transaction");
+        can("read", "Transaction");
         break;
 
       default:

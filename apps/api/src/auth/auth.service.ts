@@ -18,6 +18,7 @@ import { RedisService } from "../redis/redis.service";
 import type { Env } from "../config/env";
 import type { LoginDto } from "./dto/login.dto";
 import type { RegisterDto } from "./dto/register.dto";
+import type { UpdateProfileDto } from "./dto/update-profile.dto";
 import type { GoogleProfile } from "./strategies/google.strategy";
 
 export interface TokenPair {
@@ -123,6 +124,36 @@ export class AuthService {
       },
     });
     return user;
+  }
+
+  async updateProfile(
+    userId: string,
+    dto: UpdateProfileDto,
+  ): Promise<UserProfile> {
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.avatarInitials !== undefined && {
+          avatarInitials: dto.avatarInitials,
+        }),
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatarInitials: true,
+        createdAt: true,
+        memberships: {
+          select: {
+            id: true,
+            familyGroupId: true,
+            role: true,
+          },
+        },
+      },
+    });
+    return updated;
   }
 
   async loginWithGoogle(profile: GoogleProfile): Promise<TokenPair> {
