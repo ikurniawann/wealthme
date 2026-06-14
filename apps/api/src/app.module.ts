@@ -22,6 +22,7 @@ import { DashboardModule } from "./dashboard/dashboard.module";
 import { DonationsModule } from "./donations/donations.module";
 import { ExportsModule } from "./exports/exports.module";
 import { FamilyGroupsModule } from "./family-groups/family-groups.module";
+import { FxModule } from "./fx/fx.module";
 import { GoalsModule } from "./goals/goals.module";
 import { HealthModule } from "./health/health.module";
 import { InheritanceModule } from "./inheritance/inheritance.module";
@@ -30,6 +31,7 @@ import { InvestmentsModule } from "./investments/investments.module";
 import { LiabilitiesModule } from "./liabilities/liabilities.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { PrismaModule } from "./prisma/prisma.module";
+import { ReconciliationModule } from "./reconciliation/reconciliation.module";
 import { RedisModule } from "./redis/redis.module";
 import { ReportsModule } from "./reports/reports.module";
 import { SearchModule } from "./search/search.module";
@@ -81,6 +83,8 @@ import { TransactionsModule } from "./transactions/transactions.module";
     ReportsModule,
     StorageModule,
     TaxModule,
+    FxModule,
+    ReconciliationModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
