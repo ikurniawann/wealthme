@@ -22,12 +22,14 @@ import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
 import { type CreateLiabilityDto } from "./dto/create-liability.dto";
-import { LiabilityResponseDto } from "./dto/liability-response.dto";
+import {
+  LiabilityResponseDto,
+  type LiabilitySummaryResponseDto,
+} from "./dto/liability-response.dto";
 import { type UpdateLiabilityDto } from "./dto/update-liability.dto";
 import { type LiabilitiesService } from "./liabilities.service";
 
 import type { AppAbility } from "../casl/casl-ability.factory";
-import type { LiabilitySummaryResponseDto } from "./dto/liability-response.dto";
 
 @ApiTags("liabilities")
 @UseGuards(JwtAuthGuard)

@@ -22,15 +22,15 @@ import { Public } from "../common/decorators/public.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AuthService } from "./auth.service";
+import { type LoginDto } from "./dto/login.dto";
+import { type RegisterDto } from "./dto/register.dto";
 import { TokenPairDto } from "./dto/token-pair.dto";
+import { type UpdateProfileDto } from "./dto/update-profile.dto";
 import { UserProfileDto } from "./dto/user-profile.dto";
 import { GoogleAuthGuard } from "./guards/google-auth.guard";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { JwtRefreshGuard } from "./guards/jwt-refresh.guard";
 
-import type { LoginDto } from "./dto/login.dto";
-import type { RegisterDto } from "./dto/register.dto";
-import type { UpdateProfileDto } from "./dto/update-profile.dto";
 import type { GoogleProfile } from "./strategies/google.strategy";
 import type { JwtPayload } from "./strategies/jwt.strategy";
 import type { Request as ExpressRequest } from "express";

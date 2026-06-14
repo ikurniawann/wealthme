@@ -21,15 +21,14 @@ import {
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { Public } from "../common/decorators/public.decorator";
 
+import { type CreateSplitBillDto } from "./dto/create-split-bill.dto";
+import { type SettleParticipantDto } from "./dto/settle-participant.dto";
 import {
   SplitBillResponseDto,
   SplitParticipantResponseDto,
 } from "./dto/split-bill-response.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { SplitBillsService } from "./split-bills.service";
-
-import type { CreateSplitBillDto } from "./dto/create-split-bill.dto";
-import type { SettleParticipantDto } from "./dto/settle-participant.dto";
 
 @ApiTags("split-bills")
 @Controller()

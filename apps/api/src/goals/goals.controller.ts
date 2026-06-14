@@ -22,10 +22,9 @@ import { CheckAbility } from "../common/decorators/check-ability.decorator";
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 import { CreateGoalDto } from "./dto/create-goal.dto";
 import { UpdateGoalDto } from "./dto/update-goal.dto";
-import { GoalsService } from "./goals.service";
+import { GoalsService, GoalDto } from "./goals.service";
 /* eslint-enable @typescript-eslint/consistent-type-imports */
 
-import type { GoalDto } from "./goals.service";
 import type { Request as ExpressRequest } from "express";
 
 @ApiTags("goals")
