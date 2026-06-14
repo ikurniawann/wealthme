@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { CryptoService } from "../crypto/crypto.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
 import type { AccountResponseDto } from "./dto/account-response.dto";
@@ -9,7 +11,10 @@ import type { UpdateAccountDto } from "./dto/update-account.dto";
 
 @Injectable()
 export class AccountsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly crypto: CryptoService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   async findAll(familyGroupId: string): Promise<AccountResponseDto[]> {
     const accounts = await this.prisma.account.findMany({
@@ -42,7 +47,9 @@ export class AccountsService {
         name: dto.name,
         type: dto.type,
         institution: dto.institution ?? null,
-        maskedNumber: dto.maskedNumber ?? null,
+        maskedNumber: dto.maskedNumber
+          ? this.crypto.encrypt(dto.maskedNumber)
+          : null,
         balance: BigInt(dto.balance),
         currency: dto.currency ?? "IDR",
       },
@@ -69,7 +76,7 @@ export class AccountsService {
         ...(dto.type !== undefined && { type: dto.type }),
         ...(dto.institution !== undefined && { institution: dto.institution }),
         ...(dto.maskedNumber !== undefined && {
-          maskedNumber: dto.maskedNumber,
+          maskedNumber: this.crypto.encrypt(dto.maskedNumber),
         }),
         ...(dto.balance !== undefined && { balance: BigInt(dto.balance) }),
         ...(dto.currency !== undefined && { currency: dto.currency }),
@@ -106,7 +113,9 @@ export class AccountsService {
       name: account.name,
       type: account.type as AccountResponseDto["type"],
       institution: account.institution,
-      maskedNumber: account.maskedNumber,
+      maskedNumber: account.maskedNumber
+        ? this.crypto.decrypt(account.maskedNumber)
+        : null,
       balance: account.balance.toString(),
       currency: account.currency,
       createdAt: account.createdAt.toISOString(),
