@@ -30,6 +30,7 @@ import { InsurancesModule } from "./insurances/insurances.module";
 import { InvestmentsModule } from "./investments/investments.module";
 import { LiabilitiesModule } from "./liabilities/liabilities.module";
 import { NotificationsModule } from "./notifications/notifications.module";
+import { OpenBankingModule } from "./open-banking/open-banking.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { ReconciliationModule } from "./reconciliation/reconciliation.module";
 import { RedisModule } from "./redis/redis.module";
@@ -85,6 +86,7 @@ import { TransactionsModule } from "./transactions/transactions.module";
     TaxModule,
     FxModule,
     ReconciliationModule,
+    OpenBankingModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

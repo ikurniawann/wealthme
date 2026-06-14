@@ -12,12 +12,14 @@ import { MockMarketDataAdapter } from "./mock-market-data.adapter";
 import { PriceRefreshProcessor } from "./price-refresh.processor";
 import { PriceRefreshScheduler } from "./price-refresh.scheduler";
 import { PricesGateway } from "./prices.gateway";
+import { YahooFinanceMarketDataAdapter } from "./yahoo-finance-market-data.adapter";
 
 import type { Env } from "../config/env";
 
 @Module({
   imports: [
     PrismaModule,
+    ConfigModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService<Env, true>) => ({
@@ -37,7 +39,15 @@ import type { Env } from "../config/env";
   controllers: [InvestmentsController],
   providers: [
     InvestmentsService,
-    { provide: MARKET_DATA_PORT, useClass: MockMarketDataAdapter },
+    {
+      provide: MARKET_DATA_PORT,
+      useFactory: (config: ConfigService<Env, true>) => {
+        const useReal = config.get("USE_REAL_MARKET_DATA", { infer: true });
+        if (useReal === "true") return new YahooFinanceMarketDataAdapter();
+        return new MockMarketDataAdapter();
+      },
+      inject: [ConfigService],
+    },
     PriceRefreshProcessor,
     PriceRefreshScheduler,
     PricesGateway,

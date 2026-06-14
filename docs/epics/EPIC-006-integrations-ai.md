@@ -28,10 +28,10 @@ dan menghadirkan AI Advisor serta kategorisasi transaksi berbasis LLM.
 
 - [x] **T-601** OCR nyata (Claude Vision via AI SDK) menggantikan `MockOcr` + pipeline BullMQ + penyimpanan gambar
 
-### Open Banking & Market Data
+### Open Banking & Market Data ✅
 
-- [ ] **T-602** Adapter open-banking (Brick/Ayoconnect): consent, sinkron akun, feed transaksi (`BankSyncPort` real)
-- [ ] **T-603** Market data nyata (Yahoo Finance / IDX) menggantikan mock
+- [x] **T-602** Adapter open-banking (Brick/Ayoconnect): consent, sinkron akun, feed transaksi (`BankSyncPort` real)
+- [x] **T-603** Market data nyata (Yahoo Finance / IDX) menggantikan mock
 
 ### AI Advisor
 
@@ -66,6 +66,10 @@ dan menghadirkan AI Advisor serta kategorisasi transaksi berbasis LLM.
 - **T-606** — akurasi kategorisasi memenuhi target; bisa dikoreksi user.
 - **T-607** — email/push terkirim pada pemicu (budget ≥80%, renewal asuransi, dll).
 - **T-608** — pencarian tetap berfungsi; Meilisearch hanya bila FTS tak memadai.
+
+## Automation Log
+
+- 2026-06-14 /epic-loop EPIC-006 #1 "OCR Provider" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/130
 
 ## Dependencies
 
