@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -69,6 +69,24 @@ type MeResponse = {
   id: string;
   email: string;
   name: string;
+};
+
+type FamilyGroupMine = {
+  id: string;
+  name: string;
+  memberCount: number;
+  myRole: string;
+  createdAt: string;
+};
+
+type FamilyMember = {
+  id: string;
+  userId: string;
+  familyGroupId: string;
+  role: string;
+  name: string;
+  email: string;
+  createdAt: string;
 };
 
 const SUBPAGE_TITLES: Record<SubPageId, string> = {
@@ -177,7 +195,11 @@ function ToggleBox({
               {r.sub}
             </div>
           </div>
-          <Switch defaultChecked={r.defaultChecked} className="shrink-0" />
+          <Switch
+            aria-label={r.label}
+            defaultChecked={r.defaultChecked}
+            className="shrink-0"
+          />
         </div>
       ))}
     </div>
@@ -190,7 +212,16 @@ const CHEVRON = (
 
 /* ─────────────────────────── Sub-page bodies ─────────────────────────── */
 
-function ProfilBody({ name, email }: { name: string; email: string }) {
+function ProfilBody({
+  name,
+  email,
+  onSave,
+}: {
+  name: string;
+  email: string;
+  onSave: (name: string) => void;
+}) {
+  const nameRef = useRef<HTMLInputElement>(null);
   const initials = name
     .split(" ")
     .slice(0, 2)
@@ -212,10 +243,10 @@ function ProfilBody({ name, email }: { name: string; email: string }) {
         <div className="mt-0.5 text-[12px] text-muted-foreground">{email}</div>
       </div>
       <Field label="Nama Lengkap">
-        <input className={FIELD_CLASS} defaultValue={name} />
+        <input ref={nameRef} className={FIELD_CLASS} defaultValue={name} />
       </Field>
       <Field label="Email">
-        <input className={FIELD_CLASS} defaultValue={email} />
+        <input className={FIELD_CLASS} defaultValue={email} readOnly />
       </Field>
       <Field label="No. Telepon">
         <input className={FIELD_CLASS} defaultValue="+62 812 3456 7890" />
@@ -237,7 +268,7 @@ function ProfilBody({ name, email }: { name: string; email: string }) {
       </Field>
       <button
         className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground"
-        onClick={() => toast.success("✅ Profil berhasil disimpan")}
+        onClick={() => onSave(nameRef.current?.value ?? name)}
       >
         <Save className="size-4" /> Simpan Perubahan
       </button>
@@ -965,19 +996,45 @@ function MemberRow({
   );
 }
 
+const MEMBER_GRADIENTS = [
+  "linear-gradient(135deg,var(--primary),var(--brand-purple))",
+  "linear-gradient(135deg,#F97316,#FBBF24)",
+  "linear-gradient(135deg,#10B981,#06B6D4)",
+  "linear-gradient(135deg,#8B5CF6,#EC4899)",
+  "linear-gradient(135deg,#0EA5E9,#22D3EE)",
+  "linear-gradient(135deg,#64748B,#94A3B8)",
+];
+
+function memberInitials(name: string): string {
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
 function FamilyBody({
   onAddAdmin,
   onInviteMember,
   name,
   email,
   initials,
+  group,
+  members,
+  myUserId,
 }: {
   onAddAdmin: () => void;
   onInviteMember: () => void;
   name: string;
   email: string;
   initials: string;
+  group: FamilyGroupMine | null;
+  members: FamilyMember[];
+  myUserId: string;
 }) {
+  const regularMembers = members.filter((m) => m.role !== "admin_staff");
+  const adminMembers = members.filter((m) => m.role === "admin_staff");
+
   return (
     <>
       <SetSection>
@@ -992,48 +1049,44 @@ function FamilyBody({
             👨‍👩‍👧‍👦
           </div>
           <div>
-            <div className="text-[17px] font-extrabold">Arsandi Family</div>
-            <div className="mt-0.5 text-[12px] opacity-80">
-              4 anggota · Group Owner
+            <div className="text-[17px] font-extrabold">
+              {group?.name ?? "—"}
             </div>
-            <div className="mt-1.5 text-[14px] font-bold">
-              Saldo Bersama: Rp 625.750.000
+            <div className="mt-0.5 text-[12px] opacity-80">
+              {group ? `${group.memberCount} anggota · ${group.myRole}` : "—"}
             </div>
           </div>
         </div>
-        <SectionTitle>Anggota (4)</SectionTitle>
-        <MemberRow
-          initials={initials}
-          gradient="linear-gradient(135deg,var(--primary),var(--brand-purple))"
-          name={name}
-          badge={
-            <StatusBadge variant="info" className="text-[10px]">
-              Kamu
-            </StatusBadge>
-          }
-          sub={`Owner · ${email}`}
-        />
-        <MemberRow
-          initials="SA"
-          gradient="linear-gradient(135deg,#F97316,#FBBF24)"
-          name="Siti Arsandi"
-          sub="Member · Istri"
-          right={<StatusBadge variant="gray">Member</StatusBadge>}
-        />
-        <MemberRow
-          initials="BA"
-          gradient="linear-gradient(135deg,#10B981,#06B6D4)"
-          name="Budi Arsandi"
-          sub="Member · Ayah"
-          right={<StatusBadge variant="gray">Member</StatusBadge>}
-        />
-        <MemberRow
-          initials="RA"
-          gradient="linear-gradient(135deg,#8B5CF6,#EC4899)"
-          name="Rina Arsandi"
-          sub="Member · Adik"
-          right={<StatusBadge variant="gray">Member</StatusBadge>}
-        />
+        <SectionTitle>Anggota ({regularMembers.length})</SectionTitle>
+        {regularMembers.map((m, i) => (
+          <MemberRow
+            key={m.id}
+            initials={m.userId === myUserId ? initials : memberInitials(m.name)}
+            gradient={
+              MEMBER_GRADIENTS[i % MEMBER_GRADIENTS.length] ??
+              MEMBER_GRADIENTS[0]!
+            }
+            name={m.name}
+            badge={
+              m.userId === myUserId ? (
+                <StatusBadge variant="info" className="text-[10px]">
+                  Kamu
+                </StatusBadge>
+              ) : undefined
+            }
+            sub={`${m.role} · ${m.email}`}
+            right={
+              m.userId !== myUserId ? (
+                <StatusBadge variant="gray">{m.role}</StatusBadge>
+              ) : undefined
+            }
+          />
+        ))}
+        {members.length === 0 && (
+          <div className="py-3 text-[12px] text-muted-foreground">
+            {name} · {email}
+          </div>
+        )}
         <button
           className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-[13.5px] font-semibold text-primary"
           onClick={onInviteMember}
@@ -1043,45 +1096,34 @@ function FamilyBody({
       </SetSection>
       <SetSection>
         <div className="mb-2.5 flex items-center justify-between">
-          <SectionTitle>Admin / Staf (2)</SectionTitle>
+          <SectionTitle>Admin / Staf ({adminMembers.length})</SectionTitle>
           <span className="text-[11px] text-muted-foreground">
             Bisa input transaksi
           </span>
         </div>
-        <MemberRow
-          initials="DW"
-          gradient="linear-gradient(135deg,#0EA5E9,#22D3EE)"
-          name="Dewi Wulandari"
-          badge={
-            <StatusBadge variant="purple" className="text-[10px]">
-              Admin
-            </StatusBadge>
-          }
-          sub="Sekretaris · Akses input transaksi"
-          right={
-            <EllipsisVertical
-              className="size-4 cursor-pointer text-muted-foreground"
-              onClick={() => toast("Kelola akses Dewi")}
-            />
-          }
-        />
-        <MemberRow
-          initials="PJ"
-          gradient="linear-gradient(135deg,#64748B,#94A3B8)"
-          name="Pak Joko"
-          badge={
-            <StatusBadge variant="purple" className="text-[10px]">
-              Admin
-            </StatusBadge>
-          }
-          sub="Supir · Input transaksi transport & bensin"
-          right={
-            <EllipsisVertical
-              className="size-4 cursor-pointer text-muted-foreground"
-              onClick={() => toast("Kelola akses Pak Joko")}
-            />
-          }
-        />
+        {adminMembers.map((m, i) => (
+          <MemberRow
+            key={m.id}
+            initials={memberInitials(m.name)}
+            gradient={
+              MEMBER_GRADIENTS[(i + 4) % MEMBER_GRADIENTS.length] ??
+              MEMBER_GRADIENTS[0]!
+            }
+            name={m.name}
+            badge={
+              <StatusBadge variant="purple" className="text-[10px]">
+                Admin
+              </StatusBadge>
+            }
+            sub={`Admin · ${m.email}`}
+            right={
+              <EllipsisVertical
+                className="size-4 cursor-pointer text-muted-foreground"
+                onClick={() => toast(`Kelola akses ${m.name}`)}
+              />
+            }
+          />
+        ))}
         <button
           className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-dashed border-primary bg-card px-4 py-2.5 text-[13.5px] font-semibold text-primary"
           onClick={onAddAdmin}
@@ -1122,10 +1164,38 @@ function FamilyBody({
 function AddAdminDialog({
   open,
   onOpenChange,
+  familyGroupId,
+  token,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  familyGroupId: string | null;
+  token: string | undefined;
 }) {
+  const emailRef = useRef<HTMLInputElement>(null);
+
+  const { mutate: sendInvite, isPending } = useMutation({
+    mutationFn: (email: string) =>
+      apiFetch(`/family-groups/${familyGroupId}/invitations`, {
+        method: "POST",
+        token,
+        body: JSON.stringify({ email, role: "admin_staff" }),
+      }),
+    onSuccess: () => {
+      onOpenChange(false);
+      toast.success("Undangan admin terkirim!");
+    },
+    onError: () => {
+      toast.error("Gagal mengirim undangan. Periksa email dan coba lagi.");
+    },
+  });
+
+  function handleSend() {
+    const email = emailRef.current?.value?.trim() ?? "";
+    if (!email || !familyGroupId) return;
+    sendInvite(email);
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[480px] p-6 sm:max-w-[480px]">
@@ -1139,10 +1209,12 @@ function AddAdminDialog({
         <Field label="Nama Lengkap">
           <input className={FIELD_CLASS} placeholder="cth: Dewi Wulandari" />
         </Field>
-        <Field label="Email / No. HP">
+        <Field label="Email">
           <input
+            ref={emailRef}
             className={FIELD_CLASS}
-            placeholder="email atau nomor telepon"
+            placeholder="email admin"
+            type="email"
           />
         </Field>
         <Field label="Peran">
@@ -1191,19 +1263,22 @@ function AddAdminDialog({
                     {r.sub}
                   </div>
                 </div>
-                <Switch defaultChecked={r.on} className="shrink-0" />
+                <Switch
+                  aria-label={r.label}
+                  defaultChecked={r.on}
+                  className="shrink-0"
+                />
               </div>
             ))}
           </div>
         </Field>
         <button
-          className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground"
-          onClick={() => {
-            onOpenChange(false);
-            toast.success("✅ Undangan admin terkirim!");
-          }}
+          disabled={isPending || !familyGroupId}
+          className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-60"
+          onClick={handleSend}
         >
-          <UserCog className="size-4" /> Kirim Undangan Admin
+          <UserCog className="size-4" />{" "}
+          {isPending ? "Mengirim..." : "Kirim Undangan Admin"}
         </button>
       </DialogContent>
     </Dialog>
@@ -1255,12 +1330,14 @@ function MenuRow({
 
 export default function AkunPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [subpage, setSubpage] = useState<SubPageId | null>(null);
   const [addAdminOpen, setAddAdminOpen] = useState(false);
   const [crud, setCrud] = useState<CrudModalState | null>(null);
 
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
+  const myUserId = session?.userId ?? "";
 
   const {
     data: me,
@@ -1270,6 +1347,45 @@ export default function AkunPage() {
     queryKey: [...queryKeys.auth.me(), token],
     queryFn: () => apiFetch<MeResponse>("/auth/me", { token }),
     enabled: !!token,
+  });
+
+  const { data: familyGroups } = useQuery<FamilyGroupMine[]>({
+    queryKey: [...queryKeys.familyGroups.mine(), token],
+    queryFn: () =>
+      apiFetch<FamilyGroupMine[]>("/family-groups/mine", { token }),
+    enabled: !!token,
+  });
+
+  const primaryGroup = familyGroups?.[0] ?? null;
+
+  const { data: familyMembers } = useQuery<FamilyMember[]>({
+    queryKey: [
+      ...queryKeys.familyGroups.members(primaryGroup?.id ?? ""),
+      token,
+    ],
+    queryFn: () =>
+      apiFetch<FamilyMember[]>(`/family-groups/${primaryGroup!.id}/members`, {
+        token,
+      }),
+    enabled: !!token && !!primaryGroup?.id,
+  });
+
+  const { mutate: saveProfile } = useMutation({
+    mutationFn: (name: string) =>
+      apiFetch("/auth/profile", {
+        method: "PATCH",
+        token,
+        body: JSON.stringify({ name }),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...queryKeys.auth.me(), token],
+      });
+      toast.success("Profil berhasil disimpan");
+    },
+    onError: () => {
+      toast.error("Gagal menyimpan profil");
+    },
   });
 
   const displayName = me?.name ?? session?.user?.name ?? "—";
@@ -1289,7 +1405,13 @@ export default function AkunPage() {
   function renderBody(id: SubPageId) {
     switch (id) {
       case "profil":
-        return <ProfilBody name={displayName} email={displayEmail} />;
+        return (
+          <ProfilBody
+            name={displayName}
+            email={displayEmail}
+            onSave={saveProfile}
+          />
+        );
       case "keamanan":
         return <KeamananBody />;
       case "koneksi":
@@ -1324,6 +1446,9 @@ export default function AkunPage() {
             name={displayName}
             email={displayEmail}
             initials={displayInitials}
+            group={primaryGroup}
+            members={familyMembers ?? []}
+            myUserId={myUserId}
             onAddAdmin={() => {
               closeSheet();
               setAddAdminOpen(true);
@@ -1371,16 +1496,17 @@ export default function AkunPage() {
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 text-[14px] font-bold text-foreground">
-                Arsandi Family
-                <StatusBadge variant="info" className="text-[10px]">
-                  Owner
-                </StatusBadge>
+                {primaryGroup?.name ?? "Belum ada group"}
+                {primaryGroup && (
+                  <StatusBadge variant="info" className="text-[10px]">
+                    {primaryGroup.myRole}
+                  </StatusBadge>
+                )}
               </div>
               <div className="mt-0.5 text-[11.5px] text-muted-foreground">
-                4 anggota · Bergabung Jan 2024
-              </div>
-              <div className="mt-1 text-[13px] font-bold text-primary">
-                Saldo Bersama: Rp 625.750.000
+                {primaryGroup
+                  ? `${primaryGroup.memberCount} anggota`
+                  : "Buat atau bergabung ke family group"}
               </div>
             </div>
             <ChevronRight className="ml-auto size-4 shrink-0 text-muted-foreground" />
@@ -1495,7 +1621,12 @@ export default function AkunPage() {
         </SheetContent>
       </Sheet>
 
-      <AddAdminDialog open={addAdminOpen} onOpenChange={setAddAdminOpen} />
+      <AddAdminDialog
+        open={addAdminOpen}
+        onOpenChange={setAddAdminOpen}
+        familyGroupId={primaryGroup?.id ?? null}
+        token={token}
+      />
       <CrudModal state={crud} onClose={() => setCrud(null)} />
     </div>
   );

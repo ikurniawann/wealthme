@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Request,
   UseGuards,
@@ -19,17 +20,17 @@ import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 
 import { Public } from "../common/decorators/public.decorator";
 
-/* eslint-disable @typescript-eslint/consistent-type-imports */
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AuthService } from "./auth.service";
-import { LoginDto } from "./dto/login.dto";
-import { RegisterDto } from "./dto/register.dto";
 import { TokenPairDto } from "./dto/token-pair.dto";
 import { UserProfileDto } from "./dto/user-profile.dto";
-/* eslint-enable @typescript-eslint/consistent-type-imports */
 import { GoogleAuthGuard } from "./guards/google-auth.guard";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { JwtRefreshGuard } from "./guards/jwt-refresh.guard";
 
+import type { LoginDto } from "./dto/login.dto";
+import type { RegisterDto } from "./dto/register.dto";
+import type { UpdateProfileDto } from "./dto/update-profile.dto";
 import type { GoogleProfile } from "./strategies/google.strategy";
 import type { JwtPayload } from "./strategies/jwt.strategy";
 import type { Request as ExpressRequest } from "express";
@@ -53,7 +54,7 @@ export class AuthController {
   @Throttle({ default: { ttl: 60000, limit: 3 } })
   @ApiOperation({ summary: "Register a new user" })
   @ApiResponse({ status: 201, type: TokenPairDto })
-  register(@Body() dto: RegisterDto) {
+  register(@Body() dto: RegisterDto): Promise<TokenPairDto> {
     return this.auth.register(dto);
   }
 
@@ -64,7 +65,7 @@ export class AuthController {
   @ApiOperation({ summary: "Login with email/password" })
   @ApiResponse({ status: 200, type: TokenPairDto })
   @ApiResponse({ status: 401, description: "Invalid credentials" })
-  login(@Body() dto: LoginDto) {
+  login(@Body() dto: LoginDto): Promise<TokenPairDto> {
     return this.auth.login(dto);
   }
 
@@ -74,7 +75,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Logout (invalidate refresh token)" })
   @ApiResponse({ status: 204 })
-  logout(@Request() req: AuthenticatedRequest) {
+  logout(@Request() req: AuthenticatedRequest): Promise<void> {
     return this.auth.logout(req.user.sub);
   }
 
@@ -86,7 +87,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Refresh access token (rotates refresh token)" })
   @ApiResponse({ status: 200, type: TokenPairDto })
-  refresh(@Request() req: AuthenticatedRequest) {
+  refresh(@Request() req: AuthenticatedRequest): Promise<TokenPairDto> {
     return this.auth.refresh(req.user.sub, req.user.email);
   }
 
@@ -95,8 +96,22 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Get current user profile" })
   @ApiResponse({ status: 200, type: UserProfileDto })
-  me(@Request() req: AuthenticatedRequest) {
+  me(@Request() req: AuthenticatedRequest): Promise<UserProfileDto> {
     return this.auth.getMe(req.user.sub);
+  }
+
+  @Patch("profile")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "Update current user profile (name, avatarInitials)",
+  })
+  @ApiResponse({ status: 200, type: UserProfileDto })
+  updateProfile(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: UpdateProfileDto,
+  ): Promise<UserProfileDto> {
+    return this.auth.updateProfile(req.user.sub, dto);
   }
 
   @Get("google")
@@ -116,7 +131,7 @@ export class AuthController {
   @Throttle({ default: { ttl: 60000, limit: 20 } })
   @UseGuards(GoogleAuthGuard)
   @ApiExcludeEndpoint()
-  googleCallback(@Request() req: GoogleCallbackRequest) {
+  googleCallback(@Request() req: GoogleCallbackRequest): Promise<TokenPairDto> {
     return this.auth.loginWithGoogle(req.user);
   }
 }

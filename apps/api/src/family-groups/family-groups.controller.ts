@@ -1,0 +1,160 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Request,
+  UseGuards,
+} from "@nestjs/common";
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from "@nestjs/swagger";
+
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { Public } from "../common/decorators/public.decorator";
+
+import { FamilyGroupResponseDto } from "./dto/family-group-response.dto";
+import { InvitationResponseDto } from "./dto/invitation-response.dto";
+import { MemberResponseDto } from "./dto/member-response.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { FamilyGroupsService } from "./family-groups.service";
+
+import type { CreateFamilyGroupDto } from "./dto/create-family-group.dto";
+import type { CreateInvitationDto } from "./dto/create-invitation.dto";
+import type { UpdateMemberRoleDto } from "./dto/update-member-role.dto";
+import type { JwtPayload } from "../auth/strategies/jwt.strategy";
+import type { Request as ExpressRequest } from "express";
+
+interface AuthRequest extends ExpressRequest {
+  user: JwtPayload;
+}
+
+@ApiTags("family-groups")
+@ApiBearerAuth()
+@Controller("family-groups")
+export class FamilyGroupsController {
+  constructor(private readonly familyGroupsService: FamilyGroupsService) {}
+
+  @Get("mine")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "List family groups the current user belongs to" })
+  @ApiResponse({ status: 200, type: [FamilyGroupResponseDto] })
+  findMine(@Request() req: AuthRequest): Promise<FamilyGroupResponseDto[]> {
+    return this.familyGroupsService.findMine(req.user.sub);
+  }
+
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "Create a new family group (caller becomes owner)" })
+  @ApiResponse({ status: 201, type: FamilyGroupResponseDto })
+  create(
+    @Request() req: AuthRequest,
+    @Body() dto: CreateFamilyGroupDto,
+  ): Promise<FamilyGroupResponseDto> {
+    return this.familyGroupsService.create(req.user.sub, dto);
+  }
+
+  @Get(":familyGroupId/members")
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiOperation({ summary: "List members of a family group" })
+  @ApiResponse({ status: 200, type: [MemberResponseDto] })
+  listMembers(
+    @Param("familyGroupId") familyGroupId: string,
+    @Request() req: AuthRequest,
+  ): Promise<MemberResponseDto[]> {
+    return this.familyGroupsService.listMembers(familyGroupId, req.user.sub);
+  }
+
+  @Patch(":familyGroupId/members/:memberId")
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "memberId", type: String })
+  @ApiOperation({ summary: "Change a member role (owner only)" })
+  @ApiResponse({ status: 200, type: MemberResponseDto })
+  updateMemberRole(
+    @Request() req: AuthRequest,
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("memberId") memberId: string,
+    @Body() dto: UpdateMemberRoleDto,
+  ): Promise<MemberResponseDto> {
+    return this.familyGroupsService.updateMemberRole(
+      familyGroupId,
+      memberId,
+      req.user.sub,
+      dto,
+    );
+  }
+
+  @Delete(":familyGroupId/members/:memberId")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "memberId", type: String })
+  @ApiOperation({
+    summary: "Remove a member from the family group (owner only)",
+  })
+  @ApiResponse({ status: 204 })
+  removeMember(
+    @Request() req: AuthRequest,
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("memberId") memberId: string,
+  ): Promise<void> {
+    return this.familyGroupsService.removeMember(
+      familyGroupId,
+      memberId,
+      req.user.sub,
+    );
+  }
+
+  @Post(":familyGroupId/invitations")
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiOperation({
+    summary: "Create an invitation (owner only); returns the token",
+  })
+  @ApiResponse({ status: 201, type: InvitationResponseDto })
+  createInvitation(
+    @Request() req: AuthRequest,
+    @Param("familyGroupId") familyGroupId: string,
+    @Body() dto: CreateInvitationDto,
+  ): Promise<InvitationResponseDto> {
+    return this.familyGroupsService.createInvitation(
+      familyGroupId,
+      req.user.sub,
+      dto,
+    );
+  }
+
+  @Get("invitations/:token")
+  @Public()
+  @ApiParam({ name: "token", type: String })
+  @ApiOperation({
+    summary: "Get invitation details by token (public, no auth)",
+  })
+  @ApiResponse({ status: 200, type: InvitationResponseDto })
+  getInvitation(@Param("token") token: string): Promise<InvitationResponseDto> {
+    return this.familyGroupsService.getInvitationByToken(token);
+  }
+
+  @Post("invitations/:token/accept")
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: "token", type: String })
+  @ApiOperation({ summary: "Accept an invitation (creates member record)" })
+  @ApiResponse({ status: 201, type: MemberResponseDto })
+  acceptInvitation(
+    @Request() req: AuthRequest,
+    @Param("token") token: string,
+  ): Promise<MemberResponseDto> {
+    return this.familyGroupsService.acceptInvitation(token, req.user.sub);
+  }
+}

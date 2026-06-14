@@ -123,8 +123,25 @@ model FamilyGroup {
   investments   Investment[]
   liabilities   Liability[]
   insurances    Insurance[]
+  invitations   Invitation[]
 
   @@map("family_groups")
+}
+
+model Invitation {
+  id            String      @id @default(uuid())
+  token         String      @unique @default(uuid())
+  familyGroupId String
+  email         String
+  role          Role        @default(member)
+  expiresAt     DateTime
+  usedAt        DateTime?
+  createdAt     DateTime    @default(now())
+  familyGroup   FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@index([familyGroupId])
+  @@index([email])
+  @@map("invitations")
 }
 
 model Member {

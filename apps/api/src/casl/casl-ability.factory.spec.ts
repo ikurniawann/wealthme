@@ -73,9 +73,9 @@ describe("CaslAbilityFactory", () => {
       expect(ability.can("read", "Transaction")).toBe(true);
     });
 
-    it("cannot create Transaction", () => {
+    it("can create Transaction (input-only)", () => {
       const ability = factory.createForMember({ role: Role.admin_staff });
-      expect(ability.can("create", "Transaction")).toBe(false);
+      expect(ability.can("create", "Transaction")).toBe(true);
     });
 
     it("can read Account", () => {

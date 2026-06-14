@@ -20,6 +20,7 @@ import { TenantGuard } from "./common/guards/tenant.guard";
 import { validateEnv } from "./config/env";
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { ExportsModule } from "./exports/exports.module";
+import { FamilyGroupsModule } from "./family-groups/family-groups.module";
 import { GoalsModule } from "./goals/goals.module";
 import { HealthModule } from "./health/health.module";
 import { InsurancesModule } from "./insurances/insurances.module";
@@ -64,6 +65,7 @@ import { TransactionsModule } from "./transactions/transactions.module";
     GoalsModule,
     AssetsModule,
     ExportsModule,
+    FamilyGroupsModule,
     InvestmentsModule,
     InsurancesModule,
     LiabilitiesModule,

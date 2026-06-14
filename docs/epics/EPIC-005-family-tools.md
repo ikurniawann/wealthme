@@ -1,6 +1,6 @@
 # EPIC-005: Family & Tools
 
-status: planned
+status: on-progress
 environment: dev
 phase: 5
 priority: P1
@@ -26,13 +26,13 @@ donasi/zakat, tax center, multi-mata uang, rekonsiliasi bank, dan halaman Akun/P
 
 ## Tasks
 
-### Family & RBAC
+### Family & RBAC ✅
 
-- [ ] **T-501** Family group + members + undangan via email
-- [ ] **T-502** Peran admin/staf + izin terbatas (input-only, kategori dibatasi, tak lihat saldo pribadi); CASL abilities
-- [ ] **T-503** Enforcement tenancy: TenantInterceptor + Postgres RLS; jaminan isolasi member
-- [ ] **T-504** Audit logging aksi admin/staf (`audit_logs`)
-- [ ] **T-505** Wire halaman **Akun** lengkap: profil, keamanan (password/PIN/biometrik), sesi aktif, preferensi (mata uang/bahasa/format tanggal/tema), privasi (ekspor/hapus akun), panel **Family** + modal Tambah Admin
+- [x] **T-501** Family group + members + undangan via email
+- [x] **T-502** Peran admin/staf + izin terbatas (input-only, kategori dibatasi, tak lihat saldo pribadi); CASL abilities
+- [x] **T-503** Enforcement tenancy: TenantInterceptor + Postgres RLS; jaminan isolasi member
+- [x] **T-504** Audit logging aksi admin/staf (`audit_logs`)
+- [x] **T-505** Wire halaman **Akun** lengkap: profil, keamanan (password/PIN/biometrik), sesi aktif, preferensi (mata uang/bahasa/format tanggal/tema), privasi (ekspor/hapus akun), panel **Family** + modal Tambah Admin
 
 ### Split Bill
 
@@ -78,6 +78,10 @@ donasi/zakat, tax center, multi-mata uang, rekonsiliasi bank, dan halaman Akun/P
 - **T-513/T-514** — PPh 21 memakai pengurang zakat; status SPT & dokumen tampil.
 - **T-515** — mengganti mata uang mengubah seluruh nilai yang ditampilkan (display-only, IDR tetap otoritatif).
 - **T-516/T-517** — rekonsiliasi mencocokkan transaksi & menyarankan entri yang hilang; split-view ✅/⚠️/❌.
+
+## Automation Log
+
+- 2026-06-14 /epic-loop EPIC-005 #1 "Family & RBAC" → PASS (attempts: 3), PR: pending
 
 ## Dependencies
 
