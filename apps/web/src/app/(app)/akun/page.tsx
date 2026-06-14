@@ -1117,10 +1117,13 @@ function FamilyBody({
             }
             sub={`Admin · ${m.email}`}
             right={
-              <EllipsisVertical
-                className="size-4 cursor-pointer text-muted-foreground"
+              <button
+                aria-label={`Kelola akses ${m.name}`}
                 onClick={() => toast(`Kelola akses ${m.name}`)}
-              />
+                className="cursor-pointer text-muted-foreground"
+              >
+                <EllipsisVertical className="size-4" />
+              </button>
             }
           />
         ))}

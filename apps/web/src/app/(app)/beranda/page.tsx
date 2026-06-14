@@ -19,6 +19,8 @@ import {
   SummaryCard,
   ProgressBar,
 } from "@/components/wm";
+import { LocaleSwitcher } from "@/components/locale-switcher";
+import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, formatRupiahCompact } from "@/lib/format";
@@ -44,29 +46,19 @@ const GOAL_STATUS_STYLE: Record<
   at_risk: { color: "var(--brand-purple)", iconBg: "#EDE9FE" },
 };
 
-const SPARK_LABELS = ["Hari 1", "Hari 8", "Hari 15", "Hari 22", "Hari 30"];
-
-function getGreeting(): string {
-  const h = new Date().getHours();
-  if (h < 11) return "Selamat pagi";
-  if (h < 15) return "Selamat siang";
-  if (h < 18) return "Selamat sore";
-  return "Selamat malam";
-}
-
-function formatRelativeDate(isoString: string): string {
-  const date = new Date(isoString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / 86400000);
-  if (diffDays === 0) return "Hari ini";
-  if (diffDays === 1) return "Kemarin";
-  return date.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
+function getGreetingKey(
+  h: number,
+): "morning" | "afternoon" | "afternoon2" | "evening" {
+  if (h < 11) return "morning";
+  if (h < 15) return "afternoon";
+  if (h < 18) return "afternoon2";
+  return "evening";
 }
 
 export default function BerandaPage() {
   const router = useRouter();
   const { data: session } = useSession();
+  const { t } = useLocale();
   const firstName = session?.user?.name?.split(" ")[0] ?? "Kamu";
   const [period, setPeriod] = useState<(typeof PERIODS)[number]>("1M");
 
@@ -97,6 +89,19 @@ export default function BerandaPage() {
     enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
     staleTime: 60_000,
   });
+
+  function formatRelativeDate(isoString: string): string {
+    const date = new Date(isoString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / 86400000);
+    if (diffDays === 0) return t.common.today;
+    if (diffDays === 1) return t.common.yesterday;
+    return date.toLocaleDateString(t.beranda.dateLocale, {
+      day: "numeric",
+      month: "short",
+    });
+  }
 
   const goalItems = (goals ?? []).slice(0, 4).map((g) => {
     const style = GOAL_STATUS_STYLE[g.status] ?? GOAL_STATUS_STYLE.on_track;
@@ -140,10 +145,10 @@ export default function BerandaPage() {
     cat:
       tx.categoryName ??
       (tx.type === "income"
-        ? "Pemasukan"
+        ? t.common.income2
         : tx.type === "expense"
-          ? "Pengeluaran"
-          : "Transfer"),
+          ? t.common.expense2
+          : t.common.transfer),
     amt: (tx.type === "income" ? "+" : "-") + formatRupiah(tx.amount),
     inc: tx.type === "income",
     date: formatRelativeDate(tx.occurredAt),
@@ -161,7 +166,7 @@ export default function BerandaPage() {
   if (isError) {
     return (
       <div className="flex items-center justify-center py-16 text-[13px] text-muted-foreground">
-        Gagal memuat data beranda. Coba muat ulang halaman.
+        {t.beranda.loadError}
       </div>
     );
   }
@@ -173,14 +178,20 @@ export default function BerandaPage() {
         ? (netWorth / 1_000_000).toFixed(0) + " jt"
         : formatRupiah(netWorth);
 
+  const greetingKey = getGreetingKey(new Date().getHours());
+  const sparkLabels = t.common.sparkLabels;
+
   return (
     <div className="space-y-3.5">
       <div className="mb-[18px]">
-        <div className="text-[21px] font-extrabold">
-          {getGreeting()}, {firstName} 👋
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-[21px] font-extrabold">
+            {t.greeting[greetingKey]}, {firstName} 👋
+          </div>
+          <LocaleSwitcher />
         </div>
         <div className="mt-0.5 text-[12.5px] text-muted-foreground">
-          Yuk, lihat perkembangan keuanganmu hari ini.
+          {t.beranda.subtitle}
         </div>
       </div>
 
@@ -188,11 +199,16 @@ export default function BerandaPage() {
         {/* Wealth Hero */}
         <HeroCard className="gradient-wealth">
           <div className="flex items-center gap-1.5 text-[12.5px] font-semibold opacity-90">
-            <Gem className="size-[13px] opacity-80" /> Total Kekayaan Bersih
-            <Eye className="ml-0.5 size-[13px] cursor-pointer opacity-60" />
+            <Gem className="size-[13px] opacity-80" /> {t.beranda.totalWealth}
+            <button
+              aria-label={t.common.toggleBalance}
+              className="ml-0.5 cursor-pointer opacity-60"
+            >
+              <Eye className="size-[13px]" />
+            </button>
           </div>
           <div className="mt-1 text-[28px] font-extrabold tracking-tight">
-            {isLoading ? "Memuat..." : formatRupiah(netWorth)}
+            {isLoading ? t.common.loading : formatRupiah(netWorth)}
           </div>
           {currentMonth && (
             <div className="mt-1 text-[12.5px]">
@@ -204,19 +220,24 @@ export default function BerandaPage() {
                 }
               >
                 {currentMonth.net >= 0 ? "▲" : "▼"}{" "}
-                {formatRupiah(Math.abs(currentMonth.net))} bulan ini
+                {formatRupiah(Math.abs(currentMonth.net))} {t.beranda.thisMonth}
               </span>{" "}
               <span className="opacity-60">
-                (tabungan {currentMonth.savingsRate}%)
+                ({t.common.savingsRate} {currentMonth.savingsRate}%)
               </span>
             </div>
           )}
 
-          <div className="mt-3.5 flex gap-1.5">
+          <div
+            role="group"
+            aria-label={t.common.period}
+            className="mt-3.5 flex gap-1.5"
+          >
             {PERIODS.map((p) => (
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
+                aria-pressed={period === p}
                 className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
                   period === p
                     ? "bg-white text-primary"
@@ -231,7 +252,7 @@ export default function BerandaPage() {
           <div className="mt-3 -mx-[22px]">
             <Sparkline points={sparklinePoints} />
             <div className="mt-1 flex justify-between px-[22px] text-[10px] opacity-60">
-              {SPARK_LABELS.map((l) => (
+              {sparkLabels.map((l) => (
                 <span key={l}>{l}</span>
               ))}
             </div>
@@ -240,20 +261,20 @@ export default function BerandaPage() {
 
         {/* Allocation */}
         <SectionCard
-          title="Alokasi Kekayaan"
+          title={t.beranda.wealthBreakdown}
           action={
             <CardLink onClick={() => router.push("/aset")}>
-              Lihat detail
+              {t.common.viewDetail}
             </CardLink>
           }
         >
           {isLoading ? (
             <div className="flex h-[105px] items-center justify-center text-[13px] text-muted-foreground">
-              Memuat...
+              {t.common.loading}
             </div>
           ) : allocation.length === 0 ? (
             <div className="flex h-[105px] items-center justify-center text-[13px] text-muted-foreground">
-              Belum ada data
+              {t.common.noData}
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-3.5">
@@ -262,7 +283,7 @@ export default function BerandaPage() {
                 size={105}
                 thickness={17}
                 centerValue={donutCenterValue}
-                centerLabel="Total"
+                centerLabel={t.common.total}
               />
               <div className="min-w-[110px] flex-1">
                 <DonutLegend segments={allocation} total={100} />
@@ -309,11 +330,12 @@ export default function BerandaPage() {
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
         {/* Cashflow */}
         <SectionCard
-          title="Arus Kas Bulanan"
+          title={t.common.cashFlow}
           action={
             <select className="rounded-md border bg-background px-2 py-[3px] text-[11px] text-muted-foreground outline-none">
               <option>
-                {cashflow?.months[cashflow.months.length - 1] ?? "—"} (terkini)
+                {cashflow?.months[cashflow.months.length - 1] ?? "—"}{" "}
+                {t.common.latest}
               </option>
             </select>
           }
@@ -321,7 +343,7 @@ export default function BerandaPage() {
           <div className="mb-2.5 flex flex-wrap gap-4">
             <div>
               <div className="text-[10.5px] text-muted-foreground">
-                Pemasukan
+                {t.common.income}
               </div>
               <div className="text-[15px] font-extrabold text-success">
                 {isLoading ? "..." : formatRupiah(currentMonth?.income ?? 0)}
@@ -329,7 +351,7 @@ export default function BerandaPage() {
             </div>
             <div>
               <div className="text-[10.5px] text-muted-foreground">
-                Pengeluaran
+                {t.common.expense}
               </div>
               <div className="text-[15px] font-extrabold text-destructive">
                 {isLoading ? "..." : formatRupiah(currentMonth?.expense ?? 0)}
@@ -337,7 +359,7 @@ export default function BerandaPage() {
             </div>
           </div>
           <div className="mb-2 text-[11px] text-muted-foreground">
-            Surplus:{" "}
+            {t.common.surplus}{" "}
             <span className="font-bold text-success">
               {isLoading ? "..." : formatRupiah(currentMonth?.net ?? 0)}
             </span>
@@ -355,10 +377,10 @@ export default function BerandaPage() {
 
         {/* Recent activity */}
         <SectionCard
-          title="Aktivitas Terbaru"
+          title={t.beranda.recentTransactions}
           action={
             <CardLink onClick={() => router.push("/transaksi")}>
-              Lihat semua
+              {t.common.viewAll}
             </CardLink>
           }
         >
@@ -375,7 +397,7 @@ export default function BerandaPage() {
             </div>
           ) : activities.length === 0 ? (
             <div className="py-4 text-center text-[13px] text-muted-foreground">
-              Belum ada transaksi
+              {t.beranda.noTransactions}
             </div>
           ) : (
             <div className="divide-y">
@@ -414,10 +436,10 @@ export default function BerandaPage() {
 
         {/* Goals */}
         <SectionCard
-          title="Tujuan Keuangan"
+          title={t.beranda.financialGoals}
           action={
             <CardLink onClick={() => router.push("/tujuan")}>
-              Lihat semua
+              {t.common.viewAll}
             </CardLink>
           }
         >
@@ -434,7 +456,7 @@ export default function BerandaPage() {
             </div>
           ) : goalItems.length === 0 ? (
             <div className="py-4 text-center text-[13px] text-muted-foreground">
-              Belum ada tujuan keuangan
+              {t.beranda.noGoals}
             </div>
           ) : (
             <div className="space-y-3.5">
@@ -474,18 +496,18 @@ export default function BerandaPage() {
         <div className="text-[26px]">📊</div>
         <div className="flex-1">
           <div className="text-[13px] font-bold text-primary-strong">
-            Tingkatkan kesehatan keuanganmu!
+            {t.beranda.aiInsightTitle}
           </div>
           <div className="mt-0.5 text-[12px] text-muted-foreground">
-            Isi profil risiko untuk mendapatkan rekomendasi investasi yang
-            sesuai tujuanmu.
+            {t.beranda.aiInsightBody}
           </div>
         </div>
         <button
+          type="button"
           onClick={() => router.push("/ai")}
           className="cursor-pointer rounded-lg bg-primary px-3.5 py-2 text-[12px] font-semibold whitespace-nowrap text-primary-foreground hover:opacity-90"
         >
-          Isi Profil Risiko →
+          {t.beranda.aiInsightCta}
         </button>
       </div>
     </div>
