@@ -101,7 +101,7 @@ export function TransactionDialog() {
   const queryClient = useQueryClient();
 
   const { data: me } = useQuery<MeResponse>({
-    queryKey: [...queryKeys.auth.me()],
+    queryKey: [...queryKeys.auth.me(), token],
     queryFn: () => apiFetch<MeResponse>("/auth/me", { token }),
     enabled: !!token,
   });
