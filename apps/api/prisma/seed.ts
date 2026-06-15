@@ -53,6 +53,50 @@ export async function main(): Promise<void> {
     },
   });
 
+  // ── Demo User (demo@wealthme.id) ─────────────────────────────────────────────
+  // Required for the login page demo credentials to work with Better Auth.
+  // Better Auth credential login needs: User + BaAccount(providerId=credential).
+
+  const demoUser = await prisma.user.upsert({
+    where: { email: "demo@wealthme.id" },
+    update: { name: "Demo User", avatarInitials: "DU" },
+    create: {
+      id: "seed-user-demo",
+      email: "demo@wealthme.id",
+      name: "Demo User",
+      avatarInitials: "DU",
+      passwordHash,
+    },
+  });
+
+  await prisma.baAccount.upsert({
+    where: { id: "seed-ba-demo" },
+    update: { password: passwordHash },
+    create: {
+      id: "seed-ba-demo",
+      accountId: "demo@wealthme.id",
+      providerId: "credential",
+      userId: demoUser.id,
+      password: passwordHash,
+    },
+  });
+
+  await prisma.member.upsert({
+    where: {
+      userId_familyGroupId: {
+        userId: demoUser.id,
+        familyGroupId: family.id,
+      },
+    },
+    update: { role: "owner" },
+    create: {
+      id: "seed-member-demo",
+      userId: demoUser.id,
+      familyGroupId: family.id,
+      role: "owner",
+    },
+  });
+
   // ── Accounts ─────────────────────────────────────────────────────────────────
   // Balances in rupiah (BigInt) — from SEARCH_DATA in apps/web/src/lib/data.ts
 
@@ -535,7 +579,8 @@ export async function main(): Promise<void> {
   process.stdout.write(
     `Seed complete:\n` +
       `  FamilyGroup: ${family.name} (${family.id})\n` +
-      `  User: ${user.name} <${user.email}>\n` +
+      `  Users: ${user.name} <${user.email}>, ${demoUser.name} <${demoUser.email}>\n` +
+      `  BaAccount: credential login seeded for demo@wealthme.id\n` +
       `  Accounts: BCA, Mandiri, GoPay\n` +
       `  Categories: Gaji, Makan & Minum, Lifestyle + full set (11 additional)\n` +
       `  Transactions: 6 records seeded (dates relative to today)\n` +
