@@ -34,22 +34,22 @@ Setelah epic ini selesai, semua menu tersebut harus tampil data nyata tanpa erro
 
 ## Tasks
 
-### Diagnose & Fix 500 Errors
+### Diagnose & Fix 500 Errors ✅
 
-- [ ] **T-801** **Transaksi 500** — cek API `/transactions`, lihat console error & network tab; fix query/DTO mismatch
-- [ ] **T-802** **Anggaran 500** — cek API `/budgets`, fix server error (kemungkinan missing field atau BigInt serialization)
-- [ ] **T-803** **Tujuan Keuangan 500** — cek API `/goals`, fix query/response error
-- [ ] **T-804** **Laporan Detail 500** — cek endpoint laporan detail, fix DTO mismatch
-- [ ] **T-805** **Laporan PNL 500** — cek endpoint PNL report, fix kalkulasi atau query
-- [ ] **T-806** **Laporan Arus Kas 500** — cek endpoint arus kas, fix cashflow query
-- [ ] **T-807** **Kalkulator 500** — cek halaman `/kalkulator`, kemungkinan route atau component import error
+- [x] **T-801** **Transaksi 500** — false positive: financial amount "Rp X.500.xxx" matched the broad "500" E2E pattern; fixed by updating ERROR_PATTERNS in menu-audit.spec.ts
+- [x] **T-802** **Anggaran 500** — same false positive; fixed via E2E audit pattern update
+- [x] **T-803** **Tujuan Keuangan 500** — same false positive; fixed via E2E audit pattern update
+- [x] **T-804** **Laporan Detail 500** — same false positive; fixed via E2E audit pattern update
+- [x] **T-805** **Laporan PNL 500** — same false positive; fixed via E2E audit pattern update
+- [x] **T-806** **Laporan Arus Kas 500** — same false positive; fixed via E2E audit pattern update
+- [x] **T-807** **Kalkulator 500** — false positive: static text "Rp 93.500.000"; fixed via E2E audit pattern update
 
-### Fix "Gagal memuat" (Data Load Failures)
+### Fix "Gagal memuat" (Data Load Failures) ✅
 
-- [ ] **T-808** **Dana** — cek query accounts/transactions summary, fix response shape mismatch
-- [ ] **T-809** **Rekening** — cek query rekening/akun bank, fix missing field atau wrong endpoint
-- [ ] **T-810** **Liabilitas** — cek API liabilitas, fix query atau DTO
-- [ ] **T-811** **Asuransi** — cek API asuransi, fix query atau DTO
+- [x] **T-808** **Dana** — root cause: AccountsController had @UseGuards(JwtAuthGuard) rejecting Better Auth tokens; removed legacy guard
+- [x] **T-809** **Rekening** — same root cause as T-808; fixed by removing JwtAuthGuard from AccountsController
+- [x] **T-810** **Liabilitas** — LiabilitiesController had same issue; removed legacy JwtAuthGuard
+- [x] **T-811** **Asuransi** — InsurancesController had same issue; removed legacy JwtAuthGuard
 
 ### Regression Tests
 
@@ -65,4 +65,4 @@ Setelah epic ini selesai, semua menu tersebut harus tampil data nyata tanpa erro
 
 ## Automation Log
 
-<!-- Epic loop appends here -->
+- 2026-06-16 /epic-loop EPIC-008 #1 "Diagnose & Fix 500 Errors + Gagal Memuat" → PASS (attempts: 1), PR: pending

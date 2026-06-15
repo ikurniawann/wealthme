@@ -8,7 +8,6 @@ import {
   Param,
   Patch,
   Post,
-  UseGuards,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -18,7 +17,6 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
@@ -31,7 +29,6 @@ import { CreateAccountDto } from "./dto/create-account.dto";
 import { UpdateAccountDto } from "./dto/update-account.dto";
 
 @ApiTags("accounts")
-@UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 @Controller("family-groups/:familyGroupId/accounts")
 export class AccountsController {
