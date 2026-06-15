@@ -64,6 +64,10 @@ export async function main(): Promise<void> {
     },
   });
 
+  // Invalidate stale sessions so the next login embeds the correct familyGroupId.
+  // Without this, existing sessions carry the old familyGroupId and all API calls return 403.
+  await prisma.baSession.deleteMany({ where: { userId: demoUser.id } });
+
   await prisma.member.upsert({
     where: {
       userId_familyGroupId: { userId: demoUser.id, familyGroupId: family.id },
