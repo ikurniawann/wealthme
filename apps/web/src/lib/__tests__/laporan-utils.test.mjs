@@ -9,6 +9,7 @@ const {
   formatJuta,
   getMonthDateRange,
   getTodayDateRange,
+  buildInvChartData,
 } = mod;
 
 describe("categoryBreakdownToDonut", () => {
@@ -204,5 +205,94 @@ describe("getTodayDateRange", () => {
     assert.equal(s.getDate(), now.getDate());
     assert.equal(e.getDate(), now.getDate());
     assert.ok(s <= e);
+  });
+});
+
+describe("buildInvChartData", () => {
+  test("exported as a function", () => {
+    assert.strictEqual(
+      typeof buildInvChartData,
+      "function",
+      "buildInvChartData must be exported from laporan-utils",
+    );
+  });
+
+  test("returns null when summary is undefined", () => {
+    assert.strictEqual(buildInvChartData(undefined), null);
+  });
+
+  test("returns null when both nilai and modal are zero", () => {
+    const summary = {
+      totalCostBasis: "0",
+      totalCurrentValue: "0",
+      totalReturnRp: "0",
+      totalReturnPct: 0,
+      todayReturnRp: "0",
+      todayReturnPct: 0,
+    };
+    assert.strictEqual(buildInvChartData(summary), null);
+  });
+
+  test("nilaiPct is 100 when nilai equals modal (breakeven)", () => {
+    const summary = {
+      totalCostBasis: "10000000",
+      totalCurrentValue: "10000000",
+      totalReturnRp: "0",
+      totalReturnPct: 0,
+      todayReturnRp: "0",
+      todayReturnPct: 0,
+    };
+    const result = buildInvChartData(summary);
+    assert.ok(result !== null);
+    assert.equal(result.nilaiPct, 100);
+    assert.equal(result.modalPct, 100);
+    assert.equal(result.hasReturn, true);
+  });
+
+  test("nilaiPct 100, modalPct < 100 when nilai > modal (profit)", () => {
+    const summary = {
+      totalCostBasis: "8000000",
+      totalCurrentValue: "10000000",
+      totalReturnRp: "2000000",
+      totalReturnPct: 25,
+      todayReturnRp: "0",
+      todayReturnPct: 0,
+    };
+    const result = buildInvChartData(summary);
+    assert.ok(result !== null);
+    assert.equal(result.nilaiPct, 100);
+    assert.equal(result.modalPct, 80);
+    assert.equal(result.hasReturn, true);
+  });
+
+  test("modalPct 100, nilaiPct < 100 when nilai < modal (loss)", () => {
+    const summary = {
+      totalCostBasis: "10000000",
+      totalCurrentValue: "7000000",
+      totalReturnRp: "-3000000",
+      totalReturnPct: -30,
+      todayReturnRp: "0",
+      todayReturnPct: 0,
+    };
+    const result = buildInvChartData(summary);
+    assert.ok(result !== null);
+    assert.equal(result.modalPct, 100);
+    assert.equal(result.nilaiPct, 70);
+    assert.equal(result.hasReturn, false);
+  });
+
+  test("pct values are integers (rounded)", () => {
+    const summary = {
+      totalCostBasis: "3000000",
+      totalCurrentValue: "10000000",
+      totalReturnRp: "7000000",
+      totalReturnPct: 233,
+      todayReturnRp: "0",
+      todayReturnPct: 0,
+    };
+    const result = buildInvChartData(summary);
+    assert.ok(result !== null);
+    assert.equal(result.nilaiPct % 1, 0, "nilaiPct must be integer");
+    assert.equal(result.modalPct % 1, 0, "modalPct must be integer");
   });
 });
