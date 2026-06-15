@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useSession, signOut } from "next-auth/react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useShell } from "@/components/shell/shell-context";
 
 import { SectionCard, MoneyStat } from "@/components/wm";
 import { RowActions, ConfirmDeleteDialog } from "@/components/crud";
@@ -111,6 +112,8 @@ export default function TransaksiPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
+  const { setTxnOpen } = useShell();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if ((session as { error?: string } | null)?.error === "RefreshTokenError") {
@@ -125,6 +128,23 @@ export default function TransaksiPage() {
   });
 
   const familyGroupId = me?.familyGroupId ?? "";
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<void>(`/family-groups/${familyGroupId}/transactions/${id}`, {
+        method: "DELETE",
+        token,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.transactions.all(familyGroupId),
+      });
+      toast.success("Transaksi berhasil dihapus.");
+    },
+    onError: () => {
+      toast.error("Gagal menghapus transaksi.");
+    },
+  });
 
   const { data, isLoading, isError } = useQuery<TransactionListResponse>({
     queryKey: [...queryKeys.transactions.all(familyGroupId), token],
@@ -167,7 +187,7 @@ export default function TransaksiPage() {
           Catat &amp; kelola semua transaksimu
         </span>
         <button
-          onClick={() => toast("Form tambah transaksi")}
+          onClick={() => setTxnOpen(true)}
           className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground"
         >
           <Plus className="size-3.5" /> Tambah Transaksi
@@ -215,7 +235,7 @@ export default function TransaksiPage() {
           ))}
         </div>
         <button
-          onClick={() => toast("Tambah transaksi")}
+          onClick={() => setTxnOpen(true)}
           className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground"
         >
           <Plus className="size-3.5" /> Tambah
@@ -273,8 +293,8 @@ export default function TransaksiPage() {
         label={deleteTarget !== null ? "Transaksi" : null}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget);
           setDeleteTarget(null);
-          toast("🗑️ Transaksi dihapus.");
         }}
       />
     </div>
