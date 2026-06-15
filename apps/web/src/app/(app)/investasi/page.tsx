@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { io } from "socket.io-client";
 
@@ -284,7 +284,7 @@ export default function InvestasiPage() {
   const [modalOpen, setModalOpen] = useState(false);
 
   const token = session?.accessToken as string | undefined;
-  const familyGroupId = session?.user?.memberships?.[0]?.familyGroupId;
+  const familyGroupId = session?.familyGroupId;
 
   const apiUrl = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:4000";
 

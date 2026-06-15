@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Plus, Share2, X, Link2 } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { SectionCard, ProgressBar, StatusBadge } from "@/components/wm";

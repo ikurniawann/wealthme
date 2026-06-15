@@ -18,6 +18,7 @@ function makePrisma() {
     account: { findUnique: jest.fn(), update: jest.fn() },
     category: { findUnique: jest.fn(), findMany: jest.fn() },
     budget: { findFirst: jest.fn() },
+    notification: { findFirst: jest.fn(), create: jest.fn() },
     transaction: {
       create: jest.fn(),
       findMany: jest.fn(),
@@ -154,6 +155,123 @@ describe("TransactionsService", () => {
 
       expect(result.type).toBe("income");
       expect(result.amount).toBe("5000000");
+    });
+  });
+
+  describe("checkCashFlowAlert (via create)", () => {
+    const now = new Date("2026-06-15T10:00:00.000Z");
+
+    function setupExpenseCreate() {
+      const createdTx = {
+        id: "tx-cf-1",
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        categoryId: null,
+        amount: BigInt(4970000),
+        type: "expense" as const,
+        description: "Pengeluaran",
+        occurredAt: now,
+        createdAt: now,
+      };
+      prisma.account.findUnique.mockResolvedValue(mockAccount);
+      prisma.category.findMany.mockResolvedValue([]);
+      prisma.$transaction.mockImplementation(
+        async (fn: Parameters<typeof prisma.$transaction>[0]) => {
+          const innerPrisma = {
+            ...prisma,
+            transaction: {
+              ...prisma.transaction,
+              create: jest.fn().mockResolvedValue(createdTx),
+            },
+          };
+          return (fn as (p: typeof innerPrisma) => Promise<unknown>)(
+            innerPrisma,
+          );
+        },
+      );
+    }
+
+    it("creates notification when monthly expenses >= 80% of income", async () => {
+      setupExpenseCreate();
+      prisma.transaction.aggregate
+        .mockResolvedValueOnce({ _sum: { amount: BigInt(5000000) } })
+        .mockResolvedValueOnce({ _sum: { amount: BigInt(4970000) } });
+      prisma.notification.findFirst.mockResolvedValue(null);
+      prisma.notification.create.mockResolvedValue({});
+
+      await service.create(FAMILY_GROUP_ID, {
+        accountId: ACCOUNT_ID,
+        amount: 4970000,
+        type: "expense",
+        occurredAt: now.toISOString(),
+      });
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(prisma.notification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            familyGroupId: FAMILY_GROUP_ID,
+            icon: "⚠️",
+          }),
+        }),
+      );
+    });
+
+    it("skips notification when expenses < 80% of income", async () => {
+      setupExpenseCreate();
+      prisma.transaction.aggregate
+        .mockResolvedValueOnce({ _sum: { amount: BigInt(5000000) } })
+        .mockResolvedValueOnce({ _sum: { amount: BigInt(1000000) } });
+      prisma.notification.findFirst.mockResolvedValue(null);
+      prisma.notification.create.mockResolvedValue({});
+
+      await service.create(FAMILY_GROUP_ID, {
+        accountId: ACCOUNT_ID,
+        amount: 1000000,
+        type: "expense",
+        occurredAt: now.toISOString(),
+      });
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(prisma.notification.create).not.toHaveBeenCalled();
+    });
+
+    it("skips notification when income is zero", async () => {
+      setupExpenseCreate();
+      prisma.transaction.aggregate
+        .mockResolvedValueOnce({ _sum: { amount: BigInt(0) } })
+        .mockResolvedValueOnce({ _sum: { amount: BigInt(4970000) } });
+      prisma.notification.findFirst.mockResolvedValue(null);
+      prisma.notification.create.mockResolvedValue({});
+
+      await service.create(FAMILY_GROUP_ID, {
+        accountId: ACCOUNT_ID,
+        amount: 4970000,
+        type: "expense",
+        occurredAt: now.toISOString(),
+      });
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(prisma.notification.create).not.toHaveBeenCalled();
+    });
+
+    it("skips notification when one was already sent today", async () => {
+      setupExpenseCreate();
+      prisma.transaction.aggregate
+        .mockResolvedValueOnce({ _sum: { amount: BigInt(5000000) } })
+        .mockResolvedValueOnce({ _sum: { amount: BigInt(4970000) } });
+      prisma.notification.findFirst.mockResolvedValue({ id: "existing-notif" });
+      prisma.notification.create.mockResolvedValue({});
+
+      await service.create(FAMILY_GROUP_ID, {
+        accountId: ACCOUNT_ID,
+        amount: 4970000,
+        type: "expense",
+        occurredAt: now.toISOString(),
+      });
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(prisma.notification.create).not.toHaveBeenCalled();
     });
   });
 });

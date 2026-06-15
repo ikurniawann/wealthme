@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, Info, Lock, LogIn, Mail } from "lucide-react";
 import { toast } from "sonner";
-import { signIn } from "next-auth/react";
+import { authClient } from "@/lib/auth-client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -24,13 +24,13 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      const result = await signIn("credentials", {
+      const result = await authClient.signIn.email({
         email,
         password,
-        redirect: false,
+        callbackURL: "/beranda",
       });
-      if (!result?.ok) {
-        const errorMsg = result?.error ?? "Login gagal";
+      if (result.error) {
+        const errorMsg = result.error.message ?? "Login gagal";
         setError(errorMsg);
         toast.error(errorMsg);
         return;
@@ -42,7 +42,10 @@ export default function LoginPage() {
   };
 
   const doGoogleLogin = () => {
-    void signIn("google", { callbackUrl: "/beranda" });
+    void authClient.signIn.social({
+      provider: "google",
+      callbackURL: "/beranda",
+    });
   };
 
   return (
@@ -75,8 +78,8 @@ export default function LoginPage() {
             <Info className="size-4 shrink-0 text-primary" />
             <div className="text-xs text-indigo-900">
               <strong className="block">Demo Account tersedia</strong>
-              Gunakan <code>irfan.arsandi@wealthme.id</code> /{" "}
-              <code>demo1234</code> untuk masuk.
+              Gunakan <code>demo@wealthme.id</code> / <code>demo1234</code>{" "}
+              untuk masuk.
             </div>
           </div>
         )}
@@ -157,14 +160,12 @@ export default function LoginPage() {
               />{" "}
               Ingat saya
             </label>
-            <button
-              type="button"
-              disabled
-              aria-label="Lupa password? (Fitur belum tersedia)"
-              className="text-[12.5px] font-semibold text-slate-400 cursor-not-allowed"
+            <Link
+              href="/lupa-password"
+              className="text-[12.5px] font-semibold text-primary hover:text-primary-strong transition-colors"
             >
               Lupa password?
-            </button>
+            </Link>
           </div>
 
           <button

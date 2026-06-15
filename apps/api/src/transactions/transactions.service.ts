@@ -161,6 +161,9 @@ export class TransactionsService {
     if (resolvedCategoryId && dto.type === "expense") {
       void this.checkBudgetAlert(familyGroupId, resolvedCategoryId);
     }
+    if (dto.type === "expense") {
+      void this.checkCashFlowAlert(familyGroupId);
+    }
 
     return this.toDto(created);
   }
@@ -236,6 +239,63 @@ export class TransactionsService {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.warn(`Budget alert skipped: ${msg}`);
+    }
+  }
+
+  private async checkCashFlowAlert(familyGroupId: string): Promise<void> {
+    try {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+      const [incomeAgg, expenseAgg] = await Promise.all([
+        this.prisma.transaction.aggregate({
+          where: {
+            familyGroupId,
+            type: "income",
+            occurredAt: { gte: monthStart, lt: nextMonthStart },
+          },
+          _sum: { amount: true },
+        }),
+        this.prisma.transaction.aggregate({
+          where: {
+            familyGroupId,
+            type: "expense",
+            occurredAt: { gte: monthStart, lt: nextMonthStart },
+          },
+          _sum: { amount: true },
+        }),
+      ]);
+
+      const income = incomeAgg._sum.amount ?? BigInt(0);
+      const expense = expenseAgg._sum.amount ?? BigInt(0);
+
+      if (income <= BigInt(0)) return;
+
+      const usagePct = Number((expense * BigInt(100)) / income);
+      if (usagePct < 80) return;
+
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const existing = await this.prisma.notification.findFirst({
+        where: { familyGroupId, icon: "⚠️", createdAt: { gte: today } },
+      });
+      if (existing) return;
+
+      const title =
+        usagePct >= 100
+          ? "Pengeluaran Melebihi Pemasukan!"
+          : `Pengeluaran Bulan Ini Sudah ${usagePct}%`;
+      const body =
+        usagePct >= 100
+          ? `Pengeluaran bulan ini sudah ${usagePct}% dari total pemasukan. Kurangi pengeluaran segera.`
+          : `Pengeluaran bulan ini sudah ${usagePct}% dari total pemasukan. Pantau pengeluaranmu.`;
+
+      await this.prisma.notification.create({
+        data: { familyGroupId, title, body, icon: "⚠️" },
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Cash flow alert skipped: ${msg}`);
     }
   }
 

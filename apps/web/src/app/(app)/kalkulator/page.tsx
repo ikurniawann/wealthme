@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { Share2 } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-compat";
 import { toast } from "sonner";
 import { SectionCard } from "@/components/wm";
 import { Button } from "@/components/ui/button";

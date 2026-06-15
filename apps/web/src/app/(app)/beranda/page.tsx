@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-compat";
 import { useQuery } from "@tanstack/react-query";
 import { Gem, Eye, ArrowUp, ArrowDown } from "lucide-react";
 import { Sparkline } from "@/components/charts/sparkline";

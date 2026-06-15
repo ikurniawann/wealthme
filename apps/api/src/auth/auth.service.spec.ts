@@ -22,6 +22,12 @@ const mockPrisma = {
     create: jest.fn(),
     update: jest.fn(),
   },
+  familyGroup: { create: jest.fn() },
+  member: { create: jest.fn() },
+  category: { createMany: jest.fn() },
+  account: { create: jest.fn() },
+  baAccount: { updateMany: jest.fn() },
+  $transaction: jest.fn(),
 };
 
 const mockJwt = {
@@ -50,7 +56,15 @@ describe("AuthService", () => {
   let service: AuthService;
 
   beforeEach(async () => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    // Default implementations for register()'s $transaction callback
+    mockPrisma.$transaction.mockImplementation(
+      async (fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma),
+    );
+    mockPrisma.familyGroup.create.mockResolvedValue({ id: "fg-1" });
+    mockPrisma.member.create.mockResolvedValue({});
+    mockPrisma.category.createMany.mockResolvedValue({ count: 12 });
+    mockPrisma.account.create.mockResolvedValue({});
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -234,7 +248,7 @@ describe("AuthService", () => {
       const result = await service.getMe("user-1");
 
       // Assert
-      expect(result).toEqual(profile);
+      expect(result).toEqual({ ...profile, familyGroupId: "fg-1" });
       expect(result).not.toHaveProperty("passwordHash");
       expect(mockPrisma.user.findUniqueOrThrow).toHaveBeenCalledWith({
         where: { id: "user-1" },
@@ -272,6 +286,146 @@ describe("AuthService", () => {
 
       // Assert
       expect(result.memberships).toEqual([]);
+    });
+  });
+
+  describe("updateProfile()", () => {
+    const baseUser = {
+      id: "user-1",
+      email: "user@example.com",
+      name: "Jane Doe",
+      avatarInitials: "JD",
+      createdAt: new Date("2024-01-01"),
+      memberships: [{ id: "m-1", familyGroupId: "fg-1", role: "owner" }],
+    };
+
+    it("updates name and returns profile with familyGroupId", async () => {
+      // Arrange
+      const updated = { ...baseUser, name: "New Name", avatarInitials: "NN" };
+      mockPrisma.user.update.mockResolvedValue(updated);
+
+      // Act
+      const result = await service.updateProfile("user-1", {
+        name: "New Name",
+      });
+
+      // Assert
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "user-1" },
+          data: { name: "New Name" },
+        }),
+      );
+      expect(result.name).toBe("New Name");
+      expect(result.familyGroupId).toBe("fg-1");
+    });
+
+    it("omits undefined fields from Prisma update data", async () => {
+      // Arrange — only avatarInitials provided
+      const updated = { ...baseUser, avatarInitials: "JX", memberships: [] };
+      mockPrisma.user.update.mockResolvedValue(updated);
+
+      // Act
+      const result = await service.updateProfile("user-1", {
+        avatarInitials: "JX",
+      });
+
+      // Assert — name must NOT appear in data (dto.name is undefined)
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { avatarInitials: "JX" },
+        }),
+      );
+      expect(result.familyGroupId).toBeNull();
+    });
+  });
+
+  describe("changePassword()", () => {
+    it("verifies current password, hashes new password, and updates User + BaAccount", async () => {
+      // Arrange
+      const argon2 = jest.requireMock<{ verify: jest.Mock; hash: jest.Mock }>(
+        "argon2",
+      );
+      argon2.verify.mockResolvedValue(true);
+      argon2.hash.mockResolvedValue("$argon2id$new-hash");
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: "user-1",
+        passwordHash: "$argon2id$old-hash",
+      });
+      mockPrisma.user.update.mockResolvedValue({});
+      mockPrisma.baAccount.updateMany.mockResolvedValue({ count: 1 });
+
+      // Act
+      await service.changePassword("user-1", {
+        currentPassword: "OldPass123",
+        newPassword: "NewPass456",
+      });
+
+      // Assert
+      expect(argon2.verify).toHaveBeenCalledWith(
+        "$argon2id$old-hash",
+        "OldPass123",
+      );
+      expect(argon2.hash).toHaveBeenCalledWith("NewPass456", {
+        type: argon2.argon2id,
+      });
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: "user-1" },
+        data: { passwordHash: "$argon2id$new-hash" },
+      });
+      expect(mockPrisma.baAccount.updateMany).toHaveBeenCalledWith({
+        where: { userId: "user-1", providerId: "credential" },
+        data: { password: "$argon2id$new-hash" },
+      });
+    });
+
+    it("throws UnauthorizedException when user has no passwordHash (social-only account)", async () => {
+      // Arrange
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: "user-1",
+        passwordHash: null,
+      });
+
+      // Act & Assert
+      await expect(
+        service.changePassword("user-1", {
+          currentPassword: "any",
+          newPassword: "NewPass456",
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it("throws UnauthorizedException when current password is wrong", async () => {
+      // Arrange
+      const argon2 = jest.requireMock<{ verify: jest.Mock }>("argon2");
+      argon2.verify.mockResolvedValue(false);
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: "user-1",
+        passwordHash: "$argon2id$old-hash",
+      });
+
+      // Act & Assert
+      await expect(
+        service.changePassword("user-1", {
+          currentPassword: "WrongPass",
+          newPassword: "NewPass456",
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(mockPrisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it("throws UnauthorizedException when user is not found", async () => {
+      // Arrange
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        service.changePassword("ghost", {
+          currentPassword: "any",
+          newPassword: "NewPass456",
+        }),
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 

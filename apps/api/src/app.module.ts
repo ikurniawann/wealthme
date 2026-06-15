@@ -10,7 +10,7 @@ import { AssetsModule } from "./assets/assets.module";
 import { AuditInterceptor } from "./audit/audit.interceptor";
 import { AuditModule } from "./audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
-import { JwtAuthGuard } from "./auth/guards/jwt-auth.guard";
+import { BetterAuthGuard } from "./auth/guards/better-auth.guard";
 import { BudgetsModule } from "./budgets/budgets.module";
 import { CalculatorsModule } from "./calculators/calculators.module";
 import { CaslModule } from "./casl/casl.module";
@@ -107,7 +107,7 @@ import type { IncomingMessage } from "node:http";
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
-    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: BetterAuthGuard },
     { provide: APP_GUARD, useClass: TenantGuard },
     { provide: APP_GUARD, useClass: AbilitiesGuard },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },

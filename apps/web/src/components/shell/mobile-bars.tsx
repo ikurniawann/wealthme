@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, Menu, Plus, Search } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-compat";
 import { useQuery } from "@tanstack/react-query";
 import {
   Sheet,

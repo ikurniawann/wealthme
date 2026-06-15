@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
-import { useSession, signOut } from "next-auth/react";
+import { useSession, signOut } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useShell } from "@/components/shell/shell-context";
