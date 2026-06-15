@@ -167,10 +167,12 @@ const WEALTH_ALLOC: DonutSegment[] = [
 function RingkasanSection({
   go,
   summary,
+  invSummary,
   isLoading,
 }: {
   go: (id: string) => void;
   summary?: ReportSummaryDto;
+  invSummary?: InvestmentSummaryDto;
   isLoading?: boolean;
 }) {
   const chartMonths = summary?.points.map((p) => p.label) ?? [];
@@ -272,13 +274,40 @@ function RingkasanSection({
         <div className="grid grid-cols-1 items-center gap-4 md:grid-cols-2">
           <div>
             <div className="text-[11px] text-muted-foreground">Total Nilai</div>
-            <div className="text-[20px] font-black">Rp 565.551.000</div>
-            <div className="mt-1 text-[12px] text-success">
-              +Rp 75.551.000 ▲ 15,4%
+            <div className="text-[20px] font-black">
+              {invSummary
+                ? formatRupiah(parseFloat(invSummary.totalCurrentValue))
+                : "Rp —"}
             </div>
-            <div className="text-[11px] text-success">
-              Return hari ini: +Rp 1.250.000 (+0,22%)
-            </div>
+            {invSummary && (
+              <>
+                <div
+                  className={
+                    "mt-1 text-[12px] " +
+                    (parseFloat(invSummary.totalReturnRp) >= 0
+                      ? "text-success"
+                      : "text-destructive")
+                  }
+                >
+                  {parseFloat(invSummary.totalReturnRp) >= 0 ? "+" : ""}
+                  {formatRupiah(parseFloat(invSummary.totalReturnRp))} ▲{" "}
+                  {invSummary.totalReturnPct.toFixed(1)}%
+                </div>
+                <div
+                  className={
+                    "text-[11px] " +
+                    (parseFloat(invSummary.todayReturnRp) >= 0
+                      ? "text-success"
+                      : "text-destructive")
+                  }
+                >
+                  Return hari ini:{" "}
+                  {parseFloat(invSummary.todayReturnRp) >= 0 ? "+" : ""}
+                  {formatRupiah(parseFloat(invSummary.todayReturnRp))} (
+                  {invSummary.todayReturnPct.toFixed(2)}%)
+                </div>
+              </>
+            )}
           </div>
           <div>
             <svg
@@ -2087,7 +2116,7 @@ function LaporanInner() {
         `/family-groups/${familyGroupId}/investments/summary`,
         { token },
       ),
-    enabled: enabled && tab === "rinv",
+    enabled: enabled && (tab === "rinv" || tab === "rsum"),
     staleTime: 60_000,
   });
 
@@ -2163,6 +2192,7 @@ function LaporanInner() {
           <RingkasanSection
             go={go}
             summary={summary}
+            invSummary={invSummary}
             isLoading={isSummaryLoading}
           />
         );
