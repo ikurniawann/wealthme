@@ -185,7 +185,7 @@ export async function main(): Promise<void> {
     },
     update: {},
     create: {
-      id: "seed-cat-gaji",
+      id: "seed-d-cat-gaji",
       familyGroupId: FG,
       name: "Gaji",
       kind: "income",
@@ -276,7 +276,7 @@ export async function main(): Promise<void> {
     },
     update: {},
     create: {
-      id: "seed-cat-makan",
+      id: "seed-d-cat-makan",
       familyGroupId: FG,
       name: "Makan & Minum",
       kind: "expense",
@@ -1083,7 +1083,7 @@ export async function main(): Promise<void> {
 
   const goals = [
     {
-      id: "seed-goal-dana-darurat",
+      id: "seed-d-goal-dana-darurat",
       name: "Dana Darurat 6 Bulan",
       icon: "🛡️",
       target: 60_000_000n,
@@ -1103,7 +1103,7 @@ export async function main(): Promise<void> {
       targetDate: futureDate(270),
     },
     {
-      id: "seed-goal-dp-rumah",
+      id: "seed-d-goal-dp-rumah",
       name: "DP Rumah Ke-2",
       icon: "🏠",
       target: 300_000_000n,
