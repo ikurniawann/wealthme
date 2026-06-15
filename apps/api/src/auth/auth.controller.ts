@@ -24,6 +24,8 @@ import { Public } from "../common/decorators/public.decorator";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AuthService } from "./auth.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { ChangePasswordDto } from "./dto/change-password.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { LoginDto } from "./dto/login.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { RegisterDto } from "./dto/register.dto";
@@ -32,7 +34,6 @@ import { TokenPairDto } from "./dto/token-pair.dto";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
 import { UserProfileDto } from "./dto/user-profile.dto";
 import { GoogleAuthGuard } from "./guards/google-auth.guard";
-import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { JwtRefreshGuard } from "./guards/jwt-refresh.guard";
 import { type GoogleProfile } from "./strategies/google.strategy";
 import { type JwtPayload } from "./strategies/jwt.strategy";
@@ -73,7 +74,6 @@ export class AuthController {
 
   @Post("logout")
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Logout (invalidate refresh token)" })
   @ApiResponse({ status: 204 })
@@ -94,7 +94,6 @@ export class AuthController {
   }
 
   @Get("me")
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Get current user profile" })
   @ApiResponse({ status: 200, type: UserProfileDto })
@@ -103,7 +102,6 @@ export class AuthController {
   }
 
   @Patch("profile")
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: "Update current user profile (name, avatarInitials)",
@@ -114,6 +112,19 @@ export class AuthController {
     @Body() dto: UpdateProfileDto,
   ): Promise<UserProfileDto> {
     return this.auth.updateProfile(req.user.sub, dto);
+  }
+
+  @Post("change-password")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Change user password" })
+  @ApiResponse({ status: 204 })
+  @ApiResponse({ status: 401, description: "Current password incorrect" })
+  changePassword(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<void> {
+    return this.auth.changePassword(req.user.sub, dto);
   }
 
   @Get("google")

@@ -278,17 +278,108 @@ function ProfilBody({
 }
 
 function KeamananBody() {
+  const [showChangePw, setShowChangePw] = useState(false);
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [pwLoading, setPwLoading] = useState(false);
+
+  async function handleChangePassword() {
+    if (newPw.length < 8) {
+      toast.error("Password baru minimal 8 karakter");
+      return;
+    }
+    if (newPw !== confirmPw) {
+      toast.error("Konfirmasi password tidak cocok");
+      return;
+    }
+    setPwLoading(true);
+    try {
+      const { error } = await authClient.changePassword({
+        currentPassword: currentPw,
+        newPassword: newPw,
+      });
+      if (error) {
+        toast.error(error.message ?? "Gagal mengubah password");
+      } else {
+        toast.success("Password berhasil diubah");
+        setShowChangePw(false);
+        setCurrentPw("");
+        setNewPw("");
+        setConfirmPw("");
+      }
+    } catch {
+      toast.error("Gagal mengubah password");
+    } finally {
+      setPwLoading(false);
+    }
+  }
+
   return (
     <>
+      {showChangePw && (
+        <div className="mb-4 rounded-xl border bg-card p-4">
+          <div className="mb-3 text-[13px] font-bold text-foreground">
+            Ubah Password
+          </div>
+          <Field label="Password Saat Ini">
+            <input
+              type="password"
+              className={FIELD_CLASS}
+              value={currentPw}
+              onChange={(e) => setCurrentPw(e.target.value)}
+              placeholder="••••••••"
+            />
+          </Field>
+          <Field label="Password Baru">
+            <input
+              type="password"
+              className={FIELD_CLASS}
+              value={newPw}
+              onChange={(e) => setNewPw(e.target.value)}
+              placeholder="Min. 8 karakter"
+            />
+          </Field>
+          <Field label="Konfirmasi Password Baru">
+            <input
+              type="password"
+              className={FIELD_CLASS}
+              value={confirmPw}
+              onChange={(e) => setConfirmPw(e.target.value)}
+              placeholder="Ulangi password baru"
+            />
+          </Field>
+          <div className="mt-3 flex gap-2">
+            <button
+              className="flex-1 rounded-lg border py-2 text-[13px] font-semibold text-foreground"
+              onClick={() => {
+                setShowChangePw(false);
+                setCurrentPw("");
+                setNewPw("");
+                setConfirmPw("");
+              }}
+            >
+              Batal
+            </button>
+            <button
+              className="flex-1 rounded-lg bg-primary py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-50"
+              disabled={pwLoading || !currentPw || !newPw || !confirmPw}
+              onClick={() => void handleChangePassword()}
+            >
+              {pwLoading ? "Menyimpan..." : "Simpan"}
+            </button>
+          </div>
+        </div>
+      )}
       <SetSection>
         <SectionTitle>Password & PIN</SectionTitle>
         <SetRow
           icon={<Lock className="size-4 text-success" />}
           iconBg="#DCFCE7"
           name="Ubah Password"
-          sub="Terakhir diubah 3 bulan lalu"
+          sub="Klik untuk mengubah password akun"
           right={CHEVRON}
-          onClick={() => toast("Ganti password")}
+          onClick={() => setShowChangePw((v) => !v)}
         />
         <SetRow
           icon={<Hash className="size-4 text-primary" />}
@@ -498,8 +589,46 @@ const CURRENCIES = [
   },
 ];
 
+const SETTINGS_KEY = "wealthme_settings";
+
+type AppSettings = {
+  currency: string;
+  language: string;
+  dateFormat: string;
+  theme: string;
+};
+
+const DEFAULT_SETTINGS: AppSettings = {
+  currency: "IDR",
+  language: "🇮🇩 Bahasa Indonesia",
+  dateFormat: "DD/MM/YYYY",
+  theme: "☀️ Terang (Light)",
+};
+
+function loadSettings(): AppSettings {
+  if (typeof window === "undefined") return DEFAULT_SETTINGS;
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    return raw
+      ? { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<AppSettings>) }
+      : DEFAULT_SETTINGS;
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
+
 function PengaturanBody() {
-  const [currency, setCurrency] = useState("IDR");
+  const [settings, setSettings] = useState<AppSettings>(loadSettings);
+
+  function update<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function save() {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    toast.success("✅ Pengaturan disimpan");
+  }
+
   return (
     <>
       <SetSection>
@@ -509,14 +638,11 @@ function PengaturanBody() {
             Mata uang default untuk tampilan semua angka
           </div>
           {CURRENCIES.map((c) => {
-            const selected = currency === c.code;
+            const selected = settings.currency === c.code;
             return (
               <div
                 key={c.code}
-                onClick={() => {
-                  setCurrency(c.code);
-                  toast.success("✅ Mata uang diubah ke " + c.code);
-                }}
+                onClick={() => update("currency", c.code)}
                 className={`mb-2 flex cursor-pointer items-center gap-3 rounded-lg border px-3.5 py-3 transition-colors ${
                   selected ? "border-primary bg-accent" : ""
                 }`}
@@ -541,20 +667,32 @@ function PengaturanBody() {
       <SetSection>
         <SectionTitle>Bahasa & Tampilan</SectionTitle>
         <Field label="Bahasa">
-          <select className={FIELD_CLASS} defaultValue="🇮🇩 Bahasa Indonesia">
+          <select
+            className={FIELD_CLASS}
+            value={settings.language}
+            onChange={(e) => update("language", e.target.value)}
+          >
             <option>🇮🇩 Bahasa Indonesia</option>
             <option>🇬🇧 English</option>
           </select>
         </Field>
         <Field label="Format Tanggal">
-          <select className={FIELD_CLASS} defaultValue="DD/MM/YYYY">
+          <select
+            className={FIELD_CLASS}
+            value={settings.dateFormat}
+            onChange={(e) => update("dateFormat", e.target.value)}
+          >
             <option>DD/MM/YYYY</option>
             <option>MM/DD/YYYY</option>
             <option>YYYY-MM-DD</option>
           </select>
         </Field>
         <Field label="Tema">
-          <select className={FIELD_CLASS} defaultValue="☀️ Terang (Light)">
+          <select
+            className={FIELD_CLASS}
+            value={settings.theme}
+            onChange={(e) => update("theme", e.target.value)}
+          >
             <option>☀️ Terang (Light)</option>
             <option>🌙 Gelap (Dark)</option>
             <option>🖥️ Ikuti Sistem</option>
@@ -584,7 +722,7 @@ function PengaturanBody() {
       </SetSection>
       <button
         className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground"
-        onClick={() => toast.success("✅ Pengaturan disimpan")}
+        onClick={save}
       >
         <Save className="size-4" /> Simpan Pengaturan
       </button>
