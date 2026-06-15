@@ -1,6 +1,6 @@
 # EPIC-008: Bug Fix — 500 API Errors & Data Load Failures
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 phase: 3
 priority: P0
