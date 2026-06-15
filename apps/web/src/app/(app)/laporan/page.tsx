@@ -20,11 +20,25 @@ import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah } from "@/lib/format";
 import type {
+  BalanceSheetDto,
+  BankReportDto,
+  CashflowStatementDto,
+  DetailReportDto,
   ExportJobRequestDto,
   ExportJobStatusDto,
   ExportReportType,
+  PnlDto,
   ReportSummaryDto,
+  SankeyDto,
 } from "@wealthme/contracts";
+import {
+  categoryBreakdownToDonut,
+  formatJuta,
+  getMonthDateRange,
+  getTodayDateRange,
+  sankeyToFlowBars,
+  txTypeToBadgeVariant,
+} from "@/lib/laporan-utils";
 
 /* ───────────────────────── Tab definitions ───────────────────────── */
 
@@ -139,14 +153,6 @@ function BarRow({
 
 /* ───────────────────────── Section: Ringkasan ───────────────────────── */
 
-const EXPENSE_ALLOC: DonutSegment[] = [
-  { label: "Kebutuhan", value: 44, color: "#4F46E5" },
-  { label: "Gaya Hidup", value: 25, color: "#10B981" },
-  { label: "Transportasi", value: 12, color: "#F59E0B" },
-  { label: "Kesehatan", value: 8, color: "#8B5CF6" },
-  { label: "Lainnya", value: 11, color: "#E2E8F0" },
-];
-
 const WEALTH_ALLOC: DonutSegment[] = [
   { label: "Investasi", value: 45, color: "#4F46E5" },
   { label: "Properti", value: 25, color: "#10B981" },
@@ -168,6 +174,11 @@ function RingkasanSection({
   const chartIncome = summary?.points.map((p) => p.income / 1_000_000) ?? [];
   const chartExpense = summary?.points.map((p) => p.expense / 1_000_000) ?? [];
   const chartMax = Math.max(...chartIncome, ...chartExpense, 1);
+
+  const expenseDonut = summary
+    ? categoryBreakdownToDonut(summary.topExpenseCategories)
+    : [];
+  const expenseCenterValue = summary ? formatJuta(summary.totalExpense) : "—";
 
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
 
@@ -215,16 +226,24 @@ function RingkasanSection({
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
         <SectionCard title="Alokasi Pengeluaran">
           <div className="flex flex-wrap items-center gap-3.5">
-            <Donut
-              segments={EXPENSE_ALLOC}
-              size={110}
-              thickness={16}
-              centerValue="18,34 jt"
-              centerLabel="Total"
-            />
-            <div className="min-w-[120px] flex-1">
-              <DonutLegend segments={EXPENSE_ALLOC} />
-            </div>
+            {expenseDonut.length > 0 ? (
+              <>
+                <Donut
+                  segments={expenseDonut}
+                  size={110}
+                  thickness={16}
+                  centerValue={expenseCenterValue}
+                  centerLabel="Total"
+                />
+                <div className="min-w-[120px] flex-1">
+                  <DonutLegend segments={expenseDonut} />
+                </div>
+              </>
+            ) : (
+              <div className="py-4 text-[12px] text-muted-foreground">
+                Belum ada data pengeluaran
+              </div>
+            )}
           </div>
         </SectionCard>
         <SectionCard title="Wealth Allocation">
@@ -333,10 +352,31 @@ function RingkasanSection({
 
 /* ───────────────────────── Section: Harian ───────────────────────── */
 
-function HarianSection() {
+const TX_ICON: Record<string, string> = {
+  income: "📥",
+  expense: "🛒",
+  transfer: "↔️",
+};
+const TX_ICON_BG: Record<string, string> = {
+  income: "#DCFCE7",
+  expense: "#FEF3C7",
+  transfer: "#DBEAFE",
+};
+
+function HarianSection({
+  dailyReport,
+  isLoading,
+}: {
+  dailyReport?: DetailReportDto;
+  isLoading?: boolean;
+}) {
   const today = new Date().toISOString().slice(0, 10);
+  const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
+  const net =
+    (dailyReport?.totalIncome ?? 0) - (dailyReport?.totalExpense ?? 0);
+
   return (
-    <div className="space-y-3.5">
+    <div className={"space-y-3.5 " + loadingClass}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-[15px] font-bold">
           Laporan Harian —{" "}
@@ -355,82 +395,62 @@ function HarianSection() {
       <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
         <StatTile
           label="Pemasukan Hari Ini"
-          value="Rp 5.000.000"
+          value={dailyReport ? formatRupiah(dailyReport.totalIncome) : "Rp —"}
           valueClass="text-success"
         />
         <StatTile
           label="Pengeluaran Hari Ini"
-          value="Rp 1.508.000"
+          value={dailyReport ? formatRupiah(dailyReport.totalExpense) : "Rp —"}
           valueClass="text-destructive"
         />
         <StatTile
           label="Net Harian"
-          value="+Rp 3.492.000"
-          valueClass="text-success"
+          value={
+            dailyReport ? `${net >= 0 ? "+" : ""}${formatRupiah(net)}` : "Rp —"
+          }
+          valueClass={net >= 0 ? "text-success" : "text-destructive"}
         />
         <StatTile
           label="Jumlah Transaksi"
-          value="6"
+          value={dailyReport ? String(dailyReport.count) : "—"}
           valueClass="text-primary"
         />
       </div>
       <SectionCard title="Transaksi Hari Ini">
-        <ActItem
-          icon="📥"
-          iconBg="#DCFCE7"
-          name="Transfer masuk dari BCA"
-          cat="09:21 · Pemasukan"
-          right={
-            <div className="text-[13px] font-bold text-success">
-              +Rp 5.000.000
-            </div>
-          }
-        />
-        <ActItem
-          icon="🛒"
-          iconBg="#FEF3C7"
-          name="Alfamart Pahlawan"
-          cat="14:32 · Belanja"
-          right={
-            <div className="text-[13px] font-bold text-destructive">
-              -Rp 58.000
-            </div>
-          }
-        />
-        <ActItem
-          icon="☕"
-          iconBg="#DBEAFE"
-          name="Kopi Kenangan"
-          cat="15:10 · Makan & Minum"
-          right={
-            <div className="text-[13px] font-bold text-destructive">
-              -Rp 50.000
-            </div>
-          }
-        />
-        <ActItem
-          icon="⛽"
-          iconBg="#FEE2E2"
-          name="Pertamina"
-          cat="16:45 · Transportasi"
-          right={
-            <div className="text-[13px] font-bold text-destructive">
-              -Rp 300.000
-            </div>
-          }
-        />
-        <ActItem
-          icon="🍽️"
-          iconBg="#EDE9FE"
-          name="Makan Malam"
-          cat="19:30 · Makan & Minum"
-          right={
-            <div className="text-[13px] font-bold text-destructive">
-              -Rp 1.100.000
-            </div>
-          }
-          last
-        />
+        {dailyReport && dailyReport.transactions.length > 0 ? (
+          dailyReport.transactions.map((tx, i) => {
+            const isIncome = tx.type === "income";
+            const time = new Date(tx.occurredAt).toLocaleTimeString("id-ID", {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            return (
+              <ActItem
+                key={tx.id}
+                icon={TX_ICON[tx.type] ?? "💳"}
+                iconBg={TX_ICON_BG[tx.type] ?? "#F3F4F6"}
+                name={tx.description ?? tx.accountName}
+                cat={`${time} · ${tx.categoryName ?? tx.accountName}`}
+                right={
+                  <div
+                    className={
+                      "text-[13px] font-bold " +
+                      (isIncome ? "text-success" : "text-destructive")
+                    }
+                  >
+                    {isIncome ? "+" : "-"}
+                    {formatRupiah(tx.amount)}
+                  </div>
+                }
+                last={i === dailyReport.transactions.length - 1}
+              />
+            );
+          })
+        ) : (
+          <div className="py-4 text-center text-[12px] text-muted-foreground">
+            Tidak ada transaksi hari ini
+          </div>
+        )}
       </SectionCard>
     </div>
   );
@@ -689,162 +709,102 @@ function FamilySection() {
 
 /* ───────────────────────── Section: Bank ───────────────────────── */
 
-function BankSection() {
+const BANK_COLORS = [
+  "var(--success)",
+  "var(--brand-cyan)",
+  "var(--warning)",
+  "var(--primary)",
+  "#8B5CF6",
+];
+
+function BankSection({
+  bankReport,
+  isLoading,
+}: {
+  bankReport?: BankReportDto;
+  isLoading?: boolean;
+}) {
+  const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
+  const banks = bankReport?.banks ?? [];
+  const maxIncome = Math.max(...banks.map((b) => b.income), 1);
+
   return (
-    <div className="space-y-3.5">
+    <div className={"space-y-3.5 " + loadingClass}>
       <div className="text-[15px] font-bold">
         Laporan Bank — Konsolidasi Rekening
       </div>
       <SectionCard title="Saldo per Rekening">
-        <ActItem
-          icon="BCA"
-          iconBg="#DBEAFE"
-          iconColor="#0061AF"
-          iconSize="12px"
-          name="BCA Tahapan ···9010"
-          cat="152 transaksi bulan ini"
-          right={<div className="text-[13px] font-bold">Rp 128.450.000</div>}
-        />
-        <ActItem
-          icon="MDR"
-          iconBg="#FFF7ED"
-          iconColor="#F9A01B"
-          iconSize="10px"
-          name="Mandiri ···5586"
-          cat="98 transaksi bulan ini"
-          right={<div className="text-[13px] font-bold">Rp 85.000.000</div>}
-        />
-        <ActItem
-          icon="BNI"
-          iconBg="#FFF7ED"
-          iconColor="#FF6600"
-          iconSize="11px"
-          name="BNI Taplus ···5544"
-          cat="45 transaksi bulan ini"
-          right={<div className="text-[13px] font-bold">Rp 62.000.000</div>}
-          last
-        />
+        {banks.length > 0 ? (
+          banks.map((b, i) => (
+            <ActItem
+              key={b.accountName}
+              icon={
+                b.institution?.slice(0, 3).toUpperCase() ??
+                b.accountName.slice(0, 3).toUpperCase()
+              }
+              iconBg="#DBEAFE"
+              iconColor="#0061AF"
+              iconSize="11px"
+              name={b.accountName}
+              cat={b.institution ?? "—"}
+              right={
+                <div className="text-[13px] font-bold">
+                  {formatRupiah(b.balance)}
+                </div>
+              }
+              last={i === banks.length - 1}
+            />
+          ))
+        ) : (
+          <div className="py-4 text-center text-[12px] text-muted-foreground">
+            Belum ada rekening
+          </div>
+        )}
       </SectionCard>
-      <SectionCard title="Mutasi Masuk vs Keluar per Bank">
-        <div className="flex flex-col gap-2.5">
-          <BarRow
-            label="BCA"
-            right={
-              <>
-                <span className="font-bold text-success">+18,2 jt</span>
-                <span className="font-bold text-destructive">-12,1 jt</span>
-              </>
-            }
-            value={66}
-            color="var(--success)"
-          />
-          <BarRow
-            label="Mandiri"
-            right={
-              <>
-                <span className="font-bold text-success">+5,5 jt</span>
-                <span className="font-bold text-destructive">-4,2 jt</span>
-              </>
-            }
-            value={76}
-            color="var(--brand-cyan)"
-          />
-          <BarRow
-            label="BNI"
-            right={
-              <>
-                <span className="font-bold text-success">+2,1 jt</span>
-                <span className="font-bold text-destructive">-2,0 jt</span>
-              </>
-            }
-            value={51}
-            color="var(--warning)"
-          />
-        </div>
-      </SectionCard>
+      {banks.length > 0 && (
+        <SectionCard title="Mutasi Masuk vs Keluar per Bank">
+          <div className="flex flex-col gap-2.5">
+            {banks.map((b, i) => (
+              <BarRow
+                key={b.accountName}
+                label={b.accountName}
+                right={
+                  <>
+                    <span className="font-bold text-success">
+                      +{formatJuta(b.income)}
+                    </span>
+                    <span className="font-bold text-destructive">
+                      -{formatJuta(b.expense)}
+                    </span>
+                  </>
+                }
+                value={
+                  maxIncome > 0 ? Math.round((b.income / maxIncome) * 100) : 0
+                }
+                color={BANK_COLORS[i % BANK_COLORS.length] ?? "var(--primary)"}
+              />
+            ))}
+          </div>
+        </SectionCard>
+      )}
     </div>
   );
 }
 
 /* ───────────────────────── Section: Detail ───────────────────────── */
 
-const DETAIL_ROWS: {
-  tgl: string;
-  ket: string;
-  kategori: string;
-  variant: "success" | "info" | "danger" | "purple";
-  akun: string;
-  jumlah: string;
-  up: boolean;
-}[] = [
-  {
-    tgl: "18/05",
-    ket: "Transfer masuk BCA",
-    kategori: "Pemasukan",
-    variant: "success",
-    akun: "BCA",
-    jumlah: "+5.000.000",
-    up: true,
-  },
-  {
-    tgl: "18/05",
-    ket: "Alfamart Pahlawan",
-    kategori: "Belanja",
-    variant: "info",
-    akun: "GoPay",
-    jumlah: "-58.000",
-    up: false,
-  },
-  {
-    tgl: "17/05",
-    ket: "Gaji Bulanan",
-    kategori: "Gaji",
-    variant: "success",
-    akun: "BCA",
-    jumlah: "+18.000.000",
-    up: true,
-  },
-  {
-    tgl: "15/05",
-    ket: "Pembayaran KK Mandiri",
-    kategori: "Kartu Kredit",
-    variant: "danger",
-    akun: "Mandiri",
-    jumlah: "-1.250.000",
-    up: false,
-  },
-  {
-    tgl: "14/05",
-    ket: "Belanja Shopee",
-    kategori: "Belanja",
-    variant: "info",
-    akun: "BCA",
-    jumlah: "-450.000",
-    up: false,
-  },
-  {
-    tgl: "13/05",
-    ket: "Top Up GoPay",
-    kategori: "e-Wallet",
-    variant: "purple",
-    akun: "BCA",
-    jumlah: "-200.000",
-    up: false,
-  },
-  {
-    tgl: "12/05",
-    ket: "Dividen BBCA",
-    kategori: "Dividen",
-    variant: "success",
-    akun: "BCA",
-    jumlah: "+750.000",
-    up: true,
-  },
-];
+function DetailSection({
+  detailReport,
+  isLoading,
+}: {
+  detailReport?: DetailReportDto;
+  isLoading?: boolean;
+}) {
+  const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
+  const txs = detailReport?.transactions ?? [];
 
-function DetailSection() {
   return (
-    <div className="space-y-3.5">
+    <div className={"space-y-3.5 " + loadingClass}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-[15px] font-bold">Laporan Detail Transaksi</div>
         <button
@@ -867,24 +827,45 @@ function DetailSection() {
               </tr>
             </thead>
             <tbody>
-              {DETAIL_ROWS.map((r, i) => (
-                <tr key={i} className="border-b last:border-0">
-                  <td className="mono py-2.5">{r.tgl}</td>
-                  <td className="py-2.5">{r.ket}</td>
-                  <td className="py-2.5">
-                    <StatusBadge variant={r.variant}>{r.kategori}</StatusBadge>
-                  </td>
-                  <td className="py-2.5">{r.akun}</td>
+              {txs.length > 0 ? (
+                txs.map((tx) => {
+                  const isIncome = tx.type === "income";
+                  const tgl = new Date(tx.occurredAt).toLocaleDateString(
+                    "id-ID",
+                    { day: "2-digit", month: "2-digit" },
+                  );
+                  return (
+                    <tr key={tx.id} className="border-b last:border-0">
+                      <td className="mono py-2.5">{tgl}</td>
+                      <td className="py-2.5">{tx.description ?? "—"}</td>
+                      <td className="py-2.5">
+                        <StatusBadge variant={txTypeToBadgeVariant(tx.type)}>
+                          {tx.categoryName ?? tx.type}
+                        </StatusBadge>
+                      </td>
+                      <td className="py-2.5">{tx.accountName}</td>
+                      <td
+                        className={
+                          "mono py-2.5 text-right " +
+                          (isIncome ? "text-success" : "text-destructive")
+                        }
+                      >
+                        {isIncome ? "+" : "-"}
+                        {formatRupiah(tx.amount)}
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
                   <td
-                    className={
-                      "mono py-2.5 text-right " +
-                      (r.up ? "text-success" : "text-destructive")
-                    }
+                    colSpan={5}
+                    className="py-6 text-center text-[12px] text-muted-foreground"
                   >
-                    {r.jumlah}
+                    Belum ada transaksi bulan ini
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -919,64 +900,89 @@ function FlowBar({
   );
 }
 
-function AliranSection() {
+const FLOW_GRADS_INCOME = [
+  "linear-gradient(90deg,var(--success),#34D399)",
+  "linear-gradient(90deg,#8B5CF6,#A78BFA)",
+  "linear-gradient(90deg,#06B6D4,#22D3EE)",
+  "linear-gradient(90deg,#F59E0B,#FBBF24)",
+];
+const FLOW_GRADS_EXPENSE = [
+  "linear-gradient(90deg,#4F46E5,#6366F1)",
+  "linear-gradient(90deg,#10B981,#34D399)",
+  "linear-gradient(90deg,#F59E0B,#FBBF24)",
+  "linear-gradient(90deg,#EC4899,#F43F5E)",
+];
+
+function AliranSection({
+  sankeyData,
+  isLoading,
+}: {
+  sankeyData?: SankeyDto;
+  isLoading?: boolean;
+}) {
+  const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
+  const incomeBars = sankeyData ? sankeyToFlowBars(sankeyData, "income") : [];
+  const expenseBars = sankeyData ? sankeyToFlowBars(sankeyData, "expense") : [];
+
+  const now = new Date();
+  const bulan = now.toLocaleDateString("id-ID", {
+    month: "long",
+    year: "numeric",
+  });
+
   return (
-    <div className="space-y-3.5">
+    <div className={"space-y-3.5 " + loadingClass}>
       <div className="text-[15px] font-bold">Laporan Aliran Dana</div>
-      <SectionCard title="Sankey Aliran Dana — April 2025">
-        <div className="flex flex-col gap-3.5">
-          <div>
-            <div className="mb-2 text-[11px] font-bold text-success">
-              SUMBER DANA MASUK
+      <SectionCard title={`Aliran Dana — ${bulan}`}>
+        {sankeyData && (incomeBars.length > 0 || expenseBars.length > 0) ? (
+          <div className="flex flex-col gap-3.5">
+            <div>
+              <div className="mb-2 text-[11px] font-bold text-success">
+                SUMBER DANA MASUK
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {incomeBars.map((b, i) => (
+                  <FlowBar
+                    key={b.label}
+                    width={`${b.widthPct}%`}
+                    grad={
+                      FLOW_GRADS_INCOME[i % FLOW_GRADS_INCOME.length] ??
+                      FLOW_GRADS_INCOME[0]!
+                    }
+                    label={b.label}
+                    amount={formatJuta(b.amount)}
+                  />
+                ))}
+              </div>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <FlowBar
-                width="70%"
-                grad="linear-gradient(90deg,var(--success),#34D399)"
-                label="Gaji"
-                amount="Rp 18 jt"
-              />
-              <FlowBar
-                width="32%"
-                grad="linear-gradient(90deg,#8B5CF6,#A78BFA)"
-                label="Dividen"
-                amount="Rp 5,15 jt"
-              />
-              <FlowBar
-                width="20%"
-                grad="linear-gradient(90deg,#06B6D4,#22D3EE)"
-                label="Bunga"
-                amount="Rp 2,7 jt"
-              />
+            <div className="text-center text-[18px] text-muted-foreground">
+              ⬇
             </div>
-          </div>
-          <div className="text-center text-[18px] text-muted-foreground">⬇</div>
-          <div>
-            <div className="mb-2 text-[11px] font-bold text-destructive">
-              ALOKASI DANA KELUAR
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <FlowBar
-                width="44%"
-                grad="linear-gradient(90deg,#4F46E5,#6366F1)"
-                label="Kebutuhan"
-                amount="Rp 8,07 jt"
-              />
-              <FlowBar
-                width="28%"
-                grad="linear-gradient(90deg,#10B981,#34D399)"
-                label="Gaya Hidup"
-                amount="Rp 4,58 jt"
-              />
-              <FlowBar
-                width="42%"
-                grad="linear-gradient(90deg,#F59E0B,#FBBF24)"
-                label="Tabungan & Investasi"
-                amount="Rp 7,51 jt"
-              />
+            <div>
+              <div className="mb-2 text-[11px] font-bold text-destructive">
+                ALOKASI DANA KELUAR
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {expenseBars.map((b, i) => (
+                  <FlowBar
+                    key={b.label}
+                    width={`${b.widthPct}%`}
+                    grad={
+                      FLOW_GRADS_EXPENSE[i % FLOW_GRADS_EXPENSE.length] ??
+                      FLOW_GRADS_EXPENSE[0]!
+                    }
+                    label={b.label}
+                    amount={formatJuta(b.amount)}
+                  />
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="py-4 text-center text-[12px] text-muted-foreground">
+            Belum ada data aliran dana bulan ini
+          </div>
+        )}
       </SectionCard>
     </div>
   );
@@ -1018,11 +1024,22 @@ function StatementRow({
   );
 }
 
-function PnlSection() {
+function PnlSection({ pnl, isLoading }: { pnl?: PnlDto; isLoading?: boolean }) {
+  const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
+  const now = new Date();
+  const bulan = now.toLocaleDateString("id-ID", {
+    month: "long",
+    year: "numeric",
+  });
+  const netMargin =
+    pnl && pnl.revenue > 0
+      ? `${Math.round((pnl.netProfit / pnl.revenue) * 100 * 10) / 10}%`
+      : "—";
+
   return (
-    <div className="space-y-3.5">
+    <div className={"space-y-3.5 " + loadingClass}>
       <div className="text-[15px] font-bold">
-        Profit &amp; Loss Statement — April 2025
+        Profit &amp; Loss Statement — {bulan}
       </div>
       <SectionCard>
         <table className="w-full border-collapse text-[13px]">
@@ -1032,16 +1049,17 @@ function PnlSection() {
               className="border-b-2 border-border"
               labelClass="py-2.5 font-bold text-success"
             />
-            <StatementRow label="Gaji" value="Rp 18.000.000" indent />
-            <StatementRow
-              label="Pendapatan Investasi"
-              value="Rp 5.150.000"
-              indent
-            />
-            <StatementRow label="Pendapatan Lain" value="Rp 2.700.000" indent />
+            {pnl?.revenueBreakdown.map((item) => (
+              <StatementRow
+                key={item.categoryName}
+                label={item.categoryName}
+                value={formatRupiah(item.amount)}
+                indent
+              />
+            ))}
             <StatementRow
               label="Total Pendapatan"
-              value="Rp 25.850.000"
+              value={pnl ? formatRupiah(pnl.revenue) : "Rp —"}
               className="border-b border-border"
               labelClass="py-2 font-bold"
               valueClass="font-extrabold text-success"
@@ -1051,27 +1069,36 @@ function PnlSection() {
               className="border-b-2 border-border"
               labelClass="py-2.5 font-bold text-destructive"
             />
-            <StatementRow label="Kebutuhan Pokok" value="Rp 8.069.600" indent />
-            <StatementRow label="Gaya Hidup" value="Rp 4.585.000" indent />
-            <StatementRow label="Transportasi" value="Rp 2.200.000" indent />
-            <StatementRow label="Lainnya" value="Rp 3.485.400" indent />
+            {pnl?.expenseBreakdown.map((item) => (
+              <StatementRow
+                key={item.categoryName}
+                label={item.categoryName}
+                value={formatRupiah(item.amount)}
+                indent
+              />
+            ))}
             <StatementRow
               label="Total Beban"
-              value="Rp 18.340.000"
+              value={pnl ? formatRupiah(pnl.expenses) : "Rp —"}
               className="border-b border-border"
               labelClass="py-2 font-bold"
               valueClass="font-extrabold text-destructive"
             />
             <StatementRow
               label="NET PROFIT"
-              value="Rp 7.510.000"
+              value={pnl ? formatRupiah(pnl.netProfit) : "Rp —"}
               className="border-t-2 border-primary"
               labelClass="py-3 text-[15px] font-extrabold"
-              valueClass="text-[16px] font-black text-success"
+              valueClass={
+                "text-[16px] font-black " +
+                ((pnl?.netProfit ?? 0) >= 0
+                  ? "text-success"
+                  : "text-destructive")
+              }
             />
             <StatementRow
               label="Net Margin"
-              value="29,1%"
+              value={netMargin}
               labelClass="py-1 text-[11px] text-muted-foreground"
               valueClass="text-[11px] text-muted-foreground"
             />
@@ -1084,31 +1111,55 @@ function PnlSection() {
 
 /* ───────────────────────── Section: Balance Sheet ───────────────────────── */
 
-function BalanceSection() {
+function BalanceSection({
+  balanceSheet,
+  isLoading,
+}: {
+  balanceSheet?: BalanceSheetDto;
+  isLoading?: boolean;
+}) {
+  const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
+  const asOf = balanceSheet
+    ? new Date(balanceSheet.asOfDate).toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "—";
+  const debtRatio =
+    balanceSheet && balanceSheet.totalAssets > 0
+      ? `${Math.round((balanceSheet.totalLiabilities / balanceSheet.totalAssets) * 100 * 10) / 10}%`
+      : "—";
+
   return (
-    <div className="space-y-3.5">
-      <div className="text-[15px] font-bold">
-        Balance Sheet — Per 30 April 2025
-      </div>
+    <div className={"space-y-3.5 " + loadingClass}>
+      <div className="text-[15px] font-bold">Balance Sheet — Per {asOf}</div>
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
         <SectionCard title={<span className="text-success">ASET</span>}>
           <table className="w-full border-collapse text-[12.5px]">
             <tbody>
-              <StatementRow
-                label="Aset Lancar"
-                labelClass="py-1.5 font-bold text-muted-foreground"
-              />
-              <StatementRow label="Kas & Setara Kas" value="339,45 jt" indent />
-              <StatementRow label="Investasi Likuid" value="577,20 jt" indent />
-              <StatementRow
-                label="Aset Tetap"
-                labelClass="py-1.5 font-bold text-muted-foreground"
-              />
-              <StatementRow label="Properti" value="200,00 jt" indent />
-              <StatementRow label="Kendaraan & Lain" value="52,30 jt" indent />
+              {balanceSheet?.assets.map((group) => (
+                <>
+                  <StatementRow
+                    key={`g-${group.category}`}
+                    label={group.category}
+                    labelClass="py-1.5 font-bold text-muted-foreground"
+                  />
+                  {group.items.map((item) => (
+                    <StatementRow
+                      key={item.name}
+                      label={item.name}
+                      value={formatJuta(item.amount)}
+                      indent
+                    />
+                  ))}
+                </>
+              ))}
               <StatementRow
                 label="Total Aset"
-                value="1.168,95 jt"
+                value={
+                  balanceSheet ? formatJuta(balanceSheet.totalAssets) : "—"
+                }
                 className="border-t-2 border-success"
                 labelClass="py-2 font-extrabold"
                 valueClass="font-extrabold text-success"
@@ -1127,11 +1178,29 @@ function BalanceSection() {
                 label="Liabilitas"
                 labelClass="py-1.5 font-bold text-muted-foreground"
               />
-              <StatementRow label="Kartu Kredit" value="15,17 jt" indent />
-              <StatementRow label="Pinjaman" value="25,00 jt" indent />
+              {balanceSheet?.liabilities.map((group) => (
+                <>
+                  <StatementRow
+                    key={`g-${group.category}`}
+                    label={group.category}
+                    labelClass="py-1 text-[11px] text-muted-foreground"
+                    indent
+                  />
+                  {group.items.map((item) => (
+                    <StatementRow
+                      key={item.name}
+                      label={item.name}
+                      value={formatJuta(item.amount)}
+                      indent
+                    />
+                  ))}
+                </>
+              ))}
               <StatementRow
                 label="Total Liabilitas"
-                value="40,17 jt"
+                value={
+                  balanceSheet ? formatJuta(balanceSheet.totalLiabilities) : "—"
+                }
                 className="border-b border-border"
                 labelClass="py-1.5 font-bold"
                 valueClass="font-bold text-destructive"
@@ -1140,10 +1209,16 @@ function BalanceSection() {
                 label="Ekuitas"
                 labelClass="py-1.5 font-bold text-muted-foreground"
               />
-              <StatementRow label="Net Worth" value="1.128,78 jt" indent />
+              <StatementRow
+                label="Net Worth"
+                value={balanceSheet ? formatJuta(balanceSheet.netWorth) : "—"}
+                indent
+              />
               <StatementRow
                 label="Total L + E"
-                value="1.168,95 jt"
+                value={
+                  balanceSheet ? formatJuta(balanceSheet.totalAssets) : "—"
+                }
                 className="border-t-2 border-primary"
                 labelClass="py-2 font-extrabold"
                 valueClass="font-extrabold text-primary"
@@ -1152,30 +1227,44 @@ function BalanceSection() {
           </table>
         </SectionCard>
       </div>
-      <div className="flex items-start gap-3 rounded-[12px] border border-primary/20 bg-accent p-3.5">
-        <div className="text-[22px]">✅</div>
-        <div>
-          <div className="text-[13px] font-bold text-primary-strong">
-            Balance Sheet Seimbang
-          </div>
-          <div className="text-[12px] text-muted-foreground">
-            Total Aset = Total Liabilitas + Ekuitas. Debt-to-Asset ratio 3,2%
-            (sangat sehat).
+      {balanceSheet && (
+        <div className="flex items-start gap-3 rounded-[12px] border border-primary/20 bg-accent p-3.5">
+          <div className="text-[22px]">✅</div>
+          <div>
+            <div className="text-[13px] font-bold text-primary-strong">
+              Balance Sheet Seimbang
+            </div>
+            <div className="text-[12px] text-muted-foreground">
+              Total Aset = Total Liabilitas + Ekuitas. Debt-to-Asset ratio{" "}
+              {debtRatio}.
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
 /* ───────────────────────── Section: Cashflow ───────────────────────── */
 
-function CashflowSection() {
+function CashflowSection({
+  cashflow,
+  isLoading,
+}: {
+  cashflow?: CashflowStatementDto;
+  isLoading?: boolean;
+}) {
+  const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
+  const now = new Date();
+  const bulan = now.toLocaleDateString("id-ID", {
+    month: "long",
+    year: "numeric",
+  });
+  const fmt = (n: number) => `${n >= 0 ? "+" : ""}${formatRupiah(Math.abs(n))}`;
+
   return (
-    <div className="space-y-3.5">
-      <div className="text-[15px] font-bold">
-        Cashflow Statement — April 2025
-      </div>
+    <div className={"space-y-3.5 " + loadingClass}>
+      <div className="text-[15px] font-bold">Cashflow Statement — {bulan}</div>
       <SectionCard>
         <table className="w-full border-collapse text-[13px]">
           <tbody>
@@ -1185,23 +1274,32 @@ function CashflowSection() {
               labelClass="py-2.5 font-bold text-primary"
             />
             <StatementRow
-              label="Penerimaan Gaji"
-              value="+18.000.000"
+              label="Total Penerimaan"
+              value={cashflow ? fmt(cashflow.operatingInflows) : "Rp —"}
               indent
               valueColor="var(--success)"
             />
             <StatementRow
-              label="Pengeluaran Operasional"
-              value="-15.340.000"
+              label="Total Pengeluaran"
+              value={
+                cashflow
+                  ? `-${formatRupiah(cashflow.operatingOutflows)}`
+                  : "Rp —"
+              }
               indent
               valueColor="var(--destructive)"
             />
             <StatementRow
               label="Net Operasi"
-              value="+2.660.000"
+              value={cashflow ? fmt(cashflow.netOperating) : "Rp —"}
               className="border-b border-border"
               labelClass="py-2 font-bold"
-              valueClass="font-extrabold text-success"
+              valueClass={
+                "font-extrabold " +
+                ((cashflow?.netOperating ?? 0) >= 0
+                  ? "text-success"
+                  : "text-destructive")
+              }
             />
             <StatementRow
               label="ARUS KAS INVESTASI"
@@ -1209,41 +1307,35 @@ function CashflowSection() {
               labelClass="py-2.5 font-bold text-brand-purple"
             />
             <StatementRow
-              label="Dividen & Bunga"
-              value="+7.850.000"
-              indent
-              valueColor="var(--success)"
-            />
-            <StatementRow
-              label="Pembelian Investasi"
-              value="-3.000.000"
-              indent
-              valueColor="var(--destructive)"
-            />
-            <StatementRow
               label="Net Investasi"
-              value="+4.850.000"
+              value={cashflow ? fmt(cashflow.netInvesting) : "Rp —"}
               className="border-b border-border"
               labelClass="py-2 font-bold"
-              valueClass="font-extrabold text-success"
+              valueClass="font-extrabold text-muted-foreground"
             />
             <StatementRow
-              label="ARUS KAS PENDANAAN"
-              className="border-b-2 border-border"
-              labelClass="py-2.5 font-bold text-warning"
-            />
-            <StatementRow
-              label="Pembayaran Cicilan"
-              value="-3.000.000"
+              label="Saldo Awal"
+              value={cashflow ? formatRupiah(cashflow.openingBalance) : "Rp —"}
               indent
-              valueColor="var(--destructive)"
+              valueColor="var(--muted-foreground)"
+            />
+            <StatementRow
+              label="Saldo Akhir"
+              value={cashflow ? formatRupiah(cashflow.closingBalance) : "Rp —"}
+              indent
+              valueColor="var(--muted-foreground)"
             />
             <StatementRow
               label="NET CASHFLOW"
-              value="+4.510.000"
+              value={cashflow ? fmt(cashflow.netChange) : "Rp —"}
               className="border-t-2 border-primary"
               labelClass="py-3 text-[15px] font-extrabold"
-              valueClass="text-[16px] font-black text-success"
+              valueClass={
+                "text-[16px] font-black " +
+                ((cashflow?.netChange ?? 0) >= 0
+                  ? "text-success"
+                  : "text-destructive")
+              }
             />
           </tbody>
         </table>
@@ -1306,59 +1398,30 @@ function KasSection({
         )}
       </SectionCard>
       <SectionCard title="Sumber Pemasukan">
-        <ActItem
-          icon="💼"
-          iconBg="#DCFCE7"
-          name="Gaji"
-          right={
-            <>
-              <div className="text-[13px] font-bold text-success">
-                Rp 18.000.000
-              </div>
-              <StatusBadge variant="success">69,6%</StatusBadge>
-            </>
-          }
-        />
-        <ActItem
-          icon="📊"
-          iconBg="#EDE9FE"
-          name="Dividen & Return"
-          right={
-            <>
-              <div className="text-[13px] font-bold text-success">
-                Rp 5.150.000
-              </div>
-              <StatusBadge variant="purple">19,9%</StatusBadge>
-            </>
-          }
-        />
-        <ActItem
-          icon="🏦"
-          iconBg="#DBEAFE"
-          name="Bunga Tabungan"
-          right={
-            <>
-              <div className="text-[13px] font-bold text-success">
-                Rp 1.500.000
-              </div>
-              <StatusBadge variant="info">5,8%</StatusBadge>
-            </>
-          }
-        />
-        <ActItem
-          icon="🎁"
-          iconBg="#FEF9C3"
-          name="Lainnya"
-          right={
-            <>
-              <div className="text-[13px] font-bold text-success">
-                Rp 1.200.000
-              </div>
-              <StatusBadge variant="warning">4,6%</StatusBadge>
-            </>
-          }
-          last
-        />
+        {summary?.topIncomeCategories &&
+        summary.topIncomeCategories.length > 0 ? (
+          summary.topIncomeCategories.map((cat, i) => (
+            <ActItem
+              key={cat.categoryName}
+              icon="💼"
+              iconBg="#DCFCE7"
+              name={cat.categoryName}
+              right={
+                <>
+                  <div className="text-[13px] font-bold text-success">
+                    {formatRupiah(cat.amount)}
+                  </div>
+                  <StatusBadge variant="success">{cat.percentage}%</StatusBadge>
+                </>
+              }
+              last={i === summary.topIncomeCategories.length - 1}
+            />
+          ))
+        ) : (
+          <div className="py-4 text-center text-[12px] text-muted-foreground">
+            Belum ada data pemasukan
+          </div>
+        )}
       </SectionCard>
     </div>
   );
@@ -1441,80 +1504,86 @@ function InvSection() {
 
 /* ───────────────────────── Section: Aset & Liabilitas ───────────────────────── */
 
-const RASIO = [
-  {
-    label: "Debt-to-Asset Ratio",
-    value: "3,2%",
-    valueColor: "var(--success)",
-    hint: "Sangat Aman (<30%)",
-    hintColor: "var(--success)",
-  },
-  {
-    label: "Liquid Asset Ratio",
-    value: "27%",
-    valueColor: "var(--primary)",
-    hint: "Baik (>20%)",
-    hintColor: "var(--primary)",
-  },
-  {
-    label: "Emergency Fund Ratio",
-    value: "3,7x",
-    valueColor: "var(--warning)",
-    hint: "Target: 6x (perlu boost)",
-    hintColor: "var(--warning)",
-  },
-  {
-    label: "Net Worth Growth",
-    value: "8,45%",
-    valueColor: "var(--success)",
-    hint: "▲ vs bulan lalu",
-    hintColor: "var(--success)",
-  },
-];
+function AslSection({
+  balanceSheet,
+  isLoading,
+}: {
+  balanceSheet?: BalanceSheetDto;
+  isLoading?: boolean;
+}) {
+  const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
+  const debtRatio =
+    balanceSheet && balanceSheet.totalAssets > 0
+      ? Math.round(
+          (balanceSheet.totalLiabilities / balanceSheet.totalAssets) * 100 * 10,
+        ) / 10
+      : null;
 
-function AslSection() {
   return (
-    <div className="space-y-3.5">
+    <div className={"space-y-3.5 " + loadingClass}>
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
         <div className="rounded-[12px] border bg-card p-4">
           <div className="mb-1 text-[11px] text-muted-foreground">
             Total Aset
           </div>
           <div className="text-[22px] font-black text-success">
-            Rp 1.168.950.000
+            {balanceSheet ? formatRupiah(balanceSheet.totalAssets) : "Rp —"}
           </div>
-          <div className="mt-1 text-[12px] text-success">▲ 8,45% bulan ini</div>
         </div>
         <div className="rounded-[12px] border bg-card p-4">
           <div className="mb-1 text-[11px] text-muted-foreground">
             Total Liabilitas
           </div>
           <div className="text-[22px] font-black text-destructive">
-            -Rp 40.170.000
-          </div>
-          <div className="mt-1 text-[12px] text-success">
-            ▼ Turun 1,08% (berkurang)
+            {balanceSheet
+              ? `-${formatRupiah(balanceSheet.totalLiabilities)}`
+              : "Rp —"}
           </div>
         </div>
       </div>
       <SectionCard title="Rasio Keuangan">
         <div className="grid grid-cols-2 gap-3">
-          {RASIO.map((r) => (
-            <div key={r.label} className="rounded-md bg-muted p-3">
-              <div className="text-[10.5px] text-muted-foreground">
-                {r.label}
-              </div>
-              <div
-                className="text-[20px] font-extrabold"
-                style={{ color: r.valueColor }}
-              >
-                {r.value}
-              </div>
-              <div className="text-[10.5px]" style={{ color: r.hintColor }}>
-                {r.hint}
-              </div>
+          <div className="rounded-md bg-muted p-3">
+            <div className="text-[10.5px] text-muted-foreground">
+              Debt-to-Asset Ratio
             </div>
-          ))}
+            <div
+              className="text-[20px] font-extrabold"
+              style={{
+                color:
+                  debtRatio !== null && debtRatio < 30
+                    ? "var(--success)"
+                    : "var(--warning)",
+              }}
+            >
+              {debtRatio !== null ? `${debtRatio}%` : "—"}
+            </div>
+            <div
+              className="text-[10.5px]"
+              style={{
+                color:
+                  debtRatio !== null && debtRatio < 30
+                    ? "var(--success)"
+                    : "var(--warning)",
+              }}
+            >
+              {debtRatio !== null && debtRatio < 30
+                ? "Sangat Aman (<30%)"
+                : "Perlu Perhatian"}
+            </div>
+          </div>
+          <div className="rounded-md bg-muted p-3">
+            <div className="text-[10.5px] text-muted-foreground">Net Worth</div>
+            <div
+              className="text-[20px] font-extrabold"
+              style={{ color: "var(--success)" }}
+            >
+              {balanceSheet ? formatJuta(balanceSheet.netWorth) : "—"}
+            </div>
+            <div className="text-[10.5px]" style={{ color: "var(--success)" }}>
+              Aset - Liabilitas
+            </div>
+          </div>
         </div>
       </SectionCard>
     </div>
@@ -1854,17 +1923,105 @@ function LaporanInner() {
   const accessToken = session?.accessToken;
 
   const SUMMARY_MONTHS = 6;
+  const enabled = Boolean(familyGroupId) && Boolean(session?.accessToken);
+  const token = session?.accessToken;
+
   const { data: summary, isLoading: isSummaryLoading } =
     useQuery<ReportSummaryDto>({
       queryKey: queryKeys.reports.summary(familyGroupId, SUMMARY_MONTHS),
       queryFn: () =>
         apiFetch<ReportSummaryDto>(
           `/family-groups/${familyGroupId}/reports/summary?months=${SUMMARY_MONTHS}`,
-          { token: session?.accessToken },
+          { token },
         ),
-      enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
+      enabled,
       staleTime: 60_000,
     });
+
+  const { startDate: monthStart, endDate: monthEnd } = getMonthDateRange();
+  const { startDate: todayStart, endDate: todayEnd } = getTodayDateRange();
+
+  const { data: bankReport, isLoading: isBankLoading } =
+    useQuery<BankReportDto>({
+      queryKey: queryKeys.reports.bank(familyGroupId, monthStart, monthEnd),
+      queryFn: () =>
+        apiFetch<BankReportDto>(
+          `/family-groups/${familyGroupId}/reports/bank?startDate=${monthStart}&endDate=${monthEnd}`,
+          { token },
+        ),
+      enabled: enabled && tab === "rbank",
+      staleTime: 60_000,
+    });
+
+  const { data: detailReport, isLoading: isDetailLoading } =
+    useQuery<DetailReportDto>({
+      queryKey: queryKeys.reports.detail(familyGroupId, monthStart, monthEnd),
+      queryFn: () =>
+        apiFetch<DetailReportDto>(
+          `/family-groups/${familyGroupId}/reports/detail?startDate=${monthStart}&endDate=${monthEnd}`,
+          { token },
+        ),
+      enabled: enabled && tab === "rdetail",
+      staleTime: 60_000,
+    });
+
+  const { data: dailyReport, isLoading: isDailyLoading } =
+    useQuery<DetailReportDto>({
+      queryKey: queryKeys.reports.detail(familyGroupId, todayStart, todayEnd),
+      queryFn: () =>
+        apiFetch<DetailReportDto>(
+          `/family-groups/${familyGroupId}/reports/detail?startDate=${todayStart}&endDate=${todayEnd}`,
+          { token },
+        ),
+      enabled: enabled && tab === "rharian",
+      staleTime: 30_000,
+    });
+
+  const { data: pnl, isLoading: isPnlLoading } = useQuery<PnlDto>({
+    queryKey: queryKeys.reports.pnl(familyGroupId, monthStart, monthEnd),
+    queryFn: () =>
+      apiFetch<PnlDto>(
+        `/family-groups/${familyGroupId}/reports/pnl?startDate=${monthStart}&endDate=${monthEnd}`,
+        { token },
+      ),
+    enabled: enabled && tab === "rpnl",
+    staleTime: 60_000,
+  });
+
+  const { data: balanceSheet, isLoading: isBalanceLoading } =
+    useQuery<BalanceSheetDto>({
+      queryKey: queryKeys.reports.balanceSheet(familyGroupId, monthEnd),
+      queryFn: () =>
+        apiFetch<BalanceSheetDto>(
+          `/family-groups/${familyGroupId}/reports/balance-sheet?asOfDate=${monthEnd}`,
+          { token },
+        ),
+      enabled: enabled && (tab === "rbalance" || tab === "rasl"),
+      staleTime: 60_000,
+    });
+
+  const { data: cashflow, isLoading: isCashflowLoading } =
+    useQuery<CashflowStatementDto>({
+      queryKey: queryKeys.reports.cashflow(familyGroupId, monthStart, monthEnd),
+      queryFn: () =>
+        apiFetch<CashflowStatementDto>(
+          `/family-groups/${familyGroupId}/reports/cashflow?startDate=${monthStart}&endDate=${monthEnd}`,
+          { token },
+        ),
+      enabled: enabled && tab === "rcashflow",
+      staleTime: 60_000,
+    });
+
+  const { data: sankeyData, isLoading: isSankeyLoading } = useQuery<SankeyDto>({
+    queryKey: queryKeys.reports.sankey(familyGroupId, monthStart, monthEnd),
+    queryFn: () =>
+      apiFetch<SankeyDto>(
+        `/family-groups/${familyGroupId}/reports/sankey?startDate=${monthStart}&endDate=${monthEnd}`,
+        { token },
+      ),
+    enabled: enabled && tab === "raliran",
+    staleTime: 60_000,
+  });
 
   const go = (id: string) =>
     router.push("/laporan?tab=" + id, { scroll: false });
@@ -1872,7 +2029,9 @@ function LaporanInner() {
   function renderSection() {
     switch (tab) {
       case "rharian":
-        return <HarianSection />;
+        return (
+          <HarianSection dailyReport={dailyReport} isLoading={isDailyLoading} />
+        );
       case "rbulanan":
         return (
           <BulananSection summary={summary} isLoading={isSummaryLoading} />
@@ -1882,23 +2041,44 @@ function LaporanInner() {
       case "rfamily":
         return <FamilySection />;
       case "rbank":
-        return <BankSection />;
+        return (
+          <BankSection bankReport={bankReport} isLoading={isBankLoading} />
+        );
       case "rdetail":
-        return <DetailSection />;
+        return (
+          <DetailSection
+            detailReport={detailReport}
+            isLoading={isDetailLoading}
+          />
+        );
       case "raliran":
-        return <AliranSection />;
+        return (
+          <AliranSection sankeyData={sankeyData} isLoading={isSankeyLoading} />
+        );
       case "rpnl":
-        return <PnlSection />;
+        return <PnlSection pnl={pnl} isLoading={isPnlLoading} />;
       case "rbalance":
-        return <BalanceSection />;
+        return (
+          <BalanceSection
+            balanceSheet={balanceSheet}
+            isLoading={isBalanceLoading}
+          />
+        );
       case "rcashflow":
-        return <CashflowSection />;
+        return (
+          <CashflowSection cashflow={cashflow} isLoading={isCashflowLoading} />
+        );
       case "rkas":
         return <KasSection summary={summary} isLoading={isSummaryLoading} />;
       case "rinv":
         return <InvSection />;
       case "rasl":
-        return <AslSection />;
+        return (
+          <AslSection
+            balanceSheet={balanceSheet}
+            isLoading={isBalanceLoading}
+          />
+        );
       case "rperf":
         return <PerfSection />;
       case "rpajak":
