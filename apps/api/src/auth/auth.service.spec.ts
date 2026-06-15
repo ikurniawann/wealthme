@@ -22,6 +22,11 @@ const mockPrisma = {
     create: jest.fn(),
     update: jest.fn(),
   },
+  familyGroup: { create: jest.fn() },
+  member: { create: jest.fn() },
+  category: { createMany: jest.fn() },
+  account: { create: jest.fn() },
+  $transaction: jest.fn(),
 };
 
 const mockJwt = {
@@ -50,7 +55,15 @@ describe("AuthService", () => {
   let service: AuthService;
 
   beforeEach(async () => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    // Default implementations for register()'s $transaction callback
+    mockPrisma.$transaction.mockImplementation(
+      async (fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma),
+    );
+    mockPrisma.familyGroup.create.mockResolvedValue({ id: "fg-1" });
+    mockPrisma.member.create.mockResolvedValue({});
+    mockPrisma.category.createMany.mockResolvedValue({ count: 12 });
+    mockPrisma.account.create.mockResolvedValue({});
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -234,7 +247,7 @@ describe("AuthService", () => {
       const result = await service.getMe("user-1");
 
       // Assert
-      expect(result).toEqual(profile);
+      expect(result).toEqual({ ...profile, familyGroupId: "fg-1" });
       expect(result).not.toHaveProperty("passwordHash");
       expect(mockPrisma.user.findUniqueOrThrow).toHaveBeenCalledWith({
         where: { id: "user-1" },
@@ -272,6 +285,57 @@ describe("AuthService", () => {
 
       // Assert
       expect(result.memberships).toEqual([]);
+    });
+  });
+
+  describe("updateProfile()", () => {
+    const baseUser = {
+      id: "user-1",
+      email: "user@example.com",
+      name: "Jane Doe",
+      avatarInitials: "JD",
+      createdAt: new Date("2024-01-01"),
+      memberships: [{ id: "m-1", familyGroupId: "fg-1", role: "owner" }],
+    };
+
+    it("updates name and returns profile with familyGroupId", async () => {
+      // Arrange
+      const updated = { ...baseUser, name: "New Name", avatarInitials: "NN" };
+      mockPrisma.user.update.mockResolvedValue(updated);
+
+      // Act
+      const result = await service.updateProfile("user-1", {
+        name: "New Name",
+      });
+
+      // Assert
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "user-1" },
+          data: { name: "New Name" },
+        }),
+      );
+      expect(result.name).toBe("New Name");
+      expect(result.familyGroupId).toBe("fg-1");
+    });
+
+    it("omits undefined fields from Prisma update data", async () => {
+      // Arrange — only avatarInitials provided
+      const updated = { ...baseUser, avatarInitials: "JX", memberships: [] };
+      mockPrisma.user.update.mockResolvedValue(updated);
+
+      // Act
+      const result = await service.updateProfile("user-1", {
+        avatarInitials: "JX",
+      });
+
+      // Assert — name must NOT appear in data (dto.name is undefined)
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { avatarInitials: "JX" },
+        }),
+      );
+      expect(result.familyGroupId).toBeNull();
     });
   });
 

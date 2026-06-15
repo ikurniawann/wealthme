@@ -2,7 +2,8 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-compat";
+import { authClient } from "@/lib/auth-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -99,7 +100,7 @@ const SUBPAGE_TITLES: Record<SubPageId, string> = {
   bantuan: "Pusat Bantuan",
   hubungi: "Hubungi Kami",
   tentang: "Tentang Aplikasi",
-  family: "Arsandi Family",
+  family: "Family Group",
 };
 
 /* ─────────────────── Shared field / row primitives ─────────────────── */
@@ -1598,7 +1599,9 @@ export default function AkunPage() {
       </SectionCard>
 
       <button
-        onClick={() => toast("Keluar dari akun...")}
+        onClick={() => {
+          void authClient.signOut().then(() => router.push("/login"));
+        }}
         className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-[#FEE2E2] bg-background px-4 py-2.5 text-[13.5px] font-semibold text-destructive"
       >
         <LogOut className="size-4" /> Keluar dari Akun
@@ -1617,7 +1620,11 @@ export default function AkunPage() {
         >
           <div className="border-b px-5 py-4">
             <SheetTitle className="text-[17px] font-extrabold">
-              {subpage ? SUBPAGE_TITLES[subpage] : ""}
+              {subpage === "family"
+                ? (primaryGroup?.name ?? "Family Group")
+                : subpage
+                  ? SUBPAGE_TITLES[subpage]
+                  : ""}
             </SheetTitle>
           </div>
           <div className="p-5">{subpage && renderBody(subpage)}</div>
