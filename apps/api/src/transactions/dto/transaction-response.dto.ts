@@ -26,6 +26,12 @@ export class TransactionResponseDto {
   @ApiPropertyOptional({ type: String, nullable: true })
   description!: string | null;
 
+  @ApiPropertyOptional({ type: String, nullable: true })
+  categoryName!: string | null;
+
+  @ApiProperty({ type: String })
+  accountName!: string;
+
   @ApiProperty({ type: String, format: "date-time" })
   occurredAt!: string;
 

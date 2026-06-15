@@ -24,6 +24,8 @@ export const TransactionDtoSchema = z.object({
   amount: z.string(),
   type: TransactionTypeSchema,
   description: z.string().nullable(),
+  categoryName: z.string().nullable(),
+  accountName: z.string(),
   occurredAt: z.string(),
   createdAt: z.string(),
 });
