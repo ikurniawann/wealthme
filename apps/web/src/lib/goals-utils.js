@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.parseGoalFormValues = parseGoalFormValues;
+exports.buildGoalBody = buildGoalBody;
 
 function parseAmount(raw) {
   return parseInt(raw.replace(/\./g, "").replace(/\D/g, "") || "0", 10);
@@ -18,4 +19,8 @@ function parseGoalFormValues(values) {
   if (values.autodebit) payload.autoDebitAmount = parseAmount(values.autodebit);
 
   return payload;
+}
+
+function buildGoalBody(values) {
+  return JSON.stringify(parseGoalFormValues(values));
 }

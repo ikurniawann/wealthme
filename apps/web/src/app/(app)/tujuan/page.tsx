@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
-import { parseGoalFormValues } from "@/lib/goals-utils";
+import { buildGoalBody } from "@/lib/goals-utils";
 import { StatusBadge, ProgressBar } from "@/components/wm";
 import { Button } from "@/components/ui/button";
 import { CrudModal, ConfirmDeleteDialog } from "@/components/crud";
@@ -246,18 +246,18 @@ export default function TujuanPage() {
     if (!familyGroupId || !token) return;
     setSubmitting(true);
     try {
-      const payload = parseGoalFormValues(values);
+      const body = buildGoalBody(values);
       if (mode === "edit" && editingGoalId) {
         await apiFetch(
           `/family-groups/${familyGroupId}/goals/${editingGoalId}`,
-          { token, method: "PATCH", body: payload },
+          { token, method: "PATCH", body },
         );
         toast.success("Tujuan berhasil diperbarui!");
       } else {
         await apiFetch(`/family-groups/${familyGroupId}/goals`, {
           token,
           method: "POST",
-          body: payload,
+          body,
         });
         toast.success("Tujuan berhasil ditambahkan!");
       }

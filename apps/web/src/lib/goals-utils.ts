@@ -19,3 +19,7 @@ export function parseGoalFormValues(
 
   return payload;
 }
+
+export function buildGoalBody(values: Record<string, string>): string {
+  return JSON.stringify(parseGoalFormValues(values));
+}
