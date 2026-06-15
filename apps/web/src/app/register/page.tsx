@@ -5,9 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, Lock, Mail, User, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { signIn } from "next-auth/react";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+import { authClient } from "@/lib/auth-client";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -56,41 +54,27 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim(),
-          password,
-          name: name.trim(),
-        }),
+      const result = await authClient.signUp.email({
+        email: email.trim(),
+        password,
+        name: name.trim(),
+        callbackURL: "/beranda",
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        if (response.status === 409) {
+      if (result.error) {
+        if (
+          result.error.status === 422 ||
+          result.error.message?.toLowerCase().includes("already")
+        ) {
           toast.error("Email sudah terdaftar");
         } else {
-          toast.error(error.message ?? "Registrasi gagal");
+          toast.error(result.error.message ?? "Registrasi gagal");
         }
         return;
       }
 
       toast.success("Akun berhasil dibuat! Masuk sekarang.");
-
-      // Auto-login after successful registration
-      const result = await signIn("credentials", {
-        email: email.trim(),
-        password,
-        redirect: false,
-      });
-
-      if (result?.ok) {
-        router.push("/beranda");
-      } else {
-        // If auto-login fails, redirect to login page
-        router.push("/login");
-      }
+      router.push("/beranda");
     } catch (err) {
       toast.error(
         err instanceof Error

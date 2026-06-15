@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-compat";
 
 const CHIPS = [
   "📊 Analisa keuangan bulan ini",

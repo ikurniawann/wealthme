@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-compat";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { SectionCard, StatusBadge, ProgressBar } from "@/components/wm";

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Plus, Save } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { SectionCard, ProgressBar } from "@/components/wm";

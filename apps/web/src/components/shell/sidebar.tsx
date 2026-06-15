@@ -4,11 +4,10 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronDown, Plus } from "lucide-react";
 import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-compat";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { NAV_SECTIONS, type BadgeVariant } from "@/lib/nav";
-import { USER } from "@/lib/data";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useShell } from "./shell-context";
@@ -178,12 +177,20 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           className="flex items-center gap-2.5 rounded-md px-2 py-2.5 transition-colors hover:bg-secondary"
         >
           <div className="flex size-[34px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-brand-purple text-[13px] font-bold text-white">
-            {USER.initials}
+            {session?.user.name
+              ? session.user.name
+                  .split(" ")
+                  .slice(0, 2)
+                  .map((w) => w[0]?.toUpperCase() ?? "")
+                  .join("")
+              : "?"}
           </div>
           <div className="min-w-0">
-            <div className="truncate text-[12.5px] font-bold">{USER.name}</div>
+            <div className="truncate text-[12.5px] font-bold">
+              {session?.user.name ?? "—"}
+            </div>
             <div className="truncate text-[11px] text-muted-foreground">
-              {USER.email}
+              {session?.user.email ?? "—"}
             </div>
           </div>
         </Link>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
-import { useSession, signOut } from "next-auth/react";
+import { useSession, signOut } from "@/lib/auth-compat";
 import { useQuery } from "@tanstack/react-query";
 
 import { StatusBadge } from "@/components/wm";
@@ -163,7 +163,7 @@ export default function RekeningPage() {
   }, [session]);
 
   const token = session?.accessToken as string | undefined;
-  const familyGroupId = session?.user?.memberships?.[0]?.familyGroupId;
+  const familyGroupId = session?.familyGroupId;
 
   const {
     data: accounts,

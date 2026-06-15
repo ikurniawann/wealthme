@@ -1,9 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { JwtService } from "@nestjs/jwt";
 import { WebSocketGateway, WebSocketServer } from "@nestjs/websockets";
 
-import type { JwtPayload } from "../auth/strategies/jwt.strategy";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { PrismaService } from "../prisma/prisma.service";
+
 import type { OnGatewayConnection } from "@nestjs/websockets";
 import type { Server, Socket } from "socket.io";
 
@@ -18,7 +18,7 @@ export class PricesGateway implements OnGatewayConnection {
 
   private readonly logger = new Logger(PricesGateway.name);
 
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   handleConnection(client: Socket): void {
     const token = client.handshake.auth["token"] as string | undefined;
@@ -34,18 +34,24 @@ export class PricesGateway implements OnGatewayConnection {
       return;
     }
 
-    try {
-      this.jwtService.verify<JwtPayload>(token);
-    } catch {
-      this.logger.warn(`Client ${client.id} invalid JWT — disconnecting`);
-      client.disconnect();
-      return;
-    }
-
-    void client.join(familyGroupId);
-    this.logger.log(
-      `Client ${client.id} authenticated and joined room ${familyGroupId}`,
-    );
+    void this.prisma.baSession
+      .findUnique({ where: { token } })
+      .then((session) => {
+        if (!session || session.expiresAt < new Date()) {
+          this.logger.warn(
+            `Client ${client.id} invalid session — disconnecting`,
+          );
+          client.disconnect();
+          return;
+        }
+        void client.join(familyGroupId);
+        this.logger.log(
+          `Client ${client.id} authenticated and joined room ${familyGroupId}`,
+        );
+      })
+      .catch(() => {
+        client.disconnect();
+      });
   }
 
   broadcastPriceUpdate(

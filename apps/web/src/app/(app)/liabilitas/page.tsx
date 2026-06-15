@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Plus, X } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -467,7 +467,7 @@ export default function LiabilitasPage() {
 
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
-  const familyGroupId = session?.user?.memberships?.[0]?.familyGroupId;
+  const familyGroupId = session?.familyGroupId;
 
   const {
     data: liabilities,

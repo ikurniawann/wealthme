@@ -14,9 +14,15 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default("15m"),
   JWT_REFRESH_SECRET: z.string().min(32),
   JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
-  // Google OAuth — optional; both must be set together to enable Google login
-  GOOGLE_CLIENT_ID: z.string().min(1).optional(),
-  GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
+  // Google OAuth — optional; empty string treated as unset
+  GOOGLE_CLIENT_ID: z
+    .string()
+    .optional()
+    .transform((v) => v?.trim() || undefined),
+  GOOGLE_CLIENT_SECRET: z
+    .string()
+    .optional()
+    .transform((v) => v?.trim() || undefined),
   GOOGLE_CALLBACK_URL: z
     .string()
     .url()

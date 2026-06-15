@@ -1,7 +1,6 @@
 import { BullModule } from "@nestjs/bullmq";
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import { JwtModule } from "@nestjs/jwt";
 
 import { PrismaModule } from "../prisma/prisma.module";
 
@@ -20,13 +19,6 @@ import type { Env } from "../config/env";
   imports: [
     PrismaModule,
     ConfigModule,
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      useFactory: (config: ConfigService<Env, true>) => ({
-        secret: config.get("JWT_SECRET", { infer: true }),
-      }),
-      inject: [ConfigService],
-    }),
     BullModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService<Env, true>) => ({

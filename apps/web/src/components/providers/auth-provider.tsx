@@ -1,8 +1,9 @@
 "use client";
 
-import { signIn, signOut, useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useMemo, useRef } from "react";
+import { authClient } from "@/lib/auth-client";
 import { shouldClearCacheOnUserChange } from "@/lib/auth-session";
 
 type AuthState = {
@@ -15,30 +16,42 @@ type AuthState = {
 const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { status, data: session } = useSession();
+  const { data, isPending } = authClient.useSession();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const prevUserId = useRef<string | null>(null);
 
+  const status = isPending
+    ? "loading"
+    : data
+      ? "authenticated"
+      : "unauthenticated";
+
   useEffect(() => {
-    const currentUserId =
-      (session?.user as { id?: string } | undefined)?.id ?? null;
+    const currentUserId = data?.user.id ?? null;
     if (shouldClearCacheOnUserChange(prevUserId.current, currentUserId)) {
       queryClient.clear();
     }
     prevUserId.current = currentUserId;
-  }, [session?.user, queryClient]);
+  }, [data?.user.id, queryClient]);
 
   const value = useMemo<AuthState>(
     () => ({
       isAuthenticated: status === "authenticated",
       ready: status !== "loading",
-      login: () => signIn(),
+      login: () => {
+        router.push("/login");
+      },
       logout: () => {
         queryClient.clear();
-        void signOut({ callbackUrl: "/login" });
+        void authClient.signOut({
+          fetchOptions: {
+            onSuccess: () => router.push("/login"),
+          },
+        });
       },
     }),
-    [status, queryClient],
+    [status, queryClient, router],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
