@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 const DEMO_PASSWORD = "demo1234";
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const passwordHash = await argon2.hash(DEMO_PASSWORD, {
     type: argon2.argon2id,
   });
@@ -543,11 +543,13 @@ async function main(): Promise<void> {
   );
 }
 
-main()
-  .catch((err: unknown) => {
-    process.stderr.write(`Seed failed: ${String(err)}\n`);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+if (require.main === module) {
+  main()
+    .catch((err: unknown) => {
+      process.stderr.write(`Seed failed: ${String(err)}\n`);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}
