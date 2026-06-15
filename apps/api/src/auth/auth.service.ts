@@ -16,6 +16,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { RedisService } from "../redis/redis.service";
 
 import type { Env } from "../config/env";
+import type { ChangePasswordDto } from "./dto/change-password.dto";
 import type { LoginDto } from "./dto/login.dto";
 import type { RegisterDto } from "./dto/register.dto";
 import type { UpdateProfileDto } from "./dto/update-profile.dto";
@@ -204,6 +205,36 @@ export class AuthService {
       ...updated,
       familyGroupId: updated.memberships[0]?.familyGroupId ?? null,
     };
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, passwordHash: true },
+    });
+
+    if (!user?.passwordHash) {
+      throw new UnauthorizedException("Invalid credentials");
+    }
+
+    const valid = await argon2.verify(user.passwordHash, dto.currentPassword);
+    if (!valid) {
+      throw new UnauthorizedException("Invalid credentials");
+    }
+
+    const newHash = await argon2.hash(dto.newPassword, {
+      type: argon2.argon2id,
+    });
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: newHash },
+    });
+
+    await this.prisma.baAccount.updateMany({
+      where: { userId, providerId: "credential" },
+      data: { password: newHash },
+    });
   }
 
   async loginWithGoogle(profile: GoogleProfile): Promise<TokenPair> {
