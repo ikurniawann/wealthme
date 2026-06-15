@@ -3,16 +3,17 @@
 import { useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
+import { parseGoalFormValues } from "@/lib/goals-utils";
 import { StatusBadge, ProgressBar } from "@/components/wm";
 import { Button } from "@/components/ui/button";
 import { CrudModal, ConfirmDeleteDialog } from "@/components/crud";
-import type { CrudModalState } from "@/components/crud";
+import type { CrudModalState, CrudMode } from "@/components/crud";
 
 import type { GoalDto, GoalStatus } from "@wealthme/contracts";
 
@@ -183,9 +184,12 @@ export default function TujuanPage() {
   const { data: session } = useSession();
   const token = session?.accessToken;
   const familyGroupId = session?.familyGroupId;
+  const queryClient = useQueryClient();
 
   const [crud, setCrud] = useState<CrudModalState | null>(null);
-  const [deleteLabel, setDeleteLabel] = useState<string | null>(null);
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
+  const [deletingGoal, setDeletingGoal] = useState<GoalDto | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const {
     data: goals,
@@ -213,6 +217,7 @@ export default function TujuanPage() {
     goals?.reduce((sum, g) => sum + g.currentAmount, 0) ?? 0;
 
   function handleEdit(goal: GoalDto) {
+    setEditingGoalId(goal.id);
     setCrud({
       entity: "tujuan",
       mode: "edit",
@@ -228,8 +233,62 @@ export default function TujuanPage() {
     });
   }
 
-  function handleDelete() {
-    setDeleteLabel("Tujuan");
+  function handleCloseCrud() {
+    setCrud(null);
+    setEditingGoalId(null);
+  }
+
+  async function handleSubmit(
+    _entity: string,
+    mode: CrudMode,
+    values: Record<string, string>,
+  ) {
+    if (!familyGroupId || !token) return;
+    setSubmitting(true);
+    try {
+      const payload = parseGoalFormValues(values);
+      if (mode === "edit" && editingGoalId) {
+        await apiFetch(
+          `/family-groups/${familyGroupId}/goals/${editingGoalId}`,
+          { token, method: "PATCH", body: payload },
+        );
+        toast.success("Tujuan berhasil diperbarui!");
+      } else {
+        await apiFetch(`/family-groups/${familyGroupId}/goals`, {
+          token,
+          method: "POST",
+          body: payload,
+        });
+        toast.success("Tujuan berhasil ditambahkan!");
+      }
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.goals.all(familyGroupId),
+      });
+    } catch {
+      toast.error("Gagal menyimpan tujuan. Coba lagi.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDeleteConfirm() {
+    if (!familyGroupId || !token || !deletingGoal) return;
+    setSubmitting(true);
+    try {
+      await apiFetch(
+        `/family-groups/${familyGroupId}/goals/${deletingGoal.id}`,
+        { token, method: "DELETE" },
+      );
+      toast.success("Tujuan berhasil dihapus.");
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.goals.all(familyGroupId),
+      });
+    } catch {
+      toast.error("Gagal menghapus tujuan. Coba lagi.");
+    } finally {
+      setSubmitting(false);
+      setDeletingGoal(null);
+    }
   }
 
   return (
@@ -295,7 +354,7 @@ export default function TujuanPage() {
                 key={g.id}
                 goal={g}
                 onEdit={handleEdit}
-                onDelete={handleDelete}
+                onDelete={setDeletingGoal}
               />
             ))}
         {!isLoading && !isError && goals?.length === 0 && (
@@ -306,14 +365,15 @@ export default function TujuanPage() {
         )}
       </div>
 
-      <CrudModal state={crud} onClose={() => setCrud(null)} />
+      <CrudModal
+        state={crud}
+        onClose={handleCloseCrud}
+        onSubmit={submitting ? undefined : handleSubmit}
+      />
       <ConfirmDeleteDialog
-        label={deleteLabel}
-        onClose={() => setDeleteLabel(null)}
-        onConfirm={() => {
-          setDeleteLabel(null);
-          toast("🗑️ Tujuan dihapus.");
-        }}
+        label={deletingGoal ? `"${deletingGoal.name}"` : null}
+        onClose={() => setDeletingGoal(null)}
+        onConfirm={handleDeleteConfirm}
       />
     </div>
   );
