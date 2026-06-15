@@ -4,6 +4,7 @@ exports.categoryBreakdownToDonut = categoryBreakdownToDonut;
 exports.txTypeToBadgeVariant = txTypeToBadgeVariant;
 exports.formatJuta = formatJuta;
 exports.sankeyToFlowBars = sankeyToFlowBars;
+exports.buildInvChartData = buildInvChartData;
 exports.getMonthDateRange = getMonthDateRange;
 exports.getTodayDateRange = getTodayDateRange;
 
@@ -73,6 +74,19 @@ function sankeyToFlowBars(data, type) {
     ...b,
     widthPct: Math.round((b.amount / maxAmount) * 100),
   }));
+}
+
+function buildInvChartData(summary) {
+  if (!summary) return null;
+  const nilai = parseFloat(summary.totalCurrentValue);
+  const modal = parseFloat(summary.totalCostBasis);
+  if (nilai === 0 && modal === 0) return null;
+  const max = Math.max(nilai, modal);
+  return {
+    nilaiPct: Math.round((nilai / max) * 100),
+    modalPct: Math.round((modal / max) * 100),
+    hasReturn: nilai >= modal,
+  };
 }
 
 function getMonthDateRange() {

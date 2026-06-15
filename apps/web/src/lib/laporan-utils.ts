@@ -82,6 +82,32 @@ export function sankeyToFlowBars(
   }));
 }
 
+export type InvChartData = {
+  nilaiPct: number;
+  modalPct: number;
+  hasReturn: boolean;
+};
+
+export function buildInvChartData(
+  summary:
+    | Pick<
+        import("@wealthme/contracts").InvestmentSummaryDto,
+        "totalCurrentValue" | "totalCostBasis"
+      >
+    | undefined,
+): InvChartData | null {
+  if (!summary) return null;
+  const nilai = parseFloat(summary.totalCurrentValue);
+  const modal = parseFloat(summary.totalCostBasis);
+  if (nilai === 0 && modal === 0) return null;
+  const max = Math.max(nilai, modal);
+  return {
+    nilaiPct: Math.round((nilai / max) * 100),
+    modalPct: Math.round((modal / max) * 100),
+    hasReturn: nilai >= modal,
+  };
+}
+
 export function getMonthDateRange(): { startDate: string; endDate: string } {
   const now = new Date();
   const startDate = new Date(now.getFullYear(), now.getMonth(), 1);

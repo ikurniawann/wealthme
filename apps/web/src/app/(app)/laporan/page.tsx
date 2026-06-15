@@ -35,6 +35,7 @@ import type {
   SankeyDto,
 } from "@wealthme/contracts";
 import {
+  buildInvChartData,
   categoryBreakdownToDonut,
   formatJuta,
   getMonthDateRange,
@@ -185,6 +186,8 @@ function RingkasanSection({
     : [];
   const expenseCenterValue = summary ? formatJuta(summary.totalExpense) : "—";
 
+  const invChart = buildInvChartData(invSummary);
+
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
 
   return (
@@ -310,52 +313,63 @@ function RingkasanSection({
             )}
           </div>
           <div>
-            <svg
-              viewBox="0 0 260 80"
-              width="100%"
-              height={70}
-              preserveAspectRatio="none"
-            >
-              <defs>
-                <linearGradient id="ig-laporan" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="rgba(79,70,229,.15)" />
-                  <stop offset="100%" stopColor="rgba(79,70,229,.01)" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M0,70 C30,65 60,58 90,50 C120,42 150,38 180,30 C210,22 230,18 260,10"
-                fill="none"
-                stroke="#4F46E5"
-                strokeWidth={2}
-              />
-              <path
-                d="M0,70 C30,65 60,58 90,50 C120,42 150,38 180,30 C210,22 230,18 260,10 L260,80 L0,80 Z"
-                fill="url(#ig-laporan)"
-              />
-              <path
-                d="M0,74 C30,72 60,68 90,64 C120,60 150,56 180,53 C210,50 230,47 260,44"
-                fill="none"
-                stroke="#10B981"
-                strokeWidth={1.5}
-                strokeDasharray="5,3"
-              />
-            </svg>
-            <div className="mt-0.5 flex gap-2.5">
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <span
-                  className="size-2 rounded-[2px]"
-                  style={{ background: "#4F46E5" }}
-                />{" "}
-                Nilai
+            {invChart ? (
+              <>
+                <div className="space-y-2">
+                  <div>
+                    <div className="mb-1 flex justify-between text-[11px] text-muted-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <span
+                          className="size-2 rounded-[2px]"
+                          style={{ background: "#4F46E5" }}
+                        />
+                        Nilai
+                      </span>
+                      <span>{invChart.nilaiPct}%</span>
+                    </div>
+                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${invChart.nilaiPct}%`,
+                          background: "#4F46E5",
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="mb-1 flex justify-between text-[11px] text-muted-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <span
+                          className="size-2 rounded-[2px]"
+                          style={{ background: "#10B981" }}
+                        />
+                        Modal
+                      </span>
+                      <span>{invChart.modalPct}%</span>
+                    </div>
+                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${invChart.modalPct}%`,
+                          background: "#10B981",
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-2 text-[10.5px] text-muted-foreground">
+                  {invChart.hasReturn
+                    ? "▲ Portofolio untung"
+                    : "▼ Portofolio rugi"}
+                </div>
+              </>
+            ) : (
+              <div className="flex h-[70px] items-center justify-center text-[12px] text-muted-foreground">
+                Belum ada data investasi
               </div>
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <span
-                  className="size-2 rounded-[2px]"
-                  style={{ background: "#10B981" }}
-                />{" "}
-                Modal
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </SectionCard>
