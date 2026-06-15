@@ -1,21 +1,22 @@
 import {
   type CanActivate,
   type ExecutionContext,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
-import { type Reflector } from "@nestjs/core";
+import { Reflector } from "@nestjs/core";
 
 import { IS_PUBLIC_KEY } from "../../common/decorators/public.decorator";
-import { type PrismaService } from "../../prisma/prisma.service";
+import { PrismaService } from "../../prisma/prisma.service";
 
 import type { Request } from "express";
 
 @Injectable()
 export class BetterAuthGuard implements CanActivate {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly reflector: Reflector,
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(Reflector) private readonly reflector: Reflector,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
