@@ -10,6 +10,7 @@ const {
   getMonthDateRange,
   getTodayDateRange,
   buildInvChartData,
+  balanceSheetToWealthAlloc,
 } = mod;
 
 describe("categoryBreakdownToDonut", () => {
@@ -294,5 +295,81 @@ describe("buildInvChartData", () => {
     assert.ok(result !== null);
     assert.equal(result.nilaiPct % 1, 0, "nilaiPct must be integer");
     assert.equal(result.modalPct % 1, 0, "modalPct must be integer");
+  });
+});
+
+describe("balanceSheetToWealthAlloc", () => {
+  test("exported as a function", () => {
+    assert.strictEqual(
+      typeof balanceSheetToWealthAlloc,
+      "function",
+      "balanceSheetToWealthAlloc must be exported from laporan-utils",
+    );
+  });
+
+  test("returns empty array when totalAssets is 0", () => {
+    const assets = [{ category: "Kas", amount: 0, items: [] }];
+    assert.deepStrictEqual(balanceSheetToWealthAlloc(assets, 0), []);
+  });
+
+  test("returns empty array for empty assets", () => {
+    assert.deepStrictEqual(balanceSheetToWealthAlloc([], 100), []);
+  });
+
+  test("filters out zero-amount categories", () => {
+    const assets = [
+      { category: "Kas", amount: 0, items: [] },
+      { category: "Investasi", amount: 5000000, items: [] },
+    ];
+    const result = balanceSheetToWealthAlloc(assets, 5000000);
+    assert.equal(result.length, 1);
+    assert.equal(result[0].label, "Investasi");
+  });
+
+  test("computes percentage relative to totalAssets", () => {
+    const assets = [
+      { category: "Kas", amount: 3000000, items: [] },
+      { category: "Investasi", amount: 7000000, items: [] },
+    ];
+    const result = balanceSheetToWealthAlloc(assets, 10000000);
+    const kas = result.find((r) => r.label === "Kas");
+    const inv = result.find((r) => r.label === "Investasi");
+    assert.ok(kas);
+    assert.ok(inv);
+    assert.equal(kas.value, 30);
+    assert.equal(inv.value, 70);
+  });
+
+  test("sum of values is 100 for a full balance sheet", () => {
+    const assets = [
+      { category: "Kas", amount: 2000000, items: [] },
+      { category: "Investasi", amount: 5000000, items: [] },
+      { category: "Properti", amount: 3000000, items: [] },
+    ];
+    const total = 10000000;
+    const result = balanceSheetToWealthAlloc(assets, total);
+    const sum = result.reduce((acc, s) => acc + s.value, 0);
+    assert.equal(sum, 100);
+  });
+
+  test("each segment has a non-empty color string", () => {
+    const assets = [{ category: "Kas", amount: 1000000, items: [] }];
+    const result = balanceSheetToWealthAlloc(assets, 1000000);
+    assert.equal(result.length, 1);
+    assert.ok(
+      typeof result[0].color === "string" && result[0].color.length > 0,
+    );
+  });
+
+  test("sorts segments descending by value", () => {
+    const assets = [
+      { category: "Kas", amount: 1000000, items: [] },
+      { category: "Investasi", amount: 8000000, items: [] },
+      { category: "Properti", amount: 1000000, items: [] },
+    ];
+    const result = balanceSheetToWealthAlloc(assets, 10000000);
+    assert.equal(result[0].label, "Investasi");
+    assert.ok(result[0].value >= result[1].value);
+    assert.ok(result[1].value >= result[2].value);
   });
 });
