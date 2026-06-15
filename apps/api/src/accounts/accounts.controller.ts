@@ -25,8 +25,10 @@ import { CheckAbility } from "../common/decorators/check-ability.decorator";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AccountsService } from "./accounts.service";
 import { AccountResponseDto } from "./dto/account-response.dto";
-import { type CreateAccountDto } from "./dto/create-account.dto";
-import { type UpdateAccountDto } from "./dto/update-account.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { CreateAccountDto } from "./dto/create-account.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { UpdateAccountDto } from "./dto/update-account.dto";
 
 @ApiTags("accounts")
 @UseGuards(JwtAuthGuard)

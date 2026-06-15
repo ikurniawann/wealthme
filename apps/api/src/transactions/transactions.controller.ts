@@ -22,15 +22,19 @@ import { Throttle } from "@nestjs/throttler";
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
-import { type CreateTransactionDto } from "./dto/create-transaction.dto";
-import { type ListTransactionsQueryDto } from "./dto/list-transactions-query.dto";
-import { type ScanReceiptDto } from "./dto/scan-receipt.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { CreateTransactionDto } from "./dto/create-transaction.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { ListTransactionsQueryDto } from "./dto/list-transactions-query.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { ScanReceiptDto } from "./dto/scan-receipt.dto";
 import {
   TransactionListResponseDto,
   TransactionResponseDto,
   TransactionSummaryDto,
 } from "./dto/transaction-response.dto";
-import { type UpdateTransactionDto } from "./dto/update-transaction.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { UpdateTransactionDto } from "./dto/update-transaction.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { TransactionsService } from "./transactions.service";
 

@@ -226,8 +226,28 @@ export class DashboardService {
     });
     const assetsTotal = assets.reduce((sum, a) => sum + a.currentValue, 0n);
 
-    const investmentsTotal = 0n;
-    const liabilitiesTotal = 0n;
+    const investments = await this.prisma.investment.findMany({
+      where: { familyGroupId },
+      select: { quantity: true, costBasisPerUnit: true },
+    });
+    const investmentsTotal = BigInt(
+      Math.round(
+        investments.reduce(
+          (sum, inv) =>
+            sum + inv.quantity.toNumber() * inv.costBasisPerUnit.toNumber(),
+          0,
+        ),
+      ),
+    );
+
+    const liabilityRecords = await this.prisma.liability.findMany({
+      where: { familyGroupId },
+      select: { remainingBalance: true },
+    });
+    const liabilitiesTotal = liabilityRecords.reduce(
+      (sum, l) => sum + l.remainingBalance,
+      0n,
+    );
 
     const netWorth =
       accountsTotal + investmentsTotal + assetsTotal - liabilitiesTotal;

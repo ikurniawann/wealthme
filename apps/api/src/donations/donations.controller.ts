@@ -26,9 +26,11 @@ import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { DonationsService } from "./donations.service";
-import { type CreateDonationDto } from "./dto/create-donation.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { CreateDonationDto } from "./dto/create-donation.dto";
 import { DonationResponseDto } from "./dto/donation-response.dto";
-import { type UpdateDonationDto } from "./dto/update-donation.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { UpdateDonationDto } from "./dto/update-donation.dto";
 
 @ApiTags("donations")
 @UseGuards(JwtAuthGuard)

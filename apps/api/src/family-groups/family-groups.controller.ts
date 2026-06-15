@@ -24,12 +24,15 @@ import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { type JwtPayload } from "../auth/strategies/jwt.strategy";
 import { Public } from "../common/decorators/public.decorator";
 
-import { type CreateFamilyGroupDto } from "./dto/create-family-group.dto";
-import { type CreateInvitationDto } from "./dto/create-invitation.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { CreateFamilyGroupDto } from "./dto/create-family-group.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { CreateInvitationDto } from "./dto/create-invitation.dto";
 import { FamilyGroupResponseDto } from "./dto/family-group-response.dto";
 import { InvitationResponseDto } from "./dto/invitation-response.dto";
 import { MemberResponseDto } from "./dto/member-response.dto";
-import { type UpdateMemberRoleDto } from "./dto/update-member-role.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { UpdateMemberRoleDto } from "./dto/update-member-role.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { FamilyGroupsService } from "./family-groups.service";
 

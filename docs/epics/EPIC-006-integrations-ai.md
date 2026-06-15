@@ -1,6 +1,6 @@
 # EPIC-006: Integrations & AI
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 phase: 6
 priority: P2
@@ -73,6 +73,7 @@ dan menghadirkan AI Advisor serta kategorisasi transaksi berbasis LLM.
 - 2026-06-14 /epic-loop EPIC-006 #2 "Open Banking & Market Data" → PASS (attempts: 3), PR: https://github.com/andrsrjld/wealthme-web/pull/131
 - 2026-06-14 /epic-loop EPIC-006 #3 "AI Advisor" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/132
 - 2026-06-14 /epic-loop EPIC-006 #4 "Auto Categorization & Notifications" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/133
+- 2026-06-14 /epic-loop EPIC-006 #5 "Search Upgrade" → PASS (attempts: 1), PR: https://github.com/andrsrjld/wealthme-web/pull/134
 
 ## Dependencies
 

@@ -22,9 +22,11 @@ import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
-import { type CreateInheritanceAssetDto } from "./dto/create-inheritance-asset.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { CreateInheritanceAssetDto } from "./dto/create-inheritance-asset.dto";
 import { InheritanceAssetResponseDto } from "./dto/inheritance-asset-response.dto";
-import { type UpdateInheritanceAssetDto } from "./dto/update-inheritance-asset.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { UpdateInheritanceAssetDto } from "./dto/update-inheritance-asset.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { InheritanceService } from "./inheritance.service";
 

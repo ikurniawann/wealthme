@@ -4,7 +4,10 @@ import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useSession, signOut } from "next-auth/react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { useShell } from "@/components/shell/shell-context";
+import { formatAmountInput, parseRupiah } from "@/lib/format";
 
 import { SectionCard, MoneyStat } from "@/components/wm";
 import { RowActions, ConfirmDeleteDialog } from "@/components/crud";
@@ -52,24 +55,33 @@ function formatDayLabel(dateStr: string): string {
   });
 }
 
+const TYPE_LABEL: Record<string, string> = {
+  income: "Pemasukan",
+  expense: "Pengeluaran",
+  transfer: "Transfer",
+};
+
 function TxRow({
   tx,
   onDeleteClick,
+  onEditClick,
 }: {
   tx: TransactionDto;
   onDeleteClick: () => void;
+  onEditClick: () => void;
 }) {
   const isIncome = tx.type === "income";
   const amount = parseFloat(tx.amount);
   const amountStr = (isIncome ? "+" : "-") + formatRupiah(amount);
   const iconBg = isIncome ? "#DCFCE7" : "#FEE2E2";
   const icon = isIncome ? "📥" : tx.type === "transfer" ? "↗️" : "💳";
+  const displayName =
+    tx.description ?? tx.categoryName ?? tx.accountName ?? "—";
+  const subtitle =
+    tx.categoryName ?? tx.accountName ?? TYPE_LABEL[tx.type] ?? tx.type;
 
   return (
-    <button
-      onClick={() => toast("Detail transaksi")}
-      className="flex w-full items-center gap-3 rounded-[12px] border bg-card p-3 text-left transition-colors hover:bg-accent/40"
-    >
+    <div className="flex w-full items-center gap-3 rounded-[12px] border bg-card p-3 text-left transition-colors hover:bg-accent/40">
       <div
         className="flex size-[38px] shrink-0 items-center justify-center rounded-[10px] text-[15px]"
         style={{ background: iconBg }}
@@ -78,10 +90,10 @@ function TxRow({
       </div>
       <div className="min-w-0 flex-1">
         <div className="truncate text-[13.5px] font-semibold">
-          {tx.description ?? "—"}
+          {displayName}
         </div>
         <div className="truncate text-[11.5px] text-muted-foreground capitalize">
-          {tx.type}
+          {subtitle}
         </div>
       </div>
       <div className="text-right">
@@ -98,19 +110,137 @@ function TxRow({
         </div>
       </div>
       <RowActions
-        onEdit={() => toast("✏️ Edit transaksi")}
+        onEdit={onEditClick}
         onDelete={onDeleteClick}
         className="ml-1"
       />
-    </button>
+    </div>
+  );
+}
+
+function EditTransactionDialog({
+  tx,
+  token,
+  familyGroupId,
+  onClose,
+  onSaved,
+}: {
+  tx: TransactionDto | null;
+  token: string | undefined;
+  familyGroupId: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  // State is initialised from props; parent passes key={tx.id} to reset on change
+  const [amount, setAmount] = useState(
+    tx ? formatAmountInput(String(Math.round(parseFloat(tx.amount)))) : "",
+  );
+  const [description, setDescription] = useState(tx?.description ?? "");
+  const [date, setDate] = useState(tx?.occurredAt.slice(0, 10) ?? "");
+
+  const updateMutation = useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      apiFetch(`/family-groups/${familyGroupId}/transactions/${tx!.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+        token,
+      }),
+    onSuccess: () => {
+      toast.success("Transaksi berhasil diperbarui.");
+      onSaved();
+    },
+    onError: () => toast.error("Gagal memperbarui transaksi."),
+  });
+
+  if (!tx) return null;
+
+  const handleSave = () => {
+    const amountNum = parseRupiah(amount);
+    if (!amountNum || amountNum <= 0) {
+      toast.error("Jumlah tidak valid");
+      return;
+    }
+    updateMutation.mutate({
+      amount: amountNum,
+      ...(description ? { description } : { description: null }),
+      occurredAt: new Date(date).toISOString(),
+    });
+  };
+
+  return (
+    <Dialog
+      open={!!tx}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent className="max-w-sm">
+        <DialogTitle>Edit Transaksi</DialogTitle>
+        <div className="space-y-3 pt-1">
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+              Jumlah
+            </label>
+            <input
+              className="w-full rounded-md border bg-background px-3 py-2.5 text-[13.5px] outline-none focus:border-primary"
+              value={amount}
+              onChange={(e) => setAmount(formatAmountInput(e.target.value))}
+              inputMode="numeric"
+              placeholder="0"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+              Deskripsi
+            </label>
+            <input
+              className="w-full rounded-md border bg-background px-3 py-2.5 text-[13.5px] outline-none focus:border-primary"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Opsional"
+              maxLength={200}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+              Tanggal
+            </label>
+            <input
+              type="date"
+              className="w-full rounded-md border bg-background px-3 py-2.5 text-[13.5px] outline-none focus:border-primary"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={onClose}
+              className="flex-1 rounded-md border py-2.5 text-[13px] font-semibold"
+            >
+              Batal
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={updateMutation.isPending}
+              className="flex-1 rounded-md bg-primary py-2.5 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
+            >
+              {updateMutation.isPending ? "Menyimpan…" : "Simpan"}
+            </button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 export default function TransaksiPage() {
   const [filter, setFilter] = useState<TxnType>("all");
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [editTarget, setEditTarget] = useState<TransactionDto | null>(null);
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
+  const { setTxnOpen } = useShell();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if ((session as { error?: string } | null)?.error === "RefreshTokenError") {
@@ -125,6 +255,23 @@ export default function TransaksiPage() {
   });
 
   const familyGroupId = me?.familyGroupId ?? "";
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<void>(`/family-groups/${familyGroupId}/transactions/${id}`, {
+        method: "DELETE",
+        token,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.transactions.all(familyGroupId),
+      });
+      toast.success("Transaksi berhasil dihapus.");
+    },
+    onError: () => {
+      toast.error("Gagal menghapus transaksi.");
+    },
+  });
 
   const { data, isLoading, isError } = useQuery<TransactionListResponse>({
     queryKey: [...queryKeys.transactions.all(familyGroupId), token],
@@ -167,7 +314,7 @@ export default function TransaksiPage() {
           Catat &amp; kelola semua transaksimu
         </span>
         <button
-          onClick={() => toast("Form tambah transaksi")}
+          onClick={() => setTxnOpen(true)}
           className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground"
         >
           <Plus className="size-3.5" /> Tambah Transaksi
@@ -215,7 +362,7 @@ export default function TransaksiPage() {
           ))}
         </div>
         <button
-          onClick={() => toast("Tambah transaksi")}
+          onClick={() => setTxnOpen(true)}
           className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground"
         >
           <Plus className="size-3.5" /> Tambah
@@ -254,6 +401,7 @@ export default function TransaksiPage() {
                     key={tx.id}
                     tx={tx}
                     onDeleteClick={() => setDeleteTarget(tx.id)}
+                    onEditClick={() => setEditTarget(tx)}
                   />
                 ))}
               </div>
@@ -269,12 +417,26 @@ export default function TransaksiPage() {
         )}
       </div>
 
+      <EditTransactionDialog
+        key={editTarget?.id ?? "edit-none"}
+        tx={editTarget}
+        token={token}
+        familyGroupId={familyGroupId}
+        onClose={() => setEditTarget(null)}
+        onSaved={() => {
+          setEditTarget(null);
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.transactions.all(familyGroupId),
+          });
+        }}
+      />
+
       <ConfirmDeleteDialog
         label={deleteTarget !== null ? "Transaksi" : null}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget);
           setDeleteTarget(null);
-          toast("🗑️ Transaksi dihapus.");
         }}
       />
     </div>

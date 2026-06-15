@@ -22,12 +22,14 @@ import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
-import { type CreateInsuranceDto } from "./dto/create-insurance.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { CreateInsuranceDto } from "./dto/create-insurance.dto";
 import {
   InsuranceResponseDto,
   type InsuranceSummaryResponseDto,
 } from "./dto/insurance-response.dto";
-import { type UpdateInsuranceDto } from "./dto/update-insurance.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { UpdateInsuranceDto } from "./dto/update-insurance.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { InsurancesService } from "./insurances.service";
 

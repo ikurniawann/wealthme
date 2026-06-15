@@ -21,6 +21,21 @@ import type { RegisterDto } from "./dto/register.dto";
 import type { UpdateProfileDto } from "./dto/update-profile.dto";
 import type { GoogleProfile } from "./strategies/google.strategy";
 
+const DEFAULT_CATEGORIES = [
+  { name: "Gaji", kind: "income" as const, icon: "💰" },
+  { name: "Investasi", kind: "income" as const, icon: "📈" },
+  { name: "Transfer Masuk", kind: "income" as const, icon: "📥" },
+  { name: "Lainnya Pemasukan", kind: "income" as const, icon: "➕" },
+  { name: "Makanan & Minuman", kind: "expense" as const, icon: "🍽️" },
+  { name: "Transportasi", kind: "expense" as const, icon: "🚗" },
+  { name: "Belanja", kind: "expense" as const, icon: "🛒" },
+  { name: "Kesehatan", kind: "expense" as const, icon: "🏥" },
+  { name: "Hiburan", kind: "expense" as const, icon: "🎮" },
+  { name: "Tagihan & Utilitas", kind: "expense" as const, icon: "💡" },
+  { name: "Pendidikan", kind: "expense" as const, icon: "📚" },
+  { name: "Lainnya Pengeluaran", kind: "expense" as const, icon: "➖" },
+];
+
 export interface TokenPair {
   accessToken: string;
   refreshToken: string;
@@ -66,17 +81,45 @@ export class AuthService {
       throw new InternalServerErrorException("Failed to process registration");
     }
 
-    const user = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        name: dto.name,
-        passwordHash,
-        avatarInitials: dto.name
-          .split(" ")
-          .slice(0, 2)
-          .map((w) => w[0]?.toUpperCase() ?? "")
-          .join(""),
-      },
+    const user = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          email: dto.email,
+          name: dto.name,
+          passwordHash,
+          avatarInitials: dto.name
+            .split(" ")
+            .slice(0, 2)
+            .map((w) => w[0]?.toUpperCase() ?? "")
+            .join(""),
+        },
+      });
+
+      const fg = await tx.familyGroup.create({
+        data: { name: `${dto.name}'s Family` },
+      });
+
+      await tx.member.create({
+        data: { userId: created.id, familyGroupId: fg.id, role: "owner" },
+      });
+
+      await tx.category.createMany({
+        data: DEFAULT_CATEGORIES.map((c) => ({
+          ...c,
+          familyGroupId: fg.id,
+        })),
+      });
+
+      await tx.account.create({
+        data: {
+          familyGroupId: fg.id,
+          name: "Akun Utama",
+          type: "bank",
+          balance: 0n,
+        },
+      });
+
+      return created;
     });
 
     return this.issueTokens(user.id, user.email);

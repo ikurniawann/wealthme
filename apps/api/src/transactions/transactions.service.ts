@@ -61,6 +61,10 @@ export class TransactionsService {
         orderBy: { occurredAt: "desc" },
         skip,
         take: limit,
+        include: {
+          category: { select: { name: true } },
+          account: { select: { name: true } },
+        },
       }),
       this.prisma.transaction.count({ where }),
     ]);
@@ -80,6 +84,10 @@ export class TransactionsService {
   ): Promise<TransactionResponseDto> {
     const tx = await this.prisma.transaction.findUnique({
       where: { id, familyGroupId },
+      include: {
+        category: { select: { name: true } },
+        account: { select: { name: true } },
+      },
     });
     if (!tx) throw new NotFoundException("Transaction not found");
     return this.toDto(tx);
@@ -131,6 +139,10 @@ export class TransactionsService {
           type: dto.type,
           description: dto.description ?? null,
           occurredAt: new Date(dto.occurredAt),
+        },
+        include: {
+          category: { select: { name: true } },
+          account: { select: { name: true } },
         },
       });
 
@@ -297,6 +309,10 @@ export class TransactionsService {
             occurredAt: new Date(dto.occurredAt),
           }),
         },
+        include: {
+          category: { select: { name: true } },
+          account: { select: { name: true } },
+        },
       });
     });
 
@@ -413,6 +429,8 @@ export class TransactionsService {
     description: string | null;
     occurredAt: Date;
     createdAt: Date;
+    category?: { name: string } | null;
+    account?: { name: string };
   }): TransactionResponseDto {
     return {
       id: tx.id,
@@ -422,6 +440,8 @@ export class TransactionsService {
       amount: tx.amount.toString(),
       type: tx.type,
       description: tx.description,
+      categoryName: tx.category?.name ?? null,
+      accountName: tx.account?.name ?? "",
       occurredAt: tx.occurredAt.toISOString(),
       createdAt: tx.createdAt.toISOString(),
     };

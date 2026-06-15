@@ -23,10 +23,13 @@ import { Public } from "../common/decorators/public.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AuthService } from "./auth.service";
-import { type LoginDto } from "./dto/login.dto";
-import { type RegisterDto } from "./dto/register.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { LoginDto } from "./dto/login.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { RegisterDto } from "./dto/register.dto";
 import { TokenPairDto } from "./dto/token-pair.dto";
-import { type UpdateProfileDto } from "./dto/update-profile.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { UpdateProfileDto } from "./dto/update-profile.dto";
 import { UserProfileDto } from "./dto/user-profile.dto";
 import { GoogleAuthGuard } from "./guards/google-auth.guard";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
