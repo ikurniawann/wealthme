@@ -1,6 +1,6 @@
 # EPIC-008: Bug Fix — 500 API Errors & Data Load Failures
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 phase: 3
 priority: P0
@@ -36,25 +36,25 @@ Setelah epic ini selesai, semua menu tersebut harus tampil data nyata tanpa erro
 
 ### Diagnose & Fix 500 Errors ✅
 
-- [x] **T-801** **Transaksi 500** — false positive: financial amount "Rp X.500.xxx" matched the broad "500" E2E pattern; fixed by updating ERROR_PATTERNS in menu-audit.spec.ts
-- [x] **T-802** **Anggaran 500** — same false positive; fixed via E2E audit pattern update
-- [x] **T-803** **Tujuan Keuangan 500** — same false positive; fixed via E2E audit pattern update
-- [x] **T-804** **Laporan Detail 500** — same false positive; fixed via E2E audit pattern update
-- [x] **T-805** **Laporan PNL 500** — same false positive; fixed via E2E audit pattern update
-- [x] **T-806** **Laporan Arus Kas 500** — same false positive; fixed via E2E audit pattern update
-- [x] **T-807** **Kalkulator 500** — false positive: static text "Rp 93.500.000"; fixed via E2E audit pattern update
+- [x] **T-801** **Transaksi 500** — false positive: financial amounts in page body; fixed via tighter ERROR_PATTERNS in menu-audit.spec.ts (PR #145)
+- [x] **T-802** **Anggaran 500** — same false positive; fixed via PR #145
+- [x] **T-803** **Tujuan Keuangan 500** — same false positive; fixed via PR #145
+- [x] **T-804** **Laporan Detail 500** — same false positive; fixed via PR #145
+- [x] **T-805** **Laporan PNL 500** — same false positive; fixed via PR #145
+- [x] **T-806** **Laporan Arus Kas 500** — same false positive; fixed via PR #145
+- [x] **T-807** **Kalkulator 500** — false positive: static text "Rp 93.500.000"; fixed via PR #145
 
 ### Fix "Gagal memuat" (Data Load Failures) ✅
 
-- [x] **T-808** **Dana** — root cause: AccountsController had @UseGuards(JwtAuthGuard) rejecting Better Auth tokens; removed legacy guard
-- [x] **T-809** **Rekening** — same root cause as T-808; fixed by removing JwtAuthGuard from AccountsController
-- [x] **T-810** **Liabilitas** — LiabilitiesController had same issue; removed legacy JwtAuthGuard
-- [x] **T-811** **Asuransi** — InsurancesController had same issue; removed legacy JwtAuthGuard
+- [x] **T-808** **Dana** — root cause: AccountsController had @UseGuards(JwtAuthGuard) rejecting Better Auth tokens → 401; removed (PR #145)
+- [x] **T-809** **Rekening** — same root cause as T-808; fixed in PR #145
+- [x] **T-810** **Liabilitas** — LiabilitiesController same issue; removed legacy guard (PR #145)
+- [x] **T-811** **Asuransi** — InsurancesController same issue; removed legacy guard (PR #145)
 
-### Regression Tests
+### Regression Tests ✅
 
-- [ ] **T-812** Tambah E2E test per menu yang diperbaiki — harus load tanpa error banner
-- [ ] **T-813** Re-run `menu-audit.spec.ts` — verifikasi semua 11 menu berubah ke ✅
+- [x] **T-812** Tambah E2E test per menu yang diperbaiki — `tests/e2e/pages/epic-008-regression.spec.ts` covers dana/rekening/liabilitas/asuransi (PR #147)
+- [ ] **T-813** Re-run `menu-audit.spec.ts` — requires live dev server (deferred to QA stage after deploy)
 
 ## Acceptance Criteria
 
@@ -65,4 +65,6 @@ Setelah epic ini selesai, semua menu tersebut harus tampil data nyata tanpa erro
 
 ## Automation Log
 
-- 2026-06-16 /epic-loop EPIC-008 #1 "Diagnose & Fix 500 Errors + Gagal Memuat" → PASS (attempts: 1), PR: pending
+- 2026-06-16 /epic-loop EPIC-008 #1 "Diagnose & Fix 500 Errors + Gagal Memuat" → PASS (attempts: 1), PR: #145
+- 2026-06-16 /epic-loop EPIC-008 #2 "Migrate Remaining JwtAuthGuard Controllers" → PASS (attempts: 1), PR: #146
+- 2026-06-16 /epic-loop EPIC-008 #3 "Regression Tests" → PASS (attempts: 1), PR: #147
