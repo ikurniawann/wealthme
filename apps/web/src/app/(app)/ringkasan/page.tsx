@@ -7,43 +7,11 @@ import { SectionCard, StatusBadge, ProgressBar } from "@/components/wm";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, formatRupiahCompact } from "@/lib/format";
-import type { DashboardSummaryDto } from "@wealthme/contracts";
-
-// TODO: EPIC-002 — Replace with real category spending data when transactions groupBy endpoint is available
-const TOP_SPENDING = [
-  {
-    icon: "🏠",
-    iconBg: "#EEF2FF",
-    name: "Kebutuhan",
-    amt: "Rp 8.069.600",
-    pct: "44%",
-    variant: "info" as const,
-  },
-  {
-    icon: "😊",
-    iconBg: "#DCFCE7",
-    name: "Gaya Hidup",
-    amt: "Rp 4.585.000",
-    pct: "25%",
-    variant: "success" as const,
-  },
-  {
-    icon: "🚗",
-    iconBg: "#FEF9C3",
-    name: "Transportasi",
-    amt: "Rp 2.200.000",
-    pct: "12%",
-    variant: "warning" as const,
-  },
-  {
-    icon: "🏥",
-    iconBg: "#FEE2E2",
-    name: "Kesehatan",
-    amt: "Rp 1.467.000",
-    pct: "8%",
-    variant: "danger" as const,
-  },
-];
+import { buildNetWorthTrendPath } from "@/lib/chart-utils";
+import type {
+  DashboardSummaryDto,
+  ReportSummaryDto,
+} from "@wealthme/contracts";
 
 const COMPOSITION_COLOR: Record<string, string> = {
   bank: "var(--brand-cyan)",
@@ -81,6 +49,23 @@ export default function RingkasanPage() {
   const monthIncome = summary?.currentMonth.income ?? 0;
   const monthExpense = summary?.currentMonth.expense ?? 0;
   const monthNet = summary?.currentMonth.net ?? 0;
+
+  const { data: reportSummary } = useQuery<ReportSummaryDto>({
+    queryKey: queryKeys.reports.summary(familyGroupId ?? "", 1),
+    queryFn: () =>
+      apiFetch<ReportSummaryDto>(
+        `/family-groups/${familyGroupId}/reports/summary?months=1`,
+        { token: session?.accessToken },
+      ),
+    enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
+    staleTime: 60_000,
+  });
+
+  const topExpenses = reportSummary?.topExpenseCategories ?? [];
+
+  const trendIncome = summary?.cashflow.income ?? [];
+  const trendExpense = summary?.cashflow.expense ?? [];
+  const trend = buildNetWorthTrendPath(trendIncome, trendExpense, 320, 90);
 
   const composition = (summary?.allocation ?? []).map((item) => ({
     label: item.label,
@@ -164,44 +149,49 @@ export default function RingkasanPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-        {/* Net worth trend — static SVG placeholder */}
         <SectionCard title="Tren Kekayaan Bersih (6 Bulan)">
-          <svg
-            viewBox="0 0 320 100"
-            width="100%"
-            height={90}
-            preserveAspectRatio="none"
-          >
-            <defs>
-              <linearGradient id="ng" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(79,70,229,.15)" />
-                <stop offset="100%" stopColor="rgba(79,70,229,.01)" />
-              </linearGradient>
-            </defs>
-            <path
-              d="M0,80 C30,75 60,70 80,65 C100,60 110,62 140,55 C160,50 170,45 200,38 C220,33 240,30 270,22 C285,18 300,15 320,8"
-              fill="none"
-              stroke="#4F46E5"
-              strokeWidth="2.5"
-            />
-            <path
-              d="M0,80 C30,75 60,70 80,65 C100,60 110,62 140,55 C160,50 170,45 200,38 C220,33 240,30 270,22 C285,18 300,15 320,8 L320,100 L0,100 Z"
-              fill="url(#ng)"
-            />
-            <circle cx="320" cy="8" r="4" fill="#4F46E5" />
-          </svg>
-          <div className="flex justify-between text-[10px] text-muted-foreground">
-            {(
-              summary?.cashflow.months ?? [
-                "Nov",
-                "Des",
-                "Jan",
-                "Feb",
-                "Mar",
-                "Apr",
-              ]
-            ).map((m) => (
-              <span key={m}>{m}</span>
+          {isLoading ? (
+            <div className="h-[90px] animate-pulse rounded-md bg-muted" />
+          ) : trend.points.length === 0 ? (
+            <div className="flex h-[90px] items-center justify-center text-[12px] text-muted-foreground">
+              Belum ada data cashflow
+            </div>
+          ) : (
+            <svg
+              viewBox="0 0 320 90"
+              width="100%"
+              height={90}
+              preserveAspectRatio="none"
+            >
+              <defs>
+                <linearGradient id="ng" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="rgba(79,70,229,.18)" />
+                  <stop offset="100%" stopColor="rgba(79,70,229,.01)" />
+                </linearGradient>
+              </defs>
+              {trend.areaPath && <path d={trend.areaPath} fill="url(#ng)" />}
+              {trend.linePath && (
+                <path
+                  d={trend.linePath}
+                  fill="none"
+                  stroke="#4F46E5"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
+              )}
+              {trend.points.length > 0 && (
+                <circle
+                  cx={trend.points[trend.points.length - 1]!.x}
+                  cy={trend.points[trend.points.length - 1]!.y}
+                  r="4"
+                  fill="#4F46E5"
+                />
+              )}
+            </svg>
+          )}
+          <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+            {(summary?.cashflow.months ?? []).map((m, i) => (
+              <span key={`${m}-${i}`}>{m}</span>
             ))}
           </div>
         </SectionCard>
@@ -268,28 +258,52 @@ export default function RingkasanPage() {
           </div>
         </SectionCard>
 
-        {/* Top spending — TODO: replace with real category data */}
         <SectionCard title="Top Pengeluaran">
           <div className="divide-y">
-            {TOP_SPENDING.map((t) => (
+            {isLoading && (
+              <div className="py-4 text-center text-[13px] text-muted-foreground">
+                Memuat...
+              </div>
+            )}
+            {!isLoading && topExpenses.length === 0 && (
+              <div className="py-4 text-center text-[13px] text-muted-foreground">
+                Belum ada pengeluaran bulan ini.
+              </div>
+            )}
+            {topExpenses.slice(0, 5).map((t, idx) => (
               <div
-                key={t.name}
+                key={t.categoryName}
                 className="flex items-center gap-3 py-2 first:pt-0 last:pb-0"
               >
                 <div
-                  className="flex size-[30px] items-center justify-center rounded-md text-[13px]"
-                  style={{ background: t.iconBg }}
+                  className="flex size-[30px] shrink-0 items-center justify-center rounded-md text-[13px]"
+                  style={{
+                    background:
+                      t.color ??
+                      ["#EEF2FF", "#DCFCE7", "#FEF9C3", "#FEE2E2", "#F3F4F6"][
+                        idx % 5
+                      ],
+                  }}
                 >
-                  {t.icon}
+                  {["🏠", "😊", "🚗", "🏥", "💡"][idx % 5]}
                 </div>
-                <div className="flex-1 text-[13px] font-semibold">{t.name}</div>
-                <div className="text-right">
-                  <div className="text-[13px] font-bold text-destructive">
-                    {t.amt}
+                <div className="flex-1 min-w-0">
+                  <div className="truncate text-[13px] font-semibold">
+                    {t.categoryName}
                   </div>
-                  <StatusBadge variant={t.variant} className="mt-0.5">
-                    {t.pct}
-                  </StatusBadge>
+                  <ProgressBar
+                    value={t.percentage}
+                    className="mt-1"
+                    height={4}
+                  />
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-[13px] font-bold text-destructive">
+                    {formatRupiah(t.amount)}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {t.percentage}%
+                  </div>
                 </div>
               </div>
             ))}
