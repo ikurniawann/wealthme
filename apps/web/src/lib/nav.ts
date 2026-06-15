@@ -41,6 +41,11 @@ export const REPORT_TABS: ReportTab[] = [
   { id: "rpnl", label: "Laporan PNL" },
   { id: "rbalance", label: "Laporan Balance Sheet" },
   { id: "rcashflow", label: "Cashflow" },
+  { id: "rkas", label: "Arus Kas" },
+  { id: "rinv", label: "Investasi" },
+  { id: "rasl", label: "Aset & Liabilitas" },
+  { id: "rperf", label: "Performa" },
+  { id: "rpajak", label: "Pajak" },
 ];
 
 export type NavItem = {
