@@ -27,6 +27,9 @@ import type {
   ExportJobRequestDto,
   ExportJobStatusDto,
   ExportReportType,
+  InvestmentDto,
+  InvestmentSummaryDto,
+  InvestmentType,
   PnlDto,
   ReportSummaryDto,
   SankeyDto,
@@ -1429,74 +1432,116 @@ function KasSection({
 
 /* ───────────────────────── Section: Investasi ───────────────────────── */
 
-const INV_TYPES = [
+const INV_TYPE_META: Record<InvestmentType, { label: string; color: string }> =
   {
-    label: "📊 Reksa Dana",
-    value: "Rp 245.600.000 · 43%",
-    pct: 43,
-    color: "var(--primary)",
-  },
-  {
-    label: "📉 Saham",
-    value: "Rp 201.300.000 · 35%",
-    pct: 35,
-    color: "var(--brand-cyan)",
-  },
-  {
-    label: "🏛️ Obligasi",
-    value: "Rp 80.300.000 · 14%",
-    pct: 14,
-    color: "var(--success)",
-  },
-  {
-    label: "🥇 Emas",
-    value: "Rp 50.000.000 · 9%",
-    pct: 9,
-    color: "var(--warning)",
-  },
-];
+    saham: { label: "📉 Saham", color: "var(--brand-cyan)" },
+    reksa_dana: { label: "📊 Reksa Dana", color: "var(--primary)" },
+    obligasi: { label: "🏛️ Obligasi", color: "var(--success)" },
+    emas: { label: "🥇 Emas", color: "var(--warning)" },
+    kripto: { label: "₿ Kripto", color: "#F97316" },
+    lainnya: { label: "💼 Lainnya", color: "#8B5CF6" },
+  };
 
-function InvSection() {
+function InvSection({
+  investments,
+  invSummary,
+  isLoading,
+}: {
+  investments?: InvestmentDto[];
+  invSummary?: InvestmentSummaryDto;
+  isLoading?: boolean;
+}) {
+  const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
+
+  const byType = new Map<InvestmentType, number>();
+  for (const inv of investments ?? []) {
+    const val =
+      parseFloat(inv.currentValue ?? inv.costBasisPerUnit) *
+      parseFloat(inv.quantity);
+    byType.set(inv.type, (byType.get(inv.type) ?? 0) + val);
+  }
+
+  const totalValue = parseFloat(invSummary?.totalCurrentValue ?? "0");
+  const totalReturnRp = parseFloat(invSummary?.totalReturnRp ?? "0");
+  const totalReturnPct = invSummary?.totalReturnPct ?? 0;
+
+  const typeRows = Array.from(byType.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([type, value]) => ({
+      ...INV_TYPE_META[type],
+      value,
+      pct: totalValue > 0 ? Math.round((value / totalValue) * 100) : 0,
+    }));
+
+  const maxValue = typeRows[0]?.value ?? 0;
+
   return (
-    <div className="space-y-3.5">
+    <div className={"space-y-3.5 " + loadingClass}>
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
         <div className="rounded-[12px] border bg-card p-4">
           <div className="mb-1 text-[11px] text-muted-foreground">
             Total Portofolio
           </div>
           <div className="text-[22px] font-black text-primary">
-            Rp 577.200.000
+            {invSummary ? formatRupiah(totalValue) : "Rp —"}
           </div>
-          <div className="mt-1 text-[12px] text-success">
-            ▲ 12,40% · +Rp 75.551.000
-          </div>
+          {invSummary && totalValue > 0 && (
+            <div
+              className={
+                "mt-1 text-[12px] " +
+                (totalReturnRp >= 0 ? "text-success" : "text-destructive")
+              }
+            >
+              {totalReturnRp >= 0 ? "▲" : "▼"}{" "}
+              {Math.abs(totalReturnPct).toFixed(2)}% ·{" "}
+              {totalReturnRp >= 0 ? "+" : "-"}
+              {formatRupiah(Math.abs(totalReturnRp))}
+            </div>
+          )}
         </div>
         <div className="rounded-[12px] border bg-card p-4">
           <div className="mb-1 text-[11px] text-muted-foreground">
-            Return YTD
+            Total Return
           </div>
-          <div className="text-[22px] font-black text-success">+15,4%</div>
+          <div
+            className={
+              "text-[22px] font-black " +
+              (totalReturnPct >= 0 ? "text-success" : "text-destructive")
+            }
+          >
+            {invSummary
+              ? `${totalReturnPct >= 0 ? "+" : ""}${totalReturnPct.toFixed(2)}%`
+              : "—"}
+          </div>
           <div className="mt-1 text-[12px] text-muted-foreground">
-            Benchmark IHSG: +8,2%
+            {investments ? `${investments.length} instrumen` : "—"}
           </div>
         </div>
       </div>
       <SectionCard title="Portofolio per Jenis">
-        <div className="flex flex-col gap-2.5">
-          {INV_TYPES.map((t) => (
-            <BarRow
-              key={t.label}
-              label={t.label}
-              right={
-                <span className="font-bold" style={{ color: t.color }}>
-                  {t.value}
-                </span>
-              }
-              value={t.pct}
-              color={t.color}
-            />
-          ))}
-        </div>
+        {typeRows.length > 0 ? (
+          <div className="flex flex-col gap-2.5">
+            {typeRows.map((t) => (
+              <BarRow
+                key={t.label}
+                label={t.label}
+                right={
+                  <span className="font-bold" style={{ color: t.color }}>
+                    {formatRupiah(t.value)} · {t.pct}%
+                  </span>
+                }
+                value={
+                  maxValue > 0 ? Math.round((t.value / maxValue) * 100) : 0
+                }
+                color={t.color}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="py-4 text-center text-[12px] text-muted-foreground">
+            Belum ada investasi. Tambah di menu Investasi.
+          </div>
+        )}
       </SectionCard>
     </div>
   );
@@ -2023,6 +2068,29 @@ function LaporanInner() {
     staleTime: 60_000,
   });
 
+  const { data: investments, isLoading: isInvLoading } = useQuery<
+    InvestmentDto[]
+  >({
+    queryKey: queryKeys.investments.all(familyGroupId),
+    queryFn: () =>
+      apiFetch<InvestmentDto[]>(`/family-groups/${familyGroupId}/investments`, {
+        token,
+      }),
+    enabled: enabled && tab === "rinv",
+    staleTime: 60_000,
+  });
+
+  const { data: invSummary } = useQuery<InvestmentSummaryDto>({
+    queryKey: queryKeys.investments.summary(familyGroupId),
+    queryFn: () =>
+      apiFetch<InvestmentSummaryDto>(
+        `/family-groups/${familyGroupId}/investments/summary`,
+        { token },
+      ),
+    enabled: enabled && tab === "rinv",
+    staleTime: 60_000,
+  });
+
   const go = (id: string) =>
     router.push("/laporan?tab=" + id, { scroll: false });
 
@@ -2071,7 +2139,13 @@ function LaporanInner() {
       case "rkas":
         return <KasSection summary={summary} isLoading={isSummaryLoading} />;
       case "rinv":
-        return <InvSection />;
+        return (
+          <InvSection
+            investments={investments}
+            invSummary={invSummary}
+            isLoading={isInvLoading}
+          />
+        );
       case "rasl":
         return (
           <AslSection
