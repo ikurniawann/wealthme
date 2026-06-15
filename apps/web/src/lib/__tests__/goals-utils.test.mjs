@@ -2,7 +2,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
 const mod = await import("../goals-utils.js").catch(() => ({}));
-const { parseGoalFormValues } = mod;
+const { parseGoalFormValues, buildGoalBody } = mod;
 
 describe("parseGoalFormValues", () => {
   test("exported as a function", () => {
@@ -103,5 +103,73 @@ describe("parseGoalFormValues", () => {
       autodebit: "",
     });
     assert.ok(!("icon" in result) || result.icon === undefined);
+  });
+});
+
+describe("buildGoalBody", () => {
+  test("exported as a function", () => {
+    assert.strictEqual(
+      typeof buildGoalBody,
+      "function",
+      "buildGoalBody must be exported from goals-utils",
+    );
+  });
+
+  test("returns a string (not a plain object)", () => {
+    const body = buildGoalBody({
+      nama: "Dana Darurat",
+      icon: "🛡️",
+      target: "10.000.000",
+      terkumpul: "0",
+      deadline: "",
+      autodebit: "",
+    });
+    assert.strictEqual(
+      typeof body,
+      "string",
+      "body must be a string for fetch",
+    );
+  });
+
+  test("body is valid JSON", () => {
+    const body = buildGoalBody({
+      nama: "Dana Darurat",
+      icon: "🛡️",
+      target: "10.000.000",
+      terkumpul: "0",
+      deadline: "",
+      autodebit: "",
+    });
+    assert.doesNotThrow(() => JSON.parse(body));
+  });
+
+  test("parsed body contains correct field values", () => {
+    const body = buildGoalBody({
+      nama: "Beli Mobil",
+      icon: "🚗",
+      target: "200.000.000",
+      terkumpul: "50.000.000",
+      deadline: "2026-06-01",
+      autodebit: "2.000.000",
+    });
+    const parsed = JSON.parse(body);
+    assert.equal(parsed.name, "Beli Mobil");
+    assert.equal(parsed.icon, "🚗");
+    assert.equal(parsed.targetAmount, 200000000);
+    assert.equal(parsed.currentAmount, 50000000);
+    assert.equal(parsed.targetDate, "2026-06-01");
+    assert.equal(parsed.autoDebitAmount, 2000000);
+  });
+
+  test("body is not '[object Object]' (regression for raw-object-as-body bug)", () => {
+    const body = buildGoalBody({
+      nama: "X",
+      icon: "🎯",
+      target: "1.000.000",
+      terkumpul: "0",
+      deadline: "",
+      autodebit: "",
+    });
+    assert.notEqual(body, "[object Object]");
   });
 });
