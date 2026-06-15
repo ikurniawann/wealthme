@@ -1,6 +1,50 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.buildDonutSegments = buildDonutSegments;
 exports.buildNetWorthTrendPath = buildNetWorthTrendPath;
+function polarToCart(cx, cy, r, angleDeg) {
+  const rad = (angleDeg * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+function donutArc(cx, cy, outerR, innerR, startDeg, endDeg) {
+  const sweep = Math.min(endDeg - startDeg, 359.99);
+  const end = startDeg + sweep;
+  const oS = polarToCart(cx, cy, outerR, startDeg);
+  const oE = polarToCart(cx, cy, outerR, end);
+  const iS = polarToCart(cx, cy, innerR, end);
+  const iE = polarToCart(cx, cy, innerR, startDeg);
+  const large = sweep > 180 ? 1 : 0;
+  return [
+    `M ${oS.x} ${oS.y}`,
+    `A ${outerR} ${outerR} 0 ${large} 1 ${oE.x} ${oE.y}`,
+    `L ${iS.x} ${iS.y}`,
+    `A ${innerR} ${innerR} 0 ${large} 0 ${iE.x} ${iE.y}`,
+    "Z",
+  ].join(" ");
+}
+/**
+ * Builds SVG donut-chart path segments from a list of items with percentages.
+ * Items with pct=0 are skipped. Angles start at 12 o'clock (−90°).
+ */
+function buildDonutSegments(items, cx = 60, cy = 60, outerR = 50, innerR = 30) {
+  const active = items.filter((i) => i.pct > 0);
+  if (active.length === 0) return [];
+  const total = active.reduce((s, i) => s + i.pct, 0);
+  const segments = [];
+  let startDeg = -90;
+  for (const item of active) {
+    const sweep = (item.pct / total) * 360;
+    const endDeg = startDeg + sweep;
+    segments.push({
+      path: donutArc(cx, cy, outerR, innerR, startDeg, endDeg),
+      color: item.color,
+      label: item.label,
+      pct: item.pct,
+    });
+    startDeg = endDeg;
+  }
+  return segments;
+}
 /**
  * Converts 6-month income/expense cashflow arrays into SVG path data for a
  * cumulative net worth trend line.

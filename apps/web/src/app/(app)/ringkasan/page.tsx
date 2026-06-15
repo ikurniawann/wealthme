@@ -7,7 +7,7 @@ import { SectionCard, StatusBadge, ProgressBar } from "@/components/wm";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, formatRupiahCompact } from "@/lib/format";
-import { buildNetWorthTrendPath } from "@/lib/chart-utils";
+import { buildNetWorthTrendPath, buildDonutSegments } from "@/lib/chart-utils";
 import type {
   DashboardSummaryDto,
   ReportSummaryDto,
@@ -77,6 +77,8 @@ export default function RingkasanPage() {
           ?.type ?? ""
       ] ?? item.color,
   }));
+
+  const donutSegments = buildDonutSegments(composition);
 
   if (isError) {
     return (
@@ -211,21 +213,68 @@ export default function RingkasanPage() {
             </div>
           ) : composition.length === 0 ? (
             <div className="py-4 text-center text-[13px] text-muted-foreground">
-              Belum ada data
+              Tambah saldo akun untuk melihat komposisi aset.
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
-              {composition.map((c) => (
-                <div key={c.label}>
-                  <div className="mb-1 flex justify-between text-[12px]">
-                    <span className="font-semibold">{c.label}</span>
-                    <span className="font-bold" style={{ color: c.color }}>
-                      {c.value}
-                    </span>
+            <div className="flex gap-4">
+              {/* Donut chart */}
+              <svg
+                viewBox="0 0 120 120"
+                width={110}
+                height={110}
+                className="shrink-0"
+              >
+                {donutSegments.map((seg, i) => (
+                  <path key={i} d={seg.path} fill={seg.color} />
+                ))}
+                {donutSegments.length === 0 && (
+                  <circle cx={60} cy={60} r={50} fill="var(--muted)" />
+                )}
+                <circle cx={60} cy={60} r={30} fill="var(--card)" />
+                <text
+                  x={60}
+                  y={57}
+                  textAnchor="middle"
+                  fontSize={9}
+                  fill="var(--muted-foreground)"
+                >
+                  Total
+                </text>
+                <text
+                  x={60}
+                  y={70}
+                  textAnchor="middle"
+                  fontSize={10}
+                  fontWeight="bold"
+                  fill="var(--foreground)"
+                >
+                  {formatRupiahCompact(totalAssets)}
+                </text>
+              </svg>
+
+              {/* Legend + bars */}
+              <div className="flex flex-1 flex-col justify-center gap-2 min-w-0">
+                {composition.map((c) => (
+                  <div key={c.label}>
+                    <div className="mb-0.5 flex items-center justify-between gap-1 text-[11px]">
+                      <span className="flex items-center gap-1.5 truncate font-semibold">
+                        <span
+                          className="inline-block size-2 shrink-0 rounded-full"
+                          style={{ background: c.color }}
+                        />
+                        {c.label}
+                      </span>
+                      <span
+                        className="shrink-0 font-bold"
+                        style={{ color: c.color }}
+                      >
+                        {c.pct}%
+                      </span>
+                    </div>
+                    <ProgressBar value={c.pct} color={c.color} height={5} />
                   </div>
-                  <ProgressBar value={c.pct} color={c.color} height={8} />
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </SectionCard>
