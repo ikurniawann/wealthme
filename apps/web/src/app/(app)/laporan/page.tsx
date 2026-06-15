@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Calendar, Download, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   SectionCard,
   CardLink,
@@ -17,6 +17,14 @@ import { BarChart } from "@/components/charts/bar-chart";
 import { Donut, DonutLegend } from "@/components/charts/donut";
 import type { DonutSegment } from "@/components/charts/donut";
 import { apiFetch } from "@/lib/api-client";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah } from "@/lib/format";
 import type {
@@ -35,6 +43,7 @@ import type {
   SankeyDto,
 } from "@wealthme/contracts";
 import {
+  balanceSheetToWealthAlloc,
   buildInvChartData,
   categoryBreakdownToDonut,
   formatJuta,
@@ -157,23 +166,17 @@ function BarRow({
 
 /* ───────────────────────── Section: Ringkasan ───────────────────────── */
 
-const WEALTH_ALLOC: DonutSegment[] = [
-  { label: "Investasi", value: 45, color: "#4F46E5" },
-  { label: "Properti", value: 25, color: "#10B981" },
-  { label: "Cash", value: 20, color: "#F59E0B" },
-  { label: "Bisnis", value: 8, color: "#8B5CF6" },
-  { label: "Lainnya", value: 2, color: "#E2E8F0" },
-];
-
 function RingkasanSection({
   go,
   summary,
   invSummary,
+  balanceSheet,
   isLoading,
 }: {
   go: (id: string) => void;
   summary?: ReportSummaryDto;
   invSummary?: InvestmentSummaryDto;
+  balanceSheet?: BalanceSheetDto;
   isLoading?: boolean;
 }) {
   const chartMonths = summary?.points.map((p) => p.label) ?? [];
@@ -187,6 +190,13 @@ function RingkasanSection({
   const expenseCenterValue = summary ? formatJuta(summary.totalExpense) : "—";
 
   const invChart = buildInvChartData(invSummary);
+
+  const wealthAlloc = balanceSheet
+    ? balanceSheetToWealthAlloc(balanceSheet.assets, balanceSheet.totalAssets)
+    : [];
+  const wealthCenterValue = balanceSheet
+    ? formatJuta(balanceSheet.totalAssets)
+    : "—";
 
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
 
@@ -256,16 +266,24 @@ function RingkasanSection({
         </SectionCard>
         <SectionCard title="Wealth Allocation">
           <div className="flex flex-wrap items-center gap-3.5">
-            <Donut
-              segments={WEALTH_ALLOC}
-              size={110}
-              thickness={16}
-              centerValue="1,256 M"
-              centerLabel="Total"
-            />
-            <div className="min-w-[120px] flex-1">
-              <DonutLegend segments={WEALTH_ALLOC} />
-            </div>
+            {wealthAlloc.length > 0 ? (
+              <>
+                <Donut
+                  segments={wealthAlloc}
+                  size={110}
+                  thickness={16}
+                  centerValue={wealthCenterValue}
+                  centerLabel="Total"
+                />
+                <div className="min-w-[120px] flex-1">
+                  <DonutLegend segments={wealthAlloc} />
+                </div>
+              </>
+            ) : (
+              <div className="py-4 text-[12px] text-muted-foreground">
+                Belum ada data aset
+              </div>
+            )}
           </div>
         </SectionCard>
       </div>
@@ -504,13 +522,6 @@ function HarianSection({
 
 /* ───────────────────────── Section: Bulanan ───────────────────────── */
 
-const BULANAN_ROWS = [
-  { bulan: "April", masuk: "25,85 jt", keluar: "18,34 jt", net: "+7,51 jt" },
-  { bulan: "Maret", masuk: "24,20 jt", keluar: "19,80 jt", net: "+4,40 jt" },
-  { bulan: "Februari", masuk: "23,00 jt", keluar: "17,50 jt", net: "+5,50 jt" },
-  { bulan: "Januari", masuk: "22,00 jt", keluar: "21,00 jt", net: "+1,00 jt" },
-];
-
 function BulananSection({
   summary,
   isLoading,
@@ -553,37 +564,37 @@ function BulananSection({
               </tr>
             </thead>
             <tbody>
-              {summary
-                ? summary.points.map((p) => (
-                    <tr key={p.label} className="border-b last:border-0">
-                      <td className="py-2.5 font-semibold">{p.label}</td>
-                      <td className="mono py-2.5 text-success">
-                        {formatRupiah(p.income)}
-                      </td>
-                      <td className="mono py-2.5 text-destructive">
-                        {formatRupiah(p.expense)}
-                      </td>
-                      <td
-                        className={
-                          "mono py-2.5 " +
-                          (p.net >= 0 ? "text-success" : "text-destructive")
-                        }
-                      >
-                        {p.net >= 0 ? "+" : ""}
-                        {formatRupiah(p.net)}
-                      </td>
-                    </tr>
-                  ))
-                : BULANAN_ROWS.map((r) => (
-                    <tr key={r.bulan} className="border-b last:border-0">
-                      <td className="py-2.5 font-semibold">{r.bulan}</td>
-                      <td className="mono py-2.5 text-success">{r.masuk}</td>
-                      <td className="mono py-2.5 text-destructive">
-                        {r.keluar}
-                      </td>
-                      <td className="mono py-2.5 text-success">{r.net}</td>
-                    </tr>
-                  ))}
+              {summary?.points && summary.points.length > 0 ? (
+                summary.points.map((p) => (
+                  <tr key={p.label} className="border-b last:border-0">
+                    <td className="py-2.5 font-semibold">{p.label}</td>
+                    <td className="mono py-2.5 text-success">
+                      {formatRupiah(p.income)}
+                    </td>
+                    <td className="mono py-2.5 text-destructive">
+                      {formatRupiah(p.expense)}
+                    </td>
+                    <td
+                      className={
+                        "mono py-2.5 " +
+                        (p.net >= 0 ? "text-success" : "text-destructive")
+                      }
+                    >
+                      {p.net >= 0 ? "+" : ""}
+                      {formatRupiah(p.net)}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="py-6 text-center text-[12px] text-muted-foreground"
+                  >
+                    Belum ada transaksi bulan ini
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -594,161 +605,101 @@ function BulananSection({
 
 /* ───────────────────────── Section: Tahunan ───────────────────────── */
 
-const TAHUNAN_GROWTH = [
-  {
-    year: "2025 (YTD)",
-    value: "Rp 1.256.780.000",
-    pct: 100,
-    color: "var(--primary)",
-  },
-  {
-    year: "2024",
-    value: "Rp 1.085.000.000",
-    pct: 86,
-    color: "var(--brand-cyan)",
-  },
-  { year: "2023", value: "Rp 920.000.000", pct: 73, color: "var(--success)" },
-];
+function TahunanSection({
+  yearly,
+  isLoading,
+}: {
+  yearly?: ReportSummaryDto;
+  isLoading?: boolean;
+}) {
+  const points = yearly?.points ?? [];
+  const maxIncome = Math.max(...points.map((p) => p.income), 1);
+  const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
+  const YEAR_COLORS = [
+    "var(--primary)",
+    "var(--brand-cyan)",
+    "var(--success)",
+    "var(--warning)",
+  ];
 
-function TahunanSection() {
+  const latest = points[points.length - 1];
+
   return (
-    <div className="space-y-3.5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[15px] font-bold">Laporan Tahunan</div>
-        <select className="rounded-md border bg-background px-3 py-[7px] text-[13.5px] outline-none focus:border-primary">
-          <option>2025 (YTD)</option>
-          <option>2024</option>
-          <option>2023</option>
-        </select>
-      </div>
-      <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
-        <StatTile
-          label="Total Pemasukan 2025"
-          value="Rp 95.050.000"
-          valueClass="text-success"
-        />
-        <StatTile
-          label="Total Pengeluaran"
-          value="Rp 76.640.000"
-          valueClass="text-destructive"
-        />
-        <StatTile
-          label="Net Tahunan"
-          value="+Rp 18.410.000"
-          valueClass="text-success"
-        />
-        <StatTile
-          label="Avg Savings Rate"
-          value="19,4%"
-          valueClass="text-primary"
-        />
-      </div>
-      <SectionCard title="Pertumbuhan Net Worth per Tahun">
-        <div className="flex flex-col gap-2.5">
-          {TAHUNAN_GROWTH.map((g) => (
-            <BarRow
-              key={g.year}
-              label={g.year}
-              right={
-                <span style={{ color: g.color }} className="font-bold">
-                  {g.value}
-                </span>
-              }
-              value={g.pct}
-              color={g.color}
-            />
-          ))}
+    <div className={"space-y-3.5 " + loadingClass}>
+      <div className="text-[15px] font-bold">Laporan Tahunan</div>
+      {latest ? (
+        <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
+          <StatTile
+            label={`Total Pemasukan ${latest.label}`}
+            value={formatRupiah(latest.income)}
+            valueClass="text-success"
+          />
+          <StatTile
+            label="Total Pengeluaran"
+            value={formatRupiah(latest.expense)}
+            valueClass="text-destructive"
+          />
+          <StatTile
+            label="Net Tahunan"
+            value={(latest.net >= 0 ? "+" : "") + formatRupiah(latest.net)}
+            valueClass={latest.net >= 0 ? "text-success" : "text-destructive"}
+          />
+          <StatTile
+            label="Savings Rate"
+            value={
+              latest.income > 0
+                ? `${Math.round(((latest.income - latest.expense) / latest.income) * 100)}%`
+                : "—"
+            }
+            valueClass="text-primary"
+          />
         </div>
-      </SectionCard>
+      ) : (
+        <div className="rounded-[12px] border p-6 text-center text-[12px] text-muted-foreground">
+          Belum ada data tahunan
+        </div>
+      )}
+      {points.length > 0 && (
+        <SectionCard title="Tren Pemasukan per Tahun">
+          <div className="flex flex-col gap-2.5">
+            {points.map((p, i) => (
+              <BarRow
+                key={p.label}
+                label={p.label}
+                right={
+                  <span
+                    style={{ color: YEAR_COLORS[i % YEAR_COLORS.length] }}
+                    className="font-bold"
+                  >
+                    {formatRupiah(p.income)}
+                  </span>
+                }
+                value={Math.round((p.income / maxIncome) * 100)}
+                color={YEAR_COLORS[i % YEAR_COLORS.length] ?? "var(--primary)"}
+              />
+            ))}
+          </div>
+        </SectionCard>
+      )}
     </div>
   );
 }
 
 /* ───────────────────────── Section: Group Family ───────────────────────── */
 
-const FAMILY_MEMBERS = [
-  {
-    initials: "IA",
-    grad: "linear-gradient(135deg,var(--primary),var(--brand-purple))",
-    name: "Irfan Arsandi",
-    role: "Owner",
-    amount: "Rp 12.500.000",
-  },
-  {
-    initials: "SA",
-    grad: "linear-gradient(135deg,#F97316,#FBBF24)",
-    name: "Siti Arsandi",
-    role: "Istri",
-    amount: "Rp 9.800.000",
-  },
-  {
-    initials: "BA",
-    grad: "linear-gradient(135deg,#10B981,#06B6D4)",
-    name: "Budi Arsandi",
-    role: "Ayah",
-    amount: "Rp 5.400.000",
-  },
-  {
-    initials: "RA",
-    grad: "linear-gradient(135deg,#8B5CF6,#EC4899)",
-    name: "Rina Arsandi",
-    role: "Adik",
-    amount: "Rp 3.500.000",
-  },
-];
-
 function FamilySection() {
   return (
     <div className="space-y-3.5">
-      <div className="text-[15px] font-bold">
-        Laporan Group Family — Arsandi Family
+      <div className="text-[15px] font-bold">Laporan Group Family</div>
+      <div className="rounded-[12px] border p-8 text-center">
+        <div className="mb-2 text-[32px]">👨‍👩‍👧‍👦</div>
+        <div className="text-[13px] font-semibold text-muted-foreground">
+          Laporan konsolidasi family group belum tersedia
+        </div>
+        <div className="mt-1 text-[12px] text-muted-foreground">
+          Fitur ini sedang dalam pengembangan
+        </div>
       </div>
-      <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
-        <StatTile
-          label="Saldo Bersama"
-          value="Rp 625.750.000"
-          valueClass="text-primary"
-        />
-        <StatTile
-          label="Pemasukan Family"
-          value="Rp 42.000.000"
-          valueClass="text-success"
-        />
-        <StatTile
-          label="Pengeluaran Family"
-          value="Rp 31.200.000"
-          valueClass="text-destructive"
-        />
-        <StatTile
-          label="Anggota Aktif"
-          value="4 + 2 admin"
-          valueClass="text-brand-purple"
-        />
-      </div>
-      <SectionCard title="Pengeluaran per Anggota">
-        {FAMILY_MEMBERS.map((m, i) => (
-          <ActItem
-            key={m.initials}
-            icon={
-              <span
-                className="flex size-[38px] items-center justify-center rounded-full text-[12px] text-white"
-                style={{ background: m.grad }}
-              >
-                {m.initials}
-              </span>
-            }
-            iconBg="transparent"
-            name={m.name}
-            cat={m.role}
-            right={
-              <div className="text-[13px] font-bold text-destructive">
-                {m.amount}
-              </div>
-            }
-            last={i === FAMILY_MEMBERS.length - 1}
-          />
-        ))}
-      </SectionCard>
     </div>
   );
 }
@@ -1489,10 +1440,16 @@ function InvSection({
   investments,
   invSummary,
   isLoading,
+  onAdd,
+  onEdit,
+  onDelete,
 }: {
   investments?: InvestmentDto[];
   invSummary?: InvestmentSummaryDto;
   isLoading?: boolean;
+  onAdd?: () => void;
+  onEdit?: (inv: InvestmentDto) => void;
+  onDelete?: (inv: InvestmentDto) => void;
 }) {
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
 
@@ -1520,6 +1477,17 @@ function InvSection({
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
+      <div className="flex items-center justify-between">
+        <div className="text-[15px] font-bold">Portofolio Investasi</div>
+        {onAdd && (
+          <button
+            onClick={onAdd}
+            className="rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground hover:opacity-90"
+          >
+            + Tambah
+          </button>
+        )}
+      </div>
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
         <div className="rounded-[12px] border bg-card p-4">
           <div className="mb-1 text-[11px] text-muted-foreground">
@@ -1582,10 +1550,92 @@ function InvSection({
           </div>
         ) : (
           <div className="py-4 text-center text-[12px] text-muted-foreground">
-            Belum ada investasi. Tambah di menu Investasi.
+            Belum ada investasi.{" "}
+            {onAdd && (
+              <button
+                onClick={onAdd}
+                className="text-primary underline underline-offset-2"
+              >
+                Tambah sekarang
+              </button>
+            )}
           </div>
         )}
       </SectionCard>
+      {investments && investments.length > 0 && (
+        <SectionCard title="Daftar Instrumen">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-[12px]">
+              <thead>
+                <tr className="border-b text-left text-muted-foreground">
+                  <th className="py-2 font-semibold">Nama</th>
+                  <th className="py-2 font-semibold">Jenis</th>
+                  <th className="py-2 font-semibold">Nilai</th>
+                  <th className="py-2 font-semibold">Return</th>
+                  {(onEdit ?? onDelete) && (
+                    <th className="py-2 font-semibold"></th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {investments.map((inv) => {
+                  const val = parseFloat(inv.currentValue ?? "0");
+                  const ret = parseFloat(inv.returnRp ?? "0");
+                  const meta = INV_TYPE_META[inv.type];
+                  return (
+                    <tr key={inv.id} className="border-b last:border-0">
+                      <td className="py-2.5">
+                        <div className="font-semibold">{inv.ticker}</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {inv.name}
+                        </div>
+                      </td>
+                      <td className="py-2.5 text-[11px]">
+                        {meta?.label ?? inv.type}
+                      </td>
+                      <td className="mono py-2.5">
+                        {val > 0 ? formatRupiah(val) : "—"}
+                      </td>
+                      <td
+                        className={
+                          "mono py-2.5 " +
+                          (ret >= 0 ? "text-success" : "text-destructive")
+                        }
+                      >
+                        {inv.returnPct !== null
+                          ? `${ret >= 0 ? "+" : ""}${(inv.returnPct ?? 0).toFixed(1)}%`
+                          : "—"}
+                      </td>
+                      {(onEdit ?? onDelete) && (
+                        <td className="py-2.5">
+                          <div className="flex gap-2">
+                            {onEdit && (
+                              <button
+                                onClick={() => onEdit(inv)}
+                                className="text-[11px] text-primary hover:underline"
+                              >
+                                Edit
+                              </button>
+                            )}
+                            {onDelete && (
+                              <button
+                                onClick={() => onDelete(inv)}
+                                className="text-[11px] text-destructive hover:underline"
+                              >
+                                Hapus
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
+      )}
     </div>
   );
 }
@@ -1680,59 +1730,82 @@ function AslSection({
 
 /* ───────────────────────── Section: Performa ───────────────────────── */
 
-const PERFORMA: {
-  label: string;
-  badge: string;
-  badgeVariant: "success" | "warning" | "info" | "danger";
-  pct: number;
-  color: string;
-}[] = [
-  {
-    label: "Savings Rate Target 30%",
-    badge: "29% · Hampir",
-    badgeVariant: "warning",
-    pct: 29,
-    color: "var(--warning)",
-  },
-  {
-    label: "Investment Return Target 12%",
-    badge: "15,4% · Terlampaui ✓",
-    badgeVariant: "success",
-    pct: 100,
-    color: "var(--success)",
-  },
-  {
-    label: "Net Worth Growth Target 10%",
-    badge: "8,45% · Perlu Boost",
-    badgeVariant: "info",
-    pct: 84,
-    color: "var(--primary)",
-  },
-  {
-    label: "Budget Adherence Target 95%",
-    badge: "88% · Perlu Perbaikan",
-    badgeVariant: "danger",
-    pct: 88,
-    color: "var(--destructive)",
-  },
-];
+function PerfSection({
+  summary,
+  invSummary,
+  isLoading,
+}: {
+  summary?: ReportSummaryDto;
+  invSummary?: InvestmentSummaryDto;
+  isLoading?: boolean;
+}) {
+  const savingsRate = summary?.savingsRate ?? null;
+  const invReturn = invSummary?.totalReturnPct ?? null;
+  const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
 
-function PerfSection() {
   return (
-    <div className="space-y-3.5">
+    <div className={"space-y-3.5 " + loadingClass}>
       <SectionCard title="Performa vs Target">
         <div className="flex flex-col gap-2.5">
-          {PERFORMA.map((p) => (
+          {savingsRate !== null && (
             <BarRow
-              key={p.label}
-              label={p.label}
+              label="Savings Rate (Target 30%)"
               right={
-                <StatusBadge variant={p.badgeVariant}>{p.badge}</StatusBadge>
+                <StatusBadge
+                  variant={
+                    savingsRate >= 30
+                      ? "success"
+                      : savingsRate >= 20
+                        ? "warning"
+                        : "danger"
+                  }
+                >
+                  {savingsRate}%
+                  {savingsRate >= 30
+                    ? " · Tercapai ✓"
+                    : " · Perlu ditingkatkan"}
+                </StatusBadge>
               }
-              value={p.pct}
-              color={p.color}
+              value={Math.min(savingsRate, 100)}
+              color={
+                savingsRate >= 30
+                  ? "var(--success)"
+                  : savingsRate >= 20
+                    ? "var(--warning)"
+                    : "var(--destructive)"
+              }
             />
-          ))}
+          )}
+          {invReturn !== null && (
+            <BarRow
+              label="Investment Return (Target 12%)"
+              right={
+                <StatusBadge
+                  variant={
+                    invReturn >= 12
+                      ? "success"
+                      : invReturn >= 0
+                        ? "warning"
+                        : "danger"
+                  }
+                >
+                  {invReturn.toFixed(1)}%
+                  {invReturn >= 12 ? " · Terlampaui ✓" : ""}
+                </StatusBadge>
+              }
+              value={Math.min(Math.max(invReturn, 0), 100)}
+              color={invReturn >= 12 ? "var(--success)" : "var(--warning)"}
+            />
+          )}
+          {savingsRate === null && invReturn === null && (
+            <div className="py-6 text-center text-[12px] text-muted-foreground">
+              Belum ada data untuk menghitung performa
+            </div>
+          )}
+        </div>
+        <div className="mt-3 text-[11px] text-muted-foreground">
+          Net Worth Growth dan Budget Adherence memerlukan data historis lebih
+          lengkap
         </div>
       </SectionCard>
     </div>
@@ -1744,60 +1817,16 @@ function PerfSection() {
 function PajakSection() {
   return (
     <div className="space-y-3.5">
-      <SectionCard title="Estimasi Pajak 2025">
-        <div className="mb-3 grid grid-cols-1 gap-3.5 md:grid-cols-2">
-          <div>
-            <div className="mb-1 text-[11px] text-muted-foreground">
-              Penghasilan Kena Pajak (est.)
-            </div>
-            <div className="text-[20px] font-extrabold">Rp 216.000.000</div>
+      <SectionCard title="Laporan Pajak">
+        <div className="rounded-[12px] p-8 text-center">
+          <div className="mb-2 text-[32px]">🧾</div>
+          <div className="text-[13px] font-semibold text-muted-foreground">
+            Fitur estimasi pajak belum tersedia
           </div>
-          <div>
-            <div className="mb-1 text-[11px] text-muted-foreground">
-              Estimasi PPh 21
-            </div>
-            <div className="text-[20px] font-extrabold text-destructive">
-              Rp 21.600.000
-            </div>
+          <div className="mt-1 text-[12px] text-muted-foreground">
+            Integrasi dengan perhitungan PPh sedang dalam pengembangan
           </div>
         </div>
-        <ActItem
-          icon="💰"
-          iconBg="#DBEAFE"
-          iconSize="13px"
-          name="PPh 21 (Gaji)"
-          cat="Tarif 5%-15%"
-          right={
-            <div className="text-[13px] font-bold text-destructive">
-              Rp 18.000.000
-            </div>
-          }
-        />
-        <ActItem
-          icon="📊"
-          iconBg="#EDE9FE"
-          iconSize="13px"
-          name="PPh Dividen"
-          cat="Tarif final 10%"
-          right={
-            <div className="text-[13px] font-bold text-destructive">
-              Rp 2.100.000
-            </div>
-          }
-        />
-        <ActItem
-          icon="🏦"
-          iconBg="#DCFCE7"
-          iconSize="13px"
-          name="PPh Bunga Deposito"
-          cat="Tarif final 20%"
-          right={
-            <div className="text-[13px] font-bold text-destructive">
-              Rp 1.500.000
-            </div>
-          }
-          last
-        />
       </SectionCard>
     </div>
   );
@@ -2084,7 +2113,8 @@ function LaporanInner() {
           `/family-groups/${familyGroupId}/reports/balance-sheet?asOfDate=${monthEnd}`,
           { token },
         ),
-      enabled: enabled && (tab === "rbalance" || tab === "rasl"),
+      enabled:
+        enabled && (tab === "rbalance" || tab === "rasl" || tab === "rsum"),
       staleTime: 60_000,
     });
 
@@ -2130,9 +2160,112 @@ function LaporanInner() {
         `/family-groups/${familyGroupId}/investments/summary`,
         { token },
       ),
-    enabled: enabled && (tab === "rinv" || tab === "rsum"),
+    enabled: enabled && (tab === "rinv" || tab === "rsum" || tab === "rperf"),
     staleTime: 60_000,
   });
+
+  const { data: yearlySummary, isLoading: isYearlyLoading } =
+    useQuery<ReportSummaryDto>({
+      queryKey: queryKeys.reports.summary(familyGroupId, 3, "yearly"),
+      queryFn: () =>
+        apiFetch<ReportSummaryDto>(
+          `/family-groups/${familyGroupId}/reports/summary?months=3&period=yearly`,
+          { token },
+        ),
+      enabled: enabled && tab === "rtahunan",
+      staleTime: 300_000,
+    });
+
+  const queryClient = useQueryClient();
+  const [showAddInv, setShowAddInv] = useState(false);
+  const [editingInv, setEditingInv] = useState<InvestmentDto | null>(null);
+  const [deletingInv, setDeletingInv] = useState<InvestmentDto | null>(null);
+  const [invForm, setInvForm] = useState({
+    ticker: "",
+    name: "",
+    type: "saham" as InvestmentType,
+    quantity: "",
+    costBasisPerUnit: "",
+  });
+  const [invSubmitting, setInvSubmitting] = useState(false);
+
+  function openAdd() {
+    setInvForm({
+      ticker: "",
+      name: "",
+      type: "saham",
+      quantity: "",
+      costBasisPerUnit: "",
+    });
+    setShowAddInv(true);
+  }
+  function openEdit(inv: InvestmentDto) {
+    setInvForm({
+      ticker: inv.ticker,
+      name: inv.name,
+      type: inv.type,
+      quantity: inv.quantity,
+      costBasisPerUnit: inv.costBasisPerUnit,
+    });
+    setEditingInv(inv);
+  }
+
+  async function handleInvSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setInvSubmitting(true);
+    const isEdit = editingInv !== null;
+    const url = isEdit
+      ? `/family-groups/${familyGroupId}/investments/${editingInv.id}`
+      : `/family-groups/${familyGroupId}/investments`;
+    try {
+      await apiFetch(url, {
+        method: isEdit ? "PATCH" : "POST",
+        token,
+        body: JSON.stringify(invForm),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.investments.all(familyGroupId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.investments.summary(familyGroupId),
+      });
+      toast.success(isEdit ? "Investasi diperbarui" : "Investasi ditambahkan");
+      setShowAddInv(false);
+      setEditingInv(null);
+    } catch {
+      toast.error(
+        isEdit ? "Gagal memperbarui investasi" : "Gagal menambahkan investasi",
+      );
+    } finally {
+      setInvSubmitting(false);
+    }
+  }
+
+  async function handleInvDelete() {
+    if (!deletingInv) return;
+    setInvSubmitting(true);
+    try {
+      await apiFetch(
+        `/family-groups/${familyGroupId}/investments/${deletingInv.id}`,
+        {
+          method: "DELETE",
+          token,
+        },
+      );
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.investments.all(familyGroupId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.investments.summary(familyGroupId),
+      });
+      toast.success("Investasi dihapus");
+      setDeletingInv(null);
+    } catch {
+      toast.error("Gagal menghapus investasi");
+    } finally {
+      setInvSubmitting(false);
+    }
+  }
 
   const go = (id: string) =>
     router.push("/laporan?tab=" + id, { scroll: false });
@@ -2148,7 +2281,9 @@ function LaporanInner() {
           <BulananSection summary={summary} isLoading={isSummaryLoading} />
         );
       case "rtahunan":
-        return <TahunanSection />;
+        return (
+          <TahunanSection yearly={yearlySummary} isLoading={isYearlyLoading} />
+        );
       case "rfamily":
         return <FamilySection />;
       case "rbank":
@@ -2187,6 +2322,9 @@ function LaporanInner() {
             investments={investments}
             invSummary={invSummary}
             isLoading={isInvLoading}
+            onAdd={openAdd}
+            onEdit={openEdit}
+            onDelete={setDeletingInv}
           />
         );
       case "rasl":
@@ -2197,7 +2335,13 @@ function LaporanInner() {
           />
         );
       case "rperf":
-        return <PerfSection />;
+        return (
+          <PerfSection
+            summary={summary}
+            invSummary={invSummary}
+            isLoading={isSummaryLoading}
+          />
+        );
       case "rpajak":
         return <PajakSection />;
       case "rsum":
@@ -2207,6 +2351,7 @@ function LaporanInner() {
             go={go}
             summary={summary}
             invSummary={invSummary}
+            balanceSheet={balanceSheet}
             isLoading={isSummaryLoading}
           />
         );
@@ -2274,6 +2419,144 @@ function LaporanInner() {
 
       {/* Active section */}
       {renderSection()}
+
+      {/* Investment Add/Edit Dialog */}
+      <Dialog
+        open={showAddInv || editingInv !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowAddInv(false);
+            setEditingInv(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingInv ? "Edit Investasi" : "Tambah Investasi"}
+            </DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              void handleInvSubmit(e);
+            }}
+            className="space-y-3"
+          >
+            {(["ticker", "name"] as const).map((field) => (
+              <div key={field} className="space-y-1">
+                <label className="text-[12px] text-muted-foreground capitalize">
+                  {field === "ticker" ? "Ticker" : "Nama"}
+                </label>
+                <input
+                  required
+                  value={invForm[field]}
+                  onChange={(e) =>
+                    setInvForm((f) => ({ ...f, [field]: e.target.value }))
+                  }
+                  placeholder={
+                    field === "ticker"
+                      ? "contoh: BBCA"
+                      : "contoh: Bank Central Asia"
+                  }
+                  className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            ))}
+            <div className="space-y-1">
+              <label className="text-[12px] text-muted-foreground">Jenis</label>
+              <select
+                value={invForm.type}
+                onChange={(e) =>
+                  setInvForm((f) => ({
+                    ...f,
+                    type: e.target.value as InvestmentType,
+                  }))
+                }
+                className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
+              >
+                {(
+                  [
+                    "saham",
+                    "reksa_dana",
+                    "obligasi",
+                    "emas",
+                    "kripto",
+                    "lainnya",
+                  ] as InvestmentType[]
+                ).map((t) => (
+                  <option key={t} value={t}>
+                    {t.replace("_", " ")}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {(["quantity", "costBasisPerUnit"] as const).map((field) => (
+              <div key={field} className="space-y-1">
+                <label className="text-[12px] text-muted-foreground">
+                  {field === "quantity"
+                    ? "Jumlah (lot/unit)"
+                    : "Harga Beli per Unit (Rp)"}
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  step="any"
+                  value={invForm[field]}
+                  onChange={(e) =>
+                    setInvForm((f) => ({ ...f, [field]: e.target.value }))
+                  }
+                  className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            ))}
+            <DialogFooter>
+              <Button type="submit" disabled={invSubmitting} className="w-full">
+                {invSubmitting ? "Menyimpan..." : "Simpan"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Investment Delete Confirm Dialog */}
+      <Dialog
+        open={deletingInv !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeletingInv(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hapus Investasi</DialogTitle>
+          </DialogHeader>
+          <p className="text-[13px] text-muted-foreground">
+            Yakin ingin menghapus{" "}
+            <span className="font-semibold text-foreground">
+              {deletingInv?.ticker} — {deletingInv?.name}
+            </span>
+            ? Tindakan ini tidak dapat dibatalkan.
+          </p>
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeletingInv(null)}
+              disabled={invSubmitting}
+            >
+              Batal
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                void handleInvDelete();
+              }}
+              disabled={invSubmitting}
+            >
+              {invSubmitting ? "Menghapus..." : "Hapus"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

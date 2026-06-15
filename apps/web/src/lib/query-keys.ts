@@ -87,8 +87,8 @@ export const queryKeys = {
       ["reconciliation", fgId, syncId, "entries"] as const,
   },
   reports: {
-    summary: (familyGroupId: string, months: number) =>
-      ["reports", familyGroupId, "summary", months] as const,
+    summary: (familyGroupId: string, months: number, period = "monthly") =>
+      ["reports", familyGroupId, "summary", months, period] as const,
     bank: (familyGroupId: string, start: string, end: string) =>
       ["reports", familyGroupId, "bank", start, end] as const,
     detail: (familyGroupId: string, start: string, end: string) =>

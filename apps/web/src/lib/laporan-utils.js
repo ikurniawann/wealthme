@@ -5,6 +5,7 @@ exports.txTypeToBadgeVariant = txTypeToBadgeVariant;
 exports.formatJuta = formatJuta;
 exports.sankeyToFlowBars = sankeyToFlowBars;
 exports.buildInvChartData = buildInvChartData;
+exports.balanceSheetToWealthAlloc = balanceSheetToWealthAlloc;
 exports.getMonthDateRange = getMonthDateRange;
 exports.getTodayDateRange = getTodayDateRange;
 
@@ -74,6 +75,18 @@ function sankeyToFlowBars(data, type) {
     ...b,
     widthPct: Math.round((b.amount / maxAmount) * 100),
   }));
+}
+
+function balanceSheetToWealthAlloc(assets, totalAssets) {
+  if (totalAssets === 0 || assets.length === 0) return [];
+  return assets
+    .filter((g) => g.amount > 0)
+    .map((g, i) => ({
+      label: g.category,
+      value: Math.round((g.amount / totalAssets) * 100),
+      color: FALLBACK_COLORS[i % FALLBACK_COLORS.length] ?? "#E2E8F0",
+    }))
+    .sort((a, b) => b.value - a.value);
 }
 
 function buildInvChartData(summary) {

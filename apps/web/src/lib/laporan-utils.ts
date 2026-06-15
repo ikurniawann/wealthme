@@ -82,6 +82,25 @@ export function sankeyToFlowBars(
   }));
 }
 
+export function balanceSheetToWealthAlloc(
+  assets: {
+    category: string;
+    amount: number;
+    items: { name: string; amount: number }[];
+  }[],
+  totalAssets: number,
+): DonutSegment[] {
+  if (totalAssets === 0 || assets.length === 0) return [];
+  return assets
+    .filter((g) => g.amount > 0)
+    .map((g, i) => ({
+      label: g.category,
+      value: Math.round((g.amount / totalAssets) * 100),
+      color: FALLBACK_COLORS[i % FALLBACK_COLORS.length] ?? "#E2E8F0",
+    }))
+    .sort((a, b) => b.value - a.value);
+}
+
 export type InvChartData = {
   nilaiPct: number;
   modalPct: number;
