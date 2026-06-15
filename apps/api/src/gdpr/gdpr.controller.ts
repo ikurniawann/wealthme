@@ -5,12 +5,10 @@ import {
   HttpCode,
   HttpStatus,
   Request,
-  UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { type Request as ExpressRequest } from "express";
 
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { type JwtPayload } from "../auth/strategies/jwt.strategy";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -22,7 +20,6 @@ interface AuthRequest extends ExpressRequest {
 
 @ApiTags("gdpr")
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller("users/me/gdpr")
 export class GdprController {
   constructor(private readonly gdprService: GdprService) {}

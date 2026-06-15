@@ -9,7 +9,6 @@ import {
   Patch,
   Post,
   Request,
-  UseGuards,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -20,7 +19,6 @@ import {
 } from "@nestjs/swagger";
 import { type Request as ExpressRequest } from "express";
 
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { type JwtPayload } from "../auth/strategies/jwt.strategy";
 import { Public } from "../common/decorators/public.decorator";
 
@@ -47,7 +45,6 @@ export class FamilyGroupsController {
   constructor(private readonly familyGroupsService: FamilyGroupsService) {}
 
   @Get("mine")
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "List family groups the current user belongs to" })
   @ApiResponse({ status: 200, type: [FamilyGroupResponseDto] })
   findMine(@Request() req: AuthRequest): Promise<FamilyGroupResponseDto[]> {
@@ -55,7 +52,6 @@ export class FamilyGroupsController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Create a new family group (caller becomes owner)" })
   @ApiResponse({ status: 201, type: FamilyGroupResponseDto })
   create(
@@ -66,7 +62,6 @@ export class FamilyGroupsController {
   }
 
   @Get(":familyGroupId/members")
-  @UseGuards(JwtAuthGuard)
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiOperation({ summary: "List members of a family group" })
   @ApiResponse({ status: 200, type: [MemberResponseDto] })
@@ -78,7 +73,6 @@ export class FamilyGroupsController {
   }
 
   @Patch(":familyGroupId/members/:memberId")
-  @UseGuards(JwtAuthGuard)
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiParam({ name: "memberId", type: String })
   @ApiOperation({ summary: "Change a member role (owner only)" })
@@ -99,7 +93,6 @@ export class FamilyGroupsController {
 
   @Delete(":familyGroupId/members/:memberId")
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(JwtAuthGuard)
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiParam({ name: "memberId", type: String })
   @ApiOperation({
@@ -119,7 +112,6 @@ export class FamilyGroupsController {
   }
 
   @Post(":familyGroupId/invitations")
-  @UseGuards(JwtAuthGuard)
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiOperation({
     summary: "Create an invitation (owner only); returns the token",
@@ -149,7 +141,6 @@ export class FamilyGroupsController {
   }
 
   @Post("invitations/:token/accept")
-  @UseGuards(JwtAuthGuard)
   @ApiParam({ name: "token", type: String })
   @ApiOperation({ summary: "Accept an invitation (creates member record)" })
   @ApiResponse({ status: 201, type: MemberResponseDto })

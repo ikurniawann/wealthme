@@ -8,7 +8,6 @@ import {
   Param,
   Patch,
   Post,
-  UseGuards,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -18,7 +17,6 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { Public } from "../common/decorators/public.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -38,7 +36,6 @@ export class SplitBillsController {
   constructor(private readonly splitBillsService: SplitBillsService) {}
 
   @Get("family-groups/:familyGroupId/split-bills")
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiOperation({ summary: "List all split bills for a family group" })
@@ -50,7 +47,6 @@ export class SplitBillsController {
   }
 
   @Post("family-groups/:familyGroupId/split-bills")
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiOperation({ summary: "Create a new split bill" })
@@ -63,7 +59,6 @@ export class SplitBillsController {
   }
 
   @Get("family-groups/:familyGroupId/split-bills/:id")
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiParam({ name: "id", type: String })
@@ -78,7 +73,6 @@ export class SplitBillsController {
   }
 
   @Delete("family-groups/:familyGroupId/split-bills/:id")
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiParam({ name: "familyGroupId", type: String })
@@ -96,7 +90,6 @@ export class SplitBillsController {
   @Patch(
     "family-groups/:familyGroupId/split-bills/:id/participants/:participantId/settle",
   )
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiParam({ name: "id", type: String })

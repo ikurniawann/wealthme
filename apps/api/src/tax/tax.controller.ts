@@ -8,7 +8,6 @@ import {
   Param,
   Patch,
   Post,
-  UseGuards,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -18,7 +17,6 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
@@ -31,7 +29,6 @@ import { UpdateTaxRecordDto } from "./dto/update-tax-record.dto";
 import { TaxService } from "./tax.service";
 
 @ApiTags("tax")
-@UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 @Controller("family-groups/:familyGroupId/tax")
 export class TaxController {

@@ -8,7 +8,6 @@ import {
   Param,
   Patch,
   Post,
-  UseGuards,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -18,7 +17,6 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
@@ -31,7 +29,6 @@ import { UpdateInheritanceAssetDto } from "./dto/update-inheritance-asset.dto";
 import { InheritanceService } from "./inheritance.service";
 
 @ApiTags("inheritance")
-@UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 @Controller("family-groups/:familyGroupId/inheritance")
 export class InheritanceController {

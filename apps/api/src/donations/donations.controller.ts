@@ -9,7 +9,6 @@ import {
   Patch,
   Post,
   Query,
-  UseGuards,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -20,7 +19,6 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
@@ -33,7 +31,6 @@ import { DonationResponseDto } from "./dto/donation-response.dto";
 import { UpdateDonationDto } from "./dto/update-donation.dto";
 
 @ApiTags("donations")
-@UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 @Controller("family-groups/:familyGroupId/donations")
 export class DonationsController {
