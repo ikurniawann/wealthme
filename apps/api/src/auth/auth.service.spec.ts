@@ -26,6 +26,7 @@ const mockPrisma = {
   member: { create: jest.fn() },
   category: { createMany: jest.fn() },
   account: { create: jest.fn() },
+  baAccount: { updateMany: jest.fn() },
   $transaction: jest.fn(),
 };
 
@@ -336,6 +337,95 @@ describe("AuthService", () => {
         }),
       );
       expect(result.familyGroupId).toBeNull();
+    });
+  });
+
+  describe("changePassword()", () => {
+    it("verifies current password, hashes new password, and updates User + BaAccount", async () => {
+      // Arrange
+      const argon2 = jest.requireMock<{ verify: jest.Mock; hash: jest.Mock }>(
+        "argon2",
+      );
+      argon2.verify.mockResolvedValue(true);
+      argon2.hash.mockResolvedValue("$argon2id$new-hash");
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: "user-1",
+        passwordHash: "$argon2id$old-hash",
+      });
+      mockPrisma.user.update.mockResolvedValue({});
+      mockPrisma.baAccount.updateMany.mockResolvedValue({ count: 1 });
+
+      // Act
+      await service.changePassword("user-1", {
+        currentPassword: "OldPass123",
+        newPassword: "NewPass456",
+      });
+
+      // Assert
+      expect(argon2.verify).toHaveBeenCalledWith(
+        "$argon2id$old-hash",
+        "OldPass123",
+      );
+      expect(argon2.hash).toHaveBeenCalledWith("NewPass456", {
+        type: argon2.argon2id,
+      });
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: "user-1" },
+        data: { passwordHash: "$argon2id$new-hash" },
+      });
+      expect(mockPrisma.baAccount.updateMany).toHaveBeenCalledWith({
+        where: { userId: "user-1", providerId: "credential" },
+        data: { password: "$argon2id$new-hash" },
+      });
+    });
+
+    it("throws UnauthorizedException when user has no passwordHash (social-only account)", async () => {
+      // Arrange
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: "user-1",
+        passwordHash: null,
+      });
+
+      // Act & Assert
+      await expect(
+        service.changePassword("user-1", {
+          currentPassword: "any",
+          newPassword: "NewPass456",
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it("throws UnauthorizedException when current password is wrong", async () => {
+      // Arrange
+      const argon2 = jest.requireMock<{ verify: jest.Mock }>("argon2");
+      argon2.verify.mockResolvedValue(false);
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: "user-1",
+        passwordHash: "$argon2id$old-hash",
+      });
+
+      // Act & Assert
+      await expect(
+        service.changePassword("user-1", {
+          currentPassword: "WrongPass",
+          newPassword: "NewPass456",
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(mockPrisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it("throws UnauthorizedException when user is not found", async () => {
+      // Arrange
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        service.changePassword("ghost", {
+          currentPassword: "any",
+          newPassword: "NewPass456",
+        }),
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 
