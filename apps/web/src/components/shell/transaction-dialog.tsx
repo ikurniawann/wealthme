@@ -44,32 +44,6 @@ type CreateTransactionInput = {
   description?: string;
   occurredAt: string;
 };
-const RECENT = [
-  {
-    name: "Transfer dari BCA",
-    amt: "+Rp 5.000.000",
-    date: "30 Apr 2025",
-    value: "5.000.000",
-  },
-  {
-    name: "Bonus Bulanan",
-    amt: "+Rp 2.500.000",
-    date: "29 Apr 2025",
-    value: "2.500.000",
-  },
-  {
-    name: "Cashback",
-    amt: "+Rp 150.000",
-    date: "28 Apr 2025",
-    value: "150.000",
-  },
-  {
-    name: "Bunga Tabungan",
-    amt: "+Rp 45.000",
-    date: "28 Apr 2025",
-    value: "45.000",
-  },
-];
 const OCR_ITEMS = [
   ["AQUA 600ML", "Rp 5.000"],
   ["INDOMIE GORENG", "Rp 3.500"],
@@ -281,7 +255,10 @@ export function TransactionDialog() {
                   value={amount}
                   onChange={(e) => setAmount(formatAmountInput(e.target.value))}
                   placeholder="0"
-                  className={cn(fieldClass, "pl-[38px] text-xl font-extrabold")}
+                  className={cn(
+                    fieldClass,
+                    "pl-[38px] text-xl font-extrabold placeholder:text-base placeholder:font-normal placeholder:text-muted-foreground",
+                  )}
                 />
               </div>
             </Field>
@@ -346,30 +323,6 @@ export function TransactionDialog() {
               />
             </Field>
 
-            <div className="mb-4">
-              <div className="mb-2 flex justify-between text-xs font-bold text-muted-foreground">
-                <span>Transaksi Terakhir</span>
-                <span className="text-primary">Pilih salah satu</span>
-              </div>
-              <div className="grid grid-cols-2 gap-1.5">
-                {RECENT.map((r) => (
-                  <button
-                    key={r.name}
-                    onClick={() => setAmount(r.value)}
-                    className="rounded-md border px-2.5 py-2.5 text-left transition-colors hover:border-primary hover:bg-accent"
-                  >
-                    <div className="text-[11.5px] font-semibold">{r.name}</div>
-                    <div className="text-[12.5px] font-extrabold text-success">
-                      {r.amt}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground">
-                      {r.date}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <button
               onClick={() => saveTxn()}
               disabled={createMutation.isPending}
@@ -381,7 +334,7 @@ export function TransactionDialog() {
             <button
               onClick={() => saveTxn(true)}
               disabled={createMutation.isPending}
-              className="mt-2 w-full rounded-md py-2.5 text-[13.5px] font-bold text-primary transition-colors hover:bg-accent disabled:opacity-60"
+              className="mt-2 mb-2 w-full rounded-md py-2.5 text-[13.5px] font-bold text-primary transition-colors hover:bg-accent disabled:opacity-60"
             >
               Simpan &amp; Tambah Lagi
             </button>
