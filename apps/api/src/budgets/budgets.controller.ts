@@ -21,8 +21,10 @@ import { CheckAbility } from "../common/decorators/check-ability.decorator";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { BudgetsService } from "./budgets.service";
 import { BudgetResponseDto } from "./dto/budget-response.dto";
-import { type CreateBudgetDto } from "./dto/create-budget.dto";
-import { type UpdateBudgetDto } from "./dto/update-budget.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { CreateBudgetDto } from "./dto/create-budget.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { UpdateBudgetDto } from "./dto/update-budget.dto";
 
 @ApiTags("budgets")
 @ApiBearerAuth()
