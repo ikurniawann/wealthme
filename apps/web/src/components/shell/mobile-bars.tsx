@@ -3,9 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, Menu, Plus, Search } from "lucide-react";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { useSession } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { PAGE_TITLES, MOBILE_NAV } from "@/lib/nav";
 import { cn } from "@/lib/utils";
+import { apiFetch } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
 import { SidebarNav } from "./sidebar";
 import { ThemeToggle } from "./theme-toggle";
 import { useShell } from "./shell-context";
@@ -17,6 +26,22 @@ export function MobileHeader() {
   const title = PAGE_TITLES[seg] ?? "WealthMe";
   const { setSearchOpen } = useShell();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const { data: session } = useSession();
+  const familyGroupId = session?.familyGroupId;
+  const token = session?.accessToken;
+
+  const { data: unreadData } = useQuery<{ count: number }>({
+    queryKey: queryKeys.notifications.unreadCount(familyGroupId ?? ""),
+    queryFn: ({ signal }) =>
+      apiFetch<{ count: number }>(
+        `/family-groups/${familyGroupId}/notifications/unread-count`,
+        { token, signal },
+      ),
+    enabled: Boolean(familyGroupId) && Boolean(token),
+    refetchInterval: 30_000,
+  });
+
+  const hasUnread = (unreadData?.count ?? 0) > 0;
 
   return (
     <div className="sticky top-0 z-50 flex h-14 items-center gap-2.5 border-b bg-card px-4 md:hidden">
@@ -49,7 +74,9 @@ export function MobileHeader() {
           className="relative flex size-9 items-center justify-center rounded-md bg-secondary text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
         >
           <Bell className="size-[15px]" />
-          <span className="absolute right-1.5 top-1.5 size-[7px] rounded-full border-2 border-card bg-destructive" />
+          {hasUnread && (
+            <span className="absolute right-1.5 top-1.5 size-[7px] rounded-full border-2 border-card bg-destructive" />
+          )}
         </Link>
       </div>
     </div>

@@ -3,8 +3,12 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell, Eye, LogOut, Search } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
 import { PAGE_TITLES } from "@/lib/nav";
 import { useAuth } from "@/components/providers/auth-provider";
+import { apiFetch } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
 import { ThemeToggle } from "./theme-toggle";
 import { useShell } from "./shell-context";
 
@@ -19,6 +23,22 @@ export function Topbar() {
   const { setSearchOpen } = useShell();
   const { logout } = useAuth();
   const router = useRouter();
+  const { data: session } = useSession();
+  const familyGroupId = session?.familyGroupId;
+  const token = session?.accessToken;
+
+  const { data: unreadData } = useQuery<{ count: number }>({
+    queryKey: queryKeys.notifications.unreadCount(familyGroupId ?? ""),
+    queryFn: ({ signal }) =>
+      apiFetch<{ count: number }>(
+        `/family-groups/${familyGroupId}/notifications/unread-count`,
+        { token, signal },
+      ),
+    enabled: Boolean(familyGroupId) && Boolean(token),
+    refetchInterval: 30_000,
+  });
+
+  const hasUnread = (unreadData?.count ?? 0) > 0;
 
   const handleLogout = () => {
     logout();
@@ -35,7 +55,9 @@ export function Topbar() {
       >
         <Search className="size-[13px]" />
         <span className="flex-1 text-left">Cari transaksi, rekening...</span>
-        <span className="mono rounded bg-border px-1.5 py-0.5 text-[10px]">⌘K</span>
+        <span className="mono rounded bg-border px-1.5 py-0.5 text-[10px]">
+          ⌘K
+        </span>
       </button>
       <div className="flex gap-1.5">
         <ThemeToggle />
@@ -44,7 +66,9 @@ export function Topbar() {
           className="relative flex size-9 items-center justify-center rounded-md bg-secondary text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
         >
           <Bell className="size-[15px]" />
-          <span className="absolute right-1.5 top-1.5 size-[7px] rounded-full border-2 border-card bg-destructive" />
+          {hasUnread && (
+            <span className="absolute right-1.5 top-1.5 size-[7px] rounded-full border-2 border-card bg-destructive" />
+          )}
         </Link>
         <button className="flex size-9 items-center justify-center rounded-md bg-secondary text-muted-foreground transition-colors hover:bg-accent hover:text-primary">
           <Eye className="size-[15px]" />
