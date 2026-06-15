@@ -98,8 +98,10 @@ const ERROR_PATTERNS = [
   "Coba muat ulang",
   "Terjadi kesalahan",
   "Error loading",
-  "500",
-  "404",
+  "internal server error",
+  "application error",
+  "page not found",
+  "404 not found",
 ];
 const PLACEHOLDER_PATTERNS = [
   "dalam pengembangan",
