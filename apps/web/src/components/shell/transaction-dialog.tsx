@@ -202,7 +202,7 @@ export function TransactionDialog() {
     <Dialog open={txnOpen} onOpenChange={handleOpenChange}>
       <DialogContent
         showCloseButton={view === "form"}
-        className="max-h-[90vh] max-w-[480px] gap-0 overflow-y-auto p-0 sm:max-w-[480px]"
+        className="max-h-[90vh] w-full max-w-[480px] gap-0 overflow-x-hidden overflow-y-auto p-0 sm:max-w-[480px]"
       >
         {view === "form" && (
           <div className="p-6">
@@ -225,7 +225,7 @@ export function TransactionDialog() {
               </button>
             </div>
 
-            <div className="mb-[18px] flex gap-1 overflow-x-auto rounded-md bg-secondary p-1 hide-scrollbar">
+            <div className="mb-4 grid grid-cols-2 gap-1 rounded-md bg-secondary p-1">
               {TABS.map((t, i) => (
                 <button
                   key={t}
@@ -234,10 +234,10 @@ export function TransactionDialog() {
                     setCategoryId("");
                   }}
                   className={cn(
-                    "shrink-0 rounded-md px-3 py-[7px] text-xs font-semibold whitespace-nowrap transition-colors",
+                    "rounded-md px-2 py-2 text-center text-xs font-semibold transition-colors",
                     tab === i
                       ? "bg-card text-primary shadow-sm"
-                      : "text-muted-foreground",
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {t}
