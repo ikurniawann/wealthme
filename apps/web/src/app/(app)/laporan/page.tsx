@@ -885,14 +885,17 @@ function FlowBar({
   amount: string;
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <div
-        className="flex h-[28px] items-center rounded-[6px] px-2.5 text-[11px] font-bold text-white"
-        style={{ width, background: grad }}
-      >
-        {label}
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-[12px]">
+        <span className="font-semibold">{label}</span>
+        <span className="font-bold">{amount}</span>
       </div>
-      <span className="text-[11px] font-bold">{amount}</span>
+      <div className="h-[10px] w-full overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full"
+          style={{ width, background: grad }}
+        />
+      </div>
     </div>
   );
 }
@@ -937,7 +940,7 @@ function AliranSection({
               <div className="mb-2 text-[11px] font-bold text-success">
                 SUMBER DANA MASUK
               </div>
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-3">
                 {incomeBars.map((b, i) => (
                   <FlowBar
                     key={b.label}
@@ -959,7 +962,7 @@ function AliranSection({
               <div className="mb-2 text-[11px] font-bold text-destructive">
                 ALOKASI DANA KELUAR
               </div>
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-3">
                 {expenseBars.map((b, i) => (
                   <FlowBar
                     key={b.label}
