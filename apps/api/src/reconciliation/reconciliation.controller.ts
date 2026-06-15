@@ -7,7 +7,6 @@ import {
   Param,
   Patch,
   Post,
-  UseGuards,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -16,8 +15,6 @@ import {
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
-
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { MatchEntryDto } from "./dto/match-entry.dto";
@@ -34,7 +31,6 @@ import type {
 } from "./reconciliation.service";
 
 @ApiTags("reconciliation")
-@UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 @Controller("family-groups/:familyGroupId/reconciliation")
 export class ReconciliationController {
