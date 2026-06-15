@@ -90,8 +90,6 @@ export const NAV_SECTIONS: NavSection[] = [
         label: "Notifikasi",
         href: "/notifikasi",
         icon: Bell,
-        badge: "3",
-        badgeVariant: "danger",
       },
     ],
   },

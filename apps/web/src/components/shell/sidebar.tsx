@@ -4,9 +4,13 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronDown, Plus } from "lucide-react";
 import { useState } from "react";
+import { useSession } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { NAV_SECTIONS, type BadgeVariant } from "@/lib/nav";
 import { USER } from "@/lib/data";
+import { apiFetch } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
 import { useShell } from "./shell-context";
 
 const BADGE_CLASS: Record<BadgeVariant, string> = {
@@ -33,6 +37,22 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const searchParams = useSearchParams();
   const { setTxnOpen } = useShell();
   const activeTab = searchParams.get("tab");
+  const { data: session } = useSession();
+  const familyGroupId = session?.familyGroupId;
+  const token = session?.accessToken;
+
+  const { data: unreadData } = useQuery<{ count: number }>({
+    queryKey: queryKeys.notifications.unreadCount(familyGroupId ?? ""),
+    queryFn: ({ signal }) =>
+      apiFetch<{ count: number }>(
+        `/family-groups/${familyGroupId}/notifications/unread-count`,
+        { token, signal },
+      ),
+    enabled: Boolean(familyGroupId) && Boolean(token),
+    refetchInterval: 30_000,
+  });
+
+  const unreadCount = unreadData?.count ?? 0;
 
   const [reportOpen, setReportOpen] = useState(pathname === "/laporan");
 
@@ -97,7 +117,8 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                       )}
                     >
                       {item.children.map((tab) => {
-                        const tabActive = pathname === "/laporan" && activeTab === tab.id;
+                        const tabActive =
+                          pathname === "/laporan" && activeTab === tab.id;
                         return (
                           <Link
                             key={tab.id}
@@ -134,8 +155,13 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                 >
                   <Icon className="size-[18px] shrink-0" />
                   {item.label}
-                  {item.badge && item.badgeVariant && (
-                    <NavBadge text={item.badge} variant={item.badgeVariant} />
+                  {item.id === "notifikasi" && unreadCount > 0 ? (
+                    <NavBadge text={String(unreadCount)} variant="danger" />
+                  ) : (
+                    item.badge &&
+                    item.badgeVariant && (
+                      <NavBadge text={item.badge} variant={item.badgeVariant} />
+                    )
                   )}
                 </Link>
               );
@@ -156,7 +182,9 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           </div>
           <div className="min-w-0">
             <div className="truncate text-[12.5px] font-bold">{USER.name}</div>
-            <div className="truncate text-[11px] text-muted-foreground">{USER.email}</div>
+            <div className="truncate text-[11px] text-muted-foreground">
+              {USER.email}
+            </div>
           </div>
         </Link>
       </div>
