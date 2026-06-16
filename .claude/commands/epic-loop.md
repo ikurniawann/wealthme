@@ -36,7 +36,8 @@ and aggregate their findings into one verdict per gate.
 
 1. **Read** the epic. Extract the epic slug (e.g. `EPIC-001`), Goal, acceptance criteria, and the
    unchecked `### task group` headings under `## Tasks`. Build an ordered plan
-   (lowest-risk / dependency-first). Print the plan.
+   (lowest-risk / dependency-first). Print the plan. If a task group is ambiguous, normalize it with
+   `docs/AGENTIC-WORKFLOW.md` before implementation.
 2. **For each task group** (sequentially):
    - Derive `<heading-slug>` = lowercased heading, non-alphanumerics → `-`.
    - **Branch**: `git fetch origin` then
@@ -88,3 +89,7 @@ and aggregate their findings into one verdict per gate.
 - ECC agents (`ecc:react-reviewer`, `ecc:typescript-reviewer`, `ecc:security-reviewer`,
   `ecc:react-build`) are invoked from this main session as part of the gates above — never from inside
   a custom sub-agent (sub-agents cannot spawn sub-agents).
+- Ruflo/AgentDB may be used for read-only exploration before coding; copy durable findings into tracked
+  docs. Do not rely on `.swarm/` or `.claude-flow/` as the only record.
+- Codex can run a post-development workflow hygiene pass after the epic loop to sync instructions,
+  status vocabulary, and runbooks.

@@ -4,18 +4,24 @@ Detail pekerjaan per epic (selaras GitHub Project "WealthMe Roadmap" & milestone
 Sumber backlog: [`../../scripts/backlog.json`](../../scripts/backlog.json) ·
 ringkasan: [`../BACKLOG.md`](../BACKLOG.md) · arsitektur: [`../WealthMe_Backend_Plan.md`](../WealthMe_Backend_Plan.md).
 
-| Epic                                        | Fase    | Fokus                              | Prioritas | Status       |
-| ------------------------------------------- | ------- | ---------------------------------- | --------- | ------------ |
-| [EPIC-000](EPIC-000-foundation-infra.md)    | Phase 0 | Foundation & Infra                 | P0        | ready-for-qa |
-| [EPIC-001](EPIC-001-backend-foundation.md)  | Phase 1 | Backend Foundation (auth/RBAC/DB)  | P0        | planned      |
-| [EPIC-002](EPIC-002-core-money-tracking.md) | Phase 2 | Core Money Tracking (**MVP**)      | P0        | planned      |
-| [EPIC-003](EPIC-003-wealth.md)              | Phase 3 | Wealth (investasi/aset/liabilitas) | P1        | planned      |
-| [EPIC-004](EPIC-004-reports-calculators.md) | Phase 4 | Reports & Calculators              | P1        | planned      |
-| [EPIC-005](EPIC-005-family-tools.md)        | Phase 5 | Family & Tools                     | P1        | planned      |
-| [EPIC-006](EPIC-006-integrations-ai.md)     | Phase 6 | Integrations & AI                  | P2        | planned      |
-| [EPIC-007](EPIC-007-hardening-launch.md)    | Phase 7 | Hardening & Launch                 | P2        | planned      |
+| Epic                                           | Fase    | Fokus                               | Prioritas | Status       |
+| ---------------------------------------------- | ------- | ----------------------------------- | --------- | ------------ |
+| [EPIC-000](EPIC-000-foundation-infra.md)       | Phase 0 | Foundation & Infra                  | P0        | ready-for-qa |
+| [EPIC-001](EPIC-001-backend-foundation.md)     | Phase 1 | Backend Foundation (auth/RBAC/DB)   | P0        | ready-for-qa |
+| [EPIC-002](EPIC-002-core-money-tracking.md)    | Phase 2 | Core Money Tracking (**MVP**)       | P0        | ready-for-qa |
+| [EPIC-003](EPIC-003-wealth.md)                 | Phase 3 | Wealth (investasi/aset/liabilitas)  | P1        | ready-for-qa |
+| [EPIC-004](EPIC-004-reports-calculators.md)    | Phase 4 | Reports & Calculators               | P1        | ready-for-qa |
+| [EPIC-005](EPIC-005-family-tools.md)           | Phase 5 | Family & Tools                      | P1        | ready-for-qa |
+| [EPIC-006](EPIC-006-integrations-ai.md)        | Phase 6 | Integrations & AI                   | P2        | ready-for-qa |
+| [EPIC-007](EPIC-007-hardening-launch.md)       | Phase 7 | Hardening & Launch                  | P2        | ready-for-qa |
+| [EPIC-008](EPIC-008-bug-fix-500-api-errors.md) | Phase 3 | 500 API Errors & Data Load Failures | P0        | ready-for-qa |
+| [EPIC-009](EPIC-009-missing-pages-mvp.md)      | Phase 3 | Missing Pages MVP                   | P1        | ready-for-qa |
 
 **Definition of MVP (bisa mulai dipakai):** selesainya **EPIC-000 → 001 → 002**.
 Lanjut EPIC-003…007 sampai full product.
 
-**Konvensi:** status = `planned` · `in-progress` · `blocked` · `done`. `environment` = `dev` → `staging` → `prod`.
+**Konvensi status canonical:** `backlog` · `on-progress` · `coding` · `review` ·
+`testing` · `deploying-dev` · `ready-for-qa` · `blocked` · `done`.
+`environment` = `dev` → `staging` → `prod`.
+
+Workflow agentic: [`../AGENTIC-WORKFLOW.md`](../AGENTIC-WORKFLOW.md).

@@ -3,6 +3,11 @@
 Sumber data board: [`scripts/backlog.json`](../scripts/backlog.json) · dibuat otomatis ke
 GitHub Projects via [`scripts/setup-github-project.sh`](../scripts/setup-github-project.sh).
 
+> Catatan status: file ini adalah backlog/board seed historis. Status eksekusi
+> canonical ada di [`epics/README.md`](epics/README.md) dan masing-masing file
+> `docs/epics/EPIC-*.md`. Gunakan [`AGENTIC-WORKFLOW.md`](AGENTIC-WORKFLOW.md)
+> untuk workflow Claude Code + Codex + Ruflo.
+
 **Urutan kerja:** ikuti fase 0 → 7. **MVP yang bisa mulai dipakai = selesainya Epic 0–2.**
 Label tiap issue: `area:*` (Frontend/Backend/Infra) · `phase:N` · `prio:P0|P1|P2` · `type:*`.
 
@@ -10,7 +15,8 @@ Prioritas: **P0** = wajib untuk MVP · **P1** = produk inti · **P2** = lanjutan
 
 ---
 
-## Phase 0 · Foundation & Infra  _(Epic 0)_
+## Phase 0 · Foundation & Infra _(Epic 0)_
+
 - [ ] **P0** (Infra) Restructure repo into pnpm monorepo (web → apps/web) — _selesai via `chore/monorepo`_
 - [ ] **P0** (Infra) Shared packages: `@wealthme/contracts` (Zod) + `@wealthme/config`
 - [ ] **P0** (Infra) Local dev stack via Docker Compose (postgres, redis, minio, mailhog)
@@ -18,7 +24,8 @@ Prioritas: **P0** = wajib untuk MVP · **P1** = produk inti · **P2** = lanjutan
 - [ ] **P1** (Infra) Env management: `.env.example` + typed config loading
 - [ ] **P2** (Infra) Commit hooks: husky + lint-staged + conventional commits
 
-## Phase 1 · Backend Foundation  _(Epic 1)_
+## Phase 1 · Backend Foundation _(Epic 1)_
+
 - [ ] **P0** (Backend) Scaffold NestJS app at `apps/api` (config, health, logging)
 - [ ] **P0** (Backend) Prisma + Postgres + base schema & migrations
 - [ ] **P0** (Backend) Auth: email/password (argon2) + JWT access/refresh + rotation (Redis)
@@ -29,7 +36,8 @@ Prioritas: **P0** = wajib untuk MVP · **P1** = produk inti · **P2** = lanjutan
 - [ ] **P0** (Frontend) Web: Auth.js integration (Credentials → API) + session
 - [ ] **P0** (Frontend) Web: API client + TanStack Query setup
 
-## Phase 2 · Core Money Tracking (MVP)  _(Epic 2)_
+## Phase 2 · Core Money Tracking (MVP) _(Epic 2)_
+
 - [ ] **P0** (Backend) Accounts API (bank & e-wallet) + balances
 - [ ] **P0** (Frontend) Wire Rekening + Dana pages to API
 - [ ] **P0** (Backend) Transactions API (CRUD, filters, categories)
@@ -46,7 +54,8 @@ Prioritas: **P0** = wajib untuk MVP · **P1** = produk inti · **P2** = lanjutan
 - [ ] **P1** (Frontend) Wire Notifikasi page + topbar badge
 - [ ] **P2** (Backend) Search API (Postgres FTS) + wire ⌘K
 
-## Phase 3 · Wealth  _(Epic 3)_
+## Phase 3 · Wealth _(Epic 3)_
+
 - [ ] **P1** (Backend) Investments API + portfolio P&L
 - [ ] **P1** (Backend) `investment_prices` + MarketDataPort (mock) + refresh cron (BullMQ)
 - [ ] **P2** (Backend) Realtime price push (WebSocket)
@@ -58,7 +67,8 @@ Prioritas: **P0** = wajib untuk MVP · **P1** = produk inti · **P2** = lanjutan
 - [ ] **P2** (Backend) Insurance API
 - [ ] **P2** (Frontend) Wire Asuransi page
 
-## Phase 4 · Reports & Calculators  _(Epic 4)_
+## Phase 4 · Reports & Calculators _(Epic 4)_
+
 - [ ] **P1** (Backend) Reports read-models: Ringkasan/Harian/Bulanan/Tahunan
 - [ ] **P1** (Backend) Reports: Group Family / Bank / Detail
 - [ ] **P1** (Backend) Reports: PNL / Balance Sheet / Cashflow / Aliran Dana
@@ -68,7 +78,8 @@ Prioritas: **P0** = wajib untuk MVP · **P1** = produk inti · **P2** = lanjutan
 - [ ] **P1** (Backend) PPh 21 calculator service (UU HPP brackets) + wire
 - [ ] **P2** (Frontend) Financial calculators parity (investasi/KPR/pensiun/tabungan/split)
 
-## Phase 5 · Family & Tools  _(Epic 5)_
+## Phase 5 · Family & Tools _(Epic 5)_
+
 - [ ] **P1** (Backend) Family group + members + email invitations
 - [ ] **P1** (Backend) Admin/staff roles + scoped permissions
 - [ ] **P1** (Frontend) Wire Akun → Family + add-admin modal
@@ -84,7 +95,8 @@ Prioritas: **P0** = wajib untuk MVP · **P1** = produk inti · **P2** = lanjutan
 - [ ] **P2** (Backend) Bank reconciliation: statement upload + parser + matching
 - [ ] **P2** (Frontend) Wire Rekonsiliasi stepper to API
 
-## Phase 6 · Integrations & AI  _(Epic 6)_
+## Phase 6 · Integrations & AI _(Epic 6)_
+
 - [ ] **P2** (Backend) OCR real provider (Google Vision/Textract) + BullMQ pipeline
 - [ ] **P2** (Backend) Open-banking adapter (Brick/Ayoconnect) replace mock bank sync
 - [ ] **P2** (Backend) Market data real (IDX/RTI) replace mock
@@ -94,7 +106,8 @@ Prioritas: **P0** = wajib untuk MVP · **P1** = produk inti · **P2** = lanjutan
 - [ ] **P2** (Backend) Email/push notifications real (SendGrid/SES/FCM)
 - [ ] **P2** (Backend) Search upgrade to Meilisearch
 
-## Phase 7 · Hardening & Launch  _(Epic 7)_
+## Phase 7 · Hardening & Launch _(Epic 7)_
+
 - [ ] **P2** (Backend) Encryption at rest + column-level for sensitive fields
 - [ ] **P2** (Backend) Rate limiting + throttling
 - [ ] **P2** (Infra) Secrets management (Vault/Doppler)
@@ -108,6 +121,7 @@ Prioritas: **P0** = wajib untuk MVP · **P1** = produk inti · **P2** = lanjutan
 ---
 
 ### Cara membuat board GitHub Projects
+
 1. Install gh & login sekali: `gh auth login` (scopes: `repo`, `read:org`, `project`).
 2. Jalankan: `bash scripts/setup-github-project.sh` — membuat Project "WealthMe Roadmap",
    fields (Status/Area/Priority), labels, milestones (Phase 0–7), dan semua issue di atas,

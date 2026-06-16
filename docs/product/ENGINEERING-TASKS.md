@@ -4,6 +4,11 @@
 > Each task: **ID** · description · **Type** (BE / FE / Infra) · **Complexity** (S ≤1d, M 2–4d, L ≥1w) · **Depends on** · **Stories**.
 > Task IDs mirror the enhanced task lists in `docs/epics/`. EPIC-000/001/002 are **delivered (ready-for-qa)** and listed below for traceability; their residual QA items are noted in each epic file.
 > **Convention (from EPIC-002):** each domain = a Backend module + a Frontend wiring task (replace mock with TanStack Query against `@wealthme/contracts`).
+>
+> Status note: this file is a product/engineering decomposition. Current
+> execution status is canonical in `docs/epics/README.md` and each
+> `docs/epics/EPIC-*.md` file. Agent workflow lives in
+> `docs/AGENTIC-WORKFLOW.md`.
 
 ---
 

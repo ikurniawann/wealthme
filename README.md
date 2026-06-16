@@ -66,4 +66,8 @@ fails at build time when a variable is missing.
 
 - Rencana & rekomendasi stack backend: `docs/WealthMe_Backend_Plan.md`
 - Roadmap / backlog (GitHub Projects): `docs/BACKLOG.md`
+- Workflow Claude Code + Codex + Ruflo: `docs/AGENTIC-WORKFLOW.md`
+- Detailed agent loop: `docs/AGENTIC-AGENT-LOOP.md`
+- New project setup checklist: `docs/AGENTIC-NEW-PROJECT-SETUP.md`
+- Status epic canonical: `docs/epics/README.md`
 - Dokumentasi produk & demo asli: `docs/WealthMe_Development.md`, `docs/WealthMe_Demo.html`

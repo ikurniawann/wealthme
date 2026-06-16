@@ -38,7 +38,8 @@ findings into one verdict per gate.
    Select the target `### task group` per the rule above. If every sub-step is already `- [x]`, STOP
    and report "task already complete" (idempotent — do not re-run).
 2. **Extract context**: the epic Goal, the group's sub-steps, and the `## Acceptance Criteria` relevant
-   to this task.
+   to this task. If the task is ambiguous or cross-cutting, normalize it with `docs/AGENTIC-WORKFLOW.md`
+   first (`Evidence`, `Scope`, `Acceptance Criteria`, `Test Plan`, `Agent Routing`, `Done Signal`).
 3. **Branch**: `git fetch origin` then `git switch -c feat/<epic-slug>-task-<n>-<heading-slug> origin/development`
    (slug = lowercased heading, non-alphanumerics → `-`). If the branch already exists, switch to it.
 4. **Bounded loop (attempt 1..3)**:
@@ -78,3 +79,7 @@ findings into one verdict per gate.
 
 - One task = one focused, reviewable change. Never weaken or skip tests to make them pass.
 - The orchestrator (you) flips checkboxes and runs git/PR — `code-agent` never commits or pushes.
+- For broad discovery, use Ruflo/AgentDB as a read-only scoping layer, then copy durable findings into
+  the epic `Automation Log`; `.swarm/` and `.claude-flow/` are runtime state, not project docs.
+- After development, Codex may be used as a hygiene pass for instruction sync, stale status cleanup,
+  and runbook updates.

@@ -12,12 +12,14 @@ This command writes **local files only**. It must NOT create branches, commit, p
 GitHub. The user reviews the epic and pushes/syncs to GitHub themselves.
 
 ## Steps
+
 1. **Plan** the feature: run the `/ecc:plan` skill (or `planner` agent) on `$ARGUMENTS`. Use the
    resulting plan to derive the Goal, the task breakdown, and acceptance criteria. Read a couple of
    neighbouring files in `docs/epics/` first so the new epic matches house style.
 2. **Pick the next id**: scan `docs/epics/EPIC-*.md`, take the highest `EPIC-NNN`, add 1 →
    `EPIC-<NNN+1>`. Build a kebab slug from the feature title.
 3. **Write** `docs/epics/EPIC-<NNN+1>-<slug>.md` following the exact repo format:
+
    ```
    # EPIC-<NNN+1>: <Title>
 
@@ -45,8 +47,12 @@ GitHub. The user reviews the epic and pushes/syncs to GitHub themselves.
    ## Dependencies
    - <other epics, or "Tidak ada">
    ```
+
    Each `### group` should be a self-contained, PR-sized unit (it will map to one GitHub issue and one
    `/task-work` run). Start with `status: backlog` so automation ignores it until the user is ready.
+   For complex groups, add the lightweight task shape from `docs/AGENTIC-WORKFLOW.md`: Evidence,
+   Scope, Acceptance Criteria, Test Plan, Agent Routing, and Done Signal.
+
 4. **Report and stop**. Print the new file path and these manual next steps (do NOT run them):
    - Review/edit the epic file.
    - Optionally add the tasks to `scripts/backlog.json` and run `bash scripts/setup-github-project.sh`
@@ -55,4 +61,5 @@ GitHub. The user reviews the epic and pushes/syncs to GitHub themselves.
    - To start work: set `status: on-progress` and run `/epic-loop`, or run `/task-work EPIC-<NNN+1> 1`.
 
 ## Guardrails
+
 - No GitHub mutations, no git commits/pushes, no `gh` calls. Files under `docs/epics/` only.

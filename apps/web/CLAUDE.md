@@ -1,1 +1,2 @@
 @AGENTS.md
+@WM_CONVENTIONS.md

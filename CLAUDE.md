@@ -17,15 +17,36 @@
 
 Always use available RTK and ECC capabilities before scanning the repository.
 
+This repo follows the user-level docs workflow at
+`/home/stealth/.agentic-workflows/claude-codex-docs-workflow.md`.
+
+Operating split:
+
+- **Claude Code** is the primary development runner: `/task-work`, `/epic-loop`,
+  project sub-agents, Ruflo swarm scoping, branch/PR flow, and DEV-only deploy
+  loops.
+- **Codex** is the workflow hygiene runner: `AGENTS.md`, `CLAUDE.md`, runbooks,
+  status normalization, stale automation cleanup, focused verification, and
+  small scoped patches.
+- **Ruflo / AgentDB** is the exploration and memory layer. Durable decisions
+  must be copied into tracked docs, usually an epic `Automation Log` or
+  `docs/AGENTIC-WORKFLOW.md`.
+
+If the user drops a raw task/enhancement without naming a command, default to
+the `/agentic-start` workflow before coding: classify, find/create an epic,
+build an evidence map, route ECC/Ruflo/Graphify, then start development only
+when the task is PR-sized.
+
 Priority order:
 
 1. RTK repository index
 2. RTK architecture map
 3. RTK memory/context
-4. ECC agents
-5. ECC skills
-6. MCP tools (Context7, GitHub, Playwright, Exa, Memory)
-7. Direct repository inspection
+4. Ruflo / AgentDB memory when available
+5. ECC agents
+6. ECC skills
+7. MCP tools (Context7, GitHub, Playwright, Exa, Memory)
+8. Direct repository inspection
 
 Read only the files necessary to complete the task.
 Avoid repository-wide scans unless explicitly required.
@@ -188,13 +209,19 @@ Use MCP tools proactively — they are faster and cheaper than free-form web sea
 > `ecc:react-build`; the custom agents above cover only the project-specific slice. Neither side is
 > redundant. (Earlier docs said the custom agents "wrap" the ECC reviewers — they do not; the orchestrator does.)
 
+> **Agent routing rule.** `/agentic-start` should choose the smallest useful route from custom WealthMe
+> agents, ECC agents/skills, Ruflo/AgentDB, and Graphify. Use ECC for generic expertise and gates, Ruflo
+> for broad discovery/memory, Graphify for architecture/file-relationship queries, and custom agents only
+> for WealthMe-specific behavior. Do not call every installed agent just because it exists.
+
 ### Custom Commands
 
-| Command      | File                            | Purpose                                                                                     |
-| ------------ | ------------------------------- | ------------------------------------------------------------------------------------------- |
-| `/epic-loop` | `.claude/commands/epic-loop.md` | Run a full epic end-to-end (all tasks) with ECC-wired gates, DEV deploy                     |
-| `/task-work` | `.claude/commands/task-work.md` | Work ONE task (`### group`) from an epic → ECC gates → auto branch/push/PR to `development` |
-| `/epic-new`  | `.claude/commands/epic-new.md`  | `/ecc:plan` → write a local `docs/epics/EPIC-XXX` file only (push/sync to GitHub manually)  |
+| Command          | File                                | Purpose                                                                                     |
+| ---------------- | ----------------------------------- | ------------------------------------------------------------------------------------------- |
+| `/agentic-start` | `.claude/commands/agentic-start.md` | Drop raw task/enhancement → evidence map → epic/task shaping → optional development start   |
+| `/epic-loop`     | `.claude/commands/epic-loop.md`     | Run a full epic end-to-end (all tasks) with ECC-wired gates, DEV deploy                     |
+| `/task-work`     | `.claude/commands/task-work.md`     | Work ONE task (`### group`) from an epic → ECC gates → auto branch/push/PR to `development` |
+| `/epic-new`      | `.claude/commands/epic-new.md`      | `/ecc:plan` → write a local `docs/epics/EPIC-XXX` file only (push/sync to GitHub manually)  |
 
 ---
 
@@ -225,6 +252,10 @@ Only create project-specific agents when no equivalent exists.
 2. Review/edit the file; push & sync to GitHub manually (optionally via `scripts/setup-github-project.sh`).
 3. To run it: set `status: on-progress` and `/epic-loop docs/epics/EPIC-XXX.md`,
    or work a single task with `/task-work EPIC-XXX <n>`.
+
+For messy or cross-cutting tasks, normalize the task first using
+`docs/AGENTIC-WORKFLOW.md` (`Evidence`, `Scope`, `Acceptance Criteria`,
+`Test Plan`, `Agent Routing`, `Done Signal`) before starting implementation.
 
 ### Epic file format
 
@@ -358,6 +389,7 @@ Run security review before deployment.
 
 | Task                        | Use                                                                     |
 | --------------------------- | ----------------------------------------------------------------------- |
+| Drop raw task/enhancement   | `/agentic-start "<task>"`                                               |
 | Plan a feature              | `/ecc:plan`, `planner` agent                                            |
 | Design architecture         | `/ecc:blueprint`, `architect` agent, `/ecc:api-design`                  |
 | Generate a new epic (local) | `/epic-new "<feature>"` (writes `docs/epics/`, push manually)           |

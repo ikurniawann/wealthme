@@ -46,5 +46,9 @@ next-env.d.ts
 # claude code local settings (machine-specific)
 .claude/settings.local.json
 
+# agent runtime state (machine-specific)
+.claude-flow/
+.swarm/
+
 # graphify — generated AST/parse cache (large, machine-specific)
 graphify-out/
