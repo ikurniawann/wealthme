@@ -1,4 +1,13 @@
-import { Body, Controller, Get, HttpCode, Param, Post } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+} from "@nestjs/common";
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -44,5 +53,20 @@ export class CategoriesController {
     @Param("familyGroupId") familyGroupId: string,
   ): Promise<CategoryResponseDto[]> {
     return this.categoriesService.findAll(familyGroupId);
+  }
+
+  @Delete(":id")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @CheckAbility((ab: AppAbility) => ab.can("delete", "Category"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "id", type: String })
+  @ApiOperation({ summary: "Delete a category for a family group" })
+  @ApiResponse({ status: 204 })
+  @ApiResponse({ status: 404, description: "Category not found" })
+  remove(
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("id") id: string,
+  ): Promise<void> {
+    return this.categoriesService.remove(familyGroupId, id);
   }
 }

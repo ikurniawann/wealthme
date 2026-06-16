@@ -1,12 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { SectionCard, CardLink } from "@/components/wm";
+import type { CategoryDto } from "@wealthme/contracts";
+import { useSession } from "@/lib/auth-compat";
+import { apiFetch } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
+import { SectionCard, CardLink, StatusBadge } from "@/components/wm";
 import {
   ConfirmDeleteDialog,
   CrudModal,
   type CrudEntity,
+  type CrudMode,
   type CrudModalState,
 } from "@/components/crud";
 
@@ -17,7 +23,12 @@ interface MasterDataGroup {
   items: string[];
 }
 
-const INITIAL_GROUPS: MasterDataGroup[] = [
+/**
+ * System reference lists. These are fixed enums / conventions with no backend
+ * master table, so they are shown for reference and managed locally only.
+ * (Kategori is handled separately below — it is the one entity with a real API.)
+ */
+const REFERENCE_GROUPS: MasterDataGroup[] = [
   {
     entity: "mdbank",
     title: "🏦 Bank",
@@ -29,19 +40,6 @@ const INITIAL_GROUPS: MasterDataGroup[] = [
     title: "↕️ Jenis Transaksi",
     label: "Jenis Transaksi",
     items: ["Pemasukan", "Pengeluaran", "Transfer", "Kartu Kredit"],
-  },
-  {
-    entity: "mdkategori",
-    title: "🏷️ Kategori",
-    label: "Kategori",
-    items: [
-      "🍽️ Makanan",
-      "🚗 Transportasi",
-      "🏥 Kesehatan",
-      "🎮 Hiburan",
-      "🛒 Belanja",
-      "💡 Kebutuhan",
-    ],
   },
   {
     entity: "mdinvtype",
@@ -76,14 +74,37 @@ const INITIAL_GROUPS: MasterDataGroup[] = [
 ];
 
 export default function MasterDataPage() {
-  const [groups, setGroups] = useState<MasterDataGroup[]>(INITIAL_GROUPS);
+  const { data: session } = useSession();
+  const familyGroupId = session?.familyGroupId ?? "";
+  const token = session?.accessToken;
+  const enabled = Boolean(familyGroupId) && Boolean(token);
+
+  const queryClient = useQueryClient();
+
+  const { data: categories, isLoading: isCategoriesLoading } = useQuery<
+    CategoryDto[]
+  >({
+    queryKey: queryKeys.categories.all(familyGroupId),
+    queryFn: () =>
+      apiFetch<CategoryDto[]>(`/family-groups/${familyGroupId}/categories`, {
+        token,
+      }),
+    enabled,
+    staleTime: 60_000,
+  });
+
+  const [groups, setGroups] = useState<MasterDataGroup[]>(REFERENCE_GROUPS);
   const [crud, setCrud] = useState<CrudModalState | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{
     label: string;
     entity: CrudEntity;
     item: string;
   } | null>(null);
+  const [pendingCatDelete, setPendingCatDelete] = useState<CategoryDto | null>(
+    null,
+  );
 
+  // Local-only removal for the reference lists (no backend master table).
   const removeItem = (entity: CrudEntity, item: string) => {
     setGroups((prev) =>
       prev.map((g) =>
@@ -95,6 +116,77 @@ export default function MasterDataPage() {
     toast(`🗑️ ${item} dihapus.`);
   };
 
+  // Real category creation via the categories API.
+  const handleCrudSubmit = (
+    entity: CrudEntity,
+    _mode: CrudMode,
+    values: Record<string, string>,
+  ) => {
+    if (entity !== "mdkategori") {
+      // Reference lists have no backend; keep demo-parity feedback.
+      toast.success("Data referensi ditambahkan (lokal).");
+      return;
+    }
+    if (!enabled) {
+      toast.error("Sesi tidak valid, silakan login ulang.");
+      return;
+    }
+    const name = values.nama?.trim();
+    if (!name) {
+      toast.error("Nama kategori wajib diisi.");
+      return;
+    }
+    const kindMap: Record<string, "income" | "expense"> = {
+      Pemasukan: "income",
+      Pengeluaran: "expense",
+    };
+    const kind = kindMap[values.tipe];
+    if (!kind) {
+      toast.error("Tipe kategori tidak valid.");
+      return;
+    }
+    const icon = values.icon || undefined;
+
+    void (async () => {
+      try {
+        await apiFetch(`/family-groups/${familyGroupId}/categories`, {
+          method: "POST",
+          token,
+          body: JSON.stringify({ name, kind, icon }),
+        });
+        toast.success("Kategori ditambahkan");
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.categories.all(familyGroupId),
+        });
+      } catch {
+        toast.error("Gagal menambahkan kategori");
+      }
+    })();
+  };
+
+  const handleCategoryDelete = (cat: CategoryDto) => {
+    if (!enabled) {
+      toast.error("Sesi tidak valid, silakan login ulang.");
+      return;
+    }
+    void (async () => {
+      try {
+        await apiFetch(`/family-groups/${familyGroupId}/categories/${cat.id}`, {
+          method: "DELETE",
+          token,
+        });
+        toast.success("Kategori dihapus");
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.categories.all(familyGroupId),
+        });
+      } catch {
+        toast.error("Gagal menghapus kategori");
+      }
+    })();
+  };
+
+  const categoryList = categories ?? [];
+
   return (
     <div>
       <div className="mb-[18px]">
@@ -105,6 +197,55 @@ export default function MasterDataPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
+        {/* Kategori — backed by the real categories API */}
+        <SectionCard
+          title="🏷️ Kategori"
+          action={
+            <CardLink
+              onClick={() => setCrud({ entity: "mdkategori", mode: "add" })}
+            >
+              + Tambah
+            </CardLink>
+          }
+        >
+          {isCategoriesLoading || !enabled ? (
+            <div className="py-2 text-[12px] text-muted-foreground">
+              Memuat kategori…
+            </div>
+          ) : categoryList.length === 0 ? (
+            <div className="py-2 text-[12px] text-muted-foreground">
+              Belum ada kategori
+            </div>
+          ) : (
+            <div className="flex flex-wrap">
+              {categoryList.map((cat) => (
+                <span
+                  key={cat.id}
+                  className="mr-1.5 mb-1.5 inline-flex items-center gap-1.5 rounded-[20px] border bg-background px-2.5 py-1.5 text-[12.5px] font-semibold"
+                >
+                  <span>
+                    {cat.icon ?? "🏷️"} {cat.name}
+                  </span>
+                  <StatusBadge
+                    variant={cat.kind === "income" ? "success" : "info"}
+                  >
+                    {cat.kind === "income" ? "Masuk" : "Keluar"}
+                  </StatusBadge>
+                  <button
+                    type="button"
+                    aria-label={`Hapus ${cat.name}`}
+                    onClick={() => setPendingCatDelete(cat)}
+                    className="inline-flex size-4 items-center justify-center rounded-full text-[15px] leading-none text-muted-foreground transition-colors hover:bg-destructive hover:text-white"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+
+        {/* System reference lists (no backend master table) */}
         {groups.map((group) => (
           <SectionCard
             key={group.entity}
@@ -151,13 +292,30 @@ export default function MasterDataPage() {
         ))}
       </div>
 
-      <CrudModal state={crud} onClose={() => setCrud(null)} />
+      <div className="mt-3.5 rounded-[12px] border border-primary/20 bg-accent p-3.5 text-[12px] text-muted-foreground">
+        <strong>Kategori</strong> tersimpan ke server dan dipakai di transaksi &
+        laporan. Daftar lain (bank, jenis transaksi, dll.) adalah referensi
+        sistem dan dikelola secara lokal.
+      </div>
+
+      <CrudModal
+        state={crud}
+        onClose={() => setCrud(null)}
+        onSubmit={handleCrudSubmit}
+      />
       <ConfirmDeleteDialog
         label={pendingDelete?.label ?? null}
         onClose={() => setPendingDelete(null)}
         onConfirm={() => {
           if (pendingDelete)
             removeItem(pendingDelete.entity, pendingDelete.item);
+        }}
+      />
+      <ConfirmDeleteDialog
+        label={pendingCatDelete ? `kategori "${pendingCatDelete.name}"` : null}
+        onClose={() => setPendingCatDelete(null)}
+        onConfirm={() => {
+          if (pendingCatDelete) handleCategoryDelete(pendingCatDelete);
         }}
       />
     </div>

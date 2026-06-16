@@ -5,7 +5,7 @@
  * Run:  npx playwright test menu-audit --reporter=list
  */
 
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type ConsoleMessage } from "@playwright/test";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -82,14 +82,14 @@ const MENUS = [
   { id: "liabilitas", label: "Liabilitas", url: "/liabilitas" },
   { id: "asuransi", label: "Asuransi", url: "/asuransi" },
   { id: "warisan", label: "Warisan", url: "/warisan" },
-  { id: "donasi", label: "Donasi & Zakat", url: "/donasi" },
-  { id: "tax-center", label: "Tax Center", url: "/tax-center" },
-  { id: "split-bill", label: "Split Bill", url: "/split-bill" },
+  { id: "donation", label: "Donasi & Zakat", url: "/donation" },
+  { id: "tax", label: "Tax Center", url: "/tax" },
+  { id: "splitbill", label: "Split Bill", url: "/splitbill" },
   { id: "rekonsiliasi", label: "Rekonsiliasi Bank", url: "/rekonsiliasi" },
-  { id: "ai-advisor", label: "AI Advisor", url: "/ai-advisor" },
+  { id: "ai", label: "AI Advisor", url: "/ai" },
   { id: "kalkulator", label: "Kalkulator", url: "/kalkulator" },
-  { id: "quick-input", label: "Quick Input", url: "/quick-input" },
-  { id: "setup", label: "Setup Master Data", url: "/setup" },
+  { id: "quickinput", label: "Quick Input", url: "/quickinput" },
+  { id: "masterdata", label: "Setup Master Data", url: "/masterdata" },
   { id: "akun", label: "Akun", url: "/akun" },
 ];
 
@@ -138,9 +138,10 @@ async function auditPage(
   menu: (typeof MENUS)[number],
 ): Promise<MenuResult> {
   const consoleErrors: string[] = [];
-  page.on("console", (msg) => {
+  const onConsole = (msg: ConsoleMessage) => {
     if (msg.type() === "error") consoleErrors.push(msg.text().slice(0, 250));
-  });
+  };
+  page.on("console", onConsole);
 
   await page.goto(menu.url, { waitUntil: "networkidle", timeout: 30_000 });
   await page.waitForTimeout(2000);
@@ -177,6 +178,8 @@ async function auditPage(
     status = "placeholder";
   else if (issues.some((i) => i.startsWith("EMPTY"))) status = "empty";
 
+  page.off("console", onConsole);
+
   return {
     id: menu.id,
     label: menu.label,
@@ -189,20 +192,31 @@ async function auditPage(
 }
 
 test.describe("WealthMe Full-Menu E2E Audit", () => {
-  test.beforeAll(() => {
+  // Run serially and reuse ONE logged-in page across all menu checks. The
+  // login endpoint is throttled (5/min), so logging in per-test would 429.
+  test.describe.configure({ mode: "serial" });
+
+  let sharedPage: Page;
+
+  test.beforeAll(async ({ browser }) => {
     if (!fs.existsSync(REPORT_DIR))
       fs.mkdirSync(REPORT_DIR, { recursive: true });
+    const context = await browser.newContext();
+    sharedPage = await context.newPage();
+    await login(sharedPage);
   });
 
-  test("login sanity — demo user can access app", async ({ page }) => {
-    await login(page);
-    await expect(page).not.toHaveURL(/login/);
+  test.afterAll(async () => {
+    await sharedPage?.context().close();
+  });
+
+  test("login sanity — demo user can access app", async () => {
+    await expect(sharedPage).not.toHaveURL(/login/);
   });
 
   for (const menu of MENUS) {
-    test(`[audit] ${menu.label}`, async ({ page }) => {
-      await login(page);
-      const result = await auditPage(page, menu);
+    test(`[audit] ${menu.label}`, async () => {
+      const result = await auditPage(sharedPage, menu);
       // Write per-test file so parallel workers don't lose data
       fs.writeFileSync(
         path.join(REPORT_DIR, `result-${menu.id}.json`),

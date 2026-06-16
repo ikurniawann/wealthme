@@ -38,7 +38,9 @@ import type {
   InvestmentDto,
   InvestmentSummaryDto,
   InvestmentType,
+  NetWorthDto,
   PnlDto,
+  Pph21ResultDto,
   ReportSummaryDto,
   SankeyDto,
 } from "@wealthme/contracts";
@@ -73,6 +75,26 @@ const TABS: { id: string; label: string }[] = [
   { id: "rperf", label: "Performa" },
   { id: "rpajak", label: "Pajak" },
 ];
+
+/** Family group member (mirrors API MemberResponseDto). */
+type FamilyMember = {
+  id: string;
+  userId: string;
+  familyGroupId: string;
+  role: string;
+  name: string;
+  email: string;
+  createdAt: string;
+};
+
+const ROLE_META: Record<
+  string,
+  { label: string; variant: "success" | "info" | "purple" }
+> = {
+  owner: { label: "Pemilik", variant: "success" },
+  admin: { label: "Admin", variant: "purple" },
+  member: { label: "Anggota", variant: "info" },
+};
 
 /* ───────────────────────── Small helpers ───────────────────────── */
 
@@ -687,18 +709,120 @@ function TahunanSection({
 
 /* ───────────────────────── Section: Group Family ───────────────────────── */
 
-function FamilySection() {
+function FamilySection({
+  members,
+  netWorth,
+  summary,
+  isLoading,
+}: {
+  members?: FamilyMember[];
+  netWorth?: NetWorthDto;
+  summary?: ReportSummaryDto;
+  isLoading?: boolean;
+}) {
+  const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
+  const memberList = members ?? [];
+
+  const netWorthRows = netWorth
+    ? [
+        { label: "Rekening & Kas", value: netWorth.accountsTotal, neg: false },
+        { label: "Investasi", value: netWorth.investmentsTotal, neg: false },
+        { label: "Aset Lain", value: netWorth.assetsTotal, neg: false },
+        { label: "Liabilitas", value: netWorth.liabilitiesTotal, neg: true },
+      ]
+    : [];
+
   return (
-    <div className="space-y-3.5">
+    <div className={"space-y-3.5 " + loadingClass}>
       <div className="text-[15px] font-bold">Laporan Group Family</div>
-      <div className="rounded-[12px] border p-8 text-center">
-        <div className="mb-2 text-[32px]">👨‍👩‍👧‍👦</div>
-        <div className="text-[13px] font-semibold text-muted-foreground">
-          Laporan konsolidasi family group belum tersedia
+
+      <SectionCard title="Konsolidasi Keuangan Keluarga">
+        <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
+          <MoneyStat
+            label="Total Net Worth"
+            value={
+              netWorth
+                ? formatRupiah(parseFloat(netWorth.netWorth) || 0)
+                : "Rp —"
+            }
+            valueClass="text-primary"
+          />
+          <MoneyStat
+            label="Total Pemasukan"
+            value={summary ? formatRupiah(summary.totalIncome) : "Rp —"}
+            valueClass="text-success"
+          />
+          <MoneyStat
+            label="Total Pengeluaran"
+            value={summary ? formatRupiah(summary.totalExpense) : "Rp —"}
+            valueClass="text-destructive"
+          />
+          <MoneyStat
+            label="Surplus"
+            value={summary ? formatRupiah(summary.netSavings) : "Rp —"}
+            valueClass="text-success"
+          />
         </div>
-        <div className="mt-1 text-[12px] text-muted-foreground">
-          Fitur ini sedang dalam pengembangan
-        </div>
+      </SectionCard>
+
+      {netWorthRows.length > 0 && (
+        <SectionCard title="Komposisi Kekayaan Keluarga">
+          <div className="flex flex-col">
+            {netWorthRows.map((row, i) => (
+              <div
+                key={row.label}
+                className={
+                  "flex items-center justify-between py-2.5 " +
+                  (i === netWorthRows.length - 1
+                    ? ""
+                    : "border-b border-border")
+                }
+              >
+                <span className="text-[13px] font-semibold">{row.label}</span>
+                <span
+                  className={
+                    "mono text-[13px] font-bold " +
+                    (row.neg ? "text-destructive" : "text-foreground")
+                  }
+                >
+                  {row.neg ? "-" : ""}
+                  {formatRupiah(parseFloat(row.value) || 0)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      )}
+
+      <SectionCard title={`Anggota Keluarga (${memberList.length})`}>
+        {memberList.length > 0 ? (
+          memberList.map((m, i) => (
+            <ActItem
+              key={m.id}
+              icon={m.name.slice(0, 2).toUpperCase()}
+              iconBg="#EEF2FF"
+              iconColor="#4F46E5"
+              iconSize="12px"
+              name={m.name}
+              cat={m.email}
+              right={
+                <StatusBadge variant={ROLE_META[m.role]?.variant ?? "info"}>
+                  {ROLE_META[m.role]?.label ?? m.role}
+                </StatusBadge>
+              }
+              last={i === memberList.length - 1}
+            />
+          ))
+        ) : (
+          <div className="py-4 text-center text-[12px] text-muted-foreground">
+            Belum ada anggota keluarga
+          </div>
+        )}
+      </SectionCard>
+
+      <div className="rounded-[12px] border border-primary/20 bg-accent p-3.5 text-[12px] text-muted-foreground">
+        Konsolidasi ditampilkan pada level grup keluarga. Rincian saldo
+        per-anggota berada di luar cakupan API saat ini.
       </div>
     </div>
   );
@@ -1817,20 +1941,140 @@ function PerfSection({
 
 /* ───────────────────────── Section: Pajak ───────────────────────── */
 
-function PajakSection() {
+function PajakSection({
+  pph21,
+  grossIncome,
+  isLoading,
+}: {
+  pph21?: Pph21ResultDto;
+  grossIncome?: number;
+  isLoading?: boolean;
+}) {
+  const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
+  const hasIncome = grossIncome != null && grossIncome > 0;
+
   return (
-    <div className="space-y-3.5">
-      <SectionCard title="Laporan Pajak">
-        <div className="rounded-[12px] p-8 text-center">
-          <div className="mb-2 text-[32px]">🧾</div>
-          <div className="text-[13px] font-semibold text-muted-foreground">
-            Fitur estimasi pajak belum tersedia
-          </div>
-          <div className="mt-1 text-[12px] text-muted-foreground">
-            Integrasi dengan perhitungan PPh sedang dalam pengembangan
-          </div>
-        </div>
+    <div className={"space-y-3.5 " + loadingClass}>
+      <div className="text-[15px] font-bold">
+        Laporan Pajak — Estimasi PPh 21
+      </div>
+
+      <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
+        <StatTile
+          label="Bruto Setahun"
+          value={grossIncome != null ? formatRupiah(grossIncome) : "Rp —"}
+        />
+        <StatTile
+          label="PKP"
+          value={pph21 ? formatRupiah(pph21.pkp) : "Rp —"}
+        />
+        <StatTile
+          label="Estimasi PPh 21"
+          value={pph21 ? formatRupiah(pph21.totalTax) : "Rp —"}
+          valueClass="text-destructive"
+        />
+        <StatTile
+          label="Tarif Efektif"
+          value={pph21 ? `${(pph21.effectiveRate * 100).toFixed(2)}%` : "—"}
+          valueClass="text-primary"
+        />
+      </div>
+
+      <SectionCard title="Perhitungan">
+        <table className="w-full border-collapse text-[13px]">
+          <tbody>
+            <StatementRow
+              label="Penghasilan Bruto Setahun"
+              value={grossIncome != null ? formatRupiah(grossIncome) : "Rp —"}
+            />
+            <StatementRow
+              label="Biaya Jabatan (5%, maks Rp 6 jt)"
+              value={pph21 ? `-${formatRupiah(pph21.biayaJabatan)}` : "Rp —"}
+              indent
+            />
+            <StatementRow
+              label="PTKP (TK/0)"
+              value={pph21 ? `-${formatRupiah(pph21.ptkp)}` : "Rp —"}
+              indent
+            />
+            {pph21 && pph21.zakatDeduction > 0 && (
+              <StatementRow
+                label="Pengurang Zakat"
+                value={`-${formatRupiah(pph21.zakatDeduction)}`}
+                indent
+              />
+            )}
+            <StatementRow
+              label="Penghasilan Kena Pajak (PKP)"
+              value={pph21 ? formatRupiah(pph21.pkp) : "Rp —"}
+              className="border-t border-border"
+              labelClass="py-2 font-bold"
+              valueClass="font-extrabold"
+            />
+          </tbody>
+        </table>
       </SectionCard>
+
+      {pph21 && pph21.taxBreakdown.length > 0 && (
+        <SectionCard title="Rincian per Lapisan Tarif (UU HPP)">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-[12.5px]">
+              <thead>
+                <tr className="border-b text-left text-muted-foreground">
+                  <th className="py-2 font-semibold">Lapisan</th>
+                  <th className="py-2 font-semibold">Dasar Kena Pajak</th>
+                  <th className="py-2 font-semibold">Tarif</th>
+                  <th className="py-2 text-right font-semibold">Pajak</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pph21.taxBreakdown.map((b) => (
+                  <tr key={b.bracket} className="border-b last:border-0">
+                    <td className="py-2.5">{b.bracket}</td>
+                    <td className="mono py-2.5">
+                      {formatRupiah(b.taxableAmount)}
+                    </td>
+                    <td className="py-2.5">{(b.rate * 100).toFixed(0)}%</td>
+                    <td className="mono py-2.5 text-right text-destructive">
+                      {formatRupiah(b.tax)}
+                    </td>
+                  </tr>
+                ))}
+                <tr className="border-t-2 border-primary">
+                  <td className="py-2.5 font-extrabold" colSpan={3}>
+                    Total PPh 21 Setahun
+                  </td>
+                  <td className="mono py-2.5 text-right text-[14px] font-black text-destructive">
+                    {formatRupiah(pph21.totalTax)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
+      )}
+
+      {!isLoading && !hasIncome && (
+        <div className="rounded-[12px] border p-6 text-center text-[12px] text-muted-foreground">
+          Belum ada data penghasilan dalam 12 bulan terakhir untuk dihitung.
+        </div>
+      )}
+
+      <div className="flex items-start gap-3 rounded-[12px] border border-primary/20 bg-accent p-3.5">
+        <div className="text-[20px]">🧾</div>
+        <div className="flex-1 text-[12px] text-muted-foreground">
+          Estimasi sederhana berbasis penghasilan 12 bulan terakhir dengan
+          asumsi status PTKP <strong>TK/0</strong> (lajang, tanpa tanggungan).
+          Untuk status pernikahan/tanggungan lain, gunakan{" "}
+          <a
+            href="/kalkulator"
+            className="font-bold text-primary hover:underline"
+          >
+            Kalkulator PPh 21
+          </a>
+          .
+        </div>
+      </div>
     </div>
   );
 }
@@ -2179,6 +2423,59 @@ function LaporanInner() {
       staleTime: 300_000,
     });
 
+  // T-902: Group Family consolidated report (member roster + group totals)
+  const { data: familyMembers, isLoading: isFamilyLoading } = useQuery<
+    FamilyMember[]
+  >({
+    queryKey: queryKeys.familyGroups.members(familyGroupId),
+    queryFn: () =>
+      apiFetch<FamilyMember[]>(`/family-groups/${familyGroupId}/members`, {
+        token,
+      }),
+    enabled: enabled && tab === "rfamily",
+    staleTime: 60_000,
+  });
+
+  const { data: familyNetWorth, isLoading: isNetWorthLoading } =
+    useQuery<NetWorthDto>({
+      queryKey: queryKeys.netWorth.summary(familyGroupId),
+      queryFn: () =>
+        apiFetch<NetWorthDto>(
+          `/family-groups/${familyGroupId}/dashboard/net-worth`,
+          { token },
+        ),
+      enabled: enabled && tab === "rfamily",
+      staleTime: 60_000,
+    });
+
+  // T-903: PPh 21 estimate from last-12-months income
+  const { data: annualSummary, isLoading: isAnnualLoading } =
+    useQuery<ReportSummaryDto>({
+      queryKey: queryKeys.reports.summary(familyGroupId, 12, "monthly"),
+      queryFn: () =>
+        apiFetch<ReportSummaryDto>(
+          `/family-groups/${familyGroupId}/reports/summary?months=12&period=monthly`,
+          { token },
+        ),
+      enabled: enabled && tab === "rpajak",
+      staleTime: 300_000,
+    });
+
+  const annualGross = annualSummary?.totalIncome;
+
+  const { data: pph21, isLoading: isPph21Loading } = useQuery<Pph21ResultDto>({
+    queryKey: ["calculators", "pph21", familyGroupId, annualGross ?? 0],
+    queryFn: () =>
+      apiFetch<Pph21ResultDto>("/calculators/pph21", {
+        method: "POST",
+        token,
+        body: JSON.stringify({ grossIncome: annualGross ?? 0 }),
+      }),
+    enabled:
+      enabled && tab === "rpajak" && annualGross != null && annualGross > 0,
+    staleTime: 300_000,
+  });
+
   const queryClient = useQueryClient();
   const [showAddInv, setShowAddInv] = useState(false);
   const [editingInv, setEditingInv] = useState<InvestmentDto | null>(null);
@@ -2288,7 +2585,14 @@ function LaporanInner() {
           <TahunanSection yearly={yearlySummary} isLoading={isYearlyLoading} />
         );
       case "rfamily":
-        return <FamilySection />;
+        return (
+          <FamilySection
+            members={familyMembers}
+            netWorth={familyNetWorth}
+            summary={summary}
+            isLoading={isFamilyLoading || isNetWorthLoading || isSummaryLoading}
+          />
+        );
       case "rbank":
         return (
           <BankSection bankReport={bankReport} isLoading={isBankLoading} />
@@ -2346,7 +2650,13 @@ function LaporanInner() {
           />
         );
       case "rpajak":
-        return <PajakSection />;
+        return (
+          <PajakSection
+            pph21={pph21}
+            grossIncome={annualGross}
+            isLoading={isAnnualLoading || isPph21Loading}
+          />
+        );
       case "rsum":
       default:
         return (

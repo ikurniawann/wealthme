@@ -79,6 +79,8 @@ var TransactionDtoSchema = z5.object({
   amount: z5.string(),
   type: TransactionTypeSchema,
   description: z5.string().nullable(),
+  categoryName: z5.string().nullable(),
+  accountName: z5.string(),
   occurredAt: z5.string(),
   createdAt: z5.string()
 });
