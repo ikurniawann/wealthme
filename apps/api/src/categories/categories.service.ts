@@ -1,4 +1,8 @@
-import { ConflictException, Injectable } from "@nestjs/common";
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { type CategoryKind, Prisma } from "@prisma/client";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -45,6 +49,14 @@ export class CategoriesService {
       orderBy: [{ kind: "asc" }, { name: "asc" }],
     });
     return categories.map((c) => this.toDto(c));
+  }
+
+  async remove(familyGroupId: string, id: string): Promise<void> {
+    const existing = await this.prisma.category.findUnique({
+      where: { id, familyGroupId },
+    });
+    if (!existing) throw new NotFoundException("Category not found");
+    await this.prisma.category.delete({ where: { id, familyGroupId } });
   }
 
   private toDto(c: {

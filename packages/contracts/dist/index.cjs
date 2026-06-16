@@ -119,6 +119,8 @@ var TransactionDtoSchema = import_zod5.z.object({
   amount: import_zod5.z.string(),
   type: TransactionTypeSchema,
   description: import_zod5.z.string().nullable(),
+  categoryName: import_zod5.z.string().nullable(),
+  accountName: import_zod5.z.string(),
   occurredAt: import_zod5.z.string(),
   createdAt: import_zod5.z.string()
 });

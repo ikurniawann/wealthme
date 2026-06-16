@@ -194,6 +194,8 @@ declare const TransactionDtoSchema: z.ZodObject<{
     amount: z.ZodString;
     type: z.ZodEnum<["income", "expense", "transfer"]>;
     description: z.ZodNullable<z.ZodString>;
+    categoryName: z.ZodNullable<z.ZodString>;
+    accountName: z.ZodString;
     occurredAt: z.ZodString;
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
@@ -206,6 +208,8 @@ declare const TransactionDtoSchema: z.ZodObject<{
     amount: string;
     description: string | null;
     occurredAt: string;
+    categoryName: string | null;
+    accountName: string;
 }, {
     type: "income" | "expense" | "transfer";
     id: string;
@@ -216,6 +220,8 @@ declare const TransactionDtoSchema: z.ZodObject<{
     amount: string;
     description: string | null;
     occurredAt: string;
+    categoryName: string | null;
+    accountName: string;
 }>;
 type TransactionDto = z.infer<typeof TransactionDtoSchema>;
 declare const TransactionSummarySchema: z.ZodObject<{
@@ -259,6 +265,8 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         amount: z.ZodString;
         type: z.ZodEnum<["income", "expense", "transfer"]>;
         description: z.ZodNullable<z.ZodString>;
+        categoryName: z.ZodNullable<z.ZodString>;
+        accountName: z.ZodString;
         occurredAt: z.ZodString;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
@@ -271,6 +279,8 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         amount: string;
         description: string | null;
         occurredAt: string;
+        categoryName: string | null;
+        accountName: string;
     }, {
         type: "income" | "expense" | "transfer";
         id: string;
@@ -281,6 +291,8 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         amount: string;
         description: string | null;
         occurredAt: string;
+        categoryName: string | null;
+        accountName: string;
     }>, "many">;
     meta: z.ZodObject<{
         total: z.ZodNumber;
@@ -337,6 +349,8 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         amount: string;
         description: string | null;
         occurredAt: string;
+        categoryName: string | null;
+        accountName: string;
     }[];
     meta: {
         total: number;
@@ -363,6 +377,8 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         amount: string;
         description: string | null;
         occurredAt: string;
+        categoryName: string | null;
+        accountName: string;
     }[];
     meta: {
         total: number;
