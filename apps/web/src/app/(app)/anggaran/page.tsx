@@ -45,7 +45,7 @@ function BudgetItem({ dto }: { dto: BudgetDto }) {
   const color = budgetBarColor(dto);
   const icon = dto.categoryIcon ?? "📦";
   return (
-    <div className="border-b py-3.5 last:border-b-0">
+    <div className="rounded-[12px] border bg-card p-3.5">
       <div className="mb-2 flex items-center gap-2.5">
         <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-accent text-[14px]">
           {icon}
@@ -67,9 +67,12 @@ function BudgetItem({ dto }: { dto: BudgetDto }) {
 
 function BudgetSkeleton() {
   return (
-    <div className="space-y-4 py-2">
+    <div className="space-y-3 py-2">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="animate-pulse space-y-2 border-b pb-4">
+        <div
+          key={i}
+          className="animate-pulse space-y-2 rounded-[12px] border bg-card p-3.5"
+        >
           <div className="flex items-center gap-2.5">
             <div className="size-[34px] rounded-[9px] bg-muted" />
             <div className="flex-1 space-y-1.5">
@@ -293,9 +296,13 @@ export default function AnggaranPage() {
             memulai.
           </div>
         )}
-        {!isLoading &&
-          !isError &&
-          budgets?.map((b) => <BudgetItem key={b.id} dto={b} />)}
+        {!isLoading && !isError && budgets && budgets.length > 0 && (
+          <div className="space-y-3">
+            {budgets.map((b) => (
+              <BudgetItem key={b.id} dto={b} />
+            ))}
+          </div>
+        )}
       </SectionCard>
 
       {(overBudgetItems.length > 0 || nearLimitItems.length > 0) && (
