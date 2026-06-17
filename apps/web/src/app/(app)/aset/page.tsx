@@ -11,7 +11,7 @@ import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 
-import type { AssetDto, NetWorthDto } from "@wealthme/contracts";
+import type { AssetDto, AccountDto, InvestmentDto } from "@wealthme/contracts";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -24,6 +24,8 @@ const TABS: { label: string; id: TabId }[] = [
   { label: "Investasi", id: "investasi" },
   { label: "Aset Fisik", id: "fisik" },
 ];
+
+// ── Physical asset lookups ────────────────────────────────────────────────────
 
 const ASSET_TYPE_EMOJI: Record<string, string> = {
   properti: "🏠",
@@ -46,6 +48,61 @@ const ASSET_TYPE_LABEL: Record<string, string> = {
   kendaraan: "Kendaraan",
   elektronik: "Elektronik",
   perhiasan: "Perhiasan",
+  lainnya: "Lainnya",
+};
+
+// ── Account lookups ───────────────────────────────────────────────────────────
+
+const ACCOUNT_TYPE_EMOJI: Record<string, string> = {
+  bank: "🏦",
+  ewallet: "👛",
+  cash: "💵",
+  investment: "📈",
+  property: "🏠",
+};
+
+const ACCOUNT_TYPE_BG: Record<string, string> = {
+  bank: "#DBEAFE",
+  ewallet: "#DCFCE7",
+  cash: "#FEF9C3",
+  investment: "#EDE9FE",
+  property: "#FEF9C3",
+};
+
+const ACCOUNT_TYPE_LABEL: Record<string, string> = {
+  bank: "Bank",
+  ewallet: "E-Wallet",
+  cash: "Tunai",
+  investment: "Investasi",
+  property: "Properti",
+};
+
+// ── Investment type lookups ───────────────────────────────────────────────────
+
+const INV_TYPE_EMOJI: Record<string, string> = {
+  saham: "📉",
+  reksa_dana: "📊",
+  obligasi: "🏛️",
+  emas: "🥇",
+  kripto: "₿",
+  lainnya: "💼",
+};
+
+const INV_TYPE_BG: Record<string, string> = {
+  saham: "#DBEAFE",
+  reksa_dana: "#EEF2FF",
+  obligasi: "#DCFCE7",
+  emas: "#FEF9C3",
+  kripto: "#FFF7ED",
+  lainnya: "#EDE9FE",
+};
+
+const INV_TYPE_LABEL: Record<string, string> = {
+  saham: "Saham",
+  reksa_dana: "Reksa Dana",
+  obligasi: "Obligasi",
+  emas: "Emas",
+  kripto: "Kripto",
   lainnya: "Lainnya",
 };
 
@@ -246,11 +303,11 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
   );
 }
 
-// ── Asset Group Card ──────────────────────────────────────────────────────────
+// ── Physical Asset Group Card ─────────────────────────────────────────────────
 
 function AssetGroupCard({ assets }: { assets: AssetDto[] }) {
   const groupTotal = assets.reduce(
-    (sum, a) => sum + BigInt(a.currentValue),
+    (sum, a) => sum + BigInt(a.currentValue ?? "0"),
     BigInt(0),
   );
 
@@ -281,20 +338,15 @@ function AssetGroupCard({ assets }: { assets: AssetDto[] }) {
               <div className="text-[13.5px] font-semibold truncate">
                 {asset.name}
               </div>
-              {asset.notes && (
-                <div className="text-[11.5px] text-muted-foreground truncate">
-                  {asset.notes}
-                </div>
-              )}
-              {!asset.notes && (
-                <div className="text-[11.5px] text-muted-foreground">
-                  {ASSET_TYPE_LABEL[asset.type] ?? asset.type}
-                </div>
-              )}
+              <div className="text-[11.5px] text-muted-foreground truncate">
+                {asset.notes
+                  ? asset.notes
+                  : (ASSET_TYPE_LABEL[asset.type] ?? asset.type)}
+              </div>
             </div>
             <div className="text-right shrink-0">
               <div className="text-[14px] font-extrabold">
-                {formatRupiah(Number(BigInt(asset.currentValue)))}
+                {formatRupiah(Number(BigInt(asset.currentValue ?? "0")))}
               </div>
             </div>
           </div>
@@ -309,26 +361,128 @@ function AssetGroupCard({ assets }: { assets: AssetDto[] }) {
   );
 }
 
-// ── Placeholder Group Cards ────────────────────────────────────────────────────
+// ── Dana & Rekening Group Card ────────────────────────────────────────────────
 
-function PlaceholderGroupCard({
-  emoji,
-  name,
-}: {
+interface AccountsGroupCardProps {
+  accounts: AccountDto[];
+  title: string;
   emoji: string;
-  name: string;
-}) {
+}
+
+function AccountsGroupCard({ accounts, title, emoji }: AccountsGroupCardProps) {
+  const groupTotal = accounts.reduce(
+    (sum, a) => sum + BigInt(a.balance ?? "0"),
+    BigInt(0),
+  );
+
   return (
     <div className="rounded-[14px] border bg-card p-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="mb-1 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
           <span className="text-[17px]">{emoji}</span>
-          <span className="text-[13.5px] font-bold">{name}</span>
+          <span className="text-[13.5px] font-bold">{title}</span>
         </div>
-        <div className="text-[13px] text-muted-foreground">—</div>
+        <div className="text-[14px] font-extrabold">
+          {formatRupiah(Number(groupTotal))}
+        </div>
       </div>
-      <div className="mt-3 py-3 text-center text-[12px] text-muted-foreground">
-        Data akan tersedia setelah modul terkait aktif.
+      <div>
+        {accounts.map((account, i) => {
+          const subtitle =
+            account.institution ??
+            account.maskedNumber ??
+            ACCOUNT_TYPE_LABEL[account.type] ??
+            account.type;
+          return (
+            <div
+              key={account.id}
+              className={`flex items-center gap-3 py-3 ${i < accounts.length - 1 ? "border-b" : ""}`}
+            >
+              <div
+                className="flex size-9 items-center justify-center rounded-[10px] text-[16px]"
+                style={{
+                  background: ACCOUNT_TYPE_BG[account.type] ?? "#E5E7EB",
+                }}
+              >
+                {ACCOUNT_TYPE_EMOJI[account.type] ?? "💳"}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[13.5px] font-semibold truncate">
+                  {account.name}
+                </div>
+                <div className="text-[11.5px] text-muted-foreground truncate">
+                  {subtitle}
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="text-[14px] font-extrabold">
+                  {formatRupiah(Number(BigInt(account.balance ?? "0")))}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {accounts.length === 0 && (
+          <div className="py-4 text-center text-[12px] text-muted-foreground">
+            Belum ada dana &amp; rekening.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Investasi Group Card ──────────────────────────────────────────────────────
+
+function InvestasiGroupCard({ investments }: { investments: InvestmentDto[] }) {
+  const groupTotal = investments.reduce(
+    (sum, inv) => sum + BigInt(inv.currentValue ?? "0"),
+    BigInt(0),
+  );
+
+  return (
+    <div className="rounded-[14px] border bg-card p-4">
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5">
+          <span className="text-[17px]">📈</span>
+          <span className="text-[13.5px] font-bold">Investasi</span>
+        </div>
+        <div className="text-[14px] font-extrabold">
+          {formatRupiah(Number(groupTotal))}
+        </div>
+      </div>
+      <div>
+        {investments.map((inv, i) => (
+          <div
+            key={inv.id}
+            className={`flex items-center gap-3 py-3 ${i < investments.length - 1 ? "border-b" : ""}`}
+          >
+            <div
+              className="flex size-9 items-center justify-center rounded-[10px] text-[16px]"
+              style={{ background: INV_TYPE_BG[inv.type] ?? "#E5E7EB" }}
+            >
+              {INV_TYPE_EMOJI[inv.type] ?? "💼"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13.5px] font-semibold truncate">
+                {inv.ticker} — {inv.name}
+              </div>
+              <div className="text-[11.5px] text-muted-foreground truncate">
+                {INV_TYPE_LABEL[inv.type] ?? inv.type}
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <div className="text-[14px] font-extrabold">
+                {formatRupiah(Number(BigInt(inv.currentValue ?? "0")))}
+              </div>
+            </div>
+          </div>
+        ))}
+        {investments.length === 0 && (
+          <div className="py-4 text-center text-[12px] text-muted-foreground">
+            Belum ada investasi.
+          </div>
+        )}
       </div>
     </div>
   );
@@ -344,6 +498,7 @@ export default function AsetPage() {
   const token = session?.accessToken as string | undefined;
   const familyGroupId = session?.familyGroupId;
 
+  // Physical assets
   const {
     data: assets,
     isLoading: assetsLoading,
@@ -360,32 +515,86 @@ export default function AsetPage() {
     },
   });
 
-  const { data: netWorth, isLoading: netWorthLoading } = useQuery<NetWorthDto>({
-    queryKey: queryKeys.netWorth.summary(familyGroupId ?? ""),
+  // Accounts (Dana & Rekening)
+  const {
+    data: accounts,
+    isLoading: accountsLoading,
+    isError: accountsError,
+  } = useQuery<AccountDto[]>({
+    queryKey: queryKeys.accounts.all(familyGroupId ?? ""),
     enabled: Boolean(familyGroupId) && Boolean(token),
     queryFn: ({ signal }) => {
       if (!familyGroupId) throw new Error("familyGroupId not available");
-      return apiFetch<NetWorthDto>(
-        `/family-groups/${familyGroupId}/dashboard/net-worth`,
+      return apiFetch<AccountDto[]>(
+        `/family-groups/${familyGroupId}/accounts`,
+        {
+          token,
+          signal,
+        },
+      );
+    },
+  });
+
+  // Investments
+  const {
+    data: investments,
+    isLoading: investmentsLoading,
+    isError: investmentsError,
+  } = useQuery<InvestmentDto[]>({
+    queryKey: queryKeys.investments.all(familyGroupId ?? ""),
+    enabled: Boolean(familyGroupId) && Boolean(token),
+    queryFn: ({ signal }) => {
+      if (!familyGroupId) throw new Error("familyGroupId not available");
+      return apiFetch<InvestmentDto[]>(
+        `/family-groups/${familyGroupId}/investments`,
         { token, signal },
       );
     },
   });
 
+  const hasError = assetsError || accountsError || investmentsError;
+
   useEffect(() => {
-    if (assetsError) {
-      toast.error("Gagal memuat data aset. Silakan refresh halaman.");
+    if (hasError) {
+      toast.error("Gagal memuat sebagian data aset. Silakan refresh halaman.");
     }
-  }, [assetsError]);
+  }, [hasError]);
 
   const activeId = TABS[activeTab]?.id ?? "semua";
-  const showFisik = activeId === "semua" || activeId === "fisik";
-  const showDana = activeId === "semua" || activeId === "dana";
-  const showRekening = activeId === "semua" || activeId === "rekening";
-  const showInvestasi = activeId === "semua" || activeId === "investasi";
 
-  const assetsTotalStr = netWorth?.assetsTotal ?? "0";
-  const assetsTotal = Number(BigInt(assetsTotalStr));
+  // Tab visibility flags
+  const showFisik = activeId === "semua" || activeId === "fisik";
+  const showInvestasi = activeId === "semua" || activeId === "investasi";
+  // "Dana" tab = cash + ewallet; "Rekening" tab = bank; "Semua" shows all accounts in one card
+  const showDanaRekeningCombined = activeId === "semua";
+  const showDana = activeId === "dana";
+  const showRekening = activeId === "rekening";
+
+  // Filter accounts by tab
+  const danaAccounts = (accounts ?? []).filter(
+    (a) => a.type === "cash" || a.type === "ewallet",
+  );
+  const rekeningAccounts = (accounts ?? []).filter((a) => a.type === "bank");
+  const allAccounts = accounts ?? [];
+
+  // Compute totals for total banner (gross assets = accounts + investments + physical assets)
+  const accountsTotalBig = (accounts ?? []).reduce(
+    (sum, a) => sum + BigInt(a.balance ?? "0"),
+    BigInt(0),
+  );
+  const investmentsTotalBig = (investments ?? []).reduce(
+    (sum, inv) => sum + BigInt(inv.currentValue ?? "0"),
+    BigInt(0),
+  );
+  const assetsTotalBig = (assets ?? []).reduce(
+    (sum, a) => sum + BigInt(a.currentValue ?? "0"),
+    BigInt(0),
+  );
+  const grandTotal = Number(
+    accountsTotalBig + investmentsTotalBig + assetsTotalBig,
+  );
+
+  const isLoading = assetsLoading || accountsLoading || investmentsLoading;
 
   return (
     <div className="space-y-4">
@@ -414,13 +623,13 @@ export default function AsetPage() {
       >
         <div>
           <div className="mb-[3px] text-[11px] text-muted-foreground">
-            Total Aset Fisik
+            Total Aset
           </div>
-          {netWorthLoading ? (
+          {isLoading ? (
             <div className="animate-pulse h-7 w-40 rounded bg-muted" />
           ) : (
             <div className="text-[24px] font-black text-primary-strong">
-              {formatRupiah(assetsTotal)}
+              {formatRupiah(grandTotal)}
             </div>
           )}
         </div>
@@ -443,30 +652,58 @@ export default function AsetPage() {
         </div>
       </div>
 
-      {/* Error */}
-      {assetsError && (
+      {/* Errors */}
+      {hasError && (
         <div
           role="alert"
           className="rounded-[14px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive"
         >
-          Gagal memuat data aset. Silakan refresh halaman.
+          Gagal memuat sebagian data aset. Silakan refresh halaman.
         </div>
       )}
 
       {/* Asset Cards */}
-      {assetsLoading ? (
-        <AssetCardSkeleton />
+      {isLoading ? (
+        <>
+          <AssetCardSkeleton />
+          <AssetCardSkeleton />
+          <AssetCardSkeleton />
+        </>
       ) : (
         <>
+          {/* Semua: combined Dana & Rekening card */}
+          {showDanaRekeningCombined && (
+            <AccountsGroupCard
+              accounts={allAccounts}
+              title="Dana & Rekening"
+              emoji="💳"
+            />
+          )}
+
+          {/* Dana tab: cash + ewallet only */}
           {showDana && (
-            <PlaceholderGroupCard emoji="💳" name="Dana & Rekening" />
+            <AccountsGroupCard
+              accounts={danaAccounts}
+              title="Dana"
+              emoji="💵"
+            />
           )}
-          {showRekening && activeId === "rekening" && (
-            <PlaceholderGroupCard emoji="🏦" name="Rekening" />
+
+          {/* Rekening tab: bank accounts only */}
+          {showRekening && (
+            <AccountsGroupCard
+              accounts={rekeningAccounts}
+              title="Rekening"
+              emoji="🏦"
+            />
           )}
+
+          {/* Investasi card */}
           {showInvestasi && (
-            <PlaceholderGroupCard emoji="📈" name="Investasi" />
+            <InvestasiGroupCard investments={investments ?? []} />
           )}
+
+          {/* Aset Fisik card */}
           {showFisik && <AssetGroupCard assets={assets ?? []} />}
         </>
       )}
