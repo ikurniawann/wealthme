@@ -7,9 +7,10 @@ import { SectionCard, StatusBadge, ProgressBar } from "@/components/wm";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, formatRupiahCompact } from "@/lib/format";
-import { buildNetWorthTrendPath, buildDonutSegments } from "@/lib/chart-utils";
+import { buildNetWorthTrendPath } from "@/lib/chart-utils";
 import type {
   DashboardSummaryDto,
+  NetWorthDto,
   ReportSummaryDto,
 } from "@wealthme/contracts";
 
@@ -40,6 +41,18 @@ export default function RingkasanPage() {
     staleTime: 60_000,
   });
 
+  const { data: netWorthData, isLoading: isNetWorthLoading } =
+    useQuery<NetWorthDto>({
+      queryKey: queryKeys.netWorth.summary(familyGroupId ?? ""),
+      queryFn: () =>
+        apiFetch<NetWorthDto>(
+          `/family-groups/${familyGroupId}/dashboard/net-worth`,
+          { token: session?.accessToken },
+        ),
+      enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
+      staleTime: 60_000,
+    });
+
   const netWorth = summary?.netWorth ?? 0;
   const totalAssets = (summary?.accountSummary ?? []).reduce(
     (sum, s) => sum + (s.total > 0 ? s.total : 0),
@@ -49,6 +62,10 @@ export default function RingkasanPage() {
   const monthIncome = summary?.currentMonth.income ?? 0;
   const monthExpense = summary?.currentMonth.expense ?? 0;
   const monthNet = summary?.currentMonth.net ?? 0;
+
+  // liabilitiesTotal is a serialized decimal string; Number() tolerates
+  // decimals/empties (BigInt would throw), and the value is display-only.
+  const totalLiabilities = Number(netWorthData?.liabilitiesTotal ?? 0);
 
   const { data: reportSummary } = useQuery<ReportSummaryDto>({
     queryKey: queryKeys.reports.summary(familyGroupId ?? "", 1),
@@ -77,8 +94,6 @@ export default function RingkasanPage() {
           ?.type ?? ""
       ] ?? item.color,
   }));
-
-  const donutSegments = buildDonutSegments(composition);
 
   if (isError) {
     return (
@@ -122,18 +137,14 @@ export default function RingkasanPage() {
         </Card>
         <Card className="gap-0 p-5">
           <div className="mb-1.5 text-[11px] text-muted-foreground">
-            Surplus Bulan Ini
+            Total Liabilitas
           </div>
-          <div
-            className={`text-[20px] font-black ${monthNet >= 0 ? "text-success" : "text-destructive"}`}
-          >
-            {isLoading ? "..." : formatRupiahCompact(monthNet)}
-          </div>
-          <div className="text-[11px] text-muted-foreground">
-            {isLoading
+          <div className="text-[20px] font-black text-muted-foreground">
+            {isLoading || isNetWorthLoading
               ? "..."
-              : `Pemasukan ${formatRupiahCompact(monthIncome)}`}
+              : formatRupiahCompact(totalLiabilities)}
           </div>
+          <div className="text-[11px] text-muted-foreground">Kewajiban</div>
         </Card>
         <Card className="gap-0 p-5">
           <div className="mb-1.5 text-[11px] text-muted-foreground">
@@ -198,7 +209,7 @@ export default function RingkasanPage() {
           </div>
         </SectionCard>
 
-        {/* Asset composition */}
+        {/* Asset composition — horizontal labelled bar list */}
         <SectionCard title="Komposisi Aset">
           {isLoading ? (
             <div className="space-y-2">
@@ -216,65 +227,24 @@ export default function RingkasanPage() {
               Tambah saldo akun untuk melihat komposisi aset.
             </div>
           ) : (
-            <div className="flex gap-4">
-              {/* Donut chart */}
-              <svg
-                viewBox="0 0 120 120"
-                width={110}
-                height={110}
-                className="shrink-0"
-              >
-                {donutSegments.map((seg, i) => (
-                  <path key={i} d={seg.path} fill={seg.color} />
-                ))}
-                {donutSegments.length === 0 && (
-                  <circle cx={60} cy={60} r={50} fill="var(--muted)" />
-                )}
-                <circle cx={60} cy={60} r={30} fill="var(--card)" />
-                <text
-                  x={60}
-                  y={57}
-                  textAnchor="middle"
-                  fontSize={9}
-                  fill="var(--muted-foreground)"
-                >
-                  Total
-                </text>
-                <text
-                  x={60}
-                  y={70}
-                  textAnchor="middle"
-                  fontSize={10}
-                  fontWeight="bold"
-                  fill="var(--foreground)"
-                >
-                  {formatRupiahCompact(totalAssets)}
-                </text>
-              </svg>
-
-              {/* Legend + bars */}
-              <div className="flex flex-1 flex-col justify-center gap-2 min-w-0">
-                {composition.map((c) => (
-                  <div key={c.label}>
-                    <div className="mb-0.5 flex items-center justify-between gap-1 text-[11px]">
-                      <span className="flex items-center gap-1.5 truncate font-semibold">
-                        <span
-                          className="inline-block size-2 shrink-0 rounded-full"
-                          style={{ background: c.color }}
-                        />
-                        {c.label}
-                      </span>
+            <div className="space-y-3">
+              {composition.map((c) => (
+                <div key={c.label}>
+                  <div className="mb-1 flex items-center justify-between gap-2 text-[12px]">
+                    <span className="flex items-center gap-1.5 font-semibold truncate">
                       <span
-                        className="shrink-0 font-bold"
-                        style={{ color: c.color }}
-                      >
-                        {c.pct}%
-                      </span>
-                    </div>
-                    <ProgressBar value={c.pct} color={c.color} height={5} />
+                        className="inline-block size-2 shrink-0 rounded-full"
+                        style={{ background: c.color }}
+                      />
+                      {c.label}
+                    </span>
+                    <span className="shrink-0 text-muted-foreground">
+                      {c.value}
+                    </span>
                   </div>
-                ))}
-              </div>
+                  <ProgressBar value={c.pct} color={c.color} height={6} />
+                </div>
+              ))}
             </div>
           )}
         </SectionCard>
@@ -336,22 +306,17 @@ export default function RingkasanPage() {
                 >
                   {["🏠", "😊", "🚗", "🏥", "💡"][idx % 5]}
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="truncate text-[13px] font-semibold">
                     {t.categoryName}
                   </div>
-                  <ProgressBar
-                    value={t.percentage}
-                    className="mt-1"
-                    height={4}
-                  />
                 </div>
-                <div className="text-right shrink-0">
-                  <div className="text-[13px] font-bold text-destructive">
-                    {formatRupiah(t.amount)}
-                  </div>
-                  <div className="text-[11px] text-muted-foreground">
-                    {t.percentage}%
+                <div className="flex shrink-0 items-center gap-2">
+                  <StatusBadge variant="gray">{t.percentage}%</StatusBadge>
+                  <div className="text-right">
+                    <div className="text-[13px] font-bold text-destructive">
+                      {formatRupiah(t.amount)}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -393,7 +358,7 @@ export default function RingkasanPage() {
               {savingsRate > 0 ? savingsRate : 78}
             </div>
             <div className="text-[11px] text-muted-foreground">
-              Savings Rate Score
+              Financial Health Score
             </div>
             <div className="mt-2">
               <StatusBadge
