@@ -51,6 +51,10 @@ import type { IncomingMessage } from "node:http";
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnv,
+      // Root .env is the single source of truth; fall back to a local .env for
+      // standalone api runs. Real process.env (e.g. injected by Docker / CI)
+      // always takes precedence over these files — NestJS ConfigModule default.
+      envFilePath: ["../../.env", ".env"],
     }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     LoggerModule.forRoot({

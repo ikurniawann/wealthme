@@ -1,0 +1,51 @@
+# ── Dependencies (rebuilt inside Docker) ──────────────────────────────────────
+node_modules
+**/node_modules
+
+# ── Next.js build cache ───────────────────────────────────────────────────────
+.next
+**/.next
+
+# ── Turbo build cache ─────────────────────────────────────────────────────────
+.turbo
+**/.turbo
+
+# ── Compiled output (rebuilt inside Docker) ───────────────────────────────────
+dist
+**/dist
+
+# ── Git ───────────────────────────────────────────────────────────────────────
+.git
+.gitignore
+
+# ── Test coverage ─────────────────────────────────────────────────────────────
+coverage
+
+# ── Secrets — never bake into images ─────────────────────────────────────────
+**/.env
+**/.env.*
+# Explicit belt-and-suspenders (glob behavior varies across BuildKit versions):
+.env.example
+apps/api/.env.example
+apps/web/.env.example
+
+# ── Agent / tooling runtime state ─────────────────────────────────────────────
+.claude-flow
+.swarm
+.claude/
+
+# ── Generated graph cache ─────────────────────────────────────────────────────
+graphify-out
+
+# ── Docs (not needed at runtime) ─────────────────────────────────────────────
+docs
+
+# ── Deploy backups ────────────────────────────────────────────────────────────
+deploy/backups
+
+# ── Playwright / test artefacts ───────────────────────────────────────────────
+**/playwright-report
+**/test-results
+
+# ── macOS metadata ───────────────────────────────────────────────────────────
+.DS_Store

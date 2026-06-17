@@ -10,10 +10,10 @@
     "test": "jest",
     "test:e2e": "jest --config jest.e2e.json",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate deploy",
-    "db:migrate:dev": "prisma migrate dev",
-    "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "prisma migrate reset"
+    "db:migrate": "dotenv -e ../../.env -- prisma migrate deploy",
+    "db:migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
+    "db:seed": "dotenv -e ../../.env -- tsx prisma/seed.ts",
+    "db:reset": "dotenv -e ../../.env -- prisma migrate reset"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -64,6 +64,7 @@
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^6.0.2",
     "@wealthme/config": "workspace:*",
+    "dotenv-cli": "^8.0.0",
     "eslint": "^9.0.0",
     "globals": "^17.6.0",
     "jest": "^29.7.0",
