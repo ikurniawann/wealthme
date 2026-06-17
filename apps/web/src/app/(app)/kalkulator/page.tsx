@@ -767,7 +767,7 @@ function SplitGroupTab() {
 /* ─────────────────────────── Page ─────────────────────────── */
 
 export default function KalkulatorPage() {
-  const [tab, setTab] = useState<TabKey>("zakat");
+  const [tab, setTab] = useState<TabKey>("investasi");
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
 
