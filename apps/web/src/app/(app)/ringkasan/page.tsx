@@ -178,8 +178,16 @@ export default function RingkasanPage() {
             >
               <defs>
                 <linearGradient id="ng" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="rgba(79,70,229,.18)" />
-                  <stop offset="100%" stopColor="rgba(79,70,229,.01)" />
+                  <stop
+                    offset="0%"
+                    stopColor="var(--primary)"
+                    stopOpacity={0.18}
+                  />
+                  <stop
+                    offset="100%"
+                    stopColor="var(--primary)"
+                    stopOpacity={0.01}
+                  />
                 </linearGradient>
               </defs>
               {trend.areaPath && <path d={trend.areaPath} fill="url(#ng)" />}
@@ -187,7 +195,7 @@ export default function RingkasanPage() {
                 <path
                   d={trend.linePath}
                   fill="none"
-                  stroke="#4F46E5"
+                  stroke="var(--primary)"
                   strokeWidth="2.5"
                   strokeLinecap="round"
                 />
@@ -197,7 +205,7 @@ export default function RingkasanPage() {
                   cx={trend.points[trend.points.length - 1]!.x}
                   cy={trend.points[trend.points.length - 1]!.y}
                   r="4"
-                  fill="#4F46E5"
+                  fill="var(--primary)"
                 />
               )}
             </svg>
@@ -343,7 +351,7 @@ export default function RingkasanPage() {
               <path
                 d="M10,60 A50,50 0 0,1 110,60"
                 fill="none"
-                stroke="#4F46E5"
+                stroke="var(--primary)"
                 strokeWidth="12"
                 strokeLinecap="round"
                 strokeDasharray="157"

@@ -1,6 +1,6 @@
 "use client";
 
-import { Palette } from "lucide-react";
+import { Eye } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   THEME_PRESETS,
@@ -22,10 +22,6 @@ import {
 const TRIGGER_CLASS =
   "flex size-9 items-center justify-center rounded-md bg-secondary text-muted-foreground transition-colors hover:bg-accent hover:text-primary";
 
-/** Swatch shown before mount and as the fallback — derived once from the registry. */
-const DEFAULT_SWATCH =
-  THEME_PRESETS.find((p) => p.id === DEFAULT_THEME_PRESET)?.swatch ?? "#4f46e5";
-
 function applyPreset(id: string): void {
   if (id === DEFAULT_THEME_PRESET) {
     delete document.documentElement.dataset.theme;
@@ -39,16 +35,19 @@ function applyPreset(id: string): void {
   }
 }
 
+/**
+ * Color-preset picker. Triggered by the topbar "eye" icon. The dropdown lists
+ * each preset with a color swatch; selecting one writes the `data-theme` attr
+ * (handled by applyPreset) so the whole theme/mood follows the chosen color.
+ */
 export function ThemePicker() {
-  const [mounted, setMounted] = useState(false);
   const [preset, setPreset] = useState<string>(DEFAULT_THEME_PRESET);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
     try {
       const stored = localStorage.getItem(THEME_PRESET_STORAGE_KEY);
       if (isValidPreset(stored)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setPreset(stored as string);
       }
     } catch {
@@ -61,10 +60,6 @@ export function ThemePicker() {
     applyPreset(id);
   }
 
-  const currentSwatch = mounted
-    ? (THEME_PRESETS.find((p) => p.id === preset)?.swatch ?? DEFAULT_SWATCH)
-    : DEFAULT_SWATCH;
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -72,15 +67,7 @@ export function ThemePicker() {
         title="Tema Warna"
         render={<button type="button" className={TRIGGER_CLASS} />}
       >
-        {mounted ? (
-          <span
-            className="size-[15px] rounded-full ring-1 ring-black/10"
-            style={{ background: currentSwatch }}
-            aria-hidden="true"
-          />
-        ) : (
-          <Palette className="size-[15px]" aria-hidden="true" />
-        )}
+        <Eye className="size-[15px]" aria-hidden="true" />
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="min-w-[160px]">

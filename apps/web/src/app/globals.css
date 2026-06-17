@@ -58,21 +58,26 @@
 :root {
   --radius: 0.875rem; /* 14px — matches WealthMe --radius */
 
-  --background: #f8f9fc;
+  /*
+   * Light-mode neutrals are subtly tinted toward --primary (same approach as
+   * .dark) so the overall mood follows the active preset. Kept very light to
+   * preserve text contrast; cards stay pure white for crispness.
+   */
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+  --primary-soft: #eef2ff;
+  --primary-strong: #3730a3;
+
+  --background: color-mix(in oklab, #f8f9fc 96%, var(--primary));
   --foreground: #0f172a;
   --card: #ffffff;
   --card-foreground: #0f172a;
   --popover: #ffffff;
   --popover-foreground: #0f172a;
 
-  --primary: #4f46e5;
-  --primary-foreground: #ffffff;
-  --primary-soft: #eef2ff;
-  --primary-strong: #3730a3;
-
-  --secondary: #f1f5f9;
+  --secondary: color-mix(in oklab, #f1f5f9 94%, var(--primary));
   --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
+  --muted: color-mix(in oklab, #f1f5f9 94%, var(--primary));
   --muted-foreground: #64748b;
   --accent: #eef2ff;
   --accent-foreground: #4f46e5;
@@ -91,8 +96,8 @@
   --brand-cyan: #06b6d4;
   --brand-orange: #f97316;
 
-  --border: #e2e8f0;
-  --input: #e2e8f0;
+  --border: color-mix(in oklab, #e2e8f0 92%, var(--primary));
+  --input: color-mix(in oklab, #e2e8f0 92%, var(--primary));
   --ring: #4f46e5;
 
   --chart-1: #4f46e5;
@@ -103,21 +108,28 @@
 }
 
 .dark {
-  --background: #0f172a;
-  --foreground: #f1f5f9;
-  --card: #1e293b;
-  --card-foreground: #f1f5f9;
-  --popover: #1e293b;
-  --popover-foreground: #f1f5f9;
-
+  /*
+   * Neutral surfaces are tinted toward the active --primary via color-mix so the
+   * overall "mood" follows the selected color preset (not just buttons/accents).
+   * Each preset overrides --primary in its own block; because these neutrals
+   * reference var(--primary), they retint automatically — no per-preset neutral
+   * declarations needed. The slate hex below is the original untinted value.
+   */
   --primary: #6366f1;
   --primary-foreground: #ffffff;
   --primary-soft: #1e1b4b;
   --primary-strong: #818cf8;
 
-  --secondary: #263348;
+  --background: color-mix(in oklab, #0f172a 92%, var(--primary));
+  --foreground: #f1f5f9;
+  --card: color-mix(in oklab, #1e293b 91%, var(--primary));
+  --card-foreground: #f1f5f9;
+  --popover: color-mix(in oklab, #1e293b 91%, var(--primary));
+  --popover-foreground: #f1f5f9;
+
+  --secondary: color-mix(in oklab, #263348 88%, var(--primary));
   --secondary-foreground: #f1f5f9;
-  --muted: #263348;
+  --muted: color-mix(in oklab, #263348 88%, var(--primary));
   --muted-foreground: #94a3b8;
   --accent: #1e1b4b;
   --accent-foreground: #818cf8;
@@ -136,8 +148,8 @@
   --brand-cyan: #22d3ee;
   --brand-orange: #fb923c;
 
-  --border: #334155;
-  --input: #334155;
+  --border: color-mix(in oklab, #334155 84%, var(--primary));
+  --input: color-mix(in oklab, #334155 84%, var(--primary));
   --ring: #6366f1;
 
   --chart-1: #818cf8;
@@ -289,19 +301,28 @@
 }
 
 /* Reusable brand gradients (hero / profile / ai cards) */
+/*
+ * gradient-wealth / gradient-profile follow the active --primary (theme preset)
+ * via color-mix, so the hero/total "mood" backgrounds match the chosen color.
+ * gradient-emerald (semantic success) and gradient-ai (neutral slate) stay fixed.
+ */
 @utility gradient-wealth {
   background-image: linear-gradient(
     135deg,
-    #312e81 0%,
-    #4338ca 55%,
-    #6366f1 100%
+    color-mix(in oklab, var(--primary) 55%, black) 0%,
+    color-mix(in oklab, var(--primary) 78%, black) 55%,
+    var(--primary) 100%
   );
 }
 @utility gradient-emerald {
   background-image: linear-gradient(135deg, #059669, #10b981);
 }
 @utility gradient-profile {
-  background-image: linear-gradient(135deg, #312e81, #4f46e5);
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--primary) 55%, black),
+    var(--primary)
+  );
 }
 @utility gradient-ai {
   background-image: linear-gradient(135deg, #0f172a, #1e293b);
@@ -313,9 +334,9 @@
 .dark .gradient-wealth {
   background-image: linear-gradient(
     135deg,
-    #1e1b4b 0%,
-    #312e81 55%,
-    #4f46e5 100%
+    color-mix(in oklab, var(--primary) 28%, black) 0%,
+    color-mix(in oklab, var(--primary) 55%, black) 55%,
+    var(--primary) 100%
   );
 }
 .hide-scrollbar::-webkit-scrollbar {

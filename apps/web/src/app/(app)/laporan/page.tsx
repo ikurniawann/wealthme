@@ -360,7 +360,7 @@ function RingkasanSection({
                       <span className="flex items-center gap-1.5">
                         <span
                           className="size-2 rounded-[2px]"
-                          style={{ background: "#4F46E5" }}
+                          style={{ background: "var(--primary)" }}
                         />
                         Nilai
                       </span>
@@ -371,7 +371,7 @@ function RingkasanSection({
                         className="h-full rounded-full transition-all"
                         style={{
                           width: `${invChart.nilaiPct}%`,
-                          background: "#4F46E5",
+                          background: "var(--primary)",
                         }}
                       />
                     </div>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Eye, LogOut, Search } from "lucide-react";
+import { Bell, LogOut, Search } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery } from "@tanstack/react-query";
 import { PAGE_TITLES } from "@/lib/nav";
@@ -61,7 +61,6 @@ export function Topbar() {
         </span>
       </button>
       <div className="flex gap-1.5">
-        <ThemePicker />
         <ThemeToggle />
         <Link
           href="/notifikasi"
@@ -72,9 +71,7 @@ export function Topbar() {
             <span className="absolute right-1.5 top-1.5 size-[7px] rounded-full border-2 border-card bg-destructive" />
           )}
         </Link>
-        <button className="flex size-9 items-center justify-center rounded-md bg-secondary text-muted-foreground transition-colors hover:bg-accent hover:text-primary">
-          <Eye className="size-[15px]" />
-        </button>
+        <ThemePicker />
         <button
           onClick={handleLogout}
           aria-label="Keluar"
