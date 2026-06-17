@@ -1,0 +1,73 @@
+{
+  "pages": [
+    {
+      "id": "beranda",
+      "label": "Beranda (Dashboard)"
+    },
+    {
+      "id": "ringkasan",
+      "label": "Ringkasan"
+    },
+    {
+      "id": "transaksi",
+      "label": "Transaksi"
+    },
+    {
+      "id": "anggaran",
+      "label": "Anggaran"
+    },
+    {
+      "id": "laporan",
+      "label": "Laporan"
+    },
+    {
+      "id": "tujuan",
+      "label": "Tujuan Keuangan"
+    },
+    {
+      "id": "rekening",
+      "label": "Rekening"
+    },
+    {
+      "id": "investasi",
+      "label": "Investasi"
+    },
+    {
+      "id": "aset",
+      "label": "Aset"
+    },
+    {
+      "id": "liabilitas",
+      "label": "Liabilitas"
+    },
+    {
+      "id": "ai",
+      "label": "AI Advisor"
+    },
+    {
+      "id": "kalkulator",
+      "label": "Kalkulator"
+    },
+    {
+      "id": "notifikasi",
+      "label": "Notifikasi"
+    },
+    {
+      "id": "akun",
+      "label": "Akun"
+    }
+  ],
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "captures": []
+}
