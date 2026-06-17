@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus } from "lucide-react";
+import { Plus, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { useSession, signOut } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -21,6 +21,17 @@ import type {
 
 type TxnType = "income" | "expense" | "transfer" | "all";
 
+/**
+ * Extended filter value: standard TxnType values plus "kartu_kredit".
+ * The "kartu_kredit" filter is an accountName heuristic — it matches
+ * transactions whose accountName contains "kartu kredit", "kredit", or
+ * "credit" (case-insensitive). This is a temporary approach pending a
+ * real credit-card account model in the data layer.
+ */
+type FilterValue = TxnType | "kartu_kredit";
+
+type SortOrder = "newest" | "oldest";
+
 type MeResponse = {
   id: string;
   email: string;
@@ -28,12 +39,27 @@ type MeResponse = {
   familyGroupId: string | null;
 };
 
-const FILTERS: { label: string; value: TxnType }[] = [
+const FILTERS: { label: string; value: FilterValue }[] = [
   { label: "Semua", value: "all" },
   { label: "Masuk", value: "income" },
   { label: "Keluar", value: "expense" },
   { label: "Transfer", value: "transfer" },
+  { label: "Kartu Kredit", value: "kartu_kredit" },
 ];
+
+const SORT_OPTIONS: { label: string; value: SortOrder }[] = [
+  { label: "Terbaru", value: "newest" },
+  { label: "Terlama", value: "oldest" },
+];
+
+function isCreditCard(tx: TransactionDto): boolean {
+  const name = tx.accountName.toLowerCase();
+  return (
+    name.includes("kartu kredit") ||
+    name.includes("kredit") ||
+    name.includes("credit")
+  );
+}
 
 function formatTime(isoString: string): string {
   return isoString.slice(11, 16);
@@ -81,9 +107,10 @@ function TxRow({
     tx.categoryName ?? tx.accountName ?? TYPE_LABEL[tx.type] ?? tx.type;
 
   return (
-    <div className="flex w-full items-center gap-3 rounded-[12px] border bg-card p-3 text-left transition-colors hover:bg-accent/40">
+    <div className="flex w-full items-center gap-3 rounded-[12px] border bg-card py-3.5 px-3 text-left transition-colors hover:bg-accent/40">
+      {/* Circular icon — matches demo's pastel circular treatment (G3) */}
       <div
-        className="flex size-[38px] shrink-0 items-center justify-center rounded-[10px] text-[15px]"
+        className="flex size-[38px] shrink-0 items-center justify-center rounded-full text-[15px]"
         style={{ background: iconBg }}
       >
         {icon}
@@ -234,7 +261,8 @@ function EditTransactionDialog({
 }
 
 export default function TransaksiPage() {
-  const [filter, setFilter] = useState<TxnType>("all");
+  const [filter, setFilter] = useState<FilterValue>("all");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<TransactionDto | null>(null);
   const { data: session } = useSession();
@@ -286,21 +314,30 @@ export default function TransaksiPage() {
   const transactions = data?.data ?? [];
   const summary = data?.summary;
 
+  // Apply filter
   const filtered =
     filter === "all"
       ? transactions
-      : transactions.filter((tx) => tx.type === filter);
+      : filter === "kartu_kredit"
+        ? transactions.filter(isCreditCard)
+        : transactions.filter((tx) => tx.type === filter);
 
-  const groups = filtered.reduce<Record<string, TransactionDto[]>>(
-    (acc, tx) => {
-      const day = tx.occurredAt.slice(0, 10);
-      const existing = acc[day];
-      return { ...acc, [day]: existing ? [...existing, tx] : [tx] };
-    },
-    {},
+  // Sort by occurredAt — affects both day-group order and within-day row order
+  const sorted = [...filtered].sort((a, b) => {
+    const cmp = a.occurredAt.localeCompare(b.occurredAt);
+    return sortOrder === "newest" ? -cmp : cmp;
+  });
+
+  const groups = sorted.reduce<Record<string, TransactionDto[]>>((acc, tx) => {
+    const day = tx.occurredAt.slice(0, 10);
+    const existing = acc[day];
+    return { ...acc, [day]: existing ? [...existing, tx] : [tx] };
+  }, {});
+
+  // Day order derived from sort: newest = desc, oldest = asc
+  const sortedDays = Object.keys(groups).sort((a, b) =>
+    sortOrder === "newest" ? b.localeCompare(a) : a.localeCompare(b),
   );
-
-  const sortedDays = Object.keys(groups).sort((a, b) => b.localeCompare(a));
 
   const totalIncome = summary ? parseFloat(summary.totalIncome) : 0;
   const totalExpense = summary ? parseFloat(summary.totalExpense) : 0;
@@ -342,7 +379,7 @@ export default function TransaksiPage() {
         </div>
       </div>
 
-      {/* Filter tabs + add button */}
+      {/* Filter pills (left) + sort control (right) — redundant "Tambah" button removed */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="hide-scrollbar flex gap-2 overflow-x-auto">
           {FILTERS.map((f) => (
@@ -361,12 +398,26 @@ export default function TransaksiPage() {
             </button>
           ))}
         </div>
-        <button
-          onClick={() => setTxnOpen(true)}
-          className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground"
-        >
-          <Plus className="size-3.5" /> Tambah
-        </button>
+
+        {/* Sort control — styled native select per WM conventions for simplicity */}
+        <div className="relative flex items-center">
+          <span className="pointer-events-none absolute left-3 text-[12px] text-muted-foreground select-none">
+            Urutkan:
+          </span>
+          <select
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value as SortOrder)}
+            className="appearance-none rounded-lg border bg-card py-1.5 pl-[68px] pr-7 text-[13px] font-semibold text-foreground outline-none transition-colors focus:border-primary cursor-pointer"
+            aria-label="Urutan transaksi"
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2 size-3.5 text-muted-foreground" />
+        </div>
       </div>
 
       {/* Error state */}

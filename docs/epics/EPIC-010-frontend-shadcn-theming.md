@@ -99,8 +99,11 @@ Rules to encode (so it can't be subtly broken):
       <br/>↳ Laporan note: its Wealth Allocation derives from a separate
       `/reports/balance-sheet` endpoint, **not** auto-fixed by the Aset change —
       handled in **T-1010**.
-- [ ] **T-1007** **Transaksi (P2)** — add "Kartu Kredit" filter + sort dropdown;
+- [x] **T-1007** **Transaksi (P2)** — add "Kartu Kredit" filter + sort dropdown;
       align row affordance/density + circular icons; drop redundant add button.
+      <br/>↳ "Kartu Kredit" is an `accountName` heuristic (no credit-card field in
+      `TransactionDto`); row edit/delete kept (shared `RowActions`, not redesigned);
+      stat #3 "Selisih" was already correct.
 - [ ] **T-1008** **Rekening (P2)** — bank-branded icon badges; status badge
       (Utama/Aktif); demo-style action buttons; masked account number.
 - [ ] **T-1009** **Ringkasan (P2)** — Komposisi Aset bar-list viz; reconcile KPI
@@ -156,6 +159,7 @@ live ≈ demo across presets; PR merged to `development`.
 
 <!-- Epic loop appends here -->
 
+- 2026-06-17 /epic-loop EPIC-010 #3 (Group C, T-1007) "Transaksi (P2) — filter + sort" → PASS (attempts: 1), PR: #154. Added "Kartu Kredit" filter pill (accountName heuristic, commented), "Urutkan: Terbaru/Terlama" sort (native select; sorts day + within-day), circular row icons + more padding, dropped redundant "Tambah" button. Stat #3 already "Selisih". Shared `RowActions` left intact. Review ✓✓✓ (MEDIUMs only: heuristic breadth, native-select overlay — non-blocking). Security ✓. Test: frontend lint/tsc/web-build ✓.
 - 2026-06-17 /epic-loop EPIC-010 #3 (Group C, T-1006) "Aset (P1) — consolidated net-worth" → PASS (attempts: 2), PR: #153. Per-page PR (Group C run as per-task PRs, P1 first). Aset now fetches accounts + investments and renders real group cards w/ per-group totals; removed "Data akan tersedia…" placeholders; total relabeled "Total Aset" = accounts+investments+physical (BigInt). Review attempt 1 FAIL (2 HIGH: silent accounts/investments error → empty card; unguarded BigInt); fixed (consolidated inline error block + `?? "0"` guards + physical total from assets list, removed now-unused netWorth query); attempt 2 ✓. Security ✓ (tenant-scoped by familyGroupId+token). Test: frontend lint/tsc/web-build ✓. Laporan Wealth Allocation deferred to T-1010 (separate `/reports/balance-sheet` source).
 - 2026-06-17 /epic-loop EPIC-010 #2 "Group B — Theme picker UI" → PASS (attempts: 2), PR: #152. Review: react/ts/a11y/qa — attempt 1 FAIL (react-reviewer CRITICAL: `DropdownMenuLabel` outside a group → Base UI `MenuGroupContext` throw); fixed by wrapping in `DropdownMenuGroup`; attempt 2 all ✓. Test: attempt 1 FAIL on a real ESLint error (misplaced `eslint-disable-next-line` after line shifts — directive landed on the `useEffect(` line, not the `setMounted(true)` line); fixed; attempt 2 frontend lint/tsc/web-build ✓. Security: code-level ✓. Pre-existing `apps/api` ws advisory + Prisma seed test remained red per standing policy.
 - 2026-06-17 /epic-loop EPIC-010 #1 "Group A — Theme-preset infrastructure" → PASS (attempts: 1), PR: #151. Review ✓ (react/ts/qa, 0 CRIT/HIGH). Security: code-level ✓; `scripts/security-check.sh` red ONLY on pre-existing `ws` DoS advisory (GHSA-96hv-2xvq-fx4p) in `apps/api` NestJS deps — unrelated to this frontend change; user approved proceeding + tracking separately. Test: frontend lint/web-build/tsc ✓; `scripts/test.sh` red ONLY on pre-existing backend Prisma `baSession` seed test in `apps/api` — unrelated; tracked separately. Standing policy set for this epic: proceed when failures are pre-existing/unrelated `apps/api` baseline issues and all frontend checks pass.
