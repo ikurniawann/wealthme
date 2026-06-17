@@ -110,8 +110,14 @@ Rules to encode (so it can't be subtly broken):
       `isPrimary`/`status` field on `AccountDto` (noted in code).
 - [x] **T-1009** **Ringkasan (P2)** — Komposisi Aset bar-list viz; reconcile KPI
       card #3; Top-Pengeluaran %-badge; Health Score label.
-- [ ] **T-1010** **Laporan (P2)** — scrollable/grouped tab bar (fix 17-tab
+- [x] **T-1010** **Laporan (P2)** — scrollable/grouped tab bar (fix 17-tab
       overflow) + de-dupe sidebar submenu; line-chart for Performa Investasi.
+      <br/>↳ P2 done: tab bar already scrolled; added a right-edge fade
+      affordance so overflow reads as scrollable (not clipped) + removed a dead
+      `DonutSegment` import. **Deferred (P3):** Performa Investasi line-chart;
+      sidebar-submenu de-dupe (touches protected `components/shell`/`lib/nav`).
+      Wealth Allocation data is a separate `/reports/balance-sheet` backend
+      concern (see T-1006 note), not a frontend fix here.
 - [ ] **T-1011** **Beranda (P2)** — restore 5-up summary-card row; rename
       "Komposisi"→"Alokasi Kekayaan" and "Transaksi"→"Aktivitas Terbaru".
 - [ ] **T-1012** **AI / Anggaran / Liabilitas / Notifikasi (P2)** — AI chat
@@ -161,6 +167,7 @@ live ≈ demo across presets; PR merged to `development`.
 
 <!-- Epic loop appends here -->
 
+- 2026-06-17 /epic-loop EPIC-010 #3 (Group C, T-1010) "Laporan (P2) — tab overflow" → PASS (attempts: 1), PR: #157. Minimal change to a 2883-line file: right-edge fade affordance on the already-scrollable 17-tab bar (overflow now reads as scrollable, not clipped) + removed dead `DonutSegment` import (cleared a standing ESLint warning). Deferred P3 (Performa Investasi line-chart; sidebar de-dupe — protected shell). Review ✓✓ (react + qa). Security ✓. Test ✓ (DonutSegment warning gone).
 - 2026-06-17 /epic-loop EPIC-010 #3 (Group C, T-1009) "Ringkasan (P2) — komposisi bar-list" → PASS (attempts: 1), PR: #156. KPI #3 → "Total Liabilitas" (authoritative `NetWorthDto.liabilitiesTotal`); Komposisi Aset donut→horizontal labelled bar-list (donut + buildDonutSegments removed); Health Score label → "Financial Health Score"; Top Pengeluaran → %-pill (StatusBadge). Review ✓✓✓ (2 MEDIUMs applied: Number() instead of throwing BigInt; gate liabilities card on the net-worth query's loading flag). Security ✓. Test: frontend lint/tsc/web-build ✓.
 - 2026-06-17 /epic-loop EPIC-010 #3 (Group C, T-1008) "Rekening (P2) — card styling" → PASS (attempts: 1), PR: #155. Bank-branded badges (BANK_BRANDS lookup, type fallback), status badge → "Aktif" (Utama needs backend field), full-width Transfer/Top Up/Mutasi + Edit/Hapus in a Base UI kebab, masked number kept. Review: react-reviewer raised 2 HIGH (self-closing `render` button; `DropdownMenuItem onClick` "broken") — both VERIFIED FALSE POSITIVES against Base UI 1.5.0 source (`MenuItem.d.ts` declares `onClick`; `useMenuItem` merges it via `mergeProps`; render pattern is the shipped theme-picker pattern). typescript-reviewer + review-qa PASS. Fixed BTPN badge label. Security ✓ (tenant scoping intact). Test ✓ (frontend lint/tsc/web-build; tsc accepted the Base UI props).
 - 2026-06-17 /epic-loop EPIC-010 #3 (Group C, T-1007) "Transaksi (P2) — filter + sort" → PASS (attempts: 1), PR: #154. Added "Kartu Kredit" filter pill (accountName heuristic, commented), "Urutkan: Terbaru/Terlama" sort (native select; sorts day + within-day), circular row icons + more padding, dropped redundant "Tambah" button. Stat #3 already "Selisih". Shared `RowActions` left intact. Review ✓✓✓ (MEDIUMs only: heuristic breadth, native-select overlay — non-blocking). Security ✓. Test: frontend lint/tsc/web-build ✓.

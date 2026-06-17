@@ -15,7 +15,6 @@ import {
 } from "@/components/wm";
 import { BarChart } from "@/components/charts/bar-chart";
 import { Donut, DonutLegend } from "@/components/charts/donut";
-import type { DonutSegment } from "@/components/charts/donut";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import {
@@ -2702,24 +2701,30 @@ function LaporanInner() {
       </div>
 
       {/* Tab bar */}
-      <div className="hide-scrollbar flex gap-0.5 overflow-x-auto rounded-md border bg-background p-1">
-        {TABS.map((t) => {
-          const active = t.id === tab;
-          return (
-            <button
-              key={t.id}
-              onClick={() => go(t.id)}
-              className={
-                "whitespace-nowrap rounded px-3.5 py-2 text-[13px] font-semibold transition-colors " +
-                (active
-                  ? "bg-card text-primary shadow-sm"
-                  : "text-muted-foreground hover:text-foreground")
-              }
-            >
-              {t.label}
-            </button>
-          );
-        })}
+      <div className="relative">
+        <div className="hide-scrollbar flex gap-0.5 overflow-x-auto rounded-md border bg-background p-1">
+          {TABS.map((t) => {
+            const active = t.id === tab;
+            return (
+              <button
+                key={t.id}
+                onClick={() => go(t.id)}
+                className={
+                  "whitespace-nowrap rounded px-3.5 py-2 text-[13px] font-semibold transition-colors " +
+                  (active
+                    ? "bg-card text-primary shadow-sm"
+                    : "text-muted-foreground hover:text-foreground")
+                }
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 right-0 w-8 rounded-r-md bg-gradient-to-l from-background to-transparent"
+        />
       </div>
 
       {/* Export */}
