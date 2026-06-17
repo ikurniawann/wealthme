@@ -422,7 +422,7 @@ export default function InvestasiPage() {
         <div className="w-full overflow-x-auto">
           <table className="w-full min-w-[580px] border-collapse text-[12.5px]">
             <thead>
-              <tr className="border-b text-left text-[11px] text-muted-foreground">
+              <tr className="border-b text-left text-[11px] uppercase tracking-wide text-muted-foreground">
                 <th className="py-2.5 pr-3 font-semibold">Nama</th>
                 <th className="py-2.5 pr-3 font-semibold">Jenis</th>
                 <th className="py-2.5 pr-3 font-semibold">Modal</th>
@@ -470,7 +470,7 @@ export default function InvestasiPage() {
                     <td className="py-3 pr-3">
                       <div className="flex items-center gap-2.5">
                         <div
-                          className="flex h-7 w-9 items-center justify-center rounded-md text-[10px] font-extrabold text-white"
+                          className="flex size-8 items-center justify-center rounded-full text-[10px] font-extrabold text-white"
                           style={{ background: logoBg }}
                         >
                           {toLogoText(h.ticker)}

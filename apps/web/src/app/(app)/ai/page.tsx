@@ -8,6 +8,8 @@ const CHIPS = [
   "🎯 Cara capai target DP Rumah lebih cepat",
   "📈 Rekomendasi portofolio investasi",
   "💡 Tips hemat pengeluaran",
+  "💳 Utang kartu kredit aman?",
+  "📅 Proyeksi kekayaan 5 tahun",
 ];
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -185,7 +187,7 @@ export default function AiPage() {
 
       {/* Chips */}
       <div className="mb-2 text-[12px] font-semibold text-muted-foreground">
-        Pertanyaan Populer
+        💡 Pertanyaan Populer
       </div>
       <div className="mb-4 flex flex-wrap gap-2">
         {CHIPS.map((chip) => (
