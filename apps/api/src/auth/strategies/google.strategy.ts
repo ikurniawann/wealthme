@@ -1,4 +1,4 @@
-import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
+import { Injectable, UnauthorizedException } from "@nestjs/common";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
@@ -16,45 +16,6 @@ export interface GoogleProfile {
   name: string;
 }
 
-// Base class used when Google credentials are absent. Registers a no-op
-// "google" strategy so Passport boots without error; validate() always rejects.
-class GoogleStrategyDisabled extends PassportStrategy(
-  // Use a minimal stub strategy that accepts any clientID to avoid the
-  // passport-google-oauth20 validation error when credentials are absent.
-  // We extend the real Strategy with dummy values — passport never calls
-  // authenticate() for the "google" name unless a route triggers it.
-  Strategy,
-  "google",
-) {
-  private readonly logger = new Logger("GoogleStrategy");
-
-  constructor() {
-    super({
-      clientID: "disabled",
-      clientSecret: "disabled",
-      callbackURL: "http://localhost:4000/auth/google/callback",
-      scope: ["email", "profile"],
-    });
-    this.logger.warn(
-      "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not set — Google OAuth disabled",
-    );
-  }
-
-  validate(
-    _accessToken: string,
-    _refreshToken: string,
-    _profile: Profile,
-    done: VerifyCallback,
-  ): void {
-    done(
-      new UnauthorizedException(
-        "Google OAuth is not configured on this server",
-      ),
-      false as never,
-    );
-  }
-}
-
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
   constructor(config: ConfigService<Env, true>) {
@@ -62,7 +23,9 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
     const clientSecret = config.get("GOOGLE_CLIENT_SECRET", { infer: true });
     // Use || (not ??) — ConfigService falls back to process.env which may be ""
     // (empty string from .env placeholder). Empty string is falsy, so || provides
-    // the placeholder that lets passport register without throwing.
+    // a placeholder that lets passport register without throwing when Google
+    // OAuth is unconfigured. The real OAuth server rejects clientID="disabled",
+    // so /auth/google routes fail safely (validate() is never reached) — no bypass.
     super({
       clientID: clientID || "disabled",
       clientSecret: clientSecret || "disabled",
@@ -103,6 +66,3 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
     } satisfies GoogleProfile);
   }
 }
-
-// Re-export a factory so AuthModule can use a conditional provider.
-export { GoogleStrategyDisabled };

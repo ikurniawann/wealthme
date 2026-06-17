@@ -63,7 +63,7 @@ docker compose"
 ## Tasks
 
 - [x] T-1101 Dockerfiles + centralized root `.env`
-- [ ] T-1102 Compose: auto migrate+seed + local/server parity
+- [x] T-1102 Compose: auto migrate+seed + local/server parity
 - [ ] T-1103 Seed gap-fill so every menu is API-populated
 - [ ] T-1104 Dev-server runbook + parity verification
 
@@ -186,6 +186,39 @@ seeded demo stack.
 - No secrets committed; production deploy remains manual.
 
 ## Automation Log
+
+### T-1102 — DONE (2026-06-17)
+
+- Rewrote root `docker-compose.yml`: single canonical stack; `env_file:[.env]` on
+  api/web/migrate; per-service service-name URL overrides (DATABASE_URL→postgres,
+  REDIS_URL→redis, MINIO_ENDPOINT→minio, MAIL_HOST→mailhog, API_URL→api, etc.).
+- NEW one-shot `migrate` service (pnpm virtual-store binaries: prisma + tsx);
+  `restart:"no"`; depends_on postgres healthy; api depends_on migrate
+  `service_completed_successfully`.
+- NEW `docker-compose.override.yml` publishes infra ports (postgres/redis/minio/
+  mailhog) for LOCAL dev only; base keeps them unexposed for the server.
+- Reconciled `deploy/docker-compose.yml` → thin server overlay; aligned
+  `deploy/.env.example` to BETTER*AUTH*\* (app uses better-auth, not next-auth).
+- NEW migration `20260617000001_add_missing_schema_drift` (Better Auth tables,
+  users.emailVerified/image, budgets/goals/notifications/split_bills/bank_syncs).
+- Dockerfile fixes: api `NODE_PATH` (pnpm virtual store), web runtime `openssl`.
+- Verification: clean `down -v` + `up -d --build` → migrate ran all migrations +
+  seed exited 0; `curl :4000/health` ok; `curl :3000/` → 200; second `up`
+  proved idempotency ("No pending migrations").
+- Gates: ECC database-reviewer PASS (migration matches schema; BIGINT money; FK
+  cascades). ECC security-reviewer CONDITIONAL→addressed: removed dead
+  `GoogleStrategyDisabled` class (illusory disable guard — kept the safe
+  `|| "disabled"` boot fallback); restored `.email()`/`.url()` on
+  `NOTIFICATION_FROM_EMAIL`/`SENTRY_DSN`. No secrets; infra ports local-only.
+- **CAVEAT (documented):** `prisma migrate deploy` of the drift migration ERRORs
+  on a PRE-EXISTING dev DB where those tables already exist. Fresh-volume path:
+  `docker compose down -v` then `up`. Keep-data path:
+  `prisma migrate resolve --applied 20260617000001_add_missing_schema_drift`.
+  Goes in the T-1104 runbook.
+- Deferred (pre-existing, not introduced): missing FK indexes on `account.userId`,
+  `session.familyGroupId`, `bank_sync_entries.matchedTxId/suggestedTxId`.
+- Merged: T-1102 code via PR #164; epic-doc updates + security fixes via the
+  T-1102 security follow-up PR.
 
 ### T-1101 — DONE (2026-06-17)
 

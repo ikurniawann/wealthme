@@ -78,13 +78,15 @@ const envSchema = z.object({
   NOTIFICATION_FROM_EMAIL: z
     .string()
     .optional()
-    .transform((v) => v?.trim() || undefined),
+    .transform((v) => v?.trim() || undefined)
+    .pipe(z.string().email().optional()),
   // Observability — optional; Sentry error tracking.
   // Empty string (from .env placeholder) is treated as unset.
   SENTRY_DSN: z
     .string()
     .optional()
-    .transform((v) => v?.trim() || undefined),
+    .transform((v) => v?.trim() || undefined)
+    .pipe(z.string().url().optional()),
   // Optional; structured log level override (default: info in prod, debug in dev)
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace"])
