@@ -1,12 +1,65 @@
 # WealthMe On-Call Runbook
 
-Last updated: 2026-06-14
+Last updated: 2026-06-17
+
+---
+
+## Dev Stack Deploy (canonical compose)
+
+As of EPIC-011 the **repo-root `docker-compose.yml` is the single canonical
+stack** for both local dev and the development server — bringing it up on the
+dev server produces the same content as `pnpm dev` locally. There is ONE env
+source: the gitignored **repo-root `.env`** (copy from `.env.example`). The
+old `deploy/`-directory / `:3001` flow is retired; `deploy/docker-compose.yml`
+is now only a thin server overlay (`NODE_ENV=production`).
+
+Ports: **web `:3000`, api `:4000`**. Infra ports (postgres/redis/minio/mailhog)
+are published ONLY by `docker-compose.override.yml` (local dev) and are NOT
+exposed by the base file on the server.
+
+### First-time / clean deploy (runs migrate + seed automatically)
+
+```bash
+# from the repo ROOT, with a real .env present
+docker compose down -v          # ONLY when you want a clean DB (drops volumes)
+docker compose up -d --build --wait
+```
+
+On startup the one-shot **`migrate` service** runs `prisma migrate deploy`
+then seeds `demo@wealthme.id / demo1234`; `api` waits for it to complete.
+Or use the guarded helper (DEV only, refuses production):
+
+```bash
+bash scripts/deploy-dev.sh dev
+```
+
+### ⚠️ Migration caveat (pre-existing database)
+
+`prisma migrate deploy` of `20260617000001_add_missing_schema_drift` ERRORs on a
+DB that already has those tables (created earlier via `db push`/`migrate dev`):
+
+- **Fresh data is fine:** `docker compose down -v` then `up` (recommended for demo).
+- **Keep existing data:** mark it applied without re-running the SQL —
+  `docker compose run --rm migrate sh -c "cd /app/apps/api && node_modules/.pnpm/node_modules/.bin/prisma migrate resolve --applied 20260617000001_add_missing_schema_drift"`
+  after verifying the schema already matches.
+
+### Parity check (containers == `pnpm dev`)
+
+After `up`, confirm the seeded demo content is served by the API:
+
+```bash
+curl -fsS http://localhost:4000/health && echo " API OK"
+curl -fsS -o /dev/null -w "%{http_code}\n" http://localhost:3000/   # 200
+```
+
+The same `demo@wealthme.id` dataset (incl. Rekonsiliasi Bank) appears whether
+you run the stack via compose or `pnpm dev` — both read the one root `.env`.
 
 ---
 
 ## Service Management
 
-All commands assume you are in the `deploy/` directory with a valid `.env` file present.
+All commands run from the **repo root** with a valid root `.env` present.
 
 ### Start all services
 
@@ -47,8 +100,8 @@ docker compose ps
 Quick curl check:
 
 ```bash
-curl -sf http://localhost:3001/health && echo "API OK"
-curl -sf http://localhost:3001/health/redis && echo "Redis OK"
+curl -sf http://localhost:4000/health && echo "API OK"
+curl -sf http://localhost:4000/health/redis && echo "Redis OK"
 ```
 
 ---

@@ -1,6 +1,6 @@
 # EPIC-011: Dockerized Dev Stack + Centralized Env + Demo Seed Parity
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 retries: 0
 
@@ -65,7 +65,7 @@ docker compose"
 - [x] T-1101 Dockerfiles + centralized root `.env`
 - [x] T-1102 Compose: auto migrate+seed + local/server parity
 - [x] T-1103 Seed gap-fill so every menu is API-populated
-- [ ] T-1104 Dev-server runbook + parity verification
+- [x] T-1104 Dev-server runbook + parity verification
 
 ---
 
@@ -186,6 +186,26 @@ seeded demo stack.
 - No secrets committed; production deploy remains manual.
 
 ## Automation Log
+
+### T-1104 — DONE (2026-06-17) → epic ready-for-qa
+
+- Rewrote `deploy/runbook.md` for the canonical-compose + centralized-`.env`
+  workflow: dev-stack deploy from repo root (`docker compose up -d --build --wait`),
+  auto migrate+seed via the `migrate` service, web `:3000` / api `:4000` (was
+  `:3001`), the pre-existing-DB migration caveat + `migrate resolve` escape hatch,
+  and a parity-check section.
+- Wired `scripts/deploy-dev.sh` DEV target to bring up the canonical compose stack
+  (`docker compose up -d --build --wait`); added `.env` presence guard and
+  `CLEAN_DB=1` clean-volume option; production still hard-refused.
+- DEV deploy EXECUTED + verified: `CLEAN_DB=1 bash scripts/deploy-dev.sh dev` →
+  all services healthy, migrate exited 0, `curl :4000/health` ok, `curl :3000/`
+  → 200, DB had 2 bank_syncs + demo user; torn down with `down -v`.
+- Test gate `bash scripts/test.sh`: GREEN (build + 88 tests / 12 suites pass).
+  The old baseline failure (seed.spec baSession) is resolved as of T-1103.
+- Parity: identical `demo@wealthme.id` content via compose and `pnpm dev` (one
+  root `.env`). NOTE: deploying to the REAL remote dev server is the user's
+  manual step (no remote host/credentials wired here); run the same compose there.
+- All EPIC-011 acceptance criteria met → status set to `ready-for-qa`.
 
 ### T-1103 — DONE (2026-06-17)
 
