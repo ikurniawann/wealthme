@@ -11,6 +11,18 @@
 # =============================================================================
 
 services:
+  # Force browser-facing origins to localhost for local dev, regardless of what
+  # the root .env holds. The browser talks to the host (localhost:3000 / :4000),
+  # so Better Auth's origin check (web) and CORS (api) must see localhost — NOT
+  # the internal `web`/`api` service names. On the real dev server these come
+  # from .env (the server's public origin) via the base compose, not this file.
+  web:
+    environment:
+      BETTER_AUTH_URL: http://localhost:3000
+  api:
+    environment:
+      WEB_ORIGIN: http://localhost:3000
+
   postgres:
     ports:
       # Expose postgres to localhost so GUI tools (e.g. TablePlus, psql) work.
