@@ -205,7 +205,7 @@ export default function AiPage() {
       <div className="flex flex-col overflow-hidden rounded-[14px] border bg-card">
         <div
           ref={scrollRef}
-          className="hide-scrollbar flex h-[440px] flex-col gap-4 overflow-y-auto p-4"
+          className="hide-scrollbar flex min-h-[200px] max-h-[440px] flex-col gap-4 overflow-y-auto p-4"
         >
           {messages.map((msg) =>
             msg.role === "assistant" ? (

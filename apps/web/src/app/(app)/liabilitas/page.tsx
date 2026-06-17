@@ -13,7 +13,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ProgressBar, StatusBadge } from "@/components/wm";
 
-import type { LiabilityDto, LiabilityType } from "@wealthme/contracts";
+import type {
+  LiabilityDto,
+  LiabilityType,
+  NetWorthDto,
+} from "@wealthme/contracts";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -35,6 +39,16 @@ const LIABILITY_TYPES = [
 type LiabilityTypeValue = LiabilityType;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+function getDtaRiskLabel(dta: number): {
+  label: string;
+  color: string;
+} {
+  if (dta < 30) return { label: "Sangat Aman", color: "var(--success)" };
+  if (dta < 50) return { label: "Aman", color: "var(--success)" };
+  if (dta < 70) return { label: "Waspada", color: "var(--warning)" };
+  return { label: "Berisiko", color: "var(--destructive)" };
+}
 
 function getDueDateStatus(dueDate: string | null): {
   text: string;
@@ -485,6 +499,31 @@ export default function LiabilitasPage() {
     },
   });
 
+  const { data: netWorthData, isLoading: isNetWorthLoading } =
+    useQuery<NetWorthDto>({
+      queryKey: queryKeys.netWorth.summary(familyGroupId ?? ""),
+      enabled: Boolean(familyGroupId) && Boolean(token),
+      queryFn: ({ signal }) => {
+        if (!familyGroupId) throw new Error("familyGroupId not available");
+        return apiFetch<NetWorthDto>(
+          `/family-groups/${familyGroupId}/dashboard/net-worth`,
+          { token, signal },
+        );
+      },
+    });
+
+  const assetsTotal = netWorthData ? Number(netWorthData.assetsTotal) : 0;
+  const liabilitiesTotal = netWorthData
+    ? Number(netWorthData.liabilitiesTotal)
+    : 0;
+  const dtaRatio =
+    assetsTotal > 0 ? (liabilitiesTotal / assetsTotal) * 100 : null;
+  const dtaDisplay = dtaRatio !== null ? `${dtaRatio.toFixed(1)}%` : "—";
+  const dtaRisk =
+    dtaRatio !== null
+      ? getDtaRiskLabel(dtaRatio)
+      : { label: "—", color: "var(--muted-foreground)" };
+
   useEffect(() => {
     if (isError) {
       toast.error("Gagal memuat data liabilitas. Silakan refresh halaman.");
@@ -515,16 +554,24 @@ export default function LiabilitasPage() {
         </div>
         <div className="rounded-[14px] border bg-card p-4">
           <div className="mb-1 text-[11px] text-muted-foreground">
-            Jumlah Liabilitas
+            Rasio Utang terhadap Aset
           </div>
-          {isLoading ? (
-            <div className="animate-pulse h-7 w-12 rounded bg-muted" />
+          {isNetWorthLoading ? (
+            <div className="animate-pulse h-7 w-20 rounded bg-muted" />
           ) : (
-            <div className="text-[22px] font-black">
-              {liabilities?.length ?? 0}
+            <div
+              className="text-[22px] font-black"
+              style={{ color: dtaRisk.color }}
+            >
+              {dtaDisplay}
             </div>
           )}
-          <div className="text-[11px] text-muted-foreground">Aktif</div>
+          <div
+            className="text-[11px] font-medium"
+            style={{ color: dtaRisk.color }}
+          >
+            {dtaRisk.label}
+          </div>
         </div>
       </div>
 
