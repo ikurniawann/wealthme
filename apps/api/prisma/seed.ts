@@ -1761,6 +1761,194 @@ export async function main(): Promise<void> {
     });
   }
 
+  // ── Bank Syncs (Rekonsiliasi Bank) ───────────────────────────────────────────
+  // Two demo bank-statement uploads: one fully matched, one with mixed statuses.
+
+  const bs1 = await prisma.bankSync.upsert({
+    where: { id: "seed-bs-bca-mei" },
+    update: { rowCount: 8 },
+    create: {
+      id: "seed-bs-bca-mei",
+      familyGroupId: FG,
+      fileName: "BCA_Rekening_Koran_Mei_2025.pdf",
+      uploadedAt: monthsAgo(1, 18),
+      rowCount: 8,
+    },
+  });
+
+  // Entries for BCA Mei — mix of matched, suggested, unmatched
+  const bs1Entries = [
+    {
+      id: "seed-bse-bca-1",
+      date: monthsAgo(1, 1),
+      description: "CR GAJI PT MAJU BERSAMA",
+      amount: 25_850_000n,
+      reconStatus: "matched" as const,
+      matchedTxId: "seed-tx-gaji-m1",
+      suggestedTxId: null,
+    },
+    {
+      id: "seed-bse-bca-2",
+      date: monthsAgo(1, 5),
+      description: "DB CICILAN KPR BTN",
+      amount: -4_200_000n,
+      reconStatus: "matched" as const,
+      matchedTxId: "seed-tx-kpr-m1",
+      suggestedTxId: null,
+    },
+    {
+      id: "seed-bse-bca-3",
+      date: monthsAgo(1, 10),
+      description: "DB LISTRIK AIR INTERNET",
+      amount: -850_000n,
+      reconStatus: "suggested" as const,
+      matchedTxId: null,
+      suggestedTxId: "seed-tx-tagihan-m1",
+    },
+    {
+      id: "seed-bse-bca-4",
+      date: monthsAgo(1, 12),
+      description: "DB BELANJA ONLINE",
+      amount: -650_000n,
+      reconStatus: "suggested" as const,
+      matchedTxId: null,
+      suggestedTxId: "seed-tx-belanja-m1",
+    },
+    {
+      id: "seed-bse-bca-5",
+      date: monthsAgo(1, 15),
+      description: "DB REKSA DANA AUTODEBIT",
+      amount: -3_000_000n,
+      reconStatus: "matched" as const,
+      matchedTxId: "seed-tx-investasi-m1",
+      suggestedTxId: null,
+    },
+    {
+      id: "seed-bse-bca-6",
+      date: monthsAgo(1, 20),
+      description: "CR BONUS KINERJA Q4",
+      amount: 15_000_000n,
+      reconStatus: "unmatched" as const,
+      matchedTxId: null,
+      suggestedTxId: null,
+    },
+    {
+      id: "seed-bse-bca-7",
+      date: monthsAgo(1, 22),
+      description: "DB TRANSFER TUJUAN LIBURAN",
+      amount: -2_000_000n,
+      reconStatus: "unmatched" as const,
+      matchedTxId: null,
+      suggestedTxId: null,
+    },
+    {
+      id: "seed-bse-bca-8",
+      date: monthsAgo(1, 28),
+      description: "CR FREELANCE DESAIN WEB",
+      amount: 5_000_000n,
+      reconStatus: "matched" as const,
+      matchedTxId: "seed-tx-freelance-m1",
+      suggestedTxId: null,
+    },
+  ];
+
+  for (const e of bs1Entries) {
+    await prisma.bankSyncEntry.upsert({
+      where: { id: e.id },
+      update: { reconStatus: e.reconStatus, matchedTxId: e.matchedTxId },
+      create: {
+        id: e.id,
+        bankSyncId: bs1.id,
+        date: e.date,
+        description: e.description,
+        amount: e.amount,
+        currency: "IDR",
+        reconStatus: e.reconStatus,
+        matchedTxId: e.matchedTxId,
+        suggestedTxId: e.suggestedTxId,
+      },
+    });
+  }
+
+  const bs2 = await prisma.bankSync.upsert({
+    where: { id: "seed-bs-mandiri-apr" },
+    update: { rowCount: 5 },
+    create: {
+      id: "seed-bs-mandiri-apr",
+      familyGroupId: FG,
+      fileName: "Mandiri_Rekon_April_2025.xlsx",
+      uploadedAt: monthsAgo(2, 12),
+      rowCount: 5,
+    },
+  });
+
+  // Entries for Mandiri April — mostly matched
+  const bs2Entries = [
+    {
+      id: "seed-bse-mdr-1",
+      date: monthsAgo(2, 1),
+      description: "CR GAJI APRIL",
+      amount: 25_850_000n,
+      reconStatus: "matched" as const,
+      matchedTxId: "seed-tx-gaji-m2",
+      suggestedTxId: null,
+    },
+    {
+      id: "seed-bse-mdr-2",
+      date: monthsAgo(2, 5),
+      description: "DB KPR APRIL",
+      amount: -4_200_000n,
+      reconStatus: "matched" as const,
+      matchedTxId: "seed-tx-kpr-m2",
+      suggestedTxId: null,
+    },
+    {
+      id: "seed-bse-mdr-3",
+      date: monthsAgo(2, 10),
+      description: "CR BONUS APRIL",
+      amount: 5_000_000n,
+      reconStatus: "matched" as const,
+      matchedTxId: "seed-tx-bonus-m2",
+      suggestedTxId: null,
+    },
+    {
+      id: "seed-bse-mdr-4",
+      date: monthsAgo(2, 15),
+      description: "DB TAGIHAN UTILITAS",
+      amount: -850_000n,
+      reconStatus: "suggested" as const,
+      matchedTxId: null,
+      suggestedTxId: "seed-tx-tagihan-m2",
+    },
+    {
+      id: "seed-bse-mdr-5",
+      date: monthsAgo(2, 20),
+      description: "DB BELANJA UMUM",
+      amount: -500_000n,
+      reconStatus: "unmatched" as const,
+      matchedTxId: null,
+      suggestedTxId: null,
+    },
+  ];
+
+  for (const e of bs2Entries) {
+    await prisma.bankSyncEntry.upsert({
+      where: { id: e.id },
+      update: { reconStatus: e.reconStatus, matchedTxId: e.matchedTxId },
+      create: {
+        id: e.id,
+        bankSyncId: bs2.id,
+        date: e.date,
+        description: e.description,
+        amount: e.amount,
+        currency: "IDR",
+        reconStatus: e.reconStatus,
+        matchedTxId: e.matchedTxId,
+        suggestedTxId: e.suggestedTxId,
+      },
+    });
+  }
+
   process.stdout.write(
     `\nSeed complete — demo@wealthme.id / demo1234\n` +
       `  FamilyGroup : ${family.name} (${family.id})\n` +
@@ -1777,7 +1965,8 @@ export async function main(): Promise<void> {
       `  Inheritance : 2 aset + 2 ahli waris\n` +
       `  Donations   : 4 (zakat, infaq, sedekah, wakaf)\n` +
       `  Tax Records : 2024 (sudah lapor), 2025 (belum lapor)\n` +
-      `  Notifications: 4\n`,
+      `  Notifications: 4\n` +
+      `  Bank Syncs  : 2 uploads (BCA Mei: 8 entries, Mandiri Apr: 5 entries)\n`,
   );
 }
 

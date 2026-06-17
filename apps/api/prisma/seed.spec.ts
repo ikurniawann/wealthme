@@ -5,17 +5,20 @@ jest.mock("argon2", () => ({
   argon2id: 2,
 }));
 
-const mockUpsert = jest
-  .fn()
-  .mockResolvedValue({
-    id: "mock-id",
-    email: "demo@wealthme.id",
-    name: "Demo Family",
-  });
+const mockUpsert = jest.fn().mockResolvedValue({
+  id: "mock-id",
+  email: "demo@wealthme.id",
+  name: "Demo Family",
+});
 const mockCreate = jest.fn().mockResolvedValue({ id: "mock-id" });
 const disconnectMock = jest.fn().mockResolvedValue(undefined);
 
-const makeModel = () => ({ upsert: mockUpsert, create: mockCreate });
+const mockDeleteMany = jest.fn().mockResolvedValue({ count: 0 });
+const makeModel = () => ({
+  upsert: mockUpsert,
+  create: mockCreate,
+  deleteMany: mockDeleteMany,
+});
 
 jest.mock("@prisma/client", () => ({
   PrismaClient: jest.fn().mockImplementation(() => ({
@@ -41,6 +44,9 @@ jest.mock("@prisma/client", () => ({
     donation: makeModel(),
     taxRecord: makeModel(),
     notification: makeModel(),
+    bankSync: makeModel(),
+    bankSyncEntry: makeModel(),
+    baSession: makeModel(),
     $disconnect: disconnectMock,
   })),
 }));

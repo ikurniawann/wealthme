@@ -64,7 +64,7 @@ docker compose"
 
 - [x] T-1101 Dockerfiles + centralized root `.env`
 - [x] T-1102 Compose: auto migrate+seed + local/server parity
-- [ ] T-1103 Seed gap-fill so every menu is API-populated
+- [x] T-1103 Seed gap-fill so every menu is API-populated
 - [ ] T-1104 Dev-server runbook + parity verification
 
 ---
@@ -186,6 +186,34 @@ seeded demo stack.
 - No secrets committed; production deploy remains manual.
 
 ## Automation Log
+
+### T-1103 — DONE (2026-06-17)
+
+- Audit: all left-nav menus already seeded EXCEPT Rekonsiliasi Bank (`BankSync`/`BankSyncEntry`).
+  - Kalkulator and Quick Input have no family-group API dependency (pure calculation / local form).
+  - All other menus (Beranda, Ringkasan, Transaksi, Anggaran, Laporan, Tujuan, Notifikasi, Dana,
+    Rekening, Investasi, Aset, Liabilitas, Asuransi, Warisan, Donation, Tax, SplitBill, AI, Masterdata,
+    Akun) already had seeded rows.
+- Added to `apps/api/prisma/seed.ts` (idempotent upserts, stable string IDs):
+  - `seed-bs-bca-mei` — BCA Rekening Koran Mei 2025 (8 entries: 4 matched, 2 suggested, 2 unmatched).
+    Matched entries reference existing seeded tx IDs: `seed-tx-gaji-m1`, `seed-tx-kpr-m1`,
+    `seed-tx-investasi-m1`, `seed-tx-freelance-m1`.
+  - `seed-bs-mandiri-apr` — Mandiri Rekon April 2025 (5 entries: 3 matched, 1 suggested, 1 unmatched).
+    Matched entries reference: `seed-tx-gaji-m2`, `seed-tx-kpr-m2`, `seed-tx-bonus-m2`.
+  - Updated seed summary log line: `Bank Syncs: 2 uploads (BCA Mei: 8 entries, Mandiri Apr: 5 entries)`.
+- Extended `apps/api/prisma/seed.spec.ts` mock with `bankSync`, `bankSyncEntry`, `baSession` models
+  and `deleteMany` on `makeModel` (pre-existing gap — spec would have failed on re-run).
+- Verification:
+  - `pnpm --filter @wealthme/api exec tsc --noEmit` — PASS (0 errors).
+  - `docker compose down -v && docker compose up -d postgres && docker compose run --rm migrate` —
+    all 12 migrations applied; seed summary printed with Bank Syncs line; DB confirmed
+    `SELECT COUNT(*)` = 2 bank_syncs, 13 bank_sync_entries.
+  - `GET /family-groups/seed-fg-demo/reconciliation` → 2 records (non-empty JSON).
+  - `GET /family-groups/seed-fg-demo/reconciliation/seed-bs-bca-mei/entries` → 8 entries with
+    mixed reconStatus (matched/suggested/unmatched).
+  - `docker compose down -v` cleanup done.
+  - `seed.spec.ts` — 3 tests PASS.
+- Branch: `feat/EPIC-011-t1103-seed-gapfill` · Commit: `88ee59d`
 
 ### T-1102 — DONE (2026-06-17)
 
