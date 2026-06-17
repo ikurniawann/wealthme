@@ -82,13 +82,13 @@ Rules to encode (so it can't be subtly broken):
       `apps/web/src/app/layout.tsx` `<head>`; reads `wealthme-theme-preset` and sets
       `document.documentElement.dataset.theme` pre-paint.
 
-### Group B — Theme picker UI
+### Group B — Theme picker UI ✅
 
-- [ ] **T-1004** Add `apps/web/src/components/shell/theme-picker.tsx` — swatch
+- [x] **T-1004** Add `apps/web/src/components/shell/theme-picker.tsx` — swatch
       dropdown built on `components/ui/dropdown-menu.tsx`; persists to
       `wealthme-theme-preset`; sets `document.documentElement.dataset.theme`; mount
       guard for SSR like `theme-toggle.tsx`.
-- [ ] **T-1005** Mount the picker beside `ThemeToggle` in `topbar.tsx` and
+- [x] **T-1005** Mount the picker beside `ThemeToggle` in `topbar.tsx` and
       `mobile-bars.tsx`; a11y: keyboard nav, `aria-label`, sufficient swatch contrast.
 
 ### Group C — Per-page demo alignment (from GAP-ANALYSIS.md)
@@ -153,7 +153,8 @@ live ≈ demo across presets; PR merged to `development`.
 
 <!-- Epic loop appends here -->
 
-- 2026-06-17 /epic-loop EPIC-010 #1 "Group A — Theme-preset infrastructure" → PASS (attempts: 1). Review ✓ (react/ts/qa, 0 CRIT/HIGH). Security: code-level ✓; `scripts/security-check.sh` red ONLY on pre-existing `ws` DoS advisory (GHSA-96hv-2xvq-fx4p) in `apps/api` NestJS deps — unrelated to this frontend change; user approved proceeding + tracking separately. Test: frontend lint/web-build/tsc ✓; `scripts/test.sh` red ONLY on pre-existing backend Prisma `baSession` seed test in `apps/api` — unrelated; tracked separately. Standing policy set for this epic: proceed when failures are pre-existing/unrelated `apps/api` baseline issues and all frontend checks pass.
+- 2026-06-17 /epic-loop EPIC-010 #2 "Group B — Theme picker UI" → PASS (attempts: 2), PR: #152. Review: react/ts/a11y/qa — attempt 1 FAIL (react-reviewer CRITICAL: `DropdownMenuLabel` outside a group → Base UI `MenuGroupContext` throw); fixed by wrapping in `DropdownMenuGroup`; attempt 2 all ✓. Test: attempt 1 FAIL on a real ESLint error (misplaced `eslint-disable-next-line` after line shifts — directive landed on the `useEffect(` line, not the `setMounted(true)` line); fixed; attempt 2 frontend lint/tsc/web-build ✓. Security: code-level ✓. Pre-existing `apps/api` ws advisory + Prisma seed test remained red per standing policy.
+- 2026-06-17 /epic-loop EPIC-010 #1 "Group A — Theme-preset infrastructure" → PASS (attempts: 1), PR: #151. Review ✓ (react/ts/qa, 0 CRIT/HIGH). Security: code-level ✓; `scripts/security-check.sh` red ONLY on pre-existing `ws` DoS advisory (GHSA-96hv-2xvq-fx4p) in `apps/api` NestJS deps — unrelated to this frontend change; user approved proceeding + tracking separately. Test: frontend lint/web-build/tsc ✓; `scripts/test.sh` red ONLY on pre-existing backend Prisma `baSession` seed test in `apps/api` — unrelated; tracked separately. Standing policy set for this epic: proceed when failures are pre-existing/unrelated `apps/api` baseline issues and all frontend checks pass.
 
 ### 2026-06-17 — Epic created from UI/UX audit
 

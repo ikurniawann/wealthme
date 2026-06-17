@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { SidebarNav } from "./sidebar";
+import { ThemePicker } from "./theme-picker";
 import { ThemeToggle } from "./theme-toggle";
 import { useShell } from "./shell-context";
 import { useState } from "react";
@@ -60,6 +61,7 @@ export function MobileHeader() {
 
       <div className="flex-1 text-lg font-extrabold">{title}</div>
       <div className="flex gap-1.5">
+        <ThemePicker />
         <ThemeToggle />
         <button
           onClick={() => setSearchOpen(true)}
