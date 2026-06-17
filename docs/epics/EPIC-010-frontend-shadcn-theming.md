@@ -1,6 +1,6 @@
 # EPIC-010: Frontend Theming (Swappable shadcn Color Presets) + Demo Visual Alignment
 
-status: backlog
+status: on-progress
 environment: dev
 retries: 0
 phase: 4
@@ -69,16 +69,16 @@ Rules to encode (so it can't be subtly broken):
 
 ## Tasks
 
-### Group A — Theme-preset infrastructure
+### Group A — Theme-preset infrastructure ✅
 
-- [ ] **T-1001** Add `apps/web/src/lib/themes.ts` — preset registry
+- [x] **T-1001** Add `apps/web/src/lib/themes.ts` — preset registry
       `{ id, label, swatch }[]` for indigo (default) + emerald, rose, amber, violet,
       slate; export the localStorage key constant `wealthme-theme-preset`.
-- [ ] **T-1002** Extend `apps/web/src/app/globals.css` — for each non-default
+- [x] **T-1002** Extend `apps/web/src/app/globals.css` — for each non-default
       preset add `[data-theme="x"] { --primary*/--accent*/--ring/--chart-* }` and
       `[data-theme="x"].dark { … }`, placed after `:root`/`.dark`. Leave default
       (no `data-theme`) untouched.
-- [ ] **T-1003** Wire `data-theme` + no-flash inline script in
+- [x] **T-1003** Wire `data-theme` + no-flash inline script in
       `apps/web/src/app/layout.tsx` `<head>`; reads `wealthme-theme-preset` and sets
       `document.documentElement.dataset.theme` pre-paint.
 
@@ -152,6 +152,8 @@ live ≈ demo across presets; PR merged to `development`.
 ## Automation Log
 
 <!-- Epic loop appends here -->
+
+- 2026-06-17 /epic-loop EPIC-010 #1 "Group A — Theme-preset infrastructure" → PASS (attempts: 1). Review ✓ (react/ts/qa, 0 CRIT/HIGH). Security: code-level ✓; `scripts/security-check.sh` red ONLY on pre-existing `ws` DoS advisory (GHSA-96hv-2xvq-fx4p) in `apps/api` NestJS deps — unrelated to this frontend change; user approved proceeding + tracking separately. Test: frontend lint/web-build/tsc ✓; `scripts/test.sh` red ONLY on pre-existing backend Prisma `baSession` seed test in `apps/api` — unrelated; tracked separately. Standing policy set for this epic: proceed when failures are pre-existing/unrelated `apps/api` baseline issues and all frontend checks pass.
 
 ### 2026-06-17 — Epic created from UI/UX audit
 

@@ -42,6 +42,20 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${sora.variable} ${dmMono.variable}`}
     >
+      {/*
+       * No-flash script: runs synchronously before first paint so the correct
+       * data-theme attribute is present before CSS is applied.
+       * Mirrors the next-themes anti-FOUC pattern for the color-preset axis.
+       * Valid non-default preset ids are inlined as a literal array — the
+       * script cannot import from lib/themes.ts at runtime.
+       */}
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var k="wealthme-theme-preset";var valid=["emerald","rose","amber","violet","slate"];var v=localStorage.getItem(k);if(v&&valid.indexOf(v)!==-1){document.documentElement.dataset.theme=v;}else{delete document.documentElement.dataset.theme;}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-screen bg-background text-foreground antialiased">
         <ThemeProvider
           attribute="class"

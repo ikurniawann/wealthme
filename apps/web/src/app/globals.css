@@ -147,6 +147,123 @@
   --chart-5: #22d3ee;
 }
 
+/* ── Color presets (data-theme) ─ swap brand/accent/ring/chart-1 only ── */
+/*
+ * Each non-default preset provides TWO blocks:
+ *   [data-theme="x"]       — light mode overrides
+ *   [data-theme="x"].dark  — dark mode overrides  (needed because [attr] and
+ *                             .class have equal specificity; the dark-qualified
+ *                             block must exist to win over the light block when
+ *                             both attribute and class are present)
+ *
+ * Only brand/accent/ring/chart-1 are swapped. --chart-2..5 are intentionally
+ * left unchanged — they form a categorical multi-series palette and recoloring
+ * them to a single hue would make stacked/multi-line charts unreadable.
+ *
+ * The default preset (indigo) writes NO data-theme attribute, so :root / .dark
+ * remain the byte-identical fallback and are NOT touched here.
+ */
+
+/* ── emerald ── */
+[data-theme="emerald"] {
+  --primary: #059669; /* emerald-600 */
+  --primary-soft: #ecfdf5; /* emerald-50  */
+  --primary-strong: #065f46; /* emerald-800 */
+  --accent: #ecfdf5; /* emerald-50  */
+  --accent-foreground: #059669; /* emerald-600 */
+  --ring: #059669; /* emerald-600 */
+  --chart-1: #059669; /* emerald-600 */
+}
+[data-theme="emerald"].dark {
+  --primary: #10b981; /* emerald-500 */
+  --primary-soft: #022c22; /* emerald-950 */
+  --primary-strong: #34d399; /* emerald-400 */
+  --accent: #022c22; /* emerald-950 */
+  --accent-foreground: #34d399; /* emerald-400 */
+  --ring: #10b981; /* emerald-500 */
+  --chart-1: #34d399; /* emerald-400 */
+}
+
+/* ── rose ── */
+[data-theme="rose"] {
+  --primary: #e11d48; /* rose-600 */
+  --primary-soft: #fff1f2; /* rose-50  */
+  --primary-strong: #9f1239; /* rose-800 */
+  --accent: #fff1f2; /* rose-50  */
+  --accent-foreground: #e11d48; /* rose-600 */
+  --ring: #e11d48; /* rose-600 */
+  --chart-1: #e11d48; /* rose-600 */
+}
+[data-theme="rose"].dark {
+  --primary: #f43f5e; /* rose-500 */
+  --primary-soft: #4c0519; /* rose-950 */
+  --primary-strong: #fb7185; /* rose-400 */
+  --accent: #4c0519; /* rose-950 */
+  --accent-foreground: #fb7185; /* rose-400 */
+  --ring: #f43f5e; /* rose-500 */
+  --chart-1: #fb7185; /* rose-400 */
+}
+
+/* ── amber ── */
+[data-theme="amber"] {
+  --primary: #d97706; /* amber-600 */
+  --primary-soft: #fffbeb; /* amber-50  */
+  --primary-strong: #92400e; /* amber-800 */
+  --accent: #fffbeb; /* amber-50  */
+  --accent-foreground: #d97706; /* amber-600 */
+  --ring: #d97706; /* amber-600 */
+  --chart-1: #d97706; /* amber-600 */
+}
+[data-theme="amber"].dark {
+  --primary: #f59e0b; /* amber-500 */
+  --primary-soft: #451a03; /* amber-950 */
+  --primary-strong: #fbbf24; /* amber-400 */
+  --accent: #451a03; /* amber-950 */
+  --accent-foreground: #fbbf24; /* amber-400 */
+  --ring: #f59e0b; /* amber-500 */
+  --chart-1: #fbbf24; /* amber-400 */
+}
+
+/* ── violet ── */
+[data-theme="violet"] {
+  --primary: #7c3aed; /* violet-600 */
+  --primary-soft: #f5f3ff; /* violet-50  */
+  --primary-strong: #5b21b6; /* violet-800 */
+  --accent: #f5f3ff; /* violet-50  */
+  --accent-foreground: #7c3aed; /* violet-600 */
+  --ring: #7c3aed; /* violet-600 */
+  --chart-1: #7c3aed; /* violet-600 */
+}
+[data-theme="violet"].dark {
+  --primary: #8b5cf6; /* violet-500 */
+  --primary-soft: #2e1065; /* violet-950 */
+  --primary-strong: #a78bfa; /* violet-400 */
+  --accent: #2e1065; /* violet-950 */
+  --accent-foreground: #a78bfa; /* violet-400 */
+  --ring: #8b5cf6; /* violet-500 */
+  --chart-1: #a78bfa; /* violet-400 */
+}
+
+/* ── slate ── */
+[data-theme="slate"] {
+  --primary: #475569; /* slate-600 */
+  --primary-soft: #f8fafc; /* slate-50  */
+  --primary-strong: #1e293b; /* slate-800 */
+  --accent: #f8fafc; /* slate-50  */
+  --accent-foreground: #475569; /* slate-600 */
+  --ring: #475569; /* slate-600 */
+  --chart-1: #475569; /* slate-600 */
+}
+[data-theme="slate"].dark {
+  --primary: #64748b; /* slate-500 */
+  --primary-soft: #020617; /* slate-950 */
+  --primary-strong: #94a3b8; /* slate-400 */
+  --accent: #020617; /* slate-950 */
+  --accent-foreground: #94a3b8; /* slate-400 */
+  --ring: #64748b; /* slate-500 */
+  --chart-1: #94a3b8; /* slate-400 */
+}
+
 @layer base {
   * {
     border-color: var(--border);
@@ -173,7 +290,12 @@
 
 /* Reusable brand gradients (hero / profile / ai cards) */
 @utility gradient-wealth {
-  background-image: linear-gradient(135deg, #312e81 0%, #4338ca 55%, #6366f1 100%);
+  background-image: linear-gradient(
+    135deg,
+    #312e81 0%,
+    #4338ca 55%,
+    #6366f1 100%
+  );
 }
 @utility gradient-emerald {
   background-image: linear-gradient(135deg, #059669, #10b981);
@@ -189,7 +311,12 @@
 }
 
 .dark .gradient-wealth {
-  background-image: linear-gradient(135deg, #1e1b4b 0%, #312e81 55%, #4f46e5 100%);
+  background-image: linear-gradient(
+    135deg,
+    #1e1b4b 0%,
+    #312e81 55%,
+    #4f46e5 100%
+  );
 }
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
