@@ -74,7 +74,7 @@ RUN pnpm --filter web build
 FROM node:20-bookworm-slim AS runtime
 
 RUN apt-get update -qq && \
-    apt-get install -y --no-install-recommends wget && \
+    apt-get install -y --no-install-recommends wget openssl && \
     rm -rf /var/lib/apt/lists/*
 
 # Run as a non-root user (hardening).

@@ -73,6 +73,10 @@ RUN groupadd --system appgroup && \
 WORKDIR /app
 
 ENV NODE_ENV=production
+# pnpm hoists shared packages to .pnpm/node_modules/ rather than the root
+# node_modules/.  NODE_PATH makes node resolve them without per-package symlinks,
+# which is required for reflect-metadata, @prisma/client, etc. at runtime.
+ENV NODE_PATH=/app/node_modules/.pnpm/node_modules
 
 # Compiled NestJS output (nest-cli emits to apps/api/dist/).
 COPY --from=build /build/apps/api/dist ./apps/api/dist

@@ -1,13 +1,29 @@
+# =============================================================================
+# WealthMe — Canonical Docker Compose Stack
+# =============================================================================
+# This file is the SINGLE source of truth for both local-demo and the dev
+# server. Keep all host-port bindings in docker-compose.override.yml so this
+# base file is portable to any environment.
+#
+# Usage (local, with override):
+#   docker compose up -d --build
+#
+# Usage (dev server, without local override):
+#   docker compose -f docker-compose.yml up -d --build
+#
+# All services read shared secrets from the root .env via `env_file`.
+# Host-vs-container URLs are overridden per-service under `environment:` so
+# that pnpm dev (localhost) and compose (service names) both work from one .env.
+# =============================================================================
+
 services:
+  # ── Infrastructure ──────────────────────────────────────────────────────────
+
   postgres:
     image: postgres:17
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-wealthme}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-wealthme_dev}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+    env_file: [.env]
+    # POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB come from env_file.
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -26,8 +42,6 @@ services:
   redis:
     image: redis:7
     restart: unless-stopped
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     networks:
@@ -43,12 +57,8 @@ services:
     image: minio/minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
-    ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    env_file: [.env]
+    # MINIO_ROOT_USER / MINIO_ROOT_PASSWORD come from env_file.
     volumes:
       - minio_data:/data
     networks:
@@ -67,9 +77,6 @@ services:
   mailhog:
     image: mailhog/mailhog
     restart: unless-stopped
-    ports:
-      - "${MAILHOG_SMTP_PORT:-1025}:1025"
-      - "${MAILHOG_UI_PORT:-8025}:8025"
     networks:
       - wealthme_net
     healthcheck:
@@ -83,36 +90,62 @@ services:
       retries: 3
       start_period: 10s
 
+  # ── One-shot migration + seed ───────────────────────────────────────────────
+  # Runs prisma migrate deploy + prisma db seed, then exits.
+  # api waits for this service to complete successfully before starting.
+  # The seed uses upsert, so re-running `docker compose up` is safe (idempotent).
+
+  migrate:
+    build:
+      context: .
+      dockerfile: ./apps/api/Dockerfile
+    restart: "no"
+    env_file: [.env]
+    environment:
+      # Override localhost URL from .env to use the postgres service name.
+      DATABASE_URL: >-
+        postgresql://${POSTGRES_USER:-wealthme}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-wealthme_dev}
+    # pnpm hoists shared binaries to .pnpm/node_modules/.bin/ (not .bin/ directly).
+    # NODE_PATH lets node resolve @prisma/client and other shared packages from
+    # the pnpm virtual store without per-package node_modules symlinks.
+    # prisma schema lives at /app/apps/api/prisma/schema.prisma.
+    command: >
+      sh -c "
+        export NODE_PATH=/app/node_modules/.pnpm/node_modules &&
+        cd /app &&
+        node_modules/.pnpm/node_modules/.bin/prisma migrate deploy --schema apps/api/prisma/schema.prisma &&
+        node_modules/.pnpm/node_modules/.bin/tsx apps/api/prisma/seed.ts
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - wealthme_net
+
+  # ── Application services ────────────────────────────────────────────────────
+
   api:
     build:
       context: .
       dockerfile: ./apps/api/Dockerfile
     restart: unless-stopped
+    env_file: [.env]
+    environment:
+      # Override localhost URLs from .env to use docker service names.
+      DATABASE_URL: >-
+        postgresql://${POSTGRES_USER:-wealthme}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-wealthme_dev}
+      REDIS_URL: redis://redis:6379
+      MINIO_ENDPOINT: http://minio:9000
+      # MinIO credentials come from env_file; only endpoint needs overriding.
+      MAIL_HOST: mailhog
+      WEB_ORIGIN: http://web:3000
+      # Google callback must use the host-accessible API URL (browser redirect).
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:4000/auth/google/callback}
     ports:
       - "${API_PORT:-4000}:4000"
-    environment:
-      NODE_ENV: ${NODE_ENV:-development}
-      PORT: 4000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-wealthme}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-wealthme_dev}
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-local-only}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-refresh-in-local-only}
-      JWT_EXPIRES_IN: 15m
-      JWT_REFRESH_EXPIRES_IN: 7d
-      MINIO_ENDPOINT: http://minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
-      MINIO_BUCKET: wealthme-uploads
-      MAIL_HOST: mailhog
-      MAIL_PORT: 1025
-      MAIL_FROM: noreply@wealthme.local
-      WEB_ORIGIN: http://web:3000
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:4000/auth/google/callback}
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
       minio:
@@ -133,17 +166,18 @@ services:
       context: .
       dockerfile: ./apps/web/Dockerfile
     restart: unless-stopped
+    env_file: [.env]
+    environment:
+      # PORT in root .env is the NestJS API port (4000); override here so
+      # the Next.js standalone server listens on 3000 inside the container.
+      PORT: "3000"
+      # Server-side API URL (used by Next.js SSR + Better Auth callbacks).
+      # Browser-facing NEXT_PUBLIC_API_URL stays as localhost (from env_file).
+      API_URL: http://api:4000
+      # Better Auth canonical URL — must match the browser-visible origin.
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
     ports:
       - "${WEB_PORT:-3000}:3000"
-    environment:
-      NODE_ENV: ${NODE_ENV:-development}
-      NEXT_PUBLIC_APP_URL: http://localhost:3000
-      NEXT_PUBLIC_API_URL: http://localhost:4000
-      API_URL: http://api:4000
-      NEXTAUTH_URL: http://localhost:3000
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change-me-at-least-32-chars-random}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
     depends_on:
       api:
         condition: service_healthy

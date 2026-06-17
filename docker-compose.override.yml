@@ -1,0 +1,36 @@
+# =============================================================================
+# WealthMe — Local-only Docker Compose override
+# =============================================================================
+# Applied automatically when running `docker compose` from the repo root.
+# NOT applied on the dev server (which uses -f docker-compose.yml explicitly,
+# or stores this file separately as a server override).
+#
+# Adds host-port bindings for local development tools (DB clients, Redis GUI,
+# MinIO console, Mailhog UI). These ports are intentionally absent from the
+# base docker-compose.yml so infrastructure ports are not exposed on the server.
+# =============================================================================
+
+services:
+  postgres:
+    ports:
+      # Expose postgres to localhost so GUI tools (e.g. TablePlus, psql) work.
+      - "${POSTGRES_PORT:-5432}:5432"
+
+  redis:
+    ports:
+      # Expose redis to localhost for direct inspection.
+      - "${REDIS_PORT:-6379}:6379"
+
+  minio:
+    ports:
+      # MinIO S3-compatible API.
+      - "${MINIO_API_PORT:-9000}:9000"
+      # MinIO web console.
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+
+  mailhog:
+    ports:
+      # SMTP (outbound mail capture).
+      - "${MAILHOG_SMTP_PORT:-1025}:1025"
+      # Mailhog web UI.
+      - "${MAILHOG_UI_PORT:-8025}:8025"

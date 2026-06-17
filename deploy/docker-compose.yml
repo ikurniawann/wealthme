@@ -1,77 +1,24 @@
-version: "3.9"
-
-networks:
-  wealthme:
-    driver: bridge
-
-volumes:
-  pgdata:
-  redisdata:
+# =============================================================================
+# WealthMe — Dev-server Compose override
+# =============================================================================
+# Use with the root docker-compose.yml from the repo root:
+#
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.yml up -d --build
+#
+# This overlay adds server-specific settings that differ from the local
+# developer workstation (e.g. published API/web ports, production NODE_ENV).
+# The root .env (copied to the server as .env) is still the single secret store.
+#
+# Ports for postgres/redis/minio/mailhog are intentionally NOT published here —
+# infra services should only be reachable inside the Docker network on the server.
+# If you need SSH port-forwarding for debug access, do so at the OS level.
+# =============================================================================
 
 services:
-  db:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    env_file: .env
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    networks:
-      - wealthme
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    volumes:
-      - redisdata:/data
-    networks:
-      - wealthme
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 5s
-
   api:
-    image: wealthme-api:latest
-    restart: unless-stopped
-    env_file: .env
-    ports:
-      - "3001:3001"
-    networks:
-      - wealthme
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3001/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
+    environment:
+      NODE_ENV: production
 
   web:
-    image: wealthme-web:latest
-    restart: unless-stopped
-    env_file: .env
-    ports:
-      - "3000:3000"
-    networks:
-      - wealthme
-    depends_on:
-      api:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3000/ || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
+    environment:
+      NODE_ENV: production

@@ -41,11 +41,22 @@ const envSchema = z.object({
   MAIL_USER: z.string().optional(),
   MAIL_PASS: z.string().optional(),
   MAIL_FROM: z.string().optional(),
-  // Anthropic — optional; enables real Claude OCR when set
-  ANTHROPIC_API_KEY: z.string().min(1).optional(),
-  // Brick Open Banking — optional; both must be set to enable real adapter
-  BRICK_CLIENT_ID: z.string().min(1).optional(),
-  BRICK_CLIENT_SECRET: z.string().min(1).optional(),
+  // Anthropic — optional; enables real Claude OCR when set.
+  // Empty string (from .env placeholder) is treated as unset.
+  ANTHROPIC_API_KEY: z
+    .string()
+    .optional()
+    .transform((v) => v?.trim() || undefined),
+  // Brick Open Banking — optional; both must be set to enable real adapter.
+  // Empty string (from .env placeholder) is treated as unset.
+  BRICK_CLIENT_ID: z
+    .string()
+    .optional()
+    .transform((v) => v?.trim() || undefined),
+  BRICK_CLIENT_SECRET: z
+    .string()
+    .optional()
+    .transform((v) => v?.trim() || undefined),
   // Encryption at rest — optional; 64 hex chars = 32 bytes for AES-256-GCM
   ENCRYPTION_KEY: z
     .string()
@@ -58,11 +69,22 @@ const envSchema = z.object({
     ),
   // Market data — optional; set to "true" to use Yahoo Finance instead of mock
   USE_REAL_MARKET_DATA: z.enum(["true", "false"]).optional(),
-  // Email notifications — optional; both must be set to enable real SendGrid sender
-  SENDGRID_API_KEY: z.string().min(1).optional(),
-  NOTIFICATION_FROM_EMAIL: z.string().email().optional(),
-  // Observability — optional; Sentry error tracking
-  SENTRY_DSN: z.string().url().optional(),
+  // Email notifications — optional; both must be set to enable real SendGrid sender.
+  // Empty string (from .env placeholder) is treated as unset.
+  SENDGRID_API_KEY: z
+    .string()
+    .optional()
+    .transform((v) => v?.trim() || undefined),
+  NOTIFICATION_FROM_EMAIL: z
+    .string()
+    .optional()
+    .transform((v) => v?.trim() || undefined),
+  // Observability — optional; Sentry error tracking.
+  // Empty string (from .env placeholder) is treated as unset.
+  SENTRY_DSN: z
+    .string()
+    .optional()
+    .transform((v) => v?.trim() || undefined),
   // Optional; structured log level override (default: info in prod, debug in dev)
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace"])
