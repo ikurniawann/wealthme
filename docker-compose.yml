@@ -171,6 +171,13 @@ services:
       # PORT in root .env is the NestJS API port (4000); override here so
       # the Next.js standalone server listens on 3000 inside the container.
       PORT: "3000"
+      # Better Auth runs server-side on web and talks to Postgres via Prisma
+      # (apps/web/src/lib/auth.ts → new PrismaClient()), so the web container
+      # needs DATABASE_URL pointed at the `postgres` service — NOT the localhost
+      # value from .env (that resolves to the web container itself). Without this
+      # override, email/social login fails with a DB connection error.
+      DATABASE_URL: >-
+        postgresql://${POSTGRES_USER:-wealthme}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-wealthme_dev}
       # Server-side API URL (used by Next.js SSR + Better Auth callbacks).
       # Browser-facing NEXT_PUBLIC_API_URL stays as localhost (from env_file).
       API_URL: http://api:4000
