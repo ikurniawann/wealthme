@@ -9,6 +9,7 @@ import { PAGE_TITLES } from "@/lib/nav";
 import { useAuth } from "@/components/providers/auth-provider";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { ThemePicker } from "./theme-picker";
 import { ThemeToggle } from "./theme-toggle";
 import { useShell } from "./shell-context";
 
@@ -60,6 +61,7 @@ export function Topbar() {
         </span>
       </button>
       <div className="flex gap-1.5">
+        <ThemePicker />
         <ThemeToggle />
         <Link
           href="/notifikasi"
