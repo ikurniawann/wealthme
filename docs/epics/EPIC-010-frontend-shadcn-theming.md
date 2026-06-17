@@ -104,8 +104,10 @@ Rules to encode (so it can't be subtly broken):
       <br/>↳ "Kartu Kredit" is an `accountName` heuristic (no credit-card field in
       `TransactionDto`); row edit/delete kept (shared `RowActions`, not redesigned);
       stat #3 "Selisih" was already correct.
-- [ ] **T-1008** **Rekening (P2)** — bank-branded icon badges; status badge
+- [x] **T-1008** **Rekening (P2)** — bank-branded icon badges; status badge
       (Utama/Aktif); demo-style action buttons; masked account number.
+      <br/>↳ Status badge shows "Aktif" only — "Utama" needs a backend
+      `isPrimary`/`status` field on `AccountDto` (noted in code).
 - [ ] **T-1009** **Ringkasan (P2)** — Komposisi Aset bar-list viz; reconcile KPI
       card #3; Top-Pengeluaran %-badge; Health Score label.
 - [ ] **T-1010** **Laporan (P2)** — scrollable/grouped tab bar (fix 17-tab
@@ -159,6 +161,7 @@ live ≈ demo across presets; PR merged to `development`.
 
 <!-- Epic loop appends here -->
 
+- 2026-06-17 /epic-loop EPIC-010 #3 (Group C, T-1008) "Rekening (P2) — card styling" → PASS (attempts: 1), PR: #155. Bank-branded badges (BANK_BRANDS lookup, type fallback), status badge → "Aktif" (Utama needs backend field), full-width Transfer/Top Up/Mutasi + Edit/Hapus in a Base UI kebab, masked number kept. Review: react-reviewer raised 2 HIGH (self-closing `render` button; `DropdownMenuItem onClick` "broken") — both VERIFIED FALSE POSITIVES against Base UI 1.5.0 source (`MenuItem.d.ts` declares `onClick`; `useMenuItem` merges it via `mergeProps`; render pattern is the shipped theme-picker pattern). typescript-reviewer + review-qa PASS. Fixed BTPN badge label. Security ✓ (tenant scoping intact). Test ✓ (frontend lint/tsc/web-build; tsc accepted the Base UI props).
 - 2026-06-17 /epic-loop EPIC-010 #3 (Group C, T-1007) "Transaksi (P2) — filter + sort" → PASS (attempts: 1), PR: #154. Added "Kartu Kredit" filter pill (accountName heuristic, commented), "Urutkan: Terbaru/Terlama" sort (native select; sorts day + within-day), circular row icons + more padding, dropped redundant "Tambah" button. Stat #3 already "Selisih". Shared `RowActions` left intact. Review ✓✓✓ (MEDIUMs only: heuristic breadth, native-select overlay — non-blocking). Security ✓. Test: frontend lint/tsc/web-build ✓.
 - 2026-06-17 /epic-loop EPIC-010 #3 (Group C, T-1006) "Aset (P1) — consolidated net-worth" → PASS (attempts: 2), PR: #153. Per-page PR (Group C run as per-task PRs, P1 first). Aset now fetches accounts + investments and renders real group cards w/ per-group totals; removed "Data akan tersedia…" placeholders; total relabeled "Total Aset" = accounts+investments+physical (BigInt). Review attempt 1 FAIL (2 HIGH: silent accounts/investments error → empty card; unguarded BigInt); fixed (consolidated inline error block + `?? "0"` guards + physical total from assets list, removed now-unused netWorth query); attempt 2 ✓. Security ✓ (tenant-scoped by familyGroupId+token). Test: frontend lint/tsc/web-build ✓. Laporan Wealth Allocation deferred to T-1010 (separate `/reports/balance-sheet` source).
 - 2026-06-17 /epic-loop EPIC-010 #2 "Group B — Theme picker UI" → PASS (attempts: 2), PR: #152. Review: react/ts/a11y/qa — attempt 1 FAIL (react-reviewer CRITICAL: `DropdownMenuLabel` outside a group → Base UI `MenuGroupContext` throw); fixed by wrapping in `DropdownMenuGroup`; attempt 2 all ✓. Test: attempt 1 FAIL on a real ESLint error (misplaced `eslint-disable-next-line` after line shifts — directive landed on the `useEffect(` line, not the `setMounted(true)` line); fixed; attempt 2 frontend lint/tsc/web-build ✓. Security: code-level ✓. Pre-existing `apps/api` ws advisory + Prisma seed test remained red per standing policy.
