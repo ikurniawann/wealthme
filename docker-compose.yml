@@ -24,8 +24,12 @@ services:
     restart: unless-stopped
     env_file: [.env]
     # POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB come from env_file.
+    # entrypoint wraps docker-entrypoint.sh to re-sync the password on every
+    # startup — prevents P1000 when POSTGRES_PASSWORD changes without -v reset.
+    entrypoint: ["/docker-custom-entrypoint.sh"]
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/postgres-entrypoint.sh:/docker-custom-entrypoint.sh:ro,z
     networks:
       - wealthme_net
     healthcheck:
@@ -113,6 +117,7 @@ services:
       sh -c "
         export NODE_PATH=/app/node_modules/.pnpm/node_modules &&
         cd /app &&
+        node_modules/.pnpm/node_modules/.bin/tsx apps/api/prisma/fix-drift-migration.ts &&
         node_modules/.pnpm/node_modules/.bin/prisma migrate deploy --schema apps/api/prisma/schema.prisma &&
         node_modules/.pnpm/node_modules/.bin/tsx apps/api/prisma/seed.ts
       "
@@ -129,6 +134,7 @@ services:
       context: .
       dockerfile: ./apps/api/Dockerfile
     restart: unless-stopped
+    container_name: wealthme-api
     env_file: [.env]
     environment:
       # Override localhost URLs from .env to use docker service names.
@@ -169,7 +175,11 @@ services:
     build:
       context: .
       dockerfile: ./apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
     restart: unless-stopped
+    container_name: wealthme-web
     env_file: [.env]
     environment:
       # PORT in root .env is the NestJS API port (4000); override here so
