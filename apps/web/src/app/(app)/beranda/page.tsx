@@ -4,7 +4,20 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery } from "@tanstack/react-query";
-import { Gem, Eye, ArrowUp, ArrowDown } from "lucide-react";
+import {
+  Gem,
+  Eye,
+  ArrowUp,
+  ArrowDown,
+  Landmark,
+  Wallet,
+  TrendingUp,
+  Home,
+  CreditCard,
+  ArrowDownLeft,
+  ArrowLeftRight,
+  type LucideIcon,
+} from "lucide-react";
 import { Sparkline } from "@/components/charts/sparkline";
 import {
   Donut,
@@ -17,7 +30,10 @@ import {
   SectionCard,
   CardLink,
   SummaryCard,
-  ProgressBar,
+  IconChip,
+  CountUpRupiah,
+  AnimatedProgress,
+  Rise,
 } from "@/components/wm";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { useLocale } from "@/hooks/use-locale";
@@ -28,12 +44,12 @@ import type { DashboardSummaryDto, GoalDto } from "@wealthme/contracts";
 
 const PERIODS = ["1M", "3M", "6M", "1Y", "All"] as const;
 
-const ACCOUNT_TYPE_ICON: Record<string, { icon: string; iconBg: string }> = {
-  bank: { icon: "🏦", iconBg: "#DBEAFE" },
-  ewallet: { icon: "💵", iconBg: "#DCFCE7" },
-  investment: { icon: "📈", iconBg: "#EDE9FE" },
-  property: { icon: "🏠", iconBg: "#FEF9C3" },
-  cash: { icon: "💵", iconBg: "#DCFCE7" },
+const ACCOUNT_TYPE_ICON: Record<string, { icon: LucideIcon; chip: string }> = {
+  bank: { icon: Landmark, chip: "bg-blue-100 text-blue-600" },
+  ewallet: { icon: Wallet, chip: "bg-green-100 text-green-600" },
+  investment: { icon: TrendingUp, chip: "bg-violet-100 text-violet-600" },
+  property: { icon: Home, chip: "bg-yellow-100 text-yellow-600" },
+  cash: { icon: Wallet, chip: "bg-green-100 text-green-600" },
 };
 
 const GOAL_STATUS_STYLE: Record<
@@ -127,10 +143,13 @@ export default function BerandaPage() {
   );
 
   const summaryCards = (summary?.accountSummary ?? []).map((s) => {
-    const cfg = ACCOUNT_TYPE_ICON[s.type] ?? { icon: "💰", iconBg: "#F3F4F6" };
+    const cfg = ACCOUNT_TYPE_ICON[s.type] ?? {
+      icon: Wallet,
+      chip: "bg-gray-100 text-gray-600",
+    };
     return {
       icon: cfg.icon,
-      iconBg: cfg.iconBg,
+      chip: cfg.chip,
       label: s.label,
       amount: formatRupiahCompact(s.total),
       delta: "—",
@@ -139,8 +158,18 @@ export default function BerandaPage() {
   });
 
   const activities = (summary?.recentTransactions ?? []).map((tx) => ({
-    icon: tx.type === "income" ? "📥" : tx.type === "expense" ? "💳" : "🔄",
-    iconBg: tx.type === "income" ? "#DCFCE7" : "#FEE2E2",
+    icon:
+      tx.type === "income"
+        ? ArrowDownLeft
+        : tx.type === "expense"
+          ? CreditCard
+          : ArrowLeftRight,
+    chip:
+      tx.type === "income"
+        ? "bg-green-100 text-green-600"
+        : tx.type === "expense"
+          ? "bg-red-100 text-red-600"
+          : "bg-violet-100 text-violet-600",
     name: tx.description ?? tx.accountName,
     cat:
       tx.categoryName ??
@@ -197,100 +226,109 @@ export default function BerandaPage() {
 
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
         {/* Wealth Hero */}
-        <HeroCard className="gradient-wealth">
-          <div className="flex items-center gap-1.5 text-[12.5px] font-semibold opacity-90">
-            <Gem className="size-[13px] opacity-80" /> {t.beranda.totalWealth}
-            <button
-              aria-label={t.common.toggleBalance}
-              className="ml-0.5 cursor-pointer opacity-60"
-            >
-              <Eye className="size-[13px]" />
-            </button>
-          </div>
-          <div className="mt-1 text-[28px] font-extrabold tracking-tight">
-            {isLoading ? t.common.loading : formatRupiah(netWorth)}
-          </div>
-          {currentMonth && (
-            <div className="mt-1 text-[12.5px]">
-              <span
-                className={
-                  currentMonth.net >= 0
-                    ? "font-semibold text-emerald-300"
-                    : "font-semibold text-red-300"
-                }
-              >
-                {currentMonth.net >= 0 ? "▲" : "▼"}{" "}
-                {formatRupiah(Math.abs(currentMonth.net))} {t.beranda.thisMonth}
-              </span>{" "}
-              <span className="opacity-60">
-                ({t.common.savingsRate} {currentMonth.savingsRate}%)
-              </span>
-            </div>
-          )}
-
-          <div
-            role="group"
-            aria-label={t.common.period}
-            className="mt-3.5 flex gap-1.5"
-          >
-            {PERIODS.map((p) => (
+        <Rise index={0}>
+          <HeroCard className="gradient-wealth">
+            <div className="flex items-center gap-1.5 text-[12.5px] font-semibold opacity-90">
+              <Gem className="size-[13px] opacity-80" /> {t.beranda.totalWealth}
               <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                aria-pressed={period === p}
-                className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
-                  period === p
-                    ? "bg-white text-primary"
-                    : "bg-white/15 text-white hover:bg-white/25"
-                }`}
+                aria-label={t.common.toggleBalance}
+                className="ml-0.5 cursor-pointer opacity-60"
               >
-                {p}
+                <Eye className="size-[13px]" />
               </button>
-            ))}
-          </div>
+            </div>
+            <div className="mono mt-1 text-[28px] font-extrabold tracking-tight">
+              {isLoading ? (
+                t.common.loading
+              ) : (
+                <CountUpRupiah value={netWorth} />
+              )}
+            </div>
+            {currentMonth && (
+              <div className="mt-1 text-[12.5px]">
+                <span
+                  className={
+                    currentMonth.net >= 0
+                      ? "font-semibold text-emerald-300"
+                      : "font-semibold text-red-300"
+                  }
+                >
+                  {currentMonth.net >= 0 ? "▲" : "▼"}{" "}
+                  {formatRupiah(Math.abs(currentMonth.net))}{" "}
+                  {t.beranda.thisMonth}
+                </span>{" "}
+                <span className="opacity-60">
+                  ({t.common.savingsRate} {currentMonth.savingsRate}%)
+                </span>
+              </div>
+            )}
 
-          <div className="mt-3 -mx-[22px]">
-            <Sparkline points={sparklinePoints} />
-            <div className="mt-1 flex justify-between px-[22px] text-[10px] opacity-60">
-              {sparkLabels.map((l) => (
-                <span key={l}>{l}</span>
+            <div
+              role="group"
+              aria-label={t.common.period}
+              className="mt-3.5 flex gap-1.5"
+            >
+              {PERIODS.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  aria-pressed={period === p}
+                  className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
+                    period === p
+                      ? "bg-white text-primary"
+                      : "bg-white/15 text-white hover:bg-white/25"
+                  }`}
+                >
+                  {p}
+                </button>
               ))}
             </div>
-          </div>
-        </HeroCard>
 
-        {/* Allocation */}
-        <SectionCard
-          title={t.beranda.wealthBreakdown}
-          action={
-            <CardLink onClick={() => router.push("/aset")}>
-              {t.common.viewDetail}
-            </CardLink>
-          }
-        >
-          {isLoading ? (
-            <div className="flex h-[105px] items-center justify-center text-[13px] text-muted-foreground">
-              {t.common.loading}
-            </div>
-          ) : allocation.length === 0 ? (
-            <div className="flex h-[105px] items-center justify-center text-[13px] text-muted-foreground">
-              {t.common.noData}
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-center gap-3.5">
-              <Donut
-                segments={allocation}
-                size={105}
-                thickness={17}
-                centerValue={donutCenterValue}
-                centerLabel={t.common.total}
-              />
-              <div className="min-w-[110px] flex-1">
-                <DonutLegend segments={allocation} total={100} />
+            <div className="mt-3 -mx-[22px]">
+              <Sparkline points={sparklinePoints} />
+              <div className="mt-1 flex justify-between px-[22px] text-[10px] opacity-60">
+                {sparkLabels.map((l) => (
+                  <span key={l}>{l}</span>
+                ))}
               </div>
             </div>
-          )}
-        </SectionCard>
+          </HeroCard>
+        </Rise>
+
+        {/* Allocation */}
+        <Rise index={1}>
+          <SectionCard
+            title={t.beranda.wealthBreakdown}
+            action={
+              <CardLink onClick={() => router.push("/aset")}>
+                {t.common.viewDetail}
+              </CardLink>
+            }
+          >
+            {isLoading ? (
+              <div className="flex h-[105px] items-center justify-center text-[13px] text-muted-foreground">
+                {t.common.loading}
+              </div>
+            ) : allocation.length === 0 ? (
+              <div className="flex h-[105px] items-center justify-center text-[13px] text-muted-foreground">
+                {t.common.noData}
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-3.5">
+                <Donut
+                  segments={allocation}
+                  size={105}
+                  thickness={17}
+                  centerValue={donutCenterValue}
+                  centerLabel={t.common.total}
+                />
+                <div className="min-w-[110px] flex-1">
+                  <DonutLegend segments={allocation} total={100} />
+                </div>
+              </div>
+            )}
+          </SectionCard>
+        </Rise>
       </div>
 
       {/* Summary cards */}
@@ -304,25 +342,30 @@ export default function BerandaPage() {
                   className="h-[88px] animate-pulse rounded-[14px] bg-muted"
                 />
               ))
-          : summaryCards.slice(0, 5).map((s) => (
-              <SummaryCard
-                key={s.label}
-                icon={s.icon}
-                iconBg={s.iconBg}
-                label={s.label}
-                amount={s.amount}
-                delta={
-                  <>
-                    {s.up ? (
-                      <ArrowUp className="size-[9px]" />
-                    ) : (
-                      <ArrowDown className="size-[9px]" />
-                    )}
-                    {s.delta}
-                  </>
-                }
-                deltaUp={s.up}
-              />
+          : summaryCards.slice(0, 5).map((s, i) => (
+              <Rise key={s.label} index={2 + i}>
+                <div className="transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
+                  <SummaryCard
+                    icon={
+                      <IconChip icon={s.icon} className={s.chip} size={34} />
+                    }
+                    iconBg="transparent"
+                    label={s.label}
+                    amount={s.amount}
+                    delta={
+                      <>
+                        {s.up ? (
+                          <ArrowUp className="size-[9px]" />
+                        ) : (
+                          <ArrowDown className="size-[9px]" />
+                        )}
+                        {s.delta}
+                      </>
+                    }
+                    deltaUp={s.up}
+                  />
+                </div>
+              </Rise>
             ))}
       </div>
 
@@ -406,12 +449,12 @@ export default function BerandaPage() {
                   key={i}
                   className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
                 >
-                  <div
-                    className="flex size-[34px] items-center justify-center rounded-md text-[15px]"
-                    style={{ background: a.iconBg }}
-                  >
-                    {a.icon}
-                  </div>
+                  <IconChip
+                    icon={a.icon}
+                    className={a.chip}
+                    size={34}
+                    rounded="rounded-full"
+                  />
                   <div className="flex-1">
                     <div className="text-[13px] font-semibold">{a.name}</div>
                     <div className="text-[11px] text-muted-foreground">
@@ -479,7 +522,7 @@ export default function BerandaPage() {
                       {g.pct}%
                     </div>
                   </div>
-                  <ProgressBar value={g.pct} color={g.color} />
+                  <AnimatedProgress value={g.pct} color={g.color} />
                   <div className="mt-1 flex justify-between text-[10.5px] text-muted-foreground">
                     <span>{g.now}</span>
                     <span>{g.target}</span>
