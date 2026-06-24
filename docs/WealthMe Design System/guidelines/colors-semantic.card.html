@@ -1,0 +1,24 @@
+<!-- @dsCard group="Colors" viewport="700x190" name="Semantic" subtitle="Success / warning / destructive — with soft fills for pills" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 20px; background: var(--card); }
+  .row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .sw { display: flex; flex-direction: column; gap: 6px; }
+  .chip { width: 104px; height: 56px; border-radius: var(--radius-md); box-shadow: var(--ring-card); display:flex; align-items:flex-end; padding:6px; }
+  .soft { height: 22px; border-radius: var(--radius-sm); margin-top:2px; }
+  .name { font-family: var(--font-sans); font-size: 11px; font-weight: 600; color: var(--foreground); }
+  .hex { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted-foreground); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background:var(--success)"></div><div class="soft" style="background:var(--success-soft)"></div><span class="name">success</span><span class="hex">#10B981</span></div>
+    <div class="sw"><div class="chip" style="background:var(--warning)"></div><div class="soft" style="background:var(--warning-soft)"></div><span class="name">warning</span><span class="hex">#F59E0B</span></div>
+    <div class="sw"><div class="chip" style="background:var(--destructive)"></div><div class="soft" style="background:color-mix(in oklab,var(--destructive) 14%,white)"></div><span class="name">destructive</span><span class="hex">#EF4444</span></div>
+  </div>
+</body>
+</html>

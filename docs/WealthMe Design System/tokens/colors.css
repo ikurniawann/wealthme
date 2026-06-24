@@ -1,0 +1,198 @@
+/* ============================================================
+   WealthMe — Color tokens
+   Ported from apps/web/src/app/globals.css (Tailwind v4 @theme).
+   Light = :root, dark = .dark, color presets = [data-theme="…"].
+   Neutrals are subtly tinted toward --primary via color-mix so the
+   whole "mood" follows the active brand color.
+   ============================================================ */
+
+:root {
+  /* ── Brand / primary (indigo) ── */
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+  --primary-soft: #eef2ff;
+  --primary-strong: #3730a3;
+
+  /* ── Surfaces & text ── */
+  --background: color-mix(in oklab, #f8f9fc 96%, var(--primary));
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+
+  --secondary: color-mix(in oklab, #f1f5f9 94%, var(--primary));
+  --secondary-foreground: #0f172a;
+  --muted: color-mix(in oklab, #f1f5f9 94%, var(--primary));
+  --muted-foreground: #64748b;
+  --accent: #eef2ff;
+  --accent-foreground: #4f46e5;
+
+  /* ── Semantic ── */
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --success: #10b981;
+  --success-foreground: #ffffff;
+  --success-soft: #dcfce7;
+  --warning: #f59e0b;
+  --warning-foreground: #ffffff;
+  --warning-soft: #fef9c3;
+
+  /* ── Brand extensions ── */
+  --brand-purple: #8b5cf6;
+  --brand-purple-soft: #ede9fe;
+  --brand-cyan: #06b6d4;
+  --brand-orange: #f97316;
+
+  /* ── Lines & focus ── */
+  --border: color-mix(in oklab, #e2e8f0 92%, var(--primary));
+  --input: color-mix(in oklab, #e2e8f0 92%, var(--primary));
+  --ring: #4f46e5;
+
+  /* ── Categorical chart palette (multi-series) ── */
+  --chart-1: #4f46e5; /* indigo  */
+  --chart-2: #10b981; /* emerald */
+  --chart-3: #f59e0b; /* amber   */
+  --chart-4: #8b5cf6; /* violet  */
+  --chart-5: #06b6d4; /* cyan    */
+}
+
+.dark {
+  --primary: #6366f1;
+  --primary-foreground: #ffffff;
+  --primary-soft: #1e1b4b;
+  --primary-strong: #818cf8;
+
+  --background: color-mix(in oklab, #0f172a 92%, var(--primary));
+  --foreground: #f1f5f9;
+  --card: color-mix(in oklab, #1e293b 91%, var(--primary));
+  --card-foreground: #f1f5f9;
+  --popover: color-mix(in oklab, #1e293b 91%, var(--primary));
+  --popover-foreground: #f1f5f9;
+
+  --secondary: color-mix(in oklab, #263348 88%, var(--primary));
+  --secondary-foreground: #f1f5f9;
+  --muted: color-mix(in oklab, #263348 88%, var(--primary));
+  --muted-foreground: #94a3b8;
+  --accent: #1e1b4b;
+  --accent-foreground: #818cf8;
+
+  --destructive: #f87171;
+  --destructive-foreground: #ffffff;
+  --success: #34d399;
+  --success-foreground: #052e1b;
+  --success-soft: #064e3b;
+  --warning: #fbbf24;
+  --warning-foreground: #422006;
+  --warning-soft: #422006;
+
+  --brand-purple: #a78bfa;
+  --brand-purple-soft: #2e1065;
+  --brand-cyan: #22d3ee;
+  --brand-orange: #fb923c;
+
+  --border: color-mix(in oklab, #334155 84%, var(--primary));
+  --input: color-mix(in oklab, #334155 84%, var(--primary));
+  --ring: #6366f1;
+
+  --chart-1: #818cf8;
+  --chart-2: #34d399;
+  --chart-3: #fbbf24;
+  --chart-4: #a78bfa;
+  --chart-5: #22d3ee;
+}
+
+/* ── Color presets (data-theme) — swap brand/accent/ring/chart-1 only.
+   The categorical chart-2..5 stay fixed so multi-series charts stay readable.
+   Default (indigo) writes no data-theme attribute. ── */
+
+[data-theme="emerald"] {
+  --primary: #059669;
+  --primary-soft: #ecfdf5;
+  --primary-strong: #065f46;
+  --accent: #ecfdf5;
+  --accent-foreground: #059669;
+  --ring: #059669;
+  --chart-1: #059669;
+}
+[data-theme="emerald"].dark {
+  --primary: #10b981;
+  --primary-soft: #022c22;
+  --primary-strong: #34d399;
+  --accent: #022c22;
+  --accent-foreground: #34d399;
+  --ring: #10b981;
+  --chart-1: #34d399;
+}
+[data-theme="rose"] {
+  --primary: #e11d48;
+  --primary-soft: #fff1f2;
+  --primary-strong: #9f1239;
+  --accent: #fff1f2;
+  --accent-foreground: #e11d48;
+  --ring: #e11d48;
+  --chart-1: #e11d48;
+}
+[data-theme="rose"].dark {
+  --primary: #f43f5e;
+  --primary-soft: #4c0519;
+  --primary-strong: #fb7185;
+  --accent: #4c0519;
+  --accent-foreground: #fb7185;
+  --ring: #f43f5e;
+  --chart-1: #fb7185;
+}
+[data-theme="amber"] {
+  --primary: #d97706;
+  --primary-soft: #fffbeb;
+  --primary-strong: #92400e;
+  --accent: #fffbeb;
+  --accent-foreground: #d97706;
+  --ring: #d97706;
+  --chart-1: #d97706;
+}
+[data-theme="amber"].dark {
+  --primary: #f59e0b;
+  --primary-soft: #451a03;
+  --primary-strong: #fbbf24;
+  --accent: #451a03;
+  --accent-foreground: #fbbf24;
+  --ring: #f59e0b;
+  --chart-1: #fbbf24;
+}
+[data-theme="violet"] {
+  --primary: #7c3aed;
+  --primary-soft: #f5f3ff;
+  --primary-strong: #5b21b6;
+  --accent: #f5f3ff;
+  --accent-foreground: #7c3aed;
+  --ring: #7c3aed;
+  --chart-1: #7c3aed;
+}
+[data-theme="violet"].dark {
+  --primary: #8b5cf6;
+  --primary-soft: #2e1065;
+  --primary-strong: #a78bfa;
+  --accent: #2e1065;
+  --accent-foreground: #a78bfa;
+  --ring: #8b5cf6;
+  --chart-1: #a78bfa;
+}
+[data-theme="slate"] {
+  --primary: #475569;
+  --primary-soft: #f8fafc;
+  --primary-strong: #1e293b;
+  --accent: #f8fafc;
+  --accent-foreground: #475569;
+  --ring: #475569;
+  --chart-1: #475569;
+}
+[data-theme="slate"].dark {
+  --primary: #64748b;
+  --primary-soft: #020617;
+  --primary-strong: #94a3b8;
+  --accent: #020617;
+  --accent-foreground: #94a3b8;
+  --ring: #64748b;
+  --chart-1: #94a3b8;
+}

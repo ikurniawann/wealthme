@@ -1,0 +1,210 @@
+/* WealthMe UI-kit — Beranda ENHANCED: count-up hero, shadow hierarchy,
+   stagger entrance + hover lift, Lucide tinted category icons. */
+
+function useCountUp(target, dur = 1200, deps = []) {
+  const [v, setV] = React.useState(0);
+  React.useEffect(() => {
+    let raf, start;
+    const step = (t) => {
+      if (!start) start = t;
+      const p = Math.min(1, (t - start) / dur);
+      setV(target * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, deps); // eslint-disable-line
+  return v;
+}
+
+/* Progress that fills from 0 → value on mount */
+function AnimatedBar({ value, color }) {
+  const { ProgressBar } = window.WealthMeDesignSystem_6818de;
+  const [v, setV] = React.useState(0);
+  React.useEffect(() => { const id = setTimeout(() => setV(value), 120); return () => clearTimeout(id); }, [value]);
+  return <ProgressBar value={v} color={color} height={8} />;
+}
+
+/* Tinted Lucide chip */
+function IconChip({ name, bg, fg, size = 34, iconSize = 17, radius = 9 }) {
+  const Icon = window.WMIcon;
+  return (
+    <div style={{ width: size, height: size, borderRadius: radius, background: bg, color: fg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      <Icon name={name} size={iconSize} color={fg} stroke={2} />
+    </div>
+  );
+}
+
+const KPI_ICONS = [
+  { name: "Landmark", bg: "#DBEAFE", fg: "#2563EB" },
+  { name: "Wallet", bg: "#DCFCE7", fg: "#16A34A" },
+  { name: "TrendingUp", bg: "#EDE9FE", fg: "#7C3AED" },
+  { name: "Home", bg: "#FEF9C3", fg: "#CA8A04" },
+  { name: "CreditCard", bg: "#FEE2E2", fg: "#DC2626" },
+];
+const ACT_ICONS = {
+  inc: { name: "ArrowDownLeft", bg: "#DCFCE7", fg: "#16A34A" },
+  exp: { name: "CreditCard", bg: "#FEE2E2", fg: "#DC2626" },
+  inv: { name: "ArrowLeftRight", bg: "#EDE9FE", fg: "#7C3AED" },
+};
+const GOAL_ICONS = [
+  { name: "GraduationCap", bg: "#DBEAFE", fg: "#2563EB" },
+  { name: "Plane", bg: "#DCFCE7", fg: "#16A34A" },
+  { name: "Car", bg: "#FEF9C3", fg: "#CA8A04" },
+];
+
+function rise(i) {
+  return { animation: "wm-rise .5s cubic-bezier(.22,.61,.36,1) both", animationDelay: i * 70 + "ms" };
+}
+
+function ScreenBerandaEnhanced() {
+  const DS = window.WealthMeDesignSystem_6818de;
+  const { HeroCard, SectionCard, Donut, DonutLegend, Sparkline, BarChart, Button } = DS;
+  const WM = window.WM;
+  const Icon = window.WMIcon;
+  const [period, setPeriod] = React.useState("1M");
+  const PERIODS = ["1M", "3M", "6M", "1Y", "All"];
+  const nw = useCountUp(WM.netWorth, 1300, []);
+
+  const softLift = (e, on) => {
+    e.currentTarget.style.transform = on ? "translateY(-4px)" : "none";
+    e.currentTarget.style.boxShadow = on ? "0 12px 28px rgba(15,23,42,.10)" : "var(--ring-card)";
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1.05fr 1fr", gap: 14 }}>
+        {/* Hero — tier 1, soft shadow + count-up */}
+        <div style={rise(0)}>
+          <HeroCard gradient="gradient-wealth" style={{ boxShadow: "0 16px 40px rgba(79,70,229,.28)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, fontWeight: 600, opacity: .9 }}>
+              <Icon name="Gem" size={14} color="#fff" /> Total Kekayaan
+              <Icon name="Eye" size={13} color="#fff" style={{ opacity: .6, marginLeft: 2 }} />
+            </div>
+            <div className="mono" style={{ marginTop: 6, fontSize: 30, fontWeight: 800, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums" }}>{WM.formatRupiah(Math.round(nw))}</div>
+            <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(110,231,183,.18)", border: "1px solid rgba(110,231,183,.35)", color: "#6ee7b7", fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999 }}>
+              <Icon name="ArrowUp" size={12} color="#6ee7b7" stroke={2.5} /> {WM.formatRupiah(WM.monthNet)} bulan ini
+              <span style={{ opacity: .65, fontWeight: 500 }}>· saving {WM.savingsRate}%</span>
+            </div>
+            <div style={{ marginTop: 14, display: "flex", gap: 6 }}>
+              {PERIODS.map((p) => (
+                <button key={p} onClick={() => setPeriod(p)} style={{ borderRadius: 999, padding: "4px 12px", fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", transition: "background .15s",
+                  background: period === p ? "#fff" : "rgba(255,255,255,.15)", color: period === p ? "var(--primary)" : "#fff" }}>{p}</button>
+              ))}
+            </div>
+            <div style={{ marginTop: 12, animation: "wm-pop .8s ease both", animationDelay: "200ms" }}><Sparkline points={WM.sparkline} height={58} /></div>
+          </HeroCard>
+        </div>
+
+        {/* Allocation — tier 1 */}
+        <div style={rise(1)}>
+          <SectionCard title="Rincian Kekayaan" style={{ boxShadow: "var(--shadow-card), var(--ring-card)" }}
+            action={<Button variant="link" size="sm">Lihat detail</Button>}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+              <Donut segments={WM.allocation} size={116} thickness={18} centerValue="Rp 2,4M" centerLabel="Total" />
+              <div style={{ flex: 1, minWidth: 130 }}>
+                <DonutLegend segments={WM.allocation.map((a) => ({ ...a, sub: WM.formatCompact(a.amount) }))} />
+              </div>
+            </div>
+          </SectionCard>
+        </div>
+      </div>
+
+      {/* KPI tiles — Lucide tinted icons + hover lift */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12 }}>
+        {WM.summary.map((s, i) => {
+          const ic = KPI_ICONS[i] || KPI_ICONS[0];
+          return (
+            <div key={s.label} onMouseEnter={(e) => softLift(e, true)} onMouseLeave={(e) => softLift(e, false)}
+              style={{ background: "var(--card)", borderRadius: "var(--radius-lg)", boxShadow: "var(--ring-card)", padding: 16, cursor: "default", transition: "transform .18s, box-shadow .18s", ...rise(2 + i * 0.4) }}>
+              <IconChip name={ic.name} bg={ic.bg} fg={ic.fg} />
+              <div style={{ marginTop: 10, fontSize: 10.5, fontWeight: 500, color: "var(--muted-foreground)" }}>{s.label}</div>
+              <div className="mono" style={{ marginTop: 2, fontSize: 15, fontWeight: 800 }}>{WM.formatCompact(s.amount)}</div>
+              <div style={{ marginTop: 3, display: "flex", alignItems: "center", gap: 3, fontSize: 10.5, fontWeight: 700, color: s.up ? "var(--success)" : "var(--destructive)" }}>
+                <Icon name={s.up ? "ArrowUp" : "ArrowDown"} size={11} color="currentColor" stroke={2.5} /> {s.delta}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Row 3 */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+        <div style={rise(4)}>
+          <SectionCard title="Arus Kas">
+            <div style={{ display: "flex", gap: 18, marginBottom: 10 }}>
+              <div><div style={{ fontSize: 10.5, color: "var(--muted-foreground)" }}>Pemasukan</div><div className="mono" style={{ fontSize: 15, fontWeight: 800, color: "var(--success)" }}>{WM.formatCompact(WM.monthIncome)}</div></div>
+              <div><div style={{ fontSize: 10.5, color: "var(--muted-foreground)" }}>Pengeluaran</div><div className="mono" style={{ fontSize: 15, fontWeight: 800, color: "var(--destructive)" }}>{WM.formatCompact(WM.monthExpense)}</div></div>
+            </div>
+            <BarChart months={WM.cashflow.months} income={WM.cashflow.income} expense={WM.cashflow.expense} max={WM.cashflow.max} height={86} />
+          </SectionCard>
+        </div>
+
+        <div style={rise(4.5)}>
+          <SectionCard title="Transaksi Terbaru" action={<Button variant="link" size="sm">Semua</Button>}>
+            <div>
+              {WM.activities.map((a, i) => {
+                const ic = a.inc ? ACT_ICONS.inc : (a.cat.includes("Investasi") ? ACT_ICONS.inv : ACT_ICONS.exp);
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 0", borderTop: i ? "1px solid var(--border)" : "none" }}>
+                    <IconChip name={ic.name} bg={ic.bg} fg={ic.fg} size={34} iconSize={16} radius={8} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}</div>
+                      <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{a.cat}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div className="mono" style={{ fontSize: 13, fontWeight: 700, color: a.inc ? "var(--success)" : "var(--destructive)" }}>{(a.inc ? "+" : "-") + WM.formatCompact(a.amt)}</div>
+                      <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{a.date}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </SectionCard>
+        </div>
+
+        {/* Goals — accent strip on top */}
+        <div style={rise(5)}>
+          <div style={{ background: "var(--card)", borderRadius: "var(--radius-lg)", boxShadow: "var(--ring-card)", overflow: "hidden" }}>
+            <div style={{ height: 3, background: "linear-gradient(90deg,var(--primary),var(--brand-purple))" }} />
+            <div style={{ padding: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--muted-foreground)" }}>Tujuan Keuangan</div>
+                <Button variant="link" size="sm">Semua</Button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {WM.goals.map((g, i) => {
+                  const ic = GOAL_ICONS[i] || GOAL_ICONS[0];
+                  return (
+                    <div key={g.name}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                        <IconChip name={ic.name} bg={ic.bg} fg={ic.fg} size={26} iconSize={14} radius={7} />
+                        <div style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{g.name}</div>
+                        <div className="mono" style={{ fontSize: 13, fontWeight: 700, color: g.color }}>{g.pct}%</div>
+                      </div>
+                      <AnimatedBar value={g.pct} color={g.color} />
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 10.5, color: "var(--muted-foreground)" }}>
+                        <span>{WM.formatCompact(g.now)}</span><span>{WM.formatCompact(g.target)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* AI banner */}
+      <div style={{ ...rise(6), display: "flex", alignItems: "center", gap: 14, borderRadius: 14, background: "var(--accent)", padding: 16, boxShadow: "var(--ring-card)" }}>
+        <IconChip name="Sparkles" bg="var(--primary)" fg="#fff" size={40} iconSize={20} radius={11} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--primary-strong)" }}>Insight dari AI Advisor</div>
+          <div style={{ marginTop: 2, fontSize: 12, color: "var(--muted-foreground)" }}>Porsi properti (30%) sedikit di atas ideal. Pertimbangkan rebalancing ke instrumen yang lebih likuid.</div>
+        </div>
+        <Button iconStart={<Icon name="Sparkles" size={14} color="#fff" />}>Tanya AI</Button>
+      </div>
+    </div>
+  );
+}
+window.ScreenBerandaEnhanced = ScreenBerandaEnhanced;

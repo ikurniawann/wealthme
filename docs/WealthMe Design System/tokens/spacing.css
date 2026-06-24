@@ -1,0 +1,84 @@
+/* ============================================================
+   WealthMe — Spacing, radius, shadow tokens
+   Base radius 14px (0.875rem). Cards use soft single-ring borders
+   plus very light elevation; the brand avoids heavy drop shadows.
+   ============================================================ */
+
+:root {
+  /* Radius — base is 14px, derivatives follow shadcn convention */
+  --radius: 0.875rem; /* 14px — cards, heroes */
+  --radius-sm: calc(var(--radius) - 4px); /* 10px */
+  --radius-md: calc(var(--radius) - 2px); /* 12px */
+  --radius-lg: var(--radius); /* 14px */
+  --radius-xl: calc(var(--radius) + 4px); /* 18px */
+  --radius-pill: 999px; /* badges, pills, chips */
+
+  /* Spacing scale (4px base grid) */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-3-5: 14px; /* the app's signature gap between cards */
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Elevation — restrained. Cards rely on a 1px foreground ring,
+     not shadow. Shadows appear only on raised/floating elements. */
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-pop: 0 8px 28px rgba(15, 23, 42, 0.12);
+  --shadow-primary: 0 2px 8px rgba(79, 70, 229, 0.35); /* glowing FAB / primary btn */
+  --shadow-modal: 0 32px 80px rgba(0, 0, 0, 0.3); /* auth card / dialogs */
+
+  /* Card ring (the WealthMe card "border") */
+  --ring-card: inset 0 0 0 1px
+    color-mix(in oklab, var(--foreground) 10%, transparent);
+}
+
+/* ============================================================
+   Reusable brand gradients (hero / profile / AI cards).
+   gradient-wealth & gradient-profile follow --primary via color-mix
+   so the hero "mood" matches the active brand color.
+   ============================================================ */
+
+.gradient-wealth {
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--primary) 55%, black) 0%,
+    color-mix(in oklab, var(--primary) 78%, black) 55%,
+    var(--primary) 100%
+  );
+}
+.dark .gradient-wealth {
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--primary) 28%, black) 0%,
+    color-mix(in oklab, var(--primary) 55%, black) 55%,
+    var(--primary) 100%
+  );
+}
+.gradient-profile {
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--primary) 55%, black),
+    var(--primary)
+  );
+}
+.gradient-emerald {
+  background-image: linear-gradient(135deg, #059669, #10b981);
+}
+.gradient-ai {
+  background-image: linear-gradient(135deg, #0f172a, #1e293b);
+}
+/* Auth / marketing deep-indigo backdrop */
+.gradient-auth {
+  background-image: linear-gradient(
+    135deg,
+    #1e1b4b 0%,
+    #312e81 40%,
+    #4338ca 70%,
+    #6366f1 100%
+  );
+}

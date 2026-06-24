@@ -1,0 +1,69 @@
+/* ───────────────────────────────────────────────────────────────────────────
+ * WealthMe — Brand gradients + small utilities
+ *
+ * gradient-wealth / gradient-profile follow the active --primary via
+ * color-mix(), so the hero "mood" background matches the chosen color preset.
+ * gradient-emerald (semantic success) and gradient-ai (neutral slate) stay
+ * fixed. These are real classes so they ship to consumers as-is.
+ * ─────────────────────────────────────────────────────────────────────────── */
+
+.gradient-wealth {
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--primary) 55%, black) 0%,
+    color-mix(in oklab, var(--primary) 78%, black) 55%,
+    var(--primary) 100%
+  );
+}
+.dark .gradient-wealth {
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--primary) 28%, black) 0%,
+    color-mix(in oklab, var(--primary) 55%, black) 55%,
+    var(--primary) 100%
+  );
+}
+.gradient-profile {
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--primary) 55%, black),
+    var(--primary)
+  );
+}
+.gradient-emerald {
+  background-image: linear-gradient(135deg, #059669, #10b981);
+}
+.gradient-ai {
+  background-image: linear-gradient(135deg, #0f172a, #1e293b);
+}
+
+/* Monospace helper (money figures, keycaps, codes) */
+.mono {
+  font-family: var(--font-mono);
+}
+
+.hide-scrollbar {
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* OCR scan-line sweep (receipt scanning) */
+@keyframes wm-scan {
+  0% {
+    top: 8%;
+    opacity: 1;
+  }
+  80% {
+    top: 88%;
+    opacity: 1;
+  }
+  100% {
+    top: 88%;
+    opacity: 0;
+  }
+}
+.animate-scan {
+  animation: wm-scan 2s ease-in-out infinite;
+}

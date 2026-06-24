@@ -1,0 +1,24 @@
+<!-- @dsCard group="Brand" viewport="700x170" name="Gradients" subtitle="Hero, profile, emerald & AI surfaces — wealth follows the brand hue" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 22px; background: var(--card); }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .sw { display: flex; flex-direction: column; gap: 8px; }
+  .box { width: 150px; height: 78px; border-radius: var(--radius-lg); position: relative; overflow: hidden; }
+  .box::after { content: ""; position: absolute; top: -30px; right: -30px; width: 100px; height: 100px; border-radius: 999px; background: rgba(255,255,255,.07); }
+  .name { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted-foreground); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw"><div class="box gradient-wealth"></div><span class="name">gradient-wealth</span></div>
+    <div class="sw"><div class="box gradient-profile"></div><span class="name">gradient-profile</span></div>
+    <div class="sw"><div class="box gradient-emerald"></div><span class="name">gradient-emerald</span></div>
+    <div class="sw"><div class="box gradient-ai"></div><span class="name">gradient-ai</span></div>
+  </div>
+</body>
+</html>

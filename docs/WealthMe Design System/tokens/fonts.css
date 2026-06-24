@@ -1,0 +1,8 @@
+/* ============================================================
+   WealthMe — Webfonts
+   Sora (UI/display) + DM Mono (numerals, IDs, keyboard shortcuts).
+   Loaded from Google Fonts — both are the brand's real typefaces
+   (apps/web/src/app/layout.tsx loads them via next/font/google).
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap");

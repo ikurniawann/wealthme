@@ -21,7 +21,11 @@ export function SectionCard({
     <Card className={cn("gap-0 overflow-hidden p-5", className)}>
       {(title || action) && (
         <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
-          {title && <div className="text-[13.5px] font-bold text-muted-foreground">{title}</div>}
+          {title && (
+            <div className="text-[13.5px] font-bold text-muted-foreground">
+              {title}
+            </div>
+          )}
           {action}
         </div>
       )}
@@ -108,7 +112,9 @@ export function SummaryCard({
       >
         {icon}
       </div>
-      <div className="mb-0.5 text-[10.5px] font-medium text-muted-foreground">{label}</div>
+      <div className="mb-0.5 text-[10.5px] font-medium text-muted-foreground">
+        {label}
+      </div>
       <div className="mb-[3px] text-[15px] font-extrabold">{amount}</div>
       {delta && (
         <div
@@ -140,7 +146,9 @@ export function MoneyStat({
   return (
     <div className={className}>
       <div className="mb-[3px] text-[11px] text-muted-foreground">{label}</div>
-      <div className={cn("text-[17px] font-extrabold", valueClass)}>{value}</div>
+      <div className={cn("text-[17px] font-extrabold", valueClass)}>
+        {value}
+      </div>
     </div>
   );
 }
@@ -165,7 +173,10 @@ export function ProgressBar({
     >
       <div
         className="h-full rounded-full transition-[width] duration-700"
-        style={{ width: `${Math.min(100, Math.max(0, value))}%`, background: color }}
+        style={{
+          width: `${Math.min(100, Math.max(0, value))}%`,
+          background: color,
+        }}
       />
     </div>
   );
@@ -181,9 +192,18 @@ export function HeroCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className={cn("relative overflow-hidden rounded-[14px] p-[22px] text-white", className)}>
+    <div
+      className={cn(
+        "relative overflow-hidden rounded-[14px] p-[22px] text-white",
+        className,
+      )}
+    >
       <div className="pointer-events-none absolute -top-12 -right-12 size-[220px] rounded-full bg-white/5" />
       <div className="relative">{children}</div>
     </div>
   );
 }
+
+// Design-system enhancement layer (EPIC-013)
+export * from "./motion";
+export { IconChip } from "./icon-chip";

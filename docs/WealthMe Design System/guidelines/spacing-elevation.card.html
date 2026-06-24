@@ -1,0 +1,24 @@
+<!-- @dsCard group="Spacing" viewport="700x180" name="Elevation & Card" subtitle="Cards lean on a 1px ring, not shadow — elevation is restrained" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 24px; background: var(--background); }
+  .row { display: flex; gap: 22px; flex-wrap: wrap; }
+  .sw { display: flex; flex-direction: column; gap: 9px; align-items: center; }
+  .box { width: 132px; height: 72px; background: var(--card); border-radius: var(--radius-lg); }
+  .name { font-family: var(--font-sans); font-size: 11px; font-weight: 600; color: var(--foreground); }
+  .val { font-family: var(--font-mono); font-size: 9.5px; color: var(--muted-foreground); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw"><div class="box" style="box-shadow:var(--ring-card)"></div><span class="name">ring-card</span><span class="val">inset 1px fg/10</span></div>
+    <div class="sw"><div class="box" style="box-shadow:var(--shadow-card)"></div><span class="name">shadow-card</span><span class="val">0 1 2 / .04</span></div>
+    <div class="sw"><div class="box" style="box-shadow:var(--shadow-pop)"></div><span class="name">shadow-pop</span><span class="val">0 8 28 / .12</span></div>
+    <div class="sw"><div class="box" style="box-shadow:var(--shadow-primary);background:var(--primary)"></div><span class="name">shadow-primary</span><span class="val">FAB glow</span></div>
+  </div>
+</body>
+</html>

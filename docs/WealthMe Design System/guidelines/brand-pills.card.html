@@ -1,0 +1,29 @@
+<!-- @dsCard group="Brand" viewport="700x150" name="Status Pills" subtitle="Soft-fill semantic pills used across tables, goals & accounts" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 24px; background: var(--card); display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 4px 11px; font-family: var(--font-sans); font-size: 11px; font-weight: 600; }
+  .dot { width: 6px; height: 6px; border-radius: 999px; }
+  .success { background: var(--success-soft); color: #15803d; }
+  .warning { background: var(--warning-soft); color: #b45309; }
+  .danger  { background: #fee2e2; color: #b91c1c; }
+  .info    { background: #dbeafe; color: #1d4ed8; }
+  .purple  { background: var(--brand-purple-soft); color: #6d28d9; }
+  .gray    { background: var(--secondary); color: var(--secondary-foreground); }
+  .new { background: var(--brand-purple); color:#fff; padding: 2px 8px; font-size:10px; font-weight:700; border-radius:999px; }
+</style>
+</head>
+<body>
+  <span class="pill success"><span class="dot" style="background:currentColor"></span>On track</span>
+  <span class="pill warning"><span class="dot" style="background:currentColor"></span>Needs boost</span>
+  <span class="pill danger"><span class="dot" style="background:currentColor"></span>At risk</span>
+  <span class="pill info"><span class="dot" style="background:currentColor"></span>Pending</span>
+  <span class="pill purple"><span class="dot" style="background:currentColor"></span>Warisan</span>
+  <span class="pill gray">Draft</span>
+  <span class="new">New</span>
+</body>
+</html>

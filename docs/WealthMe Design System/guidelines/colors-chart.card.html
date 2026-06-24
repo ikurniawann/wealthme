@@ -1,0 +1,33 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Chart Palette" subtitle="Categorical 5-series ramp for donuts, lines & stacked bars" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 20px; background: var(--card); }
+  .row { display: flex; gap: 0; border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--ring-card); }
+  .band { flex: 1; height: 64px; }
+  .legend { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+  .item { display: flex; align-items: center; gap: 6px; font-family: var(--font-sans); font-size: 11px; color: var(--muted-foreground); }
+  .dot { width: 10px; height: 10px; border-radius: 999px; }
+  .mono { font-family: var(--font-mono); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="band" style="background:var(--chart-1)"></div>
+    <div class="band" style="background:var(--chart-2)"></div>
+    <div class="band" style="background:var(--chart-3)"></div>
+    <div class="band" style="background:var(--chart-4)"></div>
+    <div class="band" style="background:var(--chart-5)"></div>
+  </div>
+  <div class="legend">
+    <span class="item"><span class="dot" style="background:var(--chart-1)"></span>chart-1 <span class="mono">#4F46E5</span></span>
+    <span class="item"><span class="dot" style="background:var(--chart-2)"></span>chart-2 <span class="mono">#10B981</span></span>
+    <span class="item"><span class="dot" style="background:var(--chart-3)"></span>chart-3 <span class="mono">#F59E0B</span></span>
+    <span class="item"><span class="dot" style="background:var(--chart-4)"></span>chart-4 <span class="mono">#8B5CF6</span></span>
+    <span class="item"><span class="dot" style="background:var(--chart-5)"></span>chart-5 <span class="mono">#06B6D4</span></span>
+  </div>
+</body>
+</html>

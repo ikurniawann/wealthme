@@ -1,0 +1,43 @@
+<!-- @dsCard group="Brand" viewport="700x180" name="Iconography" subtitle="Lucide line icons (1.5px) + a small emoji set for account/goal types" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+  body { margin: 0; padding: 22px; background: var(--card); color: var(--foreground); font-family: var(--font-sans); }
+  .label { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); margin-bottom: 12px; }
+  .row { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+  .row svg { width: 22px; height: 22px; stroke: var(--foreground); stroke-width: 1.75; }
+  .row svg.p { stroke: var(--primary); }
+  .emoji { display: flex; gap: 14px; margin-top: 18px; }
+  .chip { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 17px; }
+</style>
+</head>
+<body>
+  <div class="label">Lucide · 1.75px stroke</div>
+  <div class="row">
+    <i data-lucide="home" class="p"></i>
+    <i data-lucide="wallet"></i>
+    <i data-lucide="bar-chart-3"></i>
+    <i data-lucide="briefcase"></i>
+    <i data-lucide="target"></i>
+    <i data-lucide="shield-check"></i>
+    <i data-lucide="bot"></i>
+    <i data-lucide="receipt"></i>
+    <i data-lucide="bell"></i>
+    <i data-lucide="arrow-up-down"></i>
+    <i data-lucide="gem" class="p"></i>
+  </div>
+  <div class="emoji">
+    <span class="chip" style="background:#DBEAFE">🏦</span>
+    <span class="chip" style="background:#DCFCE7">💵</span>
+    <span class="chip" style="background:#EDE9FE">📈</span>
+    <span class="chip" style="background:#FEF9C3">🏠</span>
+    <span class="chip" style="background:#DCFCE7">🎯</span>
+    <span class="chip" style="background:#FEE2E2">💳</span>
+  </div>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

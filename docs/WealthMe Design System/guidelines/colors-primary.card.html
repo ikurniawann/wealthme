@@ -1,0 +1,26 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Primary & Accent" subtitle="Indigo brand ramp — the default WealthMe identity" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 20px; background: var(--card); }
+  .row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .sw { display: flex; flex-direction: column; gap: 6px; }
+  .chip { width: 104px; height: 64px; border-radius: var(--radius-md); box-shadow: var(--ring-card); }
+  .name { font-family: var(--font-sans); font-size: 11px; font-weight: 600; color: var(--foreground); }
+  .hex { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted-foreground); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background:var(--primary)"></div><span class="name">primary</span><span class="hex">#4F46E5</span></div>
+    <div class="sw"><div class="chip" style="background:var(--primary-strong)"></div><span class="name">primary-strong</span><span class="hex">#3730A3</span></div>
+    <div class="sw"><div class="chip" style="background:var(--primary-soft)"></div><span class="name">primary-soft</span><span class="hex">#EEF2FF</span></div>
+    <div class="sw"><div class="chip" style="background:var(--accent)"></div><span class="name">accent</span><span class="hex">#EEF2FF</span></div>
+    <div class="sw"><div class="chip" style="background:var(--accent);box-shadow:var(--ring-card)"></div><span class="name" style="color:var(--accent-foreground)">accent-fg</span><span class="hex">#4F46E5</span></div>
+    <div class="sw"><div class="chip" style="background:var(--ring)"></div><span class="name">ring</span><span class="hex">#4F46E5</span></div>
+  </div>
+</body>
+</html>

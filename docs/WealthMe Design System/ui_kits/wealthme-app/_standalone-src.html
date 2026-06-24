@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WealthMe — Personal Wealth OS</title>
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  html, body { margin: 0; height: 100%; background: var(--background); }
+  /* UI-kit entrance & motion keyframes (enhanced Beranda) */
+  @keyframes wm-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  @keyframes wm-pop  { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+  @keyframes wm-shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+  @media (prefers-reduced-motion: reduce) { .wm-anim, .wm-rise { animation: none !important; } }
+</style>
+</head>
+<body>
+<template id="__bundler_thumbnail" data-bg-color="#4F46E5">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#4F46E5"/>
+    <rect x="470" y="250" width="260" height="260" rx="64" fill="#ffffff"/>
+    <text x="600" y="455" font-family="Sora, sans-serif" font-size="190" font-weight="800" fill="#4F46E5" text-anchor="middle">W</text>
+    <rect x="500" y="560" width="200" height="20" rx="10" fill="#ffffff" opacity="0.9"/>
+    <rect x="540" y="600" width="120" height="14" rx="7" fill="#ffffff" opacity="0.55"/>
+  </svg>
+</template>
+<div id="root"></div>
+<script src="data.js"></script>
+<script type="text/babel" src="icons.jsx"></script>
+<script type="text/babel" src="kit-helpers.jsx"></script>
+<script type="text/babel" src="shell.jsx"></script>
+<script type="text/babel" src="screen-beranda-enhanced.jsx"></script>
+<script type="text/babel" src="screen-beranda.jsx"></script>
+<script type="text/babel" src="screen-transaksi.jsx"></script>
+<script type="text/babel" src="screen-anggaran.jsx"></script>
+<script type="text/babel" src="screen-tujuan.jsx"></script>
+<script type="text/babel" src="screen-investasi.jsx"></script>
+<script type="text/babel" src="screen-liabilitas.jsx"></script>
+<script type="text/babel" src="screen-ringkasan.jsx"></script>
+<script type="text/babel" src="screen-laporan.jsx"></script>
+<script type="text/babel" src="screen-dana.jsx"></script>
+<script type="text/babel" src="screen-rekening.jsx"></script>
+<script type="text/babel" src="screen-asuransi.jsx"></script>
+<script type="text/babel" src="screen-warisan.jsx"></script>
+<script type="text/babel" src="screen-donation.jsx"></script>
+<script type="text/babel" src="screen-tax.jsx"></script>
+<script type="text/babel" src="screen-splitbill.jsx"></script>
+<script type="text/babel" src="screen-rekonsiliasi.jsx"></script>
+<script type="text/babel" src="screen-kalkulator.jsx"></script>
+<script type="text/babel" src="screen-notifikasi.jsx"></script>
+<script type="text/babel" src="screen-quickinput.jsx"></script>
+<script type="text/babel" src="screen-masterdata.jsx"></script>
+<script type="text/babel" src="screen-akun.jsx"></script>
+<script type="text/babel" src="screen-aset.jsx"></script>
+<script type="text/babel" src="screen-ai.jsx"></script>
+<script type="text/babel" src="screen-login.jsx"></script>
+<script type="text/babel" src="app.jsx"></script>
+</body>
+</html>

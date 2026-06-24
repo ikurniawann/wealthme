@@ -1,0 +1,91 @@
+/* WealthMe UI-kit — shared enhanced helpers (window.WMKit). */
+(function () {
+  const R = React;
+
+  /* Count-up easing a number from 0 → target on mount. */
+  function useCountUp(target, dur = 1200, deps = []) {
+    const [v, setV] = R.useState(0);
+    R.useEffect(() => {
+      let raf, start;
+      const step = (t) => {
+        if (!start) start = t;
+        const p = Math.min(1, (t - start) / dur);
+        setV(target * (1 - Math.pow(1 - p, 3)));
+        if (p < 1) raf = requestAnimationFrame(step);
+      };
+      raf = requestAnimationFrame(step);
+      return () => cancelAnimationFrame(raf);
+    }, deps); // eslint-disable-line
+    return v;
+  }
+
+  /* ProgressBar that fills from 0 → value on mount. */
+  function AnimatedBar({ value, color, height = 8 }) {
+    const { ProgressBar } = window.WealthMeDesignSystem_6818de;
+    const [v, setV] = R.useState(0);
+    R.useEffect(() => {
+      const id = setTimeout(() => setV(value), 120);
+      return () => clearTimeout(id);
+    }, [value]);
+    return R.createElement(ProgressBar, { value: v, color, height });
+  }
+
+  /* Tinted Lucide chip. */
+  function IconChip({
+    name,
+    bg,
+    fg,
+    size = 34,
+    iconSize = 17,
+    radius = 9,
+    style,
+  }) {
+    const Icon = window.WMIcon;
+    return R.createElement(
+      "div",
+      {
+        style: {
+          width: size,
+          height: size,
+          borderRadius: radius,
+          background: bg,
+          color: fg,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          ...style,
+        },
+      },
+      R.createElement(Icon, { name, size: iconSize, color: fg, stroke: 2 }),
+    );
+  }
+
+  /* Stagger entrance style. */
+  function rise(i) {
+    return {
+      animation: "wm-rise .5s cubic-bezier(.22,.61,.36,1) both",
+      animationDelay: i * 70 + "ms",
+    };
+  }
+
+  /* Card hover-lift handlers. */
+  function lift(e, on) {
+    e.currentTarget.style.transform = on ? "translateY(-4px)" : "none";
+    e.currentTarget.style.boxShadow = on
+      ? "0 12px 28px rgba(15,23,42,.10)"
+      : "var(--ring-card)";
+  }
+
+  /* Plain card shell (no title). */
+  function panel(extra) {
+    return {
+      background: "var(--card)",
+      borderRadius: "var(--radius-lg)",
+      boxShadow: "var(--ring-card)",
+      ...extra,
+    };
+  }
+
+  window.WMKit = { useCountUp, AnimatedBar, IconChip, rise, lift, panel };
+})();

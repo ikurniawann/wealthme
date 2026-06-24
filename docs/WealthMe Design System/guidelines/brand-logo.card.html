@@ -1,0 +1,25 @@
+<!-- @dsCard group="Brand" viewport="700x150" name="Logo" subtitle="Indigo W mark + WealthMe wordmark — 'Me' in primary" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 24px; background: var(--card); display: flex; gap: 40px; align-items: center; flex-wrap: wrap; }
+  .lockup { display: flex; align-items: center; gap: 10px; }
+  .mark { width: 38px; height: 38px; border-radius: 10px; background: var(--primary); color: #fff; font-family: var(--font-sans); font-weight: 800; font-size: 17px; display: flex; align-items: center; justify-content: center; }
+  .word { font-family: var(--font-sans); font-weight: 800; font-size: 20px; color: var(--foreground); }
+  .word .me { color: var(--primary); }
+  .mark-lg { width: 64px; height: 64px; border-radius: 16px; font-size: 30px; }
+  .onbrand { background: var(--primary); padding: 16px 22px; border-radius: var(--radius-lg); }
+  .onbrand .mark { background: #fff; color: var(--primary); }
+  .onbrand .word { color: #fff; }
+  .onbrand .word .me { color: #fff; opacity: .75; }
+</style>
+</head>
+<body>
+  <div class="lockup"><div class="mark mark-lg">W</div></div>
+  <div class="lockup"><div class="mark">W</div><div class="word">Wealth<span class="me">Me</span></div></div>
+  <div class="lockup onbrand"><div class="mark">W</div><div class="word">Wealth<span class="me">Me</span></div></div>
+</body>
+</html>

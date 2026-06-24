@@ -1,0 +1,47 @@
+<!-- @dsCard group="Components" viewport="700x260" name="Forms" subtitle="Input, Select, Switch — with icons, labels & states" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; padding: 22px; background: var(--background); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; align-items: start; }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .lbl { font-family: var(--font-sans); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); }
+  .switchrow { display: flex; align-items: center; gap: 10px; font-family: var(--font-sans); font-size: 12.5px; color: var(--foreground); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  const { Input, Select, Switch } = window.WealthMeDesignSystem_6818de;
+  function Demo() {
+    return (
+      <div className="grid">
+        <div className="stack">
+          <Input label="Email" placeholder="kamu@email.com" defaultValue="andra@wealthme.id" />
+          <Input label="Nominal" defaultValue="1.250.000" />
+          <Input label="Password" error="Wajib diisi" type="password" defaultValue="x" />
+        </div>
+        <div className="stack">
+          <Select label="Periode" options={["1 Bulan","3 Bulan","6 Bulan","1 Tahun","Semua"]} />
+          <Select label="Rekening" options={["BCA Utama","Mandiri","GoPay","Cash"]} />
+        </div>
+        <div className="stack">
+          <div className="lbl">Switch</div>
+          <div className="switchrow"><Switch defaultChecked /> Sembunyikan saldo</div>
+          <div className="switchrow"><Switch /> Notifikasi email</div>
+          <div className="switchrow"><Switch defaultChecked /> Mode keluarga</div>
+        </div>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+</script>
+</body>
+</html>

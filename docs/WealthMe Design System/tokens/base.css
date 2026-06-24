@@ -1,0 +1,63 @@
+/* ============================================================
+   WealthMe — base element styling
+   Minimal resets + body defaults + thin scrollbars + the OCR
+   scan-line keyframe used by the receipt-scan feature.
+   ============================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Tabular numerals for money / data via the .mono helper */
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Thin brand scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+.hide-scrollbar {
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* OCR receipt-scan sweep (quick-input / scan struk) */
+@keyframes wm-scan {
+  0% {
+    top: 8%;
+    opacity: 1;
+  }
+  80% {
+    top: 88%;
+    opacity: 1;
+  }
+  100% {
+    top: 88%;
+    opacity: 0;
+  }
+}
+.animate-scan {
+  animation: wm-scan 2s ease-in-out infinite;
+}

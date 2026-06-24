@@ -1,0 +1,41 @@
+/* ============================================================
+   WealthMe — Typography tokens
+   Sora (display/UI) + DM Mono (numerals, codes, shortcuts).
+   The app is dense and data-heavy: small, high-weight labels,
+   extrabold headline numbers, tabular monospace for money/IDs.
+   ============================================================ */
+
+:root {
+  /* Families */
+  --font-sans: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, "SF Mono", monospace;
+
+  /* Weights (Sora ships 300–800; UI leans 500–800) */
+  --weight-light: 300;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-extrabold: 800;
+
+  /* Type scale — px values mirror the real app's dense rhythm.
+     The app rarely exceeds 28px; most UI text is 10.5–15px. */
+  --text-2xs: 10.5px; /* micro labels, deltas, legend captions */
+  --text-xs: 11px; /* meta, table sub-text */
+  --text-sm: 12.5px; /* body, nav items, secondary */
+  --text-base: 13px; /* default card body */
+  --text-md: 15px; /* card stat amounts, section emphasis */
+  --text-lg: 18px; /* page / topbar title */
+  --text-xl: 21px; /* page greeting */
+  --text-2xl: 28px; /* hero net-worth number */
+  --text-3xl: 36px; /* marketing / big stat */
+
+  /* Line heights */
+  --leading-tight: 1.15;
+  --leading-snug: 1.3;
+  --leading-normal: 1.5;
+
+  /* Letter spacing */
+  --tracking-tight: -0.02em; /* big numbers */
+  --tracking-label: 0.06em; /* uppercase section labels */
+}

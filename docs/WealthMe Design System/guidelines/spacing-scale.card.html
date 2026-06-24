@@ -1,0 +1,28 @@
+<!-- @dsCard group="Spacing" viewport="700x150" name="Spacing Scale" subtitle="4px grid — 14px is the signature gap between cards" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 22px; background: var(--card); }
+  .row { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+  .sw { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .bar { background: var(--primary); border-radius: 3px; height: 36px; }
+  .name { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw"><div class="bar" style="width:4px"></div><span class="name">1·4</span></div>
+    <div class="sw"><div class="bar" style="width:8px"></div><span class="name">2·8</span></div>
+    <div class="sw"><div class="bar" style="width:12px"></div><span class="name">3·12</span></div>
+    <div class="sw"><div class="bar" style="width:14px"></div><span class="name">3.5·14</span></div>
+    <div class="sw"><div class="bar" style="width:16px"></div><span class="name">4·16</span></div>
+    <div class="sw"><div class="bar" style="width:20px"></div><span class="name">5·20</span></div>
+    <div class="sw"><div class="bar" style="width:24px"></div><span class="name">6·24</span></div>
+    <div class="sw"><div class="bar" style="width:32px"></div><span class="name">8·32</span></div>
+    <div class="sw"><div class="bar" style="width:40px"></div><span class="name">10·40</span></div>
+  </div>
+</body>
+</html>
