@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus, X, CreditCard, Landmark, type LucideIcon } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -11,7 +11,13 @@ import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ProgressBar, StatusBadge } from "@/components/wm";
+import {
+  AnimatedProgress,
+  CountUpRupiah,
+  IconChip,
+  Rise,
+  StatusBadge,
+} from "@/components/wm";
 
 import type {
   LiabilityDto,
@@ -28,6 +34,15 @@ const LIABILITY_TYPE_LABEL: Record<string, string> = {
   kendaraan: "Kredit Kendaraan",
   lainnya: "Lainnya",
 };
+
+const LIABILITY_TYPE_ICON: Record<string, { icon: LucideIcon; chip: string }> =
+  {
+    kartu_kredit: { icon: CreditCard, chip: "bg-red-100 text-red-600" },
+    pinjaman_pribadi: { icon: Landmark, chip: "bg-blue-100 text-blue-600" },
+    kpr: { icon: Landmark, chip: "bg-blue-100 text-blue-600" },
+    kendaraan: { icon: CreditCard, chip: "bg-red-100 text-red-600" },
+    lainnya: { icon: CreditCard, chip: "bg-red-100 text-red-600" },
+  };
 
 const LIABILITY_TYPES = [
   "kartu_kredit",
@@ -391,86 +406,93 @@ function LiabilityCard({ item }: { item: LiabilityDto }) {
         : "var(--success)";
   const progressLabel = isCreditCard ? "Penggunaan Limit" : "Progres Pelunasan";
 
-  return (
-    <Card className="gap-0 p-[18px]">
-      <div className="mb-3.5 flex items-center gap-2.5">
-        <div
-          className="flex size-[38px] shrink-0 items-center justify-center rounded-[10px] text-[17px]"
-          style={{ background: "#FEE2E2" }}
-        >
-          {isCreditCard ? "💳" : "📋"}
-        </div>
-        <div>
-          <div className="text-[14px] font-bold">{item.name}</div>
-          <div className="text-[11.5px] text-muted-foreground">
-            {item.institution
-              ? `${item.institution} · ${LIABILITY_TYPE_LABEL[item.type] ?? item.type}`
-              : (LIABILITY_TYPE_LABEL[item.type] ?? item.type)}
-          </div>
-        </div>
-        <div className="ml-auto">
-          <StatusBadge variant={status.variant}>{status.text}</StatusBadge>
-        </div>
-      </div>
+  const iconCfg = LIABILITY_TYPE_ICON[item.type] ?? {
+    icon: CreditCard,
+    chip: "bg-red-100 text-red-600",
+  };
 
-      <div className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
-        <div>
-          <div className="mb-[3px] text-[11px] text-muted-foreground">
-            {isCreditCard ? "Tagihan Berjalan" : "Sisa Pokok"}
-          </div>
-          <div
-            className="text-[13.5px] font-bold"
-            style={{ color: "var(--danger)" }}
-          >
-            {formatRupiah(remaining)}
-          </div>
-        </div>
-        <div>
-          <div className="mb-[3px] text-[11px] text-muted-foreground">
-            {isCreditCard ? "Limit Kredit" : "Total Pinjaman"}
-          </div>
-          <div className="text-[13.5px] font-bold">
-            {formatRupiah(totalDebt)}
-          </div>
-        </div>
-        {minimumPayment > 0 && (
+  return (
+    <div className="transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
+      <Card className="gap-0 p-[18px]">
+        <div className="mb-3.5 flex items-center gap-2.5">
+          <IconChip
+            icon={iconCfg.icon}
+            className={iconCfg.chip}
+            size={38}
+            rounded="rounded-[10px]"
+          />
           <div>
-            <div className="mb-[3px] text-[11px] text-muted-foreground">
-              {isCreditCard ? "Minimum Bayar" : "Cicilan/Bulan"}
-            </div>
-            <div className="text-[13.5px] font-bold">
-              {formatRupiah(minimumPayment)}
+            <div className="text-[14px] font-bold">{item.name}</div>
+            <div className="text-[11.5px] text-muted-foreground">
+              {item.institution
+                ? `${item.institution} · ${LIABILITY_TYPE_LABEL[item.type] ?? item.type}`
+                : (LIABILITY_TYPE_LABEL[item.type] ?? item.type)}
             </div>
           </div>
-        )}
-        {parseFloat(item.interestRate) > 0 && (
+          <div className="ml-auto">
+            <StatusBadge variant={status.variant}>{status.text}</StatusBadge>
+          </div>
+        </div>
+
+        <div className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
           <div>
             <div className="mb-[3px] text-[11px] text-muted-foreground">
-              {isCreditCard ? "Bunga/Bulan" : "Bunga/Tahun"}
+              {isCreditCard ? "Tagihan Berjalan" : "Sisa Pokok"}
             </div>
             <div
               className="text-[13.5px] font-bold"
               style={{ color: "var(--danger)" }}
             >
-              {item.interestRate}%
+              {formatRupiah(remaining)}
             </div>
           </div>
-        )}
-      </div>
-
-      <div>
-        <div className="mb-1.5 flex items-center justify-between">
-          <span className="text-[11.5px] font-semibold">{progressLabel}</span>
-          <span
-            className="text-[12px] font-bold"
-            style={{ color: progressColor }}
-          >
-            {progressValue}%
-          </span>
+          <div>
+            <div className="mb-[3px] text-[11px] text-muted-foreground">
+              {isCreditCard ? "Limit Kredit" : "Total Pinjaman"}
+            </div>
+            <div className="text-[13.5px] font-bold">
+              {formatRupiah(totalDebt)}
+            </div>
+          </div>
+          {minimumPayment > 0 && (
+            <div>
+              <div className="mb-[3px] text-[11px] text-muted-foreground">
+                {isCreditCard ? "Minimum Bayar" : "Cicilan/Bulan"}
+              </div>
+              <div className="text-[13.5px] font-bold">
+                {formatRupiah(minimumPayment)}
+              </div>
+            </div>
+          )}
+          {parseFloat(item.interestRate) > 0 && (
+            <div>
+              <div className="mb-[3px] text-[11px] text-muted-foreground">
+                {isCreditCard ? "Bunga/Bulan" : "Bunga/Tahun"}
+              </div>
+              <div
+                className="text-[13.5px] font-bold"
+                style={{ color: "var(--danger)" }}
+              >
+                {item.interestRate}%
+              </div>
+            </div>
+          )}
         </div>
-        <ProgressBar value={progressValue} color={progressColor} />
-      </div>
-    </Card>
+
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-[11.5px] font-semibold">{progressLabel}</span>
+            <span
+              className="text-[12px] font-bold"
+              style={{ color: progressColor }}
+            >
+              {progressValue}%
+            </span>
+          </div>
+          <AnimatedProgress value={progressValue} color={progressColor} />
+        </div>
+      </Card>
+    </div>
   );
 }
 
@@ -546,8 +568,8 @@ export default function LiabilitasPage() {
           {isLoading ? (
             <div className="animate-pulse h-7 w-36 rounded bg-red-200" />
           ) : (
-            <div className="text-[22px] font-black text-destructive">
-              {formatRupiah(Number(totalRemaining))}
+            <div className="mono text-[22px] font-black text-destructive">
+              <CountUpRupiah value={Number(totalRemaining)} />
             </div>
           )}
           <div className="text-[11px] text-[#B91C1C]">Sisa tagihan aktif</div>
@@ -605,8 +627,10 @@ export default function LiabilitasPage() {
           Belum ada liabilitas. Tambahkan kartu kredit atau pinjaman Anda.
         </div>
       ) : (
-        (liabilities ?? []).map((item) => (
-          <LiabilityCard key={item.id} item={item} />
+        (liabilities ?? []).map((item, i) => (
+          <Rise key={item.id} index={i}>
+            <LiabilityCard item={item} />
+          </Rise>
         ))
       )}
 

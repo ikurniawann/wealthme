@@ -1,7 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Lock, Plus, X } from "lucide-react";
+import {
+  Lock,
+  Plus,
+  X,
+  Landmark,
+  Wallet,
+  TrendingUp,
+  Home,
+  Car,
+  Laptop,
+  Gem,
+  Package,
+  BarChart2,
+  Building,
+  type LucideIcon,
+} from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -10,6 +25,7 @@ import { apiFetch } from "@/lib/api-client";
 import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
+import { IconChip, CountUpRupiah, Rise } from "@/components/wm";
 
 import type { AssetDto, AccountDto, InvestmentDto } from "@wealthme/contracts";
 
@@ -27,20 +43,12 @@ const TABS: { label: string; id: TabId }[] = [
 
 // ── Physical asset lookups ────────────────────────────────────────────────────
 
-const ASSET_TYPE_EMOJI: Record<string, string> = {
-  properti: "🏠",
-  kendaraan: "🚗",
-  elektronik: "💻",
-  perhiasan: "💍",
-  lainnya: "📦",
-};
-
-const ASSET_TYPE_BG: Record<string, string> = {
-  properti: "#FEF9C3",
-  kendaraan: "#DBEAFE",
-  elektronik: "#F3F4F6",
-  perhiasan: "#FDE68A",
-  lainnya: "#E5E7EB",
+const ASSET_TYPE_ICON: Record<string, { icon: LucideIcon; chip: string }> = {
+  properti: { icon: Home, chip: "bg-yellow-100 text-yellow-600" },
+  kendaraan: { icon: Car, chip: "bg-blue-100 text-blue-600" },
+  elektronik: { icon: Laptop, chip: "bg-gray-100 text-gray-600" },
+  perhiasan: { icon: Gem, chip: "bg-amber-100 text-amber-600" },
+  lainnya: { icon: Package, chip: "bg-gray-100 text-gray-600" },
 };
 
 const ASSET_TYPE_LABEL: Record<string, string> = {
@@ -53,20 +61,12 @@ const ASSET_TYPE_LABEL: Record<string, string> = {
 
 // ── Account lookups ───────────────────────────────────────────────────────────
 
-const ACCOUNT_TYPE_EMOJI: Record<string, string> = {
-  bank: "🏦",
-  ewallet: "👛",
-  cash: "💵",
-  investment: "📈",
-  property: "🏠",
-};
-
-const ACCOUNT_TYPE_BG: Record<string, string> = {
-  bank: "#DBEAFE",
-  ewallet: "#DCFCE7",
-  cash: "#FEF9C3",
-  investment: "#EDE9FE",
-  property: "#FEF9C3",
+const ACCOUNT_TYPE_ICON: Record<string, { icon: LucideIcon; chip: string }> = {
+  bank: { icon: Landmark, chip: "bg-blue-100 text-blue-600" },
+  ewallet: { icon: Wallet, chip: "bg-green-100 text-green-600" },
+  cash: { icon: Wallet, chip: "bg-green-100 text-green-600" },
+  investment: { icon: TrendingUp, chip: "bg-violet-100 text-violet-600" },
+  property: { icon: Home, chip: "bg-yellow-100 text-yellow-600" },
 };
 
 const ACCOUNT_TYPE_LABEL: Record<string, string> = {
@@ -79,22 +79,13 @@ const ACCOUNT_TYPE_LABEL: Record<string, string> = {
 
 // ── Investment type lookups ───────────────────────────────────────────────────
 
-const INV_TYPE_EMOJI: Record<string, string> = {
-  saham: "📉",
-  reksa_dana: "📊",
-  obligasi: "🏛️",
-  emas: "🥇",
-  kripto: "₿",
-  lainnya: "💼",
-};
-
-const INV_TYPE_BG: Record<string, string> = {
-  saham: "#DBEAFE",
-  reksa_dana: "#EEF2FF",
-  obligasi: "#DCFCE7",
-  emas: "#FEF9C3",
-  kripto: "#FFF7ED",
-  lainnya: "#EDE9FE",
+const INV_TYPE_ICON: Record<string, { icon: LucideIcon; chip: string }> = {
+  saham: { icon: TrendingUp, chip: "bg-blue-100 text-blue-600" },
+  reksa_dana: { icon: BarChart2, chip: "bg-indigo-100 text-indigo-600" },
+  obligasi: { icon: Building, chip: "bg-green-100 text-green-600" },
+  emas: { icon: Gem, chip: "bg-yellow-100 text-yellow-600" },
+  kripto: { icon: TrendingUp, chip: "bg-orange-100 text-orange-600" },
+  lainnya: { icon: Package, chip: "bg-violet-100 text-violet-600" },
 };
 
 const INV_TYPE_LABEL: Record<string, string> = {
@@ -315,7 +306,11 @@ function AssetGroupCard({ assets }: { assets: AssetDto[] }) {
     <div className="rounded-[14px] border bg-card p-4">
       <div className="mb-1 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
-          <span className="text-[17px]">🏠</span>
+          <IconChip
+            icon={Home}
+            className="bg-yellow-100 text-yellow-600"
+            size={28}
+          />
           <span className="text-[13.5px] font-bold">Aset Fisik</span>
         </div>
         <div className="text-[14px] font-extrabold">
@@ -323,34 +318,41 @@ function AssetGroupCard({ assets }: { assets: AssetDto[] }) {
         </div>
       </div>
       <div>
-        {assets.map((asset, i) => (
-          <div
-            key={asset.id}
-            className={`flex items-center gap-3 py-3 ${i < assets.length - 1 ? "border-b" : ""}`}
-          >
-            <div
-              className="flex size-9 items-center justify-center rounded-[10px] text-[16px]"
-              style={{ background: ASSET_TYPE_BG[asset.type] ?? "#E5E7EB" }}
-            >
-              {ASSET_TYPE_EMOJI[asset.type] ?? "📦"}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[13.5px] font-semibold truncate">
-                {asset.name}
+        {assets.map((asset, i) => {
+          const cfg = ASSET_TYPE_ICON[asset.type] ?? {
+            icon: Package,
+            chip: "bg-gray-100 text-gray-600",
+          };
+          return (
+            <Rise key={asset.id} index={i}>
+              <div
+                className={`flex items-center gap-3 py-3 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)] ${i < assets.length - 1 ? "border-b" : ""}`}
+              >
+                <IconChip
+                  icon={cfg.icon}
+                  className={cfg.chip}
+                  size={34}
+                  rounded="rounded-full"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13.5px] font-semibold truncate">
+                    {asset.name}
+                  </div>
+                  <div className="text-[11.5px] text-muted-foreground truncate">
+                    {asset.notes
+                      ? asset.notes
+                      : (ASSET_TYPE_LABEL[asset.type] ?? asset.type)}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-[14px] font-extrabold">
+                    {formatRupiah(Number(BigInt(asset.currentValue ?? "0")))}
+                  </div>
+                </div>
               </div>
-              <div className="text-[11.5px] text-muted-foreground truncate">
-                {asset.notes
-                  ? asset.notes
-                  : (ASSET_TYPE_LABEL[asset.type] ?? asset.type)}
-              </div>
-            </div>
-            <div className="text-right shrink-0">
-              <div className="text-[14px] font-extrabold">
-                {formatRupiah(Number(BigInt(asset.currentValue ?? "0")))}
-              </div>
-            </div>
-          </div>
-        ))}
+            </Rise>
+          );
+        })}
         {assets.length === 0 && (
           <div className="py-4 text-center text-[12px] text-muted-foreground">
             Belum ada aset fisik.
@@ -366,10 +368,16 @@ function AssetGroupCard({ assets }: { assets: AssetDto[] }) {
 interface AccountsGroupCardProps {
   accounts: AccountDto[];
   title: string;
-  emoji: string;
+  headerIcon: LucideIcon;
+  headerChip: string;
 }
 
-function AccountsGroupCard({ accounts, title, emoji }: AccountsGroupCardProps) {
+function AccountsGroupCard({
+  accounts,
+  title,
+  headerIcon,
+  headerChip,
+}: AccountsGroupCardProps) {
   const groupTotal = accounts.reduce(
     (sum, a) => sum + BigInt(a.balance ?? "0"),
     BigInt(0),
@@ -379,7 +387,7 @@ function AccountsGroupCard({ accounts, title, emoji }: AccountsGroupCardProps) {
     <div className="rounded-[14px] border bg-card p-4">
       <div className="mb-1 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
-          <span className="text-[17px]">{emoji}</span>
+          <IconChip icon={headerIcon} className={headerChip} size={28} />
           <span className="text-[13.5px] font-bold">{title}</span>
         </div>
         <div className="text-[14px] font-extrabold">
@@ -393,33 +401,36 @@ function AccountsGroupCard({ accounts, title, emoji }: AccountsGroupCardProps) {
             account.maskedNumber ??
             ACCOUNT_TYPE_LABEL[account.type] ??
             account.type;
+          const cfg = ACCOUNT_TYPE_ICON[account.type] ?? {
+            icon: Wallet,
+            chip: "bg-gray-100 text-gray-600",
+          };
           return (
-            <div
-              key={account.id}
-              className={`flex items-center gap-3 py-3 ${i < accounts.length - 1 ? "border-b" : ""}`}
-            >
+            <Rise key={account.id} index={i}>
               <div
-                className="flex size-9 items-center justify-center rounded-[10px] text-[16px]"
-                style={{
-                  background: ACCOUNT_TYPE_BG[account.type] ?? "#E5E7EB",
-                }}
+                className={`flex items-center gap-3 py-3 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)] ${i < accounts.length - 1 ? "border-b" : ""}`}
               >
-                {ACCOUNT_TYPE_EMOJI[account.type] ?? "💳"}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[13.5px] font-semibold truncate">
-                  {account.name}
+                <IconChip
+                  icon={cfg.icon}
+                  className={cfg.chip}
+                  size={34}
+                  rounded="rounded-full"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13.5px] font-semibold truncate">
+                    {account.name}
+                  </div>
+                  <div className="text-[11.5px] text-muted-foreground truncate">
+                    {subtitle}
+                  </div>
                 </div>
-                <div className="text-[11.5px] text-muted-foreground truncate">
-                  {subtitle}
+                <div className="text-right shrink-0">
+                  <div className="text-[14px] font-extrabold">
+                    {formatRupiah(Number(BigInt(account.balance ?? "0")))}
+                  </div>
                 </div>
               </div>
-              <div className="text-right shrink-0">
-                <div className="text-[14px] font-extrabold">
-                  {formatRupiah(Number(BigInt(account.balance ?? "0")))}
-                </div>
-              </div>
-            </div>
+            </Rise>
           );
         })}
         {accounts.length === 0 && (
@@ -444,7 +455,11 @@ function InvestasiGroupCard({ investments }: { investments: InvestmentDto[] }) {
     <div className="rounded-[14px] border bg-card p-4">
       <div className="mb-1 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
-          <span className="text-[17px]">📈</span>
+          <IconChip
+            icon={TrendingUp}
+            className="bg-violet-100 text-violet-600"
+            size={28}
+          />
           <span className="text-[13.5px] font-bold">Investasi</span>
         </div>
         <div className="text-[14px] font-extrabold">
@@ -452,32 +467,39 @@ function InvestasiGroupCard({ investments }: { investments: InvestmentDto[] }) {
         </div>
       </div>
       <div>
-        {investments.map((inv, i) => (
-          <div
-            key={inv.id}
-            className={`flex items-center gap-3 py-3 ${i < investments.length - 1 ? "border-b" : ""}`}
-          >
-            <div
-              className="flex size-9 items-center justify-center rounded-[10px] text-[16px]"
-              style={{ background: INV_TYPE_BG[inv.type] ?? "#E5E7EB" }}
-            >
-              {INV_TYPE_EMOJI[inv.type] ?? "💼"}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[13.5px] font-semibold truncate">
-                {inv.ticker} — {inv.name}
+        {investments.map((inv, i) => {
+          const cfg = INV_TYPE_ICON[inv.type] ?? {
+            icon: Package,
+            chip: "bg-violet-100 text-violet-600",
+          };
+          return (
+            <Rise key={inv.id} index={i}>
+              <div
+                className={`flex items-center gap-3 py-3 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)] ${i < investments.length - 1 ? "border-b" : ""}`}
+              >
+                <IconChip
+                  icon={cfg.icon}
+                  className={cfg.chip}
+                  size={34}
+                  rounded="rounded-full"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13.5px] font-semibold truncate">
+                    {inv.ticker} — {inv.name}
+                  </div>
+                  <div className="text-[11.5px] text-muted-foreground truncate">
+                    {INV_TYPE_LABEL[inv.type] ?? inv.type}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-[14px] font-extrabold">
+                    {formatRupiah(Number(BigInt(inv.currentValue ?? "0")))}
+                  </div>
+                </div>
               </div>
-              <div className="text-[11.5px] text-muted-foreground truncate">
-                {INV_TYPE_LABEL[inv.type] ?? inv.type}
-              </div>
-            </div>
-            <div className="text-right shrink-0">
-              <div className="text-[14px] font-extrabold">
-                {formatRupiah(Number(BigInt(inv.currentValue ?? "0")))}
-              </div>
-            </div>
-          </div>
-        ))}
+            </Rise>
+          );
+        })}
         {investments.length === 0 && (
           <div className="py-4 text-center text-[12px] text-muted-foreground">
             Belum ada investasi.
@@ -628,8 +650,8 @@ export default function AsetPage() {
           {isLoading ? (
             <div className="animate-pulse h-7 w-40 rounded bg-muted" />
           ) : (
-            <div className="text-[24px] font-black text-primary-strong">
-              {formatRupiah(grandTotal)}
+            <div className="mono text-[24px] font-black text-primary-strong">
+              <CountUpRupiah value={grandTotal} />
             </div>
           )}
         </div>
@@ -676,7 +698,8 @@ export default function AsetPage() {
             <AccountsGroupCard
               accounts={allAccounts}
               title="Dana & Rekening"
-              emoji="💳"
+              headerIcon={Wallet}
+              headerChip="bg-green-100 text-green-600"
             />
           )}
 
@@ -685,7 +708,8 @@ export default function AsetPage() {
             <AccountsGroupCard
               accounts={danaAccounts}
               title="Dana"
-              emoji="💵"
+              headerIcon={Wallet}
+              headerChip="bg-green-100 text-green-600"
             />
           )}
 
@@ -694,7 +718,8 @@ export default function AsetPage() {
             <AccountsGroupCard
               accounts={rekeningAccounts}
               title="Rekening"
-              emoji="🏦"
+              headerIcon={Landmark}
+              headerChip="bg-blue-100 text-blue-600"
             />
           )}
 

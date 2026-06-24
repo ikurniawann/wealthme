@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, ChevronDown } from "lucide-react";
+import {
+  Plus,
+  ChevronDown,
+  ArrowDownLeft,
+  CreditCard,
+  ArrowLeftRight,
+  type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useSession, signOut } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,7 +16,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useShell } from "@/components/shell/shell-context";
 import { formatAmountInput, parseRupiah } from "@/lib/format";
 
-import { SectionCard, MoneyStat } from "@/components/wm";
+import { SectionCard, MoneyStat, IconChip, Rise } from "@/components/wm";
 import { RowActions, ConfirmDeleteDialog } from "@/components/crud";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -87,6 +94,12 @@ const TYPE_LABEL: Record<string, string> = {
   transfer: "Transfer",
 };
 
+const TX_ICON: Record<string, { icon: LucideIcon; chip: string }> = {
+  income: { icon: ArrowDownLeft, chip: "bg-green-100 text-green-600" },
+  expense: { icon: CreditCard, chip: "bg-red-100 text-red-600" },
+  transfer: { icon: ArrowLeftRight, chip: "bg-violet-100 text-violet-600" },
+};
+
 function TxRow({
   tx,
   onDeleteClick,
@@ -99,8 +112,7 @@ function TxRow({
   const isIncome = tx.type === "income";
   const amount = parseFloat(tx.amount);
   const amountStr = (isIncome ? "+" : "-") + formatRupiah(amount);
-  const iconBg = isIncome ? "#DCFCE7" : "#FEE2E2";
-  const icon = isIncome ? "📥" : tx.type === "transfer" ? "↗️" : "💳";
+  const txIcon = TX_ICON[tx.type] ?? TX_ICON.expense;
   const displayName =
     tx.description ?? tx.categoryName ?? tx.accountName ?? "—";
   const subtitle =
@@ -108,13 +120,12 @@ function TxRow({
 
   return (
     <div className="flex w-full items-center gap-3 rounded-[12px] border bg-card py-3.5 px-3 text-left transition-colors hover:bg-accent/40">
-      {/* Circular icon — matches demo's pastel circular treatment (G3) */}
-      <div
-        className="flex size-[38px] shrink-0 items-center justify-center rounded-full text-[15px]"
-        style={{ background: iconBg }}
-      >
-        {icon}
-      </div>
+      <IconChip
+        icon={txIcon.icon}
+        className={txIcon.chip}
+        size={34}
+        rounded="rounded-full"
+      />
       <div className="min-w-0 flex-1">
         <div className="truncate text-[13.5px] font-semibold">
           {displayName}
@@ -441,22 +452,24 @@ export default function TransaksiPage() {
         )}
 
         {!isLoading &&
-          sortedDays.map((day) => (
-            <div key={day}>
-              <div className="mt-3 mb-1.5 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-                {formatDayLabel(day)}
+          sortedDays.map((day, i) => (
+            <Rise key={day} index={i}>
+              <div>
+                <div className="mt-3 mb-1.5 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+                  {formatDayLabel(day)}
+                </div>
+                <div className="space-y-1.5">
+                  {groups[day]?.map((tx) => (
+                    <TxRow
+                      key={tx.id}
+                      tx={tx}
+                      onDeleteClick={() => setDeleteTarget(tx.id)}
+                      onEditClick={() => setEditTarget(tx)}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="space-y-1.5">
-                {groups[day]?.map((tx) => (
-                  <TxRow
-                    key={tx.id}
-                    tx={tx}
-                    onDeleteClick={() => setDeleteTarget(tx.id)}
-                    onEditClick={() => setEditTarget(tx)}
-                  />
-                ))}
-              </div>
-            </div>
+            </Rise>
           ))}
 
         {!isLoading && sortedDays.length === 0 && !isError && (

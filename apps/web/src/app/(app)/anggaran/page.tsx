@@ -5,7 +5,12 @@ import { Plus, Save } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { SectionCard, ProgressBar } from "@/components/wm";
+import {
+  SectionCard,
+  CountUpRupiah,
+  AnimatedProgress,
+  Rise,
+} from "@/components/wm";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
@@ -41,27 +46,34 @@ const ICON_OPTIONS = ["🎓", "🎨", "🎁", "🐶", "👶", "📚", "💪", "�
 const FIELD_CLASS =
   "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
 
-function BudgetItem({ dto }: { dto: BudgetDto }) {
+function BudgetItem({ dto, index }: { dto: BudgetDto; index: number }) {
   const color = budgetBarColor(dto);
   const icon = dto.categoryIcon ?? "📦";
   return (
-    <div className="rounded-[12px] border bg-card p-3.5">
-      <div className="mb-2 flex items-center gap-2.5">
-        <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-accent text-[14px]">
-          {icon}
-        </div>
-        <div className="flex-1">
-          <div className="text-[13.5px] font-semibold">{dto.categoryName}</div>
-          <div className="text-[11.5px] text-muted-foreground">
-            {budgetAmountsLabel(dto)}
+    <Rise index={index}>
+      <div className="rounded-[12px] border bg-card p-3.5 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
+        <div className="mb-2 flex items-center gap-2.5">
+          <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-accent text-[14px]">
+            {icon}
+          </div>
+          <div className="flex-1">
+            <div className="text-[13.5px] font-semibold">
+              {dto.categoryName}
+            </div>
+            <div className="text-[11.5px] text-muted-foreground">
+              {budgetAmountsLabel(dto)}
+            </div>
+          </div>
+          <div className="text-[13px] font-bold" style={{ color }}>
+            {budgetPctLabel(dto)}
           </div>
         </div>
-        <div className="text-[13px] font-bold" style={{ color }}>
-          {budgetPctLabel(dto)}
-        </div>
+        <AnimatedProgress
+          value={Math.min(dto.usagePercent, 100)}
+          color={color}
+        />
       </div>
-      <ProgressBar value={Math.min(dto.usagePercent, 100)} color={color} />
-    </div>
+    </Rise>
   );
 }
 
@@ -248,39 +260,47 @@ export default function AnggaranPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
-        <div className="rounded-[14px] border border-[#86EFAC] bg-[#DCFCE7] p-4">
-          <div className="mb-1 text-[11px] text-[#15803D]">Budget Tersisa</div>
-          <div className="text-[22px] font-black text-[#15803D]">
-            {formatRupiah(totalRemaining)}
+        <Rise index={0}>
+          <div className="rounded-[14px] border border-[#86EFAC] bg-[#DCFCE7] p-4 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
+            <div className="mb-1 text-[11px] text-[#15803D]">
+              Budget Tersisa
+            </div>
+            <div className="mono text-[22px] font-black text-[#15803D]">
+              <CountUpRupiah value={totalRemaining} />
+            </div>
+            <div className="text-[11px] text-[#15803D]">
+              {totalLimit > 0
+                ? `${100 - usagePct}% dari budget`
+                : "Belum ada budget"}
+            </div>
           </div>
-          <div className="text-[11px] text-[#15803D]">
-            {totalLimit > 0
-              ? `${100 - usagePct}% dari budget`
-              : "Belum ada budget"}
+        </Rise>
+        <Rise index={1}>
+          <div className="rounded-[14px] border bg-card p-4 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
+            <div className="mb-1 text-[11px] text-muted-foreground">
+              Total Terpakai
+            </div>
+            <div className="mono text-[22px] font-black text-destructive">
+              <CountUpRupiah value={totalSpent} />
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {usagePct}% dari budget
+            </div>
           </div>
-        </div>
-        <div className="rounded-[14px] border bg-card p-4">
-          <div className="mb-1 text-[11px] text-muted-foreground">
-            Total Terpakai
+        </Rise>
+        <Rise index={2}>
+          <div className="rounded-[14px] border bg-card p-4 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
+            <div className="mb-1 text-[11px] text-muted-foreground">
+              Hari Tersisa
+            </div>
+            <div className="text-[22px] font-black text-primary">
+              {daysLeft} Hari
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              dari {daysInMonth} hari
+            </div>
           </div>
-          <div className="text-[22px] font-black text-destructive">
-            {formatRupiah(totalSpent)}
-          </div>
-          <div className="text-[11px] text-muted-foreground">
-            {usagePct}% dari budget
-          </div>
-        </div>
-        <div className="rounded-[14px] border bg-card p-4">
-          <div className="mb-1 text-[11px] text-muted-foreground">
-            Hari Tersisa
-          </div>
-          <div className="text-[22px] font-black text-primary">
-            {daysLeft} Hari
-          </div>
-          <div className="text-[11px] text-muted-foreground">
-            dari {daysInMonth} hari
-          </div>
-        </div>
+        </Rise>
       </div>
 
       <SectionCard title="Rincian Anggaran per Kategori" bodyClassName="-mt-1">
@@ -298,8 +318,8 @@ export default function AnggaranPage() {
         )}
         {!isLoading && !isError && budgets && budgets.length > 0 && (
           <div className="space-y-3">
-            {budgets.map((b) => (
-              <BudgetItem key={b.id} dto={b} />
+            {budgets.map((b, i) => (
+              <BudgetItem key={b.id} dto={b} index={i} />
             ))}
           </div>
         )}

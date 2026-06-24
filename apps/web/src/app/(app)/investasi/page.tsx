@@ -5,8 +5,16 @@ import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { io } from "socket.io-client";
+import { TrendingUp } from "lucide-react";
 
-import { SectionCard, CardLink, StatusBadge } from "@/components/wm";
+import {
+  SectionCard,
+  CardLink,
+  StatusBadge,
+  IconChip,
+  CountUpRupiah,
+  Rise,
+} from "@/components/wm";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -364,49 +372,70 @@ export default function InvestasiPage() {
           </>
         ) : (
           <>
-            <Card className="gap-0 p-5">
-              <div className="mb-1 text-[11px] text-muted-foreground">
-                Total Nilai Investasi
+            <Rise index={0}>
+              <div className="transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
+                <Card className="gap-0 p-5">
+                  <div className="mb-1 flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <IconChip
+                      icon={TrendingUp}
+                      className="bg-violet-100 text-violet-600"
+                      size={34}
+                      rounded="rounded-full"
+                    />
+                    Total Nilai Investasi
+                  </div>
+                  <div className="mono text-[24px] font-black text-primary">
+                    {summary?.totalCurrentValue != null ? (
+                      <CountUpRupiah
+                        value={parseFloat(summary.totalCurrentValue)}
+                      />
+                    ) : (
+                      "—"
+                    )}
+                  </div>
+                  <div
+                    className={`mt-1 text-[12px] ${
+                      (summary?.totalReturnPct ?? 0) >= 0
+                        ? "text-success"
+                        : "text-destructive"
+                    }`}
+                  >
+                    {(summary?.totalReturnPct ?? 0) >= 0 ? "▲" : "▼"}{" "}
+                    {formatReturnPct(summary?.totalReturnPct ?? null)} ·{" "}
+                    {formatDecimalRupiah(summary?.totalReturnRp ?? null)} total
+                    return
+                  </div>
+                </Card>
               </div>
-              <div className="text-[24px] font-black text-primary">
-                {formatDecimalRupiah(summary?.totalCurrentValue ?? null)}
+            </Rise>
+            <Rise index={1}>
+              <div className="transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
+                <Card className="gap-0 p-5">
+                  <div className="mb-1 text-[11px] text-muted-foreground">
+                    Return Hari Ini
+                  </div>
+                  <div
+                    className={`mono text-[24px] font-black ${
+                      (summary?.todayReturnPct ?? 0) >= 0
+                        ? "text-success"
+                        : "text-destructive"
+                    }`}
+                  >
+                    {formatDecimalRupiah(summary?.todayReturnRp ?? null)}
+                  </div>
+                  <div
+                    className={`mt-1 text-[12px] ${
+                      (summary?.todayReturnPct ?? 0) >= 0
+                        ? "text-success"
+                        : "text-destructive"
+                    }`}
+                  >
+                    {formatReturnPct(summary?.todayReturnPct ?? null)} dari
+                    kemarin
+                  </div>
+                </Card>
               </div>
-              <div
-                className={`mt-1 text-[12px] ${
-                  (summary?.totalReturnPct ?? 0) >= 0
-                    ? "text-success"
-                    : "text-destructive"
-                }`}
-              >
-                {(summary?.totalReturnPct ?? 0) >= 0 ? "▲" : "▼"}{" "}
-                {formatReturnPct(summary?.totalReturnPct ?? null)} ·{" "}
-                {formatDecimalRupiah(summary?.totalReturnRp ?? null)} total
-                return
-              </div>
-            </Card>
-            <Card className="gap-0 p-5">
-              <div className="mb-1 text-[11px] text-muted-foreground">
-                Return Hari Ini
-              </div>
-              <div
-                className={`text-[24px] font-black ${
-                  (summary?.todayReturnPct ?? 0) >= 0
-                    ? "text-success"
-                    : "text-destructive"
-                }`}
-              >
-                {formatDecimalRupiah(summary?.todayReturnRp ?? null)}
-              </div>
-              <div
-                className={`mt-1 text-[12px] ${
-                  (summary?.todayReturnPct ?? 0) >= 0
-                    ? "text-success"
-                    : "text-destructive"
-                }`}
-              >
-                {formatReturnPct(summary?.todayReturnPct ?? null)} dari kemarin
-              </div>
-            </Card>
+            </Rise>
           </>
         )}
       </div>
@@ -455,7 +484,7 @@ export default function InvestasiPage() {
                 </tr>
               )}
 
-              {holdings?.map((h) => {
+              {holdings?.map((h, i) => {
                 const badge = TYPE_BADGE[h.type] ?? {
                   variant: "gray" as const,
                   label: h.type,
@@ -466,7 +495,11 @@ export default function InvestasiPage() {
                 const isUp = parseFloat(h.returnRp ?? "0") >= 0;
 
                 return (
-                  <tr key={h.id} className="border-b last:border-0">
+                  <tr
+                    key={h.id}
+                    className="animate-rise border-b last:border-0"
+                    style={{ animationDelay: `${i * 70}ms` }}
+                  >
                     <td className="py-3 pr-3">
                       <div className="flex items-center gap-2.5">
                         <div
