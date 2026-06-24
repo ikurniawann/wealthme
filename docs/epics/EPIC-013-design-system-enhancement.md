@@ -47,14 +47,18 @@ All motion respects `prefers-reduced-motion`.
         `AnimatedProgress`, `Rise`).
   - [x] New `apps/web/src/components/wm/icon-chip.tsx` (`IconChip`).
   - [x] Re-export both from `components/wm/index.tsx`.
-- [ ] **B — Beranda** `app/(app)/beranda/page.tsx` (hero net worth count-up,
+- [x] **B — Beranda** `app/(app)/beranda/page.tsx` (hero net worth count-up,
       SummaryCard hover-lift + IconChip, `<Rise>` stagger, goal `AnimatedProgress`)
-- [ ] **C — Investasi** `app/(app)/investasi/page.tsx`
-- [ ] **D — Aset** `app/(app)/aset/page.tsx`
-- [ ] **E — Tujuan** `app/(app)/tujuan/page.tsx` (border-2 → overflow-hidden + 3px strip)
-- [ ] **F — Liabilitas** `app/(app)/liabilitas/page.tsx`
-- [ ] **G — Anggaran** `app/(app)/anggaran/page.tsx`
-- [ ] **H — Transaksi** `app/(app)/transaksi/page.tsx` (rounded-full chips, `<Rise>` per day)
+- [x] **C — Investasi** `app/(app)/investasi/page.tsx` (total count-up, TrendingUp chip,
+      hover-lift; row stagger via `animate-rise` on `<tr>` — `<Rise>` div invalid in `<tbody>`)
+- [x] **D — Aset** `app/(app)/aset/page.tsx` (total count-up, per-type IconChips, hover-lift, Rise)
+- [x] **E — Tujuan** `app/(app)/tujuan/page.tsx` (border-2 → overflow-hidden + 3px status strip,
+      AnimatedProgress, GraduationCap chip for edu goals, Rise + hover-lift)
+- [x] **F — Liabilitas** `app/(app)/liabilitas/page.tsx` (total count-up, CreditCard/Landmark
+      chips, AnimatedProgress, Rise)
+- [x] **G — Anggaran** `app/(app)/anggaran/page.tsx` (AnimatedProgress budget bars, total
+      count-up, Rise + hover-lift)
+- [x] **H — Transaksi** `app/(app)/transaksi/page.tsx` (round directional IconChips, `<Rise>` per day)
 - [ ] **I — Gates + DEV deploy**
 
 ### Emoji → Lucide map (from handoff)
@@ -101,3 +105,12 @@ All motion respects `prefers-reduced-motion`.
   re-export). Group A touches protected `globals.css`/`components/wm/*` — approved
   exception (handoff-authorized, additive, zero token change). Per-page Groups B–H
   pending; recommend `/compact` before continuing (context was ~97%).
+- 2026-06-24 — **Group B (Beranda) done in main session** as the reference port
+  (commit on `development`). Typecheck clean.
+- 2026-06-25 — **Groups C–H done** via 6 parallel `code-agent`s (one page each), using the
+  committed Beranda diff as the template; main session reviewed scope + ran central
+  `tsc --noEmit` (clean after one fix: re-added `Rise` import to investasi, which the agent
+  dropped while keeping `<Rise>` usages). Dynamic user-set emoji (goal icons, budget-category
+  icons) intentionally preserved — only fixed category glyphs were swapped to Lucide chips.
+  All 6 page files only; no protected/foundation file touched. Group I (gates + DEV deploy)
+  in progress.
