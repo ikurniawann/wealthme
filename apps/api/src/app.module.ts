@@ -15,6 +15,7 @@ import { BudgetsModule } from "./budgets/budgets.module";
 import { CalculatorsModule } from "./calculators/calculators.module";
 import { CaslModule } from "./casl/casl.module";
 import { CategoriesModule } from "./categories/categories.module";
+import { CoaAccountsModule } from "./coa-accounts/coa-accounts.module";
 import { CommonModule } from "./common/common.module";
 import { AbilitiesGuard } from "./common/guards/abilities.guard";
 import { TenantGuard } from "./common/guards/tenant.guard";
@@ -82,6 +83,7 @@ import type { IncomingMessage } from "node:http";
     AiAdvisorModule,
     CaslModule,
     CategoriesModule,
+    CoaAccountsModule,
     CommonModule,
     CryptoModule,
     AuditModule,
