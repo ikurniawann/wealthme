@@ -18,19 +18,19 @@ no `Category` FK; reports resolve direction via a read-time util.
 
 ## Tasks
 
-- [ ] ### A — Data model + seed
+- [x] ### A — Data model + seed ✅
   - Add `CoaDirection` and `CoaBudgetType` enums to Prisma schema
   - Add `CoaAccount` model (familyGroupId tenant scope, code/name/group/direction/budgetType/parentCode)
   - Generate and apply migration
-  - Add `xlsx` dep; extend seed.ts to parse `docs/COA_Updates 21 June.xlsx` → ~115 accounts
+  - Seed 78 accounts (static array from xlsx; no new dep); fix seed.spec.ts mock
 
-- [ ] ### B — API module
+- [x] ### B — API module ✅
   - Create `apps/api/src/coa-accounts/` (module, service, controller, DTOs)
   - Tenant-scoped CRUD: list, create, update, delete filtered by familyGroupId
   - Add `CoaAccount` to CASL subjects + abilities; register module in AppModule
 
-- [ ] ### C — Frontend page + sidebar
-  - Create `apps/web/src/app/(app)/mastercoa/page.tsx` (API-driven port of Demo-3 mastercoa)
+- [x] ### C — Frontend page + sidebar ✅
+  - Create `apps/web/src/app/(app)/mastercoa/page.tsx` (API-driven: summary cards, 7-tab filter, CRUD table + modals)
   - Add mastercoa entry to `nav.ts` under "Alat" with badge "New" (new-purple)
   - Add to PAGE_TITLES
 
@@ -121,3 +121,8 @@ no `Category` FK; reports resolve direction via a read-time util.
   Decisions locked from the approved plan: COA is **separate/reference-only** (no
   `Category` FK); **reports wiring included** via read-time `coa-direction.util.ts`;
   **seed parses the xlsx**. Status `backlog` — start after EPIC-013 unless redirected.
+- 2026-06-27 — Tasks A+B+C completed in a single branch `feat/epic-012-task-1-a-data-model-seed`.
+  78 accounts seeded (static array; no xlsx dep added; Python/openpyxl used for extraction only).
+  Migration `20260626171841_add_coa_accounts` applied to dev DB. All 88 API tests passing.
+  QA + build green. Security: pre-existing multer advisory (unrelated to COA changes).
+  Branch pushed; PR creation requires gh auth (do manually). Task D (reports wiring) pending.
