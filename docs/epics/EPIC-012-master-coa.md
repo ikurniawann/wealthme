@@ -1,6 +1,6 @@
 # EPIC-012: Master COA (Chart of Accounts)
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 retries: 0
 phase: 4
@@ -34,9 +34,9 @@ no `Category` FK; reports resolve direction via a read-time util.
   - Add mastercoa entry to `nav.ts` under "Alat" with badge "New" (new-purple)
   - Add to PAGE_TITLES
 
-- [ ] ### D — Reports wiring
+- [x] ### D — Reports wiring ✅
   - Create `apps/api/src/common/utils/coa-direction.util.ts`
-  - Wire into reports service (PNL / Balance Sheet / Cashflow) for direction resolution
+  - Wire into reports service getPnl (typed CoaDirection enum replaces string literals)
 
 ## Evidence
 
@@ -126,3 +126,5 @@ no `Category` FK; reports resolve direction via a read-time util.
   Migration `20260626171841_add_coa_accounts` applied to dev DB. All 88 API tests passing.
   QA + build green. Security: pre-existing multer advisory (unrelated to COA changes).
   Branch pushed; PR creation requires gh auth (do manually). Task D (reports wiring) pending.
+- 2026-06-27 — Task D completed. coa-direction.util.ts added; wired into reports.service.ts getPnl.
+  All 88 tests green. Epic set to ready-for-qa. Pending: manual PR creation + QA sign-off.
