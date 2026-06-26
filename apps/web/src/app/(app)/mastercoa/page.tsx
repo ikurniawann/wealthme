@@ -138,7 +138,12 @@ export default function MasterCoaPage() {
       setModalOpen(false);
       toast.success("Akun COA berhasil ditambahkan");
     },
-    onError: () => toast.error("Gagal menambahkan akun COA"),
+    onError: (err: unknown) =>
+      toast.error(
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message: unknown }).message)
+          : "Gagal menambahkan akun COA",
+      ),
   });
 
   const updateMutation = useMutation({
@@ -411,7 +416,7 @@ export default function MasterCoaPage() {
                     setForm((f) => ({ ...f, code: e.target.value }))
                   }
                   placeholder="20101"
-                  maxLength={10}
+                  maxLength={5}
                   required
                   disabled={Boolean(editTarget)}
                   className="w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] font-mono outline-none transition-colors focus:border-primary focus:bg-card disabled:opacity-50"
