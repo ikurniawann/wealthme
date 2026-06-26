@@ -23,8 +23,10 @@ import { CheckAbility } from "../common/decorators/check-ability.decorator";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CoaAccountsService } from "./coa-accounts.service";
 import { CoaAccountResponseDto } from "./dto/coa-account-response.dto";
-import { type CreateCoaAccountDto } from "./dto/create-coa-account.dto";
-import { type UpdateCoaAccountDto } from "./dto/update-coa-account.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports -- NestJS reflect-metadata needs value imports for @Body() DTO validation
+import { CreateCoaAccountDto } from "./dto/create-coa-account.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports -- NestJS reflect-metadata needs value imports for @Body() DTO validation
+import { UpdateCoaAccountDto } from "./dto/update-coa-account.dto";
 
 @ApiTags("coa-accounts")
 @ApiBearerAuth()
