@@ -1,6 +1,6 @@
 # EPIC-012: Master COA (Chart of Accounts)
 
-status: backlog
+status: on-progress
 environment: dev
 retries: 0
 phase: 4
@@ -15,6 +15,28 @@ page. COA is **reference master data**: each account carries a transaction direc
 (↓ income / ↑ expense / ↔ transfer) used at report time to keep PNL / Balance Sheet /
 Cashflow accurate. Per the approved plan, COA is a **separate, reference-only** model —
 no `Category` FK; reports resolve direction via a read-time util.
+
+## Tasks
+
+- [ ] ### A — Data model + seed
+  - Add `CoaDirection` and `CoaBudgetType` enums to Prisma schema
+  - Add `CoaAccount` model (familyGroupId tenant scope, code/name/group/direction/budgetType/parentCode)
+  - Generate and apply migration
+  - Add `xlsx` dep; extend seed.ts to parse `docs/COA_Updates 21 June.xlsx` → ~115 accounts
+
+- [ ] ### B — API module
+  - Create `apps/api/src/coa-accounts/` (module, service, controller, DTOs)
+  - Tenant-scoped CRUD: list, create, update, delete filtered by familyGroupId
+  - Add `CoaAccount` to CASL subjects + abilities; register module in AppModule
+
+- [ ] ### C — Frontend page + sidebar
+  - Create `apps/web/src/app/(app)/mastercoa/page.tsx` (API-driven port of Demo-3 mastercoa)
+  - Add mastercoa entry to `nav.ts` under "Alat" with badge "New" (new-purple)
+  - Add to PAGE_TITLES
+
+- [ ] ### D — Reports wiring
+  - Create `apps/api/src/common/utils/coa-direction.util.ts`
+  - Wire into reports service (PNL / Balance Sheet / Cashflow) for direction resolution
 
 ## Evidence
 

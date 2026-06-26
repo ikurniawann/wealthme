@@ -47,6 +47,7 @@ jest.mock("@prisma/client", () => ({
     bankSync: makeModel(),
     bankSyncEntry: makeModel(),
     baSession: makeModel(),
+    coaAccount: makeModel(),
     $disconnect: disconnectMock,
   })),
 }));

@@ -1,6 +1,13 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Fragment,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Calendar, Download, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
@@ -1262,9 +1269,8 @@ function BalanceSection({
           <table className="w-full border-collapse text-[12.5px]">
             <tbody>
               {balanceSheet?.assets.map((group) => (
-                <>
+                <Fragment key={`g-${group.category}`}>
                   <StatementRow
-                    key={`g-${group.category}`}
                     label={group.category}
                     labelClass="py-1.5 font-bold text-muted-foreground"
                   />
@@ -1276,7 +1282,7 @@ function BalanceSection({
                       indent
                     />
                   ))}
-                </>
+                </Fragment>
               ))}
               <StatementRow
                 label="Total Aset"
@@ -1302,9 +1308,8 @@ function BalanceSection({
                 labelClass="py-1.5 font-bold text-muted-foreground"
               />
               {balanceSheet?.liabilities.map((group) => (
-                <>
+                <Fragment key={`g-${group.category}`}>
                   <StatementRow
-                    key={`g-${group.category}`}
                     label={group.category}
                     labelClass="py-1 text-[11px] text-muted-foreground"
                     indent
@@ -1317,7 +1322,7 @@ function BalanceSection({
                       indent
                     />
                   ))}
-                </>
+                </Fragment>
               ))}
               <StatementRow
                 label="Total Liabilitas"

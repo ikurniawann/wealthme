@@ -128,6 +128,18 @@ enum ReconStatus {
   unmatched
   suggested
 }
+
+enum CoaDirection {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+enum CoaBudgetType {
+  FIXED
+  VARIABLE
+  REIMBURSEMENT
+}
 // ── Models ────────────────────────────────────────────────────────────────────
 
 model User {
@@ -215,8 +227,27 @@ model FamilyGroup {
   donations          Donation[]
   taxRecords         TaxRecord[]
   bankSyncs          BankSync[]
+  coaAccounts        CoaAccount[]
 
   @@map("family_groups")
+}
+
+model CoaAccount {
+  id            String         @id @default(uuid())
+  familyGroupId String
+  code          String
+  name          String
+  groupNum      Int
+  direction     CoaDirection
+  budgetType    CoaBudgetType?
+  parentCode    String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  familyGroup   FamilyGroup    @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([familyGroupId, code])
+  @@index([familyGroupId])
+  @@map("coa_accounts")
 }
 
 model Invitation {
