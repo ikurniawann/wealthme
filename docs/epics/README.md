@@ -18,8 +18,8 @@ ringkasan: [`../BACKLOG.md`](../BACKLOG.md) · arsitektur: [`../WealthMe_Backend
 | [EPIC-009](EPIC-009-missing-pages-mvp.md)              | Phase 3 | Missing Pages MVP                   | P1        | ready-for-qa |
 | [EPIC-010](EPIC-010-frontend-shadcn-theming.md)        | Phase 3 | Frontend shadcn Theming             | P1        | ready-for-qa |
 | [EPIC-011](EPIC-011-dockerized-dev-stack-demo-seed.md) | Phase 7 | Dockerized DEV Stack + Demo Seed    | P1        | ready-for-qa |
-| [EPIC-012](EPIC-012-master-coa.md)                     | Phase 4 | Master COA (Chart of Accounts)      | P2        | on-progress  |
-| [EPIC-013](EPIC-013-design-system-enhancement.md)      | Phase 4 | Design-System Enhancement Layer     | P1        | on-progress  |
+| [EPIC-012](EPIC-012-master-coa.md)                     | Phase 4 | Master COA (Chart of Accounts)      | P2        | ready-for-qa |
+| [EPIC-013](EPIC-013-design-system-enhancement.md)      | Phase 4 | Design-System Enhancement Layer     | P1        | done         |
 | [EPIC-014](EPIC-014-feature-maximizers.md)             | Phase 4 | Feature Maximizers (Wealth Intel)   | P1        | ready-for-qa |
 
 **Definition of MVP (bisa mulai dipakai):** selesainya **EPIC-000 → 001 → 002**.

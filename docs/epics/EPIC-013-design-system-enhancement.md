@@ -59,7 +59,7 @@ All motion respects `prefers-reduced-motion`.
 - [x] **G — Anggaran** `app/(app)/anggaran/page.tsx` (AnimatedProgress budget bars, total
       count-up, Rise + hover-lift)
 - [x] **H — Transaksi** `app/(app)/transaksi/page.tsx` (round directional IconChips, `<Rise>` per day)
-- [ ] **I — Gates + DEV deploy**
+- [x] **I — Gates + DEV deploy**
 
 ### Emoji → Lucide map (from handoff)
 
@@ -114,3 +114,6 @@ All motion respects `prefers-reduced-motion`.
   icons) intentionally preserved — only fixed category glyphs were swapped to Lucide chips.
   All 6 page files only; no protected/foundation file touched. Group I (gates + DEV deploy)
   in progress.
+- 2026-07-02 — **Group I closed**: qa/test gates re-run green on top of Groups A–H
+  (12 suites, 88 tests); security-check red only on pre-existing dependency advisories.
+  DEV deploy rides the pending PR #171 merge. Status `done`.
