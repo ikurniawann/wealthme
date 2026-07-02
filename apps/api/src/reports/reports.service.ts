@@ -2,7 +2,8 @@ import { Injectable } from "@nestjs/common";
 import { CoaDirection, type TransactionType } from "@prisma/client";
 
 import { transactionTypeToCoaDirection } from "../common/utils/coa-direction.util";
-import { type PrismaService } from "../prisma/prisma.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { PrismaService } from "../prisma/prisma.service";
 
 import type {
   BalanceSheetDto,
