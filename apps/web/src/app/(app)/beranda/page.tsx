@@ -40,9 +40,21 @@ import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, formatRupiahCompact } from "@/lib/format";
-import type { DashboardSummaryDto, GoalDto } from "@wealthme/contracts";
+import type {
+  DashboardSummaryDto,
+  GoalDto,
+  NetWorthHistoryDto,
+} from "@wealthme/contracts";
 
 const PERIODS = ["1M", "3M", "6M", "1Y", "All"] as const;
+
+const PERIOD_RANGE: Record<(typeof PERIODS)[number], string> = {
+  "1M": "30d",
+  "3M": "3m",
+  "6M": "6m",
+  "1Y": "12m",
+  All: "120m",
+};
 
 const ACCOUNT_TYPE_ICON: Record<string, { icon: LucideIcon; chip: string }> = {
   bank: { icon: Landmark, chip: "bg-blue-100 text-blue-600" },
@@ -89,6 +101,19 @@ export default function BerandaPage() {
     queryFn: () =>
       apiFetch<DashboardSummaryDto>(
         `/family-groups/${familyGroupId}/dashboard/summary`,
+        { token: session?.accessToken },
+      ),
+    enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
+    staleTime: 60_000,
+  });
+
+  const range = PERIOD_RANGE[period];
+  // ponytail: inline key — lib/query-keys.ts is a protected foundation file.
+  const { data: netWorthHistory } = useQuery<NetWorthHistoryDto>({
+    queryKey: ["dashboard", familyGroupId ?? "", "net-worth-history", range],
+    queryFn: () =>
+      apiFetch<NetWorthHistoryDto>(
+        `/family-groups/${familyGroupId}/dashboard/net-worth/history?range=${range}`,
         { token: session?.accessToken },
       ),
     enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
@@ -183,10 +208,17 @@ export default function BerandaPage() {
     date: formatRelativeDate(tx.occurredAt),
   }));
 
+  // Real wealth trend from persisted snapshots; falls back to the 30-day
+  // transaction-flow proxy until enough snapshots accumulate.
+  const snapshotPoints = (netWorthHistory?.points ?? []).map((p) =>
+    Number(p.netWorth),
+  );
   const sparklinePoints =
-    summary?.sparkline && summary.sparkline.length > 0
-      ? summary.sparkline
-      : (Array(30).fill(50) as number[]);
+    snapshotPoints.length >= 2
+      ? snapshotPoints
+      : summary?.sparkline && summary.sparkline.length > 0
+        ? summary.sparkline
+        : (Array(30).fill(50) as number[]);
 
   const cashflow = summary?.cashflow;
   const netWorth = summary?.netWorth ?? 0;

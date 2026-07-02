@@ -27,6 +27,21 @@ export interface NetWorthDto {
   currency: string;
 }
 
+export interface NetWorthHistoryPointDto {
+  capturedAt: string;
+  totalCash: string;
+  totalInvestments: string;
+  totalAssets: string;
+  totalLiabilities: string;
+  netWorth: string;
+}
+
+export interface NetWorthHistoryDto {
+  range: string;
+  currency: string;
+  points: NetWorthHistoryPointDto[];
+}
+
 export interface DashboardSummaryDto {
   netWorth: number;
   assetsTotal: number;

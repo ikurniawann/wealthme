@@ -215,6 +215,7 @@ model FamilyGroup {
   donations          Donation[]
   taxRecords         TaxRecord[]
   bankSyncs          BankSync[]
+  netWorthSnapshots  NetWorthSnapshot[]
 
   @@map("family_groups")
 }
@@ -330,6 +331,7 @@ model Goal {
   currentAmount   BigInt      @default(0)
   targetDate      DateTime?
   autoDebitAmount BigInt?
+  lastAutoDebitAt DateTime?
   status          GoalStatus  @default(on_track)
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -379,6 +381,21 @@ model AssetHistory {
 
   @@index([assetId, recordedAt])
   @@map("asset_history")
+}
+
+model NetWorthSnapshot {
+  id               String      @id @default(uuid())
+  familyGroupId    String
+  capturedAt       DateTime    @default(now())
+  totalCash        BigInt
+  totalInvestments BigInt
+  totalAssets      BigInt
+  totalLiabilities BigInt
+  netWorth         BigInt
+  familyGroup      FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@index([familyGroupId, capturedAt])
+  @@map("net_worth_snapshots")
 }
 
 model Investment {
