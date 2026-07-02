@@ -167,6 +167,14 @@ export default function BerandaPage() {
     }),
   );
 
+  const SUMMARY_ROUTE: Record<string, string> = {
+    investment: "/investasi",
+    property: "/aset",
+    bank: "/rekening",
+    ewallet: "/rekening",
+    cash: "/rekening",
+  };
+
   const summaryCards = (summary?.accountSummary ?? []).map((s) => {
     const cfg = ACCOUNT_TYPE_ICON[s.type] ?? {
       icon: Wallet,
@@ -179,6 +187,7 @@ export default function BerandaPage() {
       amount: formatRupiahCompact(s.total),
       delta: "—",
       up: true as boolean,
+      href: SUMMARY_ROUTE[s.type] ?? "/rekening",
     };
   });
 
@@ -376,7 +385,16 @@ export default function BerandaPage() {
               ))
           : summaryCards.slice(0, 5).map((s, i) => (
               <Rise key={s.label} index={2 + i}>
-                <div className="transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
+                <div
+                  role="link"
+                  tabIndex={0}
+                  aria-label={`Buka ${s.label}`}
+                  onClick={() => router.push(s.href)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") router.push(s.href);
+                  }}
+                  className="cursor-pointer transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]"
+                >
                   <SummaryCard
                     icon={
                       <IconChip icon={s.icon} className={s.chip} size={34} />

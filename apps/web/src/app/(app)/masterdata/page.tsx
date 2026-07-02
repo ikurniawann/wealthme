@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { CategoryDto } from "@wealthme/contracts";
@@ -80,6 +81,7 @@ export default function MasterDataPage() {
   const enabled = Boolean(familyGroupId) && Boolean(token);
 
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const { data: categories, isLoading: isCategoriesLoading } = useQuery<
     CategoryDto[]
@@ -201,11 +203,16 @@ export default function MasterDataPage() {
         <SectionCard
           title="🏷️ Kategori"
           action={
-            <CardLink
-              onClick={() => setCrud({ entity: "mdkategori", mode: "add" })}
-            >
-              + Tambah
-            </CardLink>
+            <span className="flex items-center gap-3">
+              <CardLink onClick={() => router.push("/mastercoa")}>
+                Master COA
+              </CardLink>
+              <CardLink
+                onClick={() => setCrud({ entity: "mdkategori", mode: "add" })}
+              >
+                + Tambah
+              </CardLink>
+            </span>
           }
         >
           {isCategoriesLoading || !enabled ? (

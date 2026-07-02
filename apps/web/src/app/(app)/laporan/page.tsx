@@ -1155,6 +1155,7 @@ function StatementRow({
 }
 
 function PnlSection({ pnl, isLoading }: { pnl?: PnlDto; isLoading?: boolean }) {
+  const router = useRouter();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const now = new Date();
   const bulan = now.toLocaleDateString("id-ID", {
@@ -1234,6 +1235,16 @@ function PnlSection({ pnl, isLoading }: { pnl?: PnlDto; isLoading?: boolean }) {
             />
           </tbody>
         </table>
+        <div className="mt-2 text-right text-[11px] text-muted-foreground">
+          Arah pendapatan/beban mengikuti{" "}
+          <button
+            type="button"
+            onClick={() => router.push("/mastercoa")}
+            className="cursor-pointer font-semibold text-primary hover:underline"
+          >
+            Master COA
+          </button>
+        </div>
       </SectionCard>
     </div>
   );

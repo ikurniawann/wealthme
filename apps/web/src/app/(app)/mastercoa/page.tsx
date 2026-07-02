@@ -1,10 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth-compat";
 import { apiFetch } from "@/lib/api-client";
-import { SectionCard, StatusBadge } from "@/components/wm";
+import {
+  SectionCard,
+  StatusBadge,
+  CardLink,
+  IconChip,
+  Rise,
+} from "@/components/wm";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
@@ -97,6 +104,7 @@ export default function MasterCoaPage() {
   const familyGroupId = session?.familyGroupId;
   const token = session?.accessToken;
   const qc = useQueryClient();
+  const router = useRouter();
 
   const [activeTab, setActiveTab] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
@@ -113,6 +121,26 @@ export default function MasterCoaPage() {
       }),
     enabled: Boolean(familyGroupId) && Boolean(token),
   });
+
+  // App categories — used to show which COA accounts are already connected to
+  // the kategori master data that transactions actually use.
+  const { data: categories = [] } = useQuery<
+    { id: string; name: string; kind: string }[]
+  >({
+    queryKey: ["categories", familyGroupId],
+    queryFn: ({ signal }) =>
+      apiFetch<{ id: string; name: string; kind: string }[]>(
+        `/family-groups/${familyGroupId}/categories`,
+        { token, signal },
+      ),
+    enabled: Boolean(familyGroupId) && Boolean(token),
+  });
+
+  const coaNames = new Set(accounts.map((a) => a.name.trim().toLowerCase()));
+  const linkedCategories = categories.filter((c) =>
+    coaNames.has(c.name.trim().toLowerCase()),
+  );
+  const unmappedCount = categories.length - linkedCategories.length;
 
   const filtered =
     activeTab === 0
@@ -243,27 +271,89 @@ export default function MasterCoaPage() {
     <div className="space-y-4">
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-        <SectionCard title="Total Akun" bodyClassName="pt-2 pb-3">
-          <div className="flex items-center gap-2">
-            <BookOpen className="size-8 text-primary" />
-            <div>
-              <div className="text-2xl font-extrabold">{accounts.length}</div>
-              <div className="text-[11px] text-muted-foreground">6 grup</div>
-            </div>
+        <Rise index={0}>
+          <div className="h-full transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
+            <SectionCard title="Total Akun" bodyClassName="pt-2 pb-3">
+              <div className="flex items-center gap-2.5">
+                <IconChip
+                  icon={BookOpen}
+                  className="bg-blue-100 text-blue-600"
+                  size={34}
+                />
+                <div>
+                  <div className="text-2xl font-extrabold">
+                    {accounts.length}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    6 grup
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
           </div>
-        </SectionCard>
-        {[1, 2, 3].map((g) => (
-          <SectionCard
-            key={g}
-            title={GROUP_LABELS[g] ?? ""}
-            bodyClassName="pt-2 pb-3"
-          >
-            <div className="text-2xl font-extrabold">
-              {accounts.filter((a) => a.groupNum === g).length}
-            </div>
-            <div className="text-[11px] text-muted-foreground">akun</div>
-          </SectionCard>
-        ))}
+        </Rise>
+        <Rise index={1}>
+          <div className="h-full transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
+            <SectionCard
+              title="Kategori Terhubung"
+              bodyClassName="pt-2 pb-3"
+              action={
+                <CardLink onClick={() => router.push("/masterdata")}>
+                  Kelola
+                </CardLink>
+              }
+            >
+              <div className="text-2xl font-extrabold text-success">
+                {linkedCategories.length}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                dari {categories.length} kategori aplikasi
+              </div>
+            </SectionCard>
+          </div>
+        </Rise>
+        <Rise index={2}>
+          <div className="h-full transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
+            <SectionCard
+              title="Belum Dimapping"
+              bodyClassName="pt-2 pb-3"
+              action={
+                <CardLink onClick={() => router.push("/masterdata")}>
+                  Kelola
+                </CardLink>
+              }
+            >
+              <div
+                className={`text-2xl font-extrabold ${unmappedCount > 0 ? "text-warning" : "text-success"}`}
+              >
+                {unmappedCount}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                kategori tanpa akun COA
+              </div>
+            </SectionCard>
+          </div>
+        </Rise>
+        <Rise index={3}>
+          <div className="h-full transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
+            <SectionCard
+              title="Dipakai di Laporan"
+              bodyClassName="pt-2 pb-3"
+              action={
+                <CardLink onClick={() => router.push("/laporan")}>
+                  Lihat
+                </CardLink>
+              }
+            >
+              <div className="text-[13px] font-bold leading-snug pt-1">
+                PNL · Neraca · Arus Kas
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                arah akun menentukan laporan
+              </div>
+            </SectionCard>
+          </div>
+        </Rise>
       </div>
 
       {/* Main table card */}
