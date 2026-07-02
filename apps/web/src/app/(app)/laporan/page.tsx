@@ -934,12 +934,6 @@ function DetailSection({
     <div className={"space-y-3.5 " + loadingClass}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-[15px] font-bold">Laporan Detail Transaksi</div>
-        <button
-          onClick={() => toast("📥 Export Excel...")}
-          className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3.5 py-2 text-[12px] font-semibold transition-colors hover:bg-accent"
-        >
-          <FileSpreadsheet className="size-3.5" /> Export
-        </button>
       </div>
       <SectionCard>
         <div className="w-full overflow-x-auto">

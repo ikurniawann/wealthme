@@ -586,7 +586,51 @@ export default function AsuransiPage() {
 
   const [showModal, setShowModal] = useState(false);
   const [crud, setCrud] = useState<CrudModalState | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<InsuranceDto | null>(null);
+
+  const CRUD_TYPE_BY_JENIS: Record<string, string> = {
+    Jiwa: "jiwa",
+    Kesehatan: "kesehatan",
+    Kendaraan: "kendaraan",
+    Properti: "properti",
+    Pendidikan: "lainnya",
+  };
+
+  async function handleEditSubmit(
+    _entity: string,
+    _mode: "add" | "edit",
+    values: Record<string, string>,
+  ) {
+    if (!familyGroupId || !token || !editingId) return;
+    try {
+      await apiFetch(
+        `/family-groups/${familyGroupId}/insurances/${editingId}`,
+        {
+          token,
+          method: "PATCH",
+          body: JSON.stringify({
+            name: values.nama,
+            type: CRUD_TYPE_BY_JENIS[values.jenis ?? ""] ?? "lainnya",
+            premiumAmount: String(parseRupiah(values.premi ?? "0")),
+            coverageAmount: values.pertanggungan
+              ? String(parseRupiah(values.pertanggungan))
+              : undefined,
+            renewalDate: values.jatuhtempo || undefined,
+          }),
+        },
+      );
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.insurances.all(familyGroupId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.insurances.summary(familyGroupId),
+      });
+      toast.success("Asuransi berhasil diperbarui!");
+    } catch {
+      toast.error("Gagal memperbarui asuransi. Coba lagi.");
+    }
+  }
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
@@ -613,6 +657,7 @@ export default function AsuransiPage() {
   });
 
   const openEdit = (item: InsuranceDto) => {
+    setEditingId(item.id);
     setCrud({
       entity: "asuransi",
       mode: "edit",
@@ -726,7 +771,11 @@ export default function AsuransiPage() {
         />
       )}
 
-      <CrudModal state={crud} onClose={() => setCrud(null)} />
+      <CrudModal
+        state={crud}
+        onClose={() => setCrud(null)}
+        onSubmit={handleEditSubmit}
+      />
       <ConfirmDeleteDialog
         label={deleteTarget ? "Asuransi" : null}
         onClose={() => setDeleteTarget(null)}

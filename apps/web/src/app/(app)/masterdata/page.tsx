@@ -125,8 +125,10 @@ export default function MasterDataPage() {
     values: Record<string, string>,
   ) => {
     if (entity !== "mdkategori") {
-      // Reference lists have no backend; keep demo-parity feedback.
-      toast.success("Data referensi ditambahkan (lokal).");
+      // Reference lists have no backend — say so instead of faking success.
+      toast.info(
+        "Daftar referensi ini bawaan sistem — penambahan belum didukung.",
+      );
       return;
     }
     if (!enabled) {

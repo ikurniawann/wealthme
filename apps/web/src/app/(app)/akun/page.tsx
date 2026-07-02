@@ -7,6 +7,7 @@ import { authClient } from "@/lib/auth-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { parseRupiah } from "@/lib/format";
 import {
   ChevronRight,
   User,
@@ -1318,17 +1319,26 @@ function AddAdminDialog({
 
   const { mutate: sendInvite, isPending } = useMutation({
     mutationFn: (email: string) =>
-      apiFetch(`/family-groups/${familyGroupId}/invitations`, {
-        method: "POST",
-        token,
-        body: JSON.stringify({ email, role: "admin_staff" }),
-      }),
-    onSuccess: () => {
+      apiFetch<{ token: string }>(
+        `/family-groups/${familyGroupId}/invitations`,
+        {
+          method: "POST",
+          token,
+          body: JSON.stringify({ email, role: "admin_staff" }),
+        },
+      ),
+    onSuccess: (invitation) => {
       onOpenChange(false);
-      toast.success("Undangan admin terkirim!");
+      // No invitation email exists yet — hand the join link to the owner.
+      const link = `${window.location.origin}/join/${invitation.token}`;
+      void navigator.clipboard.writeText(link).catch(() => {});
+      toast.success("Undangan dibuat — link disalin ke clipboard.", {
+        description: link,
+        duration: 10000,
+      });
     },
     onError: () => {
-      toast.error("Gagal mengirim undangan. Periksa email dan coba lagi.");
+      toast.error("Gagal membuat undangan. Periksa email dan coba lagi.");
     },
   });
 
@@ -1543,6 +1553,60 @@ export default function AkunPage() {
 
   const open = (id: SubPageId) => setSubpage(id);
   const closeSheet = () => setSubpage(null);
+
+  const familyGroupId = session?.familyGroupId ?? null;
+
+  async function handleCrudSubmit(
+    entity: string,
+    _mode: "add" | "edit",
+    values: Record<string, string>,
+  ) {
+    if (!familyGroupId || !token) return;
+    try {
+      if (entity === "rekening" || entity === "ewallet") {
+        await apiFetch(`/family-groups/${familyGroupId}/accounts`, {
+          token,
+          method: "POST",
+          body: JSON.stringify({
+            type: entity === "rekening" ? "bank" : "ewallet",
+            name:
+              values.nama ||
+              (entity === "rekening"
+                ? `${values.bank ?? "Bank"} ${values.jenis ?? ""}`.trim()
+                : "E-Wallet"),
+            institution: entity === "rekening" ? values.bank : values.nama,
+            maskedNumber: values.norek || values.phone || undefined,
+            balance: parseRupiah(values.saldo ?? "0"),
+          }),
+        });
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.accounts.all(familyGroupId),
+        });
+        toast.success(
+          entity === "rekening"
+            ? "Rekening berhasil ditambahkan!"
+            : "E-Wallet berhasil ditambahkan!",
+        );
+      } else if (entity === "member") {
+        const invitation = await apiFetch<{ token: string }>(
+          `/family-groups/${familyGroupId}/invitations`,
+          {
+            token,
+            method: "POST",
+            body: JSON.stringify({ email: values.email, role: "member" }),
+          },
+        );
+        const link = `${window.location.origin}/join/${invitation.token}`;
+        await navigator.clipboard.writeText(link).catch(() => {});
+        toast.success("Undangan dibuat — link disalin ke clipboard.", {
+          description: link,
+          duration: 10000,
+        });
+      }
+    } catch {
+      toast.error("Gagal menyimpan. Coba lagi.");
+    }
+  }
 
   function renderBody(id: SubPageId) {
     switch (id) {
@@ -1775,7 +1839,11 @@ export default function AkunPage() {
         familyGroupId={primaryGroup?.id ?? null}
         token={token}
       />
-      <CrudModal state={crud} onClose={() => setCrud(null)} />
+      <CrudModal
+        state={crud}
+        onClose={() => setCrud(null)}
+        onSubmit={handleCrudSubmit}
+      />
     </div>
   );
 }

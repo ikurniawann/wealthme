@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useSession, signOut } from "@/lib/auth-compat";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { SectionCard, HeroCard, CardLink } from "@/components/wm";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { formatRupiah } from "@/lib/format";
+import { formatRupiah, parseRupiah } from "@/lib/format";
 import { CrudModal, RowActions, ConfirmDeleteDialog } from "@/components/crud";
 import type { CrudModalState } from "@/components/crud";
 
@@ -99,8 +99,75 @@ export default function DanaPage() {
     0,
   );
 
+  const queryClient = useQueryClient();
   const [crudState, setCrudState] = useState<CrudModalState | null>(null);
-  const [deleteLabel, setDeleteLabel] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<AccountDto | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function invalidateAccounts() {
+    if (!familyGroupId) return;
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.accounts.all(familyGroupId),
+    });
+  }
+
+  async function handleSubmit(
+    _entity: string,
+    mode: "add" | "edit",
+    values: Record<string, string>,
+  ) {
+    if (!familyGroupId || !token) return;
+    setSubmitting(true);
+    try {
+      const balance = parseRupiah(values.saldo ?? "0");
+      if (mode === "edit" && editingId) {
+        await apiFetch(
+          `/family-groups/${familyGroupId}/accounts/${editingId}`,
+          {
+            token,
+            method: "PATCH",
+            body: JSON.stringify({ name: values.nama, balance }),
+          },
+        );
+        toast.success("E-Wallet berhasil diperbarui!");
+      } else {
+        await apiFetch(`/family-groups/${familyGroupId}/accounts`, {
+          token,
+          method: "POST",
+          body: JSON.stringify({
+            type: "ewallet",
+            name: values.nama,
+            institution: values.nama,
+            maskedNumber: values.phone || undefined,
+            balance,
+          }),
+        });
+        toast.success("E-Wallet berhasil ditambahkan!");
+      }
+      await invalidateAccounts();
+    } catch {
+      toast.error("Gagal menyimpan e-wallet. Coba lagi.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDeleteConfirm() {
+    if (!familyGroupId || !token || !deleting) return;
+    try {
+      await apiFetch(
+        `/family-groups/${familyGroupId}/accounts/${deleting.id}`,
+        { token, method: "DELETE" },
+      );
+      toast.success("E-Wallet berhasil dihapus.");
+      await invalidateAccounts();
+    } catch {
+      toast.error("Gagal menghapus e-wallet. Coba lagi.");
+    } finally {
+      setDeleting(null);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -167,7 +234,8 @@ export default function DanaPage() {
             key={item.id}
             item={item}
             border={i < ewalletItems.length - 1}
-            onEdit={() =>
+            onEdit={() => {
+              setEditingId(item.id);
               setCrudState({
                 entity: "ewallet",
                 mode: "edit",
@@ -175,22 +243,23 @@ export default function DanaPage() {
                   nama: item.name,
                   saldo: String(item.balance),
                 },
-              })
-            }
-            onDelete={() => setDeleteLabel("E-Wallet")}
+              });
+            }}
+            onDelete={() => setDeleting(item)}
           />
         ))}
       </SectionCard>
 
-      <CrudModal state={crudState} onClose={() => setCrudState(null)} />
+      <CrudModal
+        state={crudState}
+        onClose={() => setCrudState(null)}
+        onSubmit={submitting ? undefined : handleSubmit}
+      />
 
       <ConfirmDeleteDialog
-        label={deleteLabel}
-        onClose={() => setDeleteLabel(null)}
-        onConfirm={() => {
-          toast("🗑️ E-Wallet dihapus.");
-          setDeleteLabel(null);
-        }}
+        label={deleting ? `"${deleting.name}"` : null}
+        onClose={() => setDeleting(null)}
+        onConfirm={handleDeleteConfirm}
       />
     </div>
   );

@@ -68,12 +68,19 @@ function CardTitle({ children }: { children: React.ReactNode }) {
 
 interface AssetRowProps {
   item: InheritanceAssetDto;
+  onEdit: () => void;
   onDelete: () => void;
   onVisibilityToggle: (visible: boolean) => void;
   last: boolean;
 }
 
-function AssetRow({ item, onDelete, onVisibilityToggle, last }: AssetRowProps) {
+function AssetRow({
+  item,
+  onEdit,
+  onDelete,
+  onVisibilityToggle,
+  last,
+}: AssetRowProps) {
   const icon = ASSET_TYPE_ICON[item.assetType] ?? "📋";
   const iconBg = ASSET_TYPE_BG[item.assetType] ?? "#F3F4F6";
   const heirSummary =
@@ -106,11 +113,7 @@ function AssetRow({ item, onDelete, onVisibilityToggle, last }: AssetRowProps) {
         onCheckedChange={onVisibilityToggle}
         className="shrink-0"
       />
-      <RowActions
-        className="ml-1"
-        onEdit={() => toast("✏️ Edit Aset Warisan")}
-        onDelete={onDelete}
-      />
+      <RowActions className="ml-1" onEdit={onEdit} onDelete={onDelete} />
     </div>
   );
 }
@@ -140,6 +143,7 @@ export default function WarisanPage() {
   const queryClient = useQueryClient();
 
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<InheritanceAssetDto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<InheritanceAssetDto | null>(
     null,
   );
@@ -176,6 +180,22 @@ export default function WarisanPage() {
       resetForm();
     },
     onError: () => toast.error("Gagal menyimpan aset warisan."),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: UpdateInheritanceAssetDto }) =>
+      apiFetch<InheritanceAssetDto>(
+        `/family-groups/${familyGroupId}/inheritance/${id}`,
+        { method: "PATCH", body: JSON.stringify(dto), token },
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: listKey ?? [] });
+      toast.success("Aset warisan diperbarui!");
+      setOpen(false);
+      setEditing(null);
+      resetForm();
+    },
+    onError: () => toast.error("Gagal memperbarui aset warisan."),
   });
 
   const updateVisibilityMutation = useMutation({
@@ -224,6 +244,16 @@ export default function WarisanPage() {
     setVisible(true);
   }
 
+  function openEditAsset(item: InheritanceAssetDto) {
+    setEditing(item);
+    setAssetType(item.assetType);
+    setName(item.name);
+    setValueInput(Number(BigInt(item.estimatedValue)).toLocaleString("id-ID"));
+    setNotes(item.notes ?? "");
+    setVisible(visibilityToBoolean(item.visibility));
+    setOpen(true);
+  }
+
   function handleSave() {
     const raw = valueInput.replace(/\D/g, "");
     const estimatedValue = parseInt(raw, 10);
@@ -235,13 +265,18 @@ export default function WarisanPage() {
       toast.error("Nilai estimasi tidak valid.");
       return;
     }
-    createMutation.mutate({
+    const dto = {
       name: name.trim(),
       assetType,
       estimatedValue,
       notes: notes.trim() || undefined,
       visibility: booleanToVisibility(visible),
-    });
+    };
+    if (editing) {
+      updateMutation.mutate({ id: editing.id, dto });
+    } else {
+      createMutation.mutate(dto);
+    }
   }
 
   // Group assets by assetType
@@ -320,6 +355,7 @@ export default function WarisanPage() {
                 key={item.id}
                 item={item}
                 last={i === items.length - 1}
+                onEdit={() => openEditAsset(item)}
                 onDelete={() => setDeleteTarget(item)}
                 onVisibilityToggle={(v) =>
                   updateVisibilityMutation.mutate({
@@ -368,12 +404,15 @@ export default function WarisanPage() {
         open={open}
         onOpenChange={(v) => {
           setOpen(v);
-          if (!v) resetForm();
+          if (!v) {
+            setEditing(null);
+            resetForm();
+          }
         }}
       >
         <DialogContent className="max-w-[480px] p-6 sm:max-w-[480px]">
           <DialogTitle className="mb-4 text-[17px] font-extrabold">
-            Tambah Aset Warisan
+            {editing ? "Edit Aset Warisan" : "Tambah Aset Warisan"}
           </DialogTitle>
 
           <div className="space-y-4">

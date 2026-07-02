@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { Share2 } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { toast } from "sonner";
@@ -676,6 +677,7 @@ function TabunganTab() {
 /* ─────────────────────────── Split Group ─────────────────────────── */
 
 function SplitGroupTab() {
+  const router = useRouter();
   const [total, setTotal] = useState("1.250.000");
   const [people, setPeople] = useState("5");
   const [tax, setTax] = useState("10");
@@ -756,7 +758,7 @@ function SplitGroupTab() {
       </div>
       <Button
         className="mt-3.5 w-full"
-        onClick={() => toast.success("Lanjutkan buat Split Bill →")}
+        onClick={() => router.push("/splitbill")}
       >
         <Share2 className="size-4" /> Buat Split Bill dari Hitungan Ini
       </Button>

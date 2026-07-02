@@ -126,8 +126,13 @@ export const auth = betterAuth({
     session: {
       create: {
         before: async (session) => {
+          // Most-recent membership wins so a freshly accepted invitation
+          // becomes the active group on the next sign-in.
+          // ponytail: newest-first heuristic; add a group switcher when
+          // multi-group users need manual control.
           const member = await prisma.member.findFirst({
             where: { userId: session.userId },
+            orderBy: { createdAt: "desc" },
             select: { familyGroupId: true },
           });
           return {
