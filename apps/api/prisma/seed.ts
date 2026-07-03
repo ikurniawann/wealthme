@@ -44,7 +44,7 @@ export async function main(): Promise<void> {
     where: { email: "demo@wealthme.id" },
     update: { name: "Demo User", avatarInitials: "DU" },
     create: {
-      id: "seed-user-demo",
+      id: "320a230f-320e-4c1e-9ac2-24a5802bb7b5",
       email: "demo@wealthme.id",
       name: "Demo User",
       avatarInitials: "DU",
@@ -53,10 +53,10 @@ export async function main(): Promise<void> {
   });
 
   await prisma.baAccount.upsert({
-    where: { id: "seed-ba-demo" },
+    where: { id: "9a9906c6-c7c3-43ae-b578-7d61a5962313" },
     update: { password: passwordHash },
     create: {
-      id: "seed-ba-demo",
+      id: "9a9906c6-c7c3-43ae-b578-7d61a5962313",
       accountId: "demo@wealthme.id",
       providerId: "credential",
       userId: demoUser.id,
@@ -74,7 +74,7 @@ export async function main(): Promise<void> {
     },
     update: { role: "owner" },
     create: {
-      id: "seed-member-demo",
+      id: "8d654752-ac4b-40c9-b73b-634f642d563c",
       userId: demoUser.id,
       familyGroupId: family.id,
       role: "owner",
@@ -89,7 +89,7 @@ export async function main(): Promise<void> {
     },
     update: { balance: 128_450_000n },
     create: {
-      id: "seed-ac-bca",
+      id: "c7c973f6-43db-48a9-a726-3466e8c7713c",
       familyGroupId: FG,
       name: "BCA Tahapan ···9010",
       type: "bank",
@@ -106,7 +106,7 @@ export async function main(): Promise<void> {
     },
     update: { balance: 85_200_000n },
     create: {
-      id: "seed-ac-mandiri",
+      id: "016b4f1e-38bb-4e34-a60e-d402f4138ef2",
       familyGroupId: FG,
       name: "Mandiri ···5586",
       type: "bank",
@@ -121,7 +121,7 @@ export async function main(): Promise<void> {
     where: { familyGroupId_name: { familyGroupId: FG, name: "BNI ···2234" } },
     update: { balance: 32_000_000n },
     create: {
-      id: "seed-ac-bni",
+      id: "42a83ca0-56a9-41e3-8d2c-9a1ab62622e5",
       familyGroupId: FG,
       name: "BNI ···2234",
       type: "bank",
@@ -136,7 +136,7 @@ export async function main(): Promise<void> {
     where: { familyGroupId_name: { familyGroupId: FG, name: "GoPay" } },
     update: { balance: 2_450_000n },
     create: {
-      id: "seed-ac-gopay",
+      id: "1353a88d-d8ec-4e8d-84cb-86f3a6483e76",
       familyGroupId: FG,
       name: "GoPay",
       type: "ewallet",
@@ -151,7 +151,7 @@ export async function main(): Promise<void> {
     where: { familyGroupId_name: { familyGroupId: FG, name: "OVO" } },
     update: { balance: 1_200_000n },
     create: {
-      id: "seed-ac-ovo",
+      id: "fe5c0fb5-b54c-4307-ae32-82e6152f9c87",
       familyGroupId: FG,
       name: "OVO",
       type: "ewallet",
@@ -166,7 +166,7 @@ export async function main(): Promise<void> {
     where: { familyGroupId_name: { familyGroupId: FG, name: "Kas Tunai" } },
     update: { balance: 3_000_000n },
     create: {
-      id: "seed-ac-cash",
+      id: "927b685c-df19-4e8a-a1c7-cea4db8f2230",
       familyGroupId: FG,
       name: "Kas Tunai",
       type: "cash",
@@ -189,7 +189,7 @@ export async function main(): Promise<void> {
     },
     update: {},
     create: {
-      id: "seed-d-cat-gaji",
+      id: "43bd91b8-5d97-456d-8250-39cd62c7d6c0",
       familyGroupId: FG,
       name: "Gaji",
       kind: "income",
@@ -207,7 +207,7 @@ export async function main(): Promise<void> {
     },
     update: {},
     create: {
-      id: "seed-cat-bonus",
+      id: "fa614ca6-2269-486f-bf60-4b1e3dee9579",
       familyGroupId: FG,
       name: "Bonus",
       kind: "income",
@@ -225,7 +225,7 @@ export async function main(): Promise<void> {
     },
     update: {},
     create: {
-      id: "seed-cat-freelance",
+      id: "14cb512b-a51d-4f82-9ed6-d453f73b6cc3",
       familyGroupId: FG,
       name: "Freelance",
       kind: "income",
@@ -243,7 +243,7 @@ export async function main(): Promise<void> {
     },
     update: {},
     create: {
-      id: "seed-cat-investasi-in",
+      id: "bf9a372b-9ed1-4eaf-ad3a-5ad1e40e1c7f",
       familyGroupId: FG,
       name: "Hasil Investasi",
       kind: "income",
@@ -261,7 +261,7 @@ export async function main(): Promise<void> {
     },
     update: {},
     create: {
-      id: "seed-cat-lain-in",
+      id: "34838088-0eac-4864-8d3d-aa4c0638b1dc",
       familyGroupId: FG,
       name: "Lainnya Pemasukan",
       kind: "income",
@@ -280,7 +280,7 @@ export async function main(): Promise<void> {
     },
     update: {},
     create: {
-      id: "seed-d-cat-makan",
+      id: "2c62d7f7-618b-4260-b69e-62034af304c6",
       familyGroupId: FG,
       name: "Makan & Minum",
       kind: "expense",
@@ -298,7 +298,7 @@ export async function main(): Promise<void> {
     },
     update: {},
     create: {
-      id: "seed-cat-transport",
+      id: "57a1f917-dfe0-4804-8464-78986aa0bceb",
       familyGroupId: FG,
       name: "Transportasi",
       kind: "expense",
@@ -316,7 +316,7 @@ export async function main(): Promise<void> {
     },
     update: {},
     create: {
-      id: "seed-cat-belanja",
+      id: "d94f2e06-4276-490a-9e24-4e45d879e755",
       familyGroupId: FG,
       name: "Belanja",
       kind: "expense",
@@ -334,7 +334,7 @@ export async function main(): Promise<void> {
     },
     update: {},
     create: {
-      id: "seed-cat-tagihan",
+      id: "8ce7929f-9eb5-429f-b12a-c2a09fefe617",
       familyGroupId: FG,
       name: "Tagihan & Utilitas",
       kind: "expense",
@@ -352,7 +352,7 @@ export async function main(): Promise<void> {
     },
     update: {},
     create: {
-      id: "seed-cat-kesehatan",
+      id: "5d27e516-0506-4c08-96f4-6ef9a8a1d53c",
       familyGroupId: FG,
       name: "Kesehatan",
       kind: "expense",
@@ -370,7 +370,7 @@ export async function main(): Promise<void> {
     },
     update: {},
     create: {
-      id: "seed-cat-hiburan",
+      id: "ee9e96ee-ad43-45fd-846f-584dbf9c29e1",
       familyGroupId: FG,
       name: "Hiburan",
       kind: "expense",
@@ -388,7 +388,7 @@ export async function main(): Promise<void> {
     },
     update: {},
     create: {
-      id: "seed-cat-pendidikan",
+      id: "cb31c385-996f-4edb-983c-9068ba67fcd0",
       familyGroupId: FG,
       name: "Pendidikan",
       kind: "expense",
@@ -406,7 +406,7 @@ export async function main(): Promise<void> {
     },
     update: {},
     create: {
-      id: "seed-cat-kpr",
+      id: "bb6b5ec2-fbbc-419b-b444-216029b91194",
       familyGroupId: FG,
       name: "Cicilan KPR",
       kind: "expense",
@@ -424,7 +424,7 @@ export async function main(): Promise<void> {
     },
     update: {},
     create: {
-      id: "seed-cat-investasi-ex",
+      id: "f94127c4-52ce-4d5f-bb6a-73057a7d242d",
       familyGroupId: FG,
       name: "Tabungan & Investasi",
       kind: "expense",
@@ -442,7 +442,7 @@ export async function main(): Promise<void> {
     },
     update: {},
     create: {
-      id: "seed-cat-lain-ex",
+      id: "18fab853-d2c9-4379-b1ca-17cca86c98e2",
       familyGroupId: FG,
       name: "Lainnya Pengeluaran",
       kind: "expense",
@@ -466,7 +466,7 @@ export async function main(): Promise<void> {
   const txSeeds: TxSeed[] = [
     // ── Bulan ini (0) ──────────────────────────────────
     {
-      id: "seed-tx-gaji-m0",
+      id: "724f9260-63ed-40e2-aca2-f19a5e116276",
       accountId: acBCA.id,
       categoryId: catGaji.id,
       amount: 25_850_000n,
@@ -475,7 +475,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(0, 1),
     },
     {
-      id: "seed-tx-kpr-m0",
+      id: "99ad3e49-0f96-4203-9b9f-24d178a9c611",
       accountId: acBCA.id,
       categoryId: catKPR.id,
       amount: 4_200_000n,
@@ -484,7 +484,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(0, 5),
     },
     {
-      id: "seed-tx-makan-m0a",
+      id: "3c8611ab-fce5-4c33-95f8-9a3a7bb6f3d3",
       accountId: acGoPay.id,
       categoryId: catMakan.id,
       amount: 380_000n,
@@ -493,7 +493,7 @@ export async function main(): Promise<void> {
       occurredAt: daysAgo(2),
     },
     {
-      id: "seed-tx-transport-m0",
+      id: "95e174a6-7ed4-477e-b92e-0a27b1c7a6e4",
       accountId: acGoPay.id,
       categoryId: catTransport.id,
       amount: 220_000n,
@@ -502,7 +502,7 @@ export async function main(): Promise<void> {
       occurredAt: daysAgo(3),
     },
     {
-      id: "seed-tx-tagihan-m0",
+      id: "ff9c1223-d287-4c1e-b89e-5ada73ff7d73",
       accountId: acBCA.id,
       categoryId: catTagihan.id,
       amount: 850_000n,
@@ -511,7 +511,7 @@ export async function main(): Promise<void> {
       occurredAt: daysAgo(5),
     },
     {
-      id: "seed-tx-belanja-m0",
+      id: "efb43da9-9546-4152-85c8-f903c1e9f747",
       accountId: acOVO.id,
       categoryId: catBelanja.id,
       amount: 650_000n,
@@ -520,7 +520,7 @@ export async function main(): Promise<void> {
       occurredAt: daysAgo(6),
     },
     {
-      id: "seed-tx-investasi-m0",
+      id: "abe158f7-919c-457c-8a70-f4c68460db43",
       accountId: acBCA.id,
       categoryId: catInvestasiEx.id,
       amount: 3_000_000n,
@@ -531,7 +531,7 @@ export async function main(): Promise<void> {
 
     // ── Bulan lalu (1) ─────────────────────────────────
     {
-      id: "seed-tx-gaji-m1",
+      id: "55dbd453-9859-4cef-8b64-2ffa8f284973",
       accountId: acBCA.id,
       categoryId: catGaji.id,
       amount: 25_850_000n,
@@ -540,7 +540,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(1, 1),
     },
     {
-      id: "seed-tx-kpr-m1",
+      id: "be6d3d3b-419e-4f2d-b554-4a7933953739",
       accountId: acBCA.id,
       categoryId: catKPR.id,
       amount: 4_200_000n,
@@ -549,7 +549,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(1, 5),
     },
     {
-      id: "seed-tx-makan-m1a",
+      id: "7adf3396-46b7-4d58-99be-d774c8b7ee8d",
       accountId: acGoPay.id,
       categoryId: catMakan.id,
       amount: 420_000n,
@@ -558,7 +558,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(1, 8),
     },
     {
-      id: "seed-tx-makan-m1b",
+      id: "76469d2e-31a1-404c-8801-2fb601b2548f",
       accountId: acGoPay.id,
       categoryId: catMakan.id,
       amount: 195_000n,
@@ -567,7 +567,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(1, 14),
     },
     {
-      id: "seed-tx-transport-m1",
+      id: "a7b70b4f-2dd0-4198-aa4a-c963185c9b83",
       accountId: acGoPay.id,
       categoryId: catTransport.id,
       amount: 310_000n,
@@ -576,7 +576,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(1, 10),
     },
     {
-      id: "seed-tx-tagihan-m1",
+      id: "c52bc77a-41d2-4c23-81f7-a9217eb7331e",
       accountId: acBCA.id,
       categoryId: catTagihan.id,
       amount: 920_000n,
@@ -585,7 +585,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(1, 7),
     },
     {
-      id: "seed-tx-belanja-m1",
+      id: "297fca15-7ffe-4168-bd26-b5efb23f9e41",
       accountId: acMandiri.id,
       categoryId: catBelanja.id,
       amount: 1_350_000n,
@@ -594,7 +594,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(1, 15),
     },
     {
-      id: "seed-tx-hiburan-m1",
+      id: "e82d1b17-1535-478f-8bbe-d451421bd95c",
       accountId: acOVO.id,
       categoryId: catHiburan.id,
       amount: 230_000n,
@@ -603,7 +603,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(1, 2),
     },
     {
-      id: "seed-tx-kesehatan-m1",
+      id: "4fa15e0f-d2fa-49c8-9ec1-61347117789d",
       accountId: acBNI.id,
       categoryId: catKesehatan.id,
       amount: 450_000n,
@@ -612,7 +612,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(1, 20),
     },
     {
-      id: "seed-tx-investasi-m1",
+      id: "4d80c9eb-e676-4db2-b1c7-6288bb71ddcd",
       accountId: acBCA.id,
       categoryId: catInvestasiEx.id,
       amount: 3_000_000n,
@@ -621,7 +621,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(1, 5),
     },
     {
-      id: "seed-tx-freelance-m1",
+      id: "5c6549b2-5eb8-4413-be09-cd5fc5703d83",
       accountId: acMandiri.id,
       categoryId: catFreelance.id,
       amount: 4_500_000n,
@@ -632,7 +632,7 @@ export async function main(): Promise<void> {
 
     // ── 2 Bulan lalu ───────────────────────────────────
     {
-      id: "seed-tx-gaji-m2",
+      id: "826f7860-37bd-4346-be26-2255d060fb60",
       accountId: acBCA.id,
       categoryId: catGaji.id,
       amount: 25_850_000n,
@@ -641,7 +641,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(2, 1),
     },
     {
-      id: "seed-tx-kpr-m2",
+      id: "d932a60e-c2eb-47e0-beea-18f353c599ce",
       accountId: acBCA.id,
       categoryId: catKPR.id,
       amount: 4_200_000n,
@@ -650,7 +650,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(2, 5),
     },
     {
-      id: "seed-tx-bonus-m2",
+      id: "98c6aacb-d74f-4bb1-95a2-3e2c2447f08e",
       accountId: acBCA.id,
       categoryId: catBonus.id,
       amount: 5_000_000n,
@@ -659,7 +659,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(2, 10),
     },
     {
-      id: "seed-tx-makan-m2a",
+      id: "820878ab-2a06-4e72-aeb1-72a8978acf78",
       accountId: acGoPay.id,
       categoryId: catMakan.id,
       amount: 540_000n,
@@ -668,7 +668,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(2, 12),
     },
     {
-      id: "seed-tx-makan-m2b",
+      id: "8034f8fc-84ed-4d08-8991-5afc6c7b71bb",
       accountId: acCash.id,
       categoryId: catMakan.id,
       amount: 185_000n,
@@ -677,7 +677,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(2, 20),
     },
     {
-      id: "seed-tx-transport-m2",
+      id: "529f321b-3bb7-4dba-ab84-fc80e85c79c6",
       accountId: acGoPay.id,
       categoryId: catTransport.id,
       amount: 280_000n,
@@ -686,7 +686,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(2, 8),
     },
     {
-      id: "seed-tx-tagihan-m2",
+      id: "5cdef13b-776e-43d7-b997-558d90235fe6",
       accountId: acBCA.id,
       categoryId: catTagihan.id,
       amount: 870_000n,
@@ -695,7 +695,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(2, 7),
     },
     {
-      id: "seed-tx-belanja-m2",
+      id: "6002291f-2dca-49f5-b9ff-6926e1914a12",
       accountId: acMandiri.id,
       categoryId: catBelanja.id,
       amount: 780_000n,
@@ -704,7 +704,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(2, 16),
     },
     {
-      id: "seed-tx-kesehatan-m2",
+      id: "dd3b1c7d-9484-447f-839e-da56513216f5",
       accountId: acBNI.id,
       categoryId: catKesehatan.id,
       amount: 350_000n,
@@ -713,7 +713,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(2, 22),
     },
     {
-      id: "seed-tx-investasi-m2",
+      id: "33cf0883-a0bf-4b38-a8b8-2b4970003a5d",
       accountId: acBCA.id,
       categoryId: catInvestasiEx.id,
       amount: 3_000_000n,
@@ -722,7 +722,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(2, 5),
     },
     {
-      id: "seed-tx-pendidikan-m2",
+      id: "466b1280-40d3-453b-a5fb-b34cfc895ea4",
       accountId: acMandiri.id,
       categoryId: catPendidikan.id,
       amount: 750_000n,
@@ -733,7 +733,7 @@ export async function main(): Promise<void> {
 
     // ── 3 Bulan lalu ───────────────────────────────────
     {
-      id: "seed-tx-gaji-m3",
+      id: "0ca4eb55-3fd3-46d4-acd5-3cb390380868",
       accountId: acBCA.id,
       categoryId: catGaji.id,
       amount: 25_850_000n,
@@ -742,7 +742,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(3, 1),
     },
     {
-      id: "seed-tx-kpr-m3",
+      id: "d4fc2314-f409-4768-a535-4458a6311e5c",
       accountId: acBCA.id,
       categoryId: catKPR.id,
       amount: 4_200_000n,
@@ -751,7 +751,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(3, 5),
     },
     {
-      id: "seed-tx-makan-m3a",
+      id: "1310b21f-b534-4956-80f6-7abb84a8f258",
       accountId: acGoPay.id,
       categoryId: catMakan.id,
       amount: 460_000n,
@@ -760,7 +760,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(3, 9),
     },
     {
-      id: "seed-tx-makan-m3b",
+      id: "3d482dcb-cbb3-43a5-929d-8dadff6d7095",
       accountId: acCash.id,
       categoryId: catMakan.id,
       amount: 210_000n,
@@ -769,7 +769,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(3, 18),
     },
     {
-      id: "seed-tx-transport-m3",
+      id: "85e1448b-b717-4d63-9cd7-847b606e9c1d",
       accountId: acGoPay.id,
       categoryId: catTransport.id,
       amount: 340_000n,
@@ -778,7 +778,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(3, 11),
     },
     {
-      id: "seed-tx-tagihan-m3",
+      id: "decb2bb4-a488-4b0a-a7b8-b83d175cb417",
       accountId: acBCA.id,
       categoryId: catTagihan.id,
       amount: 890_000n,
@@ -787,7 +787,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(3, 7),
     },
     {
-      id: "seed-tx-belanja-m3",
+      id: "bedb3519-fbd4-43bf-a66f-851090bce1a0",
       accountId: acMandiri.id,
       categoryId: catBelanja.id,
       amount: 1_100_000n,
@@ -796,7 +796,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(3, 14),
     },
     {
-      id: "seed-tx-hiburan-m3",
+      id: "09b16d12-fb15-4788-b5c1-603d1db47188",
       accountId: acOVO.id,
       categoryId: catHiburan.id,
       amount: 650_000n,
@@ -805,7 +805,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(3, 21),
     },
     {
-      id: "seed-tx-investasi-m3",
+      id: "876efad1-3ba4-4864-96c0-cb090dbd85a4",
       accountId: acBCA.id,
       categoryId: catInvestasiEx.id,
       amount: 3_000_000n,
@@ -814,7 +814,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(3, 5),
     },
     {
-      id: "seed-tx-investasi-in-m3",
+      id: "c77d2584-f6ed-4d14-bb90-55caaa6a009f",
       accountId: acMandiri.id,
       categoryId: catInvestasi.id,
       amount: 1_200_000n,
@@ -825,7 +825,7 @@ export async function main(): Promise<void> {
 
     // ── 4 Bulan lalu ───────────────────────────────────
     {
-      id: "seed-tx-gaji-m4",
+      id: "9bfcd123-8bbe-476b-b5f0-2186936ec1cf",
       accountId: acBCA.id,
       categoryId: catGaji.id,
       amount: 25_850_000n,
@@ -834,7 +834,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(4, 1),
     },
     {
-      id: "seed-tx-kpr-m4",
+      id: "d864c92e-8670-4c8a-bf52-0900b85c6928",
       accountId: acBCA.id,
       categoryId: catKPR.id,
       amount: 4_200_000n,
@@ -843,7 +843,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(4, 5),
     },
     {
-      id: "seed-tx-makan-m4a",
+      id: "16891bb1-6559-4adb-9077-a95b78a7c6ab",
       accountId: acGoPay.id,
       categoryId: catMakan.id,
       amount: 395_000n,
@@ -852,7 +852,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(4, 8),
     },
     {
-      id: "seed-tx-transport-m4",
+      id: "c8eec3a2-9f99-4733-a0b9-24033afb1463",
       accountId: acGoPay.id,
       categoryId: catTransport.id,
       amount: 290_000n,
@@ -861,7 +861,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(4, 10),
     },
     {
-      id: "seed-tx-tagihan-m4",
+      id: "5442d514-1830-4407-9291-a4d223fec795",
       accountId: acBCA.id,
       categoryId: catTagihan.id,
       amount: 830_000n,
@@ -870,7 +870,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(4, 7),
     },
     {
-      id: "seed-tx-belanja-m4",
+      id: "50cc7d97-8c04-4b98-8d22-aa0ad09729b7",
       accountId: acMandiri.id,
       categoryId: catBelanja.id,
       amount: 920_000n,
@@ -879,7 +879,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(4, 16),
     },
     {
-      id: "seed-tx-kesehatan-m4",
+      id: "a5bef450-68b8-438c-8f84-245176aa21b6",
       accountId: acBNI.id,
       categoryId: catKesehatan.id,
       amount: 850_000n,
@@ -888,7 +888,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(4, 20),
     },
     {
-      id: "seed-tx-investasi-m4",
+      id: "30d65151-0c19-42b3-b93c-f2c6da4800b4",
       accountId: acBCA.id,
       categoryId: catInvestasiEx.id,
       amount: 3_000_000n,
@@ -897,7 +897,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(4, 5),
     },
     {
-      id: "seed-tx-freelance-m4",
+      id: "c800afa4-fc25-4b5d-ae4a-3f11a4d7a920",
       accountId: acMandiri.id,
       categoryId: catFreelance.id,
       amount: 3_200_000n,
@@ -906,7 +906,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(4, 22),
     },
     {
-      id: "seed-tx-pendidikan-m4",
+      id: "79350f13-70b5-49a1-8588-a6a3b494de09",
       accountId: acBNI.id,
       categoryId: catPendidikan.id,
       amount: 500_000n,
@@ -917,7 +917,7 @@ export async function main(): Promise<void> {
 
     // ── 5 Bulan lalu ───────────────────────────────────
     {
-      id: "seed-tx-gaji-m5",
+      id: "55f15b9d-d9b4-4045-9dbb-da9ba3ff75ad",
       accountId: acBCA.id,
       categoryId: catGaji.id,
       amount: 25_850_000n,
@@ -926,7 +926,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(5, 1),
     },
     {
-      id: "seed-tx-kpr-m5",
+      id: "7e5f00fa-0fd0-4fa6-9544-2d7e65d9a2c3",
       accountId: acBCA.id,
       categoryId: catKPR.id,
       amount: 4_200_000n,
@@ -935,7 +935,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(5, 5),
     },
     {
-      id: "seed-tx-bonus-m5",
+      id: "bac882ac-0289-43ef-b349-61f25c1a392c",
       accountId: acBCA.id,
       categoryId: catBonus.id,
       amount: 8_000_000n,
@@ -944,7 +944,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(5, 10),
     },
     {
-      id: "seed-tx-makan-m5a",
+      id: "a45826ab-b417-46b5-aedf-6ed3b5d0722f",
       accountId: acGoPay.id,
       categoryId: catMakan.id,
       amount: 510_000n,
@@ -953,7 +953,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(5, 12),
     },
     {
-      id: "seed-tx-makan-m5b",
+      id: "0c1015c4-e85d-42a9-8d92-eea8f71234da",
       accountId: acCash.id,
       categoryId: catMakan.id,
       amount: 175_000n,
@@ -962,7 +962,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(5, 22),
     },
     {
-      id: "seed-tx-transport-m5",
+      id: "54804a17-b4ef-4253-a486-0880de12755e",
       accountId: acGoPay.id,
       categoryId: catTransport.id,
       amount: 260_000n,
@@ -971,7 +971,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(5, 9),
     },
     {
-      id: "seed-tx-tagihan-m5",
+      id: "24b44628-f24e-4748-85e2-a4be6a99b441",
       accountId: acBCA.id,
       categoryId: catTagihan.id,
       amount: 910_000n,
@@ -980,7 +980,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(5, 7),
     },
     {
-      id: "seed-tx-belanja-m5",
+      id: "f4ab8469-34e4-4ebc-93d1-b3bdedf647a3",
       accountId: acMandiri.id,
       categoryId: catBelanja.id,
       amount: 2_100_000n,
@@ -989,7 +989,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(5, 14),
     },
     {
-      id: "seed-tx-hiburan-m5",
+      id: "4bf33b1f-16c1-4e44-b412-5e6bb086e9fd",
       accountId: acOVO.id,
       categoryId: catHiburan.id,
       amount: 380_000n,
@@ -998,7 +998,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(5, 18),
     },
     {
-      id: "seed-tx-investasi-m5",
+      id: "a6d5c30c-2544-401a-ae29-4d53651ea94f",
       accountId: acBCA.id,
       categoryId: catInvestasiEx.id,
       amount: 3_000_000n,
@@ -1007,7 +1007,7 @@ export async function main(): Promise<void> {
       occurredAt: monthsAgo(5, 5),
     },
     {
-      id: "seed-tx-lain-m5",
+      id: "244c1057-4100-48f6-b6a3-1d03db679a63",
       accountId: acCash.id,
       categoryId: catLainPengeluaran.id,
       amount: 200_000n,
@@ -1037,27 +1037,43 @@ export async function main(): Promise<void> {
   // ── Budgets ───────────────────────────────────────────────────────────────────
 
   const budgets = [
-    { id: "seed-budget-makan", categoryId: catMakan.id, limit: 2_000_000n },
     {
-      id: "seed-budget-transport",
+      id: "b5e76a87-e61e-4844-895c-9a5359230cab",
+      categoryId: catMakan.id,
+      limit: 2_000_000n,
+    },
+    {
+      id: "1550cb9a-cb0e-4a62-8665-207bdef32172",
       categoryId: catTransport.id,
       limit: 1_000_000n,
     },
-    { id: "seed-budget-belanja", categoryId: catBelanja.id, limit: 1_500_000n },
-    { id: "seed-budget-tagihan", categoryId: catTagihan.id, limit: 1_200_000n },
     {
-      id: "seed-budget-kesehatan",
+      id: "37d0a805-cc59-4f56-9795-d41eface6a23",
+      categoryId: catBelanja.id,
+      limit: 1_500_000n,
+    },
+    {
+      id: "1d87a99e-b789-4ecc-9c51-484949e7377d",
+      categoryId: catTagihan.id,
+      limit: 1_200_000n,
+    },
+    {
+      id: "5664fdbd-5195-48ee-9353-fedb450301bc",
       categoryId: catKesehatan.id,
       limit: 1_000_000n,
     },
-    { id: "seed-budget-hiburan", categoryId: catHiburan.id, limit: 800_000n },
     {
-      id: "seed-budget-pendidikan",
+      id: "3d2af149-5784-4ffd-bbdb-3cfae5c70b35",
+      categoryId: catHiburan.id,
+      limit: 800_000n,
+    },
+    {
+      id: "b884be64-3bc3-447f-a037-60dfb0758874",
       categoryId: catPendidikan.id,
       limit: 500_000n,
     },
     {
-      id: "seed-budget-investasi",
+      id: "5a3908c4-847d-465f-a9b4-ab29535cfcae",
       categoryId: catInvestasiEx.id,
       limit: 3_000_000n,
     },
@@ -1087,7 +1103,7 @@ export async function main(): Promise<void> {
 
   const goals = [
     {
-      id: "seed-d-goal-dana-darurat",
+      id: "01322812-c0af-4846-b740-0d9ed6f32cd8",
       name: "Dana Darurat 6 Bulan",
       icon: "🛡️",
       target: 60_000_000n,
@@ -1097,7 +1113,7 @@ export async function main(): Promise<void> {
       targetDate: futureDate(180),
     },
     {
-      id: "seed-goal-liburan",
+      id: "3e363750-cb9f-4f10-8740-9b7ddda83f01",
       name: "Liburan Jepang",
       icon: "✈️",
       target: 25_000_000n,
@@ -1107,7 +1123,7 @@ export async function main(): Promise<void> {
       targetDate: futureDate(270),
     },
     {
-      id: "seed-d-goal-dp-rumah",
+      id: "f04f350d-ec60-4694-bfb1-e71dfdbd7c50",
       name: "DP Rumah Ke-2",
       icon: "🏠",
       target: 300_000_000n,
@@ -1117,7 +1133,7 @@ export async function main(): Promise<void> {
       targetDate: futureDate(730),
     },
     {
-      id: "seed-goal-pensiun",
+      id: "de0de591-3432-4737-bf11-30e32d4fb4de",
       name: "Dana Pensiun",
       icon: "🏖️",
       target: 1_000_000_000n,
@@ -1154,7 +1170,7 @@ export async function main(): Promise<void> {
 
   const liabilities = [
     {
-      id: "seed-liab-kpr",
+      id: "29e7a33e-8c5b-412d-b59a-1e7291837004",
       name: "KPR BTN Perumahan",
       institution: "Bank BTN",
       type: "kpr",
@@ -1165,7 +1181,7 @@ export async function main(): Promise<void> {
       due: futureDate(20),
     },
     {
-      id: "seed-liab-cc",
+      id: "fa7e4748-4893-48bb-9ec9-f2914b5ce1b7",
       name: "Kartu Kredit BCA",
       institution: "BCA",
       type: "kartu_kredit",
@@ -1176,7 +1192,7 @@ export async function main(): Promise<void> {
       due: futureDate(15),
     },
     {
-      id: "seed-liab-car",
+      id: "6b938282-5c13-477b-bb54-986bf483a5f0",
       name: "Kredit Kendaraan Toyota",
       institution: "Toyota Astra Finance",
       type: "kendaraan",
@@ -1210,10 +1226,10 @@ export async function main(): Promise<void> {
   // ── Assets ────────────────────────────────────────────────────────────────────
 
   const assetRumah = await prisma.asset.upsert({
-    where: { id: "seed-asset-rumah" },
+    where: { id: "a0bac4d3-5d21-4858-ae80-af69fb545c95" },
     update: { currentValue: 850_000_000n },
     create: {
-      id: "seed-asset-rumah",
+      id: "a0bac4d3-5d21-4858-ae80-af69fb545c95",
       familyGroupId: FG,
       name: "Rumah Depok",
       type: "properti",
@@ -1222,10 +1238,10 @@ export async function main(): Promise<void> {
     },
   });
   const assetMobil = await prisma.asset.upsert({
-    where: { id: "seed-asset-mobil" },
+    where: { id: "72233bf5-ac14-4242-ba08-072008f2ad0d" },
     update: { currentValue: 210_000_000n },
     create: {
-      id: "seed-asset-mobil",
+      id: "72233bf5-ac14-4242-ba08-072008f2ad0d",
       familyGroupId: FG,
       name: "Toyota Avanza 2021",
       type: "kendaraan",
@@ -1234,10 +1250,10 @@ export async function main(): Promise<void> {
     },
   });
   await prisma.asset.upsert({
-    where: { id: "seed-asset-laptop" },
+    where: { id: "95480a95-3e4f-4876-93cf-055be7af015b" },
     update: { currentValue: 22_000_000n },
     create: {
-      id: "seed-asset-laptop",
+      id: "95480a95-3e4f-4876-93cf-055be7af015b",
       familyGroupId: FG,
       name: "MacBook Pro M3",
       type: "elektronik",
@@ -1246,10 +1262,10 @@ export async function main(): Promise<void> {
     },
   });
   const assetEmas = await prisma.asset.upsert({
-    where: { id: "seed-asset-emas" },
+    where: { id: "6a5cd89f-bc1f-4f0c-addf-149e900ebf70" },
     update: { currentValue: 45_000_000n },
     create: {
-      id: "seed-asset-emas",
+      id: "6a5cd89f-bc1f-4f0c-addf-149e900ebf70",
       familyGroupId: FG,
       name: "Emas Antam 50 gram",
       type: "perhiasan",
@@ -1261,49 +1277,49 @@ export async function main(): Promise<void> {
   // AssetHistory — 3 titik per aset untuk chart tren
   const assetHistories = [
     {
-      id: "seed-ah-rumah-m3",
+      id: "1c04e715-924a-4e77-8bdf-597b480ce291",
       assetId: assetRumah.id,
       value: 800_000_000n,
       at: monthsAgo(3),
     },
     {
-      id: "seed-ah-rumah-m1",
+      id: "33d15471-b88c-4439-a2e9-86286a50272d",
       assetId: assetRumah.id,
       value: 825_000_000n,
       at: monthsAgo(1),
     },
     {
-      id: "seed-ah-rumah-m0",
+      id: "246123fb-1ca8-4335-ad4f-9ddc0c598149",
       assetId: assetRumah.id,
       value: 850_000_000n,
       at: daysAgo(0),
     },
     {
-      id: "seed-ah-mobil-m3",
+      id: "2b2da627-4eaf-4b9f-ad05-1aead9a4db35",
       assetId: assetMobil.id,
       value: 230_000_000n,
       at: monthsAgo(3),
     },
     {
-      id: "seed-ah-mobil-m0",
+      id: "80a08bc1-989e-4204-bf1d-dae96c61b004",
       assetId: assetMobil.id,
       value: 210_000_000n,
       at: daysAgo(0),
     },
     {
-      id: "seed-ah-emas-m3",
+      id: "5be41afe-b419-40b9-a1c5-7a2d1f7cef97",
       assetId: assetEmas.id,
       value: 38_000_000n,
       at: monthsAgo(3),
     },
     {
-      id: "seed-ah-emas-m1",
+      id: "5bcb46e2-b9dd-4d6e-b31a-91b5d6998d7a",
       assetId: assetEmas.id,
       value: 42_000_000n,
       at: monthsAgo(1),
     },
     {
-      id: "seed-ah-emas-m0",
+      id: "3ab09cf9-5dc9-49fc-bb14-4ca77c3c9e8c",
       assetId: assetEmas.id,
       value: 45_000_000n,
       at: daysAgo(0),
@@ -1326,10 +1342,10 @@ export async function main(): Promise<void> {
   // ── Investments ───────────────────────────────────────────────────────────────
 
   const invBBCA = await prisma.investment.upsert({
-    where: { id: "seed-inv-bbca" },
+    where: { id: "2e59f890-61d8-4562-b622-3f6d8610246a" },
     update: { quantity: 1500, costBasisPerUnit: 8500 },
     create: {
-      id: "seed-inv-bbca",
+      id: "2e59f890-61d8-4562-b622-3f6d8610246a",
       familyGroupId: FG,
       ticker: "BBCA",
       name: "Bank Central Asia Tbk",
@@ -1341,10 +1357,10 @@ export async function main(): Promise<void> {
     },
   });
   const invTLKM = await prisma.investment.upsert({
-    where: { id: "seed-inv-tlkm" },
+    where: { id: "54825c0a-49c1-4919-842e-34e28dfbb4b2" },
     update: { quantity: 5000, costBasisPerUnit: 3700 },
     create: {
-      id: "seed-inv-tlkm",
+      id: "54825c0a-49c1-4919-842e-34e28dfbb4b2",
       familyGroupId: FG,
       ticker: "TLKM",
       name: "Telkom Indonesia Tbk",
@@ -1355,10 +1371,10 @@ export async function main(): Promise<void> {
     },
   });
   const invReksaDana = await prisma.investment.upsert({
-    where: { id: "seed-inv-rd" },
+    where: { id: "e9cff30e-5a96-44ce-a59e-7bcd2e2f1c68" },
     update: { quantity: 250000, costBasisPerUnit: 1850 },
     create: {
-      id: "seed-inv-rd",
+      id: "e9cff30e-5a96-44ce-a59e-7bcd2e2f1c68",
       familyGroupId: FG,
       ticker: "RD-MANULIFE-GROWTH",
       name: "Manulife Saham Andalan",
@@ -1372,37 +1388,37 @@ export async function main(): Promise<void> {
   // InvestmentPrice — harga terkini
   const invPrices = [
     {
-      id: "seed-ip-bbca-m1",
+      id: "e6f9bcec-3c05-40ff-a596-c01f0d5ace47",
       investmentId: invBBCA.id,
       price: 9200,
       at: monthsAgo(1),
     },
     {
-      id: "seed-ip-bbca-m0",
+      id: "fe0f2beb-6e08-467b-b8fd-e311e51b2580",
       investmentId: invBBCA.id,
       price: 9450,
       at: daysAgo(1),
     },
     {
-      id: "seed-ip-tlkm-m1",
+      id: "58589127-b2c5-453b-ba88-c1cf199aeecb",
       investmentId: invTLKM.id,
       price: 3850,
       at: monthsAgo(1),
     },
     {
-      id: "seed-ip-tlkm-m0",
+      id: "0e74e5ca-f84a-4711-b757-b55f9b416dba",
       investmentId: invTLKM.id,
       price: 3920,
       at: daysAgo(1),
     },
     {
-      id: "seed-ip-rd-m1",
+      id: "11a65d79-35cc-49b9-9296-a9809aa51e4c",
       investmentId: invReksaDana.id,
       price: 1920,
       at: monthsAgo(1),
     },
     {
-      id: "seed-ip-rd-m0",
+      id: "4fd56556-2020-4af8-8490-56621853467b",
       investmentId: invReksaDana.id,
       price: 1975,
       at: daysAgo(1),
@@ -1427,7 +1443,7 @@ export async function main(): Promise<void> {
 
   const insurances = [
     {
-      id: "seed-ins-jiwa",
+      id: "e67b4e98-3611-418e-b4e2-a0237463b3c5",
       name: "Asuransi Jiwa Prudential",
       provider: "Prudential",
       type: "jiwa",
@@ -1439,7 +1455,7 @@ export async function main(): Promise<void> {
       policy: "PRU-2021-00912",
     },
     {
-      id: "seed-ins-kes",
+      id: "0553cbfe-4371-4017-9dc8-0c46258a1a3a",
       name: "BPJS Kesehatan Keluarga",
       provider: "BPJS Kesehatan",
       type: "kesehatan",
@@ -1451,7 +1467,7 @@ export async function main(): Promise<void> {
       policy: "BPJS-0019872341",
     },
     {
-      id: "seed-ins-mob",
+      id: "1aa8c12f-ee47-40f6-b158-703883c683c1",
       name: "Asuransi Kendaraan Toyota Avanza",
       provider: "Astra Insurance",
       type: "kendaraan",
@@ -1487,10 +1503,10 @@ export async function main(): Promise<void> {
   // ── Split Bills ───────────────────────────────────────────────────────────────
 
   const sb1 = await prisma.splitBill.upsert({
-    where: { id: "seed-sb-makan" },
+    where: { id: "0a1f05ec-74f5-4eb7-8968-a03c9e3ffb4e" },
     update: {},
     create: {
-      id: "seed-sb-makan",
+      id: "0a1f05ec-74f5-4eb7-8968-a03c9e3ffb4e",
       familyGroupId: FG,
       title: "Makan Malam Anniversary",
       totalAmount: 1_200_000n,
@@ -1499,10 +1515,10 @@ export async function main(): Promise<void> {
     },
   });
   await prisma.splitParticipant.upsert({
-    where: { id: "seed-sbp-makan-1" },
+    where: { id: "75f9e250-bf3c-460e-8010-113135b89993" },
     update: {},
     create: {
-      id: "seed-sbp-makan-1",
+      id: "75f9e250-bf3c-460e-8010-113135b89993",
       splitBillId: sb1.id,
       name: "Demo User",
       amountOwed: 400_000n,
@@ -1511,10 +1527,10 @@ export async function main(): Promise<void> {
     },
   });
   await prisma.splitParticipant.upsert({
-    where: { id: "seed-sbp-makan-2" },
+    where: { id: "598a6c2e-de5e-4a5d-a8e0-1eed18c12dec" },
     update: {},
     create: {
-      id: "seed-sbp-makan-2",
+      id: "598a6c2e-de5e-4a5d-a8e0-1eed18c12dec",
       splitBillId: sb1.id,
       name: "Budi Santoso",
       amountOwed: 400_000n,
@@ -1522,10 +1538,10 @@ export async function main(): Promise<void> {
     },
   });
   await prisma.splitParticipant.upsert({
-    where: { id: "seed-sbp-makan-3" },
+    where: { id: "aaf0bfa6-29a6-49e1-9c88-6e86d66dec56" },
     update: {},
     create: {
-      id: "seed-sbp-makan-3",
+      id: "aaf0bfa6-29a6-49e1-9c88-6e86d66dec56",
       splitBillId: sb1.id,
       name: "Siti Rahayu",
       amountOwed: 400_000n,
@@ -1534,10 +1550,10 @@ export async function main(): Promise<void> {
   });
 
   const sb2 = await prisma.splitBill.upsert({
-    where: { id: "seed-sb-liburan" },
+    where: { id: "f080ad99-fd6f-4b89-8733-94f9939256b5" },
     update: {},
     create: {
-      id: "seed-sb-liburan",
+      id: "f080ad99-fd6f-4b89-8733-94f9939256b5",
       familyGroupId: FG,
       title: "Liburan Bali Bareng",
       totalAmount: 8_500_000n,
@@ -1546,10 +1562,10 @@ export async function main(): Promise<void> {
     },
   });
   await prisma.splitParticipant.upsert({
-    where: { id: "seed-sbp-liburan-1" },
+    where: { id: "99fdd3ea-1df7-4b99-8400-db7774f84e3c" },
     update: {},
     create: {
-      id: "seed-sbp-liburan-1",
+      id: "99fdd3ea-1df7-4b99-8400-db7774f84e3c",
       splitBillId: sb2.id,
       name: "Demo User",
       amountOwed: 2_833_000n,
@@ -1558,10 +1574,10 @@ export async function main(): Promise<void> {
     },
   });
   await prisma.splitParticipant.upsert({
-    where: { id: "seed-sbp-liburan-2" },
+    where: { id: "ea4b8e64-70bf-44b5-9f26-6166c0c77d18" },
     update: {},
     create: {
-      id: "seed-sbp-liburan-2",
+      id: "ea4b8e64-70bf-44b5-9f26-6166c0c77d18",
       splitBillId: sb2.id,
       name: "Agus Wijaya",
       amountOwed: 2_833_000n,
@@ -1570,10 +1586,10 @@ export async function main(): Promise<void> {
     },
   });
   await prisma.splitParticipant.upsert({
-    where: { id: "seed-sbp-liburan-3" },
+    where: { id: "8ea05393-1602-46c5-af5d-f9ef84cf5f69" },
     update: {},
     create: {
-      id: "seed-sbp-liburan-3",
+      id: "8ea05393-1602-46c5-af5d-f9ef84cf5f69",
       splitBillId: sb2.id,
       name: "Rina Permata",
       amountOwed: 2_834_000n,
@@ -1585,10 +1601,10 @@ export async function main(): Promise<void> {
   // ── Inheritance Assets ────────────────────────────────────────────────────────
 
   const inh1 = await prisma.inheritanceAsset.upsert({
-    where: { id: "seed-inh-rumah" },
+    where: { id: "e648ea7e-2402-4929-b21a-aeada815b8ce" },
     update: {},
     create: {
-      id: "seed-inh-rumah",
+      id: "e648ea7e-2402-4929-b21a-aeada815b8ce",
       familyGroupId: FG,
       name: "Rumah Depok",
       assetType: "Properti",
@@ -1598,10 +1614,10 @@ export async function main(): Promise<void> {
     },
   });
   await prisma.inheritanceHeir.upsert({
-    where: { id: "seed-heir-1" },
+    where: { id: "93274005-21f6-4fd7-8ab8-8e06ddd1e68e" },
     update: {},
     create: {
-      id: "seed-heir-1",
+      id: "93274005-21f6-4fd7-8ab8-8e06ddd1e68e",
       inheritanceAssetId: inh1.id,
       name: "Anak Pertama",
       relationship: "Anak Kandung",
@@ -1609,10 +1625,10 @@ export async function main(): Promise<void> {
     },
   });
   await prisma.inheritanceHeir.upsert({
-    where: { id: "seed-heir-2" },
+    where: { id: "aa5ca34b-8a30-43f1-a81b-6580c880c87b" },
     update: {},
     create: {
-      id: "seed-heir-2",
+      id: "aa5ca34b-8a30-43f1-a81b-6580c880c87b",
       inheritanceAssetId: inh1.id,
       name: "Anak Kedua",
       relationship: "Anak Kandung",
@@ -1621,10 +1637,10 @@ export async function main(): Promise<void> {
   });
 
   await prisma.inheritanceAsset.upsert({
-    where: { id: "seed-inh-tabungan" },
+    where: { id: "0d3e5b4d-b872-4e53-aad1-b1decfd6da2a" },
     update: {},
     create: {
-      id: "seed-inh-tabungan",
+      id: "0d3e5b4d-b872-4e53-aad1-b1decfd6da2a",
       familyGroupId: FG,
       name: "Tabungan & Investasi",
       assetType: "Aset Keuangan",
@@ -1638,7 +1654,7 @@ export async function main(): Promise<void> {
 
   const donations = [
     {
-      id: "seed-don-zakat-m1",
+      id: "eee2ac76-25ca-4f7f-bdac-e90e9127a716",
       type: "zakat_maal",
       recipient: "Baznas",
       amount: 500_000n,
@@ -1646,7 +1662,7 @@ export async function main(): Promise<void> {
       taxDed: true,
     },
     {
-      id: "seed-don-infaq-m1",
+      id: "7fbad5b5-db42-41c6-bc88-48e53d619c4c",
       type: "infaq",
       recipient: "Masjid Al-Ikhlas",
       amount: 200_000n,
@@ -1654,7 +1670,7 @@ export async function main(): Promise<void> {
       taxDed: false,
     },
     {
-      id: "seed-don-sedekah-m2",
+      id: "dac5e8a5-4b97-4555-8679-dfc6d317ab16",
       type: "sedekah",
       recipient: "Panti Asuhan",
       amount: 300_000n,
@@ -1662,7 +1678,7 @@ export async function main(): Promise<void> {
       taxDed: false,
     },
     {
-      id: "seed-don-wakaf-m3",
+      id: "fccbcaa3-e279-4f29-bc01-a172cad62031",
       type: "wakaf",
       recipient: "Wakaf Quran Online",
       amount: 150_000n,
@@ -1693,7 +1709,7 @@ export async function main(): Promise<void> {
     where: { familyGroupId_taxYear: { familyGroupId: FG, taxYear: 2024 } },
     update: {},
     create: {
-      id: "seed-tax-2024",
+      id: "c647c1f5-63b1-4d43-94a0-6a74f361c889",
       familyGroupId: FG,
       taxYear: 2024,
       grossIncome: 315_200_000n,
@@ -1707,7 +1723,7 @@ export async function main(): Promise<void> {
     where: { familyGroupId_taxYear: { familyGroupId: FG, taxYear: 2025 } },
     update: {},
     create: {
-      id: "seed-tax-2025",
+      id: "032e0fb7-3ec2-4430-a3d9-ac9bc216dd31",
       familyGroupId: FG,
       taxYear: 2025,
       grossIncome: 320_000_000n,
@@ -1722,25 +1738,25 @@ export async function main(): Promise<void> {
 
   const notifs = [
     {
-      id: "seed-notif-1",
+      id: "4db0112d-dd72-46c2-a7aa-cba048db1016",
       title: "Cicilan KPR Jatuh Tempo",
       body: "Cicilan KPR BTN sebesar Rp 4.200.000 jatuh tempo dalam 5 hari.",
       icon: "🏠",
     },
     {
-      id: "seed-notif-2",
+      id: "8df32578-2c72-4832-8391-de44a3703c56",
       title: "Budget Makan & Minum 80%",
       body: "Pengeluaran makan sudah mencapai 80% dari budget Rp 2.000.000.",
       icon: "⚠️",
     },
     {
-      id: "seed-notif-3",
+      id: "6c6a2b73-0de3-4e62-85f1-65318ed2e861",
       title: "Goal Dana Darurat On Track",
       body: "Dana darurat kamu sudah 70% dari target Rp 60.000.000.",
       icon: "🛡️",
     },
     {
-      id: "seed-notif-4",
+      id: "3cd0c242-bb4d-4dfe-87b4-19bab6af843c",
       title: "Asuransi Kendaraan Renewal",
       body: "Asuransi kendaraan akan jatuh tempo dalam 30 hari.",
       icon: "🚗",
@@ -1765,10 +1781,10 @@ export async function main(): Promise<void> {
   // Two demo bank-statement uploads: one fully matched, one with mixed statuses.
 
   const bs1 = await prisma.bankSync.upsert({
-    where: { id: "seed-bs-bca-mei" },
+    where: { id: "b0556f2e-de43-4d28-9363-218023e16f02" },
     update: { rowCount: 8 },
     create: {
-      id: "seed-bs-bca-mei",
+      id: "b0556f2e-de43-4d28-9363-218023e16f02",
       familyGroupId: FG,
       fileName: "BCA_Rekening_Koran_Mei_2025.pdf",
       uploadedAt: monthsAgo(1, 18),
@@ -1779,52 +1795,52 @@ export async function main(): Promise<void> {
   // Entries for BCA Mei — mix of matched, suggested, unmatched
   const bs1Entries = [
     {
-      id: "seed-bse-bca-1",
+      id: "e07c7691-072a-4d94-b42b-f334b9d0c21e",
       date: monthsAgo(1, 1),
       description: "CR GAJI PT MAJU BERSAMA",
       amount: 25_850_000n,
       reconStatus: "matched" as const,
-      matchedTxId: "seed-tx-gaji-m1",
+      matchedTxId: "55dbd453-9859-4cef-8b64-2ffa8f284973",
       suggestedTxId: null,
     },
     {
-      id: "seed-bse-bca-2",
+      id: "eccbbf79-d0f9-4f9c-868a-3c13d8e9aadb",
       date: monthsAgo(1, 5),
       description: "DB CICILAN KPR BTN",
       amount: -4_200_000n,
       reconStatus: "matched" as const,
-      matchedTxId: "seed-tx-kpr-m1",
+      matchedTxId: "be6d3d3b-419e-4f2d-b554-4a7933953739",
       suggestedTxId: null,
     },
     {
-      id: "seed-bse-bca-3",
+      id: "e5ed8818-b09b-4678-8cc4-5ff74f7645e4",
       date: monthsAgo(1, 10),
       description: "DB LISTRIK AIR INTERNET",
       amount: -850_000n,
       reconStatus: "suggested" as const,
       matchedTxId: null,
-      suggestedTxId: "seed-tx-tagihan-m1",
+      suggestedTxId: "c52bc77a-41d2-4c23-81f7-a9217eb7331e",
     },
     {
-      id: "seed-bse-bca-4",
+      id: "0ed98dc5-6b33-4282-97a6-2ac9c4b25294",
       date: monthsAgo(1, 12),
       description: "DB BELANJA ONLINE",
       amount: -650_000n,
       reconStatus: "suggested" as const,
       matchedTxId: null,
-      suggestedTxId: "seed-tx-belanja-m1",
+      suggestedTxId: "297fca15-7ffe-4168-bd26-b5efb23f9e41",
     },
     {
-      id: "seed-bse-bca-5",
+      id: "5362b521-48ef-4b28-b85b-0f5907442728",
       date: monthsAgo(1, 15),
       description: "DB REKSA DANA AUTODEBIT",
       amount: -3_000_000n,
       reconStatus: "matched" as const,
-      matchedTxId: "seed-tx-investasi-m1",
+      matchedTxId: "4d80c9eb-e676-4db2-b1c7-6288bb71ddcd",
       suggestedTxId: null,
     },
     {
-      id: "seed-bse-bca-6",
+      id: "de6868f9-87fb-4cca-96a2-3e12147f1627",
       date: monthsAgo(1, 20),
       description: "CR BONUS KINERJA Q4",
       amount: 15_000_000n,
@@ -1833,7 +1849,7 @@ export async function main(): Promise<void> {
       suggestedTxId: null,
     },
     {
-      id: "seed-bse-bca-7",
+      id: "926e32ed-252c-4bef-8a71-2768e1dea98a",
       date: monthsAgo(1, 22),
       description: "DB TRANSFER TUJUAN LIBURAN",
       amount: -2_000_000n,
@@ -1842,12 +1858,12 @@ export async function main(): Promise<void> {
       suggestedTxId: null,
     },
     {
-      id: "seed-bse-bca-8",
+      id: "2960f10e-07c5-482d-8c75-347388f9d5b0",
       date: monthsAgo(1, 28),
       description: "CR FREELANCE DESAIN WEB",
       amount: 5_000_000n,
       reconStatus: "matched" as const,
-      matchedTxId: "seed-tx-freelance-m1",
+      matchedTxId: "5c6549b2-5eb8-4413-be09-cd5fc5703d83",
       suggestedTxId: null,
     },
   ];
@@ -1871,10 +1887,10 @@ export async function main(): Promise<void> {
   }
 
   const bs2 = await prisma.bankSync.upsert({
-    where: { id: "seed-bs-mandiri-apr" },
+    where: { id: "9b2117c8-cdb3-4df3-a640-3db18642e518" },
     update: { rowCount: 5 },
     create: {
-      id: "seed-bs-mandiri-apr",
+      id: "9b2117c8-cdb3-4df3-a640-3db18642e518",
       familyGroupId: FG,
       fileName: "Mandiri_Rekon_April_2025.xlsx",
       uploadedAt: monthsAgo(2, 12),
@@ -1885,43 +1901,43 @@ export async function main(): Promise<void> {
   // Entries for Mandiri April — mostly matched
   const bs2Entries = [
     {
-      id: "seed-bse-mdr-1",
+      id: "6dd5ab72-d34c-4200-bedb-04ac3c72ed64",
       date: monthsAgo(2, 1),
       description: "CR GAJI APRIL",
       amount: 25_850_000n,
       reconStatus: "matched" as const,
-      matchedTxId: "seed-tx-gaji-m2",
+      matchedTxId: "826f7860-37bd-4346-be26-2255d060fb60",
       suggestedTxId: null,
     },
     {
-      id: "seed-bse-mdr-2",
+      id: "899e2200-f717-4f9c-8bea-ef0f695c1ab9",
       date: monthsAgo(2, 5),
       description: "DB KPR APRIL",
       amount: -4_200_000n,
       reconStatus: "matched" as const,
-      matchedTxId: "seed-tx-kpr-m2",
+      matchedTxId: "d932a60e-c2eb-47e0-beea-18f353c599ce",
       suggestedTxId: null,
     },
     {
-      id: "seed-bse-mdr-3",
+      id: "ceb3ab9d-eeec-43ea-8e43-c501f706a790",
       date: monthsAgo(2, 10),
       description: "CR BONUS APRIL",
       amount: 5_000_000n,
       reconStatus: "matched" as const,
-      matchedTxId: "seed-tx-bonus-m2",
+      matchedTxId: "98c6aacb-d74f-4bb1-95a2-3e2c2447f08e",
       suggestedTxId: null,
     },
     {
-      id: "seed-bse-mdr-4",
+      id: "e10d13cc-3201-4da5-8d51-db8c8029f3d5",
       date: monthsAgo(2, 15),
       description: "DB TAGIHAN UTILITAS",
       amount: -850_000n,
       reconStatus: "suggested" as const,
       matchedTxId: null,
-      suggestedTxId: "seed-tx-tagihan-m2",
+      suggestedTxId: "5cdef13b-776e-43d7-b997-558d90235fe6",
     },
     {
-      id: "seed-bse-mdr-5",
+      id: "f9f4888f-b348-4050-b853-8c7857714f4d",
       date: monthsAgo(2, 20),
       description: "DB BELANJA UMUM",
       amount: -500_000n,

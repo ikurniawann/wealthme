@@ -9,6 +9,21 @@ import {
 
 import type { Request, Response } from "express";
 
+/**
+ * `HttpException.message` is a static string (e.g. "Bad Request Exception")
+ * for exceptions built by Nest's `ValidationPipe` — the real per-field
+ * reasons live in `getResponse().message`. Prefer that structured body so
+ * clients see the actual validation failure instead of a generic label.
+ */
+function extractMessage(exception: HttpException): string | string[] {
+  const body = exception.getResponse();
+  if (typeof body === "string") return body;
+  if (body && typeof body === "object" && "message" in body) {
+    return (body as { message: string | string[] }).message;
+  }
+  return exception.message;
+}
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
@@ -35,9 +50,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
     response.status(status).json({
       statusCode: status,
       requestId,
+      // 5xx and non-HTTP exceptions stay generic — never leak internals.
       message:
         exception instanceof HttpException
-          ? exception.message
+          ? extractMessage(exception)
           : "Internal server error",
     });
   }
