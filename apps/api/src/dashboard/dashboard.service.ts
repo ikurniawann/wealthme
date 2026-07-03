@@ -118,7 +118,9 @@ export class DashboardService {
         category: { select: { name: true } },
         account: { select: { name: true } },
       },
-      orderBy: { occurredAt: "desc" },
+      // occurredAt is date-only, so same-day entries tie — createdAt
+      // breaks the tie for the "recent activity" slice below.
+      orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
     });
 
     const monthKeys: MonthKey[] = [];

@@ -333,9 +333,14 @@ export default function TransaksiPage() {
         ? transactions.filter(isCreditCard)
         : transactions.filter((tx) => tx.type === filter);
 
-  // Sort by occurredAt — affects both day-group order and within-day row order
+  // Sort by occurredAt — affects both day-group order and within-day row
+  // order. occurredAt is date-only (no time picker in the add-transaction
+  // form), so same-day entries tie; createdAt breaks the tie so the most
+  // recently added transaction is always on top.
   const sorted = [...filtered].sort((a, b) => {
-    const cmp = a.occurredAt.localeCompare(b.occurredAt);
+    const cmp =
+      a.occurredAt.localeCompare(b.occurredAt) ||
+      a.createdAt.localeCompare(b.createdAt);
     return sortOrder === "newest" ? -cmp : cmp;
   });
 

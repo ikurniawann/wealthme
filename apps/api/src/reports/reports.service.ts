@@ -237,7 +237,9 @@ export class ReportsService {
         category: { select: { name: true } },
         account: { select: { name: true } },
       },
-      orderBy: { occurredAt: "desc" },
+      // occurredAt is date-only, so same-day entries tie — createdAt
+      // breaks the tie so the most recently added transaction is first.
+      orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
     });
 
     let totalIncome = 0;

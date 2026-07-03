@@ -38,6 +38,7 @@ export class SearchService {
           familyGroupId,
           description: { contains: trimmed, mode: "insensitive" },
         },
+        orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
         take: 5,
       }),
     ]);
