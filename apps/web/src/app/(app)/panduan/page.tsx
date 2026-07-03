@@ -289,7 +289,7 @@ export default function PanduanPage() {
               {journey.items.map((f) => (
                 <div
                   key={f.title}
-                  className="flex items-start gap-3 rounded-lg py-2.5 transition-colors hover:bg-accent/50"
+                  className="flex items-center gap-3 rounded-lg py-2.5 transition-colors hover:bg-accent/50"
                 >
                   <IconChip icon={f.icon} className={f.chip} />
                   <div className="min-w-0 flex-1">
@@ -299,8 +299,11 @@ export default function PanduanPage() {
                     </div>
                   </div>
                   {f.href && (
-                    <CardLink onClick={() => router.push(f.href as string)}>
-                      Buka
+                    <CardLink
+                      onClick={() => router.push(f.href as string)}
+                      className="shrink-0 rounded-md border bg-card px-3 py-1.5 text-[11.5px] no-underline shadow-sm transition-colors hover:border-primary hover:bg-accent hover:no-underline"
+                    >
+                      Buka →
                     </CardLink>
                   )}
                 </div>

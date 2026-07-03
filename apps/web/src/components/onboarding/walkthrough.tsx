@@ -10,6 +10,7 @@ import {
 import { useRouter, usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import { useShell } from "@/components/shell/shell-context";
+import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -74,6 +75,8 @@ export function Walkthrough() {
   const router = useRouter();
   const pathname = usePathname();
   const { locale, setLocale } = useLocale();
+  const { data: session } = useSession();
+  const userId = session?.userId ?? "";
   const { tourOpen, tourStep, startTour, nextTourStep, prevTourStep, endTour } =
     useShell();
 
@@ -83,18 +86,21 @@ export function Walkthrough() {
 
   // Resolve the onboarded flag only after mount; the modal stays closed
   // during SSR to avoid a hydration mismatch (localStorage is client-only).
+  // Scoped per userId — a browser that already dismissed the tour for one
+  // account must still show it to the next account on the same device.
   useEffect(() => {
+    if (!userId) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!isOnboarded()) setWelcomeOpen(true);
-  }, []);
+    if (!isOnboarded(userId)) setWelcomeOpen(true);
+  }, [userId]);
 
   const step = TOUR_STEPS[tourStep];
   const isLastStep = tourStep === TOUR_STEPS.length - 1;
 
   const finishOnboarding = useCallback(() => {
-    setOnboarded();
+    setOnboarded(userId);
     endTour();
-  }, [endTour]);
+  }, [endTour, userId]);
 
   const handleNext = useCallback(() => {
     if (isLastStep) finishOnboarding();
@@ -203,7 +209,7 @@ export function Walkthrough() {
             <button
               type="button"
               onClick={() => {
-                setOnboarded();
+                setOnboarded(userId);
                 setWelcomeOpen(false);
                 router.push("/panduan");
               }}
