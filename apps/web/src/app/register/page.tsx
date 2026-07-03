@@ -6,9 +6,11 @@ import Link from "next/link";
 import { Eye, EyeOff, Lock, Mail, User, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
+import { useLocale } from "@/hooks/use-locale";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { locale, setLocale } = useLocale();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -102,13 +104,41 @@ export default function RegisterPage() {
           <ArrowLeft className="size-4" /> Kembali
         </Link>
 
-        <div className="mb-7 flex items-center justify-center gap-2.5">
+        <div className="mb-4 flex items-center justify-center gap-2.5">
           <div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl font-extrabold tracking-tighter text-white">
             W
           </div>
           <div className="text-[22px] font-extrabold text-slate-900">
             Wealth<span className="text-primary">Me</span>
           </div>
+        </div>
+
+        {/* Language choice — persists via setLocale() and applies app-wide. */}
+        <div className="mx-auto mb-6 flex w-fit items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
+          <button
+            type="button"
+            onClick={() => setLocale("id")}
+            aria-pressed={locale === "id"}
+            className={`rounded-md px-3 py-1 text-xs font-semibold transition-colors ${
+              locale === "id"
+                ? "bg-white text-primary shadow-sm"
+                : "text-slate-400"
+            }`}
+          >
+            🇮🇩 Indonesia
+          </button>
+          <button
+            type="button"
+            onClick={() => setLocale("en")}
+            aria-pressed={locale === "en"}
+            className={`rounded-md px-3 py-1 text-xs font-semibold transition-colors ${
+              locale === "en"
+                ? "bg-white text-primary shadow-sm"
+                : "text-slate-400"
+            }`}
+          >
+            🇬🇧 English
+          </button>
         </div>
 
         <h1 className="text-center text-[22px] font-extrabold text-slate-900">

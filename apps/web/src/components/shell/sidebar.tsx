@@ -68,6 +68,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         <button
           onClick={() => setTxnOpen(true)}
           title="Tambah Transaksi / Scan Struk"
+          data-tour="add-transaction"
           className="ml-auto flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-primary text-white shadow-[0_2px_8px_rgba(79,70,229,0.35)] transition-transform hover:scale-105"
         >
           <Plus className="size-[14px]" />
@@ -145,6 +146,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                   key={item.id}
                   href={item.href}
                   onClick={onNavigate}
+                  data-tour={`nav-${item.id}`}
                   className={cn(
                     "mx-2 my-px flex items-center gap-2.5 rounded-md px-3.5 py-[9px] text-[13px] font-medium transition-colors",
                     isActive

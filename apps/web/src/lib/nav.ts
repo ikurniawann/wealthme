@@ -11,6 +11,7 @@ import {
   FileText,
   GitCompare,
   HeartHandshake,
+  HelpCircle,
   Home,
   Landmark,
   LineChart,
@@ -195,6 +196,12 @@ export const NAV_SECTIONS: NavSection[] = [
         href: "/masterdata",
         icon: Database,
       },
+      {
+        id: "panduan",
+        label: "Panduan Fitur",
+        href: "/panduan",
+        icon: HelpCircle,
+      },
     ],
   },
 ];
@@ -224,6 +231,7 @@ export const PAGE_TITLES: Record<string, string> = {
   quickinput: "Quick Input",
   mastercoa: "Master COA",
   masterdata: "Setup Master Data",
+  panduan: "Panduan Fitur",
 };
 
 export type MobileNavItem = {

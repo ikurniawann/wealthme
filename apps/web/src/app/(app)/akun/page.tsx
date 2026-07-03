@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { parseRupiah } from "@/lib/format";
+import { useShell } from "@/components/shell/shell-context";
 import {
   ChevronRight,
   User,
@@ -921,7 +922,15 @@ const FAQS = [
   },
 ];
 
-function BantuanBody({ onNavAi }: { onNavAi: () => void }) {
+function BantuanBody({
+  onNavAi,
+  onStartTour,
+  onOpenPanduan,
+}: {
+  onNavAi: () => void;
+  onStartTour: () => void;
+  onOpenPanduan: () => void;
+}) {
   return (
     <>
       <SetSection>
@@ -944,18 +953,18 @@ function BantuanBody({ onNavAi }: { onNavAi: () => void }) {
         <SetRow
           icon={<Book className="size-4 text-primary" />}
           iconBg="#EEF2FF"
-          name="Panduan Lengkap Transaksi"
-          sub="Cara input, kategorisasi, dan impor"
+          name="Mulai Tur Interaktif"
+          sub="Tur singkat 1 menit yang menyorot fitur utama"
           right={CHEVRON}
-          onClick={() => toast("Panduan Transaksi")}
+          onClick={onStartTour}
         />
         <SetRow
           icon={<Book className="size-4 text-success" />}
           iconBg="#DCFCE7"
-          name="Panduan Portofolio Investasi"
-          sub="Cara tracking saham, reksa dana, emas"
+          name="Panduan Fitur Lengkap"
+          sub="Semua fitur, dikelompokkan per kategori"
           right={CHEVRON}
-          onClick={() => toast("Panduan Investasi")}
+          onClick={onOpenPanduan}
         />
         <SetRow
           icon={<Bot className="size-4 text-muted-foreground" />}
@@ -1483,6 +1492,7 @@ function MenuRow({
 export default function AkunPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { startTour } = useShell();
   const [subpage, setSubpage] = useState<SubPageId | null>(null);
   const [addAdminOpen, setAddAdminOpen] = useState(false);
   const [crud, setCrud] = useState<CrudModalState | null>(null);
@@ -1639,6 +1649,14 @@ export default function AkunPage() {
             onNavAi={() => {
               closeSheet();
               router.push("/ai");
+            }}
+            onStartTour={() => {
+              closeSheet();
+              startTour();
+            }}
+            onOpenPanduan={() => {
+              closeSheet();
+              router.push("/panduan");
             }}
           />
         );
