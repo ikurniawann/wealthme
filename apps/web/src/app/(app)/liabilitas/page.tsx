@@ -134,6 +134,8 @@ interface CreateLiabilityBody {
   remainingBalance: string;
   minimumPayment?: string;
   interestRate?: string;
+  dueDate?: string;
+  autoAdvanceDueDate?: boolean;
   notes?: string;
 }
 
@@ -149,6 +151,8 @@ function AddLiabilityModal({ familyGroupId, onClose }: AddLiabilityModalProps) {
   const [remainingBalance, setRemainingBalance] = useState("");
   const [minimumPayment, setMinimumPayment] = useState("");
   const [interestRate, setInterestRate] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [autoAdvanceDueDate, setAutoAdvanceDueDate] = useState(false);
   const [notes, setNotes] = useState("");
 
   const mutation = useMutation({
@@ -183,6 +187,17 @@ function AddLiabilityModal({ familyGroupId, onClose }: AddLiabilityModalProps) {
     const d = toDigits(v);
     return d ? parseInt(d, 10).toLocaleString("id-ID") : "";
   }
+  // The API requires a dot-decimal string ("2.25"), but Indonesian input
+  // conventions use a comma for the decimal separator ("2,25") — normalize
+  // before sending, or the backend 400s with no field-level feedback shown
+  // to the user (surfaces as a generic "Gagal menambahkan" toast).
+  function toDecimalString(v: string): string | undefined {
+    const cleaned = v
+      .trim()
+      .replace(",", ".")
+      .replace(/[^\d.]/g, "");
+    return cleaned.match(/^\d+(\.\d{1,2})?/)?.[0] || undefined;
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -196,7 +211,9 @@ function AddLiabilityModal({ familyGroupId, onClose }: AddLiabilityModalProps) {
       totalDebt: totalDigits,
       remainingBalance: remainDigits,
       minimumPayment: toDigits(minimumPayment) || undefined,
-      interestRate: interestRate.trim() || undefined,
+      interestRate: toDecimalString(interestRate),
+      dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
+      autoAdvanceDueDate: dueDate ? autoAdvanceDueDate : undefined,
       notes: notes.trim() || undefined,
     });
   }
@@ -349,6 +366,33 @@ function AddLiabilityModal({ familyGroupId, onClose }: AddLiabilityModalProps) {
                 onChange={(e) => setInterestRate(e.target.value)}
               />
             </div>
+          </div>
+
+          <div>
+            <label
+              htmlFor="liability-due-date"
+              className="mb-1 block text-[12px] font-semibold text-muted-foreground"
+            >
+              Tanggal Jatuh Tempo (opsional)
+            </label>
+            <input
+              id="liability-due-date"
+              type="date"
+              className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
+            {dueDate && (
+              <label className="mt-2 flex items-center gap-2 text-[12px] text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={autoAdvanceDueDate}
+                  onChange={(e) => setAutoAdvanceDueDate(e.target.checked)}
+                  className="size-3.5"
+                />
+                Majukan otomatis ke bulan berikutnya setelah lewat jatuh tempo
+              </label>
+            )}
           </div>
 
           <div>
@@ -603,6 +647,7 @@ export default function LiabilitasPage() {
           onClick={() => setShowAddModal(true)}
           disabled={!familyGroupId || !token}
           className="h-auto px-[14px] py-2"
+          data-tour="add-liabilitas"
         >
           <Plus className="size-4" /> Tambah Liabilitas
         </Button>

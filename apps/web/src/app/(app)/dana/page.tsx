@@ -103,7 +103,6 @@ export default function DanaPage() {
   const [crudState, setCrudState] = useState<CrudModalState | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<AccountDto | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
   async function invalidateAccounts() {
     if (!familyGroupId) return;
@@ -118,7 +117,6 @@ export default function DanaPage() {
     values: Record<string, string>,
   ) {
     if (!familyGroupId || !token) return;
-    setSubmitting(true);
     try {
       const balance = parseRupiah(values.saldo ?? "0");
       if (mode === "edit" && editingId) {
@@ -148,8 +146,6 @@ export default function DanaPage() {
       await invalidateAccounts();
     } catch {
       toast.error("Gagal menyimpan e-wallet. Coba lagi.");
-    } finally {
-      setSubmitting(false);
     }
   }
 
@@ -253,7 +249,7 @@ export default function DanaPage() {
       <CrudModal
         state={crudState}
         onClose={() => setCrudState(null)}
-        onSubmit={submitting ? undefined : handleSubmit}
+        onSubmit={handleSubmit}
       />
 
       <ConfirmDeleteDialog

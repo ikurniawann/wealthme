@@ -11,6 +11,7 @@ import { AuditInterceptor } from "./audit/audit.interceptor";
 import { AuditModule } from "./audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
 import { BetterAuthGuard } from "./auth/guards/better-auth.guard";
+import { BillingCycleModule } from "./billing-cycle/billing-cycle.module";
 import { BudgetsModule } from "./budgets/budgets.module";
 import { CalculatorsModule } from "./calculators/calculators.module";
 import { CaslModule } from "./casl/casl.module";
@@ -102,6 +103,7 @@ import type { IncomingMessage } from "node:http";
     InvestmentsModule,
     InsurancesModule,
     LiabilitiesModule,
+    BillingCycleModule,
     NotificationsModule,
     ReportsModule,
     StorageModule,

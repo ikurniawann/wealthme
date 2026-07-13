@@ -255,6 +255,10 @@ export default function WarisanPage() {
   }
 
   function handleSave() {
+    if (!familyGroupId || !token) {
+      toast.error("Sesi belum siap. Coba lagi sebentar.");
+      return;
+    }
     const raw = valueInput.replace(/\D/g, "");
     const estimatedValue = parseInt(raw, 10);
     if (!name.trim()) {
@@ -382,11 +386,11 @@ export default function WarisanPage() {
         </div>
         <button
           onClick={() =>
-            toast("Upload dokumen: coming soon (StoragePort belum tersedia)")
+            toast("Upload dokumen belum tersedia — fitur ini segera hadir.")
           }
-          className="shrink-0 cursor-pointer text-[12.5px] font-bold text-primary hover:underline"
+          className="shrink-0 cursor-not-allowed text-[12.5px] font-bold text-muted-foreground"
         >
-          Upload Dokumen →
+          Upload Dokumen (Segera Hadir)
         </button>
       </div>
 
@@ -484,12 +488,12 @@ export default function WarisanPage() {
                 type="button"
                 onClick={() =>
                   toast(
-                    "Upload dokumen: coming soon (StoragePort belum tersedia)",
+                    "Upload dokumen belum tersedia — fitur ini segera hadir.",
                   )
                 }
-                className="w-full cursor-pointer rounded-md border-[1.5px] border-dashed p-[18px] text-center transition-colors hover:bg-accent/50"
+                className="w-full cursor-not-allowed rounded-md border-[1.5px] border-dashed p-[18px] text-center opacity-60"
               >
-                <CloudUpload className="mx-auto mb-1.5 size-[22px] text-primary" />
+                <CloudUpload className="mx-auto mb-1.5 size-[22px] text-muted-foreground" />
                 <div className="text-[12px] text-muted-foreground">
                   Upload sertifikat, BPKB, atau polis (PDF/JPG) — Coming soon
                 </div>

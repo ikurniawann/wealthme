@@ -92,7 +92,18 @@ export class AccountsService {
     if (!existing) {
       throw new NotFoundException("Account not found");
     }
-    await this.prisma.account.delete({ where: { id, familyGroupId } });
+    // Donation.accountId/transactionId have no DB foreign key (a donation must
+    // survive its transaction being reclassified), so deleting an account
+    // would otherwise leave a dangling reference once the cascade removes the
+    // linked transaction below. Clear the link but keep the donation's own
+    // amount/date/recipient as historical record.
+    await this.prisma.$transaction([
+      this.prisma.donation.updateMany({
+        where: { familyGroupId, accountId: id },
+        data: { accountId: null, transactionId: null },
+      }),
+      this.prisma.account.delete({ where: { id, familyGroupId } }),
+    ]);
   }
 
   private toDto(account: {

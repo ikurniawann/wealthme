@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Send, FileText, Download } from "lucide-react";
+import { Send, FileText } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -60,29 +60,6 @@ const SPT_STATUS_CLASS: Record<SptStatus, string> = {
   terlambat: "text-destructive",
 };
 
-type Doc = { icon: string; iconBg: string; name: string; meta: string };
-
-const DOCS: Doc[] = [
-  {
-    icon: "📄",
-    iconBg: "#DBEAFE",
-    name: "Bukti Potong 1721-A1 (2024)",
-    meta: "dari pemberi kerja",
-  },
-  {
-    icon: "✅",
-    iconBg: "#DCFCE7",
-    name: "Bukti Lapor SPT 2024 (BPE)",
-    meta: "NTTE: 123456789",
-  },
-  {
-    icon: "🧾",
-    iconBg: "#FEF9C3",
-    name: "Bukti Setor Zakat (BAZNAS)",
-    meta: "Pengurang penghasilan bruto",
-  },
-];
-
 const CURRENT_YEAR = new Date().getFullYear();
 
 export default function TaxPage() {
@@ -92,9 +69,9 @@ export default function TaxPage() {
   const token = session?.accessToken;
 
   // Local PPh 21 calculator state (kept local per task spec)
-  const [gross, setGross] = useState("300.000.000");
+  const [gross, setGross] = useState("");
   const [ptkp, setPtkp] = useState(54000000);
-  const [zakat, setZakat] = useState("23.787.000");
+  const [zakat, setZakat] = useState("");
 
   const grossN = parseRupiah(gross);
   const zakatN = parseRupiah(zakat);
@@ -459,42 +436,25 @@ export default function TaxPage() {
         </SectionCard>
       )}
 
-      {/* Dokumen Pajak */}
+      {/* Dokumen Pajak — upload/list not yet backed by a real API; keep the
+          affordance honestly disabled instead of showing example documents. */}
       <SectionCard
         title="Dokumen Pajak"
         action={
-          <CardLink onClick={() => toast("📤 Upload dokumen")}>
+          <CardLink
+            onClick={() =>
+              toast("Upload dokumen belum tersedia — fitur ini segera hadir.")
+            }
+          >
             + Upload
           </CardLink>
         }
         bodyClassName="-mt-1"
       >
-        {DOCS.map((d) => (
-          <div
-            key={d.name}
-            className="flex items-center gap-3 border-b py-3 last:border-b-0"
-          >
-            <div
-              className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] text-[15px]"
-              style={{ background: d.iconBg }}
-            >
-              {d.icon}
-            </div>
-            <div className="flex-1">
-              <div className="text-[13.5px] font-semibold">{d.name}</div>
-              <div className="text-[11.5px] text-muted-foreground">
-                {d.meta}
-              </div>
-            </div>
-            <button
-              onClick={() => toast("Mengunduh...")}
-              className="shrink-0 cursor-pointer text-primary"
-              aria-label={`Unduh ${d.name}`}
-            >
-              <Download className="size-4" />
-            </button>
-          </div>
-        ))}
+        <div className="py-6 text-center text-[12.5px] text-muted-foreground">
+          Belum ada dokumen. Fitur upload &amp; daftar dokumen pajak segera
+          hadir.
+        </div>
       </SectionCard>
 
       {/* Action buttons */}

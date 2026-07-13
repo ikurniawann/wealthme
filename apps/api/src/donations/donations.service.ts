@@ -16,10 +16,21 @@ type DonationRow = {
   currency: string;
   donatedAt: Date;
   isTaxDeductible: boolean;
+  accountId: string | null;
+  transactionId: string | null;
   receiptUrl: string | null;
   notes: string | null;
   createdAt: Date;
   updatedAt: Date;
+};
+
+const DONATION_TYPE_LABEL: Record<string, string> = {
+  zakat_maal: "Zakat Maal",
+  zakat_fitrah: "Zakat Fitrah",
+  infaq: "Infaq",
+  sedekah: "Sedekah",
+  wakaf: "Wakaf",
+  lainnya: "Donasi",
 };
 
 function toDonationDto(row: DonationRow): DonationResponseDto {
@@ -32,6 +43,8 @@ function toDonationDto(row: DonationRow): DonationResponseDto {
     currency: row.currency,
     donatedAt: row.donatedAt.toISOString(),
     isTaxDeductible: row.isTaxDeductible,
+    accountId: row.accountId,
+    transactionId: row.transactionId,
     receiptUrl: row.receiptUrl,
     notes: row.notes,
     createdAt: row.createdAt.toISOString(),
@@ -76,19 +89,71 @@ export class DonationsService {
     familyGroupId: string,
     dto: CreateDonationDto,
   ): Promise<DonationResponseDto> {
-    const row = await this.prisma.donation.create({
-      data: {
-        familyGroupId,
-        type: dto.type,
-        recipient: dto.recipient,
-        amount: BigInt(dto.amount),
-        currency: dto.currency ?? "IDR",
-        donatedAt: new Date(dto.donatedAt),
-        isTaxDeductible: dto.isTaxDeductible ?? false,
-        receiptUrl: dto.receiptUrl ?? null,
-        notes: dto.notes ?? null,
-      },
+    const amount = BigInt(dto.amount);
+    const donatedAt = new Date(dto.donatedAt);
+
+    // Without a source account, a donation is a record only — it never
+    // touches Account.balance, so it silently never affects net worth
+    // (which is just the sum of account balances). Linking an account here
+    // creates a real expense transaction the same way every other money-out
+    // action in the app does, so it flows through net worth/cashflow/reports
+    // automatically with no separate calculation needed.
+    const row = await this.prisma.$transaction(async (tx) => {
+      if (dto.accountId) {
+        const account = await tx.account.findUnique({
+          where: { id: dto.accountId, familyGroupId },
+        });
+        if (!account) {
+          throw new NotFoundException("Account not found");
+        }
+
+        const transaction = await tx.transaction.create({
+          data: {
+            familyGroupId,
+            accountId: dto.accountId,
+            amount,
+            type: "expense",
+            description: `${DONATION_TYPE_LABEL[dto.type] ?? "Donasi"}: ${dto.recipient}`,
+            occurredAt: donatedAt,
+          },
+        });
+        await tx.account.update({
+          where: { id: dto.accountId },
+          data: { balance: { decrement: amount } },
+        });
+
+        return tx.donation.create({
+          data: {
+            familyGroupId,
+            type: dto.type,
+            recipient: dto.recipient,
+            amount,
+            currency: dto.currency ?? "IDR",
+            donatedAt,
+            isTaxDeductible: dto.isTaxDeductible ?? false,
+            accountId: dto.accountId,
+            transactionId: transaction.id,
+            receiptUrl: dto.receiptUrl ?? null,
+            notes: dto.notes ?? null,
+          },
+        });
+      }
+
+      return tx.donation.create({
+        data: {
+          familyGroupId,
+          type: dto.type,
+          recipient: dto.recipient,
+          amount,
+          currency: dto.currency ?? "IDR",
+          donatedAt,
+          isTaxDeductible: dto.isTaxDeductible ?? false,
+          receiptUrl: dto.receiptUrl ?? null,
+          notes: dto.notes ?? null,
+        },
+      });
     });
+
     return toDonationDto(row);
   }
 
@@ -102,27 +167,52 @@ export class DonationsService {
     });
     if (!existing) throw new NotFoundException("Donation not found");
 
-    const row = await this.prisma.donation.update({
-      where: { id, familyGroupId },
-      data: {
-        type: dto.type ?? existing.type,
-        recipient: dto.recipient ?? existing.recipient,
-        amount: dto.amount !== undefined ? BigInt(dto.amount) : existing.amount,
-        currency: dto.currency ?? existing.currency,
-        donatedAt:
-          dto.donatedAt !== undefined
-            ? new Date(dto.donatedAt)
-            : existing.donatedAt,
-        isTaxDeductible:
-          dto.isTaxDeductible !== undefined
-            ? dto.isTaxDeductible
-            : existing.isTaxDeductible,
-        receiptUrl:
-          dto.receiptUrl !== undefined
-            ? (dto.receiptUrl ?? null)
-            : existing.receiptUrl,
-        notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
-      },
+    const type = dto.type ?? existing.type;
+    const recipient = dto.recipient ?? existing.recipient;
+    const amount =
+      dto.amount !== undefined ? BigInt(dto.amount) : existing.amount;
+    const donatedAt =
+      dto.donatedAt !== undefined
+        ? new Date(dto.donatedAt)
+        : existing.donatedAt;
+
+    const row = await this.prisma.$transaction(async (tx) => {
+      if (existing.accountId && existing.transactionId) {
+        // The linked expense is the source of truth for account balance and
+        // cashflow. Keep all three records consistent in the same transaction.
+        await tx.account.update({
+          where: { id: existing.accountId, familyGroupId },
+          data: { balance: { increment: existing.amount - amount } },
+        });
+        await tx.transaction.update({
+          where: { id: existing.transactionId, familyGroupId },
+          data: {
+            amount,
+            description: `${DONATION_TYPE_LABEL[type] ?? "Donasi"}: ${recipient}`,
+            occurredAt: donatedAt,
+          },
+        });
+      }
+
+      return tx.donation.update({
+        where: { id, familyGroupId },
+        data: {
+          type,
+          recipient,
+          amount,
+          currency: dto.currency ?? existing.currency,
+          donatedAt,
+          isTaxDeductible:
+            dto.isTaxDeductible !== undefined
+              ? dto.isTaxDeductible
+              : existing.isTaxDeductible,
+          receiptUrl:
+            dto.receiptUrl !== undefined
+              ? (dto.receiptUrl ?? null)
+              : existing.receiptUrl,
+          notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
+        },
+      });
     });
     return toDonationDto(row);
   }
@@ -132,7 +222,19 @@ export class DonationsService {
       where: { id, familyGroupId },
     });
     if (!existing) throw new NotFoundException("Donation not found");
-    await this.prisma.donation.delete({ where: { id, familyGroupId } });
+
+    await this.prisma.$transaction(async (tx) => {
+      if (existing.accountId && existing.transactionId) {
+        await tx.account.update({
+          where: { id: existing.accountId, familyGroupId },
+          data: { balance: { increment: existing.amount } },
+        });
+        await tx.transaction.deleteMany({
+          where: { id: existing.transactionId, familyGroupId },
+        });
+      }
+      await tx.donation.delete({ where: { id, familyGroupId } });
+    });
   }
 
   async getTotalDeductibleAmount(

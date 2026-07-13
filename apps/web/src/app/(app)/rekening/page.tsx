@@ -269,7 +269,6 @@ export default function RekeningPage() {
   const [crudState, setCrudState] = useState<CrudModalState | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<AccountCard | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
   function openAdd() {
     setEditingId(null);
@@ -298,7 +297,6 @@ export default function RekeningPage() {
     values: Record<string, string>,
   ) {
     if (!familyGroupId || !token) return;
-    setSubmitting(true);
     try {
       const balance = parseRupiah(values.saldo ?? "0");
       if (mode === "edit" && editingId) {
@@ -328,8 +326,6 @@ export default function RekeningPage() {
       await invalidateAccounts();
     } catch {
       toast.error("Gagal menyimpan rekening. Coba lagi.");
-    } finally {
-      setSubmitting(false);
     }
   }
 
@@ -371,7 +367,7 @@ export default function RekeningPage() {
             )}
           </div>
         </div>
-        <Button type="button" onClick={openAdd}>
+        <Button type="button" onClick={openAdd} data-tour="add-rekening">
           <Plus className="size-4" /> Tambah
         </Button>
       </div>
@@ -414,7 +410,7 @@ export default function RekeningPage() {
       <CrudModal
         state={crudState}
         onClose={() => setCrudState(null)}
-        onSubmit={submitting ? undefined : handleSubmit}
+        onSubmit={handleSubmit}
       />
       <ConfirmDeleteDialog
         label={deleting ? `"${deleting.name}"` : null}

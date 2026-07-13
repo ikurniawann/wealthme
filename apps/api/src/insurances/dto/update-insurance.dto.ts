@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { InsuranceStatus, InsuranceType, PremiumPeriod } from "@prisma/client";
 import {
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsOptional,
@@ -53,6 +54,11 @@ export class UpdateInsuranceDto {
   @IsOptional()
   @IsDateString()
   renewalDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  autoRenewDate?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()

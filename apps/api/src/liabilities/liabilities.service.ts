@@ -25,6 +25,7 @@ function toLiabilityDto(liability: {
   minimumPayment: bigint;
   interestRate: { toString(): string };
   dueDate: Date | null;
+  autoAdvanceDueDate: boolean;
   notes: string | null;
   currency: string;
   createdAt: Date;
@@ -50,6 +51,7 @@ function toLiabilityDto(liability: {
     minimumPayment: liability.minimumPayment.toString(),
     interestRate: liability.interestRate.toString(),
     dueDate: liability.dueDate?.toISOString() ?? null,
+    autoAdvanceDueDate: liability.autoAdvanceDueDate,
     paymentRatio,
     notes: liability.notes,
     currency: liability.currency,
@@ -127,6 +129,7 @@ export class LiabilitiesService {
         minimumPayment,
         interestRate: dto.interestRate ?? "0",
         dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+        autoAdvanceDueDate: dto.autoAdvanceDueDate ?? false,
         notes: dto.notes ?? null,
         currency: dto.currency ?? "IDR",
       },
@@ -176,6 +179,8 @@ export class LiabilitiesService {
               ? new Date(dto.dueDate)
               : null
             : existing.dueDate,
+        autoAdvanceDueDate:
+          dto.autoAdvanceDueDate ?? existing.autoAdvanceDueDate,
         notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
         currency: dto.currency ?? existing.currency,
       },

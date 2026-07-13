@@ -9,6 +9,8 @@ export class DonationResponseDto {
   @ApiProperty() currency!: string;
   @ApiProperty() donatedAt!: string;
   @ApiProperty() isTaxDeductible!: boolean;
+  @ApiPropertyOptional() accountId!: string | null;
+  @ApiPropertyOptional() transactionId!: string | null;
   @ApiPropertyOptional() receiptUrl!: string | null;
   @ApiPropertyOptional() notes!: string | null;
   @ApiProperty() createdAt!: string;

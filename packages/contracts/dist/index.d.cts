@@ -422,6 +422,19 @@ interface NetWorthDto {
     netWorth: string;
     currency: string;
 }
+interface NetWorthHistoryPointDto {
+    capturedAt: string;
+    totalCash: string;
+    totalInvestments: string;
+    totalAssets: string;
+    totalLiabilities: string;
+    netWorth: string;
+}
+interface NetWorthHistoryDto {
+    range: string;
+    currency: string;
+    points: NetWorthHistoryPointDto[];
+}
 interface DashboardSummaryDto {
     netWorth: number;
     assetsTotal: number;
@@ -579,6 +592,7 @@ interface LiabilityDto {
     minimumPayment: string;
     interestRate: string;
     dueDate: string | null;
+    autoAdvanceDueDate: boolean;
     paymentRatio: number;
     notes: string | null;
     currency: string;
@@ -599,6 +613,7 @@ interface CreateLiabilityDto {
     minimumPayment?: string;
     interestRate?: string;
     dueDate?: string;
+    autoAdvanceDueDate?: boolean;
     notes?: string;
     currency?: string;
 }
@@ -611,6 +626,7 @@ interface UpdateLiabilityDto {
     minimumPayment?: string;
     interestRate?: string;
     dueDate?: string;
+    autoAdvanceDueDate?: boolean;
     notes?: string;
     currency?: string;
 }
@@ -676,6 +692,7 @@ interface InsuranceDto {
     premiumAmount: string;
     premiumPeriod: PremiumPeriod;
     renewalDate: string | null;
+    autoRenewDate: boolean;
     policyNumber: string | null;
     daysUntilRenewal: number | null;
     notes: string | null;
@@ -697,6 +714,7 @@ interface CreateInsuranceDto {
     premiumAmount: string;
     premiumPeriod?: PremiumPeriod;
     renewalDate?: string;
+    autoRenewDate?: boolean;
     policyNumber?: string;
     notes?: string;
     currency?: string;
@@ -710,6 +728,7 @@ interface UpdateInsuranceDto {
     premiumAmount?: string;
     premiumPeriod?: PremiumPeriod;
     renewalDate?: string;
+    autoRenewDate?: boolean;
     policyNumber?: string;
     notes?: string;
     currency?: string;
@@ -1005,6 +1024,8 @@ interface DonationDto {
     currency: string;
     donatedAt: string;
     isTaxDeductible: boolean;
+    accountId: string | null;
+    transactionId: string | null;
     receiptUrl: string | null;
     notes: string | null;
     createdAt: string;
@@ -1017,6 +1038,7 @@ interface CreateDonationDto {
     currency?: string;
     donatedAt: string;
     isTaxDeductible?: boolean;
+    accountId?: string;
     receiptUrl?: string;
     notes?: string;
 }
@@ -1065,4 +1087,4 @@ interface UpdateTaxRecordDto {
     notes?: string;
 }
 
-export { type AccountDto, AccountDtoSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AssetDto, type AssetHistoryDto, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CreateAccountInput, CreateAccountInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, type GoalDto, type GoalStatus, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDto, type InvestmentSummaryDto, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type NetWorthDto, type NotificationDto, type ParticipantStatus, type PeriodPoint, type PnlDto, type Pph21RequestDto, type Pph21ResultDto, type PremiumPeriod, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SplitBillDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type TaxBracketDto, type TaxRecordDto, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto };
+export { type AccountDto, AccountDtoSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AssetDto, type AssetHistoryDto, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CreateAccountInput, CreateAccountInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, type GoalDto, type GoalStatus, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDto, type InvestmentSummaryDto, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type ParticipantStatus, type PeriodPoint, type PnlDto, type Pph21RequestDto, type Pph21ResultDto, type PremiumPeriod, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SplitBillDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type TaxBracketDto, type TaxRecordDto, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto };

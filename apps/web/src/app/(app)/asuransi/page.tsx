@@ -259,6 +259,7 @@ function AddInsuranceModal({
   const [premiumPeriod, setPremiumPeriod] = useState<PremiumPeriod>("monthly");
   const [coverageAmount, setCoverageAmount] = useState("");
   const [renewalDate, setRenewalDate] = useState("");
+  const [autoRenewDate, setAutoRenewDate] = useState(false);
   const [policyNumber, setPolicyNumber] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -319,7 +320,7 @@ function AddInsuranceModal({
       ...(coverageAmount && {
         coverageAmount: String(parseRupiah(coverageAmount)),
       }),
-      ...(renewalDate && { renewalDate }),
+      ...(renewalDate && { renewalDate, autoRenewDate }),
       ...(policyNumber.trim() && { policyNumber: policyNumber.trim() }),
       ...(notes.trim() && { notes: notes.trim() }),
     };
@@ -522,6 +523,18 @@ function AddInsuranceModal({
               onChange={(e) => setRenewalDate(e.target.value)}
               className={FIELD_CLASS}
             />
+            {renewalDate && (
+              <label className="mt-2 flex items-center gap-2 text-[12px] text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={autoRenewDate}
+                  onChange={(e) => setAutoRenewDate(e.target.checked)}
+                  className="size-3.5"
+                />
+                Perpanjang otomatis setiap periode premi setelah lewat jatuh
+                tempo
+              </label>
+            )}
           </div>
 
           <div>
@@ -723,6 +736,7 @@ export default function AsuransiPage() {
           onClick={() => setShowModal(true)}
           disabled={!familyGroupId}
           className="h-auto px-4 py-[9px]"
+          data-tour="add-asuransi"
         >
           <Plus className="size-4" /> Tambah
         </Button>

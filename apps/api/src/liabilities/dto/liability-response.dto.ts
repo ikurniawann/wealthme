@@ -11,6 +11,7 @@ export class LiabilityResponseDto {
   @ApiProperty() minimumPayment!: string;
   @ApiProperty() interestRate!: string;
   @ApiProperty({ nullable: true }) dueDate!: string | null;
+  @ApiProperty() autoAdvanceDueDate!: boolean;
   @ApiProperty() paymentRatio!: number;
   @ApiProperty({ nullable: true }) notes!: string | null;
   @ApiProperty() currency!: string;

@@ -490,6 +490,7 @@ model Liability {
   minimumPayment   BigInt        @default(0)
   interestRate     Decimal       @default(0) @db.Decimal(5, 2)
   dueDate          DateTime?
+  autoAdvanceDueDate Boolean     @default(false)
   notes            String?
   currency         String        @default("IDR")
   createdAt        DateTime      @default(now())
@@ -511,6 +512,7 @@ model Insurance {
   premiumAmount   BigInt
   premiumPeriod   PremiumPeriod   @default(monthly)
   renewalDate     DateTime?
+  autoRenewDate   Boolean         @default(false)
   policyNumber    String?         @db.VarChar(100)
   notes           String?         @db.VarChar(500)
   currency        String          @default("IDR") @db.VarChar(3)
@@ -596,6 +598,8 @@ model Donation {
   currency        String       @default("IDR") @db.VarChar(3)
   donatedAt       DateTime
   isTaxDeductible Boolean      @default(false)
+  accountId       String?
+  transactionId   String?
   receiptUrl      String?
   notes           String?
   createdAt       DateTime     @default(now())

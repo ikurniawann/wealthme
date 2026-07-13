@@ -217,7 +217,6 @@ export default function TujuanPage() {
   const [crud, setCrud] = useState<CrudModalState | null>(null);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [deletingGoal, setDeletingGoal] = useState<GoalDto | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
   const {
     data: goals,
@@ -271,8 +270,10 @@ export default function TujuanPage() {
     mode: CrudMode,
     values: Record<string, string>,
   ) {
-    if (!familyGroupId || !token) return;
-    setSubmitting(true);
+    if (!familyGroupId || !token) {
+      toast.error("Sesi belum siap. Coba lagi sebentar.");
+      return;
+    }
     try {
       const body = buildGoalBody(values);
       if (mode === "edit" && editingGoalId) {
@@ -294,14 +295,11 @@ export default function TujuanPage() {
       });
     } catch {
       toast.error("Gagal menyimpan tujuan. Coba lagi.");
-    } finally {
-      setSubmitting(false);
     }
   }
 
   async function handleDeleteConfirm() {
     if (!familyGroupId || !token || !deletingGoal) return;
-    setSubmitting(true);
     try {
       await apiFetch(
         `/family-groups/${familyGroupId}/goals/${deletingGoal.id}`,
@@ -314,7 +312,6 @@ export default function TujuanPage() {
     } catch {
       toast.error("Gagal menghapus tujuan. Coba lagi.");
     } finally {
-      setSubmitting(false);
       setDeletingGoal(null);
     }
   }
@@ -333,6 +330,7 @@ export default function TujuanPage() {
         </div>
         <Button
           onClick={() => setCrud({ entity: "tujuan", mode: "add" })}
+          disabled={!familyGroupId}
           className="h-auto px-[18px] py-2.5"
         >
           <Plus className="size-4" /> Tambah Tujuan
@@ -406,7 +404,7 @@ export default function TujuanPage() {
       <CrudModal
         state={crud}
         onClose={handleCloseCrud}
-        onSubmit={submitting ? undefined : handleSubmit}
+        onSubmit={handleSubmit}
       />
       <ConfirmDeleteDialog
         label={deletingGoal ? `"${deletingGoal.name}"` : null}

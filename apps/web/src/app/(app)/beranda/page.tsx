@@ -16,6 +16,7 @@ import {
   CreditCard,
   ArrowDownLeft,
   ArrowLeftRight,
+  Target,
   type LucideIcon,
 } from "lucide-react";
 import { Sparkline } from "@/components/charts/sparkline";
@@ -535,6 +536,7 @@ export default function BerandaPage() {
               {t.common.viewAll}
             </CardLink>
           }
+          bodyClassName="flex flex-1 flex-col"
         >
           {isGoalsLoading ? (
             <div className="space-y-3.5">
@@ -548,8 +550,18 @@ export default function BerandaPage() {
                 ))}
             </div>
           ) : goalItems.length === 0 ? (
-            <div className="py-4 text-center text-[13px] text-muted-foreground">
-              {t.beranda.noGoals}
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 py-4 text-center">
+              <Target className="size-7 text-muted-foreground/40" />
+              <div className="text-[13px] text-muted-foreground">
+                {t.beranda.noGoals}
+              </div>
+              <button
+                type="button"
+                onClick={() => router.push("/tujuan")}
+                className="text-[12px] font-semibold text-primary hover:underline"
+              >
+                + {t.beranda.addGoalCta}
+              </button>
             </div>
           ) : (
             <div className="space-y-3.5">

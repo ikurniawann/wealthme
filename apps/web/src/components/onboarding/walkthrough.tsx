@@ -94,6 +94,26 @@ export function Walkthrough() {
     if (!isOnboarded(userId)) setWelcomeOpen(true);
   }, [userId]);
 
+  // Debug/QA shortcut — replay the welcome dialog on demand without
+  // clearing localStorage or re-registering. Triple-modifier combo (unlike
+  // the Cmd/Ctrl+K search shortcut) so it isn't intercepted by the browser
+  // chrome the way plain Ctrl/Cmd+Shift+<letter> often is.
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        e.altKey &&
+        e.key.toLowerCase() === "o"
+      ) {
+        e.preventDefault();
+        setWelcomeOpen(true);
+      }
+    }
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
+
   const step = TOUR_STEPS[tourStep];
   const isLastStep = tourStep === TOUR_STEPS.length - 1;
 
@@ -204,7 +224,7 @@ export function Walkthrough() {
               }}
               className="w-full rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong"
             >
-              Mulai Tur Singkat (1 menit)
+              Mulai Tur Lengkap (~3 menit)
             </button>
             <button
               type="button"
@@ -284,14 +304,32 @@ export function Walkthrough() {
           {step.body}
         </p>
 
-        {step.actionHref && (
+        {step.directAction && step.target ? (
           <button
             type="button"
-            onClick={() => router.push(step.actionHref as string)}
-            className="mt-3 text-[12px] font-semibold text-primary hover:underline"
+            onClick={() => {
+              // Same effect as the user clicking the real add-button
+              // themselves — opens that page's own add-modal — then hands
+              // off from the guided tour so the modal isn't hidden behind it.
+              document
+                .querySelector<HTMLElement>(step.target as string)
+                ?.click();
+              finishOnboarding();
+            }}
+            className="mt-3 w-full rounded-md bg-primary py-2 text-[12.5px] font-bold text-white transition-colors hover:bg-primary-strong"
           >
             {step.actionLabel} →
           </button>
+        ) : (
+          step.actionHref && (
+            <button
+              type="button"
+              onClick={() => router.push(step.actionHref as string)}
+              className="mt-3 text-[12px] font-semibold text-primary hover:underline"
+            >
+              {step.actionLabel} →
+            </button>
+          )
         )}
 
         <div className="mt-4 flex items-center justify-between">

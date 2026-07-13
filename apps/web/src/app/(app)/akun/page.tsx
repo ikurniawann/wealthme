@@ -954,7 +954,7 @@ function BantuanBody({
           icon={<Book className="size-4 text-primary" />}
           iconBg="#EEF2FF"
           name="Mulai Tur Interaktif"
-          sub="Tur singkat 1 menit yang menyorot fitur utama"
+          sub="Tur ~3 menit yang memandu penambahan rekening, aset, investasi, dan fitur utama lainnya"
           right={CHEVRON}
           onClick={onStartTour}
         />

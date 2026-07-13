@@ -446,9 +446,13 @@ function AccountsGroupCard({
 // ── Investasi Group Card ──────────────────────────────────────────────────────
 
 function InvestasiGroupCard({ investments }: { investments: InvestmentDto[] }) {
+  // currentValue is a computed Decimal (quantity × price) serialized as a
+  // string that can contain a fractional part — BigInt() throws on that
+  // ("invalid BigInt syntax"), so unlike Account.balance/Asset.currentValue
+  // (genuine BigInt-backed fields) this must be parsed as a float.
   const groupTotal = investments.reduce(
-    (sum, inv) => sum + BigInt(inv.currentValue ?? "0"),
-    BigInt(0),
+    (sum, inv) => sum + parseFloat(inv.currentValue ?? "0"),
+    0,
   );
 
   return (
@@ -493,7 +497,7 @@ function InvestasiGroupCard({ investments }: { investments: InvestmentDto[] }) {
                 </div>
                 <div className="text-right shrink-0">
                   <div className="text-[14px] font-extrabold">
-                    {formatRupiah(Number(BigInt(inv.currentValue ?? "0")))}
+                    {formatRupiah(parseFloat(inv.currentValue ?? "0"))}
                   </div>
                 </div>
               </div>
@@ -604,17 +608,19 @@ export default function AsetPage() {
     (sum, a) => sum + BigInt(a.balance ?? "0"),
     BigInt(0),
   );
-  const investmentsTotalBig = (investments ?? []).reduce(
-    (sum, inv) => sum + BigInt(inv.currentValue ?? "0"),
-    BigInt(0),
+  // currentValue is a computed Decimal (quantity × price) and can be
+  // fractional — BigInt() throws on that, so sum it as a float instead
+  // (see the same note on InvestasiGroupCard above).
+  const investmentsTotal = (investments ?? []).reduce(
+    (sum, inv) => sum + parseFloat(inv.currentValue ?? "0"),
+    0,
   );
   const assetsTotalBig = (assets ?? []).reduce(
     (sum, a) => sum + BigInt(a.currentValue ?? "0"),
     BigInt(0),
   );
-  const grandTotal = Number(
-    accountsTotalBig + investmentsTotalBig + assetsTotalBig,
-  );
+  const grandTotal =
+    Number(accountsTotalBig + assetsTotalBig) + investmentsTotal;
 
   const isLoading = assetsLoading || accountsLoading || investmentsLoading;
 
@@ -661,6 +667,7 @@ export default function AsetPage() {
             onClick={() => setShowAddModal(true)}
             className="h-auto px-[14px] py-2"
             disabled={!familyGroupId || !token}
+            data-tour="add-aset"
           >
             <Plus className="size-4" /> Tambah Aset
           </Button>

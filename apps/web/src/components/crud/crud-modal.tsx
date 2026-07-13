@@ -25,12 +25,19 @@ export interface CrudModalState {
 interface CrudModalProps {
   state: CrudModalState | null;
   onClose: () => void;
-  /** Optional submit handler; defaults to a demo-parity success toast. */
+  /**
+   * Optional submit handler; defaults to a demo-parity success toast. May
+   * return a Promise — the modal disables Simpan and awaits it before
+   * closing, so pass the handler directly (don't swap it for `undefined`
+   * while a submit is in flight, that silently no-ops the real request and
+   * falls back to this demo-parity toast). Re-entrant clicks are guarded
+   * internally instead.
+   */
   onSubmit?: (
     entity: CrudEntity,
     mode: CrudMode,
     values: Record<string, string>,
-  ) => void;
+  ) => void | Promise<void>;
 }
 
 function formatThousands(raw: string): string {
@@ -82,19 +89,27 @@ function CrudForm({ state, onClose, onSubmit }: CrudFormProps) {
   const [values, setValues] = useState<Record<string, string>>(() =>
     initialFieldValues(config.fields, state.initialValues),
   );
+  const [isSaving, setIsSaving] = useState(false);
 
   const setField = (key: string, value: string) =>
     setValues((prev) => ({ ...prev, [key]: value }));
 
-  const handleSave = () => {
-    if (onSubmit) {
-      onSubmit(state.entity, state.mode, values);
-    } else {
+  const handleSave = async () => {
+    if (isSaving) return;
+    if (!onSubmit) {
       toast.success(
         `${config.title} berhasil ${state.mode === "edit" ? "diperbarui" : "ditambahkan"}!`,
       );
+      onClose();
+      return;
     }
-    onClose();
+    setIsSaving(true);
+    try {
+      await onSubmit(state.entity, state.mode, values);
+      onClose();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -184,8 +199,8 @@ function CrudForm({ state, onClose, onSubmit }: CrudFormProps) {
           ))}
         </div>
 
-        <Button className="w-full" onClick={handleSave}>
-          <Save className="size-4" /> Simpan
+        <Button className="w-full" onClick={handleSave} disabled={isSaving}>
+          <Save className="size-4" /> {isSaving ? "Menyimpan..." : "Simpan"}
         </Button>
       </DialogContent>
     </Dialog>

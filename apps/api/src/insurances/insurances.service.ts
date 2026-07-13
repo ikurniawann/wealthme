@@ -21,6 +21,7 @@ type InsuranceRow = {
   premiumAmount: bigint;
   premiumPeriod: string;
   renewalDate: Date | null;
+  autoRenewDate: boolean;
   policyNumber: string | null;
   notes: string | null;
   currency: string;
@@ -44,6 +45,7 @@ function toInsuranceDto(row: InsuranceRow): InsuranceResponseDto {
     premiumAmount: row.premiumAmount.toString(),
     premiumPeriod: row.premiumPeriod,
     renewalDate: row.renewalDate?.toISOString() ?? null,
+    autoRenewDate: row.autoRenewDate,
     policyNumber: row.policyNumber,
     daysUntilRenewal: row.renewalDate ? daysUntil(row.renewalDate) : null,
     notes: row.notes,
@@ -107,6 +109,7 @@ export class InsurancesService {
         premiumAmount: BigInt(dto.premiumAmount),
         premiumPeriod: dto.premiumPeriod ?? "monthly",
         renewalDate: dto.renewalDate ? new Date(dto.renewalDate) : null,
+        autoRenewDate: dto.autoRenewDate ?? false,
         policyNumber: dto.policyNumber ?? null,
         notes: dto.notes ?? null,
         currency: dto.currency ?? "IDR",
@@ -160,6 +163,7 @@ export class InsurancesService {
               ? new Date(dto.renewalDate)
               : null
             : existing.renewalDate,
+        autoRenewDate: dto.autoRenewDate ?? existing.autoRenewDate,
         policyNumber:
           dto.policyNumber !== undefined
             ? (dto.policyNumber ?? null)

@@ -24,6 +24,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { RowActions, ConfirmDeleteDialog } from "@/components/crud";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah } from "@/lib/format";
@@ -118,21 +119,33 @@ function AddInvestmentModal({
   onClose,
   familyGroupId,
   token,
+  editing,
 }: {
   open: boolean;
   onClose: () => void;
   familyGroupId: string;
   token: string;
+  editing?: InvestmentDto | null;
 }) {
   const queryClient = useQueryClient();
   const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState<AddInvestmentForm>({
-    ticker: "",
-    name: "",
-    type: "saham",
-    quantity: "",
-    costBasisPerUnit: "",
-  });
+  const [form, setForm] = useState<AddInvestmentForm>(() =>
+    editing
+      ? {
+          ticker: editing.ticker,
+          name: editing.name,
+          type: editing.type as InvestmentType,
+          quantity: editing.quantity,
+          costBasisPerUnit: editing.costBasisPerUnit,
+        }
+      : {
+          ticker: "",
+          name: "",
+          type: "saham",
+          quantity: "",
+          costBasisPerUnit: "",
+        },
+  );
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -145,25 +158,25 @@ function AddInvestmentModal({
     e.preventDefault();
     setSubmitting(true);
     try {
-      await apiFetch(`/family-groups/${familyGroupId}/investments`, {
-        method: "POST",
+      const path = editing
+        ? `/family-groups/${familyGroupId}/investments/${editing.id}`
+        : `/family-groups/${familyGroupId}/investments`;
+      await apiFetch(path, {
+        method: editing ? "PATCH" : "POST",
         token,
         body: JSON.stringify(form),
       });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.investments.all(familyGroupId),
       });
-      toast.success("Investasi ditambahkan");
-      setForm({
-        ticker: "",
-        name: "",
-        type: "saham",
-        quantity: "",
-        costBasisPerUnit: "",
-      });
+      toast.success(
+        editing ? "Investasi berhasil diperbarui" : "Investasi ditambahkan",
+      );
       onClose();
     } catch {
-      toast.error("Gagal menambahkan investasi");
+      toast.error(
+        editing ? "Gagal memperbarui investasi" : "Gagal menambahkan investasi",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -178,7 +191,9 @@ function AddInvestmentModal({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Tambah Investasi</DialogTitle>
+          <DialogTitle>
+            {editing ? "Edit Investasi" : "Tambah Investasi"}
+          </DialogTitle>
         </DialogHeader>
         <form
           onSubmit={(e) => {
@@ -290,6 +305,12 @@ export default function InvestasiPage() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingHolding, setEditingHolding] = useState<InvestmentDto | null>(
+    null,
+  );
+  const [deletingHolding, setDeletingHolding] = useState<InvestmentDto | null>(
+    null,
+  );
 
   const token = session?.accessToken as string | undefined;
   const familyGroupId = session?.familyGroupId;
@@ -351,18 +372,48 @@ export default function InvestasiPage() {
     }
   }, [holdingsError]);
 
+  async function handleDeleteConfirm() {
+    if (!familyGroupId || !token || !deletingHolding) return;
+    try {
+      await apiFetch(
+        `/family-groups/${familyGroupId}/investments/${deletingHolding.id}`,
+        { method: "DELETE", token },
+      );
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.investments.all(familyGroupId),
+      });
+      toast.success("Investasi berhasil dihapus.");
+    } catch {
+      toast.error("Gagal menghapus investasi. Coba lagi.");
+    } finally {
+      setDeletingHolding(null);
+    }
+  }
+
   const isLoading = holdingsLoading || summaryLoading;
 
   return (
     <div className="space-y-4">
       {familyGroupId && token && (
         <AddInvestmentModal
+          key={editingHolding?.id ?? "add"}
           open={modalOpen}
-          onClose={() => setModalOpen(false)}
+          editing={editingHolding}
+          onClose={() => {
+            setModalOpen(false);
+            setEditingHolding(null);
+          }}
           familyGroupId={familyGroupId}
           token={token}
         />
       )}
+      <ConfirmDeleteDialog
+        label={deletingHolding ? `"${deletingHolding.name}"` : null}
+        onClose={() => setDeletingHolding(null)}
+        onConfirm={() => {
+          void handleDeleteConfirm();
+        }}
+      />
 
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
         {isLoading ? (
@@ -443,7 +494,10 @@ export default function InvestasiPage() {
       <SectionCard
         title="Portofolio"
         action={
-          <CardLink onClick={() => setModalOpen(true)}>
+          <CardLink
+            onClick={() => setModalOpen(true)}
+            data-tour="add-investasi"
+          >
             + Tambah Investasi
           </CardLink>
         }
@@ -457,7 +511,8 @@ export default function InvestasiPage() {
                 <th className="py-2.5 pr-3 font-semibold">Modal</th>
                 <th className="py-2.5 pr-3 font-semibold">Nilai</th>
                 <th className="py-2.5 pr-3 font-semibold">Return</th>
-                <th className="py-2.5 font-semibold">%</th>
+                <th className="py-2.5 pr-3 font-semibold">%</th>
+                <th className="py-2.5 font-semibold">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -469,7 +524,7 @@ export default function InvestasiPage() {
               {!isLoading && !holdingsError && holdings?.length === 0 && (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="py-8 text-center text-[13px] text-muted-foreground"
                   >
                     Belum ada investasi.{" "}
@@ -535,11 +590,20 @@ export default function InvestasiPage() {
                       {formatDecimalRupiah(h.returnRp)}
                     </td>
                     <td
-                      className={`py-3 font-semibold whitespace-nowrap ${
+                      className={`py-3 pr-3 font-semibold whitespace-nowrap ${
                         isUp ? "text-success" : "text-destructive"
                       }`}
                     >
                       {formatReturnPct(h.returnPct)}
+                    </td>
+                    <td className="py-3">
+                      <RowActions
+                        onEdit={() => {
+                          setEditingHolding(h);
+                          setModalOpen(true);
+                        }}
+                        onDelete={() => setDeletingHolding(h)}
+                      />
                     </td>
                   </tr>
                 );

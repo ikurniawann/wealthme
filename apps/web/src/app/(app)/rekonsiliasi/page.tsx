@@ -178,6 +178,21 @@ export default function RekonsiliasiPage() {
     setStep(next);
   }, []);
 
+  /* ─── Step 1: recent uploads ─── */
+  const syncsQuery = useQuery<BankSyncDto[]>({
+    queryKey: familyGroupId
+      ? queryKeys.reconciliation.list(familyGroupId)
+      : ["reconciliation-syncs-disabled"],
+    queryFn: () =>
+      apiFetch<BankSyncDto[]>(
+        `/family-groups/${familyGroupId}/reconciliation`,
+        {
+          token,
+        },
+      ),
+    enabled: !!familyGroupId && !!token,
+  });
+
   /* ─── Step 1: upload mutation ─── */
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -217,6 +232,11 @@ export default function RekonsiliasiPage() {
     },
     onSuccess: (data) => {
       setSyncId(data.id);
+      if (familyGroupId) {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.reconciliation.list(familyGroupId),
+        });
+      }
       toast.success("File berhasil diunggah!");
       goto(2);
     },
@@ -406,70 +426,65 @@ export default function RekonsiliasiPage() {
             title="Dokumen Terbaru"
             action={<CardLink>Lihat Riwayat</CardLink>}
           >
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                className="flex w-full cursor-pointer items-center gap-3 rounded-lg border bg-card p-3 text-left transition-colors hover:bg-accent/50"
-              >
-                <div
-                  className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg text-white"
-                  style={{ background: "#E53E3E" }}
-                >
-                  <FileText className="size-[18px]" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[13px] font-bold">
-                    BCA Rekening Koran Mei 2025.pdf
-                  </div>
-                  <div className="truncate text-[11px] text-muted-foreground">
-                    BCA · 123-456-7890 · Diupload 18 Mei 2025, 14:32
-                  </div>
-                </div>
-                <div className="flex-shrink-0 text-right">
-                  <StatusBadge
-                    variant="success"
-                    className="mb-[3px] text-[10px]"
-                  >
-                    Berhasil dipindai
-                  </StatusBadge>
-                  <div className="text-[11px] text-muted-foreground">
-                    152 transaksi
-                  </div>
-                </div>
-                <ChevronRight className="size-3 flex-shrink-0 text-muted-foreground" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                className="flex w-full cursor-pointer items-center gap-3 rounded-lg border bg-card p-3 text-left transition-colors hover:bg-accent/50"
-              >
-                <div
-                  className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg text-white"
-                  style={{ background: "#217346" }}
-                >
-                  <FileSpreadsheet className="size-[18px]" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[13px] font-bold">
-                    Mandiri Rekon April 2025.xlsx
-                  </div>
-                  <div className="truncate text-[11px] text-muted-foreground">
-                    Mandiri · 987-654-3210 · Diupload 12 Mei 2025, 09:15
-                  </div>
-                </div>
-                <div className="flex-shrink-0 text-right">
-                  <StatusBadge variant="info" className="mb-[3px] text-[10px]">
-                    Siap dicocokkan
-                  </StatusBadge>
-                  <div className="text-[11px] text-muted-foreground">
-                    98 transaksi
-                  </div>
-                </div>
-                <ChevronRight className="size-3 flex-shrink-0 text-muted-foreground" />
-              </button>
-            </div>
+            {syncsQuery.isLoading ? (
+              <div className="py-6 text-center text-[12.5px] text-muted-foreground">
+                Memuat...
+              </div>
+            ) : !syncsQuery.data || syncsQuery.data.length === 0 ? (
+              <div className="py-6 text-center text-[12.5px] text-muted-foreground">
+                Belum ada dokumen yang diunggah.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {syncsQuery.data.map((sync) => {
+                  const isSpreadsheet = /\.(xlsx?|csv)$/i.test(sync.fileName);
+                  return (
+                    <button
+                      key={sync.id}
+                      type="button"
+                      onClick={() => {
+                        setSyncId(sync.id);
+                        setStep(2);
+                      }}
+                      className="flex w-full cursor-pointer items-center gap-3 rounded-lg border bg-card p-3 text-left transition-colors hover:bg-accent/50"
+                    >
+                      <div
+                        className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg text-white"
+                        style={{
+                          background: isSpreadsheet ? "#217346" : "#E53E3E",
+                        }}
+                      >
+                        {isSpreadsheet ? (
+                          <FileSpreadsheet className="size-[18px]" />
+                        ) : (
+                          <FileText className="size-[18px]" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[13px] font-bold">
+                          {sync.fileName}
+                        </div>
+                        <div className="truncate text-[11px] text-muted-foreground">
+                          {`Diupload ${new Date(sync.uploadedAt).toLocaleString("id-ID")}`}
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0 text-right">
+                        <StatusBadge
+                          variant="info"
+                          className="mb-[3px] text-[10px]"
+                        >
+                          Terunggah
+                        </StatusBadge>
+                        <div className="text-[11px] text-muted-foreground">
+                          {`${sync.rowCount} transaksi`}
+                        </div>
+                      </div>
+                      <ChevronRight className="size-3 flex-shrink-0 text-muted-foreground" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </SectionCard>
 
           {/* Tips */}

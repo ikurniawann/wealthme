@@ -242,6 +242,10 @@ export default function MasterCoaPage() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!familyGroupId || !token) {
+      toast.error("Sesi belum siap. Coba lagi sebentar.");
+      return;
+    }
     const payload = {
       code: form.code,
       name: form.name,
@@ -362,7 +366,8 @@ export default function MasterCoaPage() {
         action={
           <button
             onClick={openAdd}
-            className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-primary/90 transition-colors"
+            disabled={!familyGroupId}
+            className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
           >
             <Plus className="size-3.5" /> Tambah Akun
           </button>
