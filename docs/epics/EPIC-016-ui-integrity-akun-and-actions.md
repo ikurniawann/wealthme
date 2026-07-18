@@ -237,4 +237,5 @@ maskedNumber` pattern). Attempt 1 review found 3 HIGH issues (silent data-loss
   - its `.js` twin, ported to a real `format.test.ts`; reverted the unrelated
     refactor; fixed a currency-picker keyboard-accessibility gap surfaced by
     this task making the click real. Re-review: PASS. Gates: qa ✅ security ✅
-    test ✅ (96 API + 34 web). PR: (pending).
+    test ✅ (96 API + 34 web). PR: https://github.com/andrsrjld/wealthme-web/pull/174
+    (stacked on #173, not yet merged).
