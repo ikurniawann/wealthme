@@ -84,3 +84,6 @@ new-user onboarding reaches usable actions without a stale tenant session.
   Separately audited the rest of the app for the same class of issue
   (dummy data / non-functional UI) beyond this epic's original three pages —
   see the Automation Log entry below once the audit agent reports back.
+- **2026-07-18 — /nerve "PR #171 merged".** PR #171 (bundled EPIC-015 trust-pass fixes with
+  EPIC-012/014) merged to `development` at `0747a1e`. Merge blocker resolved. Still `ready-for-qa`
+  pending human QA sign-off (per `CLAUDE.md` "What Remains Manual") before promotion to `done` + archive.

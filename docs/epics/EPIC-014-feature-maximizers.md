@@ -76,3 +76,8 @@ Implemented in main session per `/nerve`; gates via `scripts/{qa,test,security-c
   merge. Status `ready-for-qa`.
 
 - **2026-07-18 — /agentic-init (maintenance).** Added missing kit artifacts: `.agentic/config.yml` manifest (detected: pnpm, turbo monorepo, integration=development, tenant scope userId+familyGroupId, protected paths from WM_CONVENTIONS), `docs/DEFINITION-OF-DONE.md`, `docs/product/ACCEPTANCE-CRITERIA.md`, disabled loop controls (`.agentic/loop-constraints.md`, `docs/LOOP*.md`, `scripts/loop-{readiness,ledger,worktree}.sh`, `loop.enabled: false`). Epic statuses already canonical — no changes. Gates: qa OK, security-check OK (previous baseline ws advisory no longer flagged). No app code touched.
+
+- **2026-07-18 — /nerve "PR #171 merged".** Confirmed via `gh pr view 171`: state MERGED at
+  2026-07-18T11:31:05Z, merge commit `0747a1e`, into `development`. `origin/development` fast-forwarded
+  120 files (+6561/-748). Merge blocker resolved. Still `ready-for-qa` pending human QA sign-off (per
+  `CLAUDE.md` "What Remains Manual") before promotion to `done` + archive.

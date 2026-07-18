@@ -128,3 +128,6 @@ no `Category` FK; reports resolve direction via a read-time util.
   Branch pushed; PR creation requires gh auth (do manually). Task D (reports wiring) pending.
 - 2026-06-27 — Task D completed. coa-direction.util.ts added; wired into reports.service.ts getPnl.
   All 88 tests green. Epic set to ready-for-qa. Pending: manual PR creation + QA sign-off.
+- **2026-07-18 — /nerve "PR #171 merged".** PR #171 (bundled EPIC-012 + EPIC-014) merged to
+  `development` at `0747a1e`. Merge blocker resolved. Still `ready-for-qa` pending human QA sign-off
+  (per `CLAUDE.md` "What Remains Manual") before promotion to `done` + archive.
