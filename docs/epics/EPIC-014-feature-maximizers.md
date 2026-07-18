@@ -74,3 +74,5 @@ Implemented in main session per `/nerve`; gates via `scripts/{qa,test,security-c
   pre-existing dependency advisories (verified identical with changes stashed). PR **#171** →
   development opened; auto-merge denied by permission classifier (self-approval) — awaiting human
   merge. Status `ready-for-qa`.
+
+- **2026-07-18 — /agentic-init (maintenance).** Added missing kit artifacts: `.agentic/config.yml` manifest (detected: pnpm, turbo monorepo, integration=development, tenant scope userId+familyGroupId, protected paths from WM_CONVENTIONS), `docs/DEFINITION-OF-DONE.md`, `docs/product/ACCEPTANCE-CRITERIA.md`, disabled loop controls (`.agentic/loop-constraints.md`, `docs/LOOP*.md`, `scripts/loop-{readiness,ledger,worktree}.sh`, `loop.enabled: false`). Epic statuses already canonical — no changes. Gates: qa OK, security-check OK (previous baseline ws advisory no longer flagged). No app code touched.
