@@ -9,6 +9,7 @@ import { Topbar } from "./topbar";
 import { MobileHeader, MobileNav } from "./mobile-bars";
 import { SearchDialog } from "./search-dialog";
 import { TransactionDialog } from "./transaction-dialog";
+import { Walkthrough } from "@/components/onboarding/walkthrough";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, ready } = useAuth();
@@ -46,10 +47,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Suspense fallback={<div className="h-16 border-b bg-card" />}>
             <Topbar />
           </Suspense>
-          <Suspense fallback={<div className="h-14 border-b bg-card md:hidden" />}>
+          <Suspense
+            fallback={<div className="h-14 border-b bg-card md:hidden" />}
+          >
             <MobileHeader />
           </Suspense>
-          <main className="flex-1 px-3.5 pb-20 pt-3.5 md:px-6 md:py-6">{children}</main>
+          <main className="flex-1 px-3.5 pb-20 pt-3.5 md:px-6 md:py-6">
+            {children}
+          </main>
         </div>
 
         <MobileNav />
@@ -57,6 +62,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <SearchDialog />
       <TransactionDialog />
+      <Walkthrough />
     </ShellProvider>
   );
 }

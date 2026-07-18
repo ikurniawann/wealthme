@@ -58,7 +58,10 @@ export class TransactionsService {
     const [transactions, total] = await Promise.all([
       this.prisma.transaction.findMany({
         where,
-        orderBy: { occurredAt: "desc" },
+        // occurredAt is date-only from the add-transaction form, so same-day
+        // entries tie — createdAt breaks the tie so the most recently added
+        // transaction is always first.
+        orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
         skip,
         take: limit,
         include: {

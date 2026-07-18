@@ -128,6 +128,18 @@ enum ReconStatus {
   unmatched
   suggested
 }
+
+enum CoaDirection {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+enum CoaBudgetType {
+  FIXED
+  VARIABLE
+  REIMBURSEMENT
+}
 // ── Models ────────────────────────────────────────────────────────────────────
 
 model User {
@@ -215,8 +227,28 @@ model FamilyGroup {
   donations          Donation[]
   taxRecords         TaxRecord[]
   bankSyncs          BankSync[]
+  netWorthSnapshots  NetWorthSnapshot[]
+  coaAccounts        CoaAccount[]
 
   @@map("family_groups")
+}
+
+model CoaAccount {
+  id            String         @id @default(uuid())
+  familyGroupId String
+  code          String
+  name          String
+  groupNum      Int
+  direction     CoaDirection
+  budgetType    CoaBudgetType?
+  parentCode    String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  familyGroup   FamilyGroup    @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([familyGroupId, code])
+  @@index([familyGroupId])
+  @@map("coa_accounts")
 }
 
 model Invitation {
@@ -330,6 +362,7 @@ model Goal {
   currentAmount   BigInt      @default(0)
   targetDate      DateTime?
   autoDebitAmount BigInt?
+  lastAutoDebitAt DateTime?
   status          GoalStatus  @default(on_track)
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -379,6 +412,21 @@ model AssetHistory {
 
   @@index([assetId, recordedAt])
   @@map("asset_history")
+}
+
+model NetWorthSnapshot {
+  id               String      @id @default(uuid())
+  familyGroupId    String
+  capturedAt       DateTime    @default(now())
+  totalCash        BigInt
+  totalInvestments BigInt
+  totalAssets      BigInt
+  totalLiabilities BigInt
+  netWorth         BigInt
+  familyGroup      FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@index([familyGroupId, capturedAt])
+  @@map("net_worth_snapshots")
 }
 
 model Investment {
@@ -442,6 +490,7 @@ model Liability {
   minimumPayment   BigInt        @default(0)
   interestRate     Decimal       @default(0) @db.Decimal(5, 2)
   dueDate          DateTime?
+  autoAdvanceDueDate Boolean     @default(false)
   notes            String?
   currency         String        @default("IDR")
   createdAt        DateTime      @default(now())
@@ -463,6 +512,7 @@ model Insurance {
   premiumAmount   BigInt
   premiumPeriod   PremiumPeriod   @default(monthly)
   renewalDate     DateTime?
+  autoRenewDate   Boolean         @default(false)
   policyNumber    String?         @db.VarChar(100)
   notes           String?         @db.VarChar(500)
   currency        String          @default("IDR") @db.VarChar(3)
@@ -548,6 +598,8 @@ model Donation {
   currency        String       @default("IDR") @db.VarChar(3)
   donatedAt       DateTime
   isTaxDeductible Boolean      @default(false)
+  accountId       String?
+  transactionId   String?
   receiptUrl      String?
   notes           String?
   createdAt       DateTime     @default(now())

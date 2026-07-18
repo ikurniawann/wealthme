@@ -7,6 +7,8 @@ import { authClient } from "@/lib/auth-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { parseRupiah } from "@/lib/format";
+import { useShell } from "@/components/shell/shell-context";
 import {
   ChevronRight,
   User,
@@ -920,7 +922,15 @@ const FAQS = [
   },
 ];
 
-function BantuanBody({ onNavAi }: { onNavAi: () => void }) {
+function BantuanBody({
+  onNavAi,
+  onStartTour,
+  onOpenPanduan,
+}: {
+  onNavAi: () => void;
+  onStartTour: () => void;
+  onOpenPanduan: () => void;
+}) {
   return (
     <>
       <SetSection>
@@ -943,18 +953,18 @@ function BantuanBody({ onNavAi }: { onNavAi: () => void }) {
         <SetRow
           icon={<Book className="size-4 text-primary" />}
           iconBg="#EEF2FF"
-          name="Panduan Lengkap Transaksi"
-          sub="Cara input, kategorisasi, dan impor"
+          name="Mulai Tur Interaktif"
+          sub="Tur ~3 menit yang memandu penambahan rekening, aset, investasi, dan fitur utama lainnya"
           right={CHEVRON}
-          onClick={() => toast("Panduan Transaksi")}
+          onClick={onStartTour}
         />
         <SetRow
           icon={<Book className="size-4 text-success" />}
           iconBg="#DCFCE7"
-          name="Panduan Portofolio Investasi"
-          sub="Cara tracking saham, reksa dana, emas"
+          name="Panduan Fitur Lengkap"
+          sub="Semua fitur, dikelompokkan per kategori"
           right={CHEVRON}
-          onClick={() => toast("Panduan Investasi")}
+          onClick={onOpenPanduan}
         />
         <SetRow
           icon={<Bot className="size-4 text-muted-foreground" />}
@@ -1318,17 +1328,26 @@ function AddAdminDialog({
 
   const { mutate: sendInvite, isPending } = useMutation({
     mutationFn: (email: string) =>
-      apiFetch(`/family-groups/${familyGroupId}/invitations`, {
-        method: "POST",
-        token,
-        body: JSON.stringify({ email, role: "admin_staff" }),
-      }),
-    onSuccess: () => {
+      apiFetch<{ token: string }>(
+        `/family-groups/${familyGroupId}/invitations`,
+        {
+          method: "POST",
+          token,
+          body: JSON.stringify({ email, role: "admin_staff" }),
+        },
+      ),
+    onSuccess: (invitation) => {
       onOpenChange(false);
-      toast.success("Undangan admin terkirim!");
+      // No invitation email exists yet — hand the join link to the owner.
+      const link = `${window.location.origin}/join/${invitation.token}`;
+      void navigator.clipboard.writeText(link).catch(() => {});
+      toast.success("Undangan dibuat — link disalin ke clipboard.", {
+        description: link,
+        duration: 10000,
+      });
     },
     onError: () => {
-      toast.error("Gagal mengirim undangan. Periksa email dan coba lagi.");
+      toast.error("Gagal membuat undangan. Periksa email dan coba lagi.");
     },
   });
 
@@ -1473,6 +1492,7 @@ function MenuRow({
 export default function AkunPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { startTour } = useShell();
   const [subpage, setSubpage] = useState<SubPageId | null>(null);
   const [addAdminOpen, setAddAdminOpen] = useState(false);
   const [crud, setCrud] = useState<CrudModalState | null>(null);
@@ -1544,6 +1564,60 @@ export default function AkunPage() {
   const open = (id: SubPageId) => setSubpage(id);
   const closeSheet = () => setSubpage(null);
 
+  const familyGroupId = session?.familyGroupId ?? null;
+
+  async function handleCrudSubmit(
+    entity: string,
+    _mode: "add" | "edit",
+    values: Record<string, string>,
+  ) {
+    if (!familyGroupId || !token) return;
+    try {
+      if (entity === "rekening" || entity === "ewallet") {
+        await apiFetch(`/family-groups/${familyGroupId}/accounts`, {
+          token,
+          method: "POST",
+          body: JSON.stringify({
+            type: entity === "rekening" ? "bank" : "ewallet",
+            name:
+              values.nama ||
+              (entity === "rekening"
+                ? `${values.bank ?? "Bank"} ${values.jenis ?? ""}`.trim()
+                : "E-Wallet"),
+            institution: entity === "rekening" ? values.bank : values.nama,
+            maskedNumber: values.norek || values.phone || undefined,
+            balance: parseRupiah(values.saldo ?? "0"),
+          }),
+        });
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.accounts.all(familyGroupId),
+        });
+        toast.success(
+          entity === "rekening"
+            ? "Rekening berhasil ditambahkan!"
+            : "E-Wallet berhasil ditambahkan!",
+        );
+      } else if (entity === "member") {
+        const invitation = await apiFetch<{ token: string }>(
+          `/family-groups/${familyGroupId}/invitations`,
+          {
+            token,
+            method: "POST",
+            body: JSON.stringify({ email: values.email, role: "member" }),
+          },
+        );
+        const link = `${window.location.origin}/join/${invitation.token}`;
+        await navigator.clipboard.writeText(link).catch(() => {});
+        toast.success("Undangan dibuat — link disalin ke clipboard.", {
+          description: link,
+          duration: 10000,
+        });
+      }
+    } catch {
+      toast.error("Gagal menyimpan. Coba lagi.");
+    }
+  }
+
   function renderBody(id: SubPageId) {
     switch (id) {
       case "profil":
@@ -1575,6 +1649,14 @@ export default function AkunPage() {
             onNavAi={() => {
               closeSheet();
               router.push("/ai");
+            }}
+            onStartTour={() => {
+              closeSheet();
+              startTour();
+            }}
+            onOpenPanduan={() => {
+              closeSheet();
+              router.push("/panduan");
             }}
           />
         );
@@ -1775,7 +1857,11 @@ export default function AkunPage() {
         familyGroupId={primaryGroup?.id ?? null}
         token={token}
       />
-      <CrudModal state={crud} onClose={() => setCrud(null)} />
+      <CrudModal
+        state={crud}
+        onClose={() => setCrud(null)}
+        onSubmit={handleCrudSubmit}
+      />
     </div>
   );
 }

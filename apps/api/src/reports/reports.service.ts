@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common";
+import { CoaDirection, type TransactionType } from "@prisma/client";
 
+import { transactionTypeToCoaDirection } from "../common/utils/coa-direction.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -235,7 +237,9 @@ export class ReportsService {
         category: { select: { name: true } },
         account: { select: { name: true } },
       },
-      orderBy: { occurredAt: "desc" },
+      // occurredAt is date-only, so same-day entries tie — createdAt
+      // breaks the tie so the most recently added transaction is first.
+      orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
     });
 
     let totalIncome = 0;
@@ -314,7 +318,8 @@ export class ReportsService {
       const catName = tx.category?.name ?? "Lainnya";
       const catColor = tx.category?.color ?? null;
 
-      if (tx.type === "income") {
+      const dir = transactionTypeToCoaDirection(tx.type as TransactionType);
+      if (dir === CoaDirection.INCOME) {
         revenue += amount;
         const existing = revenueByCategory.get(catName) ?? {
           amount: 0,
@@ -324,7 +329,7 @@ export class ReportsService {
           amount: existing.amount + amount,
           color: catColor,
         });
-      } else if (tx.type === "expense") {
+      } else if (dir === CoaDirection.EXPENSE) {
         expenses += amount;
         const existing = expenseByCategory.get(catName) ?? {
           amount: 0,
@@ -341,8 +346,9 @@ export class ReportsService {
     let previousExpenses = 0;
     for (const tx of prevTxs) {
       const amount = Number(tx.amount);
-      if (tx.type === "income") previousRevenue += amount;
-      else if (tx.type === "expense") previousExpenses += amount;
+      const dir = transactionTypeToCoaDirection(tx.type as TransactionType);
+      if (dir === CoaDirection.INCOME) previousRevenue += amount;
+      else if (dir === CoaDirection.EXPENSE) previousExpenses += amount;
     }
 
     const netProfit = revenue - expenses;

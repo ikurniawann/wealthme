@@ -8,6 +8,7 @@ export default function middleware(request: NextRequest) {
     pathname === "/register" ||
     pathname === "/lupa-password" ||
     pathname === "/reset-password" ||
+    pathname.startsWith("/join/") ||
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||

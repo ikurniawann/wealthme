@@ -16,6 +16,7 @@ import {
   CreditCard,
   ArrowDownLeft,
   ArrowLeftRight,
+  Target,
   type LucideIcon,
 } from "lucide-react";
 import { Sparkline } from "@/components/charts/sparkline";
@@ -40,9 +41,21 @@ import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, formatRupiahCompact } from "@/lib/format";
-import type { DashboardSummaryDto, GoalDto } from "@wealthme/contracts";
+import type {
+  DashboardSummaryDto,
+  GoalDto,
+  NetWorthHistoryDto,
+} from "@wealthme/contracts";
 
 const PERIODS = ["1M", "3M", "6M", "1Y", "All"] as const;
+
+const PERIOD_RANGE: Record<(typeof PERIODS)[number], string> = {
+  "1M": "30d",
+  "3M": "3m",
+  "6M": "6m",
+  "1Y": "12m",
+  All: "120m",
+};
 
 const ACCOUNT_TYPE_ICON: Record<string, { icon: LucideIcon; chip: string }> = {
   bank: { icon: Landmark, chip: "bg-blue-100 text-blue-600" },
@@ -89,6 +102,19 @@ export default function BerandaPage() {
     queryFn: () =>
       apiFetch<DashboardSummaryDto>(
         `/family-groups/${familyGroupId}/dashboard/summary`,
+        { token: session?.accessToken },
+      ),
+    enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
+    staleTime: 60_000,
+  });
+
+  const range = PERIOD_RANGE[period];
+  // ponytail: inline key — lib/query-keys.ts is a protected foundation file.
+  const { data: netWorthHistory } = useQuery<NetWorthHistoryDto>({
+    queryKey: ["dashboard", familyGroupId ?? "", "net-worth-history", range],
+    queryFn: () =>
+      apiFetch<NetWorthHistoryDto>(
+        `/family-groups/${familyGroupId}/dashboard/net-worth/history?range=${range}`,
         { token: session?.accessToken },
       ),
     enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
@@ -142,6 +168,14 @@ export default function BerandaPage() {
     }),
   );
 
+  const SUMMARY_ROUTE: Record<string, string> = {
+    investment: "/investasi",
+    property: "/aset",
+    bank: "/rekening",
+    ewallet: "/rekening",
+    cash: "/rekening",
+  };
+
   const summaryCards = (summary?.accountSummary ?? []).map((s) => {
     const cfg = ACCOUNT_TYPE_ICON[s.type] ?? {
       icon: Wallet,
@@ -154,6 +188,7 @@ export default function BerandaPage() {
       amount: formatRupiahCompact(s.total),
       delta: "—",
       up: true as boolean,
+      href: SUMMARY_ROUTE[s.type] ?? "/rekening",
     };
   });
 
@@ -183,10 +218,17 @@ export default function BerandaPage() {
     date: formatRelativeDate(tx.occurredAt),
   }));
 
+  // Real wealth trend from persisted snapshots; falls back to the 30-day
+  // transaction-flow proxy until enough snapshots accumulate.
+  const snapshotPoints = (netWorthHistory?.points ?? []).map((p) =>
+    Number(p.netWorth),
+  );
   const sparklinePoints =
-    summary?.sparkline && summary.sparkline.length > 0
-      ? summary.sparkline
-      : (Array(30).fill(50) as number[]);
+    snapshotPoints.length >= 2
+      ? snapshotPoints
+      : summary?.sparkline && summary.sparkline.length > 0
+        ? summary.sparkline
+        : (Array(30).fill(50) as number[]);
 
   const cashflow = summary?.cashflow;
   const netWorth = summary?.netWorth ?? 0;
@@ -344,7 +386,16 @@ export default function BerandaPage() {
               ))
           : summaryCards.slice(0, 5).map((s, i) => (
               <Rise key={s.label} index={2 + i}>
-                <div className="transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
+                <div
+                  role="link"
+                  tabIndex={0}
+                  aria-label={`Buka ${s.label}`}
+                  onClick={() => router.push(s.href)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") router.push(s.href);
+                  }}
+                  className="cursor-pointer transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]"
+                >
                   <SummaryCard
                     icon={
                       <IconChip icon={s.icon} className={s.chip} size={34} />
@@ -485,6 +536,7 @@ export default function BerandaPage() {
               {t.common.viewAll}
             </CardLink>
           }
+          bodyClassName="flex flex-1 flex-col"
         >
           {isGoalsLoading ? (
             <div className="space-y-3.5">
@@ -498,8 +550,18 @@ export default function BerandaPage() {
                 ))}
             </div>
           ) : goalItems.length === 0 ? (
-            <div className="py-4 text-center text-[13px] text-muted-foreground">
-              {t.beranda.noGoals}
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 py-4 text-center">
+              <Target className="size-7 text-muted-foreground/40" />
+              <div className="text-[13px] text-muted-foreground">
+                {t.beranda.noGoals}
+              </div>
+              <button
+                type="button"
+                onClick={() => router.push("/tujuan")}
+                className="text-[12px] font-semibold text-primary hover:underline"
+              >
+                + {t.beranda.addGoalCta}
+              </button>
             </div>
           ) : (
             <div className="space-y-3.5">

@@ -1,6 +1,6 @@
 # EPIC-012: Master COA (Chart of Accounts)
 
-status: backlog
+status: ready-for-qa
 environment: dev
 retries: 0
 phase: 4
@@ -15,6 +15,28 @@ page. COA is **reference master data**: each account carries a transaction direc
 (↓ income / ↑ expense / ↔ transfer) used at report time to keep PNL / Balance Sheet /
 Cashflow accurate. Per the approved plan, COA is a **separate, reference-only** model —
 no `Category` FK; reports resolve direction via a read-time util.
+
+## Tasks
+
+- [x] ### A — Data model + seed ✅
+  - Add `CoaDirection` and `CoaBudgetType` enums to Prisma schema
+  - Add `CoaAccount` model (familyGroupId tenant scope, code/name/group/direction/budgetType/parentCode)
+  - Generate and apply migration
+  - Seed 78 accounts (static array from xlsx; no new dep); fix seed.spec.ts mock
+
+- [x] ### B — API module ✅
+  - Create `apps/api/src/coa-accounts/` (module, service, controller, DTOs)
+  - Tenant-scoped CRUD: list, create, update, delete filtered by familyGroupId
+  - Add `CoaAccount` to CASL subjects + abilities; register module in AppModule
+
+- [x] ### C — Frontend page + sidebar ✅
+  - Create `apps/web/src/app/(app)/mastercoa/page.tsx` (API-driven: summary cards, 7-tab filter, CRUD table + modals)
+  - Add mastercoa entry to `nav.ts` under "Alat" with badge "New" (new-purple)
+  - Add to PAGE_TITLES
+
+- [x] ### D — Reports wiring ✅
+  - Create `apps/api/src/common/utils/coa-direction.util.ts`
+  - Wire into reports service getPnl (typed CoaDirection enum replaces string literals)
 
 ## Evidence
 
@@ -99,3 +121,10 @@ no `Category` FK; reports resolve direction via a read-time util.
   Decisions locked from the approved plan: COA is **separate/reference-only** (no
   `Category` FK); **reports wiring included** via read-time `coa-direction.util.ts`;
   **seed parses the xlsx**. Status `backlog` — start after EPIC-013 unless redirected.
+- 2026-06-27 — Tasks A+B+C completed in a single branch `feat/epic-012-task-1-a-data-model-seed`.
+  78 accounts seeded (static array; no xlsx dep added; Python/openpyxl used for extraction only).
+  Migration `20260626171841_add_coa_accounts` applied to dev DB. All 88 API tests passing.
+  QA + build green. Security: pre-existing multer advisory (unrelated to COA changes).
+  Branch pushed; PR creation requires gh auth (do manually). Task D (reports wiring) pending.
+- 2026-06-27 — Task D completed. coa-direction.util.ts added; wired into reports.service.ts getPnl.
+  All 88 tests green. Epic set to ready-for-qa. Pending: manual PR creation + QA sign-off.

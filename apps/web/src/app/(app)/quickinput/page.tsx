@@ -2,12 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useSession } from "@/lib/auth-compat";
+import { apiFetch } from "@/lib/api-client";
+import { parseRupiah } from "@/lib/format";
+import { buildGoalBody } from "@/lib/goals-utils";
 import {
   ArrowUpDown,
   BarChart3,
   Briefcase,
-  Camera,
   ClipboardList,
   HeartHandshake,
   Landmark,
@@ -46,15 +50,6 @@ const QUICK_CARDS: QuickCard[] = [
     iconColor: "var(--primary)",
     action: "navigate",
     href: "/transaksi",
-  },
-  {
-    name: "Scan Struk",
-    desc: "Input via foto bon",
-    icon: Camera,
-    iconBg: "#FEF3C7",
-    iconColor: "#D97706",
-    action: "toast",
-    message: "📷 Scan struk segera hadir",
   },
   {
     name: "Investasi",
@@ -157,8 +152,134 @@ const QUICK_CARDS: QuickCard[] = [
   },
 ];
 
+// CrudModal form values → real API request per entity. Amount values arrive
+// dot-formatted ("1.500.000") — parseRupiah normalizes them.
+const INVESTMENT_TYPE: Record<string, string> = {
+  Saham: "saham",
+  "Reksa Dana": "reksa_dana",
+  Obligasi: "obligasi",
+  Emas: "emas",
+  Crypto: "kripto",
+};
+const ASSET_TYPE: Record<string, string> = {
+  Properti: "properti",
+  Kendaraan: "kendaraan",
+  Elektronik: "elektronik",
+  Perhiasan: "perhiasan",
+  Lainnya: "lainnya",
+};
+const LIABILITY_TYPE: Record<string, string> = {
+  "Kartu Kredit": "kartu_kredit",
+  KTA: "pinjaman_pribadi",
+  KPR: "kpr",
+  "Cicilan Kendaraan": "kendaraan",
+  "Pinjaman Lain": "lainnya",
+};
+const INSURANCE_TYPE: Record<string, string> = {
+  Jiwa: "jiwa",
+  Kesehatan: "kesehatan",
+  Kendaraan: "kendaraan",
+  Properti: "properti",
+  Pendidikan: "lainnya",
+};
+
+function buildRequest(
+  entity: CrudEntity,
+  v: Record<string, string>,
+): { path: string; body: unknown; queryKey: string } | null {
+  switch (entity) {
+    case "rekening":
+      return {
+        path: "accounts",
+        queryKey: "accounts",
+        body: {
+          type: "bank",
+          name: v.nama || `${v.bank ?? "Bank"} ${v.jenis ?? ""}`.trim(),
+          institution: v.bank,
+          maskedNumber: v.norek || undefined,
+          balance: parseRupiah(v.saldo ?? "0"),
+        },
+      };
+    case "ewallet":
+      return {
+        path: "accounts",
+        queryKey: "accounts",
+        body: {
+          type: "ewallet",
+          name: v.nama,
+          institution: v.nama,
+          maskedNumber: v.phone || undefined,
+          balance: parseRupiah(v.saldo ?? "0"),
+        },
+      };
+    case "investasi":
+      return {
+        path: "investments",
+        queryKey: "investments",
+        body: {
+          ticker: (v.ticker || v.nama || "INV")
+            .toUpperCase()
+            .replace(/[^A-Z0-9._-]/g, ""),
+          name: v.nama,
+          type: INVESTMENT_TYPE[v.jenis ?? ""] ?? "lainnya",
+          quantity: "1",
+          costBasisPerUnit: String(parseRupiah(v.modal ?? v.nilai ?? "0")),
+        },
+      };
+    case "aset":
+      return {
+        path: "assets",
+        queryKey: "assets",
+        body: {
+          name: v.nama,
+          type: ASSET_TYPE[v.kategori ?? ""] ?? "lainnya",
+          currentValue: String(parseRupiah(v.nilai ?? "0")),
+          notes: v.dokumen || undefined,
+        },
+      };
+    case "liabilitas": {
+      const total = String(parseRupiah(v.total ?? "0"));
+      return {
+        path: "liabilities",
+        queryKey: "liabilities",
+        body: {
+          name: v.nama,
+          type: LIABILITY_TYPE[v.jenis ?? ""] ?? "lainnya",
+          totalDebt: total,
+          remainingBalance: total,
+          minimumPayment: v.cicilan
+            ? String(parseRupiah(v.cicilan))
+            : undefined,
+        },
+      };
+    }
+    case "asuransi":
+      return {
+        path: "insurances",
+        queryKey: "insurances",
+        body: {
+          name: v.nama,
+          type: INSURANCE_TYPE[v.jenis ?? ""] ?? "lainnya",
+          premiumAmount: String(parseRupiah(v.premi ?? "0")),
+          coverageAmount: v.pertanggungan
+            ? String(parseRupiah(v.pertanggungan))
+            : undefined,
+          renewalDate: v.jatuhtempo || undefined,
+        },
+      };
+    case "tujuan":
+      return { path: "goals", queryKey: "goals", body: buildGoalBody(v) };
+    default:
+      return null;
+  }
+}
+
 export default function QuickInputPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { data: session } = useSession();
+  const familyGroupId = session?.familyGroupId;
+  const token = session?.accessToken;
   const [crud, setCrud] = useState<CrudModalState | null>(null);
 
   const handleClick = (card: QuickCard) => {
@@ -170,6 +291,29 @@ export default function QuickInputPage() {
       toast(card.message);
     }
   };
+
+  async function handleSubmit(
+    entity: CrudEntity,
+    _mode: "add" | "edit",
+    values: Record<string, string>,
+  ) {
+    if (!familyGroupId || !token) return;
+    const req = buildRequest(entity, values);
+    if (!req) return;
+    try {
+      await apiFetch(`/family-groups/${familyGroupId}/${req.path}`, {
+        token,
+        method: "POST",
+        body: JSON.stringify(req.body),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: [req.queryKey, familyGroupId],
+      });
+      toast.success("Berhasil disimpan!");
+    } catch {
+      toast.error("Gagal menyimpan. Coba lagi.");
+    }
+  }
 
   return (
     <div>
@@ -202,7 +346,11 @@ export default function QuickInputPage() {
         ))}
       </div>
 
-      <CrudModal state={crud} onClose={() => setCrud(null)} />
+      <CrudModal
+        state={crud}
+        onClose={() => setCrud(null)}
+        onSubmit={handleSubmit}
+      />
     </div>
   );
 }

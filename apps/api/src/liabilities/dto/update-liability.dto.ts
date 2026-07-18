@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { LiabilityType } from "@prisma/client";
 import {
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsOptional,
@@ -57,6 +58,11 @@ export class UpdateLiabilityDto {
   @IsOptional()
   @IsDateString()
   dueDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  autoAdvanceDueDate?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()

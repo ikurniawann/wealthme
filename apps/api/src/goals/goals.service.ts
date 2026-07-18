@@ -1,5 +1,8 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { GoalStatus as PrismaGoalStatus } from "@prisma/client";
+import {
+  GoalStatus as PrismaGoalStatus,
+  TransactionType,
+} from "@prisma/client";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
@@ -178,5 +181,103 @@ export class GoalsService {
       throw new NotFoundException("Goal not found");
     }
     await this.prisma.goal.delete({ where: { id, familyGroupId } });
+  }
+
+  /**
+   * Execute monthly auto-debit across every goal that has an `autoDebitAmount`.
+   * Idempotent per calendar month via `lastAutoDebitAt`, so re-running within the
+   * same month is a no-op. Each debit caps `currentAmount` at `targetAmount`,
+   * recomputes status, records an audit `Transaction`, and fires a `Notification`.
+   * Returns the number of goals actually debited.
+   */
+  async runAutoDebit(now: Date = new Date()): Promise<number> {
+    const goals = await this.prisma.goal.findMany({
+      where: { autoDebitAmount: { not: null } },
+    });
+
+    let debited = 0;
+    for (const goal of goals) {
+      const autoDebit = goal.autoDebitAmount;
+      if (autoDebit === null || autoDebit <= 0n) continue;
+
+      // Idempotency: skip if already debited in the current calendar month.
+      if (
+        goal.lastAutoDebitAt &&
+        goal.lastAutoDebitAt.getUTCFullYear() === now.getUTCFullYear() &&
+        goal.lastAutoDebitAt.getUTCMonth() === now.getUTCMonth()
+      ) {
+        continue;
+      }
+
+      const projected = goal.currentAmount + autoDebit;
+      const newCurrent =
+        projected > goal.targetAmount ? goal.targetAmount : projected;
+      const actual = newCurrent - goal.currentAmount;
+
+      if (actual <= 0n) {
+        // Already at/over target — stamp the run so it isn't re-checked daily.
+        await this.prisma.goal.update({
+          where: { id: goal.id },
+          data: { lastAutoDebitAt: now },
+        });
+        continue;
+      }
+
+      const status = computeStatus(
+        newCurrent,
+        goal.targetAmount,
+        goal.targetDate,
+      );
+
+      const account = await this.prisma.account.findFirst({
+        where: { familyGroupId: goal.familyGroupId },
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
+      });
+      const category = await this.prisma.category.findFirst({
+        where: {
+          familyGroupId: goal.familyGroupId,
+          name: "Tabungan & Investasi",
+        },
+        select: { id: true },
+      });
+
+      await this.prisma.$transaction(async (tx) => {
+        await tx.goal.update({
+          where: { id: goal.id },
+          data: { currentAmount: newCurrent, status, lastAutoDebitAt: now },
+        });
+
+        // ponytail: audit transaction only when an account exists; account
+        // balance is not mutated — goal funding is tracked on the goal, not
+        // the ledger. Add balance movement here if real debits are needed.
+        if (account) {
+          await tx.transaction.create({
+            data: {
+              familyGroupId: goal.familyGroupId,
+              accountId: account.id,
+              categoryId: category?.id ?? null,
+              amount: actual,
+              type: TransactionType.transfer,
+              description: `Auto-debit: ${goal.name}`,
+              occurredAt: now,
+            },
+          });
+        }
+
+        await tx.notification.create({
+          data: {
+            familyGroupId: goal.familyGroupId,
+            title: "Auto-debit tujuan",
+            body: `${goal.name} bertambah Rp${actual.toString()} dari auto-debit bulanan.`,
+            icon: goal.icon ?? "🎯",
+          },
+        });
+      });
+
+      debited += 1;
+    }
+
+    return debited;
   }
 }

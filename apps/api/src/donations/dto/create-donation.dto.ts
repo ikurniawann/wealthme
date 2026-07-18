@@ -42,6 +42,14 @@ export class CreateDonationDto {
   @IsBoolean()
   isTaxDeductible?: boolean;
 
+  @ApiPropertyOptional({
+    description:
+      "Source account to deduct the donation from — creates a linked expense transaction",
+  })
+  @IsOptional()
+  @IsString()
+  accountId?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

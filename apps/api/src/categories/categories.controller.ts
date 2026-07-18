@@ -22,7 +22,8 @@ import { CheckAbility } from "../common/decorators/check-ability.decorator";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CategoriesService } from "./categories.service";
 import { CategoryResponseDto } from "./dto/category-response.dto";
-import { type CreateCategoryDto } from "./dto/create-category.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { CreateCategoryDto } from "./dto/create-category.dto";
 
 @ApiTags("categories")
 @ApiBearerAuth()

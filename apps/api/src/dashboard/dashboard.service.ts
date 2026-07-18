@@ -9,7 +9,17 @@ import type {
   CashflowDto,
   DashboardSummaryDto,
   NetWorthDto,
+  NetWorthHistoryDto,
+  NetWorthHistoryPointDto,
 } from "@wealthme/contracts";
+
+interface NetWorthBreakdown {
+  totalCash: bigint;
+  totalInvestments: bigint;
+  totalAssets: bigint;
+  totalLiabilities: bigint;
+  netWorth: bigint;
+}
 
 type MonthKey = string;
 
@@ -108,7 +118,9 @@ export class DashboardService {
         category: { select: { name: true } },
         account: { select: { name: true } },
       },
-      orderBy: { occurredAt: "desc" },
+      // occurredAt is date-only, so same-day entries tie — createdAt
+      // breaks the tie for the "recent activity" slice below.
+      orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
     });
 
     const monthKeys: MonthKey[] = [];
@@ -213,24 +225,26 @@ export class DashboardService {
     };
   }
 
-  async getNetWorth(familyGroupId: string): Promise<NetWorthDto> {
+  private async computeNetWorthBreakdown(
+    familyGroupId: string,
+  ): Promise<NetWorthBreakdown> {
     const accounts = await this.prisma.account.findMany({
       where: { familyGroupId },
       select: { balance: true },
     });
-    const accountsTotal = accounts.reduce((sum, a) => sum + a.balance, 0n);
+    const totalCash = accounts.reduce((sum, a) => sum + a.balance, 0n);
 
     const assets = await this.prisma.asset.findMany({
       where: { familyGroupId },
       select: { currentValue: true },
     });
-    const assetsTotal = assets.reduce((sum, a) => sum + a.currentValue, 0n);
+    const totalAssets = assets.reduce((sum, a) => sum + a.currentValue, 0n);
 
     const investments = await this.prisma.investment.findMany({
       where: { familyGroupId },
       select: { quantity: true, costBasisPerUnit: true },
     });
-    const investmentsTotal = BigInt(
+    const totalInvestments = BigInt(
       Math.round(
         investments.reduce(
           (sum, inv) =>
@@ -244,21 +258,110 @@ export class DashboardService {
       where: { familyGroupId },
       select: { remainingBalance: true },
     });
-    const liabilitiesTotal = liabilityRecords.reduce(
+    const totalLiabilities = liabilityRecords.reduce(
       (sum, l) => sum + l.remainingBalance,
       0n,
     );
 
     const netWorth =
-      accountsTotal + investmentsTotal + assetsTotal - liabilitiesTotal;
+      totalCash + totalInvestments + totalAssets - totalLiabilities;
 
     return {
-      accountsTotal: accountsTotal.toString(),
-      investmentsTotal: investmentsTotal.toString(),
-      assetsTotal: assetsTotal.toString(),
-      liabilitiesTotal: liabilitiesTotal.toString(),
-      netWorth: netWorth.toString(),
+      totalCash,
+      totalInvestments,
+      totalAssets,
+      totalLiabilities,
+      netWorth,
+    };
+  }
+
+  async getNetWorth(familyGroupId: string): Promise<NetWorthDto> {
+    const b = await this.computeNetWorthBreakdown(familyGroupId);
+    return {
+      accountsTotal: b.totalCash.toString(),
+      investmentsTotal: b.totalInvestments.toString(),
+      assetsTotal: b.totalAssets.toString(),
+      liabilitiesTotal: b.totalLiabilities.toString(),
+      netWorth: b.netWorth.toString(),
       currency: "IDR",
     };
+  }
+
+  /**
+   * Capture one net-worth snapshot for a family group. Idempotent per calendar
+   * day: if a snapshot already exists for today this is a no-op, so re-running
+   * the daily job never produces duplicate rows. Returns true when a row is
+   * written.
+   */
+  async captureSnapshot(
+    familyGroupId: string,
+    now: Date = new Date(),
+  ): Promise<boolean> {
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const existing = await this.prisma.netWorthSnapshot.findFirst({
+      where: { familyGroupId, capturedAt: { gte: startOfDay } },
+      select: { id: true },
+    });
+    if (existing) return false;
+
+    const b = await this.computeNetWorthBreakdown(familyGroupId);
+    await this.prisma.netWorthSnapshot.create({
+      data: {
+        familyGroupId,
+        capturedAt: now,
+        totalCash: b.totalCash,
+        totalInvestments: b.totalInvestments,
+        totalAssets: b.totalAssets,
+        totalLiabilities: b.totalLiabilities,
+        netWorth: b.netWorth,
+      },
+    });
+    return true;
+  }
+
+  /** Capture a snapshot for every family group (driven by the daily scheduler). */
+  async captureAllSnapshots(now: Date = new Date()): Promise<number> {
+    const groups = await this.prisma.familyGroup.findMany({
+      select: { id: true },
+    });
+    let written = 0;
+    for (const g of groups) {
+      if (await this.captureSnapshot(g.id, now)) written += 1;
+    }
+    return written;
+  }
+
+  async getNetWorthHistory(
+    familyGroupId: string,
+    range = "30d",
+  ): Promise<NetWorthHistoryDto> {
+    const since = new Date();
+    const monthMatch = /^(\d+)m$/.exec(range);
+    const dayMatch = /^(\d+)d$/.exec(range);
+    if (monthMatch) {
+      since.setMonth(since.getMonth() - parseInt(monthMatch[1] ?? "12", 10));
+    } else if (dayMatch) {
+      since.setDate(since.getDate() - parseInt(dayMatch[1] ?? "30", 10));
+    } else {
+      since.setDate(since.getDate() - 30);
+    }
+
+    const rows = await this.prisma.netWorthSnapshot.findMany({
+      where: { familyGroupId, capturedAt: { gte: since } },
+      orderBy: { capturedAt: "asc" },
+    });
+
+    const points: NetWorthHistoryPointDto[] = rows.map((r) => ({
+      capturedAt: r.capturedAt.toISOString(),
+      totalCash: r.totalCash.toString(),
+      totalInvestments: r.totalInvestments.toString(),
+      totalAssets: r.totalAssets.toString(),
+      totalLiabilities: r.totalLiabilities.toString(),
+      netWorth: r.netWorth.toString(),
+    }));
+
+    return { range, currency: "IDR", points };
   }
 }

@@ -16,6 +16,7 @@ export interface LiabilityDto {
   minimumPayment: string;
   interestRate: string;
   dueDate: string | null;
+  autoAdvanceDueDate: boolean;
   paymentRatio: number;
   notes: string | null;
   currency: string;
@@ -38,6 +39,7 @@ export interface CreateLiabilityDto {
   minimumPayment?: string;
   interestRate?: string;
   dueDate?: string;
+  autoAdvanceDueDate?: boolean;
   notes?: string;
   currency?: string;
 }
@@ -51,6 +53,7 @@ export interface UpdateLiabilityDto {
   minimumPayment?: string;
   interestRate?: string;
   dueDate?: string;
+  autoAdvanceDueDate?: boolean;
   notes?: string;
   currency?: string;
 }

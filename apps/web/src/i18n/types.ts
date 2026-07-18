@@ -52,6 +52,7 @@ export type I18nDictionary = {
     loadError: string;
     noTransactions: string;
     noGoals: string;
+    addGoalCta: string;
     aiInsightTitle: string;
     aiInsightBody: string;
     aiInsightCta: string;

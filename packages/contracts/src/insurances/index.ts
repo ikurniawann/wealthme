@@ -18,6 +18,7 @@ export interface InsuranceDto {
   premiumAmount: string;
   premiumPeriod: PremiumPeriod;
   renewalDate: string | null;
+  autoRenewDate: boolean;
   policyNumber: string | null;
   daysUntilRenewal: number | null;
   notes: string | null;
@@ -41,6 +42,7 @@ export interface CreateInsuranceDto {
   premiumAmount: string;
   premiumPeriod?: PremiumPeriod;
   renewalDate?: string;
+  autoRenewDate?: boolean;
   policyNumber?: string;
   notes?: string;
   currency?: string;
@@ -55,6 +57,7 @@ export interface UpdateInsuranceDto {
   premiumAmount?: string;
   premiumPeriod?: PremiumPeriod;
   renewalDate?: string;
+  autoRenewDate?: boolean;
   policyNumber?: string;
   notes?: string;
   currency?: string;

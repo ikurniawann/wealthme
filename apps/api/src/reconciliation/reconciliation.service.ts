@@ -200,18 +200,46 @@ export class ReconciliationService {
       const dayAfter = new Date(entry.date);
       dayAfter.setDate(dayAfter.getDate() + 1);
 
-      const match = await this.prisma.transaction.findFirst({
+      // Nominal tolerance: ±1% of the entry amount, floor ±1.000 IDR — catches
+      // bank fees/rounding the old exact-match logic missed.
+      const abs = entry.amount < 0n ? -entry.amount : entry.amount;
+      const tolerance = abs / 100n > 1000n ? abs / 100n : 1000n;
+
+      const candidates = await this.prisma.transaction.findMany({
         where: {
           familyGroupId,
-          amount: entry.amount,
+          amount: {
+            gte: entry.amount - tolerance,
+            lte: entry.amount + tolerance,
+          },
           occurredAt: { gte: dayBefore, lte: dayAfter },
         },
+        select: { id: true, amount: true, description: true },
       });
 
-      if (match) {
+      let best: { id: string; confidence: number } | null = null;
+      for (const tx of candidates) {
+        const diff =
+          tx.amount > entry.amount
+            ? tx.amount - entry.amount
+            : entry.amount - tx.amount;
+        const amountScore = 1 - Number(diff) / Number(tolerance);
+        const descScore = tokenSimilarity(
+          entry.description,
+          tx.description ?? "",
+        );
+        // Amount dominates; description breaks ties and rescues near-misses.
+        const confidence = amountScore * 0.7 + descScore * 0.3;
+        if (!best || confidence > best.confidence) {
+          best = { id: tx.id, confidence };
+        }
+      }
+
+      // Suggest only (never auto-confirm); skip weak matches.
+      if (best && best.confidence >= 0.5) {
         await this.prisma.bankSyncEntry.update({
           where: { id: entry.id },
-          data: { reconStatus: "suggested", suggestedTxId: match.id },
+          data: { reconStatus: "suggested", suggestedTxId: best.id },
         });
         suggested += 1;
       }
@@ -219,4 +247,21 @@ export class ReconciliationService {
 
     return { totalEntries: entries.length, suggested };
   }
+}
+
+/** Jaccard overlap of lowercased word tokens — cheap description similarity. */
+export function tokenSimilarity(a: string, b: string): number {
+  const tokens = (s: string): Set<string> =>
+    new Set(
+      s
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter((t) => t.length > 1),
+    );
+  const ta = tokens(a);
+  const tb = tokens(b);
+  if (ta.size === 0 || tb.size === 0) return 0;
+  let shared = 0;
+  for (const t of ta) if (tb.has(t)) shared += 1;
+  return shared / (ta.size + tb.size - shared);
 }

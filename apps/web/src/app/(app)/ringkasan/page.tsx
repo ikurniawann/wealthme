@@ -355,15 +355,13 @@ export default function RingkasanPage() {
                 strokeWidth="12"
                 strokeLinecap="round"
                 strokeDasharray="157"
-                strokeDashoffset={
-                  savingsRate > 0
-                    ? Math.round(157 - (savingsRate / 100) * 157)
-                    : 40
-                }
+                strokeDashoffset={Math.round(
+                  157 - (Math.max(0, Math.min(100, savingsRate)) / 100) * 157,
+                )}
               />
             </svg>
             <div className="-mt-3.5 text-[32px] font-black text-primary">
-              {savingsRate > 0 ? savingsRate : 78}
+              {savingsRate}
             </div>
             <div className="text-[11px] text-muted-foreground">
               Financial Health Score

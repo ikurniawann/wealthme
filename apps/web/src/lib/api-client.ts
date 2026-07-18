@@ -30,5 +30,13 @@ export async function apiFetch<T>(
     } satisfies ApiError;
   }
 
+  // 204 No Content (every DELETE endpoint in this API) has no body — calling
+  // res.json() on it throws a SyntaxError, which callers then swallow as a
+  // generic "gagal menghapus" error even though the delete already succeeded,
+  // and skip the invalidateQueries call that would refresh the UI.
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
   return res.json() as Promise<T>;
 }

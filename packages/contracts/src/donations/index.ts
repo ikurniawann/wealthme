@@ -15,6 +15,8 @@ export interface DonationDto {
   currency: string;
   donatedAt: string;
   isTaxDeductible: boolean;
+  accountId: string | null;
+  transactionId: string | null;
   receiptUrl: string | null;
   notes: string | null;
   createdAt: string;
@@ -28,6 +30,7 @@ export interface CreateDonationDto {
   currency?: string;
   donatedAt: string;
   isTaxDeductible?: boolean;
+  accountId?: string;
   receiptUrl?: string;
   notes?: string;
 }

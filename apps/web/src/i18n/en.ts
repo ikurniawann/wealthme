@@ -54,6 +54,7 @@ export const en = {
     loadError: "Failed to load home data. Please refresh the page.",
     noTransactions: "No transactions yet",
     noGoals: "No financial goals yet",
+    addGoalCta: "Add Goal",
     aiInsightTitle: "Improve your financial health!",
     aiInsightBody:
       "Fill in your risk profile to get investment recommendations tailored to your goals.",

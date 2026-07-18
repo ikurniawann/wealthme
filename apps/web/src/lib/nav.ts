@@ -2,6 +2,7 @@ import {
   ArrowUpDown,
   BarChart3,
   Bell,
+  BookOpen,
   Bot,
   Briefcase,
   Calculator,
@@ -10,6 +11,7 @@ import {
   FileText,
   GitCompare,
   HeartHandshake,
+  HelpCircle,
   Home,
   Landmark,
   LineChart,
@@ -181,10 +183,24 @@ export const NAV_SECTIONS: NavSection[] = [
         badgeVariant: "new-success",
       },
       {
+        id: "mastercoa",
+        label: "Master COA",
+        href: "/mastercoa",
+        icon: BookOpen,
+        badge: "New",
+        badgeVariant: "new-purple",
+      },
+      {
         id: "masterdata",
         label: "Setup Master Data",
         href: "/masterdata",
         icon: Database,
+      },
+      {
+        id: "panduan",
+        label: "Panduan Fitur",
+        href: "/panduan",
+        icon: HelpCircle,
       },
     ],
   },
@@ -213,7 +229,9 @@ export const PAGE_TITLES: Record<string, string> = {
   donation: "Donasi & Zakat",
   tax: "Tax Center",
   quickinput: "Quick Input",
+  mastercoa: "Master COA",
   masterdata: "Setup Master Data",
+  panduan: "Panduan Fitur",
 };
 
 export type MobileNavItem = {

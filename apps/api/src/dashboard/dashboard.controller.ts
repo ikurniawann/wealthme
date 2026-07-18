@@ -1,14 +1,16 @@
-import { Controller, Get, Param } from "@nestjs/common";
+import { Controller, Get, Param, Query } from "@nestjs/common";
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
 import {
   type DashboardSummaryDto,
   type NetWorthDto,
+  type NetWorthHistoryDto,
 } from "@wealthme/contracts";
 
 import { type AppAbility } from "../casl/casl-ability.factory";
@@ -43,5 +45,18 @@ export class DashboardController {
     @Param("familyGroupId") familyGroupId: string,
   ): Promise<NetWorthDto> {
     return this.dashboardService.getNetWorth(familyGroupId);
+  }
+
+  @Get("net-worth/history")
+  @CheckAbility((ab: AppAbility) => ab.can("read", "Account"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiQuery({ name: "range", required: false, example: "30d" })
+  @ApiOperation({ summary: "Get persisted net-worth history (wealth trend)" })
+  @ApiResponse({ status: 200, description: "Net-worth snapshots over time" })
+  getNetWorthHistory(
+    @Param("familyGroupId") familyGroupId: string,
+    @Query("range") range?: string,
+  ): Promise<NetWorthHistoryDto> {
+    return this.dashboardService.getNetWorthHistory(familyGroupId, range);
   }
 }

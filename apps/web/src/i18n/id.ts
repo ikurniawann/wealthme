@@ -54,6 +54,7 @@ export const id = {
     loadError: "Gagal memuat data beranda. Coba muat ulang halaman.",
     noTransactions: "Belum ada transaksi",
     noGoals: "Belum ada tujuan keuangan",
+    addGoalCta: "Tambah Tujuan",
     aiInsightTitle: "Tingkatkan kesehatan keuanganmu!",
     aiInsightBody:
       "Isi profil risiko untuk mendapatkan rekomendasi investasi yang sesuai tujuanmu.",

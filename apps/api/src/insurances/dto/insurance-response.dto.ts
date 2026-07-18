@@ -11,6 +11,7 @@ export class InsuranceResponseDto {
   @ApiProperty() premiumAmount!: string;
   @ApiProperty() premiumPeriod!: string;
   @ApiPropertyOptional() renewalDate!: string | null;
+  @ApiProperty() autoRenewDate!: boolean;
   @ApiPropertyOptional() policyNumber!: string | null;
   @ApiProperty() daysUntilRenewal!: number | null;
   @ApiPropertyOptional() notes!: string | null;

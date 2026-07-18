@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, EllipsisVertical } from "lucide-react";
 import { toast } from "sonner";
 import { useSession, signOut } from "@/lib/auth-compat";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { StatusBadge } from "@/components/wm";
 import { Card } from "@/components/ui/card";
@@ -20,7 +21,7 @@ import { CrudModal, ConfirmDeleteDialog } from "@/components/crud";
 import type { CrudModalState } from "@/components/crud";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { formatRupiah } from "@/lib/format";
+import { formatRupiah, parseRupiah } from "@/lib/format";
 
 import type { AccountDto } from "@wealthme/contracts";
 
@@ -140,6 +141,7 @@ interface AccountCardItemProps {
 }
 
 function AccountCardItem({ account, onEdit, onDelete }: AccountCardItemProps) {
+  const router = useRouter();
   return (
     <Card className="gap-0 space-y-3.5 p-5 transition-shadow hover:shadow-md">
       {/* Header row: brand badge · name + number · status badge · kebab menu */}
@@ -204,31 +206,16 @@ function AccountCardItem({ account, onEdit, onDelete }: AccountCardItemProps) {
         </div>
       </div>
 
-      {/* Full-width segmented action row: Transfer / Top Up / Mutasi */}
-      <div className="grid grid-cols-3 gap-2">
-        <button
-          type="button"
-          aria-label="Transfer"
-          className="cursor-pointer rounded-md border bg-background py-2 text-[12px] font-semibold transition-colors hover:bg-accent"
-          onClick={() => toast("Transfer")}
-        >
-          ↗ Transfer
-        </button>
-        <button
-          type="button"
-          aria-label="Top Up"
-          className="cursor-pointer rounded-md border bg-background py-2 text-[12px] font-semibold transition-colors hover:bg-accent"
-          onClick={() => toast("Top Up")}
-        >
-          ⬆ Top Up
-        </button>
+      {/* Mutasi routes to the real transactions page. Transfer/Top Up removed
+          until a backend transfer endpoint exists — no fake actions. */}
+      <div className="grid grid-cols-1 gap-2">
         <button
           type="button"
           aria-label="Lihat Mutasi"
           className="cursor-pointer rounded-md border bg-background py-2 text-[12px] font-semibold transition-colors hover:bg-accent"
-          onClick={() => toast("Mutasi")}
+          onClick={() => router.push("/transaksi")}
         >
-          📋 Mutasi
+          📋 Lihat Mutasi
         </button>
       </div>
     </Card>
@@ -278,14 +265,18 @@ export default function RekeningPage() {
     0,
   );
 
+  const queryClient = useQueryClient();
   const [crudState, setCrudState] = useState<CrudModalState | null>(null);
-  const [deleteLabel, setDeleteLabel] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<AccountCard | null>(null);
 
   function openAdd() {
+    setEditingId(null);
     setCrudState({ entity: "rekening", mode: "add" });
   }
 
   function openEdit(account: AccountCard) {
+    setEditingId(account.id);
     setCrudState({
       entity: "rekening",
       mode: "edit",
@@ -293,8 +284,65 @@ export default function RekeningPage() {
     });
   }
 
-  function openDelete() {
-    setDeleteLabel("Rekening");
+  async function invalidateAccounts() {
+    if (!familyGroupId) return;
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.accounts.all(familyGroupId),
+    });
+  }
+
+  async function handleSubmit(
+    _entity: string,
+    mode: "add" | "edit",
+    values: Record<string, string>,
+  ) {
+    if (!familyGroupId || !token) return;
+    try {
+      const balance = parseRupiah(values.saldo ?? "0");
+      if (mode === "edit" && editingId) {
+        await apiFetch(
+          `/family-groups/${familyGroupId}/accounts/${editingId}`,
+          {
+            token,
+            method: "PATCH",
+            body: JSON.stringify({ name: values.nama, balance }),
+          },
+        );
+        toast.success("Rekening berhasil diperbarui!");
+      } else {
+        await apiFetch(`/family-groups/${familyGroupId}/accounts`, {
+          token,
+          method: "POST",
+          body: JSON.stringify({
+            type: "bank",
+            name: values.nama || `${values.bank} ${values.jenis}`,
+            institution: values.bank,
+            maskedNumber: values.norek || undefined,
+            balance,
+          }),
+        });
+        toast.success("Rekening berhasil ditambahkan!");
+      }
+      await invalidateAccounts();
+    } catch {
+      toast.error("Gagal menyimpan rekening. Coba lagi.");
+    }
+  }
+
+  async function handleDeleteConfirm() {
+    if (!familyGroupId || !token || !deleting) return;
+    try {
+      await apiFetch(
+        `/family-groups/${familyGroupId}/accounts/${deleting.id}`,
+        { token, method: "DELETE" },
+      );
+      toast.success("Rekening berhasil dihapus.");
+      await invalidateAccounts();
+    } catch {
+      toast.error("Gagal menghapus rekening. Coba lagi.");
+    } finally {
+      setDeleting(null);
+    }
   }
 
   return (
@@ -319,7 +367,7 @@ export default function RekeningPage() {
             )}
           </div>
         </div>
-        <Button type="button" onClick={openAdd}>
+        <Button type="button" onClick={openAdd} data-tour="add-rekening">
           <Plus className="size-4" /> Tambah
         </Button>
       </div>
@@ -354,19 +402,20 @@ export default function RekeningPage() {
             key={account.id}
             account={card}
             onEdit={openEdit}
-            onDelete={openDelete}
+            onDelete={() => setDeleting(card)}
           />
         );
       })}
 
-      <CrudModal state={crudState} onClose={() => setCrudState(null)} />
+      <CrudModal
+        state={crudState}
+        onClose={() => setCrudState(null)}
+        onSubmit={handleSubmit}
+      />
       <ConfirmDeleteDialog
-        label={deleteLabel}
-        onClose={() => setDeleteLabel(null)}
-        onConfirm={() => {
-          setDeleteLabel(null);
-          toast("🗑️ Rekening dihapus.");
-        }}
+        label={deleting ? `"${deleting.name}"` : null}
+        onClose={() => setDeleting(null)}
+        onConfirm={handleDeleteConfirm}
       />
     </div>
   );

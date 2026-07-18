@@ -1,6 +1,13 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Fragment,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Calendar, Download, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
@@ -927,12 +934,6 @@ function DetailSection({
     <div className={"space-y-3.5 " + loadingClass}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-[15px] font-bold">Laporan Detail Transaksi</div>
-        <button
-          onClick={() => toast("📥 Export Excel...")}
-          className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3.5 py-2 text-[12px] font-semibold transition-colors hover:bg-accent"
-        >
-          <FileSpreadsheet className="size-3.5" /> Export
-        </button>
       </div>
       <SectionCard>
         <div className="w-full overflow-x-auto">
@@ -1148,6 +1149,7 @@ function StatementRow({
 }
 
 function PnlSection({ pnl, isLoading }: { pnl?: PnlDto; isLoading?: boolean }) {
+  const router = useRouter();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const now = new Date();
   const bulan = now.toLocaleDateString("id-ID", {
@@ -1227,6 +1229,16 @@ function PnlSection({ pnl, isLoading }: { pnl?: PnlDto; isLoading?: boolean }) {
             />
           </tbody>
         </table>
+        <div className="mt-2 text-right text-[11px] text-muted-foreground">
+          Arah pendapatan/beban mengikuti{" "}
+          <button
+            type="button"
+            onClick={() => router.push("/mastercoa")}
+            className="cursor-pointer font-semibold text-primary hover:underline"
+          >
+            Master COA
+          </button>
+        </div>
       </SectionCard>
     </div>
   );
@@ -1262,9 +1274,8 @@ function BalanceSection({
           <table className="w-full border-collapse text-[12.5px]">
             <tbody>
               {balanceSheet?.assets.map((group) => (
-                <>
+                <Fragment key={`g-${group.category}`}>
                   <StatementRow
-                    key={`g-${group.category}`}
                     label={group.category}
                     labelClass="py-1.5 font-bold text-muted-foreground"
                   />
@@ -1276,7 +1287,7 @@ function BalanceSection({
                       indent
                     />
                   ))}
-                </>
+                </Fragment>
               ))}
               <StatementRow
                 label="Total Aset"
@@ -1302,9 +1313,8 @@ function BalanceSection({
                 labelClass="py-1.5 font-bold text-muted-foreground"
               />
               {balanceSheet?.liabilities.map((group) => (
-                <>
+                <Fragment key={`g-${group.category}`}>
                   <StatementRow
-                    key={`g-${group.category}`}
                     label={group.category}
                     labelClass="py-1 text-[11px] text-muted-foreground"
                     indent
@@ -1317,7 +1327,7 @@ function BalanceSection({
                       indent
                     />
                   ))}
-                </>
+                </Fragment>
               ))}
               <StatementRow
                 label="Total Liabilitas"

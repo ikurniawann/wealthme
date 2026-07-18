@@ -14,6 +14,7 @@ import { formatRupiah, parseRupiah, formatAmountInput } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 
 import type {
+  AccountDto,
   CreateDonationDto,
   DonationDto,
   DonationType,
@@ -113,10 +114,10 @@ export default function DonationPage() {
   const token = session?.accessToken;
 
   // Zakat Maal calculator state (local — no API)
-  const [cash, setCash] = useState("339.450.000");
-  const [gold, setGold] = useState("50.000.000");
-  const [invest, setInvest] = useState("577.200.000");
-  const [debt, setDebt] = useState("15.170.000");
+  const [cash, setCash] = useState("");
+  const [gold, setGold] = useState("");
+  const [invest, setInvest] = useState("");
+  const [debt, setDebt] = useState("");
 
   const harta =
     parseRupiah(cash) +
@@ -138,12 +139,22 @@ export default function DonationPage() {
     new Date().toISOString().slice(0, 10),
   );
   const [isTaxDeductible, setIsTaxDeductible] = useState(false);
+  const [accountId, setAccountId] = useState("");
 
   // Fetch donations list
   const { data: donations = [], isLoading } = useQuery<DonationDto[]>({
     queryKey: fgId ? queryKeys.donations.list(fgId) : ["donations-disabled"],
     queryFn: () =>
       apiFetch<DonationDto[]>(`/family-groups/${fgId}/donations`, { token }),
+    enabled: !!fgId && !!token,
+  });
+
+  // Accounts — lets the user pick a source account so the donation actually
+  // deducts from net worth via a linked expense transaction (optional).
+  const { data: accounts = [] } = useQuery<AccountDto[]>({
+    queryKey: fgId ? queryKeys.accounts.all(fgId) : ["accounts-disabled"],
+    queryFn: () =>
+      apiFetch<AccountDto[]>(`/family-groups/${fgId}/accounts`, { token }),
     enabled: !!fgId && !!token,
   });
 
@@ -156,10 +167,20 @@ export default function DonationPage() {
         token,
       }),
     onSuccess: () => {
-      if (fgId)
+      if (fgId) {
         void queryClient.invalidateQueries({
           queryKey: queryKeys.donations.list(fgId),
         });
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.accounts.all(fgId),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.dashboard.summary(fgId),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.netWorth.summary(fgId),
+        });
+      }
       setOpen(false);
       toast.success("✅ Donasi berhasil dicatat!");
     },
@@ -178,6 +199,7 @@ export default function DonationPage() {
       setJumlah("");
       setIsTaxDeductible(false);
     }
+    setAccountId("");
     setOpen(true);
   }
 
@@ -193,6 +215,7 @@ export default function DonationPage() {
       amount: String(amountNum),
       donatedAt: new Date(tanggal).toISOString(),
       isTaxDeductible,
+      accountId: accountId || undefined,
     });
   }
 
@@ -393,6 +416,28 @@ export default function DonationPage() {
                 onChange={(e) => setTanggal(e.target.value)}
                 className={FIELD_CLASS}
               />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-[12.5px] font-semibold">
+                Bayar dari Rekening (opsional)
+              </label>
+              <select
+                value={accountId}
+                onChange={(e) => setAccountId(e.target.value)}
+                className={FIELD_CLASS}
+              >
+                <option value="">Hanya catat, jangan potong saldo</option>
+                {accounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Pilih rekening agar total kekayaan bersih ikut berkurang saat
+                donasi dicatat.
+              </p>
             </div>
 
             <div className="flex items-center gap-2">

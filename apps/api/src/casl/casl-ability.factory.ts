@@ -12,6 +12,7 @@ export type Subject =
   | "Asset"
   | "Budget"
   | "Category"
+  | "CoaAccount"
   | "Donation"
   | "FamilyGroup"
   | "Goal"
@@ -40,6 +41,7 @@ export class CaslAbilityFactory {
         can("manage", "Asset");
         can("manage", "Budget");
         can("manage", "Category");
+        can("manage", "CoaAccount");
         can("manage", "Donation");
         can("manage", "Goal");
         can("manage", "Inheritance");
@@ -57,6 +59,7 @@ export class CaslAbilityFactory {
         can("manage", "Asset");
         can("manage", "Budget");
         can("read", "Category");
+        can("read", "CoaAccount");
         can("manage", "Donation");
         can("manage", "Goal");
         can("manage", "Inheritance");
@@ -75,6 +78,7 @@ export class CaslAbilityFactory {
         can("read", "Asset");
         can("read", "Budget");
         can("read", "Category");
+        can("read", "CoaAccount");
         can("read", "Donation");
         can("read", "Goal");
         can("read", "Inheritance");

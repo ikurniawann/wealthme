@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { InsuranceStatus, InsuranceType, PremiumPeriod } from "@prisma/client";
 import {
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsNotEmpty,
@@ -52,6 +53,14 @@ export class CreateInsuranceDto {
   @IsOptional()
   @IsDateString()
   renewalDate?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Automatically advance renewalDate by premiumPeriod once it's passed",
+  })
+  @IsOptional()
+  @IsBoolean()
+  autoRenewDate?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()
