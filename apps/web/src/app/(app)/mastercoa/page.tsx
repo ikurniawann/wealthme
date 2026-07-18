@@ -367,6 +367,7 @@ export default function MasterCoaPage() {
           <button
             onClick={openAdd}
             disabled={!familyGroupId}
+            data-tour="add-mastercoa"
             className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
           >
             <Plus className="size-3.5" /> Tambah Akun
