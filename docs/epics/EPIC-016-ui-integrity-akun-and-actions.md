@@ -26,7 +26,7 @@ the full line-by-line detail preserved from the audit.
 
 ## Tasks
 
-- [ ] ### A — `/akun` Profile save silently drops fields (highest priority)
+- [x] ### A — `/akun` Profile save silently drops fields (highest priority) ✅
   - `ProfilBody`: "Simpan Perubahan" sends only the name field to `PATCH
 /auth/profile`. Phone, birth date, gender, job, and monthly income are
     uncontrolled `defaultValue` inputs never read on save, yet a success toast
@@ -164,3 +164,25 @@ across a fresh QA pass of `/akun`, `/laporan`, `/tax`, `/asuransi`, and
   `backlog` rather than `on-progress`: several tasks (B, C, D) involve a
   product decision (build the real feature vs. honestly remove/relabel it)
   that should be made by a human before an automated loop picks this up.
+- **2026-07-18 — /epic-loop EPIC-016 #1 "A — /akun Profile save silently drops
+  fields" → PASS (attempts: 3).** Human decision: build it (add phone/birthDate/
+  gender/jobTitle/monthlyIncome as real persisted `User` columns via migration
+  `20260718123138_add_user_profile_fields`; birthDate/monthlyIncome AES-256-GCM
+  encrypted at rest via the existing `CryptoService`, following the `Account.
+maskedNumber` pattern). Attempt 1 review found 3 HIGH issues (silent data-loss
+  on background-refetch clobber, `gender` default defeating the touched-fields
+  guard, and the regression tests exercising a duplicate mock instead of the
+  real component) plus 2 more from a second reviewer (E2E locators using
+  `hasText` against `<input>` — matches text content not `value`, silently
+  skipping 3 of 5 fields; encryption test never exercising real encryption).
+  Attempt 2 fixed all 5; re-review found one more HIGH (the `dirty` guard
+  cleared optimistically at click-time instead of on save success, reopening
+  the clobber window on a _failed_ save). Attempt 3 fixed it (async
+  `handleSave` + `mutateAsync`, `dirty` only clears in the success path).
+  Gates: qa ✅ security ✅ test ✅ (92/92 API, 3/3 web incl. new failed-save
+  regression test). E2E spec (`epic-016-task-a-profile-persistence.spec.ts`)
+  structurally verified (locators confirmed against real placeholders, one
+  reviewer ran it live against a standalone Next dev server up to the point of
+  `ERR_CONNECTION_REFUSED` on the API — no NestJS/Postgres available in this
+  sandbox) but not run against a full live stack; recommend running it in CI/QA
+  before merge. PR: (pending, see below).

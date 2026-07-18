@@ -11,7 +11,7 @@ export class CryptoService {
   private readonly logger = new Logger(CryptoService.name);
   private readonly key: Buffer | null;
 
-  constructor(config: ConfigService<Env>) {
+  constructor(config: ConfigService<Env, true>) {
     const keyHex = config.get("ENCRYPTION_KEY", { infer: true });
     this.key = keyHex ? Buffer.from(keyHex, "hex") : null;
     if (this.key && this.key.length !== 32) {

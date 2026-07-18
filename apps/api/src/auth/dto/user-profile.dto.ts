@@ -1,4 +1,4 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class MembershipDto {
   @ApiProperty({ type: String, description: "Membership UUID" })
@@ -27,6 +27,44 @@ export class UserProfileDto {
     description: "Two-letter initials",
   })
   avatarInitials!: string | null;
+
+  // Only present on GET/PATCH /auth/profile — GET /auth/me omits these to
+  // keep its Prisma query minimal (see AuthService.getMe).
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description: "Phone number (only on /auth/profile)",
+  })
+  phone?: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description: "Birth date, ISO date string (only on /auth/profile)",
+  })
+  birthDate?: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description: "Gender (only on /auth/profile)",
+  })
+  gender?: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description: "Job title (only on /auth/profile)",
+  })
+  jobTitle?: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description:
+      "Monthly income, formatted display string (only on /auth/profile)",
+  })
+  monthlyIncome?: string | null;
 
   @ApiProperty({
     type: String,

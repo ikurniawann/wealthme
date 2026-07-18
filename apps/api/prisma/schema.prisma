@@ -151,6 +151,14 @@ model User {
   passwordHash   String?
   googleId       String?     @unique
   avatarInitials String?
+  phone          String?
+  // birthDate/monthlyIncome are stored ciphertext (AES-256-GCM via CryptoService),
+  // so they are String columns even though the values they represent are a date
+  // and a number — see accounts.service.ts's Account.maskedNumber for the pattern.
+  birthDate      String?
+  gender         String?
+  jobTitle       String?
+  monthlyIncome  String?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
   memberships    Member[]

@@ -74,6 +74,27 @@ type MeResponse = {
   name: string;
 };
 
+// GET /auth/profile — full profile detail (name/email plus the fields
+// GET /auth/me intentionally omits to keep its query minimal).
+export type ProfileDetail = {
+  phone: string | null;
+  birthDate: string | null;
+  gender: string | null;
+  jobTitle: string | null;
+  monthlyIncome: string | null;
+};
+
+// PATCH /auth/profile payload — only name is mandatory; every other field is
+// only sent once the user has actually filled it in.
+export type ProfileSaveInput = {
+  name: string;
+  phone?: string;
+  birthDate?: string;
+  gender?: string;
+  jobTitle?: string;
+  monthlyIncome?: string;
+};
+
 type FamilyGroupMine = {
   id: string;
   name: string;
@@ -215,21 +236,110 @@ const CHEVRON = (
 
 /* ─────────────────────────── Sub-page bodies ─────────────────────────── */
 
-function ProfilBody({
+const GENDER_OPTIONS = ["Laki-laki", "Perempuan"] as const;
+
+export function buildProfileForm(
+  name: string,
+  profile: ProfileDetail | undefined,
+) {
+  return {
+    name,
+    phone: profile?.phone ?? "",
+    birthDate: profile?.birthDate ?? "",
+    // Keep "unset" distinguishable from "user picked the first option" — an
+    // empty string means the server has no gender on file and the user
+    // hasn't touched the control yet, so it must NOT be sent on save unless
+    // they actually choose something.
+    gender: profile?.gender ?? "",
+    jobTitle: profile?.jobTitle ?? "",
+    monthlyIncome: profile?.monthlyIncome ?? "",
+  };
+}
+
+export function ProfilBody({
   name,
   email,
+  profile,
   onSave,
 }: {
   name: string;
   email: string;
-  onSave: (name: string) => void;
+  profile: ProfileDetail | undefined;
+  // Returns a Promise so handleSave can wait for the actual mutation outcome
+  // (see below) instead of assuming success the instant it's called.
+  onSave: (data: ProfileSaveInput) => Promise<unknown>;
 }) {
-  const nameRef = useRef<HTMLInputElement>(null);
+  const [form, setForm] = useState(() => buildProfileForm(name, profile));
+  // True as soon as the user changes any field; cleared only once a save
+  // actually succeeds (see `handleSave`), since the outgoing payload only
+  // becomes the new source of truth after the round-trip resolves. This
+  // prevents both the background refetch triggered by the save's own
+  // `onSuccess` (invalidateQueries, not awaited) from clobbering an edit the
+  // user starts typing before that refetch resolves, AND a failed save from
+  // silently losing the user's edits to an unrelated prop resync while
+  // `dirty` sits incorrectly cleared. Plain state (not a ref) so it can be
+  // safely read below during render — see
+  // https://react.dev/reference/react/useRef#referencing-a-value-with-a-ref.
+  const [dirty, setDirty] = useState(false);
+
+  // Re-sync once the real name/profile detail arrives — both queries can
+  // resolve after this sub-page has already mounted. Adjusted during render
+  // (not an effect) per https://react.dev/learn/you-might-not-need-an-effect
+  // to avoid an extra commit/flash of stale values. Skipped while the user
+  // has unsaved edits in flight so a background refetch never silently
+  // discards them.
+  const [synced, setSynced] = useState({ name, profile });
+  if (!dirty && (synced.name !== name || synced.profile !== profile)) {
+    setSynced({ name, profile });
+    setForm(buildProfileForm(name, profile));
+  }
+
   const initials = name
     .split(" ")
     .slice(0, 2)
     .map((w) => w[0]?.toUpperCase() ?? "")
     .join("");
+
+  function update<K extends keyof typeof form>(key: K, value: string) {
+    setDirty(true);
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function handleSave() {
+    const trimmedName = form.name.trim();
+    if (!trimmedName) {
+      // Falling back to the original name for the payload — also reset the
+      // local field so it doesn't stay visually blank after a "successful"
+      // save.
+      update("name", name);
+    }
+    const payload: ProfileSaveInput = { name: trimmedName || name };
+    // Only send fields the user has actually filled in — never overwrite a
+    // real value with an empty one just because a field was left untouched.
+    if (form.phone.trim()) payload.phone = form.phone.trim();
+    if (form.birthDate) payload.birthDate = form.birthDate;
+    if (form.gender) payload.gender = form.gender;
+    if (form.jobTitle.trim()) payload.jobTitle = form.jobTitle.trim();
+    if (form.monthlyIncome.trim())
+      payload.monthlyIncome = form.monthlyIncome.trim();
+    try {
+      await onSave(payload);
+      // Only clear `dirty` once the save has actually resolved — the
+      // just-saved payload only becomes the new source of truth once the
+      // round-trip completes. Clearing this eagerly (before the request
+      // settles) reopened the exact bug `dirty` exists to prevent: a failed
+      // save left `dirty` false while the form still held unsaved edits, so
+      // any later resync from a fresh `name`/`profile` prop (e.g. a
+      // window-focus refetch) would silently discard them.
+      setDirty(false);
+    } catch {
+      // The caller's mutation `onError` already surfaces the failure toast
+      // (see AkunPage's `saveProfile`); swallow the rejection here purely to
+      // avoid an unhandled promise rejection, and deliberately leave `dirty`
+      // as `true` so the user's edits survive until they retry.
+    }
+  }
+
   return (
     <SetSection>
       <div className="mb-6 text-center">
@@ -246,32 +356,65 @@ function ProfilBody({
         <div className="mt-0.5 text-[12px] text-muted-foreground">{email}</div>
       </div>
       <Field label="Nama Lengkap">
-        <input ref={nameRef} className={FIELD_CLASS} defaultValue={name} />
+        <input
+          className={FIELD_CLASS}
+          value={form.name}
+          onChange={(e) => update("name", e.target.value)}
+        />
       </Field>
       <Field label="Email">
         <input className={FIELD_CLASS} defaultValue={email} readOnly />
       </Field>
       <Field label="No. Telepon">
-        <input className={FIELD_CLASS} defaultValue="+62 812 3456 7890" />
+        <input
+          className={FIELD_CLASS}
+          value={form.phone}
+          onChange={(e) => update("phone", e.target.value)}
+          placeholder="+62 8xx xxxx xxxx"
+        />
       </Field>
       <Field label="Tanggal Lahir">
-        <input type="date" className={FIELD_CLASS} defaultValue="1995-03-15" />
+        <input
+          type="date"
+          className={FIELD_CLASS}
+          value={form.birthDate}
+          onChange={(e) => update("birthDate", e.target.value)}
+        />
       </Field>
       <Field label="Jenis Kelamin">
-        <select className={FIELD_CLASS} defaultValue="Laki-laki">
-          <option>Laki-laki</option>
-          <option>Perempuan</option>
+        <select
+          className={FIELD_CLASS}
+          // Display GENDER_OPTIONS[0] when nothing is set yet, but that is a
+          // display-only fallback — form.gender itself stays "" until the
+          // user actually picks something (or the server already had a
+          // value), so an untouched control never gets sent on save.
+          value={form.gender || GENDER_OPTIONS[0]}
+          onChange={(e) => update("gender", e.target.value)}
+        >
+          {GENDER_OPTIONS.map((g) => (
+            <option key={g}>{g}</option>
+          ))}
         </select>
       </Field>
       <Field label="Pekerjaan">
-        <input className={FIELD_CLASS} defaultValue="Software Engineer" />
+        <input
+          className={FIELD_CLASS}
+          value={form.jobTitle}
+          onChange={(e) => update("jobTitle", e.target.value)}
+          placeholder="cth: Software Engineer"
+        />
       </Field>
       <Field label="Penghasilan Bulanan">
-        <input className={FIELD_CLASS} defaultValue="Rp 25.000.000" />
+        <input
+          className={FIELD_CLASS}
+          value={form.monthlyIncome}
+          onChange={(e) => update("monthlyIncome", e.target.value)}
+          placeholder="cth: Rp 25.000.000"
+        />
       </Field>
       <button
         className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground"
-        onClick={() => onSave(nameRef.current?.value ?? name)}
+        onClick={() => void handleSave()}
       >
         <Save className="size-4" /> Simpan Perubahan
       </button>
@@ -1511,6 +1654,12 @@ export default function AkunPage() {
     enabled: !!token,
   });
 
+  const { data: profileDetail } = useQuery<ProfileDetail>({
+    queryKey: ["auth", "profile", token],
+    queryFn: () => apiFetch<ProfileDetail>("/auth/profile", { token }),
+    enabled: !!token,
+  });
+
   const { data: familyGroups } = useQuery<FamilyGroupMine[]>({
     queryKey: [...queryKeys.familyGroups.mine(), token],
     queryFn: () =>
@@ -1532,16 +1681,25 @@ export default function AkunPage() {
     enabled: !!token && !!primaryGroup?.id,
   });
 
-  const { mutate: saveProfile } = useMutation({
-    mutationFn: (name: string) =>
+  // `mutateAsync` (not `mutate`) so `ProfilBody.handleSave` can await the
+  // real outcome and only clear its `dirty` flag on an actual success — see
+  // the `onSave` prop contract on `ProfilBody`.
+  const { mutateAsync: saveProfile } = useMutation({
+    mutationFn: (data: ProfileSaveInput) =>
       apiFetch("/auth/profile", {
         method: "PATCH",
         token,
-        body: JSON.stringify({ name }),
+        body: JSON.stringify(data),
       }),
     onSuccess: () => {
+      // Only fires once the PATCH actually resolved — a partial/failed save
+      // hits onError below instead, so this toast never lies about what
+      // was persisted.
       void queryClient.invalidateQueries({
         queryKey: [...queryKeys.auth.me(), token],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["auth", "profile", token],
       });
       toast.success("Profil berhasil disimpan");
     },
@@ -1625,6 +1783,7 @@ export default function AkunPage() {
           <ProfilBody
             name={displayName}
             email={displayEmail}
+            profile={profileDetail}
             onSave={saveProfile}
           />
         );

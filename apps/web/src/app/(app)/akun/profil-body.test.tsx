@@ -1,0 +1,193 @@
+/**
+ * EPIC-016 Task A regression — verifies the REAL ProfilBody component (as
+ * exported from page.tsx, not a stand-in mock) sends all 5 profile fields
+ * (phone, birthDate, gender, jobTitle, monthlyIncome) to the backend via
+ * PATCH, not just name.
+ */
+
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+
+// `page.tsx` imports `@/lib/auth-client`, which calls better-auth's
+// `createAuthClient` (an ESM-only package Jest's transform can't parse) as a
+// *module-load-time* side effect — so simply importing ProfilBody from
+// page.tsx would crash before any test runs, even though ProfilBody itself
+// never touches auth-client. Mock it out; AkunPage's own use of it is
+// exercised elsewhere (e2e), not by this component-level test.
+// (Jest's own resolver — unlike the Next.js SWC transform used for real
+// `import` statements — doesn't understand the `@/` tsconfig alias, so
+// jest.mock() needs the relative path here.)
+jest.mock("../../../lib/auth-client", () => ({
+  authClient: {
+    useSession: jest.fn(() => ({ data: null, isPending: false })),
+    signOut: jest.fn(),
+    changePassword: jest.fn(),
+  },
+}));
+
+// Mock the sonner toast library
+jest.mock("sonner", () => ({
+  toast: {
+    success: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
+import { ProfilBody, type ProfileDetail } from "./page";
+
+const EMPTY_PROFILE: ProfileDetail = {
+  phone: null,
+  birthDate: null,
+  gender: null,
+  jobTitle: null,
+  monthlyIncome: null,
+};
+
+describe("ProfilBody", () => {
+  it("sends all 5 profile fields on save", async () => {
+    // Arrange
+    const mockOnSave = jest.fn();
+    const user = userEvent.setup();
+
+    const { container } = render(
+      <ProfilBody
+        name="Test User"
+        email="test@example.com"
+        profile={EMPTY_PROFILE}
+        onSave={mockOnSave}
+      />,
+    );
+
+    // Act — modify all fields and click save. The "Tanggal Lahir"/"Jenis
+    // Kelamin" <Field> labels aren't programmatically associated with their
+    // inputs (no htmlFor/id), so getByLabelText can't find them — fall back
+    // to a direct DOM query for just those two, matching how the E2E spec
+    // for this same page also has to locate them.
+    const nameInput = screen.getByDisplayValue("Test User");
+    const phoneInput = screen.getByPlaceholderText("+62 8xx xxxx xxxx");
+    const birthDateInput: HTMLInputElement =
+      container.querySelector('input[type="date"]')!;
+    const genderSelect = screen.getByRole("combobox");
+    const jobTitleInput = screen.getByPlaceholderText("cth: Software Engineer");
+    const monthlyIncomeInput =
+      screen.getByPlaceholderText("cth: Rp 25.000.000");
+    const saveButton = screen.getByText("Simpan Perubahan");
+
+    await user.clear(nameInput);
+    await user.type(nameInput, "New Name");
+
+    await user.type(phoneInput, "+62 999 8888 7777");
+
+    await user.type(birthDateInput, "1990-01-01");
+
+    await user.selectOptions(genderSelect, "Perempuan");
+
+    await user.type(jobTitleInput, "Product Manager");
+
+    await user.type(monthlyIncomeInput, "Rp 30.000.000");
+
+    await user.click(saveButton);
+
+    // Assert — onSave is called with ALL fields
+    await waitFor(() => {
+      expect(mockOnSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "New Name",
+          phone: "+62 999 8888 7777",
+          birthDate: "1990-01-01",
+          gender: "Perempuan",
+          jobTitle: "Product Manager",
+          monthlyIncome: "Rp 30.000.000",
+        }),
+      );
+    });
+  });
+
+  it("does not show success toast on failed or partial save", async () => {
+    // Arrange — ProfilBody itself never renders a toast; success/error
+    // toasts are owned entirely by the caller's mutation lifecycle (see
+    // AkunPage's `saveProfile` onSuccess/onError). `onSave` here stands in
+    // for react-query's `mutate`, which never throws synchronously — a
+    // failed or partial save is reported later via onError, not by
+    // ProfilBody deciding anything on its own. This test proves ProfilBody
+    // has no independent success-signalling path that could lie about a
+    // failed/partial save.
+    const { toast } = jest.requireMock<{
+      toast: { success: jest.Mock; error: jest.Mock };
+    }>("sonner");
+    const mockOnSave = jest.fn();
+    const user = userEvent.setup();
+
+    render(
+      <ProfilBody
+        name="Test User"
+        email="test@example.com"
+        profile={EMPTY_PROFILE}
+        onSave={mockOnSave}
+      />,
+    );
+
+    // Act
+    const saveButton = screen.getByText("Simpan Perubahan");
+    await user.click(saveButton);
+
+    // Assert — onSave was invoked, but ProfilBody itself never fires a
+    // success toast, regardless of whether the underlying save eventually
+    // succeeds, fails, or is partial.
+    expect(mockOnSave).toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("keeps unsaved edits after a failed save instead of losing them to a later prop resync", async () => {
+    // Arrange — `onSave` rejects, simulating a failed PATCH (network blip,
+    // validation error, session expiry, ...). Regression coverage for a race
+    // where `dirty` was cleared the instant Save was clicked, *before* the
+    // mutation resolved — so a failed save left `dirty` false while the form
+    // still held unsaved edits, and any later resync from a fresh
+    // `name`/`profile` prop (e.g. an unrelated background refetch) would
+    // silently discard them.
+    const mockOnSave = jest.fn().mockRejectedValue(new Error("network error"));
+    const user = userEvent.setup();
+
+    const { rerender } = render(
+      <ProfilBody
+        name="Test User"
+        email="test@example.com"
+        profile={EMPTY_PROFILE}
+        onSave={mockOnSave}
+      />,
+    );
+
+    const phoneInput = screen.getByPlaceholderText("+62 8xx xxxx xxxx");
+    await user.type(phoneInput, "+62 111 2222 3333");
+
+    const saveButton = screen.getByText("Simpan Perubahan");
+    await user.click(saveButton);
+
+    await waitFor(() => {
+      expect(mockOnSave).toHaveBeenCalled();
+    });
+
+    // Act — re-render with a new (but content-identical) `profile` object
+    // reference, standing in for any unrelated query invalidation that
+    // resolves while the sheet is still mounted. `ProfilBody`'s resync guard
+    // keys off reference identity, so this is exactly the kind of prop
+    // change that used to clobber the form once `dirty` was (incorrectly)
+    // already false.
+    rerender(
+      <ProfilBody
+        name="Test User"
+        email="test@example.com"
+        profile={{ ...EMPTY_PROFILE }}
+        onSave={mockOnSave}
+      />,
+    );
+
+    // Assert — the user's unsaved edit is still there; it was not wiped out
+    // by the render-time resync because `dirty` correctly stayed `true`
+    // after the failed save.
+    expect(screen.getByPlaceholderText("+62 8xx xxxx xxxx")).toHaveValue(
+      "+62 111 2222 3333",
+    );
+  });
+});

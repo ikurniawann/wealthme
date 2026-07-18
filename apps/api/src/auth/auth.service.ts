@@ -11,6 +11,8 @@ import { JwtService } from "@nestjs/jwt";
 import * as argon2 from "argon2";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { CryptoService } from "../crypto/crypto.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { RedisService } from "../redis/redis.service";
@@ -56,7 +58,34 @@ type UserProfile = {
   createdAt: Date;
   familyGroupId: string | null;
   memberships: MembershipInfo[];
+  // Only populated by endpoints that select them (getProfileDetail/updateProfile);
+  // getMe() intentionally omits these to keep its Prisma select minimal.
+  phone?: string | null;
+  birthDate?: string | null;
+  gender?: string | null;
+  jobTitle?: string | null;
+  monthlyIncome?: string | null;
 };
+
+const PROFILE_DETAIL_SELECT = {
+  id: true,
+  email: true,
+  name: true,
+  avatarInitials: true,
+  phone: true,
+  birthDate: true,
+  gender: true,
+  jobTitle: true,
+  monthlyIncome: true,
+  createdAt: true,
+  memberships: {
+    select: {
+      id: true,
+      familyGroupId: true,
+      role: true,
+    },
+  },
+} as const;
 
 @Injectable()
 export class AuthService {
@@ -65,6 +94,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly redis: RedisService,
     private readonly config: ConfigService<Env, true>,
+    private readonly crypto: CryptoService,
   ) {}
 
   async register(dto: RegisterDto): Promise<TokenPair> {
@@ -174,6 +204,22 @@ export class AuthService {
     };
   }
 
+  /** Full profile including the extra fields getMe() intentionally omits. */
+  async getProfileDetail(userId: string): Promise<UserProfile> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: PROFILE_DETAIL_SELECT,
+    });
+    return {
+      ...user,
+      birthDate: user.birthDate ? this.crypto.decrypt(user.birthDate) : null,
+      monthlyIncome: user.monthlyIncome
+        ? this.crypto.decrypt(user.monthlyIncome)
+        : null,
+      familyGroupId: user.memberships[0]?.familyGroupId ?? null,
+    };
+  }
+
   async updateProfile(
     userId: string,
     dto: UpdateProfileDto,
@@ -185,24 +231,26 @@ export class AuthService {
         ...(dto.avatarInitials !== undefined && {
           avatarInitials: dto.avatarInitials,
         }),
+        ...(dto.phone !== undefined && { phone: dto.phone }),
+        ...(dto.birthDate !== undefined && {
+          birthDate: this.crypto.encrypt(dto.birthDate),
+        }),
+        ...(dto.gender !== undefined && { gender: dto.gender }),
+        ...(dto.jobTitle !== undefined && { jobTitle: dto.jobTitle }),
+        ...(dto.monthlyIncome !== undefined && {
+          monthlyIncome: this.crypto.encrypt(dto.monthlyIncome),
+        }),
       },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        avatarInitials: true,
-        createdAt: true,
-        memberships: {
-          select: {
-            id: true,
-            familyGroupId: true,
-            role: true,
-          },
-        },
-      },
+      select: PROFILE_DETAIL_SELECT,
     });
     return {
       ...updated,
+      birthDate: updated.birthDate
+        ? this.crypto.decrypt(updated.birthDate)
+        : null,
+      monthlyIncome: updated.monthlyIncome
+        ? this.crypto.decrypt(updated.monthlyIncome)
+        : null,
       familyGroupId: updated.memberships[0]?.familyGroupId ?? null,
     };
   }
