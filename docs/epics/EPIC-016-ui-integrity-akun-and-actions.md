@@ -199,7 +199,8 @@ maskedNumber` pattern). Attempt 1 review found 3 HIGH issues (silent data-loss
   fake-persistence toggles ("Sembunyikan Saldo Default"/"Tampilkan
   Desimal"/"Ringkasan Mingguan" in a "Tampilan Data" section) not covered by
   the original audit — left untouched, flagged for a future task, not folded
-  into B1's scope. PR: (pending).
+  into B1's scope. PR: https://github.com/andrsrjld/wealthme-web/pull/173
+  (stacked on #172, not yet merged).
 - **2026-07-19 — Human decision on Task B's build-vs-relabel calls.** Currency
   picker (no backend, only per-Account.currency): build a real global
   User-level currency preference. 11 notification toggles (zero backend):
