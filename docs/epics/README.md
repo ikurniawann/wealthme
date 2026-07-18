@@ -19,10 +19,15 @@ ringkasan: [`../BACKLOG.md`](../BACKLOG.md) · arsitektur: [`../WealthMe_Backend
 | [EPIC-010](EPIC-010-frontend-shadcn-theming.md)        | Phase 3 | Frontend shadcn Theming                           | P1        | ready-for-qa |
 | [EPIC-011](EPIC-011-dockerized-dev-stack-demo-seed.md) | Phase 7 | Dockerized DEV Stack + Demo Seed                  | P1        | ready-for-qa |
 | [EPIC-012](EPIC-012-master-coa.md)                     | Phase 4 | Master COA (Chart of Accounts)                    | P2        | ready-for-qa |
-| [EPIC-013](EPIC-013-design-system-enhancement.md)      | Phase 4 | Design-System Enhancement Layer                   | P1        | done         |
 | [EPIC-014](EPIC-014-feature-maximizers.md)             | Phase 4 | Feature Maximizers (Wealth Intel)                 | P1        | ready-for-qa |
 | [EPIC-015](EPIC-015-product-integrity.md)              | Phase 4 | Product Integrity & Trust Pass                    | P0        | ready-for-qa |
 | [EPIC-016](EPIC-016-ui-integrity-akun-and-actions.md)  | Phase 4 | UI Integrity — Non-Functional Actions & Fake Data | P0        | backlog      |
+
+## Archived (done + human QA signed off)
+
+| Epic                                                      | Fase    | Fokus                           | Prioritas | Status |
+| --------------------------------------------------------- | ------- | ------------------------------- | --------- | ------ |
+| [EPIC-013](archive/EPIC-013-design-system-enhancement.md) | Phase 4 | Design-System Enhancement Layer | P1        | done   |
 
 **Definition of MVP (bisa mulai dipakai):** selesainya **EPIC-000 → 001 → 002**.
 Lanjut EPIC-003…007 sampai full product.
