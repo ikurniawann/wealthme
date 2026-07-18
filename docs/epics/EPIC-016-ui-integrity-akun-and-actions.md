@@ -185,4 +185,4 @@ maskedNumber` pattern). Attempt 1 review found 3 HIGH issues (silent data-loss
   reviewer ran it live against a standalone Next dev server up to the point of
   `ERR_CONNECTION_REFUSED` on the API — no NestJS/Postgres available in this
   sandbox) but not run against a full live stack; recommend running it in CI/QA
-  before merge. PR: (pending, see below).
+  before merge. PR: https://github.com/andrsrjld/wealthme-web/pull/172
