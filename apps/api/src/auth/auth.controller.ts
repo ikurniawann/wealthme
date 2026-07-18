@@ -101,10 +101,22 @@ export class AuthController {
     return this.auth.getMe(req.user.sub);
   }
 
+  @Get("profile")
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      "Get full profile detail (includes phone, birthDate, gender, jobTitle, monthlyIncome)",
+  })
+  @ApiResponse({ status: 200, type: UserProfileDto })
+  getProfile(@Request() req: AuthenticatedRequest): Promise<UserProfileDto> {
+    return this.auth.getProfileDetail(req.user.sub);
+  }
+
   @Patch("profile")
   @ApiBearerAuth()
   @ApiOperation({
-    summary: "Update current user profile (name, avatarInitials)",
+    summary:
+      "Update current user profile (name, avatarInitials, phone, birthDate, gender, jobTitle, monthlyIncome)",
   })
   @ApiResponse({ status: 200, type: UserProfileDto })
   updateProfile(

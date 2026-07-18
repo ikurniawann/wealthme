@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { Test, type TestingModule } from "@nestjs/testing";
 
+import { CryptoService } from "../crypto/crypto.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { RedisService } from "../redis/redis.service";
 
@@ -40,16 +41,19 @@ const mockRedis = {
   del: jest.fn(),
 };
 
+const CONFIG_VALUES: Record<string, string> = {
+  JWT_SECRET: "test-secret-that-is-at-least-32-chars-long",
+  JWT_EXPIRES_IN: "15m",
+  JWT_REFRESH_SECRET: "test-refresh-secret-that-is-at-least-32-chars-long",
+  JWT_REFRESH_EXPIRES_IN: "7d",
+  // 32 bytes / 64 hex chars — required so CryptoService constructs with a
+  // real key instead of `null`, which would make encrypt/decrypt no-op
+  // pass-throughs and let a plaintext-leaking bug go undetected.
+  ENCRYPTION_KEY: "0".repeat(64),
+};
+
 const mockConfig = {
-  get: jest.fn((key: string) => {
-    const values: Record<string, string> = {
-      JWT_SECRET: "test-secret-that-is-at-least-32-chars-long",
-      JWT_EXPIRES_IN: "15m",
-      JWT_REFRESH_SECRET: "test-refresh-secret-that-is-at-least-32-chars-long",
-      JWT_REFRESH_EXPIRES_IN: "7d",
-    };
-    return values[key];
-  }),
+  get: jest.fn((key: string) => CONFIG_VALUES[key]),
 };
 
 describe("AuthService", () => {
@@ -57,6 +61,11 @@ describe("AuthService", () => {
 
   beforeEach(async () => {
     jest.resetAllMocks();
+    // jest.resetAllMocks() above wipes any mockImplementation, including the
+    // one mockConfig.get was created with — re-establish it every time,
+    // same as the mockPrisma defaults below, since CryptoService reads
+    // ENCRYPTION_KEY from it at construction time (right after this block).
+    mockConfig.get.mockImplementation((key: string) => CONFIG_VALUES[key]);
     // Default implementations for register()'s $transaction callback
     mockPrisma.$transaction.mockImplementation(
       async (fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma),
@@ -73,6 +82,7 @@ describe("AuthService", () => {
         { provide: JwtService, useValue: mockJwt },
         { provide: RedisService, useValue: mockRedis },
         { provide: ConfigService, useValue: mockConfig },
+        { provide: CryptoService, useClass: CryptoService },
       ],
     }).compile();
 
@@ -337,6 +347,63 @@ describe("AuthService", () => {
         }),
       );
       expect(result.familyGroupId).toBeNull();
+    });
+
+    it("persists all 5 profile fields and genuinely encrypts birthDate/monthlyIncome (encrypt-then-decrypt round trip)", async () => {
+      // Arrange — updateProfile called with all 5 new fields
+      const updateDto = {
+        name: "Updated Name",
+        phone: "+62 812 1234 5678",
+        birthDate: "1990-05-15",
+        gender: "Laki-laki",
+        jobTitle: "Senior Engineer",
+        monthlyIncome: "5000000",
+      };
+
+      // Echo back the SAME birthDate/monthlyIncome the service just sent to
+      // Prisma (not the raw plaintext dto), so decrypting it below is a
+      // genuine round trip through the real CryptoService — not just
+      // re-echoing the plaintext, which would pass even for a no-op
+      // encrypt/decrypt.
+      mockPrisma.user.update.mockImplementation(
+        (args: { data: Record<string, unknown> }) =>
+          Promise.resolve({
+            ...baseUser,
+            ...updateDto,
+            avatarInitials: "UN",
+            birthDate: args.data.birthDate as string,
+            monthlyIncome: args.data.monthlyIncome as string,
+          }),
+      );
+
+      // Act
+      const result = await service.updateProfile("user-1", updateDto);
+
+      // Assert — phone/gender/jobTitle/name are stored as-is; birthDate and
+      // monthlyIncome are genuinely AES-256-GCM encrypted (iv:tag:data hex
+      // triplet) before being sent to Prisma, never the plaintext.
+      const [callArg] = mockPrisma.user.update.mock.calls[0] as [
+        { where: { id: string }; data: Record<string, unknown> },
+      ];
+      expect(callArg.where).toEqual({ id: "user-1" });
+      expect(callArg.data.name).toBe("Updated Name");
+      expect(callArg.data.phone).toBe("+62 812 1234 5678");
+      expect(callArg.data.gender).toBe("Laki-laki");
+      expect(callArg.data.jobTitle).toBe("Senior Engineer");
+
+      const hexTripletPattern = /^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$/;
+      expect(callArg.data.birthDate).not.toBe("1990-05-15");
+      expect(callArg.data.birthDate).toMatch(hexTripletPattern);
+      expect(callArg.data.monthlyIncome).not.toBe("5000000");
+      expect(callArg.data.monthlyIncome).toMatch(hexTripletPattern);
+
+      // Assert — the response decrypts the encrypted values back to the
+      // original plaintext, proving a real encrypt-then-decrypt round trip.
+      expect(result.phone).toBe("+62 812 1234 5678");
+      expect(result.birthDate).toBe("1990-05-15");
+      expect(result.gender).toBe("Laki-laki");
+      expect(result.jobTitle).toBe("Senior Engineer");
+      expect(result.monthlyIncome).toBe("5000000");
     });
   });
 
