@@ -66,6 +66,13 @@ export class UserProfileDto {
   })
   monthlyIncome?: string | null;
 
+  @ApiPropertyOptional({
+    type: String,
+    description:
+      "Display currency preference, ISO 4217 code (only on /auth/profile)",
+  })
+  currency?: string;
+
   @ApiProperty({
     type: String,
     format: "date-time",

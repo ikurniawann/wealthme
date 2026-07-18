@@ -6,6 +6,7 @@ import { useTheme } from "next-themes";
 import { useSession } from "@/lib/auth-compat";
 import { authClient } from "@/lib/auth-client";
 import { useLocale } from "@/hooks/use-locale";
+import { useProfile } from "@/hooks/use-profile";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -738,13 +739,14 @@ const CURRENCIES = [
 
 const SETTINGS_KEY = "wealthme_settings";
 
+// Currency is EPIC-016 Task B2's real profile preference (persisted via
+// PATCH /auth/profile — see useProfile()/currency mutation in
+// PengaturanBody), no longer part of this orphaned localStorage blob.
 type AppSettings = {
-  currency: string;
   dateFormat: string;
 };
 
 const DEFAULT_SETTINGS: AppSettings = {
-  currency: "IDR",
   dateFormat: "DD/MM/YYYY",
 };
 
@@ -806,6 +808,13 @@ export function PengaturanBody() {
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const { theme, setTheme } = useTheme();
   const { locale, setLocale } = useLocale();
+  const { data: session } = useSession();
+  const queryClient = useQueryClient();
+  const { data: profile } = useProfile();
+  // Absent for pre-migration users (and while the query is still loading) —
+  // the server itself defaults new/untouched rows to "IDR", so this mirrors
+  // that default rather than inventing a different one client-side.
+  const currency = profile?.currency ?? "IDR";
   const [mounted, setMounted] = useState(false);
   // Resolve the real theme only after mount; avoids an SSR/client mismatch
   // (same pattern as components/shell/theme-toggle.tsx).
@@ -821,6 +830,27 @@ export function PengaturanBody() {
     setSettings((prev) => ({ ...prev, [key]: value }));
   }
 
+  // Currency applies immediately on selection (same UX as theme/language),
+  // by writing straight to the real profile — never to the orphaned
+  // localStorage blob below, which only still covers dateFormat.
+  const { mutate: updateCurrency } = useMutation({
+    mutationFn: (code: string) =>
+      apiFetch("/auth/profile", {
+        method: "PATCH",
+        token: session?.accessToken,
+        body: JSON.stringify({ currency: code }),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["auth", "profile", session?.accessToken],
+      });
+      toast.success("✅ Mata uang tampilan diperbarui");
+    },
+    onError: () => {
+      toast.error("Gagal menyimpan mata uang");
+    },
+  });
+
   function save() {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     toast.success("✅ Pengaturan disimpan");
@@ -830,17 +860,20 @@ export function PengaturanBody() {
     <>
       <SetSection>
         <SectionTitle>Mata Uang</SectionTitle>
-        <div className="mb-3.5">
+        <div className="mb-3.5" role="radiogroup" aria-label="Mata Uang">
           <div className="mb-2.5 text-[12px] text-muted-foreground">
             Mata uang default untuk tampilan semua angka
           </div>
           {CURRENCIES.map((c) => {
-            const selected = settings.currency === c.code;
+            const selected = currency === c.code;
             return (
-              <div
+              <button
                 key={c.code}
-                onClick={() => update("currency", c.code)}
-                className={`mb-2 flex cursor-pointer items-center gap-3 rounded-lg border px-3.5 py-3 transition-colors ${
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => updateCurrency(c.code)}
+                className={`mb-2 flex w-full cursor-pointer items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors ${
                   selected ? "border-primary bg-accent" : ""
                 }`}
               >
@@ -856,7 +889,7 @@ export function PengaturanBody() {
                 {selected && (
                   <span className="text-[16px] font-bold text-primary">✓</span>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>

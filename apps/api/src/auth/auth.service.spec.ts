@@ -16,6 +16,8 @@ jest.mock("argon2", () => ({
 
 import { AuthService } from "./auth.service";
 
+import type { UpdateProfileDto } from "./dto/update-profile.dto";
+
 const mockPrisma = {
   user: {
     findUnique: jest.fn(),
@@ -404,6 +406,61 @@ describe("AuthService", () => {
       expect(result.gender).toBe("Laki-laki");
       expect(result.jobTitle).toBe("Senior Engineer");
       expect(result.monthlyIncome).toBe("5000000");
+    });
+
+    // EPIC-016 Task B2 — currency preference persistence.
+    it("persists currency field via updateProfile", async () => {
+      const updateDto: UpdateProfileDto = { currency: "USD" };
+      const updated = { ...baseUser, currency: "USD" };
+      mockPrisma.user.update.mockResolvedValue(updated);
+
+      const result = await service.updateProfile("user-1", updateDto);
+
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "user-1" },
+          data: expect.objectContaining({ currency: "USD" }),
+        }),
+      );
+      expect(result).toMatchObject({ currency: "USD" });
+    });
+
+    it("persists multiple valid currency codes (IDR, USD, SGD, EUR, JPY)", async () => {
+      const currencies = ["IDR", "USD", "SGD", "EUR", "JPY"];
+
+      for (const curr of currencies) {
+        const updated = { ...baseUser, currency: curr };
+        mockPrisma.user.update.mockResolvedValueOnce(updated);
+
+        const result = await service.updateProfile("user-1", {
+          currency: curr,
+        });
+
+        expect(result).toMatchObject({ currency: curr });
+      }
+    });
+
+    it("preserves currency field in getProfileDetail", async () => {
+      const userWithCurrency = { ...baseUser, currency: "EUR" };
+      mockPrisma.user.findUniqueOrThrow.mockResolvedValue(userWithCurrency);
+
+      const result = await service.getProfileDetail("user-1");
+
+      expect(result).toMatchObject({ currency: "EUR" });
+      expect(mockPrisma.user.findUniqueOrThrow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          select: expect.objectContaining({ currency: true }),
+        }),
+      );
+    });
+
+    it("defaults to IDR when currency is not set", async () => {
+      const userWithoutCurrency = { ...baseUser, currency: "IDR" };
+      mockPrisma.user.findUniqueOrThrow.mockResolvedValue(userWithoutCurrency);
+
+      const result = await service.getProfileDetail("user-1");
+
+      expect(result.currency).toBe("IDR");
     });
   });
 

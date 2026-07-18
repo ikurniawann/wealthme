@@ -38,6 +38,7 @@ import {
 } from "@/components/wm";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { useLocale } from "@/hooks/use-locale";
+import { useCurrencyPreference } from "@/hooks/use-currency-preference";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, formatRupiahCompact } from "@/lib/format";
@@ -84,10 +85,28 @@ function getGreetingKey(
   return "evening";
 }
 
-export default function BerandaPage() {
+function BerandaPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const { t } = useLocale();
+  const { currency, formatMoney, isIndicative, isReady } =
+    useCurrencyPreference();
+  // Every monetary display on this page routes through these two helpers so
+  // conversion coverage stays consistent — never a fabricated 1:1-rate
+  // number rendered under a foreign currency symbol while the FX rate is
+  // still loading (or failed to load).
+  const money = (value: number): string =>
+    !isReady
+      ? t.common.loading
+      : isIndicative
+        ? `≈ ${formatMoney(value)}`
+        : formatRupiah(value);
+  const moneyCompact = (value: number): string =>
+    !isReady
+      ? t.common.loading
+      : isIndicative
+        ? `≈ ${formatMoney(value)}`
+        : formatRupiahCompact(value);
   const firstName = session?.user?.name?.split(" ")[0] ?? "Kamu";
   const [period, setPeriod] = useState<(typeof PERIODS)[number]>("1M");
 
@@ -154,8 +173,8 @@ export default function BerandaPage() {
       name: g.name,
       pct: g.progressPercent,
       color: style.color,
-      now: formatRupiahCompact(g.currentAmount),
-      target: formatRupiahCompact(g.targetAmount),
+      now: moneyCompact(g.currentAmount),
+      target: moneyCompact(g.targetAmount),
     };
   });
 
@@ -164,7 +183,7 @@ export default function BerandaPage() {
       label: item.label,
       value: item.value,
       color: item.color,
-      sub: formatRupiah(item.amount),
+      sub: money(item.amount),
     }),
   );
 
@@ -181,11 +200,17 @@ export default function BerandaPage() {
       icon: Wallet,
       chip: "bg-gray-100 text-gray-600",
     };
+    // isIndicative (non-IDR preference): switch from the compact IDR format
+    // to formatMoney's converted output, prefixed with "≈" — these mock FX
+    // rates are indicative, never a live/authoritative conversion. IDR
+    // (the default) keeps today's exact compact format unchanged. moneyCompact
+    // also withholds rendering (loading placeholder) until the FX rate is
+    // actually ready, so this never shows a fabricated 1:1-rate number.
     return {
       icon: cfg.icon,
       chip: cfg.chip,
       label: s.label,
-      amount: formatRupiahCompact(s.total),
+      amount: moneyCompact(s.total),
       delta: "—",
       up: true as boolean,
       href: SUMMARY_ROUTE[s.type] ?? "/rekening",
@@ -213,7 +238,9 @@ export default function BerandaPage() {
         : tx.type === "expense"
           ? t.common.expense2
           : t.common.transfer),
-    amt: (tx.type === "income" ? "+" : "-") + formatRupiah(tx.amount),
+    amt: !isReady
+      ? t.common.loading
+      : (tx.type === "income" ? "+" : "-") + money(tx.amount),
     inc: tx.type === "income",
     date: formatRelativeDate(tx.occurredAt),
   }));
@@ -242,8 +269,9 @@ export default function BerandaPage() {
     );
   }
 
-  const donutCenterValue =
-    netWorth >= 1_000_000_000
+  const donutCenterValue = isIndicative
+    ? money(netWorth)
+    : netWorth >= 1_000_000_000
       ? (netWorth / 1_000_000_000).toFixed(2).replace(".", ",") + "M"
       : netWorth >= 1_000_000
         ? (netWorth / 1_000_000).toFixed(0) + " jt"
@@ -279,13 +307,21 @@ export default function BerandaPage() {
                 <Eye className="size-[13px]" />
               </button>
             </div>
-            <div className="mono mt-1 text-[28px] font-extrabold tracking-tight">
-              {isLoading ? (
+            <h1 className="mono mt-1 text-[28px] font-extrabold tracking-tight">
+              {isLoading || (isIndicative && !isReady) ? (
                 t.common.loading
+              ) : isIndicative ? (
+                <>≈ {formatMoney(netWorth)}</>
               ) : (
                 <CountUpRupiah value={netWorth} />
               )}
-            </div>
+            </h1>
+            {isIndicative && (
+              <div className="mt-0.5 text-[10.5px] opacity-70">
+                Perkiraan dalam {currency} · kurs indikatif, bukan kurs pasar
+                real-time
+              </div>
+            )}
             {currentMonth && (
               <div className="mt-1 text-[12.5px]">
                 <span
@@ -296,8 +332,7 @@ export default function BerandaPage() {
                   }
                 >
                   {currentMonth.net >= 0 ? "▲" : "▼"}{" "}
-                  {formatRupiah(Math.abs(currentMonth.net))}{" "}
-                  {t.beranda.thisMonth}
+                  {money(Math.abs(currentMonth.net))} {t.beranda.thisMonth}
                 </span>{" "}
                 <span className="opacity-60">
                   ({t.common.savingsRate} {currentMonth.savingsRate}%)
@@ -440,7 +475,7 @@ export default function BerandaPage() {
                 {t.common.income}
               </div>
               <div className="text-[15px] font-extrabold text-success">
-                {isLoading ? "..." : formatRupiah(currentMonth?.income ?? 0)}
+                {isLoading ? "..." : money(currentMonth?.income ?? 0)}
               </div>
             </div>
             <div>
@@ -448,14 +483,14 @@ export default function BerandaPage() {
                 {t.common.expense}
               </div>
               <div className="text-[15px] font-extrabold text-destructive">
-                {isLoading ? "..." : formatRupiah(currentMonth?.expense ?? 0)}
+                {isLoading ? "..." : money(currentMonth?.expense ?? 0)}
               </div>
             </div>
           </div>
           <div className="mb-2 text-[11px] text-muted-foreground">
             {t.common.surplus}{" "}
             <span className="font-bold text-success">
-              {isLoading ? "..." : formatRupiah(currentMonth?.net ?? 0)}
+              {isLoading ? "..." : money(currentMonth?.net ?? 0)}
             </span>
           </div>
           {cashflow && (
@@ -618,3 +653,6 @@ export default function BerandaPage() {
     </div>
   );
 }
+
+export default BerandaPage;
+export { BerandaPage };
