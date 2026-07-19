@@ -2,6 +2,11 @@ import { Injectable } from "@nestjs/common";
 import { CoaDirection, type TransactionType } from "@prisma/client";
 
 import { transactionTypeToCoaDirection } from "../common/utils/coa-direction.util";
+import {
+  accountPrivacyWhere,
+  nestedTransactionCategoryPrivacyWhere,
+  transactionPrivacyWhere,
+} from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -60,6 +65,7 @@ export class ReportsService {
     familyGroupId: string,
     period: ReportPeriod,
     months: number,
+    canSeePrivate: boolean,
   ): Promise<ReportSummaryDto> {
     const now = new Date();
     const startDate = new Date(
@@ -70,7 +76,11 @@ export class ReportsService {
     startDate.setHours(0, 0, 0, 0);
 
     const transactions = await this.prisma.transaction.findMany({
-      where: { familyGroupId, occurredAt: { gte: startDate } },
+      where: {
+        familyGroupId,
+        occurredAt: { gte: startDate },
+        ...transactionPrivacyWhere(canSeePrivate),
+      },
       select: {
         amount: true,
         type: true,
@@ -170,16 +180,20 @@ export class ReportsService {
     familyGroupId: string,
     startDate: Date,
     endDate: Date,
+    canSeePrivate: boolean,
   ): Promise<BankReportDto> {
     const accounts = await this.prisma.account.findMany({
-      where: { familyGroupId },
+      where: { familyGroupId, ...accountPrivacyWhere(canSeePrivate) },
       select: {
         id: true,
         name: true,
         institution: true,
         balance: true,
         transactions: {
-          where: { occurredAt: { gte: startDate, lte: endDate } },
+          where: {
+            occurredAt: { gte: startDate, lte: endDate },
+            ...nestedTransactionCategoryPrivacyWhere(canSeePrivate),
+          },
           select: { amount: true, type: true },
         },
       },
@@ -222,11 +236,13 @@ export class ReportsService {
     familyGroupId: string,
     startDate: Date,
     endDate: Date,
+    canSeePrivate: boolean,
   ): Promise<DetailReportDto> {
     const txs = await this.prisma.transaction.findMany({
       where: {
         familyGroupId,
         occurredAt: { gte: startDate, lte: endDate },
+        ...transactionPrivacyWhere(canSeePrivate),
       },
       select: {
         id: true,
@@ -276,6 +292,7 @@ export class ReportsService {
     familyGroupId: string,
     startDate: Date,
     endDate: Date,
+    canSeePrivate: boolean,
   ): Promise<PnlDto> {
     const durationMs = endDate.getTime() - startDate.getTime();
     const prevEnd = new Date(startDate.getTime() - 1);
@@ -286,6 +303,7 @@ export class ReportsService {
         where: {
           familyGroupId,
           occurredAt: { gte: startDate, lte: endDate },
+          ...transactionPrivacyWhere(canSeePrivate),
         },
         select: {
           amount: true,
@@ -297,6 +315,7 @@ export class ReportsService {
         where: {
           familyGroupId,
           occurredAt: { gte: prevStart, lte: prevEnd },
+          ...transactionPrivacyWhere(canSeePrivate),
         },
         select: { amount: true, type: true },
       }),
@@ -374,10 +393,11 @@ export class ReportsService {
   async getBalanceSheet(
     familyGroupId: string,
     asOfDate: Date,
+    canSeePrivate: boolean,
   ): Promise<BalanceSheetDto> {
     const [accounts, assetsList, liabilitiesList] = await Promise.all([
       this.prisma.account.findMany({
-        where: { familyGroupId },
+        where: { familyGroupId, ...accountPrivacyWhere(canSeePrivate) },
         select: { name: true, type: true, balance: true },
       }),
       this.prisma.asset.findMany({
@@ -461,17 +481,19 @@ export class ReportsService {
     familyGroupId: string,
     startDate: Date,
     endDate: Date,
+    canSeePrivate: boolean,
   ): Promise<CashflowStatementDto> {
     const [txs, accounts] = await Promise.all([
       this.prisma.transaction.findMany({
         where: {
           familyGroupId,
           occurredAt: { gte: startDate, lte: endDate },
+          ...transactionPrivacyWhere(canSeePrivate),
         },
         select: { amount: true, type: true },
       }),
       this.prisma.account.findMany({
-        where: { familyGroupId },
+        where: { familyGroupId, ...accountPrivacyWhere(canSeePrivate) },
         select: { balance: true },
       }),
     ]);
@@ -514,12 +536,14 @@ export class ReportsService {
     familyGroupId: string,
     startDate: Date,
     endDate: Date,
+    canSeePrivate: boolean,
   ): Promise<SankeyDto> {
     const txs = await this.prisma.transaction.findMany({
       where: {
         familyGroupId,
         occurredAt: { gte: startDate, lte: endDate },
         type: { in: ["income", "expense"] },
+        ...transactionPrivacyWhere(canSeePrivate),
       },
       select: {
         amount: true,

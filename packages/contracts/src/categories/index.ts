@@ -10,6 +10,7 @@ export const CategoryDtoSchema = z.object({
   kind: CategoryKindSchema,
   color: z.string().nullable(),
   icon: z.string().nullable(),
+  isPrivate: z.boolean(),
   createdAt: z.string(),
 });
 export type CategoryDto = z.infer<typeof CategoryDtoSchema>;

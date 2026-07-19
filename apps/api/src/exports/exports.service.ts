@@ -20,6 +20,7 @@ export const EXPORT_QUEUE = "exports";
 export interface ExportJobData {
   familyGroupId: string;
   request: ExportJobRequestDto;
+  canSeePrivate: boolean;
 }
 
 /** In-memory store for job status/result (per process). */
@@ -77,10 +78,11 @@ export class ExportsService {
   async createJob(
     familyGroupId: string,
     request: ExportJobRequestDto,
+    canSeePrivate: boolean,
   ): Promise<ExportJobStatusDto> {
     const job = await this.exportQueue.add(
       "generate",
-      { familyGroupId, request } satisfies ExportJobData,
+      { familyGroupId, request, canSeePrivate } satisfies ExportJobData,
       { attempts: 2, removeOnComplete: true, removeOnFail: true },
     );
 
@@ -136,6 +138,7 @@ export class ExportsService {
   async generate(
     familyGroupId: string,
     request: ExportJobRequestDto,
+    canSeePrivate: boolean,
   ): Promise<string> {
     const now = new Date();
     const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -150,6 +153,7 @@ export class ExportsService {
       startDate,
       endDate,
       months,
+      canSeePrivate,
     );
 
     return content;
@@ -162,11 +166,26 @@ export class ExportsService {
     startDate: Date,
     endDate: Date,
     months: number,
+    canSeePrivate: boolean,
   ): Promise<string> {
     if (format === "excel") {
-      return this.buildCsv(familyGroupId, type, startDate, endDate, months);
+      return this.buildCsv(
+        familyGroupId,
+        type,
+        startDate,
+        endDate,
+        months,
+        canSeePrivate,
+      );
     }
-    return this.buildPdf(familyGroupId, type, startDate, endDate, months);
+    return this.buildPdf(
+      familyGroupId,
+      type,
+      startDate,
+      endDate,
+      months,
+      canSeePrivate,
+    );
   }
 
   private async buildCsv(
@@ -175,6 +194,7 @@ export class ExportsService {
     startDate: Date,
     endDate: Date,
     months: number,
+    canSeePrivate: boolean,
   ): Promise<string> {
     let rows: string[][];
 
@@ -184,6 +204,7 @@ export class ExportsService {
           familyGroupId,
           "monthly",
           months,
+          canSeePrivate,
         );
         rows = [
           ["Bulan", "Pemasukan", "Pengeluaran", "Net"],
@@ -206,6 +227,7 @@ export class ExportsService {
           familyGroupId,
           startDate,
           endDate,
+          canSeePrivate,
         );
         rows = [
           ["Rekening", "Bank", "Pemasukan", "Pengeluaran", "Saldo"],
@@ -227,6 +249,7 @@ export class ExportsService {
           familyGroupId,
           startDate,
           endDate,
+          canSeePrivate,
         );
         rows = [
           ["Tanggal", "Keterangan", "Kategori", "Akun", "Tipe", "Jumlah"],
@@ -250,6 +273,7 @@ export class ExportsService {
           familyGroupId,
           startDate,
           endDate,
+          canSeePrivate,
         );
         rows = [
           ["Item", "Nilai"],
@@ -281,6 +305,7 @@ export class ExportsService {
         const data = await this.reportsService.getBalanceSheet(
           familyGroupId,
           endDate,
+          canSeePrivate,
         );
         rows = [
           ["Kategori", "Nama", "Jumlah"],
@@ -306,6 +331,7 @@ export class ExportsService {
           familyGroupId,
           startDate,
           endDate,
+          canSeePrivate,
         );
         rows = [
           ["Item", "Jumlah"],
@@ -337,6 +363,7 @@ export class ExportsService {
     startDate: Date,
     endDate: Date,
     months: number,
+    canSeePrivate: boolean,
   ): Promise<string> {
     const periodLabel = `${startDate.toISOString().slice(0, 10)} s.d. ${endDate.toISOString().slice(0, 10)}`;
     const sections: { title: string; body: string }[] = [];
@@ -347,6 +374,7 @@ export class ExportsService {
           familyGroupId,
           "monthly",
           months,
+          canSeePrivate,
         );
         const lines = [
           `Total Pemasukan : ${rupiah(data.totalIncome)}`,
@@ -368,6 +396,7 @@ export class ExportsService {
           familyGroupId,
           startDate,
           endDate,
+          canSeePrivate,
         );
         const lines = [
           `Periode: ${periodLabel}`,
@@ -388,6 +417,7 @@ export class ExportsService {
           familyGroupId,
           startDate,
           endDate,
+          canSeePrivate,
         );
         const lines = [
           `Periode: ${periodLabel}`,
@@ -409,6 +439,7 @@ export class ExportsService {
           familyGroupId,
           startDate,
           endDate,
+          canSeePrivate,
         );
         const lines = [
           `Periode: ${periodLabel}`,
@@ -439,6 +470,7 @@ export class ExportsService {
         const data = await this.reportsService.getBalanceSheet(
           familyGroupId,
           endDate,
+          canSeePrivate,
         );
         const assetLines = data.assets.flatMap((a) => [
           `  ${a.category}: ${rupiah(a.amount)}`,
@@ -469,6 +501,7 @@ export class ExportsService {
           familyGroupId,
           startDate,
           endDate,
+          canSeePrivate,
         );
         const lines = [
           `Periode: ${periodLabel}`,

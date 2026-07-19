@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -21,6 +22,7 @@ import { Throttle } from "@nestjs/throttler";
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { canSeePrivateItems } from "../common/utils/privacy.util";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
@@ -38,6 +40,8 @@ import { UpdateTransactionDto } from "./dto/update-transaction.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { TransactionsService } from "./transactions.service";
 
+import type { Request } from "express";
+
 @ApiTags("transactions")
 @ApiBearerAuth()
 @Controller("family-groups/:familyGroupId/transactions")
@@ -52,8 +56,14 @@ export class TransactionsController {
   getSummary(
     @Param("familyGroupId") familyGroupId: string,
     @Query() query: ListTransactionsQueryDto,
+    @Req() req: Request,
   ): Promise<TransactionSummaryDto> {
-    return this.transactionsService.getSummary(familyGroupId, query);
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
+    return this.transactionsService.getSummary(
+      familyGroupId,
+      query,
+      canSeePrivate,
+    );
   }
 
   @Get()
@@ -64,8 +74,14 @@ export class TransactionsController {
   findAll(
     @Param("familyGroupId") familyGroupId: string,
     @Query() query: ListTransactionsQueryDto,
+    @Req() req: Request,
   ): Promise<TransactionListResponseDto> {
-    return this.transactionsService.findAll(familyGroupId, query);
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
+    return this.transactionsService.findAll(
+      familyGroupId,
+      query,
+      canSeePrivate,
+    );
   }
 
   @Post("scan")
@@ -105,8 +121,10 @@ export class TransactionsController {
   findOne(
     @Param("familyGroupId") familyGroupId: string,
     @Param("id") id: string,
+    @Req() req: Request,
   ): Promise<TransactionResponseDto> {
-    return this.transactionsService.findOne(familyGroupId, id);
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
+    return this.transactionsService.findOne(familyGroupId, id, canSeePrivate);
   }
 
   @Patch(":id")

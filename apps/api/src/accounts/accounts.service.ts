@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 
+import { accountPrivacyWhere } from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CryptoService } from "../crypto/crypto.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -16,9 +17,16 @@ export class AccountsService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async findAll(familyGroupId: string): Promise<AccountResponseDto[]> {
+  /**
+   * `canSeePrivate` defaults to `true` so internal/non-member-facing callers
+   * stay unfiltered — only member-facing controller calls pass `false`.
+   */
+  async findAll(
+    familyGroupId: string,
+    canSeePrivate = true,
+  ): Promise<AccountResponseDto[]> {
     const accounts = await this.prisma.account.findMany({
-      where: { familyGroupId },
+      where: { familyGroupId, ...accountPrivacyWhere(canSeePrivate) },
       orderBy: { createdAt: "asc" },
     });
     return accounts.map((a) => this.toDto(a));
@@ -27,9 +35,14 @@ export class AccountsService {
   async findOne(
     familyGroupId: string,
     id: string,
+    canSeePrivate = true,
   ): Promise<AccountResponseDto> {
     const account = await this.prisma.account.findUnique({
-      where: { id, familyGroupId },
+      // Privacy fragment first: id/familyGroupId are fixed literals that
+      // must win the merge, keeping this a `AccountWhereUniqueInput` (id
+      // typed as `string`, not a Prisma filter) instead of the broader
+      // `AccountWhereInput` shape `accountPrivacyWhere` uses.
+      where: { ...accountPrivacyWhere(canSeePrivate), id, familyGroupId },
     });
     if (!account) {
       throw new NotFoundException("Account not found");
@@ -52,6 +65,7 @@ export class AccountsService {
           : null,
         balance: BigInt(dto.balance),
         currency: dto.currency ?? "IDR",
+        isPrivate: dto.isPrivate ?? false,
       },
     });
     return this.toDto(account);
@@ -80,6 +94,7 @@ export class AccountsService {
         }),
         ...(dto.balance !== undefined && { balance: BigInt(dto.balance) }),
         ...(dto.currency !== undefined && { currency: dto.currency }),
+        ...(dto.isPrivate !== undefined && { isPrivate: dto.isPrivate }),
       },
     });
     return this.toDto(updated);
@@ -115,6 +130,7 @@ export class AccountsService {
     maskedNumber: string | null;
     balance: bigint;
     currency: string;
+    isPrivate: boolean;
     createdAt: Date;
     updatedAt: Date;
   }): AccountResponseDto {
@@ -129,6 +145,7 @@ export class AccountsService {
         : null,
       balance: account.balance.toString(),
       currency: account.currency,
+      isPrivate: account.isPrivate,
       createdAt: account.createdAt.toISOString(),
       updatedAt: account.updatedAt.toISOString(),
     };

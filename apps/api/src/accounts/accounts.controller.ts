@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Req,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -19,6 +20,7 @@ import {
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { canSeePrivateItems } from "../common/utils/privacy.util";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AccountsService } from "./accounts.service";
@@ -27,6 +29,8 @@ import { AccountResponseDto } from "./dto/account-response.dto";
 import { CreateAccountDto } from "./dto/create-account.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateAccountDto } from "./dto/update-account.dto";
+
+import type { Request } from "express";
 
 @ApiTags("accounts")
 @ApiBearerAuth()
@@ -41,8 +45,10 @@ export class AccountsController {
   @ApiResponse({ status: 200, type: [AccountResponseDto] })
   findAll(
     @Param("familyGroupId") familyGroupId: string,
+    @Req() req: Request,
   ): Promise<AccountResponseDto[]> {
-    return this.accountsService.findAll(familyGroupId);
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
+    return this.accountsService.findAll(familyGroupId, canSeePrivate);
   }
 
   @Post()
@@ -67,8 +73,10 @@ export class AccountsController {
   findOne(
     @Param("familyGroupId") familyGroupId: string,
     @Param("id") id: string,
+    @Req() req: Request,
   ): Promise<AccountResponseDto> {
-    return this.accountsService.findOne(familyGroupId, id);
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
+    return this.accountsService.findOne(familyGroupId, id, canSeePrivate);
   }
 
   @Patch(":id")

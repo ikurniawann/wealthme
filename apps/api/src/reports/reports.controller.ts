@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from "@nestjs/common";
+import { Controller, Get, Param, Query, Req } from "@nestjs/common";
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -10,6 +10,7 @@ import {
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { canSeePrivateItems } from "../common/utils/privacy.util";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ReportsService } from "./reports.service";
@@ -24,6 +25,7 @@ import type {
   ReportSummaryDto,
   SankeyDto,
 } from "@wealthme/contracts";
+import type { Request } from "express";
 
 function parseDate(iso: string | undefined, fallback: Date): Date {
   if (!iso) return fallback;
@@ -50,6 +52,7 @@ export class ReportsController {
   @ApiResponse({ status: 200, description: "Report summary data" })
   getSummary(
     @Param("familyGroupId") familyGroupId: string,
+    @Req() req: Request,
     @Query("months") months?: string,
     @Query("period") period?: string,
   ): Promise<ReportSummaryDto> {
@@ -57,10 +60,12 @@ export class ReportsController {
     const parsedMonths = Number.isNaN(raw) ? 6 : Math.min(Math.max(raw, 1), 24);
     const safePeriod: ReportPeriod =
       period === "daily" || period === "yearly" ? period : "monthly";
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
     return this.reportsService.getSummary(
       familyGroupId,
       safePeriod,
       parsedMonths,
+      canSeePrivate,
     );
   }
 
@@ -73,6 +78,7 @@ export class ReportsController {
   @ApiResponse({ status: 200, description: "Bank report data" })
   getBankReport(
     @Param("familyGroupId") familyGroupId: string,
+    @Req() req: Request,
     @Query("startDate") startDateStr?: string,
     @Query("endDate") endDateStr?: string,
   ): Promise<BankReportDto> {
@@ -80,7 +86,13 @@ export class ReportsController {
     const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const startDate = parseDate(startDateStr, defaultStart);
     const endDate = parseDate(endDateStr, now);
-    return this.reportsService.getBankReport(familyGroupId, startDate, endDate);
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
+    return this.reportsService.getBankReport(
+      familyGroupId,
+      startDate,
+      endDate,
+      canSeePrivate,
+    );
   }
 
   @Get("detail")
@@ -92,6 +104,7 @@ export class ReportsController {
   @ApiResponse({ status: 200, description: "Detail report data" })
   getDetailReport(
     @Param("familyGroupId") familyGroupId: string,
+    @Req() req: Request,
     @Query("startDate") startDateStr?: string,
     @Query("endDate") endDateStr?: string,
   ): Promise<DetailReportDto> {
@@ -99,10 +112,12 @@ export class ReportsController {
     const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const startDate = parseDate(startDateStr, defaultStart);
     const endDate = parseDate(endDateStr, now);
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
     return this.reportsService.getDetailReport(
       familyGroupId,
       startDate,
       endDate,
+      canSeePrivate,
     );
   }
 
@@ -115,6 +130,7 @@ export class ReportsController {
   @ApiResponse({ status: 200, description: "PnL data" })
   getPnl(
     @Param("familyGroupId") familyGroupId: string,
+    @Req() req: Request,
     @Query("startDate") startDateStr?: string,
     @Query("endDate") endDateStr?: string,
   ): Promise<PnlDto> {
@@ -122,7 +138,13 @@ export class ReportsController {
     const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const startDate = parseDate(startDateStr, defaultStart);
     const endDate = parseDate(endDateStr, now);
-    return this.reportsService.getPnl(familyGroupId, startDate, endDate);
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
+    return this.reportsService.getPnl(
+      familyGroupId,
+      startDate,
+      endDate,
+      canSeePrivate,
+    );
   }
 
   @Get("balance-sheet")
@@ -133,10 +155,16 @@ export class ReportsController {
   @ApiResponse({ status: 200, description: "Balance sheet data" })
   getBalanceSheet(
     @Param("familyGroupId") familyGroupId: string,
+    @Req() req: Request,
     @Query("asOfDate") asOfDateStr?: string,
   ): Promise<BalanceSheetDto> {
     const asOfDate = parseDate(asOfDateStr, new Date());
-    return this.reportsService.getBalanceSheet(familyGroupId, asOfDate);
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
+    return this.reportsService.getBalanceSheet(
+      familyGroupId,
+      asOfDate,
+      canSeePrivate,
+    );
   }
 
   @Get("cashflow")
@@ -148,6 +176,7 @@ export class ReportsController {
   @ApiResponse({ status: 200, description: "Cashflow statement data" })
   getCashflowStatement(
     @Param("familyGroupId") familyGroupId: string,
+    @Req() req: Request,
     @Query("startDate") startDateStr?: string,
     @Query("endDate") endDateStr?: string,
   ): Promise<CashflowStatementDto> {
@@ -155,10 +184,12 @@ export class ReportsController {
     const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const startDate = parseDate(startDateStr, defaultStart);
     const endDate = parseDate(endDateStr, now);
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
     return this.reportsService.getCashflowStatement(
       familyGroupId,
       startDate,
       endDate,
+      canSeePrivate,
     );
   }
 
@@ -171,6 +202,7 @@ export class ReportsController {
   @ApiResponse({ status: 200, description: "Sankey data" })
   getSankey(
     @Param("familyGroupId") familyGroupId: string,
+    @Req() req: Request,
     @Query("startDate") startDateStr?: string,
     @Query("endDate") endDateStr?: string,
   ): Promise<SankeyDto> {
@@ -178,6 +210,12 @@ export class ReportsController {
     const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const startDate = parseDate(startDateStr, defaultStart);
     const endDate = parseDate(endDateStr, now);
-    return this.reportsService.getSankey(familyGroupId, startDate, endDate);
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
+    return this.reportsService.getSankey(
+      familyGroupId,
+      startDate,
+      endDate,
+      canSeePrivate,
+    );
   }
 }

@@ -97,6 +97,9 @@ export default function MasterDataPage() {
 
   const [groups, setGroups] = useState<MasterDataGroup[]>(REFERENCE_GROUPS);
   const [crud, setCrud] = useState<CrudModalState | null>(null);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(
+    null,
+  );
   const [pendingDelete, setPendingDelete] = useState<{
     label: string;
     entity: CrudEntity;
@@ -118,10 +121,24 @@ export default function MasterDataPage() {
     toast(`🗑️ ${item} dihapus.`);
   };
 
-  // Real category creation via the categories API.
+  function openEditCategory(cat: CategoryDto) {
+    setEditingCategoryId(cat.id);
+    setCrud({
+      entity: "mdkategori",
+      mode: "edit",
+      initialValues: {
+        nama: cat.name,
+        icon: cat.icon ?? "",
+        tipe: cat.kind === "income" ? "Pemasukan" : "Pengeluaran",
+        isPrivate: String(cat.isPrivate),
+      },
+    });
+  }
+
+  // Real category create/update via the categories API.
   const handleCrudSubmit = (
     entity: CrudEntity,
-    _mode: CrudMode,
+    mode: CrudMode,
     values: Record<string, string>,
   ) => {
     if (entity !== "mdkategori") {
@@ -150,20 +167,37 @@ export default function MasterDataPage() {
       return;
     }
     const icon = values.icon || undefined;
+    const isPrivate = values.isPrivate === "true";
 
     void (async () => {
       try {
-        await apiFetch(`/family-groups/${familyGroupId}/categories`, {
-          method: "POST",
-          token,
-          body: JSON.stringify({ name, kind, icon }),
-        });
-        toast.success("Kategori ditambahkan");
+        if (mode === "edit" && editingCategoryId) {
+          await apiFetch(
+            `/family-groups/${familyGroupId}/categories/${editingCategoryId}`,
+            {
+              method: "PATCH",
+              token,
+              body: JSON.stringify({ name, kind, icon, isPrivate }),
+            },
+          );
+          toast.success("Kategori diperbarui");
+        } else {
+          await apiFetch(`/family-groups/${familyGroupId}/categories`, {
+            method: "POST",
+            token,
+            body: JSON.stringify({ name, kind, icon, isPrivate }),
+          });
+          toast.success("Kategori ditambahkan");
+        }
         void queryClient.invalidateQueries({
           queryKey: queryKeys.categories.all(familyGroupId),
         });
       } catch {
-        toast.error("Gagal menambahkan kategori");
+        toast.error(
+          mode === "edit"
+            ? "Gagal memperbarui kategori"
+            : "Gagal menambahkan kategori",
+        );
       }
     })();
   };
@@ -210,7 +244,10 @@ export default function MasterDataPage() {
                 Master COA
               </CardLink>
               <CardLink
-                onClick={() => setCrud({ entity: "mdkategori", mode: "add" })}
+                onClick={() => {
+                  setEditingCategoryId(null);
+                  setCrud({ entity: "mdkategori", mode: "add" });
+                }}
               >
                 + Tambah
               </CardLink>
@@ -240,6 +277,17 @@ export default function MasterDataPage() {
                   >
                     {cat.kind === "income" ? "Masuk" : "Keluar"}
                   </StatusBadge>
+                  {cat.isPrivate && (
+                    <StatusBadge variant="purple">🔒 Privat</StatusBadge>
+                  )}
+                  <button
+                    type="button"
+                    aria-label={`Edit ${cat.name}`}
+                    onClick={() => openEditCategory(cat)}
+                    className="inline-flex size-4 items-center justify-center rounded-full text-[11px] leading-none text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  >
+                    ✏️
+                  </button>
                   <button
                     type="button"
                     aria-label={`Hapus ${cat.name}`}

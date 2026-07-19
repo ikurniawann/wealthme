@@ -20,6 +20,13 @@ export class CategoryResponseDto {
   @ApiProperty({ type: String, nullable: true, description: "Icon identifier" })
   icon!: string | null;
 
+  @ApiProperty({
+    type: Boolean,
+    description:
+      "Hidden from `member` viewers in shared family views when true",
+  })
+  isPrivate!: boolean;
+
   @ApiProperty({ type: String, format: "date-time" })
   createdAt!: string;
 }

@@ -16,6 +16,7 @@ export const CreateAccountInputSchema = z.object({
   maskedNumber: z.string().optional(),
   balance: z.number().int(),
   currency: z.string().default("IDR"),
+  isPrivate: z.boolean().optional(),
 });
 export type CreateAccountInput = z.infer<typeof CreateAccountInputSchema>;
 
@@ -31,6 +32,7 @@ export const AccountDtoSchema = z.object({
   maskedNumber: z.string().nullable(),
   balance: z.string(),
   currency: z.string(),
+  isPrivate: z.boolean(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

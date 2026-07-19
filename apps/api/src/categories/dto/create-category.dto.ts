@@ -1,6 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { CategoryKind } from "@prisma/client";
-import { IsEnum, IsOptional, IsString, MaxLength } from "class-validator";
+import {
+  IsBoolean,
+  IsEnum,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from "class-validator";
 
 export class CreateCategoryDto {
   @ApiProperty({ type: String, description: "Category name", maxLength: 100 })
@@ -29,4 +35,14 @@ export class CreateCategoryDto {
   @IsOptional()
   @IsString()
   icon?: string;
+
+  @ApiPropertyOptional({
+    type: Boolean,
+    default: false,
+    description:
+      "Hide this category (and its transactions) from `member` viewers in shared family views",
+  })
+  @IsOptional()
+  @IsBoolean()
+  isPrivate?: boolean;
 }

@@ -1,5 +1,9 @@
 import { Injectable } from "@nestjs/common";
 
+import {
+  accountPrivacyWhere,
+  transactionPrivacyWhere,
+} from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -50,11 +54,14 @@ const MONTH_LABELS = [
 export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getSummary(familyGroupId: string): Promise<DashboardSummaryDto> {
+  async getSummary(
+    familyGroupId: string,
+    canSeePrivate: boolean,
+  ): Promise<DashboardSummaryDto> {
     const now = new Date();
 
     const accounts = await this.prisma.account.findMany({
-      where: { familyGroupId },
+      where: { familyGroupId, ...accountPrivacyWhere(canSeePrivate) },
       select: { balance: true, type: true, name: true },
     });
     const accountsBalanceBigInt = accounts.reduce(
@@ -108,7 +115,11 @@ export class DashboardService {
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
     const transactions = await this.prisma.transaction.findMany({
-      where: { familyGroupId, occurredAt: { gte: sixMonthsAgo } },
+      where: {
+        familyGroupId,
+        occurredAt: { gte: sixMonthsAgo },
+        ...transactionPrivacyWhere(canSeePrivate),
+      },
       select: {
         id: true,
         amount: true,
@@ -227,9 +238,10 @@ export class DashboardService {
 
   private async computeNetWorthBreakdown(
     familyGroupId: string,
+    canSeePrivate: boolean,
   ): Promise<NetWorthBreakdown> {
     const accounts = await this.prisma.account.findMany({
-      where: { familyGroupId },
+      where: { familyGroupId, ...accountPrivacyWhere(canSeePrivate) },
       select: { balance: true },
     });
     const totalCash = accounts.reduce((sum, a) => sum + a.balance, 0n);
@@ -275,8 +287,11 @@ export class DashboardService {
     };
   }
 
-  async getNetWorth(familyGroupId: string): Promise<NetWorthDto> {
-    const b = await this.computeNetWorthBreakdown(familyGroupId);
+  async getNetWorth(
+    familyGroupId: string,
+    canSeePrivate: boolean,
+  ): Promise<NetWorthDto> {
+    const b = await this.computeNetWorthBreakdown(familyGroupId, canSeePrivate);
     return {
       accountsTotal: b.totalCash.toString(),
       investmentsTotal: b.totalInvestments.toString(),
@@ -306,7 +321,9 @@ export class DashboardService {
     });
     if (existing) return false;
 
-    const b = await this.computeNetWorthBreakdown(familyGroupId);
+    // Snapshots are family-wide totals with no per-viewer dimension — always
+    // compute over the full account set, regardless of privacy flags.
+    const b = await this.computeNetWorthBreakdown(familyGroupId, true);
     await this.prisma.netWorthSnapshot.create({
       data: {
         familyGroupId,

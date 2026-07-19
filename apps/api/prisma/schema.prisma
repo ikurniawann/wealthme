@@ -307,6 +307,9 @@ model Account {
   maskedNumber  String?
   balance       BigInt
   currency      String        @default("IDR")
+  // Owner-set flag: hides this account (and its transactions transitively)
+  // from `member` viewers in shared family views. Owner/admin_staff always see it.
+  isPrivate     Boolean       @default(false)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   familyGroup   FamilyGroup   @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
@@ -324,6 +327,9 @@ model Category {
   kind          CategoryKind
   color         String?
   icon          String?
+  // Owner-set flag: hides this category (and its transactions transitively)
+  // from `member` viewers in shared family views. Owner/admin_staff always see it.
+  isPrivate     Boolean       @default(false)
   createdAt     DateTime      @default(now())
   familyGroup   FamilyGroup   @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
   transactions  Transaction[]

@@ -18,7 +18,7 @@ export class ExportsProcessor extends WorkerHost {
   async process(job: Job<ExportJobData>): Promise<void> {
     if (!job.id) throw new Error("Job has no id");
     const jobId = job.id;
-    const { familyGroupId, request } = job.data;
+    const { familyGroupId, request, canSeePrivate } = job.data;
 
     this.logger.log(
       `Processing export job ${jobId} (${request.type}/${request.format})`,
@@ -29,6 +29,7 @@ export class ExportsProcessor extends WorkerHost {
       const dataUrl = await this.exportsService.generate(
         familyGroupId,
         request,
+        canSeePrivate,
       );
       this.exportsService.markDone(jobId, dataUrl);
       this.logger.log(`Export job ${jobId} completed`);
