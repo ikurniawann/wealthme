@@ -24,6 +24,13 @@ interface MasterDataGroup {
   items: string[];
 }
 
+type CoaAccountOption = {
+  id: string;
+  code: string;
+  name: string;
+  groupNum: number;
+};
+
 /**
  * System reference lists. These are fixed enums / conventions with no backend
  * master table, so they are shown for reference and managed locally only.
@@ -95,6 +102,19 @@ export default function MasterDataPage() {
     staleTime: 60_000,
   });
 
+  // EPIC-017: the family's COA accounts, for the category→COA mapping picker.
+  // Same query key as /mastercoa so the cache is shared.
+  const { data: coaAccounts } = useQuery<CoaAccountOption[]>({
+    queryKey: ["coa-accounts", familyGroupId],
+    queryFn: () =>
+      apiFetch<CoaAccountOption[]>(
+        `/family-groups/${familyGroupId}/coa-accounts`,
+        { token },
+      ),
+    enabled,
+    staleTime: 60_000,
+  });
+
   const [groups, setGroups] = useState<MasterDataGroup[]>(REFERENCE_GROUPS);
   const [crud, setCrud] = useState<CrudModalState | null>(null);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(
@@ -130,6 +150,7 @@ export default function MasterDataPage() {
         nama: cat.name,
         icon: cat.icon ?? "",
         tipe: cat.kind === "income" ? "Pemasukan" : "Pengeluaran",
+        coaAccountId: cat.coaAccountId,
         isPrivate: String(cat.isPrivate),
       },
     });
@@ -168,6 +189,10 @@ export default function MasterDataPage() {
     }
     const icon = values.icon || undefined;
     const isPrivate = values.isPrivate === "true";
+    // "" means "let the server default by kind" — omit it so the uuid-validated
+    // field isn't sent as an empty string.
+    const coaAccountId = values.coaAccountId || undefined;
+    const coaPatch = coaAccountId ? { coaAccountId } : {};
 
     void (async () => {
       try {
@@ -177,7 +202,13 @@ export default function MasterDataPage() {
             {
               method: "PATCH",
               token,
-              body: JSON.stringify({ name, kind, icon, isPrivate }),
+              body: JSON.stringify({
+                name,
+                kind,
+                icon,
+                isPrivate,
+                ...coaPatch,
+              }),
             },
           );
           toast.success("Kategori diperbarui");
@@ -185,7 +216,7 @@ export default function MasterDataPage() {
           await apiFetch(`/family-groups/${familyGroupId}/categories`, {
             method: "POST",
             token,
-            body: JSON.stringify({ name, kind, icon, isPrivate }),
+            body: JSON.stringify({ name, kind, icon, isPrivate, ...coaPatch }),
           });
           toast.success("Kategori ditambahkan");
         }
@@ -224,6 +255,18 @@ export default function MasterDataPage() {
   };
 
   const categoryList = categories ?? [];
+  const coaList = coaAccounts ?? [];
+  const coaById = new Map(coaList.map((a) => [a.id, a] as const));
+  // "" = let the server pick a default account matching the category kind.
+  const coaDynamicOptions = {
+    coaAccountId: [
+      { value: "", label: "Otomatis (sesuai tipe)" },
+      ...coaList.map((a) => ({
+        value: a.id,
+        label: `${a.code} — ${a.name}`,
+      })),
+    ],
+  };
 
   return (
     <div>
@@ -277,6 +320,14 @@ export default function MasterDataPage() {
                   >
                     {cat.kind === "income" ? "Masuk" : "Keluar"}
                   </StatusBadge>
+                  {coaById.get(cat.coaAccountId) && (
+                    <span
+                      className="mono text-[10.5px] text-muted-foreground"
+                      title={`COA: ${coaById.get(cat.coaAccountId)?.code} — ${coaById.get(cat.coaAccountId)?.name}`}
+                    >
+                      {coaById.get(cat.coaAccountId)?.code}
+                    </span>
+                  )}
                   {cat.isPrivate && (
                     <StatusBadge variant="purple">🔒 Privat</StatusBadge>
                   )}
@@ -359,6 +410,7 @@ export default function MasterDataPage() {
         state={crud}
         onClose={() => setCrud(null)}
         onSubmit={handleCrudSubmit}
+        dynamicOptions={coaDynamicOptions}
       />
       <ConfirmDeleteDialog
         label={pendingDelete?.label ?? null}
