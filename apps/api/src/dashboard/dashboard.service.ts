@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common";
+import { CoaDirection } from "@prisma/client";
 
+import { txCoaDirection } from "../common/utils/coa-classify.util";
 import {
   accountPrivacyWhere,
   transactionPrivacyWhere,
@@ -126,7 +128,9 @@ export class DashboardService {
         type: true,
         description: true,
         occurredAt: true,
-        category: { select: { name: true } },
+        category: {
+          select: { name: true, coaAccount: { select: { direction: true } } },
+        },
         account: { select: { name: true } },
       },
       // occurredAt is date-only, so same-day entries tie — createdAt
@@ -151,12 +155,14 @@ export class DashboardService {
     for (const tx of transactions) {
       const key = `${tx.occurredAt.getFullYear()}-${String(tx.occurredAt.getMonth() + 1).padStart(2, "0")}`;
       if (!incomeByMonth.has(key)) continue;
-      if (tx.type === "income") {
+      // EPIC-017: classify by COA direction (matches /laporan), not tx.type.
+      const dir = txCoaDirection(tx);
+      if (dir === CoaDirection.INCOME) {
         incomeByMonth.set(
           key,
           (incomeByMonth.get(key) ?? 0) + Number(tx.amount),
         );
-      } else if (tx.type === "expense") {
+      } else if (dir === CoaDirection.EXPENSE) {
         expenseByMonth.set(
           key,
           (expenseByMonth.get(key) ?? 0) + Number(tx.amount),
@@ -182,10 +188,11 @@ export class DashboardService {
         (tx.occurredAt.getTime() - thirtyDaysAgo.getTime()) / 86400000,
       );
       if (dayIndex < 0 || dayIndex >= 30) continue;
+      const dir = txCoaDirection(tx);
       const delta =
-        tx.type === "income"
+        dir === CoaDirection.INCOME
           ? Number(tx.amount)
-          : tx.type === "expense"
+          : dir === CoaDirection.EXPENSE
             ? -Number(tx.amount)
             : 0;
       sparkline[dayIndex] = (sparkline[dayIndex] ?? 0) + delta;
@@ -199,10 +206,10 @@ export class DashboardService {
       (tx) => tx.occurredAt >= currentMonthStart,
     );
     const monthIncome = currentMonthTx
-      .filter((tx) => tx.type === "income")
+      .filter((tx) => txCoaDirection(tx) === CoaDirection.INCOME)
       .reduce((s, tx) => s + Number(tx.amount), 0);
     const monthExpense = currentMonthTx
-      .filter((tx) => tx.type === "expense")
+      .filter((tx) => txCoaDirection(tx) === CoaDirection.EXPENSE)
       .reduce((s, tx) => s + Number(tx.amount), 0);
     const savingsRate =
       monthIncome > 0

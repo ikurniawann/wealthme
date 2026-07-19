@@ -18,6 +18,8 @@ interface FakeCategory {
   id: string;
   name: string;
   isPrivate: boolean;
+  // EPIC-017: dashboard classifies income/expense by COA direction.
+  coaAccount: { direction: "INCOME" | "EXPENSE" | "TRANSFER" };
 }
 
 interface FakeTransaction {
@@ -86,7 +88,12 @@ function makeFakePrisma(
             rows.map((t) => ({
               ...t,
               category: t.categoryId
-                ? { name: categoryById.get(t.categoryId)?.name ?? "" }
+                ? {
+                    name: categoryById.get(t.categoryId)?.name ?? "",
+                    coaAccount: categoryById.get(t.categoryId)?.coaAccount ?? {
+                      direction: "EXPENSE",
+                    },
+                  }
                 : null,
               account: { name: accountById.get(t.accountId)?.name ?? "" },
             })),
@@ -115,8 +122,18 @@ function buildFixtures() {
     },
   ];
   const categories: FakeCategory[] = [
-    { id: "cat-visible", name: "Public Cat", isPrivate: false },
-    { id: "cat-private", name: "Private Cat", isPrivate: true },
+    {
+      id: "cat-visible",
+      name: "Public Cat",
+      isPrivate: false,
+      coaAccount: { direction: "INCOME" },
+    },
+    {
+      id: "cat-private",
+      name: "Private Cat",
+      isPrivate: true,
+      coaAccount: { direction: "EXPENSE" },
+    },
   ];
   const now = new Date();
   const transactions: FakeTransaction[] = [
@@ -194,6 +211,43 @@ describe("DashboardService privacy enforcement", () => {
     expect(summary.recentTransactions.map((t) => t.id).sort()).toEqual(
       ["tx-private-account", "tx-private-category", "tx-visible"].sort(),
     );
+  });
+
+  it("classifies income/expense by COA direction, not tx.type (EPIC-017)", async () => {
+    // An expense-TYPE tx mapped to a TRANSFER (wealth allocation) COA account
+    // must be excluded from dashboard expense — matching /laporan.
+    const now = new Date();
+    const accounts: FakeAccount[] = [
+      { id: "a1", balance: 0n, type: "bank", name: "A", isPrivate: false },
+    ];
+    const categories: FakeCategory[] = [
+      {
+        id: "c-tr",
+        name: "Tabungan",
+        isPrivate: false,
+        coaAccount: { direction: "TRANSFER" },
+      },
+    ];
+    const transactions: FakeTransaction[] = [
+      {
+        id: "t1",
+        accountId: "a1",
+        categoryId: "c-tr",
+        amount: 1000n,
+        type: "expense",
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      },
+    ];
+    const p = makeFakePrisma(accounts, categories, transactions);
+    const mod = await Test.createTestingModule({
+      providers: [DashboardService, { provide: PrismaService, useValue: p }],
+    }).compile();
+    const svc = mod.get<DashboardService>(DashboardService);
+
+    const summary = await svc.getSummary(FAMILY_GROUP_ID, true);
+    expect(summary.currentMonth.expense).toBe(0);
   });
 
   it("getNetWorth excludes the private account's balance for a member viewer", async () => {
