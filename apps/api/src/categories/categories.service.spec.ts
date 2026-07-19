@@ -14,6 +14,10 @@ function makePrisma() {
       findUnique: jest.fn(),
       update: jest.fn(),
     },
+    // EPIC-017: create/update resolve a COA link via coaAccount.findFirst.
+    coaAccount: {
+      findFirst: jest.fn().mockResolvedValue({ id: "coa-1" }),
+    },
   };
 }
 
@@ -81,6 +85,20 @@ describe("CategoriesService", () => {
         }),
       );
       expect(result.isPrivate).toBe(true);
+    });
+
+    it("rejects a coaAccountId that is not in the family group (tenant scope)", async () => {
+      prisma.coaAccount.findFirst.mockResolvedValueOnce(null);
+
+      await expect(
+        service.create(FAMILY_GROUP_ID, {
+          name: "Groceries",
+          kind: "expense",
+          coaAccountId: "coa-from-another-tenant",
+        }),
+      ).rejects.toThrow();
+
+      expect(prisma.category.create).not.toHaveBeenCalled();
     });
   });
 

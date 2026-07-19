@@ -1,9 +1,10 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { type CategoryKind, Prisma } from "@prisma/client";
+import { type CategoryKind, type CoaDirection, Prisma } from "@prisma/client";
 
 import { categoryPrivacyWhere } from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -21,6 +22,11 @@ export class CategoriesService {
     familyGroupId: string,
     dto: CreateCategoryDto,
   ): Promise<CategoryResponseDto> {
+    const coaAccountId = await this.resolveCoaAccountId(
+      familyGroupId,
+      dto.kind,
+      dto.coaAccountId,
+    );
     try {
       const category = await this.prisma.category.create({
         data: {
@@ -30,6 +36,7 @@ export class CategoriesService {
           color: dto.color ?? null,
           icon: dto.icon ?? null,
           isPrivate: dto.isPrivate ?? false,
+          coaAccountId,
         },
       });
       return this.toDto(category);
@@ -71,6 +78,15 @@ export class CategoriesService {
     });
     if (!existing) throw new NotFoundException("Category not found");
 
+    const coaAccountId =
+      dto.coaAccountId !== undefined
+        ? await this.resolveCoaAccountId(
+            familyGroupId,
+            dto.kind ?? existing.kind,
+            dto.coaAccountId,
+          )
+        : undefined;
+
     const updated = await this.prisma.category.update({
       where: { id, familyGroupId },
       data: {
@@ -79,6 +95,7 @@ export class CategoriesService {
         ...(dto.color !== undefined && { color: dto.color }),
         ...(dto.icon !== undefined && { icon: dto.icon }),
         ...(dto.isPrivate !== undefined && { isPrivate: dto.isPrivate }),
+        ...(coaAccountId !== undefined && { coaAccountId }),
       },
     });
     return this.toDto(updated);
@@ -92,6 +109,51 @@ export class CategoriesService {
     await this.prisma.category.delete({ where: { id, familyGroupId } });
   }
 
+  /**
+   * Resolve the COA account for a category. When `provided`, validate it belongs
+   * to this family group (tenant scope). When omitted, default to a same-group
+   * account whose direction matches the kind, falling back to any account —
+   * guaranteeing the NOT NULL link is always satisfiable.
+   */
+  private async resolveCoaAccountId(
+    familyGroupId: string,
+    kind: CategoryKind,
+    provided?: string,
+  ): Promise<string> {
+    if (provided) {
+      const coa = await this.prisma.coaAccount.findFirst({
+        where: { id: provided, familyGroupId },
+        select: { id: true },
+      });
+      if (!coa) {
+        throw new BadRequestException(
+          "coaAccountId does not belong to this family group",
+        );
+      }
+      return coa.id;
+    }
+
+    const direction: CoaDirection = kind === "income" ? "INCOME" : "EXPENSE";
+    const byDirection = await this.prisma.coaAccount.findFirst({
+      where: { familyGroupId, direction },
+      orderBy: [{ code: "asc" }],
+      select: { id: true },
+    });
+    if (byDirection) return byDirection.id;
+
+    const anyAccount = await this.prisma.coaAccount.findFirst({
+      where: { familyGroupId },
+      orderBy: [{ code: "asc" }],
+      select: { id: true },
+    });
+    if (!anyAccount) {
+      throw new BadRequestException(
+        "This family group has no COA accounts; provision the chart before creating categories",
+      );
+    }
+    return anyAccount.id;
+  }
+
   private toDto(c: {
     id: string;
     familyGroupId: string;
@@ -100,6 +162,7 @@ export class CategoriesService {
     color: string | null;
     icon: string | null;
     isPrivate: boolean;
+    coaAccountId: string;
     createdAt: Date;
   }): CategoryResponseDto {
     return {
@@ -107,6 +170,7 @@ export class CategoriesService {
       familyGroupId: c.familyGroupId,
       name: c.name,
       kind: c.kind,
+      coaAccountId: c.coaAccountId,
       color: c.color,
       icon: c.icon,
       isPrivate: c.isPrivate,

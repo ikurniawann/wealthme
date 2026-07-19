@@ -10,6 +10,10 @@ import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import * as argon2 from "argon2";
 
+import {
+  defaultCoaCodeForCategory,
+  GENERIC_COA_CHART,
+} from "../common/coa/default-coa-chart";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CryptoService } from "../crypto/crypto.service";
 import { resolveNotifPrefs } from "../notifications/notification-prefs";
@@ -140,11 +144,35 @@ export class AuthService {
         data: { userId: created.id, familyGroupId: fg.id, role: "owner" },
       });
 
-      await tx.category.createMany({
-        data: DEFAULT_CATEGORIES.map((c) => ({
-          ...c,
+      // Provision the generic COA chart so every default category can be linked
+      // to a COA account in the same group (EPIC-017: mandatory COA link).
+      await tx.coaAccount.createMany({
+        data: GENERIC_COA_CHART.map((c) => ({
           familyGroupId: fg.id,
+          code: c.code,
+          name: c.name,
+          groupNum: c.groupNum,
+          direction: c.direction,
+          budgetType: c.budgetType,
         })),
+      });
+      const coaAccounts = await tx.coaAccount.findMany({
+        where: { familyGroupId: fg.id },
+        select: { id: true, code: true },
+      });
+      const coaIdByCode = new Map(coaAccounts.map((a) => [a.code, a.id]));
+
+      await tx.category.createMany({
+        data: DEFAULT_CATEGORIES.map((c) => {
+          const code = defaultCoaCodeForCategory(c.kind, c.name);
+          const coaAccountId = coaIdByCode.get(code);
+          if (!coaAccountId) {
+            throw new InternalServerErrorException(
+              `Missing COA account "${code}" while provisioning registration`,
+            );
+          }
+          return { ...c, familyGroupId: fg.id, coaAccountId };
+        }),
       });
 
       await tx.account.create({

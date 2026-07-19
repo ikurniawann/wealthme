@@ -255,6 +255,9 @@ model CoaAccount {
   familyGroupId String
   code          String
   name          String
+  // groupNum taxonomy (EPIC-017 Decision #3 — a personal-finance chart, NOT the
+  // classic Asset/Liability/Equity set):
+  //   1 Income · 2 Expense · 3 Wealth Allocation · 4 Receivable · 5 Payable · 6 Tax
   groupNum      Int
   direction     CoaDirection
   budgetType    CoaBudgetType?
@@ -262,6 +265,7 @@ model CoaAccount {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   familyGroup   FamilyGroup    @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  categories    Category[]
 
   @@unique([familyGroupId, code])
   @@index([familyGroupId])
@@ -330,13 +334,20 @@ model Category {
   // Owner-set flag: hides this category (and its transactions transitively)
   // from `member` viewers in shared family views. Owner/admin_staff always see it.
   isPrivate     Boolean       @default(false)
+  // Mandatory COA link (EPIC-017 Decision #2). Every category maps to a
+  // CoaAccount in the SAME family group; reports classify transitively via
+  // Transaction → Category → CoaAccount (direction + groupNum). Restrict so a
+  // COA account in use by a category cannot be deleted out from under it.
+  coaAccountId  String
   createdAt     DateTime      @default(now())
   familyGroup   FamilyGroup   @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  coaAccount    CoaAccount    @relation(fields: [coaAccountId], references: [id], onDelete: Restrict)
   transactions  Transaction[]
   budgets       Budget[]
 
   @@unique([familyGroupId, name, kind])
   @@index([familyGroupId])
+  @@index([coaAccountId])
   @@map("categories")
 }
 

@@ -69,7 +69,7 @@ Grounded in a direct read pass (2026-07-19). Key findings:
 
 ## Tasks
 
-- [ ] ### A — Schema link: `Category` → `CoaAccount` relation (foundation)
+- [x] ### A — Schema link: `Category` → `CoaAccount` relation (foundation) ✅
   - Add a real, tenant-scoped FK `Category.coaAccountId` → `CoaAccount`,
     **NOT NULL** (Open Design Decision #2 = MANDATORY). Every category must map
     to a COA account in the same family group, and the user must pick a COA when
@@ -141,7 +141,7 @@ Grounded in a direct read pass (2026-07-19). Key findings:
   - Depends on B (counts) and C (report claim). Touches page files only — no
     protected foundation web file.
 
-- [ ] ### G — Data safety & seed
+- [x] ### G — Data safety & seed ✅ (co-delivered with A)
   - Extend `seed.ts` with a default `Category → CoaAccount` mapping (map the
     demo categories to sensible seeded COA accounts) alongside the existing 78
     COA rows.
@@ -289,3 +289,17 @@ registry).
   optionality, groupNum semantics confirmed, budgetType scope, parentCode
   hierarchy) need human sign-off before an automated loop picks this up. No
   code changed.
+- 2026-07-19 /epic-loop EPIC-017 #1 "A — Schema link: Category → CoaAccount
+  relation (foundation)" + #7 "G — Data safety & seed" (co-delivered) → PASS
+  (attempts: 1). Added NOT-NULL `Category.coaAccountId` FK, self-healing additive
+  migration (provisions a generic ~24-account COA chart for any family group
+  lacking one, backfills every category, then enforces NOT NULL + FK), COA-linked
+  registration (`auth.service`) + seed, and tenant-scoped resolve/validate on
+  category create/update. **Decision resolved with user (2026-07-19):** registered
+  family groups had categories but zero COA (epic's "seed default-map" assumed a
+  chart that only existed for the demo) — chose a **generic ~24-account starter
+  chart** provisioned per group. Gates: security-review PASS; ts-review found 1
+  HIGH (expense→TRANSFER mis-link in `defaultCoaCodeForCategory`) → fixed +
+  regression test added; jest 142/142, eslint clean, security-check PASS.
+  parentCode kept a plain string (deferred, Decision #6). Branch
+  `feat/epic-017-category-coa-link`.

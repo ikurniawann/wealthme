@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
 } from "class-validator";
 
@@ -17,6 +18,18 @@ export class CreateCategoryDto {
   @ApiProperty({ enum: CategoryKind, description: "Category kind" })
   @IsEnum(CategoryKind)
   kind!: CategoryKind;
+
+  @ApiPropertyOptional({
+    type: String,
+    format: "uuid",
+    description:
+      "COA account (same family group) this category maps to. If omitted, the " +
+      "server assigns a sensible default account matching the category kind " +
+      "(EPIC-017: every category is COA-linked).",
+  })
+  @IsOptional()
+  @IsUUID()
+  coaAccountId?: string;
 
   @ApiPropertyOptional({
     type: String,

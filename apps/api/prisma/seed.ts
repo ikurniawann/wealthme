@@ -1,6 +1,11 @@
 import { PrismaClient } from "@prisma/client";
 import * as argon2 from "argon2";
 
+import {
+  defaultCoaCodeForCategory,
+  GENERIC_COA_CHART,
+} from "../src/common/coa/default-coa-chart";
+
 const prisma = new PrismaClient();
 
 const DEMO_PASSWORD = "demo1234";
@@ -177,6 +182,35 @@ export async function main(): Promise<void> {
     },
   });
 
+  // ── COA chart (generic starter) ─────────────────────────────────────────────
+  // Seeded before categories so every category can link to a COA account in the
+  // same group (EPIC-017: mandatory COA link). The richer personalized demo
+  // chart is upserted further below.
+  for (const c of GENERIC_COA_CHART) {
+    await prisma.coaAccount.upsert({
+      where: { familyGroupId_code: { familyGroupId: FG, code: c.code } },
+      update: {},
+      create: {
+        familyGroupId: FG,
+        code: c.code,
+        name: c.name,
+        groupNum: c.groupNum,
+        direction: c.direction,
+        budgetType: c.budgetType,
+      },
+    });
+  }
+  const seededCoa = await prisma.coaAccount.findMany({
+    where: { familyGroupId: FG },
+    select: { id: true, code: true },
+  });
+  const coaIdByCode = new Map(seededCoa.map((a) => [a.code, a.id]));
+  const catCoa = (kind: "income" | "expense", name: string): string => {
+    const id = coaIdByCode.get(defaultCoaCodeForCategory(kind, name));
+    if (!id) throw new Error(`Seed: no COA account for ${kind}/${name}`);
+    return id;
+  };
+
   // ── Categories ────────────────────────────────────────────────────────────────
 
   const catGaji = await prisma.category.upsert({
@@ -191,6 +225,7 @@ export async function main(): Promise<void> {
     create: {
       id: "43bd91b8-5d97-456d-8250-39cd62c7d6c0",
       familyGroupId: FG,
+      coaAccountId: catCoa("income", "Gaji"),
       name: "Gaji",
       kind: "income",
       icon: "💼",
@@ -209,6 +244,7 @@ export async function main(): Promise<void> {
     create: {
       id: "fa614ca6-2269-486f-bf60-4b1e3dee9579",
       familyGroupId: FG,
+      coaAccountId: catCoa("income", "Bonus"),
       name: "Bonus",
       kind: "income",
       icon: "🎁",
@@ -227,6 +263,7 @@ export async function main(): Promise<void> {
     create: {
       id: "14cb512b-a51d-4f82-9ed6-d453f73b6cc3",
       familyGroupId: FG,
+      coaAccountId: catCoa("income", "Freelance"),
       name: "Freelance",
       kind: "income",
       icon: "💻",
@@ -245,6 +282,7 @@ export async function main(): Promise<void> {
     create: {
       id: "bf9a372b-9ed1-4eaf-ad3a-5ad1e40e1c7f",
       familyGroupId: FG,
+      coaAccountId: catCoa("income", "Hasil Investasi"),
       name: "Hasil Investasi",
       kind: "income",
       icon: "📈",
@@ -263,6 +301,7 @@ export async function main(): Promise<void> {
     create: {
       id: "34838088-0eac-4864-8d3d-aa4c0638b1dc",
       familyGroupId: FG,
+      coaAccountId: catCoa("income", "Lainnya Pemasukan"),
       name: "Lainnya Pemasukan",
       kind: "income",
       icon: "📦",
@@ -282,6 +321,7 @@ export async function main(): Promise<void> {
     create: {
       id: "2c62d7f7-618b-4260-b69e-62034af304c6",
       familyGroupId: FG,
+      coaAccountId: catCoa("expense", "Makan & Minum"),
       name: "Makan & Minum",
       kind: "expense",
       icon: "🍜",
@@ -300,6 +340,7 @@ export async function main(): Promise<void> {
     create: {
       id: "57a1f917-dfe0-4804-8464-78986aa0bceb",
       familyGroupId: FG,
+      coaAccountId: catCoa("expense", "Transportasi"),
       name: "Transportasi",
       kind: "expense",
       icon: "🚗",
@@ -318,6 +359,7 @@ export async function main(): Promise<void> {
     create: {
       id: "d94f2e06-4276-490a-9e24-4e45d879e755",
       familyGroupId: FG,
+      coaAccountId: catCoa("expense", "Belanja"),
       name: "Belanja",
       kind: "expense",
       icon: "🛍️",
@@ -336,6 +378,7 @@ export async function main(): Promise<void> {
     create: {
       id: "8ce7929f-9eb5-429f-b12a-c2a09fefe617",
       familyGroupId: FG,
+      coaAccountId: catCoa("expense", "Tagihan & Utilitas"),
       name: "Tagihan & Utilitas",
       kind: "expense",
       icon: "💡",
@@ -354,6 +397,7 @@ export async function main(): Promise<void> {
     create: {
       id: "5d27e516-0506-4c08-96f4-6ef9a8a1d53c",
       familyGroupId: FG,
+      coaAccountId: catCoa("expense", "Kesehatan"),
       name: "Kesehatan",
       kind: "expense",
       icon: "🏥",
@@ -372,6 +416,7 @@ export async function main(): Promise<void> {
     create: {
       id: "ee9e96ee-ad43-45fd-846f-584dbf9c29e1",
       familyGroupId: FG,
+      coaAccountId: catCoa("expense", "Hiburan"),
       name: "Hiburan",
       kind: "expense",
       icon: "🎬",
@@ -390,6 +435,7 @@ export async function main(): Promise<void> {
     create: {
       id: "cb31c385-996f-4edb-983c-9068ba67fcd0",
       familyGroupId: FG,
+      coaAccountId: catCoa("expense", "Pendidikan"),
       name: "Pendidikan",
       kind: "expense",
       icon: "📚",
@@ -408,6 +454,7 @@ export async function main(): Promise<void> {
     create: {
       id: "bb6b5ec2-fbbc-419b-b444-216029b91194",
       familyGroupId: FG,
+      coaAccountId: catCoa("expense", "Cicilan KPR"),
       name: "Cicilan KPR",
       kind: "expense",
       icon: "🏠",
@@ -426,6 +473,7 @@ export async function main(): Promise<void> {
     create: {
       id: "f94127c4-52ce-4d5f-bb6a-73057a7d242d",
       familyGroupId: FG,
+      coaAccountId: catCoa("expense", "Tabungan & Investasi"),
       name: "Tabungan & Investasi",
       kind: "expense",
       icon: "💰",
@@ -444,6 +492,7 @@ export async function main(): Promise<void> {
     create: {
       id: "18fab853-d2c9-4379-b1ca-17cca86c98e2",
       familyGroupId: FG,
+      coaAccountId: catCoa("expense", "Lainnya Pengeluaran"),
       name: "Lainnya Pengeluaran",
       kind: "expense",
       icon: "📦",
