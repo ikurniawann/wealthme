@@ -67,35 +67,179 @@ var CategoryDtoSchema = z4.object({
 // src/coa/index.ts
 var GENERIC_COA_CHART = [
   // Group 1 — Income
-  { code: "10001", name: "Gaji", groupNum: 1, direction: "INCOME", budgetType: "FIXED" },
-  { code: "10002", name: "Bonus", groupNum: 1, direction: "INCOME", budgetType: "VARIABLE" },
-  { code: "10003", name: "Pendapatan Usaha", groupNum: 1, direction: "INCOME", budgetType: "VARIABLE" },
-  { code: "10004", name: "Hasil Investasi", groupNum: 1, direction: "INCOME", budgetType: "VARIABLE" },
-  { code: "10005", name: "Passive Income", groupNum: 1, direction: "INCOME", budgetType: "VARIABLE" },
-  { code: "10099", name: "Pemasukan Lainnya", groupNum: 1, direction: "INCOME", budgetType: "VARIABLE" },
+  {
+    code: "10001",
+    name: "Gaji",
+    groupNum: 1,
+    direction: "INCOME",
+    budgetType: "FIXED"
+  },
+  {
+    code: "10002",
+    name: "Bonus",
+    groupNum: 1,
+    direction: "INCOME",
+    budgetType: "VARIABLE"
+  },
+  {
+    code: "10003",
+    name: "Pendapatan Usaha",
+    groupNum: 1,
+    direction: "INCOME",
+    budgetType: "VARIABLE"
+  },
+  {
+    code: "10004",
+    name: "Hasil Investasi",
+    groupNum: 1,
+    direction: "INCOME",
+    budgetType: "VARIABLE"
+  },
+  {
+    code: "10005",
+    name: "Passive Income",
+    groupNum: 1,
+    direction: "INCOME",
+    budgetType: "VARIABLE"
+  },
+  {
+    code: "10099",
+    name: "Pemasukan Lainnya",
+    groupNum: 1,
+    direction: "INCOME",
+    budgetType: "VARIABLE"
+  },
   // Group 2 — Expense
-  { code: "20001", name: "Makanan & Minuman", groupNum: 2, direction: "EXPENSE", budgetType: "VARIABLE" },
-  { code: "20002", name: "Transportasi", groupNum: 2, direction: "EXPENSE", budgetType: "VARIABLE" },
-  { code: "20003", name: "Belanja", groupNum: 2, direction: "EXPENSE", budgetType: "VARIABLE" },
-  { code: "20004", name: "Tagihan & Utilitas", groupNum: 2, direction: "EXPENSE", budgetType: "FIXED" },
-  { code: "20005", name: "Kesehatan", groupNum: 2, direction: "EXPENSE", budgetType: "VARIABLE" },
-  { code: "20006", name: "Hiburan", groupNum: 2, direction: "EXPENSE", budgetType: "VARIABLE" },
-  { code: "20007", name: "Pendidikan", groupNum: 2, direction: "EXPENSE", budgetType: "FIXED" },
-  { code: "20008", name: "Rumah Tangga", groupNum: 2, direction: "EXPENSE", budgetType: "VARIABLE" },
-  { code: "20099", name: "Pengeluaran Lainnya", groupNum: 2, direction: "EXPENSE", budgetType: "VARIABLE" },
+  {
+    code: "20001",
+    name: "Makanan & Minuman",
+    groupNum: 2,
+    direction: "EXPENSE",
+    budgetType: "VARIABLE"
+  },
+  {
+    code: "20002",
+    name: "Transportasi",
+    groupNum: 2,
+    direction: "EXPENSE",
+    budgetType: "VARIABLE"
+  },
+  {
+    code: "20003",
+    name: "Belanja",
+    groupNum: 2,
+    direction: "EXPENSE",
+    budgetType: "VARIABLE"
+  },
+  {
+    code: "20004",
+    name: "Tagihan & Utilitas",
+    groupNum: 2,
+    direction: "EXPENSE",
+    budgetType: "FIXED"
+  },
+  {
+    code: "20005",
+    name: "Kesehatan",
+    groupNum: 2,
+    direction: "EXPENSE",
+    budgetType: "VARIABLE"
+  },
+  {
+    code: "20006",
+    name: "Hiburan",
+    groupNum: 2,
+    direction: "EXPENSE",
+    budgetType: "VARIABLE"
+  },
+  {
+    code: "20007",
+    name: "Pendidikan",
+    groupNum: 2,
+    direction: "EXPENSE",
+    budgetType: "FIXED"
+  },
+  {
+    code: "20008",
+    name: "Rumah Tangga",
+    groupNum: 2,
+    direction: "EXPENSE",
+    budgetType: "VARIABLE"
+  },
+  {
+    code: "20099",
+    name: "Pengeluaran Lainnya",
+    groupNum: 2,
+    direction: "EXPENSE",
+    budgetType: "VARIABLE"
+  },
   // Group 3 — Wealth Allocation
-  { code: "30001", name: "Tabungan", groupNum: 3, direction: "TRANSFER", budgetType: "FIXED" },
-  { code: "30002", name: "Investasi", groupNum: 3, direction: "TRANSFER", budgetType: "FIXED" },
-  { code: "30003", name: "Dana Darurat", groupNum: 3, direction: "TRANSFER", budgetType: "FIXED" },
-  { code: "30099", name: "Alokasi Lainnya", groupNum: 3, direction: "TRANSFER", budgetType: "VARIABLE" },
+  {
+    code: "30001",
+    name: "Tabungan",
+    groupNum: 3,
+    direction: "TRANSFER",
+    budgetType: "FIXED"
+  },
+  {
+    code: "30002",
+    name: "Investasi",
+    groupNum: 3,
+    direction: "TRANSFER",
+    budgetType: "FIXED"
+  },
+  {
+    code: "30003",
+    name: "Dana Darurat",
+    groupNum: 3,
+    direction: "TRANSFER",
+    budgetType: "FIXED"
+  },
+  {
+    code: "30099",
+    name: "Alokasi Lainnya",
+    groupNum: 3,
+    direction: "TRANSFER",
+    budgetType: "VARIABLE"
+  },
   // Group 4 — Account Receivable
-  { code: "40001", name: "Piutang", groupNum: 4, direction: "INCOME", budgetType: "VARIABLE" },
+  {
+    code: "40001",
+    name: "Piutang",
+    groupNum: 4,
+    direction: "INCOME",
+    budgetType: "VARIABLE"
+  },
   // Group 5 — Account Payable
-  { code: "50001", name: "Utang", groupNum: 5, direction: "EXPENSE", budgetType: "FIXED" },
-  { code: "50002", name: "Cicilan", groupNum: 5, direction: "EXPENSE", budgetType: "FIXED" },
+  {
+    code: "50001",
+    name: "Utang",
+    groupNum: 5,
+    direction: "EXPENSE",
+    budgetType: "FIXED"
+  },
+  {
+    code: "50002",
+    name: "Cicilan",
+    groupNum: 5,
+    direction: "EXPENSE",
+    budgetType: "FIXED"
+  },
   // Group 6 — Tax
-  { code: "60001", name: "Pajak Penghasilan", groupNum: 6, direction: "EXPENSE", budgetType: "FIXED" },
-  { code: "60002", name: "Pajak Lainnya", groupNum: 6, direction: "EXPENSE", budgetType: "FIXED" }
+  {
+    code: "60001",
+    name: "Pajak Penghasilan",
+    groupNum: 6,
+    direction: "EXPENSE",
+    budgetType: "FIXED"
+  },
+  {
+    code: "60002",
+    name: "Pajak Lainnya",
+    groupNum: 6,
+    direction: "EXPENSE",
+    budgetType: "FIXED"
+  }
 ];
 var DEFAULT_INCOME_CODE = "10099";
 var DEFAULT_EXPENSE_CODE = "20099";

@@ -10,6 +10,7 @@ import {
   CountUpRupiah,
   AnimatedProgress,
   Rise,
+  StatusBadge,
 } from "@/components/wm";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,55 @@ import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 
-import type { BudgetDto, CreateBudgetDto } from "@wealthme/contracts";
+import type {
+  BudgetDto,
+  BudgetType,
+  CreateBudgetDto,
+} from "@wealthme/contracts";
+
+// EPIC-017: COA budget-type labels (from the category's COA account).
+const BUDGET_TYPE_LABEL: Record<BudgetType | "OTHER", string> = {
+  FIXED: "Tetap",
+  VARIABLE: "Variabel",
+  REIMBURSEMENT: "Reimbursement",
+  OTHER: "Lainnya",
+};
+
+type TypeBreakdownRow = {
+  key: BudgetType | "OTHER";
+  limit: number;
+  spent: number;
+  count: number;
+};
+
+/** Budget-vs-actual grouped by COA budgetType (EPIC-017 Task D). */
+function buildTypeBreakdown(budgets: BudgetDto[]): TypeBreakdownRow[] {
+  const order: (BudgetType | "OTHER")[] = [
+    "FIXED",
+    "VARIABLE",
+    "REIMBURSEMENT",
+    "OTHER",
+  ];
+  const map = new Map<
+    string,
+    { limit: number; spent: number; count: number }
+  >();
+  for (const b of budgets) {
+    const key = b.budgetType ?? "OTHER";
+    const e = map.get(key) ?? { limit: 0, spent: 0, count: 0 };
+    map.set(key, {
+      limit: e.limit + b.limitAmount,
+      spent: e.spent + b.spentAmount,
+      count: e.count + 1,
+    });
+  }
+  const rows: TypeBreakdownRow[] = [];
+  for (const k of order) {
+    const agg = map.get(k);
+    if (agg) rows.push({ key: k, ...agg });
+  }
+  return rows;
+}
 
 function budgetBarColor(dto: BudgetDto): string {
   if (dto.isOverBudget) return "var(--destructive)";
@@ -57,8 +106,13 @@ function BudgetItem({ dto, index }: { dto: BudgetDto; index: number }) {
             {icon}
           </div>
           <div className="flex-1">
-            <div className="text-[13.5px] font-semibold">
-              {dto.categoryName}
+            <div className="flex items-center gap-1.5 text-[13.5px] font-semibold">
+              <span>{dto.categoryName}</span>
+              {dto.budgetType && (
+                <StatusBadge variant="gray">
+                  {BUDGET_TYPE_LABEL[dto.budgetType]}
+                </StatusBadge>
+              )}
             </div>
             <div className="text-[11.5px] text-muted-foreground">
               {budgetAmountsLabel(dto)}
@@ -224,6 +278,7 @@ export default function AnggaranPage() {
 
   const totalLimit = budgets?.reduce((s, b) => s + b.limitAmount, 0) ?? 0;
   const totalSpent = budgets?.reduce((s, b) => s + b.spentAmount, 0) ?? 0;
+  const typeBreakdown = budgets ? buildTypeBreakdown(budgets) : [];
   const totalRemaining = Math.max(0, totalLimit - totalSpent);
   const overBudgetItems = budgets?.filter((b) => b.isOverBudget) ?? [];
   const nearLimitItems = budgets?.filter((b) => b.isNearLimit) ?? [];
@@ -325,6 +380,43 @@ export default function AnggaranPage() {
           </div>
         )}
       </SectionCard>
+
+      {typeBreakdown.length > 0 && (
+        <SectionCard
+          title="Rincian per Tipe Anggaran"
+          bodyClassName="-mt-1 space-y-3"
+        >
+          {typeBreakdown.map((row) => {
+            const pct =
+              row.limit > 0 ? Math.round((row.spent / row.limit) * 100) : 0;
+            const color =
+              row.spent > row.limit
+                ? "var(--destructive)"
+                : pct >= 80
+                  ? "var(--warning)"
+                  : "var(--success)";
+            return (
+              <div key={row.key}>
+                <div className="mb-1.5 flex items-center gap-2 text-[13px]">
+                  <StatusBadge variant="gray">
+                    {BUDGET_TYPE_LABEL[row.key]}
+                  </StatusBadge>
+                  <span className="text-[11.5px] text-muted-foreground">
+                    {row.count} kategori
+                  </span>
+                  <span className="ml-auto font-semibold" style={{ color }}>
+                    {pct}%
+                  </span>
+                </div>
+                <div className="mb-1 text-[11.5px] text-muted-foreground">
+                  {formatRupiah(row.spent)} dari {formatRupiah(row.limit)}
+                </div>
+                <AnimatedProgress value={Math.min(pct, 100)} color={color} />
+              </div>
+            );
+          })}
+        </SectionCard>
+      )}
 
       {(overBudgetItems.length > 0 || nearLimitItems.length > 0) && (
         <div className="flex items-center gap-3 rounded-[14px] border border-primary/20 bg-accent p-4">

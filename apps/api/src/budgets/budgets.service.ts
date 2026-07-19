@@ -9,6 +9,7 @@ import { PrismaService } from "../prisma/prisma.service";
 
 import type { CreateBudgetDto } from "./dto/create-budget.dto";
 import type { UpdateBudgetDto } from "./dto/update-budget.dto";
+import type { CoaBudgetType } from "@prisma/client";
 import type { BudgetDto, BudgetPeriod } from "@wealthme/contracts";
 
 type BudgetWithCategory = {
@@ -16,7 +17,11 @@ type BudgetWithCategory = {
   categoryId: string;
   period: string;
   limitAmount: bigint;
-  category: { name: string; icon: string | null };
+  category: {
+    name: string;
+    icon: string | null;
+    coaAccount: { budgetType: CoaBudgetType | null };
+  };
 };
 
 @Injectable()
@@ -26,7 +31,15 @@ export class BudgetsService {
   async findAll(familyGroupId: string): Promise<BudgetDto[]> {
     const budgets = await this.prisma.budget.findMany({
       where: { familyGroupId },
-      include: { category: { select: { name: true, icon: true } } },
+      include: {
+        category: {
+          select: {
+            name: true,
+            icon: true,
+            coaAccount: { select: { budgetType: true } },
+          },
+        },
+      },
       orderBy: { createdAt: "asc" },
     });
 
@@ -82,7 +95,15 @@ export class BudgetsService {
         period: dto.period,
         limitAmount: BigInt(dto.limitAmount),
       },
-      include: { category: { select: { name: true, icon: true } } },
+      include: {
+        category: {
+          select: {
+            name: true,
+            icon: true,
+            coaAccount: { select: { budgetType: true } },
+          },
+        },
+      },
     });
     return this.toDto(budget, 0);
   }
@@ -108,7 +129,15 @@ export class BudgetsService {
         }),
         ...(dto.period !== undefined && { period: dto.period }),
       },
-      include: { category: { select: { name: true, icon: true } } },
+      include: {
+        category: {
+          select: {
+            name: true,
+            icon: true,
+            coaAccount: { select: { budgetType: true } },
+          },
+        },
+      },
     });
     return this.toDto(updated, 0);
   }
@@ -139,6 +168,7 @@ export class BudgetsService {
       usagePercent: usagePct,
       isOverBudget: spent > limit,
       isNearLimit: usagePct >= 80 && spent <= limit,
+      budgetType: budget.category.coaAccount.budgetType,
     };
   }
 }
