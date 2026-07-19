@@ -269,3 +269,39 @@ maskedNumber` pattern). Attempt 1 review found 3 HIGH issues (silent data-loss
   (defaults on) — potentially noisy; throttle/digest is a documented
   follow-up. PR: https://github.com/andrsrjld/wealthme-web/pull/175 (stacked
   on #174, not yet merged).
+- **2026-07-19 — /epic-loop EPIC-016 #5 "B4 — per-account/category privacy" →
+  PASS (4-agent review found + fixed a CRITICAL leak).** Added `isPrivate` to
+  Account + Category (additive migration); owner marks items private and they
+  (plus their transactions, transitively) are hidden from `member` family
+  viewers in all shared views. Scope decisions surfaced to and confirmed with
+  the user: (a) WHO sees private — the scoping agent found the B4 premise was
+  backwards (admin_staff is a low-write bookkeeper, not an elevated role); the
+  user chose the literal spec (owner + admin_staff see private, member hidden)
+  on the reading that the bookkeeper needs full books while privacy shields
+  against other family members; (b) HIDE-ENTIRELY (excluded from lists AND
+  totals, self-consistent per viewer); (c) transactions inherit privacy
+  transitively; (d) net-worth HISTORY stays family-wide (NetWorthSnapshot is
+  pre-aggregated — documented limitation, unchanged). Enforcement threaded a
+  `canSeePrivate` flag (role owner/admin_staff) from controllers into
+  services via a shared `privacy.util.ts` (transitive where-fragments,
+  null-category safe), across dashboard, all 7 reports methods (incl. getPnl
+  previous-period), the exports BullMQ job (role captured at job-create,
+  applied in the worker), and — after the review — the base CRUD read paths.
+  New owner-only category PATCH endpoint + a new `toggle` CRUD field type
+  (aria-labelled) with isPrivate toggle + "private" badge on rekening +
+  masterdata (masterdata gained category edit). **Review CRITICAL (security,
+  corroborated by typescript): the feature was bypassable via the base CRUD
+  list/detail endpoints — a `member` could read every private account /
+  category / transaction directly.** Fixed: accounts findAll/findOne,
+  categories findAll, transactions findAll/findOne/getSummary all now filter
+  on every member-facing read (findOne → 404 for a member on a private id, so
+  existence doesn't leak). Gates: qa ✅ security ✅ test ✅ (API 137/137, web
+  38/38). Implementation via fresh-context agents (main session at ~98%
+  context); one fix agent hit the account session limit after reporting, the
+  lead closed the last two same-class leaks directly. Follow-ups: net-worth
+  history stays family-wide; a dedicated test for transactions
+  findOne/getSummary (the underlying transactionPrivacyWhere helper is already
+  unit-tested and applied identically). PR:
+  https://github.com/andrsrjld/wealthme-web/pull/177 (stacked on #175, not yet
+  merged). This completes the B group (B1–B4); task groups C–J remain
+  unscoped and each still needs the same build-vs-relabel human sign-off.
