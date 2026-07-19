@@ -123,7 +123,7 @@ Grounded in a direct read pass (2026-07-19). Key findings:
     signal rather than dead metadata.
   - Depends on A.
 
-- [ ] ### E — Transaction/COA rollups + dashboard alignment
+- [x] ### E — Transaction/COA rollups + dashboard alignment ✅ (dashboard alignment done; per-group COA rollups deferred — depend on the deferred `parentCode` self-relation tree, Decision #6)
   - Expose a transaction's resolved COA (via its category) where reporting
     needs it; compute COA-level rollups/balances (per group/account) for the
     reports and dashboard.
@@ -339,3 +339,16 @@ CoaAccount` direction (new `txCoaDirection` helper); category-less tx fall back
   type (client-side aggregate). Gates: full `scripts/test.sh` PASS (web 38/38 +
   api build), security-check PASS, ecc react/typescript reviewers PASS. Branch
   `feat/epic-017-task-4-budgets-by-budgettype`.
+- 2026-07-19 /epic-loop EPIC-017 #5 "E — Transaction/COA rollups + dashboard
+  alignment" → PASS (attempts: 1). **Dashboard alignment done; per-group COA
+  rollups DEFERRED** (they depend on the deferred `parentCode` self-relation
+  tree, Decision #6 — recommend a follow-up E2 if wanted). Extracted
+  `txCoaDirection` to a shared `common/utils/coa-classify.util.ts`; both
+  `reports.service` and `dashboard.service` now use it. `dashboard.getSummary`
+  (/beranda) classifies income/expense by COA direction — the 6-month cashflow
+  chart, 30-day sparkline, and current-month headline + savings rate — so
+  /beranda and /laporan agree; TRANSFER excluded from income/expense. DTO
+  unchanged (no frontend change). Gates: api jest 143/143 (+ dashboard COA-vs-
+  tx.type regression test), typecheck + eslint clean, security-check PASS, ecc
+  typescript + review-qa PASS. Branch
+  `feat/epic-017-task-5-coa-rollups-dashboard`.
