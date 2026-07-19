@@ -125,22 +125,28 @@ export default function MasterCoaPage() {
   // App categories — used to show which COA accounts are already connected to
   // the kategori master data that transactions actually use.
   const { data: categories = [] } = useQuery<
-    { id: string; name: string; kind: string }[]
+    { id: string; name: string; kind: string; coaAccountId: string }[]
   >({
     queryKey: ["categories", familyGroupId],
     queryFn: ({ signal }) =>
-      apiFetch<{ id: string; name: string; kind: string }[]>(
-        `/family-groups/${familyGroupId}/categories`,
-        { token, signal },
-      ),
+      apiFetch<
+        { id: string; name: string; kind: string; coaAccountId: string }[]
+      >(`/family-groups/${familyGroupId}/categories`, { token, signal }),
     enabled: Boolean(familyGroupId) && Boolean(token),
   });
 
-  const coaNames = new Set(accounts.map((a) => a.name.trim().toLowerCase()));
-  const linkedCategories = categories.filter((c) =>
-    coaNames.has(c.name.trim().toLowerCase()),
+  // EPIC-017: real Category → CoaAccount join (server truth), not name matching.
+  // Every category is mapped (coaAccountId is NOT NULL), so the honest metrics
+  // are: how many categories resolve to an existing COA account, and how many
+  // COA accounts have no category mapped to them.
+  const accountIds = new Set(accounts.map((a) => a.id));
+  const usedAccountIds = new Set(
+    categories.map((c) => c.coaAccountId).filter((id) => accountIds.has(id)),
   );
-  const unmappedCount = categories.length - linkedCategories.length;
+  const linkedCategories = categories.filter((c) =>
+    accountIds.has(c.coaAccountId),
+  );
+  const emptyAccountsCount = accounts.length - usedAccountIds.size;
 
   const filtered =
     activeTab === 0
@@ -319,7 +325,7 @@ export default function MasterCoaPage() {
         <Rise index={2}>
           <div className="h-full transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
             <SectionCard
-              title="Belum Dimapping"
+              title="Akun COA Kosong"
               bodyClassName="pt-2 pb-3"
               action={
                 <CardLink onClick={() => router.push("/masterdata")}>
@@ -328,12 +334,12 @@ export default function MasterCoaPage() {
               }
             >
               <div
-                className={`text-2xl font-extrabold ${unmappedCount > 0 ? "text-warning" : "text-success"}`}
+                className={`text-2xl font-extrabold ${emptyAccountsCount > 0 ? "text-warning" : "text-success"}`}
               >
-                {unmappedCount}
+                {emptyAccountsCount}
               </div>
               <div className="text-[11px] text-muted-foreground">
-                kategori tanpa akun COA
+                akun COA tanpa kategori
               </div>
             </SectionCard>
           </div>

@@ -9,6 +9,7 @@ export * from "./auth/index.js";
 export * from "./search/index.js";
 export * from "./accounts/index.js";
 export * from "./categories/index.js";
+export * from "./coa/index.js";
 export * from "./transactions/index.js";
 export * from "./dashboard/index.js";
 export * from "./budgets/index.js";

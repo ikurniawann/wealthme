@@ -8,6 +8,8 @@ export const CategoryDtoSchema = z.object({
   familyGroupId: z.string().uuid(),
   name: z.string(),
   kind: CategoryKindSchema,
+  // EPIC-017: mandatory COA link (same family group).
+  coaAccountId: z.string().uuid(),
   color: z.string().nullable(),
   icon: z.string().nullable(),
   isPrivate: z.boolean(),

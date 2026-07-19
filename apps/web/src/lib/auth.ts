@@ -3,6 +3,10 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { PrismaClient } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
 import argon2 from "argon2";
+import {
+  GENERIC_COA_CHART,
+  defaultCoaCodeForCategory,
+} from "@wealthme/contracts";
 
 const prisma = new PrismaClient();
 
@@ -104,11 +108,35 @@ export const auth = betterAuth({
               data: { userId: user.id, familyGroupId: fg.id, role: "owner" },
             });
 
-            await tx.category.createMany({
-              data: DEFAULT_CATEGORIES.map((c) => ({
-                ...c,
+            // EPIC-017: provision the generic COA chart, then COA-link the
+            // default categories (Category.coaAccountId is NOT NULL).
+            await tx.coaAccount.createMany({
+              data: GENERIC_COA_CHART.map((c) => ({
                 familyGroupId: fg.id,
+                code: c.code,
+                name: c.name,
+                groupNum: c.groupNum,
+                direction: c.direction,
+                budgetType: c.budgetType,
               })),
+            });
+            const coaAccounts = await tx.coaAccount.findMany({
+              where: { familyGroupId: fg.id },
+              select: { id: true, code: true },
+            });
+            const coaIdByCode = new Map(coaAccounts.map((a) => [a.code, a.id]));
+
+            await tx.category.createMany({
+              data: DEFAULT_CATEGORIES.map((c) => {
+                const code = defaultCoaCodeForCategory(c.kind, c.name);
+                const coaAccountId = coaIdByCode.get(code);
+                if (!coaAccountId) {
+                  throw new Error(
+                    `Missing COA account "${code}" during registration`,
+                  );
+                }
+                return { ...c, familyGroupId: fg.id, coaAccountId };
+              }),
             });
 
             await tx.account.create({

@@ -84,7 +84,7 @@ Grounded in a direct read pass (2026-07-19). Key findings:
   - Blocks B, C, D, E. Ship the backfill/default-map in Task G (or co-deliver a
     minimal default here) so no category is left unmapped.
 
-- [ ] ### B — Mapping UX: assign each Category to a COA account
+- [x] ### B — Mapping UX: assign each Category to a COA account ✅
   - Let the owner map a `Category` to a `CoaAccount` from `/masterdata` (extend
     the category `CrudModal`) and/or `/mastercoa`.
   - Add the API surface: category create/update accepts the COA link;
@@ -303,3 +303,17 @@ registry).
   regression test added; jest 142/142, eslint clean, security-check PASS.
   parentCode kept a plain string (deferred, Decision #6). Branch
   `feat/epic-017-category-coa-link`.
+- 2026-07-19 /epic-loop EPIC-017 #2 "B — Mapping UX: assign each Category to a
+  COA account" → PASS (attempts: 1). COA picker in /masterdata category modal
+  (CrudModal `dynamicOptions`; "Otomatis" = server default; mapped COA code
+  shown per chip); /mastercoa counts now use the real `coaAccountId ↔ account`
+  join, not browser name-matching (retitled the always-zero "unmapped" card to
+  "Akun COA Kosong" = COA accounts with no category). Extracted the generic COA
+  chart to `@wealthme/contracts` (API re-exports; net deletion). **Also fixes a
+  build break Task A left on `development`:** `apps/web/src/lib/auth.ts`
+  (Better-Auth registration hook — a 2nd registration path) created categories
+  without the now-mandatory `coaAccountId`; it now provisions the chart + links
+  them (reviewed foundation change, forced by A's schema). Gates: full
+  `scripts/test.sh` PASS (monorepo build + web 38/38 + api), security-check
+  PASS, ecc security/react/typescript reviewers all PASS. Branch
+  `feat/epic-017-task-2-category-coa-mapping-ux`.

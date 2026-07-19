@@ -314,6 +314,14 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         options: ["Pengeluaran", "Pemasukan"],
       },
       {
+        // Options are injected at runtime via CrudModal `dynamicOptions`
+        // (the family's COA accounts). EPIC-017: category → COA mapping.
+        key: "coaAccountId",
+        label: "Akun COA",
+        type: "select",
+        options: [],
+      },
+      {
         key: "isPrivate",
         label: "Kategori Privat",
         type: "toggle",

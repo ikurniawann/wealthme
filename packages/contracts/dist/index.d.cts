@@ -145,6 +145,7 @@ declare const CategoryDtoSchema: z.ZodObject<{
     familyGroupId: z.ZodString;
     name: z.ZodString;
     kind: z.ZodEnum<["income", "expense"]>;
+    coaAccountId: z.ZodString;
     color: z.ZodNullable<z.ZodString>;
     icon: z.ZodNullable<z.ZodString>;
     isPrivate: z.ZodBoolean;
@@ -156,6 +157,7 @@ declare const CategoryDtoSchema: z.ZodObject<{
     familyGroupId: string;
     createdAt: string;
     kind: "income" | "expense";
+    coaAccountId: string;
     color: string | null;
     icon: string | null;
 }, {
@@ -165,10 +167,43 @@ declare const CategoryDtoSchema: z.ZodObject<{
     familyGroupId: string;
     createdAt: string;
     kind: "income" | "expense";
+    coaAccountId: string;
     color: string | null;
     icon: string | null;
 }>;
 type CategoryDto = z.infer<typeof CategoryDtoSchema>;
+
+/**
+ * Shared Chart-of-Accounts constants (EPIC-017). Prisma-agnostic — direction
+ * and budgetType are plain string-literal unions so both the API and the web
+ * app can import this without a Prisma dependency. The values match the
+ * `CoaDirection` / `CoaBudgetType` Prisma enums.
+ *
+ * `GENERIC_COA_CHART` is the generic, non-personalized chart provisioned for
+ * EVERY family group (at registration — API `auth.service` and web Better-Auth
+ * hook — and, for pre-existing groups, by the `add_category_coa_link`
+ * migration). Keep it in sync with that migration's raw-SQL VALUES list.
+ *
+ * `groupNum` taxonomy: 1 Income · 2 Expense · 3 Wealth Allocation ·
+ * 4 Receivable · 5 Payable · 6 Tax.
+ */
+type CoaChartDirection = "INCOME" | "EXPENSE" | "TRANSFER";
+type CoaChartBudgetType = "FIXED" | "VARIABLE" | "REIMBURSEMENT";
+type CoaChartEntry = {
+    code: string;
+    name: string;
+    groupNum: number;
+    direction: CoaChartDirection;
+    budgetType: CoaChartBudgetType;
+};
+declare const GENERIC_COA_CHART: readonly CoaChartEntry[];
+/**
+ * Pick a generic-chart COA code for a category by name hint, then kind fallback.
+ * Direction compatibility: income → INCOME only; expense → EXPENSE or TRANSFER
+ * (a savings/investment outflow is a valid target for an expense-kind category).
+ * An income hint is never selected for an expense category and vice-versa.
+ */
+declare function defaultCoaCodeForCategory(kind: "income" | "expense", name: string): string;
 
 declare const TransactionTypeSchema: z.ZodEnum<["income", "expense", "transfer"]>;
 type TransactionType = z.infer<typeof TransactionTypeSchema>;
@@ -1099,4 +1134,4 @@ interface UpdateTaxRecordDto {
     notes?: string;
 }
 
-export { type AccountDto, AccountDtoSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AssetDto, type AssetHistoryDto, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CreateAccountInput, CreateAccountInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, type GoalDto, type GoalStatus, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDto, type InvestmentSummaryDto, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type ParticipantStatus, type PeriodPoint, type PnlDto, type Pph21RequestDto, type Pph21ResultDto, type PremiumPeriod, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SplitBillDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type TaxBracketDto, type TaxRecordDto, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto };
+export { type AccountDto, AccountDtoSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AssetDto, type AssetHistoryDto, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CreateAccountInput, CreateAccountInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, GENERIC_COA_CHART, type GoalDto, type GoalStatus, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDto, type InvestmentSummaryDto, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type ParticipantStatus, type PeriodPoint, type PnlDto, type Pph21RequestDto, type Pph21ResultDto, type PremiumPeriod, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SplitBillDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type TaxBracketDto, type TaxRecordDto, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto, defaultCoaCodeForCategory };

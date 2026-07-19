@@ -39,6 +39,12 @@ interface CrudModalProps {
     mode: CrudMode,
     values: Record<string, string>,
   ) => void | Promise<void>;
+  /**
+   * Runtime-injected options for `select` fields, keyed by field key. When
+   * present for a field, these override the static config `options` and allow a
+   * distinct value/label (e.g. a COA account id vs its display label).
+   */
+  dynamicOptions?: Record<string, { value: string; label: string }[]>;
 }
 
 function formatThousands(raw: string): string {
@@ -70,7 +76,12 @@ function initialFieldValues(
 const FIELD_INPUT_CLASS =
   "h-9 w-full rounded-lg border bg-background px-3 text-[13px] outline-none focus:border-primary";
 
-export function CrudModal({ state, onClose, onSubmit }: CrudModalProps) {
+export function CrudModal({
+  state,
+  onClose,
+  onSubmit,
+  dynamicOptions,
+}: CrudModalProps) {
   if (!state) return null;
   // Keyed so consecutive opens with different entities/modes re-initialize.
   return (
@@ -79,6 +90,7 @@ export function CrudModal({ state, onClose, onSubmit }: CrudModalProps) {
       state={state}
       onClose={onClose}
       onSubmit={onSubmit}
+      dynamicOptions={dynamicOptions}
     />
   );
 }
@@ -87,7 +99,7 @@ interface CrudFormProps extends CrudModalProps {
   state: CrudModalState;
 }
 
-function CrudForm({ state, onClose, onSubmit }: CrudFormProps) {
+function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
   const config = CRUD_CONFIG[state.entity];
   const [values, setValues] = useState<Record<string, string>>(() =>
     initialFieldValues(config.fields, state.initialValues),
@@ -158,9 +170,12 @@ function CrudForm({ state, onClose, onSubmit }: CrudFormProps) {
                     value={values[f.key] ?? ""}
                     onChange={(e) => setField(f.key, e.target.value)}
                   >
-                    {(f.options ?? []).map((o) => (
-                      <option key={o} value={o}>
-                        {o}
+                    {(
+                      dynamicOptions?.[f.key] ??
+                      (f.options ?? []).map((o) => ({ value: o, label: o }))
+                    ).map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
                       </option>
                     ))}
                   </select>
