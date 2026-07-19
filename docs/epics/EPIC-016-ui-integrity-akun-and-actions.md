@@ -113,6 +113,40 @@ the full line-by-line detail preserved from the audit.
     not fake UI), but worth a follow-up ticket to source it from a rate
     feed or make it configurable.
 
+- [ ] ### K — `/akun` security settings are dummy (except password)
+  - `KeamananBody` (`apps/web/src/app/(app)/akun/page.tsx:443-610`). Password
+    change is **real** (better-auth `authClient.changePassword`, `:461`) — leave
+    it. The rest are fake:
+    - **PIN Aplikasi** — hardcoded "Aktif" badge (`:553`), setup is a toast
+      only (`:557`).
+    - **Sidik Jari / Face ID** — inert `Switch` (`:565`), no state/effect.
+    - **Konfirmasi Transaksi Besar** — inert toggle (`:570`).
+    - **Notifikasi Login Baru** — inert toggle (`:575`).
+    - **Sesi Aktif** — hardcoded "iPhone 14 Pro" / "MacBook Pro" rows
+      (`:584-606`) that are **not** sourced from `BaSession`; "Akhiri" (end
+      session) is a toast (`:605`), not a real revoke.
+  - Fix: make PIN, biometric, konfirmasi-transaksi-besar, and notifikasi-login-
+    baru real (wire to a real setting/persistence) **or** relabel each as an
+    honest "coming soon" (matching the `/tax` / `/warisan` pattern). "Sesi
+    Aktif" must list **real** sessions from `BaSession` with a working "Akhiri"
+    (real session revoke). Cross-references Task D, which already named PIN
+    setup + session "Akhiri" — K supersedes those two items and adds biometric,
+    konfirmasi-transaksi-besar, and notifikasi-login-baru.
+
+- [ ] ### L — `/laporan` "Export PDF" downloads a `.txt`
+  - `apps/web/src/app/(app)/laporan/page.tsx` (~`:2248`) "Export PDF" →
+    `buildPdf` in `apps/api/src/exports/exports.service.ts:171-189` is
+    **misnamed**: it emits **plain text** via `formatTxt` (`:58-60, :360-532`)
+    and returns `data:text/plain;base64` (`:531`); the frontend maps it to a
+    `.txt` download (`page.tsx:2196-2206`). There is no PDF library in
+    `apps/api`. "Export Excel" → `buildCsv` returns **real** CSV
+    (`data:text/csv`, `.csv`, real bytes) — only the PDF path is broken.
+  - Fix: make "Export PDF" emit real `application/pdf` (add `pdf-lib` or
+    `pdfkit` and rewrite `buildPdf`) and "Export Excel" a real `.xlsx` (add
+    `exceljs`), **or** relabel honestly ("PDF" → "TXT", "Excel" → "CSV"). The
+    CSV path is already real, so relabeling Excel → CSV is a copy-only change;
+    the PDF path must either become real PDF or be relabeled to TXT.
+
 ## Explicitly Not In Scope (already honest, verified during the audit)
 
 `/tax` document-upload empty state and `/warisan` document-upload both
@@ -305,3 +339,23 @@ maskedNumber` pattern). Attempt 1 review found 3 HIGH issues (silent data-loss
   https://github.com/andrsrjld/wealthme-web/pull/177 (stacked on #175, not yet
   merged). This completes the B group (B1–B4); task groups C–J remain
   unscoped and each still needs the same build-vs-relabel human sign-off.
+- **2026-07-19 — `/nerve` QA audit mapped to tasks; added Tasks K + L
+  (docs-only).** A 3-agent full-app code audit surfaced findings that map to
+  existing and new task groups: (F) the `/akun` PENGATURAN "Simpan Pengaturan"
+  button is confusing — theme/language/currency already apply live on change,
+  and `save()` (`akun/page.tsx:869`) only writes a dead `dateFormat` to
+  `localStorage` (consumed nowhere) then toasts "tersimpan"; this belongs to
+  **Task B** (remove/repurpose the button; `dateFormat` is dead) and is noted
+  here explicitly. (G) the `/akun` `PrivasiBody` toggles
+  (`akun/page.tsx:1112-1169`) — "Sembunyikan dari Anggota Family", "Mode
+  Privasi Saat Screenshot", "Kirim Data Analitik", "Personalisasi AI" (all
+  `defaultChecked`-only, no state/persist/effect) plus "Ekspor Data Saya"
+  (`:1156`) and "Hapus Akun" (`:1164`) toast-only — are the `/akun` toggles
+  already named by **Task B**, and are **distinct** from the real
+  per-account/category `isPrivate` privacy shipped in B4. (E) `/akun` security
+  dummies → new **Task K** (password change already real; PIN, biometric,
+  konfirmasi-transaksi-besar, notifikasi-login-baru inert; Sesi Aktif is
+  hardcoded, "Akhiri" is a toast — overlaps and supersedes Task D's PIN +
+  session items). (H) `/laporan` "Export PDF" downloads a `.txt` (buildPdf emits
+  plain text, no PDF lib; CSV/Excel path already real) → new **Task L**.
+  Existing Tasks A–J were left unchanged. No code changed.
