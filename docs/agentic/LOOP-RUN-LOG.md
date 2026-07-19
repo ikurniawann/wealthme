@@ -1,7 +1,6 @@
 # Loop Run Log
 
-Append one JSON object per loop run. Keep entries for the retention period your
-team chooses; summarize material decisions in the relevant epic Automation Log.
+Append one JSON object per loop run. Keep entries for the retention period your team chooses; summarize material decisions in the relevant epic Automation Log.
 
 ## Format
 
@@ -21,8 +20,7 @@ team chooses; summarize material decisions in the relevant epic Automation Log.
 }
 ```
 
-Allowed outcomes: `no-op`, `report-only`, `fix-proposed`, `verified-local`,
-`escalated`, `paused`, `budget-exhausted`, `blocked`.
+**Allowed outcomes:** `no-op`, `report-only`, `fix-proposed`, `verified-local`, `escalated`, `paused`, `budget-exhausted`, `blocked`.
 
 ## Runs
 

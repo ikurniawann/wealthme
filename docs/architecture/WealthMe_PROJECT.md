@@ -1,8 +1,6 @@
-# WealthMe
+# WealthMe — Personal Wealth Operating System
 
-Personal Wealth Operating System
-
-Version 1.0
+**Version:** 1.0
 
 ## Overview
 
@@ -22,7 +20,9 @@ Aplikasi berfokus pada pertumbuhan Net Worth (Kekayaan Bersih) dan bukan hanya p
 
 ## Core Formula
 
+```
 Net Worth = Asset + Investment + Cash - Liability
+```
 
 ## User Types
 
@@ -121,42 +121,42 @@ Income, Expense, Transfer, Credit Card
 
 ## Database Tables
 
-users
-families
-family_members
-accounts
-transactions
-categories
-investments
-investment_returns
-assets
-asset_history
-liabilities
-goals
-goal_progress
-reports
-ai_insights
-notifications
+- users
+- families
+- family_members
+- accounts
+- transactions
+- categories
+- investments
+- investment_returns
+- assets
+- asset_history
+- liabilities
+- goals
+- goal_progress
+- reports
+- ai_insights
+- notifications
 
 ## Tech Stack
 
-Frontend:
+### Frontend
 
 - Next.js
 - TypeScript
 - Tailwind
 - Shadcn
 
-Backend:
+### Backend
 
 - NestJS
 
-Database:
+### Database
 
 - PostgreSQL
 - Prisma
 
-AI:
+### AI
 
 - OpenAI
 - Claude

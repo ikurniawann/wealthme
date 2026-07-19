@@ -1,10 +1,8 @@
 # Loop State
 
-> Operational queue for enabled loops. Read it at the start of every run and
-> prune resolved items. Durable engineering decisions belong in epic Automation
-> Logs, not only here.
+> Operational queue for enabled loops. Read it at the start of every run and prune resolved items. Durable engineering decisions belong in epic Automation Logs, not only here.
 
-Last run: never
+**Last run:** never
 
 ## High Priority
 

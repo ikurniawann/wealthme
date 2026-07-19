@@ -2,37 +2,35 @@
 
 ## Workflow
 
-File: `.github/workflows/ci.yml`
-Workflow name: **CI**
-Job id / name: `ci` / **Lint, Build & Test**
+**File:** `.github/workflows/ci.yml`
+**Workflow name:** CI
+**Job id / name:** `ci` / **Lint, Build & Test**
 
-Triggers:
+### Triggers
 
 - Every pull request (any base branch)
 - Push to `development` or `main`
 
-What it runs (in turbo order):
+### What it runs (in turbo order)
 
 1. `lint` — ESLint across all workspaces
 2. `build` — type-check + compile (`turbo run build`)
 3. `test` — unit tests (`turbo run test`)
 
-Caches:
+### Caches
 
 - pnpm store — via `actions/setup-node@v4` (`cache: 'pnpm'`)
 - Turbo artifacts — `actions/cache@v4` keyed on `pnpm-lock.yaml`, stored in `.turbo/`
 
-Concurrency: in-progress runs for the same `github.ref` are cancelled automatically.
+**Concurrency:** in-progress runs for the same `github.ref` are cancelled automatically.
 
-No deploy steps, no secrets, no production targets.
+**No deploy steps, no secrets, no production targets.**
 
 ---
 
 ## Making the check required before merge (ONE-TIME ADMIN STEP)
 
-> The steps below must be performed by a repository **admin** once the workflow has run at
-> least once (GitHub registers the check name after the first execution).
-> Do NOT run these as part of CI itself.
+> The steps below must be performed by a repository **admin** once the workflow has run at least once (GitHub registers the check name after the first execution). Do NOT run these as part of CI itself.
 
 ### Option A — GitHub UI
 
@@ -69,6 +67,4 @@ gh api --method PUT \
   --field restrictions=null
 ```
 
-> `contexts` must match the job name shown in the GitHub Checks UI exactly.
-> The value here is `Lint, Build & Test` (the `name:` field of job `ci`).
-> If you rename the job, update this value accordingly.
+> `contexts` must match the job name shown in the GitHub Checks UI exactly. The value here is `Lint, Build & Test` (the `name:` field of job `ci`). If you rename the job, update this value accordingly.
