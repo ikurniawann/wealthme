@@ -186,3 +186,30 @@ maskedNumber` pattern). Attempt 1 review found 3 HIGH issues (silent data-loss
   `ERR_CONNECTION_REFUSED` on the API — no NestJS/Postgres available in this
   sandbox) but not run against a full live stack; recommend running it in CI/QA
   before merge. PR: https://github.com/andrsrjld/wealthme-web/pull/172
+- **2026-07-19 — /epic-loop EPIC-016 #2 "B1 — /akun theme/language picker
+  wiring" → PASS (attempt: 1).** Task B split into 4 independent sub-builds
+  (B1 bug fix; B2 currency preference; B3 notification preferences; B4
+  privacy flags) per human decision — see below. B1: theme/language pickers
+  previously wrote to an orphaned `localStorage["wealthme_settings"]` key;
+  now wired directly to the real `next-themes` `useTheme()` and
+  `hooks/use-locale.ts` `useLocale()` systems already used app-wide. Gates:
+  qa ✅ security ✅ test ✅ (12/12). Review: 4/4 reviewers PASS on first
+  attempt (react/typescript/security/qa) — no fix rounds needed. Scope note:
+  discovered `PengaturanBody` also has a `dateFormat` picker and 3 more
+  fake-persistence toggles ("Sembunyikan Saldo Default"/"Tampilkan
+  Desimal"/"Ringkasan Mingguan" in a "Tampilan Data" section) not covered by
+  the original audit — left untouched, flagged for a future task, not folded
+  into B1's scope. PR: https://github.com/andrsrjld/wealthme-web/pull/173
+  (stacked on #172, not yet merged).
+- **2026-07-19 — Human decision on Task B's build-vs-relabel calls.** Currency
+  picker (no backend, only per-Account.currency): build a real global
+  User-level currency preference. 11 notification toggles (zero backend):
+  build real per-toggle persistence (NotificationPreference model, wired to
+  the existing SendGrid sending logic from EPIC-006). Privacy toggles
+  ("Sembunyikan dari Anggota Family", zero backend, no defined product
+  concept): build per-account/category visibility flags — NOT a global
+  user-level switch — filtered from shared family views (dashboard, reports)
+  for non-owner/non-admin-staff members, full visibility retained for
+  owner/admin-staff (RBAC-aware). All three chosen over the recommended
+  "relabel coming soon" default, explicitly opting for full feature builds
+  with the same review rigor as Task A.

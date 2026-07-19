@@ -1,9 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { useSession } from "@/lib/auth-compat";
 import { authClient } from "@/lib/auth-client";
+import { useLocale } from "@/hooks/use-locale";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -738,16 +740,12 @@ const SETTINGS_KEY = "wealthme_settings";
 
 type AppSettings = {
   currency: string;
-  language: string;
   dateFormat: string;
-  theme: string;
 };
 
 const DEFAULT_SETTINGS: AppSettings = {
   currency: "IDR",
-  language: "🇮🇩 Bahasa Indonesia",
   dateFormat: "DD/MM/YYYY",
-  theme: "☀️ Terang (Light)",
 };
 
 function loadSettings(): AppSettings {
@@ -762,8 +760,62 @@ function loadSettings(): AppSettings {
   }
 }
 
-function PengaturanBody() {
+// Theme/language pickers are live-applied via `next-themes` and `useLocale()`
+// respectively — they are no longer part of the orphaned `AppSettings`
+// save/load mechanism above, which only covers currency/dateFormat.
+const THEME_OPTIONS: { value: "light" | "dark" | "system"; label: string }[] = [
+  { value: "light", label: "☀️ Terang (Light)" },
+  { value: "dark", label: "🌙 Gelap (Dark)" },
+  { value: "system", label: "🖥️ Ikuti Sistem" },
+];
+
+const LANGUAGE_OPTIONS: { value: "id" | "en"; label: string }[] = [
+  { value: "id", label: "🇮🇩 Bahasa Indonesia" },
+  { value: "en", label: "🇬🇧 English" },
+];
+
+function themeValueToLabel(value: string | undefined): string {
+  return (
+    THEME_OPTIONS.find((o) => o.value === value)?.label ??
+    THEME_OPTIONS[0].label
+  );
+}
+
+function themeLabelToValue(label: string): "light" | "dark" | "system" {
+  return (
+    THEME_OPTIONS.find((o) => o.label === label)?.value ??
+    THEME_OPTIONS[0].value
+  );
+}
+
+function localeValueToLabel(value: string): string {
+  return (
+    LANGUAGE_OPTIONS.find((o) => o.value === value)?.label ??
+    LANGUAGE_OPTIONS[0].label
+  );
+}
+
+function localeLabelToValue(label: string): "id" | "en" {
+  return (
+    LANGUAGE_OPTIONS.find((o) => o.label === label)?.value ??
+    LANGUAGE_OPTIONS[0].value
+  );
+}
+
+export function PengaturanBody() {
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
+  const { theme, setTheme } = useTheme();
+  const { locale, setLocale } = useLocale();
+  const [mounted, setMounted] = useState(false);
+  // Resolve the real theme only after mount; avoids an SSR/client mismatch
+  // (same pattern as components/shell/theme-toggle.tsx).
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setMounted(true), []);
+
+  const themeLabel = mounted
+    ? themeValueToLabel(theme)
+    : THEME_OPTIONS[0].label;
+  const languageLabel = localeValueToLabel(locale);
 
   function update<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
     setSettings((prev) => ({ ...prev, [key]: value }));
@@ -814,11 +866,12 @@ function PengaturanBody() {
         <Field label="Bahasa">
           <select
             className={FIELD_CLASS}
-            value={settings.language}
-            onChange={(e) => update("language", e.target.value)}
+            value={languageLabel}
+            onChange={(e) => setLocale(localeLabelToValue(e.target.value))}
           >
-            <option>🇮🇩 Bahasa Indonesia</option>
-            <option>🇬🇧 English</option>
+            {LANGUAGE_OPTIONS.map((o) => (
+              <option key={o.value}>{o.label}</option>
+            ))}
           </select>
         </Field>
         <Field label="Format Tanggal">
@@ -835,12 +888,12 @@ function PengaturanBody() {
         <Field label="Tema">
           <select
             className={FIELD_CLASS}
-            value={settings.theme}
-            onChange={(e) => update("theme", e.target.value)}
+            value={themeLabel}
+            onChange={(e) => setTheme(themeLabelToValue(e.target.value))}
           >
-            <option>☀️ Terang (Light)</option>
-            <option>🌙 Gelap (Dark)</option>
-            <option>🖥️ Ikuti Sistem</option>
+            {THEME_OPTIONS.map((o) => (
+              <option key={o.value}>{o.label}</option>
+            ))}
           </select>
         </Field>
       </SetSection>
