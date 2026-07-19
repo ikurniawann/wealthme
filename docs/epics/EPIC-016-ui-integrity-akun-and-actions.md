@@ -239,3 +239,33 @@ maskedNumber` pattern). Attempt 1 review found 3 HIGH issues (silent data-loss
     this task making the click real. Re-review: PASS. Gates: qa ✅ security ✅
     test ✅ (96 API + 34 web). PR: https://github.com/andrsrjld/wealthme-web/pull/174
     (stacked on #173, not yet merged).
+- **2026-07-19 — /epic-loop EPIC-016 #4 "B3 — /akun notification preferences
+  build" → PASS (full 4-agent review, no fix rounds needed).** Real per-user
+  notification prefs: `User.notificationPrefs` (nullable JSONB) + additive
+  migration; `notification-prefs.ts` sanitizer (`resolveNotifPrefs` whitelists
+  the 8 keys, coerces booleans, run on BOTH persist and read paths) +
+  `ownerNotifPrefs` owner lookup. Three scope realities surfaced to and
+  resolved with the user: (1) 8 toggles, not 11 (earlier miscount); (2) only
+  3 toggles had a live sender — user chose "+ build txn senders" → **6
+  enforced** (budget80, goalMilestone, billDue, and new txnIn/txnOut/txnBig
+  via a fire-and-forget `notifyTransaction`), stockPrice/dividend **stored-only**
+  (no price/dividend data source, labeled "Disimpan, tapi belum aktif" in the
+  UI — not silently dead); (3) `Notification` is family-scoped (no per-user
+  column, transactions record no actor), so enforcement reads the family
+  OWNER's prefs — documented in the schema, not faked as per-user. Frontend:
+  `NotifSettingBody` wired to real `PATCH /auth/profile` (overrides-map
+  pattern, no clobber); page-local `ToggleBox` gained a controlled mode while
+  existing uncontrolled callers stayed unchanged. Gates: qa ✅ security ✅
+  test ✅ (API 105/105, web 38/38). Full 4-agent review panel
+  (react/typescript/security/review-qa) — all clean, no HIGH/CRITICAL, zero
+  fix rounds; the security lens confirmed `@IsObject()`+sanitizer is safe
+  against JSON pollution and the unescaped category name in the txn-feed body
+  is not XSS-exploitable (React auto-escape, no dangerouslySetInnerHTML).
+  Implementation was delegated to a fresh-context code-agent (main session
+  was at ~98% context); the first attempt died mid-run on an account session
+  limit but left all code intact on the branch, and a second agent resumed
+  cleanly after the limit reset to add tests + run gates. Known ceiling:
+  `notifyTransaction` writes a feed record per income/expense when enabled
+  (defaults on) — potentially noisy; throttle/digest is a documented
+  follow-up. PR: https://github.com/andrsrjld/wealthme-web/pull/175 (stacked
+  on #174, not yet merged).

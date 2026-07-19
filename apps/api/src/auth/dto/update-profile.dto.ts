@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsDateString,
   IsIn,
+  IsObject,
   IsOptional,
   IsString,
   MaxLength,
@@ -73,4 +74,14 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsIn(CURRENCY_OPTIONS)
   currency?: string;
+
+  @ApiPropertyOptional({
+    type: "object",
+    additionalProperties: { type: "boolean" },
+    description:
+      "Notification toggle preferences (map of known keys → boolean). Unknown keys are ignored server-side.",
+  })
+  @IsOptional()
+  @IsObject()
+  notificationPrefs?: Record<string, boolean>;
 }

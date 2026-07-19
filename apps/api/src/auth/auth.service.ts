@@ -12,12 +12,14 @@ import * as argon2 from "argon2";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CryptoService } from "../crypto/crypto.service";
+import { resolveNotifPrefs } from "../notifications/notification-prefs";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { RedisService } from "../redis/redis.service";
 
 import type { Env } from "../config/env";
+import type { NotificationPrefs } from "../notifications/notification-prefs";
 import type { ChangePasswordDto } from "./dto/change-password.dto";
 import type { LoginDto } from "./dto/login.dto";
 import type { RegisterDto } from "./dto/register.dto";
@@ -66,6 +68,7 @@ type UserProfile = {
   jobTitle?: string | null;
   monthlyIncome?: string | null;
   currency?: string;
+  notificationPrefs?: NotificationPrefs;
 };
 
 const PROFILE_DETAIL_SELECT = {
@@ -79,6 +82,7 @@ const PROFILE_DETAIL_SELECT = {
   jobTitle: true,
   monthlyIncome: true,
   currency: true,
+  notificationPrefs: true,
   createdAt: true,
   memberships: {
     select: {
@@ -218,6 +222,7 @@ export class AuthService {
       monthlyIncome: user.monthlyIncome
         ? this.crypto.decrypt(user.monthlyIncome)
         : null,
+      notificationPrefs: resolveNotifPrefs(user.notificationPrefs),
       familyGroupId: user.memberships[0]?.familyGroupId ?? null,
     };
   }
@@ -243,6 +248,9 @@ export class AuthService {
           monthlyIncome: this.crypto.encrypt(dto.monthlyIncome),
         }),
         ...(dto.currency !== undefined && { currency: dto.currency }),
+        ...(dto.notificationPrefs !== undefined && {
+          notificationPrefs: resolveNotifPrefs(dto.notificationPrefs) as object,
+        }),
       },
       select: PROFILE_DETAIL_SELECT,
     });
@@ -254,6 +262,7 @@ export class AuthService {
       monthlyIncome: updated.monthlyIncome
         ? this.crypto.decrypt(updated.monthlyIncome)
         : null,
+      notificationPrefs: resolveNotifPrefs(updated.notificationPrefs),
       familyGroupId: updated.memberships[0]?.familyGroupId ?? null,
     };
   }

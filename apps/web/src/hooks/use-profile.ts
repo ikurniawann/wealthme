@@ -23,6 +23,10 @@ export type ProfileDetail = {
   // Absent for users created before the EPIC-016 Task B2 migration; callers
   // must fall back to "IDR" (the server also defaults new rows to "IDR").
   currency?: string;
+  // Resolved notification toggle preferences (EPIC-016 Task B3). Absent only
+  // if the profile query hasn't loaded yet — the server always resolves all
+  // 8 known keys via resolveNotifPrefs, defaulting unset ones to true.
+  notificationPrefs?: Record<string, boolean>;
 };
 
 export function useProfile() {
