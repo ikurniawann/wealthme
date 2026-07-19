@@ -213,3 +213,29 @@ maskedNumber` pattern). Attempt 1 review found 3 HIGH issues (silent data-loss
   owner/admin-staff (RBAC-aware). All three chosen over the recommended
   "relabel coming soon" default, explicitly opting for full feature builds
   with the same review rigor as Task A.
+- **2026-07-19 — /epic-loop EPIC-016 #3 "B2 — /akun currency preference
+  build" → PASS (attempts: 2).** Real global `User.currency` field (plain,
+  not encrypted — not sensitive), reusing Task A's profile endpoint. FX
+  conversion via the existing (mock) `GET /fx/rates?base=IDR`. Extended the
+  protected `apps/web/src/lib/format.ts` with a backward-compatible
+  `formatRupiah(value, target?)` overload (single-arg call sites, all 18 of
+  them, byte-identical to before). Rolled out to 3 surfaces: `/akun` picker
+  (real persistence), `beranda`, `ringkasan` (converted amounts labeled
+  "≈" + "kurs indikatif, bukan kurs pasar real-time" — the FX source is a
+  mock, never presented as authoritative). Other 15 `formatRupiah` call
+  sites left untouched (documented follow-up, not this task's scope).
+  Attempt 1 review: 2 HIGH (react-reviewer) — FX-loading fallback silently
+  rendered wrong-magnitude numbers under a real currency symbol; conversion
+  coverage inconsistent within beranda/ringkasan (mixed converted/unconverted
+  amounts on the same page, no label) — plus 1 HIGH (review-qa-agent) — the
+  new currency-conversion test (`format.test.mjs`) never actually ran under
+  Jest, so the new logic in a protected file had zero real gate coverage;
+  also flagged an unrelated refactor bundled into `auth.service.spec.ts`.
+  Attempt 2 fixed all: added `isReady` gating (loading/error state) enforced
+  structurally via centralized `money`/`moneyCompact` helpers so no caller
+  can render a fabricated 1:1-rate conversion; deleted the dead `.mjs` test
+  - its `.js` twin, ported to a real `format.test.ts`; reverted the unrelated
+    refactor; fixed a currency-picker keyboard-accessibility gap surfaced by
+    this task making the click real. Re-review: PASS. Gates: qa ✅ security ✅
+    test ✅ (96 API + 34 web). PR: https://github.com/andrsrjld/wealthme-web/pull/174
+    (stacked on #173, not yet merged).

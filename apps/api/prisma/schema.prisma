@@ -159,6 +159,10 @@ model User {
   gender         String?
   jobTitle       String?
   monthlyIncome  String?
+  // Display currency preference (ISO 4217 code) — not sensitive, stored
+  // plaintext unlike birthDate/monthlyIncome. Conversion rates come from the
+  // mock FxPort, so any non-IDR display is always labeled indicative in the UI.
+  currency       String      @default("IDR") @db.VarChar(3)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
   memberships    Member[]

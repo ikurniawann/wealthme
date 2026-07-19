@@ -11,8 +11,10 @@
  * `wealthme_settings` key instead of calling the real setters.
  */
 
-import { render, screen } from "@testing-library/react";
+import type { ReactElement, ReactNode } from "react";
+import { render as rtlRender, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // Mock auth-client (same as profil-body.test.tsx)
 jest.mock("../../../lib/auth-client", () => ({
@@ -55,7 +57,54 @@ jest.mock("../../../hooks/use-locale", () => ({
   })),
 }));
 
+// Mock api-client so we can spy on the real updateProfile PATCH call
+// (EPIC-016 Task B2 currency picker wiring).
+const mockApiFetch = jest.fn();
+jest.mock("../../../lib/api-client", () => ({
+  apiFetch: (...args: unknown[]) => mockApiFetch(...args),
+}));
+
+// Mock use-profile so each test controls the "current" profile currency
+// (EPIC-016 Task B2 currency picker wiring).
+const mockUseProfile = jest.fn();
+jest.mock("../../../hooks/use-profile", () => ({
+  useProfile: () => mockUseProfile(),
+}));
+
 import { PengaturanBody } from "./page";
+
+// PengaturanBody now reads/writes the real profile (useProfile + a
+// PATCH /auth/profile mutation for currency), both of which need a
+// QueryClientProvider ancestor — plain @testing-library/react.render()
+// doesn't provide one, so every render() in this file goes through this
+// wrapper instead.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+    mutations: { retry: false },
+  },
+});
+
+function Providers({ children }: { children: ReactNode }) {
+  return (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
+
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: Providers });
+}
+
+// File-wide default so every describe block (not just the Currency Picker
+// one) gets a valid useProfile() return value — PengaturanBody calls it
+// unconditionally now that the currency picker reads from the real profile.
+beforeEach(() => {
+  mockUseProfile.mockReturnValue({
+    data: { id: "user-1", email: "user@example.com", name: "Test User" },
+    isLoading: false,
+  });
+  mockApiFetch.mockResolvedValue({ success: true, data: { currency: "USD" } });
+});
 
 describe("PengaturanBody — Theme & Language Picker Wiring", () => {
   beforeEach(() => {
@@ -261,3 +310,143 @@ describe("PengaturanBody — Theme & Language Picker Wiring", () => {
     });
   });
 });
+
+describe("PengaturanBody — Currency Picker Wiring (EPIC-016 Task B2)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    localStorage.removeItem("wealthme_settings");
+    // Re-apply the file-wide defaults — clearAllMocks() above only clears
+    // call history, not implementations, but keep this explicit per-block
+    // since individual tests below override mockUseProfile per case.
+    mockUseProfile.mockReturnValue({
+      data: { id: "user-1", email: "user@example.com", name: "Test User" },
+      isLoading: false,
+    });
+    mockApiFetch.mockResolvedValue({
+      success: true,
+      data: { currency: "USD" },
+    });
+  });
+
+  describe("Currency Picker", () => {
+    it("should call updateProfile mutation when selecting a different currency", async () => {
+      // Arrange
+      const user = userEvent.setup();
+      render(<PengaturanBody />);
+
+      // Find the currency picker
+      // It's a div container with currency options (not a native select)
+      // currencyOptions is used in assertions below
+      // For now, find by looking for the USD currency option
+      // The actual selector depends on how currency picker is implemented
+      const usdOption = screen.getByText(/Dollar Amerika/);
+
+      // Act — click the USD currency option
+      await user.click(usdOption);
+
+      // Assert — the real updateProfile should have been called with currency: USD
+      // (Currently FAILS because PengaturanBody doesn't call updateProfile,
+      // it only writes to the orphaned settings localStorage)
+      expect(mockApiFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/auth/profile"),
+        expect.objectContaining({
+          method: "PATCH",
+          body: expect.stringContaining("USD"),
+        }),
+      );
+    });
+
+    it("should display the REAL current currency from user profile, not orphaned settings", async () => {
+      // Arrange — mock the profile query to return currency: "EUR"
+      mockUseProfile.mockReturnValue({
+        data: { currency: "EUR" },
+        isLoading: false,
+      });
+
+      // Act
+      render(<PengaturanBody />);
+
+      // Assert — the currency picker should show EUR as selected,
+      // not the default "IDR" from orphaned localStorage
+      // (exact title text — "EUR — Euro" — since "Euro" alone also matches
+      // the "€ · Euro" subtitle rendered right below it)
+      const eurOption = screen.getByText("EUR — Euro");
+      // The EUR option should be visually selected (has "selected" class or
+      // aria-checked). The title text sits two divs deep inside the
+      // selectable row, so target the row container specifically (it's the
+      // only ancestor div carrying "cursor-pointer") rather than the
+      // immediate wrapping div, which is just the title's own text div.
+      expect(eurOption.closest("button.cursor-pointer")).toHaveClass(
+        "border-primary",
+      );
+    });
+
+    it("should persist to API on Simpan, not just orphaned localStorage", async () => {
+      // Arrange
+      const user = userEvent.setup();
+      render(<PengaturanBody />);
+
+      const usdOption = screen.getByText(/Dollar Amerika/);
+      const saveButton = screen.getByText("Simpan Pengaturan");
+
+      // Act — select USD and click save
+      await user.click(usdOption);
+      await user.click(saveButton);
+
+      // Assert — save should call updateProfile API, not just write to localStorage
+      // (Currently FAILS because save() only writes to orphaned localStorage)
+      expect(mockApiFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/auth/profile"),
+        expect.objectContaining({
+          method: "PATCH",
+        }),
+      );
+
+      // Verify orphaned localStorage is NOT the source of truth
+      // or should sync from server, not be the only source
+      expect(mockApiFetch).toHaveBeenCalled();
+    });
+
+    it("should list all 5 supported currencies (IDR, USD, SGD, EUR, JPY)", async () => {
+      // Arrange
+      render(<PengaturanBody />);
+
+      // Assert — all 5 currency options should be visible
+      expect(screen.getByText(/Rupiah Indonesia/)).toBeInTheDocument();
+      expect(screen.getByText(/Dollar Amerika/)).toBeInTheDocument();
+      expect(screen.getByText(/Dollar Singapura/)).toBeInTheDocument();
+      // "Euro" alone matches both the title and subtitle text — assert the
+      // full title so this stays a single-element query.
+      expect(screen.getByText("EUR — Euro")).toBeInTheDocument();
+      expect(screen.getByText(/Yen Jepang/)).toBeInTheDocument();
+    });
+
+    it("should show IDR selected by default when user profile has no currency set", async () => {
+      // Arrange — profile has no currency field (pre-migration user)
+      mockUseProfile.mockReturnValue({
+        data: {
+          id: "user-1",
+          email: "user@example.com",
+          name: "Test User",
+          // currency field is missing
+        },
+        isLoading: false,
+      });
+
+      // Act
+      render(<PengaturanBody />);
+
+      // Assert — IDR should be shown as selected
+      const idrOption = screen.getByText(/Rupiah Indonesia/);
+      // See the EUR test above for why this targets the row container
+      // specifically instead of the immediate (title-only) wrapping div.
+      expect(idrOption.closest("button.cursor-pointer")).toHaveClass(
+        "border-primary",
+      );
+    });
+  });
+});
+
+// Note: The component tests above test the Settings currency picker wiring (RED phase).
+// They should fail because currency preference integration doesn't exist yet.
+// Once implemented, all tests should pass without modifying test assertions.

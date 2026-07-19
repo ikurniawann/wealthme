@@ -65,6 +65,7 @@ type UserProfile = {
   gender?: string | null;
   jobTitle?: string | null;
   monthlyIncome?: string | null;
+  currency?: string;
 };
 
 const PROFILE_DETAIL_SELECT = {
@@ -77,6 +78,7 @@ const PROFILE_DETAIL_SELECT = {
   gender: true,
   jobTitle: true,
   monthlyIncome: true,
+  currency: true,
   createdAt: true,
   memberships: {
     select: {
@@ -240,6 +242,7 @@ export class AuthService {
         ...(dto.monthlyIncome !== undefined && {
           monthlyIncome: this.crypto.encrypt(dto.monthlyIncome),
         }),
+        ...(dto.currency !== undefined && { currency: dto.currency }),
       },
       select: PROFILE_DETAIL_SELECT,
     });
