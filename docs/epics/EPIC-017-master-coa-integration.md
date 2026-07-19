@@ -94,7 +94,7 @@ Grounded in a direct read pass (2026-07-19). Key findings:
     "truly unmapped categories" query (categories with a null COA link).
   - Depends on A.
 
-- [ ] ### C — Reports driven by COA (PNL / Neraca / Arus Kas)
+- [x] ### C — Reports driven by COA (PNL / Neraca / Arus Kas) ✅
   - Classify and group transactions **purely** by their category's COA
     `direction` + `groupNum`, resolved transitively via `Transaction → Category
 → CoaAccount`. This **REPLACES** (Open Design Decision #1 = REPLACE, total)
@@ -317,6 +317,18 @@ registry).
   `scripts/test.sh` PASS (monorepo build + web 38/38 + api), security-check
   PASS, ecc security/react/typescript reviewers all PASS. Branch
   `feat/epic-017-task-2-category-coa-mapping-ux`.
+- 2026-07-19 /epic-loop EPIC-017 #3 "C — Reports driven by COA" → PASS
+  (attempts: 1). `getSummary`, `getPnl` (current + previous period),
+  `getCashflowStatement`, `getSankey` now classify via `Transaction → Category →
+CoaAccount` direction (new `txCoaDirection` helper); category-less tx fall back
+  to `tx.type` (only signal). TRANSFER (wealth allocation) now excluded from P&L
+  - operating cashflow — **report numbers shift** where a category's COA
+    direction differs from its tx.type (expected, per Decision #1; verify in QA).
+    Retired `coa-direction.util.ts`. Neraca (`getBalanceSheet`) left balance-based
+    (default). `getBankReport`/`getDetailReport` keep tx.type (out of scope).
+    DTO shapes unchanged. Gates: api jest 143/143 (+ new REPLACE regression test),
+    security-check PASS, ecc typescript/security + review-qa all PASS. Branch
+    `feat/epic-017-task-3-reports-by-coa`.
 - 2026-07-19 /epic-loop EPIC-017 #4 "D — Budgets by COA + real budgetType" →
   PASS (attempts: 1). **Decision #4 resolved with user: "Report breakdown"
   scope** (display/grouping + budget-vs-actual by budgetType; read-only, no
@@ -326,6 +338,4 @@ registry).
   budget + a "Rincian per Tipe Anggaran" budget-vs-actual breakdown grouped by
   type (client-side aggregate). Gates: full `scripts/test.sh` PASS (web 38/38 +
   api build), security-check PASS, ecc react/typescript reviewers PASS. Branch
-  `feat/epic-017-task-4-budgets-by-budgettype`. (Note: this branch is off
-  development, which has A+B but not yet C (#182) — epic checkboxes reconcile as
-  PRs merge.)
+  `feat/epic-017-task-4-budgets-by-budgettype`.

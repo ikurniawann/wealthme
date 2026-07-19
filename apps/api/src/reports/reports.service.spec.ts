@@ -20,6 +20,9 @@ interface FakeCategory {
   name: string;
   color: string | null;
   isPrivate: boolean;
+  // EPIC-017: every category maps to a COA account; reports classify by its
+  // direction, not the transaction type.
+  coaAccount: { direction: "INCOME" | "EXPENSE" | "TRANSFER" };
 }
 
 interface FakeTransaction {
@@ -78,7 +81,14 @@ function makeFakePrisma(
     const cat = t.categoryId ? categoryById.get(t.categoryId) : null;
     return {
       ...t,
-      category: cat ? { id: cat.id, name: cat.name, color: cat.color } : null,
+      category: cat
+        ? {
+            id: cat.id,
+            name: cat.name,
+            color: cat.color,
+            coaAccount: cat.coaAccount,
+          }
+        : null,
       account: { name: accountById.get(t.accountId)?.name ?? "" },
     };
   }
@@ -142,8 +152,20 @@ function buildFixtures() {
     },
   ];
   const categories: FakeCategory[] = [
-    { id: "cat-visible", name: "Public Cat", color: null, isPrivate: false },
-    { id: "cat-private", name: "Private Cat", color: null, isPrivate: true },
+    {
+      id: "cat-visible",
+      name: "Public Cat",
+      color: null,
+      isPrivate: false,
+      coaAccount: { direction: "INCOME" },
+    },
+    {
+      id: "cat-private",
+      name: "Private Cat",
+      color: null,
+      isPrivate: true,
+      coaAccount: { direction: "EXPENSE" },
+    },
   ];
   const now = new Date();
   const transactions: FakeTransaction[] = [
@@ -352,5 +374,61 @@ describe("ReportsService privacy enforcement", () => {
     expect(owner.links.length).toBeGreaterThan(0);
     const totalLinkValue = owner.links.reduce((s, l) => s + l.value, 0);
     expect(totalLinkValue).toBeGreaterThan(0);
+  });
+
+  it("classifies by COA direction, not tx.type (EPIC-017 REPLACE)", async () => {
+    // An expense-TYPE transaction whose category maps to a TRANSFER (wealth
+    // allocation) COA account must NOT count as a P&L expense — it is a
+    // wealth allocation, not spending.
+    const now = new Date();
+    const accounts: FakeAccount[] = [
+      {
+        id: "a1",
+        balance: 0n,
+        type: "bank",
+        name: "A",
+        institution: null,
+        isPrivate: false,
+      },
+    ];
+    const categories: FakeCategory[] = [
+      {
+        id: "c-transfer",
+        name: "Tabungan",
+        color: null,
+        isPrivate: false,
+        coaAccount: { direction: "TRANSFER" },
+      },
+    ];
+    const transactions: FakeTransaction[] = [
+      {
+        id: "t1",
+        accountId: "a1",
+        categoryId: "c-transfer",
+        amount: 1000n,
+        type: "expense",
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      },
+    ];
+    const p = makeFakePrisma(accounts, categories, transactions);
+    const mod = await Test.createTestingModule({
+      providers: [ReportsService, { provide: PrismaService, useValue: p }],
+    }).compile();
+    const svc = mod.get(ReportsService);
+    const start = new Date(now.getTime() - 86_400_000);
+    const end = new Date(now.getTime() + 86_400_000);
+
+    const pnl = await svc.getPnl(FAMILY_GROUP_ID, start, end, true);
+    expect(pnl.expenses).toBe(0); // classified TRANSFER, excluded from expenses
+
+    const cf = await svc.getCashflowStatement(
+      FAMILY_GROUP_ID,
+      start,
+      end,
+      true,
+    );
+    expect(cf.operatingOutflows).toBe(0); // excluded from operating cashflow too
   });
 });
