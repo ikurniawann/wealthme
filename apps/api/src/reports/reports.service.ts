@@ -1,7 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { CoaDirection, type TransactionType } from "@prisma/client";
 
-import { transactionTypeToCoaDirection } from "../common/utils/coa-direction.util";
 import {
   accountPrivacyWhere,
   nestedTransactionCategoryPrivacyWhere,
@@ -57,6 +56,24 @@ function buildCategoryBreakdown(
     }));
 }
 
+/**
+ * EPIC-017 (Decision #1, REPLACE): a transaction's reporting direction comes
+ * from its category's mapped COA account — every category is COA-linked
+ * (Category.coaAccountId is NOT NULL). Only a category-LESS transaction (no
+ * category at all) falls back to its own transaction type, the only signal
+ * available. This replaces the former tx.type-based classification, so report
+ * totals shift where a category's COA direction differs from its tx.type.
+ */
+function txCoaDirection(tx: {
+  type: TransactionType;
+  category: { coaAccount: { direction: CoaDirection } } | null;
+}): CoaDirection {
+  if (tx.category) return tx.category.coaAccount.direction;
+  if (tx.type === "income") return CoaDirection.INCOME;
+  if (tx.type === "transfer") return CoaDirection.TRANSFER;
+  return CoaDirection.EXPENSE;
+}
+
 @Injectable()
 export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -85,7 +102,13 @@ export class ReportsService {
         amount: true,
         type: true,
         occurredAt: true,
-        category: { select: { name: true, color: true } },
+        category: {
+          select: {
+            name: true,
+            color: true,
+            coaAccount: { select: { direction: true } },
+          },
+        },
       },
     });
 
@@ -116,8 +139,9 @@ export class ReportsService {
       const amount = Number(tx.amount);
       const catName = tx.category?.name ?? "Lainnya";
       const catColor = tx.category?.color ?? null;
+      const dir = txCoaDirection(tx);
 
-      if (tx.type === "income") {
+      if (dir === CoaDirection.INCOME) {
         incomeByMonth.set(key, (incomeByMonth.get(key) ?? 0) + amount);
         const existing = incomeByCat.get(catName) ?? {
           amount: 0,
@@ -127,7 +151,7 @@ export class ReportsService {
           amount: existing.amount + amount,
           color: catColor,
         });
-      } else if (tx.type === "expense") {
+      } else if (dir === CoaDirection.EXPENSE) {
         expenseByMonth.set(key, (expenseByMonth.get(key) ?? 0) + amount);
         const existing = expenseByCat.get(catName) ?? {
           amount: 0,
@@ -308,7 +332,13 @@ export class ReportsService {
         select: {
           amount: true,
           type: true,
-          category: { select: { name: true, color: true } },
+          category: {
+            select: {
+              name: true,
+              color: true,
+              coaAccount: { select: { direction: true } },
+            },
+          },
         },
       }),
       this.prisma.transaction.findMany({
@@ -317,7 +347,11 @@ export class ReportsService {
           occurredAt: { gte: prevStart, lte: prevEnd },
           ...transactionPrivacyWhere(canSeePrivate),
         },
-        select: { amount: true, type: true },
+        select: {
+          amount: true,
+          type: true,
+          category: { select: { coaAccount: { select: { direction: true } } } },
+        },
       }),
     ]);
 
@@ -337,7 +371,7 @@ export class ReportsService {
       const catName = tx.category?.name ?? "Lainnya";
       const catColor = tx.category?.color ?? null;
 
-      const dir = transactionTypeToCoaDirection(tx.type as TransactionType);
+      const dir = txCoaDirection(tx);
       if (dir === CoaDirection.INCOME) {
         revenue += amount;
         const existing = revenueByCategory.get(catName) ?? {
@@ -365,7 +399,7 @@ export class ReportsService {
     let previousExpenses = 0;
     for (const tx of prevTxs) {
       const amount = Number(tx.amount);
-      const dir = transactionTypeToCoaDirection(tx.type as TransactionType);
+      const dir = txCoaDirection(tx);
       if (dir === CoaDirection.INCOME) previousRevenue += amount;
       else if (dir === CoaDirection.EXPENSE) previousExpenses += amount;
     }
@@ -490,7 +524,11 @@ export class ReportsService {
           occurredAt: { gte: startDate, lte: endDate },
           ...transactionPrivacyWhere(canSeePrivate),
         },
-        select: { amount: true, type: true },
+        select: {
+          amount: true,
+          type: true,
+          category: { select: { coaAccount: { select: { direction: true } } } },
+        },
       }),
       this.prisma.account.findMany({
         where: { familyGroupId, ...accountPrivacyWhere(canSeePrivate) },
@@ -501,10 +539,13 @@ export class ReportsService {
     let operatingInflows = 0;
     let operatingOutflows = 0;
 
+    // COA-driven (EPIC-017): TRANSFER-direction flows (wealth allocation) are
+    // excluded from operating cashflow, matching P&L classification.
     for (const tx of txs) {
       const amount = Number(tx.amount);
-      if (tx.type === "income") operatingInflows += amount;
-      else if (tx.type === "expense") operatingOutflows += amount;
+      const dir = txCoaDirection(tx);
+      if (dir === CoaDirection.INCOME) operatingInflows += amount;
+      else if (dir === CoaDirection.EXPENSE) operatingOutflows += amount;
     }
 
     const netOperating = operatingInflows - operatingOutflows;
@@ -538,17 +579,24 @@ export class ReportsService {
     endDate: Date,
     canSeePrivate: boolean,
   ): Promise<SankeyDto> {
+    // No tx.type filter: classification is COA-driven (EPIC-017), so include all
+    // transactions and keep only INCOME/EXPENSE COA directions below.
     const txs = await this.prisma.transaction.findMany({
       where: {
         familyGroupId,
         occurredAt: { gte: startDate, lte: endDate },
-        type: { in: ["income", "expense"] },
         ...transactionPrivacyWhere(canSeePrivate),
       },
       select: {
         amount: true,
         type: true,
-        category: { select: { id: true, name: true } },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            coaAccount: { select: { direction: true } },
+          },
+        },
       },
     });
 
@@ -560,8 +608,9 @@ export class ReportsService {
       const amount = Number(tx.amount);
       const catId = tx.category?.id ?? "uncategorized";
       const catLabel = tx.category?.name ?? "Lainnya";
+      const dir = txCoaDirection(tx);
 
-      if (tx.type === "income") {
+      if (dir === CoaDirection.INCOME) {
         const existing = incomeNodes.get(catId) ?? {
           label: catLabel,
           amount: 0,
@@ -570,7 +619,7 @@ export class ReportsService {
           label: catLabel,
           amount: existing.amount + amount,
         });
-      } else if (tx.type === "expense") {
+      } else if (dir === CoaDirection.EXPENSE) {
         const existing = expenseNodes.get(catId) ?? {
           label: catLabel,
           amount: 0,
