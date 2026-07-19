@@ -114,7 +114,7 @@ Grounded in a direct read pass (2026-07-19). Key findings:
     A and on B's mappings; with MANDATORY mapping there is no fallback, so B's
     mappings must be populated before COA classification is correct.
 
-- [ ] ### D — Budgets by COA + real `budgetType`
+- [x] ### D — Budgets by COA + real `budgetType` ✅
   - Make budgets tie to COA (directly, or transitively via the category's COA
     link) so `budgetType` (FIXED / VARIABLE / REIMBURSEMENT) is actually used
     — e.g. in budget grouping, variance logic, or a report breakdown (Open
@@ -317,3 +317,15 @@ registry).
   `scripts/test.sh` PASS (monorepo build + web 38/38 + api), security-check
   PASS, ecc security/react/typescript reviewers all PASS. Branch
   `feat/epic-017-task-2-category-coa-mapping-ux`.
+- 2026-07-19 /epic-loop EPIC-017 #4 "D — Budgets by COA + real budgetType" →
+  PASS (attempts: 1). **Decision #4 resolved with user: "Report breakdown"
+  scope** (display/grouping + budget-vs-actual by budgetType; read-only, no
+  rollover logic). `BudgetDto` gains `budgetType` (FIXED/VARIABLE/REIMBURSEMENT |
+  null), resolved via the category's COA account (`budgets.service` includes
+  `category.coaAccount.budgetType`). `/anggaran` shows a budgetType badge per
+  budget + a "Rincian per Tipe Anggaran" budget-vs-actual breakdown grouped by
+  type (client-side aggregate). Gates: full `scripts/test.sh` PASS (web 38/38 +
+  api build), security-check PASS, ecc react/typescript reviewers PASS. Branch
+  `feat/epic-017-task-4-budgets-by-budgettype`. (Note: this branch is off
+  development, which has A+B but not yet C (#182) — epic checkboxes reconcile as
+  PRs merge.)
