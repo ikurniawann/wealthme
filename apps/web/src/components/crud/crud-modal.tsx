@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { CRUD_CONFIG, type CrudEntity, type CrudField } from "./crud-config";
 
 export type CrudMode = "add" | "edit";
@@ -57,6 +58,8 @@ function initialFieldValues(
       values[f.key] = f.type === "amount" ? formatThousands(given) : given;
     } else if (f.type === "select" || f.type === "iconpick") {
       values[f.key] = f.options?.[0] ?? "";
+    } else if (f.type === "toggle") {
+      values[f.key] = "false";
     } else {
       values[f.key] = "";
     }
@@ -122,81 +125,104 @@ function CrudForm({ state, onClose, onSubmit }: CrudFormProps) {
         </DialogHeader>
 
         <div className="space-y-3">
-          {config.fields.map((f) => (
-            <div key={f.key}>
-              <label className="mb-1.5 block text-[12px] font-semibold text-muted-foreground">
-                {f.label}
-              </label>
-              {f.type === "select" ? (
-                <select
-                  className={FIELD_INPUT_CLASS}
-                  value={values[f.key] ?? ""}
-                  onChange={(e) => setField(f.key, e.target.value)}
-                >
-                  {(f.options ?? []).map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
-                </select>
-              ) : f.type === "textarea" ? (
-                <Textarea
-                  rows={2}
-                  className="resize-none text-[13px]"
-                  placeholder={f.placeholder}
-                  value={values[f.key] ?? ""}
-                  onChange={(e) => setField(f.key, e.target.value)}
+          {config.fields.map((f) =>
+            f.type === "toggle" ? (
+              <div
+                key={f.key}
+                className="flex items-center justify-between gap-3 rounded-lg border p-3"
+              >
+                <div>
+                  <div className="text-[13px] font-semibold">{f.label}</div>
+                  {f.helperText && (
+                    <div className="text-[11.5px] text-muted-foreground">
+                      {f.helperText}
+                    </div>
+                  )}
+                </div>
+                <Switch
+                  aria-label={f.label}
+                  checked={values[f.key] === "true"}
+                  onCheckedChange={(checked) =>
+                    setField(f.key, checked ? "true" : "false")
+                  }
                 />
-              ) : f.type === "amount" ? (
-                <div className="relative">
-                  <span className="absolute top-1/2 left-3 -translate-y-1/2 text-[12px] font-semibold text-muted-foreground">
-                    Rp
-                  </span>
-                  <Input
-                    inputMode="numeric"
-                    className="pl-9 text-[13px]"
-                    placeholder="0"
+              </div>
+            ) : (
+              <div key={f.key}>
+                <label className="mb-1.5 block text-[12px] font-semibold text-muted-foreground">
+                  {f.label}
+                </label>
+                {f.type === "select" ? (
+                  <select
+                    className={FIELD_INPUT_CLASS}
                     value={values[f.key] ?? ""}
-                    onChange={(e) =>
-                      setField(f.key, formatThousands(e.target.value))
-                    }
+                    onChange={(e) => setField(f.key, e.target.value)}
+                  >
+                    {(f.options ?? []).map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                  </select>
+                ) : f.type === "textarea" ? (
+                  <Textarea
+                    rows={2}
+                    className="resize-none text-[13px]"
+                    placeholder={f.placeholder}
+                    value={values[f.key] ?? ""}
+                    onChange={(e) => setField(f.key, e.target.value)}
                   />
-                </div>
-              ) : f.type === "iconpick" ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {(f.options ?? []).map((o) => (
-                    <button
-                      key={o}
-                      type="button"
-                      onClick={() => setField(f.key, o)}
-                      className={`flex size-9 items-center justify-center rounded-lg border text-[16px] transition-colors ${
-                        values[f.key] === o
-                          ? "border-primary bg-accent"
-                          : "bg-background hover:border-primary/50"
-                      }`}
-                    >
-                      {o}
-                    </button>
-                  ))}
-                </div>
-              ) : f.type === "date" ? (
-                <Input
-                  type="date"
-                  className="text-[13px]"
-                  value={values[f.key] ?? ""}
-                  onChange={(e) => setField(f.key, e.target.value)}
-                />
-              ) : (
-                <Input
-                  type={f.type === "number" ? "number" : "text"}
-                  className="text-[13px]"
-                  placeholder={f.placeholder}
-                  value={values[f.key] ?? ""}
-                  onChange={(e) => setField(f.key, e.target.value)}
-                />
-              )}
-            </div>
-          ))}
+                ) : f.type === "amount" ? (
+                  <div className="relative">
+                    <span className="absolute top-1/2 left-3 -translate-y-1/2 text-[12px] font-semibold text-muted-foreground">
+                      Rp
+                    </span>
+                    <Input
+                      inputMode="numeric"
+                      className="pl-9 text-[13px]"
+                      placeholder="0"
+                      value={values[f.key] ?? ""}
+                      onChange={(e) =>
+                        setField(f.key, formatThousands(e.target.value))
+                      }
+                    />
+                  </div>
+                ) : f.type === "iconpick" ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {(f.options ?? []).map((o) => (
+                      <button
+                        key={o}
+                        type="button"
+                        onClick={() => setField(f.key, o)}
+                        className={`flex size-9 items-center justify-center rounded-lg border text-[16px] transition-colors ${
+                          values[f.key] === o
+                            ? "border-primary bg-accent"
+                            : "bg-background hover:border-primary/50"
+                        }`}
+                      >
+                        {o}
+                      </button>
+                    ))}
+                  </div>
+                ) : f.type === "date" ? (
+                  <Input
+                    type="date"
+                    className="text-[13px]"
+                    value={values[f.key] ?? ""}
+                    onChange={(e) => setField(f.key, e.target.value)}
+                  />
+                ) : (
+                  <Input
+                    type={f.type === "number" ? "number" : "text"}
+                    className="text-[13px]"
+                    placeholder={f.placeholder}
+                    value={values[f.key] ?? ""}
+                    onChange={(e) => setField(f.key, e.target.value)}
+                  />
+                )}
+              </div>
+            ),
+          )}
         </div>
 
         <Button className="w-full" onClick={handleSave} disabled={isSaving}>

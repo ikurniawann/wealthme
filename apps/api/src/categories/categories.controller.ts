@@ -6,7 +6,9 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
+  Req,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -18,12 +20,17 @@ import {
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { canSeePrivateItems } from "../common/utils/privacy.util";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CategoriesService } from "./categories.service";
 import { CategoryResponseDto } from "./dto/category-response.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateCategoryDto } from "./dto/create-category.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { UpdateCategoryDto } from "./dto/update-category.dto";
+
+import type { Request } from "express";
 
 @ApiTags("categories")
 @ApiBearerAuth()
@@ -52,8 +59,25 @@ export class CategoriesController {
   @ApiResponse({ status: 200, type: [CategoryResponseDto] })
   findAll(
     @Param("familyGroupId") familyGroupId: string,
+    @Req() req: Request,
   ): Promise<CategoryResponseDto[]> {
-    return this.categoriesService.findAll(familyGroupId);
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
+    return this.categoriesService.findAll(familyGroupId, canSeePrivate);
+  }
+
+  @Patch(":id")
+  @CheckAbility((ab: AppAbility) => ab.can("update", "Category"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "id", type: String })
+  @ApiOperation({ summary: "Update a category for a family group" })
+  @ApiResponse({ status: 200, type: CategoryResponseDto })
+  @ApiResponse({ status: 404, description: "Category not found" })
+  update(
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("id") id: string,
+    @Body() dto: UpdateCategoryDto,
+  ): Promise<CategoryResponseDto> {
+    return this.categoriesService.update(familyGroupId, id, dto);
   }
 
   @Delete(":id")

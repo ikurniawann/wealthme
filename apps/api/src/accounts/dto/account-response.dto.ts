@@ -37,6 +37,13 @@ export class AccountResponseDto {
   @ApiProperty({ type: String, description: "ISO 4217 currency code" })
   currency!: string;
 
+  @ApiProperty({
+    type: Boolean,
+    description:
+      "Hidden from `member` viewers in shared family views when true",
+  })
+  isPrivate!: boolean;
+
   @ApiProperty({ type: String, format: "date-time" })
   createdAt!: string;
 

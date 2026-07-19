@@ -4,6 +4,7 @@ import {
   CATEGORIZATION_PORT,
   type CategorizationPort,
 } from "../categorization/categorization.port";
+import { transactionPrivacyWhere } from "../common/utils/privacy.util";
 import {
   ownerNotifPrefs,
   resolveNotifPrefs,
@@ -49,15 +50,20 @@ export class TransactionsService {
     private readonly notificationSender: NotificationSenderPort,
   ) {}
 
+  /**
+   * `canSeePrivate` defaults to `true` so internal/non-member-facing callers
+   * stay unfiltered — only member-facing controller calls pass `false`.
+   */
   async findAll(
     familyGroupId: string,
     query: ListTransactionsQueryDto,
+    canSeePrivate = true,
   ): Promise<TransactionListResponseDto> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
-    const where = this.buildWhere(familyGroupId, query);
+    const where = this.buildWhere(familyGroupId, query, canSeePrivate);
 
     const [transactions, total] = await Promise.all([
       this.prisma.transaction.findMany({
@@ -76,7 +82,11 @@ export class TransactionsService {
       this.prisma.transaction.count({ where }),
     ]);
 
-    const summary = await this.computeSummary(familyGroupId, query);
+    const summary = await this.computeSummary(
+      familyGroupId,
+      query,
+      canSeePrivate,
+    );
 
     return {
       data: transactions.map(this.toDto),
@@ -88,9 +98,13 @@ export class TransactionsService {
   async findOne(
     familyGroupId: string,
     id: string,
+    canSeePrivate = true,
   ): Promise<TransactionResponseDto> {
-    const tx = await this.prisma.transaction.findUnique({
-      where: { id, familyGroupId },
+    // findFirst (not findUnique) so the relation-based privacy filter can apply:
+    // a `member` requesting a transaction tied to a private account/category
+    // gets the not-found path — its existence must not leak.
+    const tx = await this.prisma.transaction.findFirst({
+      where: { id, familyGroupId, ...transactionPrivacyWhere(canSeePrivate) },
       include: {
         category: { select: { name: true } },
         account: { select: { name: true } },
@@ -453,15 +467,20 @@ export class TransactionsService {
   async getSummary(
     familyGroupId: string,
     query: ListTransactionsQueryDto,
+    canSeePrivate = true,
   ): Promise<TransactionSummaryDto> {
-    return this.computeSummary(familyGroupId, query);
+    return this.computeSummary(familyGroupId, query, canSeePrivate);
   }
 
   async scanReceipt(imageBase64: string): Promise<OcrResult> {
     return this.ocrPort.extractTransaction(imageBase64);
   }
 
-  private buildWhere(familyGroupId: string, query: ListTransactionsQueryDto) {
+  private buildWhere(
+    familyGroupId: string,
+    query: ListTransactionsQueryDto,
+    canSeePrivate = true,
+  ) {
     return {
       familyGroupId,
       ...(query.type && { type: query.type }),
@@ -473,14 +492,16 @@ export class TransactionsService {
           ...(query.to && { lte: new Date(query.to) }),
         },
       }),
+      ...transactionPrivacyWhere(canSeePrivate),
     };
   }
 
   private async computeSummary(
     familyGroupId: string,
     query: ListTransactionsQueryDto,
+    canSeePrivate = true,
   ): Promise<TransactionSummaryDto> {
-    const where = this.buildWhere(familyGroupId, query);
+    const where = this.buildWhere(familyGroupId, query, canSeePrivate);
 
     const [incomeAgg, expenseAgg] = await Promise.all([
       this.prisma.transaction.aggregate({

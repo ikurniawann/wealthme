@@ -30,7 +30,8 @@ var CreateAccountInputSchema = z3.object({
   institution: z3.string().optional(),
   maskedNumber: z3.string().optional(),
   balance: z3.number().int(),
-  currency: z3.string().default("IDR")
+  currency: z3.string().default("IDR"),
+  isPrivate: z3.boolean().optional()
 });
 var UpdateAccountInputSchema = CreateAccountInputSchema.partial();
 var AccountDtoSchema = z3.object({
@@ -42,6 +43,7 @@ var AccountDtoSchema = z3.object({
   maskedNumber: z3.string().nullable(),
   balance: z3.string(),
   currency: z3.string(),
+  isPrivate: z3.boolean(),
   createdAt: z3.string(),
   updatedAt: z3.string()
 });
@@ -56,6 +58,7 @@ var CategoryDtoSchema = z4.object({
   kind: CategoryKindSchema,
   color: z4.string().nullable(),
   icon: z4.string().nullable(),
+  isPrivate: z4.boolean(),
   createdAt: z4.string()
 });
 

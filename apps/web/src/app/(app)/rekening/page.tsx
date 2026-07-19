@@ -39,6 +39,7 @@ type AccountCard = {
   balance: string;
   rawBalance: number;
   type: string;
+  isPrivate: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -127,6 +128,7 @@ function toCardData(account: AccountDto): AccountCard {
     type: account.institution
       ? `${TYPE_LABELS[account.type] ?? account.type} · ${account.institution}`
       : (TYPE_LABELS[account.type] ?? account.type),
+    isPrivate: account.isPrivate,
   };
 }
 
@@ -169,6 +171,9 @@ function AccountCardItem({ account, onEdit, onDelete }: AccountCardItemProps) {
           When the API adds it, replace this with conditional logic.
         */}
         <StatusBadge variant="success">Aktif</StatusBadge>
+        {account.isPrivate && (
+          <StatusBadge variant="purple">🔒 Privat</StatusBadge>
+        )}
 
         {/* Kebab menu: Edit + Hapus folded out of the main action row */}
         <DropdownMenu>
@@ -280,7 +285,11 @@ export default function RekeningPage() {
     setCrudState({
       entity: "rekening",
       mode: "edit",
-      initialValues: { nama: account.name, saldo: String(account.rawBalance) },
+      initialValues: {
+        nama: account.name,
+        saldo: String(account.rawBalance),
+        isPrivate: String(account.isPrivate),
+      },
     });
   }
 
@@ -299,13 +308,14 @@ export default function RekeningPage() {
     if (!familyGroupId || !token) return;
     try {
       const balance = parseRupiah(values.saldo ?? "0");
+      const isPrivate = values.isPrivate === "true";
       if (mode === "edit" && editingId) {
         await apiFetch(
           `/family-groups/${familyGroupId}/accounts/${editingId}`,
           {
             token,
             method: "PATCH",
-            body: JSON.stringify({ name: values.nama, balance }),
+            body: JSON.stringify({ name: values.nama, balance, isPrivate }),
           },
         );
         toast.success("Rekening berhasil diperbarui!");
@@ -319,6 +329,7 @@ export default function RekeningPage() {
             institution: values.bank,
             maskedNumber: values.norek || undefined,
             balance,
+            isPrivate,
           }),
         });
         toast.success("Rekening berhasil ditambahkan!");

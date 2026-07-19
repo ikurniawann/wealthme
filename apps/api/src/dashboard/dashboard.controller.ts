@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from "@nestjs/common";
+import { Controller, Get, Param, Query, Req } from "@nestjs/common";
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -15,9 +15,12 @@ import {
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { canSeePrivateItems } from "../common/utils/privacy.util";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { DashboardService } from "./dashboard.service";
+
+import type { Request } from "express";
 
 @ApiTags("dashboard")
 @ApiBearerAuth()
@@ -32,8 +35,10 @@ export class DashboardController {
   @ApiResponse({ status: 200, description: "Dashboard summary data" })
   getSummary(
     @Param("familyGroupId") familyGroupId: string,
+    @Req() req: Request,
   ): Promise<DashboardSummaryDto> {
-    return this.dashboardService.getSummary(familyGroupId);
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
+    return this.dashboardService.getSummary(familyGroupId, canSeePrivate);
   }
 
   @Get("net-worth")
@@ -43,8 +48,10 @@ export class DashboardController {
   @ApiResponse({ status: 200, description: "Net-worth breakdown by category" })
   getNetWorth(
     @Param("familyGroupId") familyGroupId: string,
+    @Req() req: Request,
   ): Promise<NetWorthDto> {
-    return this.dashboardService.getNetWorth(familyGroupId);
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
+    return this.dashboardService.getNetWorth(familyGroupId, canSeePrivate);
   }
 
   @Get("net-worth/history")
