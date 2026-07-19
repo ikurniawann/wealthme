@@ -131,7 +131,7 @@ Grounded in a direct read pass (2026-07-19). Key findings:
     classification from Task C so the numbers agree across screens.
   - Depends on A, C.
 
-- [ ] ### F — Make the /mastercoa UI honest and real
+- [x] ### F — Make the /mastercoa UI honest and real ✅
   - Replace the browser name-match "Kategori Terhubung / Belum Dimapping" cards
     (`mastercoa/page.tsx:139-143`, `:300-340`) with the server-truth counts from
     Task B.
@@ -352,3 +352,14 @@ CoaAccount` direction (new `txCoaDirection` helper); category-less tx fall back
   tx.type regression test), typecheck + eslint clean, security-check PASS, ecc
   typescript + review-qa PASS. Branch
   `feat/epic-017-task-5-coa-rollups-dashboard`.
+- 2026-07-19 /epic-loop EPIC-017 #6 "F — Make the /mastercoa UI honest and real"
+  → PASS (attempts: 1). The "Kategori Terhubung / Belum Dimapping" counts were
+  already made server-truth in Task B (retitled "Akun COA Kosong"). F fixes the
+  "Dipakai di Laporan" card: now that C+E ship, it honestly lists the COA-driven
+  reports (**PNL · Arus Kas · Ringkasan**) with an "Aktif" badge, and notes
+  **Neraca stays balance-based** (was mislabeled as COA-driven). Trivial cosmetic
+  card change (one page file); typecheck + eslint + security-check PASS.
+  Branch `feat/epic-017-task-6-mastercoa-honest-ui`. **All six task groups (A–G)
+  complete.** After F merges, development has the full A→F stack; run DEV deploy
+  - flip status to `ready-for-qa` for human QA (verify report numbers shifted
+    sanely, esp. PNL/Arus Kas/Ringkasan where categories map to TRANSFER COA).
