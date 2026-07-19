@@ -205,7 +205,13 @@ function SetRow({
 function ToggleBox({
   rows,
 }: {
-  rows: { label: string; sub: string; defaultChecked?: boolean }[];
+  rows: {
+    label: string;
+    sub: string;
+    defaultChecked?: boolean;
+    checked?: boolean;
+    onCheckedChange?: (v: boolean) => void;
+  }[];
 }) {
   return (
     <div className="rounded-lg border bg-card px-4 py-3.5">
@@ -222,11 +228,20 @@ function ToggleBox({
               {r.sub}
             </div>
           </div>
-          <Switch
-            aria-label={r.label}
-            defaultChecked={r.defaultChecked}
-            className="shrink-0"
-          />
+          {r.checked !== undefined ? (
+            <Switch
+              aria-label={r.label}
+              checked={r.checked}
+              onCheckedChange={r.onCheckedChange}
+              className="shrink-0"
+            />
+          ) : (
+            <Switch
+              aria-label={r.label}
+              defaultChecked={r.defaultChecked}
+              className="shrink-0"
+            />
+          )}
         </div>
       ))}
     </div>
@@ -961,7 +976,53 @@ export function PengaturanBody() {
   );
 }
 
-function NotifSettingBody() {
+const NOTIF_PREF_KEYS = [
+  "txnIn",
+  "txnOut",
+  "txnBig",
+  "budget80",
+  "goalMilestone",
+  "billDue",
+  "stockPrice",
+  "dividend",
+] as const;
+
+export function NotifSettingBody() {
+  const { data: session } = useSession();
+  const queryClient = useQueryClient();
+  const { data: profile } = useProfile();
+  // Overrides map for in-flight edits — avoids a seeding effect that would
+  // clobber user edits when the profile query refetches/refreshes.
+  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
+
+  const isOn = (key: string): boolean =>
+    overrides[key] ?? profile?.notificationPrefs?.[key] ?? true;
+  const set = (key: string) => (v: boolean) =>
+    setOverrides((o) => ({ ...o, [key]: v }));
+
+  const { mutate: saveNotifPrefs, isPending } = useMutation({
+    mutationFn: (payload: Record<string, boolean>) =>
+      apiFetch("/auth/profile", {
+        method: "PATCH",
+        token: session?.accessToken,
+        body: JSON.stringify({ notificationPrefs: payload }),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["auth", "profile", session?.accessToken],
+      });
+      toast.success("✅ Pengaturan notifikasi disimpan");
+    },
+    onError: () => toast.error("Gagal menyimpan pengaturan notifikasi"),
+  });
+
+  function save() {
+    const payload = Object.fromEntries(
+      NOTIF_PREF_KEYS.map((k) => [k, isOn(k)]),
+    );
+    saveNotifPrefs(payload);
+  }
+
   return (
     <>
       <SetSection>
@@ -971,17 +1032,20 @@ function NotifSettingBody() {
             {
               label: "Notif Transaksi Masuk",
               sub: "Setiap ada dana masuk ke rekening",
-              defaultChecked: true,
+              checked: isOn("txnIn"),
+              onCheckedChange: set("txnIn"),
             },
             {
               label: "Notif Transaksi Keluar",
               sub: "Setiap ada pengeluaran",
-              defaultChecked: true,
+              checked: isOn("txnOut"),
+              onCheckedChange: set("txnOut"),
             },
             {
               label: "Transaksi Besar (>Rp 5 jt)",
               sub: "Alert khusus untuk transaksi besar",
-              defaultChecked: true,
+              checked: isOn("txnBig"),
+              onCheckedChange: set("txnBig"),
             },
           ]}
         />
@@ -993,17 +1057,20 @@ function NotifSettingBody() {
             {
               label: "Anggaran Mendekati Batas",
               sub: "Alert saat 80% budget terpakai",
-              defaultChecked: true,
+              checked: isOn("budget80"),
+              onCheckedChange: set("budget80"),
             },
             {
               label: "Update Progres Tujuan",
               sub: "Notifikasi saat milestone tercapai",
-              defaultChecked: true,
+              checked: isOn("goalMilestone"),
+              onCheckedChange: set("goalMilestone"),
             },
             {
               label: "Jatuh Tempo Tagihan",
               sub: "Pengingat 3 hari sebelum jatuh tempo",
-              defaultChecked: true,
+              checked: isOn("billDue"),
+              onCheckedChange: set("billDue"),
             },
           ]}
         />
@@ -1015,19 +1082,26 @@ function NotifSettingBody() {
             {
               label: "Update Harga Saham",
               sub: "Notifikasi perubahan harga signifikan",
-              defaultChecked: true,
+              checked: isOn("stockPrice"),
+              onCheckedChange: set("stockPrice"),
             },
             {
               label: "Dividen Masuk",
               sub: "Notif saat dividen diterima",
-              defaultChecked: true,
+              checked: isOn("dividend"),
+              onCheckedChange: set("dividend"),
             },
           ]}
         />
+        <p className="mt-2 text-[11.5px] text-muted-foreground">
+          Disimpan, tapi belum aktif — sumber data harga & dividen belum
+          tersedia.
+        </p>
       </SetSection>
       <button
         className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground"
-        onClick={() => toast.success("✅ Pengaturan notifikasi disimpan")}
+        onClick={save}
+        disabled={isPending}
       >
         <Save className="size-4" /> Simpan
       </button>

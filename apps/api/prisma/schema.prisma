@@ -163,6 +163,11 @@ model User {
   // plaintext unlike birthDate/monthlyIncome. Conversion rates come from the
   // mock FxPort, so any non-IDR display is always labeled indicative in the UI.
   currency       String      @default("IDR") @db.VarChar(3)
+  // Per-user notification toggles (EPIC-016 B3). Nullable JSON map of the 8
+  // known keys → boolean; null = never set → use defaults. Stored sanitized by
+  // resolveNotifPrefs. In-app Notification rows are family-scoped, so
+  // enforcement reads the family OWNER's prefs (see notification-prefs.ts).
+  notificationPrefs Json?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
   memberships    Member[]

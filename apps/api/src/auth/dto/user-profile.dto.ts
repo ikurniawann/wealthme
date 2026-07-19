@@ -73,6 +73,13 @@ export class UserProfileDto {
   })
   currency?: string;
 
+  @ApiPropertyOptional({
+    type: "object",
+    additionalProperties: { type: "boolean" },
+    description: "Resolved notification preferences (only on /auth/profile)",
+  })
+  notificationPrefs?: Record<string, boolean>;
+
   @ApiProperty({
     type: String,
     format: "date-time",

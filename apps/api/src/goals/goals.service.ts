@@ -4,6 +4,7 @@ import {
   TransactionType,
 } from "@prisma/client";
 
+import { ownerNotifPrefs } from "../notifications/notification-prefs";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -241,6 +242,7 @@ export class GoalsService {
         },
         select: { id: true },
       });
+      const notifPrefs = await ownerNotifPrefs(this.prisma, goal.familyGroupId);
 
       await this.prisma.$transaction(async (tx) => {
         await tx.goal.update({
@@ -265,14 +267,16 @@ export class GoalsService {
           });
         }
 
-        await tx.notification.create({
-          data: {
-            familyGroupId: goal.familyGroupId,
-            title: "Auto-debit tujuan",
-            body: `${goal.name} bertambah Rp${actual.toString()} dari auto-debit bulanan.`,
-            icon: goal.icon ?? "🎯",
-          },
-        });
+        if (notifPrefs.goalMilestone) {
+          await tx.notification.create({
+            data: {
+              familyGroupId: goal.familyGroupId,
+              title: "Auto-debit tujuan",
+              body: `${goal.name} bertambah Rp${actual.toString()} dari auto-debit bulanan.`,
+              icon: goal.icon ?? "🎯",
+            },
+          });
+        }
       });
 
       debited += 1;

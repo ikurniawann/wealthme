@@ -5,6 +5,10 @@ import {
   type CategorizationPort,
 } from "../categorization/categorization.port";
 import {
+  ownerNotifPrefs,
+  resolveNotifPrefs,
+} from "../notifications/notification-prefs";
+import {
   NOTIFICATION_SENDER_PORT,
   type NotificationSenderPort,
 } from "../notifications/notification-sender.port";
@@ -167,6 +171,12 @@ export class TransactionsService {
     if (dto.type === "expense") {
       void this.checkCashFlowAlert(familyGroupId);
     }
+    void this.notifyTransaction(
+      familyGroupId,
+      dto.type,
+      BigInt(dto.amount),
+      created,
+    );
 
     return this.toDto(created);
   }
@@ -205,7 +215,11 @@ export class TransactionsService {
       const [owner, category] = await Promise.all([
         this.prisma.member.findFirst({
           where: { familyGroupId, role: "owner" },
-          include: { user: { select: { email: true, name: true } } },
+          include: {
+            user: {
+              select: { email: true, name: true, notificationPrefs: true },
+            },
+          },
         }),
         this.prisma.category.findUnique({
           where: { id: categoryId, familyGroupId },
@@ -213,6 +227,7 @@ export class TransactionsService {
         }),
       ]);
       if (!owner) return;
+      if (!resolveNotifPrefs(owner.user.notificationPrefs).budget80) return;
 
       const safeName = escapeHtml(category?.name ?? "kategori ini");
       const subject =
@@ -299,6 +314,40 @@ export class TransactionsService {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.warn(`Cash flow alert skipped: ${msg}`);
+    }
+  }
+
+  private async notifyTransaction(
+    familyGroupId: string,
+    type: string,
+    amount: bigint,
+    tx: { category: { name: string } | null; account: { name: string } | null },
+  ): Promise<void> {
+    try {
+      // Only income/expense produce a feed notification; transfers stay silent.
+      const isIncome = type === "income";
+      const isExpense = type === "expense";
+      if (!isIncome && !isExpense) return;
+
+      const prefs = await ownerNotifPrefs(this.prisma, familyGroupId);
+      const isBig = amount >= BigInt(5_000_000);
+      const wantByType = isIncome ? prefs.txnIn : prefs.txnOut;
+      // txnBig is an additive alert for large amounts of either direction.
+      if (!wantByType && !(isBig && prefs.txnBig)) return;
+
+      const label = isIncome ? "Transaksi masuk" : "Transaksi keluar";
+      const catName = tx.category?.name ?? "Tanpa kategori";
+      await this.prisma.notification.create({
+        data: {
+          familyGroupId,
+          title: isBig ? `${label} besar` : label,
+          body: `${label} Rp ${amount.toString()} — ${catName}`,
+          icon: isIncome ? "📥" : "📤",
+        },
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Transaction notification skipped: ${msg}`);
     }
   }
 
