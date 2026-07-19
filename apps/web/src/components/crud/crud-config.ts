@@ -8,7 +8,8 @@ export type CrudFieldType =
   | "date"
   | "select"
   | "textarea"
-  | "iconpick";
+  | "iconpick"
+  | "toggle";
 
 export interface CrudField {
   key: string;
@@ -16,6 +17,8 @@ export interface CrudField {
   type: CrudFieldType;
   placeholder?: string;
   options?: string[];
+  /** Sub-copy shown under the label — used by the "toggle" field type. */
+  helperText?: string;
 }
 
 export interface CrudEntityConfig {
@@ -77,6 +80,12 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         label: "Jenis",
         type: "select",
         options: ["Tabungan", "Giro", "Deposito"],
+      },
+      {
+        key: "isPrivate",
+        label: "Rekening Privat",
+        type: "toggle",
+        helperText: "Sembunyikan dari anggota keluarga lain",
       },
     ],
   },
@@ -303,6 +312,12 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         label: "Tipe",
         type: "select",
         options: ["Pengeluaran", "Pemasukan"],
+      },
+      {
+        key: "isPrivate",
+        label: "Kategori Privat",
+        type: "toggle",
+        helperText: "Sembunyikan dari anggota keluarga lain",
       },
     ],
   },

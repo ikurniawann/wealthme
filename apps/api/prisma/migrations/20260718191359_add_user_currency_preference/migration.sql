@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "users" ADD COLUMN     "currency" VARCHAR(3) NOT NULL DEFAULT 'IDR';

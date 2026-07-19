@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 
+import { ownerNotifPrefs } from "../notifications/notification-prefs";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -201,6 +202,9 @@ export class InsurancesService {
     const days = daysUntil(renewalDate);
     if (days < 0 || days > 30) return;
     try {
+      const prefs = await ownerNotifPrefs(this.prisma, familyGroupId);
+      if (!prefs.billDue) return;
+
       await this.prisma.notification.create({
         data: {
           familyGroupId,

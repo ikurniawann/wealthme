@@ -54,6 +54,7 @@ declare const CreateAccountInputSchema: z.ZodObject<{
     maskedNumber: z.ZodOptional<z.ZodString>;
     balance: z.ZodNumber;
     currency: z.ZodDefault<z.ZodString>;
+    isPrivate: z.ZodOptional<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     type: "bank" | "ewallet" | "cash" | "investment" | "property";
     name: string;
@@ -61,6 +62,7 @@ declare const CreateAccountInputSchema: z.ZodObject<{
     currency: string;
     institution?: string | undefined;
     maskedNumber?: string | undefined;
+    isPrivate?: boolean | undefined;
 }, {
     type: "bank" | "ewallet" | "cash" | "investment" | "property";
     name: string;
@@ -68,6 +70,7 @@ declare const CreateAccountInputSchema: z.ZodObject<{
     institution?: string | undefined;
     maskedNumber?: string | undefined;
     currency?: string | undefined;
+    isPrivate?: boolean | undefined;
 }>;
 type CreateAccountInput = z.infer<typeof CreateAccountInputSchema>;
 declare const UpdateAccountInputSchema: z.ZodObject<{
@@ -77,6 +80,7 @@ declare const UpdateAccountInputSchema: z.ZodObject<{
     maskedNumber: z.ZodOptional<z.ZodOptional<z.ZodString>>;
     balance: z.ZodOptional<z.ZodNumber>;
     currency: z.ZodOptional<z.ZodDefault<z.ZodString>>;
+    isPrivate: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
 }, "strip", z.ZodTypeAny, {
     type?: "bank" | "ewallet" | "cash" | "investment" | "property" | undefined;
     name?: string | undefined;
@@ -84,6 +88,7 @@ declare const UpdateAccountInputSchema: z.ZodObject<{
     maskedNumber?: string | undefined;
     balance?: number | undefined;
     currency?: string | undefined;
+    isPrivate?: boolean | undefined;
 }, {
     type?: "bank" | "ewallet" | "cash" | "investment" | "property" | undefined;
     name?: string | undefined;
@@ -91,6 +96,7 @@ declare const UpdateAccountInputSchema: z.ZodObject<{
     maskedNumber?: string | undefined;
     balance?: number | undefined;
     currency?: string | undefined;
+    isPrivate?: boolean | undefined;
 }>;
 type UpdateAccountInput = z.infer<typeof UpdateAccountInputSchema>;
 declare const AccountDtoSchema: z.ZodObject<{
@@ -102,6 +108,7 @@ declare const AccountDtoSchema: z.ZodObject<{
     maskedNumber: z.ZodNullable<z.ZodString>;
     balance: z.ZodString;
     currency: z.ZodString;
+    isPrivate: z.ZodBoolean;
     createdAt: z.ZodString;
     updatedAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
@@ -112,6 +119,7 @@ declare const AccountDtoSchema: z.ZodObject<{
     maskedNumber: string | null;
     balance: string;
     currency: string;
+    isPrivate: boolean;
     familyGroupId: string;
     createdAt: string;
     updatedAt: string;
@@ -123,6 +131,7 @@ declare const AccountDtoSchema: z.ZodObject<{
     maskedNumber: string | null;
     balance: string;
     currency: string;
+    isPrivate: boolean;
     familyGroupId: string;
     createdAt: string;
     updatedAt: string;
@@ -138,10 +147,12 @@ declare const CategoryDtoSchema: z.ZodObject<{
     kind: z.ZodEnum<["income", "expense"]>;
     color: z.ZodNullable<z.ZodString>;
     icon: z.ZodNullable<z.ZodString>;
+    isPrivate: z.ZodBoolean;
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     id: string;
     name: string;
+    isPrivate: boolean;
     familyGroupId: string;
     createdAt: string;
     kind: "income" | "expense";
@@ -150,6 +161,7 @@ declare const CategoryDtoSchema: z.ZodObject<{
 }, {
     id: string;
     name: string;
+    isPrivate: boolean;
     familyGroupId: string;
     createdAt: string;
     kind: "income" | "expense";

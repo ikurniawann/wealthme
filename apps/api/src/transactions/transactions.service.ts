@@ -4,6 +4,11 @@ import {
   CATEGORIZATION_PORT,
   type CategorizationPort,
 } from "../categorization/categorization.port";
+import { transactionPrivacyWhere } from "../common/utils/privacy.util";
+import {
+  ownerNotifPrefs,
+  resolveNotifPrefs,
+} from "../notifications/notification-prefs";
 import {
   NOTIFICATION_SENDER_PORT,
   type NotificationSenderPort,
@@ -45,15 +50,20 @@ export class TransactionsService {
     private readonly notificationSender: NotificationSenderPort,
   ) {}
 
+  /**
+   * `canSeePrivate` defaults to `true` so internal/non-member-facing callers
+   * stay unfiltered — only member-facing controller calls pass `false`.
+   */
   async findAll(
     familyGroupId: string,
     query: ListTransactionsQueryDto,
+    canSeePrivate = true,
   ): Promise<TransactionListResponseDto> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
-    const where = this.buildWhere(familyGroupId, query);
+    const where = this.buildWhere(familyGroupId, query, canSeePrivate);
 
     const [transactions, total] = await Promise.all([
       this.prisma.transaction.findMany({
@@ -72,7 +82,11 @@ export class TransactionsService {
       this.prisma.transaction.count({ where }),
     ]);
 
-    const summary = await this.computeSummary(familyGroupId, query);
+    const summary = await this.computeSummary(
+      familyGroupId,
+      query,
+      canSeePrivate,
+    );
 
     return {
       data: transactions.map(this.toDto),
@@ -84,9 +98,13 @@ export class TransactionsService {
   async findOne(
     familyGroupId: string,
     id: string,
+    canSeePrivate = true,
   ): Promise<TransactionResponseDto> {
-    const tx = await this.prisma.transaction.findUnique({
-      where: { id, familyGroupId },
+    // findFirst (not findUnique) so the relation-based privacy filter can apply:
+    // a `member` requesting a transaction tied to a private account/category
+    // gets the not-found path — its existence must not leak.
+    const tx = await this.prisma.transaction.findFirst({
+      where: { id, familyGroupId, ...transactionPrivacyWhere(canSeePrivate) },
       include: {
         category: { select: { name: true } },
         account: { select: { name: true } },
@@ -167,6 +185,12 @@ export class TransactionsService {
     if (dto.type === "expense") {
       void this.checkCashFlowAlert(familyGroupId);
     }
+    void this.notifyTransaction(
+      familyGroupId,
+      dto.type,
+      BigInt(dto.amount),
+      created,
+    );
 
     return this.toDto(created);
   }
@@ -205,7 +229,11 @@ export class TransactionsService {
       const [owner, category] = await Promise.all([
         this.prisma.member.findFirst({
           where: { familyGroupId, role: "owner" },
-          include: { user: { select: { email: true, name: true } } },
+          include: {
+            user: {
+              select: { email: true, name: true, notificationPrefs: true },
+            },
+          },
         }),
         this.prisma.category.findUnique({
           where: { id: categoryId, familyGroupId },
@@ -213,6 +241,7 @@ export class TransactionsService {
         }),
       ]);
       if (!owner) return;
+      if (!resolveNotifPrefs(owner.user.notificationPrefs).budget80) return;
 
       const safeName = escapeHtml(category?.name ?? "kategori ini");
       const subject =
@@ -299,6 +328,40 @@ export class TransactionsService {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.warn(`Cash flow alert skipped: ${msg}`);
+    }
+  }
+
+  private async notifyTransaction(
+    familyGroupId: string,
+    type: string,
+    amount: bigint,
+    tx: { category: { name: string } | null; account: { name: string } | null },
+  ): Promise<void> {
+    try {
+      // Only income/expense produce a feed notification; transfers stay silent.
+      const isIncome = type === "income";
+      const isExpense = type === "expense";
+      if (!isIncome && !isExpense) return;
+
+      const prefs = await ownerNotifPrefs(this.prisma, familyGroupId);
+      const isBig = amount >= BigInt(5_000_000);
+      const wantByType = isIncome ? prefs.txnIn : prefs.txnOut;
+      // txnBig is an additive alert for large amounts of either direction.
+      if (!wantByType && !(isBig && prefs.txnBig)) return;
+
+      const label = isIncome ? "Transaksi masuk" : "Transaksi keluar";
+      const catName = tx.category?.name ?? "Tanpa kategori";
+      await this.prisma.notification.create({
+        data: {
+          familyGroupId,
+          title: isBig ? `${label} besar` : label,
+          body: `${label} Rp ${amount.toString()} — ${catName}`,
+          icon: isIncome ? "📥" : "📤",
+        },
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Transaction notification skipped: ${msg}`);
     }
   }
 
@@ -404,15 +467,20 @@ export class TransactionsService {
   async getSummary(
     familyGroupId: string,
     query: ListTransactionsQueryDto,
+    canSeePrivate = true,
   ): Promise<TransactionSummaryDto> {
-    return this.computeSummary(familyGroupId, query);
+    return this.computeSummary(familyGroupId, query, canSeePrivate);
   }
 
   async scanReceipt(imageBase64: string): Promise<OcrResult> {
     return this.ocrPort.extractTransaction(imageBase64);
   }
 
-  private buildWhere(familyGroupId: string, query: ListTransactionsQueryDto) {
+  private buildWhere(
+    familyGroupId: string,
+    query: ListTransactionsQueryDto,
+    canSeePrivate = true,
+  ) {
     return {
       familyGroupId,
       ...(query.type && { type: query.type }),
@@ -424,14 +492,16 @@ export class TransactionsService {
           ...(query.to && { lte: new Date(query.to) }),
         },
       }),
+      ...transactionPrivacyWhere(canSeePrivate),
     };
   }
 
   private async computeSummary(
     familyGroupId: string,
     query: ListTransactionsQueryDto,
+    canSeePrivate = true,
   ): Promise<TransactionSummaryDto> {
-    const where = this.buildWhere(familyGroupId, query);
+    const where = this.buildWhere(familyGroupId, query, canSeePrivate);
 
     const [incomeAgg, expenseAgg] = await Promise.all([
       this.prisma.transaction.aggregate({

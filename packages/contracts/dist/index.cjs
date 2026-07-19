@@ -70,7 +70,8 @@ var CreateAccountInputSchema = import_zod3.z.object({
   institution: import_zod3.z.string().optional(),
   maskedNumber: import_zod3.z.string().optional(),
   balance: import_zod3.z.number().int(),
-  currency: import_zod3.z.string().default("IDR")
+  currency: import_zod3.z.string().default("IDR"),
+  isPrivate: import_zod3.z.boolean().optional()
 });
 var UpdateAccountInputSchema = CreateAccountInputSchema.partial();
 var AccountDtoSchema = import_zod3.z.object({
@@ -82,6 +83,7 @@ var AccountDtoSchema = import_zod3.z.object({
   maskedNumber: import_zod3.z.string().nullable(),
   balance: import_zod3.z.string(),
   currency: import_zod3.z.string(),
+  isPrivate: import_zod3.z.boolean(),
   createdAt: import_zod3.z.string(),
   updatedAt: import_zod3.z.string()
 });
@@ -96,6 +98,7 @@ var CategoryDtoSchema = import_zod4.z.object({
   kind: CategoryKindSchema,
   color: import_zod4.z.string().nullable(),
   icon: import_zod4.z.string().nullable(),
+  isPrivate: import_zod4.z.boolean(),
   createdAt: import_zod4.z.string()
 });
 

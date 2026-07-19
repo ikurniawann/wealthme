@@ -66,6 +66,20 @@ export class UserProfileDto {
   })
   monthlyIncome?: string | null;
 
+  @ApiPropertyOptional({
+    type: String,
+    description:
+      "Display currency preference, ISO 4217 code (only on /auth/profile)",
+  })
+  currency?: string;
+
+  @ApiPropertyOptional({
+    type: "object",
+    additionalProperties: { type: "boolean" },
+    description: "Resolved notification preferences (only on /auth/profile)",
+  })
+  notificationPrefs?: Record<string, boolean>;
+
   @ApiProperty({
     type: String,
     format: "date-time",

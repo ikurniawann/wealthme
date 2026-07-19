@@ -7,6 +7,7 @@ import { SectionCard, StatusBadge, ProgressBar } from "@/components/wm";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, formatRupiahCompact } from "@/lib/format";
+import { useCurrencyPreference } from "@/hooks/use-currency-preference";
 import { buildNetWorthTrendPath } from "@/lib/chart-utils";
 import type {
   DashboardSummaryDto,
@@ -25,6 +26,28 @@ const COMPOSITION_COLOR: Record<string, string> = {
 export default function RingkasanPage() {
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId ?? null;
+  const { currency, formatMoney, isIndicative, isReady } =
+    useCurrencyPreference();
+  // Never show a fabricated 1:1-rate conversion — while a non-IDR FX rate is
+  // still loading (or failed), route every monetary display through the
+  // loading placeholder instead of a wrong-magnitude number under a foreign
+  // currency symbol. Compact IDR formatting has no non-IDR equivalent in
+  // formatMoney, so non-IDR falls back to the full (non-compact) converted
+  // amount, prefixed to flag it as an approximation from the mock FX rates
+  // service — never an authoritative/live conversion.
+  const money = (value: number) =>
+    !isReady
+      ? "..."
+      : isIndicative
+        ? `≈ ${formatMoney(value)}`
+        : formatRupiahCompact(value);
+  // Same idea, but for the (non-compact) full-precision displays below.
+  const moneyFull = (value: number) =>
+    !isReady
+      ? "..."
+      : isIndicative
+        ? `≈ ${formatMoney(value)}`
+        : formatRupiah(value);
 
   const {
     data: summary,
@@ -86,7 +109,7 @@ export default function RingkasanPage() {
 
   const composition = (summary?.allocation ?? []).map((item) => ({
     label: item.label,
-    value: `${formatRupiahCompact(item.amount)} · ${item.value}%`,
+    value: `${money(item.amount)} · ${item.value}%`,
     pct: item.value,
     color:
       COMPOSITION_COLOR[
@@ -112,14 +135,14 @@ export default function RingkasanPage() {
             Total Kekayaan Bersih
           </div>
           <div className="text-[20px] font-black">
-            {isLoading ? "..." : formatRupiahCompact(netWorth)}
+            {isLoading ? "..." : money(netWorth)}
           </div>
           <div className="mt-1 text-[11px] text-emerald-300">
             {isLoading
               ? "..."
               : monthNet >= 0
-                ? `▲ ${formatRupiahCompact(monthNet)} bulan ini`
-                : `▼ ${formatRupiahCompact(Math.abs(monthNet))} bulan ini`}
+                ? `▲ ${money(monthNet)} bulan ini`
+                : `▼ ${money(Math.abs(monthNet))} bulan ini`}
           </div>
         </Card>
         <Card className="gap-0 p-5">
@@ -127,7 +150,7 @@ export default function RingkasanPage() {
             Total Aset
           </div>
           <div className="text-[20px] font-black text-success">
-            {isLoading ? "..." : formatRupiahCompact(totalAssets)}
+            {isLoading ? "..." : money(totalAssets)}
           </div>
           <div className="text-[11px] text-muted-foreground">
             {summary?.accountSummary.length
@@ -140,9 +163,7 @@ export default function RingkasanPage() {
             Total Liabilitas
           </div>
           <div className="text-[20px] font-black text-muted-foreground">
-            {isLoading || isNetWorthLoading
-              ? "..."
-              : formatRupiahCompact(totalLiabilities)}
+            {isLoading || isNetWorthLoading ? "..." : money(totalLiabilities)}
           </div>
           <div className="text-[11px] text-muted-foreground">Kewajiban</div>
         </Card>
@@ -154,12 +175,16 @@ export default function RingkasanPage() {
             {isLoading ? "..." : `${savingsRate}%`}
           </div>
           <div className="text-[11px] text-success">
-            {monthExpense > 0
-              ? `Pengeluaran ${formatRupiahCompact(monthExpense)}`
-              : "—"}
+            {monthExpense > 0 ? `Pengeluaran ${money(monthExpense)}` : "—"}
           </div>
         </Card>
       </div>
+      {isIndicative && (
+        <div className="-mt-2.5 mb-1.5 text-[11px] text-muted-foreground">
+          ≈ Nilai dalam {currency} adalah perkiraan menggunakan kurs indikatif,
+          bukan kurs pasar real-time.
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
         <SectionCard title="Tren Kekayaan Bersih (6 Bulan)">
@@ -266,13 +291,13 @@ export default function RingkasanPage() {
           <div className="mb-2.5">
             <div className="text-[11px] text-muted-foreground">Pemasukan</div>
             <div className="text-[18px] font-extrabold text-success">
-              {isLoading ? "..." : formatRupiah(monthIncome)}
+              {isLoading ? "..." : moneyFull(monthIncome)}
             </div>
           </div>
           <div className="mb-2.5">
             <div className="text-[11px] text-muted-foreground">Pengeluaran</div>
             <div className="text-[18px] font-extrabold text-destructive">
-              {isLoading ? "..." : formatRupiah(monthExpense)}
+              {isLoading ? "..." : moneyFull(monthExpense)}
             </div>
           </div>
           <div className="border-t pt-2.5">
@@ -280,7 +305,7 @@ export default function RingkasanPage() {
             <div
               className={`text-[18px] font-extrabold ${monthNet >= 0 ? "text-success" : "text-destructive"}`}
             >
-              {isLoading ? "..." : formatRupiah(monthNet)}
+              {isLoading ? "..." : moneyFull(monthNet)}
             </div>
           </div>
         </SectionCard>
@@ -323,7 +348,7 @@ export default function RingkasanPage() {
                   <StatusBadge variant="gray">{t.percentage}%</StatusBadge>
                   <div className="text-right">
                     <div className="text-[13px] font-bold text-destructive">
-                      {formatRupiah(t.amount)}
+                      {moneyFull(t.amount)}
                     </div>
                   </div>
                 </div>

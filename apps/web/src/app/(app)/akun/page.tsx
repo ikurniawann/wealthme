@@ -1,9 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { useSession } from "@/lib/auth-compat";
 import { authClient } from "@/lib/auth-client";
+import { useLocale } from "@/hooks/use-locale";
+import { useProfile } from "@/hooks/use-profile";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -202,7 +205,13 @@ function SetRow({
 function ToggleBox({
   rows,
 }: {
-  rows: { label: string; sub: string; defaultChecked?: boolean }[];
+  rows: {
+    label: string;
+    sub: string;
+    defaultChecked?: boolean;
+    checked?: boolean;
+    onCheckedChange?: (v: boolean) => void;
+  }[];
 }) {
   return (
     <div className="rounded-lg border bg-card px-4 py-3.5">
@@ -219,11 +228,20 @@ function ToggleBox({
               {r.sub}
             </div>
           </div>
-          <Switch
-            aria-label={r.label}
-            defaultChecked={r.defaultChecked}
-            className="shrink-0"
-          />
+          {r.checked !== undefined ? (
+            <Switch
+              aria-label={r.label}
+              checked={r.checked}
+              onCheckedChange={r.onCheckedChange}
+              className="shrink-0"
+            />
+          ) : (
+            <Switch
+              aria-label={r.label}
+              defaultChecked={r.defaultChecked}
+              className="shrink-0"
+            />
+          )}
         </div>
       ))}
     </div>
@@ -736,18 +754,15 @@ const CURRENCIES = [
 
 const SETTINGS_KEY = "wealthme_settings";
 
+// Currency is EPIC-016 Task B2's real profile preference (persisted via
+// PATCH /auth/profile — see useProfile()/currency mutation in
+// PengaturanBody), no longer part of this orphaned localStorage blob.
 type AppSettings = {
-  currency: string;
-  language: string;
   dateFormat: string;
-  theme: string;
 };
 
 const DEFAULT_SETTINGS: AppSettings = {
-  currency: "IDR",
-  language: "🇮🇩 Bahasa Indonesia",
   dateFormat: "DD/MM/YYYY",
-  theme: "☀️ Terang (Light)",
 };
 
 function loadSettings(): AppSettings {
@@ -762,12 +777,94 @@ function loadSettings(): AppSettings {
   }
 }
 
-function PengaturanBody() {
+// Theme/language pickers are live-applied via `next-themes` and `useLocale()`
+// respectively — they are no longer part of the orphaned `AppSettings`
+// save/load mechanism above, which only covers currency/dateFormat.
+const THEME_OPTIONS: { value: "light" | "dark" | "system"; label: string }[] = [
+  { value: "light", label: "☀️ Terang (Light)" },
+  { value: "dark", label: "🌙 Gelap (Dark)" },
+  { value: "system", label: "🖥️ Ikuti Sistem" },
+];
+
+const LANGUAGE_OPTIONS: { value: "id" | "en"; label: string }[] = [
+  { value: "id", label: "🇮🇩 Bahasa Indonesia" },
+  { value: "en", label: "🇬🇧 English" },
+];
+
+function themeValueToLabel(value: string | undefined): string {
+  return (
+    THEME_OPTIONS.find((o) => o.value === value)?.label ??
+    THEME_OPTIONS[0].label
+  );
+}
+
+function themeLabelToValue(label: string): "light" | "dark" | "system" {
+  return (
+    THEME_OPTIONS.find((o) => o.label === label)?.value ??
+    THEME_OPTIONS[0].value
+  );
+}
+
+function localeValueToLabel(value: string): string {
+  return (
+    LANGUAGE_OPTIONS.find((o) => o.value === value)?.label ??
+    LANGUAGE_OPTIONS[0].label
+  );
+}
+
+function localeLabelToValue(label: string): "id" | "en" {
+  return (
+    LANGUAGE_OPTIONS.find((o) => o.label === label)?.value ??
+    LANGUAGE_OPTIONS[0].value
+  );
+}
+
+export function PengaturanBody() {
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
+  const { theme, setTheme } = useTheme();
+  const { locale, setLocale } = useLocale();
+  const { data: session } = useSession();
+  const queryClient = useQueryClient();
+  const { data: profile } = useProfile();
+  // Absent for pre-migration users (and while the query is still loading) —
+  // the server itself defaults new/untouched rows to "IDR", so this mirrors
+  // that default rather than inventing a different one client-side.
+  const currency = profile?.currency ?? "IDR";
+  const [mounted, setMounted] = useState(false);
+  // Resolve the real theme only after mount; avoids an SSR/client mismatch
+  // (same pattern as components/shell/theme-toggle.tsx).
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setMounted(true), []);
+
+  const themeLabel = mounted
+    ? themeValueToLabel(theme)
+    : THEME_OPTIONS[0].label;
+  const languageLabel = localeValueToLabel(locale);
 
   function update<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
     setSettings((prev) => ({ ...prev, [key]: value }));
   }
+
+  // Currency applies immediately on selection (same UX as theme/language),
+  // by writing straight to the real profile — never to the orphaned
+  // localStorage blob below, which only still covers dateFormat.
+  const { mutate: updateCurrency } = useMutation({
+    mutationFn: (code: string) =>
+      apiFetch("/auth/profile", {
+        method: "PATCH",
+        token: session?.accessToken,
+        body: JSON.stringify({ currency: code }),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["auth", "profile", session?.accessToken],
+      });
+      toast.success("✅ Mata uang tampilan diperbarui");
+    },
+    onError: () => {
+      toast.error("Gagal menyimpan mata uang");
+    },
+  });
 
   function save() {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
@@ -778,17 +875,20 @@ function PengaturanBody() {
     <>
       <SetSection>
         <SectionTitle>Mata Uang</SectionTitle>
-        <div className="mb-3.5">
+        <div className="mb-3.5" role="radiogroup" aria-label="Mata Uang">
           <div className="mb-2.5 text-[12px] text-muted-foreground">
             Mata uang default untuk tampilan semua angka
           </div>
           {CURRENCIES.map((c) => {
-            const selected = settings.currency === c.code;
+            const selected = currency === c.code;
             return (
-              <div
+              <button
                 key={c.code}
-                onClick={() => update("currency", c.code)}
-                className={`mb-2 flex cursor-pointer items-center gap-3 rounded-lg border px-3.5 py-3 transition-colors ${
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => updateCurrency(c.code)}
+                className={`mb-2 flex w-full cursor-pointer items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors ${
                   selected ? "border-primary bg-accent" : ""
                 }`}
               >
@@ -804,7 +904,7 @@ function PengaturanBody() {
                 {selected && (
                   <span className="text-[16px] font-bold text-primary">✓</span>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>
@@ -814,11 +914,12 @@ function PengaturanBody() {
         <Field label="Bahasa">
           <select
             className={FIELD_CLASS}
-            value={settings.language}
-            onChange={(e) => update("language", e.target.value)}
+            value={languageLabel}
+            onChange={(e) => setLocale(localeLabelToValue(e.target.value))}
           >
-            <option>🇮🇩 Bahasa Indonesia</option>
-            <option>🇬🇧 English</option>
+            {LANGUAGE_OPTIONS.map((o) => (
+              <option key={o.value}>{o.label}</option>
+            ))}
           </select>
         </Field>
         <Field label="Format Tanggal">
@@ -835,12 +936,12 @@ function PengaturanBody() {
         <Field label="Tema">
           <select
             className={FIELD_CLASS}
-            value={settings.theme}
-            onChange={(e) => update("theme", e.target.value)}
+            value={themeLabel}
+            onChange={(e) => setTheme(themeLabelToValue(e.target.value))}
           >
-            <option>☀️ Terang (Light)</option>
-            <option>🌙 Gelap (Dark)</option>
-            <option>🖥️ Ikuti Sistem</option>
+            {THEME_OPTIONS.map((o) => (
+              <option key={o.value}>{o.label}</option>
+            ))}
           </select>
         </Field>
       </SetSection>
@@ -875,7 +976,53 @@ function PengaturanBody() {
   );
 }
 
-function NotifSettingBody() {
+const NOTIF_PREF_KEYS = [
+  "txnIn",
+  "txnOut",
+  "txnBig",
+  "budget80",
+  "goalMilestone",
+  "billDue",
+  "stockPrice",
+  "dividend",
+] as const;
+
+export function NotifSettingBody() {
+  const { data: session } = useSession();
+  const queryClient = useQueryClient();
+  const { data: profile } = useProfile();
+  // Overrides map for in-flight edits — avoids a seeding effect that would
+  // clobber user edits when the profile query refetches/refreshes.
+  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
+
+  const isOn = (key: string): boolean =>
+    overrides[key] ?? profile?.notificationPrefs?.[key] ?? true;
+  const set = (key: string) => (v: boolean) =>
+    setOverrides((o) => ({ ...o, [key]: v }));
+
+  const { mutate: saveNotifPrefs, isPending } = useMutation({
+    mutationFn: (payload: Record<string, boolean>) =>
+      apiFetch("/auth/profile", {
+        method: "PATCH",
+        token: session?.accessToken,
+        body: JSON.stringify({ notificationPrefs: payload }),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["auth", "profile", session?.accessToken],
+      });
+      toast.success("✅ Pengaturan notifikasi disimpan");
+    },
+    onError: () => toast.error("Gagal menyimpan pengaturan notifikasi"),
+  });
+
+  function save() {
+    const payload = Object.fromEntries(
+      NOTIF_PREF_KEYS.map((k) => [k, isOn(k)]),
+    );
+    saveNotifPrefs(payload);
+  }
+
   return (
     <>
       <SetSection>
@@ -885,17 +1032,20 @@ function NotifSettingBody() {
             {
               label: "Notif Transaksi Masuk",
               sub: "Setiap ada dana masuk ke rekening",
-              defaultChecked: true,
+              checked: isOn("txnIn"),
+              onCheckedChange: set("txnIn"),
             },
             {
               label: "Notif Transaksi Keluar",
               sub: "Setiap ada pengeluaran",
-              defaultChecked: true,
+              checked: isOn("txnOut"),
+              onCheckedChange: set("txnOut"),
             },
             {
               label: "Transaksi Besar (>Rp 5 jt)",
               sub: "Alert khusus untuk transaksi besar",
-              defaultChecked: true,
+              checked: isOn("txnBig"),
+              onCheckedChange: set("txnBig"),
             },
           ]}
         />
@@ -907,17 +1057,20 @@ function NotifSettingBody() {
             {
               label: "Anggaran Mendekati Batas",
               sub: "Alert saat 80% budget terpakai",
-              defaultChecked: true,
+              checked: isOn("budget80"),
+              onCheckedChange: set("budget80"),
             },
             {
               label: "Update Progres Tujuan",
               sub: "Notifikasi saat milestone tercapai",
-              defaultChecked: true,
+              checked: isOn("goalMilestone"),
+              onCheckedChange: set("goalMilestone"),
             },
             {
               label: "Jatuh Tempo Tagihan",
               sub: "Pengingat 3 hari sebelum jatuh tempo",
-              defaultChecked: true,
+              checked: isOn("billDue"),
+              onCheckedChange: set("billDue"),
             },
           ]}
         />
@@ -929,19 +1082,26 @@ function NotifSettingBody() {
             {
               label: "Update Harga Saham",
               sub: "Notifikasi perubahan harga signifikan",
-              defaultChecked: true,
+              checked: isOn("stockPrice"),
+              onCheckedChange: set("stockPrice"),
             },
             {
               label: "Dividen Masuk",
               sub: "Notif saat dividen diterima",
-              defaultChecked: true,
+              checked: isOn("dividend"),
+              onCheckedChange: set("dividend"),
             },
           ]}
         />
+        <p className="mt-2 text-[11.5px] text-muted-foreground">
+          Disimpan, tapi belum aktif — sumber data harga & dividen belum
+          tersedia.
+        </p>
       </SetSection>
       <button
         className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground"
-        onClick={() => toast.success("✅ Pengaturan notifikasi disimpan")}
+        onClick={save}
+        disabled={isPending}
       >
         <Save className="size-4" /> Simpan
       </button>

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Req } from "@nestjs/common";
 import {
   ApiBearerAuth,
   ApiBody,
@@ -10,6 +10,7 @@ import {
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { canSeePrivateItems } from "../common/utils/privacy.util";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ExportsService } from "./exports.service";
@@ -18,6 +19,7 @@ import type {
   ExportJobRequestDto,
   ExportJobStatusDto,
 } from "@wealthme/contracts";
+import type { Request } from "express";
 
 @ApiTags("exports")
 @ApiBearerAuth()
@@ -56,8 +58,12 @@ export class ExportsController {
   createJob(
     @Param("familyGroupId") familyGroupId: string,
     @Body() dto: ExportJobRequestDto,
+    @Req() req: Request,
   ): Promise<ExportJobStatusDto> {
-    return this.exportsService.createJob(familyGroupId, dto);
+    // Snapshotted now — the job runs later on a background worker with no
+    // request scope, so the requester's privacy visibility must travel with it.
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
+    return this.exportsService.createJob(familyGroupId, dto, canSeePrivate);
   }
 
   @Get(":jobId")

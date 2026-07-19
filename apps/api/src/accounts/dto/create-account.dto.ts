@@ -1,6 +1,7 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { AccountType } from "@prisma/client";
 import {
+  IsBoolean,
   IsEnum,
   IsInt,
   IsOptional,
@@ -57,4 +58,14 @@ export class CreateAccountDto {
   @IsString()
   @Length(3, 3)
   currency?: string;
+
+  @ApiPropertyOptional({
+    type: Boolean,
+    default: false,
+    description:
+      "Hide this account (and its transactions) from `member` viewers in shared family views",
+  })
+  @IsOptional()
+  @IsBoolean()
+  isPrivate?: boolean;
 }
