@@ -355,11 +355,15 @@ export default function MasterCoaPage() {
                 </CardLink>
               }
             >
-              <div className="text-[13px] font-bold leading-snug pt-1">
-                PNL · Neraca · Arus Kas
+              <div className="flex items-center gap-1.5 pt-1">
+                <span className="text-[13px] font-bold leading-snug">
+                  PNL · Arus Kas · Ringkasan
+                </span>
+                <StatusBadge variant="success">Aktif</StatusBadge>
               </div>
               <div className="text-[11px] text-muted-foreground">
-                arah akun menentukan laporan
+                arah &amp; grup akun kini mengklasifikasikan laporan (Neraca
+                tetap berbasis saldo)
               </div>
             </SectionCard>
           </div>
