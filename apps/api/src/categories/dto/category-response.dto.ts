@@ -14,6 +14,13 @@ export class CategoryResponseDto {
   @ApiProperty({ enum: CategoryKind, description: "Category kind" })
   kind!: CategoryKind;
 
+  @ApiProperty({
+    type: String,
+    format: "uuid",
+    description: "COA account (same family group) this category maps to",
+  })
+  coaAccountId!: string;
+
   @ApiProperty({ type: String, nullable: true, description: "Hex color" })
   color!: string | null;
 

@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { Test, type TestingModule } from "@nestjs/testing";
 
+import { GENERIC_COA_CHART } from "../common/coa/default-coa-chart";
 import { CryptoService } from "../crypto/crypto.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { RedisService } from "../redis/redis.service";
@@ -28,6 +29,8 @@ const mockPrisma = {
   familyGroup: { create: jest.fn() },
   member: { create: jest.fn() },
   category: { createMany: jest.fn() },
+  // EPIC-017: register() provisions the generic COA chart, then links categories.
+  coaAccount: { createMany: jest.fn(), findMany: jest.fn() },
   account: { create: jest.fn() },
   baAccount: { updateMany: jest.fn() },
   $transaction: jest.fn(),
@@ -75,6 +78,12 @@ describe("AuthService", () => {
     mockPrisma.familyGroup.create.mockResolvedValue({ id: "fg-1" });
     mockPrisma.member.create.mockResolvedValue({});
     mockPrisma.category.createMany.mockResolvedValue({ count: 12 });
+    mockPrisma.coaAccount.createMany.mockResolvedValue({
+      count: GENERIC_COA_CHART.length,
+    });
+    mockPrisma.coaAccount.findMany.mockResolvedValue(
+      GENERIC_COA_CHART.map((c) => ({ id: `coa-${c.code}`, code: c.code })),
+    );
     mockPrisma.account.create.mockResolvedValue({});
 
     const module: TestingModule = await Test.createTestingModule({

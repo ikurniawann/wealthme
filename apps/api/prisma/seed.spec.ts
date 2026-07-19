@@ -14,10 +14,14 @@ const mockCreate = jest.fn().mockResolvedValue({ id: "mock-id" });
 const disconnectMock = jest.fn().mockResolvedValue(undefined);
 
 const mockDeleteMany = jest.fn().mockResolvedValue({ count: 0 });
+// EPIC-017: seed now reads back the generic chart to link demo categories.
+// Resolved value is set in beforeEach to avoid a module-init TDZ on the import.
+const mockFindMany = jest.fn();
 const makeModel = () => ({
   upsert: mockUpsert,
   create: mockCreate,
   deleteMany: mockDeleteMany,
+  findMany: mockFindMany,
 });
 
 jest.mock("@prisma/client", () => ({
@@ -52,6 +56,8 @@ jest.mock("@prisma/client", () => ({
   })),
 }));
 
+import { GENERIC_COA_CHART } from "../src/common/coa/default-coa-chart";
+
 import { main } from "./seed";
 
 jest.spyOn(process.stdout, "write").mockImplementation(() => true);
@@ -66,6 +72,9 @@ describe("seed — demo user contract", () => {
     });
     mockCreate.mockResolvedValue({ id: "mock-id" });
     disconnectMock.mockResolvedValue(undefined);
+    mockFindMany.mockResolvedValue(
+      GENERIC_COA_CHART.map((c) => ({ id: `coa-${c.code}`, code: c.code })),
+    );
   });
 
   it("upserts demo@wealthme.id user", async () => {
