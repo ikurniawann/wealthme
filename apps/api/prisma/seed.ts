@@ -1,10 +1,9 @@
 import { PrismaClient } from "@prisma/client";
-import * as argon2 from "argon2";
-
 import {
   defaultCoaCodeForCategory,
   GENERIC_COA_CHART,
-} from "../src/common/coa/default-coa-chart";
+} from "@wealthme/contracts";
+import * as argon2 from "argon2";
 
 const prisma = new PrismaClient();
 

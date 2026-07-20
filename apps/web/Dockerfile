@@ -64,9 +64,17 @@ WORKDIR /build
 # 3) Build the Next.js app (output: standalone set in next.config.ts).
 ARG NEXT_PUBLIC_API_URL=http://localhost:4000
 ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
+# next build runs with NODE_ENV=production, and apps/web/src/lib/auth.ts
+# constructs betterAuth() at module scope. Without a real BETTER_AUTH_SECRET,
+# better-auth's production guard throws BetterAuthError during "Collecting
+# page data", crashing the build. This placeholder is build-stage-only (never
+# copied to the runtime stage) — the real secret is injected at container
+# start via env_file in docker-compose.yml.
+ARG BETTER_AUTH_SECRET=docker-build-stage-placeholder-secret-not-used-at-runtime
 
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+ENV BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
 
 RUN pnpm --filter web build
 

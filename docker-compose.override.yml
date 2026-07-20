@@ -17,6 +17,17 @@ services:
   # the internal `web`/`api` service names. On the real dev server these come
   # from .env (the server's public origin) via the base compose, not this file.
   web:
+    # NEXT_PUBLIC_* vars are inlined into the client JS bundle at BUILD time
+    # (see apps/web/Dockerfile), so overriding them under `environment:` (a
+    # runtime-only setting) has no effect on already-built pages. Without this,
+    # `docker compose build` picks up NEXT_PUBLIC_API_URL/NEXT_PUBLIC_APP_URL
+    # from the root .env (the dev server's public domains) and bakes them into
+    # the local bundle — the browser then calls the remote API/app origin
+    # instead of localhost, breaking every fetch (dashboard, auth, etc.).
+    build:
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:4000
+        NEXT_PUBLIC_APP_URL: http://localhost:3000
     environment:
       BETTER_AUTH_URL: http://localhost:3000
   api:

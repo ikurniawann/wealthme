@@ -31,14 +31,20 @@ fi
 # required if the DB predates the add_missing_schema_drift migration — see runbook).
 if [ "${CLEAN_DB:-0}" = "1" ]; then
   echo "[deploy] CLEAN_DB=1 — dropping volumes for a clean migrate+seed..."
-  docker compose down -v
+  docker compose -f docker-compose.yml down -v
 fi
 
 echo "[deploy] target=DEV — building images and bringing up the stack..."
-# Compose builds the api/web images, starts infra, runs the one-shot migrate
-# service (migrate deploy + seed), then starts api + web. --wait blocks until
-# healthy / migrate completes.
-docker compose up -d --build --wait
+# -f docker-compose.yml explicitly excludes docker-compose.override.yml.
+# That override file forces browser-facing origins (BETTER_AUTH_URL,
+# WEB_ORIGIN, and the NEXT_PUBLIC_* build args baked into the client bundle)
+# to localhost for a developer's own laptop. This script runs ON the shared
+# dev server (public domain from .env, e.g. wealthme.demo-wit.id via tunnel)
+# — plain `docker compose up` silently picks up the override, breaking CORS
+# and baking the wrong origin into the built JS. Compose builds the api/web
+# images, starts infra, runs the one-shot migrate service (migrate deploy +
+# seed), then starts api + web. --wait blocks until healthy / migrate completes.
+docker compose -f docker-compose.yml up -d --build --wait
 
 echo "[deploy] stack up. Health check:"
 curl -fsS http://localhost:4000/health >/dev/null 2>&1 && echo "[deploy]   api  :4000 OK" || echo "[deploy]   api  :4000 not ready yet"
