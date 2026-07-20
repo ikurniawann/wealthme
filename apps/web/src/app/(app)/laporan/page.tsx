@@ -56,7 +56,6 @@ import {
   categoryBreakdownToDonut,
   formatJuta,
   getMonthDateRange,
-  getTodayDateRange,
   sankeyToFlowBars,
   txTypeToBadgeVariant,
 } from "@/lib/laporan-utils";
@@ -458,11 +457,14 @@ const TX_ICON_BG: Record<string, string> = {
 function HarianSection({
   dailyReport,
   isLoading,
+  date,
+  onDateChange,
 }: {
   dailyReport?: DetailReportDto;
   isLoading?: boolean;
+  date: string;
+  onDateChange: (d: string) => void;
 }) {
-  const today = new Date().toISOString().slice(0, 10);
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const net =
     (dailyReport?.totalIncome ?? 0) - (dailyReport?.totalExpense ?? 0);
@@ -472,7 +474,7 @@ function HarianSection({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-[15px] font-bold">
           Laporan Harian —{" "}
-          {new Date().toLocaleDateString("id-ID", {
+          {new Date(`${date}T00:00:00`).toLocaleDateString("id-ID", {
             day: "numeric",
             month: "long",
             year: "numeric",
@@ -480,7 +482,8 @@ function HarianSection({
         </div>
         <input
           type="date"
-          defaultValue={today}
+          value={date}
+          onChange={(e) => onDateChange(e.target.value)}
           className="rounded-md border bg-background px-3 py-[7px] text-[13.5px] outline-none focus:border-primary"
         />
       </div>
@@ -2312,7 +2315,17 @@ function LaporanInner() {
     });
 
   const { startDate: monthStart, endDate: monthEnd } = getMonthDateRange();
-  const { startDate: todayStart, endDate: todayEnd } = getTodayDateRange();
+  // Laporan Harian: tanggal bisa dipilih (default hari ini); picker menyetir query.
+  const [dailyDate, setDailyDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
+  const [dY, dM, dD] = dailyDate.split("-").map(Number);
+  const dayStart = new Date(dY ?? 1970, (dM ?? 1) - 1, dD ?? 1);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(dY ?? 1970, (dM ?? 1) - 1, dD ?? 1);
+  dayEnd.setHours(23, 59, 59, 999);
+  const todayStart = dayStart.toISOString();
+  const todayEnd = dayEnd.toISOString();
 
   const { data: bankReport, isLoading: isBankLoading } =
     useQuery<BankReportDto>({
@@ -2583,7 +2596,12 @@ function LaporanInner() {
     switch (tab) {
       case "rharian":
         return (
-          <HarianSection dailyReport={dailyReport} isLoading={isDailyLoading} />
+          <HarianSection
+            dailyReport={dailyReport}
+            isLoading={isDailyLoading}
+            date={dailyDate}
+            onDateChange={setDailyDate}
+          />
         );
       case "rbulanan":
         return (

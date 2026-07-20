@@ -114,6 +114,16 @@ export function TransactionDialog() {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.dashboard.summary(fgId),
       });
+      // A new transaction changes report classification (COA) AND account
+      // balances, so refresh reports, accounts, and net worth too — otherwise
+      // /laporan shows stale cached data ("transaksi tidak masuk ke laporan").
+      void queryClient.invalidateQueries({ queryKey: ["reports", fgId] });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.accounts.all(fgId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.netWorth.summary(fgId),
+      });
     },
     onError: (err: { message?: string }) => {
       toast.error("Gagal menyimpan: " + (err.message ?? "Coba lagi"));
