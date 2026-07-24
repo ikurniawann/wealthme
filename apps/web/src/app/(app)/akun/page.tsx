@@ -1492,6 +1492,32 @@ const SUPPORT_PHONE_TEL = "0800-1234-5678";
 const SUPPORT_WA_NUMBER = "6281123456789"; // +62 811 2345 6789, wa.me format
 
 export function HubungiBody() {
+  const { data: session } = useSession();
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+
+  const { mutate: sendFeedback, isPending: isSendingFeedback } = useMutation({
+    mutationFn: (message: string) =>
+      apiFetch("/feedback", {
+        method: "POST",
+        token: session?.accessToken,
+        body: JSON.stringify({ message }),
+      }),
+    onSuccess: () => {
+      setFeedbackMessage("");
+      toast.success("✅ Feedback terkirim, terima kasih!");
+    },
+    onError: () => {
+      toast.error("Gagal mengirim feedback, coba lagi.");
+    },
+  });
+
+  const trimmedFeedback = feedbackMessage.trim();
+
+  function handleSendFeedback() {
+    if (!trimmedFeedback || isSendingFeedback) return;
+    sendFeedback(trimmedFeedback);
+  }
+
   return (
     <>
       <SetSection>
@@ -1544,13 +1570,19 @@ export function HubungiBody() {
             className={`${FIELD_CLASS} resize-none`}
             rows={3}
             placeholder="Ceritakan pengalamanmu atau laporkan bug..."
+            value={feedbackMessage}
+            onChange={(e) => setFeedbackMessage(e.target.value)}
+            maxLength={2000}
+            aria-label="Kirim Feedback"
           />
         </div>
         <button
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground"
-          onClick={() => toast.success("✅ Feedback terkirim, terima kasih!")}
+          disabled={!trimmedFeedback || isSendingFeedback}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-60"
+          onClick={handleSendFeedback}
         >
-          <Send className="size-4" /> Kirim Feedback
+          <Send className="size-4" />{" "}
+          {isSendingFeedback ? "Mengirim..." : "Kirim Feedback"}
         </button>
       </div>
     </>

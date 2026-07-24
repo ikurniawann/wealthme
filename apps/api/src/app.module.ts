@@ -26,6 +26,7 @@ import { DashboardModule } from "./dashboard/dashboard.module";
 import { DonationsModule } from "./donations/donations.module";
 import { ExportsModule } from "./exports/exports.module";
 import { FamilyGroupsModule } from "./family-groups/family-groups.module";
+import { FeedbackModule } from "./feedback/feedback.module";
 import { FxModule } from "./fx/fx.module";
 import { GdprModule } from "./gdpr/gdpr.module";
 import { GoalsModule } from "./goals/goals.module";
@@ -98,6 +99,7 @@ import type { IncomingMessage } from "node:http";
     AssetsModule,
     ExportsModule,
     FamilyGroupsModule,
+    FeedbackModule,
     DonationsModule,
     InheritanceModule,
     InvestmentsModule,
