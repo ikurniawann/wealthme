@@ -43,11 +43,17 @@ import {
   Scale,
   UserPlus,
   UserCog,
+  UserCheck,
+  UserMinus,
   EllipsisVertical,
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { CrudModal, type CrudModalState } from "@/components/crud";
+import {
+  CrudModal,
+  ConfirmDeleteDialog,
+  type CrudModalState,
+} from "@/components/crud";
 import { SectionCard, StatusBadge } from "@/components/wm";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -59,6 +65,13 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from "@/components/ui/accordion";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 type SubPageId =
   | "profil"
@@ -142,12 +155,18 @@ function Field({
   label: string;
   children: React.ReactNode;
 }) {
+  // Wrapping the control in the <label> (rather than a separate label +
+  // matching id/htmlFor per call site) associates every Field's control
+  // natively, for every one of this shared primitive's ~18 call sites, with
+  // one change.
   return (
     <div className="mb-3.5">
-      <label className="mb-1.5 block text-[12.5px] font-semibold text-muted-foreground">
-        {label}
+      <label className="block">
+        <span className="mb-1.5 block text-[12.5px] font-semibold text-muted-foreground">
+          {label}
+        </span>
+        {children}
       </label>
-      {children}
     </div>
   );
 }
@@ -171,6 +190,11 @@ function SetRow({
   sub,
   right,
   onClick,
+  href,
+  target,
+  rel,
+  interactive,
+  disabled,
 }: {
   icon: React.ReactNode;
   iconBg: string;
@@ -178,14 +202,32 @@ function SetRow({
   sub?: React.ReactNode;
   right?: React.ReactNode;
   onClick?: () => void;
+  /** Renders a real <a> instead of a div — use for anything that's
+   * fundamentally navigation (mailto:/tel:/https:), so it stays
+   * keyboard-reachable and screen-reader-navigable "for free". */
+  href?: string;
+  target?: string;
+  rel?: string;
+  /** Marks a real, consequential onClick action (not just navigation) as
+   * keyboard-reachable: adds role="button", tabIndex, and Enter/Space
+   * activation. */
+  interactive?: boolean;
+  disabled?: boolean;
 }) {
-  return (
-    <div
-      className={`flex items-center gap-3 border-b py-3 last:border-b-0 ${
-        onClick ? "cursor-pointer" : ""
-      }`}
-      onClick={onClick}
-    >
+  const clickable = Boolean(onClick || href) && !disabled;
+  const rowClass = [
+    "flex items-center gap-3 border-b py-3 last:border-b-0",
+    clickable ? "cursor-pointer" : "",
+    disabled ? "pointer-events-none opacity-60" : "",
+    href || interactive
+      ? "rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const content = (
+    <>
       <div
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
         style={{ background: iconBg }}
@@ -199,6 +241,41 @@ function SetRow({
         )}
       </div>
       {right}
+    </>
+  );
+
+  if (href) {
+    return (
+      <a href={href} target={target} rel={rel} className={rowClass}>
+        {content}
+      </a>
+    );
+  }
+
+  if (interactive && onClick) {
+    return (
+      <div
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-disabled={disabled || undefined}
+        className={rowClass}
+        onClick={disabled ? undefined : onClick}
+        onKeyDown={(e) => {
+          if (disabled) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+      >
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <div className={rowClass} onClick={onClick}>
+      {content}
     </div>
   );
 }
@@ -1191,7 +1268,44 @@ export function NotifSettingBody() {
   );
 }
 
-function PrivasiBody() {
+// GET /users/me/gdpr/export — real personal-data export (PDP right of
+// access). Shape mirrors `apps/api/src/gdpr/gdpr.service.ts` exactly; kept
+// loose here since it's only serialized straight back out to a file, never
+// read field-by-field.
+type GdprExport = Record<string, unknown>;
+
+export function PrivasiBody({ token }: { token: string | undefined }) {
+  const [isExporting, setIsExporting] = useState(false);
+
+  async function handleExportData() {
+    if (!token || isExporting) return;
+    setIsExporting(true);
+    try {
+      const data = await apiFetch<GdprExport>("/users/me/gdpr/export", {
+        token,
+      });
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `wealthme-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      // Defensive: revoke on the next tick rather than synchronously right
+      // after click(), so the browser has a chance to actually start using
+      // the blob URL for the download before it's invalidated.
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      toast.success("Data berhasil diunduh.");
+    } catch {
+      toast.error("Gagal mengekspor data. Coba lagi.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   return (
     <>
       <SetSection>
@@ -1233,9 +1347,15 @@ function PrivasiBody() {
           icon={<FileOutput className="size-4 text-success" />}
           iconBg="#DCFCE7"
           name="Ekspor Data Saya"
-          sub="Download semua data dalam format CSV/PDF"
+          sub={
+            isExporting
+              ? "Mengekspor..."
+              : "Download profil, akun, transaksi, tujuan & notifikasi (JSON)"
+          }
           right={CHEVRON}
-          onClick={() => toast("📤 Mengekspor data...")}
+          onClick={() => void handleExportData()}
+          interactive
+          disabled={isExporting}
         />
         <SetRow
           icon={<Trash2 className="size-4 text-destructive" />}
@@ -1364,7 +1484,14 @@ function BantuanBody({
   );
 }
 
-function HubungiBody() {
+// Placeholder support contact — no shared support-contact constant exists
+// yet in `@/lib/data`; these are the same values the page already displayed
+// (previously toast-only), now wired to real `mailto:`/`tel:`/`wa.me` links.
+const SUPPORT_EMAIL = "support@wealthme.id";
+const SUPPORT_PHONE_TEL = "0800-1234-5678";
+const SUPPORT_WA_NUMBER = "6281123456789"; // +62 811 2345 6789, wa.me format
+
+export function HubungiBody() {
   return (
     <>
       <SetSection>
@@ -1375,23 +1502,25 @@ function HubungiBody() {
           name="Live Chat"
           sub="Rata-rata respons < 5 menit"
           right={<StatusBadge variant="success">Online</StatusBadge>}
-          onClick={() => toast("Membuka live chat...")}
+          href={`https://wa.me/${SUPPORT_WA_NUMBER}`}
+          target="_blank"
+          rel="noopener noreferrer"
         />
         <SetRow
           icon={<Mail className="size-4 text-primary" />}
           iconBg="#EEF2FF"
           name="Email"
-          sub="support@wealthme.id · Respons 1x24 jam"
+          sub={`${SUPPORT_EMAIL} · Respons 1x24 jam`}
           right={CHEVRON}
-          onClick={() => toast("Email support@wealthme.id")}
+          href={`mailto:${SUPPORT_EMAIL}`}
         />
         <SetRow
           icon={<Phone className="size-4 text-warning" />}
           iconBg="#FEF9C3"
           name="Telepon"
-          sub="0800-1234-5678 · Senin–Jumat 08:00–17:00"
+          sub={`${SUPPORT_PHONE_TEL} · Senin–Jumat 08:00–17:00`}
           right={CHEVRON}
-          onClick={() => toast("Menghubungi 0800-1234-5678")}
+          href={`tel:${SUPPORT_PHONE_TEL}`}
         />
         <SetRow
           icon={
@@ -1401,7 +1530,9 @@ function HubungiBody() {
           name="WhatsApp"
           sub="+62 811 2345 6789 · Chat langsung"
           right={CHEVRON}
-          onClick={() => toast("Buka WhatsApp")}
+          href={`https://wa.me/${SUPPORT_WA_NUMBER}`}
+          target="_blank"
+          rel="noopener noreferrer"
         />
       </SetSection>
       <div className="mb-5 rounded-xl border border-[#C7D2FE] bg-accent p-4">
@@ -1426,7 +1557,7 @@ function HubungiBody() {
   );
 }
 
-function TentangBody() {
+export function TentangBody() {
   return (
     <>
       <div className="px-0 pt-6 pb-5 text-center">
@@ -1465,26 +1596,36 @@ function TentangBody() {
             </span>
           }
         />
+        {/* No real Privacy Policy / Terms / Licenses content exists anywhere
+            in this app or its docs yet — an honest "coming soon" toast
+            (matching the established /tax and /warisan pattern) instead of
+            fabricating legal text or linking to a page that doesn't exist. */}
         <SetRow
           icon={<FileText className="size-4 text-muted-foreground" />}
           iconBg="#F3F4F6"
           name="Kebijakan Privasi"
           right={CHEVRON}
-          onClick={() => toast("Kebijakan Privasi")}
+          onClick={() =>
+            toast("Kebijakan Privasi belum tersedia — segera hadir.")
+          }
         />
         <SetRow
           icon={<Scale className="size-4 text-muted-foreground" />}
           iconBg="#F3F4F6"
           name="Syarat & Ketentuan"
           right={CHEVRON}
-          onClick={() => toast("Syarat & Ketentuan")}
+          onClick={() =>
+            toast("Syarat & Ketentuan belum tersedia — segera hadir.")
+          }
         />
         <SetRow
           icon={<Code className="size-4 text-brand-purple" />}
           iconBg="#EDE9FE"
           name="Lisensi Open Source"
           right={CHEVRON}
-          onClick={() => toast("Lisensi Open Source")}
+          onClick={() =>
+            toast("Lisensi Open Source belum tersedia — segera hadir.")
+          }
         />
       </SetSection>
       <div className="px-0 pt-2 pb-1 text-center text-[11.5px] text-muted-foreground">
@@ -1547,7 +1688,7 @@ function memberInitials(name: string): string {
     .join("");
 }
 
-function FamilyBody({
+export function FamilyBody({
   onAddAdmin,
   onInviteMember,
   name,
@@ -1556,6 +1697,8 @@ function FamilyBody({
   group,
   members,
   myUserId,
+  familyGroupId,
+  token,
 }: {
   onAddAdmin: () => void;
   onInviteMember: () => void;
@@ -1565,9 +1708,57 @@ function FamilyBody({
   group: FamilyGroupMine | null;
   members: FamilyMember[];
   myUserId: string;
+  familyGroupId: string | null;
+  token: string | undefined;
 }) {
   const regularMembers = members.filter((m) => m.role !== "admin_staff");
   const adminMembers = members.filter((m) => m.role === "admin_staff");
+  // Server-side already rejects a non-owner's PATCH/DELETE with
+  // assertOwner() (family-groups.service.ts) — this only hides the
+  // actionable-looking menu client-side so a non-owner isn't shown controls
+  // that will always fail with a generic error toast.
+  const isOwner = group?.myRole === "owner";
+
+  const queryClient = useQueryClient();
+  const [removing, setRemoving] = useState<FamilyMember | null>(null);
+
+  async function invalidateMembers() {
+    if (!familyGroupId) return;
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.familyGroups.members(familyGroupId),
+    });
+  }
+
+  async function handleDowngradeToMember(member: FamilyMember) {
+    if (!familyGroupId || !token) return;
+    try {
+      await apiFetch(`/family-groups/${familyGroupId}/members/${member.id}`, {
+        token,
+        method: "PATCH",
+        body: JSON.stringify({ role: "member" }),
+      });
+      await invalidateMembers();
+      toast.success(`${member.name} sekarang menjadi anggota biasa.`);
+    } catch {
+      toast.error("Gagal mengubah peran. Coba lagi.");
+    }
+  }
+
+  async function handleRemoveConfirmed() {
+    if (!familyGroupId || !token || !removing) return;
+    const target = removing;
+    setRemoving(null);
+    try {
+      await apiFetch(`/family-groups/${familyGroupId}/members/${target.id}`, {
+        token,
+        method: "DELETE",
+      });
+      await invalidateMembers();
+      toast.success(`${target.name} dikeluarkan dari family group.`);
+    } catch {
+      toast.error("Gagal mengeluarkan anggota. Coba lagi.");
+    }
+  }
 
   return (
     <>
@@ -1651,13 +1842,35 @@ function FamilyBody({
             }
             sub={`Admin · ${m.email}`}
             right={
-              <button
-                aria-label={`Kelola akses ${m.name}`}
-                onClick={() => toast(`Kelola akses ${m.name}`)}
-                className="cursor-pointer text-muted-foreground"
-              >
-                <EllipsisVertical className="size-4" />
-              </button>
+              isOwner ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    aria-label={`Kelola akses ${m.name}`}
+                    render={
+                      <button
+                        type="button"
+                        className="cursor-pointer text-muted-foreground"
+                      />
+                    }
+                  >
+                    <EllipsisVertical className="size-4" aria-hidden="true" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-[190px]">
+                    <DropdownMenuItem
+                      onClick={() => void handleDowngradeToMember(m)}
+                    >
+                      <UserCheck className="size-4" /> Jadikan Anggota Biasa
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => setRemoving(m)}
+                    >
+                      <UserMinus className="size-4" /> Hapus dari Family
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : undefined
             }
           />
         ))}
@@ -1692,13 +1905,33 @@ function FamilyBody({
           ]}
         />
       </SetSection>
+      <ConfirmDeleteDialog
+        label={removing ? `"${removing.name}" dari family group` : null}
+        onClose={() => setRemoving(null)}
+        onConfirm={() => void handleRemoveConfirmed()}
+      />
     </>
   );
 }
 
 /* ─────────────────────────── Add Admin modal ─────────────────────────── */
 
-function AddAdminDialog({
+// The Prisma `Role` enum this dialog can actually assign (`owner` is
+// intentionally excluded — co-owner invites aren't this dialog's purpose).
+// Real, CASL-enforced permission difference (apps/api/src/casl/casl-ability
+// -factory.ts): `admin_staff` can only read most subjects + create
+// Transaction; `member` gets broad `manage` rights across the family's data.
+type InviteRole = "admin_staff" | "member";
+
+const INVITE_ROLE_OPTIONS: { value: InviteRole; label: string }[] = [
+  {
+    value: "admin_staff",
+    label: "Admin / Staf (input transaksi, akses terbatas)",
+  },
+  { value: "member", label: "Anggota Keluarga (akses penuh)" },
+];
+
+export function AddAdminDialog({
   open,
   onOpenChange,
   familyGroupId,
@@ -1710,19 +1943,21 @@ function AddAdminDialog({
   token: string | undefined;
 }) {
   const emailRef = useRef<HTMLInputElement>(null);
+  const [role, setRole] = useState<InviteRole>("admin_staff");
 
   const { mutate: sendInvite, isPending } = useMutation({
-    mutationFn: (email: string) =>
+    mutationFn: (vars: { email: string; role: InviteRole }) =>
       apiFetch<{ token: string }>(
         `/family-groups/${familyGroupId}/invitations`,
         {
           method: "POST",
           token,
-          body: JSON.stringify({ email, role: "admin_staff" }),
+          body: JSON.stringify({ email: vars.email, role: vars.role }),
         },
       ),
     onSuccess: (invitation) => {
       onOpenChange(false);
+      setRole("admin_staff");
       // No invitation email exists yet — hand the join link to the owner.
       const link = `${window.location.origin}/join/${invitation.token}`;
       void navigator.clipboard.writeText(link).catch(() => {});
@@ -1739,7 +1974,7 @@ function AddAdminDialog({
   function handleSend() {
     const email = emailRef.current?.value?.trim() ?? "";
     if (!email || !familyGroupId) return;
-    sendInvite(email);
+    sendInvite({ email, role });
   }
 
   return (
@@ -1752,9 +1987,6 @@ function AddAdminDialog({
           Admin bisa mencatat transaksi atas nama family (cocok untuk
           sekretaris, supir, ART, atau asisten).
         </div>
-        <Field label="Nama Lengkap">
-          <input className={FIELD_CLASS} placeholder="cth: Dewi Wulandari" />
-        </Field>
         <Field label="Email">
           <input
             ref={emailRef}
@@ -1764,13 +1996,16 @@ function AddAdminDialog({
           />
         </Field>
         <Field label="Peran">
-          <select className={FIELD_CLASS} defaultValue="Sekretaris">
-            <option>Sekretaris</option>
-            <option>Supir</option>
-            <option>ART / Asisten Rumah Tangga</option>
-            <option>Asisten Pribadi</option>
-            <option>Akuntan</option>
-            <option>Lainnya</option>
+          <select
+            className={FIELD_CLASS}
+            value={role}
+            onChange={(e) => setRole(e.target.value as InviteRole)}
+          >
+            {INVITE_ROLE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
           </select>
         </Field>
         <Field label="Hak Akses">
@@ -2064,7 +2299,7 @@ export default function AkunPage() {
       case "notif-setting":
         return <NotifSettingBody />;
       case "privasi":
-        return <PrivasiBody />;
+        return <PrivasiBody token={token} />;
       case "bantuan":
         return (
           <BantuanBody
@@ -2095,6 +2330,8 @@ export default function AkunPage() {
             group={primaryGroup}
             members={familyMembers ?? []}
             myUserId={myUserId}
+            familyGroupId={primaryGroup?.id ?? null}
+            token={token}
             onAddAdmin={() => {
               closeSheet();
               setAddAdminOpen(true);
