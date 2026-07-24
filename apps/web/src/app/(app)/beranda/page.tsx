@@ -109,6 +109,9 @@ function BerandaPage() {
         : formatRupiahCompact(value);
   const firstName = session?.user?.name?.split(" ")[0] ?? "Kamu";
   const [period, setPeriod] = useState<(typeof PERIODS)[number]>("1M");
+  const [selectedCashflowMonth, setSelectedCashflowMonth] = useState<
+    number | null
+  >(null);
 
   const familyGroupId = session?.familyGroupId ?? null;
 
@@ -260,6 +263,21 @@ function BerandaPage() {
   const cashflow = summary?.cashflow;
   const netWorth = summary?.netWorth ?? 0;
   const currentMonth = summary?.currentMonth;
+
+  // Cashflow card month picker: `cashflow.months/income/expense` already
+  // carry the last 6 months in one payload, so a real selection is derived
+  // client-side from the already-fetched array — no extra fetch needed.
+  const cashflowMonths = cashflow?.months ?? [];
+  const latestCashflowIndex = cashflowMonths.length - 1;
+  const selectedCashflowIndex =
+    selectedCashflowMonth !== null &&
+    selectedCashflowMonth >= 0 &&
+    selectedCashflowMonth < cashflowMonths.length
+      ? selectedCashflowMonth
+      : latestCashflowIndex;
+  const cashflowMonthIncome = cashflow?.income[selectedCashflowIndex] ?? 0;
+  const cashflowMonthExpense = cashflow?.expense[selectedCashflowIndex] ?? 0;
+  const cashflowMonthNet = cashflowMonthIncome - cashflowMonthExpense;
 
   if (isError) {
     return (
@@ -461,11 +479,23 @@ function BerandaPage() {
         <SectionCard
           title={t.common.cashFlow}
           action={
-            <select className="rounded-md border bg-background px-2 py-[3px] text-[11px] text-muted-foreground outline-none">
-              <option>
-                {cashflow?.months[cashflow.months.length - 1] ?? "—"}{" "}
-                {t.common.latest}
-              </option>
+            <select
+              className="rounded-md border bg-background px-2 py-[3px] text-[11px] text-muted-foreground outline-none"
+              aria-label={t.common.cashFlow}
+              disabled={!cashflow}
+              value={cashflow ? selectedCashflowIndex : 0}
+              onChange={(e) => setSelectedCashflowMonth(Number(e.target.value))}
+            >
+              {cashflow ? (
+                cashflowMonths.map((m, i) => (
+                  <option key={`${m}-${i}`} value={i}>
+                    {m}
+                    {i === latestCashflowIndex ? ` ${t.common.latest}` : ""}
+                  </option>
+                ))
+              ) : (
+                <option value={0}>—</option>
+              )}
             </select>
           }
         >
@@ -475,7 +505,7 @@ function BerandaPage() {
                 {t.common.income}
               </div>
               <div className="text-[15px] font-extrabold text-success">
-                {isLoading ? "..." : money(currentMonth?.income ?? 0)}
+                {isLoading ? "..." : money(cashflowMonthIncome)}
               </div>
             </div>
             <div>
@@ -483,14 +513,14 @@ function BerandaPage() {
                 {t.common.expense}
               </div>
               <div className="text-[15px] font-extrabold text-destructive">
-                {isLoading ? "..." : money(currentMonth?.expense ?? 0)}
+                {isLoading ? "..." : money(cashflowMonthExpense)}
               </div>
             </div>
           </div>
           <div className="mb-2 text-[11px] text-muted-foreground">
             {t.common.surplus}{" "}
             <span className="font-bold text-success">
-              {isLoading ? "..." : money(currentMonth?.net ?? 0)}
+              {isLoading ? "..." : money(cashflowMonthNet)}
             </span>
           </div>
           {cashflow && (
