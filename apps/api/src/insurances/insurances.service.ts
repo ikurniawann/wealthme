@@ -1,5 +1,14 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 
+import {
+  MONTHS_BY_PERIOD,
+  advanceByOnePeriod,
+} from "../billing-cycle/billing-cycle.util";
 import { ownerNotifPrefs } from "../notifications/notification-prefs";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
@@ -191,6 +200,64 @@ export class InsurancesService {
       throw new NotFoundException("Insurance not found");
     }
     await this.prisma.insurance.delete({ where: { id, familyGroupId } });
+  }
+
+  /**
+   * Record a premium payment: advance the policy's renewal date by exactly
+   * one billing period (reuses the same month-advance logic the auto-renew
+   * cron uses in `BillingCycleProcessor`). Each call represents one real
+   * payment, so — unlike the cron's "catch up to the future" behavior — this
+   * always advances by a single period regardless of how overdue the policy
+   * already is.
+   *
+   * The frontend already guards against a same-tick double-click, but a
+   * genuinely concurrent request (two tabs, or a direct API call) could
+   * still race between the read and the write below. Guard with a
+   * conditional `updateMany` keyed on the `renewalDate` we just read: if
+   * another request already advanced it in between, `count` comes back 0
+   * and we reject instead of silently double-advancing the date.
+   */
+  async payPremium(
+    familyGroupId: string,
+    id: string,
+  ): Promise<InsuranceResponseDto> {
+    const existing = await this.prisma.insurance.findUnique({
+      where: { id, familyGroupId },
+    });
+    if (!existing) {
+      throw new NotFoundException("Insurance not found");
+    }
+    if (!existing.renewalDate) {
+      throw new BadRequestException("Insurance has no renewal date to advance");
+    }
+
+    const months = MONTHS_BY_PERIOD[existing.premiumPeriod] ?? 1;
+    const nextRenewalDate = advanceByOnePeriod(existing.renewalDate, months);
+
+    const { count } = await this.prisma.insurance.updateMany({
+      where: { id, familyGroupId, renewalDate: existing.renewalDate },
+      data: { renewalDate: nextRenewalDate },
+    });
+    if (count === 0) {
+      throw new ConflictException(
+        "Premi sudah dibayar oleh permintaan lain, silakan muat ulang",
+      );
+    }
+
+    const updated = await this.prisma.insurance.findUnique({
+      where: { id, familyGroupId },
+    });
+    if (!updated) {
+      throw new NotFoundException("Insurance not found");
+    }
+
+    void this.maybeNotifyRenewal(
+      familyGroupId,
+      updated.name,
+      updated.renewalDate,
+    );
+
+    return toInsuranceDto(updated);
   }
 
   private async maybeNotifyRenewal(

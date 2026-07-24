@@ -4,22 +4,9 @@ import { Logger } from "@nestjs/common";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
+import { MONTHS_BY_PERIOD, advanceUntilFuture } from "./billing-cycle.util";
+
 import type { Job } from "bullmq";
-
-const MONTHS_BY_PERIOD: Record<string, number> = {
-  monthly: 1,
-  quarterly: 3,
-  yearly: 12,
-};
-
-/** Advance a date by whole months, repeating until it's in the future. */
-function advanceUntilFuture(date: Date, months: number, now: Date): Date {
-  const next = new Date(date);
-  while (next.getTime() <= now.getTime()) {
-    next.setMonth(next.getMonth() + months);
-  }
-  return next;
-}
 
 @Processor("billing-cycle")
 export class BillingCycleProcessor extends WorkerHost {

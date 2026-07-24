@@ -102,4 +102,26 @@ export class InsurancesController {
   ): Promise<void> {
     return this.insurancesService.remove(familyGroupId, id);
   }
+
+  @Post(":id/pay-premium")
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Insurance"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "id", type: String })
+  @ApiOperation({
+    summary:
+      "Record a premium payment; advances the renewal date by one billing period",
+  })
+  @ApiResponse({ status: 200, type: InsuranceResponseDto })
+  @ApiResponse({ status: 400, description: "Insurance has no renewal date" })
+  @ApiResponse({ status: 404, description: "Insurance not found" })
+  @ApiResponse({
+    status: 409,
+    description: "Renewal date was already advanced by a concurrent request",
+  })
+  payPremium(
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("id") id: string,
+  ): Promise<InsuranceResponseDto> {
+    return this.insurancesService.payPremium(familyGroupId, id);
+  }
 }
