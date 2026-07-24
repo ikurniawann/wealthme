@@ -23,6 +23,14 @@ import type {
 const FIELD_CLASS =
   "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
 
+// EPIC-016 Task J: hardcoded zakat-maal gold-price threshold (~85g gold),
+// not sourced from any live gold-price feed -- will silently drift wrong
+// over time. Also inconsistent with the separate, also-hardcoded NISAB in
+// apps/api/src/calculators/calculators.service.ts (Rp 93.5jt @ Rp 1.1jt/g
+// vs this page's Rp 102jt @ ~Rp 1.2jt/g). Deliberately NOT rebuilt here per
+// the epic's own scoping (low-priority business-logic staleness, not fake
+// UI) -- follow-up ticket should source both from one shared rate feed or
+// a configurable value instead of two independently drifting constants.
 const NISAB = 102_000_000; // ≈85gr emas
 
 const DONATION_TYPE_LABEL: Record<string, string> = {

@@ -103,7 +103,7 @@ the full line-by-line detail preserved from the audit.
     (the summary counts above them are real).
   - Fix: wire to a real export, or remove until one exists.
 
-- [ ] ### J — Low-priority polish
+- [x] ### J — Low-priority polish ✅
   - `/beranda`: cashflow card month `<select>` has exactly one option and no
     `onChange` — either make it multi-month and functional or drop the
     dropdown chrome for a plain label.
@@ -562,4 +562,21 @@ maskedNumber` pattern). Attempt 1 review found 3 HIGH issues (silent data-loss
   independently re-verified by a reviewer computing the actual function
   outputs by hand. Security: PASS (baseline advisories unchanged, no
   secrets, tenant scoping unaffected — client-side export of already-scoped
-  data). Test: qa ✅ test ✅ (API 176/176, web 85/85).
+  data). Test: qa ✅ test ✅ (API 176/176, web 85/85). PR:
+  https://github.com/andrsrjld/wealthme-web/pull/193 (base
+  `feat/epic-016-task-11-...` #192 — merge order: #186 → #187 → #188 → #189
+  → #190 → #191 → #192 → #193).
+- **2026-07-24 — /epic-loop EPIC-016 #13 "J — low-priority polish" → PASS
+  (attempts: 1).** Beranda cashflow month select: built real, not dropped to
+  a label — the dashboard summary endpoint already returned 6 months of
+  income/expense data client-side (only the card's headline figures were
+  hardcoded to the current month), so wiring a real `value`/`onChange`
+  select with bounds-checked per-render derivation was genuinely free, no
+  new fetch. Donation NISAB: deliberately left untouched per the epic's own
+  "worth a follow-up ticket" framing — only added an explanatory comment
+  noting it's inconsistent with a second, independently hardcoded NISAB
+  value in `apps/api/src/calculators/calculators.service.ts` (Rp 93.5jt vs
+  Rp 102jt), for whoever picks up that follow-up. Clean first-attempt pass,
+  no findings above LOW/hypothetical-edge-case notes. Security: PASS
+  (frontend-only, baseline advisories unchanged). Test: qa ✅ test ✅ (API
+  176/176, web 87/87).
