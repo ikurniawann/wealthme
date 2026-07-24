@@ -1,6 +1,6 @@
 # EPIC-016: UI Integrity — Non-Functional Actions & Fake Data
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 retries: 0
 phase: 4
@@ -662,5 +662,8 @@ maskedNumber` pattern). Attempt 1 review found 3 HIGH issues (silent data-loss
   Final gates: review PASS (3/3), security PASS (session auth verified
   against source, `securityPrefs` sanitizer confirmed prototype-pollution-
   safe via a fixed-key iteration, baseline advisories unchanged), test PASS
-  (API 184/184, web 102/102). This completes the C–K task-group run (Task L
-  superseded by EPIC-020, already noted above).
+  (API 184/184, web 102/102). PR:
+  https://github.com/andrsrjld/wealthme-web/pull/195 (base
+  `feat/epic-016-task-13-...` #194 — merge order: #186 → #187 → #188 → #189
+  → #190 → #191 → #192 → #193 → #194 → #195). This completes the C–K
+  task-group run (Task L superseded by EPIC-020, already noted above).
