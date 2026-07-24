@@ -159,6 +159,106 @@ function entryStatus(reconStatus: string): MatchStatus {
   return "err";
 }
 
+const RECON_STATUS_LABEL: Record<string, string> = {
+  matched: "Cocok",
+  suggested: "Tersarankan",
+  unmatched: "Tidak Cocok",
+};
+
+function reconStatusLabel(reconStatus: string): string {
+  return RECON_STATUS_LABEL[reconStatus] ?? "Tidak Cocok";
+}
+
+/** Real client-side exports of the reconciliation summary already loaded on
+ * this page (entries + matched/suggested/unmatched counts) — same
+ * Blob-download pattern as the real "Unduh Ringkasan" export on /tax.
+ * No PDF/xlsx library exists in this repo (checked apps/api and apps/web
+ * package.json), so "PDF" and "Excel" are honestly built as real TXT and
+ * CSV downloads rather than faked or mislabeled. */
+
+/** Characters that a spreadsheet app (Excel/Sheets) interprets as the start
+ * of a formula when found at the beginning of a cell. */
+const CSV_FORMULA_TRIGGER_CHARS = new Set(["=", "+", "-", "@", "\t", "\r"]);
+
+/** RFC 4180 escaping only: wrap in double quotes (doubling any embedded
+ * quotes) whenever a cell contains a comma, quote, or newline. This alone is
+ * NOT a formula-injection guard. */
+function csvEscape(value: string): string {
+  return value.includes(",") || value.includes('"') || value.includes("\n")
+    ? `"${value.replace(/"/g, '""')}"`
+    : value;
+}
+
+/** Marks a cell value as free text sourced from user-uploaded content (e.g.
+ * `entry.description`) so `toCsvRow` applies the formula-injection guard to
+ * it. Fields the app itself computes/formats (dates, amounts, currency
+ * codes, status labels, counts) are never attacker-influenced and must stay
+ * plain strings — otherwise a legitimate negative amount like "-500000"
+ * would get a leading `'` and Excel would treat it as literal text instead
+ * of a number, breaking SUM/sort on real data. */
+interface CsvUserTextCell {
+  readonly isUserText: true;
+  readonly value: string;
+}
+
+function csvUserText(value: string): CsvUserTextCell {
+  return { isUserText: true, value };
+}
+
+/** OWASP CSV/formula injection mitigation (CWE-1236): for free-text fields
+ * sourced from user-uploaded content, e.g. `entry.description`, which
+ * originates from user-uploaded bank-statement content (client-parsed and
+ * sent to the API unsanitized). A malicious description like
+ * `=HYPERLINK("http://evil","x")` would execute as a formula when a
+ * DIFFERENT family-group member later opens this export in Excel/Sheets.
+ * Prefixing a leading single quote forces spreadsheet apps to treat the
+ * cell as literal text instead of a formula. Checked against the RAW,
+ * non-trimmed value's first character — trimming first would let a value
+ * starting with a raw tab/CR (both formula triggers) slip past the check. */
+function csvUserTextValue(value: string): string {
+  const startsWithFormulaTrigger = CSV_FORMULA_TRIGGER_CHARS.has(
+    value.charAt(0),
+  );
+  const safeValue = startsWithFormulaTrigger ? `'${value}` : value;
+
+  return csvEscape(safeValue);
+}
+
+function toCsvRow(cells: (string | CsvUserTextCell)[]): string {
+  return cells
+    .map((cell) =>
+      typeof cell === "string" ? csvEscape(cell) : csvUserTextValue(cell.value),
+    )
+    .join(",");
+}
+
+function triggerDownload(
+  content: string,
+  mimeType: string,
+  fileName: string,
+): void {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  // Defensive: revoke on the next tick so the browser has a chance to start
+  // using the blob URL before it's invalidated.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function formatEntryAmount(entry: BankSyncEntryDto): string {
+  const amtNum = parseInt(entry.amount, 10) / 100;
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: entry.currency || "IDR",
+    minimumFractionDigits: 0,
+  }).format(amtNum);
+}
+
 /* ─────────────────────────── Page ─────────────────────────── */
 
 export default function RekonsiliasiPage() {
@@ -342,6 +442,85 @@ export default function RekonsiliasiPage() {
   const unmatchedCount = entries.filter(
     (e) => e.reconStatus === "unmatched",
   ).length;
+  const currentSync = syncsQuery.data?.find((s) => s.id === syncId);
+
+  function handleDownloadTxtSummary(): void {
+    // Defense-in-depth: the button is already disabled while the entries
+    // query is loading/errored, but guard the handler too so a fast/stray
+    // click can never produce a summary that falsely claims "no entries"
+    // while the real GET .../entries fetch is still in flight or failed.
+    if (entriesQuery.isLoading || entriesQuery.isError) return;
+
+    try {
+      const lines: string[] = [
+        "RINGKASAN REKONSILIASI — WealthMe",
+        `Diunduh: ${new Date().toLocaleDateString("id-ID")}`,
+        `Dokumen: ${currentSync?.fileName ?? "—"}`,
+        "",
+        "Ringkasan Pencocokan",
+        `  Total Transaksi: ${entries.length}`,
+        `  Cocok: ${matchedCount}`,
+        `  Perlu Review: ${suggestedCount}`,
+        `  Tidak Cocok: ${unmatchedCount}`,
+        "",
+        "Detail Entri",
+      ];
+      if (entries.length > 0) {
+        for (const entry of entries) {
+          const entryDate = new Date(entry.date).toLocaleDateString("id-ID");
+          lines.push(
+            `  ${entryDate} · ${entry.description} · ${formatEntryAmount(entry)} · ${reconStatusLabel(entry.reconStatus)}`,
+          );
+        }
+      } else {
+        lines.push("  Belum ada entri rekonsiliasi.");
+      }
+
+      triggerDownload(
+        lines.join("\n"),
+        "text/plain;charset=utf-8",
+        `ringkasan-rekonsiliasi-${new Date().toISOString().slice(0, 10)}.txt`,
+      );
+      toast.success("📥 Ringkasan rekonsiliasi berhasil diunduh.");
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Gagal mengunduh ringkasan";
+      toast.error(msg);
+    }
+  }
+
+  function handleDownloadCsv(): void {
+    // Same defense-in-depth guard as handleDownloadTxtSummary above.
+    if (entriesQuery.isLoading || entriesQuery.isError) return;
+
+    try {
+      const rows: (string | CsvUserTextCell)[][] = [
+        ["Tanggal", "Keterangan", "Jumlah", "Mata Uang", "Status"],
+        ...entries.map((entry) => [
+          new Date(entry.date).toISOString().slice(0, 10),
+          csvUserText(entry.description),
+          String(parseInt(entry.amount, 10) / 100),
+          entry.currency || "IDR",
+          reconStatusLabel(entry.reconStatus),
+        ]),
+        [],
+        ["Total Transaksi", String(entries.length)],
+        ["Cocok", String(matchedCount)],
+        ["Perlu Review", String(suggestedCount)],
+        ["Tidak Cocok", String(unmatchedCount)],
+      ];
+
+      triggerDownload(
+        rows.map(toCsvRow).join("\n"),
+        "text/csv;charset=utf-8",
+        `rekonsiliasi-${new Date().toISOString().slice(0, 10)}.csv`,
+      );
+      toast.success("📊 Excel (CSV) rekonsiliasi berhasil diunduh.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Gagal mengunduh CSV";
+      toast.error(msg);
+    }
+  }
 
   return (
     <div>
@@ -801,17 +980,19 @@ export default function RekonsiliasiPage() {
           <div className="flex flex-wrap justify-center gap-2.5">
             <button
               type="button"
-              onClick={() => toast("📥 Mengunduh laporan PDF...")}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-lg border-[1.5px] bg-background px-4 py-2.5 text-[13.5px] font-bold transition-colors hover:bg-accent"
+              onClick={handleDownloadTxtSummary}
+              disabled={entriesQuery.isLoading || entriesQuery.isError}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-lg border-[1.5px] bg-background px-4 py-2.5 text-[13.5px] font-bold transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <FileText className="size-4" /> Unduh PDF
+              <FileText className="size-4" /> Unduh Ringkasan (TXT)
             </button>
             <button
               type="button"
-              onClick={() => toast("📊 Mengunduh Excel...")}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-lg border-[1.5px] bg-background px-4 py-2.5 text-[13.5px] font-bold transition-colors hover:bg-accent"
+              onClick={handleDownloadCsv}
+              disabled={entriesQuery.isLoading || entriesQuery.isError}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-lg border-[1.5px] bg-background px-4 py-2.5 text-[13.5px] font-bold transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <FileSpreadsheet className="size-4" /> Unduh Excel
+              <FileSpreadsheet className="size-4" /> Unduh Excel (CSV)
             </button>
             <button
               type="button"

@@ -98,7 +98,7 @@ the full line-by-line detail preserved from the audit.
     `autoRenewDate`/billing-cycle machinery from EPIC-015 Task B), or relabel
     honestly.
 
-- [ ] ### I — `/rekonsiliasi` export buttons are toast-only
+- [x] ### I — `/rekonsiliasi` export buttons are toast-only ✅
   - "Unduh PDF" / "Unduh Excel" on the reconciliation summary do nothing
     (the summary counts above them are real).
   - Fix: wire to a real export, or remove until one exists.
@@ -533,4 +533,33 @@ maskedNumber` pattern). Attempt 1 review found 3 HIGH issues (silent data-loss
   and confirmed pass) — PASS. Security: PASS (tenant-scoped 3 layers deep,
   owner/member-only via CASL, no money movement — the underlying race was
   assessed LOW severity/self-inflicted-only even before the belt-and-
-  suspenders backend fix). Test: qa ✅ test ✅ (API 176/176, web 79/79).
+  suspenders backend fix). Test: qa ✅ test ✅ (API 176/176, web 79/79). PR:
+  https://github.com/andrsrjld/wealthme-web/pull/192 (base
+  `feat/epic-016-task-10-...` #191 — merge order: #186 → #187 → #188 → #189
+  → #190 → #191 → #192).
+- **2026-07-24 — /epic-loop EPIC-016 #12 "I — /rekonsiliasi export buttons
+  toast-only" → PASS (attempts: 3).** "Unduh PDF"/"Unduh Excel" relabeled
+  honestly to "Unduh Ringkasan (TXT)"/"Unduh Excel (CSV)" and wired to real
+  Blob-download of the real reconciliation summary — no PDF/xlsx library
+  exists in the repo, and a real PDF fix is already EPIC-020's separate,
+  correctly-scoped job; CSV matches the same honest precedent `/laporan`'s
+  own real export already uses. Attempt 1 review: no test file at all
+  (breaking every prior task's own established convention in this loop) plus
+  a real CSV formula/DDE injection (CWE-1236) found independently by two
+  reviewers — `entry.description` comes from user-uploaded, unsanitized bank-
+  statement content in a multi-member family context, exported unescaped
+  into a file meant to be opened in Excel. Attempt 2 added the test file and
+  a formula-injection guard, but a reviewer who actually ran the function
+  found two real bugs in the fix itself: tab/CR triggers were checked AFTER
+  `.trim()` stripped them (dead code contradicting the fix's own documented
+  claim), and the guard was applied uniformly to every column including the
+  numeric amount field — corrupting legitimate negative amounts (normal for
+  debit entries) with a spurious leading quote that breaks Excel's
+  SUM/sort. Attempt 3 (final) fixed both: raw-value trigger check (no
+  premature trim), and the guard now only applies to genuinely user-
+  controlled free text (`entry.description`) via a tagged-cell split
+  (`csvEscape` for computed columns, `csvUserText` for free text) —
+  independently re-verified by a reviewer computing the actual function
+  outputs by hand. Security: PASS (baseline advisories unchanged, no
+  secrets, tenant scoping unaffected — client-side export of already-scoped
+  data). Test: qa ✅ test ✅ (API 176/176, web 85/85).
