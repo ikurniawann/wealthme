@@ -493,6 +493,7 @@ describe("AuthService", () => {
             billDue: true,
             stockPrice: true,
             dividend: true,
+            newLogin: true,
           },
         };
         mockPrisma.user.update.mockResolvedValue(updated);
@@ -500,7 +501,7 @@ describe("AuthService", () => {
         // Act
         const result = await service.updateProfile("user-1", updateDto);
 
-        // Assert — Prisma is called with exactly the 8 sanitized keys, budget80
+        // Assert — Prisma is called with exactly the 9 sanitized keys, budget80
         // false, and no "bogus" key ever reaches the database.
         const [callArg] = mockPrisma.user.update.mock.calls[0] as [
           { data: Record<string, unknown> },
@@ -519,6 +520,7 @@ describe("AuthService", () => {
             "billDue",
             "stockPrice",
             "dividend",
+            "newLogin",
           ].sort(),
         );
         expect(sentPrefs.budget80).toBe(false);
@@ -526,7 +528,7 @@ describe("AuthService", () => {
         expect(result.notificationPrefs).toEqual(updated.notificationPrefs);
       });
 
-      it("returns all 8 keys defaulted to true when the stored value is null", async () => {
+      it("returns all 9 keys defaulted to true when the stored value is null", async () => {
         // Arrange — a user whose notificationPrefs column has never been set
         const userWithNullPrefs = { ...baseUser, notificationPrefs: null };
         mockPrisma.user.findUniqueOrThrow.mockResolvedValue(userWithNullPrefs);
@@ -544,7 +546,72 @@ describe("AuthService", () => {
           billDue: true,
           stockPrice: true,
           dividend: true,
+          newLogin: true,
         });
+      });
+    });
+
+    // EPIC-016 Task K — security preferences persistence (separate JSON
+    // column from notificationPrefs, same sanitize pattern).
+    describe("[Security Preferences]", () => {
+      it("sanitizes securityPrefs before persisting: unknown keys dropped, known keys kept", async () => {
+        // Arrange — dto includes a bogus key alongside a real one
+        const updateDto: UpdateProfileDto = {
+          securityPrefs: {
+            confirmLargeTxn: false,
+            bogus: 1 as unknown as boolean,
+          },
+        };
+        const updated = {
+          ...baseUser,
+          securityPrefs: { confirmLargeTxn: false },
+        };
+        mockPrisma.user.update.mockResolvedValue(updated);
+
+        // Act
+        const result = await service.updateProfile("user-1", updateDto);
+
+        // Assert — Prisma is called with exactly the known key, no "bogus".
+        const [callArg] = mockPrisma.user.update.mock.calls[0] as [
+          { data: Record<string, unknown> },
+        ];
+        const sentPrefs = callArg.data.securityPrefs as Record<string, boolean>;
+        expect(Object.keys(sentPrefs)).toEqual(["confirmLargeTxn"]);
+        expect(sentPrefs.confirmLargeTxn).toBe(false);
+        expect(sentPrefs).not.toHaveProperty("bogus");
+        expect(result.securityPrefs).toEqual(updated.securityPrefs);
+      });
+
+      it("updateProfile never touches securityPrefs when the dto omits it (no accidental reset)", async () => {
+        // Arrange — a dto that only changes notificationPrefs, never mentioning
+        // securityPrefs at all.
+        const updateDto: UpdateProfileDto = {
+          notificationPrefs: { budget80: false },
+        };
+        mockPrisma.user.update.mockResolvedValue({ ...baseUser });
+
+        // Act
+        await service.updateProfile("user-1", updateDto);
+
+        // Assert — the Prisma update payload has no securityPrefs key, so the
+        // stored column is left completely untouched (Prisma leaves it as-is
+        // rather than nulling it out).
+        const [callArg] = mockPrisma.user.update.mock.calls[0] as [
+          { data: Record<string, unknown> },
+        ];
+        expect(callArg.data).not.toHaveProperty("securityPrefs");
+      });
+
+      it("returns the default (confirmLargeTxn: true) when the stored value is null", async () => {
+        // Arrange — a user whose securityPrefs column has never been set
+        const userWithNullPrefs = { ...baseUser, securityPrefs: null };
+        mockPrisma.user.findUniqueOrThrow.mockResolvedValue(userWithNullPrefs);
+
+        // Act
+        const result = await service.getProfileDetail("user-1");
+
+        // Assert
+        expect(result.securityPrefs).toEqual({ confirmLargeTxn: true });
       });
     });
   });

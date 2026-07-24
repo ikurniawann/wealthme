@@ -80,6 +80,14 @@ export class UserProfileDto {
   })
   notificationPrefs?: Record<string, boolean>;
 
+  @ApiPropertyOptional({
+    type: "object",
+    additionalProperties: { type: "boolean" },
+    description:
+      "Resolved security/behavior preferences (only on /auth/profile)",
+  })
+  securityPrefs?: Record<string, boolean>;
+
   @ApiProperty({
     type: String,
     format: "date-time",

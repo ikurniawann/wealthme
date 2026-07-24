@@ -9,6 +9,12 @@ export const NOTIF_PREF_KEYS = [
   "billDue",
   "stockPrice",
   "dividend",
+  // EPIC-016 Task K — "Notifikasi Login Baru" toggle on /akun's Keamanan
+  // tab. Stored here (not a separate column) so it round-trips through the
+  // exact same sanitize/merge machinery as the other 8 toggles. No sender
+  // wires this yet (see KeamananBody's "Disimpan, tapi belum aktif" note) —
+  // it's real, persisted state, just not enforced by a live login-alert yet.
+  "newLogin",
 ] as const;
 
 export type NotifPrefKey = (typeof NOTIF_PREF_KEYS)[number];
@@ -24,6 +30,7 @@ export const DEFAULT_NOTIF_PREFS: NotificationPrefs = {
   billDue: true,
   stockPrice: true,
   dividend: true,
+  newLogin: true,
 };
 
 /**

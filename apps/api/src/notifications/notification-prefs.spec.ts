@@ -5,13 +5,13 @@ import {
 } from "./notification-prefs";
 
 describe("resolveNotifPrefs", () => {
-  it("returns all 8 keys true when stored is null", () => {
+  it("returns all 9 keys true when stored is null", () => {
     // Arrange & Act
     const result = resolveNotifPrefs(null);
 
     // Assert
     expect(result).toEqual(DEFAULT_NOTIF_PREFS);
-    expect(Object.keys(result)).toHaveLength(8);
+    expect(Object.keys(result)).toHaveLength(9);
   });
 
   it("merges a partial stored value over the defaults", () => {
@@ -45,7 +45,7 @@ describe("resolveNotifPrefs", () => {
     expect(result).toEqual({ ...DEFAULT_NOTIF_PREFS, budget80: false });
   });
 
-  it("always returns exactly the 8 known keys, regardless of input shape", () => {
+  it("always returns exactly the 9 known keys, regardless of input shape", () => {
     // Arrange & Act
     const fromNull = resolveNotifPrefs(null);
     const fromEmpty = resolveNotifPrefs({});

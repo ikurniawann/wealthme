@@ -25,8 +25,11 @@ export type ProfileDetail = {
   currency?: string;
   // Resolved notification toggle preferences (EPIC-016 Task B3). Absent only
   // if the profile query hasn't loaded yet — the server always resolves all
-  // 8 known keys via resolveNotifPrefs, defaulting unset ones to true.
+  // known keys via resolveNotifPrefs, defaulting unset ones to true.
   notificationPrefs?: Record<string, boolean>;
+  // Resolved security/behavior toggle preferences (EPIC-016 Task K) — a
+  // separate JSON column from notificationPrefs. Same absence rule as above.
+  securityPrefs?: Record<string, boolean>;
 };
 
 export function useProfile() {

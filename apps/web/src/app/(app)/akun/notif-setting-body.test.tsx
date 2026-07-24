@@ -3,9 +3,10 @@
  *
  * Verifies that the notification preference toggles reflect the real
  * `useProfile().notificationPrefs` (not a local-only default) and that
- * clicking "Simpan" persists the full 8-key preference map via
- * PATCH /auth/profile, mirroring pengaturan-body.test.tsx's mock harness for
- * the currency picker (EPIC-016 Task B2).
+ * clicking "Simpan" persists the full preference map (9 keys as of EPIC-016
+ * Task K's "newLogin") via PATCH /auth/profile, mirroring
+ * pengaturan-body.test.tsx's mock harness for the currency picker
+ * (EPIC-016 Task B2).
  */
 
 import type { ReactElement, ReactNode } from "react";
@@ -70,6 +71,11 @@ const ALL_ON_PREFS = {
   billDue: true,
   stockPrice: true,
   dividend: true,
+  // EPIC-016 Task K — "newLogin" has no row in this component (it lives in
+  // KeamananBody's Autentikasi section), but is part of the shared
+  // NOTIF_PREF_KEYS list this component's save() always resends in full —
+  // see NOTIF_PREF_KEYS's own comment in page.tsx for why.
+  newLogin: true,
 };
 
 const queryClient = new QueryClient({
@@ -148,7 +154,7 @@ describe("NotifSettingBody — Notification Preferences (EPIC-016 Task B3)", () 
     ).toHaveAttribute("aria-checked", "true");
   });
 
-  it("persists all 8 known keys via PATCH /auth/profile when Simpan is clicked", async () => {
+  it("persists all known keys via PATCH /auth/profile when Simpan is clicked", async () => {
     // Arrange
     mockUseProfile.mockReturnValue({
       data: {
@@ -165,7 +171,7 @@ describe("NotifSettingBody — Notification Preferences (EPIC-016 Task B3)", () 
     await user.click(screen.getByText("Simpan"));
 
     // Assert — PATCH sent to /auth/profile with a body carrying exactly the
-    // 8 known keys, preserving the currently-off budget80 toggle.
+    // known keys, preserving the currently-off budget80 toggle.
     expect(mockApiFetch).toHaveBeenCalledWith(
       "/auth/profile",
       expect.objectContaining({ method: "PATCH" }),

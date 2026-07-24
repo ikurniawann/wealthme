@@ -1,6 +1,6 @@
 # EPIC-016: UI Integrity — Non-Functional Actions & Fake Data
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 retries: 0
 phase: 4
@@ -113,7 +113,7 @@ the full line-by-line detail preserved from the audit.
     not fake UI), but worth a follow-up ticket to source it from a rate
     feed or make it configurable.
 
-- [ ] ### K — `/akun` security settings are dummy (except password)
+- [x] ### K — `/akun` security settings are dummy (except password) ✅
   - `KeamananBody` (`apps/web/src/app/(app)/akun/page.tsx:443-610`). Password
     change is **real** (better-auth `authClient.changePassword`, `:461`) — leave
     it. The rest are fake:
@@ -579,4 +579,91 @@ maskedNumber` pattern). Attempt 1 review found 3 HIGH issues (silent data-loss
   Rp 102jt), for whoever picks up that follow-up. Clean first-attempt pass,
   no findings above LOW/hypothetical-edge-case notes. Security: PASS
   (frontend-only, baseline advisories unchanged). Test: qa ✅ test ✅ (API
-  176/176, web 87/87).
+  176/176, web 87/87). PR: https://github.com/andrsrjld/wealthme-web/pull/194
+  (base `feat/epic-016-task-12-...` #193 — merge order: #186 → #187 → #188 →
+  #189 → #190 → #191 → #192 → #193 → #194).
+- **2026-07-24 — /epic-loop EPIC-016 #14 "K — /akun security settings dummy
+  (except password)" → PASS.** Per-item build-vs-relabel (investigated each,
+  not defaulted): **Sesi Aktif — built real (mandatory).** Discovered
+  `BaSession`/`session` is the app's live auth session table — better-auth
+  (running inside `apps/web` via `/api/auth/[...all]`) creates every row, and
+  the NestJS API's global `BetterAuthGuard` (`APP_GUARD`) authenticates every
+  request by looking that same token up in `prisma.baSession`. Rather than
+  build a new backend endpoint, reused better-auth's own already-existing,
+  already-correctly-user-scoped core routes via `authClient.listSessions()` /
+  `authClient.revokeSession({token})` (server-side re-checks
+  `session.userId === caller.id` before deleting — verified by reading the
+  installed `better-auth@1.6.18` source, not assumed). Device/browser label
+  is real (parsed from `BaSession.userAgent`) — deliberately does NOT
+  fabricate a model name like the old "iPhone 14 Pro" (modern UAs don't
+  expose one). Ending the CURRENT session routes through the app's existing
+  real `signOut()` (deletes the session AND clears the cookie AND redirects)
+  instead of `revokeSession`, so it's a genuine sign-out, not a
+  now-orphaned-but-still-cookied row. **PIN Aplikasi — relabeled "coming
+  soon."** Investigated: zero PIN/app-lock infrastructure anywhere in the
+  repo (no model, no lock screen, no gating). A full PIN feature
+  (setup+lock-screen+session-gating) is disproportionate to one task item,
+  same call as Task G's DJP e-Filing — kept the honest toast-click pattern
+  (removed the fake "Aktif" badge). **Sidik Jari/Face ID — relabeled "coming
+  soon."** Investigated: zero WebAuthn/biometric infrastructure. Rendered as
+  a permanently off + `disabled` Switch (new optional `ToggleBox` `disabled`
+  row type, additive/backward-compatible) rather than an inert
+  `defaultChecked` toggle, so it visibly communicates unavailable instead of
+  silently no-opping. **Konfirmasi Transaksi Besar — toggle built real,
+  enforcement explicitly out of scope.** New `User.securityPrefs` JSON column
+  (own column, not `notificationPrefs`, since it's a security/behavior flag
+  not a notification — mirrors `notification-prefs.ts`'s exact
+  sanitize/default pattern in a new `security-prefs.ts`), persisted via the
+  same `PATCH /auth/profile`. Enforcement (an actual confirm dialog before a
+  > Rp 5jt transaction) is not wired: the global "Tambah Transaksi" dialog
+  > lives in protected `components/shell/*`, out of reach for this task —
+  > disclosed honestly in-UI ("disimpan, tapi belum ditegakkan"), not claimed
+  > as active. **Notifikasi Login Baru — toggle built real (reused Task B3's
+  > exact `notificationPrefs` infra), sender explicitly out of scope.** Added
+  > `newLogin` to the shared `NOTIF_PREF_KEYS`/`DEFAULT_NOTIF_PREFS` (backend
+  > and frontend). A real sender would need to hook better-auth's
+  > `session.create` lifecycle in `apps/web/src/lib/auth.ts` — a protected
+  > `lib/*` file — so, matching B3's own "Disimpan, tapi belum aktif" precedent
+  > for stockPrice/dividend, disclosed honestly rather than claimed active.
+  > Caught and fixed a clobber risk before it shipped: the backend replaces the
+  > whole `notificationPrefs` JSON blob per save (not a merge), so a save
+  > triggered from this NEW Keamanan-tab toggle had to resend the full known
+  > key set (falling back to the live fetched value for keys it doesn't own)
+  > or it would have silently reset the Notifikasi tab's other 8 toggles back
+  > to default — a regression test (`keamanan-body.test.tsx`) locks this in.
+  > Gates: qa ✅ (2 import/order lint errors from the new `security-prefs.ts`
+  > import fixed) test ✅ (API 184/184 incl. 14 new; web 99/99 incl. 12 new)
+  > security: baseline advisories unchanged (zero `package.json`/lockfile
+  > diff — confirmed via `git diff --stat pnpm-lock.yaml`), 19 pre-existing
+  > advisories (1 low/10 moderate/8 high) match the standing 2026-07-24
+  > baseline exactly. Migration `20260724150000_add_user_security_prefs`
+  > (additive nullable `securityPrefs` JSONB column) applied to the DEV DB via
+  > `prisma migrate deploy`.
+- **2026-07-25 — /epic-loop EPIC-016 #14 review gate results (2 attempts) +
+  close-out.** Attempt 1 review found 2 HIGH bugs in the above
+  implementation: the Sesi Aktif list could show a false "Tidak ada sesi
+  aktif" during token-hydration (a regression of the exact `pending`-flag
+  pattern this same file already fixed once in `KoneksiBody`/Task C); and
+  the Konfirmasi Transaksi Besar / Notifikasi Login Baru optimistic toggle
+  overrides never rolled back on a failed save, leaving the UI stuck showing
+  an unpersisted value indefinitely. Attempt 2 fixed both (mirrored the
+  established `pending` pattern; reset the override to `null` in each
+  `onError`), re-verified against the diff by a reviewer — PASS (3/3
+  reviewers). Security review (code-level, separate from the baseline-
+  advisory gate) verified session-revocation authorization by reading the
+  installed `better-auth@1.6.18` source directly (not assuming): both
+  `listSessions`/`revokeSession` are scoped server-side to the caller's own
+  cookie-derived identity, never client-supplied — no cross-user session
+  access possible. It also caught one more real, on-point MEDIUM: the
+  top-level "Akun" menu row subtitle still read "Password, PIN, biometrik"
+  as if all three were active, even though the tab itself now honestly
+  discloses PIN/biometric as unavailable — fixed with a one-line copy change
+  ("Password (PIN & biometrik segera hadir)") matching the in-tab phrasing.
+  Final gates: review PASS (3/3), security PASS (session auth verified
+  against source, `securityPrefs` sanitizer confirmed prototype-pollution-
+  safe via a fixed-key iteration, baseline advisories unchanged), test PASS
+  (API 184/184, web 102/102). PR:
+  https://github.com/andrsrjld/wealthme-web/pull/195 (base
+  `feat/epic-016-task-13-...` #194 — merge order: #186 → #187 → #188 → #189
+  → #190 → #191 → #192 → #193 → #194 → #195). This completes the C–K
+  task-group run (Task L superseded by EPIC-020, already noted above).
