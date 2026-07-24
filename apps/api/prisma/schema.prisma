@@ -173,6 +173,7 @@ model User {
   memberships    Member[]
   sessions       BaSession[]
   baAccounts     BaAccount[]
+  feedback       Feedback[]
 
   @@map("users")
 }
@@ -418,6 +419,20 @@ model Notification {
 
   @@index([familyGroupId])
   @@map("notifications")
+}
+
+// User-submitted product feedback (EPIC-016 Task E). User-scoped, not
+// family-group-scoped — feedback is about the product, not shared family
+// data. No review UI in this task; capture + persistence only.
+model Feedback {
+  id        String   @id @default(uuid())
+  userId    String
+  message   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("feedback")
 }
 
 model Asset {

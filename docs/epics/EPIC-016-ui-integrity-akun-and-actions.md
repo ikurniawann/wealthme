@@ -68,7 +68,7 @@ the full line-by-line detail preserved from the audit.
     "coming soon" state — do not leave a working-looking button that
     silently no-ops.
 
-- [ ] ### E — `/akun` Kirim Feedback textarea captures nothing
+- [x] ### E — `/akun` Kirim Feedback textarea captures nothing ✅
   - The feedback `textarea` has no `value`/`onChange`/ref; the button always
     shows "terkirim" regardless of what (if anything) was typed.
   - Fix: bind the textarea and actually send the feedback somewhere
@@ -453,5 +453,17 @@ maskedNumber` pattern). Attempt 1 review found 3 HIGH issues (silent data-loss
     privacy-filter pattern from `accounts.service.ts`/`transactions.service.ts`.
     Re-review: PASS (3/3). Security: PASS (baseline advisories unchanged,
     confirmed via `security-agent`). Test: qa ✅ test ✅ (API 156/156, web
-    61/61). PR: (to be opened next, base
-    `feat/epic-016-task-6-c-akun-koneksi-real-accounts`).
+    61/61). PR: https://github.com/andrsrjld/wealthme-web/pull/188 (base
+    `feat/epic-016-task-6-...` #187 — merge order: #186 → #187 → #188).
+- **2026-07-24 — /epic-loop EPIC-016 #8 "E — /akun Kirim Feedback textarea" →
+  PASS (attempts: 1).** Textarea bound to real state; new `apps/api/src/feedback/`
+  module (`POST /feedback`, user-scoped `Feedback` Prisma model, additive
+  migration) actually persists the message, replacing the unconditional fake
+  "terkirim" toast — success now fires only after the write resolves, error
+  path preserves the typed content. Server-side validation (trim + non-empty
+  - 2000-char cap) backs the client `maxLength`. Clean first-attempt pass on
+    all 3 reviewers (one non-blocking MEDIUM: textarea/button share an
+    identical accessible name — documented follow-up, not fixed this round).
+    Security: PASS (userId server-derived from session, no spoofing surface;
+    no list/read endpoint so no cross-user leak; baseline advisories
+    unchanged). Test: qa ✅ test ✅ (API 165/165, web 67/67).
