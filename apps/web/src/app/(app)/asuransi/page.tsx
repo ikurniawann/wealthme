@@ -121,11 +121,20 @@ function PolicyCardSkeleton() {
 interface PolicyCardProps {
   item: InsuranceDto;
   onEdit: () => void;
-  onPay: () => void;
+  /** Undefined when the policy has no renewal date to advance. */
+  onPay?: () => void;
+  /** True while THIS card's pay-premium request is in flight. */
+  payPending?: boolean;
   onDelete: () => void;
 }
 
-function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
+function PolicyCard({
+  item,
+  onEdit,
+  onPay,
+  payPending,
+  onDelete,
+}: PolicyCardProps) {
   const icon = INSURANCE_TYPE_ICON[item.type] ?? "📋";
   const iconBg = INSURANCE_TYPE_BG[item.type] ?? "#F3F4F6";
   const typeLabel = INSURANCE_TYPE_LABEL[item.type] ?? item.type;
@@ -220,7 +229,12 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
             )}
           </div>
         </div>
-        <CardSideActions onEdit={onEdit} onPay={onPay} onDelete={onDelete} />
+        <CardSideActions
+          onEdit={onEdit}
+          onPay={onPay}
+          payPending={payPending}
+          onDelete={onDelete}
+        />
       </div>
     </Card>
   );
@@ -669,6 +683,45 @@ export default function AsuransiPage() {
     },
   });
 
+  // Tracks policy ids with a pay-premium request currently in flight.
+  // `payPremiumMutation.isPending` only updates after react-query's
+  // notification pipe runs (a real setTimeout(0) macrotask), and
+  // `payPremiumMutation` is a brand-new object every render — so neither can
+  // be read synchronously inside an onClick closure to block a same-tick
+  // double-click. A ref mutation IS synchronous and immediately visible to
+  // the very next call in the same tick, so it's the only thing that can
+  // actually stop a real double-POST. `payPending` (below) is kept purely
+  // as complementary UX feedback (disabled/aria-busy), not as the guard.
+  const payInFlightRef = useRef<Set<string>>(new Set());
+
+  // Records a real premium payment: the backend advances the policy's
+  // renewalDate by one billing period (reusing the same auto-renew logic
+  // as the billing-cycle cron). Success only toasts after the write lands.
+  const payPremiumMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<InsuranceDto>(
+        `/family-groups/${familyGroupId}/insurances/${id}/pay-premium`,
+        { method: "POST", token },
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.insurances.all(familyGroupId ?? ""),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.insurances.summary(familyGroupId ?? ""),
+      });
+      toast.success("Pembayaran premi dicatat, jatuh tempo diperbarui");
+    },
+    onError: (err: { message?: string }) => {
+      toast.error(err.message ?? "Gagal mencatat pembayaran premi");
+    },
+    onSettled: (_data, _error, id) => {
+      // Clear the in-flight lock regardless of outcome (success or error)
+      // so a genuinely failed/completed request can be retried.
+      if (id) payInFlightRef.current.delete(id);
+    },
+  });
+
   const openEdit = (item: InsuranceDto) => {
     setEditingId(item.id);
     setCrud({
@@ -772,7 +825,32 @@ export default function AsuransiPage() {
             key={item.id}
             item={item}
             onEdit={() => openEdit(item)}
-            onPay={() => toast("💳 Bayar premi")}
+            // No renewal date on the policy means there's nothing real to
+            // advance yet — hide the action rather than show a button that
+            // would fail (or no-op) on click.
+            onPay={
+              item.renewalDate
+                ? () => {
+                    // payPremium is NOT idempotent server-side (it
+                    // unconditionally advances renewalDate by one billing
+                    // period), so a double-click must never fire twice.
+                    // This check-and-set on a ref happens synchronously in
+                    // this same click handler call — unlike
+                    // `payPremiumMutation.isPending`, which only flips after
+                    // a setTimeout(0) macrotask and can't observe a second
+                    // click that lands before that tick. `payPending` below
+                    // still disables the button once it does catch up, as
+                    // complementary UX feedback.
+                    if (payInFlightRef.current.has(item.id)) return;
+                    payInFlightRef.current.add(item.id);
+                    payPremiumMutation.mutate(item.id);
+                  }
+                : undefined
+            }
+            payPending={
+              payPremiumMutation.isPending &&
+              payPremiumMutation.variables === item.id
+            }
             onDelete={() => setDeleteTarget(item)}
           />
         ))}

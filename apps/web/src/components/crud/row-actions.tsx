@@ -42,6 +42,13 @@ interface CardSideActionsProps {
   onDelete: () => void;
   /** Optional "bayar" action (liabilitas/asuransi cards). */
   onPay?: () => void;
+  /**
+   * True while THIS card's pay action is in flight. Disables the button and
+   * marks it `aria-busy` so a non-idempotent mutation (e.g. pay-premium)
+   * can't be double-submitted by a fast double-click. Ignored when `onPay`
+   * is not provided; defaults to `false` for existing callers.
+   */
+  payPending?: boolean;
 }
 
 /** Vertical action column on the right edge of liability/insurance cards. */
@@ -49,6 +56,7 @@ export function CardSideActions({
   onEdit,
   onDelete,
   onPay,
+  payPending = false,
 }: CardSideActionsProps) {
   return (
     <div className="flex shrink-0 flex-col justify-center gap-1.5 border-l pl-2.5">
@@ -67,7 +75,9 @@ export function CardSideActions({
           aria-label="Bayar"
           title="Bayar"
           onClick={onPay}
-          className="flex size-[34px] items-center justify-center rounded-[9px] bg-success/10 text-success transition-colors hover:bg-success hover:text-white"
+          disabled={payPending}
+          aria-busy={payPending}
+          className="flex size-[34px] items-center justify-center rounded-[9px] bg-success/10 text-success transition-colors hover:bg-success hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Banknote className="size-3.5" />
         </button>

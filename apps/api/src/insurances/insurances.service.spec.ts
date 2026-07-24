@@ -1,4 +1,8 @@
-import { NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 
 import { PrismaService } from "../prisma/prisma.service";
@@ -33,6 +37,7 @@ function makePrisma() {
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
       delete: jest.fn(),
     },
     notification: {
@@ -211,6 +216,116 @@ describe("InsurancesService", () => {
         service.remove(FAMILY_GROUP_ID, "nonexistent-id"),
       ).rejects.toThrow(NotFoundException);
       expect(prisma.insurance.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("payPremium() — EPIC-016 Task H", () => {
+    it("advances a monthly renewalDate by exactly one month", async () => {
+      // Arrange
+      const renewalDate = new Date("2026-08-01T00:00:00.000Z");
+      const nextRenewalDate = new Date("2026-09-01T00:00:00.000Z");
+      prisma.insurance.findUnique
+        .mockResolvedValueOnce({
+          ...BASE_ROW,
+          premiumPeriod: "monthly",
+          renewalDate,
+        })
+        .mockResolvedValueOnce({
+          ...BASE_ROW,
+          premiumPeriod: "monthly",
+          renewalDate: nextRenewalDate,
+        });
+      prisma.insurance.updateMany.mockResolvedValue({ count: 1 });
+
+      // Act
+      const result = await service.payPremium(FAMILY_GROUP_ID, INSURANCE_ID);
+
+      // Assert
+      expect(prisma.insurance.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: INSURANCE_ID,
+          familyGroupId: FAMILY_GROUP_ID,
+          renewalDate,
+        },
+        data: { renewalDate: nextRenewalDate },
+      });
+      expect(result.renewalDate).toBe("2026-09-01T00:00:00.000Z");
+    });
+
+    it("advances a quarterly renewalDate by 3 months in a single payment", async () => {
+      // Arrange
+      const renewalDate = new Date("2026-08-01T00:00:00.000Z");
+      const nextRenewalDate = new Date("2026-11-01T00:00:00.000Z");
+      prisma.insurance.findUnique
+        .mockResolvedValueOnce({
+          ...BASE_ROW,
+          premiumPeriod: "quarterly",
+          renewalDate,
+        })
+        .mockResolvedValueOnce({
+          ...BASE_ROW,
+          premiumPeriod: "quarterly",
+          renewalDate: nextRenewalDate,
+        });
+      prisma.insurance.updateMany.mockResolvedValue({ count: 1 });
+
+      // Act
+      await service.payPremium(FAMILY_GROUP_ID, INSURANCE_ID);
+
+      // Assert
+      expect(prisma.insurance.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: INSURANCE_ID,
+          familyGroupId: FAMILY_GROUP_ID,
+          renewalDate,
+        },
+        data: { renewalDate: nextRenewalDate },
+      });
+    });
+
+    it("throws NotFoundException when insurance does not exist", async () => {
+      // Arrange
+      prisma.insurance.findUnique.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        service.payPremium(FAMILY_GROUP_ID, "nonexistent-id"),
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.insurance.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("throws BadRequestException when the policy has no renewalDate", async () => {
+      // Arrange
+      prisma.insurance.findUnique.mockResolvedValue({
+        ...BASE_ROW,
+        renewalDate: null,
+      });
+
+      // Act & Assert
+      await expect(
+        service.payPremium(FAMILY_GROUP_ID, INSURANCE_ID),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.insurance.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("throws ConflictException when a concurrent request already advanced the renewalDate", async () => {
+      // Arrange — someone else already advanced renewalDate between our
+      // read and write, so the conditional updateMany matches zero rows.
+      const renewalDate = new Date("2026-08-01T00:00:00.000Z");
+      prisma.insurance.findUnique.mockResolvedValueOnce({
+        ...BASE_ROW,
+        premiumPeriod: "monthly",
+        renewalDate,
+      });
+      prisma.insurance.updateMany.mockResolvedValue({ count: 0 });
+
+      // Act & Assert
+      await expect(
+        service.payPremium(FAMILY_GROUP_ID, INSURANCE_ID),
+      ).rejects.toThrow(ConflictException);
+      // Only the initial read happened — no second findUnique to fetch the
+      // "updated" row, since we bail out before that.
+      expect(prisma.insurance.findUnique).toHaveBeenCalledTimes(1);
     });
   });
 });

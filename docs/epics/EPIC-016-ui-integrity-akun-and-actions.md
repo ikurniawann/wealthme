@@ -91,7 +91,7 @@ the full line-by-line detail preserved from the audit.
   - Fix: wire to a real destination/export, or relabel as "coming soon"
     (the page already does this correctly for document upload).
 
-- [ ] ### H — `/asuransi` premium payment button is a no-op
+- [x] ### H — `/asuransi` premium payment button is a no-op ✅
   - The "Bayar" (pay premium) button on a policy card doesn't record a
     payment or update any renewal/due-date state.
   - Fix: wire to a real payment-recording flow (can reuse the
@@ -505,4 +505,32 @@ maskedNumber` pattern). Attempt 1 review found 3 HIGH issues (silent data-loss
   non-zero script exit as FAIL despite confirming the advisory list was
   byte-identical to the already-accepted set — overridden per the standing
   2026-07-24 decision, no code change needed). Test: qa ✅ test ✅ (API
-  165/165, web 74/74).
+  165/165, web 74/74). PR: https://github.com/andrsrjld/wealthme-web/pull/191
+  (base `feat/epic-016-task-9-...` #190 — merge order: #186 → #187 → #188 →
+  #189 → #190 → #191).
+- **2026-07-24 — /epic-loop EPIC-016 #11 "H — /asuransi premium payment
+  button no-op" → PASS (attempts: 3).** Reused the existing EPIC-015
+  billing-cycle machinery: extracted `MONTHS_BY_PERIOD`/`advanceUntilFuture`
+  out of the cron processor into a shared `billing-cycle.util.ts`, added a
+  sibling `advanceByOnePeriod` (single explicit payment vs. the cron's
+  catch-up-to-now semantics). New `POST .../insurances/:id/pay-premium`
+  genuinely advances `renewalDate` by one billing period; "Bayar" hidden
+  entirely when a policy has no renewal date to advance. Attempt 1 review:
+  clean pass. Attempt 2: a reviewer flagged the pay-premium mutation as
+  non-idempotent with no double-submit guard on the button — the first fix
+  attempt (an `isPending`-based guard) was PROVEN NOT TO WORK by the same
+  reviewer, who wrote a scratch test firing two synchronous clicks and
+  empirically got 2 POSTs (TanStack Query's `isPending` only updates via a
+  `setTimeout(0)` macrotask; the "synchronous guard" closed over a
+  stale-every-render mutation object — dead code). Attempt 3 (final): fixed
+  with a genuinely synchronous `useRef<Set<string>>` check-and-set before
+  calling `.mutate()`, cleared in `onSettled`; ALSO hardened the backend with
+  an atomic CAS (`updateMany` conditioned on the previously-read
+  `renewalDate`, `ConflictException` on a lost race) so a direct API call or
+  two browser tabs can't double-advance either. Reviewer independently
+  re-verified by writing their own scratch test AND a negative control
+  (temporarily broke the fix, confirmed the test correctly failed, restored
+  and confirmed pass) — PASS. Security: PASS (tenant-scoped 3 layers deep,
+  owner/member-only via CASL, no money movement — the underlying race was
+  assessed LOW severity/self-inflicted-only even before the belt-and-
+  suspenders backend fix). Test: qa ✅ test ✅ (API 176/176, web 79/79).
