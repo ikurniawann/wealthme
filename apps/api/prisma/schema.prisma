@@ -168,6 +168,12 @@ model User {
   // resolveNotifPrefs. In-app Notification rows are family-scoped, so
   // enforcement reads the family OWNER's prefs (see notification-prefs.ts).
   notificationPrefs Json?
+  // Per-user security toggles (EPIC-016 Task K), same shape/sanitize pattern
+  // as notificationPrefs but a separate column — these aren't notifications,
+  // they're behavior/security preferences (e.g. "confirm large transactions").
+  // Nullable JSON map of known keys → boolean; null = never set → defaults.
+  // Stored sanitized by resolveSecurityPrefs (apps/api/src/auth/security-prefs.ts).
+  securityPrefs  Json?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
   memberships    Member[]

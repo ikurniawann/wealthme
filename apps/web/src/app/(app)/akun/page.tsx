@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { useSession } from "@/lib/auth-compat";
+import { signOut, useSession } from "@/lib/auth-compat";
 import { authClient } from "@/lib/auth-client";
 import { useLocale } from "@/hooks/use-locale";
 import { useProfile } from "@/hooks/use-profile";
@@ -289,6 +289,10 @@ function ToggleBox({
     defaultChecked?: boolean;
     checked?: boolean;
     onCheckedChange?: (v: boolean) => void;
+    /** Renders the Switch permanently off and non-interactive — for a
+     * control that isn't wired to anything real yet. An honest "coming
+     * soon" instead of a toggle that looks live but silently no-ops. */
+    disabled?: boolean;
   }[];
 }) {
   return (
@@ -306,7 +310,14 @@ function ToggleBox({
               {r.sub}
             </div>
           </div>
-          {r.checked !== undefined ? (
+          {r.disabled ? (
+            <Switch
+              aria-label={r.label}
+              checked={false}
+              disabled
+              className="shrink-0"
+            />
+          ) : r.checked !== undefined ? (
             <Switch
               aria-label={r.label}
               checked={r.checked}
@@ -518,12 +529,293 @@ export function ProfilBody({
   );
 }
 
-function KeamananBody() {
+// EPIC-016 Task K — a real BaSession row as returned by better-auth's
+// `authClient.listSessions()`. Dates arrive as ISO strings over the wire
+// (the type is widened to accept either, since better-auth's own generic
+// client typing isn't parameterized with the server's `auth` instance here).
+type ActiveSessionRow = {
+  id: string;
+  token: string;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  expiresAt: string | Date;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+};
+
+// Real device/browser label parsed from the session's own User-Agent string
+// (BaSession.userAgent, captured by better-auth at sign-in). Deliberately
+// does NOT fabricate a specific device model (e.g. "iPhone 14 Pro") — modern
+// browsers freeze/reduce their UA string, so a model name isn't actually
+// knowable; this only ever renders what the real string says.
+function parseSessionDevice(userAgent: string | null | undefined): {
+  label: string;
+  isMobile: boolean;
+} {
+  if (!userAgent) {
+    return { label: "Perangkat tidak diketahui", isMobile: false };
+  }
+  const ua = userAgent.toLowerCase();
+  const os = ua.includes("iphone")
+    ? "iPhone"
+    : ua.includes("ipad")
+      ? "iPad"
+      : ua.includes("android")
+        ? "Android"
+        : ua.includes("windows")
+          ? "Windows"
+          : ua.includes("mac os") || ua.includes("macintosh")
+            ? "Mac"
+            : ua.includes("linux")
+              ? "Linux"
+              : "Perangkat tidak dikenal";
+  const browser = ua.includes("edg/")
+    ? "Edge"
+    : ua.includes("firefox/")
+      ? "Firefox"
+      : ua.includes("chrome/") && !ua.includes("edg/")
+        ? "Chrome"
+        : ua.includes("safari/") && !ua.includes("chrome/")
+          ? "Safari"
+          : "";
+  const isMobile = os === "iPhone" || os === "iPad" || os === "Android";
+  return { label: browser ? `${browser} di ${os}` : os, isMobile };
+}
+
+// Mirrors the relative-time copy already used by /notifikasi — page-local by
+// design, since no shared formatter exists in the protected lib/format.ts.
+function formatSessionRelativeTime(iso: string | Date): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1) return "Baru saja";
+  if (minutes < 60) return `${minutes} menit lalu`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} jam lalu`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "Kemarin";
+  if (days < 7) return `${days} hari lalu`;
+  return new Date(iso).toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function SessionRow({
+  activeSession,
+  isCurrent,
+  isRevoking,
+  onEnd,
+}: {
+  activeSession: ActiveSessionRow;
+  isCurrent: boolean;
+  isRevoking: boolean;
+  onEnd: () => void;
+}) {
+  const { label, isMobile } = parseSessionDevice(activeSession.userAgent);
+  const ipLabel = activeSession.ipAddress || "IP tidak diketahui";
+  const activityLabel = isCurrent
+    ? "Aktif sekarang"
+    : `Terakhir aktif ${formatSessionRelativeTime(activeSession.updatedAt)}`;
+  const Icon = isMobile ? Smartphone : Laptop;
+
+  return (
+    <SetRow
+      icon={
+        <Icon
+          className={`size-4 ${isCurrent ? "text-success" : "text-muted-foreground"}`}
+        />
+      }
+      iconBg={isCurrent ? "#DCFCE7" : "#F3F4F6"}
+      name={label}
+      sub={`${ipLabel} · ${activityLabel}`}
+      right={
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {isCurrent && (
+            <span className="text-[11px] font-bold text-success">
+              Ini perangkatmu
+            </span>
+          )}
+          <button
+            type="button"
+            className="text-[11px] font-semibold text-destructive hover:underline disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
+            disabled={isRevoking}
+            onClick={onEnd}
+          >
+            {isRevoking ? "Mengakhiri..." : isCurrent ? "Keluar" : "Akhiri"}
+          </button>
+        </div>
+      }
+    />
+  );
+}
+
+export function KeamananBody() {
   const [showChangePw, setShowChangePw] = useState(false);
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
   const [pwLoading, setPwLoading] = useState(false);
+
+  const { data: session } = useSession();
+  const currentToken = session?.accessToken;
+  const queryClient = useQueryClient();
+  const { data: profile } = useProfile();
+
+  // EPIC-016 Task K — Sesi Aktif: real sessions from BaSession, scoped to the
+  // current user server-side by better-auth's own `/list-sessions` endpoint
+  // (`internalAdapter.listSessions(ctx.context.session.user.id, ...)`) — this
+  // page never asks for or receives another user's sessions.
+  const {
+    data: activeSessions,
+    isLoading: sessionsLoading,
+    isError: sessionsError,
+  } = useQuery<ActiveSessionRow[]>({
+    queryKey: ["auth", "sessions", currentToken],
+    queryFn: async () => {
+      const { data, error } = await authClient.listSessions();
+      if (error) {
+        throw new Error(error.message ?? "Gagal memuat sesi");
+      }
+      return (data ?? []) as unknown as ActiveSessionRow[];
+    },
+    enabled: !!currentToken,
+  });
+
+  // A disabled TanStack Query v5 query (session/token not hydrated yet)
+  // reports `isLoading: false` before it has ever run, so `activeSessions
+  // === undefined` — not a defaulted `[]` — is the only reliable "no answer
+  // yet" signal. Mirrors the `pending` fix already applied to KoneksiBody
+  // below; without it, the token-hydration window renders a false "Tidak
+  // ada sesi aktif." on this security-settings page.
+  const sessionsPending =
+    !sessionsLoading && !sessionsError && activeSessions === undefined;
+
+  const sortedSessions = [...(activeSessions ?? [])].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+  );
+
+  const [revokingToken, setRevokingToken] = useState<string | null>(null);
+
+  // Revokes a NON-current session. better-auth's `/revoke-session` endpoint
+  // itself re-checks server-side that the target session belongs to the
+  // caller (`findSession(token))?.session.userId === ctx.context.session
+  // .user.id`) before deleting — this call can never revoke another user's
+  // session even if a token were guessed/tampered with client-side.
+  const { mutate: revokeOtherSession } = useMutation({
+    mutationFn: async (token: string) => {
+      const { error } = await authClient.revokeSession({ token });
+      if (error) {
+        throw new Error(error.message ?? "Gagal mengakhiri sesi");
+      }
+    },
+    onMutate: (token: string) => setRevokingToken(token),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["auth", "sessions", currentToken],
+      });
+      toast.success("Sesi berhasil diakhiri");
+    },
+    onError: () => toast.error("Gagal mengakhiri sesi. Coba lagi."),
+    onSettled: () => setRevokingToken(null),
+  });
+
+  function handleEndSession(row: ActiveSessionRow) {
+    // Ending your OWN current session is a real sign-out, not just a row
+    // disappearing while the browser still holds a now-dead session token —
+    // route it through the same real signOut() every other "Keluar" control
+    // in the app uses (deletes the session server-side AND clears the
+    // cookie AND redirects), instead of authClient.revokeSession.
+    if (row.token === currentToken) {
+      void signOut({ callbackUrl: "/login" });
+      return;
+    }
+    revokeOtherSession(row.token);
+  }
+
+  // "Konfirmasi Transaksi Besar" — real, persisted via the same PATCH
+  // /auth/profile endpoint as the rest of this page, but its own JSON
+  // column (User.securityPrefs) so it can never clobber notificationPrefs.
+  // Enforcement (an actual confirm dialog before a >Rp 5jt transaction) is
+  // NOT wired: the global "Tambah Transaksi" dialog lives in the protected
+  // components/shell/* tree, out of reach for this task — see the
+  // disclosure copy below the toggle.
+  const [confirmLargeTxnOverride, setConfirmLargeTxnOverride] = useState<
+    boolean | null
+  >(null);
+  const confirmLargeTxnOn =
+    confirmLargeTxnOverride ?? profile?.securityPrefs?.confirmLargeTxn ?? true;
+
+  const { mutate: saveConfirmLargeTxn } = useMutation({
+    mutationFn: (value: boolean) =>
+      apiFetch("/auth/profile", {
+        method: "PATCH",
+        token: currentToken,
+        body: JSON.stringify({ securityPrefs: { confirmLargeTxn: value } }),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["auth", "profile", currentToken],
+      });
+      toast.success("Pengaturan keamanan disimpan");
+    },
+    // A failed PATCH must not leave the switch showing the just-clicked,
+    // unpersisted value — revert the optimistic override so the render
+    // falls back to the last known-good server value (profile query data).
+    onError: () => {
+      setConfirmLargeTxnOverride(null);
+      toast.error("Gagal menyimpan pengaturan keamanan");
+    },
+  });
+
+  function handleConfirmLargeTxnChange(value: boolean) {
+    setConfirmLargeTxnOverride(value);
+    saveConfirmLargeTxn(value);
+  }
+
+  // "Notifikasi Login Baru" — reuses the exact notificationPrefs
+  // infrastructure from Task B3 (NOTIF_PREF_KEYS/PATCH /auth/profile). Must
+  // resend every known key (falling back to the live fetched value for keys
+  // this component has no row for) since the backend replaces the whole
+  // JSON blob rather than merging — see NOTIF_PREF_KEYS's own comment.
+  const [newLoginOverride, setNewLoginOverride] = useState<boolean | null>(
+    null,
+  );
+  const newLoginOn =
+    newLoginOverride ?? profile?.notificationPrefs?.newLogin ?? true;
+
+  const { mutate: saveNewLoginPref } = useMutation({
+    mutationFn: (value: boolean) => {
+      const payload = Object.fromEntries(
+        NOTIF_PREF_KEYS.map((k) => [
+          k,
+          k === "newLogin" ? value : (profile?.notificationPrefs?.[k] ?? true),
+        ]),
+      );
+      return apiFetch("/auth/profile", {
+        method: "PATCH",
+        token: currentToken,
+        body: JSON.stringify({ notificationPrefs: payload }),
+      });
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["auth", "profile", currentToken],
+      });
+      toast.success("Pengaturan notifikasi disimpan");
+    },
+    // Same rollback as `saveConfirmLargeTxn` above: don't leave the switch
+    // showing an unpersisted optimistic value after a failed save.
+    onError: () => {
+      setNewLoginOverride(null);
+      toast.error("Gagal menyimpan pengaturan notifikasi");
+    },
+  });
+
+  function handleNewLoginChange(value: boolean) {
+    setNewLoginOverride(value);
+    saveNewLoginPref(value);
+  }
 
   async function handleChangePassword() {
     if (newPw.length < 8) {
@@ -623,16 +915,18 @@ function KeamananBody() {
           onClick={() => setShowChangePw((v) => !v)}
         />
         <SetRow
-          icon={<Hash className="size-4 text-primary" />}
-          iconBg="#EEF2FF"
+          icon={<Hash className="size-4 text-muted-foreground" />}
+          iconBg="#F3F4F6"
           name="PIN Aplikasi"
-          sub="6 digit PIN untuk buka aplikasi"
+          sub="6 digit PIN untuk buka aplikasi — segera hadir"
           right={
-            <span className="text-[12px] font-semibold text-foreground">
-              Aktif
+            <span className="text-[11px] font-semibold text-muted-foreground">
+              Segera hadir
             </span>
           }
-          onClick={() => toast("Atur PIN")}
+          onClick={() =>
+            toast("PIN aplikasi belum tersedia — fitur ini segera hadir.")
+          }
         />
       </SetSection>
       <SetSection>
@@ -641,47 +935,58 @@ function KeamananBody() {
           rows={[
             {
               label: "Sidik Jari / Face ID",
-              sub: "Masuk dengan biometrik",
-              defaultChecked: true,
+              sub: "Masuk dengan biometrik — segera hadir (integrasi WebAuthn belum tersedia)",
+              disabled: true,
             },
             {
               label: "Konfirmasi Transaksi Besar",
-              sub: "Minta autentikasi untuk transaksi >Rp 5 jt",
-              defaultChecked: true,
+              sub: "Minta konfirmasi untuk transaksi >Rp 5 jt",
+              checked: confirmLargeTxnOn,
+              onCheckedChange: handleConfirmLargeTxnChange,
             },
             {
               label: "Notifikasi Login Baru",
               sub: "Alert jika ada login dari perangkat baru",
-              defaultChecked: true,
+              checked: newLoginOn,
+              onCheckedChange: handleNewLoginChange,
             },
           ]}
         />
+        <p className="mt-2 text-[11.5px] text-muted-foreground">
+          Konfirmasi Transaksi Besar: disimpan, tapi belum ditegakkan — dialog
+          konfirmasi sebelum transaksi besar belum tersedia. Notifikasi Login
+          Baru: disimpan, tapi belum aktif — belum ada pengirim notifikasi untuk
+          login dari perangkat baru.
+        </p>
       </SetSection>
       <SetSection>
         <SectionTitle>Sesi Aktif</SectionTitle>
-        <SetRow
-          icon={<Smartphone className="size-4 text-success" />}
-          iconBg="#DCFCE7"
-          name="iPhone 14 Pro"
-          sub="Jakarta · Aktif sekarang"
-          right={
-            <span className="shrink-0 text-[11px] font-bold text-success">
-              Ini perangkatmu
-            </span>
-          }
-        />
-        <SetRow
-          icon={<Laptop className="size-4 text-warning" />}
-          iconBg="#FEF9C3"
-          name="MacBook Pro"
-          sub="Jakarta · 2 jam lalu"
-          right={
-            <span className="shrink-0 cursor-pointer text-[11px] text-destructive">
-              Akhiri
-            </span>
-          }
-          onClick={() => toast("Sesi diakhiri")}
-        />
+        {sessionsLoading || sessionsPending ? (
+          <div className="py-4 text-center text-[12.5px] text-muted-foreground">
+            Memuat sesi...
+          </div>
+        ) : sessionsError ? (
+          <div
+            role="alert"
+            className="py-4 text-center text-[12.5px] text-destructive"
+          >
+            Gagal memuat sesi aktif. Silakan refresh halaman.
+          </div>
+        ) : sortedSessions.length === 0 ? (
+          <div className="py-4 text-center text-[12.5px] text-muted-foreground">
+            Tidak ada sesi aktif.
+          </div>
+        ) : (
+          sortedSessions.map((row) => (
+            <SessionRow
+              key={row.id}
+              activeSession={row}
+              isCurrent={row.token === currentToken}
+              isRevoking={revokingToken === row.token}
+              onEnd={() => handleEndSession(row)}
+            />
+          ))
+        )}
       </SetSection>
     </>
   );
@@ -1144,6 +1449,13 @@ const NOTIF_PREF_KEYS = [
   "billDue",
   "stockPrice",
   "dividend",
+  // EPIC-016 Task K — "Notifikasi Login Baru" lives in KeamananBody's UI
+  // (not a row here), but MUST stay in this shared key list: NotifSetting-
+  // Body's save() always resends every known key (falling back to the last
+  // fetched profile value for keys it has no row for), and the backend does
+  // a full-object replace, not a merge — omitting a real key here would let
+  // a save from THIS tab silently reset it back to the default.
+  "newLogin",
 ] as const;
 
 export function NotifSettingBody() {
@@ -2442,7 +2754,7 @@ export default function AkunPage() {
           icon={<Lock className="size-4 text-success" />}
           iconBg="#DCFCE7"
           name="Keamanan & Password"
-          sub="Password, PIN, biometrik"
+          sub="Password (PIN & biometrik segera hadir)"
           onClick={() => open("keamanan")}
         />
         <MenuRow

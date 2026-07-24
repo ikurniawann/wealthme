@@ -22,12 +22,15 @@ import { PrismaService } from "../prisma/prisma.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { RedisService } from "../redis/redis.service";
 
+import { resolveSecurityPrefs } from "./security-prefs";
+
 import type { Env } from "../config/env";
 import type { NotificationPrefs } from "../notifications/notification-prefs";
 import type { ChangePasswordDto } from "./dto/change-password.dto";
 import type { LoginDto } from "./dto/login.dto";
 import type { RegisterDto } from "./dto/register.dto";
 import type { UpdateProfileDto } from "./dto/update-profile.dto";
+import type { SecurityPrefs } from "./security-prefs";
 import type { GoogleProfile } from "./strategies/google.strategy";
 
 const DEFAULT_CATEGORIES = [
@@ -73,6 +76,7 @@ type UserProfile = {
   monthlyIncome?: string | null;
   currency?: string;
   notificationPrefs?: NotificationPrefs;
+  securityPrefs?: SecurityPrefs;
 };
 
 const PROFILE_DETAIL_SELECT = {
@@ -87,6 +91,7 @@ const PROFILE_DETAIL_SELECT = {
   monthlyIncome: true,
   currency: true,
   notificationPrefs: true,
+  securityPrefs: true,
   createdAt: true,
   memberships: {
     select: {
@@ -251,6 +256,7 @@ export class AuthService {
         ? this.crypto.decrypt(user.monthlyIncome)
         : null,
       notificationPrefs: resolveNotifPrefs(user.notificationPrefs),
+      securityPrefs: resolveSecurityPrefs(user.securityPrefs),
       familyGroupId: user.memberships[0]?.familyGroupId ?? null,
     };
   }
@@ -279,6 +285,9 @@ export class AuthService {
         ...(dto.notificationPrefs !== undefined && {
           notificationPrefs: resolveNotifPrefs(dto.notificationPrefs) as object,
         }),
+        ...(dto.securityPrefs !== undefined && {
+          securityPrefs: resolveSecurityPrefs(dto.securityPrefs) as object,
+        }),
       },
       select: PROFILE_DETAIL_SELECT,
     });
@@ -291,6 +300,7 @@ export class AuthService {
         ? this.crypto.decrypt(updated.monthlyIncome)
         : null,
       notificationPrefs: resolveNotifPrefs(updated.notificationPrefs),
+      securityPrefs: resolveSecurityPrefs(updated.securityPrefs),
       familyGroupId: updated.memberships[0]?.familyGroupId ?? null,
     };
   }
