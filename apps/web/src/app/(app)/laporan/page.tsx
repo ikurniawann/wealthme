@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Calendar, Download, FileSpreadsheet } from "lucide-react";
+import { Download, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -2700,32 +2700,14 @@ function LaporanInner() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[13px] text-muted-foreground">
-          Pantau keuangan dan investasi kamu
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => toast("📅 Pilih rentang tanggal")}
-            className="flex size-9 items-center justify-center rounded-md border bg-card text-muted-foreground transition-colors hover:bg-accent"
-            aria-label="Kalender"
-          >
-            <Calendar className="size-[15px]" />
-          </button>
-          <select className="rounded-md border bg-card px-3 py-[7px] text-xs text-foreground outline-none">
-            <option>April 2025</option>
-            <option>Maret 2025</option>
-            <option>Februari 2025</option>
-          </select>
-          <button
-            onClick={() => toast("📥 Mengunduh laporan...")}
-            className="flex size-9 items-center justify-center rounded-md border bg-card text-muted-foreground transition-colors hover:bg-accent"
-            aria-label="Unduh"
-          >
-            <Download className="size-[15px]" />
-          </button>
-        </div>
+      {/* Header — the calendar/period-select/download controls that used to
+          live here were decorative (no value/onChange, toast-only clicks)
+          and duplicated the real "Export Laporan" section below, which
+          already does a real POST /exports + polling + download. Removed
+          per EPIC-016 Task F rather than wired, since a genuine per-section
+          period filter across all 11 report shapes is EPIC-020's scope. */}
+      <div className="text-[13px] text-muted-foreground">
+        Pantau keuangan dan investasi kamu
       </div>
 
       {/* Tab bar */}
@@ -2914,3 +2896,7 @@ export default function Page() {
     </Suspense>
   );
 }
+
+// Exported for component tests that need to render the page content directly
+// (bypassing the Suspense boundary), mirroring apps/web/.../beranda/page.tsx.
+export { LaporanInner };
