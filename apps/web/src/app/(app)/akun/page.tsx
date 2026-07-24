@@ -12,6 +12,7 @@ import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { parseRupiah } from "@/lib/format";
 import { useShell } from "@/components/shell/shell-context";
+import type { AccountDto } from "@wealthme/contracts";
 import {
   ChevronRight,
   User,
@@ -609,15 +610,148 @@ function KeamananBody() {
   );
 }
 
-function KoneksiBody({
+// EPIC-016 Task C — Koneksi tab brand lookup. Kept local to this page
+// (per WM_CONVENTIONS: page-local helpers are inlined, not pushed into the
+// protected `@/lib/*`); intentionally a small subset of the bank/e-wallet
+// options offered by `CRUD_CONFIG` (rekening/ewallet), not a duplicate of
+// `/rekening`'s full 15-entry brand table — this row only needs a badge, not
+// the balance-card rendering `/rekening` does.
+const KONEKSI_BANK_BRANDS: Array<{
+  match: string;
+  label: string;
+  color: string;
+  bg: string;
+}> = [
+  { match: "bca", label: "BCA", color: "#0061AF", bg: "#DBEAFE" },
+  { match: "mandiri", label: "MDR", color: "#F9A01B", bg: "#FFF7ED" },
+  { match: "bni", label: "BNI", color: "#FF6600", bg: "#FFF7ED" },
+  { match: "bri", label: "BRI", color: "#00529C", bg: "#DBEAFE" },
+  { match: "cimb", label: "CIMB", color: "#7A1F2B", bg: "#FEE2E2" },
+  { match: "permata", label: "PRM", color: "#00A4A6", bg: "#DCFCE7" },
+];
+
+const KONEKSI_EWALLET_BRANDS: Array<{
+  match: string;
+  emoji: string;
+  bg: string;
+}> = [
+  { match: "gopay", emoji: "💚", bg: "#DCFCE7" },
+  { match: "ovo", emoji: "🟣", bg: "#F3F4F6" },
+  { match: "dana", emoji: "🔵", bg: "#F3F4F6" },
+  { match: "linkaja", emoji: "🔴", bg: "#FEE2E2" },
+  { match: "shopeepay", emoji: "🧡", bg: "#FFEDD5" },
+];
+
+function accountInitials(source: string): string {
+  const initials = source
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("")
+    .slice(0, 3);
+  return initials || "?";
+}
+
+function resolveKoneksiIcon(account: AccountDto): {
+  node: React.ReactNode;
+  bg: string;
+} {
+  const source = (account.institution ?? account.name).toLowerCase();
+
+  if (account.type === "ewallet") {
+    const brand = KONEKSI_EWALLET_BRANDS.find((b) => source.includes(b.match));
+    return {
+      node: <span className="text-[16px]">{brand?.emoji ?? "💳"}</span>,
+      bg: brand?.bg ?? "#F3F4F6",
+    };
+  }
+
+  const brand = KONEKSI_BANK_BRANDS.find((b) => source.includes(b.match));
+  return {
+    node: (
+      <span
+        className="text-[11px] font-extrabold"
+        style={{ color: brand?.color ?? "#0061AF" }}
+      >
+        {brand?.label ?? accountInitials(account.institution ?? account.name)}
+      </span>
+    ),
+    bg: brand?.bg ?? "#DBEAFE",
+  };
+}
+
+function AccountConnectionRow({ account }: { account: AccountDto }) {
+  const { node, bg } = resolveKoneksiIcon(account);
+  return (
+    <SetRow
+      icon={node}
+      iconBg={bg}
+      name={account.name}
+      sub={
+        account.maskedNumber
+          ? `No. ${account.maskedNumber}`
+          : (account.institution ?? "Akun manual")
+      }
+      right={
+        <div className="flex shrink-0 items-center gap-1.5">
+          <StatusBadge variant="success">Aktif</StatusBadge>
+          {account.isPrivate && (
+            <StatusBadge variant="purple" className="text-[10px]">
+              <span aria-hidden="true">🔒</span>
+              <span className="sr-only">Akun privat</span>
+            </StatusBadge>
+          )}
+        </div>
+      }
+    />
+  );
+}
+
+// EPIC-016 Task C — was a hardcoded bank/e-wallet list (BCA/Mandiri/BNI/
+// GoPay/LinkAja/OVO/DANA, none sourced from real data). Now renders the
+// same `AccountDto[]` `/rekening` fetches (accounts/isLoading are passed
+// down from AkunPage, which queries `queryKeys.accounts.all` — the exact
+// key `/rekening` uses — so the two pages share one cache entry instead of
+// each running its own parallel fetch).
+export function KoneksiBody({
+  accounts,
+  isLoading,
+  isError,
   onAddRekening,
   onAddEwallet,
 }: {
+  // Undefaulted on purpose (matches `/rekening/page.tsx`'s `accounts?.length
+  // === 0` pattern). A disabled TanStack Query v5 query (session/token not
+  // hydrated yet) reports `isLoading: false` before it has ever run, so
+  // `accounts === undefined` — not a defaulted `[]` — is the only reliable
+  // "no answer yet" signal. Defaulting to `[]` at the call site would make
+  // that pending window indistinguishable from a confirmed-empty account
+  // list.
+  accounts: AccountDto[] | undefined;
+  isLoading: boolean;
+  isError: boolean;
   onAddRekening: () => void;
   onAddEwallet: () => void;
 }) {
+  // Still-pending covers both an in-flight fetch (`isLoading`) and a query
+  // that hasn't started yet because it's still `enabled: false` — never
+  // collapse either into the confirmed-empty state below.
+  const pending = !isLoading && !isError && accounts === undefined;
+  const ready = !isLoading && !pending && !isError;
+  const bankAccounts = accounts?.filter((a) => a.type === "bank") ?? [];
+  const ewalletAccounts = accounts?.filter((a) => a.type === "ewallet") ?? [];
+
   return (
     <>
+      {isError && (
+        <div
+          role="alert"
+          className="mb-2.5 rounded-lg border border-destructive bg-destructive/5 px-3 py-2.5 text-[12px] text-destructive"
+        >
+          <span className="font-semibold">Kesalahan: </span>Gagal memuat
+          rekening. Silakan refresh halaman.
+        </div>
+      )}
       <SetSection>
         <div className="mb-2.5 flex items-center justify-between">
           <SectionTitle>Rekening Bank Terhubung</SectionTitle>
@@ -628,48 +762,20 @@ function KoneksiBody({
             + Tambah
           </span>
         </div>
-        <SetRow
-          icon={
-            <span
-              className="text-[13px] font-extrabold"
-              style={{ color: "#0061AF" }}
-            >
-              BCA
-            </span>
-          }
-          iconBg="#DBEAFE"
-          name="BCA Tahapan ···9010"
-          sub="Terhubung · Sinkronisasi otomatis aktif"
-          right={<StatusBadge variant="success">Aktif</StatusBadge>}
-        />
-        <SetRow
-          icon={
-            <span
-              className="text-[11px] font-extrabold"
-              style={{ color: "#F9A01B" }}
-            >
-              MDR
-            </span>
-          }
-          iconBg="#FFF7ED"
-          name="Mandiri ···5586"
-          sub="Terhubung · Sinkronisasi aktif"
-          right={<StatusBadge variant="success">Aktif</StatusBadge>}
-        />
-        <SetRow
-          icon={
-            <span
-              className="text-[13px] font-extrabold"
-              style={{ color: "#FF6600" }}
-            >
-              BNI
-            </span>
-          }
-          iconBg="#FFF7ED"
-          name="BNI Taplus ···5544"
-          sub="Terhubung · Sinkronisasi aktif"
-          right={<StatusBadge variant="success">Aktif</StatusBadge>}
-        />
+        {(isLoading || pending) && (
+          <div className="py-3 text-[12px] text-muted-foreground">
+            Memuat rekening...
+          </div>
+        )}
+        {ready &&
+          bankAccounts.map((account) => (
+            <AccountConnectionRow key={account.id} account={account} />
+          ))}
+        {ready && bankAccounts.length === 0 && (
+          <div className="py-3 text-[12px] text-muted-foreground">
+            Belum ada rekening bank terhubung.
+          </div>
+        )}
       </SetSection>
       <SetSection>
         <div className="mb-2.5 flex items-center justify-between">
@@ -681,44 +787,20 @@ function KoneksiBody({
             + Tambah
           </span>
         </div>
-        <SetRow
-          icon={<span className="text-[16px]">💚</span>}
-          iconBg="#DCFCE7"
-          name="GoPay"
-          sub="082345678901 · Sinkronisasi aktif"
-          right={<StatusBadge variant="success">Aktif</StatusBadge>}
-        />
-        <SetRow
-          icon={<span className="text-[16px]">🔴</span>}
-          iconBg="#FEE2E2"
-          name="LinkAja"
-          sub="081234567890 · Sinkronisasi aktif"
-          right={<StatusBadge variant="success">Aktif</StatusBadge>}
-        />
-        <SetRow
-          icon={<span className="text-[16px]">🟣</span>}
-          iconBg="#F3F4F6"
-          name="OVO"
-          sub="Belum terhubung"
-          right={
-            <span className="shrink-0 text-[12px] font-bold text-primary">
-              Hubungkan
-            </span>
-          }
-          onClick={() => toast("Hubungkan OVO")}
-        />
-        <SetRow
-          icon={<span className="text-[16px]">🔵</span>}
-          iconBg="#F3F4F6"
-          name="DANA"
-          sub="Belum terhubung"
-          right={
-            <span className="shrink-0 text-[12px] font-bold text-primary">
-              Hubungkan
-            </span>
-          }
-          onClick={() => toast("Hubungkan DANA")}
-        />
+        {(isLoading || pending) && (
+          <div className="py-3 text-[12px] text-muted-foreground">
+            Memuat e-wallet...
+          </div>
+        )}
+        {ready &&
+          ewalletAccounts.map((account) => (
+            <AccountConnectionRow key={account.id} account={account} />
+          ))}
+        {ready && ewalletAccounts.length === 0 && (
+          <div className="py-3 text-[12px] text-muted-foreground">
+            Belum ada e-wallet terhubung.
+          </div>
+        )}
       </SetSection>
     </>
   );
@@ -1884,6 +1966,24 @@ export default function AkunPage() {
 
   const familyGroupId = session?.familyGroupId ?? null;
 
+  // EPIC-016 Task C — Koneksi tab real accounts. Same query key + endpoint
+  // `/rekening` (apps/web/src/app/(app)/rekening/page.tsx) uses, so both
+  // pages share one cache entry instead of running a duplicate parallel
+  // fetch; `handleCrudSubmit` below already invalidates this exact key on
+  // add.
+  const {
+    data: accounts,
+    isLoading: accountsLoading,
+    isError: accountsError,
+  } = useQuery<AccountDto[]>({
+    queryKey: queryKeys.accounts.all(familyGroupId ?? ""),
+    queryFn: () =>
+      apiFetch<AccountDto[]>(`/family-groups/${familyGroupId}/accounts`, {
+        token,
+      }),
+    enabled: !!token && !!familyGroupId,
+  });
+
   async function handleCrudSubmit(
     entity: string,
     _mode: "add" | "edit",
@@ -1952,6 +2052,9 @@ export default function AkunPage() {
       case "koneksi":
         return (
           <KoneksiBody
+            accounts={accounts}
+            isLoading={accountsLoading}
+            isError={accountsError}
             onAddRekening={() => setCrud({ entity: "rekening", mode: "add" })}
             onAddEwallet={() => setCrud({ entity: "ewallet", mode: "add" })}
           />

@@ -24,6 +24,8 @@ ringkasan: [`../BACKLOG.md`](../BACKLOG.md) · arsitektur: [`../WealthMe_Backend
 | [EPIC-016](EPIC-016-ui-integrity-akun-and-actions.md)  | Phase 4 | UI Integrity — Non-Functional Actions & Fake Data  | P0        | backlog      |
 | [EPIC-017](EPIC-017-master-coa-integration.md)         | Phase 4 | Master COA Integration — CoA as Real Backbone      | P2        | backlog      |
 | [EPIC-018](EPIC-018-member-model-i18n-responsive.md)   | Phase 4 | Per-Member Finances, i18n Coverage & Responsive UI | P2        | backlog      |
+| [EPIC-019](EPIC-019-family-subaccounts-allowances.md)  | Phase 4 | Family Sub-Accounts & Role-Scoped Allowances       | P1        | backlog      |
+| [EPIC-020](EPIC-020-txn-detail-report-filters-pdf.md)  | Phase 4 | Txn Detail, Report Period Filters & PDF Export Fix | P1        | backlog      |
 
 ## Archived (done + human QA signed off)
 

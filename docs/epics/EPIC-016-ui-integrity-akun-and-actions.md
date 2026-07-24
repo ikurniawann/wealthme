@@ -36,7 +36,7 @@ the full line-by-line detail preserved from the audit.
     persisted yet, and don't show success unless the save actually covered
     what changed.
 
-- [ ] ### B — `/akun` Settings, Notifications, Privacy tabs are fully inert
+- [x] ### B — `/akun` Settings, Notifications, Privacy tabs are fully inert ✅ (split B1–B4, see Automation Log)
   - `PengaturanBody`: currency/language/theme pickers write to an orphaned
     `localStorage["wealthme_settings"]` key never read by the real theme
     system (`components/providers/theme-provider.tsx`) or real i18n
@@ -51,7 +51,7 @@ the full line-by-line detail preserved from the audit.
     relabel as "coming soon" (matching the honest pattern already used on
     `/tax` upload and `/warisan` document upload).
 
-- [ ] ### C — `/akun` Koneksi tab shows fake linked accounts
+- [x] ### C — `/akun` Koneksi tab shows fake linked accounts ✅
   - Hardcoded bank/e-wallet list (`BCA Tahapan ···9010`, `Mandiri ···5586`,
     etc.) is not sourced from the real accounts API, unlike `/rekening` and
     `/dana` which are properly wired.
@@ -133,7 +133,7 @@ the full line-by-line detail preserved from the audit.
     setup + session "Akhiri" — K supersedes those two items and adds biometric,
     konfirmasi-transaksi-besar, and notifikasi-login-baru.
 
-- [ ] ### L — `/laporan` "Export PDF" downloads a `.txt`
+- [x] ### L — `/laporan` "Export PDF" downloads a `.txt` — SUPERSEDED, see EPIC-020
   - `apps/web/src/app/(app)/laporan/page.tsx` (~`:2248`) "Export PDF" →
     `buildPdf` in `apps/api/src/exports/exports.service.ts:171-189` is
     **misnamed**: it emits **plain text** via `formatTxt` (`:58-60, :360-532`)
@@ -359,3 +359,59 @@ maskedNumber` pattern). Attempt 1 review found 3 HIGH issues (silent data-loss
   session items). (H) `/laporan` "Export PDF" downloads a `.txt` (buildPdf emits
   plain text, no PDF lib; CSV/Excel path already real) → new **Task L**.
   Existing Tasks A–J were left unchanged. No code changed.
+- **2026-07-24 — `/epic-loop` pre-flight bookkeeping fix.** Task B's checkbox
+  was still unchecked despite B1–B4 all being merged into `development`
+  5 days earlier (PRs #172–#178, verified via `gh pr view` + empty
+  `git log origin/development..origin/feat/epic-016-task-5-b4-...`). Marked
+  `[x]` to match reality; no code changed. Also noted for the next automated
+  pass: EPIC-016 Task L (real PDF export) and the newly created
+  `docs/epics/EPIC-020-txn-detail-report-filters-pdf.md` Task C target the
+  exact same root cause (`exports.service.ts` `buildPdf` plaintext stub) —
+  needs a human call on which epic owns it before either is implemented, to
+  avoid duplicate/conflicting work.
+- **2026-07-24 — Human decisions for `/epic-loop` C–L, resolved.** (1)
+  Build-vs-relabel default for C, D, F, G, H, I, J, K: **build the real
+  feature everywhere feasible** (matches the Task B precedent — full builds
+  chosen 3/3 times over relabeling). (2) Task L **superseded** by
+  `docs/epics/EPIC-020-txn-detail-report-filters-pdf.md` Task C — same root
+  cause (`exports.service.ts` `buildPdf` plaintext stub), EPIC-020 owns the
+  fix; Task L checkbox marked done/superseded, no code written here for it.
+  (3) Loop mode: fully autonomous through C, D, E, F, G, H, I, J, K — no
+  per-task pause, only stop on a 3-retry block per the standard `/epic-loop`
+  contract.
+- **2026-07-24 — Pre-existing security-gate baseline advisory found + partially
+  fixed.** `scripts/security-check.sh` was failing on `origin/development`
+  itself (unrelated to any EPIC-016 diff): a HIGH PostCSS advisory
+  (GHSA-6g55-p6wh-862q, via `better-auth`/`next` → `postcss@8.4.31`). Fixed via
+  a standalone `pnpm.overrides` pin to `postcss@^8.5.12`, verified (web build
+  33 routes, web test 38/38, api test 144/144) — PR:
+  https://github.com/andrsrjld/wealthme-web/pull/186 (branch
+  `fix/postcss-security-advisory`, not yet merged — cannot self-merge, see
+  `feedback_epic_loop_auto_merge` memory). 7 more pre-existing HIGH advisories
+  remain on baseline (js-yaml, fast-uri ×2, sharp, and 4 requiring a Next.js
+  16.2.7→16.2.11+ bump) — human decision: deferred as separate work, NOT
+  fixed here. For the rest of this loop (Tasks C–K), the security gate's pass
+  criterion is "introduces zero advisories beyond this known baseline set,"
+  not "script exits 0" — each task's PR states this explicitly. Task branches
+  C onward are stacked on `fix/postcss-security-advisory` (not directly on
+  `origin/development`) so their security gate reflects the fixed baseline.
+- **2026-07-24 — /epic-loop EPIC-016 #6 "C — /akun Koneksi tab fake linked
+  accounts" → PASS (attempts: 2).** Hardcoded bank/e-wallet list (BCA/Mandiri/
+  BNI/GoPay/LinkAja, incl. toast-only "Hubungkan OVO/DANA") replaced with real
+  `AccountDto[]` from the same `/family-groups/{familyGroupId}/accounts`
+  endpoint + query key `/rekening` already uses (shared cache, no duplicate
+  fetch). Attempt 1 review: HIGH (typescript-reviewer) — a disabled-query
+  hydration race (`isLoading: false` + `accounts` defaulted to `[]`) could
+  falsely show "zero accounts" to a real account holder before session
+  hydration completed; MEDIUM — no `isError` handling, a failed fetch was
+  indistinguishable from genuinely empty; 2 LOW (private-badge missing a11y
+  text, unnecessary export). Attempt 2 fixed all: `accounts` typed
+  `AccountDto[] | undefined` with an explicit `pending`/`ready`/error
+  three-way state split (matching `/rekening`'s pattern), `role="alert"` error
+  banner, `sr-only` "Akun privat" text, dropped the stray export — re-review
+  by all 3 reviewers (react/typescript/qa) confirmed via full state-machine
+  walkthrough, PASS. Security: code-level clean (ecc:security-reviewer PASS,
+  tenant scoping server-enforced, no XSS); baseline advisories confirmed
+  unchanged (security-agent). Test: qa ✅ test ✅ (API 144/144, web 46/46 incl.
+  8 new Koneksi tests). PR: (to be opened next, base branch
+  `fix/postcss-security-advisory`).
