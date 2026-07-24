@@ -58,7 +58,7 @@ the full line-by-line detail preserved from the audit.
   - Fix: either remove this section or replace it with real data from the
     same accounts endpoint `/rekening` already uses.
 
-- [ ] ### D — `/akun` misc toast-only actions
+- [x] ### D — `/akun` misc toast-only actions ✅
   - PIN setup, session "Akhiri" (end session — sessions list itself is
     fake), "Ekspor Data Saya", contact rows (chat/email/phone/whatsapp),
     Privacy Policy/Terms/Licenses links, admin "Kelola akses" menu, and
@@ -413,5 +413,45 @@ maskedNumber` pattern). Attempt 1 review found 3 HIGH issues (silent data-loss
   walkthrough, PASS. Security: code-level clean (ecc:security-reviewer PASS,
   tenant scoping server-enforced, no XSS); baseline advisories confirmed
   unchanged (security-agent). Test: qa ✅ test ✅ (API 144/144, web 46/46 incl.
-  8 new Koneksi tests). PR: (to be opened next, base branch
-  `fix/postcss-security-advisory`).
+  8 new Koneksi tests). PR: https://github.com/andrsrjld/wealthme-web/pull/187
+  (base `fix/postcss-security-advisory` #186 — merge order: #186 → #187).
+- **2026-07-24 — /epic-loop EPIC-016 #7 "D — /akun misc toast-only actions" →
+  PASS (attempts: 3).** PIN setup + session "Akhiri" explicitly skipped
+  (superseded by Task K). Fixed regardless-of-policy: `AddAdminDialog`'s role
+  dropdown was cosmetic (server always got `admin_staff`) — now the selected
+  role (`admin_staff`/`member`) is genuinely sent and persisted; also dropped
+  an unused "Nama Lengkap" field with no backing model field. Built real
+  (human decision: build over relabel): "Ekspor Data Saya" now calls a real,
+  pre-existing-but-previously-unwired `GET /users/me/gdpr/export` and
+  triggers a real Blob download; contact rows (chat/email/phone/WhatsApp) are
+  real `mailto:`/`tel:`/`wa.me` links; "Kelola akses" wired to real
+  owner-gated PATCH (demote)/DELETE (remove) member endpoints (also
+  previously built but unused by any frontend). Privacy/Terms/Licenses
+  relabeled honestly (`"belum tersedia — segera hadir"`) — confirmed via
+  repo-wide search that no real legal content exists anywhere to link to.
+  Attempt 1 review: HIGH — real actions (export, contact rows) gated behind
+  keyboard-unreachable `<div onClick>` rows; 4 MEDIUMs (label association,
+  Blob URL revoke timing, no double-submit guard, aria-hidden inconsistency)
+  - a QA-flagged MEDIUM (non-owners saw actionable-looking "Kelola akses"
+    menu items that always failed server-side) + a test-fixture string that
+    would've spuriously tripped the security-secret regex. Attempt 2 fixed all:
+    `SetRow` gained real `href`/`interactive` variants, contact rows became
+    real anchors, "Kelola akses" gated client-side by `myRole === "owner"`
+    (matching real server enforcement) — re-review found ONE new MEDIUM
+    regression (a label-wrapping change caused mis-click risk on an already-
+    decorative, unwired "Hak Akses" switch block, not part of this task's
+    scope, no data impact) — documented as a non-blocking follow-up rather than
+    spending the 3rd attempt on a decorative-only quirk. Attempt 3 (still used,
+    but for a different reason): `ecc:security-reviewer` found a real HIGH —
+    the newly-activated GDPR export endpoint (`gdpr.service.ts`) never applied
+    the app's existing `accountPrivacyWhere`/`transactionPrivacyWhere` filters,
+    so a plain `member` could export another member's `isPrivate`-flagged
+    accounts/transactions. This diff is what turned a previously-dead button
+    into a live exfiltration path. Fixed with per-family-group privacy
+    splitting (a caller can be owner in one group, member in another — handled
+    correctly, not a single global role check), reusing the exact existing
+    privacy-filter pattern from `accounts.service.ts`/`transactions.service.ts`.
+    Re-review: PASS (3/3). Security: PASS (baseline advisories unchanged,
+    confirmed via `security-agent`). Test: qa ✅ test ✅ (API 156/156, web
+    61/61). PR: (to be opened next, base
+    `feat/epic-016-task-6-c-akun-koneksi-real-accounts`).

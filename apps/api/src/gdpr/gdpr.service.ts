@@ -1,7 +1,14 @@
 import { Injectable } from "@nestjs/common";
 
+import {
+  accountPrivacyWhere,
+  canSeePrivateItems,
+  transactionPrivacyWhere,
+} from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
+
+import type { Prisma } from "@prisma/client";
 
 @Injectable()
 export class GdprService {
@@ -26,9 +33,20 @@ export class GdprService {
 
     const familyGroupIds = memberships.map((m) => m.familyGroupId);
 
+    // Privacy is per-family-group: the caller may be `owner` in one group
+    // and a plain `member` in another, so split groups by whether *that*
+    // group's role can see private items instead of applying one role
+    // check globally across every group's data.
+    const privilegedGroupIds = memberships
+      .filter((m) => canSeePrivateItems(m.role))
+      .map((m) => m.familyGroupId);
+    const restrictedGroupIds = memberships
+      .filter((m) => !canSeePrivateItems(m.role))
+      .map((m) => m.familyGroupId);
+
     const [accounts, transactions, goals, notifications] = await Promise.all([
       this.prisma.account.findMany({
-        where: { familyGroupId: { in: familyGroupIds } },
+        where: this.buildAccountWhere(privilegedGroupIds, restrictedGroupIds),
         select: {
           id: true,
           name: true,
@@ -39,7 +57,10 @@ export class GdprService {
         },
       }),
       this.prisma.transaction.findMany({
-        where: { familyGroupId: { in: familyGroupIds } },
+        where: this.buildTransactionWhere(
+          privilegedGroupIds,
+          restrictedGroupIds,
+        ),
         select: {
           id: true,
           description: true,
@@ -95,5 +116,60 @@ export class GdprService {
     // Cascade: member → familyGroup data stays (other members still own it)
     // Only the user record and their memberships are deleted
     await this.prisma.user.delete({ where: { id: userId } });
+  }
+
+  /**
+   * Builds the account `where` clause across every family group the caller
+   * belongs to, applying `accountPrivacyWhere` only to the groups where
+   * their role can't see private items — mirrors the pattern used by
+   * `accounts.service.ts`, but per-group instead of for a single tenant.
+   */
+  private buildAccountWhere(
+    privilegedGroupIds: string[],
+    restrictedGroupIds: string[],
+  ): Prisma.AccountWhereInput {
+    const privileged: Prisma.AccountWhereInput | null =
+      privilegedGroupIds.length > 0
+        ? { familyGroupId: { in: privilegedGroupIds } }
+        : null;
+    const restricted: Prisma.AccountWhereInput | null =
+      restrictedGroupIds.length > 0
+        ? {
+            familyGroupId: { in: restrictedGroupIds },
+            ...accountPrivacyWhere(false),
+          }
+        : null;
+
+    if (privileged && restricted) return { OR: [privileged, restricted] };
+    if (privileged) return privileged;
+    if (restricted) return restricted;
+    return { familyGroupId: { in: [] } };
+  }
+
+  /**
+   * Same per-group split as `buildAccountWhere`, using
+   * `transactionPrivacyWhere` (which also excludes transactions tied to a
+   * private category) for the restricted groups.
+   */
+  private buildTransactionWhere(
+    privilegedGroupIds: string[],
+    restrictedGroupIds: string[],
+  ): Prisma.TransactionWhereInput {
+    const privileged: Prisma.TransactionWhereInput | null =
+      privilegedGroupIds.length > 0
+        ? { familyGroupId: { in: privilegedGroupIds } }
+        : null;
+    const restricted: Prisma.TransactionWhereInput | null =
+      restrictedGroupIds.length > 0
+        ? {
+            familyGroupId: { in: restrictedGroupIds },
+            ...transactionPrivacyWhere(false),
+          }
+        : null;
+
+    if (privileged && restricted) return { OR: [privileged, restricted] };
+    if (privileged) return privileged;
+    if (restricted) return restricted;
+    return { familyGroupId: { in: [] } };
   }
 }
