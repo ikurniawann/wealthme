@@ -85,7 +85,7 @@ the full line-by-line detail preserved from the audit.
     or remove the duplicate fake controls and point users at the real
     Export Laporan feature.
 
-- [ ] ### G — `/tax` e-Filing and download-summary buttons are toast-only
+- [x] ### G — `/tax` e-Filing and download-summary buttons are toast-only ✅
   - "Lapor SPT Tahunan" and "Unduh Ringkasan" imply a real external action
     (opening DJP e-Filing, generating a download) but only show a toast.
   - Fix: wire to a real destination/export, or relabel as "coming soon"
@@ -482,4 +482,27 @@ maskedNumber` pattern). Attempt 1 review found 3 HIGH issues (silent data-loss
   already-working Export Laporan feature lower on the same page. Clean
   first-attempt pass on all 3 reviewers, no findings above LOW. Security:
   PASS (no backend/dependency changes; baseline advisories unchanged). Test:
-  qa ✅ test ✅ (API 165/165, web 71/71).
+  qa ✅ test ✅ (API 165/165, web 71/71). PR:
+  https://github.com/andrsrjld/wealthme-web/pull/190 (base
+  `feat/epic-016-task-8-...` #189 — merge order: #186 → #187 → #188 → #189
+  → #190).
+- **2026-07-24 — /epic-loop EPIC-016 #10 "G — /tax e-Filing and
+  download-summary buttons toast-only" → PASS (attempts: 2).** Investigated
+  per-button rather than defaulting both to relabel: "Lapor SPT Tahunan"
+  relabeled honestly ("Integrasi e-Filing DJP belum tersedia — segera
+  hadir.") — a real DJP government e-Filing integration is genuinely out of
+  reach (no credentials/partnership), matching this page's own existing
+  document-upload disclosure pattern. "Unduh Ringkasan" was built real
+  instead: a `TaxRecord` model/service already existed and was already
+  fetched client-side, so it now generates a real Blob-download text summary
+  from the calculator's live estimate + the actual fetched tax history (same
+  pattern as the GDPR export from Task E). Attempt 1 review: clean pass, one
+  MEDIUM (download could race the still-loading tax-records query and
+  silently produce an incomplete summary). Attempt 2 fixed it (loading-state
+  guard at both the button `disabled` prop and the handler itself, defense
+  in depth) — re-review PASS. Security: PASS (code clean, no new advisories;
+  one security-agent instance literally read the pre-existing baseline's
+  non-zero script exit as FAIL despite confirming the advisory list was
+  byte-identical to the already-accepted set — overridden per the standing
+  2026-07-24 decision, no code change needed). Test: qa ✅ test ✅ (API
+  165/165, web 74/74).

@@ -99,7 +99,9 @@ export default function TaxPage() {
       : "0%";
 
   // Fetch tax records
-  const { data: taxRecords = [] } = useQuery<TaxRecordDto[]>({
+  const { data: taxRecords = [], isLoading: isTaxRecordsLoading } = useQuery<
+    TaxRecordDto[]
+  >({
     queryKey: fgId ? queryKeys.tax.list(fgId) : ["tax-disabled"],
     queryFn: () =>
       apiFetch<TaxRecordDto[]>(`/family-groups/${fgId}/tax`, { token }),
@@ -162,6 +164,57 @@ export default function TaxPage() {
   // Current year record (if any)
   const currentRecord = taxRecords.find((r) => r.taxYear === CURRENT_YEAR);
   const prevRecord = taxRecords.find((r) => r.taxYear === CURRENT_YEAR - 1);
+
+  // "Unduh Ringkasan" — a real client-side export of the tax data already
+  // loaded on this page (calculator estimate + saved TaxRecord history), not
+  // a fake "generating report" toast. Same shape as the real GDPR export on
+  // /akun: build a Blob from real data and trigger a browser download.
+  function handleDownloadSummary(): void {
+    // Defense-in-depth: the button is already disabled while
+    // `taxRecords` is loading, but guard the handler too so a fast/stray
+    // click can never produce a summary that falsely claims "no records"
+    // while the real GET /family-groups/:id/tax fetch is still in flight.
+    if (isTaxRecordsLoading) return;
+
+    const lines: string[] = [
+      "RINGKASAN PAJAK — WealthMe",
+      `Diunduh: ${new Date().toLocaleDateString("id-ID")}`,
+      "",
+      `Estimasi PPh 21 ${CURRENT_YEAR} (kalkulator)`,
+      `  Penghasilan Bruto: ${formatRupiah(grossN)}`,
+      `  PTKP: ${formatRupiah(ptkp)}`,
+      `  Zakat/Donasi: ${formatRupiah(zakatN)}`,
+      `  PKP: ${formatRupiah(pkp)}`,
+      `  Estimasi Pajak Terutang: ${formatRupiah(tax)}`,
+      `  Tarif Efektif: ${effRate}`,
+      "",
+      "Riwayat Catatan Pajak",
+    ];
+    if (taxRecords.length > 0) {
+      for (const r of taxRecords) {
+        lines.push(
+          `  ${r.taxYear}: Bruto ${formatRupiah(Number(r.grossIncome))} · Zakat ${formatRupiah(Number(r.zakatDeduction))} · Pajak ${formatRupiah(Number(r.netTax))} · Status ${SPT_STATUS_LABEL[r.sptStatus as SptStatus]}`,
+        );
+      }
+    } else {
+      lines.push("  Belum ada catatan pajak tersimpan.");
+    }
+
+    const blob = new Blob([lines.join("\n")], {
+      type: "text/plain;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ringkasan-pajak-${CURRENT_YEAR}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // Defensive: revoke on the next tick so the browser has a chance to
+    // start using the blob URL before it's invalidated.
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    toast.success("📊 Ringkasan pajak berhasil diunduh.");
+  }
 
   return (
     <div className="space-y-4">
@@ -457,17 +510,25 @@ export default function TaxPage() {
         </div>
       </SectionCard>
 
-      {/* Action buttons */}
+      {/* Action buttons — "Lapor SPT Tahunan" would require a real
+          integration with DJP's government e-Filing system, which is out of
+          scope for this app; kept as an honest "coming soon" like the
+          Dokumen Pajak upload above rather than faking a connection.
+          "Unduh Ringkasan" downloads a real summary of the tax data already
+          on this page (see handleDownloadSummary). */}
       <div className="flex flex-wrap gap-2.5">
         <Button
-          onClick={() => toast("🌐 Membuka e-Filing DJP Online...")}
+          onClick={() =>
+            toast("Integrasi e-Filing DJP belum tersedia — segera hadir.")
+          }
           className="h-auto min-w-[160px] flex-1 py-2.5"
         >
           <Send className="size-4" /> Lapor SPT Tahunan
         </Button>
         <Button
           variant="outline"
-          onClick={() => toast("📊 Membuat laporan pajak...")}
+          onClick={handleDownloadSummary}
+          disabled={isTaxRecordsLoading}
           className="h-auto min-w-[160px] flex-1 py-2.5"
         >
           <FileText className="size-4" /> Unduh Ringkasan
