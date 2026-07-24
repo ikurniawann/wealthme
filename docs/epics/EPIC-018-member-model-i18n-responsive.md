@@ -1,6 +1,6 @@
 # EPIC-018: Per-Member Finances, i18n Coverage & Responsive UI
 
-status: backlog
+status: on-progress
 environment: dev
 retries: 0
 phase: 4
@@ -78,108 +78,123 @@ current tree):
 
 ## Tasks
 
-- [ ] ### A — Full i18n coverage (extract + wire the whole app)
-  - Extract the ~1500 hardcoded multi-word Indonesian literals into the
-    `id`/`en` dictionaries (`apps/web/src/i18n/*.ts`), organized into **per-page
-    dictionary sections** mirroring the existing `beranda` section pattern, so
-    each page pulls only its own keys.
-  - Wire `useLocale` (`apps/web/src/hooks/use-locale.ts`) through the **23
-    currently-untranslated pages** plus the **shell**: sidebar/nav
-    (`lib/nav` → `components/shell/sidebar.tsx`), topbar, mobile nav, and
-    `components/shell/app-shell.tsx` ("Memuat WealthMe…"). Shell/nav files are
-    protected foundation paths — a reviewed foundation change is required here
-    (flag for explicit authorization before editing `components/shell/*` and
-    `lib/nav`).
-  - Fold `/panduan`'s `JOURNEYS` catalog copy (`panduan/page.tsx:47-268`, incl.
-    "Buka →") into the dictionary.
-  - Translate the strings that live in `apps/web/src/lib/data` (labels, sample
-    copy) or route them through the dictionary.
-  - **Phase this by page cluster** (e.g. shell+nav first as the highest-visible
-    win, then dashboard/reports pages, then long-tail pages) so it ships in
-    reviewable increments rather than one ~1500-string mega-PR. Each phase is
-    its own `/task-work` pass.
-  - Acceptance for this task: switching `/akun` → English visibly re-renders
-    the sidebar, topbar, and the covered pages; no untranslated key falls back
-    to a raw key string; ID remains byte-faithful to today's copy.
+Phased per a 2026-07-25 codebase inventory: **2,204 hardcoded literals
+confirmed across 25 pages** (higher than the original ~1500 estimate — see
+Automation Log). Task B is dropped (superseded by EPIC-019). Task C runs last,
+after A6, so it lands on top of an already-translated `ringkasan`.
 
-- [ ] ### B — Per-member finances ("pockets")
-  - **Gated on Open Design Decision #1** — only build this if the user chooses
-    the per-member-pockets model over the separate-family-group answer.
-  - Schema: add a **nullable** `ownerUserId` FK to `Account`
-    (`schema.prisma:301-321`) — and optionally `Category` — scoped within the
-    family group; nullable so existing rows stay "family-shared." Additive
-    migration only (no drops, no failing non-null backfill).
-  - Scope **reads** by owner where the user asks for "mine": account/category
-    lists, reports, dashboard, and budgets gain a "mine vs family" lens.
-  - Scope **writes**: a member's new transaction can target their own pocket
-    (default) vs an explicitly shared family account.
-  - Extend CASL (`casl-ability.factory.ts:38-97`) with an own-vs-shared
-    dimension so a member can always manage their own pocket while shared
-    family data still honors the existing owner/admin_staff/member rules.
-  - UI: assign an owner to an account, and a **"Milik saya / Keluarga"**
-    (Mine / Family) filter on the lists/dashboard.
-  - Preserve full backward compatibility: null-owner data behaves exactly as
-    today (family-shared). Medium-to-large; the biggest task in this epic.
+- [x] ### A1 — i18n foundation + shell/nav (protected path, authorized) ✅
+  - Extend `apps/web/src/i18n/types.ts` with a scalable per-page-section shape
+    (keep `greeting`/`common`/`beranda`; add a `shell` section for shell-owned
+    copy, mirroring the `beranda` section pattern).
+  - Wire `useLocale` into `components/shell/app-shell.tsx` (line 29 loading
+    text), `sidebar.tsx` (line 70 tooltip), `mobile-bars.tsx` (5 aria-labels:
+    "Buka menu", "Menu Navigasi", "Cari", "Notifikasi", "Tambah transaksi"),
+    `topbar.tsx` (search placeholder + "Keluar" aria-label),
+    `transaction-dialog.tsx` (64 literals — the global add-transaction modal
+    rendered on every page via `AppShell`), `theme-toggle.tsx`,
+    `theme-picker.tsx`, `search-dialog.tsx`.
+  - Centralize `lib/nav.ts` labels (`REPORT_TABS` 16, `NAV_SECTIONS` 24 + 2
+    section headers, `PAGE_TITLES` 24, `MOBILE_NAV` 4) into the `shell`
+    dictionary section, keyed by the existing route `id`s; `lib/nav.ts` keeps
+    only structural data (id/href/icon), labels resolve from `t.shell.*` at
+    render time. Preserve today's exact ID copy per surface, including the
+    existing `aset` (sidebar) vs `"Aset Saya"` (page title) distinction — two
+    different surfaces, don't unify them.
+  - This is the protected-foundation-path phase — explicitly authorized by the
+    user for this epic run (2026-07-25, AskUserQuestion).
 
-- [ ] ### C — Responsive layout for sparse pages (empty-space)
-  - Give sparse dashboard pages (`beranda`, `ringkasan`) a **denser, adaptive
-    grid** — e.g. a 2-column main+aside layout on wide viewports — so content
-    fills the available width/height instead of stacking top-aligned with a
-    dead zone below.
-  - The gap originates in `components/shell/app-shell.tsx:55` (`<main>` has no
-    height/`max-width` strategy). Prefer solving it **inside the page files**
-    (`beranda/page.tsx`, `ringkasan/page.tsx`) to avoid touching the protected
-    shell. **If** a shell-level change is genuinely required (e.g. a max-width
-    container or min-height fill), that is a protected foundation change —
-    flag it for explicit reviewed authorization first; do not edit
-    `components/shell/*` opportunistically.
-  - LOW priority / cosmetic. Acceptable alternative outcome (per Open Design
-    Decision #3): consciously accept the whitespace and close the task as
-    "won't-fix, documented."
+- [ ] ### A2 — i18n: akun + panduan
+  - `akun/page.tsx` (400 literals, 2186 lines) — full content translation; it
+    already calls `useLocale` for the language picker, extend to `t.akun.*`
+    for its own copy.
+  - `panduan/page.tsx` (41 literals) — fold the `JOURNEYS` catalog (lines
+    47-268: 9 journeys × title/subtitle + 24 nested features × title/desc = 66
+    string fields) into `t.panduan.*`, including "Buka →".
+
+- [ ] ### A3 — i18n: laporan
+  - `laporan/page.tsx` (352 literals, 2916 lines — largest file in the app) —
+    16 report-tab sub-views (tab labels come from A1's `shell` section; this
+    phase covers per-tab body content/headers/table copy).
+
+- [ ] ### A4 — i18n: asuransi, kalkulator, quickinput, ai
+  - `asuransi/page.tsx` (123), `kalkulator/page.tsx` (112, multiple calculator
+    sub-tools), `quickinput/page.tsx` (104, high literal-density form
+    labels/options), `ai/page.tsx` (25).
+
+- [ ] ### A5 — i18n: wealth & asset pages
+  - `investasi/page.tsx` (88), `masterdata/page.tsx` (87), `aset/page.tsx`
+    (86), `liabilitas/page.tsx` (84), `mastercoa/page.tsx` (77).
+
+- [ ] ### A6 — i18n: remaining pages
+  - `transaksi/page.tsx` (71), `rekonsiliasi/page.tsx` (79),
+    `splitbill/page.tsx` (61), `anggaran/page.tsx` (60), `rekening/page.tsx`
+    (59), `donation/page.tsx` (54), `warisan/page.tsx` (48), `tujuan/page.tsx`
+    (42), `tax/page.tsx` (30), `dana/page.tsx` (29), `ringkasan/page.tsx`
+    (23), `notifikasi/page.tsx` (16).
+  - Run before Task C so `ringkasan` is already i18n-wired when its layout is
+    redesigned.
+
+- [x] ### B — Per-member finances ("pockets") — SUPERSEDED, not built here
+  - **Resolved 2026-07-25 (AskUserQuestion):** dropped from this epic.
+    EPIC-019 (family sub-accounts & allowances, created 2026-07-24) builds the
+    same `ownerUserId`-on-`Account` foundation at a larger scope (transfer
+    ledger, request/approve flow, per-member allowances). Building it here too
+    risks duplicate/conflicting schema work. EPIC-019 is now the canonical
+    home for per-member finances — its own Open Design Decision #4 ("confirm
+    it supersedes EPIC-018 Task B") should be resolved there. No schema
+    change made in this epic.
+
+- [ ] ### C — Responsive layout redesign for sparse pages
+  - **Resolved 2026-07-25 (AskUserQuestion):** redesign chosen over
+    accept-whitespace.
+  - `beranda/page.tsx` and `ringkasan/page.tsx` both already use internal
+    multi-breakpoint grids (beranda: 7 card blocks / 3 grid rows; ringkasan: 9
+    card blocks / 3 grid rows) — the gap is the page-level wrapper
+    (`<div className="space-y-3.5">`) never filling viewport height on tall
+    desktops, not a naive single-column stack. Re-flow the existing grid rows
+    into a wide-viewport main+aside 2-column layout (primary cards/charts in a
+    wider main column, secondary lists/goals in a narrower aside) so content
+    fills available height/width at `lg`/`xl` breakpoints instead of leaving a
+    dead zone below a top-aligned stack.
+  - Solve this inside `beranda/page.tsx` / `ringkasan/page.tsx`. Do **not**
+    touch `components/shell/app-shell.tsx`'s `<main>` wrapper — that remains a
+    separate, not-yet-authorized foundation change; if it turns out to be
+    genuinely required, stop and flag it instead of editing it
+    opportunistically.
+  - Runs after A6 so `ringkasan` is already using `t.*` before its JSX gets
+    restructured.
 
 ## Open Design Decisions
 
-The implementer must resolve these with the user (AskUserQuestion) before the
-dependent task starts — matching EPIC-016's build-vs-relabel sign-off pattern.
-They are genuine forks, not defaults.
+All three resolved 2026-07-25 via AskUserQuestion before any implementation
+started, per the sign-off pattern below.
 
-1. **Member model — PIVOTAL.** Choose the answer to "my money vs family money":
-   - **(b) Per-member pockets** — add `ownerUserId` to `Account` (± `Category`),
-     scope reads/writes/CASL by it, add owner-assignment UI + a "mine vs
-     family" filter. Medium-large build (Task B). Keeps one family group but
-     gives real per-member separation inside it.
-   - **(c) Accept separate family groups as the answer** — fully separate
-     finances already work today via one `FamilyGroup` per person / separate
-     logins. ~No code; a product/UX decision to document and possibly surface
-     in onboarding copy. Task B is dropped.
-     This decision blocks Task B entirely and is the user's #1 reported
-     confusion — it must be made first.
-
-2. **i18n scope.** Translate **all 25 pages now**, or a **prioritized subset**
-   (shell + high-traffic pages first, long-tail later)? Drives how many phases
-   Task A ships in and where "done enough" sits. Recommendation: shell + nav +
-   top pages first (highest perceived-value), long-tail as follow-ups.
-
-3. **Responsiveness.** **Redesign** the dashboard density (Task C build) or
-   **accept the whitespace** and close Task C as won't-fix? Cosmetic; cheapest
-   to accept, but a denser grid measurably improves the "finished" feel.
+1. **Member model — PIVOTAL. RESOLVED: neither (b) nor (c) — deferred to
+   EPIC-019.** EPIC-019 (family sub-accounts & allowances) was created
+   2026-07-24, after this epic, and independently builds the same
+   `ownerUserId`-on-`Account` foundation Task B(b) would have added, at a
+   larger scope (transfer ledger, request/approve flow, per-member
+   allowances). Rather than re-litigate (b) vs (c) here and risk building
+   `ownerUserId` twice, Task B is dropped from EPIC-018 entirely; the member
+   model question now lives in EPIC-019's own Open Design Decisions
+   (including its #4: "confirm it supersedes EPIC-018 Task B").
+2. **i18n scope. RESOLVED: all 25 pages now**, phased into 6 reviewable
+   clusters (A1-A6, see Tasks) rather than one mega-PR, per the original
+   phasing instruction.
+3. **Responsiveness. RESOLVED: redesign** — a wide-viewport main+aside grid
+   for `beranda`/`ringkasan`, not accept-whitespace.
 
 ## Acceptance Criteria
 
 - **i18n:** switching language in `/akun` visibly changes the sidebar, topbar,
   mobile nav, and every covered page; Indonesian copy remains byte-faithful to
-  today's; no visible raw dictionary keys; the untranslated-page count drops to
-  the agreed target (all 25, or the prioritized subset per Decision #2).
-- **Member model (if Task B is chosen):** `Account` (± `Category`) has a real,
-  tenant-scoped, **nullable** `ownerUserId`; a member can see/manage their own
-  pocket and toggle a "mine vs family" view; null-owner data behaves exactly as
-  before (backward compatible); no cross-tenant or cross-member leak; CASL still
-  enforces owner/admin_staff/member on shared data. **If Decision #1 picks (c),
-  this criterion is replaced by a documented product decision** (separate family
-  groups) with no schema change.
-- **Responsive:** sparse pages either fill the viewport with an adaptive
-  grid, or the whitespace is a consciously-documented accepted state (per
-  Decision #3).
+  today's; no visible raw dictionary keys; all 25 pages + shell covered
+  (Decision #2).
+- **Member model:** N/A in this epic — Task B dropped, superseded by EPIC-019
+  (Decision #1). No schema change made here.
+- **Responsive:** `beranda`/`ringkasan` fill the viewport with an adaptive
+  main+aside grid at wide breakpoints (Decision #3).
 - All static gates green: `scripts/qa.sh`, `scripts/test.sh`,
   `scripts/security-check.sh`. Any protected `components/shell/*` / `lib/nav`
   change carries explicit reviewed authorization.
@@ -228,4 +243,29 @@ as accepted; and the acceptance criteria hold across a fresh QA pass of
 
 ## Automation Log
 
-<!-- Append automation results here. -->
+- 2026-07-25 /epic-loop — activated (`backlog` → `on-progress`). Resolved all
+  3 Open Design Decisions + shell/nav protected-path authorization via
+  AskUserQuestion: Task B dropped (superseded by EPIC-019), i18n = all 25
+  pages phased into A1-A6, responsive = redesign. Explore-agent codebase
+  inventory found 2,204 hardcoded literals across 25 pages (vs. the epic's
+  original ~1500 estimate) and only `beranda` actually rendering translated
+  content today (`akun`'s `useLocale` call drives its picker only, not its own
+  copy). Restructured Task A into 6 phased task groups (A1 foundation+shell/nav,
+  A2 akun+panduan, A3 laporan, A4 asuransi/kalkulator/quickinput/ai, A5
+  wealth/asset pages, A6 remaining pages); reordered Task C to run after A6.
+  No code changes yet — this entry covers planning only.
+- 2026-07-25 /epic-loop EPIC-018 #1 "A1 — i18n foundation + shell/nav" → PASS
+  (attempts: 2). Added `shell` i18n dictionary section with literal-union-typed
+  keys (derived from new `as const` id arrays in `lib/nav.ts`) so a missing
+  translation stays a compile error, not a runtime fallback; wired `useLocale`
+  into all 8 `components/shell/*` files; `lib/nav.ts` now holds only
+  structural nav data. Attempt 1 review found 1 HIGH (locale-reactive `key`
+  prop on transaction-dialog tab buttons causing remount-on-toggle) — fixed in
+  attempt 2 along with 2 MEDIUM cleanups (stale comment, de-duplicated
+  `useLocale()` call). All gates PASS except `security-agent`, which FAILed on
+  baseline `pnpm audit` findings (postcss + a better-auth account-takeover
+  CVE, GHSA-qq9h-g4jm-xgf3) confirmed pre-existing — `package.json`/
+  `pnpm-lock.yaml` are byte-identical to this branch's merge-base. Not bundled
+  into this PR (out of scope, mirrors the standalone `fix/postcss-security-
+advisory` PR #186 pattern); flagged to the user as a separate, urgent
+  follow-up. PR: https://github.com/andrsrjld/wealthme-web/pull/196

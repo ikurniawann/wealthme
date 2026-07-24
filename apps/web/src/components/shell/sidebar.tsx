@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { NAV_SECTIONS, type BadgeVariant } from "@/lib/nav";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { useLocale } from "@/hooks/use-locale";
 import { useShell } from "./shell-context";
 
 const BADGE_CLASS: Record<BadgeVariant, string> = {
@@ -35,6 +36,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { setTxnOpen } = useShell();
+  const { t } = useLocale();
   const activeTab = searchParams.get("tab");
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId;
@@ -67,7 +69,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         </div>
         <button
           onClick={() => setTxnOpen(true)}
-          title="Tambah Transaksi / Scan Struk"
+          title={t.shell.addTransactionTooltip}
           data-tour="add-transaction"
           className="ml-auto flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-primary text-white shadow-[0_2px_8px_rgba(79,70,229,0.35)] transition-transform hover:scale-105"
         >
@@ -79,9 +81,9 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
       <nav className="flex-1 overflow-y-auto py-2.5">
         {NAV_SECTIONS.map((section, si) => (
           <div key={si}>
-            {section.label && (
+            {section.headerKey && (
               <div className="mt-1.5 px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-[1px] text-muted-foreground">
-                {section.label}
+                {t.shell.navSectionHeaders[section.headerKey]}
               </div>
             )}
             {section.items.map((item) => {
@@ -102,7 +104,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                       )}
                     >
                       <Icon className="size-[18px] shrink-0" />
-                      {item.label}
+                      {t.shell.navSections[item.id]}
                       <ChevronDown
                         className={cn(
                           "ml-auto size-3 text-muted-foreground transition-transform",
@@ -132,7 +134,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                                 : "text-muted-foreground hover:bg-secondary hover:text-foreground",
                             )}
                           >
-                            {tab.label}
+                            {t.shell.reportTabs[tab.id]}
                           </Link>
                         );
                       })}
@@ -155,7 +157,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                   )}
                 >
                   <Icon className="size-[18px] shrink-0" />
-                  {item.label}
+                  {t.shell.navSections[item.id]}
                   {item.id === "notifikasi" && unreadCount > 0 ? (
                     <NavBadge text={String(unreadCount)} variant="danger" />
                   ) : (

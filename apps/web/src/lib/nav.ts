@@ -29,30 +29,73 @@ import {
 
 export type BadgeVariant = "danger" | "new-purple" | "new-success";
 
-export type ReportTab = { id: string; label: string };
+// Structural data only — labels/titles resolve from the i18n `shell`
+// dictionary section at render time (see apps/web/src/i18n/types.ts). These
+// `as const` id lists are the single source of truth for the literal-union
+// key types the dictionary's `shell.navSections` / `shell.reportTabs` /
+// `shell.pageTitles` / `shell.mobileNav` Records are keyed by, so a missing
+// translation is a compile error rather than a silent fallback.
 
-export const REPORT_TABS: ReportTab[] = [
-  { id: "rsum", label: "Ringkasan" },
-  { id: "rharian", label: "Laporan Harian" },
-  { id: "rbulanan", label: "Laporan Bulanan" },
-  { id: "rtahunan", label: "Laporan Tahunan" },
-  { id: "rfamily", label: "Laporan Group Family" },
-  { id: "rbank", label: "Laporan Bank" },
-  { id: "rdetail", label: "Laporan Detail" },
-  { id: "raliran", label: "Laporan Aliran Dana" },
-  { id: "rpnl", label: "Laporan PNL" },
-  { id: "rbalance", label: "Laporan Balance Sheet" },
-  { id: "rcashflow", label: "Cashflow" },
-  { id: "rkas", label: "Arus Kas" },
-  { id: "rinv", label: "Investasi" },
-  { id: "rasl", label: "Aset & Liabilitas" },
-  { id: "rperf", label: "Performa" },
-  { id: "rpajak", label: "Pajak" },
-];
+export const REPORT_TAB_IDS = [
+  "rsum",
+  "rharian",
+  "rbulanan",
+  "rtahunan",
+  "rfamily",
+  "rbank",
+  "rdetail",
+  "raliran",
+  "rpnl",
+  "rbalance",
+  "rcashflow",
+  "rkas",
+  "rinv",
+  "rasl",
+  "rperf",
+  "rpajak",
+] as const;
+
+export type ReportTabId = (typeof REPORT_TAB_IDS)[number];
+
+export type ReportTab = { id: ReportTabId };
+
+export const REPORT_TABS: ReportTab[] = REPORT_TAB_IDS.map((id) => ({ id }));
+
+export const NAV_ITEM_IDS = [
+  "beranda",
+  "ringkasan",
+  "transaksi",
+  "anggaran",
+  "laporan",
+  "tujuan",
+  "notifikasi",
+  "dana",
+  "rekening",
+  "investasi",
+  "aset",
+  "liabilitas",
+  "asuransi",
+  "warisan",
+  "donation",
+  "tax",
+  "splitbill",
+  "rekonsiliasi",
+  "ai",
+  "kalkulator",
+  "quickinput",
+  "mastercoa",
+  "masterdata",
+  "panduan",
+] as const;
+
+export type NavItemId = (typeof NAV_ITEM_IDS)[number];
+
+export const NAV_SECTION_HEADER_KEYS = ["keuangan", "alat"] as const;
+
+export type NavSectionHeaderKey = (typeof NAV_SECTION_HEADER_KEYS)[number];
 
 export type NavItem = {
-  id: string;
-  label: string;
+  id: NavItemId;
   href: string;
   icon: LucideIcon;
   badge?: string;
@@ -60,73 +103,36 @@ export type NavItem = {
   children?: ReportTab[];
 };
 
-export type NavSection = { label?: string; items: NavItem[] };
+export type NavSection = { headerKey?: NavSectionHeaderKey; items: NavItem[] };
 
 export const NAV_SECTIONS: NavSection[] = [
   {
     items: [
-      { id: "beranda", label: "Beranda", href: "/beranda", icon: Home },
-      {
-        id: "ringkasan",
-        label: "Ringkasan",
-        href: "/ringkasan",
-        icon: PieChart,
-      },
-      {
-        id: "transaksi",
-        label: "Transaksi",
-        href: "/transaksi",
-        icon: ArrowUpDown,
-      },
-      {
-        id: "anggaran",
-        label: "Anggaran",
-        href: "/anggaran",
-        icon: ClipboardList,
-      },
+      { id: "beranda", href: "/beranda", icon: Home },
+      { id: "ringkasan", href: "/ringkasan", icon: PieChart },
+      { id: "transaksi", href: "/transaksi", icon: ArrowUpDown },
+      { id: "anggaran", href: "/anggaran", icon: ClipboardList },
       {
         id: "laporan",
-        label: "Laporan",
         href: "/laporan",
         icon: LineChart,
         children: REPORT_TABS,
       },
-      { id: "tujuan", label: "Tujuan Keuangan", href: "/tujuan", icon: Target },
-      {
-        id: "notifikasi",
-        label: "Notifikasi",
-        href: "/notifikasi",
-        icon: Bell,
-      },
+      { id: "tujuan", href: "/tujuan", icon: Target },
+      { id: "notifikasi", href: "/notifikasi", icon: Bell },
     ],
   },
   {
-    label: "Keuangan",
+    headerKey: "keuangan",
     items: [
-      { id: "dana", label: "Dana", href: "/dana", icon: Wallet },
-      { id: "rekening", label: "Rekening", href: "/rekening", icon: Landmark },
-      {
-        id: "investasi",
-        label: "Investasi",
-        href: "/investasi",
-        icon: BarChart3,
-      },
-      { id: "aset", label: "Aset", href: "/aset", icon: Briefcase },
-      {
-        id: "liabilitas",
-        label: "Liabilitas",
-        href: "/liabilitas",
-        icon: ReceiptText,
-      },
-      {
-        id: "asuransi",
-        label: "Asuransi",
-        href: "/asuransi",
-        icon: ShieldCheck,
-      },
+      { id: "dana", href: "/dana", icon: Wallet },
+      { id: "rekening", href: "/rekening", icon: Landmark },
+      { id: "investasi", href: "/investasi", icon: BarChart3 },
+      { id: "aset", href: "/aset", icon: Briefcase },
+      { id: "liabilitas", href: "/liabilitas", icon: ReceiptText },
+      { id: "asuransi", href: "/asuransi", icon: ShieldCheck },
       {
         id: "warisan",
-        label: "Warisan",
         href: "/warisan",
         icon: Scroll,
         badge: "New",
@@ -134,7 +140,6 @@ export const NAV_SECTIONS: NavSection[] = [
       },
       {
         id: "donation",
-        label: "Donasi & Zakat",
         href: "/donation",
         icon: HeartHandshake,
         badge: "New",
@@ -142,7 +147,6 @@ export const NAV_SECTIONS: NavSection[] = [
       },
       {
         id: "tax",
-        label: "Tax Center",
         href: "/tax",
         icon: FileText,
         badge: "New",
@@ -151,32 +155,20 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Alat",
+    headerKey: "alat",
     items: [
       {
         id: "splitbill",
-        label: "Split Bill",
         href: "/splitbill",
         icon: Receipt,
         badge: "New",
         badgeVariant: "new-success",
       },
-      {
-        id: "rekonsiliasi",
-        label: "Rekonsiliasi Bank",
-        href: "/rekonsiliasi",
-        icon: GitCompare,
-      },
-      { id: "ai", label: "AI Advisor", href: "/ai", icon: Bot },
-      {
-        id: "kalkulator",
-        label: "Kalkulator",
-        href: "/kalkulator",
-        icon: Calculator,
-      },
+      { id: "rekonsiliasi", href: "/rekonsiliasi", icon: GitCompare },
+      { id: "ai", href: "/ai", icon: Bot },
+      { id: "kalkulator", href: "/kalkulator", icon: Calculator },
       {
         id: "quickinput",
-        label: "Quick Input",
         href: "/quickinput",
         icon: Zap,
         badge: "New",
@@ -184,71 +176,75 @@ export const NAV_SECTIONS: NavSection[] = [
       },
       {
         id: "mastercoa",
-        label: "Master COA",
         href: "/mastercoa",
         icon: BookOpen,
         badge: "New",
         badgeVariant: "new-purple",
       },
-      {
-        id: "masterdata",
-        label: "Setup Master Data",
-        href: "/masterdata",
-        icon: Database,
-      },
-      {
-        id: "panduan",
-        label: "Panduan Fitur",
-        href: "/panduan",
-        icon: HelpCircle,
-      },
+      { id: "masterdata", href: "/masterdata", icon: Database },
+      { id: "panduan", href: "/panduan", icon: HelpCircle },
     ],
   },
 ];
 
-export const PAGE_TITLES: Record<string, string> = {
-  beranda: "Beranda",
-  ringkasan: "Ringkasan",
-  transaksi: "Transaksi",
-  anggaran: "Anggaran",
-  laporan: "Laporan",
-  tujuan: "Tujuan Keuangan",
-  notifikasi: "Notifikasi",
-  dana: "Dana",
-  rekening: "Rekening",
-  investasi: "Investasi",
-  aset: "Aset Saya",
-  liabilitas: "Liabilitas",
-  asuransi: "Asuransi",
-  ai: "AI Advisor",
-  kalkulator: "Kalkulator",
-  akun: "Akun",
-  splitbill: "Split Bill",
-  rekonsiliasi: "Rekonsiliasi Bank",
-  warisan: "Warisan",
-  donation: "Donasi & Zakat",
-  tax: "Tax Center",
-  quickinput: "Quick Input",
-  mastercoa: "Master COA",
-  masterdata: "Setup Master Data",
-  panduan: "Panduan Fitur",
-};
+// PAGE_TITLE_IDS covers every NAV_ITEM_ID plus "akun" (the account page,
+// which is linked from the sidebar footer / mobile nav rather than
+// NAV_SECTIONS).
+export const PAGE_TITLE_IDS = [
+  "beranda",
+  "ringkasan",
+  "transaksi",
+  "anggaran",
+  "laporan",
+  "tujuan",
+  "notifikasi",
+  "dana",
+  "rekening",
+  "investasi",
+  "aset",
+  "liabilitas",
+  "asuransi",
+  "ai",
+  "kalkulator",
+  "akun",
+  "splitbill",
+  "rekonsiliasi",
+  "warisan",
+  "donation",
+  "tax",
+  "quickinput",
+  "mastercoa",
+  "masterdata",
+  "panduan",
+] as const;
+
+export type PageTitleId = (typeof PAGE_TITLE_IDS)[number];
+
+const PAGE_TITLE_ID_SET: ReadonlySet<string> = new Set(PAGE_TITLE_IDS);
+
+/** Type guard for indexing `t.shell.pageTitles` with a raw pathname segment. */
+export function isPageTitleId(id: string): id is PageTitleId {
+  return PAGE_TITLE_ID_SET.has(id);
+}
+
+export const MOBILE_NAV_IDS = [
+  "beranda",
+  "transaksi",
+  "laporan",
+  "akun",
+] as const;
+
+export type MobileNavId = (typeof MOBILE_NAV_IDS)[number];
 
 export type MobileNavItem = {
-  id: string;
-  label: string;
+  id: MobileNavId;
   href: string;
   icon: LucideIcon;
 };
 
 export const MOBILE_NAV: MobileNavItem[] = [
-  { id: "beranda", label: "Beranda", href: "/beranda", icon: Home },
-  {
-    id: "transaksi",
-    label: "Transaksi",
-    href: "/transaksi",
-    icon: ArrowUpDown,
-  },
-  { id: "laporan", label: "Laporan", href: "/laporan", icon: LineChart },
-  { id: "akun", label: "Akun", href: "/akun", icon: User },
+  { id: "beranda", href: "/beranda", icon: Home },
+  { id: "transaksi", href: "/transaksi", icon: ArrowUpDown },
+  { id: "laporan", href: "/laporan", icon: LineChart },
+  { id: "akun", href: "/akun", icon: User },
 ];

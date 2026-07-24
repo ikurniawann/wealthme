@@ -28,6 +28,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { apiFetch } from "@/lib/api-client";
 import { SEARCH_DATA } from "@/lib/data";
 import { queryKeys } from "@/lib/query-keys";
+import { useLocale } from "@/hooks/use-locale";
 import { useShell } from "./shell-context";
 
 import type { SearchResponseDto } from "@wealthme/contracts";
@@ -63,6 +64,7 @@ export function SearchDialog() {
   const { searchOpen, setSearchOpen } = useShell();
   const router = useRouter();
   const { data: session } = useSession();
+  const { t } = useLocale();
   const [query, setQuery] = useState("");
 
   const debouncedQuery = useDebounce(query, 300);
@@ -125,15 +127,17 @@ export function SearchDialog() {
         showCloseButton={false}
         className="top-[12%] max-w-[520px] translate-y-0 gap-0 overflow-hidden p-0 sm:max-w-[520px]"
       >
-        <DialogTitle className="sr-only">Pencarian</DialogTitle>
+        <DialogTitle className="sr-only">
+          {t.shell.searchDialog.dialogTitle}
+        </DialogTitle>
         <div className="flex items-center gap-2.5 border-b px-4 py-3.5">
           <Search className="size-[15px] text-muted-foreground" />
           <input
             autoFocus
-            aria-label="Cari transaksi, rekening, menu"
+            aria-label={t.shell.searchDialog.ariaLabel}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cari transaksi, rekening, menu..."
+            placeholder={t.shell.searchDialog.placeholder}
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
         </div>
@@ -141,7 +145,7 @@ export function SearchDialog() {
           {showApi && (
             <>
               <div className="px-[18px] pt-1 pb-1.5 text-[10.5px] font-bold uppercase tracking-[0.8px] text-muted-foreground">
-                Hasil dari Data Keuangan
+                {t.shell.searchDialog.financialResultsHeader}
               </div>
               {apiResults.map((d) => {
                 const Icon = ICONS[d.icon] ?? Home;
@@ -170,7 +174,7 @@ export function SearchDialog() {
           {matches !== null && matches.length > 0 && (
             <>
               <div className="px-[18px] pt-1 pb-1.5 text-[10.5px] font-bold uppercase tracking-[0.8px] text-muted-foreground">
-                Halaman
+                {t.shell.searchDialog.pagesHeader}
               </div>
               {matches.map((d) => {
                 const Icon = ICONS[d.icon] ?? Home;
@@ -202,7 +206,7 @@ export function SearchDialog() {
           {!hasQuery && (
             <>
               <div className="px-[18px] pt-1 pb-1.5 text-[10.5px] font-bold uppercase tracking-[0.8px] text-muted-foreground">
-                Akses Cepat
+                {t.shell.searchDialog.quickAccessHeader}
               </div>
               {SEARCH_DATA.slice(0, 8).map((d) => {
                 const Icon = ICONS[d.icon] ?? Home;
@@ -233,7 +237,8 @@ export function SearchDialog() {
           )}
           {showNoResults && (
             <div className="px-7 py-7 text-center text-[13px] text-muted-foreground">
-              Tidak ada hasil untuk &ldquo;<strong>{query}</strong>&rdquo;
+              {t.shell.searchDialog.noResultsFor} &ldquo;
+              <strong>{query}</strong>&rdquo;
             </div>
           )}
         </div>

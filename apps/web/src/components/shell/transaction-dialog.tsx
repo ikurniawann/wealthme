@@ -18,14 +18,9 @@ import { cn } from "@/lib/utils";
 import { formatAmountInput, parseRupiah } from "@/lib/format";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { useLocale } from "@/hooks/use-locale";
 import { useShell } from "./shell-context";
 
-const TABS = [
-  "📥 Pemasukan",
-  "📤 Pengeluaran",
-  "↕️ Transfer",
-  "💳 Kartu Kredit",
-];
 const TAB_TYPES = ["income", "expense", "transfer", "expense"] as const;
 
 type MeResponse = { familyGroupId: string | null };
@@ -44,6 +39,10 @@ type CreateTransactionInput = {
   description?: string;
   occurredAt: string;
 };
+// Simulated scanned-receipt content (merchant name/address, item list, OCR
+// "detected" values) — this represents what the camera would read off a real
+// (Indonesian) receipt, not app UI chrome, so it intentionally stays
+// hardcoded in Indonesian regardless of the active locale (EPIC-018 A1).
 const OCR_ITEMS = [
   ["AQUA 600ML", "Rp 5.000"],
   ["INDOMIE GORENG", "Rp 3.500"],
@@ -59,6 +58,13 @@ type View = "form" | "ocr-scan" | "ocr-result";
 
 export function TransactionDialog() {
   const { txnOpen, setTxnOpen } = useShell();
+  const { t } = useLocale();
+  const TABS = [
+    t.shell.transactionDialog.tabIncome,
+    t.shell.transactionDialog.tabExpense,
+    t.shell.transactionDialog.tabTransfer,
+    t.shell.transactionDialog.tabCreditCard,
+  ];
   const [view, setView] = useState<View>("form");
   const [tab, setTab] = useState(0);
   const [amount, setAmount] = useState("");
@@ -126,7 +132,10 @@ export function TransactionDialog() {
       });
     },
     onError: (err: { message?: string }) => {
-      toast.error("Gagal menyimpan: " + (err.message ?? "Coba lagi"));
+      toast.error(
+        t.shell.transactionDialog.saveFailedPrefix +
+          (err.message ?? t.shell.transactionDialog.retryFallback),
+      );
     },
   });
 
@@ -165,15 +174,15 @@ export function TransactionDialog() {
   const saveTxn = (addMore?: boolean) => {
     const amountNum = parseRupiah(amount);
     if (!amountNum || amountNum <= 0) {
-      toast.error("Jumlah tidak valid");
+      toast.error(t.shell.transactionDialog.invalidAmount);
       return;
     }
     if (!accountId) {
-      toast.error("Pilih akun terlebih dahulu");
+      toast.error(t.shell.transactionDialog.selectAccountFirst);
       return;
     }
     if (!fgId) {
-      toast.error("Tidak ada family group aktif");
+      toast.error(t.shell.transactionDialog.noFamilyGroup);
       return;
     }
 
@@ -190,8 +199,8 @@ export function TransactionDialog() {
         onSuccess: () => {
           toast.success(
             addMore
-              ? "Disimpan! Tambah lagi..."
-              : "Transaksi berhasil disimpan!",
+              ? t.shell.transactionDialog.savedAddMoreToast
+              : t.shell.transactionDialog.savedToast,
           );
           if (addMore) {
             resetForm();
@@ -205,7 +214,7 @@ export function TransactionDialog() {
 
   const saveOcr = () => {
     handleOpenChange(false);
-    toast.success("Transaksi Alfamart Rp 58.000 berhasil disimpan!");
+    toast.success(t.shell.transactionDialog.ocrSavedToast);
   };
 
   return (
@@ -217,28 +226,30 @@ export function TransactionDialog() {
         {view === "form" && (
           <div className="p-6">
             <DialogTitle className="mb-5 text-[17px] font-extrabold">
-              Tambah Transaksi
+              {t.shell.transactionDialog.title}
             </DialogTitle>
 
             <div className="mb-[18px] flex gap-2">
               <button className="flex flex-1 items-center justify-center gap-2 rounded-md border border-primary bg-accent px-3.5 py-2.5 text-[12.5px] font-semibold text-primary">
-                <SquarePen className="size-4" /> Input Manual
+                <SquarePen className="size-4" />{" "}
+                {t.shell.transactionDialog.manualInput}
               </button>
               <button
                 onClick={startOcr}
                 className="relative flex flex-1 items-center justify-center gap-2 rounded-md border bg-background px-3.5 py-2.5 text-[12.5px] font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-primary"
               >
-                <Camera className="size-4" /> Scan Struk
+                <Camera className="size-4" />{" "}
+                {t.shell.transactionDialog.scanReceipt}
                 <span className="rounded-full bg-success px-1.5 py-0.5 text-[9px] font-bold text-white">
-                  Baru
+                  {t.shell.transactionDialog.newBadge}
                 </span>
               </button>
             </div>
 
             <div className="mb-4 grid grid-cols-2 gap-1 rounded-md bg-secondary p-1">
-              {TABS.map((t, i) => (
+              {TABS.map((tabLabel, i) => (
                 <button
-                  key={t}
+                  key={i}
                   onClick={() => {
                     setTab(i);
                     setCategoryId("");
@@ -250,12 +261,12 @@ export function TransactionDialog() {
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {t}
+                  {tabLabel}
                 </button>
               ))}
             </div>
 
-            <Field label="Jumlah">
+            <Field label={t.shell.transactionDialog.amountLabel}>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
                   Rp
@@ -273,13 +284,15 @@ export function TransactionDialog() {
               </div>
             </Field>
 
-            <Field label="Kategori">
+            <Field label={t.shell.transactionDialog.categoryLabel}>
               <select
                 className={fieldClass}
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
               >
-                <option value="">Pilih kategori...</option>
+                <option value="">
+                  {t.shell.transactionDialog.categoryPlaceholder}
+                </option>
                 {relevantCategories.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.icon ? `${c.icon} ` : ""}
@@ -289,13 +302,15 @@ export function TransactionDialog() {
               </select>
             </Field>
 
-            <Field label="Akun">
+            <Field label={t.shell.transactionDialog.accountLabel}>
               <select
                 className={fieldClass}
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
               >
-                <option value="">Pilih akun...</option>
+                <option value="">
+                  {t.shell.transactionDialog.accountPlaceholder}
+                </option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
@@ -305,7 +320,7 @@ export function TransactionDialog() {
               </select>
             </Field>
 
-            <Field label="Tanggal">
+            <Field label={t.shell.transactionDialog.dateLabel}>
               <input
                 type="date"
                 value={date}
@@ -317,16 +332,16 @@ export function TransactionDialog() {
             <Field
               label={
                 <>
-                  Deskripsi{" "}
+                  {t.shell.transactionDialog.descriptionLabel}{" "}
                   <span className="font-normal text-muted-foreground">
-                    (opsional)
+                    {t.shell.transactionDialog.optionalSuffix}
                   </span>
                 </>
               }
             >
               <textarea
                 rows={2}
-                placeholder="Tulis deskripsi..."
+                placeholder={t.shell.transactionDialog.descriptionPlaceholder}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className={cn(fieldClass, "resize-none")}
@@ -339,14 +354,16 @@ export function TransactionDialog() {
               className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong disabled:opacity-60"
             >
               <Save className="size-4" />{" "}
-              {createMutation.isPending ? "Menyimpan..." : "Simpan Transaksi"}
+              {createMutation.isPending
+                ? t.shell.transactionDialog.saving
+                : t.shell.transactionDialog.saveTransaction}
             </button>
             <button
               onClick={() => saveTxn(true)}
               disabled={createMutation.isPending}
               className="mt-2 mb-2 w-full rounded-md py-2.5 text-[13.5px] font-bold text-primary transition-colors hover:bg-accent disabled:opacity-60"
             >
-              Simpan &amp; Tambah Lagi
+              {t.shell.transactionDialog.saveAndAddMore}
             </button>
           </div>
         )}
@@ -356,17 +373,17 @@ export function TransactionDialog() {
             <div className="flex items-center justify-between border-b px-[18px] py-4">
               <div>
                 <DialogTitle className="text-[17px] font-extrabold">
-                  Scan Struk / Bon
+                  {t.shell.transactionDialog.scanTitle}
                 </DialogTitle>
                 <div className="mt-0.5 text-[11.5px] text-muted-foreground">
-                  Arahkan kamera ke struk belanja
+                  {t.shell.transactionDialog.scanSubtitle}
                 </div>
               </div>
               <button
-                onClick={() => toast("Flash: Auto")}
+                onClick={() => toast(t.shell.transactionDialog.flashToast)}
                 className="rounded-md bg-slate-900/85 px-3 py-1.5 text-xs font-bold text-white"
               >
-                ⚡ Auto
+                {t.shell.transactionDialog.autoButton}
               </button>
             </div>
             <div className="relative m-[18px] flex aspect-[3/4] items-center justify-center overflow-hidden rounded-[14px] bg-slate-950">
@@ -410,8 +427,8 @@ export function TransactionDialog() {
               <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-slate-900/85 px-4 py-2 text-xs font-semibold text-white backdrop-blur">
                 <span className="size-2 animate-pulse rounded-full bg-green-400" />
                 {showReceipt
-                  ? "Pastikan semua teks terlihat jelas"
-                  : "Memindai struk..."}
+                  ? t.shell.transactionDialog.scanGuidanceReady
+                  : t.shell.transactionDialog.scanGuidanceScanning}
               </div>
             </div>
           </div>
@@ -422,23 +439,24 @@ export function TransactionDialog() {
             <div className="flex items-center justify-between border-b px-[18px] py-3.5">
               <div>
                 <DialogTitle className="text-sm font-extrabold">
-                  ✨ Hasil Pindai
+                  {t.shell.transactionDialog.resultTitle}
                 </DialogTitle>
                 <div className="text-[11.5px] text-muted-foreground">
-                  Periksa dan edit data jika diperlukan
+                  {t.shell.transactionDialog.resultSubtitle}
                 </div>
               </div>
               <button
-                onClick={() => toast("Mode edit manual")}
+                onClick={() => toast(t.shell.transactionDialog.editManualToast)}
                 className="flex items-center gap-1.5 text-[12.5px] font-bold text-primary"
               >
-                <SquarePen className="size-3.5" /> Edit Manual
+                <SquarePen className="size-3.5" />{" "}
+                {t.shell.transactionDialog.editManual}
               </button>
             </div>
             <div>
               <OcrRow
                 icon="📅"
-                label="Tanggal"
+                label={t.shell.transactionDialog.dateLabel}
                 value="18 Mei 2025, 14:32"
                 trailing={
                   <ChevronRight className="size-3 text-muted-foreground" />
@@ -446,7 +464,7 @@ export function TransactionDialog() {
               />
               <OcrRow
                 icon="🏬"
-                label="Merchant"
+                label={t.shell.transactionDialog.merchantLabel}
                 value="Alfamart Pahlawan"
                 trailing={
                   <ChevronRight className="size-3 text-muted-foreground" />
@@ -454,7 +472,7 @@ export function TransactionDialog() {
               />
               <OcrRow
                 icon="🏷️"
-                label="Kategori"
+                label={t.shell.transactionDialog.categoryLabel}
                 value="🛒 Belanja"
                 trailing={
                   <ChevronRight className="size-3 text-muted-foreground" />
@@ -462,11 +480,12 @@ export function TransactionDialog() {
               />
               <OcrRow
                 icon="💵"
-                label="Total"
+                label={t.shell.transactionDialog.totalLabel}
                 value={<span className="text-destructive">Rp 58.000</span>}
                 trailing={
                   <span className="flex items-center gap-1 rounded-full bg-success-soft px-2 py-[3px] text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
-                    <Check className="size-3" /> Terdeteksi
+                    <Check className="size-3" />{" "}
+                    {t.shell.transactionDialog.detectedBadge}
                   </span>
                 }
               />
@@ -476,7 +495,7 @@ export function TransactionDialog() {
               >
                 <OcrRow
                   icon="📋"
-                  label="Detail Item"
+                  label={t.shell.transactionDialog.detailItemLabel}
                   value="5 item"
                   trailing={
                     <ChevronDown
@@ -507,13 +526,15 @@ export function TransactionDialog() {
                 onClick={saveOcr}
                 className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong"
               >
-                <Save className="size-4" /> Simpan ke Transaksi
+                <Save className="size-4" />{" "}
+                {t.shell.transactionDialog.saveToTransaction}
               </button>
               <button
                 onClick={startOcr}
                 className="flex w-full items-center justify-center gap-2 rounded-md py-2.5 text-[13.5px] font-bold text-primary transition-colors hover:bg-accent"
               >
-                <RotateCcw className="size-4" /> Pindai Ulang
+                <RotateCcw className="size-4" />{" "}
+                {t.shell.transactionDialog.scanAgain}
               </button>
             </div>
           </div>

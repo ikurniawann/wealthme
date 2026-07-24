@@ -8,6 +8,7 @@ import {
   DEFAULT_THEME_PRESET,
   isValidPreset,
 } from "@/lib/themes";
+import { useLocale } from "@/hooks/use-locale";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -41,6 +42,7 @@ function applyPreset(id: string): void {
  * (handled by applyPreset) so the whole theme/mood follows the chosen color.
  */
 export function ThemePicker() {
+  const { t } = useLocale();
   const [preset, setPreset] = useState<string>(DEFAULT_THEME_PRESET);
 
   useEffect(() => {
@@ -63,8 +65,8 @@ export function ThemePicker() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label="Pilih tema warna"
-        title="Tema Warna"
+        aria-label={t.shell.themePicker.ariaLabel}
+        title={t.shell.themePicker.title}
         render={<button type="button" className={TRIGGER_CLASS} />}
       >
         <Eye className="size-[15px]" aria-hidden="true" />
@@ -72,7 +74,7 @@ export function ThemePicker() {
 
       <DropdownMenuContent align="end" className="min-w-[160px]">
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Tema Warna</DropdownMenuLabel>
+          <DropdownMenuLabel>{t.shell.themePicker.title}</DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuRadioGroup

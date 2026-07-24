@@ -3,6 +3,7 @@
 import { Suspense, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
+import { useLocale } from "@/hooks/use-locale";
 import { ShellProvider } from "./shell-context";
 import { SidebarNav } from "./sidebar";
 import { Topbar } from "./topbar";
@@ -14,6 +15,7 @@ import { Walkthrough } from "@/components/onboarding/walkthrough";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, ready } = useAuth();
   const router = useRouter();
+  const { t } = useLocale();
 
   useEffect(() => {
     if (ready && !isAuthenticated) router.replace("/login");
@@ -26,7 +28,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex size-9 items-center justify-center rounded-[10px] bg-primary text-base font-extrabold text-white">
             W
           </div>
-          <span className="text-sm font-semibold">Memuat WealthMe…</span>
+          <span className="text-sm font-semibold">{t.shell.loading}</span>
         </div>
       </div>
     );

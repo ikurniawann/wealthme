@@ -23,7 +23,7 @@ ringkasan: [`../BACKLOG.md`](../BACKLOG.md) · arsitektur: [`../WealthMe_Backend
 | [EPIC-015](EPIC-015-product-integrity.md)              | Phase 4 | Product Integrity & Trust Pass                     | P0        | ready-for-qa |
 | [EPIC-016](EPIC-016-ui-integrity-akun-and-actions.md)  | Phase 4 | UI Integrity — Non-Functional Actions & Fake Data  | P0        | backlog      |
 | [EPIC-017](EPIC-017-master-coa-integration.md)         | Phase 4 | Master COA Integration — CoA as Real Backbone      | P2        | backlog      |
-| [EPIC-018](EPIC-018-member-model-i18n-responsive.md)   | Phase 4 | Per-Member Finances, i18n Coverage & Responsive UI | P2        | backlog      |
+| [EPIC-018](EPIC-018-member-model-i18n-responsive.md)   | Phase 4 | Per-Member Finances, i18n Coverage & Responsive UI | P2        | on-progress  |
 
 ## Archived (done + human QA signed off)
 
