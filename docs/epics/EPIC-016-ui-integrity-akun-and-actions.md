@@ -75,7 +75,7 @@ the full line-by-line detail preserved from the audit.
     (support email, a backend endpoint, or at minimum a stored record) or
     remove the false confirmation.
 
-- [ ] ### F — `/laporan` period selector and header actions are decorative
+- [x] ### F — `/laporan` period selector and header actions are decorative ✅
   - Calendar button, period `<select>` (hardcoded month options, no
     `value`/`onChange`), and Download button in the page header do nothing;
     the page already has a fully real "Export Laporan" feature lower down
@@ -466,4 +466,20 @@ maskedNumber` pattern). Attempt 1 review found 3 HIGH issues (silent data-loss
     identical accessible name — documented follow-up, not fixed this round).
     Security: PASS (userId server-derived from session, no spoofing surface;
     no list/read endpoint so no cross-user leak; baseline advisories
-    unchanged). Test: qa ✅ test ✅ (API 165/165, web 67/67).
+    unchanged). Test: qa ✅ test ✅ (API 165/165, web 67/67). PR:
+    https://github.com/andrsrjld/wealthme-web/pull/189 (base
+    `feat/epic-016-task-7-...` #188 — merge order: #186 → #187 → #188 → #189).
+- **2026-07-24 — /epic-loop EPIC-016 #9 "F — /laporan period selector and
+  header actions decorative" → PASS (attempts: 1).** Decision: removed
+  (not wired) — the epic text's own second fix option ("remove the duplicate
+  fake controls and point users at the real Export Laporan feature") is what
+  applied here, since real per-section year/month/date filtering is
+  explicitly EPIC-020 Task B's scope, not this task's; wiring one global
+  header selector across 11 disparate report sections here would have
+  conflicted with that separate, correctly-scoped effort. Removed the
+  decorative Calendar button, hardcoded period `<select>` (no value/onChange),
+  and header Download button — all toast-only, duplicating the real,
+  already-working Export Laporan feature lower on the same page. Clean
+  first-attempt pass on all 3 reviewers, no findings above LOW. Security:
+  PASS (no backend/dependency changes; baseline advisories unchanged). Test:
+  qa ✅ test ✅ (API 165/165, web 71/71).
