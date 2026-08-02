@@ -377,3 +377,15 @@ CoaAccount` direction (new `txCoaDirection` helper); category-less tx fall back
   :3000. **Status flipped to `ready-for-qa`.** Human QA remaining (from Task F
   note): verify report numbers shifted sanely — esp. PNL / Arus Kas /
   Ringkasan where categories map to TRANSFER-direction COA accounts.
+- 2026-08-03 QA-assist pass (API-level, seeded demo tenant) ahead of human
+  sign-off. **All COA checks verified sane:** (1) /beranda ↔ /laporan
+  Ringkasan identical across all 6 months, both columns; (2) TRANSFER
+  exclusion proven arithmetically — July raw type=expense sums to 16.175.000
+  but reports show 10.175.000, exactly the 2× Rp 3jt "Tabungan & Investasi"
+  (Wealth-Allocation COA) entries excluded; (3) savings rates + cashflow
+  opening/closing internally consistent. One nuance (not a defect): PNL/Arus
+  Kas window is month-to-date while dashboard currentMonth is full calendar
+  month, so a future-dated seed tx (Cicilan KPR 4.2jt, Aug 5) appears only in
+  the dashboard figure. Full report delivered to the user
+  (QA-EPIC-017-report.md) with a 2-minute UI checklist; human flip to `done`
+  pending.
