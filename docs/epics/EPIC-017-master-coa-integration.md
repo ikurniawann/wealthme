@@ -1,6 +1,6 @@
 # EPIC-017: Master COA Integration — Real Chart-of-Accounts Backbone
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 retries: 0
 phase: 4
@@ -370,3 +370,10 @@ CoaAccount` direction (new `txCoaDirection` helper); category-less tx fall back
   `ready-for-qa` without an actual deploy + smoke check. Action needed: run
   `bash scripts/deploy-dev.sh` from a session with Docker access (the real dev
   host), verify `/health` + report numbers, then flip status.
+- 2026-08-03 DEV deploy UNBLOCKED and completed — user started the Docker
+  infra (postgres/redis/minio/mailhog), `bash scripts/deploy-dev.sh` built the
+  api/web/migrate images, one-shot migrate+seed ran clean (demo@wealthme.id
+  seeded), api `/health` returns `{"status":"ok"}` on :4000, web healthy on
+  :3000. **Status flipped to `ready-for-qa`.** Human QA remaining (from Task F
+  note): verify report numbers shifted sanely — esp. PNL / Arus Kas /
+  Ringkasan where categories map to TRANSFER-direction COA accounts.
