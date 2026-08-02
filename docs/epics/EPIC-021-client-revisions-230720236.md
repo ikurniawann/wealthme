@@ -76,9 +76,69 @@ stays auditable.
 Filled in by the 2026-08-03 audit (see Automation Log). `Owner` is the epic that
 will actually build it; `Status` is the audited current state of the codebase.
 
-| #               | Interpretation | Status | Owner |
-| --------------- | -------------- | ------ | ----- |
-| _pending audit_ |                |        |       |
+Audited 2026-08-03 by a 10-cluster parallel code audit with adversarial
+verification of any "done" claim. **Result: 0/30 done, 18 missing, 10 partial,
+2 unclear.** Size = XS/S/M/L/XL estimate; Layer = web/api/full-stack/schema.
+
+| #   | Interpretation (short)                                     | Status  | Layer      | Size | Owner          |
+| --- | ---------------------------------------------------------- | ------- | ---------- | ---- | -------------- |
+| 1   | Add AUD + CNY to supported currencies (5 hardcoded now)    | missing | full-stack | S    | 021-F          |
+| 2   | Language switch must visibly change whole app              | partial | web        | XL   | EPIC-018 A3–A6 |
+| 3   | Multiple cash accounts as master data (backend already OK) | partial | web        | S    | 021-G          |
+| 4   | COA code auto-generated but editable                       | missing | full-stack | M    | 021-G          |
+| 5   | Relabel COA direction "Transfer" → "Mutasi"                | missing | web        | XS   | 021-B          |
+| 6   | Consolidated total in USD / IDR / Gold                     | partial | full-stack | L    | 021-F          |
+| 7   | Create transaction directly in Quick Input                 | partial | web        | S    | 021-I          |
+| 8   | Split-bill "picture error" — no image exists in feature    | unclear | web        | S    | 021-H          |
+| 9   | Reconciliation line → full transaction detail view         | missing | full-stack | M    | 021-C          |
+| 10  | Per-person calculator in split-bill custom input           | missing | web        | S    | 021-H          |
+| 11  | Add-inheritance picks existing Asset, not manual re-entry  | missing | full-stack | M    | 021-D          |
+| 12  | Inheritance recordable w/o heirs; heirs by % later         | partial | web        | M    | 021-D          |
+| 13  | "Asuransi Pendidikan" missing from type dropdown           | partial | schema     | S    | 021-D          |
+| 14  | Insurance beneficiaries with % like inheritance heirs      | missing | full-stack | M    | 021-D          |
+| 15  | Account taxonomy → exactly Cash/Bank/E-Wallet              | missing | full-stack | L    | 021-A          |
+| 16  | Physical-asset category from master data (now hardcoded)   | missing | schema     | L    | 021-E          |
+| 17  | Asset depreciation (no rate/schedule fields exist)         | missing | schema     | L    | 021-E          |
+| 18  | Asset appreciation (mirror of 17)                          | missing | schema     | M    | 021-E          |
+| 19  | "Tab category Investasi" — tabs vs master-data ambiguous   | unclear | web?       | S    | 021-E          |
+| 20  | Online stock detail + interest-bearing investments         | partial | schema     | L    | 021-E          |
+| 21  | Cash may go negative (works via txns; create API blocks)   | partial | api        | S    | 021-A          |
+| 22  | Bank must NOT go negative (no guard exists at any layer)   | missing | full-stack | M    | 021-A          |
+| 23  | Transfer form: Source of Fund → Transfer Fund to (2 accts) | missing | schema     | L    | 021-B          |
+| 24  | Per-account statement view (API filter exists, no UI)      | partial | web        | M    | 021-B          |
+| 25  | Rename "Dana" → "Cash"                                     | missing | full-stack | M    | 021-A          |
+| 26  | E-wallets grouped under Bank/Rekening deliberately         | partial | web        | M    | 021-A          |
+| 27  | Bank↔bank + ewallet↔ewallet transfers (same root as 23)    | missing | schema     | S    | 021-B          |
+| 28  | E-wallet top-up admin fee lands on e-wallet balance        | missing | schema     | M    | 021-B          |
+| 29  | Recon: split bank line into principal + admin fee + ref    | missing | schema     | L    | 021-C          |
+| 30  | Goal form computes per-period saving breakdown             | missing | web        | S    | 021-J          |
+
+Key audit evidence (full detail in the per-item audit, session 2026-08-03):
+
+- **#23/#27/#28 root cause is one schema gap:** `Transaction` has a single
+  `accountId` (`apps/api/prisma/schema.prisma:357`) — no destination FK, so no
+  true account→account transfer can exist. This is the same double-entry
+  primitive EPIC-019 Decision #1(A) proposes; must be built once, together.
+- **#21/#22:** `applyBalanceDelta`
+  (`apps/api/src/transactions/transactions.service.ts:532-553`) blindly
+  increments/decrements with no balance read — cash _can_ already go negative
+  (accidentally satisfying #21 via txns), and nothing stops bank overdrafts.
+  Account create/update DTO has `@Min(0)` for all types.
+- **#13 has a data-corruption twist:** the /asuransi page coerces a legacy
+  "Pendidikan" value to `lainnya` on save, so existing education policies are
+  indistinguishable from genuine `lainnya` rows after the enum is added.
+- **#8:** the split-bill feature contains zero image elements (avatars are CSS
+  initials); the only concrete adjacent defect found is that "Buat & Bagikan
+  Link" copies `/split/<shareToken>` which 404s — the public share page was
+  never built. Needs client confirmation.
+- **#6:** consolidated net worth already exists
+  (`dashboard.service.ts:246-295`) with single-currency display conversion
+  (EPIC-016 B2); missing: simultaneous multi-denomination display + any gold
+  price source. FX is a hardcoded mock (`fx-mock.service.ts`).
+- **#3 backend already supports N cash accounts** (`AccountType.cash`,
+  uniqueness per name not per type); only the UI fixes a single "Kas Tunai".
+- **#24 backend filter already exists** (`list-transactions-query.dto.ts:20-23`
+  `accountId`); the web never passes it.
 
 ## Tasks
 
@@ -102,7 +162,51 @@ group is one reviewable PR. Placeholder groupings (subject to audit results):
 Recorded during the audit; must be resolved with the client before the
 dependent task group starts.
 
-1. _pending audit_
+1. **Transfer data model (gates B, and C's split target) — PIVOTAL.** Add a
+   nullable `toAccountId` to `Transaction` (one row, two FKs) vs paired
+   debit/credit legs linked by a `transferGroupId`. Must be decided **jointly
+   with EPIC-019 Decision #1** (its option A builds the same primitive).
+   Recommendation: single row + nullable `toAccountId` (simpler, reversible,
+   additive migration; paired legs can be derived later if double-entry
+   reporting demands it).
+2. **#8 split-bill "picture error"** — feature has no images at all. Confirm
+   with client whether the real defect is the share link 404
+   (`/split/<shareToken>` page never built) or something else entirely.
+3. **#19 "tab category Investasi"** — filter tabs on /investasi (web-only, S)
+   vs master-data-driven investment categories in the add dialog (full-stack,
+   M)? Recommendation: filter tabs (matches /aset pattern, cheap, matches the
+   screenshot context).
+4. **#25 rename "Dana"→"Cash"** — label-only vs route rename (`/dana` →
+   `/cash`). Recommendation: label-only (route rename needs redirects + nav id
+   union change + i18n interplay: "Cash" EN / "Tunai" ID per #15).
+5. **#26 e-wallet under Bank** — regroup in UI only vs change `AccountType`
+   (destructive migration losing the ewallet distinction). Recommendation: UI
+   grouping only; keep the enum.
+6. **#6 gold denomination** — unit (gram vs troy oz) and price source
+   undefined; FX source for USD is currently `FxMockService` (hardcoded
+   rates). Adding AUD/CNY (#1) touches the same mock. Client must supply a
+   rate policy (manual-entry master data vs live API).
+7. **#22 bank-overdraft rule** — hard 400 reject vs soft warning; and what to
+   do with existing already-negative bank rows before a constraint ships.
+   Recommendation: hard reject at service layer (no DB CHECK until data
+   cleaned), seed data audited first.
+8. **#17/#18 depreciation model** — one signed value-change rate per
+   asset(-type) covering both directions vs two features; auto-post period
+   entries vs compute-on-read. Recommendation: one signed rate,
+   compute-on-read + snapshot into existing `AssetHistory`.
+9. **#12/#14 heirs** — free-text name/relationship (current schema) vs picked
+   from family-group members; and must percentages sum to exactly 100 once
+   set? Applies to warisan AND asuransi ("berdasarkan seperti waris" = same
+   mechanism, so share one beneficiary shape).
+10. **#29 recon fee split** — produce real Transactions (principal + fee
+    expense with its own COA) vs annotate `BankSyncEntry` only. Must agree
+    with #28 on which account bears the fee. Recommendation: real
+    transactions (reconciliation should converge to the ledger, not a
+    side-table).
+11. **#4 COA code editing** — `Category` links COA by `coaAccountId` (id FK),
+    so code edits are referentially safe, but a rule is needed: keep
+    first-digit == group invariant, uniqueness per tenant, and history of
+    renames? Recommendation: allow edit with group-prefix validation only.
 
 ## Acceptance Criteria
 
@@ -141,3 +245,14 @@ dependent task group starts.
   are only decodable with the accompanying screenshots. Audit of current
   codebase state in progress; mapping table and task groups to be filled from
   its results.
+- 2026-08-03 Code audit completed (10 parallel read-only clusters + adversarial
+  verification of every "done" claim; 11 agents, ~516k tokens). **0/30 done,
+  18 missing, 10 partial, 2 unclear** — mapping table filled with file:line
+  evidence. 11 Open Design Decisions recorded; the pivotal one is the transfer
+  data model (single `toAccountId` vs paired legs), which must be resolved
+  jointly with EPIC-019 Decision #1 because both build the same double-entry
+  primitive. Items #8 and #19 need client clarification before implementation.
+  Audit also flagged `docs/epics/README.md` registry as stale (EPIC-016/017
+  listed as backlog; 019/020/021 absent) — fixed in the same docs PR.
+  Implementation order: quick wins with no open decisions first (#5, #7, #24,
+  #30, #21 test-lock), then decision-gated groups as the client answers.
