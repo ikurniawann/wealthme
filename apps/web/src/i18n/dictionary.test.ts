@@ -53,4 +53,70 @@ describe("i18n dictionary key parity", () => {
     expect(id.shell.pageTitles.aset).toBe("Aset Saya");
     expect(id.shell.navSections.aset).not.toBe(id.shell.pageTitles.aset);
   });
+
+  // EPIC-018 Task A2 — /akun + /panduan coverage guards, mirroring the
+  // targeted checks Task A1 added above (the recursive key-path test already
+  // catches an id/en mismatch; these guard the specific shapes A2 landed on).
+  it("akun.subpageTitles covers every /akun sub-page with a non-empty translation in both locales", () => {
+    const subpageIds = [
+      "profil",
+      "keamanan",
+      "koneksi",
+      "pengaturan",
+      "notif-setting",
+      "privasi",
+      "bantuan",
+      "hubungi",
+      "tentang",
+      "family",
+    ] as const;
+    for (const key of subpageIds) {
+      expect(id.akun.subpageTitles[key]).toBeTruthy();
+      expect(en.akun.subpageTitles[key]).toBeTruthy();
+    }
+  });
+
+  it("akun localizes dynamic option/status/role copy without changing Indonesian source values", () => {
+    expect(id.akun.profil.genderOptions).toEqual({
+      male: "Laki-laki",
+      female: "Perempuan",
+    });
+    expect(en.akun.profil.genderOptions).toEqual({
+      male: "Male",
+      female: "Female",
+    });
+    expect(en.akun.keamanan.currentSessionSub).toBe("Jakarta · Active now");
+    expect(en.akun.koneksi.connectedSync).toBe("Connected · Sync active");
+  });
+
+  it("akun.bantuan.faqs carries exactly the 6 FAQ entries with non-empty questions in both locales", () => {
+    const faqKeys = Object.keys(id.akun.bantuan.faqs);
+    expect(faqKeys).toHaveLength(6);
+    for (const key of faqKeys as (keyof typeof id.akun.bantuan.faqs)[]) {
+      expect(id.akun.bantuan.faqs[key].q).toBeTruthy();
+      expect(en.akun.bantuan.faqs[key].q).toBeTruthy();
+    }
+  });
+
+  it("panduan covers all 9 journeys and 24 features with non-empty translations in both locales", () => {
+    // Matches the epic's inventory (9 journeys x title/subtitle + 24 nested
+    // features x title/desc = 66 string fields) — guards against silently
+    // dropping a journey/feature during the JOURNEYS structural refactor.
+    const journeyKeys = Object.keys(id.panduan.journeys);
+    const featureKeys = Object.keys(id.panduan.features);
+    expect(journeyKeys).toHaveLength(9);
+    expect(featureKeys).toHaveLength(24);
+    for (const key of journeyKeys as (keyof typeof id.panduan.journeys)[]) {
+      expect(id.panduan.journeys[key].title).toBeTruthy();
+      expect(id.panduan.journeys[key].subtitle).toBeTruthy();
+      expect(en.panduan.journeys[key].title).toBeTruthy();
+      expect(en.panduan.journeys[key].subtitle).toBeTruthy();
+    }
+    for (const key of featureKeys as (keyof typeof id.panduan.features)[]) {
+      expect(id.panduan.features[key].title).toBeTruthy();
+      expect(id.panduan.features[key].desc).toBeTruthy();
+      expect(en.panduan.features[key].title).toBeTruthy();
+      expect(en.panduan.features[key].desc).toBeTruthy();
+    }
+  });
 });

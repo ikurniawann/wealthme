@@ -116,19 +116,6 @@ type FamilyMember = {
   createdAt: string;
 };
 
-const SUBPAGE_TITLES: Record<SubPageId, string> = {
-  profil: "Profil Saya",
-  keamanan: "Keamanan & Password",
-  koneksi: "Koneksi Bank & E-Wallet",
-  pengaturan: "Pengaturan Umum",
-  "notif-setting": "Pengaturan Notifikasi",
-  privasi: "Privasi & Data",
-  bantuan: "Pusat Bantuan",
-  hubungi: "Hubungi Kami",
-  tentang: "Tentang Aplikasi",
-  family: "Family Group",
-};
-
 /* ─────────────────── Shared field / row primitives ─────────────────── */
 
 const FIELD_CLASS =
@@ -287,6 +274,11 @@ export function ProfilBody({
   // (see below) instead of assuming success the instant it's called.
   onSave: (data: ProfileSaveInput) => Promise<unknown>;
 }) {
+  const { t } = useLocale();
+  const genderLabels: Record<(typeof GENDER_OPTIONS)[number], string> = {
+    "Laki-laki": t.akun.profil.genderOptions.male,
+    Perempuan: t.akun.profil.genderOptions.female,
+  };
   const [form, setForm] = useState(() => buildProfileForm(name, profile));
   // True as soon as the user changes any field; cleared only once a save
   // actually succeeds (see `handleSave`), since the outgoing payload only
@@ -373,25 +365,25 @@ export function ProfilBody({
         <div className="text-[16px] font-extrabold text-foreground">{name}</div>
         <div className="mt-0.5 text-[12px] text-muted-foreground">{email}</div>
       </div>
-      <Field label="Nama Lengkap">
+      <Field label={t.akun.profil.nameLabel}>
         <input
           className={FIELD_CLASS}
           value={form.name}
           onChange={(e) => update("name", e.target.value)}
         />
       </Field>
-      <Field label="Email">
+      <Field label={t.akun.profil.emailLabel}>
         <input className={FIELD_CLASS} defaultValue={email} readOnly />
       </Field>
-      <Field label="No. Telepon">
+      <Field label={t.akun.profil.phoneLabel}>
         <input
           className={FIELD_CLASS}
           value={form.phone}
           onChange={(e) => update("phone", e.target.value)}
-          placeholder="+62 8xx xxxx xxxx"
+          placeholder={t.akun.profil.phonePlaceholder}
         />
       </Field>
-      <Field label="Tanggal Lahir">
+      <Field label={t.akun.profil.birthDateLabel}>
         <input
           type="date"
           className={FIELD_CLASS}
@@ -399,48 +391,53 @@ export function ProfilBody({
           onChange={(e) => update("birthDate", e.target.value)}
         />
       </Field>
-      <Field label="Jenis Kelamin">
+      <Field label={t.akun.profil.genderLabel}>
         <select
           className={FIELD_CLASS}
           // Display GENDER_OPTIONS[0] when nothing is set yet, but that is a
           // display-only fallback — form.gender itself stays "" until the
           // user actually picks something (or the server already had a
           // value), so an untouched control never gets sent on save.
+          // GENDER_OPTIONS remains the persisted backend value. Only the
+          // visible option label is localized, preserving existing records.
           value={form.gender || GENDER_OPTIONS[0]}
           onChange={(e) => update("gender", e.target.value)}
         >
           {GENDER_OPTIONS.map((g) => (
-            <option key={g}>{g}</option>
+            <option key={g} value={g}>
+              {genderLabels[g]}
+            </option>
           ))}
         </select>
       </Field>
-      <Field label="Pekerjaan">
+      <Field label={t.akun.profil.jobTitleLabel}>
         <input
           className={FIELD_CLASS}
           value={form.jobTitle}
           onChange={(e) => update("jobTitle", e.target.value)}
-          placeholder="cth: Software Engineer"
+          placeholder={t.akun.profil.jobTitlePlaceholder}
         />
       </Field>
-      <Field label="Penghasilan Bulanan">
+      <Field label={t.akun.profil.monthlyIncomeLabel}>
         <input
           className={FIELD_CLASS}
           value={form.monthlyIncome}
           onChange={(e) => update("monthlyIncome", e.target.value)}
-          placeholder="cth: Rp 25.000.000"
+          placeholder={t.akun.profil.monthlyIncomePlaceholder}
         />
       </Field>
       <button
         className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground"
         onClick={() => void handleSave()}
       >
-        <Save className="size-4" /> Simpan Perubahan
+        <Save className="size-4" /> {t.akun.profil.saveButton}
       </button>
     </SetSection>
   );
 }
 
 function KeamananBody() {
+  const { t } = useLocale();
   const [showChangePw, setShowChangePw] = useState(false);
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -449,11 +446,11 @@ function KeamananBody() {
 
   async function handleChangePassword() {
     if (newPw.length < 8) {
-      toast.error("Password baru minimal 8 karakter");
+      toast.error(t.akun.keamanan.toastPasswordMinLength);
       return;
     }
     if (newPw !== confirmPw) {
-      toast.error("Konfirmasi password tidak cocok");
+      toast.error(t.akun.keamanan.toastPasswordMismatch);
       return;
     }
     setPwLoading(true);
@@ -463,16 +460,16 @@ function KeamananBody() {
         newPassword: newPw,
       });
       if (error) {
-        toast.error(error.message ?? "Gagal mengubah password");
+        toast.error(error.message ?? t.akun.keamanan.toastChangeFailed);
       } else {
-        toast.success("Password berhasil diubah");
+        toast.success(t.akun.keamanan.toastChangeSuccess);
         setShowChangePw(false);
         setCurrentPw("");
         setNewPw("");
         setConfirmPw("");
       }
     } catch {
-      toast.error("Gagal mengubah password");
+      toast.error(t.akun.keamanan.toastChangeFailed);
     } finally {
       setPwLoading(false);
     }
@@ -483,33 +480,33 @@ function KeamananBody() {
       {showChangePw && (
         <div className="mb-4 rounded-xl border bg-card p-4">
           <div className="mb-3 text-[13px] font-bold text-foreground">
-            Ubah Password
+            {t.akun.keamanan.dialogTitle}
           </div>
-          <Field label="Password Saat Ini">
+          <Field label={t.akun.keamanan.currentPwLabel}>
             <input
               type="password"
               className={FIELD_CLASS}
               value={currentPw}
               onChange={(e) => setCurrentPw(e.target.value)}
-              placeholder="••••••••"
+              placeholder={t.akun.keamanan.currentPwPlaceholder}
             />
           </Field>
-          <Field label="Password Baru">
+          <Field label={t.akun.keamanan.newPwLabel}>
             <input
               type="password"
               className={FIELD_CLASS}
               value={newPw}
               onChange={(e) => setNewPw(e.target.value)}
-              placeholder="Min. 8 karakter"
+              placeholder={t.akun.keamanan.newPwPlaceholder}
             />
           </Field>
-          <Field label="Konfirmasi Password Baru">
+          <Field label={t.akun.keamanan.confirmPwLabel}>
             <input
               type="password"
               className={FIELD_CLASS}
               value={confirmPw}
               onChange={(e) => setConfirmPw(e.target.value)}
-              placeholder="Ulangi password baru"
+              placeholder={t.akun.keamanan.confirmPwPlaceholder}
             />
           </Field>
           <div className="mt-3 flex gap-2">
@@ -522,73 +519,74 @@ function KeamananBody() {
                 setConfirmPw("");
               }}
             >
-              Batal
+              {t.common.cancel}
             </button>
             <button
               className="flex-1 rounded-lg bg-primary py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-50"
               disabled={pwLoading || !currentPw || !newPw || !confirmPw}
               onClick={() => void handleChangePassword()}
             >
-              {pwLoading ? "Menyimpan..." : "Simpan"}
+              {pwLoading ? t.akun.keamanan.savingLabel : t.common.save}
             </button>
           </div>
         </div>
       )}
       <SetSection>
-        <SectionTitle>Password & PIN</SectionTitle>
+        <SectionTitle>{t.akun.keamanan.passwordSectionTitle}</SectionTitle>
         <SetRow
           icon={<Lock className="size-4 text-success" />}
           iconBg="#DCFCE7"
-          name="Ubah Password"
-          sub="Klik untuk mengubah password akun"
+          name={t.akun.keamanan.changePasswordRowName}
+          sub={t.akun.keamanan.changePasswordRowSub}
           right={CHEVRON}
           onClick={() => setShowChangePw((v) => !v)}
         />
         <SetRow
           icon={<Hash className="size-4 text-primary" />}
           iconBg="#EEF2FF"
-          name="PIN Aplikasi"
-          sub="6 digit PIN untuk buka aplikasi"
+          name={t.akun.keamanan.pinRowName}
+          sub={t.akun.keamanan.pinRowSub}
           right={
             <span className="text-[12px] font-semibold text-foreground">
-              Aktif
+              {t.akun.keamanan.pinActive}
             </span>
           }
-          onClick={() => toast("Atur PIN")}
+          onClick={() => toast(t.akun.keamanan.toastSetPin)}
         />
       </SetSection>
       <SetSection>
-        <SectionTitle>Autentikasi</SectionTitle>
+        <SectionTitle>{t.akun.keamanan.authSectionTitle}</SectionTitle>
         <ToggleBox
           rows={[
             {
-              label: "Sidik Jari / Face ID",
-              sub: "Masuk dengan biometrik",
+              label: t.akun.keamanan.biometricLabel,
+              sub: t.akun.keamanan.biometricSub,
               defaultChecked: true,
             },
             {
-              label: "Konfirmasi Transaksi Besar",
-              sub: "Minta autentikasi untuk transaksi >Rp 5 jt",
+              label: t.akun.keamanan.bigTxnLabel,
+              sub: t.akun.keamanan.bigTxnSub,
               defaultChecked: true,
             },
             {
-              label: "Notifikasi Login Baru",
-              sub: "Alert jika ada login dari perangkat baru",
+              label: t.akun.keamanan.newLoginLabel,
+              sub: t.akun.keamanan.newLoginSub,
               defaultChecked: true,
             },
           ]}
         />
       </SetSection>
       <SetSection>
-        <SectionTitle>Sesi Aktif</SectionTitle>
+        <SectionTitle>{t.akun.keamanan.sessionSectionTitle}</SectionTitle>
+        {/* Device names are mock entity data; status/time captions are localized. */}
         <SetRow
           icon={<Smartphone className="size-4 text-success" />}
           iconBg="#DCFCE7"
           name="iPhone 14 Pro"
-          sub="Jakarta · Aktif sekarang"
+          sub={t.akun.keamanan.currentSessionSub}
           right={
             <span className="shrink-0 text-[11px] font-bold text-success">
-              Ini perangkatmu
+              {t.akun.keamanan.thisDeviceBadge}
             </span>
           }
         />
@@ -596,13 +594,13 @@ function KeamananBody() {
           icon={<Laptop className="size-4 text-warning" />}
           iconBg="#FEF9C3"
           name="MacBook Pro"
-          sub="Jakarta · 2 jam lalu"
+          sub={t.akun.keamanan.previousSessionSub}
           right={
             <span className="shrink-0 cursor-pointer text-[11px] text-destructive">
-              Akhiri
+              {t.akun.keamanan.endSessionLink}
             </span>
           }
-          onClick={() => toast("Sesi diakhiri")}
+          onClick={() => toast(t.akun.keamanan.toastSessionEnded)}
         />
       </SetSection>
     </>
@@ -616,16 +614,19 @@ function KoneksiBody({
   onAddRekening: () => void;
   onAddEwallet: () => void;
 }) {
+  const { t } = useLocale();
+  // Institution names and masked numbers are entity data; connection/sync
+  // status copy resolves from the dictionary.
   return (
     <>
       <SetSection>
         <div className="mb-2.5 flex items-center justify-between">
-          <SectionTitle>Rekening Bank Terhubung</SectionTitle>
+          <SectionTitle>{t.akun.koneksi.bankSectionTitle}</SectionTitle>
           <span
             className="cursor-pointer text-[12px] font-bold text-primary"
             onClick={onAddRekening}
           >
-            + Tambah
+            {t.akun.koneksi.addButton}
           </span>
         </div>
         <SetRow
@@ -639,8 +640,12 @@ function KoneksiBody({
           }
           iconBg="#DBEAFE"
           name="BCA Tahapan ···9010"
-          sub="Terhubung · Sinkronisasi otomatis aktif"
-          right={<StatusBadge variant="success">Aktif</StatusBadge>}
+          sub={t.akun.koneksi.connectedAutoSync}
+          right={
+            <StatusBadge variant="success">
+              {t.akun.koneksi.activeBadge}
+            </StatusBadge>
+          }
         />
         <SetRow
           icon={
@@ -653,8 +658,12 @@ function KoneksiBody({
           }
           iconBg="#FFF7ED"
           name="Mandiri ···5586"
-          sub="Terhubung · Sinkronisasi aktif"
-          right={<StatusBadge variant="success">Aktif</StatusBadge>}
+          sub={t.akun.koneksi.connectedSync}
+          right={
+            <StatusBadge variant="success">
+              {t.akun.koneksi.activeBadge}
+            </StatusBadge>
+          }
         />
         <SetRow
           icon={
@@ -667,89 +676,85 @@ function KoneksiBody({
           }
           iconBg="#FFF7ED"
           name="BNI Taplus ···5544"
-          sub="Terhubung · Sinkronisasi aktif"
-          right={<StatusBadge variant="success">Aktif</StatusBadge>}
+          sub={t.akun.koneksi.connectedSync}
+          right={
+            <StatusBadge variant="success">
+              {t.akun.koneksi.activeBadge}
+            </StatusBadge>
+          }
         />
       </SetSection>
       <SetSection>
         <div className="mb-2.5 flex items-center justify-between">
-          <SectionTitle>E-Wallet</SectionTitle>
+          <SectionTitle>{t.akun.koneksi.ewalletSectionTitle}</SectionTitle>
           <span
             className="cursor-pointer text-[12px] font-bold text-primary"
             onClick={onAddEwallet}
           >
-            + Tambah
+            {t.akun.koneksi.addButton}
           </span>
         </div>
         <SetRow
           icon={<span className="text-[16px]">💚</span>}
           iconBg="#DCFCE7"
           name="GoPay"
-          sub="082345678901 · Sinkronisasi aktif"
-          right={<StatusBadge variant="success">Aktif</StatusBadge>}
+          sub={`082345678901 · ${t.akun.koneksi.syncActive}`}
+          right={
+            <StatusBadge variant="success">
+              {t.akun.koneksi.activeBadge}
+            </StatusBadge>
+          }
         />
         <SetRow
           icon={<span className="text-[16px]">🔴</span>}
           iconBg="#FEE2E2"
           name="LinkAja"
-          sub="081234567890 · Sinkronisasi aktif"
-          right={<StatusBadge variant="success">Aktif</StatusBadge>}
+          sub={`081234567890 · ${t.akun.koneksi.syncActive}`}
+          right={
+            <StatusBadge variant="success">
+              {t.akun.koneksi.activeBadge}
+            </StatusBadge>
+          }
         />
         <SetRow
           icon={<span className="text-[16px]">🟣</span>}
           iconBg="#F3F4F6"
           name="OVO"
-          sub="Belum terhubung"
+          sub={t.akun.koneksi.notConnected}
           right={
             <span className="shrink-0 text-[12px] font-bold text-primary">
-              Hubungkan
+              {t.akun.koneksi.connectAction}
             </span>
           }
-          onClick={() => toast("Hubungkan OVO")}
+          onClick={() => toast(t.akun.koneksi.toastConnectOvo)}
         />
         <SetRow
           icon={<span className="text-[16px]">🔵</span>}
           iconBg="#F3F4F6"
           name="DANA"
-          sub="Belum terhubung"
+          sub={t.akun.koneksi.notConnected}
           right={
             <span className="shrink-0 text-[12px] font-bold text-primary">
-              Hubungkan
+              {t.akun.koneksi.connectAction}
             </span>
           }
-          onClick={() => toast("Hubungkan DANA")}
+          onClick={() => toast(t.akun.koneksi.toastConnectDana)}
         />
       </SetSection>
     </>
   );
 }
 
-const CURRENCIES = [
-  {
-    code: "IDR",
-    flag: "🇮🇩",
-    title: "IDR — Rupiah Indonesia",
-    name: "Rp · Rupiah",
-  },
-  {
-    code: "USD",
-    flag: "🇺🇸",
-    title: "USD — US Dollar",
-    name: "$ · Dollar Amerika",
-  },
-  {
-    code: "SGD",
-    flag: "🇸🇬",
-    title: "SGD — Singapore Dollar",
-    name: "S$ · Dollar Singapura",
-  },
-  { code: "EUR", flag: "🇪🇺", title: "EUR — Euro", name: "€ · Euro" },
-  {
-    code: "JPY",
-    flag: "🇯🇵",
-    title: "JPY — Japanese Yen",
-    name: "¥ · Yen Jepang",
-  },
+// Structural only (code/flag) — title/name resolve from
+// `t.akun.pengaturan.currencies[code]` at render time.
+type CurrencyCode = "IDR" | "USD" | "SGD" | "EUR" | "JPY";
+
+const CURRENCIES: { code: CurrencyCode; flag: string }[] = [
+  { code: "IDR", flag: "🇮🇩" },
+  { code: "USD", flag: "🇺🇸" },
+  { code: "SGD", flag: "🇸🇬" },
+  { code: "EUR", flag: "🇪🇺" },
+  { code: "JPY", flag: "🇯🇵" },
 ];
 
 const SETTINGS_KEY = "wealthme_settings";
@@ -780,27 +785,39 @@ function loadSettings(): AppSettings {
 // Theme/language pickers are live-applied via `next-themes` and `useLocale()`
 // respectively — they are no longer part of the orphaned `AppSettings`
 // save/load mechanism above, which only covers currency/dateFormat.
-const THEME_OPTIONS: { value: "light" | "dark" | "system"; label: string }[] = [
-  { value: "light", label: "☀️ Terang (Light)" },
-  { value: "dark", label: "🌙 Gelap (Dark)" },
-  { value: "system", label: "🖥️ Ikuti Sistem" },
+// Structural values only — display labels resolve from
+// `t.akun.pengaturan.themeOptions` at render time.
+const THEME_OPTIONS: { value: "light" | "dark" | "system" }[] = [
+  { value: "light" },
+  { value: "dark" },
+  { value: "system" },
 ];
 
+// Language names intentionally stay out of `t.akun.*` — a language picker
+// conventionally shows each language's own native name regardless of the
+// currently active UI locale (so "Bahasa Indonesia"/"English" never change).
 const LANGUAGE_OPTIONS: { value: "id" | "en"; label: string }[] = [
   { value: "id", label: "🇮🇩 Bahasa Indonesia" },
   { value: "en", label: "🇬🇧 English" },
 ];
 
-function themeValueToLabel(value: string | undefined): string {
-  return (
-    THEME_OPTIONS.find((o) => o.value === value)?.label ??
-    THEME_OPTIONS[0].label
-  );
+type ThemeLabels = { light: string; dark: string; system: string };
+
+function themeValueToLabel(
+  value: string | undefined,
+  labels: ThemeLabels,
+): string {
+  const option =
+    THEME_OPTIONS.find((o) => o.value === value) ?? THEME_OPTIONS[0];
+  return labels[option.value];
 }
 
-function themeLabelToValue(label: string): "light" | "dark" | "system" {
+function themeLabelToValue(
+  label: string,
+  labels: ThemeLabels,
+): "light" | "dark" | "system" {
   return (
-    THEME_OPTIONS.find((o) => o.label === label)?.value ??
+    THEME_OPTIONS.find((o) => labels[o.value] === label)?.value ??
     THEME_OPTIONS[0].value
   );
 }
@@ -822,7 +839,7 @@ function localeLabelToValue(label: string): "id" | "en" {
 export function PengaturanBody() {
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const { theme, setTheme } = useTheme();
-  const { locale, setLocale } = useLocale();
+  const { locale, setLocale, t } = useLocale();
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const { data: profile } = useProfile();
@@ -837,8 +854,8 @@ export function PengaturanBody() {
   useEffect(() => setMounted(true), []);
 
   const themeLabel = mounted
-    ? themeValueToLabel(theme)
-    : THEME_OPTIONS[0].label;
+    ? themeValueToLabel(theme, t.akun.pengaturan.themeOptions)
+    : t.akun.pengaturan.themeOptions.light;
   const languageLabel = localeValueToLabel(locale);
 
   function update<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
@@ -859,28 +876,33 @@ export function PengaturanBody() {
       void queryClient.invalidateQueries({
         queryKey: ["auth", "profile", session?.accessToken],
       });
-      toast.success("✅ Mata uang tampilan diperbarui");
+      toast.success(t.akun.pengaturan.toastCurrencyUpdated);
     },
     onError: () => {
-      toast.error("Gagal menyimpan mata uang");
+      toast.error(t.akun.pengaturan.toastCurrencyFailed);
     },
   });
 
   function save() {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    toast.success("✅ Pengaturan disimpan");
+    toast.success(t.akun.pengaturan.toastSettingsSaved);
   }
 
   return (
     <>
       <SetSection>
-        <SectionTitle>Mata Uang</SectionTitle>
-        <div className="mb-3.5" role="radiogroup" aria-label="Mata Uang">
+        <SectionTitle>{t.akun.pengaturan.currencySectionTitle}</SectionTitle>
+        <div
+          className="mb-3.5"
+          role="radiogroup"
+          aria-label={t.akun.pengaturan.currencySectionTitle}
+        >
           <div className="mb-2.5 text-[12px] text-muted-foreground">
-            Mata uang default untuk tampilan semua angka
+            {t.akun.pengaturan.currencyHint}
           </div>
           {CURRENCIES.map((c) => {
             const selected = currency === c.code;
+            const info = t.akun.pengaturan.currencies[c.code];
             return (
               <button
                 key={c.code}
@@ -895,10 +917,10 @@ export function PengaturanBody() {
                 <div className="text-[22px]">{c.flag}</div>
                 <div className="flex-1">
                   <div className="text-[13px] font-bold text-foreground">
-                    {c.title}
+                    {info.title}
                   </div>
                   <div className="mt-0.5 text-[11.5px] text-muted-foreground">
-                    {c.name}
+                    {info.name}
                   </div>
                 </div>
                 {selected && (
@@ -910,8 +932,8 @@ export function PengaturanBody() {
         </div>
       </SetSection>
       <SetSection>
-        <SectionTitle>Bahasa & Tampilan</SectionTitle>
-        <Field label="Bahasa">
+        <SectionTitle>{t.akun.pengaturan.displaySectionTitle}</SectionTitle>
+        <Field label={t.akun.pengaturan.languageLabel}>
           <select
             className={FIELD_CLASS}
             value={languageLabel}
@@ -922,7 +944,7 @@ export function PengaturanBody() {
             ))}
           </select>
         </Field>
-        <Field label="Format Tanggal">
+        <Field label={t.akun.pengaturan.dateFormatLabel}>
           <select
             className={FIELD_CLASS}
             value={settings.dateFormat}
@@ -933,34 +955,43 @@ export function PengaturanBody() {
             <option>YYYY-MM-DD</option>
           </select>
         </Field>
-        <Field label="Tema">
+        <Field label={t.akun.pengaturan.themeLabel}>
           <select
             className={FIELD_CLASS}
             value={themeLabel}
-            onChange={(e) => setTheme(themeLabelToValue(e.target.value))}
+            onChange={(e) =>
+              setTheme(
+                themeLabelToValue(
+                  e.target.value,
+                  t.akun.pengaturan.themeOptions,
+                ),
+              )
+            }
           >
             {THEME_OPTIONS.map((o) => (
-              <option key={o.value}>{o.label}</option>
+              <option key={o.value}>
+                {t.akun.pengaturan.themeOptions[o.value]}
+              </option>
             ))}
           </select>
         </Field>
       </SetSection>
       <SetSection>
-        <SectionTitle>Tampilan Data</SectionTitle>
+        <SectionTitle>{t.akun.pengaturan.dataSectionTitle}</SectionTitle>
         <ToggleBox
           rows={[
             {
-              label: "Sembunyikan Saldo Default",
-              sub: "Tampilkan *** saat buka aplikasi",
+              label: t.akun.pengaturan.hideBalanceLabel,
+              sub: t.akun.pengaturan.hideBalanceSub,
             },
             {
-              label: "Tampilkan Desimal",
-              sub: "Tampilkan angka desimal pada saldo",
+              label: t.akun.pengaturan.showDecimalLabel,
+              sub: t.akun.pengaturan.showDecimalSub,
               defaultChecked: true,
             },
             {
-              label: "Ringkasan Mingguan",
-              sub: "Kirim ringkasan keuangan tiap Senin",
+              label: t.akun.pengaturan.weeklySummaryLabel,
+              sub: t.akun.pengaturan.weeklySummarySub,
               defaultChecked: true,
             },
           ]}
@@ -970,7 +1001,7 @@ export function PengaturanBody() {
         className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground"
         onClick={save}
       >
-        <Save className="size-4" /> Simpan Pengaturan
+        <Save className="size-4" /> {t.akun.pengaturan.saveButton}
       </button>
     </>
   );
@@ -988,6 +1019,7 @@ const NOTIF_PREF_KEYS = [
 ] as const;
 
 export function NotifSettingBody() {
+  const { t } = useLocale();
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const { data: profile } = useProfile();
@@ -1011,9 +1043,9 @@ export function NotifSettingBody() {
       void queryClient.invalidateQueries({
         queryKey: ["auth", "profile", session?.accessToken],
       });
-      toast.success("✅ Pengaturan notifikasi disimpan");
+      toast.success(t.akun.notifSetting.toastSaved);
     },
-    onError: () => toast.error("Gagal menyimpan pengaturan notifikasi"),
+    onError: () => toast.error(t.akun.notifSetting.toastFailed),
   });
 
   function save() {
@@ -1026,24 +1058,26 @@ export function NotifSettingBody() {
   return (
     <>
       <SetSection>
-        <SectionTitle>Transaksi</SectionTitle>
+        <SectionTitle>
+          {t.akun.notifSetting.transactionSectionTitle}
+        </SectionTitle>
         <ToggleBox
           rows={[
             {
-              label: "Notif Transaksi Masuk",
-              sub: "Setiap ada dana masuk ke rekening",
+              label: t.akun.notifSetting.txnInLabel,
+              sub: t.akun.notifSetting.txnInSub,
               checked: isOn("txnIn"),
               onCheckedChange: set("txnIn"),
             },
             {
-              label: "Notif Transaksi Keluar",
-              sub: "Setiap ada pengeluaran",
+              label: t.akun.notifSetting.txnOutLabel,
+              sub: t.akun.notifSetting.txnOutSub,
               checked: isOn("txnOut"),
               onCheckedChange: set("txnOut"),
             },
             {
-              label: "Transaksi Besar (>Rp 5 jt)",
-              sub: "Alert khusus untuk transaksi besar",
+              label: t.akun.notifSetting.txnBigLabel,
+              sub: t.akun.notifSetting.txnBigSub,
               checked: isOn("txnBig"),
               onCheckedChange: set("txnBig"),
             },
@@ -1051,24 +1085,24 @@ export function NotifSettingBody() {
         />
       </SetSection>
       <SetSection>
-        <SectionTitle>Tujuan & Anggaran</SectionTitle>
+        <SectionTitle>{t.akun.notifSetting.goalsSectionTitle}</SectionTitle>
         <ToggleBox
           rows={[
             {
-              label: "Anggaran Mendekati Batas",
-              sub: "Alert saat 80% budget terpakai",
+              label: t.akun.notifSetting.budget80Label,
+              sub: t.akun.notifSetting.budget80Sub,
               checked: isOn("budget80"),
               onCheckedChange: set("budget80"),
             },
             {
-              label: "Update Progres Tujuan",
-              sub: "Notifikasi saat milestone tercapai",
+              label: t.akun.notifSetting.goalMilestoneLabel,
+              sub: t.akun.notifSetting.goalMilestoneSub,
               checked: isOn("goalMilestone"),
               onCheckedChange: set("goalMilestone"),
             },
             {
-              label: "Jatuh Tempo Tagihan",
-              sub: "Pengingat 3 hari sebelum jatuh tempo",
+              label: t.akun.notifSetting.billDueLabel,
+              sub: t.akun.notifSetting.billDueSub,
               checked: isOn("billDue"),
               onCheckedChange: set("billDue"),
             },
@@ -1076,26 +1110,25 @@ export function NotifSettingBody() {
         />
       </SetSection>
       <SetSection>
-        <SectionTitle>Investasi</SectionTitle>
+        <SectionTitle>{t.akun.notifSetting.investSectionTitle}</SectionTitle>
         <ToggleBox
           rows={[
             {
-              label: "Update Harga Saham",
-              sub: "Notifikasi perubahan harga signifikan",
+              label: t.akun.notifSetting.stockPriceLabel,
+              sub: t.akun.notifSetting.stockPriceSub,
               checked: isOn("stockPrice"),
               onCheckedChange: set("stockPrice"),
             },
             {
-              label: "Dividen Masuk",
-              sub: "Notif saat dividen diterima",
+              label: t.akun.notifSetting.dividendLabel,
+              sub: t.akun.notifSetting.dividendSub,
               checked: isOn("dividend"),
               onCheckedChange: set("dividend"),
             },
           ]}
         />
         <p className="mt-2 text-[11.5px] text-muted-foreground">
-          Disimpan, tapi belum aktif — sumber data harga & dividen belum
-          tersedia.
+          {t.akun.notifSetting.investNote}
         </p>
       </SetSection>
       <button
@@ -1103,127 +1136,71 @@ export function NotifSettingBody() {
         onClick={save}
         disabled={isPending}
       >
-        <Save className="size-4" /> Simpan
+        <Save className="size-4" /> {t.common.save}
       </button>
     </>
   );
 }
 
 function PrivasiBody() {
+  const { t } = useLocale();
   return (
     <>
       <SetSection>
-        <SectionTitle>Visibilitas Data</SectionTitle>
+        <SectionTitle>{t.akun.privasi.visibilitySectionTitle}</SectionTitle>
         <ToggleBox
           rows={[
             {
-              label: "Sembunyikan dari Anggota Family",
-              sub: "Anggota keluarga tidak bisa lihat detail saldo",
+              label: t.akun.privasi.hideFromFamilyLabel,
+              sub: t.akun.privasi.hideFromFamilySub,
             },
             {
-              label: "Mode Privasi Saat Screenshot",
-              sub: "Sembunyikan angka saat screenshot",
+              label: t.akun.privasi.privacyScreenshotLabel,
+              sub: t.akun.privasi.privacyScreenshotSub,
               defaultChecked: true,
             },
           ]}
         />
       </SetSection>
       <SetSection>
-        <SectionTitle>Data & Analitik</SectionTitle>
+        <SectionTitle>{t.akun.privasi.dataAnalyticsSectionTitle}</SectionTitle>
         <ToggleBox
           rows={[
             {
-              label: "Kirim Data Analitik",
-              sub: "Bantu kami tingkatkan aplikasi (anonim)",
+              label: t.akun.privasi.sendAnalyticsLabel,
+              sub: t.akun.privasi.sendAnalyticsSub,
               defaultChecked: true,
             },
             {
-              label: "Personalisasi AI",
-              sub: "Izinkan AI belajar dari pola keuanganmu",
+              label: t.akun.privasi.aiPersonalizationLabel,
+              sub: t.akun.privasi.aiPersonalizationSub,
               defaultChecked: true,
             },
           ]}
         />
       </SetSection>
       <SetSection>
-        <SectionTitle>Ekspor & Hapus Data</SectionTitle>
+        <SectionTitle>{t.akun.privasi.exportSectionTitle}</SectionTitle>
         <SetRow
           icon={<FileOutput className="size-4 text-success" />}
           iconBg="#DCFCE7"
-          name="Ekspor Data Saya"
-          sub="Download semua data dalam format CSV/PDF"
+          name={t.akun.privasi.exportDataName}
+          sub={t.akun.privasi.exportDataSub}
           right={CHEVRON}
-          onClick={() => toast("📤 Mengekspor data...")}
+          onClick={() => toast(t.akun.privasi.toastExporting)}
         />
         <SetRow
           icon={<Trash2 className="size-4 text-destructive" />}
           iconBg="#FEE2E2"
-          name="Hapus Akun"
-          sub="Semua data akan dihapus permanen"
+          name={t.akun.privasi.deleteAccountName}
+          sub={t.akun.privasi.deleteAccountSub}
           right={CHEVRON}
-          onClick={() => toast.warning("⚠️ Hubungi support untuk hapus akun")}
+          onClick={() => toast.warning(t.akun.privasi.toastDeleteWarning)}
         />
       </SetSection>
     </>
   );
 }
-
-const FAQS = [
-  {
-    q: "Bagaimana cara menambah rekening baru?",
-    a: (
-      <>
-        Buka menu <strong>Akun → Koneksi Bank &amp; E-Wallet</strong>, lalu klik
-        tombol &quot;+ Tambah&quot;. Pilih bank yang kamu gunakan, kemudian
-        masukkan kredensial internet banking untuk proses autentikasi aman.
-      </>
-    ),
-  },
-  {
-    q: "Apakah data saya aman?",
-    a: "WealthMe menggunakan enkripsi AES-256 untuk semua data sensitif. Kami tidak pernah menyimpan password atau PIN perbankan kamu. Koneksi bank menggunakan OAuth 2.0 via partner terpercaya.",
-  },
-  {
-    q: "Bagaimana cara mengubah mata uang tampilan?",
-    a: (
-      <>
-        Pergi ke <strong>Akun → Pengaturan Umum → Mata Uang</strong>. Pilih mata
-        uang yang kamu inginkan. Kurs konversi diperbarui setiap hari dari
-        sumber Bank Indonesia.
-      </>
-    ),
-  },
-  {
-    q: "Bagaimana cara menambah tujuan keuangan baru?",
-    a: (
-      <>
-        Buka halaman <strong>Tujuan Keuangan</strong> lalu klik &quot;+ Tambah
-        Tujuan&quot;. Isi nama tujuan, target jumlah, dan tanggal target.
-        Aktifkan auto-debit agar setoran otomatis setiap bulan.
-      </>
-    ),
-  },
-  {
-    q: "Apakah WealthMe bisa digunakan untuk bisnis?",
-    a: (
-      <>
-        Ya! WealthMe memiliki fitur <strong>Akun Bisnis</strong> yang dapat
-        diaktifkan dari menu Akun. Fitur ini mencakup laporan arus kas bisnis,
-        pemisahan keuangan personal &amp; bisnis, serta manajemen invoice.
-      </>
-    ),
-  },
-  {
-    q: "Bagaimana cara mengundang anggota ke Family Group?",
-    a: (
-      <>
-        Buka <strong>Akun → Group Family → Kelola Anggota</strong>, lalu klik
-        &quot;Undang Anggota&quot;. Masukkan email anggota keluarga. Mereka akan
-        menerima undangan via email untuk bergabung.
-      </>
-    ),
-  },
-];
 
 function BantuanBody({
   onNavAi,
@@ -1234,46 +1211,54 @@ function BantuanBody({
   onStartTour: () => void;
   onOpenPanduan: () => void;
 }) {
+  const { t } = useLocale();
+  // Each FAQ answer is `before` + an optional bolded `bold` phrase + `after`
+  // (see `AkunRichAnswer` in i18n/types.ts) so the dictionary stays
+  // plain-string data while the accordion still renders the original
+  // mid-sentence emphasis.
+  const faqs = Object.values(t.akun.bantuan.faqs);
   return (
     <>
       <SetSection>
-        <SectionTitle>FAQ</SectionTitle>
+        <SectionTitle>{t.akun.bantuan.faqSectionTitle}</SectionTitle>
         <Accordion>
-          {FAQS.map((f, i) => (
+          {faqs.map((f, i) => (
             <AccordionItem key={i} value={`faq-${i}`}>
               <AccordionTrigger className="text-[13px] font-semibold text-foreground">
                 {f.q}
               </AccordionTrigger>
               <AccordionContent className="text-[12.5px] leading-relaxed text-muted-foreground">
-                {f.a}
+                {f.before}
+                {f.bold && <strong>{f.bold}</strong>}
+                {f.after}
               </AccordionContent>
             </AccordionItem>
           ))}
         </Accordion>
       </SetSection>
       <SetSection>
-        <SectionTitle>Panduan Fitur</SectionTitle>
+        <SectionTitle>{t.akun.bantuan.guideSectionTitle}</SectionTitle>
         <SetRow
           icon={<Book className="size-4 text-primary" />}
           iconBg="#EEF2FF"
-          name="Mulai Tur Interaktif"
-          sub="Tur ~3 menit yang memandu penambahan rekening, aset, investasi, dan fitur utama lainnya"
+          name={t.akun.bantuan.tourName}
+          sub={t.akun.bantuan.tourSub}
           right={CHEVRON}
           onClick={onStartTour}
         />
         <SetRow
           icon={<Book className="size-4 text-success" />}
           iconBg="#DCFCE7"
-          name="Panduan Fitur Lengkap"
-          sub="Semua fitur, dikelompokkan per kategori"
+          name={t.akun.bantuan.fullGuideName}
+          sub={t.akun.bantuan.fullGuideSub}
           right={CHEVRON}
           onClick={onOpenPanduan}
         />
         <SetRow
           icon={<Bot className="size-4 text-muted-foreground" />}
           iconBg="#F3F4F6"
-          name="Tanya AI Advisor"
-          sub="Langsung tanya ke asisten keuangan AI"
+          name={t.akun.bantuan.askAiName}
+          sub={t.akun.bantuan.askAiSub}
           right={CHEVRON}
           onClick={onNavAi}
         />
@@ -1283,61 +1268,66 @@ function BantuanBody({
 }
 
 function HubungiBody() {
+  const { t } = useLocale();
   return (
     <>
       <SetSection>
-        <SectionTitle>Kontak Support</SectionTitle>
+        <SectionTitle>{t.akun.hubungi.contactSectionTitle}</SectionTitle>
         <SetRow
           icon={<MessageCircle className="size-4 text-success" />}
           iconBg="#DCFCE7"
-          name="Live Chat"
-          sub="Rata-rata respons < 5 menit"
-          right={<StatusBadge variant="success">Online</StatusBadge>}
-          onClick={() => toast("Membuka live chat...")}
+          name={t.akun.hubungi.liveChatName}
+          sub={t.akun.hubungi.liveChatSub}
+          right={
+            <StatusBadge variant="success">
+              {t.akun.hubungi.liveChatBadge}
+            </StatusBadge>
+          }
+          onClick={() => toast(t.akun.hubungi.toastLiveChat)}
         />
         <SetRow
           icon={<Mail className="size-4 text-primary" />}
           iconBg="#EEF2FF"
-          name="Email"
-          sub="support@wealthme.id · Respons 1x24 jam"
+          name={t.akun.hubungi.emailName}
+          sub={t.akun.hubungi.emailSub}
           right={CHEVRON}
-          onClick={() => toast("Email support@wealthme.id")}
+          onClick={() => toast(t.akun.hubungi.toastEmail)}
         />
         <SetRow
           icon={<Phone className="size-4 text-warning" />}
           iconBg="#FEF9C3"
-          name="Telepon"
-          sub="0800-1234-5678 · Senin–Jumat 08:00–17:00"
+          name={t.akun.hubungi.phoneName}
+          sub={t.akun.hubungi.phoneSub}
           right={CHEVRON}
-          onClick={() => toast("Menghubungi 0800-1234-5678")}
+          onClick={() => toast(t.akun.hubungi.toastPhone)}
         />
         <SetRow
           icon={
             <MessageCircle className="size-4" style={{ color: "#25D366" }} />
           }
           iconBg="#DCFCE7"
-          name="WhatsApp"
-          sub="+62 811 2345 6789 · Chat langsung"
+          name={t.akun.hubungi.whatsappName}
+          sub={t.akun.hubungi.whatsappSub}
           right={CHEVRON}
-          onClick={() => toast("Buka WhatsApp")}
+          onClick={() => toast(t.akun.hubungi.toastWhatsapp)}
         />
       </SetSection>
       <div className="mb-5 rounded-xl border border-[#C7D2FE] bg-accent p-4">
         <div className="mb-1.5 text-[13px] font-bold text-primary-strong">
-          💬 Kirim Feedback
+          {t.akun.hubungi.feedbackTitle}
         </div>
         <div className="mb-2.5">
           <textarea
             className={`${FIELD_CLASS} resize-none`}
             rows={3}
-            placeholder="Ceritakan pengalamanmu atau laporkan bug..."
+            placeholder={t.akun.hubungi.feedbackPlaceholder}
           />
         </div>
         <button
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground"
-          onClick={() => toast.success("✅ Feedback terkirim, terima kasih!")}
+          onClick={() => toast.success(t.akun.hubungi.toastFeedbackSent)}
         >
-          <Send className="size-4" /> Kirim Feedback
+          <Send className="size-4" /> {t.akun.hubungi.feedbackButton}
         </button>
       </div>
     </>
@@ -1345,6 +1335,7 @@ function HubungiBody() {
 }
 
 function TentangBody() {
+  const { t } = useLocale();
   return (
     <>
       <div className="px-0 pt-6 pb-5 text-center">
@@ -1355,18 +1346,18 @@ function TentangBody() {
           WealthMe
         </div>
         <div className="mt-0.5 text-[13px] text-muted-foreground">
-          Personal Wealth Operating System
+          {t.akun.tentang.tagline}
         </div>
         <div className="mt-2 text-[12px] text-muted-foreground">
-          Versi 1.0.0 (Build 2025.04.01)
+          {t.akun.tentang.versionBuild}
         </div>
       </div>
       <SetSection>
-        <SectionTitle>Informasi Aplikasi</SectionTitle>
+        <SectionTitle>{t.akun.tentang.infoSectionTitle}</SectionTitle>
         <SetRow
           icon={<Code className="size-4 text-primary" />}
           iconBg="#EEF2FF"
-          name="Versi"
+          name={t.akun.tentang.versionRowName}
           right={
             <span className="text-[12px] font-semibold text-foreground">
               1.0.0
@@ -1376,38 +1367,39 @@ function TentangBody() {
         <SetRow
           icon={<Calendar className="size-4 text-success" />}
           iconBg="#DCFCE7"
-          name="Terakhir Diperbarui"
+          name={t.akun.tentang.lastUpdatedRowName}
           right={
             <span className="text-[12px] font-semibold text-foreground">
-              1 Apr 2025
+              {t.akun.tentang.lastUpdatedValue}
             </span>
           }
         />
         <SetRow
           icon={<FileText className="size-4 text-muted-foreground" />}
           iconBg="#F3F4F6"
-          name="Kebijakan Privasi"
+          name={t.akun.tentang.privacyPolicyName}
           right={CHEVRON}
-          onClick={() => toast("Kebijakan Privasi")}
+          onClick={() => toast(t.akun.tentang.privacyPolicyName)}
         />
         <SetRow
           icon={<Scale className="size-4 text-muted-foreground" />}
           iconBg="#F3F4F6"
-          name="Syarat & Ketentuan"
+          name={t.akun.tentang.termsName}
           right={CHEVRON}
-          onClick={() => toast("Syarat & Ketentuan")}
+          onClick={() => toast(t.akun.tentang.termsName)}
         />
         <SetRow
           icon={<Code className="size-4 text-brand-purple" />}
           iconBg="#EDE9FE"
-          name="Lisensi Open Source"
+          name={t.akun.tentang.licenseName}
           right={CHEVRON}
-          onClick={() => toast("Lisensi Open Source")}
+          onClick={() => toast(t.akun.tentang.licenseName)}
         />
       </SetSection>
       <div className="px-0 pt-2 pb-1 text-center text-[11.5px] text-muted-foreground">
-        Dibuat dengan ❤️ di Indonesia
-        <br />© 2025 WealthMe · Semua hak dilindungi
+        {t.akun.tentang.footerMade}
+        <br />
+        {t.akun.tentang.footerCopyright}
       </div>
     </>
   );
@@ -1484,6 +1476,7 @@ function FamilyBody({
   members: FamilyMember[];
   myUserId: string;
 }) {
+  const { t } = useLocale();
   const regularMembers = members.filter((m) => m.role !== "admin_staff");
   const adminMembers = members.filter((m) => m.role === "admin_staff");
 
@@ -1505,11 +1498,15 @@ function FamilyBody({
               {group?.name ?? "—"}
             </div>
             <div className="mt-0.5 text-[12px] opacity-80">
-              {group ? `${group.memberCount} anggota · ${group.myRole}` : "—"}
+              {group
+                ? `${group.memberCount} ${t.akun.memberCountSuffix} · ${group.myRole}`
+                : "—"}
             </div>
           </div>
         </div>
-        <SectionTitle>Anggota ({regularMembers.length})</SectionTitle>
+        <SectionTitle>
+          {t.akun.family.membersSectionTitle} ({regularMembers.length})
+        </SectionTitle>
         {regularMembers.map((m, i) => (
           <MemberRow
             key={m.id}
@@ -1522,7 +1519,7 @@ function FamilyBody({
             badge={
               m.userId === myUserId ? (
                 <StatusBadge variant="info" className="text-[10px]">
-                  Kamu
+                  {t.akun.family.youBadge}
                 </StatusBadge>
               ) : undefined
             }
@@ -1543,14 +1540,16 @@ function FamilyBody({
           className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-[13.5px] font-semibold text-primary"
           onClick={onInviteMember}
         >
-          <UserPlus className="size-4" /> Undang Anggota
+          <UserPlus className="size-4" /> {t.akun.family.inviteButton}
         </button>
       </SetSection>
       <SetSection>
         <div className="mb-2.5 flex items-center justify-between">
-          <SectionTitle>Admin / Staf ({adminMembers.length})</SectionTitle>
+          <SectionTitle>
+            {t.akun.family.adminSectionTitle} ({adminMembers.length})
+          </SectionTitle>
           <span className="text-[11px] text-muted-foreground">
-            Bisa input transaksi
+            {t.akun.family.adminCanInput}
           </span>
         </div>
         {adminMembers.map((m, i) => (
@@ -1564,14 +1563,16 @@ function FamilyBody({
             name={m.name}
             badge={
               <StatusBadge variant="purple" className="text-[10px]">
-                Admin
+                {t.akun.family.adminBadge}
               </StatusBadge>
             }
             sub={`Admin · ${m.email}`}
             right={
               <button
-                aria-label={`Kelola akses ${m.name}`}
-                onClick={() => toast(`Kelola akses ${m.name}`)}
+                aria-label={`${t.akun.family.manageAccessPrefix} ${m.name}`}
+                onClick={() =>
+                  toast(`${t.akun.family.manageAccessPrefix} ${m.name}`)
+                }
                 className="cursor-pointer text-muted-foreground"
               >
                 <EllipsisVertical className="size-4" />
@@ -1583,29 +1584,25 @@ function FamilyBody({
           className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-dashed border-primary bg-card px-4 py-2.5 text-[13.5px] font-semibold text-primary"
           onClick={onAddAdmin}
         >
-          <UserCog className="size-4" /> Tambah Admin / Staf
+          <UserCog className="size-4" /> {t.akun.family.addAdminButton}
         </button>
         <div className="mt-2 flex gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
           <Info className="mt-0.5 size-3 shrink-0 text-primary" />
-          <span>
-            Admin (sekretaris, supir, ART, asisten) bisa mencatat transaksi atas
-            nama family, tapi tidak bisa mengubah pengaturan group atau melihat
-            saldo pribadi anggota.
-          </span>
+          <span>{t.akun.family.adminInfoNote}</span>
         </div>
       </SetSection>
       <SetSection>
-        <SectionTitle>Pengaturan Group</SectionTitle>
+        <SectionTitle>{t.akun.family.groupSettingsSectionTitle}</SectionTitle>
         <ToggleBox
           rows={[
             {
-              label: "Tampilkan Saldo ke Anggota",
-              sub: "Anggota bisa lihat total saldo bersama",
+              label: t.akun.family.showBalanceToMembersLabel,
+              sub: t.akun.family.showBalanceToMembersSub,
               defaultChecked: true,
             },
             {
-              label: "Notif Transaksi Anggota",
-              sub: "Terima notif transaksi dari anggota lain",
+              label: t.akun.family.memberTxnNotifLabel,
+              sub: t.akun.family.memberTxnNotifSub,
             },
           ]}
         />
@@ -1627,6 +1624,7 @@ function AddAdminDialog({
   familyGroupId: string | null;
   token: string | undefined;
 }) {
+  const { t } = useLocale();
   const emailRef = useRef<HTMLInputElement>(null);
 
   const { mutate: sendInvite, isPending } = useMutation({
@@ -1644,13 +1642,13 @@ function AddAdminDialog({
       // No invitation email exists yet — hand the join link to the owner.
       const link = `${window.location.origin}/join/${invitation.token}`;
       void navigator.clipboard.writeText(link).catch(() => {});
-      toast.success("Undangan dibuat — link disalin ke clipboard.", {
+      toast.success(t.akun.addAdmin.toastInviteCreated, {
         description: link,
         duration: 10000,
       });
     },
     onError: () => {
-      toast.error("Gagal membuat undangan. Periksa email dan coba lagi.");
+      toast.error(t.akun.addAdmin.toastInviteFailed);
     },
   });
 
@@ -1660,61 +1658,68 @@ function AddAdminDialog({
     sendInvite(email);
   }
 
+  const accessRows = [
+    {
+      label: t.akun.addAdmin.accessInputTxnLabel,
+      sub: t.akun.addAdmin.accessInputTxnSub,
+      on: true,
+    },
+    {
+      label: t.akun.addAdmin.accessOcrLabel,
+      sub: t.akun.addAdmin.accessOcrSub,
+      on: true,
+    },
+    {
+      label: t.akun.addAdmin.accessViewBalanceLabel,
+      sub: t.akun.addAdmin.accessViewBalanceSub,
+      on: false,
+    },
+    {
+      label: t.akun.addAdmin.accessLimitCategoryLabel,
+      sub: t.akun.addAdmin.accessLimitCategorySub,
+      on: false,
+    },
+  ];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[480px] p-6 sm:max-w-[480px]">
         <DialogTitle className="mb-1.5 text-[17px] font-extrabold">
-          Tambah Admin / Staf
+          {t.akun.addAdmin.dialogTitle}
         </DialogTitle>
         <div className="mb-4 text-[12px] text-muted-foreground">
-          Admin bisa mencatat transaksi atas nama family (cocok untuk
-          sekretaris, supir, ART, atau asisten).
+          {t.akun.addAdmin.dialogDesc}
         </div>
-        <Field label="Nama Lengkap">
-          <input className={FIELD_CLASS} placeholder="cth: Dewi Wulandari" />
+        <Field label={t.akun.profil.nameLabel}>
+          <input
+            className={FIELD_CLASS}
+            placeholder={t.akun.addAdmin.namePlaceholder}
+          />
         </Field>
-        <Field label="Email">
+        <Field label={t.akun.profil.emailLabel}>
           <input
             ref={emailRef}
             className={FIELD_CLASS}
-            placeholder="email admin"
+            placeholder={t.akun.addAdmin.emailPlaceholder}
             type="email"
           />
         </Field>
-        <Field label="Peran">
-          <select className={FIELD_CLASS} defaultValue="Sekretaris">
-            <option>Sekretaris</option>
-            <option>Supir</option>
-            <option>ART / Asisten Rumah Tangga</option>
-            <option>Asisten Pribadi</option>
-            <option>Akuntan</option>
-            <option>Lainnya</option>
+        <Field label={t.akun.addAdmin.roleLabel}>
+          <select
+            className={FIELD_CLASS}
+            defaultValue={t.akun.addAdmin.roleOptions.secretary}
+          >
+            <option>{t.akun.addAdmin.roleOptions.secretary}</option>
+            <option>{t.akun.addAdmin.roleOptions.driver}</option>
+            <option>{t.akun.addAdmin.roleOptions.householdAssistant}</option>
+            <option>{t.akun.addAdmin.roleOptions.personalAssistant}</option>
+            <option>{t.akun.addAdmin.roleOptions.accountant}</option>
+            <option>{t.akun.addAdmin.roleOptions.other}</option>
           </select>
         </Field>
-        <Field label="Hak Akses">
+        <Field label={t.akun.addAdmin.accessLabel}>
           <div className="rounded-md border bg-card px-3.5 py-3">
-            {[
-              {
-                label: "Input Transaksi",
-                sub: "Catat pemasukan & pengeluaran",
-                on: true,
-              },
-              {
-                label: "Scan Struk OCR",
-                sub: "Input via foto bon/struk",
-                on: true,
-              },
-              {
-                label: "Lihat Saldo",
-                sub: "Akses melihat total saldo family",
-                on: false,
-              },
-              {
-                label: "Batasi Kategori",
-                sub: "Hanya kategori tertentu (cth: transport)",
-                on: false,
-              },
-            ].map((r, i) => (
+            {accessRows.map((r, i) => (
               <div
                 key={i}
                 className="flex items-center justify-between gap-3 border-b py-2.5 first:pt-0 last:border-b-0 last:pb-0"
@@ -1742,7 +1747,7 @@ function AddAdminDialog({
           onClick={handleSend}
         >
           <UserCog className="size-4" />{" "}
-          {isPending ? "Mengirim..." : "Kirim Undangan Admin"}
+          {isPending ? t.akun.addAdmin.sending : t.akun.addAdmin.sendButton}
         </button>
       </DialogContent>
     </Dialog>
@@ -1793,6 +1798,7 @@ function MenuRow({
 /* ─────────────────────────── Page ─────────────────────────── */
 
 export default function AkunPage() {
+  const { t } = useLocale();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { startTour } = useShell();
@@ -1861,10 +1867,10 @@ export default function AkunPage() {
       void queryClient.invalidateQueries({
         queryKey: ["auth", "profile", token],
       });
-      toast.success("Profil berhasil disimpan");
+      toast.success(t.akun.crud.profileSaved);
     },
     onError: () => {
-      toast.error("Gagal menyimpan profil");
+      toast.error(t.akun.crud.profileSaveFailed);
     },
   });
 
@@ -1912,8 +1918,8 @@ export default function AkunPage() {
         });
         toast.success(
           entity === "rekening"
-            ? "Rekening berhasil ditambahkan!"
-            : "E-Wallet berhasil ditambahkan!",
+            ? t.akun.crud.accountAdded
+            : t.akun.crud.ewalletAdded,
         );
       } else if (entity === "member") {
         const invitation = await apiFetch<{ token: string }>(
@@ -1926,13 +1932,13 @@ export default function AkunPage() {
         );
         const link = `${window.location.origin}/join/${invitation.token}`;
         await navigator.clipboard.writeText(link).catch(() => {});
-        toast.success("Undangan dibuat — link disalin ke clipboard.", {
+        toast.success(t.akun.addAdmin.toastInviteCreated, {
           description: link,
           duration: 10000,
         });
       }
     } catch {
-      toast.error("Gagal menyimpan. Coba lagi.");
+      toast.error(t.akun.crud.saveFailed);
     }
   }
 
@@ -2013,21 +2019,21 @@ export default function AkunPage() {
           <div className="text-[18px] font-extrabold">{displayName}</div>
           <div className="text-[13px] opacity-90">{displayEmail}</div>
           <div className="mt-0.5 text-[12px] opacity-75">
-            Member sejak Januari 2024
+            {t.akun.heroMemberSince}
           </div>
         </div>
       </div>
 
       {meError && (
         <div className="rounded-lg border border-destructive bg-destructive/5 px-4 py-2.5 text-[13px] text-destructive">
-          Gagal memuat profil. Silakan refresh halaman.
+          {t.akun.loadProfileError}
         </div>
       )}
 
       {/* Group Family card */}
       <Card className="p-4">
         <div className="mb-3 text-[13px] font-bold text-foreground">
-          👨‍👩‍👧‍👦 Group Family
+          {t.akun.familyGroupCardTitle}
         </div>
         <button
           onClick={() => open("family")}
@@ -2039,7 +2045,7 @@ export default function AkunPage() {
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 text-[14px] font-bold text-foreground">
-                {primaryGroup?.name ?? "Belum ada group"}
+                {primaryGroup?.name ?? t.akun.noFamilyGroup}
                 {primaryGroup && (
                   <StatusBadge variant="info" className="text-[10px]">
                     {primaryGroup.myRole}
@@ -2048,8 +2054,8 @@ export default function AkunPage() {
               </div>
               <div className="mt-0.5 text-[11.5px] text-muted-foreground">
                 {primaryGroup
-                  ? `${primaryGroup.memberCount} anggota`
-                  : "Buat atau bergabung ke family group"}
+                  ? `${primaryGroup.memberCount} ${t.akun.memberCountSuffix}`
+                  : t.akun.createOrJoinFamilyGroup}
               </div>
             </div>
             <ChevronRight className="ml-auto size-4 shrink-0 text-muted-foreground" />
@@ -2058,76 +2064,76 @@ export default function AkunPage() {
       </Card>
 
       {/* Akun */}
-      <SectionCard title="Akun">
+      <SectionCard title={t.akun.sectionAkun}>
         <MenuRow
           icon={<User className="size-4 text-primary" />}
           iconBg="#EEF2FF"
-          name="Profil Saya"
+          name={t.akun.menuProfilName}
           sub={`${displayName} · ${displayEmail}`}
           onClick={() => open("profil")}
         />
         <MenuRow
           icon={<Lock className="size-4 text-success" />}
           iconBg="#DCFCE7"
-          name="Keamanan & Password"
-          sub="Password, PIN, biometrik"
+          name={t.akun.menuKeamananName}
+          sub={t.akun.menuKeamananSub}
           onClick={() => open("keamanan")}
         />
         <MenuRow
           icon={<Landmark className="size-4" style={{ color: "#1D4ED8" }} />}
           iconBg="#DBEAFE"
-          name="Koneksi Bank & E-Wallet"
-          sub="BCA, Mandiri, BNI, GoPay, LinkAja"
+          name={t.akun.menuKoneksiName}
+          sub={t.akun.menuKoneksiSub}
           onClick={() => open("koneksi")}
         />
       </SectionCard>
 
       {/* Pengaturan */}
-      <SectionCard title="Pengaturan">
+      <SectionCard title={t.akun.sectionPengaturan}>
         <MenuRow
           icon={<Settings className="size-4 text-muted-foreground" />}
           iconBg="#F3F4F6"
-          name="Pengaturan Umum"
-          sub="Mata uang, bahasa, tema"
+          name={t.akun.menuPengaturanName}
+          sub={t.akun.menuPengaturanSub}
           onClick={() => open("pengaturan")}
         />
         <MenuRow
           icon={<Bell className="size-4 text-warning" />}
           iconBg="#FEF9C3"
-          name="Notifikasi"
-          sub="Atur alert transaksi & pengingat"
+          name={t.akun.menuNotifName}
+          sub={t.akun.menuNotifSub}
           onClick={() => open("notif-setting")}
         />
         <MenuRow
           icon={<ShieldHalf className="size-4 text-brand-purple" />}
           iconBg="#EDE9FE"
-          name="Privasi & Data"
-          sub="Kelola data & izin akses"
+          name={t.akun.menuPrivasiName}
+          sub={t.akun.menuPrivasiSub}
           onClick={() => open("privasi")}
         />
       </SectionCard>
 
       {/* Bantuan */}
-      <SectionCard title="Bantuan">
+      <SectionCard title={t.akun.sectionBantuan}>
         <MenuRow
           icon={<CircleQuestionMark className="size-4 text-destructive" />}
           iconBg="#FEE2E2"
-          name="Pusat Bantuan"
-          sub="FAQ, panduan fitur, troubleshoot"
+          name={t.akun.menuBantuanName}
+          sub={t.akun.menuBantuanSub}
           onClick={() => open("bantuan")}
         />
         <MenuRow
           icon={<Headset className="size-4 text-success" />}
           iconBg="#DCFCE7"
-          name="Hubungi Kami"
-          sub="Chat, email, atau telepon support"
+          name={t.akun.menuHubungiName}
+          sub={t.akun.menuHubungiSub}
           onClick={() => open("hubungi")}
         />
         <MenuRow
           icon={<Info className="size-4 text-muted-foreground" />}
           iconBg="#F3F4F6"
-          name="Tentang Aplikasi"
-          sub="Versi, lisensi, kebijakan privasi"
+          name={t.akun.menuTentangName}
+          sub={t.akun.menuTentangSub}
           right={
             <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">
               v1.0.0
@@ -2143,7 +2149,7 @@ export default function AkunPage() {
         }}
         className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-[#FEE2E2] bg-background px-4 py-2.5 text-[13.5px] font-semibold text-destructive"
       >
-        <LogOut className="size-4" /> Keluar dari Akun
+        <LogOut className="size-4" /> {t.akun.logoutButton}
       </button>
 
       {/* Slide-in sub-page sheet */}
@@ -2160,9 +2166,9 @@ export default function AkunPage() {
           <div className="border-b px-5 py-4">
             <SheetTitle className="text-[17px] font-extrabold">
               {subpage === "family"
-                ? (primaryGroup?.name ?? "Family Group")
+                ? (primaryGroup?.name ?? t.akun.subpageTitles.family)
                 : subpage
-                  ? SUBPAGE_TITLES[subpage]
+                  ? t.akun.subpageTitles[subpage]
                   : ""}
             </SheetTitle>
           </div>

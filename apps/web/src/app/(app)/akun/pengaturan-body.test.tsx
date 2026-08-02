@@ -15,6 +15,14 @@ import type { ReactElement, ReactNode } from "react";
 import { render as rtlRender, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+// Real Indonesian dictionary, reused as the mocked `useLocale().t` below —
+// `PengaturanBody` now reads `t.akun.pengaturan.*` for its own copy (EPIC-018
+// Task A2), so every `useLocale` mock in this file needs a real dictionary
+// shape instead of `{}` or the component throws on render. The name must
+// start with "mock" (case-insensitive) so `jest.mock`'s out-of-scope-variable
+// check allows referencing it from inside the factory below.
+import { id as mockAkunDictionary } from "../../../i18n/id";
+import { en as mockAkunDictionaryEn } from "../../../i18n/en";
 
 // Mock auth-client (same as profil-body.test.tsx)
 jest.mock("../../../lib/auth-client", () => ({
@@ -53,7 +61,7 @@ jest.mock("../../../hooks/use-locale", () => ({
     locale: "id",
     setLocale: mockSetLocale,
     toggle: jest.fn(),
-    t: {},
+    t: mockAkunDictionary,
   })),
 }));
 
@@ -104,6 +112,23 @@ beforeEach(() => {
     isLoading: false,
   });
   mockApiFetch.mockResolvedValue({ success: true, data: { currency: "USD" } });
+  // Reset useLocale to the Indonesian default before every test.
+  // `mockReturnValue` (used by individual tests below to simulate an
+  // "app is in English" state) persists across tests until overridden
+  // again — without this file-wide reset, a later test that never touches
+  // `useLocale` itself would silently inherit an earlier test's English
+  // override once `PengaturanBody` started reading `t.akun.pengaturan.*`
+  // (EPIC-018 Task A2), instead of the Indonesian baseline this file's
+  // other assertions assume.
+  const { useLocale } = jest.requireMock<{
+    useLocale: jest.Mock;
+  }>("../../../hooks/use-locale");
+  useLocale.mockReturnValue({
+    locale: "id",
+    setLocale: mockSetLocale,
+    toggle: jest.fn(),
+    t: mockAkunDictionary,
+  });
 });
 
 describe("PengaturanBody — Theme & Language Picker Wiring", () => {
@@ -198,7 +223,7 @@ describe("PengaturanBody — Theme & Language Picker Wiring", () => {
         locale: "en",
         setLocale: mockSetLocale,
         toggle: jest.fn(),
-        t: {},
+        t: mockAkunDictionaryEn,
       });
 
       const user = userEvent.setup();
@@ -221,7 +246,7 @@ describe("PengaturanBody — Theme & Language Picker Wiring", () => {
         locale: "en",
         setLocale: mockSetLocale,
         toggle: jest.fn(),
-        t: {},
+        t: mockAkunDictionaryEn,
       });
 
       // Act
@@ -249,7 +274,7 @@ describe("PengaturanBody — Theme & Language Picker Wiring", () => {
         locale: "en", // app is actually in English
         setLocale: mockSetLocale,
         toggle: jest.fn(),
-        t: {},
+        t: mockAkunDictionaryEn,
       });
 
       // Act

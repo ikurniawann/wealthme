@@ -363,3 +363,10 @@ CoaAccount` direction (new `txCoaDirection` helper); category-less tx fall back
   complete.** After F merges, development has the full A→F stack; run DEV deploy
   - flip status to `ready-for-qa` for human QA (verify report numbers shifted
     sanely, esp. PNL/Arus Kas/Ringkasan where categories map to TRANSFER COA).
+- 2026-08-03 /nerve "do everything" attempt — **deploy blocked, not run.**
+  `scripts/deploy-dev.sh` requires a running Docker daemon on the shared dev
+  host; this session's sandbox has no `dockerd` (`docker info` fails: no
+  `/var/run/docker.sock`). Status left at `on-progress` — do NOT flip to
+  `ready-for-qa` without an actual deploy + smoke check. Action needed: run
+  `bash scripts/deploy-dev.sh` from a session with Docker access (the real dev
+  host), verify `/health` + report numbers, then flip status.

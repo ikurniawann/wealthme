@@ -104,7 +104,7 @@ after A6, so it lands on top of an already-translated `ringkasan`.
   - This is the protected-foundation-path phase — explicitly authorized by the
     user for this epic run (2026-07-25, AskUserQuestion).
 
-- [ ] ### A2 — i18n: akun + panduan
+- [x] ### A2 — i18n: akun + panduan ✅
   - `akun/page.tsx` (400 literals, 2186 lines) — full content translation; it
     already calls `useLocale` for the language picker, extend to `t.akun.*`
     for its own copy.
@@ -269,3 +269,34 @@ as accepted; and the acceptance criteria hold across a fresh QA pass of
   into this PR (out of scope, mirrors the standalone `fix/postcss-security-
 advisory` PR #186 pattern); flagged to the user as a separate, urgent
   follow-up. PR: https://github.com/andrsrjld/wealthme-web/pull/196
+- 2026-07-27 /nerve EPIC-018 #2 "A2 — i18n: akun + panduan" → IMPLEMENTATION
+  PASS (attempts: 1; local branch, not pushed). Added typed `akun` and `panduan`
+  dictionary sections in both locales; `/akun` now resolves its hero, menus,
+  every sub-page sheet, settings/options, toasts, family roles, session/sync
+  statuses, and add-admin copy from `t.akun.*`; persisted gender values remain
+  backward-compatible while visible labels translate. `/panduan` keeps only
+  structural journey/feature metadata in the page and resolves all 9 journey +
+  24 feature text entries (including "Buka →") from `t.panduan.*`. Indonesian
+  source copy parity and residual-literal scans PASS. Added dictionary parity/
+  coverage guards plus an EN gender-label regression test. Gates: `scripts/qa.sh`
+  PASS; `scripts/test.sh` PASS (API 144/144, web 46/46, monorepo build green).
+  `scripts/security-check.sh` source/secret scan found no code issue but remains
+  FAIL on the pre-existing dependency baseline (21 total: 10 high, 10 moderate,
+  1 low; this task does not modify package manifests or the lockfile). DEV
+  deploy/E2E and remote PR intentionally not run without explicit approval.
+- 2026-08-03 /nerve "do everything" — A2 review pass (ecc:react-reviewer,
+  ecc:typescript-reviewer, review-qa-agent, parallel). TypeScript + React
+  reviews PASS; review-qa-agent FAILed one HIGH: a new `roleLabel()` helper in
+  `FamilyBody` (`akun/page.tsx`) translated the `FamilyMember.role` **data**
+  enum (`owner`/`member`/`admin_staff`) into new display text (e.g. "Admin" →
+  "Admin / Staf"), which is a genuine content change, not a literal
+  extraction — violates the epic's "byte-faithful ID copy" acceptance
+  criterion and was inconsistent with an untouched raw-role badge at
+  `page.tsx:2057`. **Fixed**: reverted all 4 render sites to the original raw
+  `m.role`/`group.myRole` output (byte-identical to pre-A2), removed the now-
+  dead `akun.family.roleLabels` dictionary entries from `types.ts`/`en.ts`/
+  `id.ts` and its assertion in `dictionary.test.ts`. Re-ran `tsc --noEmit`,
+  `eslint`, and the 3 affected jest suites (25/25) — all green. Translating
+  role labels remains a legitimate future idea but needs its own explicitly-
+  scoped task (would also need to fix the `page.tsx:2057` inconsistency), not
+  bundled into "faithful i18n port."

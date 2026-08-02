@@ -33,6 +33,7 @@ jest.mock("sonner", () => ({
   },
 }));
 
+import { setLocale } from "../../../hooks/use-locale";
 import { ProfilBody, type ProfileDetail } from "./page";
 
 const EMPTY_PROFILE: ProfileDetail = {
@@ -44,6 +45,8 @@ const EMPTY_PROFILE: ProfileDetail = {
 };
 
 describe("ProfilBody", () => {
+  beforeEach(() => setLocale("id"));
+
   it("sends all 5 profile fields on save", async () => {
     // Arrange
     const mockOnSave = jest.fn();
@@ -99,6 +102,35 @@ describe("ProfilBody", () => {
           jobTitle: "Product Manager",
           monthlyIncome: "Rp 30.000.000",
         }),
+      );
+    });
+  });
+
+  it("localizes gender labels without changing persisted backend values", async () => {
+    setLocale("en");
+    const mockOnSave = jest.fn();
+    const user = userEvent.setup();
+
+    render(
+      <ProfilBody
+        name="Test User"
+        email="test@example.com"
+        profile={EMPTY_PROFILE}
+        onSave={mockOnSave}
+      />,
+    );
+
+    const male = screen.getByRole("option", { name: "Male" });
+    const female = screen.getByRole("option", { name: "Female" });
+    expect((male as HTMLOptionElement).value).toBe("Laki-laki");
+    expect((female as HTMLOptionElement).value).toBe("Perempuan");
+
+    await user.selectOptions(screen.getByRole("combobox"), "Perempuan");
+    await user.click(screen.getByText("Save Changes"));
+
+    await waitFor(() => {
+      expect(mockOnSave).toHaveBeenCalledWith(
+        expect.objectContaining({ gender: "Perempuan" }),
       );
     });
   });
