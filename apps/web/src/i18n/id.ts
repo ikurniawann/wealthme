@@ -211,9 +211,8 @@ export const id = {
       placeholder: "Cari transaksi, rekening, menu...",
       dialogTitle: "Pencarian",
       financialResultsHeader: "Hasil dari Data Keuangan",
-      pagesHeader: "Halaman",
-      quickAccessHeader: "Akses Cepat",
       noResultsFor: "Tidak ada hasil untuk",
+      typeToSearchHint: "Ketik minimal 2 karakter untuk mencari",
     },
   },
   akun: {
