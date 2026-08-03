@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, type KeyboardEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
@@ -89,6 +89,28 @@ function formatDayLabel(dateStr: string): string {
   });
 }
 
+/**
+ * Absolute "D Month YYYY" date, always the real calendar date (never "Hari
+ * ini"/"Kemarin" relative labels) — used in the read-only detail view where
+ * the exact date matters. Parses the date parts directly from the ISO
+ * string (like formatDayLabel above) rather than `new Date(isoString)`, to
+ * avoid a timezone-conversion shift of the displayed calendar day.
+ */
+function formatFullDate(dateStr: string): string {
+  const [year, month, day] = dateStr.split("-");
+  const d = new Date(Number(year), Number(month) - 1, Number(day));
+  return d.toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+/** "D Month YYYY, HH:MM" — full date + time for the transaction detail view. */
+function formatDetailDateTime(isoString: string): string {
+  return `${formatFullDate(isoString.slice(0, 10))}, ${formatTime(isoString)}`;
+}
+
 const TYPE_LABEL: Record<string, string> = {
   income: "Pemasukan",
   expense: "Pengeluaran",
@@ -101,7 +123,7 @@ const TX_ICON: Record<string, { icon: LucideIcon; chip: string }> = {
   transfer: { icon: ArrowLeftRight, chip: "bg-violet-100 text-violet-600" },
 };
 
-function TxRow({
+export function TxRow({
   tx,
   onDeleteClick,
   onEditClick,
@@ -110,50 +132,178 @@ function TxRow({
   onDeleteClick: () => void;
   onEditClick: () => void;
 }) {
+  const [detailOpen, setDetailOpen] = useState(false);
   const isIncome = tx.type === "income";
   const amount = parseFloat(tx.amount);
   const amountStr = (isIncome ? "+" : "-") + formatRupiah(amount);
   const txIcon = TX_ICON[tx.type] ?? TX_ICON.expense;
+  const typeLabel = TYPE_LABEL[tx.type] ?? tx.type;
   const displayName =
     tx.description ?? tx.categoryName ?? tx.accountName ?? "—";
   const subtitle =
     tx.categoryName ?? tx.accountName ?? TYPE_LABEL[tx.type] ?? tx.type;
 
+  const openDetail = () => setDetailOpen(true);
+  // The detail-trigger is keyboard-operable (Enter/Space) per WM a11y
+  // convention for clickable non-<button> elements. RowActions renders as a
+  // sibling (not a descendant) of this element, so its own button clicks/
+  // keydowns never bubble into this handler.
+  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openDetail();
+    }
+  };
+
   return (
-    <div className="flex w-full items-center gap-3 rounded-[12px] border bg-card py-3.5 px-3 text-left transition-colors hover:bg-accent/40">
-      <IconChip
-        icon={txIcon.icon}
-        className={txIcon.chip}
-        size={34}
-        rounded="rounded-full"
-      />
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[13.5px] font-semibold">
-          {displayName}
-        </div>
-        <div className="truncate text-[11.5px] text-muted-foreground capitalize">
-          {subtitle}
-        </div>
-      </div>
-      <div className="text-right">
+    <>
+      {/* RowActions is a SIBLING of the role="button" detail-trigger below,
+          not nested inside it — nesting real <button>s inside a role="button"
+          container is an ARIA "nested-interactive" violation, and a keydown
+          on those buttons would otherwise bubble up and re-trigger this row's
+          own Enter/Space handler, hijacking keyboard Edit/Hapus. */}
+      <div className="flex w-full items-center gap-3 rounded-[12px] border bg-card py-3.5 px-3 transition-colors hover:bg-accent/40">
         <div
-          className={
-            "text-[13.5px] font-bold " +
-            (isIncome ? "text-success" : "text-destructive")
-          }
+          role="button"
+          tabIndex={0}
+          onClick={openDetail}
+          onKeyDown={handleKeyDown}
+          aria-label={`Detail transaksi ${typeLabel} ${displayName}, ${amountStr}`}
+          className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-[8px] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
-          {amountStr}
+          <IconChip
+            icon={txIcon.icon}
+            className={txIcon.chip}
+            size={34}
+            rounded="rounded-full"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13.5px] font-semibold">
+              {displayName}
+            </div>
+            <div className="truncate text-[11.5px] text-muted-foreground capitalize">
+              {subtitle}
+            </div>
+          </div>
+          <div className="text-right">
+            <div
+              className={
+                "text-[13.5px] font-bold " +
+                (isIncome ? "text-success" : "text-destructive")
+              }
+            >
+              {amountStr}
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {formatTime(tx.occurredAt)}
+            </div>
+          </div>
         </div>
-        <div className="text-[11px] text-muted-foreground">
-          {formatTime(tx.occurredAt)}
-        </div>
+        <RowActions
+          onEdit={onEditClick}
+          onDelete={onDeleteClick}
+          className="ml-1"
+        />
       </div>
-      <RowActions
-        onEdit={onEditClick}
-        onDelete={onDeleteClick}
-        className="ml-1"
+      <TransactionDetailDialog
+        tx={tx}
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        onEdit={() => {
+          setDetailOpen(false);
+          onEditClick();
+        }}
+        onDelete={() => {
+          setDetailOpen(false);
+          onDeleteClick();
+        }}
       />
+    </>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b py-2 last:border-b-0">
+      <span className="text-[12px] text-muted-foreground">{label}</span>
+      <span className="text-right text-[13px] font-medium">{value}</span>
     </div>
+  );
+}
+
+/** Read-only transaction detail view — opened by clicking/tapping a TxRow. */
+export function TransactionDetailDialog({
+  tx,
+  open,
+  onClose,
+  onEdit,
+  onDelete,
+}: {
+  tx: TransactionDto;
+  open: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const isIncome = tx.type === "income";
+  const amount = parseFloat(tx.amount);
+  const amountStr = (isIncome ? "+" : "-") + formatRupiah(amount);
+  const txIcon = TX_ICON[tx.type] ?? TX_ICON.expense;
+  const typeLabel = TYPE_LABEL[tx.type] ?? tx.type;
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
+      <DialogContent className="max-w-sm">
+        <DialogTitle>Detail Transaksi</DialogTitle>
+        <div className="space-y-1 pt-1">
+          <div className="mb-2 flex items-center justify-between">
+            <span
+              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${txIcon.chip}`}
+            >
+              {typeLabel}
+            </span>
+            <span
+              className={
+                "text-[17px] font-bold " +
+                (isIncome ? "text-success" : "text-destructive")
+              }
+            >
+              {amountStr}
+            </span>
+          </div>
+          <DetailRow label="Kategori" value={tx.categoryName ?? "—"} />
+          <DetailRow label="Akun" value={tx.accountName} />
+          <DetailRow
+            label="Tanggal & Waktu"
+            value={formatDetailDateTime(tx.occurredAt)}
+          />
+          <DetailRow label="Deskripsi" value={tx.description ?? "—"} />
+          <DetailRow
+            label="Dibuat Pada"
+            value={formatDetailDateTime(tx.createdAt)}
+          />
+          <div className="flex gap-2 pt-3">
+            <button
+              onClick={onEdit}
+              className="flex-1 rounded-md border py-2.5 text-[13px] font-semibold"
+            >
+              Edit
+            </button>
+            <button
+              onClick={onDelete}
+              className="flex-1 rounded-md bg-destructive py-2.5 text-[13px] font-semibold text-white"
+            >
+              Hapus
+            </button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
