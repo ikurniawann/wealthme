@@ -286,18 +286,24 @@ var CreateTransactionInputSchema = z5.object({
   type: TransactionTypeSchema,
   description: z5.string().optional(),
   occurredAt: z5.string(),
-  toAccountId: z5.string().uuid().optional()
+  toAccountId: z5.string().uuid().optional(),
+  // EPIC-021 Group B #28 — e-wallet top-up admin fee. Only meaningful when
+  // type = transfer with a toAccountId; deducted from the DESTINATION
+  // account as a separate linked expense (see transactions.service.ts).
+  adminFee: z5.number().int().min(0).optional()
 });
 var TransactionDtoSchema = z5.object({
   id: z5.string().uuid(),
   familyGroupId: z5.string().uuid(),
   accountId: z5.string().uuid(),
+  toAccountId: z5.string().uuid().nullable(),
   categoryId: z5.string().uuid().nullable(),
   amount: z5.string(),
   type: TransactionTypeSchema,
   description: z5.string().nullable(),
   categoryName: z5.string().nullable(),
   accountName: z5.string(),
+  toAccountName: z5.string().nullable(),
   occurredAt: z5.string(),
   createdAt: z5.string()
 });

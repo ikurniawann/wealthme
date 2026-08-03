@@ -1,6 +1,6 @@
 # EPIC-001: Backend Foundation
 
-status: ready-for-qa
+status: done
 environment: dev
 phase: 1
 priority: P0
@@ -101,3 +101,5 @@ serta menyambungkan frontend ke Auth.js + query client.
 ## Dependencies
 
 - EPIC-000 (monorepo, contracts, Docker, CI).
+
+- **2026-08-03/04 — /nerve QA sweep (delegated QA; user confirms from the live system). Evidence: gates green on development@5f2383f (qa/test/security); fresh DEV deploy clean (compose build, migrate+seed exit 0, api/web healthy); e2e vs https://wealthme.demo-wit.id — auth, route-protection, and all page regression specs green (57 passed, 2 flaky passed on serial retry, 0 real failures); code-level criteria verification by 4 parallel QA agents. **Verdict: QA-PASS with recorded deviations. Auth (argon2id+refresh rotation+Google), Prisma+23 migrations, global guard chain (Better-Auth/Tenant/Abilities), Swagger verified. Deviations accepted: T-108 generated typed client never adopted (hand-written api-client + @wealthme/contracts Zod serve the purpose); epic text says Auth.js, implementation is better-auth; T-106 Postgres RLS deferred — isolation is app-layer TenantGuard proven by rbac-isolation e2e. Status → done.

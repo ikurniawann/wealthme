@@ -1,6 +1,6 @@
 # EPIC-000: Foundation & Infra
 
-status: ready-for-qa
+status: done
 environment: dev
 phase: 0
 priority: P0
@@ -79,3 +79,5 @@ bisa berkembang paralel dengan kontrak tipe tunggal dan pipeline yang konsisten.
 ## Dependencies
 
 - Tidak ada (epic pembuka).
+
+- **2026-08-03/04 — /nerve QA sweep (delegated QA; user confirms from the live system). Evidence: gates green on development@5f2383f (qa/test/security); fresh DEV deploy clean (compose build, migrate+seed exit 0, api/web healthy); e2e vs https://wealthme.demo-wit.id — auth, route-protection, and all page regression specs green (57 passed, 2 flaky passed on serial retry, 0 real failures); code-level criteria verification by 4 parallel QA agents. **Verdict: QA-PASS. Monorepo/turbo/CI/compose/env-fail-fast/hooks all verified real (file:line evidence in session). Minor doc drift only (docs/CI.md now lives at docs/architecture/CI.md). Status → done.

@@ -1,6 +1,6 @@
 # EPIC-011: Dockerized Dev Stack + Centralized Env + Demo Seed Parity
 
-status: ready-for-qa
+status: done
 environment: dev
 retries: 0
 
@@ -289,3 +289,5 @@ seeded demo stack.
 - Note for T-1102: root `docker-compose.yml` web service still sets `NEXTAUTH_*`
   but the app uses `better-auth` (`BETTER_AUTH_SECRET`/`BETTER_AUTH_URL`) —
   reconcile when rewriting compose.
+
+- **2026-08-03/04 — /nerve QA sweep (delegated QA; user confirms from the live system). Evidence: gates green on development@5f2383f (qa/test/security); fresh DEV deploy clean (compose build, migrate+seed exit 0, api/web healthy); e2e vs https://wealthme.demo-wit.id — auth, route-protection, and all page regression specs green (57 passed, 2 flaky passed on serial retry, 0 real failures); code-level criteria verification by 4 parallel QA agents. **Verdict: QA-PASS. Live gate satisfied today: compose build → migrate (deploy+seed) exited clean → api/web healthy → e2e green vs the public origin. Env centralization + no committed .env verified. Status → done.

@@ -121,6 +121,68 @@ type QuickInputCardId =
   | "donasi"
   | "splitbill";
 
+/** EPIC-018 Task A5 — `/investasi` instrument type ids (mirrors `InvestmentType`
+ * — persisted values stay unchanged, only display labels translate). */
+type InvestasiTypeId =
+  | "saham"
+  | "reksa_dana"
+  | "obligasi"
+  | "emas"
+  | "kripto"
+  | "lainnya";
+
+/** EPIC-018 Task A5 — `/aset` physical-asset type ids. */
+type AsetTypeId =
+  | "properti"
+  | "kendaraan"
+  | "elektronik"
+  | "perhiasan"
+  | "lainnya";
+
+/** EPIC-018 Task A5 — `/aset` account-type ids used on the combined "Dana &
+ * Rekening" cards (mirrors `Account.type`). */
+type AsetAccountTypeId =
+  | "bank"
+  | "ewallet"
+  | "cash"
+  | "investment"
+  | "property";
+
+/** EPIC-018 Task A5 — `/aset` filter-tab ids. */
+type AsetTabId = "semua" | "dana" | "rekening" | "investasi" | "fisik";
+
+/** EPIC-018 Task A5 — `/liabilitas` liability type ids (mirrors `LiabilityType`
+ * — persisted values stay unchanged, only display labels translate). */
+type LiabilitasTypeId =
+  | "kartu_kredit"
+  | "pinjaman_pribadi"
+  | "kpr"
+  | "kendaraan"
+  | "lainnya";
+
+/**
+ * EPIC-018 Task A5 — `/masterdata` system reference-group ids (mirrors the
+ * `CrudEntity` `md*` variants). Each group's `title`/`label` translate; the
+ * groups' local `items` reference lists (bank names, e-wallet brands, etc.)
+ * stay untranslated in the page — same value-locked-copy caveat Task A4
+ * documented for the shared, untranslated `crud-config.ts` select options.
+ */
+type MasterDataGroupId =
+  | "mdbank"
+  | "mdtxntype"
+  | "mdinvtype"
+  | "mdewallet"
+  | "mdlembaga"
+  | "mdasettype"
+  | "mdinstype";
+
+/** EPIC-018 Task A5 — `/mastercoa` chart-of-accounts group numbers (1-6). */
+type MasterCoaGroupNum = 1 | 2 | 3 | 4 | 5 | 6;
+
+type MasterCoaDirectionId = "INCOME" | "EXPENSE" | "TRANSFER";
+
+type MasterCoaBudgetTypeId = "FIXED" | "VARIABLE" | "REIMBURSEMENT";
+
 export type I18nDictionary = {
   locale: "id" | "en";
   greeting: {
@@ -222,6 +284,14 @@ export type I18nDictionary = {
       amountLabel: string;
       categoryLabel: string;
       accountLabel: string;
+      /** EPIC-021 Group B (#23/#27) — two-account transfer fields, Transfer tab only. */
+      sourceAccountLabel: string;
+      sourceAccountPlaceholder: string;
+      destAccountLabel: string;
+      destAccountPlaceholder: string;
+      selectDestAccountFirst: string;
+      sameAccountError: string;
+      adminFeeLabel: string;
       dateLabel: string;
       descriptionLabel: string;
       optionalSuffix: string;
@@ -261,9 +331,8 @@ export type I18nDictionary = {
       placeholder: string;
       dialogTitle: string;
       financialResultsHeader: string;
-      pagesHeader: string;
-      quickAccessHeader: string;
       noResultsFor: string;
+      typeToSearchHint: string;
     };
   };
   /** EPIC-018 A2 — `/akun` page and sub-page copy. */
@@ -726,5 +795,216 @@ export type I18nDictionary = {
     inputPlaceholder: string;
     sendAriaLabel: string;
     disclaimer: string;
+  };
+  /** EPIC-018 Task A5 — `/investasi` (investment portfolio) page copy. */
+  investasi: {
+    typeLabels: Record<InvestasiTypeId, string>;
+    errorLoad: string;
+    toastUpdated: string;
+    toastAdded: string;
+    toastUpdateFailed: string;
+    toastAddFailed: string;
+    toastDeleted: string;
+    toastDeleteFailed: string;
+    modalTitleEdit: string;
+    modalTitleAdd: string;
+    fieldTickerLabel: string;
+    fieldTickerPlaceholder: string;
+    fieldNameLabel: string;
+    fieldNamePlaceholder: string;
+    fieldTypeLabel: string;
+    fieldQuantityLabel: string;
+    fieldQuantityPlaceholder: string;
+    fieldCostBasisLabel: string;
+    fieldCostBasisPlaceholder: string;
+    saving: string;
+    saveButton: string;
+    totalValueLabel: string;
+    totalReturnSuffix: string;
+    todayReturnLabel: string;
+    vsYesterdaySuffix: string;
+    portfolioSectionTitle: string;
+    addInvestmentLink: string;
+    tableName: string;
+    tableType: string;
+    tableCapital: string;
+    tableValue: string;
+    tableReturn: string;
+    tablePercent: string;
+    tableAction: string;
+    emptyState: string;
+    emptyStateCta: string;
+  };
+  /** EPIC-018 Task A5 — `/aset` (consolidated assets) page copy. */
+  aset: {
+    tabs: Record<AsetTabId, string>;
+    assetTypeLabels: Record<AsetTypeId, string>;
+    accountTypeLabels: Record<AsetAccountTypeId, string>;
+    invTypeLabels: Record<InvestasiTypeId, string>;
+    totalAssetsLabel: string;
+    addAssetButton: string;
+    lockAriaLabel: string;
+    errorLoad: string;
+    toastAdded: string;
+    toastAddFailed: string;
+    modalTitle: string;
+    fieldNameLabel: string;
+    fieldNamePlaceholder: string;
+    fieldCategoryLabel: string;
+    fieldValueLabel: string;
+    fieldValuePlaceholder: string;
+    fieldNotesLabel: string;
+    fieldNotesPlaceholder: string;
+    saving: string;
+    saveButton: string;
+    physicalAssetsTitle: string;
+    danaRekeningTitle: string;
+    danaTitle: string;
+    rekeningTitle: string;
+    investmentsTitle: string;
+    emptyPhysical: string;
+    emptyDanaRekening: string;
+    emptyInvestments: string;
+  };
+  /** EPIC-018 Task A5 — `/liabilitas` (debts & credit) page copy. */
+  liabilitas: {
+    typeLabels: Record<LiabilitasTypeId, string>;
+    riskVerySafe: string;
+    riskSafe: string;
+    riskCaution: string;
+    riskRisky: string;
+    statusOngoing: string;
+    statusOverdue: string;
+    statusDuePrefix: string;
+    toastAdded: string;
+    toastAddFailed: string;
+    errorLoad: string;
+    modalTitle: string;
+    modalCloseAriaLabel: string;
+    fieldNameLabel: string;
+    fieldNamePlaceholder: string;
+    fieldInstitutionLabel: string;
+    fieldInstitutionPlaceholder: string;
+    fieldTypeLabel: string;
+    fieldTotalDebtLabel: string;
+    fieldTotalDebtPlaceholder: string;
+    fieldRemainingLabel: string;
+    fieldRemainingPlaceholder: string;
+    fieldMinPaymentLabel: string;
+    fieldMinPaymentPlaceholder: string;
+    fieldInterestRateLabel: string;
+    fieldInterestRatePlaceholder: string;
+    fieldDueDateLabel: string;
+    autoAdvanceLabel: string;
+    fieldNotesLabel: string;
+    fieldNotesPlaceholder: string;
+    saving: string;
+    saveButton: string;
+    ccCurrentBillLabel: string;
+    loanRemainingPrincipalLabel: string;
+    ccLimitLabel: string;
+    loanTotalLabel: string;
+    ccMinPaymentLabel: string;
+    loanInstallmentLabel: string;
+    ccInterestMonthlyLabel: string;
+    loanInterestYearlyLabel: string;
+    progressUsageLabel: string;
+    progressPayoffLabel: string;
+    totalLiabilitiesLabel: string;
+    remainingActiveSuffix: string;
+    dtaRatioLabel: string;
+    addButton: string;
+    emptyState: string;
+  };
+  /**
+   * EPIC-018 Task A5 — `/masterdata` page copy. `REFERENCE_GROUPS` in the
+   * page keeps each group's local `items` untranslated (see the
+   * `MasterDataGroupId` comment in this file); every group `title`/`label`,
+   * the real-category-API copy, and every toast resolve from here.
+   */
+  masterdata: {
+    pageTitle: string;
+    pageSubtitle: string;
+    groups: Record<MasterDataGroupId, { title: string; label: string }>;
+    categorySectionTitle: string;
+    masterCoaLink: string;
+    addLink: string;
+    categoryLoading: string;
+    categoryEmpty: string;
+    kindIncome: string;
+    kindExpense: string;
+    privateLabel: string;
+    autoOptionLabel: string;
+    groupEmpty: string;
+    footerBold: string;
+    footerRest: string;
+    editAriaPrefix: string;
+    deleteAriaPrefix: string;
+    categoryDeleteLabelPrefix: string;
+    categoryDeleteLabelSuffix: string;
+    itemRemovedPrefix: string;
+    itemRemovedSuffix: string;
+    toastReferenceReadOnly: string;
+    toastInvalidSession: string;
+    toastNameRequired: string;
+    toastInvalidType: string;
+    toastCategoryUpdated: string;
+    toastCategoryUpdateFailed: string;
+    toastCategoryAdded: string;
+    toastCategoryAddFailed: string;
+    toastCategoryDeleted: string;
+    toastCategoryDeleteFailed: string;
+  };
+  /** EPIC-018 Task A5 — `/mastercoa` (chart of accounts) page copy. */
+  mastercoa: {
+    groupLabels: Record<MasterCoaGroupNum, string>;
+    directionLabels: Record<MasterCoaDirectionId, string>;
+    budgetTypeLabels: Record<MasterCoaBudgetTypeId, string>;
+    tabAll: string;
+    totalAccountsTitle: string;
+    sixGroupsLabel: string;
+    connectedCategoriesTitle: string;
+    manageLink: string;
+    linkedCategoriesDescPrefix: string;
+    linkedCategoriesDescSuffix: string;
+    emptyCoaTitle: string;
+    emptyCoaDesc: string;
+    usedInReportsTitle: string;
+    viewLink: string;
+    reportsBadgeText: string;
+    activeBadge: string;
+    usedInReportsDesc: string;
+    listTitle: string;
+    addAccountButton: string;
+    colCode: string;
+    colName: string;
+    colGroup: string;
+    colDirection: string;
+    colBudgetType: string;
+    colAction: string;
+    loadingRow: string;
+    emptyRow: string;
+    editTitle: string;
+    modalTitleEdit: string;
+    modalTitleAdd: string;
+    fieldCodeLabel: string;
+    fieldCodePlaceholder: string;
+    fieldGroupLabel: string;
+    fieldNameLabel: string;
+    fieldNamePlaceholder: string;
+    fieldDirectionLabel: string;
+    fieldBudgetTypeLabel: string;
+    fieldParentCodeLabel: string;
+    fieldParentCodePlaceholder: string;
+    budgetTypeNone: string;
+    deleteConfirmTitle: string;
+    deleteConfirmBody: string;
+    toastAdded: string;
+    toastAddFailed: string;
+    toastUpdated: string;
+    toastUpdateFailed: string;
+    toastDeleted: string;
+    toastDeleteFailed: string;
+    toastSessionNotReady: string;
   };
 };

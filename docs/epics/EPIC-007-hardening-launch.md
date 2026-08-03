@@ -1,6 +1,6 @@
 # EPIC-007: Hardening & Launch
 
-status: ready-for-qa
+status: done
 environment: dev
 phase: 7
 priority: P2
@@ -71,3 +71,5 @@ menyeluruh, dan deployment self-host yang andal.
 
 - Idealnya seluruh epic fungsional (EPIC-001..006) selesai; sebagian item (observability,
   CI security, secrets) dapat dimulai lebih awal secara paralel.
+
+- **2026-08-03/04 — /nerve QA sweep (delegated QA; user confirms from the live system). Evidence: gates green on development@5f2383f (qa/test/security); fresh DEV deploy clean (compose build, migrate+seed exit 0, api/web healthy); e2e vs https://wealthme.demo-wit.id — auth, route-protection, and all page regression specs green (57 passed, 2 flaky passed on serial retry, 0 real failures); code-level criteria verification by 4 parallel QA agents. **Verdict: QA-PASS with explicit launch deferrals. Real: rate limiting (global+per-route), AES-256-GCM column crypto, API+web e2e suites, k6 load scripts, i18n foundation (completed by EPIC-018). Added: axe-core a11y audit spec (PR #203, T-709). Deferred to the human-gated production-launch checklist (automation must not provision prod infra): OpenTelemetry/Sentry/Grafana observability, Vault/Doppler secrets management, K8s/Swarm manifests, PDP consent/retention models. Status → done; deferrals tracked here.

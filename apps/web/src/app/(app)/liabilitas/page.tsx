@@ -6,6 +6,8 @@ import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { useLocale } from "@/hooks/use-locale";
+import type { Locale } from "@/i18n";
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
@@ -27,14 +29,6 @@ import type {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const LIABILITY_TYPE_LABEL: Record<string, string> = {
-  kartu_kredit: "Kartu Kredit",
-  pinjaman_pribadi: "Pinjaman Pribadi",
-  kpr: "KPR",
-  kendaraan: "Kredit Kendaraan",
-  lainnya: "Lainnya",
-};
-
 const LIABILITY_TYPE_ICON: Record<string, { icon: LucideIcon; chip: string }> =
   {
     kartu_kredit: { icon: CreditCard, chip: "bg-red-100 text-red-600" },
@@ -55,36 +49,48 @@ type LiabilityTypeValue = LiabilityType;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function getDtaRiskLabel(dta: number): {
+function formatLocaleDate(iso: string, locale: Locale): string {
+  return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+function getDtaRiskLabel(
+  dta: number,
+  t: ReturnType<typeof useLocale>["t"],
+): {
   label: string;
   color: string;
 } {
-  if (dta < 30) return { label: "Sangat Aman", color: "var(--success)" };
-  if (dta < 50) return { label: "Aman", color: "var(--success)" };
-  if (dta < 70) return { label: "Waspada", color: "var(--warning)" };
-  return { label: "Berisiko", color: "var(--destructive)" };
+  if (dta < 30)
+    return { label: t.liabilitas.riskVerySafe, color: "var(--success)" };
+  if (dta < 50)
+    return { label: t.liabilitas.riskSafe, color: "var(--success)" };
+  if (dta < 70)
+    return { label: t.liabilitas.riskCaution, color: "var(--warning)" };
+  return { label: t.liabilitas.riskRisky, color: "var(--destructive)" };
 }
 
-function getDueDateStatus(dueDate: string | null): {
+function getDueDateStatus(
+  dueDate: string | null,
+  t: ReturnType<typeof useLocale>["t"],
+  locale: Locale,
+): {
   text: string;
   variant: "success" | "danger" | "warning";
 } {
-  if (!dueDate) return { text: "Berjalan", variant: "success" };
+  if (!dueDate) return { text: t.liabilitas.statusOngoing, variant: "success" };
   const due = new Date(dueDate);
   const now = new Date();
   const diffDays = Math.floor(
     (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
   );
-  if (diffDays < 0) return { text: "Sudah Jatuh Tempo", variant: "danger" };
-  if (diffDays <= 7)
-    return {
-      text: `Jatuh Tempo ${due.toLocaleDateString("id-ID", { day: "numeric", month: "short" })}`,
-      variant: "warning",
-    };
-  return {
-    text: `Jatuh Tempo ${due.toLocaleDateString("id-ID", { day: "numeric", month: "short" })}`,
-    variant: "success",
-  };
+  if (diffDays < 0)
+    return { text: t.liabilitas.statusOverdue, variant: "danger" };
+  const text = `${t.liabilitas.statusDuePrefix}${formatLocaleDate(dueDate, locale)}`;
+  if (diffDays <= 7) return { text, variant: "warning" };
+  return { text, variant: "success" };
 }
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
@@ -140,6 +146,7 @@ interface CreateLiabilityBody {
 }
 
 function AddLiabilityModal({ familyGroupId, onClose }: AddLiabilityModalProps) {
+  const { t } = useLocale();
   const queryClient = useQueryClient();
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
@@ -172,11 +179,11 @@ function AddLiabilityModal({ familyGroupId, onClose }: AddLiabilityModalProps) {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.liabilities.summary(familyGroupId),
       });
-      toast.success("Liabilitas berhasil ditambahkan");
+      toast.success(t.liabilitas.toastAdded);
       onClose();
     },
     onError: () => {
-      toast.error("Gagal menambahkan liabilitas. Silakan coba lagi.");
+      toast.error(t.liabilitas.toastAddFailed);
     },
   });
 
@@ -228,10 +235,12 @@ function AddLiabilityModal({ familyGroupId, onClose }: AddLiabilityModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-5 flex items-center justify-between">
-          <span className="text-[15px] font-bold">Tambah Liabilitas</span>
+          <span className="text-[15px] font-bold">
+            {t.liabilitas.modalTitle}
+          </span>
           <button
             type="button"
-            aria-label="Tutup modal"
+            aria-label={t.liabilitas.modalCloseAriaLabel}
             onClick={onClose}
             className="rounded-md p-1 hover:bg-accent"
           >
@@ -245,12 +254,12 @@ function AddLiabilityModal({ familyGroupId, onClose }: AddLiabilityModalProps) {
               htmlFor="liability-name"
               className="mb-1 block text-[12px] font-semibold text-muted-foreground"
             >
-              Nama
+              {t.liabilitas.fieldNameLabel}
             </label>
             <input
               id="liability-name"
               className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-              placeholder="cth. Kartu Kredit BCA"
+              placeholder={t.liabilitas.fieldNamePlaceholder}
               maxLength={100}
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -263,12 +272,12 @@ function AddLiabilityModal({ familyGroupId, onClose }: AddLiabilityModalProps) {
               htmlFor="liability-institution"
               className="mb-1 block text-[12px] font-semibold text-muted-foreground"
             >
-              Institusi (opsional)
+              {t.liabilitas.fieldInstitutionLabel}
             </label>
             <input
               id="liability-institution"
               className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-              placeholder="cth. BCA"
+              placeholder={t.liabilitas.fieldInstitutionPlaceholder}
               maxLength={100}
               value={institution}
               onChange={(e) => setInstitution(e.target.value)}
@@ -280,7 +289,7 @@ function AddLiabilityModal({ familyGroupId, onClose }: AddLiabilityModalProps) {
               htmlFor="liability-type"
               className="mb-1 block text-[12px] font-semibold text-muted-foreground"
             >
-              Jenis
+              {t.liabilitas.fieldTypeLabel}
             </label>
             <select
               id="liability-type"
@@ -288,9 +297,9 @@ function AddLiabilityModal({ familyGroupId, onClose }: AddLiabilityModalProps) {
               value={type}
               onChange={(e) => setType(e.target.value as LiabilityTypeValue)}
             >
-              {LIABILITY_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {LIABILITY_TYPE_LABEL[t]}
+              {LIABILITY_TYPES.map((liabilityType) => (
+                <option key={liabilityType} value={liabilityType}>
+                  {t.liabilitas.typeLabels[liabilityType]}
                 </option>
               ))}
             </select>
@@ -302,12 +311,12 @@ function AddLiabilityModal({ familyGroupId, onClose }: AddLiabilityModalProps) {
                 htmlFor="liability-total-debt"
                 className="mb-1 block text-[12px] font-semibold text-muted-foreground"
               >
-                Total Utang / Limit (Rp)
+                {t.liabilitas.fieldTotalDebtLabel}
               </label>
               <input
                 id="liability-total-debt"
                 className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-                placeholder="30.000.000"
+                placeholder={t.liabilitas.fieldTotalDebtPlaceholder}
                 inputMode="numeric"
                 value={totalDebt}
                 onChange={(e) => setTotalDebt(formatNum(e.target.value))}
@@ -319,12 +328,12 @@ function AddLiabilityModal({ familyGroupId, onClose }: AddLiabilityModalProps) {
                 htmlFor="liability-remaining"
                 className="mb-1 block text-[12px] font-semibold text-muted-foreground"
               >
-                Sisa Tagihan (Rp)
+                {t.liabilitas.fieldRemainingLabel}
               </label>
               <input
                 id="liability-remaining"
                 className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-                placeholder="8.000.000"
+                placeholder={t.liabilitas.fieldRemainingPlaceholder}
                 inputMode="numeric"
                 value={remainingBalance}
                 onChange={(e) => setRemainingBalance(formatNum(e.target.value))}
@@ -339,12 +348,12 @@ function AddLiabilityModal({ familyGroupId, onClose }: AddLiabilityModalProps) {
                 htmlFor="liability-min-payment"
                 className="mb-1 block text-[12px] font-semibold text-muted-foreground"
               >
-                Min. Bayar (Rp, opsional)
+                {t.liabilitas.fieldMinPaymentLabel}
               </label>
               <input
                 id="liability-min-payment"
                 className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-                placeholder="800.000"
+                placeholder={t.liabilitas.fieldMinPaymentPlaceholder}
                 inputMode="numeric"
                 value={minimumPayment}
                 onChange={(e) => setMinimumPayment(formatNum(e.target.value))}
@@ -355,12 +364,12 @@ function AddLiabilityModal({ familyGroupId, onClose }: AddLiabilityModalProps) {
                 htmlFor="liability-interest-rate"
                 className="mb-1 block text-[12px] font-semibold text-muted-foreground"
               >
-                Bunga % (opsional)
+                {t.liabilitas.fieldInterestRateLabel}
               </label>
               <input
                 id="liability-interest-rate"
                 className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-                placeholder="2.25"
+                placeholder={t.liabilitas.fieldInterestRatePlaceholder}
                 inputMode="decimal"
                 value={interestRate}
                 onChange={(e) => setInterestRate(e.target.value)}
@@ -373,7 +382,7 @@ function AddLiabilityModal({ familyGroupId, onClose }: AddLiabilityModalProps) {
               htmlFor="liability-due-date"
               className="mb-1 block text-[12px] font-semibold text-muted-foreground"
             >
-              Tanggal Jatuh Tempo (opsional)
+              {t.liabilitas.fieldDueDateLabel}
             </label>
             <input
               id="liability-due-date"
@@ -390,7 +399,7 @@ function AddLiabilityModal({ familyGroupId, onClose }: AddLiabilityModalProps) {
                   onChange={(e) => setAutoAdvanceDueDate(e.target.checked)}
                   className="size-3.5"
                 />
-                Majukan otomatis ke bulan berikutnya setelah lewat jatuh tempo
+                {t.liabilitas.autoAdvanceLabel}
               </label>
             )}
           </div>
@@ -400,12 +409,12 @@ function AddLiabilityModal({ familyGroupId, onClose }: AddLiabilityModalProps) {
               htmlFor="liability-notes"
               className="mb-1 block text-[12px] font-semibold text-muted-foreground"
             >
-              Catatan (opsional)
+              {t.liabilitas.fieldNotesLabel}
             </label>
             <input
               id="liability-notes"
               className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-              placeholder="cth. Visa Platinum · jatuh tempo tgl 15"
+              placeholder={t.liabilitas.fieldNotesPlaceholder}
               maxLength={500}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -417,7 +426,7 @@ function AddLiabilityModal({ familyGroupId, onClose }: AddLiabilityModalProps) {
             className="w-full"
             disabled={mutation.isPending}
           >
-            {mutation.isPending ? "Menyimpan…" : "Simpan Liabilitas"}
+            {mutation.isPending ? t.liabilitas.saving : t.liabilitas.saveButton}
           </Button>
         </form>
       </div>
@@ -428,8 +437,9 @@ function AddLiabilityModal({ familyGroupId, onClose }: AddLiabilityModalProps) {
 // ── Liability Card ─────────────────────────────────────────────────────────────
 
 function LiabilityCard({ item }: { item: LiabilityDto }) {
+  const { t, locale } = useLocale();
   const isCreditCard = item.type === "kartu_kredit";
-  const status = getDueDateStatus(item.dueDate);
+  const status = getDueDateStatus(item.dueDate, t, locale);
 
   const totalDebt = item.totalDebt ? Number(BigInt(item.totalDebt)) : 0;
   const remaining = item.remainingBalance
@@ -448,12 +458,16 @@ function LiabilityCard({ item }: { item: LiabilityDto }) {
       : progressValue >= 50
         ? "var(--warning)"
         : "var(--success)";
-  const progressLabel = isCreditCard ? "Penggunaan Limit" : "Progres Pelunasan";
+  const progressLabel = isCreditCard
+    ? t.liabilitas.progressUsageLabel
+    : t.liabilitas.progressPayoffLabel;
 
   const iconCfg = LIABILITY_TYPE_ICON[item.type] ?? {
     icon: CreditCard,
     chip: "bg-red-100 text-red-600",
   };
+  const typeLabel =
+    t.liabilitas.typeLabels[item.type as LiabilityTypeValue] ?? item.type;
 
   return (
     <div className="transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
@@ -469,8 +483,8 @@ function LiabilityCard({ item }: { item: LiabilityDto }) {
             <div className="text-[14px] font-bold">{item.name}</div>
             <div className="text-[11.5px] text-muted-foreground">
               {item.institution
-                ? `${item.institution} · ${LIABILITY_TYPE_LABEL[item.type] ?? item.type}`
-                : (LIABILITY_TYPE_LABEL[item.type] ?? item.type)}
+                ? `${item.institution} · ${typeLabel}`
+                : typeLabel}
             </div>
           </div>
           <div className="ml-auto">
@@ -481,7 +495,9 @@ function LiabilityCard({ item }: { item: LiabilityDto }) {
         <div className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
           <div>
             <div className="mb-[3px] text-[11px] text-muted-foreground">
-              {isCreditCard ? "Tagihan Berjalan" : "Sisa Pokok"}
+              {isCreditCard
+                ? t.liabilitas.ccCurrentBillLabel
+                : t.liabilitas.loanRemainingPrincipalLabel}
             </div>
             <div
               className="text-[13.5px] font-bold"
@@ -492,7 +508,9 @@ function LiabilityCard({ item }: { item: LiabilityDto }) {
           </div>
           <div>
             <div className="mb-[3px] text-[11px] text-muted-foreground">
-              {isCreditCard ? "Limit Kredit" : "Total Pinjaman"}
+              {isCreditCard
+                ? t.liabilitas.ccLimitLabel
+                : t.liabilitas.loanTotalLabel}
             </div>
             <div className="text-[13.5px] font-bold">
               {formatRupiah(totalDebt)}
@@ -501,7 +519,9 @@ function LiabilityCard({ item }: { item: LiabilityDto }) {
           {minimumPayment > 0 && (
             <div>
               <div className="mb-[3px] text-[11px] text-muted-foreground">
-                {isCreditCard ? "Minimum Bayar" : "Cicilan/Bulan"}
+                {isCreditCard
+                  ? t.liabilitas.ccMinPaymentLabel
+                  : t.liabilitas.loanInstallmentLabel}
               </div>
               <div className="text-[13.5px] font-bold">
                 {formatRupiah(minimumPayment)}
@@ -511,7 +531,9 @@ function LiabilityCard({ item }: { item: LiabilityDto }) {
           {parseFloat(item.interestRate) > 0 && (
             <div>
               <div className="mb-[3px] text-[11px] text-muted-foreground">
-                {isCreditCard ? "Bunga/Bulan" : "Bunga/Tahun"}
+                {isCreditCard
+                  ? t.liabilitas.ccInterestMonthlyLabel
+                  : t.liabilitas.loanInterestYearlyLabel}
               </div>
               <div
                 className="text-[13.5px] font-bold"
@@ -543,6 +565,7 @@ function LiabilityCard({ item }: { item: LiabilityDto }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function LiabilitasPage() {
+  const { t } = useLocale();
   const [showAddModal, setShowAddModal] = useState(false);
 
   const { data: session } = useSession();
@@ -587,14 +610,14 @@ export default function LiabilitasPage() {
   const dtaDisplay = dtaRatio !== null ? `${dtaRatio.toFixed(1)}%` : "—";
   const dtaRisk =
     dtaRatio !== null
-      ? getDtaRiskLabel(dtaRatio)
+      ? getDtaRiskLabel(dtaRatio, t)
       : { label: "—", color: "var(--muted-foreground)" };
 
   useEffect(() => {
     if (isError) {
-      toast.error("Gagal memuat data liabilitas. Silakan refresh halaman.");
+      toast.error(t.liabilitas.errorLoad);
     }
-  }, [isError]);
+  }, [isError, t]);
 
   const totalRemaining = (liabilities ?? []).reduce(
     (sum, l) =>
@@ -607,7 +630,7 @@ export default function LiabilitasPage() {
       <div className="grid grid-cols-2 gap-3.5">
         <div className="rounded-[14px] border border-[#FECACA] bg-[#FEE2E2] p-4">
           <div className="mb-1 text-[11px] text-[#B91C1C]">
-            Total Liabilitas
+            {t.liabilitas.totalLiabilitiesLabel}
           </div>
           {isLoading ? (
             <div className="animate-pulse h-7 w-36 rounded bg-red-200" />
@@ -616,11 +639,13 @@ export default function LiabilitasPage() {
               <CountUpRupiah value={Number(totalRemaining)} />
             </div>
           )}
-          <div className="text-[11px] text-[#B91C1C]">Sisa tagihan aktif</div>
+          <div className="text-[11px] text-[#B91C1C]">
+            {t.liabilitas.remainingActiveSuffix}
+          </div>
         </div>
         <div className="rounded-[14px] border bg-card p-4">
           <div className="mb-1 text-[11px] text-muted-foreground">
-            Rasio Utang terhadap Aset
+            {t.liabilitas.dtaRatioLabel}
           </div>
           {isNetWorthLoading ? (
             <div className="animate-pulse h-7 w-20 rounded bg-muted" />
@@ -649,7 +674,7 @@ export default function LiabilitasPage() {
           className="h-auto px-[14px] py-2"
           data-tour="add-liabilitas"
         >
-          <Plus className="size-4" /> Tambah Liabilitas
+          <Plus className="size-4" /> {t.liabilitas.addButton}
         </Button>
       </div>
 
@@ -658,7 +683,7 @@ export default function LiabilitasPage() {
           role="alert"
           className="rounded-[14px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive"
         >
-          Gagal memuat data liabilitas. Silakan refresh halaman.
+          {t.liabilitas.errorLoad}
         </div>
       )}
 
@@ -669,7 +694,7 @@ export default function LiabilitasPage() {
         </>
       ) : (liabilities ?? []).length === 0 ? (
         <div className="rounded-[14px] border bg-card px-4 py-10 text-center text-[13px] text-muted-foreground">
-          Belum ada liabilitas. Tambahkan kartu kredit atau pinjaman Anda.
+          {t.liabilitas.emptyState}
         </div>
       ) : (
         (liabilities ?? []).map((item, i) => (
