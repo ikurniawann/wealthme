@@ -8,6 +8,22 @@ export class AssetResponseDto {
   @ApiProperty() currentValue!: string;
   @ApiProperty() currency!: string;
   @ApiProperty({ nullable: true }) notes!: string | null;
+  @ApiProperty({
+    nullable: true,
+    description:
+      "Signed annual value-change rate (%), negative = depreciation, positive = appreciation",
+  })
+  valueChangeRatePct!: string | null;
+  @ApiProperty({
+    nullable: true,
+    description: "Physical-asset category (master data), same family group",
+  })
+  categoryId!: string | null;
+  @ApiProperty({
+    description:
+      "Compute-on-read pro-rata estimate of currentValue given valueChangeRatePct and elapsed time since createdAt",
+  })
+  currentEstimatedValue!: string;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
 }

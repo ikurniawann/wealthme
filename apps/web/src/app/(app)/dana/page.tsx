@@ -19,6 +19,15 @@ const EWALLET_TYPES = new Set(["ewallet"]);
 const CASH_TYPES = new Set(["cash"]);
 const DANA_TYPES = new Set(["ewallet", "cash"]);
 
+// EPIC-021 #3 — cash accounts are real, plural accounts (AccountType
+// "cash", name-scoped uniqueness — see apps/api/src/accounts), same as
+// e-wallets. Both sections below get the same Add/Edit/Delete treatment
+// instead of cash being a read-only display of a single hardcoded row.
+// Entity display labels ("Kas Tunai"/"E-Wallet") come from t.dana.entityLabels
+// (see useLocale() below) instead of a hardcoded module-level map, so the
+// toasts and this page stay translated.
+type DanaEntity = "cash" | "ewallet";
+
 function WalletRow({
   item,
   border,
@@ -113,12 +122,31 @@ export default function DanaPage() {
     });
   }
 
+  function openAdd(entity: DanaEntity) {
+    setEditingId(null);
+    setCrudState({ entity, mode: "add" });
+  }
+
+  function openEdit(entity: DanaEntity, item: AccountDto) {
+    setEditingId(item.id);
+    setCrudState({
+      entity,
+      mode: "edit",
+      initialValues: {
+        nama: item.name,
+        saldo: String(item.balance),
+      },
+    });
+  }
+
   async function handleSubmit(
-    _entity: string,
+    entity: string,
     mode: "add" | "edit",
     values: Record<string, string>,
   ) {
     if (!familyGroupId || !token) return;
+    const danaEntity = (entity === "cash" ? "cash" : "ewallet") as DanaEntity;
+    const label = t.dana.entityLabels[danaEntity];
     try {
       const balance = parseRupiah(values.saldo ?? "0");
       if (mode === "edit" && editingId) {
@@ -130,38 +158,44 @@ export default function DanaPage() {
             body: JSON.stringify({ name: values.nama, balance }),
           },
         );
-        toast.success(t.dana.toastEwalletUpdated);
+        toast.success(`${label}${t.dana.toastUpdatedSuffix}`);
       } else {
         await apiFetch(`/family-groups/${familyGroupId}/accounts`, {
           token,
           method: "POST",
           body: JSON.stringify({
-            type: "ewallet",
+            type: danaEntity,
             name: values.nama,
-            institution: values.nama,
+            institution: danaEntity === "ewallet" ? values.nama : undefined,
             maskedNumber: values.phone || undefined,
             balance,
           }),
         });
-        toast.success(t.dana.toastEwalletAdded);
+        toast.success(`${label}${t.dana.toastAddedSuffix}`);
       }
       await invalidateAccounts();
     } catch {
-      toast.error(t.dana.toastSaveFailed);
+      toast.error(
+        `${t.dana.toastSaveFailedPrefix}${label.toLowerCase()}${t.dana.toastSaveFailedSuffix}`,
+      );
     }
   }
 
   async function handleDeleteConfirm() {
     if (!familyGroupId || !token || !deleting) return;
+    const label =
+      t.dana.entityLabels[CASH_TYPES.has(deleting.type) ? "cash" : "ewallet"];
     try {
       await apiFetch(
         `/family-groups/${familyGroupId}/accounts/${deleting.id}`,
         { token, method: "DELETE" },
       );
-      toast.success(t.dana.toastDeleted);
+      toast.success(`${label}${t.dana.toastDeletedSuffix}`);
       await invalidateAccounts();
     } catch {
-      toast.error(t.dana.toastDeleteFailed);
+      toast.error(
+        `${t.dana.toastDeleteFailedPrefix}${label.toLowerCase()}${t.dana.toastDeleteFailedSuffix}`,
+      );
     } finally {
       setDeleting(null);
     }
@@ -192,24 +226,47 @@ export default function DanaPage() {
         </div>
       )}
 
-      {cashItems.length > 0 && (
-        <SectionCard title={t.dana.cashSectionTitle} bodyClassName="-my-3">
-          {cashItems.map((item, i) => (
-            <WalletRow
-              key={item.id}
-              item={item}
-              border={i < cashItems.length - 1}
-            />
-          ))}
-        </SectionCard>
-      )}
+      {/* EPIC-021 #3 — Kas Tunai is now a real, plural account list (Add/Edit/
+          Delete), not a single read-only "Kas Tunai" row. */}
+      <SectionCard
+        title={t.dana.cashSectionTitle}
+        action={
+          <CardLink
+            className="rounded-md bg-accent px-3 py-[5px] text-[11px]"
+            onClick={() => openAdd("cash")}
+          >
+            {t.dana.addButton}
+          </CardLink>
+        }
+        bodyClassName="-my-3"
+      >
+        {isLoading && (
+          <div className="py-3 text-[13px] text-muted-foreground">
+            {t.dana.loadingLabel}
+          </div>
+        )}
+        {!isLoading && cashItems.length === 0 && (
+          <div className="py-3 text-[13px] text-muted-foreground">
+            {t.dana.emptyCash}
+          </div>
+        )}
+        {cashItems.map((item, i) => (
+          <WalletRow
+            key={item.id}
+            item={item}
+            border={i < cashItems.length - 1}
+            onEdit={() => openEdit("cash", item)}
+            onDelete={() => setDeleting(item)}
+          />
+        ))}
+      </SectionCard>
 
       <SectionCard
         title={t.dana.ewalletSectionTitle}
         action={
           <CardLink
             className="rounded-md bg-accent px-3 py-[5px] text-[11px]"
-            onClick={() => setCrudState({ entity: "ewallet", mode: "add" })}
+            onClick={() => openAdd("ewallet")}
           >
             {t.dana.addButton}
           </CardLink>
@@ -231,17 +288,7 @@ export default function DanaPage() {
             key={item.id}
             item={item}
             border={i < ewalletItems.length - 1}
-            onEdit={() => {
-              setEditingId(item.id);
-              setCrudState({
-                entity: "ewallet",
-                mode: "edit",
-                initialValues: {
-                  nama: item.name,
-                  saldo: String(item.balance),
-                },
-              });
-            }}
+            onEdit={() => openEdit("ewallet", item)}
             onDelete={() => setDeleting(item)}
           />
         ))}

@@ -77,12 +77,14 @@ type PanduanJourneyId =
 
 /** EPIC-018 Task A4 — `/asuransi` insurance type/period/status enum ids
  * (mirror the `InsuranceType` / `PremiumPeriod` / `InsuranceStatus` contracts
- * — persisted values stay unchanged, only their display labels translate). */
+ * — persisted values stay unchanged, only their display labels translate).
+ * EPIC-021 Group D (#13) added "pendidikan" alongside the rest. */
 type AsuransiInsuranceTypeId =
   | "jiwa"
   | "kesehatan"
   | "kendaraan"
   | "properti"
+  | "pendidikan"
   | "lainnya";
 
 type AsuransiPremiumPeriodId = "monthly" | "quarterly" | "yearly";
@@ -184,6 +186,11 @@ type MasterCoaBudgetTypeId = "FIXED" | "VARIABLE" | "REIMBURSEMENT";
 /** EPIC-018 Task A6 — `/tujuan` goal-status ids (mirrors `GoalStatus` —
  * persisted values stay unchanged, only display labels translate). */
 type TujuanStatusId = "achieved" | "on_track" | "needs_boost" | "at_risk";
+
+/** EPIC-021 #3 — `/dana` cash/e-wallet entity ids (mirrors `Account.type`
+ * subset used on this page — persisted values stay unchanged, only the
+ * entity display label and toast copy translate). */
+type DanaEntityId = "cash" | "ewallet";
 
 /** EPIC-018 Task A6 — `/tax` SPT-status ids (mirrors `SptStatus`). */
 type TaxSptStatusId = "belum_lapor" | "sudah_lapor" | "terlambat";
@@ -676,6 +683,7 @@ export type I18nDictionary = {
     validationNameRequired: string;
     validationPremiumPositive: string;
     modalTitle: string;
+    modalEditTitle: string;
     modalCloseAriaLabel: string;
     fieldNameLabel: string;
     fieldNamePlaceholder: string;
@@ -701,6 +709,23 @@ export type I18nDictionary = {
     payConfirmButton: string;
     toastRenewalRecordedPrefix: string;
     toastRenewalFailed: string;
+    /** EPIC-021 Group D (#14) — policy beneficiaries, mirroring warisan's
+     * heir editor UX (allocation bar + optional family-member link). */
+    beneficiariesSectionTitle: string;
+    beneficiariesLabel: string;
+    beneficiaryNameLabel: string;
+    beneficiaryNamePlaceholder: string;
+    beneficiaryRelationshipLabel: string;
+    beneficiaryRelationshipPlaceholder: string;
+    beneficiarySharePercentLabel: string;
+    beneficiaryMemberLabel: string;
+    beneficiaryMemberNoneOption: string;
+    addBeneficiaryButton: string;
+    removeBeneficiaryAriaLabel: string;
+    allocationAllocatedSuffix: string;
+    allocationUnallocatedSuffix: string;
+    allocationFullyAllocated: string;
+    validationSharePercentExceeded: string;
   };
   /**
    * EPIC-018 Task A4 — `/kalkulator` page copy (7 sub-tools). Detail rows
@@ -859,6 +884,9 @@ export type I18nDictionary = {
     fieldQuantityPlaceholder: string;
     fieldCostBasisLabel: string;
     fieldCostBasisPlaceholder: string;
+    // EPIC-021 #20: optional interest rate, shown for interest-bearing types.
+    fieldInterestRateLabel: string;
+    fieldInterestRatePlaceholder: string;
     saving: string;
     saveButton: string;
     totalValueLabel: string;
@@ -867,6 +895,10 @@ export type I18nDictionary = {
     vsYesterdaySuffix: string;
     portfolioSectionTitle: string;
     addInvestmentLink: string;
+    // EPIC-021 #19 (Open Design Decision #3 recommendation): filter tabs by
+    // type, matching the /aset tab pattern. "Semua" reuses typeLabels for the
+    // rest of the tabs.
+    filterAllLabel: string;
     tableName: string;
     tableType: string;
     tableCapital: string;
@@ -876,6 +908,20 @@ export type I18nDictionary = {
     tableAction: string;
     emptyState: string;
     emptyStateCta: string;
+    // EPIC-021 #20: per-row expandable detail (latest price provenance +
+    // interest-bearing projected yield).
+    detailToggleShow: string;
+    detailToggleHide: string;
+    detailLatestPriceLabel: string;
+    detailRecordedAtLabel: string;
+    detailSourceLabel: string;
+    detailInterestRateLabel: string;
+    detailProjectedYieldLabel: string;
+    // Genuinely non-applicable type (e.g. saham/emas — no interest concept).
+    detailNoInterestRate: string;
+    // Interest-bearing type (obligasi) but interestRatePct hasn't been set yet
+    // — distinct from detailNoInterestRate so the message isn't misleading.
+    detailNoRateSet: string;
   };
   /** EPIC-018 Task A5 — `/aset` (consolidated assets) page copy. */
   aset: {
@@ -895,6 +941,15 @@ export type I18nDictionary = {
     fieldCategoryLabel: string;
     fieldValueLabel: string;
     fieldValuePlaceholder: string;
+    // EPIC-021 #17/#18: signed annual value-change rate (depreciation < 0,
+    // appreciation > 0).
+    fieldValueChangeRateLabel: string;
+    fieldValueChangeRatePlaceholder: string;
+    // EPIC-021 #16: optional physical-asset category from master data
+    // (the real Category API — distinct from the hardcoded `fieldCategoryLabel`
+    // type selector above).
+    fieldMasterDataCategoryLabel: string;
+    fieldMasterDataCategoryNone: string;
     fieldNotesLabel: string;
     fieldNotesPlaceholder: string;
     saving: string;
@@ -907,6 +962,8 @@ export type I18nDictionary = {
     emptyPhysical: string;
     emptyDanaRekening: string;
     emptyInvestments: string;
+    // EPIC-021 #17/#18: honest label appended to a compute-on-read estimate.
+    estimatedValueBadge: string;
   };
   /** EPIC-018 Task A5 — `/liabilitas` (debts & credit) page copy. */
   liabilitas: {
@@ -1031,6 +1088,8 @@ export type I18nDictionary = {
     modalTitleAdd: string;
     fieldCodeLabel: string;
     fieldCodePlaceholder: string;
+    /** EPIC-021 #4 — shown when adding (code omitted/blank auto-generates). */
+    fieldCodeAutoPlaceholder: string;
     fieldGroupLabel: string;
     fieldNameLabel: string;
     fieldNamePlaceholder: string;
@@ -1077,11 +1136,18 @@ export type I18nDictionary = {
     ewalletSectionTitle: string;
     addButton: string;
     emptyEwallet: string;
-    toastEwalletUpdated: string;
-    toastEwalletAdded: string;
-    toastSaveFailed: string;
-    toastDeleted: string;
-    toastDeleteFailed: string;
+    /** EPIC-021 #3 — cash is now a real, plural CRUD list like e-wallet;
+     * entity label + toast copy are shared across both via these
+     * entity-aware keys instead of separate `toastEwallet*` strings. */
+    emptyCash: string;
+    entityLabels: Record<DanaEntityId, string>;
+    toastUpdatedSuffix: string;
+    toastAddedSuffix: string;
+    toastDeletedSuffix: string;
+    toastSaveFailedPrefix: string;
+    toastSaveFailedSuffix: string;
+    toastDeleteFailedPrefix: string;
+    toastDeleteFailedSuffix: string;
   };
   /** EPIC-018 Task A6 — `/ringkasan` (financial summary dashboard) page copy. */
   ringkasan: {

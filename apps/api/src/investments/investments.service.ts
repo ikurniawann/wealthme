@@ -1,4 +1,10 @@
-import { Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { Decimal } from "@prisma/client/runtime/library";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -12,6 +18,8 @@ import type { MarketDataPort } from "./market-data.port";
 import type { InvestmentDto, InvestmentSummaryDto } from "@wealthme/contracts";
 
 const ZERO = new Decimal(0);
+const MIN_INTEREST_RATE_PCT = 0;
+const MAX_INTEREST_RATE_PCT = 100;
 
 function startOfDay(date: Date): Date {
   const d = new Date(date);
@@ -21,6 +29,19 @@ function startOfDay(date: Date): Date {
 
 function decimalToString(d: Decimal | null): string {
   return d?.toString() ?? "0";
+}
+
+/**
+ * Simple projected annual yield for interest-bearing instruments (obligasi,
+ * deposito): currentValue × interestRatePct / 100. Null when either input is
+ * unavailable (EPIC-021 #20 — display only, no compounding/term modeling).
+ */
+function computeProjectedAnnualYield(
+  currentValue: Decimal | null,
+  interestRatePct: Decimal | null,
+): Decimal | null {
+  if (!currentValue || !interestRatePct) return null;
+  return currentValue.times(interestRatePct).dividedBy(100);
 }
 
 @Injectable()
@@ -80,6 +101,11 @@ export class InvestmentsService {
               : null;
         }
 
+        const projectedAnnualYield = computeProjectedAnnualYield(
+          currentValue,
+          inv.interestRatePct,
+        );
+
         return {
           id: inv.id,
           familyGroupId: inv.familyGroupId,
@@ -95,6 +121,12 @@ export class InvestmentsService {
             returnPct !== null ? Math.round(returnPct * 100) / 100 : null,
           currency: inv.currency,
           notes: inv.notes,
+          latestPriceRecordedAt: latestPrice?.recordedAt.toISOString() ?? null,
+          latestPriceSource: latestPrice?.source ?? null,
+          interestRatePct: inv.interestRatePct?.toString() ?? null,
+          projectedAnnualYield: projectedAnnualYield
+            ? decimalToString(projectedAnnualYield)
+            : null,
           createdAt: inv.createdAt.toISOString(),
           updatedAt: inv.updatedAt.toISOString(),
         } satisfies InvestmentDto;
@@ -144,6 +176,8 @@ export class InvestmentsService {
     familyGroupId: string,
     dto: CreateInvestmentDto,
   ): Promise<InvestmentDto> {
+    this.assertValidInterestRatePct(dto.interestRatePct);
+
     const investment = await this.prisma.investment.create({
       data: {
         familyGroupId,
@@ -154,6 +188,7 @@ export class InvestmentsService {
         costBasisPerUnit: new Decimal(dto.costBasisPerUnit),
         currency: dto.currency ?? "IDR",
         notes: dto.notes ?? null,
+        interestRatePct: dto.interestRatePct ?? null,
       },
     });
 
@@ -175,6 +210,10 @@ export class InvestmentsService {
       returnPct: null,
       currency: investment.currency,
       notes: investment.notes,
+      latestPriceRecordedAt: null,
+      latestPriceSource: null,
+      interestRatePct: investment.interestRatePct?.toString() ?? null,
+      projectedAnnualYield: null,
       createdAt: investment.createdAt.toISOString(),
       updatedAt: investment.updatedAt.toISOString(),
     };
@@ -192,6 +231,8 @@ export class InvestmentsService {
       throw new NotFoundException("Investment not found");
     }
 
+    this.assertValidInterestRatePct(dto.interestRatePct);
+
     const updated = await this.prisma.investment.update({
       where: { id, familyGroupId },
       data: {
@@ -204,6 +245,10 @@ export class InvestmentsService {
           : existing.costBasisPerUnit,
         currency: dto.currency ?? existing.currency,
         notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
+        interestRatePct:
+          dto.interestRatePct !== undefined
+            ? dto.interestRatePct
+            : existing.interestRatePct,
       },
     });
 
@@ -221,9 +266,28 @@ export class InvestmentsService {
       returnPct: null,
       currency: updated.currency,
       notes: updated.notes,
+      latestPriceRecordedAt: null,
+      latestPriceSource: null,
+      interestRatePct: updated.interestRatePct?.toString() ?? null,
+      projectedAnnualYield: null,
       createdAt: updated.createdAt.toISOString(),
       updatedAt: updated.updatedAt.toISOString(),
     };
+  }
+
+  /** 0..100 inclusive; class-validator only checks the string format. */
+  private assertValidInterestRatePct(value?: string): void {
+    if (value == null) return;
+    const n = Number(value);
+    if (
+      !Number.isFinite(n) ||
+      n < MIN_INTEREST_RATE_PCT ||
+      n > MAX_INTEREST_RATE_PCT
+    ) {
+      throw new BadRequestException(
+        `interestRatePct must be between ${MIN_INTEREST_RATE_PCT} and ${MAX_INTEREST_RATE_PCT}`,
+      );
+    }
   }
 
   async remove(familyGroupId: string, id: string): Promise<void> {

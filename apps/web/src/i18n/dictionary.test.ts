@@ -132,6 +132,7 @@ describe("i18n dictionary key parity", () => {
       "kesehatan",
       "kendaraan",
       "properti",
+      "pendidikan",
       "lainnya",
     ] as const;
     for (const key of typeIds) {
@@ -149,6 +150,29 @@ describe("i18n dictionary key parity", () => {
     for (const key of statusIds) {
       expect(id.asuransi.statusLabels[key]).toBeTruthy();
       expect(en.asuransi.statusLabels[key]).toBeTruthy();
+    }
+  });
+
+  // EPIC-021 Group D (#14) — beneficiary editor copy exists in both locales.
+  it("asuransi beneficiary-editor copy is present in both locales", () => {
+    const keys = [
+      "beneficiariesSectionTitle",
+      "beneficiariesLabel",
+      "beneficiaryNameLabel",
+      "beneficiaryRelationshipLabel",
+      "beneficiarySharePercentLabel",
+      "beneficiaryMemberLabel",
+      "beneficiaryMemberNoneOption",
+      "addBeneficiaryButton",
+      "removeBeneficiaryAriaLabel",
+      "allocationAllocatedSuffix",
+      "allocationUnallocatedSuffix",
+      "allocationFullyAllocated",
+      "validationSharePercentExceeded",
+    ] as const;
+    for (const key of keys) {
+      expect(id.asuransi[key]).toBeTruthy();
+      expect(en.asuransi[key]).toBeTruthy();
     }
   });
 
@@ -438,5 +462,18 @@ describe("i18n dictionary key parity", () => {
     expect(en.warisan.heroTitle).toBeTruthy();
     expect(id.splitbill.createButton).toBeTruthy();
     expect(en.splitbill.createButton).toBeTruthy();
+  });
+
+  // EPIC-021 #3 — /dana's cash section became a real, plural CRUD list
+  // (like e-wallet), sharing entity-aware toast copy instead of separate
+  // ewallet-only toast strings.
+  it("dana.entityLabels covers both cash and ewallet entities in both locales without changing persisted values", () => {
+    const entityIds = ["cash", "ewallet"] as const;
+    for (const key of entityIds) {
+      expect(id.dana.entityLabels[key]).toBeTruthy();
+      expect(en.dana.entityLabels[key]).toBeTruthy();
+    }
+    expect(id.dana.emptyCash).toBeTruthy();
+    expect(en.dana.emptyCash).toBeTruthy();
   });
 });
