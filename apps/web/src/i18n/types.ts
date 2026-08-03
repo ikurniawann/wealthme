@@ -75,6 +75,112 @@ type PanduanJourneyId =
   | "advancedConfig"
   | "aiAssistant";
 
+/** EPIC-018 Task A4 — `/asuransi` insurance type/period/status enum ids
+ * (mirror the `InsuranceType` / `PremiumPeriod` / `InsuranceStatus` contracts
+ * — persisted values stay unchanged, only their display labels translate). */
+type AsuransiInsuranceTypeId =
+  | "jiwa"
+  | "kesehatan"
+  | "kendaraan"
+  | "properti"
+  | "lainnya";
+
+type AsuransiPremiumPeriodId = "monthly" | "quarterly" | "yearly";
+
+type AsuransiStatusId = "aktif" | "tidak_aktif" | "kadaluarsa";
+
+/** EPIC-018 Task A4 — `/kalkulator` sub-tool tab ids. */
+type KalkulatorTabId =
+  | "zakat"
+  | "pph21"
+  | "investasi"
+  | "kredit"
+  | "pensiun"
+  | "tabungan"
+  | "splitgroup";
+
+/**
+ * EPIC-018 Task A4 — `/quickinput` quick-action card ids. Structural and
+ * page-local — independent of the `CrudEntity` values consumed by the
+ * shared `CrudModal` (which stay untranslated, see `types.ts` comment at
+ * `quickinput` below).
+ */
+type QuickInputCardId =
+  | "transaksi"
+  | "investasi"
+  | "rekening"
+  | "ewallet"
+  | "aset"
+  | "liabilitas"
+  | "asuransi"
+  | "tujuan"
+  | "anggaran"
+  | "warisan"
+  | "donasi"
+  | "splitbill";
+
+/** EPIC-018 Task A5 — `/investasi` instrument type ids (mirrors `InvestmentType`
+ * — persisted values stay unchanged, only display labels translate). */
+type InvestasiTypeId =
+  | "saham"
+  | "reksa_dana"
+  | "obligasi"
+  | "emas"
+  | "kripto"
+  | "lainnya";
+
+/** EPIC-018 Task A5 — `/aset` physical-asset type ids. */
+type AsetTypeId =
+  | "properti"
+  | "kendaraan"
+  | "elektronik"
+  | "perhiasan"
+  | "lainnya";
+
+/** EPIC-018 Task A5 — `/aset` account-type ids used on the combined "Dana &
+ * Rekening" cards (mirrors `Account.type`). */
+type AsetAccountTypeId =
+  | "bank"
+  | "ewallet"
+  | "cash"
+  | "investment"
+  | "property";
+
+/** EPIC-018 Task A5 — `/aset` filter-tab ids. */
+type AsetTabId = "semua" | "dana" | "rekening" | "investasi" | "fisik";
+
+/** EPIC-018 Task A5 — `/liabilitas` liability type ids (mirrors `LiabilityType`
+ * — persisted values stay unchanged, only display labels translate). */
+type LiabilitasTypeId =
+  | "kartu_kredit"
+  | "pinjaman_pribadi"
+  | "kpr"
+  | "kendaraan"
+  | "lainnya";
+
+/**
+ * EPIC-018 Task A5 — `/masterdata` system reference-group ids (mirrors the
+ * `CrudEntity` `md*` variants). Each group's `title`/`label` translate; the
+ * groups' local `items` reference lists (bank names, e-wallet brands, etc.)
+ * stay untranslated in the page — same value-locked-copy caveat Task A4
+ * documented for the shared, untranslated `crud-config.ts` select options.
+ */
+type MasterDataGroupId =
+  | "mdbank"
+  | "mdtxntype"
+  | "mdinvtype"
+  | "mdewallet"
+  | "mdlembaga"
+  | "mdasettype"
+  | "mdinstype";
+
+/** EPIC-018 Task A5 — `/mastercoa` chart-of-accounts group numbers (1-6). */
+type MasterCoaGroupNum = 1 | 2 | 3 | 4 | 5 | 6;
+
+type MasterCoaDirectionId = "INCOME" | "EXPENSE" | "TRANSFER";
+
+type MasterCoaBudgetTypeId = "FIXED" | "VARIABLE" | "REIMBURSEMENT";
+
 export type I18nDictionary = {
   locale: "id" | "en";
   greeting: {
@@ -223,9 +329,8 @@ export type I18nDictionary = {
       placeholder: string;
       dialogTitle: string;
       financialResultsHeader: string;
-      pagesHeader: string;
-      quickAccessHeader: string;
       noResultsFor: string;
+      typeToSearchHint: string;
     };
   };
   /** EPIC-018 A2 — `/akun` page and sub-page copy. */
@@ -286,7 +391,6 @@ export type I18nDictionary = {
       changePasswordRowSub: string;
       pinRowName: string;
       pinRowSub: string;
-      pinActive: string;
       authSectionTitle: string;
       biometricLabel: string;
       biometricSub: string;
@@ -294,30 +398,32 @@ export type I18nDictionary = {
       bigTxnSub: string;
       newLoginLabel: string;
       newLoginSub: string;
+      authNote: string;
       sessionSectionTitle: string;
-      currentSessionSub: string;
-      previousSessionSub: string;
+      sessionActivePrefix: string;
+      deviceFallbackLabel: string;
       thisDeviceBadge: string;
       endSessionLink: string;
+      sessionsLoading: string;
+      sessionsEmpty: string;
+      sessionsError: string;
       toastPasswordMinLength: string;
       toastPasswordMismatch: string;
       toastChangeFailed: string;
       toastChangeSuccess: string;
       toastSetPin: string;
       toastSessionEnded: string;
+      toastSessionEndFailed: string;
+      toastAuthPrefsSaved: string;
+      toastAuthPrefsFailed: string;
     };
     koneksi: {
       bankSectionTitle: string;
       addButton: string;
       ewalletSectionTitle: string;
-      activeBadge: string;
-      connectedAutoSync: string;
-      connectedSync: string;
-      syncActive: string;
-      notConnected: string;
-      connectAction: string;
-      toastConnectOvo: string;
-      toastConnectDana: string;
+      manualLabel: string;
+      emptyBank: string;
+      emptyEwallet: string;
     };
     pengaturan: {
       currencySectionTitle: string;
@@ -380,8 +486,11 @@ export type I18nDictionary = {
       exportDataSub: string;
       deleteAccountName: string;
       deleteAccountSub: string;
-      toastExporting: string;
-      toastDeleteWarning: string;
+      toastExportSuccess: string;
+      toastExportFailed: string;
+      deleteAccountConfirm: string;
+      toastDeleteSuccess: string;
+      toastDeleteFailed: string;
     };
     bantuan: {
       faqSectionTitle: string;
@@ -413,13 +522,10 @@ export type I18nDictionary = {
       whatsappName: string;
       whatsappSub: string;
       toastLiveChat: string;
-      toastEmail: string;
-      toastPhone: string;
-      toastWhatsapp: string;
       feedbackTitle: string;
       feedbackPlaceholder: string;
       feedbackButton: string;
-      toastFeedbackSent: string;
+      toastFeedbackOpening: string;
     };
     tentang: {
       tagline: string;
@@ -433,6 +539,7 @@ export type I18nDictionary = {
       licenseName: string;
       footerMade: string;
       footerCopyright: string;
+      toastComingSoon: string;
     };
     family: {
       membersSectionTitle: string;
@@ -441,7 +548,6 @@ export type I18nDictionary = {
       adminSectionTitle: string;
       adminCanInput: string;
       adminBadge: string;
-      manageAccessPrefix: string;
       addAdminButton: string;
       adminInfoNote: string;
       groupSettingsSectionTitle: string;
@@ -453,26 +559,12 @@ export type I18nDictionary = {
     addAdmin: {
       dialogTitle: string;
       dialogDesc: string;
-      namePlaceholder: string;
       emailPlaceholder: string;
       roleLabel: string;
       roleOptions: {
-        secretary: string;
-        driver: string;
-        householdAssistant: string;
-        personalAssistant: string;
-        accountant: string;
-        other: string;
+        member: string;
+        adminStaff: string;
       };
-      accessLabel: string;
-      accessInputTxnLabel: string;
-      accessInputTxnSub: string;
-      accessOcrLabel: string;
-      accessOcrSub: string;
-      accessViewBalanceLabel: string;
-      accessViewBalanceSub: string;
-      accessLimitCategoryLabel: string;
-      accessLimitCategorySub: string;
       sending: string;
       sendButton: string;
       toastInviteCreated: string;
@@ -497,5 +589,402 @@ export type I18nDictionary = {
     openLink: string;
     journeys: Record<PanduanJourneyId, { title: string; subtitle: string }>;
     features: Record<PanduanFeatureId, { title: string; desc: string }>;
+  };
+  /** EPIC-018 Task A4 — `/asuransi` (insurance policies) page copy. */
+  asuransi: {
+    activePoliciesSuffix: string;
+    totalPremiumPrefix: string;
+    errorLoad: string;
+    emptyState: string;
+    typeLabels: Record<AsuransiInsuranceTypeId, string>;
+    periodSuffixLabels: Record<AsuransiPremiumPeriodId, string>;
+    periodOptionLabels: Record<AsuransiPremiumPeriodId, string>;
+    statusLabels: Record<AsuransiStatusId, string>;
+    coverageLabel: string;
+    premiumLabel: string;
+    renewalLabel: string;
+    daysUntilRenewalSuffix: string;
+    policyNumberLabel: string;
+    toastAdded: string;
+    toastAddFailed: string;
+    toastUpdated: string;
+    toastUpdateFailed: string;
+    toastDeleted: string;
+    toastDeleteFailed: string;
+    validationNameRequired: string;
+    validationPremiumPositive: string;
+    modalTitle: string;
+    modalCloseAriaLabel: string;
+    fieldNameLabel: string;
+    fieldNamePlaceholder: string;
+    fieldProviderLabel: string;
+    fieldProviderPlaceholder: string;
+    fieldTypeLabel: string;
+    fieldStatusLabel: string;
+    fieldPremiumLabel: string;
+    fieldPeriodLabel: string;
+    fieldCoverageLabel: string;
+    fieldRenewalDateLabel: string;
+    autoRenewLabel: string;
+    fieldPolicyNumberPlaceholder: string;
+    fieldNotesLabel: string;
+    fieldNotesPlaceholder: string;
+    saving: string;
+    saveButton: string;
+    /** EPIC-016 Task H — "Bayar" confirm dialog that records a real renewal. */
+    payDialogTitle: string;
+    payConfirmPrefix: string;
+    payConfirmSuffix: string;
+    payProcessing: string;
+    payConfirmButton: string;
+    toastRenewalRecordedPrefix: string;
+    toastRenewalFailed: string;
+  };
+  /**
+   * EPIC-018 Task A4 — `/kalkulator` page copy (7 sub-tools). Detail rows
+   * that mix a fixed label with a live-computed value keep the label as a
+   * `*Prefix` string and the JSX renders the formatted value next to it —
+   * mirrors the `akun.keamanan.sessionActivePrefix` template-splitting
+   * pattern rather than introducing dict functions.
+   */
+  kalkulator: {
+    tabs: Record<KalkulatorTabId, string>;
+    months: [
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+    ];
+    sessionExpired: string;
+    calculating: string;
+    zakat: {
+      cardTitle: string;
+      nisabNotePrefix: string;
+      nisabNoteValue: string;
+      fieldCash: string;
+      fieldInvestments: string;
+      fieldGold: string;
+      fieldLiabilities: string;
+      calculateButton: string;
+      errorCalculate: string;
+      resultObligated: string;
+      resultNotObligated: string;
+      detailZakatablePrefix: string;
+      detailNisabPrefix: string;
+      belowNisabPrefix: string;
+      belowNisabSuffix: string;
+    };
+    pph21: {
+      cardTitle: string;
+      ptkpNote: string;
+      fieldGross: string;
+      fieldZakatPaid: string;
+      calculateButton: string;
+      errorCalculate: string;
+      resultLabel: string;
+      detailPkpPrefix: string;
+      detailEffectiveRatePrefix: string;
+      deductionHeading: string;
+      laborCostLabel: string;
+      ptkpLabel: string;
+      zakatLabel: string;
+      progressiveHeading: string;
+    };
+    investasi: {
+      cardTitle: string;
+      fieldInitialCapital: string;
+      fieldMonthlyDeposit: string;
+      fieldAnnualReturn: string;
+      fieldDuration: string;
+      resultLabel: string;
+      detailTotalCapitalPrefix: string;
+      detailProfitPrefix: string;
+    };
+    kredit: {
+      cardTitle: string;
+      fieldLoanAmount: string;
+      fieldAnnualInterest: string;
+      fieldTenor: string;
+      fieldDownPayment: string;
+      resultLabel: string;
+      detailPrincipalPrefix: string;
+      detailTotalPaymentPrefix: string;
+    };
+    pensiun: {
+      cardTitle: string;
+      fieldCurrentAge: string;
+      fieldRetireAge: string;
+      fieldCurrentMonthlyExpense: string;
+      fieldInvestmentReturn: string;
+      resultLabel: string;
+      detailMonthlyInvestmentNeededPrefix: string;
+    };
+    tabungan: {
+      cardTitle: string;
+      fieldTarget: string;
+      fieldCurrentBalance: string;
+      fieldAnnualInterest: string;
+      fieldMonthlyDeposit: string;
+      resultLabel: string;
+      resultValueSuffix: string;
+      detailTargetReachedPrefix: string;
+    };
+    splitgroup: {
+      cardTitle: string;
+      description: string;
+      fieldTotalBill: string;
+      fieldPeopleCount: string;
+      fieldTaxService: string;
+      fieldExtraTip: string;
+      resultLabel: string;
+      detailTotalWithTaxPrefix: string;
+      createSplitBillButton: string;
+    };
+  };
+  /**
+   * EPIC-018 Task A4 — `/quickinput` page copy. `QUICK_CARDS` in the page
+   * keeps only structural data (icon, colors, action/entity); every card
+   * name/desc resolves from here, keyed by the stable `QuickInputCardId`.
+   */
+  quickinput: {
+    pageTitle: string;
+    pageSubtitle: string;
+    cards: Record<QuickInputCardId, { name: string; desc: string }>;
+    toastSaved: string;
+    toastSaveFailed: string;
+  };
+  /** EPIC-018 Task A4 — `/ai` (AI Advisor chat) page copy. */
+  ai: {
+    bannerTitle: string;
+    bannerSubtitle: string;
+    popularQuestionsLabel: string;
+    chips: [string, string, string, string, string, string];
+    initialMessage: string;
+    errorGeneric: string;
+    errorConnection: string;
+    noGroupTitle: string;
+    noGroupBody: string;
+    inputPlaceholder: string;
+    sendAriaLabel: string;
+    disclaimer: string;
+  };
+  /** EPIC-018 Task A5 — `/investasi` (investment portfolio) page copy. */
+  investasi: {
+    typeLabels: Record<InvestasiTypeId, string>;
+    errorLoad: string;
+    toastUpdated: string;
+    toastAdded: string;
+    toastUpdateFailed: string;
+    toastAddFailed: string;
+    toastDeleted: string;
+    toastDeleteFailed: string;
+    modalTitleEdit: string;
+    modalTitleAdd: string;
+    fieldTickerLabel: string;
+    fieldTickerPlaceholder: string;
+    fieldNameLabel: string;
+    fieldNamePlaceholder: string;
+    fieldTypeLabel: string;
+    fieldQuantityLabel: string;
+    fieldQuantityPlaceholder: string;
+    fieldCostBasisLabel: string;
+    fieldCostBasisPlaceholder: string;
+    saving: string;
+    saveButton: string;
+    totalValueLabel: string;
+    totalReturnSuffix: string;
+    todayReturnLabel: string;
+    vsYesterdaySuffix: string;
+    portfolioSectionTitle: string;
+    addInvestmentLink: string;
+    tableName: string;
+    tableType: string;
+    tableCapital: string;
+    tableValue: string;
+    tableReturn: string;
+    tablePercent: string;
+    tableAction: string;
+    emptyState: string;
+    emptyStateCta: string;
+  };
+  /** EPIC-018 Task A5 — `/aset` (consolidated assets) page copy. */
+  aset: {
+    tabs: Record<AsetTabId, string>;
+    assetTypeLabels: Record<AsetTypeId, string>;
+    accountTypeLabels: Record<AsetAccountTypeId, string>;
+    invTypeLabels: Record<InvestasiTypeId, string>;
+    totalAssetsLabel: string;
+    addAssetButton: string;
+    lockAriaLabel: string;
+    errorLoad: string;
+    toastAdded: string;
+    toastAddFailed: string;
+    modalTitle: string;
+    fieldNameLabel: string;
+    fieldNamePlaceholder: string;
+    fieldCategoryLabel: string;
+    fieldValueLabel: string;
+    fieldValuePlaceholder: string;
+    fieldNotesLabel: string;
+    fieldNotesPlaceholder: string;
+    saving: string;
+    saveButton: string;
+    physicalAssetsTitle: string;
+    danaRekeningTitle: string;
+    danaTitle: string;
+    rekeningTitle: string;
+    investmentsTitle: string;
+    emptyPhysical: string;
+    emptyDanaRekening: string;
+    emptyInvestments: string;
+  };
+  /** EPIC-018 Task A5 — `/liabilitas` (debts & credit) page copy. */
+  liabilitas: {
+    typeLabels: Record<LiabilitasTypeId, string>;
+    riskVerySafe: string;
+    riskSafe: string;
+    riskCaution: string;
+    riskRisky: string;
+    statusOngoing: string;
+    statusOverdue: string;
+    statusDuePrefix: string;
+    toastAdded: string;
+    toastAddFailed: string;
+    errorLoad: string;
+    modalTitle: string;
+    modalCloseAriaLabel: string;
+    fieldNameLabel: string;
+    fieldNamePlaceholder: string;
+    fieldInstitutionLabel: string;
+    fieldInstitutionPlaceholder: string;
+    fieldTypeLabel: string;
+    fieldTotalDebtLabel: string;
+    fieldTotalDebtPlaceholder: string;
+    fieldRemainingLabel: string;
+    fieldRemainingPlaceholder: string;
+    fieldMinPaymentLabel: string;
+    fieldMinPaymentPlaceholder: string;
+    fieldInterestRateLabel: string;
+    fieldInterestRatePlaceholder: string;
+    fieldDueDateLabel: string;
+    autoAdvanceLabel: string;
+    fieldNotesLabel: string;
+    fieldNotesPlaceholder: string;
+    saving: string;
+    saveButton: string;
+    ccCurrentBillLabel: string;
+    loanRemainingPrincipalLabel: string;
+    ccLimitLabel: string;
+    loanTotalLabel: string;
+    ccMinPaymentLabel: string;
+    loanInstallmentLabel: string;
+    ccInterestMonthlyLabel: string;
+    loanInterestYearlyLabel: string;
+    progressUsageLabel: string;
+    progressPayoffLabel: string;
+    totalLiabilitiesLabel: string;
+    remainingActiveSuffix: string;
+    dtaRatioLabel: string;
+    addButton: string;
+    emptyState: string;
+  };
+  /**
+   * EPIC-018 Task A5 — `/masterdata` page copy. `REFERENCE_GROUPS` in the
+   * page keeps each group's local `items` untranslated (see the
+   * `MasterDataGroupId` comment in this file); every group `title`/`label`,
+   * the real-category-API copy, and every toast resolve from here.
+   */
+  masterdata: {
+    pageTitle: string;
+    pageSubtitle: string;
+    groups: Record<MasterDataGroupId, { title: string; label: string }>;
+    categorySectionTitle: string;
+    masterCoaLink: string;
+    addLink: string;
+    categoryLoading: string;
+    categoryEmpty: string;
+    kindIncome: string;
+    kindExpense: string;
+    privateLabel: string;
+    autoOptionLabel: string;
+    groupEmpty: string;
+    footerBold: string;
+    footerRest: string;
+    editAriaPrefix: string;
+    deleteAriaPrefix: string;
+    categoryDeleteLabelPrefix: string;
+    categoryDeleteLabelSuffix: string;
+    itemRemovedPrefix: string;
+    itemRemovedSuffix: string;
+    toastReferenceReadOnly: string;
+    toastInvalidSession: string;
+    toastNameRequired: string;
+    toastInvalidType: string;
+    toastCategoryUpdated: string;
+    toastCategoryUpdateFailed: string;
+    toastCategoryAdded: string;
+    toastCategoryAddFailed: string;
+    toastCategoryDeleted: string;
+    toastCategoryDeleteFailed: string;
+  };
+  /** EPIC-018 Task A5 — `/mastercoa` (chart of accounts) page copy. */
+  mastercoa: {
+    groupLabels: Record<MasterCoaGroupNum, string>;
+    directionLabels: Record<MasterCoaDirectionId, string>;
+    budgetTypeLabels: Record<MasterCoaBudgetTypeId, string>;
+    tabAll: string;
+    totalAccountsTitle: string;
+    sixGroupsLabel: string;
+    connectedCategoriesTitle: string;
+    manageLink: string;
+    linkedCategoriesDescPrefix: string;
+    linkedCategoriesDescSuffix: string;
+    emptyCoaTitle: string;
+    emptyCoaDesc: string;
+    usedInReportsTitle: string;
+    viewLink: string;
+    reportsBadgeText: string;
+    activeBadge: string;
+    usedInReportsDesc: string;
+    listTitle: string;
+    addAccountButton: string;
+    colCode: string;
+    colName: string;
+    colGroup: string;
+    colDirection: string;
+    colBudgetType: string;
+    colAction: string;
+    loadingRow: string;
+    emptyRow: string;
+    editTitle: string;
+    modalTitleEdit: string;
+    modalTitleAdd: string;
+    fieldCodeLabel: string;
+    fieldCodePlaceholder: string;
+    fieldGroupLabel: string;
+    fieldNameLabel: string;
+    fieldNamePlaceholder: string;
+    fieldDirectionLabel: string;
+    fieldBudgetTypeLabel: string;
+    fieldParentCodeLabel: string;
+    fieldParentCodePlaceholder: string;
+    budgetTypeNone: string;
+    deleteConfirmTitle: string;
+    deleteConfirmBody: string;
+    toastAdded: string;
+    toastAddFailed: string;
+    toastUpdated: string;
+    toastUpdateFailed: string;
+    toastDeleted: string;
+    toastDeleteFailed: string;
+    toastSessionNotReady: string;
   };
 };

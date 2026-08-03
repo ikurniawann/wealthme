@@ -11,6 +11,12 @@ import { Button } from "@/components/ui/button";
 import { formatAmountInput, parseRupiah, formatRupiah } from "@/lib/format";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import {
+  amountsMatchTotal,
+  computeRemainder,
+  splitRemainderEvenly,
+  type CustomAmounts,
+} from "./split-math";
 
 import type {
   SplitBillDto,
@@ -65,15 +71,23 @@ export default function SplitBillPage() {
     makeParticipant("Budi"),
     makeParticipant("Citra"),
   ]);
-  const [customAmounts, setCustomAmounts] = useState<Record<number, string>>(
-    {},
-  );
+  const [customAmounts, setCustomAmounts] = useState<CustomAmounts>({});
 
   const totalNum = parseRupiah(total);
+  const participantIds = useMemo(
+    () => participants.map((p) => p.localId),
+    [participants],
+  );
   const perPerson = useMemo(() => {
     if (participants.length === 0 || method !== "equal") return 0;
     return Math.round(totalNum / participants.length);
   }, [totalNum, participants.length, method]);
+  // Live remainder for the custom-split calculator (item #10) — how much of
+  // the total is still unallocated across the per-person amount inputs.
+  const customRemainder = useMemo(
+    () => computeRemainder(totalNum, participantIds, customAmounts),
+    [totalNum, participantIds, customAmounts],
+  );
 
   function addParticipant() {
     const newP = makeParticipant(`Peserta ${participants.length + 1}`);
@@ -94,6 +108,14 @@ export default function SplitBillPage() {
   function renameParticipant(localId: number, name: string) {
     setParticipants((prev) =>
       prev.map((p) => (p.localId === localId ? { ...p, name } : p)),
+    );
+  }
+
+  // "Bagi rata sisa" — fills every participant who hasn't entered an amount
+  // yet with an even share of whatever remains from the total.
+  function handleSplitRemainderEvenly() {
+    setCustomAmounts((prev) =>
+      splitRemainderEvenly(totalNum, participantIds, prev),
     );
   }
 
@@ -196,6 +218,20 @@ export default function SplitBillPage() {
     }
     if (participants.length < 2) {
       toast.warning("Minimal 2 peserta");
+      return;
+    }
+    if (
+      method === "custom" &&
+      !amountsMatchTotal(totalNum, participantIds, customAmounts)
+    ) {
+      const diff = computeRemainder(totalNum, participantIds, customAmounts);
+      const diffLabel =
+        diff > 0
+          ? `kurang ${formatRupiah(diff)}`
+          : `lebih ${formatRupiah(Math.abs(diff))}`;
+      toast.warning(
+        `Jumlah per orang belum sama dengan total tagihan (${diffLabel}).`,
+      );
       return;
     }
 
@@ -534,6 +570,52 @@ export default function SplitBillPage() {
                     {formatRupiah(perPerson)}
                   </strong>
                 </span>
+              </div>
+            )}
+
+            {method === "custom" && totalNum <= 0 && (
+              <div className="rounded-[10px] bg-secondary px-3 py-2.5 text-[12px] text-muted-foreground">
+                Isi total tagihan dulu untuk menghitung pembagian per orang.
+              </div>
+            )}
+            {method === "custom" && totalNum > 0 && (
+              <div
+                className={
+                  "flex items-center justify-between gap-2 rounded-[10px] px-3 py-2.5 " +
+                  (customRemainder === 0
+                    ? "bg-success-soft"
+                    : customRemainder > 0
+                      ? "bg-accent"
+                      : "bg-destructive/10")
+                }
+              >
+                <span className="text-[12px] text-muted-foreground">
+                  {customRemainder === 0 ? (
+                    <strong className="text-success">
+                      Pas! Sudah sama dengan total tagihan
+                    </strong>
+                  ) : customRemainder > 0 ? (
+                    <>
+                      Sisa:{" "}
+                      <strong className="text-primary">
+                        {formatRupiah(customRemainder)}
+                      </strong>{" "}
+                      dari total
+                    </>
+                  ) : (
+                    <strong className="text-destructive">
+                      Lebih {formatRupiah(Math.abs(customRemainder))} dari total
+                    </strong>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleSplitRemainderEvenly}
+                  disabled={customRemainder <= 0}
+                  className="shrink-0 cursor-pointer rounded-md border border-primary px-2.5 py-1.5 text-[11px] font-semibold text-primary transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Bagi Rata Sisa
+                </button>
               </div>
             )}
 

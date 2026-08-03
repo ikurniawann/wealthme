@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { CategoryDto } from "@wealthme/contracts";
 import { useSession } from "@/lib/auth-compat";
+import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { SectionCard, CardLink, StatusBadge } from "@/components/wm";
@@ -17,10 +18,14 @@ import {
   type CrudModalState,
 } from "@/components/crud";
 
+/**
+ * `entity`/`items` are structural + local reference data (see the
+ * `MasterDataGroupId` comment in `@/i18n/types.ts` — the `items` reference
+ * lists stay untranslated, same as the shared `crud-config.ts` select
+ * options); `title`/`label` resolve from `t.masterdata.groups[entity]`.
+ */
 interface MasterDataGroup {
   entity: CrudEntity;
-  title: string;
-  label: string;
   items: string[];
 }
 
@@ -39,49 +44,36 @@ type CoaAccountOption = {
 const REFERENCE_GROUPS: MasterDataGroup[] = [
   {
     entity: "mdbank",
-    title: "🏦 Bank",
-    label: "Bank",
     items: ["BCA", "Mandiri", "BNI", "BRI", "CIMB Niaga", "Permata"],
   },
   {
     entity: "mdtxntype",
-    title: "↕️ Jenis Transaksi",
-    label: "Jenis Transaksi",
     items: ["Pemasukan", "Pengeluaran", "Transfer", "Kartu Kredit"],
   },
   {
     entity: "mdinvtype",
-    title: "📈 Jenis Investasi",
-    label: "Jenis Investasi",
     items: ["Saham", "Reksa Dana", "Obligasi", "Emas", "Crypto"],
   },
   {
     entity: "mdewallet",
-    title: "💳 E-Wallet",
-    label: "E-Wallet",
     items: ["GoPay", "OVO", "DANA", "LinkAja", "ShopeePay"],
   },
   {
     entity: "mdlembaga",
-    title: "🤲 Lembaga Donasi",
-    label: "Lembaga",
     items: ["BAZNAS", "Dompet Dhuafa", "Gereja / Paroki", "Pura / Vihara"],
   },
   {
     entity: "mdasettype",
-    title: "🏠 Kategori Aset",
-    label: "Kategori Aset",
     items: ["Properti", "Kendaraan", "Elektronik", "Perhiasan"],
   },
   {
     entity: "mdinstype",
-    title: "🛡️ Jenis Asuransi",
-    label: "Jenis Asuransi",
     items: ["Jiwa", "Kesehatan", "Kendaraan", "Properti"],
   },
 ];
 
 export default function MasterDataPage() {
+  const { t } = useLocale();
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId ?? "";
   const token = session?.accessToken;
@@ -138,7 +130,9 @@ export default function MasterDataPage() {
           : g,
       ),
     );
-    toast(`🗑️ ${item} dihapus.`);
+    toast(
+      `${t.masterdata.itemRemovedPrefix}${item}${t.masterdata.itemRemovedSuffix}`,
+    );
   };
 
   function openEditCategory(cat: CategoryDto) {
@@ -164,27 +158,28 @@ export default function MasterDataPage() {
   ) => {
     if (entity !== "mdkategori") {
       // Reference lists have no backend — say so instead of faking success.
-      toast.info(
-        "Daftar referensi ini bawaan sistem — penambahan belum didukung.",
-      );
+      toast.info(t.masterdata.toastReferenceReadOnly);
       return;
     }
     if (!enabled) {
-      toast.error("Sesi tidak valid, silakan login ulang.");
+      toast.error(t.masterdata.toastInvalidSession);
       return;
     }
     const name = values.nama?.trim();
     if (!name) {
-      toast.error("Nama kategori wajib diisi.");
+      toast.error(t.masterdata.toastNameRequired);
       return;
     }
+    // Values matched against the shared, untranslated `crud-config.ts`
+    // `mdkategori.tipe` select options — these stay "Pemasukan"/"Pengeluaran"
+    // regardless of locale (value map, not display copy).
     const kindMap: Record<string, "income" | "expense"> = {
       Pemasukan: "income",
       Pengeluaran: "expense",
     };
     const kind = kindMap[values.tipe];
     if (!kind) {
-      toast.error("Tipe kategori tidak valid.");
+      toast.error(t.masterdata.toastInvalidType);
       return;
     }
     const icon = values.icon || undefined;
@@ -211,14 +206,14 @@ export default function MasterDataPage() {
               }),
             },
           );
-          toast.success("Kategori diperbarui");
+          toast.success(t.masterdata.toastCategoryUpdated);
         } else {
           await apiFetch(`/family-groups/${familyGroupId}/categories`, {
             method: "POST",
             token,
             body: JSON.stringify({ name, kind, icon, isPrivate, ...coaPatch }),
           });
-          toast.success("Kategori ditambahkan");
+          toast.success(t.masterdata.toastCategoryAdded);
         }
         void queryClient.invalidateQueries({
           queryKey: queryKeys.categories.all(familyGroupId),
@@ -226,8 +221,8 @@ export default function MasterDataPage() {
       } catch {
         toast.error(
           mode === "edit"
-            ? "Gagal memperbarui kategori"
-            : "Gagal menambahkan kategori",
+            ? t.masterdata.toastCategoryUpdateFailed
+            : t.masterdata.toastCategoryAddFailed,
         );
       }
     })();
@@ -235,7 +230,7 @@ export default function MasterDataPage() {
 
   const handleCategoryDelete = (cat: CategoryDto) => {
     if (!enabled) {
-      toast.error("Sesi tidak valid, silakan login ulang.");
+      toast.error(t.masterdata.toastInvalidSession);
       return;
     }
     void (async () => {
@@ -244,12 +239,12 @@ export default function MasterDataPage() {
           method: "DELETE",
           token,
         });
-        toast.success("Kategori dihapus");
+        toast.success(t.masterdata.toastCategoryDeleted);
         void queryClient.invalidateQueries({
           queryKey: queryKeys.categories.all(familyGroupId),
         });
       } catch {
-        toast.error("Gagal menghapus kategori");
+        toast.error(t.masterdata.toastCategoryDeleteFailed);
       }
     })();
   };
@@ -260,7 +255,7 @@ export default function MasterDataPage() {
   // "" = let the server pick a default account matching the category kind.
   const coaDynamicOptions = {
     coaAccountId: [
-      { value: "", label: "Otomatis (sesuai tipe)" },
+      { value: "", label: t.masterdata.autoOptionLabel },
       ...coaList.map((a) => ({
         value: a.id,
         label: `${a.code} — ${a.name}`,
@@ -271,20 +266,20 @@ export default function MasterDataPage() {
   return (
     <div>
       <div className="mb-[18px]">
-        <div className="text-[15px] font-bold">🗄️ Setup Master Data</div>
+        <div className="text-[15px] font-bold">{t.masterdata.pageTitle}</div>
         <div className="text-[12px] text-muted-foreground">
-          Kelola data referensi yang dipakai di seluruh aplikasi
+          {t.masterdata.pageSubtitle}
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
         {/* Kategori — backed by the real categories API */}
         <SectionCard
-          title="🏷️ Kategori"
+          title={t.masterdata.categorySectionTitle}
           action={
             <span className="flex items-center gap-3">
               <CardLink onClick={() => router.push("/mastercoa")}>
-                Master COA
+                {t.masterdata.masterCoaLink}
               </CardLink>
               <CardLink
                 onClick={() => {
@@ -292,18 +287,18 @@ export default function MasterDataPage() {
                   setCrud({ entity: "mdkategori", mode: "add" });
                 }}
               >
-                + Tambah
+                {t.masterdata.addLink}
               </CardLink>
             </span>
           }
         >
           {isCategoriesLoading || !enabled ? (
             <div className="py-2 text-[12px] text-muted-foreground">
-              Memuat kategori…
+              {t.masterdata.categoryLoading}
             </div>
           ) : categoryList.length === 0 ? (
             <div className="py-2 text-[12px] text-muted-foreground">
-              Belum ada kategori
+              {t.masterdata.categoryEmpty}
             </div>
           ) : (
             <div className="flex flex-wrap">
@@ -318,7 +313,9 @@ export default function MasterDataPage() {
                   <StatusBadge
                     variant={cat.kind === "income" ? "success" : "info"}
                   >
-                    {cat.kind === "income" ? "Masuk" : "Keluar"}
+                    {cat.kind === "income"
+                      ? t.masterdata.kindIncome
+                      : t.masterdata.kindExpense}
                   </StatusBadge>
                   {coaById.get(cat.coaAccountId) && (
                     <span
@@ -329,11 +326,13 @@ export default function MasterDataPage() {
                     </span>
                   )}
                   {cat.isPrivate && (
-                    <StatusBadge variant="purple">🔒 Privat</StatusBadge>
+                    <StatusBadge variant="purple">
+                      {t.masterdata.privateLabel}
+                    </StatusBadge>
                   )}
                   <button
                     type="button"
-                    aria-label={`Edit ${cat.name}`}
+                    aria-label={`${t.masterdata.editAriaPrefix}${cat.name}`}
                     onClick={() => openEditCategory(cat)}
                     className="inline-flex size-4 items-center justify-center rounded-full text-[11px] leading-none text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
@@ -341,7 +340,7 @@ export default function MasterDataPage() {
                   </button>
                   <button
                     type="button"
-                    aria-label={`Hapus ${cat.name}`}
+                    aria-label={`${t.masterdata.deleteAriaPrefix}${cat.name}`}
                     onClick={() => setPendingCatDelete(cat)}
                     className="inline-flex size-4 items-center justify-center rounded-full text-[15px] leading-none text-muted-foreground transition-colors hover:bg-destructive hover:text-white"
                   >
@@ -357,19 +356,23 @@ export default function MasterDataPage() {
         {groups.map((group) => (
           <SectionCard
             key={group.entity}
-            title={group.title}
+            title={
+              t.masterdata.groups[
+                group.entity as keyof typeof t.masterdata.groups
+              ].title
+            }
             action={
               <CardLink
                 onClick={() => setCrud({ entity: group.entity, mode: "add" })}
               >
-                + Tambah
+                {t.masterdata.addLink}
               </CardLink>
             }
           >
             <div className="flex flex-wrap">
               {group.items.length === 0 ? (
                 <div className="py-2 text-[12px] text-muted-foreground">
-                  Belum ada data
+                  {t.masterdata.groupEmpty}
                 </div>
               ) : (
                 group.items.map((item) => (
@@ -380,10 +383,13 @@ export default function MasterDataPage() {
                     {item}
                     <button
                       type="button"
-                      aria-label={`Hapus ${item}`}
+                      aria-label={`${t.masterdata.deleteAriaPrefix}${item}`}
                       onClick={() =>
                         setPendingDelete({
-                          label: group.label,
+                          label:
+                            t.masterdata.groups[
+                              group.entity as keyof typeof t.masterdata.groups
+                            ].label,
                           entity: group.entity,
                           item,
                         })
@@ -401,9 +407,8 @@ export default function MasterDataPage() {
       </div>
 
       <div className="mt-3.5 rounded-[12px] border border-primary/20 bg-accent p-3.5 text-[12px] text-muted-foreground">
-        <strong>Kategori</strong> tersimpan ke server dan dipakai di transaksi &
-        laporan. Daftar lain (bank, jenis transaksi, dll.) adalah referensi
-        sistem dan dikelola secara lokal.
+        <strong>{t.masterdata.footerBold}</strong>
+        {t.masterdata.footerRest}
       </div>
 
       <CrudModal
@@ -421,7 +426,11 @@ export default function MasterDataPage() {
         }}
       />
       <ConfirmDeleteDialog
-        label={pendingCatDelete ? `kategori "${pendingCatDelete.name}"` : null}
+        label={
+          pendingCatDelete
+            ? `${t.masterdata.categoryDeleteLabelPrefix}${pendingCatDelete.name}${t.masterdata.categoryDeleteLabelSuffix}`
+            : null
+        }
         onClose={() => setPendingCatDelete(null)}
         onConfirm={() => {
           if (pendingCatDelete) handleCategoryDelete(pendingCatDelete);

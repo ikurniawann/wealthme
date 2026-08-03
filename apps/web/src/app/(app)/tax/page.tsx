@@ -460,14 +460,22 @@ export default function TaxPage() {
       {/* Action buttons */}
       <div className="flex flex-wrap gap-2.5">
         <Button
-          onClick={() => toast("🌐 Membuka e-Filing DJP Online...")}
+          render={
+            <a
+              href="https://djponline.pajak.go.id"
+              target="_blank"
+              rel="noopener noreferrer"
+            />
+          }
           className="h-auto min-w-[160px] flex-1 py-2.5"
         >
           <Send className="size-4" /> Lapor SPT Tahunan
         </Button>
         <Button
           variant="outline"
-          onClick={() => toast("📊 Membuat laporan pajak...")}
+          onClick={() =>
+            toast("Unduh ringkasan belum tersedia — fitur ini segera hadir.")
+          }
           className="h-auto min-w-[160px] flex-1 py-2.5"
         >
           <FileText className="size-4" /> Unduh Ringkasan

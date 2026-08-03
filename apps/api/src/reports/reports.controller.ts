@@ -48,6 +48,15 @@ export class ReportsController {
     required: false,
     enum: ["daily", "monthly", "yearly"],
   })
+  @ApiQuery({
+    name: "endDate",
+    required: false,
+    type: String,
+    description:
+      "Anchor date for the trailing-months window (defaults to now). Lets " +
+      "callers re-query the summary trend for a past period, e.g. the last " +
+      "N months ending at a selected month/year.",
+  })
   @ApiOperation({ summary: "Get report summary with period points" })
   @ApiResponse({ status: 200, description: "Report summary data" })
   getSummary(
@@ -55,17 +64,20 @@ export class ReportsController {
     @Req() req: Request,
     @Query("months") months?: string,
     @Query("period") period?: string,
+    @Query("endDate") endDateStr?: string,
   ): Promise<ReportSummaryDto> {
     const raw = parseInt(months ?? "", 10);
     const parsedMonths = Number.isNaN(raw) ? 6 : Math.min(Math.max(raw, 1), 24);
     const safePeriod: ReportPeriod =
       period === "daily" || period === "yearly" ? period : "monthly";
+    const anchor = parseDate(endDateStr, new Date());
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
     return this.reportsService.getSummary(
       familyGroupId,
       safePeriod,
       parsedMonths,
       canSeePrivate,
+      anchor,
     );
   }
 

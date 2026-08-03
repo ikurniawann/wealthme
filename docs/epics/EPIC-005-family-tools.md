@@ -1,6 +1,6 @@
 # EPIC-005: Family & Tools
 
-status: ready-for-qa
+status: done
 environment: dev
 phase: 5
 priority: P1
@@ -90,3 +90,5 @@ donasi/zakat, tax center, multi-mata uang, rekonsiliasi bank, dan halaman Akun/P
 ## Dependencies
 
 - EPIC-001 (RBAC/tenancy, auth), EPIC-002 (transaksi), EPIC-004 (Zakat/PPh untuk Donasi & Tax).
+
+- **2026-08-03/04 — /nerve QA sweep (delegated QA; user confirms from the live system). Evidence: gates green on development@5f2383f (qa/test/security); fresh DEV deploy clean (compose build, migrate+seed exit 0, api/web healthy); e2e vs https://wealthme.demo-wit.id — auth, route-protection, and all page regression specs green (57 passed, 2 flaky passed on serial retry, 0 real failures); code-level criteria verification by 4 parallel QA agents. **Verdict: QA-PASS with deviations. Invitations/members/roles/CASL, split-bill share link, reconciliation pipeline verified. Fixed: invitation e-mail is now actually sent (PR #203, fire-and-forget SendGrid; DTOs restricted to member|admin_staff); gdpr export/delete endpoints now consumed by /akun (PR #201). Deviations accepted: RLS as EPIC-001; StoragePort is a mock with no consumers — every upload surface honestly says 'segera hadir'; WhatsApp reminder is clipboard-copy; FxPort remains an indicative mock (labeled). Status → done.
