@@ -1,24 +1,19 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { CoaBudgetType, CoaDirection } from "@prisma/client";
-import {
-  IsEnum,
-  IsInt,
-  IsOptional,
-  IsString,
-  Length,
-  Max,
-  Min,
-} from "class-validator";
+import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from "class-validator";
 
 export class CreateCoaAccountDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     type: String,
-    description: "5-digit COA code",
+    description:
+      "EPIC-021 #4 — 5-digit COA code (first digit must equal groupNum, " +
+      "e.g. group 2 codes are 2xxxx). Auto-generated as the next free code " +
+      "within the group's range when omitted or blank.",
     example: "20101",
   })
+  @IsOptional()
   @IsString()
-  @Length(5, 5)
-  code!: string;
+  code?: string;
 
   @ApiProperty({ type: String, description: "Account name" })
   @IsString()

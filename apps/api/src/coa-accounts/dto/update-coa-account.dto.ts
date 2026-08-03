@@ -3,6 +3,18 @@ import { CoaBudgetType, CoaDirection } from "@prisma/client";
 import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from "class-validator";
 
 export class UpdateCoaAccountDto {
+  @ApiPropertyOptional({
+    type: String,
+    description:
+      "EPIC-021 #4 — 5-digit COA code. Editable: referentially safe " +
+      "because Category links by coaAccountId (uuid), not code. Must keep " +
+      "first digit == groupNum and stay unique per family group.",
+    example: "20101",
+  })
+  @IsOptional()
+  @IsString()
+  code?: string;
+
   @ApiPropertyOptional({ type: String })
   @IsOptional()
   @IsString()
