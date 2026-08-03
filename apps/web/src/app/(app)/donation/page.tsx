@@ -281,6 +281,9 @@ export default function DonationPage() {
             {formatRupiah(zakat)}
           </div>
           <div className="mt-1.5 text-xs text-muted-foreground">{nisabMsg}</div>
+          <div className="mt-1 text-[11px] text-muted-foreground/80">
+            Nisab indikatif (≈85 gram emas) — bukan harga emas real-time.
+          </div>
         </div>
         <Button
           onClick={() => openModal(true)}

@@ -461,12 +461,10 @@ function BerandaPage() {
         <SectionCard
           title={t.common.cashFlow}
           action={
-            <select className="rounded-md border bg-background px-2 py-[3px] text-[11px] text-muted-foreground outline-none">
-              <option>
-                {cashflow?.months[cashflow.months.length - 1] ?? "—"}{" "}
-                {t.common.latest}
-              </option>
-            </select>
+            <span className="rounded-md border bg-background px-2 py-[3px] text-[11px] text-muted-foreground">
+              {cashflow?.months[cashflow.months.length - 1] ?? "—"}{" "}
+              {t.common.latest}
+            </span>
           }
         >
           <div className="mb-2.5 flex flex-wrap gap-4">
