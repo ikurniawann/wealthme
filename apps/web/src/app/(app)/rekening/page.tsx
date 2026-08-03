@@ -336,6 +336,7 @@ function MintaDanaForm({
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const queryClient = useQueryClient();
 
   async function handleSend() {
     if (!familyGroupId || !token) return;
@@ -354,6 +355,11 @@ function MintaDanaForm({
           amount: parsed,
           note: note || undefined,
         }),
+      });
+      // So the owner's pending-requests panel (/akun) and any other view of
+      // this member's own requests reflect the new request immediately.
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.allowanceRequests.all(familyGroupId),
       });
       toast.success(
         "Permintaan dana terkirim. Menunggu persetujuan pemilik family.",

@@ -448,6 +448,7 @@ model AllowanceRequest {
   decidedByUser   User?                  @relation("AllowanceRequestDecider", fields: [decidedByUserId], references: [id], onDelete: SetNull)
 
   @@index([familyGroupId, status])
+  @@index([requesterUserId])
   @@map("allowance_requests")
 }
 

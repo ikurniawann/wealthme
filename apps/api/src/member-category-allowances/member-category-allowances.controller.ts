@@ -14,6 +14,7 @@ import {
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
+import { Role } from "@prisma/client";
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
@@ -86,7 +87,8 @@ export class MemberCategoryAllowancesController {
   private assertSelfOrOwner(req: Request, memberId: string): void {
     const member = req.tenantContext?.member;
     if (!member) throw new ForbiddenException("Access denied");
-    const isElevated = member.role === "owner" || member.role === "admin_staff";
+    const isElevated =
+      member.role === Role.owner || member.role === Role.admin_staff;
     if (!isElevated && member.id !== memberId) {
       throw new ForbiddenException("Access denied");
     }

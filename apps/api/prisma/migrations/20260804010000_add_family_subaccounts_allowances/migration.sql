@@ -41,6 +41,9 @@ CREATE TABLE "allowance_requests" (
 -- CreateIndex
 CREATE INDEX "allowance_requests_familyGroupId_status_idx" ON "allowance_requests"("familyGroupId", "status");
 
+-- CreateIndex
+CREATE INDEX "allowance_requests_requesterUserId_idx" ON "allowance_requests"("requesterUserId");
+
 -- AddForeignKey
 ALTER TABLE "allowance_requests"
   ADD CONSTRAINT "allowance_requests_familyGroupId_fkey"

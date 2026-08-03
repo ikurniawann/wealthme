@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -120,13 +121,34 @@ export class AllowanceRequestsService {
     return sorted.map((row) => this.toDto(row));
   }
 
+  /**
+   * SECURITY (TOCTOU) — approve() must never execute two real transfers for
+   * the same request. A plain read-then-write (findFirst status check,
+   * followed by a separate update) has a race window: two concurrent
+   * approvals (or an approve racing a reject) can both pass the read check
+   * before either writes, then both proceed to move money.
+   *
+   * Fix: claim-then-transfer. `updateMany({ where: { status: "pending" } })`
+   * is a single atomic SQL statement — Postgres serializes concurrent UPDATEs
+   * on the same row, so at most ONE caller's claim can match `count === 1`.
+   * Every other concurrent caller (whether racing approve or reject) gets
+   * `count === 0` and a 409 immediately, BEFORE any transfer is attempted.
+   *
+   * `transactionsService.create` cannot be run inside this same
+   * `$transaction` (it opens its own internal `$transaction` and does not
+   * accept an injected client), so the claim and the transfer are two
+   * separate statements. If the transfer throws after the claim succeeded,
+   * the claim is compensated back to "pending" so the request is not left
+   * permanently "approved" with no underlying money movement — the owner
+   * (or another owner) can then retry the approval.
+   */
   async approve(
     familyGroupId: string,
     id: string,
     ownerUserId: string,
     dto: ApproveAllowanceRequestDto,
   ): Promise<AllowanceRequestResponseDto> {
-    const request = await this.assertPending(familyGroupId, id);
+    const request = await this.findOrThrow(familyGroupId, id);
 
     if (dto.fromAccountId === request.targetAccountId) {
       throw new BadRequestException(
@@ -140,30 +162,55 @@ export class AllowanceRequestsService {
       throw new NotFoundException(`Account ${dto.fromAccountId} not found`);
     }
 
-    // Reuses the EPIC-021 Group B transfer primitive — same atomic
-    // debit-source/credit-destination path every other transfer takes.
-    // BigInt -> Number: transaction amounts are IDR minor units, always well
-    // within Number.MAX_SAFE_INTEGER in practice (matches the existing
-    // BigInt -> Number conversions elsewhere in this service layer).
-    await this.transactionsService.create(familyGroupId, {
-      accountId: dto.fromAccountId,
-      toAccountId: request.targetAccountId,
-      amount: Number(request.amount),
-      type: "transfer",
-      description: request.note
-        ? `Alokasi dana keluarga — ${request.note}`
-        : "Alokasi dana keluarga",
-      occurredAt: new Date().toISOString(),
-    });
-
-    const updated = await this.prisma.allowanceRequest.update({
-      where: { id },
+    const claim = await this.prisma.allowanceRequest.updateMany({
+      where: { id, familyGroupId, status: "pending" },
       data: {
         status: "approved",
         fromAccountId: dto.fromAccountId,
         decidedAt: new Date(),
         decidedByUserId: ownerUserId,
       },
+    });
+    if (claim.count !== 1) {
+      throw new ConflictException(
+        "This allowance request has already been decided",
+      );
+    }
+
+    try {
+      // Reuses the EPIC-021 Group B transfer primitive — same atomic
+      // debit-source/credit-destination path every other transfer takes.
+      // BigInt -> Number: transaction amounts are IDR minor units, always
+      // well within Number.MAX_SAFE_INTEGER in practice (matches the
+      // existing BigInt -> Number conversions elsewhere in this service).
+      await this.transactionsService.create(familyGroupId, {
+        accountId: dto.fromAccountId,
+        toAccountId: request.targetAccountId,
+        amount: Number(request.amount),
+        type: "transfer",
+        description: request.note
+          ? `Alokasi dana keluarga — ${request.note}`
+          : "Alokasi dana keluarga",
+        occurredAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      // Compensate: the claim already flipped this row to "approved" but no
+      // money actually moved — revert to "pending" so it is not stuck in a
+      // false "approved" state and can be retried.
+      await this.prisma.allowanceRequest.update({
+        where: { id },
+        data: {
+          status: "pending",
+          fromAccountId: null,
+          decidedAt: null,
+          decidedByUserId: null,
+        },
+      });
+      throw err;
+    }
+
+    const updated = await this.prisma.allowanceRequest.findUniqueOrThrow({
+      where: { id },
       include: ALLOWANCE_REQUEST_INCLUDE,
     });
 
@@ -172,16 +219,21 @@ export class AllowanceRequestsService {
     return this.toDto(updated);
   }
 
+  /**
+   * Same conditional-claim guard as approve() — no money moves on reject, but
+   * the status flip must still be atomic so a reject can never race an
+   * approve (or another reject) into a double-decision.
+   */
   async reject(
     familyGroupId: string,
     id: string,
     ownerUserId: string,
     dto: RejectAllowanceRequestDto,
   ): Promise<AllowanceRequestResponseDto> {
-    const request = await this.assertPending(familyGroupId, id);
+    const request = await this.findOrThrow(familyGroupId, id);
 
-    const updated = await this.prisma.allowanceRequest.update({
-      where: { id },
+    const claim = await this.prisma.allowanceRequest.updateMany({
+      where: { id, familyGroupId, status: "pending" },
       data: {
         status: "rejected",
         decidedAt: new Date(),
@@ -192,6 +244,15 @@ export class AllowanceRequestsService {
             : `Ditolak: ${dto.reason}`,
         }),
       },
+    });
+    if (claim.count !== 1) {
+      throw new ConflictException(
+        "This allowance request has already been decided",
+      );
+    }
+
+    const updated = await this.prisma.allowanceRequest.findUniqueOrThrow({
+      where: { id },
       include: ALLOWANCE_REQUEST_INCLUDE,
     });
 
@@ -200,7 +261,7 @@ export class AllowanceRequestsService {
     return this.toDto(updated);
   }
 
-  private async assertPending(
+  private async findOrThrow(
     familyGroupId: string,
     id: string,
   ): Promise<AllowanceRequestRow> {
@@ -209,11 +270,6 @@ export class AllowanceRequestsService {
       include: ALLOWANCE_REQUEST_INCLUDE,
     });
     if (!request) throw new NotFoundException("Allowance request not found");
-    if (request.status !== "pending") {
-      throw new BadRequestException(
-        "Only a pending allowance request can be decided",
-      );
-    }
     return request;
   }
 

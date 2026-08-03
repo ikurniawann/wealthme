@@ -2072,9 +2072,20 @@ function AllowanceRequestsPanel({
 
   async function invalidate() {
     if (!familyGroupId) return;
-    await queryClient.invalidateQueries({
-      queryKey: queryKeys.allowanceRequests.all(familyGroupId),
-    });
+    // Approval moves real money (EPIC-021 Group B transfer primitive), so
+    // accounts (balances) and transactions (the new transfer row) must be
+    // refetched alongside the request list itself — not just the requests.
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.allowanceRequests.all(familyGroupId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accounts.all(familyGroupId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.transactions.all(familyGroupId),
+      }),
+    ]);
   }
 
   async function handleReject(request: AllowanceRequestDto) {

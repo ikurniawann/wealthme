@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
 } from "@nestjs/common";
@@ -24,7 +25,11 @@ function makePrisma() {
       create: jest.fn(),
       findMany: jest.fn(),
       findFirst: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
       update: jest.fn(),
+      // SECURITY (TOCTOU) — the atomic claim guard; defaults to "claimed"
+      // (count: 1) so tests that don't care about the race still pass.
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     notification: { create: jest.fn() },
   };
@@ -231,6 +236,17 @@ describe("AllowanceRequestsService", () => {
       decidedByUserId: null,
     };
 
+    function mockApprovedResult() {
+      prisma.allowanceRequest.findUniqueOrThrow.mockResolvedValue({
+        ...pendingRequest,
+        status: "approved",
+        fromAccountId: MASTER_ACCOUNT_ID,
+        decidedAt: new Date(),
+        decidedByUserId: OWNER_USER_ID,
+        targetAccount: { name: "Rekening Anak" },
+      });
+    }
+
     it("throws NotFoundException when the request does not exist", async () => {
       prisma.allowanceRequest.findFirst.mockResolvedValue(null);
 
@@ -239,19 +255,6 @@ describe("AllowanceRequestsService", () => {
           fromAccountId: MASTER_ACCOUNT_ID,
         }),
       ).rejects.toThrow(NotFoundException);
-    });
-
-    it("rejects deciding an already-decided request", async () => {
-      prisma.allowanceRequest.findFirst.mockResolvedValue({
-        ...pendingRequest,
-        status: "approved",
-      });
-
-      await expect(
-        service.approve(FAMILY_GROUP_ID, REQUEST_ID, OWNER_USER_ID, {
-          fromAccountId: MASTER_ACCOUNT_ID,
-        }),
-      ).rejects.toThrow(BadRequestException);
     });
 
     it("rejects a source account that matches the target account", async () => {
@@ -263,6 +266,19 @@ describe("AllowanceRequestsService", () => {
         }),
       ).rejects.toThrow(BadRequestException);
       expect(transactionsService.create).not.toHaveBeenCalled();
+      expect(prisma.allowanceRequest.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("throws NotFoundException when the chosen source account does not exist", async () => {
+      prisma.allowanceRequest.findFirst.mockResolvedValue(pendingRequest);
+      prisma.account.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.approve(FAMILY_GROUP_ID, REQUEST_ID, OWNER_USER_ID, {
+          fromAccountId: MASTER_ACCOUNT_ID,
+        }),
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.allowanceRequest.updateMany).not.toHaveBeenCalled();
     });
 
     it("executes a REAL transfer via TransactionsService and marks the request approved", async () => {
@@ -271,14 +287,8 @@ describe("AllowanceRequestsService", () => {
         id: MASTER_ACCOUNT_ID,
         familyGroupId: FAMILY_GROUP_ID,
       });
-      prisma.allowanceRequest.update.mockResolvedValue({
-        ...pendingRequest,
-        status: "approved",
-        fromAccountId: MASTER_ACCOUNT_ID,
-        decidedAt: new Date(),
-        decidedByUserId: OWNER_USER_ID,
-        targetAccount: { name: "Rekening Anak" },
-      });
+      prisma.allowanceRequest.updateMany.mockResolvedValue({ count: 1 });
+      mockApprovedResult();
 
       const result = await service.approve(
         FAMILY_GROUP_ID,
@@ -287,6 +297,20 @@ describe("AllowanceRequestsService", () => {
         { fromAccountId: MASTER_ACCOUNT_ID },
       );
 
+      // Claim happens BEFORE the transfer — atomic guard against a
+      // concurrent decision, not a plain read-then-write.
+      expect(prisma.allowanceRequest.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: REQUEST_ID,
+          familyGroupId: FAMILY_GROUP_ID,
+          status: "pending",
+        },
+        data: expect.objectContaining({
+          status: "approved",
+          fromAccountId: MASTER_ACCOUNT_ID,
+          decidedByUserId: OWNER_USER_ID,
+        }),
+      });
       expect(transactionsService.create).toHaveBeenCalledWith(
         FAMILY_GROUP_ID,
         expect.objectContaining({
@@ -296,18 +320,80 @@ describe("AllowanceRequestsService", () => {
           type: "transfer",
         }),
       );
-      expect(prisma.allowanceRequest.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: REQUEST_ID },
-          data: expect.objectContaining({
-            status: "approved",
-            fromAccountId: MASTER_ACCOUNT_ID,
-            decidedByUserId: OWNER_USER_ID,
-          }),
-        }),
-      );
       expect(prisma.notification.create).toHaveBeenCalled();
       expect(result.status).toBe("approved");
+    });
+
+    // SECURITY (CRITICAL, TOCTOU) — double-approve must never execute two
+    // real transfers. The atomic claim (updateMany WHERE status="pending")
+    // is what prevents it: the second caller's claim matches zero rows.
+    it("double-approve: the second concurrent approve gets 409 and never transfers", async () => {
+      prisma.allowanceRequest.findFirst.mockResolvedValue(pendingRequest);
+      prisma.account.findUnique.mockResolvedValue({
+        id: MASTER_ACCOUNT_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+      });
+      // Simulates the row having already been claimed by a concurrent
+      // approve() by the time THIS caller's updateMany runs.
+      prisma.allowanceRequest.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        service.approve(FAMILY_GROUP_ID, REQUEST_ID, OWNER_USER_ID, {
+          fromAccountId: MASTER_ACCOUNT_ID,
+        }),
+      ).rejects.toThrow(ConflictException);
+      expect(transactionsService.create).not.toHaveBeenCalled();
+    });
+
+    // SECURITY (CRITICAL, TOCTOU) — an approve racing a reject (or vice
+    // versa) must be mutually exclusive via the same claim guard.
+    it("approve-vs-reject race: a claim that finds the row already decided gets 409", async () => {
+      prisma.allowanceRequest.findFirst.mockResolvedValue(pendingRequest);
+      prisma.account.findUnique.mockResolvedValue({
+        id: MASTER_ACCOUNT_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+      });
+      // The row was rejected by a concurrent caller a moment earlier —
+      // status is no longer "pending", so this claim matches 0 rows.
+      prisma.allowanceRequest.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        service.approve(FAMILY_GROUP_ID, REQUEST_ID, OWNER_USER_ID, {
+          fromAccountId: MASTER_ACCOUNT_ID,
+        }),
+      ).rejects.toThrow(ConflictException);
+      expect(transactionsService.create).not.toHaveBeenCalled();
+      expect(prisma.allowanceRequest.update).not.toHaveBeenCalled();
+    });
+
+    // SECURITY (CRITICAL) — if the transfer itself fails AFTER the claim
+    // succeeded, the request must not be left stuck "approved" with no
+    // actual money movement; it is compensated back to "pending".
+    it("reverts the claim back to pending when the transfer fails", async () => {
+      prisma.allowanceRequest.findFirst.mockResolvedValue(pendingRequest);
+      prisma.account.findUnique.mockResolvedValue({
+        id: MASTER_ACCOUNT_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+      });
+      prisma.allowanceRequest.updateMany.mockResolvedValue({ count: 1 });
+      const transferError = new Error("insufficient funds");
+      transactionsService.create.mockRejectedValue(transferError);
+
+      await expect(
+        service.approve(FAMILY_GROUP_ID, REQUEST_ID, OWNER_USER_ID, {
+          fromAccountId: MASTER_ACCOUNT_ID,
+        }),
+      ).rejects.toThrow(transferError);
+
+      expect(prisma.allowanceRequest.update).toHaveBeenCalledWith({
+        where: { id: REQUEST_ID },
+        data: {
+          status: "pending",
+          fromAccountId: null,
+          decidedAt: null,
+          decidedByUserId: null,
+        },
+      });
     });
   });
 
@@ -326,20 +412,30 @@ describe("AllowanceRequestsService", () => {
       decidedByUserId: null,
     };
 
-    it("rejects deciding an already-decided request", async () => {
-      prisma.allowanceRequest.findFirst.mockResolvedValue({
-        ...pendingRequest,
-        status: "rejected",
-      });
+    it("throws NotFoundException when the request does not exist", async () => {
+      prisma.allowanceRequest.findFirst.mockResolvedValue(null);
 
       await expect(
         service.reject(FAMILY_GROUP_ID, REQUEST_ID, OWNER_USER_ID, {}),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    // SECURITY (CRITICAL, TOCTOU) — same atomic-claim guard as approve();
+    // a double-reject (or a reject racing an approve) must 409, not silently
+    // overwrite the decision.
+    it("double-decide: a claim that finds the row already decided gets 409", async () => {
+      prisma.allowanceRequest.findFirst.mockResolvedValue(pendingRequest);
+      prisma.allowanceRequest.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        service.reject(FAMILY_GROUP_ID, REQUEST_ID, OWNER_USER_ID, {}),
+      ).rejects.toThrow(ConflictException);
     });
 
     it("marks the request rejected without touching account balances", async () => {
       prisma.allowanceRequest.findFirst.mockResolvedValue(pendingRequest);
-      prisma.allowanceRequest.update.mockResolvedValue({
+      prisma.allowanceRequest.updateMany.mockResolvedValue({ count: 1 });
+      prisma.allowanceRequest.findUniqueOrThrow.mockResolvedValue({
         ...pendingRequest,
         status: "rejected",
         decidedAt: new Date(),
@@ -355,14 +451,17 @@ describe("AllowanceRequestsService", () => {
       );
 
       expect(transactionsService.create).not.toHaveBeenCalled();
-      expect(prisma.allowanceRequest.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            status: "rejected",
-            decidedByUserId: OWNER_USER_ID,
-          }),
+      expect(prisma.allowanceRequest.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: REQUEST_ID,
+          familyGroupId: FAMILY_GROUP_ID,
+          status: "pending",
+        },
+        data: expect.objectContaining({
+          status: "rejected",
+          decidedByUserId: OWNER_USER_ID,
         }),
-      );
+      });
       expect(prisma.notification.create).toHaveBeenCalled();
       expect(result.status).toBe("rejected");
     });
