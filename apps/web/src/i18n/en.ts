@@ -211,9 +211,8 @@ export const en = {
       placeholder: "Search transactions, accounts, menu...",
       dialogTitle: "Search",
       financialResultsHeader: "Results from Financial Data",
-      pagesHeader: "Pages",
-      quickAccessHeader: "Quick Access",
       noResultsFor: "No results for",
+      typeToSearchHint: "Type at least 2 characters to search",
     },
   },
   akun: {

@@ -66,10 +66,6 @@ export class DashboardService {
       where: { familyGroupId, ...accountPrivacyWhere(canSeePrivate) },
       select: { balance: true, type: true, name: true },
     });
-    const accountsBalanceBigInt = accounts.reduce(
-      (sum, a) => sum + a.balance,
-      0n,
-    );
 
     const assetsList = await this.prisma.asset.findMany({
       where: { familyGroupId },
@@ -81,7 +77,13 @@ export class DashboardService {
     );
     const assetsTotal = Number(assetsTotalBigInt);
 
-    const netWorth = Number(accountsBalanceBigInt) + assetsTotal;
+    // Full rollup (accounts + investments + assets − liabilities), matching
+    // the /net-worth endpoint — not just accounts + assets.
+    const netWorthBreakdown = await this.computeNetWorthBreakdown(
+      familyGroupId,
+      canSeePrivate,
+    );
+    const netWorth = Number(netWorthBreakdown.netWorth);
 
     const byType = new Map<string, number>();
     for (const a of accounts) {
@@ -259,17 +261,24 @@ export class DashboardService {
     });
     const totalAssets = assets.reduce((sum, a) => sum + a.currentValue, 0n);
 
+    // EPIC-QA-sweep #2: value at the latest recorded price (nested `prices`
+    // take-1 per investment), falling back to cost basis only when no price
+    // row exists yet. Same valuation basis as investments.service, minus its
+    // market-data refresh — the dashboard only reads already-stored prices.
     const investments = await this.prisma.investment.findMany({
       where: { familyGroupId },
-      select: { quantity: true, costBasisPerUnit: true },
+      select: {
+        quantity: true,
+        costBasisPerUnit: true,
+        prices: { orderBy: { recordedAt: "desc" }, take: 1 },
+      },
     });
     const totalInvestments = BigInt(
       Math.round(
-        investments.reduce(
-          (sum, inv) =>
-            sum + inv.quantity.toNumber() * inv.costBasisPerUnit.toNumber(),
-          0,
-        ),
+        investments.reduce((sum, inv) => {
+          const price = inv.prices[0]?.price ?? inv.costBasisPerUnit;
+          return sum + inv.quantity.toNumber() * price.toNumber();
+        }, 0),
       ),
     );
 
@@ -311,38 +320,42 @@ export class DashboardService {
 
   /**
    * Capture one net-worth snapshot for a family group. Idempotent per calendar
-   * day: if a snapshot already exists for today this is a no-op, so re-running
-   * the daily job never produces duplicate rows. Returns true when a row is
-   * written.
+   * day via an atomic upsert on the (familyGroupId, date) unique index — this
+   * closes the check-then-insert race that could otherwise let two concurrent
+   * callers both pass a "does it exist?" read and each insert a duplicate row
+   * for the same day. Returns true when a NEW row is written (an existing
+   * day's snapshot is left untouched, not overwritten).
    */
   async captureSnapshot(
     familyGroupId: string,
     now: Date = new Date(),
   ): Promise<boolean> {
+    // UTC day boundary — must match the migration backfill ("capturedAt"::date,
+    // a UTC-based cast) or the unique (familyGroupId, date) key would mislabel
+    // snapshots by one day on non-UTC deployments.
     const startOfDay = new Date(now);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const existing = await this.prisma.netWorthSnapshot.findFirst({
-      where: { familyGroupId, capturedAt: { gte: startOfDay } },
-      select: { id: true },
-    });
-    if (existing) return false;
+    startOfDay.setUTCHours(0, 0, 0, 0);
 
     // Snapshots are family-wide totals with no per-viewer dimension — always
     // compute over the full account set, regardless of privacy flags.
     const b = await this.computeNetWorthBreakdown(familyGroupId, true);
-    await this.prisma.netWorthSnapshot.create({
-      data: {
+    const snapshot = await this.prisma.netWorthSnapshot.upsert({
+      where: { familyGroupId_date: { familyGroupId, date: startOfDay } },
+      create: {
         familyGroupId,
         capturedAt: now,
+        date: startOfDay,
         totalCash: b.totalCash,
         totalInvestments: b.totalInvestments,
         totalAssets: b.totalAssets,
         totalLiabilities: b.totalLiabilities,
         netWorth: b.netWorth,
       },
+      // A snapshot already exists for today — no-op; the upsert only exists
+      // to make the check-then-write atomic, not to overwrite today's totals.
+      update: {},
     });
-    return true;
+    return snapshot.capturedAt.getTime() === now.getTime();
   }
 
   /** Capture a snapshot for every family group (driven by the daily scheduler). */

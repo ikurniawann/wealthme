@@ -1,6 +1,6 @@
 # EPIC-017: Master COA Integration — Real Chart-of-Accounts Backbone
 
-status: ready-for-qa
+status: done
 environment: dev
 retries: 0
 phase: 4
@@ -389,3 +389,5 @@ CoaAccount` direction (new `txCoaDirection` helper); category-less tx fall back
   the dashboard figure. Full report delivered to the user
   (QA-EPIC-017-report.md) with a 2-minute UI checklist; human flip to `done`
   pending.
+
+- **2026-08-03/04 — /nerve QA sweep (delegated QA; user confirms from the live system). Evidence: gates green on development@5f2383f (qa/test/security); fresh DEV deploy clean (compose build, migrate+seed exit 0, api/web healthy); e2e vs https://wealthme.demo-wit.id — auth, route-protection, and all page regression specs green (57 passed, 2 flaky passed on serial retry, 0 real failures); code-level criteria verification by 4 parallel QA agents. **Verdict: QA-PASS after remediation. NOT-NULL FK + self-healing backfill migration, server-truth mapping UX, COA-driven Ringkasan/PNL/Arus Kas/Sankey + dashboard, honest /mastercoa cards — all verified; DEV deploy done and e2e green. Fixed in PR #203: getBankReport/getDetailReport still classified by tx.type — now share txCoaDirection, closing the REPLACE parity gap across /laporan tabs. Accepted deviations: category picker defaults to 'Otomatis (sesuai tipe)' (NOT NULL invariant holds server-side; deliberate UX); Neraca stays balance-based per the recorded design note. Report numbers shifting vs pre-COA is expected (Decision #1) — visible for user confirmation in the live system. Status → done.
