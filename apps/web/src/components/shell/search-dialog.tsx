@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowUpDown,
   BarChart3,
@@ -26,7 +26,6 @@ import { useSession } from "@/lib/auth-compat";
 
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { apiFetch } from "@/lib/api-client";
-import { SEARCH_DATA } from "@/lib/data";
 import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
 import { useShell } from "./shell-context";
@@ -67,7 +66,9 @@ export function SearchDialog() {
   const { t } = useLocale();
   const [query, setQuery] = useState("");
 
-  const debouncedQuery = useDebounce(query, 300);
+  // Trim before debouncing so the fetch gate and the render gates below
+  // agree on what counts as a >=2-char query (" a" must not fetch).
+  const debouncedQuery = useDebounce(query.trim(), 300);
 
   const familyGroupId = session?.familyGroupId;
   const token = session?.accessToken;
@@ -101,25 +102,20 @@ export function SearchDialog() {
     return () => document.removeEventListener("keydown", handler);
   }, [setSearchOpen]);
 
-  const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return null;
-    return SEARCH_DATA.filter(
-      (d) =>
-        d.label.toLowerCase().includes(q) || d.sub.toLowerCase().includes(q),
-    );
-  }, [query]);
-
   const go = (href: string) => {
     setSearchOpen(false);
     router.push(href);
   };
 
+  const trimmedQuery = query.trim();
+  const meetsMinLength = trimmedQuery.length >= 2;
   const apiResults = searchData?.results ?? [];
-  const showApi = debouncedQuery.length >= 2 && apiResults.length > 0;
-  const hasQuery = query.trim().length > 0;
+  const showApi = meetsMinLength && apiResults.length > 0;
+  // Only declare "no results" once the debounce has settled on the current
+  // query — avoids a flash of the empty state mid-keystroke.
   const showNoResults =
-    hasQuery && !showApi && matches !== null && matches.length === 0;
+    meetsMinLength && debouncedQuery === trimmedQuery && !showApi;
+  const showHint = !meetsMinLength;
 
   return (
     <Dialog open={searchOpen} onOpenChange={handleOpenChange}>
@@ -171,69 +167,10 @@ export function SearchDialog() {
               })}
             </>
           )}
-          {matches !== null && matches.length > 0 && (
-            <>
-              <div className="px-[18px] pt-1 pb-1.5 text-[10.5px] font-bold uppercase tracking-[0.8px] text-muted-foreground">
-                {t.shell.searchDialog.pagesHeader}
-              </div>
-              {matches.map((d) => {
-                const Icon = ICONS[d.icon] ?? Home;
-                return (
-                  <button
-                    key={d.href}
-                    onClick={() => go(d.href)}
-                    className="flex w-full items-center gap-3 px-[18px] py-2.5 text-left transition-colors hover:bg-secondary"
-                  >
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary">
-                      <Icon
-                        className="size-[15px]"
-                        style={{ color: d.color }}
-                      />
-                    </span>
-                    <span>
-                      <span className="block text-[13px] font-semibold">
-                        {d.label}
-                      </span>
-                      <span className="block text-[11px] text-muted-foreground">
-                        {d.sub}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </>
-          )}
-          {!hasQuery && (
-            <>
-              <div className="px-[18px] pt-1 pb-1.5 text-[10.5px] font-bold uppercase tracking-[0.8px] text-muted-foreground">
-                {t.shell.searchDialog.quickAccessHeader}
-              </div>
-              {SEARCH_DATA.slice(0, 8).map((d) => {
-                const Icon = ICONS[d.icon] ?? Home;
-                return (
-                  <button
-                    key={d.href}
-                    onClick={() => go(d.href)}
-                    className="flex w-full items-center gap-3 px-[18px] py-2.5 text-left transition-colors hover:bg-secondary"
-                  >
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary">
-                      <Icon
-                        className="size-[15px]"
-                        style={{ color: d.color }}
-                      />
-                    </span>
-                    <span>
-                      <span className="block text-[13px] font-semibold">
-                        {d.label}
-                      </span>
-                      <span className="block text-[11px] text-muted-foreground">
-                        {d.sub}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </>
+          {showHint && (
+            <div className="px-7 py-7 text-center text-[13px] text-muted-foreground">
+              {t.shell.searchDialog.typeToSearchHint}
+            </div>
           )}
           {showNoResults && (
             <div className="px-7 py-7 text-center text-[13px] text-muted-foreground">

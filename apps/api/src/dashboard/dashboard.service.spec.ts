@@ -1,4 +1,5 @@
 import { Test, type TestingModule } from "@nestjs/testing";
+import { Decimal } from "@prisma/client/runtime/library";
 
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -33,6 +34,13 @@ interface FakeTransaction {
   createdAt: Date;
 }
 
+interface FakeInvestment {
+  quantity: Decimal;
+  costBasisPerUnit: Decimal;
+  // Empty array simulates "no price row yet" (cost-basis fallback).
+  prices: { price: Decimal }[];
+}
+
 /**
  * A minimal in-memory Prisma stand-in that actually honors the `isPrivate`
  * and transitive account/category `where` filters the service builds, so
@@ -43,6 +51,7 @@ function makeFakePrisma(
   accounts: FakeAccount[],
   categories: FakeCategory[],
   transactions: FakeTransaction[],
+  investments: FakeInvestment[] = [],
 ) {
   const accountById = new Map(accounts.map((a) => [a.id, a]));
   const categoryById = new Map(categories.map((c) => [c.id, c]));
@@ -58,11 +67,12 @@ function makeFakePrisma(
       }),
     },
     asset: { findMany: jest.fn(() => Promise.resolve([])) },
-    investment: { findMany: jest.fn(() => Promise.resolve([])) },
+    investment: { findMany: jest.fn(() => Promise.resolve(investments)) },
     liability: { findMany: jest.fn(() => Promise.resolve([])) },
     netWorthSnapshot: {
-      findFirst: jest.fn(() => Promise.resolve(null)),
-      create: jest.fn((args: { data: unknown }) => Promise.resolve(args.data)),
+      upsert: jest.fn(({ create }: { create: Record<string, unknown> }) =>
+        Promise.resolve(create),
+      ),
     },
     transaction: {
       findMany: jest.fn(
@@ -263,12 +273,83 @@ describe("DashboardService privacy enforcement", () => {
   });
 
   it("captureSnapshot always sums the full account set regardless of privacy flags", async () => {
-    await service.captureSnapshot(FAMILY_GROUP_ID, new Date());
+    const now = new Date();
+    const written = await service.captureSnapshot(FAMILY_GROUP_ID, now);
 
-    expect(prisma.netWorthSnapshot.create).toHaveBeenCalledWith(
+    expect(written).toBe(true);
+    expect(prisma.netWorthSnapshot.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ totalCash: 600n }),
+        where: expect.objectContaining({
+          familyGroupId_date: expect.objectContaining({
+            familyGroupId: FAMILY_GROUP_ID,
+          }),
+        }),
+        create: expect.objectContaining({ totalCash: 600n }),
       }),
     );
+  });
+
+  it("captureSnapshot upserts atomically instead of check-then-insert (no double-write)", async () => {
+    // Simulate "a snapshot already exists for today": upsert's `update: {}`
+    // no-op path returns the existing row untouched (capturedAt from the
+    // original capture, not the new call's `now`).
+    const originalCapturedAt = new Date("2026-01-01T00:00:00.000Z");
+    prisma.netWorthSnapshot.upsert.mockResolvedValueOnce({
+      capturedAt: originalCapturedAt,
+    });
+
+    const written = await service.captureSnapshot(
+      FAMILY_GROUP_ID,
+      new Date("2026-01-01T18:00:00.000Z"),
+    );
+
+    expect(written).toBe(false);
+  });
+});
+
+describe("DashboardService investment valuation (EPIC-QA-sweep #2)", () => {
+  it("getNetWorth values a holding at its latest recorded price, not cost basis", async () => {
+    const investments: FakeInvestment[] = [
+      {
+        quantity: new Decimal("10"),
+        costBasisPerUnit: new Decimal("9500"),
+        prices: [{ price: new Decimal("10000") }],
+      },
+    ];
+    const prisma = makeFakePrisma([], [], [], investments);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        DashboardService,
+        { provide: PrismaService, useValue: prisma },
+      ],
+    }).compile();
+    const service = module.get<DashboardService>(DashboardService);
+
+    const netWorth = await service.getNetWorth(FAMILY_GROUP_ID, true);
+
+    // 10 * 10,000 (latest price) = 100,000 — NOT 10 * 9,500 (cost basis) = 95,000.
+    expect(netWorth.investmentsTotal).toBe("100000");
+  });
+
+  it("getNetWorth falls back to cost basis when an investment has no price row yet", async () => {
+    const investments: FakeInvestment[] = [
+      {
+        quantity: new Decimal("5"),
+        costBasisPerUnit: new Decimal("2000"),
+        prices: [],
+      },
+    ];
+    const prisma = makeFakePrisma([], [], [], investments);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        DashboardService,
+        { provide: PrismaService, useValue: prisma },
+      ],
+    }).compile();
+    const service = module.get<DashboardService>(DashboardService);
+
+    const netWorth = await service.getNetWorth(FAMILY_GROUP_ID, true);
+
+    expect(netWorth.investmentsTotal).toBe("10000"); // 5 * 2,000 fallback
   });
 });
