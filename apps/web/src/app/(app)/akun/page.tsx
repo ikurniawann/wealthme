@@ -43,6 +43,9 @@ import {
   Scale,
   UserPlus,
   UserCog,
+  Target,
+  Check,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -51,7 +54,12 @@ import { SectionCard, StatusBadge } from "@/components/wm";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Accordion,
   AccordionItem,
@@ -59,7 +67,12 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 
-import type { AccountDto } from "@wealthme/contracts";
+import type {
+  AccountDto,
+  AllowanceRequestDto,
+  CategoryDto,
+  MemberCategoryAllowanceDto,
+} from "@wealthme/contracts";
 
 type SubPageId =
   | "profil"
@@ -1694,6 +1707,8 @@ function FamilyBody({
   group,
   members,
   myUserId,
+  familyGroupId,
+  token,
 }: {
   onAddAdmin: () => void;
   onInviteMember: () => void;
@@ -1703,10 +1718,15 @@ function FamilyBody({
   group: FamilyGroupMine | null;
   members: FamilyMember[];
   myUserId: string;
+  familyGroupId: string | null;
+  token: string | undefined;
 }) {
   const { t } = useLocale();
   const regularMembers = members.filter((m) => m.role !== "admin_staff");
   const adminMembers = members.filter((m) => m.role === "admin_staff");
+  const isOwner = group?.myRole === "owner";
+  const [categoryLimitMember, setCategoryLimitMember] =
+    useState<FamilyMember | null>(null);
 
   return (
     <>
@@ -1753,9 +1773,23 @@ function FamilyBody({
             }
             sub={`${m.role} · ${m.email}`}
             right={
-              m.userId !== myUserId ? (
-                <StatusBadge variant="gray">{m.role}</StatusBadge>
-              ) : undefined
+              <div className="flex items-center gap-1.5">
+                {m.userId !== myUserId && (
+                  <StatusBadge variant="gray">{m.role}</StatusBadge>
+                )}
+                {/* EPIC-019 Task C — only a `member` (never owner/admin_staff,
+                    which are always exempt server-side) can be constrained. */}
+                {isOwner && m.role === "member" && (
+                  <button
+                    type="button"
+                    aria-label={`${t.akun.family.categoryLimitButton} ${m.name}`}
+                    className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    onClick={() => setCategoryLimitMember(m)}
+                  >
+                    <Target className="size-4" />
+                  </button>
+                )}
+              </div>
             }
           />
         ))}
@@ -1824,6 +1858,426 @@ function FamilyBody({
           ]}
         />
       </SetSection>
+      {/* EPIC-019 Task B/D — owner-only pending funding requests. */}
+      {isOwner && (
+        <AllowanceRequestsPanel familyGroupId={familyGroupId} token={token} />
+      )}
+      <CategoryLimitDialog
+        member={categoryLimitMember}
+        familyGroupId={familyGroupId}
+        token={token}
+        onClose={() => setCategoryLimitMember(null)}
+      />
+    </>
+  );
+}
+
+/* ──────────── Category limit dialog (EPIC-019 Task C) ──────────── */
+
+function CategoryLimitDialog({
+  member,
+  familyGroupId,
+  token,
+  onClose,
+}: {
+  member: FamilyMember | null;
+  familyGroupId: string | null;
+  token: string | undefined;
+  onClose: () => void;
+}) {
+  const { t } = useLocale();
+
+  const { data: categories } = useQuery<CategoryDto[]>({
+    queryKey: [...queryKeys.categories.all(familyGroupId ?? ""), "expense"],
+    queryFn: () =>
+      apiFetch<CategoryDto[]>(
+        `/family-groups/${familyGroupId}/categories?kind=expense`,
+        { token },
+      ),
+    enabled: !!token && !!familyGroupId && !!member,
+  });
+
+  const { data: current, isLoading: currentLoading } =
+    useQuery<MemberCategoryAllowanceDto>({
+      queryKey: queryKeys.memberCategoryAllowances.detail(
+        familyGroupId ?? "",
+        member?.id ?? "",
+      ),
+      queryFn: () =>
+        apiFetch<MemberCategoryAllowanceDto>(
+          `/family-groups/${familyGroupId}/members/${member?.id}/category-allowances`,
+          { token },
+        ),
+      enabled: !!token && !!familyGroupId && !!member,
+    });
+
+  return (
+    <Dialog open={!!member} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[80vh] max-w-[420px] overflow-y-auto p-6 sm:max-w-[420px]">
+        <DialogHeader>
+          <DialogTitle className="text-[15px] font-bold">
+            {t.akun.family.categoryLimitDialogTitle}
+            {member ? ` — ${member.name}` : ""}
+          </DialogTitle>
+        </DialogHeader>
+        {/* Keyed by member id (not an effect) so the checkbox selection
+            resets/re-seeds whenever a different member's dialog opens; only
+            rendered once `current` has loaded so the initial selection is
+            seeded correctly on first render. */}
+        {member && familyGroupId && !currentLoading && (
+          <CategoryLimitForm
+            key={member.id}
+            member={member}
+            familyGroupId={familyGroupId}
+            token={token}
+            categories={categories ?? []}
+            initialSelectedIds={(current?.categories ?? []).map((c) => c.id)}
+            onClose={onClose}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CategoryLimitForm({
+  member,
+  familyGroupId,
+  token,
+  categories,
+  initialSelectedIds,
+  onClose,
+}: {
+  member: FamilyMember;
+  familyGroupId: string;
+  token: string | undefined;
+  categories: CategoryDto[];
+  initialSelectedIds: string[];
+  onClose: () => void;
+}) {
+  const { t } = useLocale();
+  const queryClient = useQueryClient();
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set(initialSelectedIds),
+  );
+  const [isSaving, setIsSaving] = useState(false);
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleSave() {
+    if (!token) return;
+    setIsSaving(true);
+    try {
+      await apiFetch(
+        `/family-groups/${familyGroupId}/members/${member.id}/category-allowances`,
+        {
+          token,
+          method: "PUT",
+          body: JSON.stringify({ categoryIds: Array.from(selected) }),
+        },
+      );
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.memberCategoryAllowances.detail(
+          familyGroupId,
+          member.id,
+        ),
+      });
+      toast.success(t.akun.family.categoryLimitSaved);
+      onClose();
+    } catch {
+      toast.error(t.akun.family.categoryLimitSaveFailed);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="mb-3 text-[12px] text-muted-foreground">
+        {t.akun.family.categoryLimitDialogDesc}
+      </div>
+      {categories.length === 0 ? (
+        <div className="rounded-md border border-dashed p-4 text-center text-[12px] text-muted-foreground">
+          {t.akun.family.categoryLimitEmptyCategories}
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {categories.map((c) => (
+            <label
+              key={c.id}
+              className="flex cursor-pointer items-center gap-2.5 rounded-md border px-3 py-2 text-[13px] hover:bg-accent"
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(c.id)}
+                onChange={() => toggle(c.id)}
+                className="size-4 accent-primary"
+              />
+              <span>
+                {c.icon ? `${c.icon} ` : ""}
+                {c.name}
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
+      {selected.size === 0 && categories.length > 0 && (
+        <div className="mt-2 text-[11.5px] text-muted-foreground">
+          {t.akun.family.categoryLimitUnrestrictedHint}
+        </div>
+      )}
+      <button
+        disabled={isSaving}
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-60"
+        onClick={handleSave}
+      >
+        <Save className="size-4" />{" "}
+        {isSaving
+          ? t.akun.family.categoryLimitSaving
+          : t.akun.family.categoryLimitSaveButton}
+      </button>
+    </>
+  );
+}
+
+/* ──────────── Allowance requests panel (EPIC-019 Task B/D) ──────────── */
+
+function AllowanceRequestsPanel({
+  familyGroupId,
+  token,
+}: {
+  familyGroupId: string | null;
+  token: string | undefined;
+}) {
+  const { t } = useLocale();
+  const queryClient = useQueryClient();
+  const [approving, setApproving] = useState<AllowanceRequestDto | null>(null);
+
+  const { data: requests } = useQuery<AllowanceRequestDto[]>({
+    queryKey: queryKeys.allowanceRequests.all(familyGroupId ?? ""),
+    queryFn: () =>
+      apiFetch<AllowanceRequestDto[]>(
+        `/family-groups/${familyGroupId}/allowance-requests`,
+        { token },
+      ),
+    enabled: !!token && !!familyGroupId,
+  });
+
+  async function invalidate() {
+    if (!familyGroupId) return;
+    // Approval moves real money (EPIC-021 Group B transfer primitive), so
+    // accounts (balances) and transactions (the new transfer row) must be
+    // refetched alongside the request list itself — not just the requests.
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.allowanceRequests.all(familyGroupId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accounts.all(familyGroupId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.transactions.all(familyGroupId),
+      }),
+    ]);
+  }
+
+  async function handleReject(request: AllowanceRequestDto) {
+    if (!familyGroupId || !token) return;
+    try {
+      await apiFetch(
+        `/family-groups/${familyGroupId}/allowance-requests/${request.id}/reject`,
+        { token, method: "PATCH", body: JSON.stringify({}) },
+      );
+      toast.success(t.akun.family.allowanceRequestRejected);
+      await invalidate();
+    } catch {
+      toast.error(t.akun.family.allowanceRequestRejectFailed);
+    }
+  }
+
+  const pending = (requests ?? []).filter((r) => r.status === "pending");
+
+  return (
+    <SetSection>
+      <SectionTitle>
+        {t.akun.family.allowanceRequestsSectionTitle} ({pending.length})
+      </SectionTitle>
+      {pending.length === 0 && (
+        <div className="py-3 text-[12px] text-muted-foreground">
+          {t.akun.family.allowanceRequestsEmpty}
+        </div>
+      )}
+      {pending.map((r) => (
+        <div
+          key={r.id}
+          className="flex items-center gap-3 border-b py-3 last:border-b-0"
+        >
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13px] font-bold">
+              {r.requesterName} → {r.targetAccountName}
+            </div>
+            <div className="mt-0.5 text-[12px] text-muted-foreground">
+              {formatRupiah(Number(r.amount))}
+              {r.note ? ` · ${r.note}` : ""}
+            </div>
+          </div>
+          <StatusBadge variant="warning" className="text-[10px]">
+            {t.akun.family.allowanceRequestPendingBadge}
+          </StatusBadge>
+          <button
+            type="button"
+            aria-label={t.akun.family.allowanceRequestApproveButton}
+            className="flex size-7 shrink-0 items-center justify-center rounded-md bg-success-soft text-success"
+            onClick={() => setApproving(r)}
+          >
+            <Check className="size-4" />
+          </button>
+          <button
+            type="button"
+            aria-label={t.akun.family.allowanceRequestRejectButton}
+            className="flex size-7 shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive"
+            onClick={() => handleReject(r)}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      ))}
+      <ApproveRequestDialog
+        request={approving}
+        familyGroupId={familyGroupId}
+        token={token}
+        onClose={() => setApproving(null)}
+        onApproved={invalidate}
+      />
+    </SetSection>
+  );
+}
+
+function ApproveRequestDialog({
+  request,
+  familyGroupId,
+  token,
+  onClose,
+  onApproved,
+}: {
+  request: AllowanceRequestDto | null;
+  familyGroupId: string | null;
+  token: string | undefined;
+  onClose: () => void;
+  onApproved: () => Promise<void>;
+}) {
+  const { t } = useLocale();
+
+  const { data: accounts } = useQuery<AccountDto[]>({
+    queryKey: queryKeys.accounts.all(familyGroupId ?? ""),
+    queryFn: () =>
+      apiFetch<AccountDto[]>(`/family-groups/${familyGroupId}/accounts`, {
+        token,
+      }),
+    enabled: !!token && !!familyGroupId && !!request,
+  });
+
+  return (
+    <Dialog open={!!request} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-[420px] p-6 sm:max-w-[420px]">
+        <DialogHeader>
+          <DialogTitle className="text-[15px] font-bold">
+            {t.akun.family.allowanceRequestApproveDialogTitle}
+          </DialogTitle>
+        </DialogHeader>
+        {/* Keyed by request id (not an effect) so the source-account
+            selection resets whenever a different request is being approved. */}
+        {request && familyGroupId && (
+          <ApproveRequestForm
+            key={request.id}
+            request={request}
+            familyGroupId={familyGroupId}
+            token={token}
+            eligibleAccounts={(accounts ?? []).filter(
+              (a) => a.id !== request.targetAccountId,
+            )}
+            onClose={onClose}
+            onApproved={onApproved}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ApproveRequestForm({
+  request,
+  familyGroupId,
+  token,
+  eligibleAccounts,
+  onClose,
+  onApproved,
+}: {
+  request: AllowanceRequestDto;
+  familyGroupId: string;
+  token: string | undefined;
+  eligibleAccounts: AccountDto[];
+  onClose: () => void;
+  onApproved: () => Promise<void>;
+}) {
+  const { t } = useLocale();
+  const [fromAccountId, setFromAccountId] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  async function handleApprove() {
+    if (!token || !fromAccountId) return;
+    setIsSaving(true);
+    try {
+      await apiFetch(
+        `/family-groups/${familyGroupId}/allowance-requests/${request.id}/approve`,
+        { token, method: "PATCH", body: JSON.stringify({ fromAccountId }) },
+      );
+      toast.success(t.akun.family.allowanceRequestApproved);
+      await onApproved();
+      onClose();
+    } catch {
+      toast.error(t.akun.family.allowanceRequestApproveFailed);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="mb-3 text-[12px] text-muted-foreground">
+        {request.requesterName} — {formatRupiah(Number(request.amount))} →{" "}
+        {request.targetAccountName}
+      </div>
+      <label className="mb-1.5 block text-[12px] font-semibold text-muted-foreground">
+        {t.akun.family.allowanceRequestSourceAccountLabel}
+      </label>
+      <select
+        className={FIELD_CLASS}
+        value={fromAccountId}
+        onChange={(e) => setFromAccountId(e.target.value)}
+      >
+        <option value="">—</option>
+        {eligibleAccounts.map((a) => (
+          <option key={a.id} value={a.id}>
+            {a.name} ({formatRupiah(Number(a.balance))})
+          </option>
+        ))}
+      </select>
+      <button
+        disabled={isSaving || !fromAccountId}
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-60"
+        onClick={handleApprove}
+      >
+        <Check className="size-4" />{" "}
+        {isSaving ? "..." : t.akun.family.allowanceRequestApproveButton}
+      </button>
     </>
   );
 }
@@ -2166,6 +2620,8 @@ export default function AkunPage() {
             group={primaryGroup}
             members={familyMembers ?? []}
             myUserId={myUserId}
+            familyGroupId={familyGroupId}
+            token={token}
             onAddAdmin={() => {
               closeSheet();
               setAddAdminOpen(true);

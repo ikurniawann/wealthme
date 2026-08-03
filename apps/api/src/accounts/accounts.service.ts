@@ -1,11 +1,15 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 
-import { accountPrivacyWhere } from "../common/utils/privacy.util";
+import {
+  accountOwnerWhere,
+  accountPrivacyWhere,
+} from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CryptoService } from "../crypto/crypto.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -13,6 +17,7 @@ import { PrismaService } from "../prisma/prisma.service";
 
 import type { AccountResponseDto } from "./dto/account-response.dto";
 import type { CreateAccountDto } from "./dto/create-account.dto";
+import type { AccountOwnerFilter } from "./dto/list-accounts-query.dto";
 import type { UpdateAccountDto } from "./dto/update-account.dto";
 
 @Injectable()
@@ -29,9 +34,16 @@ export class AccountsService {
   async findAll(
     familyGroupId: string,
     canSeePrivate = true,
+    ownerFilter?: AccountOwnerFilter,
+    requestingUserId?: string,
   ): Promise<AccountResponseDto[]> {
     const accounts = await this.prisma.account.findMany({
-      where: { familyGroupId, ...accountPrivacyWhere(canSeePrivate) },
+      where: {
+        familyGroupId,
+        ...accountPrivacyWhere(canSeePrivate),
+        ...accountOwnerWhere(ownerFilter, requestingUserId),
+      },
+      include: { owner: { select: { name: true } } },
       orderBy: { createdAt: "asc" },
     });
     return accounts.map((a) => this.toDto(a));
@@ -48,6 +60,7 @@ export class AccountsService {
       // typed as `string`, not a Prisma filter) instead of the broader
       // `AccountWhereInput` shape `accountPrivacyWhere` uses.
       where: { ...accountPrivacyWhere(canSeePrivate), id, familyGroupId },
+      include: { owner: { select: { name: true } } },
     });
     if (!account) {
       throw new NotFoundException("Account not found");
@@ -59,6 +72,10 @@ export class AccountsService {
     familyGroupId: string,
     dto: CreateAccountDto,
   ): Promise<AccountResponseDto> {
+    if (dto.ownerUserId) {
+      await this.assertOwnerIsFamilyMember(familyGroupId, dto.ownerUserId);
+    }
+
     const account = await this.prisma.account.create({
       data: {
         familyGroupId,
@@ -71,7 +88,9 @@ export class AccountsService {
         balance: BigInt(dto.balance),
         currency: dto.currency ?? "IDR",
         isPrivate: dto.isPrivate ?? false,
+        ownerUserId: dto.ownerUserId ?? null,
       },
+      include: { owner: { select: { name: true } } },
     });
     return this.toDto(account);
   }
@@ -88,6 +107,14 @@ export class AccountsService {
       throw new NotFoundException("Account not found");
     }
 
+    // `undefined` = leave ownership unchanged; `null` = explicit clear back
+    // to family-shared; any other string = reassign (validated below against
+    // Member so an owner can never point an account at a cross-tenant or
+    // non-member user id).
+    if (dto.ownerUserId) {
+      await this.assertOwnerIsFamilyMember(familyGroupId, dto.ownerUserId);
+    }
+
     const updated = await this.prisma.account.update({
       where: { id, familyGroupId },
       data: {
@@ -100,9 +127,33 @@ export class AccountsService {
         ...(dto.balance !== undefined && { balance: BigInt(dto.balance) }),
         ...(dto.currency !== undefined && { currency: dto.currency }),
         ...(dto.isPrivate !== undefined && { isPrivate: dto.isPrivate }),
+        ...(dto.ownerUserId !== undefined && {
+          ownerUserId: dto.ownerUserId,
+        }),
       },
+      include: { owner: { select: { name: true } } },
     });
     return this.toDto(updated);
+  }
+
+  /**
+   * EPIC-019 Task A — an account's owner must be a Member of the SAME family
+   * group; rejects cross-tenant user ids and users who exist but never
+   * joined this family (a plain `User.findUnique` would miss both cases).
+   */
+  private async assertOwnerIsFamilyMember(
+    familyGroupId: string,
+    ownerUserId: string,
+  ): Promise<void> {
+    const member = await this.prisma.member.findUnique({
+      where: { userId_familyGroupId: { userId: ownerUserId, familyGroupId } },
+      select: { id: true },
+    });
+    if (!member) {
+      throw new BadRequestException(
+        "ownerUserId must belong to a member of this family group",
+      );
+    }
   }
 
   async remove(familyGroupId: string, id: string): Promise<void> {
@@ -170,6 +221,8 @@ export class AccountsService {
     balance: bigint;
     currency: string;
     isPrivate: boolean;
+    ownerUserId: string | null;
+    owner?: { name: string } | null;
     createdAt: Date;
     updatedAt: Date;
   }): AccountResponseDto {
@@ -185,6 +238,8 @@ export class AccountsService {
       balance: account.balance.toString(),
       currency: account.currency,
       isPrivate: account.isPrivate,
+      ownerUserId: account.ownerUserId,
+      ownerName: account.owner?.name ?? null,
       createdAt: account.createdAt.toISOString(),
       updatedAt: account.updatedAt.toISOString(),
     };

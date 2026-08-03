@@ -508,6 +508,33 @@ export const id = {
       showBalanceToMembersSub: "Anggota bisa lihat total saldo bersama",
       memberTxnNotifLabel: "Notif Transaksi Anggota",
       memberTxnNotifSub: "Terima notif transaksi dari anggota lain",
+      // EPIC-019 Task C — per-member expense category allow-list.
+      categoryLimitButton: "Batasi Kategori",
+      categoryLimitDialogTitle: "Batasi Kategori",
+      categoryLimitDialogDesc:
+        "Pilih kategori pengeluaran yang boleh dicatat anggota ini. Kosongkan semua untuk tidak membatasi (default).",
+      categoryLimitEmptyCategories:
+        "Belum ada kategori pengeluaran. Tambahkan dulu di halaman Transaksi.",
+      categoryLimitUnrestrictedHint:
+        "Tidak dibatasi — semua kategori diizinkan",
+      categoryLimitSaveButton: "Simpan Batasan",
+      categoryLimitSaving: "Menyimpan...",
+      categoryLimitSaved: "Batasan kategori berhasil disimpan.",
+      categoryLimitSaveFailed: "Gagal menyimpan batasan kategori. Coba lagi.",
+      // EPIC-019 Task B/D — owner-side pending funding requests.
+      allowanceRequestsSectionTitle: "Permintaan Dana",
+      allowanceRequestsEmpty: "Belum ada permintaan dana.",
+      allowanceRequestPendingBadge: "Menunggu",
+      allowanceRequestApproveButton: "Setujui",
+      allowanceRequestRejectButton: "Tolak",
+      allowanceRequestApproveDialogTitle: "Setujui Permintaan Dana",
+      allowanceRequestSourceAccountLabel: "Sumber Dana",
+      allowanceRequestApproved:
+        "Permintaan dana disetujui — dana telah ditransfer.",
+      allowanceRequestApproveFailed:
+        "Gagal menyetujui permintaan dana. Coba lagi.",
+      allowanceRequestRejected: "Permintaan dana ditolak.",
+      allowanceRequestRejectFailed: "Gagal menolak permintaan dana. Coba lagi.",
     },
     addAdmin: {
       dialogTitle: "Tambah Admin / Staf",
@@ -1401,6 +1428,26 @@ export const id = {
     toastSaveFailed: "Gagal menyimpan rekening. Coba lagi.",
     toastDeleted: "Rekening berhasil dihapus.",
     toastDeleteFailed: "Gagal menghapus rekening. Coba lagi.",
+    // EPIC-019 Task A — per-member account ownership.
+    ownerSelectFamilyLabel: "Keluarga (bersama)",
+    ownerMineBadge: "👤 Milik Saya",
+    ownerBadgePrefix: "👤 ",
+    ownerUnknownLabel: "Anggota",
+    filterAllLabel: "Semua",
+    filterMineLabel: "👤 Milik saya",
+    emptyMineState: "Belum ada rekening yang menjadi milikmu.",
+    // EPIC-019 Task B/D — member-request -> owner-approve funding.
+    mintaDanaButtonLabel: "Minta Dana",
+    mintaDanaDialogTitle: "Minta Dana",
+    mintaDanaAmountLabel: "Jumlah",
+    mintaDanaAmountInvalidToast: "Masukkan jumlah yang valid.",
+    mintaDanaNoteLabel: "Catatan (opsional)",
+    mintaDanaNotePlaceholder: "cth: uang jajan bulan ini",
+    mintaDanaSubmitButton: "Kirim Permintaan",
+    mintaDanaSubmitting: "Mengirim...",
+    mintaDanaSuccessToast:
+      "Permintaan dana terkirim. Menunggu persetujuan pemilik family.",
+    mintaDanaFailToast: "Gagal mengirim permintaan dana. Coba lagi.",
   },
   donation: {
     typeLabels: {

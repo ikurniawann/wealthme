@@ -82,6 +82,8 @@ function buildAccount(overrides: Partial<AccountDto> = {}): AccountDto {
     balance: "500000",
     currency: "IDR",
     isPrivate: false,
+    ownerUserId: null,
+    ownerName: null,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     ...overrides,

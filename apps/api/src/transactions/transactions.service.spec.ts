@@ -21,6 +21,11 @@ function makePrisma() {
     category: { findUnique: jest.fn(), findMany: jest.fn() },
     budget: { findFirst: jest.fn() },
     member: { findFirst: jest.fn() },
+    // EPIC-019 Task C — resolveAllowedCategoryIds() reads this only when an
+    // actingMember with role "member" is passed; defaults to an empty
+    // allow-list (unrestricted) so every pre-existing test that never passes
+    // actingMember keeps working unmodified.
+    memberCategoryAllowance: { findMany: jest.fn().mockResolvedValue([]) },
     notification: { findFirst: jest.fn(), create: jest.fn() },
     transaction: {
       create: jest.fn(),
@@ -170,6 +175,201 @@ describe("TransactionsService", () => {
 
       expect(result.type).toBe("income");
       expect(result.amount).toBe("5000000");
+    });
+  });
+
+  describe("category allow-list enforcement (EPIC-019 Task C)", () => {
+    const now = new Date("2026-06-15T10:00:00.000Z");
+    const ALLOWED_CATEGORY_ID = "cat-belanja";
+    const DISALLOWED_CATEGORY_ID = "cat-hiburan";
+    const MEMBER_ID = "member-pembantu";
+
+    function mockCreateSucceeds(categoryId: string | null) {
+      const createdTx = {
+        id: "tx-uuid-allowlist",
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        categoryId,
+        amount: BigInt(20000),
+        type: "expense" as const,
+        description: "Belanja",
+        occurredAt: now,
+        createdAt: now,
+      };
+      prisma.$transaction.mockImplementation(
+        async (fn: Parameters<typeof prisma.$transaction>[0]) => {
+          const innerPrisma = {
+            ...prisma,
+            transaction: {
+              ...prisma.transaction,
+              create: jest.fn().mockResolvedValue(createdTx),
+            },
+          };
+          return (fn as (p: typeof innerPrisma) => Promise<unknown>)(
+            innerPrisma,
+          );
+        },
+      );
+    }
+
+    beforeEach(() => {
+      prisma.account.findUnique.mockResolvedValue(mockAccount);
+      prisma.category.findUnique.mockResolvedValue({
+        id: ALLOWED_CATEGORY_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+      });
+    });
+
+    it("rejects an expense in a disallowed category for a constrained member", async () => {
+      prisma.memberCategoryAllowance.findMany.mockResolvedValue([
+        { categoryId: ALLOWED_CATEGORY_ID },
+      ]);
+      prisma.category.findUnique.mockResolvedValue({
+        id: DISALLOWED_CATEGORY_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+      });
+
+      await expect(
+        service.create(
+          FAMILY_GROUP_ID,
+          {
+            accountId: ACCOUNT_ID,
+            categoryId: DISALLOWED_CATEGORY_ID,
+            amount: 20000,
+            type: "expense",
+            occurredAt: now.toISOString(),
+          },
+          { id: MEMBER_ID, role: "member" },
+        ),
+      ).rejects.toThrow(/tidak diizinkan/);
+    });
+
+    it("rejects an uncategorized expense for a constrained member (must pick an allowed category)", async () => {
+      prisma.memberCategoryAllowance.findMany.mockResolvedValue([
+        { categoryId: ALLOWED_CATEGORY_ID },
+      ]);
+
+      await expect(
+        service.create(
+          FAMILY_GROUP_ID,
+          {
+            accountId: ACCOUNT_ID,
+            amount: 20000,
+            type: "expense",
+            occurredAt: now.toISOString(),
+          },
+          { id: MEMBER_ID, role: "member" },
+        ),
+      ).rejects.toThrow(/tidak diizinkan/);
+    });
+
+    it("allows an expense in an allowed category for a constrained member", async () => {
+      prisma.memberCategoryAllowance.findMany.mockResolvedValue([
+        { categoryId: ALLOWED_CATEGORY_ID },
+      ]);
+      mockCreateSucceeds(ALLOWED_CATEGORY_ID);
+
+      const result = await service.create(
+        FAMILY_GROUP_ID,
+        {
+          accountId: ACCOUNT_ID,
+          categoryId: ALLOWED_CATEGORY_ID,
+          amount: 20000,
+          type: "expense",
+          occurredAt: now.toISOString(),
+        },
+        { id: MEMBER_ID, role: "member" },
+      );
+
+      expect(result.categoryId).toBe(ALLOWED_CATEGORY_ID);
+    });
+
+    it("stays unrestricted for a member with an empty allow-list (backward compatible)", async () => {
+      prisma.memberCategoryAllowance.findMany.mockResolvedValue([]);
+      mockCreateSucceeds(ALLOWED_CATEGORY_ID);
+
+      const result = await service.create(
+        FAMILY_GROUP_ID,
+        {
+          accountId: ACCOUNT_ID,
+          categoryId: ALLOWED_CATEGORY_ID,
+          amount: 20000,
+          type: "expense",
+          occurredAt: now.toISOString(),
+        },
+        { id: MEMBER_ID, role: "member" },
+      );
+
+      expect(result.categoryId).toBe(ALLOWED_CATEGORY_ID);
+    });
+
+    it("exempts an owner even if a MemberCategoryAllowance row exists for them", async () => {
+      prisma.category.findUnique.mockResolvedValue({
+        id: DISALLOWED_CATEGORY_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+      });
+      mockCreateSucceeds(DISALLOWED_CATEGORY_ID);
+
+      const result = await service.create(
+        FAMILY_GROUP_ID,
+        {
+          accountId: ACCOUNT_ID,
+          categoryId: DISALLOWED_CATEGORY_ID,
+          amount: 20000,
+          type: "expense",
+          occurredAt: now.toISOString(),
+        },
+        { id: "member-owner", role: "owner" },
+      );
+
+      // Owner is exempt — resolveAllowedCategoryIds() never even queries the
+      // allow-list table for a non-"member" role.
+      expect(prisma.memberCategoryAllowance.findMany).not.toHaveBeenCalled();
+      expect(result.categoryId).toBe(DISALLOWED_CATEGORY_ID);
+    });
+
+    it("does not constrain income transactions even for a constrained member", async () => {
+      prisma.memberCategoryAllowance.findMany.mockResolvedValue([
+        { categoryId: ALLOWED_CATEGORY_ID },
+      ]);
+      const createdTx = {
+        id: "tx-income-allowlist",
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        categoryId: null,
+        amount: BigInt(20000),
+        type: "income" as const,
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      };
+      prisma.$transaction.mockImplementation(
+        async (fn: Parameters<typeof prisma.$transaction>[0]) => {
+          const innerPrisma = {
+            ...prisma,
+            transaction: {
+              ...prisma.transaction,
+              create: jest.fn().mockResolvedValue(createdTx),
+            },
+          };
+          return (fn as (p: typeof innerPrisma) => Promise<unknown>)(
+            innerPrisma,
+          );
+        },
+      );
+
+      const result = await service.create(
+        FAMILY_GROUP_ID,
+        {
+          accountId: ACCOUNT_ID,
+          amount: 20000,
+          type: "income",
+          occurredAt: now.toISOString(),
+        },
+        { id: MEMBER_ID, role: "member" },
+      );
+
+      expect(result.type).toBe("income");
     });
   });
 
@@ -685,6 +885,91 @@ describe("TransactionsService", () => {
         }),
       ).rejects.toThrow(BadRequestException);
       expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("update() category allow-list enforcement (EPIC-019 Task C)", () => {
+    const now = new Date("2026-06-15T10:00:00.000Z");
+    const ALLOWED_CATEGORY_ID = "cat-belanja";
+    const DISALLOWED_CATEGORY_ID = "cat-hiburan";
+    const MEMBER_ID = "member-pembantu";
+
+    it("rejects a PATCH that changes type to expense while the EFFECTIVE category is disallowed", async () => {
+      // Existing row is a "transfer" (unconstrained); the patch only changes
+      // `type`, so `categoryId` comes from the EXISTING row, not the payload —
+      // the effective-state check must still catch this.
+      prisma.transaction.findUnique.mockResolvedValue({
+        id: "tx-upd",
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        toAccountId: null,
+        categoryId: DISALLOWED_CATEGORY_ID,
+        amount: BigInt(20000),
+        type: "transfer",
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      });
+      prisma.memberCategoryAllowance.findMany.mockResolvedValue([
+        { categoryId: ALLOWED_CATEGORY_ID },
+      ]);
+
+      await expect(
+        service.update(
+          FAMILY_GROUP_ID,
+          "tx-upd",
+          { type: "expense" },
+          { id: MEMBER_ID, role: "member" },
+        ),
+      ).rejects.toThrow(/tidak diizinkan/);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("allows a PATCH to an allowed category for a constrained member", async () => {
+      prisma.transaction.findUnique.mockResolvedValue({
+        id: "tx-upd",
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        toAccountId: null,
+        categoryId: DISALLOWED_CATEGORY_ID,
+        amount: BigInt(20000),
+        type: "expense",
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      });
+      prisma.category.findUnique.mockResolvedValue({
+        id: ALLOWED_CATEGORY_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+      });
+      prisma.memberCategoryAllowance.findMany.mockResolvedValue([
+        { categoryId: ALLOWED_CATEGORY_ID },
+      ]);
+      prisma.transaction.update.mockResolvedValue({
+        id: "tx-upd",
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        toAccountId: null,
+        categoryId: ALLOWED_CATEGORY_ID,
+        amount: BigInt(20000),
+        type: "expense",
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      });
+      prisma.$transaction.mockImplementation(
+        async (fn: Parameters<typeof prisma.$transaction>[0]) =>
+          (fn as (p: typeof prisma) => Promise<unknown>)(prisma),
+      );
+
+      const result = await service.update(
+        FAMILY_GROUP_ID,
+        "tx-upd",
+        { categoryId: ALLOWED_CATEGORY_ID },
+        { id: MEMBER_ID, role: "member" },
+      );
+
+      expect(result.categoryId).toBe(ALLOWED_CATEGORY_ID);
     });
   });
 

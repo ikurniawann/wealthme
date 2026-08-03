@@ -6,6 +6,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
   MaxLength,
   Min,
@@ -68,4 +69,13 @@ export class CreateAccountDto {
   @IsOptional()
   @IsBoolean()
   isPrivate?: boolean;
+
+  @ApiPropertyOptional({
+    type: String,
+    description:
+      "EPIC-019 Task A — owning member's user id (must be a Member of the same family group). Omit or leave unset for a family-shared account.",
+  })
+  @IsOptional()
+  @IsUUID()
+  ownerUserId?: string;
 }
