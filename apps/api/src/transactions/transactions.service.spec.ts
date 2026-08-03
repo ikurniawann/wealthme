@@ -1,4 +1,4 @@
-import { NotFoundException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 
 import { CATEGORIZATION_PORT } from "../categorization/categorization.port";
@@ -10,8 +10,10 @@ import { TransactionsService } from "./transactions.service";
 
 const FAMILY_GROUP_ID = "fg-test-uuid";
 const ACCOUNT_ID = "acc-test-uuid";
+const TO_ACCOUNT_ID = "acc-dest-uuid";
 
 const mockAccount = { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID };
+const mockToAccount = { id: TO_ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID };
 
 function makePrisma() {
   return {
@@ -25,10 +27,20 @@ function makePrisma() {
       findMany: jest.fn(),
       count: jest.fn(),
       findUnique: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
       aggregate: jest.fn(),
     },
     $transaction: jest.fn(),
   };
+}
+
+/** Resolves the account matching `where.id`, or null (cross-tenant / not found). */
+function findUniqueAccountByWhereId(
+  ...accounts: { id: string; familyGroupId: string }[]
+) {
+  return ({ where }: { where: { id: string } }) =>
+    Promise.resolve(accounts.find((a) => a.id === where.id) ?? null);
 }
 
 describe("TransactionsService", () => {
@@ -158,6 +170,521 @@ describe("TransactionsService", () => {
 
       expect(result.type).toBe("income");
       expect(result.amount).toBe("5000000");
+    });
+  });
+
+  describe("real transfers (EPIC-021 Group B #23/#27/#28)", () => {
+    const now = new Date("2026-06-15T10:00:00.000Z");
+
+    function mockTransferCreate(overrides: Record<string, unknown> = {}) {
+      const createdTx = {
+        id: "tx-transfer-1",
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        toAccountId: TO_ACCOUNT_ID,
+        categoryId: null,
+        amount: BigInt(200000),
+        type: "transfer" as const,
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+        ...overrides,
+      };
+      const createMock = jest.fn().mockResolvedValue(createdTx);
+      prisma.$transaction.mockImplementation(
+        async (fn: Parameters<typeof prisma.$transaction>[0]) => {
+          const innerPrisma = {
+            ...prisma,
+            transaction: { ...prisma.transaction, create: createMock },
+          };
+          return (fn as (p: typeof innerPrisma) => Promise<unknown>)(
+            innerPrisma,
+          );
+        },
+      );
+      return createMock;
+    }
+
+    it("moves both balances atomically and returns toAccountId/toAccountName", async () => {
+      prisma.account.findUnique.mockImplementation(
+        findUniqueAccountByWhereId(mockAccount, mockToAccount),
+      );
+      mockTransferCreate({
+        toAccount: { name: "Dompet Digital" },
+        account: { name: "BCA" },
+      });
+
+      const result = await service.create(FAMILY_GROUP_ID, {
+        accountId: ACCOUNT_ID,
+        toAccountId: TO_ACCOUNT_ID,
+        amount: 200000,
+        type: "transfer",
+        occurredAt: now.toISOString(),
+      });
+
+      expect(result.toAccountId).toBe(TO_ACCOUNT_ID);
+      expect(result.toAccountName).toBe("Dompet Digital");
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(-200000) } },
+      });
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: TO_ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(200000) } },
+      });
+    });
+
+    it("rejects a destination account from a different family group", async () => {
+      prisma.account.findUnique.mockImplementation(
+        findUniqueAccountByWhereId(mockAccount), // only the source resolves
+      );
+
+      await expect(
+        service.create(FAMILY_GROUP_ID, {
+          accountId: ACCOUNT_ID,
+          toAccountId: "acc-other-tenant",
+          amount: 50000,
+          type: "transfer",
+          occurredAt: now.toISOString(),
+        }),
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.account.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects when destination equals source account", async () => {
+      prisma.account.findUnique.mockResolvedValue(mockAccount);
+
+      await expect(
+        service.create(FAMILY_GROUP_ID, {
+          accountId: ACCOUNT_ID,
+          toAccountId: ACCOUNT_ID,
+          amount: 50000,
+          type: "transfer",
+          occurredAt: now.toISOString(),
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.account.update).not.toHaveBeenCalled();
+    });
+
+    it("creates the linked admin-fee expense on the destination account (#28)", async () => {
+      prisma.account.findUnique.mockImplementation(
+        findUniqueAccountByWhereId(mockAccount, mockToAccount),
+      );
+      const createMock = mockTransferCreate();
+
+      await service.create(FAMILY_GROUP_ID, {
+        accountId: ACCOUNT_ID,
+        toAccountId: TO_ACCOUNT_ID,
+        amount: 200000,
+        adminFee: 2500,
+        type: "transfer",
+        occurredAt: now.toISOString(),
+      });
+
+      // 1st call creates the transfer row itself, 2nd creates the fee expense.
+      expect(createMock).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          data: expect.objectContaining({
+            familyGroupId: FAMILY_GROUP_ID,
+            accountId: TO_ACCOUNT_ID,
+            type: "expense",
+            amount: BigInt(2500),
+            description: "Biaya admin top-up",
+          }),
+        }),
+      );
+      // Destination is credited the full transfer amount, then separately
+      // debited the fee — both calls must be present.
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: TO_ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(200000) } },
+      });
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: TO_ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(-2500) } },
+      });
+    });
+
+    it("rejects adminFee without a toAccountId", async () => {
+      prisma.account.findUnique.mockResolvedValue(mockAccount);
+
+      await expect(
+        service.create(FAMILY_GROUP_ID, {
+          accountId: ACCOUNT_ID,
+          amount: 200000,
+          adminFee: 2500,
+          type: "expense",
+          occurredAt: now.toISOString(),
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("leaves legacy one-sided transfers (no toAccountId) unaffected", async () => {
+      prisma.account.findUnique.mockResolvedValue(mockAccount);
+      mockTransferCreate({ toAccountId: null, amount: BigInt(75000) });
+
+      const result = await service.create(FAMILY_GROUP_ID, {
+        accountId: ACCOUNT_ID,
+        amount: 75000,
+        type: "transfer",
+        occurredAt: now.toISOString(),
+      });
+
+      expect(result.toAccountId).toBeNull();
+      expect(result.toAccountName).toBeNull();
+      expect(prisma.account.update).toHaveBeenCalledTimes(1);
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(-75000) } },
+      });
+    });
+
+    it("remove() reverses BOTH sides of a two-sided transfer", async () => {
+      prisma.transaction.findUnique.mockResolvedValue({
+        id: "tx-transfer-1",
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        toAccountId: TO_ACCOUNT_ID,
+        categoryId: null,
+        amount: BigInt(200000),
+        type: "transfer",
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      });
+      prisma.$transaction.mockImplementation(
+        async (fn: Parameters<typeof prisma.$transaction>[0]) =>
+          (fn as (p: typeof prisma) => Promise<unknown>)(prisma),
+      );
+
+      await service.remove(FAMILY_GROUP_ID, "tx-transfer-1");
+
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(200000) } },
+      });
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: TO_ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(-200000) } },
+      });
+      expect(prisma.transaction.delete).toHaveBeenCalledWith({
+        where: { id: "tx-transfer-1" },
+      });
+    });
+  });
+
+  describe("update() transfer permutations (EPIC-021 Group B)", () => {
+    const now = new Date("2026-06-15T10:00:00.000Z");
+    const NEW_SOURCE_ID = "acc-new-source-uuid";
+    const NEW_DEST_ID = "acc-new-dest-uuid";
+
+    function mockUpdateTransaction(overrides: Record<string, unknown> = {}) {
+      prisma.transaction.update.mockResolvedValue({
+        id: "tx-upd",
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        toAccountId: null,
+        categoryId: null,
+        amount: BigInt(0),
+        type: "expense",
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+        ...overrides,
+      });
+      prisma.$transaction.mockImplementation(
+        async (fn: Parameters<typeof prisma.$transaction>[0]) =>
+          (fn as (p: typeof prisma) => Promise<unknown>)(prisma),
+      );
+    }
+
+    it("transfer -> expense: reverts the destination leg and clears toAccountId", async () => {
+      prisma.transaction.findUnique.mockResolvedValue({
+        id: "tx-upd",
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        toAccountId: TO_ACCOUNT_ID,
+        categoryId: null,
+        amount: BigInt(200000),
+        type: "transfer",
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      });
+      mockUpdateTransaction({ type: "expense", toAccountId: null });
+
+      const result = await service.update(FAMILY_GROUP_ID, "tx-upd", {
+        type: "expense",
+      });
+
+      expect(result.toAccountId).toBeNull();
+      // Revert: source debit reverted (+), destination credit reverted (-).
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(200000) } },
+      });
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: TO_ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(-200000) } },
+      });
+      // Reapply as a plain expense: single debit on the source only.
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(-200000) } },
+      });
+      expect(prisma.transaction.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ type: "expense", toAccountId: null }),
+        }),
+      );
+    });
+
+    it("expense -> transfer: applies both legs", async () => {
+      prisma.transaction.findUnique.mockResolvedValue({
+        id: "tx-upd",
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        toAccountId: null,
+        categoryId: null,
+        amount: BigInt(50000),
+        type: "expense",
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      });
+      prisma.account.findUnique.mockImplementation(
+        findUniqueAccountByWhereId(mockAccount, mockToAccount),
+      );
+      mockUpdateTransaction({ type: "transfer", toAccountId: TO_ACCOUNT_ID });
+
+      await service.update(FAMILY_GROUP_ID, "tx-upd", {
+        type: "transfer",
+        toAccountId: TO_ACCOUNT_ID,
+      });
+
+      // Revert the old plain-expense debit.
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(50000) } },
+      });
+      // Apply the new transfer: debit source, credit destination.
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(-50000) } },
+      });
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: TO_ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(50000) } },
+      });
+    });
+
+    it("amount change on an existing transfer: both legs adjusted", async () => {
+      prisma.transaction.findUnique.mockResolvedValue({
+        id: "tx-upd",
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        toAccountId: TO_ACCOUNT_ID,
+        categoryId: null,
+        amount: BigInt(100000),
+        type: "transfer",
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      });
+      mockUpdateTransaction({ amount: BigInt(150000) });
+
+      await service.update(FAMILY_GROUP_ID, "tx-upd", { amount: 150000 });
+
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(100000) } },
+      });
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: TO_ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(-100000) } },
+      });
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(-150000) } },
+      });
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: TO_ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(150000) } },
+      });
+    });
+
+    it("accountId change on an existing transfer: old source reverted, new source debited", async () => {
+      prisma.transaction.findUnique.mockResolvedValue({
+        id: "tx-upd",
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        toAccountId: TO_ACCOUNT_ID,
+        categoryId: null,
+        amount: BigInt(80000),
+        type: "transfer",
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      });
+      prisma.account.findUnique.mockImplementation(
+        findUniqueAccountByWhereId(
+          { id: NEW_SOURCE_ID, familyGroupId: FAMILY_GROUP_ID },
+          mockToAccount,
+        ),
+      );
+      mockUpdateTransaction({ accountId: NEW_SOURCE_ID });
+
+      await service.update(FAMILY_GROUP_ID, "tx-upd", {
+        accountId: NEW_SOURCE_ID,
+      });
+
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(80000) } },
+      });
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: TO_ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(-80000) } },
+      });
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: NEW_SOURCE_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(-80000) } },
+      });
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: TO_ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(80000) } },
+      });
+    });
+
+    it("rejects patching accountId to equal the row's existing toAccountId (self-transfer bypass guard)", async () => {
+      prisma.transaction.findUnique.mockResolvedValue({
+        id: "tx-upd",
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        toAccountId: TO_ACCOUNT_ID,
+        categoryId: null,
+        amount: BigInt(80000),
+        type: "transfer",
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      });
+      // The new accountId itself resolves fine — only the cross-field
+      // same-account invariant should reject this.
+      prisma.account.findUnique.mockResolvedValue(mockToAccount);
+
+      await expect(
+        service.update(FAMILY_GROUP_ID, "tx-upd", {
+          accountId: TO_ACCOUNT_ID,
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("toAccountId change: old destination reverted, new destination credited", async () => {
+      prisma.transaction.findUnique.mockResolvedValue({
+        id: "tx-upd",
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        toAccountId: TO_ACCOUNT_ID,
+        categoryId: null,
+        amount: BigInt(60000),
+        type: "transfer",
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      });
+      prisma.account.findUnique.mockImplementation(
+        findUniqueAccountByWhereId({
+          id: NEW_DEST_ID,
+          familyGroupId: FAMILY_GROUP_ID,
+        }),
+      );
+      mockUpdateTransaction({ toAccountId: NEW_DEST_ID });
+
+      await service.update(FAMILY_GROUP_ID, "tx-upd", {
+        toAccountId: NEW_DEST_ID,
+      });
+
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(60000) } },
+      });
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: TO_ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(-60000) } },
+      });
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(-60000) } },
+      });
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: NEW_DEST_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(60000) } },
+      });
+    });
+
+    it("explicit toAccountId: null clears the destination, keeping the row a legacy one-sided transfer", async () => {
+      prisma.transaction.findUnique.mockResolvedValue({
+        id: "tx-upd",
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        toAccountId: TO_ACCOUNT_ID,
+        categoryId: null,
+        amount: BigInt(40000),
+        type: "transfer",
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      });
+      mockUpdateTransaction({ toAccountId: null, type: "transfer" });
+
+      const result = await service.update(FAMILY_GROUP_ID, "tx-upd", {
+        toAccountId: null,
+      });
+
+      expect(result.toAccountId).toBeNull();
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(40000) } },
+      });
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: TO_ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(-40000) } },
+      });
+      // Reapplied as a legacy one-sided transfer: single debit on the source.
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(-40000) } },
+      });
+      expect(prisma.transaction.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ toAccountId: null }),
+        }),
+      );
+    });
+
+    it("rejects toAccountId supplied together with an effective non-transfer type", async () => {
+      prisma.transaction.findUnique.mockResolvedValue({
+        id: "tx-upd",
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        toAccountId: null,
+        categoryId: null,
+        amount: BigInt(20000),
+        type: "expense",
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      });
+
+      await expect(
+        service.update(FAMILY_GROUP_ID, "tx-upd", {
+          toAccountId: TO_ACCOUNT_ID,
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
   });
 

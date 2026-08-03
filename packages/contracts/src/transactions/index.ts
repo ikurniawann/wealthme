@@ -11,6 +11,10 @@ export const CreateTransactionInputSchema = z.object({
   description: z.string().optional(),
   occurredAt: z.string(),
   toAccountId: z.string().uuid().optional(),
+  // EPIC-021 Group B #28 — e-wallet top-up admin fee. Only meaningful when
+  // type = transfer with a toAccountId; deducted from the DESTINATION
+  // account as a separate linked expense (see transactions.service.ts).
+  adminFee: z.number().int().min(0).optional(),
 });
 export type CreateTransactionInput = z.infer<
   typeof CreateTransactionInputSchema
@@ -20,12 +24,14 @@ export const TransactionDtoSchema = z.object({
   id: z.string().uuid(),
   familyGroupId: z.string().uuid(),
   accountId: z.string().uuid(),
+  toAccountId: z.string().uuid().nullable(),
   categoryId: z.string().uuid().nullable(),
   amount: z.string(),
   type: TransactionTypeSchema,
   description: z.string().nullable(),
   categoryName: z.string().nullable(),
   accountName: z.string(),
+  toAccountName: z.string().nullable(),
   occurredAt: z.string(),
   createdAt: z.string(),
 });
