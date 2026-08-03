@@ -108,6 +108,36 @@ function validateSharePercent(beneficiaries: { sharePercent: number }[]): void {
 export class InsurancesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // TS review fix #1 — tenant-scoped lookup so a beneficiary's optional
+  // memberUserId can never reference a user from another family group.
+  private async assertMemberInFamilyGroup(
+    familyGroupId: string,
+    userId: string,
+  ): Promise<void> {
+    const member = await this.prisma.member.findFirst({
+      where: { userId, familyGroupId },
+    });
+    if (!member) {
+      throw new BadRequestException(
+        "memberUserId does not reference a member of this family group",
+      );
+    }
+  }
+
+  private async assertBeneficiaryMembersInFamilyGroup(
+    familyGroupId: string,
+    beneficiaries: { memberUserId?: string }[],
+  ): Promise<void> {
+    for (const beneficiary of beneficiaries) {
+      if (beneficiary.memberUserId) {
+        await this.assertMemberInFamilyGroup(
+          familyGroupId,
+          beneficiary.memberUserId,
+        );
+      }
+    }
+  }
+
   async findAll(familyGroupId: string): Promise<InsuranceResponseDto[]> {
     const rows = await this.prisma.insurance.findMany({
       where: { familyGroupId },
@@ -144,6 +174,10 @@ export class InsurancesService {
   ): Promise<InsuranceResponseDto> {
     if (dto.beneficiaries && dto.beneficiaries.length > 0) {
       validateSharePercent(dto.beneficiaries);
+      await this.assertBeneficiaryMembersInFamilyGroup(
+        familyGroupId,
+        dto.beneficiaries,
+      );
     }
 
     const insurance = await this.prisma.insurance.create({
@@ -192,6 +226,10 @@ export class InsurancesService {
 
     if (dto.beneficiaries && dto.beneficiaries.length > 0) {
       validateSharePercent(dto.beneficiaries);
+      await this.assertBeneficiaryMembersInFamilyGroup(
+        familyGroupId,
+        dto.beneficiaries,
+      );
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {

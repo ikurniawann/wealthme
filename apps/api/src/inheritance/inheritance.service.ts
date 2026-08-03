@@ -100,12 +100,40 @@ export class InheritanceService {
     }
   }
 
+  // TS review fix #1 — tenant-scoped lookup so a heir's optional
+  // memberUserId can never reference a user from another family group.
+  private async assertMemberInFamilyGroup(
+    familyGroupId: string,
+    userId: string,
+  ): Promise<void> {
+    const member = await this.prisma.member.findFirst({
+      where: { userId, familyGroupId },
+    });
+    if (!member) {
+      throw new BadRequestException(
+        "memberUserId does not reference a member of this family group",
+      );
+    }
+  }
+
+  private async assertHeirMembersInFamilyGroup(
+    familyGroupId: string,
+    heirs: { memberUserId?: string }[],
+  ): Promise<void> {
+    for (const heir of heirs) {
+      if (heir.memberUserId) {
+        await this.assertMemberInFamilyGroup(familyGroupId, heir.memberUserId);
+      }
+    }
+  }
+
   async create(
     familyGroupId: string,
     dto: CreateInheritanceAssetDto,
   ): Promise<InheritanceAssetResponseDto> {
     if (dto.heirs && dto.heirs.length > 0) {
       validateSharePercent(dto.heirs);
+      await this.assertHeirMembersInFamilyGroup(familyGroupId, dto.heirs);
     }
     if (dto.assetId) {
       await this.assertAssetInFamilyGroup(familyGroupId, dto.assetId);
@@ -179,7 +207,11 @@ export class InheritanceService {
 
     if (dto.heirs && dto.heirs.length > 0) {
       validateSharePercent(dto.heirs);
+      await this.assertHeirMembersInFamilyGroup(familyGroupId, dto.heirs);
     }
+    // TS review fix #2 — explicit `null` clears a previously picked Asset
+    // link (switching back to manual entry); `undefined` leaves it untouched;
+    // a non-empty string is tenant-validated before being written.
     if (dto.assetId) {
       await this.assertAssetInFamilyGroup(familyGroupId, dto.assetId);
     }

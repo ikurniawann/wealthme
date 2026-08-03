@@ -53,6 +53,8 @@ export interface UpdateInheritanceAssetDto {
   currency?: string;
   notes?: string;
   visibility?: InheritanceVisibility;
-  assetId?: string;
+  // TS review fix #2 — explicit `null` clears a previously picked Asset link
+  // (switching back to manual entry); omitting the field leaves it untouched.
+  assetId?: string | null;
   heirs?: CreateHeirDto[];
 }

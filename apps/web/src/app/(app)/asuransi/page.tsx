@@ -258,15 +258,28 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
 
 // EPIC-021 Group D (#14) — one beneficiary row bound to text inputs; parsed
 // into a `CreateInsuranceBeneficiaryDto` on save. Mirrors warisan's heir rows.
+// `id` is a stable React key (server row id when loaded from an existing
+// policy, or a locally-generated one for freshly added blank rows) — TS
+// review fix #3, array index is not a stable identity across add/remove.
 interface BeneficiaryFormRow {
+  id: string;
   name: string;
   relationship: string;
   sharePercent: string;
   memberUserId: string;
 }
 
+let beneficiaryRowIdCounter = 0;
+
 function emptyBeneficiaryRow(): BeneficiaryFormRow {
-  return { name: "", relationship: "", sharePercent: "", memberUserId: "" };
+  beneficiaryRowIdCounter += 1;
+  return {
+    id: `new-beneficiary-${beneficiaryRowIdCounter}`,
+    name: "",
+    relationship: "",
+    sharePercent: "",
+    memberUserId: "",
+  };
 }
 
 function totalAllocated(rows: BeneficiaryFormRow[]): number {
@@ -289,8 +302,8 @@ function BeneficiaryEditor({
   const allocated = Math.min(100, totalAllocated(rows));
   const unallocated = Math.max(0, 100 - totalAllocated(rows));
 
-  function updateRow(index: number, patch: Partial<BeneficiaryFormRow>) {
-    onChange(rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  function updateRow(id: string, patch: Partial<BeneficiaryFormRow>) {
+    onChange(rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   }
 
   return (
@@ -299,23 +312,23 @@ function BeneficiaryEditor({
         {t.asuransi.beneficiariesSectionTitle}
       </label>
       <div className="space-y-2.5">
-        {rows.map((row, i) => (
+        {rows.map((row) => (
           <div
-            key={i}
+            key={row.id}
             className="space-y-2 rounded-md border bg-background p-3"
           >
             <div className="flex items-center gap-2">
               <input
                 type="text"
                 value={row.name}
-                onChange={(e) => updateRow(i, { name: e.target.value })}
+                onChange={(e) => updateRow(row.id, { name: e.target.value })}
                 placeholder={t.asuransi.beneficiaryNamePlaceholder}
                 className={FIELD_CLASS}
               />
               <button
                 type="button"
                 aria-label={t.asuransi.removeBeneficiaryAriaLabel}
-                onClick={() => onChange(rows.filter((_, j) => j !== i))}
+                onClick={() => onChange(rows.filter((r) => r.id !== row.id))}
                 className="flex size-8 shrink-0 items-center justify-center rounded-full hover:bg-muted"
               >
                 <X className="size-3.5" />
@@ -325,7 +338,9 @@ function BeneficiaryEditor({
               <input
                 type="text"
                 value={row.relationship}
-                onChange={(e) => updateRow(i, { relationship: e.target.value })}
+                onChange={(e) =>
+                  updateRow(row.id, { relationship: e.target.value })
+                }
                 placeholder={t.asuransi.beneficiaryRelationshipPlaceholder}
                 className={FIELD_CLASS}
               />
@@ -335,7 +350,9 @@ function BeneficiaryEditor({
                 max={100}
                 step="0.01"
                 value={row.sharePercent}
-                onChange={(e) => updateRow(i, { sharePercent: e.target.value })}
+                onChange={(e) =>
+                  updateRow(row.id, { sharePercent: e.target.value })
+                }
                 placeholder={t.asuransi.beneficiarySharePercentLabel}
                 className={FIELD_CLASS}
               />
@@ -343,7 +360,9 @@ function BeneficiaryEditor({
             {familyMembers.length > 0 && (
               <select
                 value={row.memberUserId}
-                onChange={(e) => updateRow(i, { memberUserId: e.target.value })}
+                onChange={(e) =>
+                  updateRow(row.id, { memberUserId: e.target.value })
+                }
                 className={FIELD_CLASS}
                 aria-label={t.asuransi.beneficiaryMemberLabel}
               >
@@ -450,6 +469,7 @@ function InsuranceModal({
   const [notes, setNotes] = useState(editing?.notes ?? "");
   const [beneficiaries, setBeneficiaries] = useState<BeneficiaryFormRow[]>(
     editing?.beneficiaries.map((b) => ({
+      id: b.id,
       name: b.name,
       relationship: b.relationship,
       sharePercent: b.sharePercent,

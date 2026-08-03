@@ -50,6 +50,9 @@ function makePrisma() {
     notification: {
       create: jest.fn(),
     },
+    member: {
+      findFirst: jest.fn(),
+    },
     $transaction: jest.fn(async (fn: (tx: unknown) => unknown) => fn(prismaTx)),
   };
 }
@@ -289,6 +292,11 @@ describe("InsurancesService", () => {
 
     it("persists a beneficiary's optional memberUserId link", async () => {
       // Arrange
+      prisma.member.findFirst.mockResolvedValue({
+        id: "member-1",
+        userId: "user-5",
+        familyGroupId: FAMILY_GROUP_ID,
+      });
       prisma.insurance.create.mockResolvedValue({
         ...BASE_ROW,
         beneficiaries: [
@@ -321,6 +329,34 @@ describe("InsurancesService", () => {
 
       // Assert
       expect(result.beneficiaries[0]!.memberUserId).toBe("user-5");
+      expect(prisma.member.findFirst).toHaveBeenCalledWith({
+        where: { userId: "user-5", familyGroupId: FAMILY_GROUP_ID },
+      });
+    });
+
+    // TS review fix #1 — memberUserId must be tenant-validated the same way
+    // as warisan heirs.
+    it("rejects a beneficiary memberUserId that does not belong to the family group", async () => {
+      // Arrange — member not found (cross-tenant or unknown user)
+      prisma.member.findFirst.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        service.create(FAMILY_GROUP_ID, {
+          name: "Asuransi Jiwa",
+          type: "jiwa" as const,
+          premiumAmount: "1500000",
+          beneficiaries: [
+            {
+              name: "Anak 1",
+              relationship: "Anak",
+              sharePercent: 60,
+              memberUserId: "someone-elses-user-id",
+            },
+          ],
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.insurance.create).not.toHaveBeenCalled();
     });
 
     it("rejects an update whose beneficiary percentages sum to more than 100", async () => {
@@ -333,6 +369,27 @@ describe("InsurancesService", () => {
           beneficiaries: [
             { name: "Anak 1", relationship: "Anak", sharePercent: 80 },
             { name: "Anak 2", relationship: "Anak", sharePercent: 30 },
+          ],
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.insurance.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects an update whose beneficiary memberUserId does not belong to the family group", async () => {
+      // Arrange
+      prisma.insurance.findUnique.mockResolvedValue({ ...BASE_ROW });
+      prisma.member.findFirst.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        service.update(FAMILY_GROUP_ID, INSURANCE_ID, {
+          beneficiaries: [
+            {
+              name: "Anak 1",
+              relationship: "Anak",
+              sharePercent: 60,
+              memberUserId: "cross-tenant-user",
+            },
           ],
         }),
       ).rejects.toThrow(BadRequestException);

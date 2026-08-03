@@ -40,6 +40,9 @@ function makePrisma() {
     asset: {
       findUnique: jest.fn(),
     },
+    member: {
+      findFirst: jest.fn(),
+    },
     $transaction: jest.fn(async (fn: (tx: unknown) => unknown) => fn(prismaTx)),
   };
 }
@@ -151,6 +154,11 @@ describe("InheritanceService", () => {
 
     it("persists a heir's optional memberUserId link", async () => {
       // Arrange
+      prisma.member.findFirst.mockResolvedValue({
+        id: "member-1",
+        userId: "user-5",
+        familyGroupId: FAMILY_GROUP_ID,
+      });
       prisma.inheritanceAsset.create.mockResolvedValue({
         ...BASE_ROW,
         heirs: [
@@ -183,6 +191,9 @@ describe("InheritanceService", () => {
 
       // Assert
       expect(result.heirs[0]!.memberUserId).toBe("user-5");
+      expect(prisma.member.findFirst).toHaveBeenCalledWith({
+        where: { userId: "user-5", familyGroupId: FAMILY_GROUP_ID },
+      });
       expect(prisma.inheritanceAsset.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
@@ -196,6 +207,31 @@ describe("InheritanceService", () => {
           }),
         }),
       );
+    });
+
+    // TS review fix #1 — memberUserId must be tenant-validated the same way
+    // assetId is: a heir cannot link to a user from another family group.
+    it("rejects a heir memberUserId that does not belong to the family group", async () => {
+      // Arrange — member not found (cross-tenant or unknown user)
+      prisma.member.findFirst.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        service.create(FAMILY_GROUP_ID, {
+          name: "Rumah Utama",
+          assetType: "Aset / Properti",
+          estimatedValue: 500_000_000,
+          heirs: [
+            {
+              name: "Anak 1",
+              relationship: "Anak",
+              sharePercent: 60,
+              memberUserId: "someone-elses-user-id",
+            },
+          ],
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.inheritanceAsset.create).not.toHaveBeenCalled();
     });
 
     it("links to an existing asset in the same family group", async () => {
@@ -266,6 +302,56 @@ describe("InheritanceService", () => {
       await expect(
         service.update(FAMILY_GROUP_ID, "nonexistent-id", { name: "New" }),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    // TS review fix #1 — same tenant validation applies on update.
+    it("rejects a heir memberUserId that does not belong to the family group", async () => {
+      // Arrange
+      prisma.inheritanceAsset.findUnique.mockResolvedValue({ ...BASE_ROW });
+      prisma.member.findFirst.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        service.update(FAMILY_GROUP_ID, ASSET_ID, {
+          heirs: [
+            {
+              name: "Anak 1",
+              relationship: "Anak",
+              sharePercent: 60,
+              memberUserId: "cross-tenant-user",
+            },
+          ],
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.inheritanceAsset.update).not.toHaveBeenCalled();
+    });
+
+    // TS review fix #2 — an explicit `null` assetId clears a previously
+    // picked Asset link (e.g. switching back to manual entry).
+    it("clears a previously linked assetId when the update sends assetId: null", async () => {
+      // Arrange
+      prisma.inheritanceAsset.findUnique.mockResolvedValue({
+        ...BASE_ROW,
+        assetId: SOURCE_ASSET_ID,
+      });
+      prisma.inheritanceAsset.update.mockResolvedValue({
+        ...BASE_ROW,
+        assetId: null,
+      });
+
+      // Act
+      const result = await service.update(FAMILY_GROUP_ID, ASSET_ID, {
+        assetId: null,
+      });
+
+      // Assert
+      expect(prisma.asset.findUnique).not.toHaveBeenCalled();
+      expect(prisma.inheritanceAsset.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ assetId: null }),
+        }),
+      );
+      expect(result.assetId).toBeNull();
     });
   });
 

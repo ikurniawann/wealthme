@@ -62,15 +62,28 @@ type FamilyMember = {
 
 // EPIC-021 Group D (#12) — one heir row bound to text inputs; parsed into a
 // `CreateHeirDto` on save. Rows with an empty name are dropped on submit.
+// `id` is a stable React key (server row id when loaded from an existing
+// asset, or a locally-generated one for freshly added blank rows) — TS
+// review fix #3, array index is not a stable identity across add/remove.
 interface HeirFormRow {
+  id: string;
   name: string;
   relationship: string;
   sharePercent: string;
   memberUserId: string;
 }
 
+let heirRowIdCounter = 0;
+
 function emptyHeirRow(): HeirFormRow {
-  return { name: "", relationship: "", sharePercent: "", memberUserId: "" };
+  heirRowIdCounter += 1;
+  return {
+    id: `new-heir-${heirRowIdCounter}`,
+    name: "",
+    relationship: "",
+    sharePercent: "",
+    memberUserId: "",
+  };
 }
 
 function totalAllocated(rows: HeirFormRow[]): number {
@@ -190,8 +203,8 @@ function HeirEditor({ rows, onChange, familyMembers }: HeirEditorProps) {
   const allocated = Math.min(100, totalAllocated(rows));
   const unallocated = Math.max(0, 100 - totalAllocated(rows));
 
-  function updateRow(index: number, patch: Partial<HeirFormRow>) {
-    onChange(rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  function updateRow(id: string, patch: Partial<HeirFormRow>) {
+    onChange(rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   }
 
   return (
@@ -200,23 +213,23 @@ function HeirEditor({ rows, onChange, familyMembers }: HeirEditorProps) {
         Ahli Waris
       </label>
       <div className="space-y-2.5">
-        {rows.map((row, i) => (
+        {rows.map((row) => (
           <div
-            key={i}
+            key={row.id}
             className="space-y-2 rounded-md border bg-background p-3"
           >
             <div className="flex items-center gap-2">
               <input
                 type="text"
                 value={row.name}
-                onChange={(e) => updateRow(i, { name: e.target.value })}
+                onChange={(e) => updateRow(row.id, { name: e.target.value })}
                 placeholder="cth: Siti Arsandi"
                 className={FIELD_CLASS}
               />
               <button
                 type="button"
                 aria-label="Hapus ahli waris"
-                onClick={() => onChange(rows.filter((_, j) => j !== i))}
+                onClick={() => onChange(rows.filter((r) => r.id !== row.id))}
                 className="flex size-8 shrink-0 items-center justify-center rounded-full hover:bg-muted"
               >
                 <X className="size-3.5" />
@@ -226,7 +239,9 @@ function HeirEditor({ rows, onChange, familyMembers }: HeirEditorProps) {
               <input
                 type="text"
                 value={row.relationship}
-                onChange={(e) => updateRow(i, { relationship: e.target.value })}
+                onChange={(e) =>
+                  updateRow(row.id, { relationship: e.target.value })
+                }
                 placeholder="cth: Anak, Pasangan"
                 className={FIELD_CLASS}
               />
@@ -236,7 +251,9 @@ function HeirEditor({ rows, onChange, familyMembers }: HeirEditorProps) {
                 max={100}
                 step="0.01"
                 value={row.sharePercent}
-                onChange={(e) => updateRow(i, { sharePercent: e.target.value })}
+                onChange={(e) =>
+                  updateRow(row.id, { sharePercent: e.target.value })
+                }
                 placeholder="Persentase (%)"
                 className={FIELD_CLASS}
               />
@@ -244,7 +261,9 @@ function HeirEditor({ rows, onChange, familyMembers }: HeirEditorProps) {
             {familyMembers.length > 0 && (
               <select
                 value={row.memberUserId}
-                onChange={(e) => updateRow(i, { memberUserId: e.target.value })}
+                onChange={(e) =>
+                  updateRow(row.id, { memberUserId: e.target.value })
+                }
                 className={FIELD_CLASS}
                 aria-label="Hubungkan ke Anggota Keluarga"
               >
@@ -441,6 +460,7 @@ export default function WarisanPage() {
     setSelectedAssetId(item.assetId ?? "");
     setHeirs(
       item.heirs.map((h) => ({
+        id: h.id,
         name: h.name,
         relationship: h.relationship,
         sharePercent: h.sharePercent,
@@ -492,20 +512,35 @@ export default function WarisanPage() {
       return;
     }
 
-    const dto = {
+    const baseFields = {
       name: name.trim(),
       assetType,
       estimatedValue,
       notes: notes.trim() || undefined,
       visibility: booleanToVisibility(visible),
-      ...(pickMode === "asset" && selectedAssetId
-        ? { assetId: selectedAssetId }
-        : {}),
       heirs: heirDtos,
     };
+
     if (editing) {
+      // TS review fix #2 — only send `assetId` when it actually changed:
+      // picking a different asset sends the new id; switching to "Input
+      // Manual" (away from a previously-linked asset) sends `assetId: null`
+      // to clear the stale link; otherwise the field is omitted so the
+      // existing link (or lack of one) is left untouched.
+      const nextAssetId = pickMode === "asset" ? selectedAssetId || null : null;
+      const assetIdChanged = nextAssetId !== (editing.assetId ?? null);
+      const dto: UpdateInheritanceAssetDto = {
+        ...baseFields,
+        ...(assetIdChanged ? { assetId: nextAssetId } : {}),
+      };
       updateMutation.mutate({ id: editing.id, dto });
     } else {
+      const dto: CreateInheritanceAssetDto = {
+        ...baseFields,
+        ...(pickMode === "asset" && selectedAssetId
+          ? { assetId: selectedAssetId }
+          : {}),
+      };
       createMutation.mutate(dto);
     }
   }

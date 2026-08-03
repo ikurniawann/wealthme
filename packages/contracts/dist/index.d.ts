@@ -748,7 +748,7 @@ interface UpdateInheritanceAssetDto {
     currency?: string;
     notes?: string;
     visibility?: InheritanceVisibility;
-    assetId?: string;
+    assetId?: string | null;
     heirs?: CreateHeirDto[];
 }
 
