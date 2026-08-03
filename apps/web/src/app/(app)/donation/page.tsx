@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { HeroCard, SectionCard, StatusBadge } from "@/components/wm";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { useLocale } from "@/hooks/use-locale";
+import type { Locale } from "@/i18n";
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah, parseRupiah, formatAmountInput } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
@@ -24,15 +26,6 @@ const FIELD_CLASS =
   "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
 
 const NISAB = 102_000_000; // ≈85gr emas
-
-const DONATION_TYPE_LABEL: Record<string, string> = {
-  zakat_maal: "Zakat Maal",
-  zakat_fitrah: "Zakat Fitrah",
-  infaq: "Sedekah / Infak",
-  sedekah: "Sedekah",
-  wakaf: "Wakaf",
-  lainnya: "Lainnya",
-};
 
 const DONATION_TYPE_ICON: Record<string, string> = {
   zakat_maal: "🕌",
@@ -52,15 +45,22 @@ const DONATION_TYPE_BG: Record<string, string> = {
   lainnya: "#FEF9C3",
 };
 
-const JENIS_OPTIONS: { value: DonationType; label: string; group: string }[] = [
-  { value: "zakat_maal", label: "Zakat Maal", group: "🕌 Islam" },
-  { value: "zakat_fitrah", label: "Zakat Fitrah", group: "🕌 Islam" },
-  { value: "infaq", label: "Sedekah / Infak", group: "🕌 Islam" },
-  { value: "wakaf", label: "Wakaf", group: "🕌 Islam" },
-  { value: "sedekah", label: "Sedekah", group: "❤️ Umum" },
-  { value: "lainnya", label: "Lainnya / Donasi Sosial", group: "❤️ Umum" },
+const JENIS_OPTIONS: {
+  value: DonationType;
+  group: "islam" | "umum";
+}[] = [
+  { value: "zakat_maal", group: "islam" },
+  { value: "zakat_fitrah", group: "islam" },
+  { value: "infaq", group: "islam" },
+  { value: "wakaf", group: "islam" },
+  { value: "sedekah", group: "umum" },
+  { value: "lainnya", group: "umum" },
 ];
 
+// NOTE: these are the actual `recipient` values persisted on a donation
+// record (free-text institution name), not a translated enum — kept in
+// Indonesian in both locales so switching language never changes what gets
+// stored, matching the value-locked crud-config select option convention.
 const LEMBAGA_OPTIONS = [
   "BAZNAS",
   "Dompet Dhuafa",
@@ -99,8 +99,8 @@ function ZkInput({
   );
 }
 
-function formatIndonesianDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("id-ID", {
+function formatLocaleDate(iso: string, locale: Locale): string {
+  return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -108,6 +108,7 @@ function formatIndonesianDate(iso: string): string {
 }
 
 export default function DonationPage() {
+  const { t, locale } = useLocale();
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const fgId = session?.familyGroupId ?? undefined;
@@ -127,8 +128,8 @@ export default function DonationPage() {
   const reachedNisab = harta >= NISAB;
   const zakat = reachedNisab ? Math.round(harta * 0.025) : 0;
   const nisabMsg = reachedNisab
-    ? "✅ Harta sudah mencapai nisab (setara 85gr emas ≈ Rp 102 jt)"
-    : "⚠️ Harta belum mencapai nisab (Rp 102 jt) — belum wajib zakat";
+    ? t.donation.nisabReachedMsg
+    : t.donation.nisabNotReachedMsg;
 
   // Donation modal state
   const [open, setOpen] = useState(false);
@@ -182,10 +183,10 @@ export default function DonationPage() {
         });
       }
       setOpen(false);
-      toast.success("✅ Donasi berhasil dicatat!");
+      toast.success(t.donation.toastSaved);
     },
     onError: () => {
-      toast.error("Gagal menyimpan donasi");
+      toast.error(t.donation.toastSaveFailed);
     },
   });
 
@@ -206,7 +207,7 @@ export default function DonationPage() {
   function handleSave(): void {
     const amountNum = parseRupiah(jumlah);
     if (!amountNum || amountNum <= 0) {
-      toast.error("Jumlah donasi tidak valid");
+      toast.error(t.donation.toastInvalidAmount);
       return;
     }
     createMutation.mutate({
@@ -227,13 +228,14 @@ export default function DonationPage() {
       {/* Hero */}
       <HeroCard className="gradient-emerald">
         <div className="mb-1.5 flex items-center gap-2 text-xs opacity-85">
-          <HandHeart className="size-3.5" /> Total Donasi &amp; Zakat
+          <HandHeart className="size-3.5" /> {t.donation.heroTitle}
         </div>
         <div className="text-[30px] font-black tracking-[-1px]">
           {formatRupiah(totalAmount)}
         </div>
         <div className="mt-1.5 text-xs opacity-85">
-          {donations.length} transaksi
+          {donations.length}
+          {t.donation.transactionsSuffix}
         </div>
         <div className="pointer-events-none absolute -top-5 -right-5 text-[140px] opacity-[0.12]">
           🤲
@@ -243,65 +245,69 @@ export default function DonationPage() {
       {/* Subheader + action */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-[13px] text-muted-foreground">
-          Catat donasi &amp; tunaikan kewajiban zakat
+          {t.donation.subheaderDesc}
         </div>
         <Button onClick={() => openModal()} className="h-auto px-4 py-2.5">
-          <Plus className="size-4" /> Catat Donasi
+          <Plus className="size-4" /> {t.donation.recordDonationButton}
         </Button>
       </div>
 
       {/* Kalkulator Zakat */}
-      <SectionCard title="🕌 Kalkulator Zakat Maal">
+      <SectionCard title={t.donation.zakatCalculatorTitle}>
         <div className="mb-3.5 text-xs text-muted-foreground">
-          Zakat 2,5% dari total harta yang mencapai nisab &amp; haul (1 tahun)
+          {t.donation.zakatCalculatorSubtitle}
         </div>
         <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
           <ZkInput
-            label="Tabungan & Kas (Rp)"
+            label={t.donation.fieldCashLabel}
             value={cash}
             onChange={setCash}
           />
-          <ZkInput label="Emas & Perak (Rp)" value={gold} onChange={setGold} />
           <ZkInput
-            label="Investasi & Saham (Rp)"
+            label={t.donation.fieldGoldLabel}
+            value={gold}
+            onChange={setGold}
+          />
+          <ZkInput
+            label={t.donation.fieldInvestLabel}
             value={invest}
             onChange={setInvest}
           />
           <ZkInput
-            label="Utang Jatuh Tempo (Rp)"
+            label={t.donation.fieldDebtLabel}
             value={debt}
             onChange={setDebt}
           />
         </div>
         <div className="mt-4 rounded-[12px] border border-primary/15 bg-accent p-4 text-center">
           <div className="text-[11.5px] text-muted-foreground">
-            Zakat yang Wajib Ditunaikan (2,5%)
+            {t.donation.zakatDueLabel}
           </div>
           <div className="mt-1 text-[24px] font-black text-primary">
             {formatRupiah(zakat)}
           </div>
           <div className="mt-1.5 text-xs text-muted-foreground">{nisabMsg}</div>
           <div className="mt-1 text-[11px] text-muted-foreground/80">
-            Nisab indikatif (≈85 gram emas) — bukan harga emas real-time.
+            {t.donation.nisabIndicativeNote}
           </div>
         </div>
         <Button
           onClick={() => openModal(true)}
           className="mt-3.5 h-auto px-4 py-2.5"
         >
-          <HandHeart className="size-4" /> Tunaikan Zakat Sekarang
+          <HandHeart className="size-4" /> {t.donation.payZakatNowButton}
         </Button>
       </SectionCard>
 
       {/* Riwayat Donasi */}
-      <SectionCard title="Riwayat Donasi & Zakat" bodyClassName="-mt-1">
+      <SectionCard title={t.donation.historyTitle} bodyClassName="-mt-1">
         {isLoading ? (
           <div className="py-6 text-center text-[13px] text-muted-foreground">
-            Memuat...
+            {t.donation.loadingLabel}
           </div>
         ) : donations.length === 0 ? (
           <div className="py-6 text-center text-[13px] text-muted-foreground">
-            Belum ada catatan donasi
+            {t.donation.emptyHistory}
           </div>
         ) : (
           donations.map((d) => (
@@ -317,10 +323,11 @@ export default function DonationPage() {
               </div>
               <div className="flex-1">
                 <div className="text-[13.5px] font-semibold">
-                  {DONATION_TYPE_LABEL[d.type] ?? d.type} — {d.recipient}
+                  {t.donation.typeLabels[d.type as DonationType] ?? d.type} —{" "}
+                  {d.recipient}
                 </div>
                 <div className="text-[11.5px] text-muted-foreground">
-                  {formatIndonesianDate(d.donatedAt)}
+                  {formatLocaleDate(d.donatedAt, locale)}
                 </div>
               </div>
               <div className="text-right">
@@ -329,7 +336,7 @@ export default function DonationPage() {
                 </div>
                 {d.isTaxDeductible && (
                   <StatusBadge variant="success" className="mt-0.5 text-[10px]">
-                    Pengurang Pajak
+                    {t.donation.taxDeductibleBadge}
                   </StatusBadge>
                 )}
               </div>
@@ -343,11 +350,10 @@ export default function DonationPage() {
         <div className="text-[24px]">📋</div>
         <div className="flex-1">
           <div className="text-[13px] font-bold text-primary-strong">
-            Donasi bisa jadi pengurang pajak
+            {t.donation.insightTitle}
           </div>
           <div className="mt-0.5 text-xs text-muted-foreground">
-            Zakat yang dibayarkan ke lembaga resmi (BAZNAS/LAZ) bisa mengurangi
-            penghasilan kena pajak. Cek di Tax Center.
+            {t.donation.insightDesc}
           </div>
         </div>
       </div>
@@ -356,13 +362,13 @@ export default function DonationPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-[480px] p-6 sm:max-w-[480px]">
           <DialogTitle className="mb-4 text-[17px] font-extrabold">
-            Catat Donasi Keagamaan
+            {t.donation.modalTitle}
           </DialogTitle>
 
           <div className="space-y-4">
             <div>
               <label className="mb-1.5 block text-[12.5px] font-semibold">
-                Jenis
+                {t.donation.fieldJenisLabel}
               </label>
               <select
                 value={jenis}
@@ -371,7 +377,10 @@ export default function DonationPage() {
               >
                 {JENIS_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
-                    {o.group} — {o.label}
+                    {o.group === "islam"
+                      ? t.donation.groupIslam
+                      : t.donation.groupUmum}{" "}
+                    — {t.donation.jenisOptionLabels[o.value]}
                   </option>
                 ))}
               </select>
@@ -379,7 +388,7 @@ export default function DonationPage() {
 
             <div>
               <label className="mb-1.5 block text-[12.5px] font-semibold">
-                Jumlah
+                {t.donation.fieldJumlahLabel}
               </label>
               <div className="flex items-center gap-2 rounded-md border bg-background px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:bg-card">
                 <span className="text-[13.5px] text-muted-foreground">Rp</span>
@@ -396,7 +405,7 @@ export default function DonationPage() {
 
             <div>
               <label className="mb-1.5 block text-[12.5px] font-semibold">
-                Lembaga / Penerima
+                {t.donation.fieldLembagaLabel}
               </label>
               <select
                 value={lembaga}
@@ -411,7 +420,7 @@ export default function DonationPage() {
 
             <div>
               <label className="mb-1.5 block text-[12.5px] font-semibold">
-                Tanggal
+                {t.donation.fieldTanggalLabel}
               </label>
               <input
                 type="date"
@@ -423,14 +432,14 @@ export default function DonationPage() {
 
             <div>
               <label className="mb-1.5 block text-[12.5px] font-semibold">
-                Bayar dari Rekening (opsional)
+                {t.donation.fieldAccountLabel}
               </label>
               <select
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
                 className={FIELD_CLASS}
               >
-                <option value="">Hanya catat, jangan potong saldo</option>
+                <option value="">{t.donation.accountNoneOption}</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
@@ -438,8 +447,7 @@ export default function DonationPage() {
                 ))}
               </select>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                Pilih rekening agar total kekayaan bersih ikut berkurang saat
-                donasi dicatat.
+                {t.donation.accountHint}
               </p>
             </div>
 
@@ -455,7 +463,7 @@ export default function DonationPage() {
                 htmlFor="tax-deductible"
                 className="text-[12.5px] text-muted-foreground"
               >
-                Pengurang pajak penghasilan (zakat ke lembaga resmi)
+                {t.donation.taxDeductibleCheckboxLabel}
               </label>
             </div>
 
@@ -465,7 +473,9 @@ export default function DonationPage() {
               className="w-full"
             >
               <HandHeart className="size-4" />{" "}
-              {createMutation.isPending ? "Menyimpan..." : "Simpan Catatan"}
+              {createMutation.isPending
+                ? t.donation.savingLabel
+                : t.donation.saveRecordButton}
             </Button>
           </div>
         </DialogContent>

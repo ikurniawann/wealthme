@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useSession, signOut } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useLocale } from "@/hooks/use-locale";
 import { SectionCard, HeroCard, CardLink } from "@/components/wm";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -65,6 +66,7 @@ function WalletRow({
 }
 
 export default function DanaPage() {
+  const { t } = useLocale();
   const { data: session } = useSession();
 
   useEffect(() => {
@@ -128,7 +130,7 @@ export default function DanaPage() {
             body: JSON.stringify({ name: values.nama, balance }),
           },
         );
-        toast.success("E-Wallet berhasil diperbarui!");
+        toast.success(t.dana.toastEwalletUpdated);
       } else {
         await apiFetch(`/family-groups/${familyGroupId}/accounts`, {
           token,
@@ -141,11 +143,11 @@ export default function DanaPage() {
             balance,
           }),
         });
-        toast.success("E-Wallet berhasil ditambahkan!");
+        toast.success(t.dana.toastEwalletAdded);
       }
       await invalidateAccounts();
     } catch {
-      toast.error("Gagal menyimpan e-wallet. Coba lagi.");
+      toast.error(t.dana.toastSaveFailed);
     }
   }
 
@@ -156,10 +158,10 @@ export default function DanaPage() {
         `/family-groups/${familyGroupId}/accounts/${deleting.id}`,
         { token, method: "DELETE" },
       );
-      toast.success("E-Wallet berhasil dihapus.");
+      toast.success(t.dana.toastDeleted);
       await invalidateAccounts();
     } catch {
-      toast.error("Gagal menghapus e-wallet. Coba lagi.");
+      toast.error(t.dana.toastDeleteFailed);
     } finally {
       setDeleting(null);
     }
@@ -168,15 +170,14 @@ export default function DanaPage() {
   return (
     <div className="space-y-4">
       <HeroCard className="gradient-emerald">
-        <div className="mb-1 text-xs opacity-80">
-          💵 Total Dana Tunai &amp; E-Wallet
-        </div>
+        <div className="mb-1 text-xs opacity-80">{t.dana.totalLabel}</div>
         <div className="text-[28px] font-black">
-          {isLoading ? "Memuat..." : formatRupiah(totalBalance)}
+          {isLoading ? t.dana.loadingLabel : formatRupiah(totalBalance)}
         </div>
         {!isLoading && (
           <div className="mt-1.5 text-xs text-[#86EFAC]">
-            {danaAccounts.length} akun terhubung
+            {danaAccounts.length}
+            {t.dana.accountsConnectedSuffix}
           </div>
         )}
       </HeroCard>
@@ -186,13 +187,13 @@ export default function DanaPage() {
           role="alert"
           className="rounded-lg border border-destructive bg-destructive/5 px-4 py-2.5 text-[13px] text-destructive"
         >
-          <span className="font-semibold">Kesalahan: </span>Gagal memuat data.
-          Silakan refresh halaman.
+          <span className="font-semibold">{t.dana.errorPrefixLabel}</span>
+          {t.dana.errorLoadBody}
         </div>
       )}
 
       {cashItems.length > 0 && (
-        <SectionCard title="Dompet &amp; Cash" bodyClassName="-my-3">
+        <SectionCard title={t.dana.cashSectionTitle} bodyClassName="-my-3">
           {cashItems.map((item, i) => (
             <WalletRow
               key={item.id}
@@ -204,25 +205,25 @@ export default function DanaPage() {
       )}
 
       <SectionCard
-        title="E-Wallet"
+        title={t.dana.ewalletSectionTitle}
         action={
           <CardLink
             className="rounded-md bg-accent px-3 py-[5px] text-[11px]"
             onClick={() => setCrudState({ entity: "ewallet", mode: "add" })}
           >
-            + Tambah
+            {t.dana.addButton}
           </CardLink>
         }
         bodyClassName="-my-3"
       >
         {isLoading && (
           <div className="py-3 text-[13px] text-muted-foreground">
-            Memuat...
+            {t.dana.loadingLabel}
           </div>
         )}
         {!isLoading && ewalletItems.length === 0 && (
           <div className="py-3 text-[13px] text-muted-foreground">
-            Belum ada e-wallet.
+            {t.dana.emptyEwallet}
           </div>
         )}
         {ewalletItems.map((item, i) => (

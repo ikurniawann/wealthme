@@ -6,6 +6,8 @@ import { useSession } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { useLocale } from "@/hooks/use-locale";
+import type { Locale } from "@/i18n";
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
@@ -31,7 +33,10 @@ function Bone({ className }: { className?: string }) {
 
 type BadgeVariant = "success" | "info" | "warning" | "purple";
 
-function statusToBadge(status: GoalStatus): {
+function statusToBadge(
+  status: GoalStatus,
+  t: ReturnType<typeof useLocale>["t"],
+): {
   label: string;
   variant: BadgeVariant;
   color: string;
@@ -41,7 +46,7 @@ function statusToBadge(status: GoalStatus): {
   switch (status) {
     case "achieved":
       return {
-        label: "Tercapai",
+        label: t.tujuan.statusLabels.achieved,
         variant: "success",
         color: "var(--success)",
         stripColor: "var(--success)",
@@ -49,7 +54,7 @@ function statusToBadge(status: GoalStatus): {
       };
     case "on_track":
       return {
-        label: "On Track",
+        label: t.tujuan.statusLabels.on_track,
         variant: "info",
         color: "var(--primary)",
         stripColor: "var(--primary)",
@@ -57,7 +62,7 @@ function statusToBadge(status: GoalStatus): {
       };
     case "needs_boost":
       return {
-        label: "Perlu Boost",
+        label: t.tujuan.statusLabels.needs_boost,
         variant: "warning",
         color: "var(--warning)",
         stripColor: "var(--warning)",
@@ -65,7 +70,7 @@ function statusToBadge(status: GoalStatus): {
       };
     case "at_risk":
       return {
-        label: "Berisiko",
+        label: t.tujuan.statusLabels.at_risk,
         variant: "purple",
         color: "var(--brand-purple)",
         stripColor: "var(--brand-purple)",
@@ -74,12 +79,19 @@ function statusToBadge(status: GoalStatus): {
   }
 }
 
-function formatTargetDate(iso: string | null): string {
-  if (!iso) return "Tanpa target";
+function formatTargetDate(
+  iso: string | null,
+  t: ReturnType<typeof useLocale>["t"],
+  locale: Locale,
+): string {
+  if (!iso) return t.tujuan.noTargetDate;
   const d = new Date(iso);
   return (
-    "Target: " +
-    d.toLocaleDateString("id-ID", { month: "long", year: "numeric" })
+    t.tujuan.targetDatePrefix +
+    d.toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
+      month: "long",
+      year: "numeric",
+    })
   );
 }
 
@@ -123,8 +135,10 @@ function isEducationGoal(goal: GoalDto): boolean {
 }
 
 function GoalCard({ goal, onEdit, onDelete }: GoalCardProps) {
+  const { t, locale } = useLocale();
   const { label, variant, color, stripColor, iconBg } = statusToBadge(
     goal.status,
+    t,
   );
   const icon = goal.icon ?? "🎯";
   const useEducationChip = isEducationGoal(goal);
@@ -152,7 +166,7 @@ function GoalCard({ goal, onEdit, onDelete }: GoalCardProps) {
           <div className="min-w-0">
             <div className="text-[14px] font-bold">{goal.name}</div>
             <div className="text-[11.5px] text-muted-foreground">
-              {formatTargetDate(goal.targetDate)}
+              {formatTargetDate(goal.targetDate, t, locale)}
             </div>
           </div>
           <StatusBadge variant={variant} className="ml-auto">
@@ -170,17 +184,30 @@ function GoalCard({ goal, onEdit, onDelete }: GoalCardProps) {
         />
 
         <div className="mt-2.5 flex items-center justify-between text-[11.5px] text-muted-foreground">
-          <span>{formatRupiah(goal.currentAmount)} terkumpul</span>
-          <span>Target {formatRupiah(goal.targetAmount)}</span>
+          <span>
+            {formatRupiah(goal.currentAmount)}
+            {t.tujuan.collectedSuffix}
+          </span>
+          <span>
+            {t.tujuan.targetPrefix}
+            {formatRupiah(goal.targetAmount)}
+          </span>
         </div>
         <div className="mt-3 flex items-center justify-between border-t pt-3 text-[12px] font-semibold">
-          <span>Sisa: {formatRupiah(goal.remainingAmount)}</span>
+          <span>
+            {t.tujuan.remainingPrefix}
+            {formatRupiah(goal.remainingAmount)}
+          </span>
           {goal.autoDebitAmount != null ? (
             <span className="text-muted-foreground">
-              Auto-debit {formatRupiah(goal.autoDebitAmount)}/bln
+              {t.tujuan.autoDebitPrefix}
+              {formatRupiah(goal.autoDebitAmount)}
+              {t.tujuan.autoDebitSuffix}
             </span>
           ) : (
-            <span className="text-muted-foreground">Tanpa auto-debit</span>
+            <span className="text-muted-foreground">
+              {t.tujuan.noAutoDebit}
+            </span>
           )}
         </div>
 
@@ -193,14 +220,14 @@ function GoalCard({ goal, onEdit, onDelete }: GoalCardProps) {
               color: "var(--primary)",
             }}
           >
-            <Pencil className="size-[13px]" /> Edit
+            <Pencil className="size-[13px]" /> {t.tujuan.editButton}
           </button>
           <button
             onClick={() => onDelete(goal)}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-[7px] px-3 py-[7px] text-[11px] font-semibold text-destructive"
             style={{ background: "hsl(var(--destructive) / 0.1)" }}
           >
-            <Trash2 className="size-[13px]" /> Hapus
+            <Trash2 className="size-[13px]" /> {t.tujuan.deleteButton}
           </button>
         </div>
       </div>
@@ -209,6 +236,7 @@ function GoalCard({ goal, onEdit, onDelete }: GoalCardProps) {
 }
 
 export default function TujuanPage() {
+  const { t } = useLocale();
   const { data: session } = useSession();
   const token = session?.accessToken;
   const familyGroupId = session?.familyGroupId;
@@ -271,7 +299,7 @@ export default function TujuanPage() {
     values: Record<string, string>,
   ) {
     if (!familyGroupId || !token) {
-      toast.error("Sesi belum siap. Coba lagi sebentar.");
+      toast.error(t.tujuan.toastSessionNotReady);
       return;
     }
     try {
@@ -281,20 +309,20 @@ export default function TujuanPage() {
           `/family-groups/${familyGroupId}/goals/${editingGoalId}`,
           { token, method: "PATCH", body },
         );
-        toast.success("Tujuan berhasil diperbarui!");
+        toast.success(t.tujuan.toastUpdated);
       } else {
         await apiFetch(`/family-groups/${familyGroupId}/goals`, {
           token,
           method: "POST",
           body,
         });
-        toast.success("Tujuan berhasil ditambahkan!");
+        toast.success(t.tujuan.toastAdded);
       }
       await queryClient.invalidateQueries({
         queryKey: queryKeys.goals.all(familyGroupId),
       });
     } catch {
-      toast.error("Gagal menyimpan tujuan. Coba lagi.");
+      toast.error(t.tujuan.toastSaveFailed);
     }
   }
 
@@ -305,12 +333,12 @@ export default function TujuanPage() {
         `/family-groups/${familyGroupId}/goals/${deletingGoal.id}`,
         { token, method: "DELETE" },
       );
-      toast.success("Tujuan berhasil dihapus.");
+      toast.success(t.tujuan.toastDeleted);
       await queryClient.invalidateQueries({
         queryKey: queryKeys.goals.all(familyGroupId),
       });
     } catch {
-      toast.error("Gagal menghapus tujuan. Coba lagi.");
+      toast.error(t.tujuan.toastDeleteFailed);
     } finally {
       setDeletingGoal(null);
     }
@@ -321,10 +349,12 @@ export default function TujuanPage() {
       <div className="flex flex-wrap items-center justify-between gap-2.5">
         <div>
           <div className="text-[15px] font-bold">
-            {isLoading ? "…" : `${goals?.length ?? 0} Tujuan Aktif`}
+            {isLoading
+              ? "…"
+              : `${goals?.length ?? 0}${t.tujuan.activeGoalsSuffix}`}
           </div>
           <div className="text-xs text-muted-foreground">
-            Total dialokasikan:{" "}
+            {t.tujuan.totalAllocatedPrefix}
             {isLoading ? "…" : <CountUpRupiah value={totalAllocated} />}
           </div>
         </div>
@@ -333,41 +363,47 @@ export default function TujuanPage() {
           disabled={!familyGroupId}
           className="h-auto px-[18px] py-2.5"
         >
-          <Plus className="size-4" /> Tambah Tujuan
+          <Plus className="size-4" /> {t.tujuan.addGoalButton}
         </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
         <Rise index={0}>
           <div className="rounded-[14px] border border-[#86EFAC] bg-[#DCFCE7] p-4">
-            <div className="text-[10.5px] text-[#15803D]">On Track</div>
+            <div className="text-[10.5px] text-[#15803D]">
+              {t.tujuan.onTrackLabel}
+            </div>
             <div className="text-[22px] font-black text-[#15803D]">
               {onTrackCount}
             </div>
             <div className="text-[11px] text-[#15803D]">
-              tujuan berjalan baik
+              {t.tujuan.onTrackDesc}
             </div>
           </div>
         </Rise>
         <Rise index={1}>
           <div className="rounded-[14px] border bg-card p-4">
-            <div className="text-[10.5px] text-warning">Perlu Boost</div>
+            <div className="text-[10.5px] text-warning">
+              {t.tujuan.needsBoostLabel}
+            </div>
             <div className="text-[22px] font-black text-warning">
               {needsBoostCount}
             </div>
             <div className="text-[11px] text-muted-foreground">
-              tujuan perlu percepatan
+              {t.tujuan.needsBoostDesc}
             </div>
           </div>
         </Rise>
         <Rise index={2}>
           <div className="rounded-[14px] border bg-card p-4">
-            <div className="text-[10.5px] text-muted-foreground">Berisiko</div>
+            <div className="text-[10.5px] text-muted-foreground">
+              {t.tujuan.atRiskLabel}
+            </div>
             <div className="text-[22px] font-black text-primary">
               {atRiskCount}
             </div>
             <div className="text-[11px] text-muted-foreground">
-              tujuan berisiko tidak tercapai
+              {t.tujuan.atRiskDesc}
             </div>
           </div>
         </Rise>
@@ -375,7 +411,7 @@ export default function TujuanPage() {
 
       {isError && (
         <div className="rounded-[14px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive">
-          Gagal memuat tujuan keuangan. Silakan refresh halaman.
+          {t.tujuan.errorLoad}
         </div>
       )}
 
@@ -395,8 +431,7 @@ export default function TujuanPage() {
             ))}
         {!isLoading && !isError && goals?.length === 0 && (
           <div className="col-span-full rounded-[14px] border bg-card px-4 py-8 text-center text-[13px] text-muted-foreground">
-            Belum ada tujuan keuangan. Klik &quot;Tambah Tujuan&quot; untuk
-            mulai.
+            {t.tujuan.emptyState}
           </div>
         )}
       </div>

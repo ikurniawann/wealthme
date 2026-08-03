@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, formatRupiahCompact } from "@/lib/format";
 import { useCurrencyPreference } from "@/hooks/use-currency-preference";
+import { useLocale } from "@/hooks/use-locale";
 import { buildNetWorthTrendPath } from "@/lib/chart-utils";
 import type {
   DashboardSummaryDto,
@@ -24,6 +25,7 @@ const COMPOSITION_COLOR: Record<string, string> = {
 };
 
 export default function RingkasanPage() {
+  const { t } = useLocale();
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId ?? null;
   const { currency, formatMoney, isIndicative, isReady } =
@@ -121,7 +123,7 @@ export default function RingkasanPage() {
   if (isError) {
     return (
       <div className="flex items-center justify-center py-16 text-[13px] text-muted-foreground">
-        Gagal memuat data ringkasan. Coba muat ulang halaman.
+        {t.ringkasan.errorLoad}
       </div>
     );
   }
@@ -132,7 +134,7 @@ export default function RingkasanPage() {
       <div className="mb-[18px] grid grid-cols-2 gap-3.5 md:grid-cols-4">
         <Card className="gap-0 border-none gradient-wealth p-5 text-white">
           <div className="mb-1.5 text-[11px] opacity-80">
-            Total Kekayaan Bersih
+            {t.ringkasan.totalNetWorthLabel}
           </div>
           <div className="text-[20px] font-black">
             {isLoading ? "..." : money(netWorth)}
@@ -141,58 +143,63 @@ export default function RingkasanPage() {
             {isLoading
               ? "..."
               : monthNet >= 0
-                ? `▲ ${money(monthNet)} bulan ini`
-                : `▼ ${money(Math.abs(monthNet))} bulan ini`}
+                ? `${t.ringkasan.monthDeltaUpPrefix}${money(monthNet)}${t.ringkasan.monthDeltaSuffix}`
+                : `${t.ringkasan.monthDeltaDownPrefix}${money(Math.abs(monthNet))}${t.ringkasan.monthDeltaSuffix}`}
           </div>
         </Card>
         <Card className="gap-0 p-5">
           <div className="mb-1.5 text-[11px] text-muted-foreground">
-            Total Aset
+            {t.ringkasan.totalAssetsLabel}
           </div>
           <div className="text-[20px] font-black text-success">
             {isLoading ? "..." : money(totalAssets)}
           </div>
           <div className="text-[11px] text-muted-foreground">
             {summary?.accountSummary.length
-              ? `${summary.accountSummary.length} jenis akun`
-              : "—"}
+              ? `${summary.accountSummary.length}${t.ringkasan.accountTypesSuffix}`
+              : t.ringkasan.noDataDash}
           </div>
         </Card>
         <Card className="gap-0 p-5">
           <div className="mb-1.5 text-[11px] text-muted-foreground">
-            Total Liabilitas
+            {t.ringkasan.totalLiabilitiesLabel}
           </div>
           <div className="text-[20px] font-black text-muted-foreground">
             {isLoading || isNetWorthLoading ? "..." : money(totalLiabilities)}
           </div>
-          <div className="text-[11px] text-muted-foreground">Kewajiban</div>
+          <div className="text-[11px] text-muted-foreground">
+            {t.ringkasan.liabilitiesSublabel}
+          </div>
         </Card>
         <Card className="gap-0 p-5">
           <div className="mb-1.5 text-[11px] text-muted-foreground">
-            Savings Rate
+            {t.ringkasan.savingsRateLabel}
           </div>
           <div className="text-[20px] font-black text-primary">
             {isLoading ? "..." : `${savingsRate}%`}
           </div>
           <div className="text-[11px] text-success">
-            {monthExpense > 0 ? `Pengeluaran ${money(monthExpense)}` : "—"}
+            {monthExpense > 0
+              ? `${t.ringkasan.expenseValuePrefix}${money(monthExpense)}`
+              : t.ringkasan.noDataDash}
           </div>
         </Card>
       </div>
       {isIndicative && (
         <div className="-mt-2.5 mb-1.5 text-[11px] text-muted-foreground">
-          ≈ Nilai dalam {currency} adalah perkiraan menggunakan kurs indikatif,
-          bukan kurs pasar real-time.
+          {t.ringkasan.indicativeFxNotePrefix}
+          {currency}
+          {t.ringkasan.indicativeFxNoteSuffix}
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-        <SectionCard title="Tren Kekayaan Bersih (6 Bulan)">
+        <SectionCard title={t.ringkasan.netWorthTrendTitle}>
           {isLoading ? (
             <div className="h-[90px] animate-pulse rounded-md bg-muted" />
           ) : trend.points.length === 0 ? (
             <div className="flex h-[90px] items-center justify-center text-[12px] text-muted-foreground">
-              Belum ada data cashflow
+              {t.ringkasan.emptyCashflow}
             </div>
           ) : (
             <svg
@@ -243,7 +250,7 @@ export default function RingkasanPage() {
         </SectionCard>
 
         {/* Asset composition — horizontal labelled bar list */}
-        <SectionCard title="Komposisi Aset">
+        <SectionCard title={t.ringkasan.compositionTitle}>
           {isLoading ? (
             <div className="space-y-2">
               {Array(3)
@@ -257,7 +264,7 @@ export default function RingkasanPage() {
             </div>
           ) : composition.length === 0 ? (
             <div className="py-4 text-center text-[13px] text-muted-foreground">
-              Tambah saldo akun untuk melihat komposisi aset.
+              {t.ringkasan.emptyComposition}
             </div>
           ) : (
             <div className="space-y-3">
@@ -286,22 +293,28 @@ export default function RingkasanPage() {
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
         {/* Cash Flow */}
         <SectionCard
-          title={`Cash Flow ${summary?.cashflow.months.at(-1) ?? ""}`}
+          title={`${t.ringkasan.cashFlowTitlePrefix}${summary?.cashflow.months.at(-1) ?? ""}`}
         >
           <div className="mb-2.5">
-            <div className="text-[11px] text-muted-foreground">Pemasukan</div>
+            <div className="text-[11px] text-muted-foreground">
+              {t.ringkasan.incomeLabel}
+            </div>
             <div className="text-[18px] font-extrabold text-success">
               {isLoading ? "..." : moneyFull(monthIncome)}
             </div>
           </div>
           <div className="mb-2.5">
-            <div className="text-[11px] text-muted-foreground">Pengeluaran</div>
+            <div className="text-[11px] text-muted-foreground">
+              {t.ringkasan.expenseLabel}
+            </div>
             <div className="text-[18px] font-extrabold text-destructive">
               {isLoading ? "..." : moneyFull(monthExpense)}
             </div>
           </div>
           <div className="border-t pt-2.5">
-            <div className="text-[11px] text-muted-foreground">Surplus</div>
+            <div className="text-[11px] text-muted-foreground">
+              {t.ringkasan.surplusLabel}
+            </div>
             <div
               className={`text-[18px] font-extrabold ${monthNet >= 0 ? "text-success" : "text-destructive"}`}
             >
@@ -310,28 +323,28 @@ export default function RingkasanPage() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Top Pengeluaran">
+        <SectionCard title={t.ringkasan.topExpensesTitle}>
           <div className="divide-y">
             {isLoading && (
               <div className="py-4 text-center text-[13px] text-muted-foreground">
-                Memuat...
+                {t.ringkasan.loadingLabel}
               </div>
             )}
             {!isLoading && topExpenses.length === 0 && (
               <div className="py-4 text-center text-[13px] text-muted-foreground">
-                Belum ada pengeluaran bulan ini.
+                {t.ringkasan.emptyTopExpenses}
               </div>
             )}
-            {topExpenses.slice(0, 5).map((t, idx) => (
+            {topExpenses.slice(0, 5).map((expenseItem, idx) => (
               <div
-                key={t.categoryName}
+                key={expenseItem.categoryName}
                 className="flex items-center gap-3 py-2 first:pt-0 last:pb-0"
               >
                 <div
                   className="flex size-[30px] shrink-0 items-center justify-center rounded-md text-[13px]"
                   style={{
                     background:
-                      t.color ??
+                      expenseItem.color ??
                       ["#EEF2FF", "#DCFCE7", "#FEF9C3", "#FEE2E2", "#F3F4F6"][
                         idx % 5
                       ],
@@ -341,14 +354,16 @@ export default function RingkasanPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[13px] font-semibold">
-                    {t.categoryName}
+                    {expenseItem.categoryName}
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <StatusBadge variant="gray">{t.percentage}%</StatusBadge>
+                  <StatusBadge variant="gray">
+                    {expenseItem.percentage}%
+                  </StatusBadge>
                   <div className="text-right">
                     <div className="text-[13px] font-bold text-destructive">
-                      {moneyFull(t.amount)}
+                      {moneyFull(expenseItem.amount)}
                     </div>
                   </div>
                 </div>
@@ -358,7 +373,7 @@ export default function RingkasanPage() {
         </SectionCard>
 
         {/* Health Score */}
-        <SectionCard title="Health Score">
+        <SectionCard title={t.ringkasan.healthScoreTitle}>
           <div className="py-2.5 text-center">
             <svg
               viewBox="0 0 120 70"
@@ -389,7 +404,7 @@ export default function RingkasanPage() {
               {savingsRate}
             </div>
             <div className="text-[11px] text-muted-foreground">
-              Financial Health Score
+              {t.ringkasan.financialHealthScoreLabel}
             </div>
             <div className="mt-2">
               <StatusBadge
@@ -402,10 +417,10 @@ export default function RingkasanPage() {
                 }
               >
                 {savingsRate >= 20
-                  ? "Sehat"
+                  ? t.ringkasan.healthStatusGood
                   : savingsRate >= 10
-                    ? "Cukup"
-                    : "Perlu Perhatian"}
+                    ? t.ringkasan.healthStatusFair
+                    : t.ringkasan.healthStatusNeedsAttention}
               </StatusBadge>
             </div>
           </div>
