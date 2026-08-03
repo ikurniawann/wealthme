@@ -801,20 +801,6 @@ export default function RekonsiliasiPage() {
           <div className="flex flex-wrap justify-center gap-2.5">
             <button
               type="button"
-              onClick={() => toast("📥 Mengunduh laporan PDF...")}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-lg border-[1.5px] bg-background px-4 py-2.5 text-[13.5px] font-bold transition-colors hover:bg-accent"
-            >
-              <FileText className="size-4" /> Unduh PDF
-            </button>
-            <button
-              type="button"
-              onClick={() => toast("📊 Mengunduh Excel...")}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-lg border-[1.5px] bg-background px-4 py-2.5 text-[13.5px] font-bold transition-colors hover:bg-accent"
-            >
-              <FileSpreadsheet className="size-4" /> Unduh Excel
-            </button>
-            <button
-              type="button"
               onClick={() => {
                 setSyncId(null);
                 autoMatchMutation.reset();

@@ -9,6 +9,12 @@ export const NOTIF_PREF_KEYS = [
   "billDue",
   "stockPrice",
   "dividend",
+  // EPIC-016 Task K — Keamanan & Password toggles (Notifikasi Login Baru /
+  // Konfirmasi Transaksi Besar). Both default OFF: unlike the transaction
+  // notification keys above, there is no push/authentication mechanism yet
+  // that actually enforces these, so they must not silently read as "on".
+  "loginAlert",
+  "bigTxnConfirm",
 ] as const;
 
 export type NotifPrefKey = (typeof NOTIF_PREF_KEYS)[number];
@@ -24,6 +30,8 @@ export const DEFAULT_NOTIF_PREFS: NotificationPrefs = {
   billDue: true,
   stockPrice: true,
   dividend: true,
+  loginAlert: false,
+  bigTxnConfirm: false,
 };
 
 /**

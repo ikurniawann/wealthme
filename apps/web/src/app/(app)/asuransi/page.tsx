@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/wm";
 import {
   CardSideActions,
@@ -93,6 +94,26 @@ function renewalBadgeVariant(
   if (days <= 7) return "danger";
   if (days <= 30) return "warning";
   return "success";
+}
+
+/**
+ * Advance a renewal date by one premium period — monthly +1 month,
+ * quarterly +3 months, yearly +1 year. Falls back to today when there's no
+ * current renewal date yet. Returns a yyyy-mm-dd string.
+ */
+export function nextRenewalDate(
+  current: string | null,
+  period: PremiumPeriod,
+): string {
+  const base = current ? new Date(current) : new Date();
+  const months = period === "monthly" ? 1 : period === "quarterly" ? 3 : 12;
+  const year = base.getUTCFullYear();
+  const month = base.getUTCMonth() + months;
+  const day = base.getUTCDate();
+  // Clamp to the target month's last day so Jan 31 +1mo = Feb 28/29, not Mar 2/3.
+  const daysInTarget = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const next = new Date(Date.UTC(year, month, Math.min(day, daysInTarget)));
+  return next.toISOString().slice(0, 10);
 }
 
 function PolicyCardSkeleton() {
@@ -584,6 +605,61 @@ function AddInsuranceModal({
   );
 }
 
+/**
+ * "Bayar" confirm dialog (EPIC-016 Task H) — records a real renewal by
+ * advancing `renewalDate` by one premium period via PATCH. No payment
+ * ledger/gateway exists, so the copy only claims what actually happens.
+ */
+function PayInsuranceDialog({
+  item,
+  isPending,
+  onClose,
+  onConfirm,
+}: {
+  item: InsuranceDto | null;
+  isPending: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const periodLabel = item
+    ? (PREMIUM_PERIOD_LABEL[item.premiumPeriod] ?? "")
+    : "";
+  return (
+    <Dialog open={item !== null} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[380px]">
+        <DialogTitle className="text-[17px] font-extrabold">
+          Perpanjang Premi
+        </DialogTitle>
+        {item && (
+          <div className="space-y-3 text-[13px]">
+            <div className="rounded-lg bg-muted p-3.5">
+              <div className="text-[11px] text-muted-foreground">Premi</div>
+              <div className="text-[18px] font-black">
+                {formatRupiah(Number(BigInt(item.premiumAmount)))}
+                <span className="ml-1 text-[12px] font-normal text-muted-foreground">
+                  {periodLabel}
+                </span>
+              </div>
+            </div>
+            <p className="text-muted-foreground">
+              Tandai premi {item.name} sudah dibayar? Jatuh tempo berikutnya
+              akan otomatis dihitung dari periode premi saat ini.
+            </p>
+          </div>
+        )}
+        <div className="flex gap-2.5 pt-2">
+          <Button variant="outline" className="flex-1" onClick={onClose}>
+            Batal
+          </Button>
+          <Button className="flex-1" disabled={isPending} onClick={onConfirm}>
+            {isPending ? "Memproses..." : "Ya, Sudah Dibayar"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 const CRUD_JENIS_BY_TYPE: Record<string, string> = {
   jiwa: "Jiwa",
   kesehatan: "Kesehatan",
@@ -601,6 +677,31 @@ export default function AsuransiPage() {
   const [crud, setCrud] = useState<CrudModalState | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<InsuranceDto | null>(null);
+  const [payTarget, setPayTarget] = useState<InsuranceDto | null>(null);
+
+  const payMutation = useMutation({
+    mutationFn: (item: InsuranceDto) => {
+      const renewalDate = nextRenewalDate(item.renewalDate, item.premiumPeriod);
+      return apiFetch(`/family-groups/${familyGroupId}/insurances/${item.id}`, {
+        token,
+        method: "PATCH",
+        body: JSON.stringify({ renewalDate }),
+      }).then(() => renewalDate);
+    },
+    onSuccess: (renewalDate) => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.insurances.all(familyGroupId ?? ""),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.insurances.summary(familyGroupId ?? ""),
+      });
+      setPayTarget(null);
+      toast.success(
+        `Perpanjangan dicatat — jatuh tempo berikutnya ${formatIndonesianDate(renewalDate)}`,
+      );
+    },
+    onError: () => toast.error("Gagal mencatat perpanjangan. Coba lagi."),
+  });
 
   const CRUD_TYPE_BY_JENIS: Record<string, string> = {
     Jiwa: "jiwa",
@@ -772,7 +873,7 @@ export default function AsuransiPage() {
             key={item.id}
             item={item}
             onEdit={() => openEdit(item)}
-            onPay={() => toast("💳 Bayar premi")}
+            onPay={() => setPayTarget(item)}
             onDelete={() => setDeleteTarget(item)}
           />
         ))}
@@ -795,6 +896,14 @@ export default function AsuransiPage() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => {
           if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+        }}
+      />
+      <PayInsuranceDialog
+        item={payTarget}
+        isPending={payMutation.isPending}
+        onClose={() => setPayTarget(null)}
+        onConfirm={() => {
+          if (payTarget) payMutation.mutate(payTarget);
         }}
       />
     </div>
