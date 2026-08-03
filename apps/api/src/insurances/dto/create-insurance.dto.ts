@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { InsuranceStatus, InsuranceType, PremiumPeriod } from "@prisma/client";
+import { Type } from "class-transformer";
 import {
   IsBoolean,
   IsDateString,
@@ -9,7 +10,10 @@ import {
   IsString,
   Matches,
   MaxLength,
+  ValidateNested,
 } from "class-validator";
+
+import { CreateInsuranceBeneficiaryDto } from "./create-insurance-beneficiary.dto";
 
 export class CreateInsuranceDto {
   @ApiProperty()
@@ -79,4 +83,10 @@ export class CreateInsuranceDto {
   @IsString()
   @MaxLength(3)
   currency?: string;
+
+  @ApiPropertyOptional({ type: [CreateInsuranceBeneficiaryDto] })
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => CreateInsuranceBeneficiaryDto)
+  beneficiaries?: CreateInsuranceBeneficiaryDto[];
 }

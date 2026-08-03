@@ -77,6 +77,7 @@ enum InsuranceType {
   kesehatan
   kendaraan
   properti
+  pendidikan
   lainnya
 }
 
@@ -592,9 +593,29 @@ model Insurance {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   familyGroup     FamilyGroup     @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  beneficiaries   InsuranceBeneficiary[]
 
   @@index([familyGroupId])
   @@map("insurances")
+}
+
+// EPIC-021 Group D (#14) — insurance policy beneficiaries, sharing the same
+// shape as InheritanceHeir (decision: warisan + asuransi use one beneficiary
+// shape) — free-text name/relationship plus an optional link to a
+// family-group member (`memberUserId` -> User.id, unenforced FK like
+// Donation.accountId elsewhere in this schema).
+model InsuranceBeneficiary {
+  id           String    @id @default(uuid())
+  insuranceId  String
+  name         String    @db.VarChar(100)
+  relationship String    @db.VarChar(100)
+  sharePercent Decimal   @db.Decimal(5, 2)
+  memberUserId String?
+  createdAt    DateTime  @default(now())
+  insurance    Insurance @relation(fields: [insuranceId], references: [id], onDelete: Cascade)
+
+  @@index([insuranceId])
+  @@map("insurance_beneficiaries")
 }
 
 model SplitBill {
@@ -640,6 +661,11 @@ model InheritanceAsset {
   notes          String?
   visibility     InheritanceVisibility @default(heirs_only)
   documentUrl    String?
+  // EPIC-021 Group D (#11) — optional link back to the source Asset this
+  // inheritance record was picked from ("Pilih dari Aset" mode). Unenforced
+  // FK, matching the Donation.accountId pattern elsewhere in this schema —
+  // manual entry (no Asset pick) leaves this null.
+  assetId        String?
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
   familyGroup    FamilyGroup           @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
@@ -655,6 +681,10 @@ model InheritanceHeir {
   name               String           @db.VarChar(100)
   relationship       String           @db.VarChar(100)
   sharePercent       Decimal          @db.Decimal(5, 2)
+  // EPIC-021 Group D (Decision #9) — optional link to a family-group member
+  // (User.id) alongside the free-text name/relationship. Unenforced FK, same
+  // pattern as Donation.accountId.
+  memberUserId       String?
   createdAt          DateTime         @default(now())
   inheritanceAsset   InheritanceAsset @relation(fields: [inheritanceAssetId], references: [id], onDelete: Cascade)
 

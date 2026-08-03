@@ -718,6 +718,7 @@ interface InheritanceHeirDto {
     name: string;
     relationship: string;
     sharePercent: string;
+    memberUserId: string | null;
     createdAt: string;
 }
 interface InheritanceAssetDto {
@@ -730,6 +731,7 @@ interface InheritanceAssetDto {
     notes: string | null;
     visibility: InheritanceVisibility;
     documentUrl: string | null;
+    assetId: string | null;
     heirs: InheritanceHeirDto[];
     createdAt: string;
     updatedAt: string;
@@ -738,6 +740,7 @@ interface CreateHeirDto {
     name: string;
     relationship: string;
     sharePercent: number;
+    memberUserId?: string;
 }
 interface CreateInheritanceAssetDto {
     name: string;
@@ -746,6 +749,7 @@ interface CreateInheritanceAssetDto {
     currency?: string;
     notes?: string;
     visibility?: InheritanceVisibility;
+    assetId?: string;
     heirs?: CreateHeirDto[];
 }
 interface UpdateInheritanceAssetDto {
@@ -755,12 +759,28 @@ interface UpdateInheritanceAssetDto {
     currency?: string;
     notes?: string;
     visibility?: InheritanceVisibility;
+    assetId?: string | null;
     heirs?: CreateHeirDto[];
 }
 
-type InsuranceType = "jiwa" | "kesehatan" | "kendaraan" | "properti" | "lainnya";
+type InsuranceType = "jiwa" | "kesehatan" | "kendaraan" | "properti" | "pendidikan" | "lainnya";
 type InsuranceStatus = "aktif" | "tidak_aktif" | "kadaluarsa";
 type PremiumPeriod = "monthly" | "quarterly" | "yearly";
+interface InsuranceBeneficiaryDto {
+    id: string;
+    insuranceId: string;
+    name: string;
+    relationship: string;
+    sharePercent: string;
+    memberUserId: string | null;
+    createdAt: string;
+}
+interface CreateInsuranceBeneficiaryDto {
+    name: string;
+    relationship: string;
+    sharePercent: number;
+    memberUserId?: string;
+}
 interface InsuranceDto {
     id: string;
     familyGroupId: string;
@@ -777,6 +797,7 @@ interface InsuranceDto {
     daysUntilRenewal: number | null;
     notes: string | null;
     currency: string;
+    beneficiaries: InsuranceBeneficiaryDto[];
     createdAt: string;
     updatedAt: string;
 }
@@ -798,6 +819,7 @@ interface CreateInsuranceDto {
     policyNumber?: string;
     notes?: string;
     currency?: string;
+    beneficiaries?: CreateInsuranceBeneficiaryDto[];
 }
 interface UpdateInsuranceDto {
     name?: string;
@@ -812,6 +834,7 @@ interface UpdateInsuranceDto {
     policyNumber?: string;
     notes?: string;
     currency?: string;
+    beneficiaries?: CreateInsuranceBeneficiaryDto[];
 }
 
 type SplitStatus = "open" | "settled";
@@ -1167,4 +1190,4 @@ interface UpdateTaxRecordDto {
     notes?: string;
 }
 
-export { type AccountDto, AccountDtoSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AssetDto, type AssetHistoryDto, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CreateAccountInput, CreateAccountInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, GENERIC_COA_CHART, type GoalDto, type GoalStatus, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDto, type InvestmentSummaryDto, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type ParticipantStatus, type PeriodPoint, type PnlDto, type Pph21RequestDto, type Pph21ResultDto, type PremiumPeriod, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SplitBillDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type TaxBracketDto, type TaxRecordDto, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto, defaultCoaCodeForCategory };
+export { type AccountDto, AccountDtoSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AssetDto, type AssetHistoryDto, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CreateAccountInput, CreateAccountInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceBeneficiaryDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, GENERIC_COA_CHART, type GoalDto, type GoalStatus, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceBeneficiaryDto, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDto, type InvestmentSummaryDto, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type ParticipantStatus, type PeriodPoint, type PnlDto, type Pph21RequestDto, type Pph21ResultDto, type PremiumPeriod, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SplitBillDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type TaxBracketDto, type TaxRecordDto, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto, defaultCoaCodeForCategory };
