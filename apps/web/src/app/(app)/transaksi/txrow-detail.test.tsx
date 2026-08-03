@@ -74,6 +74,8 @@ function buildTx(overrides: Partial<TransactionDto> = {}): TransactionDto {
     accountName: "BCA Tabungan",
     occurredAt: "2026-07-20T09:30:00.000Z",
     createdAt: "2026-07-20T09:31:00.000Z",
+    toAccountId: null,
+    toAccountName: null,
     ...overrides,
   };
 }
