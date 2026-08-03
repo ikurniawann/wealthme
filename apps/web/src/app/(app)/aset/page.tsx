@@ -21,6 +21,7 @@ import { useSession } from "@/lib/auth-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
@@ -33,13 +34,7 @@ import type { AssetDto, AccountDto, InvestmentDto } from "@wealthme/contracts";
 
 type TabId = "semua" | "dana" | "rekening" | "investasi" | "fisik";
 
-const TABS: { label: string; id: TabId }[] = [
-  { label: "Semua", id: "semua" },
-  { label: "Dana", id: "dana" },
-  { label: "Rekening", id: "rekening" },
-  { label: "Investasi", id: "investasi" },
-  { label: "Aset Fisik", id: "fisik" },
-];
+const TAB_IDS: TabId[] = ["semua", "dana", "rekening", "investasi", "fisik"];
 
 // ── Physical asset lookups ────────────────────────────────────────────────────
 
@@ -49,14 +44,6 @@ const ASSET_TYPE_ICON: Record<string, { icon: LucideIcon; chip: string }> = {
   elektronik: { icon: Laptop, chip: "bg-gray-100 text-gray-600" },
   perhiasan: { icon: Gem, chip: "bg-amber-100 text-amber-600" },
   lainnya: { icon: Package, chip: "bg-gray-100 text-gray-600" },
-};
-
-const ASSET_TYPE_LABEL: Record<string, string> = {
-  properti: "Properti",
-  kendaraan: "Kendaraan",
-  elektronik: "Elektronik",
-  perhiasan: "Perhiasan",
-  lainnya: "Lainnya",
 };
 
 // ── Account lookups ───────────────────────────────────────────────────────────
@@ -69,14 +56,6 @@ const ACCOUNT_TYPE_ICON: Record<string, { icon: LucideIcon; chip: string }> = {
   property: { icon: Home, chip: "bg-yellow-100 text-yellow-600" },
 };
 
-const ACCOUNT_TYPE_LABEL: Record<string, string> = {
-  bank: "Bank",
-  ewallet: "E-Wallet",
-  cash: "Tunai",
-  investment: "Investasi",
-  property: "Properti",
-};
-
 // ── Investment type lookups ───────────────────────────────────────────────────
 
 const INV_TYPE_ICON: Record<string, { icon: LucideIcon; chip: string }> = {
@@ -86,15 +65,6 @@ const INV_TYPE_ICON: Record<string, { icon: LucideIcon; chip: string }> = {
   emas: { icon: Gem, chip: "bg-yellow-100 text-yellow-600" },
   kripto: { icon: TrendingUp, chip: "bg-orange-100 text-orange-600" },
   lainnya: { icon: Package, chip: "bg-violet-100 text-violet-600" },
-};
-
-const INV_TYPE_LABEL: Record<string, string> = {
-  saham: "Saham",
-  reksa_dana: "Reksa Dana",
-  obligasi: "Obligasi",
-  emas: "Emas",
-  kripto: "Kripto",
-  lainnya: "Lainnya",
 };
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
@@ -146,6 +116,7 @@ interface AddAssetModalProps {
 }
 
 function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
+  const { t } = useLocale();
   const queryClient = useQueryClient();
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
@@ -177,11 +148,11 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.netWorth.summary(familyGroupId),
       });
-      toast.success("Aset berhasil ditambahkan");
+      toast.success(t.aset.toastAdded);
       onClose();
     },
     onError: () => {
-      toast.error("Gagal menambahkan aset. Silakan coba lagi.");
+      toast.error(t.aset.toastAddFailed);
     },
   });
 
@@ -207,7 +178,7 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-5 flex items-center justify-between">
-          <span className="text-[15px] font-bold">Tambah Aset Fisik</span>
+          <span className="text-[15px] font-bold">{t.aset.modalTitle}</span>
           <button
             type="button"
             onClick={onClose}
@@ -220,11 +191,11 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <div>
             <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
-              Nama Aset
+              {t.aset.fieldNameLabel}
             </label>
             <input
               className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-              placeholder="cth. Apartemen Kelapa Gading"
+              placeholder={t.aset.fieldNamePlaceholder}
               maxLength={100}
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -234,16 +205,16 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
 
           <div>
             <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
-              Kategori
+              {t.aset.fieldCategoryLabel}
             </label>
             <select
               className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
               value={type}
               onChange={(e) => setType(e.target.value as AssetTypeValue)}
             >
-              {ASSET_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {ASSET_TYPE_LABEL[t]}
+              {ASSET_TYPES.map((assetType) => (
+                <option key={assetType} value={assetType}>
+                  {t.aset.assetTypeLabels[assetType]}
                 </option>
               ))}
             </select>
@@ -251,11 +222,11 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
 
           <div>
             <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
-              Nilai Aset (Rp)
+              {t.aset.fieldValueLabel}
             </label>
             <input
               className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-              placeholder="cth. 200.000.000"
+              placeholder={t.aset.fieldValuePlaceholder}
               inputMode="numeric"
               value={value}
               onChange={(e) => {
@@ -270,11 +241,11 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
 
           <div>
             <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
-              Catatan (opsional)
+              {t.aset.fieldNotesLabel}
             </label>
             <input
               className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-              placeholder="cth. Lantai 5 unit B"
+              placeholder={t.aset.fieldNotesPlaceholder}
               maxLength={500}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -286,7 +257,7 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
             className="w-full"
             disabled={mutation.isPending}
           >
-            {mutation.isPending ? "Menyimpan…" : "Simpan Aset"}
+            {mutation.isPending ? t.aset.saving : t.aset.saveButton}
           </Button>
         </form>
       </div>
@@ -297,6 +268,7 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
 // ── Physical Asset Group Card ─────────────────────────────────────────────────
 
 function AssetGroupCard({ assets }: { assets: AssetDto[] }) {
+  const { t } = useLocale();
   const groupTotal = assets.reduce(
     (sum, a) => sum + BigInt(a.currentValue ?? "0"),
     BigInt(0),
@@ -311,7 +283,9 @@ function AssetGroupCard({ assets }: { assets: AssetDto[] }) {
             className="bg-yellow-100 text-yellow-600"
             size={28}
           />
-          <span className="text-[13.5px] font-bold">Aset Fisik</span>
+          <span className="text-[13.5px] font-bold">
+            {t.aset.physicalAssetsTitle}
+          </span>
         </div>
         <div className="text-[14px] font-extrabold">
           {formatRupiah(Number(groupTotal))}
@@ -341,7 +315,9 @@ function AssetGroupCard({ assets }: { assets: AssetDto[] }) {
                   <div className="text-[11.5px] text-muted-foreground truncate">
                     {asset.notes
                       ? asset.notes
-                      : (ASSET_TYPE_LABEL[asset.type] ?? asset.type)}
+                      : (t.aset.assetTypeLabels[
+                          asset.type as keyof typeof t.aset.assetTypeLabels
+                        ] ?? asset.type)}
                   </div>
                 </div>
                 <div className="text-right shrink-0">
@@ -355,7 +331,7 @@ function AssetGroupCard({ assets }: { assets: AssetDto[] }) {
         })}
         {assets.length === 0 && (
           <div className="py-4 text-center text-[12px] text-muted-foreground">
-            Belum ada aset fisik.
+            {t.aset.emptyPhysical}
           </div>
         )}
       </div>
@@ -378,6 +354,7 @@ function AccountsGroupCard({
   headerIcon,
   headerChip,
 }: AccountsGroupCardProps) {
+  const { t } = useLocale();
   const groupTotal = accounts.reduce(
     (sum, a) => sum + BigInt(a.balance ?? "0"),
     BigInt(0),
@@ -399,7 +376,9 @@ function AccountsGroupCard({
           const subtitle =
             account.institution ??
             account.maskedNumber ??
-            ACCOUNT_TYPE_LABEL[account.type] ??
+            t.aset.accountTypeLabels[
+              account.type as keyof typeof t.aset.accountTypeLabels
+            ] ??
             account.type;
           const cfg = ACCOUNT_TYPE_ICON[account.type] ?? {
             icon: Wallet,
@@ -435,7 +414,7 @@ function AccountsGroupCard({
         })}
         {accounts.length === 0 && (
           <div className="py-4 text-center text-[12px] text-muted-foreground">
-            Belum ada dana &amp; rekening.
+            {t.aset.emptyDanaRekening}
           </div>
         )}
       </div>
@@ -446,6 +425,7 @@ function AccountsGroupCard({
 // ── Investasi Group Card ──────────────────────────────────────────────────────
 
 function InvestasiGroupCard({ investments }: { investments: InvestmentDto[] }) {
+  const { t } = useLocale();
   // currentValue is a computed Decimal (quantity × price) serialized as a
   // string that can contain a fractional part — BigInt() throws on that
   // ("invalid BigInt syntax"), so unlike Account.balance/Asset.currentValue
@@ -464,7 +444,9 @@ function InvestasiGroupCard({ investments }: { investments: InvestmentDto[] }) {
             className="bg-violet-100 text-violet-600"
             size={28}
           />
-          <span className="text-[13.5px] font-bold">Investasi</span>
+          <span className="text-[13.5px] font-bold">
+            {t.aset.investmentsTitle}
+          </span>
         </div>
         <div className="text-[14px] font-extrabold">
           {formatRupiah(Number(groupTotal))}
@@ -492,7 +474,9 @@ function InvestasiGroupCard({ investments }: { investments: InvestmentDto[] }) {
                     {inv.ticker} — {inv.name}
                   </div>
                   <div className="text-[11.5px] text-muted-foreground truncate">
-                    {INV_TYPE_LABEL[inv.type] ?? inv.type}
+                    {t.aset.invTypeLabels[
+                      inv.type as keyof typeof t.aset.invTypeLabels
+                    ] ?? inv.type}
                   </div>
                 </div>
                 <div className="text-right shrink-0">
@@ -506,7 +490,7 @@ function InvestasiGroupCard({ investments }: { investments: InvestmentDto[] }) {
         })}
         {investments.length === 0 && (
           <div className="py-4 text-center text-[12px] text-muted-foreground">
-            Belum ada investasi.
+            {t.aset.emptyInvestments}
           </div>
         )}
       </div>
@@ -517,6 +501,7 @@ function InvestasiGroupCard({ investments }: { investments: InvestmentDto[] }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function AsetPage() {
+  const { t } = useLocale();
   const [activeTab, setActiveTab] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -582,11 +567,11 @@ export default function AsetPage() {
 
   useEffect(() => {
     if (hasError) {
-      toast.error("Gagal memuat sebagian data aset. Silakan refresh halaman.");
+      toast.error(t.aset.errorLoad);
     }
-  }, [hasError]);
+  }, [hasError, t]);
 
-  const activeId = TABS[activeTab]?.id ?? "semua";
+  const activeId = TAB_IDS[activeTab] ?? "semua";
 
   // Tab visibility flags
   const showFisik = activeId === "semua" || activeId === "fisik";
@@ -628,9 +613,9 @@ export default function AsetPage() {
     <div className="space-y-4">
       {/* Tabs */}
       <div className="hide-scrollbar flex gap-2 overflow-x-auto">
-        {TABS.map((tab, i) => (
+        {TAB_IDS.map((id, i) => (
           <button
-            key={tab.id}
+            key={id}
             type="button"
             onClick={() => setActiveTab(i)}
             className={`shrink-0 cursor-pointer rounded-full px-4 py-2 text-[13px] font-semibold transition-colors ${
@@ -639,7 +624,7 @@ export default function AsetPage() {
                 : "bg-secondary text-secondary-foreground hover:bg-accent"
             }`}
           >
-            {tab.label}
+            {t.aset.tabs[id]}
           </button>
         ))}
       </div>
@@ -651,7 +636,7 @@ export default function AsetPage() {
       >
         <div>
           <div className="mb-[3px] text-[11px] text-muted-foreground">
-            Total Aset
+            {t.aset.totalAssetsLabel}
           </div>
           {isLoading ? (
             <div className="animate-pulse h-7 w-40 rounded bg-muted" />
@@ -669,11 +654,11 @@ export default function AsetPage() {
             disabled={!familyGroupId || !token}
             data-tour="add-aset"
           >
-            <Plus className="size-4" /> Tambah Aset
+            <Plus className="size-4" /> {t.aset.addAssetButton}
           </Button>
           <button
             type="button"
-            aria-label="Kunci tampilan aset"
+            aria-label={t.aset.lockAriaLabel}
             className="flex size-9 cursor-pointer items-center justify-center rounded-md border bg-background transition-colors hover:bg-accent"
           >
             <Lock className="size-3.5" />
@@ -687,7 +672,7 @@ export default function AsetPage() {
           role="alert"
           className="rounded-[14px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive"
         >
-          Gagal memuat sebagian data aset. Silakan refresh halaman.
+          {t.aset.errorLoad}
         </div>
       )}
 
@@ -704,7 +689,7 @@ export default function AsetPage() {
           {showDanaRekeningCombined && (
             <AccountsGroupCard
               accounts={allAccounts}
-              title="Dana & Rekening"
+              title={t.aset.danaRekeningTitle}
               headerIcon={Wallet}
               headerChip="bg-green-100 text-green-600"
             />
@@ -714,7 +699,7 @@ export default function AsetPage() {
           {showDana && (
             <AccountsGroupCard
               accounts={danaAccounts}
-              title="Dana"
+              title={t.aset.danaTitle}
               headerIcon={Wallet}
               headerChip="bg-green-100 text-green-600"
             />
@@ -724,7 +709,7 @@ export default function AsetPage() {
           {showRekening && (
             <AccountsGroupCard
               accounts={rekeningAccounts}
-              title="Rekening"
+              title={t.aset.rekeningTitle}
               headerIcon={Landmark}
               headerChip="bg-blue-100 text-blue-600"
             />
