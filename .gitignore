@@ -43,12 +43,18 @@ next-env.d.ts
 # turbo build cache
 .turbo/
 
-# claude code local settings (machine-specific)
-.claude/settings.local.json
+# claude code local settings (machine-specific, any depth — agents drop these
+# wherever they run, e.g. docs/epics/.claude/)
+**/.claude/settings.local.json
 
 # agent runtime state (machine-specific)
 .claude-flow/
 .swarm/
+**/.claude/proven-config.json
+**/.claude/.proven-config-version
+
+# ruflo/agentdb vector store — local memory cache, binary
+ruvector.db
 
 # graphify — generated AST/parse cache (large, machine-specific)
 graphify-out/
