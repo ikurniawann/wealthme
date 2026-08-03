@@ -1,5 +1,6 @@
-import { NotFoundException } from "@nestjs/common";
+import { ConflictException, NotFoundException } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
+import { Prisma } from "@prisma/client";
 
 import { CryptoService } from "../crypto/crypto.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -18,6 +19,10 @@ function makePrisma() {
       delete: jest.fn(),
     },
     donation: { updateMany: jest.fn() },
+    // EPIC-021 Group B — remove() checks this before attempting the delete.
+    // Default to 0 (no outgoing transfers) so pre-existing tests that don't
+    // care about transfers keep passing unmodified.
+    transaction: { count: jest.fn().mockResolvedValue(0) },
     $transaction: jest.fn(async (ops: Array<Promise<unknown>>) =>
       Promise.all(ops),
     ),
@@ -50,6 +55,13 @@ describe("AccountsService.remove", () => {
 
     await service.remove(FAMILY_GROUP_ID, ACCOUNT_ID);
 
+    expect(prisma.transaction.count).toHaveBeenCalledWith({
+      where: {
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        toAccountId: { not: null },
+      },
+    });
     expect(prisma.donation.updateMany).toHaveBeenCalledWith({
       where: { familyGroupId: FAMILY_GROUP_ID, accountId: ACCOUNT_ID },
       data: { accountId: null, transactionId: null },
@@ -58,6 +70,56 @@ describe("AccountsService.remove", () => {
       where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
     });
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects deletion when the account is the SOURCE of a real transfer (#23/#27/#28 cascade-corruption guard)", async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+    });
+    prisma.transaction.count.mockResolvedValue(1);
+
+    await expect(service.remove(FAMILY_GROUP_ID, ACCOUNT_ID)).rejects.toThrow(
+      ConflictException,
+    );
+    // Must never reach the delete — the destination's credit would be
+    // orphaned by the accountId cascade.
+    expect(prisma.account.delete).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects deletion when the account is the DESTINATION of a transfer (Restrict FK P2003 -> clean 4xx)", async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+    });
+    // Not a source of any transfer — only the toAccountId Restrict FK fires.
+    prisma.transaction.count.mockResolvedValue(0);
+    prisma.donation.updateMany.mockResolvedValue({ count: 0 });
+    const p2003 = new Prisma.PrismaClientKnownRequestError(
+      "Foreign key constraint failed on the field: `toAccountId`",
+      { code: "P2003", clientVersion: "6.19.3" },
+    );
+    prisma.account.delete.mockRejectedValue(p2003);
+
+    await expect(service.remove(FAMILY_GROUP_ID, ACCOUNT_ID)).rejects.toThrow(
+      ConflictException,
+    );
+  });
+
+  it("rethrows non-P2003 errors from the delete transaction unchanged", async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+    });
+    prisma.transaction.count.mockResolvedValue(0);
+    prisma.donation.updateMany.mockResolvedValue({ count: 0 });
+    const unrelated = new Error("connection reset");
+    prisma.account.delete.mockRejectedValue(unrelated);
+
+    await expect(service.remove(FAMILY_GROUP_ID, ACCOUNT_ID)).rejects.toThrow(
+      "connection reset",
+    );
   });
 });
 

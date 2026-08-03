@@ -1,6 +1,6 @@
 # EPIC-006: Integrations & AI
 
-status: ready-for-qa
+status: done
 environment: dev
 phase: 6
 priority: P2
@@ -78,3 +78,5 @@ dan menghadirkan AI Advisor serta kategorisasi transaksi berbasis LLM.
 ## Dependencies
 
 - EPIC-002..005 (semua port adapter & domain sudah ada dalam bentuk mock).
+
+- **2026-08-03/04 — /nerve QA sweep (delegated QA; user confirms from the live system). Evidence: gates green on development@5f2383f (qa/test/security); fresh DEV deploy clean (compose build, migrate+seed exit 0, api/web healthy); e2e vs https://wealthme.demo-wit.id — auth, route-protection, and all page regression specs green (57 passed, 2 flaky passed on serial retry, 0 real failures); code-level criteria verification by 4 parallel QA agents. **Verdict: QA-PASS with deviations. Real env-gated providers with documented mock fallback (Claude Vision OCR, Brick, yahoo-finance2, streaming Claude advisor grounded in user data, pref-gated budget-80% email). Deviations accepted: push/FCM not built (email+in-app only); insurance renewal e-mail trigger absent (in-app notification exists); T-606 categorization accuracy target unverified (no fixture). Status → done.

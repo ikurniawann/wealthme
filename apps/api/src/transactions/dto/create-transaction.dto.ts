@@ -8,6 +8,7 @@ import {
   IsPositive,
   IsString,
   IsUUID,
+  Min,
   MaxLength,
 } from "class-validator";
 
@@ -20,6 +21,25 @@ export class CreateTransactionDto {
   @IsUUID()
   @IsOptional()
   categoryId?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    description:
+      "Destination account UUID (transfer only) — EPIC-021 Group B. Must differ from accountId and belong to the same family group.",
+  })
+  @IsUUID()
+  @IsOptional()
+  toAccountId?: string;
+
+  @ApiPropertyOptional({
+    type: Number,
+    description:
+      "Admin fee in smallest currency unit (transfer only, e.g. e-wallet top-up). Deducted from the DESTINATION account as a separate linked expense — EPIC-021 #28.",
+  })
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  adminFee?: number;
 
   @ApiProperty({
     type: Number,

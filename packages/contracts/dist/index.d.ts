@@ -215,6 +215,7 @@ declare const CreateTransactionInputSchema: z.ZodObject<{
     description: z.ZodOptional<z.ZodString>;
     occurredAt: z.ZodString;
     toAccountId: z.ZodOptional<z.ZodString>;
+    adminFee: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     type: "income" | "expense" | "transfer";
     accountId: string;
@@ -223,6 +224,7 @@ declare const CreateTransactionInputSchema: z.ZodObject<{
     categoryId?: string | undefined;
     description?: string | undefined;
     toAccountId?: string | undefined;
+    adminFee?: number | undefined;
 }, {
     type: "income" | "expense" | "transfer";
     accountId: string;
@@ -231,18 +233,21 @@ declare const CreateTransactionInputSchema: z.ZodObject<{
     categoryId?: string | undefined;
     description?: string | undefined;
     toAccountId?: string | undefined;
+    adminFee?: number | undefined;
 }>;
 type CreateTransactionInput = z.infer<typeof CreateTransactionInputSchema>;
 declare const TransactionDtoSchema: z.ZodObject<{
     id: z.ZodString;
     familyGroupId: z.ZodString;
     accountId: z.ZodString;
+    toAccountId: z.ZodNullable<z.ZodString>;
     categoryId: z.ZodNullable<z.ZodString>;
     amount: z.ZodString;
     type: z.ZodEnum<["income", "expense", "transfer"]>;
     description: z.ZodNullable<z.ZodString>;
     categoryName: z.ZodNullable<z.ZodString>;
     accountName: z.ZodString;
+    toAccountName: z.ZodNullable<z.ZodString>;
     occurredAt: z.ZodString;
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
@@ -255,8 +260,10 @@ declare const TransactionDtoSchema: z.ZodObject<{
     amount: string;
     description: string | null;
     occurredAt: string;
+    toAccountId: string | null;
     categoryName: string | null;
     accountName: string;
+    toAccountName: string | null;
 }, {
     type: "income" | "expense" | "transfer";
     id: string;
@@ -267,8 +274,10 @@ declare const TransactionDtoSchema: z.ZodObject<{
     amount: string;
     description: string | null;
     occurredAt: string;
+    toAccountId: string | null;
     categoryName: string | null;
     accountName: string;
+    toAccountName: string | null;
 }>;
 type TransactionDto = z.infer<typeof TransactionDtoSchema>;
 declare const TransactionSummarySchema: z.ZodObject<{
@@ -308,12 +317,14 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         id: z.ZodString;
         familyGroupId: z.ZodString;
         accountId: z.ZodString;
+        toAccountId: z.ZodNullable<z.ZodString>;
         categoryId: z.ZodNullable<z.ZodString>;
         amount: z.ZodString;
         type: z.ZodEnum<["income", "expense", "transfer"]>;
         description: z.ZodNullable<z.ZodString>;
         categoryName: z.ZodNullable<z.ZodString>;
         accountName: z.ZodString;
+        toAccountName: z.ZodNullable<z.ZodString>;
         occurredAt: z.ZodString;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
@@ -326,8 +337,10 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         amount: string;
         description: string | null;
         occurredAt: string;
+        toAccountId: string | null;
         categoryName: string | null;
         accountName: string;
+        toAccountName: string | null;
     }, {
         type: "income" | "expense" | "transfer";
         id: string;
@@ -338,8 +351,10 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         amount: string;
         description: string | null;
         occurredAt: string;
+        toAccountId: string | null;
         categoryName: string | null;
         accountName: string;
+        toAccountName: string | null;
     }>, "many">;
     meta: z.ZodObject<{
         total: z.ZodNumber;
@@ -396,8 +411,10 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         amount: string;
         description: string | null;
         occurredAt: string;
+        toAccountId: string | null;
         categoryName: string | null;
         accountName: string;
+        toAccountName: string | null;
     }[];
     meta: {
         total: number;
@@ -424,8 +441,10 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         amount: string;
         description: string | null;
         occurredAt: string;
+        toAccountId: string | null;
         categoryName: string | null;
         accountName: string;
+        toAccountName: string | null;
     }[];
     meta: {
         total: number;

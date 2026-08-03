@@ -33,6 +33,13 @@ import {
 } from "@/components/ui/dialog";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah } from "@/lib/format";
+import {
+  clampDayToMonth,
+  daysInMonth,
+  getPeriodDateRange,
+  getYearDateRange,
+  type ReportPeriodSelection,
+} from "@/lib/laporan-period";
 import type {
   BalanceSheetDto,
   BankReportDto,
@@ -55,7 +62,6 @@ import {
   buildInvChartData,
   categoryBreakdownToDonut,
   formatJuta,
-  getMonthDateRange,
   sankeyToFlowBars,
   txTypeToBadgeVariant,
 } from "@/lib/laporan-utils";
@@ -1043,19 +1049,17 @@ const FLOW_GRADS_EXPENSE = [
 function AliranSection({
   sankeyData,
   isLoading,
+  periodLabel,
 }: {
   sankeyData?: SankeyDto;
   isLoading?: boolean;
+  periodLabel: string;
 }) {
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const incomeBars = sankeyData ? sankeyToFlowBars(sankeyData, "income") : [];
   const expenseBars = sankeyData ? sankeyToFlowBars(sankeyData, "expense") : [];
 
-  const now = new Date();
-  const bulan = now.toLocaleDateString("id-ID", {
-    month: "long",
-    year: "numeric",
-  });
+  const bulan = periodLabel;
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
@@ -1151,14 +1155,18 @@ function StatementRow({
   );
 }
 
-function PnlSection({ pnl, isLoading }: { pnl?: PnlDto; isLoading?: boolean }) {
+function PnlSection({
+  pnl,
+  isLoading,
+  periodLabel,
+}: {
+  pnl?: PnlDto;
+  isLoading?: boolean;
+  periodLabel: string;
+}) {
   const router = useRouter();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
-  const now = new Date();
-  const bulan = now.toLocaleDateString("id-ID", {
-    month: "long",
-    year: "numeric",
-  });
+  const bulan = periodLabel;
   const netMargin =
     pnl && pnl.revenue > 0
       ? `${Math.round((pnl.netProfit / pnl.revenue) * 100 * 10) / 10}%`
@@ -1386,16 +1394,14 @@ function BalanceSection({
 function CashflowSection({
   cashflow,
   isLoading,
+  periodLabel,
 }: {
   cashflow?: CashflowStatementDto;
   isLoading?: boolean;
+  periodLabel: string;
 }) {
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
-  const now = new Date();
-  const bulan = now.toLocaleDateString("id-ID", {
-    month: "long",
-    year: "numeric",
-  });
+  const bulan = periodLabel;
   const fmt = (n: number) => `${n >= 0 ? "+" : ""}${formatRupiah(Math.abs(n))}`;
 
   return (
@@ -2105,9 +2111,15 @@ const EXPORT_REPORT_TYPES: { id: ExportReportType; label: string }[] = [
 function ExportSection({
   familyGroupId,
   accessToken,
+  startDate,
+  endDate,
 }: {
   familyGroupId: string;
   accessToken: string | undefined;
+  /** Selected /laporan period bounds — threaded into the export job so the
+   * downloaded report reflects the same period the user is viewing. */
+  startDate: string;
+  endDate: string;
 }) {
   const [reportType, setReportType] = useState<ExportReportType>("summary");
   const [jobId, setJobId] = useState<string | null>(null);
@@ -2162,7 +2174,12 @@ function ExportSection({
       setJobId(null);
       setStatus(null);
 
-      const reqBody: ExportJobRequestDto = { type: reportType, format };
+      const reqBody: ExportJobRequestDto = {
+        type: reportType,
+        format,
+        startDate,
+        endDate,
+      };
 
       try {
         const res = await apiFetch<ExportJobStatusDto>(
@@ -2186,7 +2203,15 @@ function ExportSection({
         setIsSubmitting(false);
       }
     },
-    [familyGroupId, accessToken, reportType, stopPolling, pollStatus],
+    [
+      familyGroupId,
+      accessToken,
+      reportType,
+      startDate,
+      endDate,
+      stopPolling,
+      pollStatus,
+    ],
   );
 
   const handleDownload = useCallback(() => {
@@ -2287,6 +2312,95 @@ function ExportSection({
   );
 }
 
+/* ───────────────────────── Shared period filter ───────────────────────── */
+
+const MONTH_NAMES = [
+  "Januari",
+  "Februari",
+  "Maret",
+  "April",
+  "Mei",
+  "Juni",
+  "Juli",
+  "Agustus",
+  "September",
+  "Oktober",
+  "November",
+  "Desember",
+];
+
+/** Native-input year/month/day filter that drives every /laporan section. */
+function PeriodFilter({
+  period,
+  onChange,
+}: {
+  period: ReportPeriodSelection;
+  onChange: (next: ReportPeriodSelection) => void;
+}) {
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 6 }, (_, i) => currentYear - i);
+  const maxDay = daysInMonth(period.year, period.month);
+  const fieldClass =
+    "rounded-md border bg-background px-3 py-[7px] text-[13.5px] outline-none focus:border-primary";
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <select
+        aria-label="Tahun"
+        value={period.year}
+        onChange={(e) => {
+          const year = Number(e.target.value);
+          const day = period.day
+            ? clampDayToMonth(year, period.month, period.day)
+            : null;
+          onChange({ ...period, year, day });
+        }}
+        className={fieldClass}
+      >
+        {years.map((y) => (
+          <option key={y} value={y}>
+            {y}
+          </option>
+        ))}
+      </select>
+      <select
+        aria-label="Bulan"
+        value={period.month}
+        onChange={(e) => {
+          const month = Number(e.target.value);
+          const day = period.day
+            ? clampDayToMonth(period.year, month, period.day)
+            : null;
+          onChange({ ...period, month, day });
+        }}
+        className={fieldClass}
+      >
+        {MONTH_NAMES.map((label, i) => (
+          <option key={label} value={i + 1}>
+            {label}
+          </option>
+        ))}
+      </select>
+      <select
+        aria-label="Tanggal"
+        value={period.day ?? ""}
+        onChange={(e) => {
+          const value = e.target.value;
+          onChange({ ...period, day: value === "" ? null : Number(value) });
+        }}
+        className={fieldClass}
+      >
+        <option value="">Semua Tanggal</option>
+        {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
+          <option key={d} value={d}>
+            {d}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 /* ───────────────────────── Page shell ───────────────────────── */
 
 function LaporanInner() {
@@ -2302,37 +2416,89 @@ function LaporanInner() {
   const enabled = Boolean(familyGroupId) && Boolean(session?.accessToken);
   const token = session?.accessToken;
 
+  // Shared year/month(/day) period filter (EPIC-020 Task B) — one native
+  // control set in the page header drives every report section below.
+  // Default = current month/year (today's prior hard-coded behavior).
+  const [period, setPeriod] = useState<ReportPeriodSelection>(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1, day: null };
+  });
+
+  // Range-style sections (Bank/Detail/PNL/Cashflow/Aliran Dana, and Balance
+  // Sheet's as-of date) narrow to a single day when the filter pins one;
+  // otherwise they span the whole selected month.
+  const { startDate: rangeStart, endDate: rangeEnd } =
+    getPeriodDateRange(period);
+  // Trend-style "N months back" summary queries are always monthly-bucketed
+  // server-side — they anchor on the selected month's end regardless of any
+  // pinned day (a single day has no meaning for a multi-month trend).
+  const { endDate: monthAnchorEnd } = getPeriodDateRange({
+    year: period.year,
+    month: period.month,
+    day: null,
+  });
+  // Tahunan re-queries the same trend anchored at the selected year's end.
+  const { endDate: yearAnchorEnd } = getYearDateRange(period.year);
+  // Human-readable caption for the range-based sections (Aliran Dana/PNL/
+  // Cashflow) so their heading always matches the period actually queried.
+  const periodLabel = period.day
+    ? new Date(period.year, period.month - 1, period.day).toLocaleDateString(
+        "id-ID",
+        { day: "numeric", month: "long", year: "numeric" },
+      )
+    : new Date(period.year, period.month - 1, 1).toLocaleDateString("id-ID", {
+        month: "long",
+        year: "numeric",
+      });
+
   const { data: summary, isLoading: isSummaryLoading } =
     useQuery<ReportSummaryDto>({
-      queryKey: queryKeys.reports.summary(familyGroupId, SUMMARY_MONTHS),
+      queryKey: queryKeys.reports.summary(
+        familyGroupId,
+        SUMMARY_MONTHS,
+        "monthly",
+        monthAnchorEnd,
+      ),
       queryFn: () =>
         apiFetch<ReportSummaryDto>(
-          `/family-groups/${familyGroupId}/reports/summary?months=${SUMMARY_MONTHS}`,
+          `/family-groups/${familyGroupId}/reports/summary?months=${SUMMARY_MONTHS}&endDate=${monthAnchorEnd}`,
           { token },
         ),
       enabled,
       staleTime: 60_000,
     });
 
-  const { startDate: monthStart, endDate: monthEnd } = getMonthDateRange();
-  // Laporan Harian: tanggal bisa dipilih (default hari ini); picker menyetir query.
-  const [dailyDate, setDailyDate] = useState(() =>
-    new Date().toISOString().slice(0, 10),
-  );
-  const [dY, dM, dD] = dailyDate.split("-").map(Number);
-  const dayStart = new Date(dY ?? 1970, (dM ?? 1) - 1, dD ?? 1);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(dY ?? 1970, (dM ?? 1) - 1, dD ?? 1);
-  dayEnd.setHours(23, 59, 59, 999);
-  const todayStart = dayStart.toISOString();
-  const todayEnd = dayEnd.toISOString();
+  // Laporan Harian always needs one specific day. Default to "today's
+  // day-of-month" (clamped into the selected month) until the shared filter
+  // pins a day, so the tab keeps showing today's data by default and stays
+  // in sync with the header filter once the user picks a period.
+  const harianDay =
+    period.day ??
+    clampDayToMonth(period.year, period.month, new Date().getDate());
+  const harianDate = `${period.year}-${String(period.month).padStart(2, "0")}-${String(harianDay).padStart(2, "0")}`;
+  const { startDate: harianStart, endDate: harianEnd } = getPeriodDateRange({
+    year: period.year,
+    month: period.month,
+    day: harianDay,
+  });
+
+  // Intentional cross-tab effect: picking a Harian date pins `period.day`
+  // globally (not just for this tab), so Bank/Detail/PNL/Cashflow/Sankey and
+  // Balance Sheet's as-of date all narrow to that same single day too — the
+  // header filter and the Harian date input are the same shared state. This
+  // stays pinned until the user resets it via the header's "Semua Tanggal".
+  function handleHarianDateChange(dateStr: string) {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    if (!y || !m || !d) return;
+    setPeriod({ year: y, month: m, day: d });
+  }
 
   const { data: bankReport, isLoading: isBankLoading } =
     useQuery<BankReportDto>({
-      queryKey: queryKeys.reports.bank(familyGroupId, monthStart, monthEnd),
+      queryKey: queryKeys.reports.bank(familyGroupId, rangeStart, rangeEnd),
       queryFn: () =>
         apiFetch<BankReportDto>(
-          `/family-groups/${familyGroupId}/reports/bank?startDate=${monthStart}&endDate=${monthEnd}`,
+          `/family-groups/${familyGroupId}/reports/bank?startDate=${rangeStart}&endDate=${rangeEnd}`,
           { token },
         ),
       enabled: enabled && tab === "rbank",
@@ -2341,10 +2507,10 @@ function LaporanInner() {
 
   const { data: detailReport, isLoading: isDetailLoading } =
     useQuery<DetailReportDto>({
-      queryKey: queryKeys.reports.detail(familyGroupId, monthStart, monthEnd),
+      queryKey: queryKeys.reports.detail(familyGroupId, rangeStart, rangeEnd),
       queryFn: () =>
         apiFetch<DetailReportDto>(
-          `/family-groups/${familyGroupId}/reports/detail?startDate=${monthStart}&endDate=${monthEnd}`,
+          `/family-groups/${familyGroupId}/reports/detail?startDate=${rangeStart}&endDate=${rangeEnd}`,
           { token },
         ),
       enabled: enabled && tab === "rdetail",
@@ -2353,10 +2519,10 @@ function LaporanInner() {
 
   const { data: dailyReport, isLoading: isDailyLoading } =
     useQuery<DetailReportDto>({
-      queryKey: queryKeys.reports.detail(familyGroupId, todayStart, todayEnd),
+      queryKey: queryKeys.reports.detail(familyGroupId, harianStart, harianEnd),
       queryFn: () =>
         apiFetch<DetailReportDto>(
-          `/family-groups/${familyGroupId}/reports/detail?startDate=${todayStart}&endDate=${todayEnd}`,
+          `/family-groups/${familyGroupId}/reports/detail?startDate=${harianStart}&endDate=${harianEnd}`,
           { token },
         ),
       enabled: enabled && tab === "rharian",
@@ -2364,10 +2530,10 @@ function LaporanInner() {
     });
 
   const { data: pnl, isLoading: isPnlLoading } = useQuery<PnlDto>({
-    queryKey: queryKeys.reports.pnl(familyGroupId, monthStart, monthEnd),
+    queryKey: queryKeys.reports.pnl(familyGroupId, rangeStart, rangeEnd),
     queryFn: () =>
       apiFetch<PnlDto>(
-        `/family-groups/${familyGroupId}/reports/pnl?startDate=${monthStart}&endDate=${monthEnd}`,
+        `/family-groups/${familyGroupId}/reports/pnl?startDate=${rangeStart}&endDate=${rangeEnd}`,
         { token },
       ),
     enabled: enabled && tab === "rpnl",
@@ -2376,10 +2542,12 @@ function LaporanInner() {
 
   const { data: balanceSheet, isLoading: isBalanceLoading } =
     useQuery<BalanceSheetDto>({
-      queryKey: queryKeys.reports.balanceSheet(familyGroupId, monthEnd),
+      // Balance Sheet is point-in-time: `asOfDate` uses the selected period's
+      // end bound (the pinned day, or the selected month's last day).
+      queryKey: queryKeys.reports.balanceSheet(familyGroupId, rangeEnd),
       queryFn: () =>
         apiFetch<BalanceSheetDto>(
-          `/family-groups/${familyGroupId}/reports/balance-sheet?asOfDate=${monthEnd}`,
+          `/family-groups/${familyGroupId}/reports/balance-sheet?asOfDate=${rangeEnd}`,
           { token },
         ),
       enabled:
@@ -2389,10 +2557,10 @@ function LaporanInner() {
 
   const { data: cashflow, isLoading: isCashflowLoading } =
     useQuery<CashflowStatementDto>({
-      queryKey: queryKeys.reports.cashflow(familyGroupId, monthStart, monthEnd),
+      queryKey: queryKeys.reports.cashflow(familyGroupId, rangeStart, rangeEnd),
       queryFn: () =>
         apiFetch<CashflowStatementDto>(
-          `/family-groups/${familyGroupId}/reports/cashflow?startDate=${monthStart}&endDate=${monthEnd}`,
+          `/family-groups/${familyGroupId}/reports/cashflow?startDate=${rangeStart}&endDate=${rangeEnd}`,
           { token },
         ),
       enabled: enabled && tab === "rcashflow",
@@ -2400,10 +2568,10 @@ function LaporanInner() {
     });
 
   const { data: sankeyData, isLoading: isSankeyLoading } = useQuery<SankeyDto>({
-    queryKey: queryKeys.reports.sankey(familyGroupId, monthStart, monthEnd),
+    queryKey: queryKeys.reports.sankey(familyGroupId, rangeStart, rangeEnd),
     queryFn: () =>
       apiFetch<SankeyDto>(
-        `/family-groups/${familyGroupId}/reports/sankey?startDate=${monthStart}&endDate=${monthEnd}`,
+        `/family-groups/${familyGroupId}/reports/sankey?startDate=${rangeStart}&endDate=${rangeEnd}`,
         { token },
       ),
     enabled: enabled && tab === "raliran",
@@ -2433,19 +2601,29 @@ function LaporanInner() {
     staleTime: 60_000,
   });
 
+  // Tahunan (year granularity): re-anchors the same trend endpoint at the
+  // selected year's end instead of always ending at "now".
   const { data: yearlySummary, isLoading: isYearlyLoading } =
     useQuery<ReportSummaryDto>({
-      queryKey: queryKeys.reports.summary(familyGroupId, 3, "yearly"),
+      queryKey: queryKeys.reports.summary(
+        familyGroupId,
+        3,
+        "yearly",
+        yearAnchorEnd,
+      ),
       queryFn: () =>
         apiFetch<ReportSummaryDto>(
-          `/family-groups/${familyGroupId}/reports/summary?months=3&period=yearly`,
+          `/family-groups/${familyGroupId}/reports/summary?months=3&period=yearly&endDate=${yearAnchorEnd}`,
           { token },
         ),
       enabled: enabled && tab === "rtahunan",
       staleTime: 300_000,
     });
 
-  // T-902: Group Family consolidated report (member roster + group totals)
+  // T-902: Group Family consolidated report (member roster + group totals).
+  // The member roster and group net-worth snapshot have no period semantics
+  // (roster is point-in-time membership; net-worth has no date param on the
+  // current /dashboard/net-worth endpoint) — left un-wired, documented here.
   const { data: familyMembers, isLoading: isFamilyLoading } = useQuery<
     FamilyMember[]
   >({
@@ -2470,13 +2648,19 @@ function LaporanInner() {
       staleTime: 60_000,
     });
 
-  // T-903: PPh 21 estimate from last-12-months income
+  // T-903: PPh 21 estimate from the trailing 12 months. Anchoring the trend
+  // on `monthAnchorEnd` makes the estimate re-query for the selected period.
   const { data: annualSummary, isLoading: isAnnualLoading } =
     useQuery<ReportSummaryDto>({
-      queryKey: queryKeys.reports.summary(familyGroupId, 12, "monthly"),
+      queryKey: queryKeys.reports.summary(
+        familyGroupId,
+        12,
+        "monthly",
+        monthAnchorEnd,
+      ),
       queryFn: () =>
         apiFetch<ReportSummaryDto>(
-          `/family-groups/${familyGroupId}/reports/summary?months=12&period=monthly`,
+          `/family-groups/${familyGroupId}/reports/summary?months=12&period=monthly&endDate=${monthAnchorEnd}`,
           { token },
         ),
       enabled: enabled && tab === "rpajak",
@@ -2599,8 +2783,8 @@ function LaporanInner() {
           <HarianSection
             dailyReport={dailyReport}
             isLoading={isDailyLoading}
-            date={dailyDate}
-            onDateChange={setDailyDate}
+            date={harianDate}
+            onDateChange={handleHarianDateChange}
           />
         );
       case "rbulanan":
@@ -2633,10 +2817,20 @@ function LaporanInner() {
         );
       case "raliran":
         return (
-          <AliranSection sankeyData={sankeyData} isLoading={isSankeyLoading} />
+          <AliranSection
+            sankeyData={sankeyData}
+            isLoading={isSankeyLoading}
+            periodLabel={periodLabel}
+          />
         );
       case "rpnl":
-        return <PnlSection pnl={pnl} isLoading={isPnlLoading} />;
+        return (
+          <PnlSection
+            pnl={pnl}
+            isLoading={isPnlLoading}
+            periodLabel={periodLabel}
+          />
+        );
       case "rbalance":
         return (
           <BalanceSection
@@ -2646,7 +2840,11 @@ function LaporanInner() {
         );
       case "rcashflow":
         return (
-          <CashflowSection cashflow={cashflow} isLoading={isCashflowLoading} />
+          <CashflowSection
+            cashflow={cashflow}
+            isLoading={isCashflowLoading}
+            periodLabel={periodLabel}
+          />
         );
       case "rkas":
         return <KasSection summary={summary} isLoading={isSummaryLoading} />;
@@ -2705,6 +2903,7 @@ function LaporanInner() {
         <div className="text-[13px] text-muted-foreground">
           Pantau keuangan dan investasi kamu
         </div>
+        <PeriodFilter period={period} onChange={setPeriod} />
       </div>
 
       {/* Tab bar */}
@@ -2739,6 +2938,8 @@ function LaporanInner() {
         <ExportSection
           familyGroupId={familyGroupId}
           accessToken={accessToken}
+          startDate={rangeStart}
+          endDate={rangeEnd}
         />
       )}
 
