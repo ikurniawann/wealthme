@@ -817,6 +817,9 @@ export type I18nDictionary = {
     fieldQuantityPlaceholder: string;
     fieldCostBasisLabel: string;
     fieldCostBasisPlaceholder: string;
+    // EPIC-021 #20: optional interest rate, shown for interest-bearing types.
+    fieldInterestRateLabel: string;
+    fieldInterestRatePlaceholder: string;
     saving: string;
     saveButton: string;
     totalValueLabel: string;
@@ -825,6 +828,10 @@ export type I18nDictionary = {
     vsYesterdaySuffix: string;
     portfolioSectionTitle: string;
     addInvestmentLink: string;
+    // EPIC-021 #19 (Open Design Decision #3 recommendation): filter tabs by
+    // type, matching the /aset tab pattern. "Semua" reuses typeLabels for the
+    // rest of the tabs.
+    filterAllLabel: string;
     tableName: string;
     tableType: string;
     tableCapital: string;
@@ -834,6 +841,20 @@ export type I18nDictionary = {
     tableAction: string;
     emptyState: string;
     emptyStateCta: string;
+    // EPIC-021 #20: per-row expandable detail (latest price provenance +
+    // interest-bearing projected yield).
+    detailToggleShow: string;
+    detailToggleHide: string;
+    detailLatestPriceLabel: string;
+    detailRecordedAtLabel: string;
+    detailSourceLabel: string;
+    detailInterestRateLabel: string;
+    detailProjectedYieldLabel: string;
+    // Genuinely non-applicable type (e.g. saham/emas — no interest concept).
+    detailNoInterestRate: string;
+    // Interest-bearing type (obligasi) but interestRatePct hasn't been set yet
+    // — distinct from detailNoInterestRate so the message isn't misleading.
+    detailNoRateSet: string;
   };
   /** EPIC-018 Task A5 — `/aset` (consolidated assets) page copy. */
   aset: {
@@ -853,6 +874,15 @@ export type I18nDictionary = {
     fieldCategoryLabel: string;
     fieldValueLabel: string;
     fieldValuePlaceholder: string;
+    // EPIC-021 #17/#18: signed annual value-change rate (depreciation < 0,
+    // appreciation > 0).
+    fieldValueChangeRateLabel: string;
+    fieldValueChangeRatePlaceholder: string;
+    // EPIC-021 #16: optional physical-asset category from master data
+    // (the real Category API — distinct from the hardcoded `fieldCategoryLabel`
+    // type selector above).
+    fieldMasterDataCategoryLabel: string;
+    fieldMasterDataCategoryNone: string;
     fieldNotesLabel: string;
     fieldNotesPlaceholder: string;
     saving: string;
@@ -865,6 +895,8 @@ export type I18nDictionary = {
     emptyPhysical: string;
     emptyDanaRekening: string;
     emptyInvestments: string;
+    // EPIC-021 #17/#18: honest label appended to a compute-on-read estimate.
+    estimatedValueBadge: string;
   };
   /** EPIC-018 Task A5 — `/liabilitas` (debts & credit) page copy. */
   liabilitas: {

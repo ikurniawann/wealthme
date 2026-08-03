@@ -940,6 +940,8 @@ export const en = {
     fieldQuantityPlaceholder: "e.g. 10",
     fieldCostBasisLabel: "Purchase Price per Unit (Rp)",
     fieldCostBasisPlaceholder: "e.g. 9500",
+    fieldInterestRateLabel: "Annual Interest Rate (%) — for Bonds/Deposits",
+    fieldInterestRatePlaceholder: "e.g. 6.5",
     saving: "Saving...",
     saveButton: "Save",
     totalValueLabel: "Total Investment Value",
@@ -948,6 +950,7 @@ export const en = {
     vsYesterdaySuffix: "from yesterday",
     portfolioSectionTitle: "Portfolio",
     addInvestmentLink: "+ Add Investment",
+    filterAllLabel: "All",
     tableName: "Name",
     tableType: "Type",
     tableCapital: "Capital",
@@ -957,6 +960,15 @@ export const en = {
     tableAction: "Action",
     emptyState: "No investments yet.",
     emptyStateCta: "Add now",
+    detailToggleShow: "View Detail",
+    detailToggleHide: "Hide Detail",
+    detailLatestPriceLabel: "Latest Price",
+    detailRecordedAtLabel: "Updated",
+    detailSourceLabel: "Price Source",
+    detailInterestRateLabel: "Annual Interest Rate",
+    detailProjectedYieldLabel: "Projected Annual Yield",
+    detailNoInterestRate: "Not applicable for this investment type",
+    detailNoRateSet: "No rate set",
   },
   aset: {
     tabs: {
@@ -1000,6 +1012,11 @@ export const en = {
     fieldCategoryLabel: "Category",
     fieldValueLabel: "Asset Value (Rp)",
     fieldValuePlaceholder: "e.g. 200,000,000",
+    fieldValueChangeRateLabel: "Value Change per Year (%)",
+    fieldValueChangeRatePlaceholder:
+      "e.g. -5 for depreciation, 5 for appreciation",
+    fieldMasterDataCategoryLabel: "Master Data Category (optional)",
+    fieldMasterDataCategoryNone: "No category",
     fieldNotesLabel: "Notes (optional)",
     fieldNotesPlaceholder: "e.g. 5th floor unit B",
     saving: "Saving…",
@@ -1012,6 +1029,7 @@ export const en = {
     emptyPhysical: "No physical assets yet.",
     emptyDanaRekening: "No funds & bank accounts yet.",
     emptyInvestments: "No investments yet.",
+    estimatedValueBadge: "estimated",
   },
   liabilitas: {
     typeLabels: {
