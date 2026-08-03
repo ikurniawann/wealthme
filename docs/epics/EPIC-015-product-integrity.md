@@ -1,6 +1,6 @@
 # EPIC-015: Product Integrity & Trust Pass
 
-status: ready-for-qa
+status: done
 environment: dev
 retries: 0
 verified: 2026-07-13
@@ -87,3 +87,5 @@ new-user onboarding reaches usable actions without a stale tenant session.
 - **2026-07-18 — /nerve "PR #171 merged".** PR #171 (bundled EPIC-015 trust-pass fixes with
   EPIC-012/014) merged to `development` at `0747a1e`. Merge blocker resolved. Still `ready-for-qa`
   pending human QA sign-off (per `CLAUDE.md` "What Remains Manual") before promotion to `done` + archive.
+
+- **2026-08-03/04 — /nerve QA sweep (delegated QA; user confirms from the live system). Evidence: gates green on development@5f2383f (qa/test/security); fresh DEV deploy clean (compose build, migrate+seed exit 0, api/web healthy); e2e vs https://wealthme.demo-wit.id — auth, route-protection, and all page regression specs green (57 passed, 2 flaky passed on serial retry, 0 real failures); code-level criteria verification by 4 parallel QA agents. **Verdict: QA-PASS after remediation. 204-handling, live family-group resolve, atomic donation-account link, real walkthrough clicks, promoted e2e specs verified (and green live). Fixed in PR #203: billing-cycle boundary lt→lte so a renewal landing exactly on the worker tick advances; boundary now truly tested. Status → done.

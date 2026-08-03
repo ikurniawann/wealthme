@@ -207,7 +207,13 @@ export class ReportsService {
             occurredAt: { gte: startDate, lte: endDate },
             ...nestedTransactionCategoryPrivacyWhere(canSeePrivate),
           },
-          select: { amount: true, type: true },
+          select: {
+            amount: true,
+            type: true,
+            category: {
+              select: { coaAccount: { select: { direction: true } } },
+            },
+          },
         },
       },
     });
@@ -215,12 +221,14 @@ export class ReportsService {
     let totalIncome = 0;
     let totalExpense = 0;
 
+    // EPIC-017 consistency: classify by COA direction (matches Ringkasan/PNL/
+    // Arus Kas), not tx.type — TRANSFER-mapped transactions are excluded.
     const banks = accounts.map((acc) => {
       const income = acc.transactions
-        .filter((t) => t.type === "income")
+        .filter((t) => txCoaDirection(t) === CoaDirection.INCOME)
         .reduce((s, t) => s + Number(t.amount), 0);
       const expense = acc.transactions
-        .filter((t) => t.type === "expense")
+        .filter((t) => txCoaDirection(t) === CoaDirection.EXPENSE)
         .reduce((s, t) => s + Number(t.amount), 0);
 
       totalIncome += income;
@@ -263,7 +271,12 @@ export class ReportsService {
         description: true,
         type: true,
         amount: true,
-        category: { select: { name: true } },
+        category: {
+          select: {
+            name: true,
+            coaAccount: { select: { direction: true } },
+          },
+        },
         account: { select: { name: true } },
       },
       // occurredAt is date-only, so same-day entries tie — createdAt
@@ -274,10 +287,14 @@ export class ReportsService {
     let totalIncome = 0;
     let totalExpense = 0;
 
+    // EPIC-017 consistency: totals classify by COA direction (matches
+    // Ringkasan/PNL/Arus Kas); the per-row `type` field below still reflects
+    // the transaction's own recorded type for display.
     const transactions = txs.map((tx) => {
       const amount = Number(tx.amount);
-      if (tx.type === "income") totalIncome += amount;
-      else if (tx.type === "expense") totalExpense += amount;
+      const dir = txCoaDirection(tx);
+      if (dir === CoaDirection.INCOME) totalIncome += amount;
+      else if (dir === CoaDirection.EXPENSE) totalExpense += amount;
 
       return {
         id: tx.id,
