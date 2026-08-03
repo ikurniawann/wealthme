@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Calendar, Download, FileSpreadsheet } from "lucide-react";
+import { Download, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -2704,27 +2704,6 @@ function LaporanInner() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-[13px] text-muted-foreground">
           Pantau keuangan dan investasi kamu
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => toast("📅 Pilih rentang tanggal")}
-            className="flex size-9 items-center justify-center rounded-md border bg-card text-muted-foreground transition-colors hover:bg-accent"
-            aria-label="Kalender"
-          >
-            <Calendar className="size-[15px]" />
-          </button>
-          <select className="rounded-md border bg-card px-3 py-[7px] text-xs text-foreground outline-none">
-            <option>April 2025</option>
-            <option>Maret 2025</option>
-            <option>Februari 2025</option>
-          </select>
-          <button
-            onClick={() => toast("📥 Mengunduh laporan...")}
-            className="flex size-9 items-center justify-center rounded-md border bg-card text-muted-foreground transition-colors hover:bg-accent"
-            aria-label="Unduh"
-          >
-            <Download className="size-[15px]" />
-          </button>
         </div>
       </div>
 
