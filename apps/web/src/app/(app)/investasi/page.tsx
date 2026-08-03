@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -30,6 +30,7 @@ import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah } from "@/lib/format";
 
+import type { Locale } from "@/i18n";
 import type { InvestmentDto, InvestmentSummaryDto } from "@wealthme/contracts";
 
 const TYPE_BADGE_VARIANT: Record<
@@ -64,12 +65,23 @@ const INVESTMENT_TYPES = [
 
 type InvestmentType = (typeof INVESTMENT_TYPES)[number];
 
+// EPIC-021 #19 (Open Design Decision #3 recommendation): filter tabs by type,
+// matching the /aset tab pattern.
+const FILTER_TAB_IDS = ["semua", ...INVESTMENT_TYPES] as const;
+type FilterTabId = (typeof FILTER_TAB_IDS)[number];
+
+// EPIC-021 #20: only obligasi is an interest-bearing type in the current
+// InvestmentType enum (deposito has no dedicated type yet) — show the
+// interest-rate field only for it.
+const INTEREST_BEARING_TYPES: readonly InvestmentType[] = ["obligasi"];
+
 interface AddInvestmentForm {
   ticker: string;
   name: string;
   type: InvestmentType;
   quantity: string;
   costBasisPerUnit: string;
+  interestRatePct: string;
 }
 
 function toLogoText(ticker: string): string {
@@ -85,6 +97,16 @@ function formatReturnPct(pct: number | null): string {
   if (pct === null) return "—";
   const sign = pct >= 0 ? "+" : "";
   return `${sign}${pct.toFixed(2)}%`;
+}
+
+function formatLocaleDateTime(iso: string, locale: Locale): string {
+  return new Date(iso).toLocaleString(locale === "en" ? "en-US" : "id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function SkeletonBlock({ className }: { className?: string }) {
@@ -139,6 +161,7 @@ function AddInvestmentModal({
           type: editing.type as InvestmentType,
           quantity: editing.quantity,
           costBasisPerUnit: editing.costBasisPerUnit,
+          interestRatePct: editing.interestRatePct ?? "",
         }
       : {
           ticker: "",
@@ -146,6 +169,7 @@ function AddInvestmentModal({
           type: "saham",
           quantity: "",
           costBasisPerUnit: "",
+          interestRatePct: "",
         },
   );
 
@@ -163,10 +187,20 @@ function AddInvestmentModal({
       const path = editing
         ? `/family-groups/${familyGroupId}/investments/${editing.id}`
         : `/family-groups/${familyGroupId}/investments`;
+      const body: Record<string, string> = {
+        ticker: form.ticker,
+        name: form.name,
+        type: form.type,
+        quantity: form.quantity,
+        costBasisPerUnit: form.costBasisPerUnit,
+      };
+      if (form.interestRatePct.trim()) {
+        body["interestRatePct"] = form.interestRatePct.trim();
+      }
       await apiFetch(path, {
         method: editing ? "PATCH" : "POST",
         token,
-        body: JSON.stringify(form),
+        body: JSON.stringify(body),
       });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.investments.all(familyGroupId),
@@ -292,6 +326,28 @@ function AddInvestmentModal({
               className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
+          {INTEREST_BEARING_TYPES.includes(form.type) && (
+            <div className="space-y-1">
+              <label
+                className="text-[12px] text-muted-foreground"
+                htmlFor="interestRatePct"
+              >
+                {t.investasi.fieldInterestRateLabel}
+              </label>
+              <input
+                id="interestRatePct"
+                name="interestRatePct"
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={form.interestRatePct}
+                onChange={handleChange}
+                placeholder={t.investasi.fieldInterestRatePlaceholder}
+                className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          )}
           <DialogFooter>
             <Button type="submit" disabled={submitting} className="w-full">
               {submitting ? t.investasi.saving : t.investasi.saveButton}
@@ -304,7 +360,7 @@ function AddInvestmentModal({
 }
 
 export default function InvestasiPage() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
@@ -314,6 +370,11 @@ export default function InvestasiPage() {
   const [deletingHolding, setDeletingHolding] = useState<InvestmentDto | null>(
     null,
   );
+  // EPIC-021 #19: filter tabs by type, matching the /aset tab pattern.
+  const [activeFilter, setActiveFilter] = useState<FilterTabId>("semua");
+  // EPIC-021 #20: expandable per-row detail (latest price provenance +
+  // interest-bearing projected yield).
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const token = session?.accessToken as string | undefined;
   const familyGroupId = session?.familyGroupId;
@@ -395,8 +456,32 @@ export default function InvestasiPage() {
 
   const isLoading = holdingsLoading || summaryLoading;
 
+  const filteredHoldings = (holdings ?? []).filter(
+    (h) => activeFilter === "semua" || h.type === activeFilter,
+  );
+
   return (
     <div className="space-y-4">
+      {/* EPIC-021 #19: filter tabs by type */}
+      <div className="hide-scrollbar flex gap-2 overflow-x-auto">
+        {FILTER_TAB_IDS.map((id) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setActiveFilter(id)}
+            className={`shrink-0 cursor-pointer rounded-full px-4 py-2 text-[13px] font-semibold transition-colors ${
+              activeFilter === id
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-secondary-foreground hover:bg-accent"
+            }`}
+          >
+            {id === "semua"
+              ? t.investasi.filterAllLabel
+              : t.investasi.typeLabels[id]}
+          </button>
+        ))}
+      </div>
+
       {familyGroupId && token && (
         <AddInvestmentModal
           key={editingHolding?.id ?? "add"}
@@ -538,25 +623,29 @@ export default function InvestasiPage() {
                   <HoldingRowSkeleton key={`row-skeleton-${i}`} />
                 ))}
 
-              {!isLoading && !holdingsError && holdings?.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="py-8 text-center text-[13px] text-muted-foreground"
-                  >
-                    {t.investasi.emptyState}{" "}
-                    <button
-                      type="button"
-                      className="font-semibold text-primary"
-                      onClick={() => setModalOpen(true)}
+              {!isLoading &&
+                !holdingsError &&
+                filteredHoldings.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="py-8 text-center text-[13px] text-muted-foreground"
                     >
-                      {t.investasi.emptyStateCta}
-                    </button>
-                  </td>
-                </tr>
-              )}
+                      {t.investasi.emptyState}{" "}
+                      {(holdings?.length ?? 0) === 0 && (
+                        <button
+                          type="button"
+                          className="font-semibold text-primary"
+                          onClick={() => setModalOpen(true)}
+                        >
+                          {t.investasi.emptyStateCta}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )}
 
-              {holdings?.map((h, i) => {
+              {filteredHoldings.map((h, i) => {
                 const variant = TYPE_BADGE_VARIANT[h.type] ?? "gray";
                 const label =
                   t.investasi.typeLabels[h.type as InvestmentType] ?? h.type;
@@ -564,62 +653,138 @@ export default function InvestasiPage() {
                 const totalCost =
                   parseFloat(h.costBasisPerUnit) * parseFloat(h.quantity);
                 const isUp = parseFloat(h.returnRp ?? "0") >= 0;
+                const isExpanded = expandedId === h.id;
 
                 return (
-                  <tr
-                    key={h.id}
-                    className="animate-rise border-b last:border-0"
-                    style={{ animationDelay: `${i * 70}ms` }}
-                  >
-                    <td className="py-3 pr-3">
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className="flex size-8 items-center justify-center rounded-full text-[10px] font-extrabold text-white"
-                          style={{ background: logoBg }}
-                        >
-                          {toLogoText(h.ticker)}
-                        </div>
-                        <div>
-                          <div className="font-semibold">{h.name}</div>
-                          <div className="text-[11px] text-muted-foreground">
-                            {h.ticker}
+                  <Fragment key={h.id}>
+                    <tr
+                      className="animate-rise border-b last:border-0"
+                      style={{ animationDelay: `${i * 70}ms` }}
+                    >
+                      <td className="py-3 pr-3">
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className="flex size-8 items-center justify-center rounded-full text-[10px] font-extrabold text-white"
+                            style={{ background: logoBg }}
+                          >
+                            {toLogoText(h.ticker)}
+                          </div>
+                          <div>
+                            <div className="font-semibold">{h.name}</div>
+                            <div className="text-[11px] text-muted-foreground">
+                              {h.ticker}
+                            </div>
+                            <button
+                              type="button"
+                              className="mt-0.5 text-[10.5px] font-semibold text-primary"
+                              onClick={() =>
+                                setExpandedId(isExpanded ? null : h.id)
+                              }
+                            >
+                              {isExpanded
+                                ? t.investasi.detailToggleHide
+                                : t.investasi.detailToggleShow}
+                            </button>
                           </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="py-3 pr-3">
-                      <StatusBadge variant={variant}>{label}</StatusBadge>
-                    </td>
-                    <td className="mono py-3 pr-3 whitespace-nowrap">
-                      {formatRupiah(totalCost)}
-                    </td>
-                    <td className="mono py-3 pr-3 font-extrabold whitespace-nowrap">
-                      {formatDecimalRupiah(h.currentValue)}
-                    </td>
-                    <td
-                      className={`mono py-3 pr-3 whitespace-nowrap ${
-                        isUp ? "text-success" : "text-destructive"
-                      }`}
-                    >
-                      {formatDecimalRupiah(h.returnRp)}
-                    </td>
-                    <td
-                      className={`py-3 pr-3 font-semibold whitespace-nowrap ${
-                        isUp ? "text-success" : "text-destructive"
-                      }`}
-                    >
-                      {formatReturnPct(h.returnPct)}
-                    </td>
-                    <td className="py-3">
-                      <RowActions
-                        onEdit={() => {
-                          setEditingHolding(h);
-                          setModalOpen(true);
-                        }}
-                        onDelete={() => setDeletingHolding(h)}
-                      />
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="py-3 pr-3">
+                        <StatusBadge variant={variant}>{label}</StatusBadge>
+                      </td>
+                      <td className="mono py-3 pr-3 whitespace-nowrap">
+                        {formatRupiah(totalCost)}
+                      </td>
+                      <td className="mono py-3 pr-3 font-extrabold whitespace-nowrap">
+                        {formatDecimalRupiah(h.currentValue)}
+                      </td>
+                      <td
+                        className={`mono py-3 pr-3 whitespace-nowrap ${
+                          isUp ? "text-success" : "text-destructive"
+                        }`}
+                      >
+                        {formatDecimalRupiah(h.returnRp)}
+                      </td>
+                      <td
+                        className={`py-3 pr-3 font-semibold whitespace-nowrap ${
+                          isUp ? "text-success" : "text-destructive"
+                        }`}
+                      >
+                        {formatReturnPct(h.returnPct)}
+                      </td>
+                      <td className="py-3">
+                        <RowActions
+                          onEdit={() => {
+                            setEditingHolding(h);
+                            setModalOpen(true);
+                          }}
+                          onDelete={() => setDeletingHolding(h)}
+                        />
+                      </td>
+                    </tr>
+                    {isExpanded && (
+                      <tr className="border-b bg-muted/30 last:border-0">
+                        <td colSpan={7} className="px-3 py-3 text-[12px]">
+                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                            <div>
+                              <div className="text-muted-foreground">
+                                {t.investasi.detailLatestPriceLabel}
+                              </div>
+                              <div className="mono font-semibold">
+                                {formatDecimalRupiah(h.currentPrice)}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">
+                                {t.investasi.detailRecordedAtLabel}
+                              </div>
+                              <div className="font-semibold">
+                                {h.latestPriceRecordedAt
+                                  ? formatLocaleDateTime(
+                                      h.latestPriceRecordedAt,
+                                      locale,
+                                    )
+                                  : "—"}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">
+                                {t.investasi.detailSourceLabel}
+                              </div>
+                              <div className="font-semibold">
+                                {h.latestPriceSource ?? "—"}
+                              </div>
+                            </div>
+                            {h.interestRatePct ? (
+                              <>
+                                <div>
+                                  <div className="text-muted-foreground">
+                                    {t.investasi.detailInterestRateLabel}
+                                  </div>
+                                  <div className="font-semibold">
+                                    {h.interestRatePct}%
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="text-muted-foreground">
+                                    {t.investasi.detailProjectedYieldLabel}
+                                  </div>
+                                  <div className="mono font-semibold">
+                                    {formatDecimalRupiah(
+                                      h.projectedAnnualYield,
+                                    )}
+                                  </div>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="col-span-2 text-muted-foreground">
+                                {t.investasi.detailNoInterestRate}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>

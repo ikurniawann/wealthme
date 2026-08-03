@@ -917,6 +917,8 @@ export const id = {
     fieldQuantityPlaceholder: "contoh: 10",
     fieldCostBasisLabel: "Harga Beli per Unit (Rp)",
     fieldCostBasisPlaceholder: "contoh: 9500",
+    fieldInterestRateLabel: "Suku Bunga Tahunan (%) — untuk Obligasi/Deposito",
+    fieldInterestRatePlaceholder: "contoh: 6.5",
     saving: "Menyimpan...",
     saveButton: "Simpan",
     totalValueLabel: "Total Nilai Investasi",
@@ -925,6 +927,7 @@ export const id = {
     vsYesterdaySuffix: "dari kemarin",
     portfolioSectionTitle: "Portofolio",
     addInvestmentLink: "+ Tambah Investasi",
+    filterAllLabel: "Semua",
     tableName: "Nama",
     tableType: "Jenis",
     tableCapital: "Modal",
@@ -934,6 +937,14 @@ export const id = {
     tableAction: "Aksi",
     emptyState: "Belum ada investasi.",
     emptyStateCta: "Tambah sekarang",
+    detailToggleShow: "Lihat Detail",
+    detailToggleHide: "Sembunyikan Detail",
+    detailLatestPriceLabel: "Harga Terakhir",
+    detailRecordedAtLabel: "Diperbarui",
+    detailSourceLabel: "Sumber Harga",
+    detailInterestRateLabel: "Suku Bunga Tahunan",
+    detailProjectedYieldLabel: "Estimasi Imbal Hasil Tahunan",
+    detailNoInterestRate: "Tidak berlaku untuk jenis investasi ini",
   },
   aset: {
     tabs: {
@@ -977,6 +988,11 @@ export const id = {
     fieldCategoryLabel: "Kategori",
     fieldValueLabel: "Nilai Aset (Rp)",
     fieldValuePlaceholder: "cth. 200.000.000",
+    fieldValueChangeRateLabel: "Perubahan Nilai per Tahun (%)",
+    fieldValueChangeRatePlaceholder:
+      "cth. -5 untuk penyusutan, 5 untuk apresiasi",
+    fieldMasterDataCategoryLabel: "Kategori Master Data (opsional)",
+    fieldMasterDataCategoryNone: "Tidak ada kategori",
     fieldNotesLabel: "Catatan (opsional)",
     fieldNotesPlaceholder: "cth. Lantai 5 unit B",
     saving: "Menyimpan…",
@@ -989,6 +1005,7 @@ export const id = {
     emptyPhysical: "Belum ada aset fisik.",
     emptyDanaRekening: "Belum ada dana & rekening.",
     emptyInvestments: "Belum ada investasi.",
+    estimatedValueBadge: "estimasi",
   },
   liabilitas: {
     typeLabels: {

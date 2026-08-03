@@ -182,4 +182,148 @@ describe("InvestmentsService P&L", () => {
       expect(summary.totalReturnPct).toBe(0);
     });
   });
+
+  // ──────────────────────────────────────────────────────────────
+  // EPIC-021 #20: interestRatePct validation + projectedAnnualYield
+  // ──────────────────────────────────────────────────────────────
+
+  describe("create() — interestRatePct bounds", () => {
+    it("accepts a rate within 0..100", async () => {
+      mockPrisma.investment.create.mockResolvedValue({
+        id: "inv-1",
+        familyGroupId: "fg-1",
+        ticker: "OBLIGASI1",
+        name: "Obligasi Negara",
+        type: "obligasi",
+        quantity: new Decimal("10"),
+        costBasisPerUnit: new Decimal("1000000"),
+        currency: "IDR",
+        notes: null,
+        interestRatePct: new Decimal("6.5"),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const result = await service.create("fg-1", {
+        ticker: "OBLIGASI1",
+        name: "Obligasi Negara",
+        type: "obligasi",
+        quantity: "10",
+        costBasisPerUnit: "1000000",
+        interestRatePct: "6.5",
+      });
+
+      expect(result.interestRatePct).toBe("6.5");
+    });
+
+    it("rejects a rate above 100", async () => {
+      await expect(
+        service.create("fg-1", {
+          ticker: "OBLIGASI1",
+          name: "Obligasi Negara",
+          type: "obligasi",
+          quantity: "10",
+          costBasisPerUnit: "1000000",
+          interestRatePct: "150",
+        }),
+      ).rejects.toThrow();
+      expect(mockPrisma.investment.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects a negative rate", async () => {
+      await expect(
+        service.create("fg-1", {
+          ticker: "OBLIGASI1",
+          name: "Obligasi Negara",
+          type: "obligasi",
+          quantity: "10",
+          costBasisPerUnit: "1000000",
+          interestRatePct: "-5",
+        }),
+      ).rejects.toThrow();
+      expect(mockPrisma.investment.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("findAll() — projectedAnnualYield + latest price provenance", () => {
+    it("computes projectedAnnualYield as currentValue × interestRatePct / 100", async () => {
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+      const recordedAt = new Date(today.getTime() + 1000);
+
+      mockPrisma.investment.findMany.mockResolvedValue([
+        {
+          id: "inv-1",
+          familyGroupId: "fg-1",
+          ticker: "OBLIGASI1",
+          name: "Obligasi Negara",
+          type: "obligasi",
+          quantity: new Decimal("10"),
+          costBasisPerUnit: new Decimal("1000000"),
+          currency: "IDR",
+          notes: null,
+          interestRatePct: new Decimal("6"),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          prices: [
+            {
+              id: "p-1",
+              investmentId: "inv-1",
+              price: new Decimal("1000000"),
+              source: "mock",
+              recordedAt,
+            },
+          ],
+        },
+      ]);
+
+      const [result] = await service.findAll("fg-1");
+
+      // currentValue = 1_000_000 * 10 = 10_000_000; yield = 10_000_000 * 6/100 = 600_000
+      expect(result?.currentValue).toBe("10000000");
+      expect(parseFloat(result?.projectedAnnualYield ?? "0")).toBeCloseTo(
+        600_000,
+        0,
+      );
+      expect(result?.latestPriceRecordedAt).toBe(recordedAt.toISOString());
+      expect(result?.latestPriceSource).toBe("mock");
+    });
+
+    it("returns null projectedAnnualYield when interestRatePct is not set", async () => {
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+      const recordedAt = new Date(today.getTime() + 1000);
+
+      mockPrisma.investment.findMany.mockResolvedValue([
+        {
+          id: "inv-2",
+          familyGroupId: "fg-1",
+          ticker: "BBCA",
+          name: "Bank BCA",
+          type: "saham",
+          quantity: new Decimal("10"),
+          costBasisPerUnit: new Decimal("9500"),
+          currency: "IDR",
+          notes: null,
+          interestRatePct: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          prices: [
+            {
+              id: "p-2",
+              investmentId: "inv-2",
+              price: new Decimal("10000"),
+              source: "mock",
+              recordedAt,
+            },
+          ],
+        },
+      ]);
+
+      const [result] = await service.findAll("fg-1");
+
+      expect(result?.interestRatePct).toBeNull();
+      expect(result?.projectedAnnualYield).toBeNull();
+    });
+  });
 });

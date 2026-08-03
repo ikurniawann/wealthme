@@ -579,6 +579,9 @@ interface AssetDto {
     currentValue: string;
     currency: string;
     notes: string | null;
+    valueChangeRatePct: string | null;
+    categoryId: string | null;
+    currentEstimatedValue: string;
     createdAt: string;
     updatedAt: string;
 }
@@ -594,6 +597,8 @@ interface CreateAssetDto {
     currentValue: string;
     currency?: string;
     notes?: string;
+    valueChangeRatePct?: string;
+    categoryId?: string;
 }
 interface UpdateAssetDto {
     name?: string;
@@ -601,6 +606,8 @@ interface UpdateAssetDto {
     currentValue?: string;
     currency?: string;
     notes?: string;
+    valueChangeRatePct?: string;
+    categoryId?: string;
 }
 
 type InvestmentType = "saham" | "reksa_dana" | "obligasi" | "emas" | "kripto" | "lainnya";
@@ -618,6 +625,10 @@ interface InvestmentDto {
     returnPct: number | null;
     currency: string;
     notes: string | null;
+    latestPriceRecordedAt: string | null;
+    latestPriceSource: string | null;
+    interestRatePct: string | null;
+    projectedAnnualYield: string | null;
     createdAt: string;
     updatedAt: string;
 }
