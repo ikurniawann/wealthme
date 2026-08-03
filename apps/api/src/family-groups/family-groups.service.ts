@@ -142,7 +142,18 @@ export class FamilyGroupsService {
       }
     }
 
-    await this.prisma.member.delete({ where: { id: memberId } });
+    // EPIC-019 Task A — a removed member is no longer a Member of this
+    // family group, so any account still pointing at them via ownerUserId
+    // would otherwise dangle (the user row itself may still exist — they can
+    // belong to other family groups). Revert those accounts to
+    // family-shared in the SAME transaction as the member removal.
+    await this.prisma.$transaction([
+      this.prisma.account.updateMany({
+        where: { familyGroupId, ownerUserId: member.userId },
+        data: { ownerUserId: null },
+      }),
+      this.prisma.member.delete({ where: { id: memberId } }),
+    ]);
   }
 
   async createInvitation(

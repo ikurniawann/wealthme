@@ -44,6 +44,21 @@ export class AccountResponseDto {
   })
   isPrivate!: boolean;
 
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description:
+      "EPIC-019 Task A — owning member's user id, or null for a family-shared account",
+  })
+  ownerUserId!: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: "Owning member's display name, or null when family-shared",
+  })
+  ownerName!: string | null;
+
   @ApiProperty({ type: String, format: "date-time" })
   createdAt!: string;
 

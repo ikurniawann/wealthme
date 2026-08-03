@@ -55,6 +55,7 @@ declare const CreateAccountInputSchema: z.ZodObject<{
     balance: z.ZodNumber;
     currency: z.ZodDefault<z.ZodString>;
     isPrivate: z.ZodOptional<z.ZodBoolean>;
+    ownerUserId: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     type: "bank" | "ewallet" | "cash" | "investment" | "property";
     name: string;
@@ -63,6 +64,7 @@ declare const CreateAccountInputSchema: z.ZodObject<{
     institution?: string | undefined;
     maskedNumber?: string | undefined;
     isPrivate?: boolean | undefined;
+    ownerUserId?: string | undefined;
 }, {
     type: "bank" | "ewallet" | "cash" | "investment" | "property";
     name: string;
@@ -71,6 +73,7 @@ declare const CreateAccountInputSchema: z.ZodObject<{
     maskedNumber?: string | undefined;
     currency?: string | undefined;
     isPrivate?: boolean | undefined;
+    ownerUserId?: string | undefined;
 }>;
 type CreateAccountInput = z.infer<typeof CreateAccountInputSchema>;
 declare const UpdateAccountInputSchema: z.ZodObject<{
@@ -81,6 +84,8 @@ declare const UpdateAccountInputSchema: z.ZodObject<{
     balance: z.ZodOptional<z.ZodNumber>;
     currency: z.ZodOptional<z.ZodDefault<z.ZodString>>;
     isPrivate: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
+} & {
+    ownerUserId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
     type?: "bank" | "ewallet" | "cash" | "investment" | "property" | undefined;
     name?: string | undefined;
@@ -89,6 +94,7 @@ declare const UpdateAccountInputSchema: z.ZodObject<{
     balance?: number | undefined;
     currency?: string | undefined;
     isPrivate?: boolean | undefined;
+    ownerUserId?: string | null | undefined;
 }, {
     type?: "bank" | "ewallet" | "cash" | "investment" | "property" | undefined;
     name?: string | undefined;
@@ -97,8 +103,11 @@ declare const UpdateAccountInputSchema: z.ZodObject<{
     balance?: number | undefined;
     currency?: string | undefined;
     isPrivate?: boolean | undefined;
+    ownerUserId?: string | null | undefined;
 }>;
 type UpdateAccountInput = z.infer<typeof UpdateAccountInputSchema>;
+declare const AccountOwnerFilterSchema: z.ZodEnum<["me", "family", "all"]>;
+type AccountOwnerFilter = z.infer<typeof AccountOwnerFilterSchema>;
 declare const AccountDtoSchema: z.ZodObject<{
     id: z.ZodString;
     familyGroupId: z.ZodString;
@@ -109,6 +118,8 @@ declare const AccountDtoSchema: z.ZodObject<{
     balance: z.ZodString;
     currency: z.ZodString;
     isPrivate: z.ZodBoolean;
+    ownerUserId: z.ZodNullable<z.ZodString>;
+    ownerName: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
     updatedAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
@@ -120,7 +131,9 @@ declare const AccountDtoSchema: z.ZodObject<{
     balance: string;
     currency: string;
     isPrivate: boolean;
+    ownerUserId: string | null;
     familyGroupId: string;
+    ownerName: string | null;
     createdAt: string;
     updatedAt: string;
 }, {
@@ -132,11 +145,96 @@ declare const AccountDtoSchema: z.ZodObject<{
     balance: string;
     currency: string;
     isPrivate: boolean;
+    ownerUserId: string | null;
     familyGroupId: string;
+    ownerName: string | null;
     createdAt: string;
     updatedAt: string;
 }>;
 type AccountDto = z.infer<typeof AccountDtoSchema>;
+
+declare const AllowanceRequestStatusSchema: z.ZodEnum<["pending", "approved", "rejected"]>;
+type AllowanceRequestStatus = z.infer<typeof AllowanceRequestStatusSchema>;
+declare const CreateAllowanceRequestInputSchema: z.ZodObject<{
+    targetAccountId: z.ZodString;
+    amount: z.ZodNumber;
+    note: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    targetAccountId: string;
+    amount: number;
+    note?: string | undefined;
+}, {
+    targetAccountId: string;
+    amount: number;
+    note?: string | undefined;
+}>;
+type CreateAllowanceRequestInput = z.infer<typeof CreateAllowanceRequestInputSchema>;
+declare const ApproveAllowanceRequestInputSchema: z.ZodObject<{
+    fromAccountId: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    fromAccountId: string;
+}, {
+    fromAccountId: string;
+}>;
+type ApproveAllowanceRequestInput = z.infer<typeof ApproveAllowanceRequestInputSchema>;
+declare const RejectAllowanceRequestInputSchema: z.ZodObject<{
+    reason: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    reason?: string | undefined;
+}, {
+    reason?: string | undefined;
+}>;
+type RejectAllowanceRequestInput = z.infer<typeof RejectAllowanceRequestInputSchema>;
+declare const AllowanceRequestDtoSchema: z.ZodObject<{
+    id: z.ZodString;
+    familyGroupId: z.ZodString;
+    requesterUserId: z.ZodString;
+    requesterName: z.ZodString;
+    targetAccountId: z.ZodString;
+    targetAccountName: z.ZodString;
+    fromAccountId: z.ZodNullable<z.ZodString>;
+    fromAccountName: z.ZodNullable<z.ZodString>;
+    amount: z.ZodString;
+    note: z.ZodNullable<z.ZodString>;
+    status: z.ZodEnum<["pending", "approved", "rejected"]>;
+    createdAt: z.ZodString;
+    decidedAt: z.ZodNullable<z.ZodString>;
+    decidedByUserId: z.ZodNullable<z.ZodString>;
+    decidedByName: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    status: "pending" | "approved" | "rejected";
+    id: string;
+    familyGroupId: string;
+    createdAt: string;
+    targetAccountId: string;
+    amount: string;
+    note: string | null;
+    fromAccountId: string | null;
+    requesterUserId: string;
+    requesterName: string;
+    targetAccountName: string;
+    fromAccountName: string | null;
+    decidedAt: string | null;
+    decidedByUserId: string | null;
+    decidedByName: string | null;
+}, {
+    status: "pending" | "approved" | "rejected";
+    id: string;
+    familyGroupId: string;
+    createdAt: string;
+    targetAccountId: string;
+    amount: string;
+    note: string | null;
+    fromAccountId: string | null;
+    requesterUserId: string;
+    requesterName: string;
+    targetAccountName: string;
+    fromAccountName: string | null;
+    decidedAt: string | null;
+    decidedByUserId: string | null;
+    decidedByName: string | null;
+}>;
+type AllowanceRequestDto = z.infer<typeof AllowanceRequestDtoSchema>;
 
 declare const CategoryKindSchema: z.ZodEnum<["income", "expense"]>;
 type CategoryKind = z.infer<typeof CategoryKindSchema>;
@@ -218,8 +316,8 @@ declare const CreateTransactionInputSchema: z.ZodObject<{
     adminFee: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     type: "income" | "expense" | "transfer";
-    accountId: string;
     amount: number;
+    accountId: string;
     occurredAt: string;
     categoryId?: string | undefined;
     description?: string | undefined;
@@ -227,8 +325,8 @@ declare const CreateTransactionInputSchema: z.ZodObject<{
     adminFee?: number | undefined;
 }, {
     type: "income" | "expense" | "transfer";
-    accountId: string;
     amount: number;
+    accountId: string;
     occurredAt: string;
     categoryId?: string | undefined;
     description?: string | undefined;
@@ -255,9 +353,9 @@ declare const TransactionDtoSchema: z.ZodObject<{
     id: string;
     familyGroupId: string;
     createdAt: string;
+    amount: string;
     accountId: string;
     categoryId: string | null;
-    amount: string;
     description: string | null;
     occurredAt: string;
     toAccountId: string | null;
@@ -269,9 +367,9 @@ declare const TransactionDtoSchema: z.ZodObject<{
     id: string;
     familyGroupId: string;
     createdAt: string;
+    amount: string;
     accountId: string;
     categoryId: string | null;
-    amount: string;
     description: string | null;
     occurredAt: string;
     toAccountId: string | null;
@@ -332,9 +430,9 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         id: string;
         familyGroupId: string;
         createdAt: string;
+        amount: string;
         accountId: string;
         categoryId: string | null;
-        amount: string;
         description: string | null;
         occurredAt: string;
         toAccountId: string | null;
@@ -346,9 +444,9 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         id: string;
         familyGroupId: string;
         createdAt: string;
+        amount: string;
         accountId: string;
         categoryId: string | null;
-        amount: string;
         description: string | null;
         occurredAt: string;
         toAccountId: string | null;
@@ -406,9 +504,9 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         id: string;
         familyGroupId: string;
         createdAt: string;
+        amount: string;
         accountId: string;
         categoryId: string | null;
-        amount: string;
         description: string | null;
         occurredAt: string;
         toAccountId: string | null;
@@ -436,9 +534,9 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         id: string;
         familyGroupId: string;
         createdAt: string;
+        amount: string;
         accountId: string;
         categoryId: string | null;
-        amount: string;
         description: string | null;
         occurredAt: string;
         toAccountId: string | null;
@@ -699,6 +797,51 @@ interface UpdateLiabilityDto {
     notes?: string;
     currency?: string;
 }
+
+declare const SetMemberCategoryAllowanceInputSchema: z.ZodObject<{
+    categoryIds: z.ZodArray<z.ZodString, "many">;
+}, "strip", z.ZodTypeAny, {
+    categoryIds: string[];
+}, {
+    categoryIds: string[];
+}>;
+type SetMemberCategoryAllowanceInput = z.infer<typeof SetMemberCategoryAllowanceInputSchema>;
+declare const AllowedCategoryDtoSchema: z.ZodObject<{
+    id: z.ZodString;
+    name: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    id: string;
+    name: string;
+}, {
+    id: string;
+    name: string;
+}>;
+declare const MemberCategoryAllowanceDtoSchema: z.ZodObject<{
+    memberId: z.ZodString;
+    categories: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        name: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        name: string;
+    }, {
+        id: string;
+        name: string;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    memberId: string;
+    categories: {
+        id: string;
+        name: string;
+    }[];
+}, {
+    memberId: string;
+    categories: {
+        id: string;
+        name: string;
+    }[];
+}>;
+type MemberCategoryAllowanceDto = z.infer<typeof MemberCategoryAllowanceDtoSchema>;
 
 type InheritanceVisibility = "private" | "heirs_only" | "all_members";
 interface InheritanceHeirDto {
@@ -1156,4 +1299,4 @@ interface UpdateTaxRecordDto {
     notes?: string;
 }
 
-export { type AccountDto, AccountDtoSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AssetDto, type AssetHistoryDto, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CreateAccountInput, CreateAccountInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, GENERIC_COA_CHART, type GoalDto, type GoalStatus, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDto, type InvestmentSummaryDto, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type ParticipantStatus, type PeriodPoint, type PnlDto, type Pph21RequestDto, type Pph21ResultDto, type PremiumPeriod, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SplitBillDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type TaxBracketDto, type TaxRecordDto, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto, defaultCoaCodeForCategory };
+export { type AccountDto, AccountDtoSchema, type AccountOwnerFilter, AccountOwnerFilterSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AllowanceRequestDto, AllowanceRequestDtoSchema, type AllowanceRequestStatus, AllowanceRequestStatusSchema, AllowedCategoryDtoSchema, type ApproveAllowanceRequestInput, ApproveAllowanceRequestInputSchema, type AssetDto, type AssetHistoryDto, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CreateAccountInput, CreateAccountInputSchema, type CreateAllowanceRequestInput, CreateAllowanceRequestInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, GENERIC_COA_CHART, type GoalDto, type GoalStatus, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDto, type InvestmentSummaryDto, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type MemberCategoryAllowanceDto, MemberCategoryAllowanceDtoSchema, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type ParticipantStatus, type PeriodPoint, type PnlDto, type Pph21RequestDto, type Pph21ResultDto, type PremiumPeriod, type RejectAllowanceRequestInput, RejectAllowanceRequestInputSchema, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SetMemberCategoryAllowanceInput, SetMemberCategoryAllowanceInputSchema, type SplitBillDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type TaxBracketDto, type TaxRecordDto, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto, defaultCoaCodeForCategory };

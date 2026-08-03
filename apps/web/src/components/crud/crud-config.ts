@@ -109,6 +109,15 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         type: "toggle",
         helperText: "Sembunyikan dari anggota keluarga lain",
       },
+      {
+        // EPIC-019 Task A — options injected at runtime via CrudModal
+        // `dynamicOptions` (the family's members + a "Keluarga (bersama)"
+        // option for null/family-shared). See rekening/page.tsx.
+        key: "ownerUserId",
+        label: "Pemilik",
+        type: "select",
+        options: [],
+      },
     ],
   },
   ewallet: {

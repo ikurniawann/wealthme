@@ -506,6 +506,31 @@ export const en = {
       showBalanceToMembersSub: "Members can see the shared total balance",
       memberTxnNotifLabel: "Member Transaction Notifications",
       memberTxnNotifSub: "Receive transaction notifications from other members",
+      // EPIC-019 Task C — per-member expense category allow-list.
+      categoryLimitButton: "Limit Categories",
+      categoryLimitDialogTitle: "Limit Categories",
+      categoryLimitDialogDesc:
+        "Choose the expense categories this member may record. Leave all unchecked for no restriction (default).",
+      categoryLimitEmptyCategories:
+        "No expense categories yet. Add one on the Transactions page first.",
+      categoryLimitUnrestrictedHint: "Unrestricted — every category is allowed",
+      categoryLimitSaveButton: "Save Limit",
+      categoryLimitSaving: "Saving...",
+      categoryLimitSaved: "Category limit saved successfully.",
+      categoryLimitSaveFailed: "Failed to save the category limit. Try again.",
+      // EPIC-019 Task B/D — owner-side pending funding requests.
+      allowanceRequestsSectionTitle: "Funding Requests",
+      allowanceRequestsEmpty: "No funding requests yet.",
+      allowanceRequestPendingBadge: "Pending",
+      allowanceRequestApproveButton: "Approve",
+      allowanceRequestRejectButton: "Reject",
+      allowanceRequestApproveDialogTitle: "Approve Funding Request",
+      allowanceRequestSourceAccountLabel: "Source Account",
+      allowanceRequestApproved: "Funding request approved — funds transferred.",
+      allowanceRequestApproveFailed:
+        "Failed to approve the request. Try again.",
+      allowanceRequestRejected: "Funding request rejected.",
+      allowanceRequestRejectFailed: "Failed to reject the request. Try again.",
     },
     addAdmin: {
       dialogTitle: "Add Admin / Staff",

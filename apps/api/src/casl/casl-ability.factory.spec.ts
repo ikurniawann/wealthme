@@ -32,6 +32,16 @@ describe("CaslAbilityFactory", () => {
       const ability = factory.createForMember({ role: Role.owner });
       expect(ability.can("manage", "Member")).toBe(true);
     });
+
+    it("can manage AllowanceRequest (approve/reject)", () => {
+      const ability = factory.createForMember({ role: Role.owner });
+      expect(ability.can("manage", "AllowanceRequest")).toBe(true);
+    });
+
+    it("can manage MemberCategoryAllowance", () => {
+      const ability = factory.createForMember({ role: Role.owner });
+      expect(ability.can("manage", "MemberCategoryAllowance")).toBe(true);
+    });
   });
 
   describe("member role", () => {
@@ -62,6 +72,19 @@ describe("CaslAbilityFactory", () => {
       const ability = factory.createForMember({ role: Role.member });
       expect(ability.can("delete", "Member")).toBe(false);
     });
+
+    it("can create and read AllowanceRequest but not approve/reject it", () => {
+      const ability = factory.createForMember({ role: Role.member });
+      expect(ability.can("create", "AllowanceRequest")).toBe(true);
+      expect(ability.can("read", "AllowanceRequest")).toBe(true);
+      expect(ability.can("manage", "AllowanceRequest")).toBe(false);
+    });
+
+    it("can read but not manage MemberCategoryAllowance", () => {
+      const ability = factory.createForMember({ role: Role.member });
+      expect(ability.can("read", "MemberCategoryAllowance")).toBe(true);
+      expect(ability.can("manage", "MemberCategoryAllowance")).toBe(false);
+    });
   });
 
   describe("admin_staff role", () => {
@@ -86,6 +109,13 @@ describe("CaslAbilityFactory", () => {
     it("cannot update Category", () => {
       const ability = factory.createForMember({ role: Role.admin_staff });
       expect(ability.can("update", "Category")).toBe(false);
+    });
+
+    it("can create/read AllowanceRequest but cannot approve/reject it", () => {
+      const ability = factory.createForMember({ role: Role.admin_staff });
+      expect(ability.can("create", "AllowanceRequest")).toBe(true);
+      expect(ability.can("read", "AllowanceRequest")).toBe(true);
+      expect(ability.can("manage", "AllowanceRequest")).toBe(false);
     });
   });
 });

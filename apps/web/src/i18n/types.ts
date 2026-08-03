@@ -449,6 +449,26 @@ export type I18nDictionary = {
       showBalanceToMembersSub: string;
       memberTxnNotifLabel: string;
       memberTxnNotifSub: string;
+      categoryLimitButton: string;
+      categoryLimitDialogTitle: string;
+      categoryLimitDialogDesc: string;
+      categoryLimitEmptyCategories: string;
+      categoryLimitUnrestrictedHint: string;
+      categoryLimitSaveButton: string;
+      categoryLimitSaving: string;
+      categoryLimitSaved: string;
+      categoryLimitSaveFailed: string;
+      allowanceRequestsSectionTitle: string;
+      allowanceRequestsEmpty: string;
+      allowanceRequestPendingBadge: string;
+      allowanceRequestApproveButton: string;
+      allowanceRequestRejectButton: string;
+      allowanceRequestApproveDialogTitle: string;
+      allowanceRequestSourceAccountLabel: string;
+      allowanceRequestApproved: string;
+      allowanceRequestApproveFailed: string;
+      allowanceRequestRejected: string;
+      allowanceRequestRejectFailed: string;
     };
     addAdmin: {
       dialogTitle: string;

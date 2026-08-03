@@ -140,39 +140,53 @@ enum CoaBudgetType {
   VARIABLE
   REIMBURSEMENT
 }
+
+// EPIC-019 Task B — owner-approve funding request lifecycle.
+enum AllowanceRequestStatus {
+  pending
+  approved
+  rejected
+}
+
 // ── Models ────────────────────────────────────────────────────────────────────
 
 model User {
-  id             String      @id @default(uuid())
-  email          String      @unique
-  name           String
-  emailVerified  Boolean     @default(false)
-  image          String?
-  passwordHash   String?
-  googleId       String?     @unique
-  avatarInitials String?
-  phone          String?
+  id                       String             @id @default(uuid())
+  email                    String             @unique
+  name                     String
+  emailVerified            Boolean            @default(false)
+  image                    String?
+  passwordHash             String?
+  googleId                 String?            @unique
+  avatarInitials           String?
+  phone                    String?
   // birthDate/monthlyIncome are stored ciphertext (AES-256-GCM via CryptoService),
   // so they are String columns even though the values they represent are a date
   // and a number — see accounts.service.ts's Account.maskedNumber for the pattern.
-  birthDate      String?
-  gender         String?
-  jobTitle       String?
-  monthlyIncome  String?
+  birthDate                String?
+  gender                   String?
+  jobTitle                 String?
+  monthlyIncome            String?
   // Display currency preference (ISO 4217 code) — not sensitive, stored
   // plaintext unlike birthDate/monthlyIncome. Conversion rates come from the
   // mock FxPort, so any non-IDR display is always labeled indicative in the UI.
-  currency       String      @default("IDR") @db.VarChar(3)
+  currency                 String             @default("IDR") @db.VarChar(3)
   // Per-user notification toggles (EPIC-016 B3). Nullable JSON map of the 8
   // known keys → boolean; null = never set → use defaults. Stored sanitized by
   // resolveNotifPrefs. In-app Notification rows are family-scoped, so
   // enforcement reads the family OWNER's prefs (see notification-prefs.ts).
-  notificationPrefs Json?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  memberships    Member[]
-  sessions       BaSession[]
-  baAccounts     BaAccount[]
+  notificationPrefs        Json?
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+  memberships              Member[]
+  sessions                 BaSession[]
+  baAccounts               BaAccount[]
+  // EPIC-019 Task A — accounts this user personally owns within a family
+  // group (nullable Account.ownerUserId; null = family-shared, unchanged).
+  ownedAccounts            Account[]          @relation("AccountOwner")
+  // EPIC-019 Task B — allowance requests this user filed / decided.
+  allowanceRequestsMade    AllowanceRequest[] @relation("AllowanceRequestRequester")
+  allowanceRequestsDecided AllowanceRequest[] @relation("AllowanceRequestDecider")
 
   @@map("users")
 }
@@ -223,29 +237,31 @@ model Verification {
 }
 
 model FamilyGroup {
-  id            String         @id @default(uuid())
-  name          String
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  members            Member[]
-  accounts           Account[]
-  categories         Category[]
-  transactions       Transaction[]
-  budgets            Budget[]
-  goals              Goal[]
-  notifications      Notification[]
-  assets             Asset[]
-  investments        Investment[]
-  liabilities        Liability[]
-  insurances         Insurance[]
-  invitations        Invitation[]
-  splitBills         SplitBill[]
-  inheritanceAssets  InheritanceAsset[]
-  donations          Donation[]
-  taxRecords         TaxRecord[]
-  bankSyncs          BankSync[]
-  netWorthSnapshots  NetWorthSnapshot[]
-  coaAccounts        CoaAccount[]
+  id                String             @id @default(uuid())
+  name              String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  members           Member[]
+  accounts          Account[]
+  categories        Category[]
+  transactions      Transaction[]
+  budgets           Budget[]
+  goals             Goal[]
+  notifications     Notification[]
+  assets            Asset[]
+  investments       Investment[]
+  liabilities       Liability[]
+  insurances        Insurance[]
+  invitations       Invitation[]
+  splitBills        SplitBill[]
+  inheritanceAssets InheritanceAsset[]
+  donations         Donation[]
+  taxRecords        TaxRecord[]
+  bankSyncs         BankSync[]
+  netWorthSnapshots NetWorthSnapshot[]
+  coaAccounts       CoaAccount[]
+  // EPIC-019 Task B — member-request -> owner-approve funding requests.
+  allowanceRequests AllowanceRequest[]
 
   @@map("family_groups")
 }
@@ -289,13 +305,16 @@ model Invitation {
 }
 
 model Member {
-  id            String      @id @default(uuid())
-  userId        String
-  familyGroupId String
-  role          Role
-  createdAt     DateTime    @default(now())
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  familyGroup   FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  id                 String                    @id @default(uuid())
+  userId             String
+  familyGroupId      String
+  role               Role
+  createdAt          DateTime                  @default(now())
+  user               User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyGroup        FamilyGroup               @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  // EPIC-019 Task C — per-member allowed expense categories. Empty (no
+  // rows) = unrestricted, backward compatible with every pre-existing member.
+  categoryAllowances MemberCategoryAllowance[]
 
   @@unique([userId, familyGroupId])
   @@index([familyGroupId])
@@ -303,51 +322,67 @@ model Member {
 }
 
 model Account {
-  id            String        @id @default(uuid())
-  familyGroupId String
-  name          String
-  type          AccountType
-  institution   String?
-  maskedNumber  String?
-  balance       BigInt
-  currency      String        @default("IDR")
+  id                        String             @id @default(uuid())
+  familyGroupId             String
+  name                      String
+  type                      AccountType
+  institution               String?
+  maskedNumber              String?
+  balance                   BigInt
+  currency                  String             @default("IDR")
   // Owner-set flag: hides this account (and its transactions transitively)
   // from `member` viewers in shared family views. Owner/admin_staff always see it.
-  isPrivate     Boolean       @default(false)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  familyGroup   FamilyGroup   @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  isPrivate                 Boolean            @default(false)
+  // EPIC-019 Task A — nullable per-member ownership. Null = family-shared
+  // (today's behavior, unchanged); non-null must reference a Member of the
+  // SAME familyGroupId (enforced in AccountsService, not the DB, since a
+  // cross-tenant check needs the Member row, not just the User row).
+  // onDelete: SetNull so removing the owning user never destroys the account
+  // itself — it just reverts to family-shared.
+  ownerUserId               String?
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+  familyGroup               FamilyGroup        @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  owner                     User?              @relation("AccountOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
   // Two relations to Transaction (source leg + transfer destination leg —
   // EPIC-021 Group B / #23/#27/#28) require explicit relation names so Prisma
   // can disambiguate which FK each list represents.
-  transactions  Transaction[] @relation("TransactionSourceAccount")
-  transfersIn   Transaction[] @relation("TransactionDestinationAccount")
+  transactions              Transaction[]      @relation("TransactionSourceAccount")
+  transfersIn               Transaction[]      @relation("TransactionDestinationAccount")
+  // EPIC-019 Task B — this account as the target (member's account being
+  // funded) or the chosen source (owner's master account) of a funding
+  // request. Explicit relation names to disambiguate the two FKs.
+  allowanceRequestsAsTarget AllowanceRequest[] @relation("AllowanceRequestTarget")
+  allowanceRequestsAsSource AllowanceRequest[] @relation("AllowanceRequestSource")
 
   @@unique([familyGroupId, name])
   @@index([familyGroupId])
+  @@index([ownerUserId])
   @@map("accounts")
 }
 
 model Category {
-  id            String        @id @default(uuid())
-  familyGroupId String
-  name          String
-  kind          CategoryKind
-  color         String?
-  icon          String?
+  id               String                    @id @default(uuid())
+  familyGroupId    String
+  name             String
+  kind             CategoryKind
+  color            String?
+  icon             String?
   // Owner-set flag: hides this category (and its transactions transitively)
   // from `member` viewers in shared family views. Owner/admin_staff always see it.
-  isPrivate     Boolean       @default(false)
+  isPrivate        Boolean                   @default(false)
   // Mandatory COA link (EPIC-017 Decision #2). Every category maps to a
   // CoaAccount in the SAME family group; reports classify transitively via
   // Transaction → Category → CoaAccount (direction + groupNum). Restrict so a
   // COA account in use by a category cannot be deleted out from under it.
-  coaAccountId  String
-  createdAt     DateTime      @default(now())
-  familyGroup   FamilyGroup   @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
-  coaAccount    CoaAccount    @relation(fields: [coaAccountId], references: [id], onDelete: Restrict)
-  transactions  Transaction[]
-  budgets       Budget[]
+  coaAccountId     String
+  createdAt        DateTime                  @default(now())
+  familyGroup      FamilyGroup               @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  coaAccount       CoaAccount                @relation(fields: [coaAccountId], references: [id], onDelete: Restrict)
+  transactions     Transaction[]
+  budgets          Budget[]
+  // EPIC-019 Task C — members whose allow-list includes this category.
+  memberAllowances MemberCategoryAllowance[]
 
   @@unique([familyGroupId, name, kind])
   @@index([familyGroupId])
@@ -384,6 +419,54 @@ model Transaction {
   @@index([toAccountId])
   @@index([categoryId])
   @@map("transactions")
+}
+
+// EPIC-019 Task B — member-requests -> owner-approves funding. Approval
+// executes a REAL transfer via the existing EPIC-021 Group B transfer
+// primitive (TransactionsService.create with type "transfer"): the owner's
+// chosen `fromAccount` debits, the member's `targetAccount` credits,
+// atomically. This row is the request/decision audit trail, not the money
+// movement itself — the money movement is a normal Transaction row.
+model AllowanceRequest {
+  id              String                 @id @default(uuid())
+  familyGroupId   String
+  requesterUserId String
+  targetAccountId String
+  // Chosen by the OWNER at approval time, not by the requester — nullable
+  // until decided.
+  fromAccountId   String?
+  amount          BigInt
+  note            String?
+  status          AllowanceRequestStatus @default(pending)
+  createdAt       DateTime               @default(now())
+  decidedAt       DateTime?
+  decidedByUserId String?
+  familyGroup     FamilyGroup            @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  requester       User                   @relation("AllowanceRequestRequester", fields: [requesterUserId], references: [id], onDelete: Cascade)
+  targetAccount   Account                @relation("AllowanceRequestTarget", fields: [targetAccountId], references: [id], onDelete: Cascade)
+  fromAccount     Account?               @relation("AllowanceRequestSource", fields: [fromAccountId], references: [id], onDelete: SetNull)
+  decidedByUser   User?                  @relation("AllowanceRequestDecider", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([familyGroupId, status])
+  @@map("allowance_requests")
+}
+
+// EPIC-019 Task C — per-member allow-list join table (Decision #3a). A
+// member with zero rows is unrestricted (backward compatible with every
+// pre-existing member); a member with any row is constrained to spend only
+// in the listed expense categories, enforced server-side in
+// TransactionsService.
+model MemberCategoryAllowance {
+  id         String   @id @default(uuid())
+  memberId   String
+  categoryId String
+  createdAt  DateTime @default(now())
+  member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, categoryId])
+  @@index([memberId])
+  @@map("member_category_allowances")
 }
 
 model Budget {
@@ -529,45 +612,45 @@ model AuditLog {
 }
 
 model Liability {
-  id               String        @id @default(uuid())
-  familyGroupId    String
-  name             String
-  institution      String?
-  type             LiabilityType
-  totalDebt        BigInt
-  remainingBalance BigInt
-  minimumPayment   BigInt        @default(0)
-  interestRate     Decimal       @default(0) @db.Decimal(5, 2)
-  dueDate          DateTime?
-  autoAdvanceDueDate Boolean     @default(false)
-  notes            String?
-  currency         String        @default("IDR")
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-  familyGroup      FamilyGroup   @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  id                 String        @id @default(uuid())
+  familyGroupId      String
+  name               String
+  institution        String?
+  type               LiabilityType
+  totalDebt          BigInt
+  remainingBalance   BigInt
+  minimumPayment     BigInt        @default(0)
+  interestRate       Decimal       @default(0) @db.Decimal(5, 2)
+  dueDate            DateTime?
+  autoAdvanceDueDate Boolean       @default(false)
+  notes              String?
+  currency           String        @default("IDR")
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  familyGroup        FamilyGroup   @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
 
   @@index([familyGroupId])
   @@map("liabilities")
 }
 
 model Insurance {
-  id              String          @id @default(uuid())
-  familyGroupId   String
-  name            String          @db.VarChar(150)
-  provider        String?         @db.VarChar(150)
-  type            InsuranceType
-  status          InsuranceStatus @default(aktif)
-  coverageAmount  BigInt?
-  premiumAmount   BigInt
-  premiumPeriod   PremiumPeriod   @default(monthly)
-  renewalDate     DateTime?
-  autoRenewDate   Boolean         @default(false)
-  policyNumber    String?         @db.VarChar(100)
-  notes           String?         @db.VarChar(500)
-  currency        String          @default("IDR") @db.VarChar(3)
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  familyGroup     FamilyGroup     @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  id             String          @id @default(uuid())
+  familyGroupId  String
+  name           String          @db.VarChar(150)
+  provider       String?         @db.VarChar(150)
+  type           InsuranceType
+  status         InsuranceStatus @default(aktif)
+  coverageAmount BigInt?
+  premiumAmount  BigInt
+  premiumPeriod  PremiumPeriod   @default(monthly)
+  renewalDate    DateTime?
+  autoRenewDate  Boolean         @default(false)
+  policyNumber   String?         @db.VarChar(100)
+  notes          String?         @db.VarChar(500)
+  currency       String          @default("IDR") @db.VarChar(3)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  familyGroup    FamilyGroup     @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
 
   @@index([familyGroupId])
   @@map("insurances")
@@ -593,14 +676,14 @@ model SplitBill {
 }
 
 model SplitParticipant {
-  id           String            @id @default(uuid())
-  splitBillId  String
-  name         String            @db.VarChar(100)
-  amountOwed   BigInt
-  status       ParticipantStatus @default(pending)
-  paidAt       DateTime?
-  createdAt    DateTime          @default(now())
-  splitBill    SplitBill         @relation(fields: [splitBillId], references: [id], onDelete: Cascade)
+  id          String            @id @default(uuid())
+  splitBillId String
+  name        String            @db.VarChar(100)
+  amountOwed  BigInt
+  status      ParticipantStatus @default(pending)
+  paidAt      DateTime?
+  createdAt   DateTime          @default(now())
+  splitBill   SplitBill         @relation(fields: [splitBillId], references: [id], onDelete: Cascade)
 
   @@index([splitBillId])
   @@map("split_participants")
@@ -680,12 +763,12 @@ model TaxRecord {
 }
 
 model BankSync {
-  id            String         @id @default(uuid())
+  id            String          @id @default(uuid())
   familyGroupId String
   fileName      String
-  uploadedAt    DateTime       @default(now())
-  rowCount      Int            @default(0)
-  familyGroup   FamilyGroup    @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  uploadedAt    DateTime        @default(now())
+  rowCount      Int             @default(0)
+  familyGroup   FamilyGroup     @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
   entries       BankSyncEntry[]
 
   @@index([familyGroupId])
@@ -693,17 +776,17 @@ model BankSync {
 }
 
 model BankSyncEntry {
-  id              String      @id @default(uuid())
-  bankSyncId      String
-  date            DateTime
-  description     String
-  amount          BigInt
-  currency        String      @default("IDR")
-  reconStatus     ReconStatus @default(unmatched)
-  matchedTxId     String?
-  suggestedTxId   String?
-  createdAt       DateTime    @default(now())
-  bankSync        BankSync    @relation(fields: [bankSyncId], references: [id], onDelete: Cascade)
+  id            String      @id @default(uuid())
+  bankSyncId    String
+  date          DateTime
+  description   String
+  amount        BigInt
+  currency      String      @default("IDR")
+  reconStatus   ReconStatus @default(unmatched)
+  matchedTxId   String?
+  suggestedTxId String?
+  createdAt     DateTime    @default(now())
+  bankSync      BankSync    @relation(fields: [bankSyncId], references: [id], onDelete: Cascade)
 
   @@index([bankSyncId])
   @@map("bank_sync_entries")

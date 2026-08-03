@@ -1,4 +1,8 @@
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { Prisma } from "@prisma/client";
 
@@ -6,6 +10,7 @@ import { CryptoService } from "../crypto/crypto.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 import { AccountsService } from "./accounts.service";
+import { AccountOwnerFilter } from "./dto/list-accounts-query.dto";
 
 const FAMILY_GROUP_ID = "fg-1";
 const ACCOUNT_ID = "account-1";
@@ -18,6 +23,11 @@ function makePrisma() {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    // EPIC-019 Task A — assertOwnerIsFamilyMember() looks up a Member row
+    // when ownerUserId is set on create/update. Default null (no matching
+    // member) so any test that doesn't explicitly mock this stays a no-op
+    // unless it opts into passing ownerUserId.
+    member: { findUnique: jest.fn().mockResolvedValue(null) },
     donation: { updateMany: jest.fn() },
     // EPIC-021 Group B — remove() checks this before attempting the delete.
     // Default to 0 (no outgoing transfers) so pre-existing tests that don't
@@ -223,6 +233,7 @@ describe("AccountsService privacy flag", () => {
     expect(prisma.account.update).toHaveBeenCalledWith({
       where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
       data: { isPrivate: true },
+      include: { owner: { select: { name: true } } },
     });
     expect(result.isPrivate).toBe(true);
   });
@@ -251,6 +262,7 @@ describe("AccountsService privacy flag", () => {
     expect(prisma.account.update).toHaveBeenCalledWith({
       where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
       data: { name: "Renamed" },
+      include: { owner: { select: { name: true } } },
     });
   });
 });
@@ -392,5 +404,325 @@ describe("AccountsService privacy enforcement", () => {
   it("findOne still returns a visible account for a member viewer", async () => {
     const result = await service.findOne(FAMILY_GROUP_ID, ACCOUNT_ID, false);
     expect(result.id).toBe(ACCOUNT_ID);
+  });
+});
+
+// EPIC-019 Task A — per-member account ownership.
+const MEMBER_USER_ID = "user-member-1";
+const OTHER_FAMILY_USER_ID = "user-cross-tenant";
+
+describe("AccountsService ownership assignment", () => {
+  let service: AccountsService;
+  let prisma: ReturnType<typeof makePrisma>;
+
+  beforeEach(async () => {
+    prisma = makePrisma();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AccountsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: CryptoService, useValue: {} },
+      ],
+    }).compile();
+    service = module.get(AccountsService);
+  });
+
+  it("create rejects ownerUserId for a user who is not a member of this family group", async () => {
+    prisma.member.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.create(FAMILY_GROUP_ID, {
+        name: "Rekening Anak",
+        type: "bank",
+        balance: 0,
+        ownerUserId: OTHER_FAMILY_USER_ID,
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(prisma.account.create).not.toHaveBeenCalled();
+  });
+
+  it("create persists ownerUserId when the target is a member of the same family group", async () => {
+    prisma.member.findUnique.mockResolvedValue({ id: "member-1" });
+    prisma.account.create.mockResolvedValue({
+      id: ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      name: "Rekening Anak",
+      type: "bank",
+      institution: null,
+      maskedNumber: null,
+      balance: 0n,
+      currency: "IDR",
+      isPrivate: false,
+      ownerUserId: MEMBER_USER_ID,
+      owner: { name: "Anak Pertama" },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const result = await service.create(FAMILY_GROUP_ID, {
+      name: "Rekening Anak",
+      type: "bank",
+      balance: 0,
+      ownerUserId: MEMBER_USER_ID,
+    });
+
+    expect(prisma.member.findUnique).toHaveBeenCalledWith({
+      where: {
+        userId_familyGroupId: {
+          userId: MEMBER_USER_ID,
+          familyGroupId: FAMILY_GROUP_ID,
+        },
+      },
+      select: { id: true },
+    });
+    expect(prisma.account.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ ownerUserId: MEMBER_USER_ID }),
+      }),
+    );
+    expect(result.ownerUserId).toBe(MEMBER_USER_ID);
+    expect(result.ownerName).toBe("Anak Pertama");
+  });
+
+  it("update rejects reassigning to a cross-tenant/non-member user id", async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+    });
+    prisma.member.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.update(FAMILY_GROUP_ID, ACCOUNT_ID, {
+        ownerUserId: OTHER_FAMILY_USER_ID,
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(prisma.account.update).not.toHaveBeenCalled();
+  });
+
+  it("update reassigns ownerUserId when the target is a valid member", async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+    });
+    prisma.member.findUnique.mockResolvedValue({ id: "member-1" });
+    prisma.account.update.mockResolvedValue({
+      id: ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      name: "Tabungan",
+      type: "bank",
+      institution: null,
+      maskedNumber: null,
+      balance: 0n,
+      currency: "IDR",
+      isPrivate: false,
+      ownerUserId: MEMBER_USER_ID,
+      owner: { name: "Anak Pertama" },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const result = await service.update(FAMILY_GROUP_ID, ACCOUNT_ID, {
+      ownerUserId: MEMBER_USER_ID,
+    });
+
+    expect(prisma.account.update).toHaveBeenCalledWith({
+      where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+      data: { ownerUserId: MEMBER_USER_ID },
+      include: { owner: { select: { name: true } } },
+    });
+    expect(result.ownerUserId).toBe(MEMBER_USER_ID);
+  });
+
+  it("update clears ownership back to family-shared when ownerUserId is explicitly null", async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+    });
+    prisma.account.update.mockResolvedValue({
+      id: ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      name: "Tabungan",
+      type: "bank",
+      institution: null,
+      maskedNumber: null,
+      balance: 0n,
+      currency: "IDR",
+      isPrivate: false,
+      ownerUserId: null,
+      owner: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const result = await service.update(FAMILY_GROUP_ID, ACCOUNT_ID, {
+      ownerUserId: null,
+    });
+
+    expect(prisma.member.findUnique).not.toHaveBeenCalled();
+    expect(prisma.account.update).toHaveBeenCalledWith({
+      where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+      data: { ownerUserId: null },
+      include: { owner: { select: { name: true } } },
+    });
+    expect(result.ownerUserId).toBeNull();
+    expect(result.ownerName).toBeNull();
+  });
+
+  it("update leaves ownership untouched when ownerUserId is omitted from the patch", async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+    });
+    prisma.account.update.mockResolvedValue({
+      id: ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      name: "Renamed",
+      type: "bank",
+      institution: null,
+      maskedNumber: null,
+      balance: 0n,
+      currency: "IDR",
+      isPrivate: false,
+      ownerUserId: MEMBER_USER_ID,
+      owner: { name: "Anak Pertama" },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await service.update(FAMILY_GROUP_ID, ACCOUNT_ID, { name: "Renamed" });
+
+    expect(prisma.member.findUnique).not.toHaveBeenCalled();
+    expect(prisma.account.update).toHaveBeenCalledWith({
+      where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+      data: { name: "Renamed" },
+      include: { owner: { select: { name: true } } },
+    });
+  });
+});
+
+interface OwnedFakeAccount {
+  id: string;
+  familyGroupId: string;
+  name: string;
+  type: string;
+  institution: string | null;
+  maskedNumber: string | null;
+  balance: bigint;
+  currency: string;
+  isPrivate: boolean;
+  ownerUserId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+function makeOwnerFilterPrisma(accounts: OwnedFakeAccount[]) {
+  return {
+    account: {
+      findMany: jest.fn(
+        ({ where }: { where: { ownerUserId?: string | null } }) => {
+          const rows =
+            where.ownerUserId === undefined
+              ? accounts
+              : accounts.filter((a) => a.ownerUserId === where.ownerUserId);
+          return Promise.resolve(rows);
+        },
+      ),
+    },
+  };
+}
+
+describe("AccountsService owner=me|family|all filter", () => {
+  let service: AccountsService;
+
+  const FAMILY_SHARED_ID = "account-shared";
+  const OWNED_BY_ME_ID = "account-mine";
+  const OWNED_BY_OTHER_ID = "account-other-member";
+
+  function buildAccounts(): OwnedFakeAccount[] {
+    const now = new Date();
+    const base = {
+      type: "bank",
+      institution: null,
+      maskedNumber: null,
+      balance: 0n,
+      currency: "IDR",
+      isPrivate: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    return [
+      {
+        ...base,
+        id: FAMILY_SHARED_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        name: "Shared",
+        ownerUserId: null,
+      },
+      {
+        ...base,
+        id: OWNED_BY_ME_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        name: "Mine",
+        ownerUserId: MEMBER_USER_ID,
+      },
+      {
+        ...base,
+        id: OWNED_BY_OTHER_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        name: "Other",
+        ownerUserId: "user-other-member",
+      },
+    ];
+  }
+
+  async function buildService() {
+    const prisma = makeOwnerFilterPrisma(buildAccounts());
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AccountsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: CryptoService, useValue: {} },
+      ],
+    }).compile();
+    return module.get(AccountsService);
+  }
+
+  beforeEach(async () => {
+    service = await buildService();
+  });
+
+  it("owner=all (default) returns every account regardless of ownerUserId", async () => {
+    const result = await service.findAll(FAMILY_GROUP_ID, true);
+    expect(result.map((a) => a.id).sort()).toEqual(
+      [FAMILY_SHARED_ID, OWNED_BY_ME_ID, OWNED_BY_OTHER_ID].sort(),
+    );
+  });
+
+  it("owner=me returns only accounts owned by the requesting user", async () => {
+    const result = await service.findAll(
+      FAMILY_GROUP_ID,
+      true,
+      AccountOwnerFilter.me,
+      MEMBER_USER_ID,
+    );
+    expect(result.map((a) => a.id)).toEqual([OWNED_BY_ME_ID]);
+  });
+
+  it("owner=family returns only family-shared (ownerUserId null) accounts", async () => {
+    const result = await service.findAll(
+      FAMILY_GROUP_ID,
+      true,
+      AccountOwnerFilter.family,
+    );
+    expect(result.map((a) => a.id)).toEqual([FAMILY_SHARED_ID]);
+  });
+
+  it("owner=me with no requestingUserId matches nothing (never falls back to all)", async () => {
+    const result = await service.findAll(
+      FAMILY_GROUP_ID,
+      true,
+      AccountOwnerFilter.me,
+    );
+    expect(result).toEqual([]);
   });
 });

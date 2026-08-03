@@ -20,6 +20,14 @@ export const queryKeys = {
   accounts: {
     all: (familyGroupId: string) => ["accounts", familyGroupId] as const,
   },
+  allowanceRequests: {
+    all: (familyGroupId: string) =>
+      ["allowanceRequests", familyGroupId] as const,
+  },
+  memberCategoryAllowances: {
+    detail: (familyGroupId: string, memberId: string) =>
+      ["memberCategoryAllowances", familyGroupId, memberId] as const,
+  },
   search: {
     results: (familyGroupId: string, q: string) =>
       ["search", familyGroupId, q] as const,
