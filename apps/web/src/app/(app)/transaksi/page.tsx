@@ -137,11 +137,17 @@ export function TxRow({
   const amount = parseFloat(tx.amount);
   const amountStr = (isIncome ? "+" : "-") + formatRupiah(amount);
   const txIcon = TX_ICON[tx.type] ?? TX_ICON.expense;
+  // EPIC-021 Group B #23 — a real (two-sided) transfer shows its route;
+  // legacy one-sided transfer rows (toAccountName null) render exactly as
+  // before via the existing fallback chain.
+  const isTransferWithDest = tx.type === "transfer" && !!tx.toAccountName;
   const typeLabel = TYPE_LABEL[tx.type] ?? tx.type;
-  const displayName =
-    tx.description ?? tx.categoryName ?? tx.accountName ?? "—";
-  const subtitle =
-    tx.categoryName ?? tx.accountName ?? TYPE_LABEL[tx.type] ?? tx.type;
+  const displayName = isTransferWithDest
+    ? (tx.description ?? TYPE_LABEL.transfer)
+    : (tx.description ?? tx.categoryName ?? tx.accountName ?? "—");
+  const subtitle = isTransferWithDest
+    ? `${tx.accountName} → ${tx.toAccountName}`
+    : (tx.categoryName ?? tx.accountName ?? TYPE_LABEL[tx.type] ?? tx.type);
 
   const openDetail = () => setDetailOpen(true);
   // The detail-trigger is keyboard-operable (Enter/Space) per WM a11y

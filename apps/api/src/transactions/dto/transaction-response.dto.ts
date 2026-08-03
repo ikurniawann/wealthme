@@ -11,6 +11,14 @@ export class TransactionResponseDto {
   @ApiProperty({ type: String })
   accountId!: string;
 
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description:
+      "Destination account UUID (transfer only) — EPIC-021 Group B. Null on income/expense and on legacy one-sided transfer rows.",
+  })
+  toAccountId!: string | null;
+
   @ApiPropertyOptional({ type: String, nullable: true })
   categoryId!: string | null;
 
@@ -31,6 +39,9 @@ export class TransactionResponseDto {
 
   @ApiProperty({ type: String })
   accountName!: string;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  toAccountName!: string | null;
 
   @ApiProperty({ type: String, format: "date-time" })
   occurredAt!: string;

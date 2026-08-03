@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 
 import { accountPrivacyWhere } from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -107,18 +112,52 @@ export class AccountsService {
     if (!existing) {
       throw new NotFoundException("Account not found");
     }
-    // Donation.accountId/transactionId have no DB foreign key (a donation must
-    // survive its transaction being reclassified), so deleting an account
-    // would otherwise leave a dangling reference once the cascade removes the
-    // linked transaction below. Clear the link but keep the donation's own
-    // amount/date/recipient as historical record.
-    await this.prisma.$transaction([
-      this.prisma.donation.updateMany({
-        where: { familyGroupId, accountId: id },
-        data: { accountId: null, transactionId: null },
-      }),
-      this.prisma.account.delete({ where: { id, familyGroupId } }),
-    ]);
+
+    // EPIC-021 Group B — an account that is the SOURCE of a real two-sided
+    // transfer (toAccountId not null) cannot be deleted: Transaction.accountId
+    // is onDelete: Cascade, so deleting this account would cascade-delete
+    // that transfer row while the DESTINATION account's already-applied
+    // balance credit is never reversed (the DB cascade is a raw row delete,
+    // it never runs applyTransferBalanceDelta) — leaving the destination
+    // with a credit backed by no transaction. Reject up front instead of
+    // corrupting a balance the user doesn't own the account for.
+    const sourceOfTransferCount = await this.prisma.transaction.count({
+      where: { familyGroupId, accountId: id, toAccountId: { not: null } },
+    });
+    if (sourceOfTransferCount > 0) {
+      throw new ConflictException(
+        "Akun ini adalah sumber dari transaksi transfer ke akun lain. Hapus atau ubah transaksi transfer tersebut terlebih dahulu sebelum menghapus akun ini.",
+      );
+    }
+
+    try {
+      // Donation.accountId/transactionId have no DB foreign key (a donation
+      // must survive its transaction being reclassified), so deleting an
+      // account would otherwise leave a dangling reference once the cascade
+      // removes the linked transaction below. Clear the link but keep the
+      // donation's own amount/date/recipient as historical record.
+      await this.prisma.$transaction([
+        this.prisma.donation.updateMany({
+          where: { familyGroupId, accountId: id },
+          data: { accountId: null, transactionId: null },
+        }),
+        this.prisma.account.delete({ where: { id, familyGroupId } }),
+      ]);
+    } catch (err: unknown) {
+      // This account is the DESTINATION of one or more transfers —
+      // Transaction.toAccountId is onDelete: Restrict (protects transfer
+      // history), so Postgres raises P2003 here. Surface a clean 4xx instead
+      // of letting the raw Prisma error bubble up as an unhandled 500.
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === "P2003"
+      ) {
+        throw new ConflictException(
+          "Akun ini adalah tujuan dari satu atau lebih transaksi transfer. Hapus atau ubah transaksi transfer tersebut terlebih dahulu sebelum menghapus akun ini.",
+        );
+      }
+      throw err;
+    }
   }
 
   private toDto(account: {
