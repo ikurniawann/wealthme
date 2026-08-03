@@ -493,6 +493,8 @@ describe("AuthService", () => {
             billDue: true,
             stockPrice: true,
             dividend: true,
+            loginAlert: false,
+            bigTxnConfirm: false,
           },
         };
         mockPrisma.user.update.mockResolvedValue(updated);
@@ -500,8 +502,9 @@ describe("AuthService", () => {
         // Act
         const result = await service.updateProfile("user-1", updateDto);
 
-        // Assert — Prisma is called with exactly the 8 sanitized keys, budget80
-        // false, and no "bogus" key ever reaches the database.
+        // Assert — Prisma is called with exactly the 10 sanitized keys
+        // (EPIC-016 Task K added loginAlert/bigTxnConfirm), budget80 false,
+        // and no "bogus" key ever reaches the database.
         const [callArg] = mockPrisma.user.update.mock.calls[0] as [
           { data: Record<string, unknown> },
         ];
@@ -519,6 +522,8 @@ describe("AuthService", () => {
             "billDue",
             "stockPrice",
             "dividend",
+            "loginAlert",
+            "bigTxnConfirm",
           ].sort(),
         );
         expect(sentPrefs.budget80).toBe(false);
@@ -526,7 +531,7 @@ describe("AuthService", () => {
         expect(result.notificationPrefs).toEqual(updated.notificationPrefs);
       });
 
-      it("returns all 8 keys defaulted to true when the stored value is null", async () => {
+      it("returns all 10 keys defaulted (8 true, loginAlert/bigTxnConfirm false) when the stored value is null", async () => {
         // Arrange — a user whose notificationPrefs column has never been set
         const userWithNullPrefs = { ...baseUser, notificationPrefs: null };
         mockPrisma.user.findUniqueOrThrow.mockResolvedValue(userWithNullPrefs);
@@ -544,6 +549,8 @@ describe("AuthService", () => {
           billDue: true,
           stockPrice: true,
           dividend: true,
+          loginAlert: false,
+          bigTxnConfirm: false,
         });
       });
     });

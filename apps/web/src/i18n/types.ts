@@ -322,7 +322,6 @@ export type I18nDictionary = {
       changePasswordRowSub: string;
       pinRowName: string;
       pinRowSub: string;
-      pinActive: string;
       authSectionTitle: string;
       biometricLabel: string;
       biometricSub: string;
@@ -330,30 +329,32 @@ export type I18nDictionary = {
       bigTxnSub: string;
       newLoginLabel: string;
       newLoginSub: string;
+      authNote: string;
       sessionSectionTitle: string;
-      currentSessionSub: string;
-      previousSessionSub: string;
+      sessionActivePrefix: string;
+      deviceFallbackLabel: string;
       thisDeviceBadge: string;
       endSessionLink: string;
+      sessionsLoading: string;
+      sessionsEmpty: string;
+      sessionsError: string;
       toastPasswordMinLength: string;
       toastPasswordMismatch: string;
       toastChangeFailed: string;
       toastChangeSuccess: string;
       toastSetPin: string;
       toastSessionEnded: string;
+      toastSessionEndFailed: string;
+      toastAuthPrefsSaved: string;
+      toastAuthPrefsFailed: string;
     };
     koneksi: {
       bankSectionTitle: string;
       addButton: string;
       ewalletSectionTitle: string;
-      activeBadge: string;
-      connectedAutoSync: string;
-      connectedSync: string;
-      syncActive: string;
-      notConnected: string;
-      connectAction: string;
-      toastConnectOvo: string;
-      toastConnectDana: string;
+      manualLabel: string;
+      emptyBank: string;
+      emptyEwallet: string;
     };
     pengaturan: {
       currencySectionTitle: string;
@@ -416,8 +417,11 @@ export type I18nDictionary = {
       exportDataSub: string;
       deleteAccountName: string;
       deleteAccountSub: string;
-      toastExporting: string;
-      toastDeleteWarning: string;
+      toastExportSuccess: string;
+      toastExportFailed: string;
+      deleteAccountConfirm: string;
+      toastDeleteSuccess: string;
+      toastDeleteFailed: string;
     };
     bantuan: {
       faqSectionTitle: string;
@@ -449,13 +453,10 @@ export type I18nDictionary = {
       whatsappName: string;
       whatsappSub: string;
       toastLiveChat: string;
-      toastEmail: string;
-      toastPhone: string;
-      toastWhatsapp: string;
       feedbackTitle: string;
       feedbackPlaceholder: string;
       feedbackButton: string;
-      toastFeedbackSent: string;
+      toastFeedbackOpening: string;
     };
     tentang: {
       tagline: string;
@@ -469,6 +470,7 @@ export type I18nDictionary = {
       licenseName: string;
       footerMade: string;
       footerCopyright: string;
+      toastComingSoon: string;
     };
     family: {
       membersSectionTitle: string;
@@ -477,7 +479,6 @@ export type I18nDictionary = {
       adminSectionTitle: string;
       adminCanInput: string;
       adminBadge: string;
-      manageAccessPrefix: string;
       addAdminButton: string;
       adminInfoNote: string;
       groupSettingsSectionTitle: string;
@@ -489,26 +490,12 @@ export type I18nDictionary = {
     addAdmin: {
       dialogTitle: string;
       dialogDesc: string;
-      namePlaceholder: string;
       emailPlaceholder: string;
       roleLabel: string;
       roleOptions: {
-        secretary: string;
-        driver: string;
-        householdAssistant: string;
-        personalAssistant: string;
-        accountant: string;
-        other: string;
+        member: string;
+        adminStaff: string;
       };
-      accessLabel: string;
-      accessInputTxnLabel: string;
-      accessInputTxnSub: string;
-      accessOcrLabel: string;
-      accessOcrSub: string;
-      accessViewBalanceLabel: string;
-      accessViewBalanceSub: string;
-      accessLimitCategoryLabel: string;
-      accessLimitCategorySub: string;
       sending: string;
       sendButton: string;
       toastInviteCreated: string;
@@ -540,7 +527,6 @@ export type I18nDictionary = {
     totalPremiumPrefix: string;
     errorLoad: string;
     emptyState: string;
-    payToast: string;
     typeLabels: Record<AsuransiInsuranceTypeId, string>;
     periodSuffixLabels: Record<AsuransiPremiumPeriodId, string>;
     periodOptionLabels: Record<AsuransiPremiumPeriodId, string>;
@@ -576,6 +562,14 @@ export type I18nDictionary = {
     fieldNotesPlaceholder: string;
     saving: string;
     saveButton: string;
+    /** EPIC-016 Task H — "Bayar" confirm dialog that records a real renewal. */
+    payDialogTitle: string;
+    payConfirmPrefix: string;
+    payConfirmSuffix: string;
+    payProcessing: string;
+    payConfirmButton: string;
+    toastRenewalRecordedPrefix: string;
+    toastRenewalFailed: string;
   };
   /**
    * EPIC-018 Task A4 — `/kalkulator` page copy (7 sub-tools). Detail rows

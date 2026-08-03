@@ -36,7 +36,7 @@ the full line-by-line detail preserved from the audit.
     persisted yet, and don't show success unless the save actually covered
     what changed.
 
-- [ ] ### B — `/akun` Settings, Notifications, Privacy tabs are fully inert
+- [x] ### B — `/akun` Settings, Notifications, Privacy tabs are fully inert
   - `PengaturanBody`: currency/language/theme pickers write to an orphaned
     `localStorage["wealthme_settings"]` key never read by the real theme
     system (`components/providers/theme-provider.tsx`) or real i18n
@@ -51,14 +51,14 @@ the full line-by-line detail preserved from the audit.
     relabel as "coming soon" (matching the honest pattern already used on
     `/tax` upload and `/warisan` document upload).
 
-- [ ] ### C — `/akun` Koneksi tab shows fake linked accounts
+- [x] ### C — `/akun` Koneksi tab shows fake linked accounts
   - Hardcoded bank/e-wallet list (`BCA Tahapan ···9010`, `Mandiri ···5586`,
     etc.) is not sourced from the real accounts API, unlike `/rekening` and
     `/dana` which are properly wired.
   - Fix: either remove this section or replace it with real data from the
     same accounts endpoint `/rekening` already uses.
 
-- [ ] ### D — `/akun` misc toast-only actions
+- [x] ### D — `/akun` misc toast-only actions
   - PIN setup, session "Akhiri" (end session — sessions list itself is
     fake), "Ekspor Data Saya", contact rows (chat/email/phone/whatsapp),
     Privacy Policy/Terms/Licenses links, admin "Kelola akses" menu, and
@@ -68,14 +68,14 @@ the full line-by-line detail preserved from the audit.
     "coming soon" state — do not leave a working-looking button that
     silently no-ops.
 
-- [ ] ### E — `/akun` Kirim Feedback textarea captures nothing
+- [x] ### E — `/akun` Kirim Feedback textarea captures nothing
   - The feedback `textarea` has no `value`/`onChange`/ref; the button always
     shows "terkirim" regardless of what (if anything) was typed.
   - Fix: bind the textarea and actually send the feedback somewhere
     (support email, a backend endpoint, or at minimum a stored record) or
     remove the false confirmation.
 
-- [ ] ### F — `/laporan` period selector and header actions are decorative
+- [x] ### F — `/laporan` period selector and header actions are decorative
   - Calendar button, period `<select>` (hardcoded month options, no
     `value`/`onChange`), and Download button in the page header do nothing;
     the page already has a fully real "Export Laporan" feature lower down
@@ -85,25 +85,25 @@ the full line-by-line detail preserved from the audit.
     or remove the duplicate fake controls and point users at the real
     Export Laporan feature.
 
-- [ ] ### G — `/tax` e-Filing and download-summary buttons are toast-only
+- [x] ### G — `/tax` e-Filing and download-summary buttons are toast-only
   - "Lapor SPT Tahunan" and "Unduh Ringkasan" imply a real external action
     (opening DJP e-Filing, generating a download) but only show a toast.
   - Fix: wire to a real destination/export, or relabel as "coming soon"
     (the page already does this correctly for document upload).
 
-- [ ] ### H — `/asuransi` premium payment button is a no-op
+- [x] ### H — `/asuransi` premium payment button is a no-op
   - The "Bayar" (pay premium) button on a policy card doesn't record a
     payment or update any renewal/due-date state.
   - Fix: wire to a real payment-recording flow (can reuse the
     `autoRenewDate`/billing-cycle machinery from EPIC-015 Task B), or relabel
     honestly.
 
-- [ ] ### I — `/rekonsiliasi` export buttons are toast-only
+- [x] ### I — `/rekonsiliasi` export buttons are toast-only
   - "Unduh PDF" / "Unduh Excel" on the reconciliation summary do nothing
     (the summary counts above them are real).
   - Fix: wire to a real export, or remove until one exists.
 
-- [ ] ### J — Low-priority polish
+- [x] ### J — Low-priority polish
   - `/beranda`: cashflow card month `<select>` has exactly one option and no
     `onChange` — either make it multi-month and functional or drop the
     dropdown chrome for a plain label.
@@ -113,7 +113,7 @@ the full line-by-line detail preserved from the audit.
     not fake UI), but worth a follow-up ticket to source it from a rate
     feed or make it configurable.
 
-- [ ] ### K — `/akun` security settings are dummy (except password)
+- [x] ### K — `/akun` security settings are dummy (except password)
   - `KeamananBody` (`apps/web/src/app/(app)/akun/page.tsx:443-610`). Password
     change is **real** (better-auth `authClient.changePassword`, `:461`) — leave
     it. The rest are fake:
@@ -133,7 +133,7 @@ the full line-by-line detail preserved from the audit.
     setup + session "Akhiri" — K supersedes those two items and adds biometric,
     konfirmasi-transaksi-besar, and notifikasi-login-baru.
 
-- [ ] ### L — `/laporan` "Export PDF" downloads a `.txt`
+- [x] ### L — `/laporan` "Export PDF" downloads a `.txt`
   - `apps/web/src/app/(app)/laporan/page.tsx` (~`:2248`) "Export PDF" →
     `buildPdf` in `apps/api/src/exports/exports.service.ts:171-189` is
     **misnamed**: it emits **plain text** via `formatTxt` (`:58-60, :360-532`)
@@ -359,3 +359,32 @@ maskedNumber` pattern). Attempt 1 review found 3 HIGH issues (silent data-loss
   session items). (H) `/laporan` "Export PDF" downloads a `.txt` (buildPdf emits
   plain text, no PDF lib; CSV/Excel path already real) → new **Task L**.
   Existing Tasks A–J were left unchanged. No code changed.
+- **2026-08-03 — /nerve EPIC-016 tasks C–K → PASS (1 review fix round).** All
+  remaining honest-UI tasks closed in one branch (`feat/epic-016-tasks-c-k`).
+  Build-vs-relabel calls, per the audit's own recommendations: C BUILD (Koneksi
+  tab now renders real `AccountDto[]` from the accounts API, fake bank/e-wallet
+  rows + fake sync badges removed); D BUILD where a backend existed ("Ekspor
+  Data Saya" → real `GET /users/me/gdpr/export` JSON download; "Hapus Akun" →
+  confirmed `DELETE /users/me/gdpr/account` + sign-out; contact rows → real
+  mailto/tel/wa.me anchors; AddAdminDialog → real member/admin_staff role
+  picker bound to the invite payload, unbound Nama field + 4 fake access
+  toggles removed) and RELABEL where none did (policy/terms/licenses, live
+  chat); E feedback textarea bound + mailto submit (no fake "terkirim"); F
+  decorative laporan header controls removed (real Export feature untouched);
+  G "Lapor SPT" → real DJP external link, "Unduh Ringkasan" → coming-soon; H
+  "Bayar" → real `PATCH /insurances/:id` advancing `renewalDate` one premium
+  period via month-end-clamped date math + confirm dialog; I fake recon export
+  buttons removed; J beranda month chrome → plain label, donation nisab
+  "indikatif" disclosure; K Sesi Aktif → REAL `authClient.listSessions()` /
+  `revokeSession()` with UA device labels + current-session badge, PIN "Aktif"
+  badge deleted, PIN/biometric honest coming-soon, Notifikasi Login Baru +
+  Konfirmasi Transaksi Besar persisted as real `loginAlert`/`bigTxnConfirm`
+  notification-pref keys (default false, "Disimpan, tapi belum aktif" caption).
+  Task L closed separately by the real PDF export (PR #200, EPIC-020 C).
+  Review: security PASS (2 LOW fixed/logged), review-qa PASS (all letters),
+  react FAIL→fixed (HIGH month-end rollover in `nextRenewalDate` — Jan 31 +1mo
+  drifted to Mar 2; now clamped + unit-tested; 2 MEDIUM: Koneksi error state
+  added, contact-row divider regression fixed). Gates: qa ✅ test ✅ (web 55,
+  api 146) security ❌ only on the pre-existing dependency baseline (21
+  advisories incl. fast-uri chain; no manifest touched here — tracked as a
+  separate remediation item, same precedent as PR #196/#197).

@@ -85,8 +85,12 @@ describe("i18n dictionary key parity", () => {
       male: "Male",
       female: "Female",
     });
-    expect(en.akun.keamanan.currentSessionSub).toBe("Jakarta · Active now");
-    expect(en.akun.koneksi.connectedSync).toBe("Connected · Sync active");
+    // EPIC-016 Task C/K — the fake "connected/synced" bank badges and the
+    // mock "Jakarta · Active now" session copy were removed in favor of real
+    // account data and real `authClient.listSessions()` rows; assert their
+    // honest replacements instead.
+    expect(en.akun.keamanan.sessionActivePrefix).toBe("Active since ");
+    expect(en.akun.koneksi.manualLabel).toBe("Manual");
   });
 
   it("akun.bantuan.faqs carries exactly the 6 FAQ entries with non-empty questions in both locales", () => {
