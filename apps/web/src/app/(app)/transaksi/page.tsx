@@ -19,6 +19,8 @@ import { formatAmountInput, parseRupiah } from "@/lib/format";
 
 import { SectionCard, MoneyStat, IconChip, Rise } from "@/components/wm";
 import { RowActions, ConfirmDeleteDialog } from "@/components/crud";
+import { useLocale } from "@/hooks/use-locale";
+import type { Locale } from "@/i18n";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah } from "@/lib/format";
@@ -47,18 +49,15 @@ type MeResponse = {
   familyGroupId: string | null;
 };
 
-const FILTERS: { label: string; value: FilterValue }[] = [
-  { label: "Semua", value: "all" },
-  { label: "Masuk", value: "income" },
-  { label: "Keluar", value: "expense" },
-  { label: "Transfer", value: "transfer" },
-  { label: "Kartu Kredit", value: "kartu_kredit" },
+const FILTER_VALUES: FilterValue[] = [
+  "all",
+  "income",
+  "expense",
+  "transfer",
+  "kartu_kredit",
 ];
 
-const SORT_OPTIONS: { label: string; value: SortOrder }[] = [
-  { label: "Terbaru", value: "newest" },
-  { label: "Terlama", value: "oldest" },
-];
+const SORT_VALUES: SortOrder[] = ["newest", "oldest"];
 
 function isCreditCard(tx: TransactionDto): boolean {
   const name = tx.accountName.toLowerCase();
@@ -73,16 +72,20 @@ function formatTime(isoString: string): string {
   return isoString.slice(11, 16);
 }
 
-function formatDayLabel(dateStr: string): string {
+function formatDayLabel(
+  dateStr: string,
+  t: ReturnType<typeof useLocale>["t"],
+  locale: Locale,
+): string {
   const today = new Date().toISOString().slice(0, 10);
   const yesterday = new Date(Date.now() - 86_400_000)
     .toISOString()
     .slice(0, 10);
-  if (dateStr === today) return "Hari ini";
-  if (dateStr === yesterday) return "Kemarin";
+  if (dateStr === today) return t.common.today;
+  if (dateStr === yesterday) return t.common.yesterday;
   const [year, month, day] = dateStr.split("-");
   const d = new Date(Number(year), Number(month) - 1, Number(day));
-  return d.toLocaleDateString("id-ID", {
+  return d.toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -96,10 +99,10 @@ function formatDayLabel(dateStr: string): string {
  * string (like formatDayLabel above) rather than `new Date(isoString)`, to
  * avoid a timezone-conversion shift of the displayed calendar day.
  */
-function formatFullDate(dateStr: string): string {
+function formatFullDate(dateStr: string, locale: Locale): string {
   const [year, month, day] = dateStr.split("-");
   const d = new Date(Number(year), Number(month) - 1, Number(day));
-  return d.toLocaleDateString("id-ID", {
+  return d.toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -107,15 +110,9 @@ function formatFullDate(dateStr: string): string {
 }
 
 /** "D Month YYYY, HH:MM" — full date + time for the transaction detail view. */
-function formatDetailDateTime(isoString: string): string {
-  return `${formatFullDate(isoString.slice(0, 10))}, ${formatTime(isoString)}`;
+function formatDetailDateTime(isoString: string, locale: Locale): string {
+  return `${formatFullDate(isoString.slice(0, 10), locale)}, ${formatTime(isoString)}`;
 }
-
-const TYPE_LABEL: Record<string, string> = {
-  income: "Pemasukan",
-  expense: "Pengeluaran",
-  transfer: "Transfer",
-};
 
 const TX_ICON: Record<string, { icon: LucideIcon; chip: string }> = {
   income: { icon: ArrowDownLeft, chip: "bg-green-100 text-green-600" },
@@ -132,22 +129,24 @@ export function TxRow({
   onDeleteClick: () => void;
   onEditClick: () => void;
 }) {
+  const { t } = useLocale();
   const [detailOpen, setDetailOpen] = useState(false);
   const isIncome = tx.type === "income";
   const amount = parseFloat(tx.amount);
   const amountStr = (isIncome ? "+" : "-") + formatRupiah(amount);
   const txIcon = TX_ICON[tx.type] ?? TX_ICON.expense;
+  const typeLabels: Record<string, string> = t.transaksi.typeLabels;
   // EPIC-021 Group B #23 — a real (two-sided) transfer shows its route;
   // legacy one-sided transfer rows (toAccountName null) render exactly as
   // before via the existing fallback chain.
   const isTransferWithDest = tx.type === "transfer" && !!tx.toAccountName;
-  const typeLabel = TYPE_LABEL[tx.type] ?? tx.type;
+  const typeLabel = typeLabels[tx.type] ?? tx.type;
   const displayName = isTransferWithDest
-    ? (tx.description ?? TYPE_LABEL.transfer)
+    ? (tx.description ?? typeLabels.transfer)
     : (tx.description ?? tx.categoryName ?? tx.accountName ?? "—");
   const subtitle = isTransferWithDest
     ? `${tx.accountName} → ${tx.toAccountName}`
-    : (tx.categoryName ?? tx.accountName ?? TYPE_LABEL[tx.type] ?? tx.type);
+    : (tx.categoryName ?? tx.accountName ?? typeLabels[tx.type] ?? tx.type);
 
   const openDetail = () => setDetailOpen(true);
   // The detail-trigger is keyboard-operable (Enter/Space) per WM a11y
@@ -174,7 +173,7 @@ export function TxRow({
           tabIndex={0}
           onClick={openDetail}
           onKeyDown={handleKeyDown}
-          aria-label={`Detail transaksi ${typeLabel} ${displayName}, ${amountStr}`}
+          aria-label={`${t.transaksi.detailAriaLabelPrefix}${typeLabel} ${displayName}, ${amountStr}`}
           className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-[8px] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <IconChip
@@ -251,11 +250,12 @@ export function TransactionDetailDialog({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { t, locale } = useLocale();
   const isIncome = tx.type === "income";
   const amount = parseFloat(tx.amount);
   const amountStr = (isIncome ? "+" : "-") + formatRupiah(amount);
   const txIcon = TX_ICON[tx.type] ?? TX_ICON.expense;
-  const typeLabel = TYPE_LABEL[tx.type] ?? tx.type;
+  const typeLabel = t.transaksi.typeLabels[tx.type] ?? tx.type;
 
   return (
     <Dialog
@@ -265,7 +265,7 @@ export function TransactionDetailDialog({
       }}
     >
       <DialogContent className="max-w-sm">
-        <DialogTitle>Detail Transaksi</DialogTitle>
+        <DialogTitle>{t.transaksi.detailDialogTitle}</DialogTitle>
         <div className="space-y-1 pt-1">
           <div className="mb-2 flex items-center justify-between">
             <span
@@ -282,29 +282,38 @@ export function TransactionDetailDialog({
               {amountStr}
             </span>
           </div>
-          <DetailRow label="Kategori" value={tx.categoryName ?? "—"} />
-          <DetailRow label="Akun" value={tx.accountName} />
           <DetailRow
-            label="Tanggal & Waktu"
-            value={formatDetailDateTime(tx.occurredAt)}
+            label={t.transaksi.detailCategoryLabel}
+            value={tx.categoryName ?? "—"}
           />
-          <DetailRow label="Deskripsi" value={tx.description ?? "—"} />
           <DetailRow
-            label="Dibuat Pada"
-            value={formatDetailDateTime(tx.createdAt)}
+            label={t.transaksi.detailAccountLabel}
+            value={tx.accountName}
+          />
+          <DetailRow
+            label={t.transaksi.detailDateTimeLabel}
+            value={formatDetailDateTime(tx.occurredAt, locale)}
+          />
+          <DetailRow
+            label={t.transaksi.fieldDescLabel}
+            value={tx.description ?? "—"}
+          />
+          <DetailRow
+            label={t.transaksi.detailCreatedAtLabel}
+            value={formatDetailDateTime(tx.createdAt, locale)}
           />
           <div className="flex gap-2 pt-3">
             <button
               onClick={onEdit}
               className="flex-1 rounded-md border py-2.5 text-[13px] font-semibold"
             >
-              Edit
+              {t.transaksi.detailEditButton}
             </button>
             <button
               onClick={onDelete}
               className="flex-1 rounded-md bg-destructive py-2.5 text-[13px] font-semibold text-white"
             >
-              Hapus
+              {t.transaksi.detailDeleteButton}
             </button>
           </div>
         </div>
@@ -326,6 +335,7 @@ function EditTransactionDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useLocale();
   // State is initialised from props; parent passes key={tx.id} to reset on change
   const [amount, setAmount] = useState(
     tx ? formatAmountInput(String(Math.round(parseFloat(tx.amount)))) : "",
@@ -341,10 +351,10 @@ function EditTransactionDialog({
         token,
       }),
     onSuccess: () => {
-      toast.success("Transaksi berhasil diperbarui.");
+      toast.success(t.transaksi.toastUpdated);
       onSaved();
     },
-    onError: () => toast.error("Gagal memperbarui transaksi."),
+    onError: () => toast.error(t.transaksi.toastUpdateFailed),
   });
 
   if (!tx) return null;
@@ -352,7 +362,7 @@ function EditTransactionDialog({
   const handleSave = () => {
     const amountNum = parseRupiah(amount);
     if (!amountNum || amountNum <= 0) {
-      toast.error("Jumlah tidak valid");
+      toast.error(t.transaksi.toastInvalidAmount);
       return;
     }
     updateMutation.mutate({
@@ -370,11 +380,11 @@ function EditTransactionDialog({
       }}
     >
       <DialogContent className="max-w-sm">
-        <DialogTitle>Edit Transaksi</DialogTitle>
+        <DialogTitle>{t.transaksi.editDialogTitle}</DialogTitle>
         <div className="space-y-3 pt-1">
           <div>
             <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
-              Jumlah
+              {t.transaksi.fieldAmountLabel}
             </label>
             <input
               className="w-full rounded-md border bg-background px-3 py-2.5 text-[13.5px] outline-none focus:border-primary"
@@ -386,19 +396,19 @@ function EditTransactionDialog({
           </div>
           <div>
             <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
-              Deskripsi
+              {t.transaksi.fieldDescLabel}
             </label>
             <input
               className="w-full rounded-md border bg-background px-3 py-2.5 text-[13.5px] outline-none focus:border-primary"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Opsional"
+              placeholder={t.transaksi.fieldDescPlaceholder}
               maxLength={200}
             />
           </div>
           <div>
             <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
-              Tanggal
+              {t.transaksi.fieldDateLabel}
             </label>
             <input
               type="date"
@@ -412,14 +422,16 @@ function EditTransactionDialog({
               onClick={onClose}
               className="flex-1 rounded-md border py-2.5 text-[13px] font-semibold"
             >
-              Batal
+              {t.transaksi.cancelButton}
             </button>
             <button
               onClick={handleSave}
               disabled={updateMutation.isPending}
               className="flex-1 rounded-md bg-primary py-2.5 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
             >
-              {updateMutation.isPending ? "Menyimpan…" : "Simpan"}
+              {updateMutation.isPending
+                ? t.transaksi.savingLabel
+                : t.transaksi.saveButton}
             </button>
           </div>
         </div>
@@ -438,6 +450,7 @@ export default function TransaksiPage() {
 }
 
 function TransaksiPageInner() {
+  const { t, locale } = useLocale();
   const [filter, setFilter] = useState<FilterValue>("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -474,10 +487,10 @@ function TransaksiPageInner() {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.transactions.all(familyGroupId),
       });
-      toast.success("Transaksi berhasil dihapus.");
+      toast.success(t.transaksi.toastDeleted);
     },
     onError: () => {
-      toast.error("Gagal menghapus transaksi.");
+      toast.error(t.transaksi.toastDeleteFailed);
     },
   });
 
@@ -548,23 +561,25 @@ function TransaksiPageInner() {
       {/* Header bar */}
       <div className="flex flex-wrap items-center justify-between gap-2.5">
         <span className="text-[13px] text-muted-foreground">
-          Catat &amp; kelola semua transaksimu
+          {t.transaksi.headerDesc}
         </span>
         {filterAccountName && (
           <button
             type="button"
             onClick={() => router.replace("/transaksi")}
             className="flex items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-[12px] font-semibold text-primary"
-            aria-label={`Hapus filter mutasi ${filterAccountName}`}
+            aria-label={`${t.transaksi.removeAccountFilterAriaLabelPrefix}${filterAccountName}`}
           >
-            Mutasi: {filterAccountName} ✕
+            {t.transaksi.accountFilterPrefix}
+            {filterAccountName}
+            {t.transaksi.accountFilterSuffix}
           </button>
         )}
         <button
           onClick={() => setTxnOpen(true)}
           className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground"
         >
-          <Plus className="size-3.5" /> Tambah Transaksi
+          <Plus className="size-3.5" /> {t.transaksi.addTransactionButton}
         </button>
       </div>
 
@@ -572,17 +587,17 @@ function TransaksiPageInner() {
       <div className="rounded-[14px] border bg-card p-4">
         <div className="grid grid-cols-3 gap-3">
           <MoneyStat
-            label="Total Pemasukan"
+            label={t.transaksi.totalIncomeLabel}
             value={isLoading ? "…" : formatRupiah(totalIncome)}
             valueClass="text-success"
           />
           <MoneyStat
-            label="Total Pengeluaran"
+            label={t.transaksi.totalExpenseLabel}
             value={isLoading ? "…" : formatRupiah(totalExpense)}
             valueClass="text-destructive"
           />
           <MoneyStat
-            label="Selisih"
+            label={t.transaksi.differenceLabel}
             value={isLoading ? "…" : formatRupiah(netBalance)}
             valueClass={netBalance >= 0 ? "text-success" : "text-destructive"}
           />
@@ -592,19 +607,19 @@ function TransaksiPageInner() {
       {/* Filter pills (left) + sort control (right) — redundant "Tambah" button removed */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="hide-scrollbar flex gap-2 overflow-x-auto">
-          {FILTERS.map((f) => (
+          {FILTER_VALUES.map((value) => (
             <button
-              key={f.value}
-              onClick={() => setFilter(f.value)}
-              aria-pressed={filter === f.value}
+              key={value}
+              onClick={() => setFilter(value)}
+              aria-pressed={filter === value}
               className={
                 "whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors " +
-                (filter === f.value
+                (filter === value
                   ? "bg-primary text-primary-foreground"
                   : "bg-secondary text-muted-foreground hover:bg-accent")
               }
             >
-              {f.label}
+              {t.transaksi.filterLabels[value]}
             </button>
           ))}
         </div>
@@ -612,17 +627,17 @@ function TransaksiPageInner() {
         {/* Sort control — styled native select per WM conventions for simplicity */}
         <div className="relative flex items-center">
           <span className="pointer-events-none absolute left-3 text-[12px] text-muted-foreground select-none">
-            Urutkan:
+            {t.transaksi.sortByLabel}
           </span>
           <select
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value as SortOrder)}
             className="appearance-none rounded-lg border bg-card py-1.5 pl-[68px] pr-7 text-[13px] font-semibold text-foreground outline-none transition-colors focus:border-primary cursor-pointer"
-            aria-label="Urutan transaksi"
+            aria-label={t.transaksi.sortAriaLabel}
           >
-            {SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
+            {SORT_VALUES.map((value) => (
+              <option key={value} value={value}>
+                {t.transaksi.sortLabels[value]}
               </option>
             ))}
           </select>
@@ -636,7 +651,7 @@ function TransaksiPageInner() {
           role="alert"
           className="rounded-lg border border-destructive bg-destructive/5 px-4 py-2.5 text-[13px] text-destructive"
         >
-          Gagal memuat transaksi. Silakan refresh halaman.
+          {t.transaksi.errorLoad}
         </div>
       )}
 
@@ -645,7 +660,7 @@ function TransaksiPageInner() {
         {isLoading && (
           <SectionCard>
             <div className="py-6 text-center text-[13px] text-muted-foreground">
-              Memuat transaksi…
+              {t.transaksi.loadingLabel}
             </div>
           </SectionCard>
         )}
@@ -655,7 +670,7 @@ function TransaksiPageInner() {
             <Rise key={day} index={i}>
               <div>
                 <div className="mt-3 mb-1.5 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-                  {formatDayLabel(day)}
+                  {formatDayLabel(day, t, locale)}
                 </div>
                 <div className="space-y-1.5">
                   {groups[day]?.map((tx) => (
@@ -674,7 +689,7 @@ function TransaksiPageInner() {
         {!isLoading && sortedDays.length === 0 && !isError && (
           <SectionCard>
             <div className="py-6 text-center text-[13px] text-muted-foreground">
-              Tidak ada transaksi pada filter ini.
+              {t.transaksi.emptyFiltered}
             </div>
           </SectionCard>
         )}
@@ -695,7 +710,7 @@ function TransaksiPageInner() {
       />
 
       <ConfirmDeleteDialog
-        label={deleteTarget !== null ? "Transaksi" : null}
+        label={deleteTarget !== null ? t.transaksi.deleteLabel : null}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => {
           if (deleteTarget) deleteMutation.mutate(deleteTarget);

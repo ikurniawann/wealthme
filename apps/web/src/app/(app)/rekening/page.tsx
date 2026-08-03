@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CrudModal, ConfirmDeleteDialog } from "@/components/crud";
 import type { CrudModalState } from "@/components/crud";
+import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, parseRupiah, formatAmountInput } from "@/lib/format";
@@ -53,8 +54,7 @@ type AccountCard = {
   ownerName: string | null;
 };
 
-// Minimal shape — mirrors the FamilyMember type on /akun (this page is not
-// yet i18n'd, so no dictionary keys are pulled in here).
+// Minimal shape — mirrors the FamilyMember type on /akun.
 type FamilyMemberLite = {
   userId: string;
   name: string;
@@ -102,14 +102,6 @@ const TYPE_LOGO_BG: Record<string, string> = {
   property: "#F59E0B",
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  bank: "Tabungan",
-  ewallet: "E-Wallet",
-  cash: "Tunai",
-  investment: "Investasi",
-  property: "Properti",
-};
-
 function toLogoText(name: string): string {
   return name
     .split(" ")
@@ -123,7 +115,10 @@ function toLogoText(name: string): string {
 // Data mapping
 // ---------------------------------------------------------------------------
 
-function toCardData(account: AccountDto): AccountCard {
+function toCardData(
+  account: AccountDto,
+  t: ReturnType<typeof useLocale>["t"],
+): AccountCard {
   const rawBalance = parseFloat(account.balance);
   const brand = resolveBrand(account.institution ?? null);
 
@@ -134,18 +129,21 @@ function toCardData(account: AccountDto): AccountCard {
       ? toLogoText(account.institution)
       : toLogoText(account.name));
 
+  const typeLabels: Record<string, string> = t.rekening.typeLabels;
+  const typeLabel = typeLabels[account.type] ?? account.type;
+
   return {
     id: account.id,
     logo,
     logoBg,
     name: account.name,
     number: account.maskedNumber ?? "—",
-    balanceLabel: "Saldo",
+    balanceLabel: t.rekening.balanceLabel,
     balance: formatRupiah(rawBalance),
     rawBalance,
     type: account.institution
-      ? `${TYPE_LABELS[account.type] ?? account.type} · ${account.institution}`
-      : (TYPE_LABELS[account.type] ?? account.type),
+      ? `${typeLabel} · ${account.institution}`
+      : typeLabel,
     isPrivate: account.isPrivate,
     ownerUserId: account.ownerUserId,
     ownerName: account.ownerName,
@@ -172,6 +170,7 @@ function AccountCardItem({
   onMintaDana,
 }: AccountCardItemProps) {
   const router = useRouter();
+  const { t } = useLocale();
   return (
     <Card
       className={`gap-0 space-y-3.5 p-5 transition-shadow hover:shadow-md ${
@@ -202,15 +201,15 @@ function AccountCardItem({
           or `status` field on AccountDto — that field does not currently exist.
           When the API adds it, replace this with conditional logic.
         */}
-        <StatusBadge variant="success">Aktif</StatusBadge>
+        <StatusBadge variant="success">{t.rekening.activeBadge}</StatusBadge>
         {account.isPrivate && (
-          <StatusBadge variant="purple">🔒 Privat</StatusBadge>
+          <StatusBadge variant="purple">{t.rekening.privateBadge}</StatusBadge>
         )}
 
         {/* Kebab menu: Edit + Hapus folded out of the main action row */}
         <DropdownMenu>
           <DropdownMenuTrigger
-            aria-label="Opsi rekening"
+            aria-label={t.rekening.optionsAriaLabel}
             render={
               <button
                 type="button"
@@ -224,14 +223,14 @@ function AccountCardItem({
             <DropdownMenuItem
               onClick={() => router.push(`/transaksi?accountId=${account.id}`)}
             >
-              📄 Lihat Mutasi
+              {t.rekening.viewMutationMenuItem}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onEdit(account)}>
-              ✏️ Edit
+              {t.rekening.editMenuItem}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onClick={onDelete}>
-              🗑️ Hapus
+              {t.rekening.deleteMenuItem}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -250,11 +249,12 @@ function AccountCardItem({
           {account.ownerUserId &&
             (isMine ? (
               <StatusBadge variant="info" className="text-[10px]">
-                👤 Milik Saya
+                {t.rekening.ownerMineBadge}
               </StatusBadge>
             ) : (
               <StatusBadge variant="gray" className="text-[10px]">
-                👤 {account.ownerName ?? "Anggota"}
+                {t.rekening.ownerBadgePrefix}
+                {account.ownerName ?? t.rekening.ownerUnknownLabel}
               </StatusBadge>
             ))}
         </div>
@@ -265,22 +265,22 @@ function AccountCardItem({
       <div className="grid grid-cols-1 gap-2">
         <button
           type="button"
-          aria-label="Lihat Mutasi"
+          aria-label={t.rekening.viewMutationAriaLabel}
           className="cursor-pointer rounded-md border bg-background py-2 text-[12px] font-semibold transition-colors hover:bg-accent"
           onClick={() => router.push("/transaksi")}
         >
-          📋 Lihat Mutasi
+          {t.rekening.viewMutationButton}
         </button>
         {/* EPIC-019 Task B/D — a member requests funding for their OWN
             account; the owner approves via /akun (family section). */}
         {isMine && (
           <button
             type="button"
-            aria-label="Minta Dana"
+            aria-label={t.rekening.mintaDanaButtonLabel}
             className="flex cursor-pointer items-center justify-center gap-1.5 rounded-md bg-primary py-2 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
             onClick={onMintaDana}
           >
-            <HandCoins className="size-3.5" /> Minta Dana
+            <HandCoins className="size-3.5" /> {t.rekening.mintaDanaButtonLabel}
           </button>
         )}
       </div>
@@ -333,6 +333,7 @@ function MintaDanaForm({
   token: string | undefined;
   onClose: () => void;
 }) {
+  const { t } = useLocale();
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -342,7 +343,7 @@ function MintaDanaForm({
     if (!familyGroupId || !token) return;
     const parsed = parseRupiah(amount);
     if (parsed <= 0) {
-      toast.error("Masukkan jumlah yang valid.");
+      toast.error(t.rekening.mintaDanaAmountInvalidToast);
       return;
     }
     setIsSaving(true);
@@ -361,12 +362,10 @@ function MintaDanaForm({
       await queryClient.invalidateQueries({
         queryKey: queryKeys.allowanceRequests.all(familyGroupId),
       });
-      toast.success(
-        "Permintaan dana terkirim. Menunggu persetujuan pemilik family.",
-      );
+      toast.success(t.rekening.mintaDanaSuccessToast);
       onClose();
     } catch {
-      toast.error("Gagal mengirim permintaan dana. Coba lagi.");
+      toast.error(t.rekening.mintaDanaFailToast);
     } finally {
       setIsSaving(false);
     }
@@ -376,13 +375,13 @@ function MintaDanaForm({
     <>
       <DialogHeader>
         <DialogTitle className="text-[15px] font-bold">
-          Minta Dana — {account.name}
+          {t.rekening.mintaDanaDialogTitle} — {account.name}
         </DialogTitle>
       </DialogHeader>
       <div className="space-y-3">
         <div>
           <label className="mb-1.5 block text-[12px] font-semibold text-muted-foreground">
-            Jumlah
+            {t.rekening.mintaDanaAmountLabel}
           </label>
           <div className="relative">
             <span className="absolute top-1/2 left-3 -translate-y-1/2 text-[12px] font-semibold text-muted-foreground">
@@ -399,12 +398,12 @@ function MintaDanaForm({
         </div>
         <div>
           <label className="mb-1.5 block text-[12px] font-semibold text-muted-foreground">
-            Catatan (opsional)
+            {t.rekening.mintaDanaNoteLabel}
           </label>
           <Textarea
             rows={2}
             className="resize-none text-[13px]"
-            placeholder="cth: uang jajan bulan ini"
+            placeholder={t.rekening.mintaDanaNotePlaceholder}
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />
@@ -412,7 +411,9 @@ function MintaDanaForm({
       </div>
       <Button className="w-full" onClick={handleSend} disabled={isSaving}>
         <Save className="size-4" />{" "}
-        {isSaving ? "Mengirim..." : "Kirim Permintaan"}
+        {isSaving
+          ? t.rekening.mintaDanaSubmitting
+          : t.rekening.mintaDanaSubmitButton}
       </Button>
     </>
   );
@@ -423,6 +424,7 @@ function MintaDanaForm({
 // ---------------------------------------------------------------------------
 
 export default function RekeningPage() {
+  const { t } = useLocale();
   const { data: session } = useSession();
 
   useEffect(() => {
@@ -489,7 +491,7 @@ export default function RekeningPage() {
   const [requesting, setRequesting] = useState<AccountCard | null>(null);
 
   const ownerOptions = [
-    { value: "", label: "Keluarga (bersama)" },
+    { value: "", label: t.rekening.ownerSelectFamilyLabel },
     ...(familyMembers ?? []).map((m) => ({ value: m.userId, label: m.name })),
   ];
 
@@ -545,7 +547,7 @@ export default function RekeningPage() {
             }),
           },
         );
-        toast.success("Rekening berhasil diperbarui!");
+        toast.success(t.rekening.toastUpdated);
       } else {
         await apiFetch(`/family-groups/${familyGroupId}/accounts`, {
           token,
@@ -560,11 +562,11 @@ export default function RekeningPage() {
             ...(ownerUserId ? { ownerUserId } : {}),
           }),
         });
-        toast.success("Rekening berhasil ditambahkan!");
+        toast.success(t.rekening.toastAdded);
       }
       await invalidateAccounts();
     } catch {
-      toast.error("Gagal menyimpan rekening. Coba lagi.");
+      toast.error(t.rekening.toastSaveFailed);
     }
   }
 
@@ -575,10 +577,10 @@ export default function RekeningPage() {
         `/family-groups/${familyGroupId}/accounts/${deleting.id}`,
         { token, method: "DELETE" },
       );
-      toast.success("Rekening berhasil dihapus.");
+      toast.success(t.rekening.toastDeleted);
       await invalidateAccounts();
     } catch {
-      toast.error("Gagal menghapus rekening. Coba lagi.");
+      toast.error(t.rekening.toastDeleteFailed);
     } finally {
       setDeleting(null);
     }
@@ -590,16 +592,16 @@ export default function RekeningPage() {
         <div>
           <div className="text-[13px] font-bold">
             {isLoading
-              ? "Memuat..."
-              : `${accounts?.length ?? 0} Rekening Terhubung`}
+              ? t.rekening.loadingLabel
+              : `${accounts?.length ?? 0}${t.rekening.accountsConnectedSuffix}`}
           </div>
           <div className="text-[11px] text-muted-foreground">
             {!isLoading && accounts && (
               <>
-                {`Total: ${formatRupiah(totalBalance)}`}
+                {`${t.rekening.totalPrefix}${formatRupiah(totalBalance)}`}
                 {fxRates?.rates["USD"] != null && (
                   <span className="ml-2 text-muted-foreground/70">
-                    {`≈ USD ${(totalBalance * fxRates.rates["USD"]).toFixed(2)}`}
+                    {`${t.rekening.approxUsdPrefix}${(totalBalance * fxRates.rates["USD"]).toFixed(2)}`}
                   </span>
                 )}
               </>
@@ -607,7 +609,7 @@ export default function RekeningPage() {
           </div>
         </div>
         <Button type="button" onClick={openAdd} data-tour="add-rekening">
-          <Plus className="size-4" /> Tambah
+          <Plus className="size-4" /> {t.rekening.addButton}
         </Button>
       </div>
 
@@ -624,7 +626,7 @@ export default function RekeningPage() {
                 : "bg-background text-muted-foreground hover:border-primary/50"
             }`}
           >
-            Semua
+            {t.rekening.filterAllLabel}
           </button>
           <button
             type="button"
@@ -635,7 +637,7 @@ export default function RekeningPage() {
                 : "bg-background text-muted-foreground hover:border-primary/50"
             }`}
           >
-            👤 Milik saya
+            {t.rekening.filterMineLabel}
           </button>
         </div>
       )}
@@ -645,32 +647,32 @@ export default function RekeningPage() {
           role="alert"
           className="rounded-lg border border-destructive bg-destructive/5 px-4 py-2.5 text-[13px] text-destructive"
         >
-          <span className="font-semibold">Kesalahan: </span>Gagal memuat
-          rekening. Silakan refresh halaman.
+          <span className="font-semibold">{t.rekening.errorPrefixLabel}</span>
+          {t.rekening.errorLoadBody}
         </div>
       )}
 
       {!isLoading && !isError && accounts?.length === 0 && (
         <div className="rounded-lg border border-dashed p-8 text-center text-[13px] text-muted-foreground">
-          Belum ada rekening.{" "}
+          {t.rekening.emptyStatePrefix}
           <button
             type="button"
             className="font-semibold text-primary"
             onClick={openAdd}
           >
-            Tambah sekarang
+            {t.rekening.addNowButton}
           </button>
         </div>
       )}
 
       {!isLoading && !isError && onlyMine && visibleAccounts.length === 0 && (
         <div className="rounded-lg border border-dashed p-8 text-center text-[13px] text-muted-foreground">
-          Belum ada rekening yang menjadi milikmu.
+          {t.rekening.emptyMineState}
         </div>
       )}
 
       {visibleAccounts.map((account) => {
-        const card = toCardData(account);
+        const card = toCardData(account, t);
         return (
           <AccountCardItem
             key={account.id}

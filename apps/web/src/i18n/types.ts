@@ -77,12 +77,14 @@ type PanduanJourneyId =
 
 /** EPIC-018 Task A4 — `/asuransi` insurance type/period/status enum ids
  * (mirror the `InsuranceType` / `PremiumPeriod` / `InsuranceStatus` contracts
- * — persisted values stay unchanged, only their display labels translate). */
+ * — persisted values stay unchanged, only their display labels translate).
+ * EPIC-021 Group D (#13) added "pendidikan" alongside the rest. */
 type AsuransiInsuranceTypeId =
   | "jiwa"
   | "kesehatan"
   | "kendaraan"
   | "properti"
+  | "pendidikan"
   | "lainnya";
 
 type AsuransiPremiumPeriodId = "monthly" | "quarterly" | "yearly";
@@ -180,6 +182,73 @@ type MasterCoaGroupNum = 1 | 2 | 3 | 4 | 5 | 6;
 type MasterCoaDirectionId = "INCOME" | "EXPENSE" | "TRANSFER";
 
 type MasterCoaBudgetTypeId = "FIXED" | "VARIABLE" | "REIMBURSEMENT";
+
+/** EPIC-018 Task A6 — `/tujuan` goal-status ids (mirrors `GoalStatus` —
+ * persisted values stay unchanged, only display labels translate). */
+type TujuanStatusId = "achieved" | "on_track" | "needs_boost" | "at_risk";
+
+/** EPIC-021 #3 — `/dana` cash/e-wallet entity ids (mirrors `Account.type`
+ * subset used on this page — persisted values stay unchanged, only the
+ * entity display label and toast copy translate). */
+type DanaEntityId = "cash" | "ewallet";
+
+/** EPIC-018 Task A6 — `/tax` SPT-status ids (mirrors `SptStatus`). */
+type TaxSptStatusId = "belum_lapor" | "sudah_lapor" | "terlambat";
+
+/** EPIC-018 Task A6 — `/tax` PPh21 PTKP status-option ids (local to the
+ * calculator; the numeric threshold `value` stays fixed, only the label
+ * translates). */
+type TaxPtkpId = "tk0" | "k0" | "k1" | "k2" | "k3";
+
+/** EPIC-018 Task A6 — `/tax` progressive-bracket row ids (local display
+ * rows for the breakdown table; `idx` maps into the fixed bracket math). */
+type TaxBracketId = "b0" | "b1" | "b2" | "b4";
+
+/** EPIC-018 Task A6 — `/rekening` account-type ids (local wording distinct
+ * from `aset.accountTypeLabels` — same keys as `Account.type`, different
+ * copy for this page's context). */
+type RekeningAccountTypeId =
+  | "bank"
+  | "ewallet"
+  | "cash"
+  | "investment"
+  | "property";
+
+/** EPIC-018 Task A6 — `/donation` donation-type ids (mirrors `DonationType`
+ * — persisted values stay unchanged, only display labels translate). */
+type DonationTypeId =
+  | "zakat_maal"
+  | "zakat_fitrah"
+  | "infaq"
+  | "sedekah"
+  | "wakaf"
+  | "lainnya";
+
+/** EPIC-018 Task A6 — `/anggaran` COA budget-type ids (mirrors `BudgetType`
+ * plus the local "OTHER" fallback bucket). */
+type AnggaranBudgetTypeId = "FIXED" | "VARIABLE" | "REIMBURSEMENT" | "OTHER";
+
+/** EPIC-018 Task A6 — `/anggaran` budget-period ids (mirrors `BudgetPeriod`). */
+type AnggaranPeriodId = "monthly" | "weekly" | "yearly";
+
+/** EPIC-018 Task A6 — `/transaksi` transaction-type ids (mirrors
+ * `TransactionDto.type` — persisted values stay unchanged). */
+type TransaksiTypeId = "income" | "expense" | "transfer";
+
+/** EPIC-018 Task A6 — `/transaksi` filter-pill ids (structural + one
+ * accountName-heuristic filter, see the page's `FilterValue` comment). */
+type TransaksiFilterId =
+  | "all"
+  | "income"
+  | "expense"
+  | "transfer"
+  | "kartu_kredit";
+
+/** EPIC-018 Task A6 — `/transaksi` sort-order ids. */
+type TransaksiSortId = "newest" | "oldest";
+
+/** EPIC-018 Task A6 — `/rekonsiliasi` wizard step numbers (1-4). */
+type RekonsiliasiStepNum = 1 | 2 | 3 | 4;
 
 export type I18nDictionary = {
   locale: "id" | "en";
@@ -634,6 +703,7 @@ export type I18nDictionary = {
     validationNameRequired: string;
     validationPremiumPositive: string;
     modalTitle: string;
+    modalEditTitle: string;
     modalCloseAriaLabel: string;
     fieldNameLabel: string;
     fieldNamePlaceholder: string;
@@ -659,6 +729,23 @@ export type I18nDictionary = {
     payConfirmButton: string;
     toastRenewalRecordedPrefix: string;
     toastRenewalFailed: string;
+    /** EPIC-021 Group D (#14) — policy beneficiaries, mirroring warisan's
+     * heir editor UX (allocation bar + optional family-member link). */
+    beneficiariesSectionTitle: string;
+    beneficiariesLabel: string;
+    beneficiaryNameLabel: string;
+    beneficiaryNamePlaceholder: string;
+    beneficiaryRelationshipLabel: string;
+    beneficiaryRelationshipPlaceholder: string;
+    beneficiarySharePercentLabel: string;
+    beneficiaryMemberLabel: string;
+    beneficiaryMemberNoneOption: string;
+    addBeneficiaryButton: string;
+    removeBeneficiaryAriaLabel: string;
+    allocationAllocatedSuffix: string;
+    allocationUnallocatedSuffix: string;
+    allocationFullyAllocated: string;
+    validationSharePercentExceeded: string;
   };
   /**
    * EPIC-018 Task A4 — `/kalkulator` page copy (7 sub-tools). Detail rows
@@ -817,6 +904,9 @@ export type I18nDictionary = {
     fieldQuantityPlaceholder: string;
     fieldCostBasisLabel: string;
     fieldCostBasisPlaceholder: string;
+    // EPIC-021 #20: optional interest rate, shown for interest-bearing types.
+    fieldInterestRateLabel: string;
+    fieldInterestRatePlaceholder: string;
     saving: string;
     saveButton: string;
     totalValueLabel: string;
@@ -825,6 +915,10 @@ export type I18nDictionary = {
     vsYesterdaySuffix: string;
     portfolioSectionTitle: string;
     addInvestmentLink: string;
+    // EPIC-021 #19 (Open Design Decision #3 recommendation): filter tabs by
+    // type, matching the /aset tab pattern. "Semua" reuses typeLabels for the
+    // rest of the tabs.
+    filterAllLabel: string;
     tableName: string;
     tableType: string;
     tableCapital: string;
@@ -834,6 +928,20 @@ export type I18nDictionary = {
     tableAction: string;
     emptyState: string;
     emptyStateCta: string;
+    // EPIC-021 #20: per-row expandable detail (latest price provenance +
+    // interest-bearing projected yield).
+    detailToggleShow: string;
+    detailToggleHide: string;
+    detailLatestPriceLabel: string;
+    detailRecordedAtLabel: string;
+    detailSourceLabel: string;
+    detailInterestRateLabel: string;
+    detailProjectedYieldLabel: string;
+    // Genuinely non-applicable type (e.g. saham/emas — no interest concept).
+    detailNoInterestRate: string;
+    // Interest-bearing type (obligasi) but interestRatePct hasn't been set yet
+    // — distinct from detailNoInterestRate so the message isn't misleading.
+    detailNoRateSet: string;
   };
   /** EPIC-018 Task A5 — `/aset` (consolidated assets) page copy. */
   aset: {
@@ -853,6 +961,15 @@ export type I18nDictionary = {
     fieldCategoryLabel: string;
     fieldValueLabel: string;
     fieldValuePlaceholder: string;
+    // EPIC-021 #17/#18: signed annual value-change rate (depreciation < 0,
+    // appreciation > 0).
+    fieldValueChangeRateLabel: string;
+    fieldValueChangeRatePlaceholder: string;
+    // EPIC-021 #16: optional physical-asset category from master data
+    // (the real Category API — distinct from the hardcoded `fieldCategoryLabel`
+    // type selector above).
+    fieldMasterDataCategoryLabel: string;
+    fieldMasterDataCategoryNone: string;
     fieldNotesLabel: string;
     fieldNotesPlaceholder: string;
     saving: string;
@@ -865,6 +982,8 @@ export type I18nDictionary = {
     emptyPhysical: string;
     emptyDanaRekening: string;
     emptyInvestments: string;
+    // EPIC-021 #17/#18: honest label appended to a compute-on-read estimate.
+    estimatedValueBadge: string;
   };
   /** EPIC-018 Task A5 — `/liabilitas` (debts & credit) page copy. */
   liabilitas: {
@@ -989,6 +1108,8 @@ export type I18nDictionary = {
     modalTitleAdd: string;
     fieldCodeLabel: string;
     fieldCodePlaceholder: string;
+    /** EPIC-021 #4 — shown when adding (code omitted/blank auto-generates). */
+    fieldCodeAutoPlaceholder: string;
     fieldGroupLabel: string;
     fieldNameLabel: string;
     fieldNamePlaceholder: string;
@@ -1006,5 +1127,506 @@ export type I18nDictionary = {
     toastDeleted: string;
     toastDeleteFailed: string;
     toastSessionNotReady: string;
+  };
+  /** EPIC-018 Task A6 — `/notifikasi` (notifications) page copy. Notification
+   * `title`/`body`/`icon` come from the API (real user-facing content set at
+   * creation time) and stay untranslated in the page. */
+  notifikasi: {
+    title: string;
+    newCountSuffix: string;
+    processing: string;
+    markAllRead: string;
+    errorLoad: string;
+    emptyState: string;
+    unreadBadge: string;
+    relativeJustNow: string;
+    relativeMinutesSuffix: string;
+    relativeHoursSuffix: string;
+    relativeYesterday: string;
+    relativeDaysSuffix: string;
+  };
+  /** EPIC-018 Task A6 — `/dana` (cash & e-wallet) page copy. */
+  dana: {
+    totalLabel: string;
+    loadingLabel: string;
+    accountsConnectedSuffix: string;
+    errorPrefixLabel: string;
+    errorLoadBody: string;
+    cashSectionTitle: string;
+    ewalletSectionTitle: string;
+    addButton: string;
+    emptyEwallet: string;
+    /** EPIC-021 #3 — cash is now a real, plural CRUD list like e-wallet;
+     * entity label + toast copy are shared across both via these
+     * entity-aware keys instead of separate `toastEwallet*` strings. */
+    emptyCash: string;
+    entityLabels: Record<DanaEntityId, string>;
+    toastUpdatedSuffix: string;
+    toastAddedSuffix: string;
+    toastDeletedSuffix: string;
+    toastSaveFailedPrefix: string;
+    toastSaveFailedSuffix: string;
+    toastDeleteFailedPrefix: string;
+    toastDeleteFailedSuffix: string;
+  };
+  /** EPIC-018 Task A6 — `/ringkasan` (financial summary dashboard) page copy. */
+  ringkasan: {
+    errorLoad: string;
+    totalNetWorthLabel: string;
+    monthDeltaUpPrefix: string;
+    monthDeltaDownPrefix: string;
+    monthDeltaSuffix: string;
+    totalAssetsLabel: string;
+    accountTypesSuffix: string;
+    noDataDash: string;
+    totalLiabilitiesLabel: string;
+    liabilitiesSublabel: string;
+    savingsRateLabel: string;
+    expenseValuePrefix: string;
+    indicativeFxNotePrefix: string;
+    indicativeFxNoteSuffix: string;
+    netWorthTrendTitle: string;
+    emptyCashflow: string;
+    compositionTitle: string;
+    emptyComposition: string;
+    cashFlowTitlePrefix: string;
+    incomeLabel: string;
+    expenseLabel: string;
+    surplusLabel: string;
+    loadingLabel: string;
+    topExpensesTitle: string;
+    emptyTopExpenses: string;
+    healthScoreTitle: string;
+    financialHealthScoreLabel: string;
+    healthStatusGood: string;
+    healthStatusFair: string;
+    healthStatusNeedsAttention: string;
+  };
+  /** EPIC-018 Task A6 — `/tujuan` (financial goals) page copy. */
+  tujuan: {
+    statusLabels: Record<TujuanStatusId, string>;
+    noTargetDate: string;
+    targetDatePrefix: string;
+    editButton: string;
+    deleteButton: string;
+    collectedSuffix: string;
+    targetPrefix: string;
+    remainingPrefix: string;
+    autoDebitPrefix: string;
+    autoDebitSuffix: string;
+    noAutoDebit: string;
+    toastSessionNotReady: string;
+    toastUpdated: string;
+    toastAdded: string;
+    toastSaveFailed: string;
+    toastDeleted: string;
+    toastDeleteFailed: string;
+    activeGoalsSuffix: string;
+    totalAllocatedPrefix: string;
+    addGoalButton: string;
+    onTrackLabel: string;
+    onTrackDesc: string;
+    needsBoostLabel: string;
+    needsBoostDesc: string;
+    atRiskLabel: string;
+    atRiskDesc: string;
+    errorLoad: string;
+    emptyState: string;
+  };
+  /**
+   * EPIC-018 Task A6 — `/tax` (tax center) page copy. `LEMBAGA_OPTIONS`-style
+   * value-locked lists don't apply here (no persisted free-text recipient
+   * field on this page).
+   */
+  tax: {
+    sptStatusLabels: Record<TaxSptStatusId, string>;
+    ptkpLabels: Record<TaxPtkpId, string>;
+    bracketLabels: Record<TaxBracketId, string>;
+    heroLabelPrefix: string;
+    heroSubtitle: string;
+    prevYearStatusLabelPrefix: string;
+    markReportedButton: string;
+    noDataLabel: string;
+    sptYearLabelPrefix: string;
+    deadlinePrefix: string;
+    zakatDeductionTitle: string;
+    zakatDeductionDash: string;
+    zakatDeductionDesc: string;
+    calculatorTitle: string;
+    calculatorSubtitle: string;
+    fieldGrossLabel: string;
+    fieldStatusLabel: string;
+    fieldJabatanLabel: string;
+    fieldZakatLabel: string;
+    estimateLabel: string;
+    pkpPrefix: string;
+    effectiveRatePrefix: string;
+    savingLabel: string;
+    saveToTaxRecordButton: string;
+    progressiveBreakdownTitle: string;
+    colBracket: string;
+    colRate: string;
+    colTax: string;
+    historyTitle: string;
+    taxYearPrefix: string;
+    grossPrefix: string;
+    zakatPrefix: string;
+    markReportedShortButton: string;
+    documentsTitle: string;
+    uploadButton: string;
+    toastUploadUnavailable: string;
+    emptyDocuments: string;
+    reportSptButton: string;
+    downloadSummaryButton: string;
+    toastDownloadUnavailable: string;
+    toastSaved: string;
+    toastSaveFailed: string;
+    toastStatusUpdated: string;
+    toastStatusUpdateFailed: string;
+  };
+  /** EPIC-018 Task A6 — `/rekening` (bank accounts) page copy. */
+  rekening: {
+    typeLabels: Record<RekeningAccountTypeId, string>;
+    balanceLabel: string;
+    activeBadge: string;
+    privateBadge: string;
+    optionsAriaLabel: string;
+    viewMutationMenuItem: string;
+    editMenuItem: string;
+    deleteMenuItem: string;
+    viewMutationAriaLabel: string;
+    viewMutationButton: string;
+    loadingLabel: string;
+    accountsConnectedSuffix: string;
+    totalPrefix: string;
+    approxUsdPrefix: string;
+    addButton: string;
+    errorPrefixLabel: string;
+    errorLoadBody: string;
+    emptyStatePrefix: string;
+    addNowButton: string;
+    toastUpdated: string;
+    toastAdded: string;
+    toastSaveFailed: string;
+    toastDeleted: string;
+    toastDeleteFailed: string;
+    ownerSelectFamilyLabel: string;
+    ownerMineBadge: string;
+    ownerBadgePrefix: string;
+    ownerUnknownLabel: string;
+    filterAllLabel: string;
+    filterMineLabel: string;
+    emptyMineState: string;
+    mintaDanaButtonLabel: string;
+    mintaDanaDialogTitle: string;
+    mintaDanaAmountLabel: string;
+    mintaDanaAmountInvalidToast: string;
+    mintaDanaNoteLabel: string;
+    mintaDanaNotePlaceholder: string;
+    mintaDanaSubmitButton: string;
+    mintaDanaSubmitting: string;
+    mintaDanaSuccessToast: string;
+    mintaDanaFailToast: string;
+  };
+  /**
+   * EPIC-018 Task A6 — `/donation` (donation & zakat) page copy.
+   * `LEMBAGA_OPTIONS` (recipient institution names persisted as free-text
+   * `recipient`) stay untranslated in the page — same value-locked-copy
+   * caveat as the shared, untranslated `crud-config.ts` select options.
+   */
+  donation: {
+    typeLabels: Record<DonationTypeId, string>;
+    jenisOptionLabels: Record<DonationTypeId, string>;
+    groupIslam: string;
+    groupUmum: string;
+    heroTitle: string;
+    transactionsSuffix: string;
+    subheaderDesc: string;
+    recordDonationButton: string;
+    zakatCalculatorTitle: string;
+    zakatCalculatorSubtitle: string;
+    fieldCashLabel: string;
+    fieldGoldLabel: string;
+    fieldInvestLabel: string;
+    fieldDebtLabel: string;
+    zakatDueLabel: string;
+    nisabReachedMsg: string;
+    nisabNotReachedMsg: string;
+    nisabIndicativeNote: string;
+    payZakatNowButton: string;
+    historyTitle: string;
+    loadingLabel: string;
+    emptyHistory: string;
+    taxDeductibleBadge: string;
+    insightTitle: string;
+    insightDesc: string;
+    modalTitle: string;
+    fieldJenisLabel: string;
+    fieldJumlahLabel: string;
+    fieldLembagaLabel: string;
+    fieldTanggalLabel: string;
+    fieldAccountLabel: string;
+    accountNoneOption: string;
+    accountHint: string;
+    taxDeductibleCheckboxLabel: string;
+    savingLabel: string;
+    saveRecordButton: string;
+    toastSaved: string;
+    toastSaveFailed: string;
+    toastInvalidAmount: string;
+  };
+  /**
+   * EPIC-018 Task A6 — `/warisan` (inheritance assets) page copy.
+   * `ASSET_TYPE_OPTIONS` (persisted free-text `assetType` categories) stay
+   * untranslated in the page — same value-locked-copy caveat as `donation`'s
+   * `LEMBAGA_OPTIONS`.
+   */
+  warisan: {
+    heroTitle: string;
+    assetsRegisteredSuffix: string;
+    heirsMidDot: string;
+    heirsSuffix: string;
+    headerDesc: string;
+    addAssetButton: string;
+    emptyState: string;
+    insightTitle: string;
+    insightDesc: string;
+    uploadComingSoonButton: string;
+    toastUploadUnavailable: string;
+    modalTitleEdit: string;
+    fieldCategoryLabel: string;
+    fieldNameLabel: string;
+    fieldNamePlaceholder: string;
+    fieldValueLabel: string;
+    fieldNotesLabel: string;
+    fieldNotesPlaceholder: string;
+    fieldDocumentLabel: string;
+    documentUploadHint: string;
+    fieldAccessLabel: string;
+    visibleToHeirsLabel: string;
+    visibleToHeirsOnDesc: string;
+    visibleToHeirsOffDesc: string;
+    savingLabel: string;
+    saveAssetButton: string;
+    toastAdded: string;
+    toastAddFailed: string;
+    toastUpdated: string;
+    toastUpdateFailed: string;
+    toastVisibilityUpdateFailed: string;
+    toastDeleted: string;
+    toastDeleteFailed: string;
+    toastSessionNotReady: string;
+    toastNameRequired: string;
+    toastInvalidValue: string;
+  };
+  /** EPIC-018 Task A6 — `/anggaran` (budgets) page copy. */
+  anggaran: {
+    budgetTypeLabels: Record<AnggaranBudgetTypeId, string>;
+    periodLabels: Record<AnggaranPeriodId, string>;
+    amountsMidDari: string;
+    pageTitlePrefix: string;
+    totalBudgetPrefix: string;
+    addCategoryButton: string;
+    remainingBudgetLabel: string;
+    pctOfBudgetSuffix: string;
+    noBudgetYet: string;
+    totalSpentLabel: string;
+    daysLeftLabel: string;
+    daysSuffix: string;
+    daysOfPrefix: string;
+    daysOfSuffix: string;
+    categoryBreakdownTitle: string;
+    errorLoad: string;
+    emptyState: string;
+    typeBreakdownTitle: string;
+    categoriesSuffix: string;
+    overBudgetMidText: string;
+    overBudgetSuffix: string;
+    overBudgetDesc: string;
+    nearLimitMidText: string;
+    nearLimitSuffix: string;
+    nearLimitDesc: string;
+    tipsSavingLink: string;
+    modalAddTitle: string;
+    fieldCategoryNameLabel: string;
+    fieldCategoryNamePlaceholder: string;
+    iconGroupAriaLabel: string;
+    iconLabel: string;
+    iconAriaLabelPrefix: string;
+    fieldAmountLabel: string;
+    fieldPeriodLabel: string;
+    savingLabel: string;
+    saveCategoryButton: string;
+    toastCategoryAddedPrefix: string;
+    toastCategoryAddedSuffix: string;
+    toastSaveFailedDefault: string;
+    toastNameRequired: string;
+    toastAmountInvalid: string;
+    toastNoFamilyGroup: string;
+    errorCategoryNotFoundAfterConflict: string;
+  };
+  /** EPIC-018 Task A6 — `/transaksi` (transactions list) page copy. */
+  transaksi: {
+    typeLabels: Record<TransaksiTypeId, string>;
+    filterLabels: Record<TransaksiFilterId, string>;
+    sortLabels: Record<TransaksiSortId, string>;
+    headerDesc: string;
+    removeAccountFilterAriaLabelPrefix: string;
+    accountFilterPrefix: string;
+    accountFilterSuffix: string;
+    addTransactionButton: string;
+    totalIncomeLabel: string;
+    totalExpenseLabel: string;
+    differenceLabel: string;
+    sortByLabel: string;
+    sortAriaLabel: string;
+    errorLoad: string;
+    loadingLabel: string;
+    emptyFiltered: string;
+    deleteLabel: string;
+    editDialogTitle: string;
+    fieldAmountLabel: string;
+    fieldDescLabel: string;
+    fieldDescPlaceholder: string;
+    fieldDateLabel: string;
+    cancelButton: string;
+    savingLabel: string;
+    saveButton: string;
+    toastUpdated: string;
+    toastUpdateFailed: string;
+    toastInvalidAmount: string;
+    toastDeleted: string;
+    toastDeleteFailed: string;
+    /** EPIC-021 Group B (#23) — read-only transaction detail dialog copy. */
+    detailAriaLabelPrefix: string;
+    detailDialogTitle: string;
+    detailCategoryLabel: string;
+    detailAccountLabel: string;
+    detailDateTimeLabel: string;
+    detailCreatedAtLabel: string;
+    detailEditButton: string;
+    detailDeleteButton: string;
+  };
+  /**
+   * EPIC-018 Task A6 — `/splitbill` (split bill) page copy. The seed
+   * participant example names ("Andi"/"Budi"/"Citra") stay untranslated in
+   * the page — example data, not UI chrome, same convention as the `USER`
+   * mock profile name.
+   */
+  splitbill: {
+    headerDesc: string;
+    createButton: string;
+    totalDitalanginLabel: string;
+    activeSplitsSuffix: string;
+    sudahDibayarLabel: string;
+    pctCollectedSuffix: string;
+    belumDibayarLabel: string;
+    peopleUnpaidSuffix: string;
+    errorLoad: string;
+    activeSplitsTitle: string;
+    emptyActiveSplits: string;
+    peopleCountSuffix: string;
+    perOrgSuffix: string;
+    paidOfMidText: string;
+    paidStatusSuffix: string;
+    collectedSuffix: string;
+    detailButton: string;
+    insightTitle: string;
+    insightDesc: string;
+    fieldTitleLabel: string;
+    fieldTitlePlaceholder: string;
+    fieldTotalLabel: string;
+    fieldMethodLabel: string;
+    methodEqualLabel: string;
+    methodCustomLabel: string;
+    fieldParticipantsLabel: string;
+    removeParticipantAriaPrefix: string;
+    addParticipantButton: string;
+    perPersonPrefix: string;
+    savingCreateLabel: string;
+    createAndShareButton: string;
+    detailPerOrangSuffix: string;
+    detailParticipantsSuffix: string;
+    statusPaymentTitle: string;
+    paidBadge: string;
+    markPaidButton: string;
+    copyButton: string;
+    defaultParticipantName: string;
+    toastCreated: string;
+    toastCreateFailedDefault: string;
+    toastSettled: string;
+    toastSettleFailedDefault: string;
+    toastTitleRequired: string;
+    toastTotalRequired: string;
+    toastMinParticipants: string;
+    toastLinkCopied: string;
+  };
+  /**
+   * EPIC-018 Task A6 — `/rekonsiliasi` (bank reconciliation wizard) page
+   * copy. `SUPPORTED_BANKS` (real bank names/codes) stay untranslated in the
+   * page — proper nouns, same convention as `donation`'s `LEMBAGA_OPTIONS`.
+   */
+  rekonsiliasi: {
+    steps: Record<RekonsiliasiStepNum, { label: string; sub: string }>;
+    uploadTitle: string;
+    uploadSubtitle: string;
+    uploadingLabel: string;
+    dragDropLabel: string;
+    orLabel: string;
+    chooseFileButton: string;
+    supportedFormatsLabel: string;
+    maxFileSizeLabel: string;
+    supportedBanksTitle: string;
+    viewAllLink: string;
+    othersLabel: string;
+    recentDocsTitle: string;
+    viewHistoryLink: string;
+    loadingLabel: string;
+    emptyDocs: string;
+    uploadedAtPrefix: string;
+    uploadedBadge: string;
+    transactionsCountSuffix: string;
+    closeTipsAriaLabel: string;
+    tipsTitle: string;
+    tip1: string;
+    tip2: string;
+    tip3: string;
+    continueToMatchButton: string;
+    aiReadingTitle: string;
+    aiReadingSubtitle: string;
+    matchingWithDataLabel: string;
+    suggestedEntriesMidText: string;
+    totalSuffix: string;
+    continueButton: string;
+    startingScanLabel: string;
+    matchedStatLabel: string;
+    needsReviewStatLabel: string;
+    notMatchedStatLabel: string;
+    matchResultsTitle: string;
+    transactionsCountBadgeSuffix: string;
+    colBankStatement: string;
+    colStatus: string;
+    loadingEntries: string;
+    errorLoadEntries: string;
+    emptyEntries: string;
+    matchedLabel: string;
+    suggestedLabel: string;
+    confirmButton: string;
+    notFoundLabel: string;
+    backButton: string;
+    saveReconciliationButton: string;
+    doneTitle: string;
+    doneSubtitle: string;
+    totalTransactionsLabel: string;
+    matchedSummaryLabel: string;
+    needsReviewSummaryLabel: string;
+    notMatchedSummaryLabel: string;
+    newReconciliationButton: string;
+    toastUploaded: string;
+    toastUploadFailedDefault: string;
+    toastScanFailedDefault: string;
+    toastConfirmed: string;
+    toastConfirmFailedDefault: string;
+    errorSessionInactive: string;
   };
 };

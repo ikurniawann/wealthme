@@ -48,6 +48,14 @@ export class CreateInheritanceAssetDto {
   @IsEnum(InheritanceVisibility)
   visibility?: InheritanceVisibility;
 
+  // EPIC-021 Group D (#11) — set when picking an existing Asset ("Pilih dari
+  // Aset" mode) instead of manual entry. Validated against the family group
+  // in the service layer.
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  assetId?: string;
+
   @ApiPropertyOptional({ type: [CreateHeirDto] })
   @IsOptional()
   @ValidateNested({ each: true })

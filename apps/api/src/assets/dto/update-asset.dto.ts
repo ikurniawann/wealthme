@@ -4,6 +4,7 @@ import {
   IsEnum,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   MaxLength,
 } from "class-validator";
@@ -37,4 +38,23 @@ export class UpdateAssetDto {
   @IsString()
   @MaxLength(500)
   notes?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Signed annual value-change rate (%), negative = depreciation, positive = appreciation, e.g. '-5.00'. Must be between -100 and 100.",
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^-?\d+(\.\d{1,2})?$/, {
+    message: "valueChangeRatePct must be a decimal string, e.g. '-5.00'",
+  })
+  valueChangeRatePct?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Optional physical-asset category (master data Category), same family group",
+  })
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
 }

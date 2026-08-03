@@ -186,7 +186,10 @@ const INSURANCE_TYPE: Record<string, string> = {
   Kesehatan: "kesehatan",
   Kendaraan: "kendaraan",
   Properti: "properti",
-  Pendidikan: "lainnya",
+  // EPIC-021 Group D (#13) — "Pendidikan" used to be coerced into "lainnya"
+  // (data-corruption twist called out in the epic audit); now persists as its
+  // own InsuranceType value.
+  Pendidikan: "pendidikan",
 };
 
 function buildRequest(

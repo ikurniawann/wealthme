@@ -68,6 +68,16 @@ const EMPTY_FORM: FormState = {
   parentCode: "",
 };
 
+/**
+ * EPIC-021 #4 — surface the API's validation message (prefix mismatch,
+ * duplicate code, blank code) directly instead of a generic toast.
+ */
+function extractApiErrorMessage(err: unknown, fallback: string): string {
+  return err && typeof err === "object" && "message" in err
+    ? String((err as { message: unknown }).message)
+    : fallback;
+}
+
 export default function MasterCoaPage() {
   const { t } = useLocale();
   const { data: session } = useSession();
@@ -125,7 +135,7 @@ export default function MasterCoaPage() {
 
   const createMutation = useMutation({
     mutationFn: (data: {
-      code: string;
+      code?: string;
       name: string;
       groupNum: number;
       direction: CoaDirection;
@@ -143,11 +153,7 @@ export default function MasterCoaPage() {
       toast.success(t.mastercoa.toastAdded);
     },
     onError: (err: unknown) =>
-      toast.error(
-        err && typeof err === "object" && "message" in err
-          ? String((err as { message: unknown }).message)
-          : t.mastercoa.toastAddFailed,
-      ),
+      toast.error(extractApiErrorMessage(err, t.mastercoa.toastAddFailed)),
   });
 
   const updateMutation = useMutation({
@@ -157,6 +163,7 @@ export default function MasterCoaPage() {
     }: {
       id: string;
       data: Partial<{
+        code: string;
         name: string;
         groupNum: number;
         direction: CoaDirection;
@@ -177,7 +184,8 @@ export default function MasterCoaPage() {
       setModalOpen(false);
       toast.success(t.mastercoa.toastUpdated);
     },
-    onError: () => toast.error(t.mastercoa.toastUpdateFailed),
+    onError: (err: unknown) =>
+      toast.error(extractApiErrorMessage(err, t.mastercoa.toastUpdateFailed)),
   });
 
   const deleteMutation = useMutation({
@@ -222,8 +230,11 @@ export default function MasterCoaPage() {
       toast.error(t.mastercoa.toastSessionNotReady);
       return;
     }
+    // EPIC-021 #4 — blank code means "auto-generate"; only send a non-blank
+    // code so the server's omitted/blank auto-gen path actually triggers.
+    const trimmedCode = form.code.trim();
     const payload = {
-      code: form.code,
+      code: trimmedCode || undefined,
       name: form.name,
       groupNum: form.groupNum,
       direction: form.direction,
@@ -235,6 +246,7 @@ export default function MasterCoaPage() {
       updateMutation.mutate({
         id: editTarget.id,
         data: {
+          code: trimmedCode,
           name: payload.name,
           groupNum: payload.groupNum,
           direction: payload.direction,
@@ -522,11 +534,18 @@ export default function MasterCoaPage() {
                   onChange={(e) =>
                     setForm((f) => ({ ...f, code: e.target.value }))
                   }
-                  placeholder={t.mastercoa.fieldCodePlaceholder}
+                  placeholder={
+                    editTarget
+                      ? t.mastercoa.fieldCodePlaceholder
+                      : t.mastercoa.fieldCodeAutoPlaceholder
+                  }
                   maxLength={5}
-                  required
-                  disabled={Boolean(editTarget)}
-                  className="w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] font-mono outline-none transition-colors focus:border-primary focus:bg-card disabled:opacity-50"
+                  // EPIC-021 #4 — optional on create (blank -> server
+                  // auto-generates the next free code); editable on edit
+                  // (still required there, since a saved account can't have
+                  // no code).
+                  required={Boolean(editTarget)}
+                  className="w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] font-mono outline-none transition-colors focus:border-primary focus:bg-card"
                 />
               </div>
               <div>

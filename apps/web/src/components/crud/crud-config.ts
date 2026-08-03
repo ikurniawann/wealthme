@@ -51,6 +51,7 @@ export interface CrudEntityConfig {
 export type CrudEntity =
   | "rekening"
   | "ewallet"
+  | "cash"
   | "investasi"
   | "aset"
   | "liabilitas"
@@ -134,6 +135,22 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         label: "Nomor Terdaftar",
         type: "text",
         placeholder: "08xxxxxxxxxx",
+      },
+      { key: "saldo", label: "Saldo Saat Ini", type: "amount" },
+    ],
+  },
+  // EPIC-021 #3 — cash accounts are real, plural master data (AccountType
+  // "cash"), not a single hardcoded "Kas Tunai" row. Free-text name so a
+  // family can hold more than one cash account (e.g. "Kas Tunai", "Dompet
+  // Kerja").
+  cash: {
+    title: "Kas Tunai",
+    fields: [
+      {
+        key: "nama",
+        label: "Nama Kas",
+        type: "text",
+        placeholder: "cth: Kas Tunai, Dompet Kerja",
       },
       { key: "saldo", label: "Saldo Saat Ini", type: "amount" },
     ],

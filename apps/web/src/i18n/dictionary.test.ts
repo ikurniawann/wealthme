@@ -132,6 +132,7 @@ describe("i18n dictionary key parity", () => {
       "kesehatan",
       "kendaraan",
       "properti",
+      "pendidikan",
       "lainnya",
     ] as const;
     for (const key of typeIds) {
@@ -149,6 +150,29 @@ describe("i18n dictionary key parity", () => {
     for (const key of statusIds) {
       expect(id.asuransi.statusLabels[key]).toBeTruthy();
       expect(en.asuransi.statusLabels[key]).toBeTruthy();
+    }
+  });
+
+  // EPIC-021 Group D (#14) — beneficiary editor copy exists in both locales.
+  it("asuransi beneficiary-editor copy is present in both locales", () => {
+    const keys = [
+      "beneficiariesSectionTitle",
+      "beneficiariesLabel",
+      "beneficiaryNameLabel",
+      "beneficiaryRelationshipLabel",
+      "beneficiarySharePercentLabel",
+      "beneficiaryMemberLabel",
+      "beneficiaryMemberNoneOption",
+      "addBeneficiaryButton",
+      "removeBeneficiaryAriaLabel",
+      "allocationAllocatedSuffix",
+      "allocationUnallocatedSuffix",
+      "allocationFullyAllocated",
+      "validationSharePercentExceeded",
+    ] as const;
+    for (const key of keys) {
+      expect(id.asuransi[key]).toBeTruthy();
+      expect(en.asuransi[key]).toBeTruthy();
     }
   });
 
@@ -302,5 +326,154 @@ describe("i18n dictionary key parity", () => {
       expect(id.mastercoa.budgetTypeLabels[key]).toBeTruthy();
       expect(en.mastercoa.budgetTypeLabels[key]).toBeTruthy();
     }
+  });
+
+  // EPIC-018 Task A6 — /notifikasi, /dana, /ringkasan, /tujuan, /tax,
+  // /rekening, /donation, /warisan, /anggaran, /transaksi, /splitbill,
+  // /rekonsiliasi coverage guards, mirroring the targeted checks A1/A2/A4/A5
+  // added above.
+  it("tujuan.statusLabels covers every goal status in both locales without changing persisted values", () => {
+    const statusIds = [
+      "achieved",
+      "on_track",
+      "needs_boost",
+      "at_risk",
+    ] as const;
+    for (const key of statusIds) {
+      expect(id.tujuan.statusLabels[key]).toBeTruthy();
+      expect(en.tujuan.statusLabels[key]).toBeTruthy();
+    }
+  });
+
+  it("tax covers SPT-status, PTKP, and bracket labels in both locales without changing persisted values", () => {
+    const sptStatusIds = ["belum_lapor", "sudah_lapor", "terlambat"] as const;
+    for (const key of sptStatusIds) {
+      expect(id.tax.sptStatusLabels[key]).toBeTruthy();
+      expect(en.tax.sptStatusLabels[key]).toBeTruthy();
+    }
+    const ptkpIds = ["tk0", "k0", "k1", "k2", "k3"] as const;
+    for (const key of ptkpIds) {
+      expect(id.tax.ptkpLabels[key]).toBeTruthy();
+      expect(en.tax.ptkpLabels[key]).toBeTruthy();
+    }
+    const bracketIds = ["b0", "b1", "b2", "b4"] as const;
+    for (const key of bracketIds) {
+      expect(id.tax.bracketLabels[key]).toBeTruthy();
+      expect(en.tax.bracketLabels[key]).toBeTruthy();
+    }
+  });
+
+  it("rekening.typeLabels covers every account type in both locales with page-local wording", () => {
+    const typeIds = [
+      "bank",
+      "ewallet",
+      "cash",
+      "investment",
+      "property",
+    ] as const;
+    for (const key of typeIds) {
+      expect(id.rekening.typeLabels[key]).toBeTruthy();
+      expect(en.rekening.typeLabels[key]).toBeTruthy();
+    }
+    // Regression guard: /rekening's "bank" wording is intentionally distinct
+    // from /aset's accountTypeLabels.bank — different context, different copy.
+    expect(id.rekening.typeLabels.bank).not.toBe(
+      id.aset.accountTypeLabels.bank,
+    );
+  });
+
+  it("donation covers every donation type (list + select-option wording) in both locales without changing persisted values", () => {
+    const typeIds = [
+      "zakat_maal",
+      "zakat_fitrah",
+      "infaq",
+      "sedekah",
+      "wakaf",
+      "lainnya",
+    ] as const;
+    for (const key of typeIds) {
+      expect(id.donation.typeLabels[key]).toBeTruthy();
+      expect(en.donation.typeLabels[key]).toBeTruthy();
+      expect(id.donation.jenisOptionLabels[key]).toBeTruthy();
+      expect(en.donation.jenisOptionLabels[key]).toBeTruthy();
+    }
+  });
+
+  it("anggaran covers budget-type and period labels in both locales without changing persisted values", () => {
+    const budgetTypeIds = [
+      "FIXED",
+      "VARIABLE",
+      "REIMBURSEMENT",
+      "OTHER",
+    ] as const;
+    for (const key of budgetTypeIds) {
+      expect(id.anggaran.budgetTypeLabels[key]).toBeTruthy();
+      expect(en.anggaran.budgetTypeLabels[key]).toBeTruthy();
+    }
+    const periodIds = ["monthly", "weekly", "yearly"] as const;
+    for (const key of periodIds) {
+      expect(id.anggaran.periodLabels[key]).toBeTruthy();
+      expect(en.anggaran.periodLabels[key]).toBeTruthy();
+    }
+  });
+
+  it("transaksi covers type, filter, and sort labels in both locales without changing persisted values", () => {
+    const typeIds = ["income", "expense", "transfer"] as const;
+    for (const key of typeIds) {
+      expect(id.transaksi.typeLabels[key]).toBeTruthy();
+      expect(en.transaksi.typeLabels[key]).toBeTruthy();
+    }
+    const filterIds = [
+      "all",
+      "income",
+      "expense",
+      "transfer",
+      "kartu_kredit",
+    ] as const;
+    for (const key of filterIds) {
+      expect(id.transaksi.filterLabels[key]).toBeTruthy();
+      expect(en.transaksi.filterLabels[key]).toBeTruthy();
+    }
+    const sortIds = ["newest", "oldest"] as const;
+    for (const key of sortIds) {
+      expect(id.transaksi.sortLabels[key]).toBeTruthy();
+      expect(en.transaksi.sortLabels[key]).toBeTruthy();
+    }
+  });
+
+  it("rekonsiliasi.steps covers all 4 wizard steps with a label+sub in both locales", () => {
+    const stepNums = [1, 2, 3, 4] as const;
+    for (const key of stepNums) {
+      expect(id.rekonsiliasi.steps[key].label).toBeTruthy();
+      expect(id.rekonsiliasi.steps[key].sub).toBeTruthy();
+      expect(en.rekonsiliasi.steps[key].label).toBeTruthy();
+      expect(en.rekonsiliasi.steps[key].sub).toBeTruthy();
+    }
+  });
+
+  it("notifikasi, dana, ringkasan, warisan, and splitbill expose non-empty core copy in both locales", () => {
+    expect(id.notifikasi.title).toBeTruthy();
+    expect(en.notifikasi.title).toBeTruthy();
+    expect(id.dana.totalLabel).toBeTruthy();
+    expect(en.dana.totalLabel).toBeTruthy();
+    expect(id.ringkasan.totalNetWorthLabel).toBeTruthy();
+    expect(en.ringkasan.totalNetWorthLabel).toBeTruthy();
+    expect(id.warisan.heroTitle).toBeTruthy();
+    expect(en.warisan.heroTitle).toBeTruthy();
+    expect(id.splitbill.createButton).toBeTruthy();
+    expect(en.splitbill.createButton).toBeTruthy();
+  });
+
+  // EPIC-021 #3 — /dana's cash section became a real, plural CRUD list
+  // (like e-wallet), sharing entity-aware toast copy instead of separate
+  // ewallet-only toast strings.
+  it("dana.entityLabels covers both cash and ewallet entities in both locales without changing persisted values", () => {
+    const entityIds = ["cash", "ewallet"] as const;
+    for (const key of entityIds) {
+      expect(id.dana.entityLabels[key]).toBeTruthy();
+      expect(en.dana.entityLabels[key]).toBeTruthy();
+    }
+    expect(id.dana.emptyCash).toBeTruthy();
+    expect(en.dana.emptyCash).toBeTruthy();
   });
 });

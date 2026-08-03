@@ -6,6 +6,7 @@ export class InheritanceHeirResponseDto {
   @ApiProperty() name!: string;
   @ApiProperty() relationship!: string;
   @ApiProperty() sharePercent!: string;
+  @ApiPropertyOptional() memberUserId!: string | null;
   @ApiProperty() createdAt!: string;
 }
 
@@ -19,6 +20,7 @@ export class InheritanceAssetResponseDto {
   @ApiPropertyOptional() notes!: string | null;
   @ApiProperty() visibility!: string;
   @ApiPropertyOptional() documentUrl!: string | null;
+  @ApiPropertyOptional() assetId!: string | null;
   @ApiProperty({ type: [InheritanceHeirResponseDto] })
   heirs!: InheritanceHeirResponseDto[];
   @ApiProperty() createdAt!: string;

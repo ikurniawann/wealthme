@@ -1,7 +1,8 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsString,
   Max,
   MaxLength,
@@ -26,4 +27,11 @@ export class CreateHeirDto {
   @Min(0)
   @Max(100)
   sharePercent!: number;
+
+  // Decision #9 — optional link to a family-group member (User.id) alongside
+  // the free-text name/relationship above.
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  memberUserId?: string;
 }
