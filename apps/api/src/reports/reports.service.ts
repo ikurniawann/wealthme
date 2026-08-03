@@ -66,8 +66,14 @@ export class ReportsService {
     period: ReportPeriod,
     months: number,
     canSeePrivate: boolean,
+    /**
+     * Anchor date for the trailing-months window (defaults to now). Passing a
+     * past date lets a caller re-query the same trend "as of" a selected
+     * month/year instead of always ending at the real current date.
+     */
+    anchor: Date = new Date(),
   ): Promise<ReportSummaryDto> {
-    const now = new Date();
+    const now = anchor;
     const startDate = new Date(
       now.getFullYear(),
       now.getMonth() - (months - 1),
