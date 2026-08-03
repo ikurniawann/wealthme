@@ -25,22 +25,23 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { RowActions, ConfirmDeleteDialog } from "@/components/crud";
+import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah } from "@/lib/format";
 
 import type { InvestmentDto, InvestmentSummaryDto } from "@wealthme/contracts";
 
-const TYPE_BADGE: Record<
+const TYPE_BADGE_VARIANT: Record<
   string,
-  { variant: "info" | "purple" | "warning" | "success" | "gray"; label: string }
+  "info" | "purple" | "warning" | "success" | "gray"
 > = {
-  saham: { variant: "info", label: "Saham" },
-  reksa_dana: { variant: "purple", label: "Reksa Dana" },
-  obligasi: { variant: "success", label: "Obligasi" },
-  emas: { variant: "warning", label: "Emas" },
-  kripto: { variant: "info", label: "Kripto" },
-  lainnya: { variant: "gray", label: "Lainnya" },
+  saham: "info",
+  reksa_dana: "purple",
+  obligasi: "success",
+  emas: "warning",
+  kripto: "info",
+  lainnya: "gray",
 };
 
 const TYPE_LOGO_BG: Record<string, string> = {
@@ -53,15 +54,15 @@ const TYPE_LOGO_BG: Record<string, string> = {
 };
 
 const INVESTMENT_TYPES = [
-  { value: "saham", label: "Saham" },
-  { value: "reksa_dana", label: "Reksa Dana" },
-  { value: "obligasi", label: "Obligasi" },
-  { value: "emas", label: "Emas" },
-  { value: "kripto", label: "Kripto" },
-  { value: "lainnya", label: "Lainnya" },
+  "saham",
+  "reksa_dana",
+  "obligasi",
+  "emas",
+  "kripto",
+  "lainnya",
 ] as const;
 
-type InvestmentType = (typeof INVESTMENT_TYPES)[number]["value"];
+type InvestmentType = (typeof INVESTMENT_TYPES)[number];
 
 interface AddInvestmentForm {
   ticker: string;
@@ -127,6 +128,7 @@ function AddInvestmentModal({
   token: string;
   editing?: InvestmentDto | null;
 }) {
+  const { t } = useLocale();
   const queryClient = useQueryClient();
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<AddInvestmentForm>(() =>
@@ -170,12 +172,12 @@ function AddInvestmentModal({
         queryKey: queryKeys.investments.all(familyGroupId),
       });
       toast.success(
-        editing ? "Investasi berhasil diperbarui" : "Investasi ditambahkan",
+        editing ? t.investasi.toastUpdated : t.investasi.toastAdded,
       );
       onClose();
     } catch {
       toast.error(
-        editing ? "Gagal memperbarui investasi" : "Gagal menambahkan investasi",
+        editing ? t.investasi.toastUpdateFailed : t.investasi.toastAddFailed,
       );
     } finally {
       setSubmitting(false);
@@ -192,7 +194,7 @@ function AddInvestmentModal({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {editing ? "Edit Investasi" : "Tambah Investasi"}
+            {editing ? t.investasi.modalTitleEdit : t.investasi.modalTitleAdd}
           </DialogTitle>
         </DialogHeader>
         <form
@@ -206,7 +208,7 @@ function AddInvestmentModal({
               className="text-[12px] text-muted-foreground"
               htmlFor="ticker"
             >
-              Ticker
+              {t.investasi.fieldTickerLabel}
             </label>
             <input
               id="ticker"
@@ -214,13 +216,13 @@ function AddInvestmentModal({
               required
               value={form.ticker}
               onChange={handleChange}
-              placeholder="contoh: BBCA"
+              placeholder={t.investasi.fieldTickerPlaceholder}
               className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
           <div className="space-y-1">
             <label className="text-[12px] text-muted-foreground" htmlFor="name">
-              Nama
+              {t.investasi.fieldNameLabel}
             </label>
             <input
               id="name"
@@ -228,13 +230,13 @@ function AddInvestmentModal({
               required
               value={form.name}
               onChange={handleChange}
-              placeholder="contoh: Bank Central Asia"
+              placeholder={t.investasi.fieldNamePlaceholder}
               className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
           <div className="space-y-1">
             <label className="text-[12px] text-muted-foreground" htmlFor="type">
-              Jenis
+              {t.investasi.fieldTypeLabel}
             </label>
             <select
               id="type"
@@ -243,9 +245,9 @@ function AddInvestmentModal({
               onChange={handleChange}
               className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
             >
-              {INVESTMENT_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
+              {INVESTMENT_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {t.investasi.typeLabels[type]}
                 </option>
               ))}
             </select>
@@ -255,7 +257,7 @@ function AddInvestmentModal({
               className="text-[12px] text-muted-foreground"
               htmlFor="quantity"
             >
-              Jumlah (lot/unit)
+              {t.investasi.fieldQuantityLabel}
             </label>
             <input
               id="quantity"
@@ -266,7 +268,7 @@ function AddInvestmentModal({
               step="any"
               value={form.quantity}
               onChange={handleChange}
-              placeholder="contoh: 10"
+              placeholder={t.investasi.fieldQuantityPlaceholder}
               className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
@@ -275,7 +277,7 @@ function AddInvestmentModal({
               className="text-[12px] text-muted-foreground"
               htmlFor="costBasisPerUnit"
             >
-              Harga Beli per Unit (Rp)
+              {t.investasi.fieldCostBasisLabel}
             </label>
             <input
               id="costBasisPerUnit"
@@ -286,13 +288,13 @@ function AddInvestmentModal({
               step="any"
               value={form.costBasisPerUnit}
               onChange={handleChange}
-              placeholder="contoh: 9500"
+              placeholder={t.investasi.fieldCostBasisPlaceholder}
               className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
           <DialogFooter>
             <Button type="submit" disabled={submitting} className="w-full">
-              {submitting ? "Menyimpan..." : "Simpan"}
+              {submitting ? t.investasi.saving : t.investasi.saveButton}
             </Button>
           </DialogFooter>
         </form>
@@ -302,6 +304,7 @@ function AddInvestmentModal({
 }
 
 export default function InvestasiPage() {
+  const { t } = useLocale();
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
@@ -368,9 +371,9 @@ export default function InvestasiPage() {
   // Show error toast on holdings fetch failure
   useEffect(() => {
     if (holdingsError) {
-      toast.error("Gagal memuat data investasi. Silakan refresh halaman.");
+      toast.error(t.investasi.errorLoad);
     }
-  }, [holdingsError]);
+  }, [holdingsError, t]);
 
   async function handleDeleteConfirm() {
     if (!familyGroupId || !token || !deletingHolding) return;
@@ -382,9 +385,9 @@ export default function InvestasiPage() {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.investments.all(familyGroupId),
       });
-      toast.success("Investasi berhasil dihapus.");
+      toast.success(t.investasi.toastDeleted);
     } catch {
-      toast.error("Gagal menghapus investasi. Coba lagi.");
+      toast.error(t.investasi.toastDeleteFailed);
     } finally {
       setDeletingHolding(null);
     }
@@ -433,7 +436,7 @@ export default function InvestasiPage() {
                       size={34}
                       rounded="rounded-full"
                     />
-                    Total Nilai Investasi
+                    {t.investasi.totalValueLabel}
                   </div>
                   <div className="mono text-[24px] font-black text-primary">
                     {summary?.totalCurrentValue != null ? (
@@ -453,8 +456,8 @@ export default function InvestasiPage() {
                   >
                     {(summary?.totalReturnPct ?? 0) >= 0 ? "▲" : "▼"}{" "}
                     {formatReturnPct(summary?.totalReturnPct ?? null)} ·{" "}
-                    {formatDecimalRupiah(summary?.totalReturnRp ?? null)} total
-                    return
+                    {formatDecimalRupiah(summary?.totalReturnRp ?? null)}{" "}
+                    {t.investasi.totalReturnSuffix}
                   </div>
                 </Card>
               </div>
@@ -463,7 +466,7 @@ export default function InvestasiPage() {
               <div className="transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
                 <Card className="gap-0 p-5">
                   <div className="mb-1 text-[11px] text-muted-foreground">
-                    Return Hari Ini
+                    {t.investasi.todayReturnLabel}
                   </div>
                   <div
                     className={`mono text-[24px] font-black ${
@@ -481,8 +484,8 @@ export default function InvestasiPage() {
                         : "text-destructive"
                     }`}
                   >
-                    {formatReturnPct(summary?.todayReturnPct ?? null)} dari
-                    kemarin
+                    {formatReturnPct(summary?.todayReturnPct ?? null)}{" "}
+                    {t.investasi.vsYesterdaySuffix}
                   </div>
                 </Card>
               </div>
@@ -492,13 +495,13 @@ export default function InvestasiPage() {
       </div>
 
       <SectionCard
-        title="Portofolio"
+        title={t.investasi.portfolioSectionTitle}
         action={
           <CardLink
             onClick={() => setModalOpen(true)}
             data-tour="add-investasi"
           >
-            + Tambah Investasi
+            {t.investasi.addInvestmentLink}
           </CardLink>
         }
       >
@@ -506,13 +509,27 @@ export default function InvestasiPage() {
           <table className="w-full min-w-[580px] border-collapse text-[12.5px]">
             <thead>
               <tr className="border-b text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-                <th className="py-2.5 pr-3 font-semibold">Nama</th>
-                <th className="py-2.5 pr-3 font-semibold">Jenis</th>
-                <th className="py-2.5 pr-3 font-semibold">Modal</th>
-                <th className="py-2.5 pr-3 font-semibold">Nilai</th>
-                <th className="py-2.5 pr-3 font-semibold">Return</th>
-                <th className="py-2.5 pr-3 font-semibold">%</th>
-                <th className="py-2.5 font-semibold">Aksi</th>
+                <th className="py-2.5 pr-3 font-semibold">
+                  {t.investasi.tableName}
+                </th>
+                <th className="py-2.5 pr-3 font-semibold">
+                  {t.investasi.tableType}
+                </th>
+                <th className="py-2.5 pr-3 font-semibold">
+                  {t.investasi.tableCapital}
+                </th>
+                <th className="py-2.5 pr-3 font-semibold">
+                  {t.investasi.tableValue}
+                </th>
+                <th className="py-2.5 pr-3 font-semibold">
+                  {t.investasi.tableReturn}
+                </th>
+                <th className="py-2.5 pr-3 font-semibold">
+                  {t.investasi.tablePercent}
+                </th>
+                <th className="py-2.5 font-semibold">
+                  {t.investasi.tableAction}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -527,23 +544,22 @@ export default function InvestasiPage() {
                     colSpan={7}
                     className="py-8 text-center text-[13px] text-muted-foreground"
                   >
-                    Belum ada investasi.{" "}
+                    {t.investasi.emptyState}{" "}
                     <button
                       type="button"
                       className="font-semibold text-primary"
                       onClick={() => setModalOpen(true)}
                     >
-                      Tambah sekarang
+                      {t.investasi.emptyStateCta}
                     </button>
                   </td>
                 </tr>
               )}
 
               {holdings?.map((h, i) => {
-                const badge = TYPE_BADGE[h.type] ?? {
-                  variant: "gray" as const,
-                  label: h.type,
-                };
+                const variant = TYPE_BADGE_VARIANT[h.type] ?? "gray";
+                const label =
+                  t.investasi.typeLabels[h.type as InvestmentType] ?? h.type;
                 const logoBg = TYPE_LOGO_BG[h.type] ?? "#6B7280";
                 const totalCost =
                   parseFloat(h.costBasisPerUnit) * parseFloat(h.quantity);
@@ -572,9 +588,7 @@ export default function InvestasiPage() {
                       </div>
                     </td>
                     <td className="py-3 pr-3">
-                      <StatusBadge variant={badge.variant}>
-                        {badge.label}
-                      </StatusBadge>
+                      <StatusBadge variant={variant}>{label}</StatusBadge>
                     </td>
                     <td className="mono py-3 pr-3 whitespace-nowrap">
                       {formatRupiah(totalCost)}

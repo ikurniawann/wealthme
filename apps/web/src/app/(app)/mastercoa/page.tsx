@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth-compat";
+import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import {
   SectionCard,
@@ -26,6 +27,7 @@ import {
 
 type CoaDirection = "INCOME" | "EXPENSE" | "TRANSFER";
 type CoaBudgetType = "FIXED" | "VARIABLE" | "REIMBURSEMENT";
+type CoaGroupNum = 1 | 2 | 3 | 4 | 5 | 6;
 
 type CoaAccount = {
   id: string;
@@ -40,46 +42,13 @@ type CoaAccount = {
   updatedAt: string;
 };
 
-const GROUP_LABELS: Record<number, string> = {
-  1: "Income",
-  2: "Expense",
-  3: "Wealth Allocation",
-  4: "Account Receivable",
-  5: "Account Payable",
-  6: "Tax",
+const DIR_ICON: Record<CoaDirection, React.ReactNode> = {
+  INCOME: <TrendingDown className="inline size-3 text-green-500" />,
+  EXPENSE: <TrendingUp className="inline size-3 text-red-500" />,
+  TRANSFER: <ArrowLeftRight className="inline size-3 text-purple-500" />,
 };
 
-const DIR_INFO: Record<CoaDirection, { label: string; icon: React.ReactNode }> =
-  {
-    INCOME: {
-      label: "↓ Pemasukan",
-      icon: <TrendingDown className="inline size-3 text-green-500" />,
-    },
-    EXPENSE: {
-      label: "↑ Pengeluaran",
-      icon: <TrendingUp className="inline size-3 text-red-500" />,
-    },
-    TRANSFER: {
-      label: "↔ Mutasi",
-      icon: <ArrowLeftRight className="inline size-3 text-purple-500" />,
-    },
-  };
-
-const BUDGET_LABEL: Record<CoaBudgetType, string> = {
-  FIXED: "Fixed",
-  VARIABLE: "Variable",
-  REIMBURSEMENT: "Reimbursement",
-};
-
-const TABS = [
-  { id: 0, label: "Semua" },
-  { id: 1, label: "Income" },
-  { id: 2, label: "Expense" },
-  { id: 3, label: "Wealth Allocation" },
-  { id: 4, label: "Account Receivable" },
-  { id: 5, label: "Account Payable" },
-  { id: 6, label: "Tax" },
-];
+const GROUP_NUMS: CoaGroupNum[] = [1, 2, 3, 4, 5, 6];
 
 type FormState = {
   code: string;
@@ -100,6 +69,7 @@ const EMPTY_FORM: FormState = {
 };
 
 export default function MasterCoaPage() {
+  const { t } = useLocale();
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId;
   const token = session?.accessToken;
@@ -170,13 +140,13 @@ export default function MasterCoaPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["coa-accounts", familyGroupId] });
       setModalOpen(false);
-      toast.success("Akun COA berhasil ditambahkan");
+      toast.success(t.mastercoa.toastAdded);
     },
     onError: (err: unknown) =>
       toast.error(
         err && typeof err === "object" && "message" in err
           ? String((err as { message: unknown }).message)
-          : "Gagal menambahkan akun COA",
+          : t.mastercoa.toastAddFailed,
       ),
   });
 
@@ -205,9 +175,9 @@ export default function MasterCoaPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["coa-accounts", familyGroupId] });
       setModalOpen(false);
-      toast.success("Akun COA berhasil diperbarui");
+      toast.success(t.mastercoa.toastUpdated);
     },
-    onError: () => toast.error("Gagal memperbarui akun COA"),
+    onError: () => toast.error(t.mastercoa.toastUpdateFailed),
   });
 
   const deleteMutation = useMutation({
@@ -222,9 +192,9 @@ export default function MasterCoaPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["coa-accounts", familyGroupId] });
       setDeleteId(null);
-      toast.success("Akun COA berhasil dihapus");
+      toast.success(t.mastercoa.toastDeleted);
     },
-    onError: () => toast.error("Gagal menghapus akun COA"),
+    onError: () => toast.error(t.mastercoa.toastDeleteFailed),
   });
 
   function openAdd() {
@@ -249,7 +219,7 @@ export default function MasterCoaPage() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!familyGroupId || !token) {
-      toast.error("Sesi belum siap. Coba lagi sebentar.");
+      toast.error(t.mastercoa.toastSessionNotReady);
       return;
     }
     const payload = {
@@ -283,7 +253,10 @@ export default function MasterCoaPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
         <Rise index={0}>
           <div className="h-full transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
-            <SectionCard title="Total Akun" bodyClassName="pt-2 pb-3">
+            <SectionCard
+              title={t.mastercoa.totalAccountsTitle}
+              bodyClassName="pt-2 pb-3"
+            >
               <div className="flex items-center gap-2.5">
                 <IconChip
                   icon={BookOpen}
@@ -295,7 +268,7 @@ export default function MasterCoaPage() {
                     {accounts.length}
                   </div>
                   <div className="text-[11px] text-muted-foreground">
-                    6 grup
+                    {t.mastercoa.sixGroupsLabel}
                   </div>
                 </div>
               </div>
@@ -305,11 +278,11 @@ export default function MasterCoaPage() {
         <Rise index={1}>
           <div className="h-full transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
             <SectionCard
-              title="Kategori Terhubung"
+              title={t.mastercoa.connectedCategoriesTitle}
               bodyClassName="pt-2 pb-3"
               action={
                 <CardLink onClick={() => router.push("/masterdata")}>
-                  Kelola
+                  {t.mastercoa.manageLink}
                 </CardLink>
               }
             >
@@ -317,7 +290,9 @@ export default function MasterCoaPage() {
                 {linkedCategories.length}
               </div>
               <div className="text-[11px] text-muted-foreground">
-                dari {categories.length} kategori aplikasi
+                {t.mastercoa.linkedCategoriesDescPrefix}
+                {categories.length}
+                {t.mastercoa.linkedCategoriesDescSuffix}
               </div>
             </SectionCard>
           </div>
@@ -325,11 +300,11 @@ export default function MasterCoaPage() {
         <Rise index={2}>
           <div className="h-full transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
             <SectionCard
-              title="Akun COA Kosong"
+              title={t.mastercoa.emptyCoaTitle}
               bodyClassName="pt-2 pb-3"
               action={
                 <CardLink onClick={() => router.push("/masterdata")}>
-                  Kelola
+                  {t.mastercoa.manageLink}
                 </CardLink>
               }
             >
@@ -339,7 +314,7 @@ export default function MasterCoaPage() {
                 {emptyAccountsCount}
               </div>
               <div className="text-[11px] text-muted-foreground">
-                akun COA tanpa kategori
+                {t.mastercoa.emptyCoaDesc}
               </div>
             </SectionCard>
           </div>
@@ -347,23 +322,24 @@ export default function MasterCoaPage() {
         <Rise index={3}>
           <div className="h-full transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
             <SectionCard
-              title="Dipakai di Laporan"
+              title={t.mastercoa.usedInReportsTitle}
               bodyClassName="pt-2 pb-3"
               action={
                 <CardLink onClick={() => router.push("/laporan")}>
-                  Lihat
+                  {t.mastercoa.viewLink}
                 </CardLink>
               }
             >
               <div className="flex items-center gap-1.5 pt-1">
                 <span className="text-[13px] font-bold leading-snug">
-                  PNL · Arus Kas · Ringkasan
+                  {t.mastercoa.reportsBadgeText}
                 </span>
-                <StatusBadge variant="success">Aktif</StatusBadge>
+                <StatusBadge variant="success">
+                  {t.mastercoa.activeBadge}
+                </StatusBadge>
               </div>
               <div className="text-[11px] text-muted-foreground">
-                arah &amp; grup akun kini mengklasifikasikan laporan (Neraca
-                tetap berbasis saldo)
+                {t.mastercoa.usedInReportsDesc}
               </div>
             </SectionCard>
           </div>
@@ -372,7 +348,7 @@ export default function MasterCoaPage() {
 
       {/* Main table card */}
       <SectionCard
-        title="Daftar Akun COA"
+        title={t.mastercoa.listTitle}
         action={
           <button
             onClick={openAdd}
@@ -380,28 +356,36 @@ export default function MasterCoaPage() {
             data-tour="add-mastercoa"
             className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
           >
-            <Plus className="size-3.5" /> Tambah Akun
+            <Plus className="size-3.5" /> {t.mastercoa.addAccountButton}
           </button>
         }
       >
         {/* Filter tabs */}
         <div className="flex flex-wrap gap-1.5 mb-4">
-          {TABS.map((t) => (
+          <button
+            onClick={() => setActiveTab(0)}
+            className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
+              activeTab === 0
+                ? "bg-primary text-white"
+                : "bg-secondary text-muted-foreground hover:bg-accent hover:text-foreground"
+            }`}
+          >
+            {t.mastercoa.tabAll}
+          </button>
+          {GROUP_NUMS.map((groupNum) => (
             <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
+              key={groupNum}
+              onClick={() => setActiveTab(groupNum)}
               className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
-                activeTab === t.id
+                activeTab === groupNum
                   ? "bg-primary text-white"
                   : "bg-secondary text-muted-foreground hover:bg-accent hover:text-foreground"
               }`}
             >
-              {t.label}
-              {t.id !== 0 && (
-                <span className="ml-1 text-[10px] opacity-70">
-                  ({accounts.filter((a) => a.groupNum === t.id).length})
-                </span>
-              )}
+              {t.mastercoa.groupLabels[groupNum]}
+              <span className="ml-1 text-[10px] opacity-70">
+                ({accounts.filter((a) => a.groupNum === groupNum).length})
+              </span>
             </button>
           ))}
         </div>
@@ -411,12 +395,24 @@ export default function MasterCoaPage() {
           <table className="min-w-[680px] w-full text-[13px]">
             <thead>
               <tr className="border-b text-[11px] text-muted-foreground uppercase tracking-wide">
-                <th className="pb-2 text-left font-semibold w-[80px]">Kode</th>
-                <th className="pb-2 text-left font-semibold">Nama Akun</th>
-                <th className="pb-2 text-left font-semibold">Grup</th>
-                <th className="pb-2 text-left font-semibold">Arah</th>
-                <th className="pb-2 text-left font-semibold">Budget Type</th>
-                <th className="pb-2 text-right font-semibold">Aksi</th>
+                <th className="pb-2 text-left font-semibold w-[80px]">
+                  {t.mastercoa.colCode}
+                </th>
+                <th className="pb-2 text-left font-semibold">
+                  {t.mastercoa.colName}
+                </th>
+                <th className="pb-2 text-left font-semibold">
+                  {t.mastercoa.colGroup}
+                </th>
+                <th className="pb-2 text-left font-semibold">
+                  {t.mastercoa.colDirection}
+                </th>
+                <th className="pb-2 text-left font-semibold">
+                  {t.mastercoa.colBudgetType}
+                </th>
+                <th className="pb-2 text-right font-semibold">
+                  {t.mastercoa.colAction}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -426,7 +422,7 @@ export default function MasterCoaPage() {
                     colSpan={6}
                     className="py-8 text-center text-muted-foreground"
                   >
-                    Memuat data...
+                    {t.mastercoa.loadingRow}
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
@@ -435,7 +431,7 @@ export default function MasterCoaPage() {
                     colSpan={6}
                     className="py-8 text-center text-muted-foreground"
                   >
-                    Belum ada akun COA
+                    {t.mastercoa.emptyRow}
                   </td>
                 </tr>
               ) : (
@@ -450,14 +446,15 @@ export default function MasterCoaPage() {
                     <td className="py-2.5 font-medium">{a.name}</td>
                     <td className="py-2.5">
                       <StatusBadge variant="info">
-                        {GROUP_LABELS[a.groupNum] ?? String(a.groupNum)}
+                        {t.mastercoa.groupLabels[a.groupNum as CoaGroupNum] ??
+                          String(a.groupNum)}
                       </StatusBadge>
                     </td>
                     <td className="py-2.5">
                       <span className="flex items-center gap-1">
-                        {DIR_INFO[a.direction].icon}
+                        {DIR_ICON[a.direction]}
                         <span className="text-[12px]">
-                          {DIR_INFO[a.direction].label}
+                          {t.mastercoa.directionLabels[a.direction]}
                         </span>
                       </span>
                     </td>
@@ -472,10 +469,12 @@ export default function MasterCoaPage() {
                                 : "purple"
                           }
                         >
-                          {BUDGET_LABEL[a.budgetType]}
+                          {t.mastercoa.budgetTypeLabels[a.budgetType]}
                         </StatusBadge>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">
+                          {t.mastercoa.budgetTypeNone}
+                        </span>
                       )}
                     </td>
                     <td className="py-2.5 text-right">
@@ -483,14 +482,14 @@ export default function MasterCoaPage() {
                         <button
                           onClick={() => openEdit(a)}
                           className="rounded p-1 text-muted-foreground hover:text-primary hover:bg-accent transition-colors"
-                          title="Edit"
+                          title={t.mastercoa.editTitle}
                         >
                           <Pencil className="size-3.5" />
                         </button>
                         <button
                           onClick={() => setDeleteId(a.id)}
                           className="rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                          title="Hapus"
+                          title={t.common.delete}
                         >
                           <Trash2 className="size-3.5" />
                         </button>
@@ -508,20 +507,22 @@ export default function MasterCoaPage() {
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-[480px] sm:max-w-[480px] p-6">
           <DialogTitle className="text-[17px] font-extrabold mb-4">
-            {editTarget ? "Edit Akun COA" : "Tambah Akun COA"}
+            {editTarget
+              ? t.mastercoa.modalTitleEdit
+              : t.mastercoa.modalTitleAdd}
           </DialogTitle>
           <form onSubmit={handleSubmit} className="space-y-3.5">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
-                  Kode Akun *
+                  {t.mastercoa.fieldCodeLabel}
                 </label>
                 <input
                   value={form.code}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, code: e.target.value }))
                   }
-                  placeholder="20101"
+                  placeholder={t.mastercoa.fieldCodePlaceholder}
                   maxLength={5}
                   required
                   disabled={Boolean(editTarget)}
@@ -530,7 +531,7 @@ export default function MasterCoaPage() {
               </div>
               <div>
                 <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
-                  Grup (1–6) *
+                  {t.mastercoa.fieldGroupLabel}
                 </label>
                 <select
                   value={form.groupNum}
@@ -540,9 +541,9 @@ export default function MasterCoaPage() {
                   required
                   className="w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card"
                 >
-                  {Object.entries(GROUP_LABELS).map(([k, v]) => (
-                    <option key={k} value={k}>
-                      {k} — {v}
+                  {GROUP_NUMS.map((groupNum) => (
+                    <option key={groupNum} value={groupNum}>
+                      {groupNum} — {t.mastercoa.groupLabels[groupNum]}
                     </option>
                   ))}
                 </select>
@@ -550,14 +551,14 @@ export default function MasterCoaPage() {
             </div>
             <div>
               <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
-                Nama Akun *
+                {t.mastercoa.fieldNameLabel}
               </label>
               <input
                 value={form.name}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, name: e.target.value }))
                 }
-                placeholder="cth: Household Needs"
+                placeholder={t.mastercoa.fieldNamePlaceholder}
                 required
                 className="w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card"
               />
@@ -565,7 +566,7 @@ export default function MasterCoaPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
-                  Arah Transaksi *
+                  {t.mastercoa.fieldDirectionLabel}
                 </label>
                 <select
                   value={form.direction}
@@ -578,14 +579,20 @@ export default function MasterCoaPage() {
                   required
                   className="w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card"
                 >
-                  <option value="INCOME">↓ Pemasukan</option>
-                  <option value="EXPENSE">↑ Pengeluaran</option>
-                  <option value="TRANSFER">↔ Mutasi</option>
+                  <option value="INCOME">
+                    {t.mastercoa.directionLabels.INCOME}
+                  </option>
+                  <option value="EXPENSE">
+                    {t.mastercoa.directionLabels.EXPENSE}
+                  </option>
+                  <option value="TRANSFER">
+                    {t.mastercoa.directionLabels.TRANSFER}
+                  </option>
                 </select>
               </div>
               <div>
                 <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
-                  Budget Type
+                  {t.mastercoa.fieldBudgetTypeLabel}
                 </label>
                 <select
                   value={form.budgetType}
@@ -597,23 +604,29 @@ export default function MasterCoaPage() {
                   }
                   className="w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card"
                 >
-                  <option value="">—</option>
-                  <option value="FIXED">Fixed</option>
-                  <option value="VARIABLE">Variable</option>
-                  <option value="REIMBURSEMENT">Reimbursement</option>
+                  <option value="">{t.mastercoa.budgetTypeNone}</option>
+                  <option value="FIXED">
+                    {t.mastercoa.budgetTypeLabels.FIXED}
+                  </option>
+                  <option value="VARIABLE">
+                    {t.mastercoa.budgetTypeLabels.VARIABLE}
+                  </option>
+                  <option value="REIMBURSEMENT">
+                    {t.mastercoa.budgetTypeLabels.REIMBURSEMENT}
+                  </option>
                 </select>
               </div>
             </div>
             <div>
               <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
-                Kode Induk (opsional)
+                {t.mastercoa.fieldParentCodeLabel}
               </label>
               <input
                 value={form.parentCode}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, parentCode: e.target.value }))
                 }
-                placeholder="cth: 201"
+                placeholder={t.mastercoa.fieldParentCodePlaceholder}
                 className="w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] font-mono outline-none transition-colors focus:border-primary focus:bg-card"
               />
             </div>
@@ -623,14 +636,14 @@ export default function MasterCoaPage() {
                 onClick={() => setModalOpen(false)}
                 className="flex-1 rounded-md border py-2.5 text-[13px] font-semibold text-muted-foreground hover:bg-secondary transition-colors"
               >
-                Batal
+                {t.common.cancel}
               </button>
               <button
                 type="submit"
                 disabled={createMutation.isPending || updateMutation.isPending}
                 className="flex-1 rounded-md bg-primary py-2.5 text-[13px] font-semibold text-white hover:bg-primary/90 disabled:opacity-50 transition-colors"
               >
-                {editTarget ? "Simpan" : "Tambah"}
+                {editTarget ? t.common.save : t.common.add}
               </button>
             </div>
           </form>
@@ -641,24 +654,24 @@ export default function MasterCoaPage() {
       <Dialog open={Boolean(deleteId)} onOpenChange={() => setDeleteId(null)}>
         <DialogContent className="max-w-[380px] sm:max-w-[380px] p-6">
           <DialogTitle className="text-[17px] font-extrabold mb-2">
-            Hapus Akun COA?
+            {t.mastercoa.deleteConfirmTitle}
           </DialogTitle>
           <p className="text-[13px] text-muted-foreground mb-4">
-            Tindakan ini tidak dapat dibatalkan.
+            {t.mastercoa.deleteConfirmBody}
           </p>
           <div className="flex gap-2">
             <button
               onClick={() => setDeleteId(null)}
               className="flex-1 rounded-md border py-2.5 text-[13px] font-semibold text-muted-foreground hover:bg-secondary transition-colors"
             >
-              Batal
+              {t.common.cancel}
             </button>
             <button
               onClick={() => deleteId && deleteMutation.mutate(deleteId)}
               disabled={deleteMutation.isPending}
               className="flex-1 rounded-md bg-destructive py-2.5 text-[13px] font-semibold text-white hover:bg-destructive/90 disabled:opacity-50 transition-colors"
             >
-              Hapus
+              {t.common.delete}
             </button>
           </div>
         </DialogContent>
