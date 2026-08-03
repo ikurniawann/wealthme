@@ -28,7 +28,12 @@ import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { IconChip, CountUpRupiah, Rise } from "@/components/wm";
 
-import type { AssetDto, AccountDto, InvestmentDto } from "@wealthme/contracts";
+import type {
+  AssetDto,
+  AccountDto,
+  InvestmentDto,
+  CategoryDto,
+} from "@wealthme/contracts";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -124,6 +129,19 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
   const [type, setType] = useState<AssetTypeValue>("properti");
   const [value, setValue] = useState("");
   const [notes, setNotes] = useState("");
+  const [valueChangeRatePct, setValueChangeRatePct] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+
+  // EPIC-021 #16: real master-data categories for the optional category
+  // select (same query key/cache as /masterdata).
+  const { data: categories } = useQuery<CategoryDto[]>({
+    queryKey: queryKeys.categories.all(familyGroupId),
+    enabled: Boolean(familyGroupId) && Boolean(token),
+    queryFn: () =>
+      apiFetch<CategoryDto[]>(`/family-groups/${familyGroupId}/categories`, {
+        token,
+      }),
+  });
 
   const mutation = useMutation({
     mutationFn: (body: {
@@ -131,6 +149,8 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
       type: string;
       currentValue: string;
       notes?: string;
+      valueChangeRatePct?: string;
+      categoryId?: string;
     }) => {
       if (!token || !familyGroupId) {
         return Promise.reject(new Error("Not authenticated"));
@@ -165,6 +185,8 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
       type,
       currentValue: digits,
       notes: notes.trim() || undefined,
+      valueChangeRatePct: valueChangeRatePct.trim() || undefined,
+      categoryId: categoryId || undefined,
     });
   }
 
@@ -241,6 +263,41 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
 
           <div>
             <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
+              {t.aset.fieldValueChangeRateLabel}
+            </label>
+            <input
+              type="number"
+              className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
+              placeholder={t.aset.fieldValueChangeRatePlaceholder}
+              inputMode="decimal"
+              step="0.01"
+              min={-100}
+              max={100}
+              value={valueChangeRatePct}
+              onChange={(e) => setValueChangeRatePct(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
+              {t.aset.fieldMasterDataCategoryLabel}
+            </label>
+            <select
+              className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+            >
+              <option value="">{t.aset.fieldMasterDataCategoryNone}</option>
+              {(categories ?? []).map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
               {t.aset.fieldNotesLabel}
             </label>
             <input
@@ -267,10 +324,17 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
 
 // ── Physical Asset Group Card ─────────────────────────────────────────────────
 
-function AssetGroupCard({ assets }: { assets: AssetDto[] }) {
+interface AssetGroupCardProps {
+  assets: AssetDto[];
+  categoryNameById: Record<string, string>;
+}
+
+function AssetGroupCard({ assets, categoryNameById }: AssetGroupCardProps) {
   const { t } = useLocale();
+  // EPIC-021 #17/#18: currentEstimatedValue is currentValue pro-rata
+  // adjusted by valueChangeRatePct — equals currentValue when no rate is set.
   const groupTotal = assets.reduce(
-    (sum, a) => sum + BigInt(a.currentValue ?? "0"),
+    (sum, a) => sum + BigInt(a.currentEstimatedValue ?? a.currentValue ?? "0"),
     BigInt(0),
   );
 
@@ -315,15 +379,32 @@ function AssetGroupCard({ assets }: { assets: AssetDto[] }) {
                   <div className="text-[11.5px] text-muted-foreground truncate">
                     {asset.notes
                       ? asset.notes
-                      : (t.aset.assetTypeLabels[
+                      : (asset.categoryId &&
+                          categoryNameById[asset.categoryId]) ||
+                        (t.aset.assetTypeLabels[
                           asset.type as keyof typeof t.aset.assetTypeLabels
-                        ] ?? asset.type)}
+                        ] ??
+                          asset.type)}
                   </div>
                 </div>
                 <div className="text-right shrink-0">
                   <div className="text-[14px] font-extrabold">
-                    {formatRupiah(Number(BigInt(asset.currentValue ?? "0")))}
+                    {formatRupiah(
+                      Number(
+                        BigInt(
+                          asset.currentEstimatedValue ??
+                            asset.currentValue ??
+                            "0",
+                        ),
+                      ),
+                    )}
                   </div>
+                  {asset.valueChangeRatePct &&
+                    parseFloat(asset.valueChangeRatePct) !== 0 && (
+                      <div className="text-[10px] text-muted-foreground">
+                        ({t.aset.estimatedValueBadge})
+                      </div>
+                    )}
                 </div>
               </div>
             </Rise>
@@ -563,6 +644,19 @@ export default function AsetPage() {
     },
   });
 
+  // Categories (EPIC-021 #16: master-data category names for physical assets)
+  const { data: categories } = useQuery<CategoryDto[]>({
+    queryKey: queryKeys.categories.all(familyGroupId ?? ""),
+    enabled: Boolean(familyGroupId) && Boolean(token),
+    queryFn: () =>
+      apiFetch<CategoryDto[]>(`/family-groups/${familyGroupId}/categories`, {
+        token,
+      }),
+  });
+  const categoryNameById = Object.fromEntries(
+    (categories ?? []).map((c) => [c.id, c.name]),
+  );
+
   const hasError = assetsError || accountsError || investmentsError;
 
   useEffect(() => {
@@ -600,8 +694,10 @@ export default function AsetPage() {
     (sum, inv) => sum + parseFloat(inv.currentValue ?? "0"),
     0,
   );
+  // currentEstimatedValue is currentValue pro-rata adjusted by
+  // valueChangeRatePct (EPIC-021 #17/#18) — equals currentValue when unset.
   const assetsTotalBig = (assets ?? []).reduce(
-    (sum, a) => sum + BigInt(a.currentValue ?? "0"),
+    (sum, a) => sum + BigInt(a.currentEstimatedValue ?? a.currentValue ?? "0"),
     BigInt(0),
   );
   const grandTotal =
@@ -721,7 +817,12 @@ export default function AsetPage() {
           )}
 
           {/* Aset Fisik card */}
-          {showFisik && <AssetGroupCard assets={assets ?? []} />}
+          {showFisik && (
+            <AssetGroupCard
+              assets={assets ?? []}
+              categoryNameById={categoryNameById}
+            />
+          )}
         </>
       )}
 

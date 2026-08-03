@@ -51,4 +51,16 @@ export class UpdateInvestmentDto {
   @IsString()
   @MaxLength(500)
   notes?: string;
+
+  @ApiPropertyOptional({
+    example: "6.50",
+    description:
+      "Annual interest rate (%) for interest-bearing instruments (obligasi, deposito). Must be between 0 and 100.",
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d+(\.\d{1,2})?$/, {
+    message: "interestRatePct must be a decimal string, e.g. '6.50'",
+  })
+  interestRatePct?: string;
 }
