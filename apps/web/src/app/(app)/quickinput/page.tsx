@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
+import { useShell } from "@/components/shell/shell-context";
 import { apiFetch } from "@/lib/api-client";
 import { parseRupiah } from "@/lib/format";
 import { buildGoalBody } from "@/lib/goals-utils";
@@ -39,6 +40,7 @@ type QuickCard = {
   | { action: "crud"; entity: CrudEntity }
   | { action: "navigate"; href: string }
   | { action: "toast"; message: string }
+  | { action: "txn" }
 );
 
 const QUICK_CARDS: QuickCard[] = [
@@ -48,8 +50,7 @@ const QUICK_CARDS: QuickCard[] = [
     icon: ArrowUpDown,
     iconBg: "#EEF2FF",
     iconColor: "var(--primary)",
-    action: "navigate",
-    href: "/transaksi",
+    action: "txn",
   },
   {
     name: "Investasi",
@@ -277,6 +278,7 @@ function buildRequest(
 export default function QuickInputPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { setTxnOpen } = useShell();
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId;
   const token = session?.accessToken;
@@ -287,6 +289,8 @@ export default function QuickInputPage() {
       setCrud({ entity: card.entity, mode: "add" });
     } else if (card.action === "navigate") {
       router.push(card.href);
+    } else if (card.action === "txn") {
+      setTxnOpen(true);
     } else {
       toast(card.message);
     }

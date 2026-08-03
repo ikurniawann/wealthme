@@ -60,7 +60,7 @@ const DIR_INFO: Record<CoaDirection, { label: string; icon: React.ReactNode }> =
       icon: <TrendingUp className="inline size-3 text-red-500" />,
     },
     TRANSFER: {
-      label: "↔ Transfer",
+      label: "↔ Mutasi",
       icon: <ArrowLeftRight className="inline size-3 text-purple-500" />,
     },
   };
@@ -580,7 +580,7 @@ export default function MasterCoaPage() {
                 >
                   <option value="INCOME">↓ Pemasukan</option>
                   <option value="EXPENSE">↑ Pengeluaran</option>
-                  <option value="TRANSFER">↔ Transfer</option>
+                  <option value="TRANSFER">↔ Mutasi</option>
                 </select>
               </div>
               <div>

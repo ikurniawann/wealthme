@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
   ChevronDown,
@@ -272,6 +273,15 @@ function EditTransactionDialog({
 }
 
 export default function TransaksiPage() {
+  // useSearchParams needs a Suspense boundary for prerender (EPIC-021 #24)
+  return (
+    <Suspense fallback={null}>
+      <TransaksiPageInner />
+    </Suspense>
+  );
+}
+
+function TransaksiPageInner() {
   const [filter, setFilter] = useState<FilterValue>("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -280,6 +290,9 @@ export default function TransaksiPage() {
   const token = session?.accessToken as string | undefined;
   const { setTxnOpen } = useShell();
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const accountId = searchParams.get("accountId");
 
   useEffect(() => {
     if ((session as { error?: string } | null)?.error === "RefreshTokenError") {
@@ -313,14 +326,29 @@ export default function TransaksiPage() {
   });
 
   const { data, isLoading, isError } = useQuery<TransactionListResponse>({
-    queryKey: [...queryKeys.transactions.all(familyGroupId), token],
+    queryKey: [...queryKeys.transactions.all(familyGroupId), token, accountId],
     queryFn: () =>
       apiFetch<TransactionListResponse>(
-        `/family-groups/${familyGroupId}/transactions?limit=50`,
+        `/family-groups/${familyGroupId}/transactions?limit=50${accountId ? `&accountId=${encodeURIComponent(accountId)}` : ""}`,
         { token },
       ),
     enabled: !!token && !!familyGroupId,
   });
+
+  // Per-account "mutasi" lens (EPIC-021 #24): resolve the account name for the
+  // filter pill only when an accountId filter is active.
+  const { data: filterAccounts } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["accounts", familyGroupId, "txn-filter"],
+    queryFn: () =>
+      apiFetch<{ id: string; name: string }[]>(
+        `/family-groups/${familyGroupId}/accounts`,
+        { token },
+      ),
+    enabled: !!token && !!familyGroupId && !!accountId,
+  });
+  const filterAccountName = accountId
+    ? (filterAccounts?.find((a) => a.id === accountId)?.name ?? "…")
+    : null;
 
   const transactions = data?.data ?? [];
   const summary = data?.summary;
@@ -366,6 +394,16 @@ export default function TransaksiPage() {
         <span className="text-[13px] text-muted-foreground">
           Catat &amp; kelola semua transaksimu
         </span>
+        {filterAccountName && (
+          <button
+            type="button"
+            onClick={() => router.replace("/transaksi")}
+            className="flex items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-[12px] font-semibold text-primary"
+            aria-label={`Hapus filter mutasi ${filterAccountName}`}
+          >
+            Mutasi: {filterAccountName} ✕
+          </button>
+        )}
         <button
           onClick={() => setTxnOpen(true)}
           className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground"
