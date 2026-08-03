@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { HeroCard } from "@/components/wm";
 import { ConfirmDeleteDialog, RowActions } from "@/components/crud";
+import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { formatAmountInput, formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
@@ -28,6 +29,10 @@ import type {
 const FIELD_CLASS =
   "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
 
+// NOTE: these are the actual `assetType` values persisted on an inheritance
+// asset record (free-text category), not a translated enum — kept in
+// Indonesian in both locales so switching language never changes what gets
+// stored, matching the value-locked crud-config select option convention.
 const ASSET_TYPE_OPTIONS = [
   "Aset / Properti",
   "Cash / Tunai",
@@ -307,6 +312,7 @@ function HeirEditor({ rows, onChange, familyMembers }: HeirEditorProps) {
 }
 
 export default function WarisanPage() {
+  const { t } = useLocale();
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
   const familyGroupId = session?.familyGroupId ?? undefined;
@@ -377,11 +383,11 @@ export default function WarisanPage() {
       ),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: listKey ?? [] });
-      toast.success("Aset warisan ditambahkan!");
+      toast.success(t.warisan.toastAdded);
       setOpen(false);
       resetForm();
     },
-    onError: () => toast.error("Gagal menyimpan aset warisan."),
+    onError: () => toast.error(t.warisan.toastAddFailed),
   });
 
   const updateMutation = useMutation({
@@ -392,12 +398,12 @@ export default function WarisanPage() {
       ),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: listKey ?? [] });
-      toast.success("Aset warisan diperbarui!");
+      toast.success(t.warisan.toastUpdated);
       setOpen(false);
       setEditing(null);
       resetForm();
     },
-    onError: () => toast.error("Gagal memperbarui aset warisan."),
+    onError: () => toast.error(t.warisan.toastUpdateFailed),
   });
 
   const updateVisibilityMutation = useMutation({
@@ -421,7 +427,7 @@ export default function WarisanPage() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: listKey ?? [] });
     },
-    onError: () => toast.error("Gagal memperbarui visibilitas."),
+    onError: () => toast.error(t.warisan.toastVisibilityUpdateFailed),
   });
 
   const deleteMutation = useMutation({
@@ -432,10 +438,10 @@ export default function WarisanPage() {
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: listKey ?? [] });
-      toast.success("Aset warisan dihapus.");
+      toast.success(t.warisan.toastDeleted);
       setDeleteTarget(null);
     },
-    onError: () => toast.error("Gagal menghapus aset warisan."),
+    onError: () => toast.error(t.warisan.toastDeleteFailed),
   });
 
   function resetForm() {
@@ -485,17 +491,17 @@ export default function WarisanPage() {
 
   function handleSave() {
     if (!familyGroupId || !token) {
-      toast.error("Sesi belum siap. Coba lagi sebentar.");
+      toast.error(t.warisan.toastSessionNotReady);
       return;
     }
     const raw = valueInput.replace(/\D/g, "");
     const estimatedValue = parseInt(raw, 10);
     if (!name.trim()) {
-      toast.error("Nama aset wajib diisi.");
+      toast.error(t.warisan.toastNameRequired);
       return;
     }
     if (isNaN(estimatedValue) || estimatedValue < 0) {
-      toast.error("Nilai estimasi tidak valid.");
+      toast.error(t.warisan.toastInvalidValue);
       return;
     }
 
@@ -570,14 +576,17 @@ export default function WarisanPage() {
       {/* Hero */}
       <HeroCard className="gradient-wealth">
         <div className="mb-1.5 flex items-center gap-2 text-[12px] opacity-85">
-          <Scroll className="size-3.5" /> Total Nilai Warisan
+          <Scroll className="size-3.5" /> {t.warisan.heroTitle}
         </div>
         <div className="text-[30px] font-black tracking-[-1px]">
           {formatRupiah(Number(totalValue))}
         </div>
         <div className="mt-1.5 text-[12px] opacity-85">
-          {assets.length} aset terdaftar
-          {heirNames.length > 0 ? ` · ${heirNames.length} ahli waris` : ""}
+          {assets.length}
+          {t.warisan.assetsRegisteredSuffix}
+          {heirNames.length > 0
+            ? `${t.warisan.heirsMidDot}${heirNames.length}${t.warisan.heirsSuffix}`
+            : ""}
         </div>
         <div className="pointer-events-none absolute -top-5 -right-5 text-[140px] opacity-10">
           🏛️
@@ -587,10 +596,10 @@ export default function WarisanPage() {
       {/* Header action */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-[13px] text-muted-foreground">
-          Catatan aset warisan yang dapat dilihat seluruh ahli waris
+          {t.warisan.headerDesc}
         </div>
         <Button onClick={() => setOpen(true)} className="h-auto px-4 py-[9px]">
-          <Plus className="size-4" /> Tambah Aset Warisan
+          <Plus className="size-4" /> {t.warisan.addAssetButton}
         </Button>
       </div>
 
@@ -604,8 +613,7 @@ export default function WarisanPage() {
       {!isLoading && assets.length === 0 && (
         <Card className="gap-0 p-5">
           <div className="py-8 text-center text-[13px] text-muted-foreground">
-            Belum ada aset warisan. Klik &quot;Tambah Aset Warisan&quot; untuk
-            mulai.
+            {t.warisan.emptyState}
           </div>
         </Card>
       )}
@@ -639,20 +647,17 @@ export default function WarisanPage() {
         <div className="text-[24px]">🛡️</div>
         <div className="flex-1">
           <div className="text-[13px] font-bold text-primary-strong">
-            Catatan Warisan Aman & Transparan
+            {t.warisan.insightTitle}
           </div>
           <div className="mt-0.5 text-[12px] text-muted-foreground">
-            Seluruh ahli waris dapat melihat daftar ini kapan saja. Tambahkan
-            dokumen pendukung (sertifikat, BPKB, polis) agar lebih lengkap.
+            {t.warisan.insightDesc}
           </div>
         </div>
         <button
-          onClick={() =>
-            toast("Upload dokumen belum tersedia — fitur ini segera hadir.")
-          }
+          onClick={() => toast(t.warisan.toastUploadUnavailable)}
           className="shrink-0 cursor-not-allowed text-[12.5px] font-bold text-muted-foreground"
         >
-          Upload Dokumen (Segera Hadir)
+          {t.warisan.uploadComingSoonButton}
         </button>
       </div>
 
@@ -678,7 +683,7 @@ export default function WarisanPage() {
       >
         <DialogContent className="max-w-[480px] p-6 sm:max-w-[480px]">
           <DialogTitle className="mb-4 text-[17px] font-extrabold">
-            {editing ? "Edit Aset Warisan" : "Tambah Aset Warisan"}
+            {editing ? t.warisan.modalTitleEdit : t.warisan.addAssetButton}
           </DialogTitle>
 
           <div className="space-y-4">
@@ -736,7 +741,7 @@ export default function WarisanPage() {
 
             <div>
               <label className="mb-1.5 block text-[12.5px] font-semibold">
-                Kategori
+                {t.warisan.fieldCategoryLabel}
               </label>
               <select
                 value={assetType}
@@ -751,20 +756,20 @@ export default function WarisanPage() {
 
             <div>
               <label className="mb-1.5 block text-[12.5px] font-semibold">
-                Nama Aset
+                {t.warisan.fieldNameLabel}
               </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="cth: Rumah Utama, Deposito BCA..."
+                placeholder={t.warisan.fieldNamePlaceholder}
                 className={FIELD_CLASS}
               />
             </div>
 
             <div>
               <label className="mb-1.5 block text-[12.5px] font-semibold">
-                Nilai Estimasi
+                {t.warisan.fieldValueLabel}
               </label>
               <div className="flex items-center gap-2 rounded-md border bg-background px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:bg-card">
                 <span className="text-[13.5px] text-muted-foreground">Rp</span>
@@ -783,51 +788,47 @@ export default function WarisanPage() {
 
             <div>
               <label className="mb-1.5 block text-[12.5px] font-semibold">
-                Catatan / Keterangan
+                {t.warisan.fieldNotesLabel}
               </label>
               <input
                 type="text"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="cth: SHM No. 1234, BPKB, Sertifikat..."
+                placeholder={t.warisan.fieldNotesPlaceholder}
                 className={FIELD_CLASS}
               />
             </div>
 
             <div>
               <label className="mb-1.5 block text-[12.5px] font-semibold">
-                Dokumen Pendukung
+                {t.warisan.fieldDocumentLabel}
               </label>
               <button
                 type="button"
-                onClick={() =>
-                  toast(
-                    "Upload dokumen belum tersedia — fitur ini segera hadir.",
-                  )
-                }
+                onClick={() => toast(t.warisan.toastUploadUnavailable)}
                 className="w-full cursor-not-allowed rounded-md border-[1.5px] border-dashed p-[18px] text-center opacity-60"
               >
                 <CloudUpload className="mx-auto mb-1.5 size-[22px] text-muted-foreground" />
                 <div className="text-[12px] text-muted-foreground">
-                  Upload sertifikat, BPKB, atau polis (PDF/JPG) — Coming soon
+                  {t.warisan.documentUploadHint}
                 </div>
               </button>
             </div>
 
             <div>
               <label className="mb-1.5 block text-[12.5px] font-semibold">
-                Akses Ahli Waris
+                {t.warisan.fieldAccessLabel}
               </label>
               <div className="rounded-md border bg-card px-3.5 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-[13px] font-semibold">
-                      Terlihat oleh ahli waris
+                      {t.warisan.visibleToHeirsLabel}
                     </div>
                     <div className="text-[11.5px] text-muted-foreground">
                       {visible
-                        ? "Ahli waris dapat melihat aset ini"
-                        : "Hanya pemilik yang dapat melihat"}
+                        ? t.warisan.visibleToHeirsOnDesc
+                        : t.warisan.visibleToHeirsOffDesc}
                     </div>
                   </div>
                   <Switch checked={visible} onCheckedChange={setVisible} />
@@ -850,8 +851,8 @@ export default function WarisanPage() {
             >
               <Save className="size-4" />
               {createMutation.isPending
-                ? "Menyimpan..."
-                : "Simpan Aset Warisan"}
+                ? t.warisan.savingLabel
+                : t.warisan.saveAssetButton}
             </Button>
           </div>
         </DialogContent>

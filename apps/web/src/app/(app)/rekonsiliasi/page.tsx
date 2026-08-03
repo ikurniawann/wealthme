@@ -26,6 +26,7 @@ import {
   ProgressBar,
   CardLink,
 } from "@/components/wm";
+import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -59,13 +60,10 @@ type AutoMatchResultDto = {
 
 /* ─────────────────────────── Static data ─────────────────────────── */
 
-const STEPS = [
-  { num: 1, label: "Upload", sub: "Upload dokumen" },
-  { num: 2, label: "Pindai", sub: "AI membaca data" },
-  { num: 3, label: "Cocokkan", sub: "Samakan transaksi" },
-  { num: 4, label: "Selesai", sub: "Simpan hasil" },
-] as const;
+const STEP_NUMS = [1, 2, 3, 4] as const;
 
+// NOTE: real bank names/codes — proper nouns, kept as-is in both locales
+// (same value-locked-copy convention as `donation`'s `LEMBAGA_OPTIONS`).
 const SUPPORTED_BANKS = [
   { code: "BCA", name: "BCA", bg: "#0061AF", color: "#fff" },
   { code: "MDR", name: "Mandiri", bg: "#F9A01B", color: "#000" },
@@ -80,13 +78,15 @@ type MatchStatus = "ok" | "warn" | "err";
 /* ─────────────────────────── Stepper ─────────────────────────── */
 
 function Stepper({ step }: { step: number }) {
+  const { t } = useLocale();
   return (
     <div className="mb-5 flex items-center">
-      {STEPS.map((s, i) => {
-        const done = step > s.num;
-        const active = step === s.num;
+      {STEP_NUMS.map((num, i) => {
+        const done = step > num;
+        const active = step === num;
+        const s = t.rekonsiliasi.steps[num];
         return (
-          <React.Fragment key={s.num}>
+          <React.Fragment key={num}>
             <div className="flex flex-1 flex-col items-center text-center">
               <div
                 className={[
@@ -98,7 +98,7 @@ function Stepper({ step }: { step: number }) {
                       : "bg-muted text-muted-foreground",
                 ].join(" ")}
               >
-                {done ? <Check className="size-[18px]" /> : s.num}
+                {done ? <Check className="size-[18px]" /> : num}
               </div>
               <div
                 className={[
@@ -112,11 +112,11 @@ function Stepper({ step }: { step: number }) {
                 </span>
               </div>
             </div>
-            {i < STEPS.length - 1 && (
+            {i < STEP_NUMS.length - 1 && (
               <div
                 className={[
                   "mx-1 mb-7 h-[2px] flex-1 transition-colors",
-                  step > s.num ? "bg-success" : "bg-border",
+                  step > num ? "bg-success" : "bg-border",
                 ].join(" ")}
               />
             )}
@@ -162,6 +162,7 @@ function entryStatus(reconStatus: string): MatchStatus {
 /* ─────────────────────────── Page ─────────────────────────── */
 
 export default function RekonsiliasiPage() {
+  const { t, locale } = useLocale();
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
   const familyGroupId = session?.familyGroupId ?? undefined;
@@ -196,7 +197,8 @@ export default function RekonsiliasiPage() {
   /* ─── Step 1: upload mutation ─── */
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
-      if (!familyGroupId || !token) throw new Error("Session non-aktif");
+      if (!familyGroupId || !token)
+        throw new Error(t.rekonsiliasi.errorSessionInactive);
 
       let rows: {
         date: string;
@@ -237,11 +239,14 @@ export default function RekonsiliasiPage() {
           queryKey: queryKeys.reconciliation.list(familyGroupId),
         });
       }
-      toast.success("File berhasil diunggah!");
+      toast.success(t.rekonsiliasi.toastUploaded);
       goto(2);
     },
     onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : "Gagal mengunggah file";
+      const msg =
+        err instanceof Error
+          ? err.message
+          : t.rekonsiliasi.toastUploadFailedDefault;
       toast.error(msg);
     },
   });
@@ -275,7 +280,10 @@ export default function RekonsiliasiPage() {
         { method: "POST", token: tkn },
       ),
     onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : "Gagal memindai entri";
+      const msg =
+        err instanceof Error
+          ? err.message
+          : t.rekonsiliasi.toastScanFailedDefault;
       toast.error(msg);
     },
   });
@@ -323,10 +331,13 @@ export default function RekonsiliasiPage() {
           queryKey: queryKeys.reconciliation.entries(familyGroupId, syncId),
         });
       }
-      toast.success("Entri berhasil dikonfirmasi!");
+      toast.success(t.rekonsiliasi.toastConfirmed);
     },
     onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : "Gagal mengkonfirmasi";
+      const msg =
+        err instanceof Error
+          ? err.message
+          : t.rekonsiliasi.toastConfirmFailedDefault;
       toast.error(msg);
     },
   });
@@ -352,10 +363,10 @@ export default function RekonsiliasiPage() {
         <div className="space-y-4">
           <SectionCard>
             <div className="mb-1 text-[15px] font-extrabold">
-              Upload Rekening Koran / Rekon Bank
+              {t.rekonsiliasi.uploadTitle}
             </div>
             <div className="mb-[18px] text-[12.5px] text-muted-foreground">
-              Upload file PDF, Excel, atau CSV dari bank Anda.
+              {t.rekonsiliasi.uploadSubtitle}
             </div>
 
             <input
@@ -377,28 +388,29 @@ export default function RekonsiliasiPage() {
               </div>
               <div className="mb-1.5 text-[15px] font-bold text-primary-strong">
                 {uploading || uploadMutation.isPending
-                  ? "Mengunggah..."
-                  : "Seret & lepas file di sini"}
+                  ? t.rekonsiliasi.uploadingLabel
+                  : t.rekonsiliasi.dragDropLabel}
               </div>
               <div className="mb-4 text-[12.5px] text-muted-foreground">
-                atau
+                {t.rekonsiliasi.orLabel}
               </div>
               <div className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-[11px] text-[13.5px] font-bold text-white">
-                <ArrowUpFromLine className="size-4" /> Pilih File
+                <ArrowUpFromLine className="size-4" />{" "}
+                {t.rekonsiliasi.chooseFileButton}
               </div>
               <div className="mt-3.5 text-[11.5px] text-muted-foreground">
-                Format yang didukung: PDF, Excel (.xlsx, .xls), CSV
+                {t.rekonsiliasi.supportedFormatsLabel}
               </div>
               <div className="text-[11.5px] text-muted-foreground">
-                Maksimal ukuran file: 20MB
+                {t.rekonsiliasi.maxFileSizeLabel}
               </div>
             </button>
           </SectionCard>
 
           {/* Supported banks */}
           <SectionCard
-            title="Bank yang Didukung"
-            action={<CardLink>Lihat semua</CardLink>}
+            title={t.rekonsiliasi.supportedBanksTitle}
+            action={<CardLink>{t.rekonsiliasi.viewAllLink}</CardLink>}
           >
             <div className="flex flex-wrap gap-2.5">
               {SUPPORTED_BANKS.map((b) => (
@@ -416,23 +428,23 @@ export default function RekonsiliasiPage() {
                 </div>
               ))}
               <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-[12.5px] font-semibold text-muted-foreground">
-                ••• Lainnya
+                {t.rekonsiliasi.othersLabel}
               </div>
             </div>
           </SectionCard>
 
           {/* Recent documents */}
           <SectionCard
-            title="Dokumen Terbaru"
-            action={<CardLink>Lihat Riwayat</CardLink>}
+            title={t.rekonsiliasi.recentDocsTitle}
+            action={<CardLink>{t.rekonsiliasi.viewHistoryLink}</CardLink>}
           >
             {syncsQuery.isLoading ? (
               <div className="py-6 text-center text-[12.5px] text-muted-foreground">
-                Memuat...
+                {t.rekonsiliasi.loadingLabel}
               </div>
             ) : !syncsQuery.data || syncsQuery.data.length === 0 ? (
               <div className="py-6 text-center text-[12.5px] text-muted-foreground">
-                Belum ada dokumen yang diunggah.
+                {t.rekonsiliasi.emptyDocs}
               </div>
             ) : (
               <div className="space-y-2">
@@ -465,7 +477,11 @@ export default function RekonsiliasiPage() {
                           {sync.fileName}
                         </div>
                         <div className="truncate text-[11px] text-muted-foreground">
-                          {`Diupload ${new Date(sync.uploadedAt).toLocaleString("id-ID")}`}
+                          {`${t.rekonsiliasi.uploadedAtPrefix}${new Date(
+                            sync.uploadedAt,
+                          ).toLocaleString(
+                            locale === "en" ? "en-US" : "id-ID",
+                          )}`}
                         </div>
                       </div>
                       <div className="flex-shrink-0 text-right">
@@ -473,10 +489,10 @@ export default function RekonsiliasiPage() {
                           variant="info"
                           className="mb-[3px] text-[10px]"
                         >
-                          Terunggah
+                          {t.rekonsiliasi.uploadedBadge}
                         </StatusBadge>
                         <div className="text-[11px] text-muted-foreground">
-                          {`${sync.rowCount} transaksi`}
+                          {`${sync.rowCount}${t.rekonsiliasi.transactionsCountSuffix}`}
                         </div>
                       </div>
                       <ChevronRight className="size-3 flex-shrink-0 text-muted-foreground" />
@@ -493,7 +509,7 @@ export default function RekonsiliasiPage() {
               <button
                 type="button"
                 onClick={() => setShowTips(false)}
-                aria-label="Tutup"
+                aria-label={t.rekonsiliasi.closeTipsAriaLabel}
                 className="absolute right-3 top-2.5 cursor-pointer text-[16px] text-muted-foreground"
               >
                 ×
@@ -502,20 +518,20 @@ export default function RekonsiliasiPage() {
                 <Lightbulb className="mt-0.5 size-4 flex-shrink-0 text-warning" />
                 <div>
                   <div className="mb-1.5 text-[12.5px] font-bold">
-                    Tips Rekonsiliasi
+                    {t.rekonsiliasi.tipsTitle}
                   </div>
                   <div className="flex flex-col gap-1 text-[12px] text-foreground/80">
                     <span className="flex items-center gap-1.5">
                       <Check className="size-3.5 text-success" />
-                      Pastikan periode tanggal pada dokumen sesuai
+                      {t.rekonsiliasi.tip1}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <Check className="size-3.5 text-success" />
-                      Hapus halaman yang tidak berisi transaksi
+                      {t.rekonsiliasi.tip2}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <Check className="size-3.5 text-success" />
-                      Gunakan file asli tanpa edit agar hasil lebih akurat
+                      {t.rekonsiliasi.tip3}
                     </span>
                   </div>
                 </div>
@@ -528,7 +544,8 @@ export default function RekonsiliasiPage() {
             onClick={() => setStep(2)}
             className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-[13.5px] font-bold text-white transition-opacity hover:opacity-90"
           >
-            Lanjutkan ke Pencocokan <ArrowRight className="size-4" />
+            {t.rekonsiliasi.continueToMatchButton}{" "}
+            <ArrowRight className="size-4" />
           </button>
         </div>
       )}
@@ -543,10 +560,10 @@ export default function RekonsiliasiPage() {
             <Bot className="size-7 text-primary" />
           </div>
           <div className="mb-1.5 text-[16px] font-extrabold">
-            AI Sedang Membaca Dokumen
+            {t.rekonsiliasi.aiReadingTitle}
           </div>
           <div className="mb-6 text-[12.5px] text-muted-foreground">
-            WealthMe AI mengekstrak data transaksi dari rekening koran...
+            {t.rekonsiliasi.aiReadingSubtitle}
           </div>
 
           {autoMatchMutation.isPending ? (
@@ -558,7 +575,7 @@ export default function RekonsiliasiPage() {
                 className="mb-2.5"
               />
               <div className="mb-5 text-[12px] text-muted-foreground">
-                Mencocokkan dengan data WealthMe...
+                {t.rekonsiliasi.matchingWithDataLabel}
               </div>
             </>
           ) : autoMatchMutation.data ? (
@@ -574,12 +591,12 @@ export default function RekonsiliasiPage() {
                 <span>
                   <span className="font-bold">
                     {autoMatchMutation.data.suggested}
-                  </span>{" "}
-                  entri cocok tersarankan dari{" "}
+                  </span>
+                  {t.rekonsiliasi.suggestedEntriesMidText}
                   <span className="font-bold">
                     {autoMatchMutation.data.totalEntries}
-                  </span>{" "}
-                  total
+                  </span>
+                  {t.rekonsiliasi.totalSuffix}
                 </span>
               </div>
               <button
@@ -587,12 +604,13 @@ export default function RekonsiliasiPage() {
                 onClick={() => goto(3)}
                 className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-[13.5px] font-bold text-white transition-opacity hover:opacity-90"
               >
-                Lanjut <ArrowRight className="size-4" />
+                {t.rekonsiliasi.continueButton}{" "}
+                <ArrowRight className="size-4" />
               </button>
             </div>
           ) : (
             <div className="mb-5 text-[12px] text-muted-foreground">
-              Memulai pemindaian...
+              {t.rekonsiliasi.startingScanLabel}
             </div>
           )}
         </SectionCard>
@@ -604,42 +622,51 @@ export default function RekonsiliasiPage() {
           <div className="grid grid-cols-3 gap-2.5">
             <div className="flex flex-col items-center gap-0.5 rounded-lg bg-success-soft py-3 text-emerald-700 dark:text-emerald-300">
               <div className="text-[22px] font-black">{matchedCount}</div>
-              <div className="text-[11px] font-semibold">✅ Cocok</div>
+              <div className="text-[11px] font-semibold">
+                {t.rekonsiliasi.matchedStatLabel}
+              </div>
             </div>
             <div className="flex flex-col items-center gap-0.5 rounded-lg bg-warning-soft py-3 text-amber-700 dark:text-amber-300">
               <div className="text-[22px] font-black">{suggestedCount}</div>
-              <div className="text-[11px] font-semibold">⚠️ Perlu Review</div>
+              <div className="text-[11px] font-semibold">
+                {t.rekonsiliasi.needsReviewStatLabel}
+              </div>
             </div>
             <div className="flex flex-col items-center gap-0.5 rounded-lg bg-red-100 py-3 text-red-700 dark:bg-red-950 dark:text-red-300">
               <div className="text-[22px] font-black">{unmatchedCount}</div>
-              <div className="text-[11px] font-semibold">❌ Tidak Cocok</div>
+              <div className="text-[11px] font-semibold">
+                {t.rekonsiliasi.notMatchedStatLabel}
+              </div>
             </div>
           </div>
 
           <SectionCard
-            title="Hasil Pencocokan"
+            title={t.rekonsiliasi.matchResultsTitle}
             action={
               <StatusBadge variant="success">
-                {entries.length} Transaksi
+                {entries.length}
+                {t.rekonsiliasi.transactionsCountBadgeSuffix}
               </StatusBadge>
             }
           >
             {/* Header */}
             <div className="mb-2 flex text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
-              <div className="flex-1 px-3">Rekening Koran</div>
+              <div className="flex-1 px-3">
+                {t.rekonsiliasi.colBankStatement}
+              </div>
               <div className="w-9" />
-              <div className="flex-1 px-3">Status</div>
+              <div className="flex-1 px-3">{t.rekonsiliasi.colStatus}</div>
             </div>
 
             {entriesQuery.isLoading && (
               <div className="py-8 text-center text-[13px] text-muted-foreground">
-                Memuat entri...
+                {t.rekonsiliasi.loadingEntries}
               </div>
             )}
 
             {entriesQuery.isError && (
               <div className="py-8 text-center text-[13px] text-destructive">
-                Gagal memuat entri. Coba lagi.
+                {t.rekonsiliasi.errorLoadEntries}
               </div>
             )}
 
@@ -647,7 +674,7 @@ export default function RekonsiliasiPage() {
               entries.length === 0 &&
               !entriesQuery.isError && (
                 <div className="py-8 text-center text-[13px] text-muted-foreground">
-                  Belum ada entri rekonsiliasi.
+                  {t.rekonsiliasi.emptyEntries}
                 </div>
               )}
 
@@ -655,17 +682,20 @@ export default function RekonsiliasiPage() {
               {entries.map((entry) => {
                 const status = entryStatus(entry.reconStatus);
                 const amtNum = parseInt(entry.amount, 10) / 100;
-                const amtFormatted = new Intl.NumberFormat("id-ID", {
-                  style: "currency",
-                  currency: entry.currency || "IDR",
-                  minimumFractionDigits: 0,
-                }).format(Math.abs(amtNum));
+                const amtFormatted = new Intl.NumberFormat(
+                  locale === "en" ? "en-US" : "id-ID",
+                  {
+                    style: "currency",
+                    currency: entry.currency || "IDR",
+                    minimumFractionDigits: 0,
+                  },
+                ).format(Math.abs(amtNum));
                 const amtDisplay =
                   amtNum < 0 ? `-${amtFormatted}` : `+${amtFormatted}`;
                 const amtClass =
                   amtNum < 0 ? "text-destructive" : "text-success";
                 const entryDate = new Date(entry.date).toLocaleDateString(
-                  "id-ID",
+                  locale === "en" ? "en-US" : "id-ID",
                   {
                     day: "numeric",
                     month: "short",
@@ -696,7 +726,7 @@ export default function RekonsiliasiPage() {
                       {status === "ok" && (
                         <div>
                           <div className="text-[11px] text-muted-foreground">
-                            Cocok
+                            {t.rekonsiliasi.matchedLabel}
                           </div>
                           <div className={`text-[13px] font-bold ${amtClass}`}>
                             {amtDisplay}
@@ -706,7 +736,7 @@ export default function RekonsiliasiPage() {
                       {status === "warn" && (
                         <div className="flex w-full items-center justify-between gap-2">
                           <div className="text-[11px] text-warning">
-                            Tersarankan
+                            {t.rekonsiliasi.suggestedLabel}
                           </div>
                           <button
                             type="button"
@@ -721,13 +751,13 @@ export default function RekonsiliasiPage() {
                             }}
                             className="rounded-md bg-primary px-2.5 py-1 text-[11px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
                           >
-                            Konfirmasi
+                            {t.rekonsiliasi.confirmButton}
                           </button>
                         </div>
                       )}
                       {status === "err" && (
                         <div className="text-[11px] text-destructive">
-                          Tidak Ditemukan
+                          {t.rekonsiliasi.notFoundLabel}
                         </div>
                       )}
                     </div>
@@ -743,14 +773,15 @@ export default function RekonsiliasiPage() {
               onClick={() => goto(1)}
               className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border-[1.5px] bg-background px-4 py-2.5 text-[13.5px] font-bold transition-colors hover:bg-accent"
             >
-              <ArrowLeft className="size-4" /> Kembali
+              <ArrowLeft className="size-4" /> {t.rekonsiliasi.backButton}
             </button>
             <button
               type="button"
               onClick={() => goto(4)}
               className="flex flex-[2] cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-bold text-white transition-opacity hover:opacity-90"
             >
-              <Save className="size-4" /> Simpan Hasil Rekonsiliasi
+              <Save className="size-4" />{" "}
+              {t.rekonsiliasi.saveReconciliationButton}
             </button>
           </div>
         </div>
@@ -763,35 +794,41 @@ export default function RekonsiliasiPage() {
             <CheckCircle2 className="size-9 text-success" />
           </div>
           <div className="mb-1.5 text-[18px] font-black text-success">
-            Rekonsiliasi Selesai!
+            {t.rekonsiliasi.doneTitle}
           </div>
           <div className="mb-6 text-[13px] text-muted-foreground">
-            Rekening koran berhasil dicocokkan
+            {t.rekonsiliasi.doneSubtitle}
           </div>
 
           <div className="mb-6 grid grid-cols-2 gap-3">
             <div className="rounded-lg bg-muted p-3.5 text-left">
               <div className="text-[11px] text-muted-foreground">
-                Total Transaksi
+                {t.rekonsiliasi.totalTransactionsLabel}
               </div>
               <div className="text-[20px] font-black">
                 {entries.length || "—"}
               </div>
             </div>
             <div className="rounded-lg bg-success-soft p-3.5 text-left text-emerald-700 dark:text-emerald-300">
-              <div className="text-[11px]">Cocok</div>
+              <div className="text-[11px]">
+                {t.rekonsiliasi.matchedSummaryLabel}
+              </div>
               <div className="text-[20px] font-black">
                 {matchedCount || "—"}
               </div>
             </div>
             <div className="rounded-lg bg-warning-soft p-3.5 text-left text-amber-700 dark:text-amber-300">
-              <div className="text-[11px]">Perlu Review</div>
+              <div className="text-[11px]">
+                {t.rekonsiliasi.needsReviewSummaryLabel}
+              </div>
               <div className="text-[20px] font-black">
                 {suggestedCount || "—"}
               </div>
             </div>
             <div className="rounded-lg bg-red-100 p-3.5 text-left text-red-700 dark:bg-red-950 dark:text-red-300">
-              <div className="text-[11px]">Tidak Cocok</div>
+              <div className="text-[11px]">
+                {t.rekonsiliasi.notMatchedSummaryLabel}
+              </div>
               <div className="text-[20px] font-black">
                 {unmatchedCount || "—"}
               </div>
@@ -808,7 +845,8 @@ export default function RekonsiliasiPage() {
               }}
               className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-bold text-white transition-opacity hover:opacity-90"
             >
-              <RotateCw className="size-4" /> Rekon Baru
+              <RotateCw className="size-4" />{" "}
+              {t.rekonsiliasi.newReconciliationButton}
             </button>
           </div>
         </SectionCard>

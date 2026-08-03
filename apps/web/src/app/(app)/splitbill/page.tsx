@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { SectionCard, ProgressBar, StatusBadge } from "@/components/wm";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useLocale } from "@/hooks/use-locale";
 import { formatAmountInput, parseRupiah, formatRupiah } from "@/lib/format";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -54,6 +55,7 @@ function computePct(split: SplitBillDto): number {
 }
 
 export default function SplitBillPage() {
+  const { t, locale } = useLocale();
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
   const familyGroupId = session?.familyGroupId as string | undefined;
@@ -66,6 +68,10 @@ export default function SplitBillPage() {
   const [title, setTitle] = useState("");
   const [total, setTotal] = useState("");
   const [method, setMethod] = useState<"equal" | "custom">("equal");
+  // NOTE: "Andi"/"Budi"/"Citra" are example seed names for the participant
+  // rows (freely editable by the user before creating the split), not UI
+  // chrome — kept as-is in both locales like the `USER` mock profile name,
+  // matching the value-locked example-data convention.
   const [participants, setParticipants] = useState<LocalParticipant[]>(() => [
     makeParticipant("Andi"),
     makeParticipant("Budi"),
@@ -90,7 +96,9 @@ export default function SplitBillPage() {
   );
 
   function addParticipant() {
-    const newP = makeParticipant(`Peserta ${participants.length + 1}`);
+    const newP = makeParticipant(
+      `${t.splitbill.defaultParticipantName} ${participants.length + 1}`,
+    );
     setParticipants((prev) => [...prev, newP]);
   }
 
@@ -160,13 +168,13 @@ export default function SplitBillPage() {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.splitBills.list(familyGroupId ?? ""),
       });
-      toast.success("Split Bill dibuat!");
+      toast.success(t.splitbill.toastCreated);
       setCreateOpen(false);
       resetCreateForm();
       setSelectedSplit(created);
     },
     onError: (err: { message?: string }) => {
-      toast.error(err.message ?? "Gagal membuat split bill");
+      toast.error(err.message ?? t.splitbill.toastCreateFailedDefault);
     },
   });
 
@@ -199,25 +207,25 @@ export default function SplitBillPage() {
           ),
         };
       });
-      toast.success("Peserta ditandai lunas");
+      toast.success(t.splitbill.toastSettled);
     },
     onError: (err: { message?: string }) => {
-      toast.error(err.message ?? "Gagal menandai lunas");
+      toast.error(err.message ?? t.splitbill.toastSettleFailedDefault);
     },
   });
 
   function handleCreate() {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
-      toast.warning("Judul acara wajib diisi");
+      toast.warning(t.splitbill.toastTitleRequired);
       return;
     }
     if (totalNum <= 0) {
-      toast.warning("Total tagihan wajib diisi");
+      toast.warning(t.splitbill.toastTotalRequired);
       return;
     }
     if (participants.length < 2) {
-      toast.warning("Minimal 2 peserta");
+      toast.warning(t.splitbill.toastMinParticipants);
       return;
     }
     if (
@@ -238,12 +246,12 @@ export default function SplitBillPage() {
     let participantDtos: CreateSplitBillDto["participants"];
     if (method === "equal") {
       participantDtos = participants.map((p) => ({
-        name: p.name.trim() || `Peserta`,
+        name: p.name.trim() || t.splitbill.defaultParticipantName,
         amountOwed: perPerson,
       }));
     } else {
       participantDtos = participants.map((p) => ({
-        name: p.name.trim() || `Peserta`,
+        name: p.name.trim() || t.splitbill.defaultParticipantName,
         amountOwed: parseRupiah(customAmounts[p.localId] ?? "0"),
       }));
     }
@@ -258,7 +266,7 @@ export default function SplitBillPage() {
   function handleShareLink(split: SplitBillDto) {
     const url = `${window.location.origin}/split/${split.shareToken}`;
     void navigator.clipboard.writeText(url).then(() => {
-      toast.success("Link disalin!");
+      toast.success(t.splitbill.toastLinkCopied);
     });
   }
 
@@ -282,14 +290,14 @@ export default function SplitBillPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2.5">
         <div className="text-[13px] text-muted-foreground">
-          Patungan jadi gampang — kamu nalangin, mereka bayar balik
+          {t.splitbill.headerDesc}
         </div>
         <Button
           onClick={() => setCreateOpen(true)}
           disabled={!familyGroupId}
           className="h-auto px-[18px] py-2.5"
         >
-          <Plus className="size-4" /> Buat Split Bill
+          <Plus className="size-4" /> {t.splitbill.createButton}
         </Button>
       </div>
 
@@ -297,37 +305,40 @@ export default function SplitBillPage() {
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
         <div className="rounded-[14px] border bg-card p-4">
           <div className="mb-1 text-[11px] text-muted-foreground">
-            Total Ditalangin
+            {t.splitbill.totalDitalanginLabel}
           </div>
           <div className="text-[20px] font-black text-primary">
             {formatRupiah(totalDitalangin)}
           </div>
           <div className="text-[11px] text-muted-foreground">
-            {activeSplits.length} split aktif
+            {activeSplits.length}
+            {t.splitbill.activeSplitsSuffix}
           </div>
         </div>
         <div className="rounded-[14px] border bg-card p-4">
           <div className="mb-1 text-[11px] text-muted-foreground">
-            Sudah Dibayar
+            {t.splitbill.sudahDibayarLabel}
           </div>
           <div className="text-[20px] font-black text-success">
             {formatRupiah(totalTerkumpul)}
           </div>
           <div className="text-[11px] text-success">
             {totalDitalangin > 0
-              ? `${Math.round((totalTerkumpul / totalDitalangin) * 100)}% terkumpul`
-              : "0% terkumpul"}
+              ? Math.round((totalTerkumpul / totalDitalangin) * 100)
+              : 0}
+            {t.splitbill.pctCollectedSuffix}
           </div>
         </div>
         <div className="rounded-[14px] border bg-card p-4">
           <div className="mb-1 text-[11px] text-muted-foreground">
-            Belum Dibayar
+            {t.splitbill.belumDibayarLabel}
           </div>
           <div className="text-[20px] font-black text-destructive">
             {formatRupiah(totalBelum)}
           </div>
           <div className="text-[11px] text-destructive">
-            {belumBayarCount} orang belum bayar
+            {belumBayarCount}
+            {t.splitbill.peopleUnpaidSuffix}
           </div>
         </div>
       </div>
@@ -338,12 +349,15 @@ export default function SplitBillPage() {
           role="alert"
           className="rounded-[14px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive"
         >
-          Gagal memuat data split bill. Silakan refresh halaman.
+          {t.splitbill.errorLoad}
         </div>
       )}
 
       {/* Active splits */}
-      <SectionCard title="Split Bill Aktif" bodyClassName="space-y-2.5">
+      <SectionCard
+        title={t.splitbill.activeSplitsTitle}
+        bodyClassName="space-y-2.5"
+      >
         {isLoading && (
           <div className="space-y-2.5">
             {[1, 2, 3].map((i) => (
@@ -357,8 +371,7 @@ export default function SplitBillPage() {
 
         {!isLoading && !isError && activeSplits.length === 0 && (
           <div className="py-6 text-center text-[13px] text-muted-foreground">
-            Belum ada split bill aktif. Klik &quot;Buat Split Bill&quot; untuk
-            mulai.
+            {t.splitbill.emptyActiveSplits}
           </div>
         )}
 
@@ -376,12 +389,12 @@ export default function SplitBillPage() {
                   <div className="flex-1">
                     <div className="text-[14px] font-bold">{split.title}</div>
                     <div className="text-[11px] text-muted-foreground">
-                      {new Date(split.createdAt).toLocaleDateString("id-ID", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}{" "}
-                      · {split.participants.length} orang
+                      {new Date(split.createdAt).toLocaleDateString(
+                        locale === "en" ? "en-US" : "id-ID",
+                        { day: "numeric", month: "short", year: "numeric" },
+                      )}{" "}
+                      · {split.participants.length}
+                      {t.splitbill.peopleCountSuffix}
                     </div>
                   </div>
                   <div className="text-right">
@@ -390,7 +403,7 @@ export default function SplitBillPage() {
                     </div>
                     <div className="text-[11px] text-muted-foreground">
                       {split.participants.length > 0
-                        ? `${formatRupiah(Math.round(Number(BigInt(split.totalAmount)) / split.participants.length))}/org`
+                        ? `${formatRupiah(Math.round(Number(BigInt(split.totalAmount)) / split.participants.length))}${t.splitbill.perOrgSuffix}`
                         : ""}
                     </div>
                   </div>
@@ -399,16 +412,19 @@ export default function SplitBillPage() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-[12px] text-muted-foreground">
                     <span className="font-bold" style={{ color: barColor }}>
-                      {paidCount} dari {split.participants.length}
-                    </span>{" "}
-                    sudah bayar · {formatRupiah(computePaidAmount(split))}{" "}
-                    terkumpul
+                      {paidCount}
+                      {t.splitbill.paidOfMidText}
+                      {split.participants.length}
+                    </span>
+                    {t.splitbill.paidStatusSuffix}
+                    {formatRupiah(computePaidAmount(split))}
+                    {t.splitbill.collectedSuffix}
                   </div>
                   <button
                     onClick={() => setSelectedSplit(split)}
                     className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md bg-accent px-3.5 py-1.5 text-[12px] font-semibold text-primary transition-colors hover:bg-accent/70"
                   >
-                    <Share2 className="size-3.5" /> Detail
+                    <Share2 className="size-3.5" /> {t.splitbill.detailButton}
                   </button>
                 </div>
               </div>
@@ -421,12 +437,10 @@ export default function SplitBillPage() {
         <div className="text-[24px]">💡</div>
         <div className="flex-1">
           <div className="text-[13px] font-bold text-primary-strong">
-            Cara kerja Split Bill
+            {t.splitbill.insightTitle}
           </div>
           <div className="mt-0.5 text-xs text-muted-foreground">
-            Bikin tagihan, bagi rata atau custom, lalu kirim link ke teman.
-            Mereka bisa bayar via transfer/e-wallet & kamu dapat notifikasi
-            otomatis.
+            {t.splitbill.insightDesc}
           </div>
         </div>
       </div>
@@ -441,26 +455,26 @@ export default function SplitBillPage() {
       >
         <DialogContent className="max-w-[480px] p-6 sm:max-w-[480px]">
           <DialogTitle className="mb-4 text-[17px] font-extrabold">
-            Buat Split Bill
+            {t.splitbill.createButton}
           </DialogTitle>
 
           <div className="space-y-4">
             <div>
               <label className="mb-1.5 block text-[12.5px] font-semibold">
-                Judul Acara
+                {t.splitbill.fieldTitleLabel}
               </label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="cth: Makan di Sushi Tei"
+                placeholder={t.splitbill.fieldTitlePlaceholder}
                 className={FIELD_CLASS}
               />
             </div>
 
             <div>
               <label className="mb-1.5 block text-[12.5px] font-semibold">
-                Total Tagihan
+                {t.splitbill.fieldTotalLabel}
               </label>
               <div className="flex items-center gap-2 rounded-md border bg-background px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:bg-card">
                 <span className="text-[13.5px] text-muted-foreground">Rp</span>
@@ -477,13 +491,13 @@ export default function SplitBillPage() {
 
             <div>
               <label className="mb-1.5 block text-[12.5px] font-semibold">
-                Metode Bagi
+                {t.splitbill.fieldMethodLabel}
               </label>
               <div className="flex gap-2">
                 {(
                   [
-                    ["equal", "Bagi Rata"],
-                    ["custom", "Custom per Orang"],
+                    ["equal", t.splitbill.methodEqualLabel],
+                    ["custom", t.splitbill.methodCustomLabel],
                   ] as const
                 ).map(([key, label]) => (
                   <button
@@ -505,7 +519,7 @@ export default function SplitBillPage() {
 
             <div>
               <label className="mb-1.5 block text-[12.5px] font-semibold">
-                Peserta
+                {t.splitbill.fieldParticipantsLabel}
               </label>
               <div className="space-y-2">
                 {participants.map((p) => (
@@ -546,7 +560,7 @@ export default function SplitBillPage() {
                       type="button"
                       onClick={() => removeParticipant(p.localId)}
                       className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                      aria-label={`Hapus ${p.name}`}
+                      aria-label={`${t.splitbill.removeParticipantAriaPrefix}${p.name}`}
                     >
                       <X className="size-4" />
                     </button>
@@ -558,14 +572,14 @@ export default function SplitBillPage() {
                 onClick={addParticipant}
                 className="mt-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md border-[1.5px] border-dashed border-primary bg-card py-2.5 text-[12.5px] font-semibold text-primary transition-colors hover:bg-accent"
               >
-                <Plus className="size-4" /> Tambah Peserta
+                <Plus className="size-4" /> {t.splitbill.addParticipantButton}
               </button>
             </div>
 
             {method === "equal" && (
               <div className="flex items-center gap-2 rounded-[10px] bg-accent px-3 py-2.5">
                 <span className="text-[12px] text-muted-foreground">
-                  Per orang:{" "}
+                  {t.splitbill.perPersonPrefix}
                   <strong className="text-primary">
                     {formatRupiah(perPerson)}
                   </strong>
@@ -625,7 +639,9 @@ export default function SplitBillPage() {
               className="w-full"
             >
               <Share2 className="size-4" />
-              {createMutation.isPending ? "Membuat..." : "Buat & Bagikan Link"}
+              {createMutation.isPending
+                ? t.splitbill.savingCreateLabel
+                : t.splitbill.createAndShareButton}
             </Button>
           </div>
         </DialogContent>
@@ -647,21 +663,22 @@ export default function SplitBillPage() {
 
               <div className="mb-4 rounded-[14px] bg-accent p-[18px] text-center">
                 <div className="text-[11px] text-muted-foreground">
-                  Total Tagihan
+                  {t.splitbill.fieldTotalLabel}
                 </div>
                 <div className="text-[26px] font-black text-primary">
                   {formatRupiah(Number(BigInt(selectedSplit.totalAmount)))}
                 </div>
                 <div className="mt-0.5 text-[12px] text-muted-foreground">
                   {selectedSplit.participants.length > 0
-                    ? `${formatRupiah(Math.round(Number(BigInt(selectedSplit.totalAmount)) / selectedSplit.participants.length))} / orang`
+                    ? `${formatRupiah(Math.round(Number(BigInt(selectedSplit.totalAmount)) / selectedSplit.participants.length))}${t.splitbill.detailPerOrangSuffix}`
                     : ""}{" "}
-                  · {selectedSplit.participants.length} peserta
+                  · {selectedSplit.participants.length}
+                  {t.splitbill.detailParticipantsSuffix}
                 </div>
               </div>
 
               <div className="mb-2 text-[12px] font-bold text-muted-foreground">
-                Status Pembayaran
+                {t.splitbill.statusPaymentTitle}
               </div>
               <div className="space-y-0">
                 {selectedSplit.participants.map((p, i) => (
@@ -685,7 +702,9 @@ export default function SplitBillPage() {
                       </div>
                     </div>
                     {p.status === "paid" ? (
-                      <StatusBadge variant="success">Lunas</StatusBadge>
+                      <StatusBadge variant="success">
+                        {t.splitbill.paidBadge}
+                      </StatusBadge>
                     ) : (
                       <button
                         onClick={() =>
@@ -697,7 +716,7 @@ export default function SplitBillPage() {
                         disabled={settleMutation.isPending}
                         className="shrink-0 cursor-pointer rounded-md border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-success hover:text-success disabled:opacity-50"
                       >
-                        Tandai Lunas
+                        {t.splitbill.markPaidButton}
                       </button>
                     )}
                   </div>
@@ -715,7 +734,7 @@ export default function SplitBillPage() {
                   onClick={() => handleShareLink(selectedSplit)}
                   className="shrink-0 cursor-pointer rounded-md bg-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground"
                 >
-                  Salin
+                  {t.splitbill.copyButton}
                 </button>
               </div>
             </>

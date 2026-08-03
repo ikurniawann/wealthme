@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CrudModal, ConfirmDeleteDialog } from "@/components/crud";
 import type { CrudModalState } from "@/components/crud";
+import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, parseRupiah } from "@/lib/format";
@@ -84,14 +85,6 @@ const TYPE_LOGO_BG: Record<string, string> = {
   property: "#F59E0B",
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  bank: "Tabungan",
-  ewallet: "E-Wallet",
-  cash: "Tunai",
-  investment: "Investasi",
-  property: "Properti",
-};
-
 function toLogoText(name: string): string {
   return name
     .split(" ")
@@ -105,7 +98,10 @@ function toLogoText(name: string): string {
 // Data mapping
 // ---------------------------------------------------------------------------
 
-function toCardData(account: AccountDto): AccountCard {
+function toCardData(
+  account: AccountDto,
+  t: ReturnType<typeof useLocale>["t"],
+): AccountCard {
   const rawBalance = parseFloat(account.balance);
   const brand = resolveBrand(account.institution ?? null);
 
@@ -116,18 +112,21 @@ function toCardData(account: AccountDto): AccountCard {
       ? toLogoText(account.institution)
       : toLogoText(account.name));
 
+  const typeLabels: Record<string, string> = t.rekening.typeLabels;
+  const typeLabel = typeLabels[account.type] ?? account.type;
+
   return {
     id: account.id,
     logo,
     logoBg,
     name: account.name,
     number: account.maskedNumber ?? "—",
-    balanceLabel: "Saldo",
+    balanceLabel: t.rekening.balanceLabel,
     balance: formatRupiah(rawBalance),
     rawBalance,
     type: account.institution
-      ? `${TYPE_LABELS[account.type] ?? account.type} · ${account.institution}`
-      : (TYPE_LABELS[account.type] ?? account.type),
+      ? `${typeLabel} · ${account.institution}`
+      : typeLabel,
     isPrivate: account.isPrivate,
   };
 }
@@ -144,6 +143,7 @@ interface AccountCardItemProps {
 
 function AccountCardItem({ account, onEdit, onDelete }: AccountCardItemProps) {
   const router = useRouter();
+  const { t } = useLocale();
   return (
     <Card className="gap-0 space-y-3.5 p-5 transition-shadow hover:shadow-md">
       {/* Header row: brand badge · name + number · status badge · kebab menu */}
@@ -170,15 +170,15 @@ function AccountCardItem({ account, onEdit, onDelete }: AccountCardItemProps) {
           or `status` field on AccountDto — that field does not currently exist.
           When the API adds it, replace this with conditional logic.
         */}
-        <StatusBadge variant="success">Aktif</StatusBadge>
+        <StatusBadge variant="success">{t.rekening.activeBadge}</StatusBadge>
         {account.isPrivate && (
-          <StatusBadge variant="purple">🔒 Privat</StatusBadge>
+          <StatusBadge variant="purple">{t.rekening.privateBadge}</StatusBadge>
         )}
 
         {/* Kebab menu: Edit + Hapus folded out of the main action row */}
         <DropdownMenu>
           <DropdownMenuTrigger
-            aria-label="Opsi rekening"
+            aria-label={t.rekening.optionsAriaLabel}
             render={
               <button
                 type="button"
@@ -192,14 +192,14 @@ function AccountCardItem({ account, onEdit, onDelete }: AccountCardItemProps) {
             <DropdownMenuItem
               onClick={() => router.push(`/transaksi?accountId=${account.id}`)}
             >
-              📄 Lihat Mutasi
+              {t.rekening.viewMutationMenuItem}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onEdit(account)}>
-              ✏️ Edit
+              {t.rekening.editMenuItem}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onClick={onDelete}>
-              🗑️ Hapus
+              {t.rekening.deleteMenuItem}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -221,11 +221,11 @@ function AccountCardItem({ account, onEdit, onDelete }: AccountCardItemProps) {
       <div className="grid grid-cols-1 gap-2">
         <button
           type="button"
-          aria-label="Lihat Mutasi"
+          aria-label={t.rekening.viewMutationAriaLabel}
           className="cursor-pointer rounded-md border bg-background py-2 text-[12px] font-semibold transition-colors hover:bg-accent"
           onClick={() => router.push("/transaksi")}
         >
-          📋 Lihat Mutasi
+          {t.rekening.viewMutationButton}
         </button>
       </div>
     </Card>
@@ -237,6 +237,7 @@ function AccountCardItem({ account, onEdit, onDelete }: AccountCardItemProps) {
 // ---------------------------------------------------------------------------
 
 export default function RekeningPage() {
+  const { t } = useLocale();
   const { data: session } = useSession();
 
   useEffect(() => {
@@ -323,7 +324,7 @@ export default function RekeningPage() {
             body: JSON.stringify({ name: values.nama, balance, isPrivate }),
           },
         );
-        toast.success("Rekening berhasil diperbarui!");
+        toast.success(t.rekening.toastUpdated);
       } else {
         await apiFetch(`/family-groups/${familyGroupId}/accounts`, {
           token,
@@ -337,11 +338,11 @@ export default function RekeningPage() {
             isPrivate,
           }),
         });
-        toast.success("Rekening berhasil ditambahkan!");
+        toast.success(t.rekening.toastAdded);
       }
       await invalidateAccounts();
     } catch {
-      toast.error("Gagal menyimpan rekening. Coba lagi.");
+      toast.error(t.rekening.toastSaveFailed);
     }
   }
 
@@ -352,10 +353,10 @@ export default function RekeningPage() {
         `/family-groups/${familyGroupId}/accounts/${deleting.id}`,
         { token, method: "DELETE" },
       );
-      toast.success("Rekening berhasil dihapus.");
+      toast.success(t.rekening.toastDeleted);
       await invalidateAccounts();
     } catch {
-      toast.error("Gagal menghapus rekening. Coba lagi.");
+      toast.error(t.rekening.toastDeleteFailed);
     } finally {
       setDeleting(null);
     }
@@ -367,16 +368,16 @@ export default function RekeningPage() {
         <div>
           <div className="text-[13px] font-bold">
             {isLoading
-              ? "Memuat..."
-              : `${accounts?.length ?? 0} Rekening Terhubung`}
+              ? t.rekening.loadingLabel
+              : `${accounts?.length ?? 0}${t.rekening.accountsConnectedSuffix}`}
           </div>
           <div className="text-[11px] text-muted-foreground">
             {!isLoading && accounts && (
               <>
-                {`Total: ${formatRupiah(totalBalance)}`}
+                {`${t.rekening.totalPrefix}${formatRupiah(totalBalance)}`}
                 {fxRates?.rates["USD"] != null && (
                   <span className="ml-2 text-muted-foreground/70">
-                    {`≈ USD ${(totalBalance * fxRates.rates["USD"]).toFixed(2)}`}
+                    {`${t.rekening.approxUsdPrefix}${(totalBalance * fxRates.rates["USD"]).toFixed(2)}`}
                   </span>
                 )}
               </>
@@ -384,7 +385,7 @@ export default function RekeningPage() {
           </div>
         </div>
         <Button type="button" onClick={openAdd} data-tour="add-rekening">
-          <Plus className="size-4" /> Tambah
+          <Plus className="size-4" /> {t.rekening.addButton}
         </Button>
       </div>
 
@@ -393,26 +394,26 @@ export default function RekeningPage() {
           role="alert"
           className="rounded-lg border border-destructive bg-destructive/5 px-4 py-2.5 text-[13px] text-destructive"
         >
-          <span className="font-semibold">Kesalahan: </span>Gagal memuat
-          rekening. Silakan refresh halaman.
+          <span className="font-semibold">{t.rekening.errorPrefixLabel}</span>
+          {t.rekening.errorLoadBody}
         </div>
       )}
 
       {!isLoading && !isError && accounts?.length === 0 && (
         <div className="rounded-lg border border-dashed p-8 text-center text-[13px] text-muted-foreground">
-          Belum ada rekening.{" "}
+          {t.rekening.emptyStatePrefix}
           <button
             type="button"
             className="font-semibold text-primary"
             onClick={openAdd}
           >
-            Tambah sekarang
+            {t.rekening.addNowButton}
           </button>
         </div>
       )}
 
       {accounts?.map((account) => {
-        const card = toCardData(account);
+        const card = toCardData(account, t);
         return (
           <AccountCardItem
             key={account.id}

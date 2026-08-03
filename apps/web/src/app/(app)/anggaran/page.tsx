@@ -14,23 +14,17 @@ import {
 } from "@/components/wm";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useLocale } from "@/hooks/use-locale";
 import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 
 import type {
   BudgetDto,
+  BudgetPeriod,
   BudgetType,
   CreateBudgetDto,
 } from "@wealthme/contracts";
-
-// EPIC-017: COA budget-type labels (from the category's COA account).
-const BUDGET_TYPE_LABEL: Record<BudgetType | "OTHER", string> = {
-  FIXED: "Tetap",
-  VARIABLE: "Variabel",
-  REIMBURSEMENT: "Reimbursement",
-  OTHER: "Lainnya",
-};
 
 type TypeBreakdownRow = {
   key: BudgetType | "OTHER";
@@ -80,15 +74,12 @@ function budgetPctLabel(dto: BudgetDto): string {
   return label;
 }
 
-function budgetAmountsLabel(dto: BudgetDto): string {
-  return `${formatRupiah(dto.spentAmount)} dari ${formatRupiah(dto.limitAmount)}`;
+function budgetAmountsLabel(
+  dto: BudgetDto,
+  t: ReturnType<typeof useLocale>["t"],
+): string {
+  return `${formatRupiah(dto.spentAmount)}${t.anggaran.amountsMidDari}${formatRupiah(dto.limitAmount)}`;
 }
-
-const PERIOD_MAP: Record<string, CreateBudgetDto["period"]> = {
-  Bulanan: "monthly",
-  Mingguan: "weekly",
-  Tahunan: "yearly",
-};
 
 const ICON_OPTIONS = ["🎓", "🎨", "🎁", "🐶", "👶", "📚", "💪", "🙏"];
 
@@ -96,6 +87,7 @@ const FIELD_CLASS =
   "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
 
 function BudgetItem({ dto, index }: { dto: BudgetDto; index: number }) {
+  const { t } = useLocale();
   const color = budgetBarColor(dto);
   const icon = dto.categoryIcon ?? "📦";
   return (
@@ -110,12 +102,12 @@ function BudgetItem({ dto, index }: { dto: BudgetDto; index: number }) {
               <span>{dto.categoryName}</span>
               {dto.budgetType && (
                 <StatusBadge variant="gray">
-                  {BUDGET_TYPE_LABEL[dto.budgetType]}
+                  {t.anggaran.budgetTypeLabels[dto.budgetType]}
                 </StatusBadge>
               )}
             </div>
             <div className="text-[11.5px] text-muted-foreground">
-              {budgetAmountsLabel(dto)}
+              {budgetAmountsLabel(dto, t)}
             </div>
           </div>
           <div className="text-[13px] font-bold" style={{ color }}>
@@ -155,6 +147,7 @@ function BudgetSkeleton() {
 }
 
 export default function AnggaranPage() {
+  const { t, locale } = useLocale();
   const { data: session } = useSession();
   const token = session?.accessToken;
   const familyGroupId = session?.familyGroupId;
@@ -164,7 +157,7 @@ export default function AnggaranPage() {
   const [name, setName] = useState("");
   const [icon, setIcon] = useState(ICON_OPTIONS[0] ?? "🎓");
   const [amount, setAmount] = useState("");
-  const [period, setPeriod] = useState<string>("Bulanan");
+  const [period, setPeriod] = useState<BudgetPeriod>("monthly");
 
   const {
     data: budgets,
@@ -187,7 +180,7 @@ export default function AnggaranPage() {
       name: string;
       icon: string;
       limitAmount: number;
-      period: string;
+      period: BudgetPeriod;
     }) => {
       if (!familyGroupId) throw new Error("familyGroupId missing");
 
@@ -217,7 +210,7 @@ export default function AnggaranPage() {
             (c) => c.name.toLowerCase() === payload.name.toLowerCase(),
           );
           if (!match)
-            throw new Error("Kategori tidak ditemukan setelah konflik");
+            throw new Error(t.anggaran.errorCategoryNotFoundAfterConflict);
           categoryId = match.id;
         } else {
           throw err;
@@ -226,7 +219,7 @@ export default function AnggaranPage() {
 
       const dto: CreateBudgetDto = {
         categoryId,
-        period: PERIOD_MAP[payload.period] ?? "monthly",
+        period: payload.period,
         limitAmount: payload.limitAmount,
       };
       return apiFetch<BudgetDto>(`/family-groups/${familyGroupId}/budgets`, {
@@ -243,11 +236,13 @@ export default function AnggaranPage() {
       }
       setOpen(false);
       resetForm();
-      toast.success(`Anggaran "${budget.categoryName}" ditambahkan`);
+      toast.success(
+        `${t.anggaran.toastCategoryAddedPrefix}${budget.categoryName}${t.anggaran.toastCategoryAddedSuffix}`,
+      );
     },
     onError: (err: unknown) => {
       const apiErr = err as { message?: string };
-      toast.error(apiErr.message ?? "Gagal menyimpan anggaran");
+      toast.error(apiErr.message ?? t.anggaran.toastSaveFailedDefault);
     },
   });
 
@@ -255,22 +250,22 @@ export default function AnggaranPage() {
     setName("");
     setIcon(ICON_OPTIONS[0] ?? "🎓");
     setAmount("");
-    setPeriod("Bulanan");
+    setPeriod("monthly");
   }
 
   function handleSave() {
     const trimmed = name.trim();
     if (!trimmed) {
-      toast.warning("Nama kategori wajib diisi");
+      toast.warning(t.anggaran.toastNameRequired);
       return;
     }
     const limitAmount = parseRupiah(amount);
     if (limitAmount <= 0) {
-      toast.warning("Budget harus lebih dari Rp 0");
+      toast.warning(t.anggaran.toastAmountInvalid);
       return;
     }
     if (!familyGroupId) {
-      toast.error("Silakan bergabung ke Family Group terlebih dahulu");
+      toast.error(t.anggaran.toastNoFamilyGroup);
       return;
     }
     createMutation.mutate({ name: trimmed, icon, limitAmount, period });
@@ -298,11 +293,15 @@ export default function AnggaranPage() {
       <div className="flex flex-wrap items-center justify-between gap-2.5">
         <div>
           <div className="text-[15px] font-bold">
-            Anggaran{" "}
-            {now.toLocaleString("id-ID", { month: "long", year: "numeric" })}
+            {t.anggaran.pageTitlePrefix}
+            {now.toLocaleString(locale === "en" ? "en-US" : "id-ID", {
+              month: "long",
+              year: "numeric",
+            })}
           </div>
           <div className="text-xs text-muted-foreground">
-            Total budget: {formatRupiah(totalLimit)}
+            {t.anggaran.totalBudgetPrefix}
+            {formatRupiah(totalLimit)}
           </div>
         </div>
         <Button
@@ -311,7 +310,7 @@ export default function AnggaranPage() {
           className="h-auto px-[18px] py-2.5"
           data-tour="add-anggaran"
         >
-          <Plus className="size-4" /> Tambah Kategori
+          <Plus className="size-4" /> {t.anggaran.addCategoryButton}
         </Button>
       </div>
 
@@ -319,57 +318,63 @@ export default function AnggaranPage() {
         <Rise index={0}>
           <div className="rounded-[14px] border border-[#86EFAC] bg-[#DCFCE7] p-4 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
             <div className="mb-1 text-[11px] text-[#15803D]">
-              Budget Tersisa
+              {t.anggaran.remainingBudgetLabel}
             </div>
             <div className="mono text-[22px] font-black text-[#15803D]">
               <CountUpRupiah value={totalRemaining} />
             </div>
             <div className="text-[11px] text-[#15803D]">
               {totalLimit > 0
-                ? `${100 - usagePct}% dari budget`
-                : "Belum ada budget"}
+                ? `${100 - usagePct}${t.anggaran.pctOfBudgetSuffix}`
+                : t.anggaran.noBudgetYet}
             </div>
           </div>
         </Rise>
         <Rise index={1}>
           <div className="rounded-[14px] border bg-card p-4 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
             <div className="mb-1 text-[11px] text-muted-foreground">
-              Total Terpakai
+              {t.anggaran.totalSpentLabel}
             </div>
             <div className="mono text-[22px] font-black text-destructive">
               <CountUpRupiah value={totalSpent} />
             </div>
             <div className="text-[11px] text-muted-foreground">
-              {usagePct}% dari budget
+              {usagePct}
+              {t.anggaran.pctOfBudgetSuffix}
             </div>
           </div>
         </Rise>
         <Rise index={2}>
           <div className="rounded-[14px] border bg-card p-4 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
             <div className="mb-1 text-[11px] text-muted-foreground">
-              Hari Tersisa
+              {t.anggaran.daysLeftLabel}
             </div>
             <div className="text-[22px] font-black text-primary">
-              {daysLeft} Hari
+              {daysLeft}
+              {t.anggaran.daysSuffix}
             </div>
             <div className="text-[11px] text-muted-foreground">
-              dari {daysInMonth} hari
+              {t.anggaran.daysOfPrefix}
+              {daysInMonth}
+              {t.anggaran.daysOfSuffix}
             </div>
           </div>
         </Rise>
       </div>
 
-      <SectionCard title="Rincian Anggaran per Kategori" bodyClassName="-mt-1">
+      <SectionCard
+        title={t.anggaran.categoryBreakdownTitle}
+        bodyClassName="-mt-1"
+      >
         {isLoading && <BudgetSkeleton />}
         {isError && (
           <div className="py-4 text-center text-[13px] text-destructive">
-            Gagal memuat anggaran. Silakan refresh halaman.
+            {t.anggaran.errorLoad}
           </div>
         )}
         {!isLoading && !isError && (!budgets || budgets.length === 0) && (
           <div className="py-6 text-center text-[13px] text-muted-foreground">
-            Belum ada anggaran. Klik &ldquo;Tambah Kategori&rdquo; untuk
-            memulai.
+            {t.anggaran.emptyState}
           </div>
         )}
         {!isLoading && !isError && budgets && budgets.length > 0 && (
@@ -383,7 +388,7 @@ export default function AnggaranPage() {
 
       {typeBreakdown.length > 0 && (
         <SectionCard
-          title="Rincian per Tipe Anggaran"
+          title={t.anggaran.typeBreakdownTitle}
           bodyClassName="-mt-1 space-y-3"
         >
           {typeBreakdown.map((row) => {
@@ -399,17 +404,20 @@ export default function AnggaranPage() {
               <div key={row.key}>
                 <div className="mb-1.5 flex items-center gap-2 text-[13px]">
                   <StatusBadge variant="gray">
-                    {BUDGET_TYPE_LABEL[row.key]}
+                    {t.anggaran.budgetTypeLabels[row.key]}
                   </StatusBadge>
                   <span className="text-[11.5px] text-muted-foreground">
-                    {row.count} kategori
+                    {row.count}
+                    {t.anggaran.categoriesSuffix}
                   </span>
                   <span className="ml-auto font-semibold" style={{ color }}>
                     {pct}%
                   </span>
                 </div>
                 <div className="mb-1 text-[11.5px] text-muted-foreground">
-                  {formatRupiah(row.spent)} dari {formatRupiah(row.limit)}
+                  {formatRupiah(row.spent)}
+                  {t.anggaran.amountsMidDari}
+                  {formatRupiah(row.limit)}
                 </div>
                 <AnimatedProgress value={Math.min(pct, 100)} color={color} />
               </div>
@@ -425,21 +433,25 @@ export default function AnggaranPage() {
             {overBudgetItems.length > 0 ? (
               <>
                 <div className="text-[13px] font-bold text-primary-strong">
-                  {overBudgetItems[0]!.categoryName} melebihi budget{" "}
-                  {overBudgetItems[0]!.usagePercent - 100}%!
+                  {overBudgetItems[0]!.categoryName}
+                  {t.anggaran.overBudgetMidText}
+                  {overBudgetItems[0]!.usagePercent - 100}
+                  {t.anggaran.overBudgetSuffix}
                 </div>
                 <div className="mt-0.5 text-xs text-muted-foreground">
-                  Pengeluaran bulan ini melebihi batas anggaran yang ditetapkan.
+                  {t.anggaran.overBudgetDesc}
                 </div>
               </>
             ) : (
               <>
                 <div className="text-[13px] font-bold text-primary-strong">
-                  {nearLimitItems[0]!.categoryName} mendekati batas budget (
-                  {nearLimitItems[0]!.usagePercent}%)
+                  {nearLimitItems[0]!.categoryName}
+                  {t.anggaran.nearLimitMidText}
+                  {nearLimitItems[0]!.usagePercent}
+                  {t.anggaran.nearLimitSuffix}
                 </div>
                 <div className="mt-0.5 text-xs text-muted-foreground">
-                  Pantau pengeluaran agar tidak melebihi anggaran.
+                  {t.anggaran.nearLimitDesc}
                 </div>
               </>
             )}
@@ -448,7 +460,7 @@ export default function AnggaranPage() {
             aria-disabled="true"
             className="shrink-0 text-[12.5px] font-bold text-primary opacity-60"
           >
-            Tips Hemat →
+            {t.anggaran.tipsSavingLink}
           </span>
         </div>
       )}
@@ -456,7 +468,7 @@ export default function AnggaranPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-[480px] p-6 sm:max-w-[480px]">
           <DialogTitle className="mb-4 text-[17px] font-extrabold">
-            Tambah Kategori Anggaran
+            {t.anggaran.modalAddTitle}
           </DialogTitle>
           <div className="space-y-4">
             <div>
@@ -464,31 +476,31 @@ export default function AnggaranPage() {
                 htmlFor="budget-name"
                 className="mb-1.5 block text-[12.5px] font-semibold"
               >
-                Nama Kategori
+                {t.anggaran.fieldCategoryNameLabel}
               </label>
               <input
                 id="budget-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="cth: Pendidikan Anak, Hobi, Donasi..."
+                placeholder={t.anggaran.fieldCategoryNamePlaceholder}
                 className={FIELD_CLASS}
               />
             </div>
             <div>
               <div
                 role="group"
-                aria-label="Pilih ikon"
+                aria-label={t.anggaran.iconGroupAriaLabel}
                 className="mb-1.5 text-[12.5px] font-semibold"
               >
-                Ikon
+                {t.anggaran.iconLabel}
               </div>
               <div className="flex flex-wrap gap-2">
                 {ICON_OPTIONS.map((opt) => (
                   <button
                     key={opt}
                     type="button"
-                    aria-label={`Ikon ${opt}`}
+                    aria-label={`${t.anggaran.iconAriaLabelPrefix}${opt}`}
                     aria-pressed={icon === opt}
                     onClick={() => setIcon(opt)}
                     className={
@@ -508,7 +520,7 @@ export default function AnggaranPage() {
                 htmlFor="budget-amount"
                 className="mb-1.5 block text-[12.5px] font-semibold"
               >
-                Budget per Bulan (Rp)
+                {t.anggaran.fieldAmountLabel}
               </label>
               <div className="flex items-center gap-2 rounded-md border bg-background px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:bg-card">
                 <span className="text-[13.5px] text-muted-foreground">Rp</span>
@@ -528,17 +540,19 @@ export default function AnggaranPage() {
                 htmlFor="budget-period"
                 className="mb-1.5 block text-[12.5px] font-semibold"
               >
-                Periode
+                {t.anggaran.fieldPeriodLabel}
               </label>
               <select
                 id="budget-period"
                 value={period}
-                onChange={(e) => setPeriod(e.target.value)}
+                onChange={(e) => setPeriod(e.target.value as BudgetPeriod)}
                 className={FIELD_CLASS}
               >
-                <option>Bulanan</option>
-                <option>Mingguan</option>
-                <option>Tahunan</option>
+                <option value="monthly">
+                  {t.anggaran.periodLabels.monthly}
+                </option>
+                <option value="weekly">{t.anggaran.periodLabels.weekly}</option>
+                <option value="yearly">{t.anggaran.periodLabels.yearly}</option>
               </select>
             </div>
             <Button
@@ -547,7 +561,9 @@ export default function AnggaranPage() {
               className="w-full"
             >
               <Save className="size-4" />
-              {createMutation.isPending ? "Menyimpan..." : "Simpan Kategori"}
+              {createMutation.isPending
+                ? t.anggaran.savingLabel
+                : t.anggaran.saveCategoryButton}
             </Button>
           </div>
         </DialogContent>
