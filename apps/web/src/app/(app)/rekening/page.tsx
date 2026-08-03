@@ -189,6 +189,11 @@ function AccountCardItem({ account, onEdit, onDelete }: AccountCardItemProps) {
             <EllipsisVertical className="size-4" aria-hidden="true" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-[120px]">
+            <DropdownMenuItem
+              onClick={() => router.push(`/transaksi?accountId=${account.id}`)}
+            >
+              📄 Lihat Mutasi
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onEdit(account)}>
               ✏️ Edit
             </DropdownMenuItem>

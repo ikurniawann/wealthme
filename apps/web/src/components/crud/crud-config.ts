@@ -1,6 +1,22 @@
 // Universal CRUD form definitions, ported from the demo's crudConfig
 // (docs/WealthMe_Demo.html — "UNIVERSAL CRUD ENGINE").
 
+import { formatRupiah, parseRupiah } from "@/lib/format";
+
+/**
+ * Whole months from today until `deadline` (yyyy-mm-dd), floored at 1 — a
+ * deadline inside the current month still needs one contribution.
+ */
+function monthsUntil(deadline: string): number {
+  const end = new Date(deadline);
+  if (Number.isNaN(end.getTime())) return 0;
+  const now = new Date();
+  const months =
+    (end.getFullYear() - now.getFullYear()) * 12 +
+    (end.getMonth() - now.getMonth());
+  return months <= 0 ? 1 : months;
+}
+
 export type CrudFieldType =
   | "text"
   | "number"
@@ -19,6 +35,12 @@ export interface CrudField {
   options?: string[];
   /** Sub-copy shown under the label — used by the "toggle" field type. */
   helperText?: string;
+  /**
+   * Computed helper line rendered under the field, derived from the current
+   * form values (e.g. the per-month saving suggestion on tujuan.autodebit).
+   * Return null to hide. Must be pure — it is called on every render.
+   */
+  helper?: (values: Record<string, string>) => string | null;
 }
 
 export interface CrudEntityConfig {
@@ -226,7 +248,21 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
       { key: "target", label: "Target Jumlah", type: "amount" },
       { key: "terkumpul", label: "Sudah Terkumpul", type: "amount" },
       { key: "deadline", label: "Target Tanggal", type: "date" },
-      { key: "autodebit", label: "Auto-debit / Bulan", type: "amount" },
+      {
+        key: "autodebit",
+        label: "Auto-debit / Bulan",
+        type: "amount",
+        // EPIC-021 #30 — "hitungan pecahan pembagi": suggest the per-month
+        // contribution needed to close the gap by the target date.
+        helper: (v) => {
+          const remaining =
+            parseRupiah(v.target ?? "0") - parseRupiah(v.terkumpul ?? "0");
+          if (remaining <= 0 || !v.deadline) return null;
+          const months = monthsUntil(v.deadline);
+          if (months <= 0) return null;
+          return `Saran: ${formatRupiah(Math.ceil(remaining / months))} / bulan · ${months} bulan tersisa`;
+        },
+      },
     ],
   },
   member: {

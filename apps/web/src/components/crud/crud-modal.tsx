@@ -235,6 +235,11 @@ function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
                     onChange={(e) => setField(f.key, e.target.value)}
                   />
                 )}
+                {f.helper?.(values) && (
+                  <div className="mt-1 text-[11.5px] text-muted-foreground">
+                    {f.helper(values)}
+                  </div>
+                )}
               </div>
             ),
           )}
