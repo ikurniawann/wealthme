@@ -20,6 +20,7 @@ type HeirRow = {
   name: string;
   relationship: string;
   sharePercent: { toString(): string };
+  memberUserId: string | null;
   createdAt: Date;
 };
 
@@ -33,6 +34,7 @@ type AssetRow = {
   notes: string | null;
   visibility: string;
   documentUrl: string | null;
+  assetId: string | null;
   createdAt: Date;
   updatedAt: Date;
   heirs: HeirRow[];
@@ -45,6 +47,7 @@ function toHeirDto(row: HeirRow): InheritanceHeirResponseDto {
     name: row.name,
     relationship: row.relationship,
     sharePercent: row.sharePercent.toString(),
+    memberUserId: row.memberUserId,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -60,12 +63,16 @@ function toAssetDto(row: AssetRow): InheritanceAssetResponseDto {
     notes: row.notes,
     visibility: row.visibility,
     documentUrl: row.documentUrl,
+    assetId: row.assetId,
     heirs: row.heirs.map(toHeirDto),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
 }
 
+// EPIC-021 Group D (#12) — heirs are optional (zero heirs is a valid,
+// recordable state) and percentages may be partially allocated; only reject
+// when the sum exceeds 100 ("belum dialokasikan" covers the remainder).
 function validateSharePercent(heirs: { sharePercent: number }[]): void {
   const total = heirs.reduce((sum, h) => sum + h.sharePercent, 0);
   if (total > 100) {
@@ -77,12 +84,31 @@ function validateSharePercent(heirs: { sharePercent: number }[]): void {
 export class InheritanceService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // EPIC-021 Group D (#11) — tenant-scoped lookup so a picked assetId can
+  // never belong to another family group.
+  private async assertAssetInFamilyGroup(
+    familyGroupId: string,
+    assetId: string,
+  ): Promise<void> {
+    const asset = await this.prisma.asset.findUnique({
+      where: { id: assetId, familyGroupId },
+    });
+    if (!asset) {
+      throw new BadRequestException(
+        "assetId does not reference an asset in this family group",
+      );
+    }
+  }
+
   async create(
     familyGroupId: string,
     dto: CreateInheritanceAssetDto,
   ): Promise<InheritanceAssetResponseDto> {
     if (dto.heirs && dto.heirs.length > 0) {
       validateSharePercent(dto.heirs);
+    }
+    if (dto.assetId) {
+      await this.assertAssetInFamilyGroup(familyGroupId, dto.assetId);
     }
 
     const asset = await this.prisma.$transaction(async (tx) => {
@@ -95,6 +121,7 @@ export class InheritanceService {
           currency: dto.currency ?? "IDR",
           notes: dto.notes ?? null,
           visibility: dto.visibility ?? "heirs_only",
+          assetId: dto.assetId ?? null,
           heirs:
             dto.heirs && dto.heirs.length > 0
               ? {
@@ -102,6 +129,7 @@ export class InheritanceService {
                     name: h.name,
                     relationship: h.relationship,
                     sharePercent: h.sharePercent,
+                    memberUserId: h.memberUserId ?? null,
                   })),
                 }
               : undefined,
@@ -152,6 +180,9 @@ export class InheritanceService {
     if (dto.heirs && dto.heirs.length > 0) {
       validateSharePercent(dto.heirs);
     }
+    if (dto.assetId) {
+      await this.assertAssetInFamilyGroup(familyGroupId, dto.assetId);
+    }
 
     const updated = await this.prisma.$transaction(async (tx) => {
       if (dto.heirs !== undefined) {
@@ -172,6 +203,7 @@ export class InheritanceService {
           currency: dto.currency ?? existing.currency,
           notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
           visibility: dto.visibility ?? existing.visibility,
+          assetId: dto.assetId !== undefined ? dto.assetId : existing.assetId,
           heirs:
             dto.heirs !== undefined && dto.heirs.length > 0
               ? {
@@ -179,6 +211,7 @@ export class InheritanceService {
                     name: h.name,
                     relationship: h.relationship,
                     sharePercent: h.sharePercent,
+                    memberUserId: h.memberUserId ?? null,
                   })),
                 }
               : undefined,

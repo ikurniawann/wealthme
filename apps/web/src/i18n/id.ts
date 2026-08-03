@@ -674,6 +674,7 @@ export const id = {
       kesehatan: "Asuransi Kesehatan",
       kendaraan: "Asuransi Kendaraan",
       properti: "Asuransi Properti",
+      pendidikan: "Asuransi Pendidikan",
       lainnya: "Lainnya",
     },
     periodSuffixLabels: {
@@ -705,6 +706,7 @@ export const id = {
     validationNameRequired: "Nama asuransi wajib diisi",
     validationPremiumPositive: "Premi harus lebih dari Rp 0",
     modalTitle: "Tambah Asuransi",
+    modalEditTitle: "Edit Asuransi",
     modalCloseAriaLabel: "Tutup modal",
     fieldNameLabel: "Nama Asuransi *",
     fieldNamePlaceholder: "cth: Asuransi Jiwa Keluarga",
@@ -732,6 +734,22 @@ export const id = {
     toastRenewalRecordedPrefix:
       "Perpanjangan dicatat — jatuh tempo berikutnya ",
     toastRenewalFailed: "Gagal mencatat perpanjangan. Coba lagi.",
+    beneficiariesSectionTitle: "Ahli Waris Asuransi",
+    beneficiariesLabel: "Ahli Waris",
+    beneficiaryNameLabel: "Nama",
+    beneficiaryNamePlaceholder: "cth: Siti Arsandi",
+    beneficiaryRelationshipLabel: "Hubungan",
+    beneficiaryRelationshipPlaceholder: "cth: Anak, Pasangan",
+    beneficiarySharePercentLabel: "Persentase (%)",
+    beneficiaryMemberLabel: "Hubungkan ke Anggota Keluarga",
+    beneficiaryMemberNoneOption: "Tidak terhubung",
+    addBeneficiaryButton: "+ Tambah Ahli Waris",
+    removeBeneficiaryAriaLabel: "Hapus ahli waris",
+    allocationAllocatedSuffix: "% dialokasikan",
+    allocationUnallocatedSuffix: "% belum dialokasikan",
+    allocationFullyAllocated: "Teralokasi penuh (100%)",
+    validationSharePercentExceeded:
+      "Total persentase ahli waris tidak boleh lebih dari 100%",
   },
   kalkulator: {
     tabs: {

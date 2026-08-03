@@ -77,12 +77,14 @@ type PanduanJourneyId =
 
 /** EPIC-018 Task A4 — `/asuransi` insurance type/period/status enum ids
  * (mirror the `InsuranceType` / `PremiumPeriod` / `InsuranceStatus` contracts
- * — persisted values stay unchanged, only their display labels translate). */
+ * — persisted values stay unchanged, only their display labels translate).
+ * EPIC-021 Group D (#13) added "pendidikan" alongside the rest. */
 type AsuransiInsuranceTypeId =
   | "jiwa"
   | "kesehatan"
   | "kendaraan"
   | "properti"
+  | "pendidikan"
   | "lainnya";
 
 type AsuransiPremiumPeriodId = "monthly" | "quarterly" | "yearly";
@@ -545,6 +547,7 @@ export type I18nDictionary = {
     validationNameRequired: string;
     validationPremiumPositive: string;
     modalTitle: string;
+    modalEditTitle: string;
     modalCloseAriaLabel: string;
     fieldNameLabel: string;
     fieldNamePlaceholder: string;
@@ -570,6 +573,23 @@ export type I18nDictionary = {
     payConfirmButton: string;
     toastRenewalRecordedPrefix: string;
     toastRenewalFailed: string;
+    /** EPIC-021 Group D (#14) — policy beneficiaries, mirroring warisan's
+     * heir editor UX (allocation bar + optional family-member link). */
+    beneficiariesSectionTitle: string;
+    beneficiariesLabel: string;
+    beneficiaryNameLabel: string;
+    beneficiaryNamePlaceholder: string;
+    beneficiaryRelationshipLabel: string;
+    beneficiaryRelationshipPlaceholder: string;
+    beneficiarySharePercentLabel: string;
+    beneficiaryMemberLabel: string;
+    beneficiaryMemberNoneOption: string;
+    addBeneficiaryButton: string;
+    removeBeneficiaryAriaLabel: string;
+    allocationAllocatedSuffix: string;
+    allocationUnallocatedSuffix: string;
+    allocationFullyAllocated: string;
+    validationSharePercentExceeded: string;
   };
   /**
    * EPIC-018 Task A4 — `/kalkulator` page copy (7 sub-tools). Detail rows

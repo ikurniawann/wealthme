@@ -10,12 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/wm";
-import {
-  CardSideActions,
-  ConfirmDeleteDialog,
-  CrudModal,
-  type CrudModalState,
-} from "@/components/crud";
+import { CardSideActions, ConfirmDeleteDialog } from "@/components/crud";
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
 import { apiFetch } from "@/lib/api-client";
@@ -23,19 +18,30 @@ import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 
 import type {
+  CreateInsuranceBeneficiaryDto,
   CreateInsuranceDto,
   InsuranceDto,
   InsuranceSummaryDto,
   InsuranceType,
   InsuranceStatus,
   PremiumPeriod,
+  UpdateInsuranceDto,
 } from "@wealthme/contracts";
+
+// EPIC-021 Group D (#14) — mirrors the `FamilyMember` shape used on /akun for
+// the optional "link a beneficiary to a family member" picker.
+type FamilyMember = {
+  id: string;
+  userId: string;
+  name: string;
+};
 
 const INSURANCE_TYPE_ICON: Record<string, string> = {
   jiwa: "🛡️",
   kesehatan: "🏥",
   kendaraan: "🚗",
   properti: "🏠",
+  pendidikan: "🎓",
   lainnya: "📋",
 };
 
@@ -44,6 +50,7 @@ const INSURANCE_TYPE_BG: Record<string, string> = {
   kesehatan: "#DCFCE7",
   kendaraan: "#DBEAFE",
   properti: "#FEF9C3",
+  pendidikan: "#FFE4E6",
   lainnya: "#F3F4F6",
 };
 
@@ -55,6 +62,7 @@ const TYPE_OPTIONS: InsuranceType[] = [
   "kesehatan",
   "kendaraan",
   "properti",
+  "pendidikan",
   "lainnya",
 ];
 
@@ -142,6 +150,13 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
   const periodLabel = t.asuransi.periodSuffixLabels[item.premiumPeriod] ?? "";
   const renewalVariant = renewalBadgeVariant(item.daysUntilRenewal);
   const statusLabel = t.asuransi.statusLabels[item.status] ?? item.status;
+  // EPIC-021 Group D (#14) — mirrors warisan's heirSummary line on AssetRow.
+  const beneficiarySummary =
+    item.beneficiaries.length > 0
+      ? item.beneficiaries
+          .map((b) => `${b.name} (${b.sharePercent}%)`)
+          .join(", ")
+      : null;
 
   const statusVariant =
     item.status === "aktif"
@@ -225,6 +240,15 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
               </div>
             )}
           </div>
+
+          {beneficiarySummary && (
+            <div className="mt-2.5 text-[11.5px] text-muted-foreground">
+              <span className="font-semibold">
+                {t.asuransi.beneficiariesLabel}:
+              </span>{" "}
+              {beneficiarySummary}
+            </div>
+          )}
         </div>
         <CardSideActions onEdit={onEdit} onPay={onPay} onDelete={onDelete} />
       </div>
@@ -232,17 +256,158 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
   );
 }
 
-interface AddInsuranceModalProps {
+// EPIC-021 Group D (#14) — one beneficiary row bound to text inputs; parsed
+// into a `CreateInsuranceBeneficiaryDto` on save. Mirrors warisan's heir rows.
+interface BeneficiaryFormRow {
+  name: string;
+  relationship: string;
+  sharePercent: string;
+  memberUserId: string;
+}
+
+function emptyBeneficiaryRow(): BeneficiaryFormRow {
+  return { name: "", relationship: "", sharePercent: "", memberUserId: "" };
+}
+
+function totalAllocated(rows: BeneficiaryFormRow[]): number {
+  return rows.reduce((sum, r) => sum + (parseFloat(r.sharePercent) || 0), 0);
+}
+
+interface BeneficiaryEditorProps {
+  rows: BeneficiaryFormRow[];
+  onChange: (rows: BeneficiaryFormRow[]) => void;
+  familyMembers: FamilyMember[];
+}
+
+/** Shared allocation-bar + row editor, mirroring warisan's heir editor UX. */
+function BeneficiaryEditor({
+  rows,
+  onChange,
+  familyMembers,
+}: BeneficiaryEditorProps) {
+  const { t } = useLocale();
+  const allocated = Math.min(100, totalAllocated(rows));
+  const unallocated = Math.max(0, 100 - totalAllocated(rows));
+
+  function updateRow(index: number, patch: Partial<BeneficiaryFormRow>) {
+    onChange(rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  }
+
+  return (
+    <div>
+      <label className="mb-1.5 block text-[12.5px] font-semibold">
+        {t.asuransi.beneficiariesSectionTitle}
+      </label>
+      <div className="space-y-2.5">
+        {rows.map((row, i) => (
+          <div
+            key={i}
+            className="space-y-2 rounded-md border bg-background p-3"
+          >
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={row.name}
+                onChange={(e) => updateRow(i, { name: e.target.value })}
+                placeholder={t.asuransi.beneficiaryNamePlaceholder}
+                className={FIELD_CLASS}
+              />
+              <button
+                type="button"
+                aria-label={t.asuransi.removeBeneficiaryAriaLabel}
+                onClick={() => onChange(rows.filter((_, j) => j !== i))}
+                className="flex size-8 shrink-0 items-center justify-center rounded-full hover:bg-muted"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="text"
+                value={row.relationship}
+                onChange={(e) => updateRow(i, { relationship: e.target.value })}
+                placeholder={t.asuransi.beneficiaryRelationshipPlaceholder}
+                className={FIELD_CLASS}
+              />
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step="0.01"
+                value={row.sharePercent}
+                onChange={(e) => updateRow(i, { sharePercent: e.target.value })}
+                placeholder={t.asuransi.beneficiarySharePercentLabel}
+                className={FIELD_CLASS}
+              />
+            </div>
+            {familyMembers.length > 0 && (
+              <select
+                value={row.memberUserId}
+                onChange={(e) => updateRow(i, { memberUserId: e.target.value })}
+                className={FIELD_CLASS}
+                aria-label={t.asuransi.beneficiaryMemberLabel}
+              >
+                <option value="">
+                  {t.asuransi.beneficiaryMemberNoneOption}
+                </option>
+                {familyMembers.map((m) => (
+                  <option key={m.userId} value={m.userId}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onChange([...rows, emptyBeneficiaryRow()])}
+        className="mt-2 text-[12.5px] font-semibold text-primary"
+      >
+        {t.asuransi.addBeneficiaryButton}
+      </button>
+
+      {rows.length > 0 && (
+        <div className="mt-2.5">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-all"
+              style={{ width: `${allocated}%` }}
+            />
+          </div>
+          <div className="mt-1 text-[11.5px] text-muted-foreground">
+            {unallocated <= 0
+              ? t.asuransi.allocationFullyAllocated
+              : `${allocated}${t.asuransi.allocationAllocatedSuffix} · ${unallocated}${t.asuransi.allocationUnallocatedSuffix}`}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface InsuranceModalProps {
   familyGroupId: string;
   token: string | undefined;
+  editing: InsuranceDto | null;
+  familyMembers: FamilyMember[];
   onClose: () => void;
 }
 
-function AddInsuranceModal({
+/**
+ * Add + edit policy modal (EPIC-021 Group D #14 unified the previously
+ * separate generic edit-modal path into this richer form so beneficiaries —
+ * and every other field — are editable in one place, "the policy modal").
+ */
+function InsuranceModal({
   familyGroupId,
   token,
+  editing,
+  familyMembers,
   onClose,
-}: AddInsuranceModalProps) {
+}: InsuranceModalProps) {
   const { t } = useLocale();
   const queryClient = useQueryClient();
   const innerRef = useRef<HTMLDivElement>(null);
@@ -258,25 +423,52 @@ function AddInsuranceModal({
     };
   }, []);
 
-  const [name, setName] = useState("");
-  const [provider, setProvider] = useState("");
-  const [type, setType] = useState<InsuranceType>("jiwa");
-  const [status, setStatus] = useState<InsuranceStatus>("aktif");
-  const [premiumAmount, setPremiumAmount] = useState("");
-  const [premiumPeriod, setPremiumPeriod] = useState<PremiumPeriod>("monthly");
-  const [coverageAmount, setCoverageAmount] = useState("");
-  const [renewalDate, setRenewalDate] = useState("");
-  const [autoRenewDate, setAutoRenewDate] = useState(false);
-  const [policyNumber, setPolicyNumber] = useState("");
-  const [notes, setNotes] = useState("");
+  const [name, setName] = useState(editing?.name ?? "");
+  const [provider, setProvider] = useState(editing?.provider ?? "");
+  const [type, setType] = useState<InsuranceType>(editing?.type ?? "jiwa");
+  const [status, setStatus] = useState<InsuranceStatus>(
+    editing?.status ?? "aktif",
+  );
+  const [premiumAmount, setPremiumAmount] = useState(
+    editing ? String(Number(BigInt(editing.premiumAmount))) : "",
+  );
+  const [premiumPeriod, setPremiumPeriod] = useState<PremiumPeriod>(
+    editing?.premiumPeriod ?? "monthly",
+  );
+  const [coverageAmount, setCoverageAmount] = useState(
+    editing?.coverageAmount
+      ? String(Number(BigInt(editing.coverageAmount)))
+      : "",
+  );
+  const [renewalDate, setRenewalDate] = useState(
+    editing?.renewalDate ? editing.renewalDate.slice(0, 10) : "",
+  );
+  const [autoRenewDate, setAutoRenewDate] = useState(
+    editing?.autoRenewDate ?? false,
+  );
+  const [policyNumber, setPolicyNumber] = useState(editing?.policyNumber ?? "");
+  const [notes, setNotes] = useState(editing?.notes ?? "");
+  const [beneficiaries, setBeneficiaries] = useState<BeneficiaryFormRow[]>(
+    editing?.beneficiaries.map((b) => ({
+      name: b.name,
+      relationship: b.relationship,
+      sharePercent: b.sharePercent,
+      memberUserId: b.memberUserId ?? "",
+    })) ?? [],
+  );
 
   const mutation = useMutation({
-    mutationFn: (dto: CreateInsuranceDto) =>
-      apiFetch<InsuranceDto>(`/family-groups/${familyGroupId}/insurances`, {
-        method: "POST",
-        token,
-        body: JSON.stringify(dto),
-      }),
+    mutationFn: (dto: CreateInsuranceDto | UpdateInsuranceDto) =>
+      editing
+        ? apiFetch<InsuranceDto>(
+            `/family-groups/${familyGroupId}/insurances/${editing.id}`,
+            { method: "PATCH", token, body: JSON.stringify(dto) },
+          )
+        : apiFetch<InsuranceDto>(`/family-groups/${familyGroupId}/insurances`, {
+            method: "POST",
+            token,
+            body: JSON.stringify(dto),
+          }),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.insurances.all(familyGroupId),
@@ -284,7 +476,7 @@ function AddInsuranceModal({
       void queryClient.invalidateQueries({
         queryKey: queryKeys.insurances.summary(familyGroupId),
       });
-      toast.success(t.asuransi.toastAdded);
+      toast.success(editing ? t.asuransi.toastUpdated : t.asuransi.toastAdded);
     },
   });
 
@@ -301,9 +493,12 @@ function AddInsuranceModal({
   useEffect(() => {
     if (isMutationError) {
       const apiErr = mutationError as { message?: string };
-      toast.error(apiErr.message ?? t.asuransi.toastAddFailed);
+      const fallback = editing
+        ? t.asuransi.toastUpdateFailed
+        : t.asuransi.toastAddFailed;
+      toast.error(apiErr.message ?? fallback);
     }
-  }, [isMutationError, mutationError, t]);
+  }, [isMutationError, mutationError, t, editing]);
 
   function handleSave() {
     const trimmedName = name.trim();
@@ -314,6 +509,19 @@ function AddInsuranceModal({
     const parsedPremium = parseRupiah(premiumAmount);
     if (parsedPremium <= 0) {
       toast.warning(t.asuransi.validationPremiumPositive);
+      return;
+    }
+
+    const beneficiaryDtos: CreateInsuranceBeneficiaryDto[] = beneficiaries
+      .filter((b) => b.name.trim())
+      .map((b) => ({
+        name: b.name.trim(),
+        relationship: b.relationship.trim(),
+        sharePercent: parseFloat(b.sharePercent) || 0,
+        ...(b.memberUserId && { memberUserId: b.memberUserId }),
+      }));
+    if (beneficiaryDtos.reduce((sum, b) => sum + b.sharePercent, 0) > 100) {
+      toast.warning(t.asuransi.validationSharePercentExceeded);
       return;
     }
 
@@ -330,6 +538,7 @@ function AddInsuranceModal({
       ...(renewalDate && { renewalDate, autoRenewDate }),
       ...(policyNumber.trim() && { policyNumber: policyNumber.trim() }),
       ...(notes.trim() && { notes: notes.trim() }),
+      beneficiaries: beneficiaryDtos,
     };
 
     mutation.mutate(dto);
@@ -344,11 +553,11 @@ function AddInsuranceModal({
     >
       <div
         ref={innerRef}
-        className="w-full max-w-[480px] rounded-[16px] bg-card p-6 shadow-xl"
+        className="max-h-[85vh] w-full max-w-[480px] overflow-y-auto rounded-[16px] bg-card p-6 shadow-xl"
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 id="add-insurance-title" className="text-[17px] font-extrabold">
-            {t.asuransi.modalTitle}
+            {editing ? t.asuransi.modalEditTitle : t.asuransi.modalTitle}
           </h2>
           <button
             type="button"
@@ -569,6 +778,12 @@ function AddInsuranceModal({
             />
           </div>
 
+          <BeneficiaryEditor
+            rows={beneficiaries}
+            onChange={setBeneficiaries}
+            familyMembers={familyMembers}
+          />
+
           <Button
             onClick={handleSave}
             disabled={mutation.isPending}
@@ -641,13 +856,6 @@ function PayInsuranceDialog({
   );
 }
 
-const CRUD_JENIS_BY_TYPE: Record<string, string> = {
-  jiwa: "Jiwa",
-  kesehatan: "Kesehatan",
-  kendaraan: "Kendaraan",
-  properti: "Properti",
-};
-
 export default function AsuransiPage() {
   const { t, locale } = useLocale();
   const { data: session } = useSession();
@@ -656,10 +864,20 @@ export default function AsuransiPage() {
   const queryClient = useQueryClient();
 
   const [showModal, setShowModal] = useState(false);
-  const [crud, setCrud] = useState<CrudModalState | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingItem, setEditingItem] = useState<InsuranceDto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<InsuranceDto | null>(null);
   const [payTarget, setPayTarget] = useState<InsuranceDto | null>(null);
+
+  // EPIC-021 Group D (#14) — family members for the beneficiary's optional
+  // "link to a family-group member" picker.
+  const { data: familyMembers = [] } = useQuery<FamilyMember[]>({
+    queryKey: [...queryKeys.familyGroups.members(familyGroupId ?? ""), token],
+    queryFn: () =>
+      apiFetch<FamilyMember[]>(`/family-groups/${familyGroupId}/members`, {
+        token,
+      }),
+    enabled: Boolean(familyGroupId) && Boolean(token),
+  });
 
   const payMutation = useMutation({
     mutationFn: (item: InsuranceDto) => {
@@ -685,49 +903,6 @@ export default function AsuransiPage() {
     onError: () => toast.error(t.asuransi.toastRenewalFailed),
   });
 
-  const CRUD_TYPE_BY_JENIS: Record<string, string> = {
-    Jiwa: "jiwa",
-    Kesehatan: "kesehatan",
-    Kendaraan: "kendaraan",
-    Properti: "properti",
-    Pendidikan: "lainnya",
-  };
-
-  async function handleEditSubmit(
-    _entity: string,
-    _mode: "add" | "edit",
-    values: Record<string, string>,
-  ) {
-    if (!familyGroupId || !token || !editingId) return;
-    try {
-      await apiFetch(
-        `/family-groups/${familyGroupId}/insurances/${editingId}`,
-        {
-          token,
-          method: "PATCH",
-          body: JSON.stringify({
-            name: values.nama,
-            type: CRUD_TYPE_BY_JENIS[values.jenis ?? ""] ?? "lainnya",
-            premiumAmount: String(parseRupiah(values.premi ?? "0")),
-            coverageAmount: values.pertanggungan
-              ? String(parseRupiah(values.pertanggungan))
-              : undefined,
-            renewalDate: values.jatuhtempo || undefined,
-          }),
-        },
-      );
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.insurances.all(familyGroupId),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.insurances.summary(familyGroupId),
-      });
-      toast.success(t.asuransi.toastUpdated);
-    } catch {
-      toast.error(t.asuransi.toastUpdateFailed);
-    }
-  }
-
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       apiFetch<void>(`/family-groups/${familyGroupId}/insurances/${id}`, {
@@ -751,25 +926,6 @@ export default function AsuransiPage() {
       toast.error(err.message ?? t.asuransi.toastDeleteFailed);
     },
   });
-
-  const openEdit = (item: InsuranceDto) => {
-    setEditingId(item.id);
-    setCrud({
-      entity: "asuransi",
-      mode: "edit",
-      initialValues: {
-        nama: item.name,
-        ...(CRUD_JENIS_BY_TYPE[item.type] && {
-          jenis: CRUD_JENIS_BY_TYPE[item.type],
-        }),
-        premi: String(Number(BigInt(item.premiumAmount))),
-        pertanggungan: item.coverageAmount
-          ? String(Number(BigInt(item.coverageAmount)))
-          : "",
-        jatuhtempo: item.renewalDate ? item.renewalDate.slice(0, 10) : "",
-      },
-    });
-  };
 
   const {
     data: insurances,
@@ -855,25 +1011,32 @@ export default function AsuransiPage() {
           <PolicyCard
             key={item.id}
             item={item}
-            onEdit={() => openEdit(item)}
+            onEdit={() => setEditingItem(item)}
             onPay={() => setPayTarget(item)}
             onDelete={() => setDeleteTarget(item)}
           />
         ))}
 
       {showModal && familyGroupId && (
-        <AddInsuranceModal
+        <InsuranceModal
           familyGroupId={familyGroupId}
           token={token}
+          editing={null}
+          familyMembers={familyMembers}
           onClose={() => setShowModal(false)}
         />
       )}
 
-      <CrudModal
-        state={crud}
-        onClose={() => setCrud(null)}
-        onSubmit={handleEditSubmit}
-      />
+      {editingItem && familyGroupId && (
+        <InsuranceModal
+          familyGroupId={familyGroupId}
+          token={token}
+          editing={editingItem}
+          familyMembers={familyMembers}
+          onClose={() => setEditingItem(null)}
+        />
+      )}
+
       <ConfirmDeleteDialog
         label={deleteTarget ? t.shell.navSections.asuransi : null}
         onClose={() => setDeleteTarget(null)}

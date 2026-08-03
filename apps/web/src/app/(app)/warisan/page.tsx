@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CloudUpload, Plus, Save, Scroll } from "lucide-react";
+import { CloudUpload, Plus, Save, Scroll, X } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -17,6 +17,8 @@ import { formatAmountInput, formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 
 import type {
+  AssetDto,
+  CreateHeirDto,
   CreateInheritanceAssetDto,
   InheritanceAssetDto,
   InheritanceVisibility,
@@ -49,6 +51,31 @@ const ASSET_TYPE_BG: Record<string, string> = {
   Saham: "#EDE9FE",
   Lainnya: "#F3F4F6",
 };
+
+// EPIC-021 Group D (#14) — mirrors the `FamilyMember` shape used on /akun for
+// the optional "link a heir to a family member" picker.
+type FamilyMember = {
+  id: string;
+  userId: string;
+  name: string;
+};
+
+// EPIC-021 Group D (#12) — one heir row bound to text inputs; parsed into a
+// `CreateHeirDto` on save. Rows with an empty name are dropped on submit.
+interface HeirFormRow {
+  name: string;
+  relationship: string;
+  sharePercent: string;
+  memberUserId: string;
+}
+
+function emptyHeirRow(): HeirFormRow {
+  return { name: "", relationship: "", sharePercent: "", memberUserId: "" };
+}
+
+function totalAllocated(rows: HeirFormRow[]): number {
+  return rows.reduce((sum, r) => sum + (parseFloat(r.sharePercent) || 0), 0);
+}
 
 function visibilityToBoolean(v: InheritanceVisibility): boolean {
   return v !== "private";
@@ -87,6 +114,13 @@ function AssetRow({
     item.heirs.length > 0
       ? item.heirs.map((h) => `${h.name} (${h.sharePercent}%)`).join(", ")
       : null;
+  // EPIC-021 Group D (#12) — "setiap asset ada ahli waris sesuai presentasi":
+  // surface the unallocated remainder alongside the heir list.
+  const allocated = item.heirs.reduce(
+    (sum, h) => sum + Number(h.sharePercent),
+    0,
+  );
+  const unallocated = Math.max(0, 100 - allocated);
 
   return (
     <div
@@ -104,6 +138,11 @@ function AssetRow({
           {item.assetType}
           {heirSummary ? ` · ${heirSummary}` : ""}
         </div>
+        {item.heirs.length > 0 && unallocated > 0 && (
+          <div className="text-[11px] text-warning">
+            {unallocated}% belum dialokasikan
+          </div>
+        )}
       </div>
       <div className="text-right text-[13.5px] font-bold shrink-0">
         {formatRupiah(Number(BigInt(item.estimatedValue)))}
@@ -135,6 +174,119 @@ function AssetSkeleton() {
   );
 }
 
+interface HeirEditorProps {
+  rows: HeirFormRow[];
+  onChange: (rows: HeirFormRow[]) => void;
+  familyMembers: FamilyMember[];
+}
+
+/**
+ * EPIC-021 Group D (#12) — heir editor: free-text name/relationship, an
+ * optional link to a family-group member, and an allocation bar showing the
+ * unallocated remainder ("x% belum dialokasikan"). Heirs remain optional —
+ * an asset can be recorded with zero heirs.
+ */
+function HeirEditor({ rows, onChange, familyMembers }: HeirEditorProps) {
+  const allocated = Math.min(100, totalAllocated(rows));
+  const unallocated = Math.max(0, 100 - totalAllocated(rows));
+
+  function updateRow(index: number, patch: Partial<HeirFormRow>) {
+    onChange(rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  }
+
+  return (
+    <div>
+      <label className="mb-1.5 block text-[12.5px] font-semibold">
+        Ahli Waris
+      </label>
+      <div className="space-y-2.5">
+        {rows.map((row, i) => (
+          <div
+            key={i}
+            className="space-y-2 rounded-md border bg-background p-3"
+          >
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={row.name}
+                onChange={(e) => updateRow(i, { name: e.target.value })}
+                placeholder="cth: Siti Arsandi"
+                className={FIELD_CLASS}
+              />
+              <button
+                type="button"
+                aria-label="Hapus ahli waris"
+                onClick={() => onChange(rows.filter((_, j) => j !== i))}
+                className="flex size-8 shrink-0 items-center justify-center rounded-full hover:bg-muted"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="text"
+                value={row.relationship}
+                onChange={(e) => updateRow(i, { relationship: e.target.value })}
+                placeholder="cth: Anak, Pasangan"
+                className={FIELD_CLASS}
+              />
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step="0.01"
+                value={row.sharePercent}
+                onChange={(e) => updateRow(i, { sharePercent: e.target.value })}
+                placeholder="Persentase (%)"
+                className={FIELD_CLASS}
+              />
+            </div>
+            {familyMembers.length > 0 && (
+              <select
+                value={row.memberUserId}
+                onChange={(e) => updateRow(i, { memberUserId: e.target.value })}
+                className={FIELD_CLASS}
+                aria-label="Hubungkan ke Anggota Keluarga"
+              >
+                <option value="">Tidak terhubung</option>
+                {familyMembers.map((m) => (
+                  <option key={m.userId} value={m.userId}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onChange([...rows, emptyHeirRow()])}
+        className="mt-2 text-[12.5px] font-semibold text-primary"
+      >
+        + Tambah Ahli Waris
+      </button>
+
+      {rows.length > 0 && (
+        <div className="mt-2.5">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-all"
+              style={{ width: `${allocated}%` }}
+            />
+          </div>
+          <div className="mt-1 text-[11.5px] text-muted-foreground">
+            {unallocated <= 0
+              ? "Teralokasi penuh (100%)"
+              : `${allocated}% dialokasikan · ${unallocated}% belum dialokasikan`}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function WarisanPage() {
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
@@ -152,6 +304,12 @@ export default function WarisanPage() {
   const [valueInput, setValueInput] = useState("");
   const [notes, setNotes] = useState("");
   const [visible, setVisible] = useState(true);
+  // EPIC-021 Group D (#11) — "Pilih dari Aset" mode: pick an existing Asset
+  // instead of manual re-entry. Manual entry stays the default/available mode.
+  const [pickMode, setPickMode] = useState<"manual" | "asset">("manual");
+  const [selectedAssetId, setSelectedAssetId] = useState("");
+  // EPIC-021 Group D (#12) — heirs are optional; percentages may sum to <= 100.
+  const [heirs, setHeirs] = useState<HeirFormRow[]>([]);
 
   const listKey = familyGroupId
     ? queryKeys.inheritance.list(familyGroupId)
@@ -165,6 +323,31 @@ export default function WarisanPage() {
         `/family-groups/${familyGroupId}/inheritance`,
         { token },
       ),
+  });
+
+  // Source assets for the "Pilih dari Aset" picker (distinct from the
+  // inheritance records above).
+  const { data: pickableAssets = [] } = useQuery<AssetDto[]>({
+    queryKey: familyGroupId
+      ? queryKeys.assets.all(familyGroupId)
+      : ["assets", "disabled"],
+    enabled: !!familyGroupId && !!token,
+    queryFn: () =>
+      apiFetch<AssetDto[]>(`/family-groups/${familyGroupId}/assets`, {
+        token,
+      }),
+  });
+
+  // Family members for the heir's optional "link to a family member" picker.
+  const { data: familyMembers = [] } = useQuery<FamilyMember[]>({
+    queryKey: familyGroupId
+      ? [...queryKeys.familyGroups.members(familyGroupId), token]
+      : ["family-members", "disabled"],
+    enabled: !!familyGroupId && !!token,
+    queryFn: () =>
+      apiFetch<FamilyMember[]>(`/family-groups/${familyGroupId}/members`, {
+        token,
+      }),
   });
 
   const createMutation = useMutation({
@@ -242,6 +425,9 @@ export default function WarisanPage() {
     setValueInput("");
     setNotes("");
     setVisible(true);
+    setPickMode("manual");
+    setSelectedAssetId("");
+    setHeirs([]);
   }
 
   function openEditAsset(item: InheritanceAssetDto) {
@@ -251,7 +437,30 @@ export default function WarisanPage() {
     setValueInput(Number(BigInt(item.estimatedValue)).toLocaleString("id-ID"));
     setNotes(item.notes ?? "");
     setVisible(visibilityToBoolean(item.visibility));
+    setPickMode(item.assetId ? "asset" : "manual");
+    setSelectedAssetId(item.assetId ?? "");
+    setHeirs(
+      item.heirs.map((h) => ({
+        name: h.name,
+        relationship: h.relationship,
+        sharePercent: h.sharePercent,
+        memberUserId: h.memberUserId ?? "",
+      })),
+    );
     setOpen(true);
+  }
+
+  // EPIC-021 Group D (#11) — prefill nama/nilai from the picked Asset; the
+  // user can still edit both fields before saving.
+  function handlePickAsset(assetId: string) {
+    setSelectedAssetId(assetId);
+    const picked = pickableAssets.find((a) => a.id === assetId);
+    if (picked) {
+      setName(picked.name);
+      setValueInput(
+        Number(BigInt(picked.currentValue)).toLocaleString("id-ID"),
+      );
+    }
   }
 
   function handleSave() {
@@ -269,12 +478,30 @@ export default function WarisanPage() {
       toast.error("Nilai estimasi tidak valid.");
       return;
     }
+
+    const heirDtos: CreateHeirDto[] = heirs
+      .filter((h) => h.name.trim())
+      .map((h) => ({
+        name: h.name.trim(),
+        relationship: h.relationship.trim(),
+        sharePercent: parseFloat(h.sharePercent) || 0,
+        ...(h.memberUserId && { memberUserId: h.memberUserId }),
+      }));
+    if (heirDtos.reduce((sum, h) => sum + h.sharePercent, 0) > 100) {
+      toast.error("Total persentase ahli waris tidak boleh lebih dari 100%.");
+      return;
+    }
+
     const dto = {
       name: name.trim(),
       assetType,
       estimatedValue,
       notes: notes.trim() || undefined,
       visibility: booleanToVisibility(visible),
+      ...(pickMode === "asset" && selectedAssetId
+        ? { assetId: selectedAssetId }
+        : {}),
+      heirs: heirDtos,
     };
     if (editing) {
       updateMutation.mutate({ id: editing.id, dto });
@@ -420,6 +647,58 @@ export default function WarisanPage() {
           </DialogTitle>
 
           <div className="space-y-4">
+            {/* EPIC-021 Group D (#11) — pick an existing Asset instead of
+                manual re-entry; manual entry stays available. */}
+            <div>
+              <label className="mb-1.5 block text-[12.5px] font-semibold">
+                Sumber Data
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPickMode("manual")}
+                  className={`rounded-md border px-3 py-2 text-[12.5px] font-semibold transition-colors ${
+                    pickMode === "manual"
+                      ? "border-primary bg-accent text-primary-strong"
+                      : "bg-background"
+                  }`}
+                >
+                  Input Manual
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPickMode("asset")}
+                  className={`rounded-md border px-3 py-2 text-[12.5px] font-semibold transition-colors ${
+                    pickMode === "asset"
+                      ? "border-primary bg-accent text-primary-strong"
+                      : "bg-background"
+                  }`}
+                >
+                  Pilih dari Aset
+                </button>
+              </div>
+            </div>
+
+            {pickMode === "asset" && (
+              <div>
+                <label className="mb-1.5 block text-[12.5px] font-semibold">
+                  Pilih Aset
+                </label>
+                <select
+                  value={selectedAssetId}
+                  onChange={(e) => handlePickAsset(e.target.value)}
+                  className={FIELD_CLASS}
+                >
+                  <option value="">— Pilih aset —</option>
+                  {pickableAssets.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} ({formatRupiah(Number(BigInt(a.currentValue)))})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div>
               <label className="mb-1.5 block text-[12.5px] font-semibold">
                 Kategori
@@ -520,6 +799,14 @@ export default function WarisanPage() {
                 </div>
               </div>
             </div>
+
+            {/* EPIC-021 Group D (#12) — heirs are optional; add/edit by
+                percentage with an allocation bar. */}
+            <HeirEditor
+              rows={heirs}
+              onChange={setHeirs}
+              familyMembers={familyMembers}
+            />
 
             <Button
               onClick={handleSave}

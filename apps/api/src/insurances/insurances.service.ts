@@ -1,15 +1,31 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 
 import { ownerNotifPrefs } from "../notifications/notification-prefs";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
+import type { CreateInsuranceBeneficiaryDto } from "./dto/create-insurance-beneficiary.dto";
 import type { CreateInsuranceDto } from "./dto/create-insurance.dto";
 import type {
+  InsuranceBeneficiaryResponseDto,
   InsuranceResponseDto,
   InsuranceSummaryResponseDto,
 } from "./dto/insurance-response.dto";
 import type { UpdateInsuranceDto } from "./dto/update-insurance.dto";
+
+type BeneficiaryRow = {
+  id: string;
+  insuranceId: string;
+  name: string;
+  relationship: string;
+  sharePercent: { toString(): string };
+  memberUserId: string | null;
+  createdAt: Date;
+};
 
 type InsuranceRow = {
   id: string;
@@ -28,10 +44,25 @@ type InsuranceRow = {
   currency: string;
   createdAt: Date;
   updatedAt: Date;
+  beneficiaries?: BeneficiaryRow[];
 };
 
 function daysUntil(date: Date): number {
   return Math.ceil((date.getTime() - Date.now()) / 86_400_000);
+}
+
+function toBeneficiaryDto(
+  row: BeneficiaryRow,
+): InsuranceBeneficiaryResponseDto {
+  return {
+    id: row.id,
+    insuranceId: row.insuranceId,
+    name: row.name,
+    relationship: row.relationship,
+    sharePercent: row.sharePercent.toString(),
+    memberUserId: row.memberUserId,
+    createdAt: row.createdAt.toISOString(),
+  };
 }
 
 function toInsuranceDto(row: InsuranceRow): InsuranceResponseDto {
@@ -51,6 +82,7 @@ function toInsuranceDto(row: InsuranceRow): InsuranceResponseDto {
     daysUntilRenewal: row.renewalDate ? daysUntil(row.renewalDate) : null,
     notes: row.notes,
     currency: row.currency,
+    beneficiaries: (row.beneficiaries ?? []).map(toBeneficiaryDto),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -62,6 +94,16 @@ function monthlyAmount(premiumAmount: bigint, premiumPeriod: string): bigint {
   return premiumAmount;
 }
 
+// EPIC-021 Group D (#14) — beneficiaries are optional and percentages may be
+// partially allocated; only reject when the sum exceeds 100, mirroring the
+// warisan heir rule (Decision #9: same beneficiary shape/rule as heirs).
+function validateSharePercent(beneficiaries: { sharePercent: number }[]): void {
+  const total = beneficiaries.reduce((sum, b) => sum + b.sharePercent, 0);
+  if (total > 100) {
+    throw new BadRequestException(`Total sharePercent (${total}) exceeds 100`);
+  }
+}
+
 @Injectable()
 export class InsurancesService {
   constructor(private readonly prisma: PrismaService) {}
@@ -69,6 +111,7 @@ export class InsurancesService {
   async findAll(familyGroupId: string): Promise<InsuranceResponseDto[]> {
     const rows = await this.prisma.insurance.findMany({
       where: { familyGroupId },
+      include: { beneficiaries: true },
       orderBy: { createdAt: "asc" },
     });
     return rows.map(toInsuranceDto);
@@ -99,6 +142,10 @@ export class InsurancesService {
     familyGroupId: string,
     dto: CreateInsuranceDto,
   ): Promise<InsuranceResponseDto> {
+    if (dto.beneficiaries && dto.beneficiaries.length > 0) {
+      validateSharePercent(dto.beneficiaries);
+    }
+
     const insurance = await this.prisma.insurance.create({
       data: {
         familyGroupId,
@@ -114,7 +161,12 @@ export class InsurancesService {
         policyNumber: dto.policyNumber ?? null,
         notes: dto.notes ?? null,
         currency: dto.currency ?? "IDR",
+        beneficiaries:
+          dto.beneficiaries && dto.beneficiaries.length > 0
+            ? { create: dto.beneficiaries.map(toBeneficiaryCreateInput) }
+            : undefined,
       },
+      include: { beneficiaries: true },
     });
 
     void this.maybeNotifyRenewal(
@@ -138,40 +190,57 @@ export class InsurancesService {
       throw new NotFoundException("Insurance not found");
     }
 
-    const updated = await this.prisma.insurance.update({
-      where: { id, familyGroupId },
-      data: {
-        name: dto.name ?? existing.name,
-        provider:
-          dto.provider !== undefined
-            ? (dto.provider ?? null)
-            : existing.provider,
-        type: dto.type ?? existing.type,
-        status: dto.status ?? existing.status,
-        coverageAmount:
-          dto.coverageAmount !== undefined
-            ? dto.coverageAmount
-              ? BigInt(dto.coverageAmount)
-              : null
-            : existing.coverageAmount,
-        premiumAmount: dto.premiumAmount
-          ? BigInt(dto.premiumAmount)
-          : existing.premiumAmount,
-        premiumPeriod: dto.premiumPeriod ?? existing.premiumPeriod,
-        renewalDate:
-          dto.renewalDate !== undefined
-            ? dto.renewalDate
-              ? new Date(dto.renewalDate)
-              : null
-            : existing.renewalDate,
-        autoRenewDate: dto.autoRenewDate ?? existing.autoRenewDate,
-        policyNumber:
-          dto.policyNumber !== undefined
-            ? (dto.policyNumber ?? null)
-            : existing.policyNumber,
-        notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
-        currency: dto.currency ?? existing.currency,
-      },
+    if (dto.beneficiaries && dto.beneficiaries.length > 0) {
+      validateSharePercent(dto.beneficiaries);
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      if (dto.beneficiaries !== undefined) {
+        await tx.insuranceBeneficiary.deleteMany({
+          where: { insuranceId: id },
+        });
+      }
+
+      return tx.insurance.update({
+        where: { id, familyGroupId },
+        data: {
+          name: dto.name ?? existing.name,
+          provider:
+            dto.provider !== undefined
+              ? (dto.provider ?? null)
+              : existing.provider,
+          type: dto.type ?? existing.type,
+          status: dto.status ?? existing.status,
+          coverageAmount:
+            dto.coverageAmount !== undefined
+              ? dto.coverageAmount
+                ? BigInt(dto.coverageAmount)
+                : null
+              : existing.coverageAmount,
+          premiumAmount: dto.premiumAmount
+            ? BigInt(dto.premiumAmount)
+            : existing.premiumAmount,
+          premiumPeriod: dto.premiumPeriod ?? existing.premiumPeriod,
+          renewalDate:
+            dto.renewalDate !== undefined
+              ? dto.renewalDate
+                ? new Date(dto.renewalDate)
+                : null
+              : existing.renewalDate,
+          autoRenewDate: dto.autoRenewDate ?? existing.autoRenewDate,
+          policyNumber:
+            dto.policyNumber !== undefined
+              ? (dto.policyNumber ?? null)
+              : existing.policyNumber,
+          notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
+          currency: dto.currency ?? existing.currency,
+          beneficiaries:
+            dto.beneficiaries !== undefined && dto.beneficiaries.length > 0
+              ? { create: dto.beneficiaries.map(toBeneficiaryCreateInput) }
+              : undefined,
+        },
+        include: { beneficiaries: true },
+      });
     });
 
     void this.maybeNotifyRenewal(
@@ -218,4 +287,13 @@ export class InsurancesService {
       // notification is best-effort; never fail the main operation
     }
   }
+}
+
+function toBeneficiaryCreateInput(b: CreateInsuranceBeneficiaryDto) {
+  return {
+    name: b.name,
+    relationship: b.relationship,
+    sharePercent: b.sharePercent,
+    memberUserId: b.memberUserId ?? null,
+  };
 }

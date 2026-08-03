@@ -674,6 +674,7 @@ export const en = {
       kesehatan: "Health Insurance",
       kendaraan: "Vehicle Insurance",
       properti: "Property Insurance",
+      pendidikan: "Education Insurance",
       lainnya: "Other",
     },
     periodSuffixLabels: {
@@ -705,6 +706,7 @@ export const en = {
     validationNameRequired: "Insurance name is required",
     validationPremiumPositive: "Premium must be greater than Rp 0",
     modalTitle: "Add Insurance",
+    modalEditTitle: "Edit Insurance",
     modalCloseAriaLabel: "Close modal",
     fieldNameLabel: "Insurance Name *",
     fieldNamePlaceholder: "e.g. Family Life Insurance",
@@ -731,6 +733,22 @@ export const en = {
     payConfirmButton: "Yes, Already Paid",
     toastRenewalRecordedPrefix: "Renewal recorded — next due date ",
     toastRenewalFailed: "Failed to record renewal. Try again.",
+    beneficiariesSectionTitle: "Insurance Beneficiaries",
+    beneficiariesLabel: "Beneficiaries",
+    beneficiaryNameLabel: "Name",
+    beneficiaryNamePlaceholder: "e.g. Siti Arsandi",
+    beneficiaryRelationshipLabel: "Relationship",
+    beneficiaryRelationshipPlaceholder: "e.g. Child, Spouse",
+    beneficiarySharePercentLabel: "Share (%)",
+    beneficiaryMemberLabel: "Link to Family Member",
+    beneficiaryMemberNoneOption: "Not linked",
+    addBeneficiaryButton: "+ Add Beneficiary",
+    removeBeneficiaryAriaLabel: "Remove beneficiary",
+    allocationAllocatedSuffix: "% allocated",
+    allocationUnallocatedSuffix: "% unallocated",
+    allocationFullyAllocated: "Fully allocated (100%)",
+    validationSharePercentExceeded:
+      "Total beneficiary share cannot exceed 100%",
   },
   kalkulator: {
     tabs: {
