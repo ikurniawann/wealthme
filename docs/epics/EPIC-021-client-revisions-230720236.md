@@ -1,6 +1,6 @@
 # EPIC-021: Client Revision Punch-List (WealthMe 230720236)
 
-status: backlog
+status: on-progress
 environment: dev
 retries: 0
 priority: P1

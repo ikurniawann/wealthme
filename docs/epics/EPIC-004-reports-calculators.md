@@ -1,6 +1,6 @@
 # EPIC-004: Reports & Calculators
 
-status: ready-for-qa
+status: done
 environment: dev
 phase: 4
 priority: P1
@@ -67,3 +67,5 @@ Zakat & PPh 21 yang deterministik di backend dan kalkulator finansial.
 - 2026-06-14 /epic-loop EPIC-004 #1 "Report read-models" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/120
 - 2026-06-14 /epic-loop EPIC-004 #2 "Export" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/121
 - 2026-06-14 /epic-loop EPIC-004 #3 "Calculators" → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/122
+
+- **2026-08-03/04 — /nerve QA sweep (delegated QA; user confirms from the live system). Evidence: gates green on development@5f2383f (qa/test/security); fresh DEV deploy clean (compose build, migrate+seed exit 0, api/web healthy); e2e vs https://wealthme.demo-wit.id — auth, route-protection, and all page regression specs green (57 passed, 2 flaky passed on serial retry, 0 real failures); code-level criteria verification by 4 parallel QA agents. **Verdict: QA-PASS with follow-ups. 7 tenant-scoped read-models + all 16 laporan tabs wired; deterministic zakat/PPh21 services. Fixed: 'Export PDF' plaintext stub → real PDF via pdf-lib (PR #200). Follow-ups recorded: 'Export Excel' emits CSV (honest relabel lands with the EPIC-018 A3 laporan i18n pass); FE-duplicated zakat/PPh21 formulas + nisab constant drift (BE 93.5jt vs UI 102jt) → wire donation/tax pages to /calculators; export job state is an in-memory Map (fine single-replica DEV). Status → done.

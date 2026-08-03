@@ -1,6 +1,6 @@
 # EPIC-010: Frontend Theming (Swappable shadcn Color Presets) + Demo Visual Alignment
 
-status: ready-for-qa
+status: done
 environment: dev
 retries: 0
 phase: 4
@@ -196,3 +196,5 @@ live ≈ demo across presets; PR merged to `development`.
   Aset consolidated net-worth (P1), Transaksi filters/affordance (P2), Rekening
   card styling (P2), Ringkasan Komposisi viz (P2), Laporan tab overflow (P2).
 - No application code changed in this run (audit + epic authoring only).
+
+- **2026-08-03/04 — /nerve QA sweep (delegated QA; user confirms from the live system). Evidence: gates green on development@5f2383f (qa/test/security); fresh DEV deploy clean (compose build, migrate+seed exit 0, api/web healthy); e2e vs https://wealthme.demo-wit.id — auth, route-protection, and all page regression specs green (57 passed, 2 flaky passed on serial retry, 0 real failures); code-level criteria verification by 4 parallel QA agents. **Verdict: QA-PASS. 6 presets with light+dark blocks, pre-paint script, keyboard-navigable picker, Group C content real (sort/pills/badges). T-1014 visual live≈demo sign-off remains the user's confirm-from-system step; docs/ui-audit artifacts are from Jun 17 (pre-Group-C) — refresh optional. Status → done.
