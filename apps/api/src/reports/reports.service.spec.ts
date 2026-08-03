@@ -114,7 +114,7 @@ function makeFakePrisma(
                 ? filterTx(
                     transactions.filter((t) => t.accountId === a.id),
                     nestedWhere,
-                  )
+                  ).map(withRelations)
                 : undefined;
               return { ...a, transactions: nestedTxs };
             }),
@@ -430,5 +430,60 @@ describe("ReportsService privacy enforcement", () => {
       true,
     );
     expect(cf.operatingOutflows).toBe(0); // excluded from operating cashflow too
+  });
+
+  it("getBankReport + getDetailReport also classify by COA direction, not tx.type (EPIC-017 consistency gap)", async () => {
+    // Same TRANSFER-mapped-category fixture as the PNL/Cashflow regression
+    // above — Ringkasan/PNL/Arus Kas already excluded it; Bank + Detail must
+    // now match instead of still counting it via tx.type.
+    const now = new Date();
+    const accounts: FakeAccount[] = [
+      {
+        id: "a1",
+        balance: 0n,
+        type: "bank",
+        name: "A",
+        institution: null,
+        isPrivate: false,
+      },
+    ];
+    const categories: FakeCategory[] = [
+      {
+        id: "c-transfer",
+        name: "Tabungan",
+        color: null,
+        isPrivate: false,
+        coaAccount: { direction: "TRANSFER" },
+      },
+    ];
+    const transactions: FakeTransaction[] = [
+      {
+        id: "t1",
+        accountId: "a1",
+        categoryId: "c-transfer",
+        amount: 1000n,
+        type: "expense",
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      },
+    ];
+    const p = makeFakePrisma(accounts, categories, transactions);
+    const mod = await Test.createTestingModule({
+      providers: [ReportsService, { provide: PrismaService, useValue: p }],
+    }).compile();
+    const svc = mod.get(ReportsService);
+    const start = new Date(now.getTime() - 86_400_000);
+    const end = new Date(now.getTime() + 86_400_000);
+
+    const bank = await svc.getBankReport(FAMILY_GROUP_ID, start, end, true);
+    expect(bank.totalExpense).toBe(0);
+    expect(bank.banks[0]?.expense).toBe(0);
+
+    const detail = await svc.getDetailReport(FAMILY_GROUP_ID, start, end, true);
+    expect(detail.totalExpense).toBe(0);
+    // The row itself is still listed (with its own recorded type) — only the
+    // aggregate totals are COA-classified.
+    expect(detail.transactions[0]?.type).toBe("expense");
   });
 });

@@ -1,4 +1,10 @@
-import { Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 
 import {
   CATEGORIZATION_PORT,
@@ -27,6 +33,12 @@ import type {
 } from "./dto/transaction-response.dto";
 import type { UpdateTransactionDto } from "./dto/update-transaction.dto";
 import type { TransactionType } from "@prisma/client";
+
+// EPIC-021 Group B #28 — description for the linked admin-fee expense
+// auto-created on the destination account of a transfer (e.g. e-wallet
+// top-up). Kept in Indonesian to match the rest of user-facing transaction
+// copy generated server-side (see WM_CONVENTIONS.md fidelity note).
+const ADMIN_FEE_DESCRIPTION = "Biaya admin top-up";
 
 function escapeHtml(raw: string): string {
   return raw
@@ -77,6 +89,7 @@ export class TransactionsService {
         include: {
           category: { select: { name: true } },
           account: { select: { name: true } },
+          toAccount: { select: { name: true } },
         },
       }),
       this.prisma.transaction.count({ where }),
@@ -108,6 +121,7 @@ export class TransactionsService {
       include: {
         category: { select: { name: true } },
         account: { select: { name: true } },
+        toAccount: { select: { name: true } },
       },
     });
     if (!tx) throw new NotFoundException("Transaction not found");
@@ -123,6 +137,38 @@ export class TransactionsService {
     });
     if (!account)
       throw new NotFoundException(`Account ${dto.accountId} not found`);
+
+    // EPIC-021 Group B (#23/#27/#28) — real source -> destination transfers.
+    // toAccountId/adminFee are only meaningful on a transfer; reject the
+    // combination early so a malformed request never reaches the balance
+    // transaction below.
+    if (dto.toAccountId && dto.type !== "transfer") {
+      throw new BadRequestException(
+        "toAccountId is only valid for transfer transactions",
+      );
+    }
+    if (dto.adminFee !== undefined && dto.adminFee > 0 && !dto.toAccountId) {
+      throw new BadRequestException("adminFee requires a toAccountId");
+    }
+    // No upper bound on adminFee relative to amount — deliberate. A tiny
+    // e-wallet top-up with a flat fee (e.g. Rp 1.000 top-up, Rp 2.500 admin
+    // fee) is a real-world case the client described (#28); the fee can
+    // legitimately exceed the transfer amount itself. Only `@Min(0)` on the
+    // DTO applies.
+
+    let toAccount: { id: string } | null = null;
+    if (dto.type === "transfer" && dto.toAccountId) {
+      if (dto.toAccountId === dto.accountId) {
+        throw new BadRequestException(
+          "Source and destination account must differ",
+        );
+      }
+      toAccount = await this.prisma.account.findUnique({
+        where: { id: dto.toAccountId, familyGroupId },
+      });
+      if (!toAccount)
+        throw new NotFoundException(`Account ${dto.toAccountId} not found`);
+    }
 
     let resolvedCategoryId = dto.categoryId ?? null;
 
@@ -155,6 +201,7 @@ export class TransactionsService {
         data: {
           familyGroupId,
           accountId: dto.accountId,
+          toAccountId: toAccount ? dto.toAccountId : null,
           categoryId: resolvedCategoryId,
           amount: BigInt(dto.amount),
           type: dto.type,
@@ -164,17 +211,63 @@ export class TransactionsService {
         include: {
           category: { select: { name: true } },
           account: { select: { name: true } },
+          toAccount: { select: { name: true } },
         },
       });
 
-      await this.applyBalanceDelta(
-        prisma,
-        familyGroupId,
-        dto.type,
-        dto.accountId,
-        BigInt(dto.amount),
-        "add",
-      );
+      if (toAccount) {
+        // Real two-sided transfer: debit source, credit destination
+        // atomically within this same $transaction.
+        await this.applyTransferBalanceDelta(
+          prisma,
+          familyGroupId,
+          dto.accountId,
+          toAccount.id,
+          BigInt(dto.amount),
+          "add",
+        );
+
+        // #28 — e-wallet top-up admin fee: the destination is credited the
+        // full transfer amount above, then the fee is charged to the
+        // DESTINATION account as its own linked expense Transaction (not a
+        // deduction from the transfer amount itself). Simplest honest
+        // model: a normal, independently-visible expense row (categoryId
+        // null — no fee-specific COA category exists yet), NOT a special
+        // field on Transaction. It is not linked back to the parent
+        // transfer by FK, so deleting/editing the parent transfer does not
+        // cascade to it — the fee already left the destination account and
+        // is treated as a real, standalone expense.
+        if (dto.adminFee && dto.adminFee > 0) {
+          await prisma.transaction.create({
+            data: {
+              familyGroupId,
+              accountId: toAccount.id,
+              categoryId: null,
+              amount: BigInt(dto.adminFee),
+              type: "expense",
+              description: ADMIN_FEE_DESCRIPTION,
+              occurredAt: new Date(dto.occurredAt),
+            },
+          });
+          await this.applyBalanceDelta(
+            prisma,
+            familyGroupId,
+            "expense",
+            toAccount.id,
+            BigInt(dto.adminFee),
+            "add",
+          );
+        }
+      } else {
+        await this.applyBalanceDelta(
+          prisma,
+          familyGroupId,
+          dto.type,
+          dto.accountId,
+          BigInt(dto.amount),
+          "add",
+        );
+      }
 
       return tx;
     });
@@ -390,41 +483,123 @@ export class TransactionsService {
         throw new NotFoundException(`Category ${dto.categoryId} not found`);
     }
 
+    // EPIC-021 Group B — every destination-related invariant below is
+    // checked against the EFFECTIVE state (the existing row merged with
+    // whatever this patch supplies), never just the fields present in this
+    // one PATCH. Two bugs that shape follows from:
+    //  1. `PATCH { accountId: <the row's existing toAccountId> }` — with no
+    //     toAccountId in the payload — must still be rejected as a
+    //     self-referencing transfer; checking only `dto.toAccountId` misses
+    //     it because the payload never mentions toAccountId at all.
+    //  2. `PATCH { type: "expense", toAccountId: "<id>" }` is a nonsensical
+    //     combination and must be rejected (mirrors create()'s check),
+    //     rather than silently dropping the caller's toAccountId with a 200.
+    const effectiveType = dto.type ?? existing.type;
+    const effectiveAccountId = dto.accountId ?? existing.accountId;
+    const effectiveToAccountId =
+      dto.toAccountId !== undefined ? dto.toAccountId : existing.toAccountId;
+
+    if (dto.toAccountId && effectiveType !== "transfer") {
+      throw new BadRequestException(
+        "toAccountId is only valid for transfer transactions",
+      );
+    }
+    // Validate a newly-supplied destination belongs to the family group.
+    // `dto.toAccountId === null` is an explicit "clear it" request and
+    // never needs this lookup.
+    if (dto.toAccountId) {
+      const toAcct = await this.prisma.account.findUnique({
+        where: { id: dto.toAccountId, familyGroupId },
+      });
+      if (!toAcct)
+        throw new NotFoundException(`Account ${dto.toAccountId} not found`);
+    }
+    if (effectiveToAccountId && effectiveToAccountId === effectiveAccountId) {
+      throw new BadRequestException(
+        "Source and destination account must differ",
+      );
+    }
+
+    // toAccountId only makes sense for type = transfer. If the effective
+    // type is changing away from "transfer" without an explicit toAccountId
+    // in the payload, the destination is auto-cleared here (already proven
+    // above this is never a silent drop of an EXPLICITLY-supplied
+    // toAccountId — that combination was rejected a few lines up). An
+    // explicit `toAccountId: null` also lands here and is honored as-is:
+    // the row keeps type = transfer but becomes a legacy one-sided transfer,
+    // matching pre-existing rows that never had a destination.
+    const newToAccountId =
+      effectiveType === "transfer" ? (effectiveToAccountId ?? null) : null;
+
     const updated = await this.prisma.$transaction(async (prisma) => {
       const amountChanged =
         dto.amount !== undefined && BigInt(dto.amount) !== existing.amount;
       const typeChanged = dto.type !== undefined && dto.type !== existing.type;
       const accountChanged =
         dto.accountId !== undefined && dto.accountId !== existing.accountId;
+      const toAccountChanged = newToAccountId !== existing.toAccountId;
 
-      if (amountChanged || typeChanged || accountChanged) {
-        await this.applyBalanceDelta(
-          prisma,
-          familyGroupId,
-          existing.type,
-          existing.accountId,
-          existing.amount,
-          "revert",
-        );
+      // `undefined` = leave toAccountId untouched below; any other value
+      // (including `null`) is written verbatim to the update payload.
+      let nextToAccountId: string | null | undefined;
 
-        const newType = dto.type ?? existing.type;
-        const newAccountId = dto.accountId ?? existing.accountId;
+      if (amountChanged || typeChanged || accountChanged || toAccountChanged) {
+        // Revert whatever effect the existing row currently has — a real
+        // two-sided transfer reverses both legs, everything else reverses
+        // its single account delta.
+        if (existing.toAccountId) {
+          await this.applyTransferBalanceDelta(
+            prisma,
+            familyGroupId,
+            existing.accountId,
+            existing.toAccountId,
+            existing.amount,
+            "revert",
+          );
+        } else {
+          await this.applyBalanceDelta(
+            prisma,
+            familyGroupId,
+            existing.type,
+            existing.accountId,
+            existing.amount,
+            "revert",
+          );
+        }
+
         const newAmount =
           dto.amount !== undefined ? BigInt(dto.amount) : existing.amount;
-        await this.applyBalanceDelta(
-          prisma,
-          familyGroupId,
-          newType,
-          newAccountId,
-          newAmount,
-          "add",
-        );
+
+        if (newToAccountId) {
+          await this.applyTransferBalanceDelta(
+            prisma,
+            familyGroupId,
+            effectiveAccountId,
+            newToAccountId,
+            newAmount,
+            "add",
+          );
+        } else {
+          await this.applyBalanceDelta(
+            prisma,
+            familyGroupId,
+            effectiveType,
+            effectiveAccountId,
+            newAmount,
+            "add",
+          );
+        }
+
+        nextToAccountId = newToAccountId;
       }
 
       return prisma.transaction.update({
         where: { id },
         data: {
           ...(dto.accountId !== undefined && { accountId: dto.accountId }),
+          ...(nextToAccountId !== undefined && {
+            toAccountId: nextToAccountId,
+          }),
           ...(dto.categoryId !== undefined && { categoryId: dto.categoryId }),
           ...(dto.amount !== undefined && { amount: BigInt(dto.amount) }),
           ...(dto.type !== undefined && { type: dto.type }),
@@ -438,6 +613,7 @@ export class TransactionsService {
         include: {
           category: { select: { name: true } },
           account: { select: { name: true } },
+          toAccount: { select: { name: true } },
         },
       });
     });
@@ -452,14 +628,30 @@ export class TransactionsService {
     if (!existing) throw new NotFoundException("Transaction not found");
 
     await this.prisma.$transaction(async (prisma) => {
-      await this.applyBalanceDelta(
-        prisma,
-        familyGroupId,
-        existing.type,
-        existing.accountId,
-        existing.amount,
-        "revert",
-      );
+      // Mirrors create()/update() — a real two-sided transfer must reverse
+      // BOTH the source debit and the destination credit; anything else
+      // (income/expense/legacy one-sided transfer) reverses its single
+      // account delta. The admin-fee expense (if any) is NOT cascaded here —
+      // see the create() comment: it is a standalone Transaction.
+      if (existing.toAccountId) {
+        await this.applyTransferBalanceDelta(
+          prisma,
+          familyGroupId,
+          existing.accountId,
+          existing.toAccountId,
+          existing.amount,
+          "revert",
+        );
+      } else {
+        await this.applyBalanceDelta(
+          prisma,
+          familyGroupId,
+          existing.type,
+          existing.accountId,
+          existing.amount,
+          "revert",
+        );
+      }
       await prisma.transaction.delete({ where: { id } });
     });
   }
@@ -484,7 +676,6 @@ export class TransactionsService {
     return {
       familyGroupId,
       ...(query.type && { type: query.type }),
-      ...(query.accountId && { accountId: query.accountId }),
       ...(query.categoryId && { categoryId: query.categoryId }),
       ...((query.from ?? query.to) && {
         occurredAt: {
@@ -492,7 +683,27 @@ export class TransactionsService {
           ...(query.to && { lte: new Date(query.to) }),
         },
       }),
+      // `transactionPrivacyWhere` may itself contribute a top-level `account`
+      // and/or `OR` key — spread it BEFORE the account-transfer filter below
+      // so its shape is untouched, then fold the account match into its own
+      // `AND` branch (a distinct key) instead of a second top-level `OR`,
+      // which would silently clobber the privacy filter's `OR`.
       ...transactionPrivacyWhere(canSeePrivate),
+      // EPIC-021 Group B (#24 completeness) — a per-account "Mutasi" filter
+      // must include transactions where this account is either the SOURCE
+      // or the DESTINATION of a real two-sided transfer; matching only
+      // `accountId` silently hides every incoming transfer from that
+      // account's own statement view.
+      ...(query.accountId && {
+        AND: [
+          {
+            OR: [
+              { accountId: query.accountId },
+              { toAccountId: query.accountId },
+            ],
+          },
+        ],
+      }),
     };
   }
 
@@ -545,6 +756,8 @@ export class TransactionsService {
         data: { balance: { increment: amount * sign } },
       });
     } else {
+      // "expense" and legacy one-sided "transfer" (no toAccountId) both
+      // debit the single tracked account — unchanged, pre-existing behavior.
       await prisma.account.update({
         where: { id: accountId, familyGroupId },
         data: { balance: { increment: -amount * sign } },
@@ -552,10 +765,36 @@ export class TransactionsService {
     }
   }
 
+  /**
+   * Real two-sided transfer (EPIC-021 Group B #23/#27/#28): debits the
+   * source account and credits the destination account atomically, within
+   * the caller's existing `$transaction`. `direction: "revert"` flips both
+   * legs back — used by update() and remove().
+   */
+  private async applyTransferBalanceDelta(
+    prisma: Parameters<Parameters<PrismaService["$transaction"]>[0]>[0],
+    familyGroupId: string,
+    accountId: string,
+    toAccountId: string,
+    amount: bigint,
+    direction: "add" | "revert",
+  ): Promise<void> {
+    const sign = direction === "add" ? BigInt(1) : BigInt(-1);
+    await prisma.account.update({
+      where: { id: accountId, familyGroupId },
+      data: { balance: { increment: -amount * sign } },
+    });
+    await prisma.account.update({
+      where: { id: toAccountId, familyGroupId },
+      data: { balance: { increment: amount * sign } },
+    });
+  }
+
   private toDto(tx: {
     id: string;
     familyGroupId: string;
     accountId: string;
+    toAccountId?: string | null;
     categoryId: string | null;
     amount: bigint;
     type: TransactionType;
@@ -564,17 +803,20 @@ export class TransactionsService {
     createdAt: Date;
     category?: { name: string } | null;
     account?: { name: string };
+    toAccount?: { name: string } | null;
   }): TransactionResponseDto {
     return {
       id: tx.id,
       familyGroupId: tx.familyGroupId,
       accountId: tx.accountId,
+      toAccountId: tx.toAccountId ?? null,
       categoryId: tx.categoryId,
       amount: tx.amount.toString(),
       type: tx.type,
       description: tx.description,
       categoryName: tx.category?.name ?? null,
       accountName: tx.account?.name ?? "",
+      toAccountName: tx.toAccount?.name ?? null,
       occurredAt: tx.occurredAt.toISOString(),
       createdAt: tx.createdAt.toISOString(),
     };

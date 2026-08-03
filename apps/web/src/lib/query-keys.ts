@@ -87,8 +87,24 @@ export const queryKeys = {
       ["reconciliation", fgId, syncId, "entries"] as const,
   },
   reports: {
-    summary: (familyGroupId: string, months: number, period = "monthly") =>
-      ["reports", familyGroupId, "summary", months, period] as const,
+    // `anchor` (ISO date, optional) is the trailing-months window's end date —
+    // include it so selecting a different year/month in the shared /laporan
+    // period filter creates a distinct cache entry instead of reusing a stale
+    // result for the previous period.
+    summary: (
+      familyGroupId: string,
+      months: number,
+      period = "monthly",
+      anchor?: string,
+    ) =>
+      [
+        "reports",
+        familyGroupId,
+        "summary",
+        months,
+        period,
+        anchor ?? null,
+      ] as const,
     bank: (familyGroupId: string, start: string, end: string) =>
       ["reports", familyGroupId, "bank", start, end] as const,
     detail: (familyGroupId: string, start: string, end: string) =>

@@ -1,6 +1,6 @@
 # EPIC-008: Bug Fix — 500 API Errors & Data Load Failures
 
-status: ready-for-qa
+status: done
 environment: dev
 phase: 3
 priority: P0
@@ -68,3 +68,5 @@ Setelah epic ini selesai, semua menu tersebut harus tampil data nyata tanpa erro
 - 2026-06-16 /epic-loop EPIC-008 #1 "Diagnose & Fix 500 Errors + Gagal Memuat" → PASS (attempts: 1), PR: #145
 - 2026-06-16 /epic-loop EPIC-008 #2 "Migrate Remaining JwtAuthGuard Controllers" → PASS (attempts: 1), PR: #146
 - 2026-06-16 /epic-loop EPIC-008 #3 "Regression Tests" → PASS (attempts: 1), PR: #147
+
+- **2026-08-03/04 — /nerve QA sweep (delegated QA; user confirms from the live system). Evidence: gates green on development@5f2383f (qa/test/security); fresh DEV deploy clean (compose build, migrate+seed exit 0, api/web healthy); e2e vs https://wealthme.demo-wit.id — auth, route-protection, and all page regression specs green (57 passed, 2 flaky passed on serial retry, 0 real failures); code-level criteria verification by 4 parallel QA agents. **Verdict: QA-PASS. JwtAuthGuard fully removed (zero call sites), global guard chain in place. Live regression proof: dana/rekening/liabilitas/asuransi + laporan rinv specs green against the deployed stack. Note: menu-audit.spec is a reporting harness (only login asserts) — its ✅ table is informational, not a gate. Status → done.

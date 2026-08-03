@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, type KeyboardEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
@@ -92,13 +92,35 @@ function formatDayLabel(
   });
 }
 
+/**
+ * Absolute "D Month YYYY" date, always the real calendar date (never "Hari
+ * ini"/"Kemarin" relative labels) — used in the read-only detail view where
+ * the exact date matters. Parses the date parts directly from the ISO
+ * string (like formatDayLabel above) rather than `new Date(isoString)`, to
+ * avoid a timezone-conversion shift of the displayed calendar day.
+ */
+function formatFullDate(dateStr: string, locale: Locale): string {
+  const [year, month, day] = dateStr.split("-");
+  const d = new Date(Number(year), Number(month) - 1, Number(day));
+  return d.toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+/** "D Month YYYY, HH:MM" — full date + time for the transaction detail view. */
+function formatDetailDateTime(isoString: string, locale: Locale): string {
+  return `${formatFullDate(isoString.slice(0, 10), locale)}, ${formatTime(isoString)}`;
+}
+
 const TX_ICON: Record<string, { icon: LucideIcon; chip: string }> = {
   income: { icon: ArrowDownLeft, chip: "bg-green-100 text-green-600" },
   expense: { icon: CreditCard, chip: "bg-red-100 text-red-600" },
   transfer: { icon: ArrowLeftRight, chip: "bg-violet-100 text-violet-600" },
 };
 
-function TxRow({
+export function TxRow({
   tx,
   onDeleteClick,
   onEditClick,
@@ -108,51 +130,195 @@ function TxRow({
   onEditClick: () => void;
 }) {
   const { t } = useLocale();
+  const [detailOpen, setDetailOpen] = useState(false);
   const isIncome = tx.type === "income";
   const amount = parseFloat(tx.amount);
   const amountStr = (isIncome ? "+" : "-") + formatRupiah(amount);
   const txIcon = TX_ICON[tx.type] ?? TX_ICON.expense;
-  const displayName =
-    tx.description ?? tx.categoryName ?? tx.accountName ?? "—";
   const typeLabels: Record<string, string> = t.transaksi.typeLabels;
-  const subtitle =
-    tx.categoryName ?? tx.accountName ?? typeLabels[tx.type] ?? tx.type;
+  // EPIC-021 Group B #23 — a real (two-sided) transfer shows its route;
+  // legacy one-sided transfer rows (toAccountName null) render exactly as
+  // before via the existing fallback chain.
+  const isTransferWithDest = tx.type === "transfer" && !!tx.toAccountName;
+  const typeLabel = typeLabels[tx.type] ?? tx.type;
+  const displayName = isTransferWithDest
+    ? (tx.description ?? typeLabels.transfer)
+    : (tx.description ?? tx.categoryName ?? tx.accountName ?? "—");
+  const subtitle = isTransferWithDest
+    ? `${tx.accountName} → ${tx.toAccountName}`
+    : (tx.categoryName ?? tx.accountName ?? typeLabels[tx.type] ?? tx.type);
+
+  const openDetail = () => setDetailOpen(true);
+  // The detail-trigger is keyboard-operable (Enter/Space) per WM a11y
+  // convention for clickable non-<button> elements. RowActions renders as a
+  // sibling (not a descendant) of this element, so its own button clicks/
+  // keydowns never bubble into this handler.
+  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openDetail();
+    }
+  };
 
   return (
-    <div className="flex w-full items-center gap-3 rounded-[12px] border bg-card py-3.5 px-3 text-left transition-colors hover:bg-accent/40">
-      <IconChip
-        icon={txIcon.icon}
-        className={txIcon.chip}
-        size={34}
-        rounded="rounded-full"
-      />
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[13.5px] font-semibold">
-          {displayName}
-        </div>
-        <div className="truncate text-[11.5px] text-muted-foreground capitalize">
-          {subtitle}
-        </div>
-      </div>
-      <div className="text-right">
+    <>
+      {/* RowActions is a SIBLING of the role="button" detail-trigger below,
+          not nested inside it — nesting real <button>s inside a role="button"
+          container is an ARIA "nested-interactive" violation, and a keydown
+          on those buttons would otherwise bubble up and re-trigger this row's
+          own Enter/Space handler, hijacking keyboard Edit/Hapus. */}
+      <div className="flex w-full items-center gap-3 rounded-[12px] border bg-card py-3.5 px-3 transition-colors hover:bg-accent/40">
         <div
-          className={
-            "text-[13.5px] font-bold " +
-            (isIncome ? "text-success" : "text-destructive")
-          }
+          role="button"
+          tabIndex={0}
+          onClick={openDetail}
+          onKeyDown={handleKeyDown}
+          aria-label={`${t.transaksi.detailAriaLabelPrefix}${typeLabel} ${displayName}, ${amountStr}`}
+          className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-[8px] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
-          {amountStr}
+          <IconChip
+            icon={txIcon.icon}
+            className={txIcon.chip}
+            size={34}
+            rounded="rounded-full"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13.5px] font-semibold">
+              {displayName}
+            </div>
+            <div className="truncate text-[11.5px] text-muted-foreground capitalize">
+              {subtitle}
+            </div>
+          </div>
+          <div className="text-right">
+            <div
+              className={
+                "text-[13.5px] font-bold " +
+                (isIncome ? "text-success" : "text-destructive")
+              }
+            >
+              {amountStr}
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {formatTime(tx.occurredAt)}
+            </div>
+          </div>
         </div>
-        <div className="text-[11px] text-muted-foreground">
-          {formatTime(tx.occurredAt)}
-        </div>
+        <RowActions
+          onEdit={onEditClick}
+          onDelete={onDeleteClick}
+          className="ml-1"
+        />
       </div>
-      <RowActions
-        onEdit={onEditClick}
-        onDelete={onDeleteClick}
-        className="ml-1"
+      <TransactionDetailDialog
+        tx={tx}
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        onEdit={() => {
+          setDetailOpen(false);
+          onEditClick();
+        }}
+        onDelete={() => {
+          setDetailOpen(false);
+          onDeleteClick();
+        }}
       />
+    </>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b py-2 last:border-b-0">
+      <span className="text-[12px] text-muted-foreground">{label}</span>
+      <span className="text-right text-[13px] font-medium">{value}</span>
     </div>
+  );
+}
+
+/** Read-only transaction detail view — opened by clicking/tapping a TxRow. */
+export function TransactionDetailDialog({
+  tx,
+  open,
+  onClose,
+  onEdit,
+  onDelete,
+}: {
+  tx: TransactionDto;
+  open: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const { t, locale } = useLocale();
+  const isIncome = tx.type === "income";
+  const amount = parseFloat(tx.amount);
+  const amountStr = (isIncome ? "+" : "-") + formatRupiah(amount);
+  const txIcon = TX_ICON[tx.type] ?? TX_ICON.expense;
+  const typeLabel = t.transaksi.typeLabels[tx.type] ?? tx.type;
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
+      <DialogContent className="max-w-sm">
+        <DialogTitle>{t.transaksi.detailDialogTitle}</DialogTitle>
+        <div className="space-y-1 pt-1">
+          <div className="mb-2 flex items-center justify-between">
+            <span
+              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${txIcon.chip}`}
+            >
+              {typeLabel}
+            </span>
+            <span
+              className={
+                "text-[17px] font-bold " +
+                (isIncome ? "text-success" : "text-destructive")
+              }
+            >
+              {amountStr}
+            </span>
+          </div>
+          <DetailRow
+            label={t.transaksi.detailCategoryLabel}
+            value={tx.categoryName ?? "—"}
+          />
+          <DetailRow
+            label={t.transaksi.detailAccountLabel}
+            value={tx.accountName}
+          />
+          <DetailRow
+            label={t.transaksi.detailDateTimeLabel}
+            value={formatDetailDateTime(tx.occurredAt, locale)}
+          />
+          <DetailRow
+            label={t.transaksi.fieldDescLabel}
+            value={tx.description ?? "—"}
+          />
+          <DetailRow
+            label={t.transaksi.detailCreatedAtLabel}
+            value={formatDetailDateTime(tx.createdAt, locale)}
+          />
+          <div className="flex gap-2 pt-3">
+            <button
+              onClick={onEdit}
+              className="flex-1 rounded-md border py-2.5 text-[13px] font-semibold"
+            >
+              {t.transaksi.detailEditButton}
+            </button>
+            <button
+              onClick={onDelete}
+              className="flex-1 rounded-md bg-destructive py-2.5 text-[13px] font-semibold text-white"
+            >
+              {t.transaksi.detailDeleteButton}
+            </button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -23,6 +23,16 @@ export class UpdateTransactionDto {
   categoryId?: string;
 
   @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description:
+      "Destination account UUID (transfer only) — EPIC-021 Group B. Pass null to clear it (e.g. when changing the type away from transfer); must differ from accountId.",
+  })
+  @IsUUID()
+  @IsOptional()
+  toAccountId?: string | null;
+
+  @ApiPropertyOptional({
     type: Number,
     description: "Amount in smallest currency unit",
   })

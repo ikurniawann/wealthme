@@ -38,6 +38,9 @@ type CreateTransactionInput = {
   type: "income" | "expense" | "transfer";
   description?: string;
   occurredAt: string;
+  // EPIC-021 Group B (#23/#27/#28) — real source -> destination transfers.
+  toAccountId?: string;
+  adminFee?: number;
 };
 // Simulated scanned-receipt content (merchant name/address, item list, OCR
 // "detected" values) — this represents what the camera would read off a real
@@ -69,6 +72,8 @@ export function TransactionDialog() {
   const [tab, setTab] = useState(0);
   const [amount, setAmount] = useState("");
   const [accountId, setAccountId] = useState("");
+  const [toAccountId, setToAccountId] = useState("");
+  const [adminFee, setAdminFee] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [description, setDescription] = useState("");
@@ -147,6 +152,8 @@ export function TransactionDialog() {
   const resetForm = () => {
     setAmount("");
     setAccountId("");
+    setToAccountId("");
+    setAdminFee("");
     setCategoryId("");
     setDescription("");
     setDate(new Date().toISOString().slice(0, 10));
@@ -181,10 +188,22 @@ export function TransactionDialog() {
       toast.error(t.shell.transactionDialog.selectAccountFirst);
       return;
     }
+    if (txType === "transfer") {
+      if (!toAccountId) {
+        toast.error(t.shell.transactionDialog.selectDestAccountFirst);
+        return;
+      }
+      if (toAccountId === accountId) {
+        toast.error(t.shell.transactionDialog.sameAccountError);
+        return;
+      }
+    }
     if (!fgId) {
       toast.error(t.shell.transactionDialog.noFamilyGroup);
       return;
     }
+
+    const adminFeeNum = txType === "transfer" ? parseRupiah(adminFee) : 0;
 
     createMutation.mutate(
       {
@@ -194,6 +213,8 @@ export function TransactionDialog() {
         type: txType,
         ...(description ? { description } : {}),
         occurredAt: new Date(date).toISOString(),
+        ...(txType === "transfer" ? { toAccountId } : {}),
+        ...(adminFeeNum > 0 ? { adminFee: adminFeeNum } : {}),
       },
       {
         onSuccess: () => {
@@ -253,6 +274,8 @@ export function TransactionDialog() {
                   onClick={() => {
                     setTab(i);
                     setCategoryId("");
+                    setToAccountId("");
+                    setAdminFee("");
                   }}
                   className={cn(
                     "rounded-md px-2 py-2 text-center text-xs font-semibold transition-colors",
@@ -302,23 +325,98 @@ export function TransactionDialog() {
               </select>
             </Field>
 
-            <Field label={t.shell.transactionDialog.accountLabel}>
-              <select
-                className={fieldClass}
-                value={accountId}
-                onChange={(e) => setAccountId(e.target.value)}
-              >
-                <option value="">
-                  {t.shell.transactionDialog.accountPlaceholder}
-                </option>
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                    {a.institution ? ` — ${a.institution}` : ""}
+            {txType === "transfer" ? (
+              <>
+                <Field label={t.shell.transactionDialog.sourceAccountLabel}>
+                  <select
+                    className={fieldClass}
+                    value={accountId}
+                    onChange={(e) => {
+                      const nextAccountId = e.target.value;
+                      setAccountId(nextAccountId);
+                      // Keep source/destination mutually exclusive: dropping
+                      // the now-invalid destination avoids a stale option
+                      // hidden by the destination select's own filter.
+                      if (toAccountId === nextAccountId) setToAccountId("");
+                    }}
+                  >
+                    <option value="">
+                      {t.shell.transactionDialog.sourceAccountPlaceholder}
+                    </option>
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                        {a.institution ? ` — ${a.institution}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label={t.shell.transactionDialog.destAccountLabel}>
+                  <select
+                    className={fieldClass}
+                    value={toAccountId}
+                    onChange={(e) => setToAccountId(e.target.value)}
+                  >
+                    <option value="">
+                      {t.shell.transactionDialog.destAccountPlaceholder}
+                    </option>
+                    {accounts
+                      .filter((a) => a.id !== accountId)
+                      .map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                          {a.institution ? ` — ${a.institution}` : ""}
+                        </option>
+                      ))}
+                  </select>
+                </Field>
+
+                <Field
+                  label={
+                    <>
+                      {t.shell.transactionDialog.adminFeeLabel}{" "}
+                      <span className="font-normal text-muted-foreground">
+                        {t.shell.transactionDialog.optionalSuffix}
+                      </span>
+                    </>
+                  }
+                >
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
+                      Rp
+                    </span>
+                    <input
+                      inputMode="numeric"
+                      value={adminFee}
+                      onChange={(e) =>
+                        setAdminFee(formatAmountInput(e.target.value))
+                      }
+                      placeholder="0"
+                      className={cn(fieldClass, "pl-[38px]")}
+                    />
+                  </div>
+                </Field>
+              </>
+            ) : (
+              <Field label={t.shell.transactionDialog.accountLabel}>
+                <select
+                  className={fieldClass}
+                  value={accountId}
+                  onChange={(e) => setAccountId(e.target.value)}
+                >
+                  <option value="">
+                    {t.shell.transactionDialog.accountPlaceholder}
                   </option>
-                ))}
-              </select>
-            </Field>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                      {a.institution ? ` — ${a.institution}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
 
             <Field label={t.shell.transactionDialog.dateLabel}>
               <input

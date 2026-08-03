@@ -344,6 +344,14 @@ export type I18nDictionary = {
       amountLabel: string;
       categoryLabel: string;
       accountLabel: string;
+      /** EPIC-021 Group B (#23/#27) — two-account transfer fields, Transfer tab only. */
+      sourceAccountLabel: string;
+      sourceAccountPlaceholder: string;
+      destAccountLabel: string;
+      destAccountPlaceholder: string;
+      selectDestAccountFirst: string;
+      sameAccountError: string;
+      adminFeeLabel: string;
       dateLabel: string;
       descriptionLabel: string;
       optionalSuffix: string;
@@ -383,9 +391,8 @@ export type I18nDictionary = {
       placeholder: string;
       dialogTitle: string;
       financialResultsHeader: string;
-      pagesHeader: string;
-      quickAccessHeader: string;
       noResultsFor: string;
+      typeToSearchHint: string;
     };
   };
   /** EPIC-018 A2 — `/akun` page and sub-page copy. */
@@ -1387,6 +1394,15 @@ export type I18nDictionary = {
     toastInvalidAmount: string;
     toastDeleted: string;
     toastDeleteFailed: string;
+    /** EPIC-021 Group B (#23) — read-only transaction detail dialog copy. */
+    detailAriaLabelPrefix: string;
+    detailDialogTitle: string;
+    detailCategoryLabel: string;
+    detailAccountLabel: string;
+    detailDateTimeLabel: string;
+    detailCreatedAtLabel: string;
+    detailEditButton: string;
+    detailDeleteButton: string;
   };
   /**
    * EPIC-018 Task A6 — `/splitbill` (split bill) page copy. The seed

@@ -6,12 +6,21 @@ import { PrismaService } from "../prisma/prisma.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ReportsService } from "../reports/reports.service";
 
+import { renderPdfReport } from "./pdf-report-writer.util";
+
+import type { PdfReportContent } from "./pdf-report-writer.util";
 import type {
+  BalanceSheetDto,
+  BankReportDto,
+  CashflowStatementDto,
+  DetailReportDto,
   ExportFormat,
   ExportJobRequestDto,
   ExportJobStatus,
   ExportJobStatusDto,
   ExportReportType,
+  PnlDto,
+  ReportSummaryDto,
 } from "@wealthme/contracts";
 import type { Queue } from "bullmq";
 
@@ -22,6 +31,15 @@ export interface ExportJobData {
   request: ExportJobRequestDto;
   canSeePrivate: boolean;
 }
+
+/** Pre-fetched report data, tagged by report type so callers can narrow it. */
+type ReportData =
+  | { type: "summary"; data: ReportSummaryDto }
+  | { type: "bank"; data: BankReportDto }
+  | { type: "detail"; data: DetailReportDto }
+  | { type: "pnl"; data: PnlDto }
+  | { type: "balance-sheet"; data: BalanceSheetDto }
+  | { type: "cashflow"; data: CashflowStatementDto };
 
 /** In-memory store for job status/result (per process). */
 const jobStore = new Map<
@@ -53,10 +71,6 @@ function formatCsv(rows: string[][]): string {
         .join(","),
     )
     .join("\n");
-}
-
-function formatTxt(sections: { title: string; body: string }[]): string {
-  return sections.map((s) => `=== ${s.title} ===\n${s.body}`).join("\n\n");
 }
 
 function rupiah(n: number): string {
@@ -188,6 +202,82 @@ export class ExportsService {
     );
   }
 
+  /**
+   * Fetches the underlying report data for `type` exactly once. Shared by
+   * both the CSV and PDF builders so the reportsService call per report type
+   * is not duplicated across formats.
+   */
+  private async fetchReportData(
+    familyGroupId: string,
+    type: ExportReportType,
+    startDate: Date,
+    endDate: Date,
+    months: number,
+    canSeePrivate: boolean,
+  ): Promise<ReportData> {
+    switch (type) {
+      case "summary":
+        return {
+          type,
+          data: await this.reportsService.getSummary(
+            familyGroupId,
+            "monthly",
+            months,
+            canSeePrivate,
+          ),
+        };
+      case "bank":
+        return {
+          type,
+          data: await this.reportsService.getBankReport(
+            familyGroupId,
+            startDate,
+            endDate,
+            canSeePrivate,
+          ),
+        };
+      case "detail":
+        return {
+          type,
+          data: await this.reportsService.getDetailReport(
+            familyGroupId,
+            startDate,
+            endDate,
+            canSeePrivate,
+          ),
+        };
+      case "pnl":
+        return {
+          type,
+          data: await this.reportsService.getPnl(
+            familyGroupId,
+            startDate,
+            endDate,
+            canSeePrivate,
+          ),
+        };
+      case "balance-sheet":
+        return {
+          type,
+          data: await this.reportsService.getBalanceSheet(
+            familyGroupId,
+            endDate,
+            canSeePrivate,
+          ),
+        };
+      case "cashflow":
+        return {
+          type,
+          data: await this.reportsService.getCashflowStatement(
+            familyGroupId,
+            startDate,
+            endDate,
+            canSeePrivate,
+          ),
+        };
+    }
+  }
+
   private async buildCsv(
     familyGroupId: string,
     type: ExportReportType,
@@ -196,17 +286,26 @@ export class ExportsService {
     months: number,
     canSeePrivate: boolean,
   ): Promise<string> {
-    let rows: string[][];
+    const reportData = await this.fetchReportData(
+      familyGroupId,
+      type,
+      startDate,
+      endDate,
+      months,
+      canSeePrivate,
+    );
 
-    switch (type) {
+    const csv = formatCsv(this.buildCsvRows(reportData));
+    const b64 = Buffer.from(csv, "utf-8").toString("base64");
+    return `data:text/csv;base64,${b64}`;
+  }
+
+  /** Builds the spreadsheet-friendly rows (raw numeric cells) for `reportData`. */
+  private buildCsvRows(reportData: ReportData): string[][] {
+    switch (reportData.type) {
       case "summary": {
-        const data = await this.reportsService.getSummary(
-          familyGroupId,
-          "monthly",
-          months,
-          canSeePrivate,
-        );
-        rows = [
+        const data = reportData.data;
+        return [
           ["Bulan", "Pemasukan", "Pengeluaran", "Net"],
           ...data.points.map((p) => [
             p.label,
@@ -220,16 +319,10 @@ export class ExportsService {
           ["Net Savings", rupiah(data.netSavings)],
           ["Savings Rate", `${data.savingsRate}%`],
         ];
-        break;
       }
       case "bank": {
-        const data = await this.reportsService.getBankReport(
-          familyGroupId,
-          startDate,
-          endDate,
-          canSeePrivate,
-        );
-        rows = [
+        const data = reportData.data;
+        return [
           ["Rekening", "Bank", "Pemasukan", "Pengeluaran", "Saldo"],
           ...data.banks.map((b) => [
             b.accountName,
@@ -242,16 +335,10 @@ export class ExportsService {
           ["Total Pemasukan", rupiah(data.totalIncome)],
           ["Total Pengeluaran", rupiah(data.totalExpense)],
         ];
-        break;
       }
       case "detail": {
-        const data = await this.reportsService.getDetailReport(
-          familyGroupId,
-          startDate,
-          endDate,
-          canSeePrivate,
-        );
-        rows = [
+        const data = reportData.data;
+        return [
           ["Tanggal", "Keterangan", "Kategori", "Akun", "Tipe", "Jumlah"],
           ...data.transactions.map((t) => [
             t.occurredAt.slice(0, 10),
@@ -266,16 +353,10 @@ export class ExportsService {
           ["Total Pengeluaran", rupiah(data.totalExpense)],
           ["Jumlah Transaksi", String(data.count)],
         ];
-        break;
       }
       case "pnl": {
-        const data = await this.reportsService.getPnl(
-          familyGroupId,
-          startDate,
-          endDate,
-          canSeePrivate,
-        );
-        rows = [
+        const data = reportData.data;
+        return [
           ["Item", "Nilai"],
           ["Revenue", rupiah(data.revenue)],
           ["Expenses", rupiah(data.expenses)],
@@ -299,15 +380,10 @@ export class ExportsService {
             `${b.percentage}%`,
           ]),
         ];
-        break;
       }
       case "balance-sheet": {
-        const data = await this.reportsService.getBalanceSheet(
-          familyGroupId,
-          endDate,
-          canSeePrivate,
-        );
-        rows = [
+        const data = reportData.data;
+        return [
           ["Kategori", "Nama", "Jumlah"],
           ...data.assets.flatMap((a) => [
             [a.category, "", rupiah(a.amount)],
@@ -324,16 +400,10 @@ export class ExportsService {
           ["Total Liabilitas", "", rupiah(data.totalLiabilities)],
           ["Net Worth", "", rupiah(data.netWorth)],
         ];
-        break;
       }
       case "cashflow": {
-        const data = await this.reportsService.getCashflowStatement(
-          familyGroupId,
-          startDate,
-          endDate,
-          canSeePrivate,
-        );
-        rows = [
+        const data = reportData.data;
+        return [
           ["Item", "Jumlah"],
           ["Penerimaan Operasi", rupiah(data.operatingInflows)],
           ["Pengeluaran Operasi", rupiah(data.operatingOutflows)],
@@ -345,16 +415,8 @@ export class ExportsService {
           ["Saldo Akhir", rupiah(data.closingBalance)],
           ["Perubahan Bersih", rupiah(data.netChange)],
         ];
-        break;
-      }
-      default: {
-        rows = [["No data available"]];
       }
     }
-
-    const csv = formatCsv(rows);
-    const b64 = Buffer.from(csv, "utf-8").toString("base64");
-    return `data:text/csv;base64,${b64}`;
   }
 
   private async buildPdf(
@@ -366,168 +428,238 @@ export class ExportsService {
     canSeePrivate: boolean,
   ): Promise<string> {
     const periodLabel = `${startDate.toISOString().slice(0, 10)} s.d. ${endDate.toISOString().slice(0, 10)}`;
-    const sections: { title: string; body: string }[] = [];
 
-    switch (type) {
+    const [familyGroup, reportData] = await Promise.all([
+      this.prisma.familyGroup.findUnique({
+        where: { id: familyGroupId },
+        select: { name: true },
+      }),
+      this.fetchReportData(
+        familyGroupId,
+        type,
+        startDate,
+        endDate,
+        months,
+        canSeePrivate,
+      ),
+    ]);
+
+    const rawContent = this.buildPdfContent(reportData, periodLabel, endDate);
+    const generatedAt = new Date().toLocaleString("id-ID", {
+      dateStyle: "long",
+      timeStyle: "short",
+    });
+    const content: PdfReportContent = {
+      ...rawContent,
+      meta: [
+        `Keluarga: ${familyGroup?.name ?? "-"}`,
+        ...rawContent.meta,
+        `Dibuat pada: ${generatedAt}`,
+      ],
+    };
+
+    const pdfBytes = await renderPdfReport(content);
+    const b64 = Buffer.from(pdfBytes).toString("base64");
+    return `data:application/pdf;base64,${b64}`;
+  }
+
+  /** Builds the printable table layout (Rupiah-formatted cells) for `reportData`. */
+  private buildPdfContent(
+    reportData: ReportData,
+    periodLabel: string,
+    endDate: Date,
+  ): PdfReportContent {
+    switch (reportData.type) {
       case "summary": {
-        const data = await this.reportsService.getSummary(
-          familyGroupId,
-          "monthly",
-          months,
-          canSeePrivate,
-        );
-        const lines = [
-          `Total Pemasukan : ${rupiah(data.totalIncome)}`,
-          `Total Pengeluaran: ${rupiah(data.totalExpense)}`,
-          `Net Savings      : ${rupiah(data.netSavings)}`,
-          `Savings Rate     : ${data.savingsRate}%`,
-          "",
-          "Tren Bulanan:",
-          ...data.points.map(
-            (p) =>
-              `  ${p.label}: Masuk ${rupiah(p.income)} | Keluar ${rupiah(p.expense)} | Net ${rupiah(p.net)}`,
-          ),
-        ];
-        sections.push({ title: "Ringkasan Keuangan", body: lines.join("\n") });
-        break;
+        const data = reportData.data;
+        return {
+          title: "Ringkasan Keuangan",
+          meta: [],
+          sections: [
+            {
+              heading: "Ringkasan",
+              header: ["Item", "Nilai"],
+              rows: [
+                ["Total Pemasukan", rupiah(data.totalIncome)],
+                ["Total Pengeluaran", rupiah(data.totalExpense)],
+                ["Net Savings", rupiah(data.netSavings)],
+                ["Savings Rate", `${data.savingsRate}%`],
+              ],
+            },
+            {
+              heading: "Tren Bulanan",
+              header: ["Bulan", "Pemasukan", "Pengeluaran", "Net"],
+              rows: data.points.map((p) => [
+                p.label,
+                rupiah(p.income),
+                rupiah(p.expense),
+                rupiah(p.net),
+              ]),
+            },
+          ],
+        };
       }
       case "bank": {
-        const data = await this.reportsService.getBankReport(
-          familyGroupId,
-          startDate,
-          endDate,
-          canSeePrivate,
-        );
-        const lines = [
-          `Periode: ${periodLabel}`,
-          "",
-          ...data.banks.map(
-            (b) =>
-              `${b.accountName} (${b.institution ?? "-"}): Masuk ${rupiah(b.income)} | Keluar ${rupiah(b.expense)} | Saldo ${rupiah(b.balance)}`,
-          ),
-          "",
-          `Total Pemasukan : ${rupiah(data.totalIncome)}`,
-          `Total Pengeluaran: ${rupiah(data.totalExpense)}`,
-        ];
-        sections.push({ title: "Laporan Bank", body: lines.join("\n") });
-        break;
+        const data = reportData.data;
+        return {
+          title: "Laporan Bank",
+          meta: [`Periode: ${periodLabel}`],
+          sections: [
+            {
+              header: ["Rekening", "Bank", "Pemasukan", "Pengeluaran", "Saldo"],
+              rows: data.banks.map((b) => [
+                b.accountName,
+                b.institution ?? "-",
+                rupiah(b.income),
+                rupiah(b.expense),
+                rupiah(b.balance),
+              ]),
+            },
+            {
+              heading: "Ringkasan",
+              header: ["Item", "Nilai"],
+              rows: [
+                ["Total Pemasukan", rupiah(data.totalIncome)],
+                ["Total Pengeluaran", rupiah(data.totalExpense)],
+              ],
+            },
+          ],
+        };
       }
       case "detail": {
-        const data = await this.reportsService.getDetailReport(
-          familyGroupId,
-          startDate,
-          endDate,
-          canSeePrivate,
-        );
-        const lines = [
-          `Periode: ${periodLabel}`,
-          `Jumlah Transaksi: ${data.count}`,
-          "",
-          ...data.transactions.map(
-            (t) =>
-              `${t.occurredAt.slice(0, 10)} | ${t.accountName} | ${t.categoryName ?? "-"} | ${t.type} | ${rupiah(t.amount)}${t.description ? ` | ${t.description}` : ""}`,
-          ),
-          "",
-          `Total Pemasukan : ${rupiah(data.totalIncome)}`,
-          `Total Pengeluaran: ${rupiah(data.totalExpense)}`,
-        ];
-        sections.push({ title: "Detail Transaksi", body: lines.join("\n") });
-        break;
+        const data = reportData.data;
+        return {
+          title: "Detail Transaksi",
+          meta: [`Periode: ${periodLabel}`, `Jumlah Transaksi: ${data.count}`],
+          sections: [
+            {
+              header: [
+                "Tanggal",
+                "Keterangan",
+                "Kategori",
+                "Akun",
+                "Tipe",
+                "Jumlah",
+              ],
+              rows: data.transactions.map((t) => [
+                t.occurredAt.slice(0, 10),
+                t.description ?? "-",
+                t.categoryName ?? "-",
+                t.accountName,
+                t.type,
+                rupiah(t.amount),
+              ]),
+            },
+            {
+              heading: "Ringkasan",
+              header: ["Item", "Nilai"],
+              rows: [
+                ["Total Pemasukan", rupiah(data.totalIncome)],
+                ["Total Pengeluaran", rupiah(data.totalExpense)],
+              ],
+            },
+          ],
+        };
       }
       case "pnl": {
-        const data = await this.reportsService.getPnl(
-          familyGroupId,
-          startDate,
-          endDate,
-          canSeePrivate,
-        );
-        const lines = [
-          `Periode: ${periodLabel}`,
-          "",
-          `Revenue     : ${rupiah(data.revenue)} (growth: ${data.revenueGrowth}%)`,
-          `Expenses    : ${rupiah(data.expenses)} (growth: ${data.expenseGrowth}%)`,
-          `Net Profit  : ${rupiah(data.netProfit)} (growth: ${data.profitGrowth}%)`,
-          "",
-          "Breakdown Pendapatan:",
-          ...data.revenueBreakdown.map(
-            (b) =>
-              `  ${b.categoryName}: ${rupiah(b.amount)} (${b.percentage}%)`,
-          ),
-          "",
-          "Breakdown Pengeluaran:",
-          ...data.expenseBreakdown.map(
-            (b) =>
-              `  ${b.categoryName}: ${rupiah(b.amount)} (${b.percentage}%)`,
-          ),
-        ];
-        sections.push({
+        const data = reportData.data;
+        return {
           title: "Profit & Loss Statement",
-          body: lines.join("\n"),
-        });
-        break;
+          meta: [`Periode: ${periodLabel}`],
+          sections: [
+            {
+              heading: "Ringkasan",
+              header: ["Item", "Nilai"],
+              rows: [
+                ["Revenue", rupiah(data.revenue)],
+                ["Revenue Growth", `${data.revenueGrowth}%`],
+                ["Expenses", rupiah(data.expenses)],
+                ["Expense Growth", `${data.expenseGrowth}%`],
+                ["Net Profit", rupiah(data.netProfit)],
+                ["Profit Growth", `${data.profitGrowth}%`],
+              ],
+            },
+            {
+              heading: "Breakdown Pendapatan",
+              header: ["Kategori", "Jumlah", "%"],
+              rows: data.revenueBreakdown.map((b) => [
+                b.categoryName,
+                rupiah(b.amount),
+                `${b.percentage}%`,
+              ]),
+            },
+            {
+              heading: "Breakdown Pengeluaran",
+              header: ["Kategori", "Jumlah", "%"],
+              rows: data.expenseBreakdown.map((b) => [
+                b.categoryName,
+                rupiah(b.amount),
+                `${b.percentage}%`,
+              ]),
+            },
+          ],
+        };
       }
       case "balance-sheet": {
-        const data = await this.reportsService.getBalanceSheet(
-          familyGroupId,
-          endDate,
-          canSeePrivate,
-        );
-        const assetLines = data.assets.flatMap((a) => [
-          `  ${a.category}: ${rupiah(a.amount)}`,
-          ...a.items.map((i) => `    - ${i.name}: ${rupiah(i.amount)}`),
-        ]);
-        const liabLines = data.liabilities.flatMap((l) => [
-          `  ${l.category}: ${rupiah(l.amount)}`,
-          ...l.items.map((i) => `    - ${i.name}: ${rupiah(i.amount)}`),
-        ]);
-        const lines = [
-          `Per tanggal: ${endDate.toISOString().slice(0, 10)}`,
-          "",
-          "ASET:",
-          ...assetLines,
-          `  Total Aset: ${rupiah(data.totalAssets)}`,
-          "",
-          "LIABILITAS:",
-          ...liabLines,
-          `  Total Liabilitas: ${rupiah(data.totalLiabilities)}`,
-          "",
-          `NET WORTH: ${rupiah(data.netWorth)}`,
-        ];
-        sections.push({ title: "Balance Sheet", body: lines.join("\n") });
-        break;
+        const data = reportData.data;
+        return {
+          title: "Balance Sheet",
+          meta: [`Per tanggal: ${endDate.toISOString().slice(0, 10)}`],
+          sections: [
+            {
+              heading: "Aset",
+              header: ["Kategori", "Nama", "Jumlah"],
+              rows: [
+                ...data.assets.flatMap((a) => [
+                  [a.category, "", rupiah(a.amount)],
+                  ...a.items.map((i) => ["", i.name, rupiah(i.amount)]),
+                ]),
+                ["Total Aset", "", rupiah(data.totalAssets)],
+              ],
+            },
+            {
+              heading: "Liabilitas",
+              header: ["Kategori", "Nama", "Jumlah"],
+              rows: [
+                ...data.liabilities.flatMap((l) => [
+                  [l.category, "", rupiah(l.amount)],
+                  ...l.items.map((i) => ["", i.name, rupiah(i.amount)]),
+                ]),
+                ["Total Liabilitas", "", rupiah(data.totalLiabilities)],
+              ],
+            },
+            {
+              heading: "Net Worth",
+              header: ["Item", "Jumlah"],
+              rows: [["Net Worth", rupiah(data.netWorth)]],
+            },
+          ],
+        };
       }
       case "cashflow": {
-        const data = await this.reportsService.getCashflowStatement(
-          familyGroupId,
-          startDate,
-          endDate,
-          canSeePrivate,
-        );
-        const lines = [
-          `Periode: ${periodLabel}`,
-          "",
-          `Penerimaan Operasi   : ${rupiah(data.operatingInflows)}`,
-          `Pengeluaran Operasi  : ${rupiah(data.operatingOutflows)}`,
-          `Net Operasi          : ${rupiah(data.netOperating)}`,
-          "",
-          `Penerimaan Investasi : ${rupiah(data.investingInflows)}`,
-          `Pengeluaran Investasi: ${rupiah(data.investingOutflows)}`,
-          `Net Investasi        : ${rupiah(data.netInvesting)}`,
-          "",
-          `Saldo Awal           : ${rupiah(data.openingBalance)}`,
-          `Saldo Akhir          : ${rupiah(data.closingBalance)}`,
-          `Perubahan Bersih     : ${rupiah(data.netChange)}`,
-        ];
-        sections.push({ title: "Cashflow Statement", body: lines.join("\n") });
-        break;
-      }
-      default: {
-        sections.push({ title: "Laporan", body: "No data available." });
+        const data = reportData.data;
+        return {
+          title: "Cashflow Statement",
+          meta: [`Periode: ${periodLabel}`],
+          sections: [
+            {
+              heading: "Ringkasan",
+              header: ["Item", "Jumlah"],
+              rows: [
+                ["Penerimaan Operasi", rupiah(data.operatingInflows)],
+                ["Pengeluaran Operasi", rupiah(data.operatingOutflows)],
+                ["Net Operasi", rupiah(data.netOperating)],
+                ["Penerimaan Investasi", rupiah(data.investingInflows)],
+                ["Pengeluaran Investasi", rupiah(data.investingOutflows)],
+                ["Net Investasi", rupiah(data.netInvesting)],
+                ["Saldo Awal", rupiah(data.openingBalance)],
+                ["Saldo Akhir", rupiah(data.closingBalance)],
+                ["Perubahan Bersih", rupiah(data.netChange)],
+              ],
+            },
+          ],
+        };
       }
     }
-
-    const txt = formatTxt(sections);
-    const b64 = Buffer.from(txt, "utf-8").toString("base64");
-    return `data:text/plain;base64,${b64}`;
   }
 }
