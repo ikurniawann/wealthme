@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
 import { useShell } from "@/components/shell/shell-context";
+import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { parseRupiah } from "@/lib/format";
 import { buildGoalBody } from "@/lib/goals-utils";
@@ -30,9 +31,25 @@ import {
   type CrudModalState,
 } from "@/components/crud";
 
+/** Structural id into `t.quickinput.cards` — independent of the `CrudEntity`
+ * values below, which must stay untranslated to match the shared CrudModal's
+ * hardcoded (Indonesian) field config in `components/crud/crud-config.ts`. */
+type QuickCardId =
+  | "transaksi"
+  | "investasi"
+  | "rekening"
+  | "ewallet"
+  | "aset"
+  | "liabilitas"
+  | "asuransi"
+  | "tujuan"
+  | "anggaran"
+  | "warisan"
+  | "donasi"
+  | "splitbill";
+
 type QuickCard = {
-  name: string;
-  desc: string;
+  id: QuickCardId;
   icon: LucideIcon;
   iconBg: string;
   iconColor: string;
@@ -45,16 +62,14 @@ type QuickCard = {
 
 const QUICK_CARDS: QuickCard[] = [
   {
-    name: "Transaksi",
-    desc: "Pemasukan / pengeluaran",
+    id: "transaksi",
     icon: ArrowUpDown,
     iconBg: "#EEF2FF",
     iconColor: "var(--primary)",
     action: "txn",
   },
   {
-    name: "Investasi",
-    desc: "Saham, reksa dana, emas",
+    id: "investasi",
     icon: BarChart3,
     iconBg: "#DCFCE7",
     iconColor: "var(--success)",
@@ -62,8 +77,7 @@ const QUICK_CARDS: QuickCard[] = [
     entity: "investasi",
   },
   {
-    name: "Rekening",
-    desc: "Tambah rekening bank",
+    id: "rekening",
     icon: Landmark,
     iconBg: "#DBEAFE",
     iconColor: "#1D4ED8",
@@ -71,8 +85,7 @@ const QUICK_CARDS: QuickCard[] = [
     entity: "rekening",
   },
   {
-    name: "E-Wallet",
-    desc: "GoPay, OVO, DANA",
+    id: "ewallet",
     icon: Wallet,
     iconBg: "#DCFCE7",
     iconColor: "var(--success)",
@@ -80,8 +93,7 @@ const QUICK_CARDS: QuickCard[] = [
     entity: "ewallet",
   },
   {
-    name: "Aset",
-    desc: "Properti, kendaraan",
+    id: "aset",
     icon: Briefcase,
     iconBg: "#FEF9C3",
     iconColor: "#A16207",
@@ -89,8 +101,7 @@ const QUICK_CARDS: QuickCard[] = [
     entity: "aset",
   },
   {
-    name: "Liabilitas",
-    desc: "Utang & cicilan",
+    id: "liabilitas",
     icon: ReceiptText,
     iconBg: "#FEE2E2",
     iconColor: "var(--destructive)",
@@ -98,8 +109,7 @@ const QUICK_CARDS: QuickCard[] = [
     entity: "liabilitas",
   },
   {
-    name: "Asuransi",
-    desc: "Tambah polis",
+    id: "asuransi",
     icon: ShieldCheck,
     iconBg: "#EDE9FE",
     iconColor: "var(--brand-purple)",
@@ -107,8 +117,7 @@ const QUICK_CARDS: QuickCard[] = [
     entity: "asuransi",
   },
   {
-    name: "Tujuan",
-    desc: "Goal keuangan baru",
+    id: "tujuan",
     icon: Target,
     iconBg: "#CFFAFE",
     iconColor: "#0E7490",
@@ -116,8 +125,7 @@ const QUICK_CARDS: QuickCard[] = [
     entity: "tujuan",
   },
   {
-    name: "Anggaran",
-    desc: "Kategori budget",
+    id: "anggaran",
     icon: ClipboardList,
     iconBg: "#EEF2FF",
     iconColor: "var(--primary)",
@@ -125,8 +133,7 @@ const QUICK_CARDS: QuickCard[] = [
     href: "/anggaran",
   },
   {
-    name: "Aset Warisan",
-    desc: "Catat warisan",
+    id: "warisan",
     icon: Scroll,
     iconBg: "#EDE9FE",
     iconColor: "var(--brand-purple)",
@@ -134,8 +141,7 @@ const QUICK_CARDS: QuickCard[] = [
     href: "/warisan",
   },
   {
-    name: "Donasi",
-    desc: "Zakat & sumbangan",
+    id: "donasi",
     icon: HeartHandshake,
     iconBg: "#DCFCE7",
     iconColor: "var(--success)",
@@ -143,8 +149,7 @@ const QUICK_CARDS: QuickCard[] = [
     href: "/donation",
   },
   {
-    name: "Split Bill",
-    desc: "Patungan grup",
+    id: "splitbill",
     icon: Receipt,
     iconBg: "#FEF3C7",
     iconColor: "#D97706",
@@ -279,6 +284,7 @@ export default function QuickInputPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { setTxnOpen } = useShell();
+  const { t } = useLocale();
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId;
   const token = session?.accessToken;
@@ -313,25 +319,25 @@ export default function QuickInputPage() {
       await queryClient.invalidateQueries({
         queryKey: [req.queryKey, familyGroupId],
       });
-      toast.success("Berhasil disimpan!");
+      toast.success(t.quickinput.toastSaved);
     } catch {
-      toast.error("Gagal menyimpan. Coba lagi.");
+      toast.error(t.quickinput.toastSaveFailed);
     }
   }
 
   return (
     <div>
       <div className="mb-[18px]">
-        <div className="text-[15px] font-bold">⚡ Quick Input</div>
+        <div className="text-[15px] font-bold">{t.quickinput.pageTitle}</div>
         <div className="text-[12px] text-muted-foreground">
-          Pilih jenis data yang ingin kamu input — langsung isi via popup
+          {t.quickinput.pageSubtitle}
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {QUICK_CARDS.map((card) => (
           <button
-            key={card.name}
+            key={card.id}
             type="button"
             onClick={() => handleClick(card)}
             className="cursor-pointer rounded-[14px] border bg-card p-[18px] text-center transition-all duration-150 hover:-translate-y-[3px] hover:border-primary hover:shadow-[0_8px_24px_rgba(79,70,229,.14)]"
@@ -342,9 +348,11 @@ export default function QuickInputPage() {
             >
               <card.icon className="size-[21px]" />
             </div>
-            <div className="text-[13.5px] font-bold">{card.name}</div>
+            <div className="text-[13.5px] font-bold">
+              {t.quickinput.cards[card.id].name}
+            </div>
             <div className="mt-[3px] text-[11px] leading-[1.4] text-muted-foreground">
-              {card.desc}
+              {t.quickinput.cards[card.id].desc}
             </div>
           </button>
         ))}

@@ -2,21 +2,14 @@
 
 import * as React from "react";
 import { useSession } from "@/lib/auth-compat";
-
-const CHIPS = [
-  "📊 Analisa keuangan bulan ini",
-  "🎯 Cara capai target DP Rumah lebih cepat",
-  "📈 Rekomendasi portofolio investasi",
-  "💡 Tips hemat pengeluaran",
-  "💳 Utang kartu kredit aman?",
-  "📅 Proyeksi kekayaan 5 tahun",
-];
+import { useLocale } from "@/hooks/use-locale";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 type Msg = { id: number; role: "user" | "assistant"; text: string };
 
 export default function AiPage() {
+  const { t } = useLocale();
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId ?? undefined;
   const token = session?.accessToken ?? "";
@@ -25,7 +18,7 @@ export default function AiPage() {
     {
       id: 0,
       role: "assistant",
-      text: "Halo! 👋 Saya WealthMe AI Advisor. Tanyakan apa saja tentang keuangan keluargamu.",
+      text: t.ai.initialMessage,
     },
   ]);
   const [input, setInput] = React.useState("");
@@ -84,9 +77,7 @@ export default function AiPage() {
       if (!res.ok || !res.body) {
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === aiMsgId
-              ? { ...m, text: "Maaf, terjadi kesalahan. Coba lagi nanti." }
-              : m,
+            m.id === aiMsgId ? { ...m, text: t.ai.errorGeneric } : m,
           ),
         );
         return;
@@ -120,12 +111,7 @@ export default function AiPage() {
             if (parsed.error) {
               setMessages((prev) =>
                 prev.map((m) =>
-                  m.id === aiMsgId
-                    ? {
-                        ...m,
-                        text: "Maaf, terjadi kesalahan. Coba lagi nanti.",
-                      }
-                    : m,
+                  m.id === aiMsgId ? { ...m, text: t.ai.errorGeneric } : m,
                 ),
               );
               break;
@@ -140,9 +126,7 @@ export default function AiPage() {
       if (err instanceof Error && err.name === "AbortError") return;
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === aiMsgId
-            ? { ...m, text: "Maaf, koneksi terputus. Coba lagi." }
-            : m,
+          m.id === aiMsgId ? { ...m, text: t.ai.errorConnection } : m,
         ),
       );
     } finally {
@@ -161,12 +145,8 @@ export default function AiPage() {
     return (
       <div className="mx-auto flex max-w-[800px] flex-col items-center justify-center gap-4 py-20 text-center">
         <div className="text-5xl">🤖</div>
-        <p className="text-lg font-medium">
-          Bergabung ke family group untuk menggunakan AI Advisor
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Buat atau bergabung ke family group di halaman Akun.
-        </p>
+        <p className="text-lg font-medium">{t.ai.noGroupTitle}</p>
+        <p className="text-sm text-muted-foreground">{t.ai.noGroupBody}</p>
       </div>
     );
   }
@@ -177,20 +157,19 @@ export default function AiPage() {
       <div className="gradient-ai mb-4 flex items-center gap-4 rounded-[14px] p-5 text-white">
         <div className="text-[38px] leading-none">🤖</div>
         <div>
-          <div className="text-[16px] font-bold">WealthMe AI Advisor</div>
+          <div className="text-[16px] font-bold">{t.ai.bannerTitle}</div>
           <div className="mt-[3px] text-[12.5px] opacity-65">
-            Powered by Claude · Analisa keuangan personal berdasarkan data
-            nyata.
+            {t.ai.bannerSubtitle}
           </div>
         </div>
       </div>
 
       {/* Chips */}
       <div className="mb-2 text-[12px] font-semibold text-muted-foreground">
-        💡 Pertanyaan Populer
+        {t.ai.popularQuestionsLabel}
       </div>
       <div className="mb-4 flex flex-wrap gap-2">
-        {CHIPS.map((chip) => (
+        {t.ai.chips.map((chip) => (
           <button
             key={chip}
             type="button"
@@ -249,14 +228,14 @@ export default function AiPage() {
               if (e.key === "Enter") handleSubmit();
             }}
             disabled={isStreaming}
-            placeholder="Tanya soal keuanganmu..."
+            placeholder={t.ai.inputPlaceholder}
             className="w-full rounded-full border bg-background px-4 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card disabled:opacity-50"
           />
           <button
             type="button"
             onClick={handleSubmit}
             disabled={isStreaming || !input.trim()}
-            aria-label="Kirim"
+            aria-label={t.ai.sendAriaLabel}
             className="flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-primary text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             ➤
@@ -266,8 +245,7 @@ export default function AiPage() {
 
       {/* Disclaimer */}
       <p className="mt-3 text-center text-[11px] text-muted-foreground">
-        Saran AI bersifat informatif, bukan nasihat investasi profesional.
-        Selalu konsultasikan keputusan keuangan dengan ahli.
+        {t.ai.disclaimer}
       </p>
     </div>
   );
