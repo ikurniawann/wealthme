@@ -1,6 +1,6 @@
 # EPIC-003: Wealth
 
-status: ready-for-qa
+status: done
 environment: dev
 phase: 3
 priority: P1
@@ -78,3 +78,5 @@ dan asuransi - serta memastikan perhitungan net worth konsisten di seluruh aplik
 ## Dependencies
 
 - EPIC-002 (akun, transaksi, dashboard aggregation).
+
+- **2026-08-03/04 — /nerve QA sweep (delegated QA; user confirms from the live system). Evidence: gates green on development@5f2383f (qa/test/security); fresh DEV deploy clean (compose build, migrate+seed exit 0, api/web healthy); e2e vs https://wealthme.demo-wit.id — auth, route-protection, and all page regression specs green (57 passed, 2 flaky passed on serial retry, 0 real failures); code-level criteria verification by 4 parallel QA agents. **Verdict: QA-PASS after remediation. Investments (P&L, BullMQ price cron, WS gateway), assets+history, liabilities, insurance→notification verified. Fixed in PR #203: net-worth rollup valued investments at cost basis while the investments module used latest price — now latest-price with cost-basis fallback, and dashboard summary includes the full rollup. Status → done.

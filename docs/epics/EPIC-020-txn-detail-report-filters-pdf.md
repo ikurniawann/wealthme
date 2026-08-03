@@ -1,6 +1,6 @@
 # EPIC-020: Transaction Detail, Report Period Filters & PDF Export Fix
 
-status: backlog
+status: on-progress
 environment: dev
 retries: 0
 phase: 4
@@ -140,4 +140,18 @@ acceptance criteria hold across a fresh QA pass of `/transaksi` and `/laporan`.
 
 ## Automation Log
 
-<!-- Append automation results here. -->
+- 2026-08-04 — /nerve: Task C shipped (PR #200): `buildPdf` rewritten with
+  pdf-lib — real `application/pdf` for all six report types, paginated tables,
+  shared data assembly with the (unchanged) CSV path; 9 unit tests incl.
+  `%PDF-` magic bytes, empty-data branch, >1-page pagination. Also closes
+  EPIC-016 Task L. Reviewed (typescript-reviewer PASS; MEDIUM/LOW fixed).
+- 2026-08-04 — /nerve: Task A shipped (PR #202): transaction rows on
+  /transaksi are keyboard-operable detail triggers opening a read-only dialog
+  (all TransactionDto fields, null-safe); RowActions kept as a sibling after a
+  react-review round found (and fixed) a nested-interactive keyboard hijack.
+  10 component tests incl. a keyboard regression.
+- 2026-08-04 — /nerve: Task B implemented (PR pending, stacked on #201):
+  shared year/month/day PeriodFilter drives every /laporan section
+  server-side (summary endDate anchor param added, additive); Harian input
+  synced to the shared filter; Balance Sheet uses asOfDate; export jobs get
+  the selected period. 19 new date-bounds tests. react-review PASS.
