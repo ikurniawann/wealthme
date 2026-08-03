@@ -75,6 +75,50 @@ type PanduanJourneyId =
   | "advancedConfig"
   | "aiAssistant";
 
+/** EPIC-018 Task A4 — `/asuransi` insurance type/period/status enum ids
+ * (mirror the `InsuranceType` / `PremiumPeriod` / `InsuranceStatus` contracts
+ * — persisted values stay unchanged, only their display labels translate). */
+type AsuransiInsuranceTypeId =
+  | "jiwa"
+  | "kesehatan"
+  | "kendaraan"
+  | "properti"
+  | "lainnya";
+
+type AsuransiPremiumPeriodId = "monthly" | "quarterly" | "yearly";
+
+type AsuransiStatusId = "aktif" | "tidak_aktif" | "kadaluarsa";
+
+/** EPIC-018 Task A4 — `/kalkulator` sub-tool tab ids. */
+type KalkulatorTabId =
+  | "zakat"
+  | "pph21"
+  | "investasi"
+  | "kredit"
+  | "pensiun"
+  | "tabungan"
+  | "splitgroup";
+
+/**
+ * EPIC-018 Task A4 — `/quickinput` quick-action card ids. Structural and
+ * page-local — independent of the `CrudEntity` values consumed by the
+ * shared `CrudModal` (which stay untranslated, see `types.ts` comment at
+ * `quickinput` below).
+ */
+type QuickInputCardId =
+  | "transaksi"
+  | "investasi"
+  | "rekening"
+  | "ewallet"
+  | "aset"
+  | "liabilitas"
+  | "asuransi"
+  | "tujuan"
+  | "anggaran"
+  | "warisan"
+  | "donasi"
+  | "splitbill";
+
 export type I18nDictionary = {
   locale: "id" | "en";
   greeting: {
@@ -489,5 +533,184 @@ export type I18nDictionary = {
     openLink: string;
     journeys: Record<PanduanJourneyId, { title: string; subtitle: string }>;
     features: Record<PanduanFeatureId, { title: string; desc: string }>;
+  };
+  /** EPIC-018 Task A4 — `/asuransi` (insurance policies) page copy. */
+  asuransi: {
+    activePoliciesSuffix: string;
+    totalPremiumPrefix: string;
+    errorLoad: string;
+    emptyState: string;
+    payToast: string;
+    typeLabels: Record<AsuransiInsuranceTypeId, string>;
+    periodSuffixLabels: Record<AsuransiPremiumPeriodId, string>;
+    periodOptionLabels: Record<AsuransiPremiumPeriodId, string>;
+    statusLabels: Record<AsuransiStatusId, string>;
+    coverageLabel: string;
+    premiumLabel: string;
+    renewalLabel: string;
+    daysUntilRenewalSuffix: string;
+    policyNumberLabel: string;
+    toastAdded: string;
+    toastAddFailed: string;
+    toastUpdated: string;
+    toastUpdateFailed: string;
+    toastDeleted: string;
+    toastDeleteFailed: string;
+    validationNameRequired: string;
+    validationPremiumPositive: string;
+    modalTitle: string;
+    modalCloseAriaLabel: string;
+    fieldNameLabel: string;
+    fieldNamePlaceholder: string;
+    fieldProviderLabel: string;
+    fieldProviderPlaceholder: string;
+    fieldTypeLabel: string;
+    fieldStatusLabel: string;
+    fieldPremiumLabel: string;
+    fieldPeriodLabel: string;
+    fieldCoverageLabel: string;
+    fieldRenewalDateLabel: string;
+    autoRenewLabel: string;
+    fieldPolicyNumberPlaceholder: string;
+    fieldNotesLabel: string;
+    fieldNotesPlaceholder: string;
+    saving: string;
+    saveButton: string;
+  };
+  /**
+   * EPIC-018 Task A4 — `/kalkulator` page copy (7 sub-tools). Detail rows
+   * that mix a fixed label with a live-computed value keep the label as a
+   * `*Prefix` string and the JSX renders the formatted value next to it —
+   * mirrors the `akun.keamanan.sessionActivePrefix` template-splitting
+   * pattern rather than introducing dict functions.
+   */
+  kalkulator: {
+    tabs: Record<KalkulatorTabId, string>;
+    months: [
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+    ];
+    sessionExpired: string;
+    calculating: string;
+    zakat: {
+      cardTitle: string;
+      nisabNotePrefix: string;
+      nisabNoteValue: string;
+      fieldCash: string;
+      fieldInvestments: string;
+      fieldGold: string;
+      fieldLiabilities: string;
+      calculateButton: string;
+      errorCalculate: string;
+      resultObligated: string;
+      resultNotObligated: string;
+      detailZakatablePrefix: string;
+      detailNisabPrefix: string;
+      belowNisabPrefix: string;
+      belowNisabSuffix: string;
+    };
+    pph21: {
+      cardTitle: string;
+      ptkpNote: string;
+      fieldGross: string;
+      fieldZakatPaid: string;
+      calculateButton: string;
+      errorCalculate: string;
+      resultLabel: string;
+      detailPkpPrefix: string;
+      detailEffectiveRatePrefix: string;
+      deductionHeading: string;
+      laborCostLabel: string;
+      ptkpLabel: string;
+      zakatLabel: string;
+      progressiveHeading: string;
+    };
+    investasi: {
+      cardTitle: string;
+      fieldInitialCapital: string;
+      fieldMonthlyDeposit: string;
+      fieldAnnualReturn: string;
+      fieldDuration: string;
+      resultLabel: string;
+      detailTotalCapitalPrefix: string;
+      detailProfitPrefix: string;
+    };
+    kredit: {
+      cardTitle: string;
+      fieldLoanAmount: string;
+      fieldAnnualInterest: string;
+      fieldTenor: string;
+      fieldDownPayment: string;
+      resultLabel: string;
+      detailPrincipalPrefix: string;
+      detailTotalPaymentPrefix: string;
+    };
+    pensiun: {
+      cardTitle: string;
+      fieldCurrentAge: string;
+      fieldRetireAge: string;
+      fieldCurrentMonthlyExpense: string;
+      fieldInvestmentReturn: string;
+      resultLabel: string;
+      detailMonthlyInvestmentNeededPrefix: string;
+    };
+    tabungan: {
+      cardTitle: string;
+      fieldTarget: string;
+      fieldCurrentBalance: string;
+      fieldAnnualInterest: string;
+      fieldMonthlyDeposit: string;
+      resultLabel: string;
+      resultValueSuffix: string;
+      detailTargetReachedPrefix: string;
+    };
+    splitgroup: {
+      cardTitle: string;
+      description: string;
+      fieldTotalBill: string;
+      fieldPeopleCount: string;
+      fieldTaxService: string;
+      fieldExtraTip: string;
+      resultLabel: string;
+      detailTotalWithTaxPrefix: string;
+      createSplitBillButton: string;
+    };
+  };
+  /**
+   * EPIC-018 Task A4 — `/quickinput` page copy. `QUICK_CARDS` in the page
+   * keeps only structural data (icon, colors, action/entity); every card
+   * name/desc resolves from here, keyed by the stable `QuickInputCardId`.
+   */
+  quickinput: {
+    pageTitle: string;
+    pageSubtitle: string;
+    cards: Record<QuickInputCardId, { name: string; desc: string }>;
+    toastSaved: string;
+    toastSaveFailed: string;
+  };
+  /** EPIC-018 Task A4 — `/ai` (AI Advisor chat) page copy. */
+  ai: {
+    bannerTitle: string;
+    bannerSubtitle: string;
+    popularQuestionsLabel: string;
+    chips: [string, string, string, string, string, string];
+    initialMessage: string;
+    errorGeneric: string;
+    errorConnection: string;
+    noGroupTitle: string;
+    noGroupBody: string;
+    inputPlaceholder: string;
+    sendAriaLabel: string;
+    disclaimer: string;
   };
 };

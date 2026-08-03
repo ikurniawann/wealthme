@@ -7,6 +7,7 @@ import { useSession } from "@/lib/auth-compat";
 import { toast } from "sonner";
 import { SectionCard } from "@/components/wm";
 import { Button } from "@/components/ui/button";
+import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import {
   formatRupiah,
@@ -19,21 +20,8 @@ import type { Pph21ResultDto, ZakatResultDto } from "@wealthme/contracts";
 const FIELD_CLASS =
   "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
 
-const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "Mei",
-  "Jun",
-  "Jul",
-  "Ags",
-  "Sep",
-  "Okt",
-  "Nov",
-  "Des",
-];
-
+// Sample participant names for the Split Group calculator preview — mock
+// data (like `lib/data`'s USER name), not translatable UI copy.
 const GROUP_NAMES = [
   "Andi",
   "Budi",
@@ -56,14 +44,14 @@ type TabKey =
   | "tabungan"
   | "splitgroup";
 
-const TABS: { key: TabKey; label: string }[] = [
-  { key: "zakat", label: "🌙 Zakat Maal" },
-  { key: "pph21", label: "🧾 PPh 21" },
-  { key: "investasi", label: "📈 Investasi" },
-  { key: "kredit", label: "💳 Kredit" },
-  { key: "pensiun", label: "🏖️ Pensiun" },
-  { key: "tabungan", label: "🏦 Tabungan" },
-  { key: "splitgroup", label: "🧾 Split Group" },
+const TAB_KEYS: TabKey[] = [
+  "zakat",
+  "pph21",
+  "investasi",
+  "kredit",
+  "pensiun",
+  "tabungan",
+  "splitgroup",
 ];
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -100,6 +88,7 @@ function ResultCard({
 /* ─────────────────────────── Zakat Maal ─────────────────────────── */
 
 function ZakatTab({ token }: { token: string | undefined }) {
+  const { t } = useLocale();
   const [cash, setCash] = useState("50.000.000");
   const [investments, setInvestments] = useState("30.000.000");
   const [gold, setGold] = useState("0");
@@ -110,7 +99,7 @@ function ZakatTab({ token }: { token: string | undefined }) {
 
   async function handleCalculate() {
     if (!token) {
-      toast.error("Sesi habis, silakan login ulang.");
+      toast.error(t.kalkulator.sessionExpired);
       return;
     }
     abortRef.current?.abort();
@@ -132,20 +121,22 @@ function ZakatTab({ token }: { token: string | undefined }) {
       if (!ctrl.signal.aborted) setResult(res);
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") return;
-      toast.error("Gagal menghitung zakat. Coba lagi.");
+      toast.error(t.kalkulator.zakat.errorCalculate);
     } finally {
       if (!ctrl.signal.aborted) setLoading(false);
     }
   }
 
   return (
-    <SectionCard title="Kalkulator Zakat Maal">
+    <SectionCard title={t.kalkulator.zakat.cardTitle}>
       <div className="-mt-1 mb-3.5 text-[12px] text-muted-foreground">
-        Nisab = 85g emas × Rp 1.100.000/g ={" "}
-        <strong className="text-foreground">Rp 93.500.000</strong>
+        {t.kalkulator.zakat.nisabNotePrefix}{" "}
+        <strong className="text-foreground">
+          {t.kalkulator.zakat.nisabNoteValue}
+        </strong>
       </div>
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-        <Field label="Kas & Tabungan (Rp)">
+        <Field label={t.kalkulator.zakat.fieldCash}>
           <input
             type="text"
             inputMode="numeric"
@@ -154,7 +145,7 @@ function ZakatTab({ token }: { token: string | undefined }) {
             className={FIELD_CLASS}
           />
         </Field>
-        <Field label="Investasi (Rp)">
+        <Field label={t.kalkulator.zakat.fieldInvestments}>
           <input
             type="text"
             inputMode="numeric"
@@ -163,7 +154,7 @@ function ZakatTab({ token }: { token: string | undefined }) {
             className={FIELD_CLASS}
           />
         </Field>
-        <Field label="Nilai Emas (Rp)">
+        <Field label={t.kalkulator.zakat.fieldGold}>
           <input
             type="text"
             inputMode="numeric"
@@ -172,7 +163,7 @@ function ZakatTab({ token }: { token: string | undefined }) {
             className={FIELD_CLASS}
           />
         </Field>
-        <Field label="Hutang / Liabilitas (Rp)">
+        <Field label={t.kalkulator.zakat.fieldLiabilities}>
           <input
             type="text"
             inputMode="numeric"
@@ -187,24 +178,26 @@ function ZakatTab({ token }: { token: string | undefined }) {
         onClick={handleCalculate}
         disabled={loading}
       >
-        {loading ? "Menghitung..." : "Hitung Zakat"}
+        {loading
+          ? t.kalkulator.calculating
+          : t.kalkulator.zakat.calculateButton}
       </Button>
       {result && (
         <>
           <ResultCard
             label={
               result.isObligated
-                ? "Zakat yang Wajib Dibayar"
-                : "Belum Wajib Zakat"
+                ? t.kalkulator.zakat.resultObligated
+                : t.kalkulator.zakat.resultNotObligated
             }
             value={formatRupiah(result.zakat)}
             detail={
               <>
-                Harta zakatable:{" "}
+                {t.kalkulator.zakat.detailZakatablePrefix}{" "}
                 <strong className="text-foreground">
                   {formatRupiah(result.zakatable)}
                 </strong>{" "}
-                · Nisab:{" "}
+                {t.kalkulator.zakat.detailNisabPrefix}{" "}
                 <strong className="text-foreground">
                   {formatRupiah(result.nisab)}
                 </strong>
@@ -213,8 +206,9 @@ function ZakatTab({ token }: { token: string | undefined }) {
           />
           {!result.isObligated && (
             <p className="mt-2 text-center text-[12px] text-muted-foreground">
-              Harta zakatable belum mencapai nisab ({formatRupiah(result.nisab)}
-              ).
+              {t.kalkulator.zakat.belowNisabPrefix}
+              {formatRupiah(result.nisab)}
+              {t.kalkulator.zakat.belowNisabSuffix}
             </p>
           )}
         </>
@@ -226,6 +220,7 @@ function ZakatTab({ token }: { token: string | undefined }) {
 /* ─────────────────────────── PPh 21 ─────────────────────────── */
 
 function Pph21Tab({ token }: { token: string | undefined }) {
+  const { t } = useLocale();
   const [gross, setGross] = useState("120.000.000");
   const [zakatPaid, setZakatPaid] = useState("0");
   const [result, setResult] = useState<Pph21ResultDto | null>(null);
@@ -234,7 +229,7 @@ function Pph21Tab({ token }: { token: string | undefined }) {
 
   async function handleCalculate() {
     if (!token) {
-      toast.error("Sesi habis, silakan login ulang.");
+      toast.error(t.kalkulator.sessionExpired);
       return;
     }
     abortRef.current?.abort();
@@ -254,19 +249,19 @@ function Pph21Tab({ token }: { token: string | undefined }) {
       if (!ctrl.signal.aborted) setResult(res);
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") return;
-      toast.error("Gagal menghitung PPh 21. Coba lagi.");
+      toast.error(t.kalkulator.pph21.errorCalculate);
     } finally {
       if (!ctrl.signal.aborted) setLoading(false);
     }
   }
 
   return (
-    <SectionCard title="Kalkulator PPh 21 (UU HPP)">
+    <SectionCard title={t.kalkulator.pph21.cardTitle}>
       <div className="-mt-1 mb-3.5 text-[12px] text-muted-foreground">
-        PTKP TK/0: Rp 54.000.000 · Biaya jabatan: 5% maks Rp 6.000.000
+        {t.kalkulator.pph21.ptkpNote}
       </div>
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-        <Field label="Penghasilan Bruto per Tahun (Rp)">
+        <Field label={t.kalkulator.pph21.fieldGross}>
           <input
             type="text"
             inputMode="numeric"
@@ -275,7 +270,7 @@ function Pph21Tab({ token }: { token: string | undefined }) {
             className={FIELD_CLASS}
           />
         </Field>
-        <Field label="Zakat yang Dibayar (Rp)">
+        <Field label={t.kalkulator.pph21.fieldZakatPaid}>
           <input
             type="text"
             inputMode="numeric"
@@ -290,20 +285,22 @@ function Pph21Tab({ token }: { token: string | undefined }) {
         onClick={handleCalculate}
         disabled={loading}
       >
-        {loading ? "Menghitung..." : "Hitung PPh 21"}
+        {loading
+          ? t.kalkulator.calculating
+          : t.kalkulator.pph21.calculateButton}
       </Button>
       {result && (
         <>
           <ResultCard
-            label="Total PPh 21 Terutang / Tahun"
+            label={t.kalkulator.pph21.resultLabel}
             value={formatRupiah(result.totalTax)}
             detail={
               <>
-                PKP:{" "}
+                {t.kalkulator.pph21.detailPkpPrefix}{" "}
                 <strong className="text-foreground">
                   {formatRupiah(result.pkp)}
                 </strong>{" "}
-                · Tarif efektif:{" "}
+                {t.kalkulator.pph21.detailEffectiveRatePrefix}{" "}
                 <strong className="text-primary">
                   {(result.effectiveRate * 100).toFixed(2)}%
                 </strong>
@@ -312,23 +309,29 @@ function Pph21Tab({ token }: { token: string | undefined }) {
           />
           <div className="mt-3.5 space-y-1.5">
             <div className="text-[12px] font-semibold text-muted-foreground mb-1">
-              Rincian Pengurang:
+              {t.kalkulator.pph21.deductionHeading}
             </div>
             <div className="flex justify-between rounded-md border px-3.5 py-2">
-              <span className="text-[13px]">Biaya Jabatan</span>
+              <span className="text-[13px]">
+                {t.kalkulator.pph21.laborCostLabel}
+              </span>
               <span className="text-[13px] font-bold text-destructive">
                 −{formatRupiah(result.biayaJabatan)}
               </span>
             </div>
             <div className="flex justify-between rounded-md border px-3.5 py-2">
-              <span className="text-[13px]">PTKP (TK/0)</span>
+              <span className="text-[13px]">
+                {t.kalkulator.pph21.ptkpLabel}
+              </span>
               <span className="text-[13px] font-bold text-destructive">
                 −{formatRupiah(result.ptkp)}
               </span>
             </div>
             {result.zakatDeduction > 0 && (
               <div className="flex justify-between rounded-md border px-3.5 py-2">
-                <span className="text-[13px]">Zakat</span>
+                <span className="text-[13px]">
+                  {t.kalkulator.pph21.zakatLabel}
+                </span>
                 <span className="text-[13px] font-bold text-destructive">
                   −{formatRupiah(result.zakatDeduction)}
                 </span>
@@ -337,7 +340,7 @@ function Pph21Tab({ token }: { token: string | undefined }) {
             {result.taxBreakdown.length > 0 && (
               <>
                 <div className="text-[12px] font-semibold text-muted-foreground mt-2 mb-1">
-                  Tarif Progresif:
+                  {t.kalkulator.pph21.progressiveHeading}
                 </div>
                 {result.taxBreakdown.map((b) => (
                   <div
@@ -364,6 +367,7 @@ function Pph21Tab({ token }: { token: string | undefined }) {
 /* ─────────────────────────── Investasi ─────────────────────────── */
 
 function InvestasiTab() {
+  const { t } = useLocale();
   const [modal, setModal] = useState("50.000.000");
   const [monthly, setMonthly] = useState("2.000.000");
   const [rate, setRate] = useState("12");
@@ -385,9 +389,9 @@ function InvestasiTab() {
   }, [modal, monthly, rate, years]);
 
   return (
-    <SectionCard title="Kalkulator Investasi">
+    <SectionCard title={t.kalkulator.investasi.cardTitle}>
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-        <Field label="Modal Awal (Rp)">
+        <Field label={t.kalkulator.investasi.fieldInitialCapital}>
           <input
             type="text"
             inputMode="numeric"
@@ -396,7 +400,7 @@ function InvestasiTab() {
             className={FIELD_CLASS}
           />
         </Field>
-        <Field label="Setoran Bulanan (Rp)">
+        <Field label={t.kalkulator.investasi.fieldMonthlyDeposit}>
           <input
             type="text"
             inputMode="numeric"
@@ -405,7 +409,7 @@ function InvestasiTab() {
             className={FIELD_CLASS}
           />
         </Field>
-        <Field label="Return per Tahun (%)">
+        <Field label={t.kalkulator.investasi.fieldAnnualReturn}>
           <input
             type="number"
             min={0}
@@ -415,7 +419,7 @@ function InvestasiTab() {
             className={FIELD_CLASS}
           />
         </Field>
-        <Field label="Jangka Waktu (Tahun)">
+        <Field label={t.kalkulator.investasi.fieldDuration}>
           <input
             type="number"
             min={1}
@@ -427,15 +431,15 @@ function InvestasiTab() {
         </Field>
       </div>
       <ResultCard
-        label="Estimasi Nilai Akhir"
+        label={t.kalkulator.investasi.resultLabel}
         value={formatRupiah(fv)}
         detail={
           <>
-            Modal total:{" "}
+            {t.kalkulator.investasi.detailTotalCapitalPrefix}{" "}
             <strong className="text-foreground">
               {formatRupiah(totalModal)}
             </strong>{" "}
-            · Keuntungan:{" "}
+            {t.kalkulator.investasi.detailProfitPrefix}{" "}
             <strong className="text-success">{formatRupiah(profit)}</strong>
           </>
         }
@@ -447,6 +451,7 @@ function InvestasiTab() {
 /* ─────────────────────────── Kredit / KPR ─────────────────────────── */
 
 function KreditTab() {
+  const { t } = useLocale();
   const [pinjaman, setPinjaman] = useState("500.000.000");
   const [bunga, setBunga] = useState("7");
   const [tenor, setTenor] = useState("20");
@@ -464,9 +469,9 @@ function KreditTab() {
   }, [pinjaman, bunga, tenor, dp]);
 
   return (
-    <SectionCard title="Kalkulator Kredit / KPR">
+    <SectionCard title={t.kalkulator.kredit.cardTitle}>
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-        <Field label="Jumlah Pinjaman (Rp)">
+        <Field label={t.kalkulator.kredit.fieldLoanAmount}>
           <input
             type="text"
             inputMode="numeric"
@@ -475,7 +480,7 @@ function KreditTab() {
             className={FIELD_CLASS}
           />
         </Field>
-        <Field label="Bunga per Tahun (%)">
+        <Field label={t.kalkulator.kredit.fieldAnnualInterest}>
           <input
             type="number"
             min={0}
@@ -485,7 +490,7 @@ function KreditTab() {
             className={FIELD_CLASS}
           />
         </Field>
-        <Field label="Tenor (Tahun)">
+        <Field label={t.kalkulator.kredit.fieldTenor}>
           <input
             type="number"
             min={1}
@@ -495,7 +500,7 @@ function KreditTab() {
             className={FIELD_CLASS}
           />
         </Field>
-        <Field label="DP (%)">
+        <Field label={t.kalkulator.kredit.fieldDownPayment}>
           <input
             type="number"
             min={0}
@@ -507,13 +512,13 @@ function KreditTab() {
         </Field>
       </div>
       <ResultCard
-        label="Cicilan per Bulan"
+        label={t.kalkulator.kredit.resultLabel}
         value={formatRupiah(cicilan)}
         detail={
           <>
-            Pokok pinjaman:{" "}
-            <strong className="text-foreground">{formatRupiah(pokok)}</strong> ·
-            Total bayar:{" "}
+            {t.kalkulator.kredit.detailPrincipalPrefix}{" "}
+            <strong className="text-foreground">{formatRupiah(pokok)}</strong>{" "}
+            {t.kalkulator.kredit.detailTotalPaymentPrefix}{" "}
             <strong className="text-destructive">{formatRupiah(total)}</strong>
           </>
         }
@@ -525,6 +530,7 @@ function KreditTab() {
 /* ─────────────────────────── Pensiun ─────────────────────────── */
 
 function PensiunTab() {
+  const { t } = useLocale();
   const [now, setNow] = useState("30");
   const [retire, setRetire] = useState("55");
   const [monthly, setMonthly] = useState("10.000.000");
@@ -547,9 +553,9 @@ function PensiunTab() {
   }, [now, retire, monthly, ret]);
 
   return (
-    <SectionCard title="Kalkulator Dana Pensiun">
+    <SectionCard title={t.kalkulator.pensiun.cardTitle}>
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-        <Field label="Usia Sekarang">
+        <Field label={t.kalkulator.pensiun.fieldCurrentAge}>
           <input
             type="number"
             value={now}
@@ -557,7 +563,7 @@ function PensiunTab() {
             className={FIELD_CLASS}
           />
         </Field>
-        <Field label="Target Usia Pensiun">
+        <Field label={t.kalkulator.pensiun.fieldRetireAge}>
           <input
             type="number"
             value={retire}
@@ -565,7 +571,7 @@ function PensiunTab() {
             className={FIELD_CLASS}
           />
         </Field>
-        <Field label="Pengeluaran/Bulan Saat Ini (Rp)">
+        <Field label={t.kalkulator.pensiun.fieldCurrentMonthlyExpense}>
           <input
             type="text"
             inputMode="numeric"
@@ -574,7 +580,7 @@ function PensiunTab() {
             className={FIELD_CLASS}
           />
         </Field>
-        <Field label="Return Investasi (%/thn)">
+        <Field label={t.kalkulator.pensiun.fieldInvestmentReturn}>
           <input
             type="number"
             value={ret}
@@ -584,11 +590,11 @@ function PensiunTab() {
         </Field>
       </div>
       <ResultCard
-        label="Dana Pensiun yang Dibutuhkan"
+        label={t.kalkulator.pensiun.resultLabel}
         value={formatRupiah(needed)}
         detail={
           <>
-            Investasi bulanan yang dibutuhkan:{" "}
+            {t.kalkulator.pensiun.detailMonthlyInvestmentNeededPrefix}{" "}
             <strong className="text-primary">{formatRupiah(pmt)}</strong>
           </>
         }
@@ -600,31 +606,32 @@ function PensiunTab() {
 /* ─────────────────────────── Tabungan ─────────────────────────── */
 
 function TabunganTab() {
+  const { t } = useLocale();
   const [target, setTarget] = useState("100.000.000");
   const [current, setCurrent] = useState("10.000.000");
   const [bunga, setBunga] = useState("4");
   const [setor, setSetor] = useState("3.000.000");
 
   const { bln, label } = useMemo(() => {
-    const t = parseRupiah(target);
+    const targetAmount = parseRupiah(target);
     const r = Number(bunga) / 100 / 12;
     const s = parseRupiah(setor);
     let saldo = parseRupiah(current);
     let months = 0;
-    while (saldo < t && months < 600) {
+    while (saldo < targetAmount && months < 600) {
       saldo = saldo * (1 + r) + s;
       months++;
     }
     const d = new Date();
     d.setMonth(d.getMonth() + months);
-    const targetLabel = `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+    const targetLabel = `${t.kalkulator.months[d.getMonth()]} ${d.getFullYear()}`;
     return { bln: months, label: targetLabel };
-  }, [target, current, bunga, setor]);
+  }, [target, current, bunga, setor, t]);
 
   return (
-    <SectionCard title="Kalkulator Tabungan">
+    <SectionCard title={t.kalkulator.tabungan.cardTitle}>
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-        <Field label="Target Tabungan (Rp)">
+        <Field label={t.kalkulator.tabungan.fieldTarget}>
           <input
             type="text"
             inputMode="numeric"
@@ -633,7 +640,7 @@ function TabunganTab() {
             className={FIELD_CLASS}
           />
         </Field>
-        <Field label="Saldo Saat Ini (Rp)">
+        <Field label={t.kalkulator.tabungan.fieldCurrentBalance}>
           <input
             type="text"
             inputMode="numeric"
@@ -642,7 +649,7 @@ function TabunganTab() {
             className={FIELD_CLASS}
           />
         </Field>
-        <Field label="Bunga per Tahun (%)">
+        <Field label={t.kalkulator.tabungan.fieldAnnualInterest}>
           <input
             type="number"
             value={bunga}
@@ -650,7 +657,7 @@ function TabunganTab() {
             className={FIELD_CLASS}
           />
         </Field>
-        <Field label="Setoran per Bulan (Rp)">
+        <Field label={t.kalkulator.tabungan.fieldMonthlyDeposit}>
           <input
             type="text"
             inputMode="numeric"
@@ -661,11 +668,11 @@ function TabunganTab() {
         </Field>
       </div>
       <ResultCard
-        label="Estimasi Tercapai"
-        value={`±${formatNumber(bln)} Bulan`}
+        label={t.kalkulator.tabungan.resultLabel}
+        value={`±${formatNumber(bln)} ${t.kalkulator.tabungan.resultValueSuffix}`}
         detail={
           <>
-            Target tercapai sekitar:{" "}
+            {t.kalkulator.tabungan.detailTargetReachedPrefix}{" "}
             <strong className="text-primary">{label}</strong>
           </>
         }
@@ -677,6 +684,7 @@ function TabunganTab() {
 /* ─────────────────────────── Split Group ─────────────────────────── */
 
 function SplitGroupTab() {
+  const { t } = useLocale();
   const router = useRouter();
   const [total, setTotal] = useState("1.250.000");
   const [people, setPeople] = useState("5");
@@ -684,21 +692,24 @@ function SplitGroupTab() {
   const [tip, setTip] = useState("0");
 
   const { per, grand, count } = useMemo(() => {
-    const t = parseRupiah(total);
+    const totalAmount = parseRupiah(total);
     const p = Math.max(1, Number(people) || 0);
-    const grandCalc = t + (t * Number(tax)) / 100 + (t * Number(tip)) / 100;
+    const grandCalc =
+      totalAmount +
+      (totalAmount * Number(tax)) / 100 +
+      (totalAmount * Number(tip)) / 100;
     return { per: Math.round(grandCalc / p), grand: grandCalc, count: p };
   }, [total, people, tax, tip]);
 
   const breakdownCount = Math.min(count, 10);
 
   return (
-    <SectionCard title="Kalkulator Split Bill Group">
+    <SectionCard title={t.kalkulator.splitgroup.cardTitle}>
       <div className="-mt-1 mb-3.5 text-[12px] text-muted-foreground">
-        Hitung patungan untuk acara cafe, makan bareng, atau trip rombongan.
+        {t.kalkulator.splitgroup.description}
       </div>
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-        <Field label="Total Tagihan (Rp)">
+        <Field label={t.kalkulator.splitgroup.fieldTotalBill}>
           <input
             type="text"
             inputMode="numeric"
@@ -707,7 +718,7 @@ function SplitGroupTab() {
             className={FIELD_CLASS}
           />
         </Field>
-        <Field label="Jumlah Orang">
+        <Field label={t.kalkulator.splitgroup.fieldPeopleCount}>
           <input
             type="number"
             min={1}
@@ -716,7 +727,7 @@ function SplitGroupTab() {
             className={FIELD_CLASS}
           />
         </Field>
-        <Field label="Pajak / Service (%)">
+        <Field label={t.kalkulator.splitgroup.fieldTaxService}>
           <input
             type="number"
             value={tax}
@@ -724,7 +735,7 @@ function SplitGroupTab() {
             className={FIELD_CLASS}
           />
         </Field>
-        <Field label="Tip Tambahan (%)">
+        <Field label={t.kalkulator.splitgroup.fieldExtraTip}>
           <input
             type="number"
             value={tip}
@@ -734,11 +745,11 @@ function SplitGroupTab() {
         </Field>
       </div>
       <ResultCard
-        label="Per Orang Bayar"
+        label={t.kalkulator.splitgroup.resultLabel}
         value={formatRupiah(per)}
         detail={
           <>
-            Total + pajak/tip:{" "}
+            {t.kalkulator.splitgroup.detailTotalWithTaxPrefix}{" "}
             <strong className="text-primary">{formatRupiah(grand)}</strong>
           </>
         }
@@ -760,7 +771,8 @@ function SplitGroupTab() {
         className="mt-3.5 w-full"
         onClick={() => router.push("/splitbill")}
       >
-        <Share2 className="size-4" /> Buat Split Bill dari Hitungan Ini
+        <Share2 className="size-4" />{" "}
+        {t.kalkulator.splitgroup.createSplitBillButton}
       </Button>
     </SectionCard>
   );
@@ -769,6 +781,7 @@ function SplitGroupTab() {
 /* ─────────────────────────── Page ─────────────────────────── */
 
 export default function KalkulatorPage() {
+  const { t } = useLocale();
   const [tab, setTab] = useState<TabKey>("investasi");
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
@@ -776,18 +789,18 @@ export default function KalkulatorPage() {
   return (
     <div className="space-y-4">
       <div className="hide-scrollbar flex gap-2 overflow-x-auto">
-        {TABS.map((t) => (
+        {TAB_KEYS.map((key) => (
           <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
+            key={key}
+            onClick={() => setTab(key)}
             className={
               "shrink-0 cursor-pointer rounded-full px-3.5 py-2 text-[12.5px] font-semibold whitespace-nowrap transition-colors " +
-              (tab === t.key
+              (tab === key
                 ? "bg-primary text-primary-foreground"
                 : "bg-secondary text-muted-foreground hover:bg-secondary/70")
             }
           >
-            {t.label}
+            {t.kalkulator.tabs[key]}
           </button>
         ))}
       </div>

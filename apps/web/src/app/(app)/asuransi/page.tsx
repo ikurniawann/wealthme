@@ -15,6 +15,8 @@ import {
   CrudModal,
   type CrudModalState,
 } from "@/components/crud";
+import { useLocale } from "@/hooks/use-locale";
+import type { Locale } from "@/i18n";
 import { apiFetch } from "@/lib/api-client";
 import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
@@ -27,20 +29,6 @@ import type {
   InsuranceStatus,
   PremiumPeriod,
 } from "@wealthme/contracts";
-
-const INSURANCE_TYPE_LABEL: Record<string, string> = {
-  jiwa: "Asuransi Jiwa",
-  kesehatan: "Asuransi Kesehatan",
-  kendaraan: "Asuransi Kendaraan",
-  properti: "Asuransi Properti",
-  lainnya: "Lainnya",
-};
-
-const PREMIUM_PERIOD_LABEL: Record<string, string> = {
-  monthly: "/bln",
-  quarterly: "/3 bln",
-  yearly: "/thn",
-};
 
 const INSURANCE_TYPE_ICON: Record<string, string> = {
   jiwa: "🛡️",
@@ -77,9 +65,9 @@ const STATUS_OPTIONS: InsuranceStatus[] = [
 
 const PERIOD_OPTIONS: PremiumPeriod[] = ["monthly", "quarterly", "yearly"];
 
-function formatIndonesianDate(iso: string | null): string {
+function formatLocaleDate(iso: string | null, locale: Locale): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("id-ID", {
+  return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -126,11 +114,13 @@ interface PolicyCardProps {
 }
 
 function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
+  const { t, locale } = useLocale();
   const icon = INSURANCE_TYPE_ICON[item.type] ?? "📋";
   const iconBg = INSURANCE_TYPE_BG[item.type] ?? "#F3F4F6";
-  const typeLabel = INSURANCE_TYPE_LABEL[item.type] ?? item.type;
-  const periodLabel = PREMIUM_PERIOD_LABEL[item.premiumPeriod] ?? "";
+  const typeLabel = t.asuransi.typeLabels[item.type] ?? item.type;
+  const periodLabel = t.asuransi.periodSuffixLabels[item.premiumPeriod] ?? "";
   const renewalVariant = renewalBadgeVariant(item.daysUntilRenewal);
+  const statusLabel = t.asuransi.statusLabels[item.status] ?? item.status;
 
   const statusVariant =
     item.status === "aktif"
@@ -157,20 +147,14 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
                 {typeLabel}
               </div>
             </div>
-            <StatusBadge variant={statusVariant}>
-              {item.status === "aktif"
-                ? "Aktif"
-                : item.status === "kadaluarsa"
-                  ? "Kadaluarsa"
-                  : "Tidak Aktif"}
-            </StatusBadge>
+            <StatusBadge variant={statusVariant}>{statusLabel}</StatusBadge>
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
             {item.coverageAmount && (
               <div>
                 <div className="mb-[3px] text-[11px] text-muted-foreground">
-                  Uang Pertanggungan
+                  {t.asuransi.coverageLabel}
                 </div>
                 <div className="text-[13.5px] font-bold">
                   {formatRupiah(Number(BigInt(item.coverageAmount)))}
@@ -179,7 +163,7 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
             )}
             <div>
               <div className="mb-[3px] text-[11px] text-muted-foreground">
-                Premi
+                {t.asuransi.premiumLabel}
               </div>
               <div className="text-[13.5px] font-bold">
                 {formatRupiah(Number(BigInt(item.premiumAmount)))}
@@ -191,18 +175,19 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
             {item.renewalDate && (
               <div>
                 <div className="mb-[3px] text-[11px] text-muted-foreground">
-                  Jatuh Tempo
+                  {t.asuransi.renewalLabel}
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="text-[13.5px] font-bold">
-                    {formatIndonesianDate(item.renewalDate)}
+                    {formatLocaleDate(item.renewalDate, locale)}
                   </div>
                   {item.daysUntilRenewal !== null && (
                     <StatusBadge
                       variant={renewalVariant}
                       className="text-[10px]"
                     >
-                      {item.daysUntilRenewal} hari
+                      {item.daysUntilRenewal}{" "}
+                      {t.asuransi.daysUntilRenewalSuffix}
                     </StatusBadge>
                   )}
                 </div>
@@ -211,7 +196,7 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
             {item.policyNumber && (
               <div>
                 <div className="mb-[3px] text-[11px] text-muted-foreground">
-                  No. Polis
+                  {t.asuransi.policyNumberLabel}
                 </div>
                 <div className="text-[13.5px] font-bold">
                   {item.policyNumber}
@@ -237,6 +222,7 @@ function AddInsuranceModal({
   token,
   onClose,
 }: AddInsuranceModalProps) {
+  const { t } = useLocale();
   const queryClient = useQueryClient();
   const innerRef = useRef<HTMLDivElement>(null);
 
@@ -277,7 +263,7 @@ function AddInsuranceModal({
       void queryClient.invalidateQueries({
         queryKey: queryKeys.insurances.summary(familyGroupId),
       });
-      toast.success("Asuransi berhasil ditambahkan");
+      toast.success(t.asuransi.toastAdded);
     },
   });
 
@@ -294,19 +280,19 @@ function AddInsuranceModal({
   useEffect(() => {
     if (isMutationError) {
       const apiErr = mutationError as { message?: string };
-      toast.error(apiErr.message ?? "Gagal menyimpan asuransi");
+      toast.error(apiErr.message ?? t.asuransi.toastAddFailed);
     }
-  }, [isMutationError, mutationError]);
+  }, [isMutationError, mutationError, t]);
 
   function handleSave() {
     const trimmedName = name.trim();
     if (!trimmedName) {
-      toast.warning("Nama asuransi wajib diisi");
+      toast.warning(t.asuransi.validationNameRequired);
       return;
     }
     const parsedPremium = parseRupiah(premiumAmount);
     if (parsedPremium <= 0) {
-      toast.warning("Premi harus lebih dari Rp 0");
+      toast.warning(t.asuransi.validationPremiumPositive);
       return;
     }
 
@@ -341,11 +327,11 @@ function AddInsuranceModal({
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 id="add-insurance-title" className="text-[17px] font-extrabold">
-            Tambah Asuransi
+            {t.asuransi.modalTitle}
           </h2>
           <button
             type="button"
-            aria-label="Tutup modal"
+            aria-label={t.asuransi.modalCloseAriaLabel}
             onClick={onClose}
             className="flex size-8 items-center justify-center rounded-full hover:bg-muted"
           >
@@ -359,14 +345,14 @@ function AddInsuranceModal({
               htmlFor="ins-name"
               className="mb-1.5 block text-[12.5px] font-semibold"
             >
-              Nama Asuransi *
+              {t.asuransi.fieldNameLabel}
             </label>
             <input
               id="ins-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="cth: Asuransi Jiwa Keluarga"
+              placeholder={t.asuransi.fieldNamePlaceholder}
               className={FIELD_CLASS}
             />
           </div>
@@ -376,14 +362,14 @@ function AddInsuranceModal({
               htmlFor="ins-provider"
               className="mb-1.5 block text-[12.5px] font-semibold"
             >
-              Perusahaan
+              {t.asuransi.fieldProviderLabel}
             </label>
             <input
               id="ins-provider"
               type="text"
               value={provider}
               onChange={(e) => setProvider(e.target.value)}
-              placeholder="cth: Prudential, AXA, Allianz"
+              placeholder={t.asuransi.fieldProviderPlaceholder}
               className={FIELD_CLASS}
             />
           </div>
@@ -394,7 +380,7 @@ function AddInsuranceModal({
                 htmlFor="ins-type"
                 className="mb-1.5 block text-[12.5px] font-semibold"
               >
-                Jenis *
+                {t.asuransi.fieldTypeLabel}
               </label>
               <select
                 id="ins-type"
@@ -402,9 +388,9 @@ function AddInsuranceModal({
                 onChange={(e) => setType(e.target.value as InsuranceType)}
                 className={FIELD_CLASS}
               >
-                {TYPE_OPTIONS.map((t) => (
-                  <option key={t} value={t}>
-                    {INSURANCE_TYPE_LABEL[t]}
+                {TYPE_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {t.asuransi.typeLabels[opt]}
                   </option>
                 ))}
               </select>
@@ -415,7 +401,7 @@ function AddInsuranceModal({
                 htmlFor="ins-status"
                 className="mb-1.5 block text-[12.5px] font-semibold"
               >
-                Status
+                {t.asuransi.fieldStatusLabel}
               </label>
               <select
                 id="ins-status"
@@ -423,13 +409,9 @@ function AddInsuranceModal({
                 onChange={(e) => setStatus(e.target.value as InsuranceStatus)}
                 className={FIELD_CLASS}
               >
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {s === "aktif"
-                      ? "Aktif"
-                      : s === "kadaluarsa"
-                        ? "Kadaluarsa"
-                        : "Tidak Aktif"}
+                {STATUS_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {t.asuransi.statusLabels[opt]}
                   </option>
                 ))}
               </select>
@@ -441,7 +423,7 @@ function AddInsuranceModal({
               htmlFor="ins-premium"
               className="mb-1.5 block text-[12.5px] font-semibold"
             >
-              Premi (Rp) *
+              {t.asuransi.fieldPremiumLabel}
             </label>
             <div className="flex items-center gap-2 rounded-md border bg-background px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:bg-card">
               <span className="text-[13.5px] text-muted-foreground">Rp</span>
@@ -464,7 +446,7 @@ function AddInsuranceModal({
               htmlFor="ins-period"
               className="mb-1.5 block text-[12.5px] font-semibold"
             >
-              Periode Premi
+              {t.asuransi.fieldPeriodLabel}
             </label>
             <select
               id="ins-period"
@@ -474,13 +456,9 @@ function AddInsuranceModal({
               }
               className={FIELD_CLASS}
             >
-              {PERIOD_OPTIONS.map((p) => (
-                <option key={p} value={p}>
-                  {p === "monthly"
-                    ? "Bulanan"
-                    : p === "quarterly"
-                      ? "3 Bulanan"
-                      : "Tahunan"}
+              {PERIOD_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {t.asuransi.periodOptionLabels[opt]}
                 </option>
               ))}
             </select>
@@ -491,7 +469,7 @@ function AddInsuranceModal({
               htmlFor="ins-coverage"
               className="mb-1.5 block text-[12.5px] font-semibold"
             >
-              Uang Pertanggungan (Rp)
+              {t.asuransi.fieldCoverageLabel}
             </label>
             <div className="flex items-center gap-2 rounded-md border bg-background px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:bg-card">
               <span className="text-[13.5px] text-muted-foreground">Rp</span>
@@ -514,7 +492,7 @@ function AddInsuranceModal({
               htmlFor="ins-renewal"
               className="mb-1.5 block text-[12.5px] font-semibold"
             >
-              Tanggal Jatuh Tempo
+              {t.asuransi.fieldRenewalDateLabel}
             </label>
             <input
               id="ins-renewal"
@@ -531,8 +509,7 @@ function AddInsuranceModal({
                   onChange={(e) => setAutoRenewDate(e.target.checked)}
                   className="size-3.5"
                 />
-                Perpanjang otomatis setiap periode premi setelah lewat jatuh
-                tempo
+                {t.asuransi.autoRenewLabel}
               </label>
             )}
           </div>
@@ -542,14 +519,14 @@ function AddInsuranceModal({
               htmlFor="ins-policy-number"
               className="mb-1.5 block text-[12.5px] font-semibold"
             >
-              No. Polis
+              {t.asuransi.policyNumberLabel}
             </label>
             <input
               id="ins-policy-number"
               type="text"
               value={policyNumber}
               onChange={(e) => setPolicyNumber(e.target.value)}
-              placeholder="cth: POL-12345678"
+              placeholder={t.asuransi.fieldPolicyNumberPlaceholder}
               className={FIELD_CLASS}
             />
           </div>
@@ -559,14 +536,14 @@ function AddInsuranceModal({
               htmlFor="ins-notes"
               className="mb-1.5 block text-[12.5px] font-semibold"
             >
-              Catatan
+              {t.asuransi.fieldNotesLabel}
             </label>
             <textarea
               id="ins-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              placeholder="Catatan tambahan..."
+              placeholder={t.asuransi.fieldNotesPlaceholder}
               className={`${FIELD_CLASS} resize-none`}
             />
           </div>
@@ -576,7 +553,7 @@ function AddInsuranceModal({
             disabled={mutation.isPending}
             className="w-full"
           >
-            {mutation.isPending ? "Menyimpan..." : "Simpan Asuransi"}
+            {mutation.isPending ? t.asuransi.saving : t.asuransi.saveButton}
           </Button>
         </div>
       </div>
@@ -592,6 +569,7 @@ const CRUD_JENIS_BY_TYPE: Record<string, string> = {
 };
 
 export default function AsuransiPage() {
+  const { t } = useLocale();
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
   const familyGroupId = session?.familyGroupId as string | undefined;
@@ -639,9 +617,9 @@ export default function AsuransiPage() {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.insurances.summary(familyGroupId),
       });
-      toast.success("Asuransi berhasil diperbarui!");
+      toast.success(t.asuransi.toastUpdated);
     } catch {
-      toast.error("Gagal memperbarui asuransi. Coba lagi.");
+      toast.error(t.asuransi.toastUpdateFailed);
     }
   }
 
@@ -662,10 +640,10 @@ export default function AsuransiPage() {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.insurances.summary(familyGroupId ?? ""),
       });
-      toast.success("Asuransi dihapus");
+      toast.success(t.asuransi.toastDeleted);
     },
     onError: (err: { message?: string }) => {
-      toast.error(err.message ?? "Gagal menghapus asuransi");
+      toast.error(err.message ?? t.asuransi.toastDeleteFailed);
     },
   });
 
@@ -726,10 +704,11 @@ export default function AsuransiPage() {
       <div className="flex flex-wrap items-center justify-between gap-2.5">
         <div>
           <div className="text-[15px] font-bold">
-            {activePolicies} Polis Aktif
+            {activePolicies} {t.asuransi.activePoliciesSuffix}
           </div>
           <div className="text-xs text-muted-foreground">
-            Total premi: {totalMonthlyPremium}/bln
+            {t.asuransi.totalPremiumPrefix} {totalMonthlyPremium}
+            {t.asuransi.periodSuffixLabels.monthly}
           </div>
         </div>
         <Button
@@ -738,7 +717,7 @@ export default function AsuransiPage() {
           className="h-auto px-4 py-[9px]"
           data-tour="add-asuransi"
         >
-          <Plus className="size-4" /> Tambah
+          <Plus className="size-4" /> {t.common.add}
         </Button>
       </div>
 
@@ -747,7 +726,7 @@ export default function AsuransiPage() {
           role="alert"
           className="rounded-[14px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive"
         >
-          Gagal memuat data asuransi. Silakan refresh halaman.
+          {t.asuransi.errorLoad}
         </div>
       )}
 
@@ -761,7 +740,7 @@ export default function AsuransiPage() {
 
       {!isLoading && !isError && insurances?.length === 0 && (
         <div className="rounded-[14px] border bg-card px-4 py-8 text-center text-[13px] text-muted-foreground">
-          Belum ada polis asuransi. Klik &quot;Tambah&quot; untuk mulai.
+          {t.asuransi.emptyState}
         </div>
       )}
 
@@ -772,7 +751,7 @@ export default function AsuransiPage() {
             key={item.id}
             item={item}
             onEdit={() => openEdit(item)}
-            onPay={() => toast("💳 Bayar premi")}
+            onPay={() => toast(t.asuransi.payToast)}
             onDelete={() => setDeleteTarget(item)}
           />
         ))}
@@ -791,7 +770,7 @@ export default function AsuransiPage() {
         onSubmit={handleEditSubmit}
       />
       <ConfirmDeleteDialog
-        label={deleteTarget ? "Asuransi" : null}
+        label={deleteTarget ? t.shell.navSections.asuransi : null}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => {
           if (deleteTarget) deleteMutation.mutate(deleteTarget.id);

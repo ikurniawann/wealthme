@@ -119,4 +119,81 @@ describe("i18n dictionary key parity", () => {
       expect(en.panduan.features[key].desc).toBeTruthy();
     }
   });
+
+  // EPIC-018 Task A4 — /asuransi, /kalkulator, /quickinput, /ai coverage
+  // guards, mirroring the targeted checks A1/A2 added above.
+  it("asuransi enum-keyed labels cover every insurance type/period/status in both locales without changing persisted values", () => {
+    const typeIds = [
+      "jiwa",
+      "kesehatan",
+      "kendaraan",
+      "properti",
+      "lainnya",
+    ] as const;
+    for (const key of typeIds) {
+      expect(id.asuransi.typeLabels[key]).toBeTruthy();
+      expect(en.asuransi.typeLabels[key]).toBeTruthy();
+    }
+    const periodIds = ["monthly", "quarterly", "yearly"] as const;
+    for (const key of periodIds) {
+      expect(id.asuransi.periodSuffixLabels[key]).toBeTruthy();
+      expect(en.asuransi.periodSuffixLabels[key]).toBeTruthy();
+      expect(id.asuransi.periodOptionLabels[key]).toBeTruthy();
+      expect(en.asuransi.periodOptionLabels[key]).toBeTruthy();
+    }
+    const statusIds = ["aktif", "tidak_aktif", "kadaluarsa"] as const;
+    for (const key of statusIds) {
+      expect(id.asuransi.statusLabels[key]).toBeTruthy();
+      expect(en.asuransi.statusLabels[key]).toBeTruthy();
+    }
+  });
+
+  it("kalkulator.tabs covers all 7 sub-tools and months has exactly 12 entries in both locales", () => {
+    const tabIds = [
+      "zakat",
+      "pph21",
+      "investasi",
+      "kredit",
+      "pensiun",
+      "tabungan",
+      "splitgroup",
+    ] as const;
+    for (const key of tabIds) {
+      expect(id.kalkulator.tabs[key]).toBeTruthy();
+      expect(en.kalkulator.tabs[key]).toBeTruthy();
+    }
+    expect(id.kalkulator.months).toHaveLength(12);
+    expect(en.kalkulator.months).toHaveLength(12);
+  });
+
+  it("quickinput.cards covers all 12 quick-action cards with non-empty name/desc in both locales", () => {
+    const cardIds = [
+      "transaksi",
+      "investasi",
+      "rekening",
+      "ewallet",
+      "aset",
+      "liabilitas",
+      "asuransi",
+      "tujuan",
+      "anggaran",
+      "warisan",
+      "donasi",
+      "splitbill",
+    ] as const;
+    expect(Object.keys(id.quickinput.cards)).toHaveLength(12);
+    for (const key of cardIds) {
+      expect(id.quickinput.cards[key].name).toBeTruthy();
+      expect(id.quickinput.cards[key].desc).toBeTruthy();
+      expect(en.quickinput.cards[key].name).toBeTruthy();
+      expect(en.quickinput.cards[key].desc).toBeTruthy();
+    }
+  });
+
+  it("ai.chips carries exactly 6 popular-question chips with non-empty text in both locales", () => {
+    expect(id.ai.chips).toHaveLength(6);
+    expect(en.ai.chips).toHaveLength(6);
+    for (const chip of id.ai.chips) expect(chip).toBeTruthy();
+    for (const chip of en.ai.chips) expect(chip).toBeTruthy();
+  });
 });
