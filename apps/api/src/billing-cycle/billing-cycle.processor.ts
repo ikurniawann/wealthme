@@ -33,7 +33,9 @@ export class BillingCycleProcessor extends WorkerHost {
     const now = new Date();
 
     const liabilities = await this.prisma.liability.findMany({
-      where: { autoAdvanceDueDate: true, dueDate: { lt: now } },
+      // `lte` (not `lt`): a due date landing exactly at this worker tick
+      // must still be picked up, not skipped until the next run.
+      where: { autoAdvanceDueDate: true, dueDate: { lte: now } },
       select: { id: true, dueDate: true },
     });
     for (const l of liabilities) {
@@ -49,7 +51,9 @@ export class BillingCycleProcessor extends WorkerHost {
     }
 
     const insurances = await this.prisma.insurance.findMany({
-      where: { autoRenewDate: true, renewalDate: { lt: now } },
+      // `lte` (not `lt`): a renewal landing exactly at this worker tick
+      // must still be picked up, not skipped until the next run.
+      where: { autoRenewDate: true, renewalDate: { lte: now } },
       select: { id: true, renewalDate: true, premiumPeriod: true },
     });
     for (const ins of insurances) {

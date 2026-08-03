@@ -2,14 +2,23 @@ import {
   BadRequestException,
   ForbiddenException,
   GoneException,
+  Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { ConfigService } from "@nestjs/config";
 import { Role } from "@prisma/client";
 
+import {
+  NOTIFICATION_SENDER_PORT,
+  type NotificationSenderPort,
+} from "../notifications/notification-sender.port";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
+import type { Env } from "../config/env";
 import type { CreateFamilyGroupDto } from "./dto/create-family-group.dto";
 import type { CreateInvitationDto } from "./dto/create-invitation.dto";
 import type { FamilyGroupResponseDto } from "./dto/family-group-response.dto";
@@ -19,9 +28,25 @@ import type { UpdateMemberRoleDto } from "./dto/update-member-role.dto";
 
 const INVITATION_TTL_DAYS = 7;
 
+function escapeHtml(raw: string): string {
+  return raw
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;");
+}
+
 @Injectable()
 export class FamilyGroupsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(FamilyGroupsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(NOTIFICATION_SENDER_PORT)
+    private readonly notificationSender: NotificationSenderPort,
+    private readonly config: ConfigService<Env, true>,
+  ) {}
 
   async findMine(userId: string): Promise<FamilyGroupResponseDto[]> {
     const memberships = await this.prisma.member.findMany({
@@ -181,6 +206,15 @@ export class FamilyGroupsService {
       },
     });
 
+    // Fire-and-forget — a delivery failure must never fail the invite itself
+    // (mirrors the budget-alert email pattern in transactions.service.ts).
+    void this.sendInvitationEmail(
+      invitation.email,
+      invitation.token,
+      group.name,
+      invitation.expiresAt,
+    );
+
     return {
       id: invitation.id,
       token: invitation.token,
@@ -192,6 +226,39 @@ export class FamilyGroupsService {
       usedAt: null,
       createdAt: invitation.createdAt.toISOString(),
     };
+  }
+
+  /**
+   * Emails the invitation link (`WEB_ORIGIN/join/:token`, matching the
+   * frontend's accept flow at `apps/web/src/app/join/[token]/page.tsx`).
+   * Errors are logged and swallowed — see the fire-and-forget call site.
+   */
+  private async sendInvitationEmail(
+    toEmail: string,
+    token: string,
+    familyGroupName: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    try {
+      const webOrigin = this.config.get("WEB_ORIGIN", { infer: true });
+      const joinUrl = `${webOrigin}/join/${token}`;
+      const safeGroupName = escapeHtml(familyGroupName);
+      const subject = `Undangan bergabung ke ${safeGroupName} di WealthMe`;
+      const htmlBody = `<p>Anda diundang untuk bergabung dengan <strong>${safeGroupName}</strong> di WealthMe.</p>
+<p>Klik tautan berikut untuk menerima undangan:</p>
+<p><a href="${joinUrl}">${joinUrl}</a></p>
+<p>Tautan ini berlaku hingga ${expiresAt.toLocaleDateString("id-ID")}.</p>`;
+
+      await this.notificationSender.sendEmail(
+        toEmail,
+        toEmail,
+        subject,
+        htmlBody,
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Invitation email skipped: ${msg}`);
+    }
   }
 
   async getInvitationByToken(token: string): Promise<InvitationResponseDto> {

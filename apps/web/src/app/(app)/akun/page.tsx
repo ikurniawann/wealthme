@@ -17,6 +17,7 @@ import {
   User,
   Lock,
   Landmark,
+  Wallet,
   Settings,
   Bell,
   ShieldHalf,
@@ -42,7 +43,6 @@ import {
   Scale,
   UserPlus,
   UserCog,
-  EllipsisVertical,
   Target,
   Check,
   X,
@@ -213,6 +213,8 @@ function ToggleBox({
     defaultChecked?: boolean;
     checked?: boolean;
     onCheckedChange?: (v: boolean) => void;
+    /** Renders an inert, greyed-out switch — used for coming-soon controls. */
+    disabled?: boolean;
   }[];
 }) {
   return (
@@ -235,12 +237,14 @@ function ToggleBox({
               aria-label={r.label}
               checked={r.checked}
               onCheckedChange={r.onCheckedChange}
+              disabled={r.disabled}
               className="shrink-0"
             />
           ) : (
             <Switch
               aria-label={r.label}
               defaultChecked={r.defaultChecked}
+              disabled={r.disabled}
               className="shrink-0"
             />
           )}
@@ -451,8 +455,57 @@ export function ProfilBody({
   );
 }
 
-function KeamananBody() {
-  const { t } = useLocale();
+// Session device rows are real `authClient.listSessions()` entries — this is
+// a minimal user-agent sniff (no dependency added) just to pick a friendly
+// label + icon; unmatched agents fall back to a localized generic label.
+const SESSION_DEVICE_PATTERNS: { match: string; label: string }[] = [
+  { match: "iPhone", label: "iPhone" },
+  { match: "Android", label: "Android" },
+  { match: "Macintosh", label: "Mac" },
+  { match: "Windows", label: "Windows" },
+];
+
+function deviceLabelFromUserAgent(
+  ua: string | null | undefined,
+  fallback: string,
+): string {
+  if (!ua) return fallback;
+  return (
+    SESSION_DEVICE_PATTERNS.find((p) => ua.includes(p.match))?.label ?? fallback
+  );
+}
+
+function DeviceIcon({
+  label,
+  className,
+}: {
+  label: string;
+  className?: string;
+}) {
+  return label === "Mac" || label === "Windows" ? (
+    <Laptop className={className} />
+  ) : (
+    <Smartphone className={className} />
+  );
+}
+
+// Shape of the better-auth `listSessions()`/session row response actually
+// used here — the SDK doesn't export a narrow client-side type for it.
+type AuthSessionRow = {
+  id: string;
+  token: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+};
+
+export function KeamananBody() {
+  const { t, locale } = useLocale();
+  const { data: session } = useSession();
+  const currentToken = session?.accessToken;
+  const queryClient = useQueryClient();
+
   const [showChangePw, setShowChangePw] = useState(false);
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -488,6 +541,83 @@ function KeamananBody() {
     } finally {
       setPwLoading(false);
     }
+  }
+
+  // Sesi Aktif — real `authClient.listSessions()` rows (EPIC-016 Task K).
+  // Query key is inlined (not `queryKeys.*`) — see use-profile.ts for why
+  // lib/query-keys.ts stays untouched.
+  const {
+    data: sessions,
+    isLoading: sessionsLoading,
+    isError: sessionsError,
+  } = useQuery<AuthSessionRow[]>({
+    queryKey: ["auth", "sessions", currentToken],
+    queryFn: async () => {
+      const res = await authClient.listSessions();
+      if (res.error) {
+        throw new Error(res.error.message ?? "Failed to load sessions");
+      }
+      return (res.data ?? []) as AuthSessionRow[];
+    },
+    enabled: !!currentToken,
+  });
+
+  const { mutate: endSession } = useMutation({
+    mutationFn: async (sessionToken: string) => {
+      const res = await authClient.revokeSession({ token: sessionToken });
+      if (res.error) {
+        throw new Error(res.error.message ?? "Failed to end session");
+      }
+      return res;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["auth", "sessions", currentToken],
+      });
+      toast.success(t.akun.keamanan.toastSessionEnded);
+    },
+    onError: () => toast.error(t.akun.keamanan.toastSessionEndFailed),
+  });
+
+  // Notifikasi Login Baru + Konfirmasi Transaksi Besar — real persisted prefs
+  // (EPIC-016 Task K), same overrides-map + PATCH /auth/profile pattern as
+  // NotifSettingBody above.
+  const { data: profile } = useProfile();
+  const [authOverrides, setAuthOverrides] = useState<Record<string, boolean>>(
+    {},
+  );
+  const isAuthOn = (key: string): boolean =>
+    authOverrides[key] ?? profile?.notificationPrefs?.[key] ?? false;
+
+  const { mutate: saveAuthPref } = useMutation({
+    mutationFn: (payload: Record<string, boolean>) =>
+      apiFetch("/auth/profile", {
+        method: "PATCH",
+        token: currentToken,
+        body: JSON.stringify({ notificationPrefs: payload }),
+      }),
+  });
+
+  function toggleAuthPref(key: "loginAlert" | "bigTxnConfirm") {
+    return (value: boolean) => {
+      const previous = isAuthOn(key);
+      setAuthOverrides((o) => ({ ...o, [key]: value }));
+      saveAuthPref(
+        { ...(profile?.notificationPrefs ?? {}), [key]: value },
+        {
+          onSuccess: () => {
+            void queryClient.invalidateQueries({
+              queryKey: ["auth", "profile", currentToken],
+            });
+            toast.success(t.akun.keamanan.toastAuthPrefsSaved);
+          },
+          onError: () => {
+            setAuthOverrides((o) => ({ ...o, [key]: previous }));
+            toast.error(t.akun.keamanan.toastAuthPrefsFailed);
+          },
+        },
+      );
+    };
   }
 
   return (
@@ -561,11 +691,7 @@ function KeamananBody() {
           iconBg="#EEF2FF"
           name={t.akun.keamanan.pinRowName}
           sub={t.akun.keamanan.pinRowSub}
-          right={
-            <span className="text-[12px] font-semibold text-foreground">
-              {t.akun.keamanan.pinActive}
-            </span>
-          }
+          right={CHEVRON}
           onClick={() => toast(t.akun.keamanan.toastSetPin)}
         />
       </SetSection>
@@ -576,47 +702,86 @@ function KeamananBody() {
             {
               label: t.akun.keamanan.biometricLabel,
               sub: t.akun.keamanan.biometricSub,
-              defaultChecked: true,
+              defaultChecked: false,
+              disabled: true,
             },
             {
               label: t.akun.keamanan.bigTxnLabel,
               sub: t.akun.keamanan.bigTxnSub,
-              defaultChecked: true,
+              checked: isAuthOn("bigTxnConfirm"),
+              onCheckedChange: toggleAuthPref("bigTxnConfirm"),
             },
             {
               label: t.akun.keamanan.newLoginLabel,
               sub: t.akun.keamanan.newLoginSub,
-              defaultChecked: true,
+              checked: isAuthOn("loginAlert"),
+              onCheckedChange: toggleAuthPref("loginAlert"),
             },
           ]}
         />
+        <p className="mt-2 text-[11.5px] text-muted-foreground">
+          {t.akun.keamanan.authNote}
+        </p>
       </SetSection>
       <SetSection>
         <SectionTitle>{t.akun.keamanan.sessionSectionTitle}</SectionTitle>
-        {/* Device names are mock entity data; status/time captions are localized. */}
-        <SetRow
-          icon={<Smartphone className="size-4 text-success" />}
-          iconBg="#DCFCE7"
-          name="iPhone 14 Pro"
-          sub={t.akun.keamanan.currentSessionSub}
-          right={
-            <span className="shrink-0 text-[11px] font-bold text-success">
-              {t.akun.keamanan.thisDeviceBadge}
-            </span>
-          }
-        />
-        <SetRow
-          icon={<Laptop className="size-4 text-warning" />}
-          iconBg="#FEF9C3"
-          name="MacBook Pro"
-          sub={t.akun.keamanan.previousSessionSub}
-          right={
-            <span className="shrink-0 cursor-pointer text-[11px] text-destructive">
-              {t.akun.keamanan.endSessionLink}
-            </span>
-          }
-          onClick={() => toast(t.akun.keamanan.toastSessionEnded)}
-        />
+        {sessionsLoading && (
+          <div className="py-3 text-[12px] text-muted-foreground">
+            {t.akun.keamanan.sessionsLoading}
+          </div>
+        )}
+        {sessionsError && (
+          <div className="py-3 text-[12px] text-destructive">
+            {t.akun.keamanan.sessionsError}
+          </div>
+        )}
+        {!sessionsLoading && !sessionsError && sessions?.length === 0 && (
+          <div className="py-3 text-[12px] text-muted-foreground">
+            {t.akun.keamanan.sessionsEmpty}
+          </div>
+        )}
+        {!sessionsLoading &&
+          !sessionsError &&
+          sessions?.map((s) => {
+            const isCurrent = s.token === currentToken;
+            const label = deviceLabelFromUserAgent(
+              s.userAgent,
+              t.akun.keamanan.deviceFallbackLabel,
+            );
+            const dateStr = new Date(s.createdAt).toLocaleDateString(
+              locale === "en" ? "en-US" : "id-ID",
+              { day: "numeric", month: "short", year: "numeric" },
+            );
+            const sub = `${t.akun.keamanan.sessionActivePrefix}${dateStr}${
+              s.ipAddress ? ` · ${s.ipAddress}` : ""
+            }`;
+            return (
+              <SetRow
+                key={s.id}
+                icon={
+                  <DeviceIcon
+                    label={label}
+                    className={`size-4 ${isCurrent ? "text-success" : "text-muted-foreground"}`}
+                  />
+                }
+                iconBg={isCurrent ? "#DCFCE7" : "#F3F4F6"}
+                name={label}
+                sub={sub}
+                right={
+                  isCurrent ? (
+                    <span className="shrink-0 text-[11px] font-bold text-success">
+                      {t.akun.keamanan.thisDeviceBadge}
+                    </span>
+                  ) : (
+                    <span className="shrink-0 cursor-pointer text-[11px] text-destructive">
+                      {t.akun.keamanan.endSessionLink}
+                    </span>
+                  )
+                }
+                onClick={isCurrent ? undefined : () => endSession(s.token)}
+              />
+            );
+          })}
       </SetSection>
     </>
   );
@@ -630,8 +795,39 @@ function KoneksiBody({
   onAddEwallet: () => void;
 }) {
   const { t } = useLocale();
-  // Institution names and masked numbers are entity data; connection/sync
-  // status copy resolves from the dictionary.
+  const { data: session } = useSession();
+  const token = session?.accessToken;
+  const familyGroupId = session?.familyGroupId ?? undefined;
+
+  // Real accounts (EPIC-016 Task C) — no sync status exists, so every row
+  // just shows a neutral "Manual" label instead of a fake connected/synced
+  // badge.
+  const {
+    data: accounts,
+    isLoading,
+    isError,
+  } = useQuery<AccountDto[]>({
+    queryKey: queryKeys.accounts.all(familyGroupId ?? ""),
+    queryFn: () =>
+      apiFetch<AccountDto[]>(`/family-groups/${familyGroupId}/accounts`, {
+        token,
+      }),
+    enabled: !!token && !!familyGroupId,
+  });
+
+  const bankAccounts = (accounts ?? []).filter((a) => a.type === "bank");
+  const ewalletAccounts = (accounts ?? []).filter((a) => a.type === "ewallet");
+
+  function accountSub(a: AccountDto): string {
+    return a.institution
+      ? `${a.institution} · ${t.akun.koneksi.manualLabel}`
+      : t.akun.koneksi.manualLabel;
+  }
+
+  function accountName(a: AccountDto): string {
+    return a.maskedNumber ? `${a.name} ···${a.maskedNumber}` : a.name;
+  }
+
   return (
     <>
       <SetSection>
@@ -644,60 +840,30 @@ function KoneksiBody({
             {t.akun.koneksi.addButton}
           </span>
         </div>
-        <SetRow
-          icon={
-            <span
-              className="text-[13px] font-extrabold"
-              style={{ color: "#0061AF" }}
-            >
-              BCA
-            </span>
-          }
-          iconBg="#DBEAFE"
-          name="BCA Tahapan ···9010"
-          sub={t.akun.koneksi.connectedAutoSync}
-          right={
-            <StatusBadge variant="success">
-              {t.akun.koneksi.activeBadge}
-            </StatusBadge>
-          }
-        />
-        <SetRow
-          icon={
-            <span
-              className="text-[11px] font-extrabold"
-              style={{ color: "#F9A01B" }}
-            >
-              MDR
-            </span>
-          }
-          iconBg="#FFF7ED"
-          name="Mandiri ···5586"
-          sub={t.akun.koneksi.connectedSync}
-          right={
-            <StatusBadge variant="success">
-              {t.akun.koneksi.activeBadge}
-            </StatusBadge>
-          }
-        />
-        <SetRow
-          icon={
-            <span
-              className="text-[13px] font-extrabold"
-              style={{ color: "#FF6600" }}
-            >
-              BNI
-            </span>
-          }
-          iconBg="#FFF7ED"
-          name="BNI Taplus ···5544"
-          sub={t.akun.koneksi.connectedSync}
-          right={
-            <StatusBadge variant="success">
-              {t.akun.koneksi.activeBadge}
-            </StatusBadge>
-          }
-        />
+        {bankAccounts.map((a) => (
+          <SetRow
+            key={a.id}
+            icon={<Landmark className="size-4" style={{ color: "#1D4ED8" }} />}
+            iconBg="#DBEAFE"
+            name={accountName(a)}
+            sub={accountSub(a)}
+            right={
+              <span className="shrink-0 text-[12px] font-bold text-foreground">
+                {formatRupiah(parseFloat(a.balance))}
+              </span>
+            }
+          />
+        ))}
+        {isError && (
+          <div className="py-3 text-[12px] text-destructive">
+            {t.common.error}
+          </div>
+        )}
+        {!isLoading && !isError && bankAccounts.length === 0 && (
+          <div className="py-3 text-[12px] text-muted-foreground">
+            {t.akun.koneksi.emptyBank}
+          </div>
+        )}
       </SetSection>
       <SetSection>
         <div className="mb-2.5 flex items-center justify-between">
@@ -709,52 +875,30 @@ function KoneksiBody({
             {t.akun.koneksi.addButton}
           </span>
         </div>
-        <SetRow
-          icon={<span className="text-[16px]">💚</span>}
-          iconBg="#DCFCE7"
-          name="GoPay"
-          sub={`082345678901 · ${t.akun.koneksi.syncActive}`}
-          right={
-            <StatusBadge variant="success">
-              {t.akun.koneksi.activeBadge}
-            </StatusBadge>
-          }
-        />
-        <SetRow
-          icon={<span className="text-[16px]">🔴</span>}
-          iconBg="#FEE2E2"
-          name="LinkAja"
-          sub={`081234567890 · ${t.akun.koneksi.syncActive}`}
-          right={
-            <StatusBadge variant="success">
-              {t.akun.koneksi.activeBadge}
-            </StatusBadge>
-          }
-        />
-        <SetRow
-          icon={<span className="text-[16px]">🟣</span>}
-          iconBg="#F3F4F6"
-          name="OVO"
-          sub={t.akun.koneksi.notConnected}
-          right={
-            <span className="shrink-0 text-[12px] font-bold text-primary">
-              {t.akun.koneksi.connectAction}
-            </span>
-          }
-          onClick={() => toast(t.akun.koneksi.toastConnectOvo)}
-        />
-        <SetRow
-          icon={<span className="text-[16px]">🔵</span>}
-          iconBg="#F3F4F6"
-          name="DANA"
-          sub={t.akun.koneksi.notConnected}
-          right={
-            <span className="shrink-0 text-[12px] font-bold text-primary">
-              {t.akun.koneksi.connectAction}
-            </span>
-          }
-          onClick={() => toast(t.akun.koneksi.toastConnectDana)}
-        />
+        {ewalletAccounts.map((a) => (
+          <SetRow
+            key={a.id}
+            icon={<Wallet className="size-4" style={{ color: "#059669" }} />}
+            iconBg="#DCFCE7"
+            name={accountName(a)}
+            sub={accountSub(a)}
+            right={
+              <span className="shrink-0 text-[12px] font-bold text-foreground">
+                {formatRupiah(parseFloat(a.balance))}
+              </span>
+            }
+          />
+        ))}
+        {isError && (
+          <div className="py-3 text-[12px] text-destructive">
+            {t.common.error}
+          </div>
+        )}
+        {!isLoading && !isError && ewalletAccounts.length === 0 && (
+          <div className="py-3 text-[12px] text-muted-foreground">
+            {t.akun.koneksi.emptyEwallet}
+          </div>
+        )}
       </SetSection>
     </>
   );
@@ -1064,9 +1208,14 @@ export function NotifSettingBody() {
   });
 
   function save() {
-    const payload = Object.fromEntries(
-      NOTIF_PREF_KEYS.map((k) => [k, isOn(k)]),
-    );
+    // PATCH /auth/profile replaces the whole notificationPrefs map (it
+    // doesn't merge server-side) — spread the currently-stored prefs first
+    // so unrelated keys this body doesn't manage (e.g. KeamananBody's
+    // loginAlert/bigTxnConfirm, EPIC-016 Task K) are never silently reset.
+    const payload = {
+      ...(profile?.notificationPrefs ?? {}),
+      ...Object.fromEntries(NOTIF_PREF_KEYS.map((k) => [k, isOn(k)])),
+    };
     saveNotifPrefs(payload);
   }
 
@@ -1159,6 +1308,54 @@ export function NotifSettingBody() {
 
 function PrivasiBody() {
   const { t } = useLocale();
+  const router = useRouter();
+  const { data: session } = useSession();
+  const token = session?.accessToken;
+
+  // Ekspor Data Saya — real GET /users/me/gdpr/export, downloaded as a JSON
+  // file (EPIC-016 Task D).
+  async function handleExport() {
+    try {
+      const data = await apiFetch("/users/me/gdpr/export", { token });
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "wealthme-data-export.json";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success(t.akun.privasi.toastExportSuccess);
+    } catch {
+      toast.error(t.akun.privasi.toastExportFailed);
+    }
+  }
+
+  // Hapus Akun — real DELETE /users/me/gdpr/account, gated behind a native
+  // confirm() since no AlertDialog primitive exists in components/ui yet
+  // (EPIC-016 Task D). On success, sign out and redirect to /login.
+  async function handleDeleteAccount() {
+    const confirmed = window.confirm(t.akun.privasi.deleteAccountConfirm);
+    if (!confirmed) return;
+    try {
+      await apiFetch("/users/me/gdpr/account", { method: "DELETE", token });
+    } catch {
+      toast.error(t.akun.privasi.toastDeleteFailed);
+      return;
+    }
+    toast.success(t.akun.privasi.toastDeleteSuccess);
+    // Account is already gone — a sign-out failure must not surface as a
+    // delete failure; always end on /login.
+    try {
+      await authClient.signOut();
+    } finally {
+      router.push("/login");
+    }
+  }
+
   return (
     <>
       <SetSection>
@@ -1202,7 +1399,7 @@ function PrivasiBody() {
           name={t.akun.privasi.exportDataName}
           sub={t.akun.privasi.exportDataSub}
           right={CHEVRON}
-          onClick={() => toast(t.akun.privasi.toastExporting)}
+          onClick={() => void handleExport()}
         />
         <SetRow
           icon={<Trash2 className="size-4 text-destructive" />}
@@ -1210,7 +1407,7 @@ function PrivasiBody() {
           name={t.akun.privasi.deleteAccountName}
           sub={t.akun.privasi.deleteAccountSub}
           right={CHEVRON}
-          onClick={() => toast.warning(t.akun.privasi.toastDeleteWarning)}
+          onClick={() => void handleDeleteAccount()}
         />
       </SetSection>
     </>
@@ -1282,8 +1479,23 @@ function BantuanBody({
   );
 }
 
+// Real, plausible support channels — kept consistent with the copy already
+// shown in emailSub/phoneSub/whatsappSub (EPIC-016 Task D).
+const SUPPORT_EMAIL = "support@wealthme.id";
+const SUPPORT_PHONE_TEL = "tel:080012345678";
+const SUPPORT_WHATSAPP_URL = "https://wa.me/6281123456789";
+
 function HubungiBody() {
   const { t } = useLocale();
+  const [feedback, setFeedback] = useState("");
+
+  function handleSendFeedback() {
+    const subject = encodeURIComponent("Feedback WealthMe");
+    const body = encodeURIComponent(feedback);
+    window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
+    toast(t.akun.hubungi.toastFeedbackOpening);
+  }
+
   return (
     <>
       <SetSection>
@@ -1294,38 +1506,49 @@ function HubungiBody() {
           name={t.akun.hubungi.liveChatName}
           sub={t.akun.hubungi.liveChatSub}
           right={
-            <StatusBadge variant="success">
+            <StatusBadge variant="gray">
               {t.akun.hubungi.liveChatBadge}
             </StatusBadge>
           }
           onClick={() => toast(t.akun.hubungi.toastLiveChat)}
         />
-        <SetRow
-          icon={<Mail className="size-4 text-primary" />}
-          iconBg="#EEF2FF"
-          name={t.akun.hubungi.emailName}
-          sub={t.akun.hubungi.emailSub}
-          right={CHEVRON}
-          onClick={() => toast(t.akun.hubungi.toastEmail)}
-        />
-        <SetRow
-          icon={<Phone className="size-4 text-warning" />}
-          iconBg="#FEF9C3"
-          name={t.akun.hubungi.phoneName}
-          sub={t.akun.hubungi.phoneSub}
-          right={CHEVRON}
-          onClick={() => toast(t.akun.hubungi.toastPhone)}
-        />
-        <SetRow
-          icon={
-            <MessageCircle className="size-4" style={{ color: "#25D366" }} />
-          }
-          iconBg="#DCFCE7"
-          name={t.akun.hubungi.whatsappName}
-          sub={t.akun.hubungi.whatsappSub}
-          right={CHEVRON}
-          onClick={() => toast(t.akun.hubungi.toastWhatsapp)}
-        />
+        <a
+          href={`mailto:${SUPPORT_EMAIL}`}
+          className="block border-b last:border-b-0"
+        >
+          <SetRow
+            icon={<Mail className="size-4 text-primary" />}
+            iconBg="#EEF2FF"
+            name={t.akun.hubungi.emailName}
+            sub={t.akun.hubungi.emailSub}
+            right={CHEVRON}
+          />
+        </a>
+        <a href={SUPPORT_PHONE_TEL} className="block border-b last:border-b-0">
+          <SetRow
+            icon={<Phone className="size-4 text-warning" />}
+            iconBg="#FEF9C3"
+            name={t.akun.hubungi.phoneName}
+            sub={t.akun.hubungi.phoneSub}
+            right={CHEVRON}
+          />
+        </a>
+        <a
+          href={SUPPORT_WHATSAPP_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block border-b last:border-b-0"
+        >
+          <SetRow
+            icon={
+              <MessageCircle className="size-4" style={{ color: "#25D366" }} />
+            }
+            iconBg="#DCFCE7"
+            name={t.akun.hubungi.whatsappName}
+            sub={t.akun.hubungi.whatsappSub}
+            right={CHEVRON}
+          />
+        </a>
       </SetSection>
       <div className="mb-5 rounded-xl border border-[#C7D2FE] bg-accent p-4">
         <div className="mb-1.5 text-[13px] font-bold text-primary-strong">
@@ -1335,12 +1558,15 @@ function HubungiBody() {
           <textarea
             className={`${FIELD_CLASS} resize-none`}
             rows={3}
+            value={feedback}
+            onChange={(e) => setFeedback(e.target.value)}
             placeholder={t.akun.hubungi.feedbackPlaceholder}
           />
         </div>
         <button
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground"
-          onClick={() => toast.success(t.akun.hubungi.toastFeedbackSent)}
+          disabled={!feedback.trim()}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-50"
+          onClick={handleSendFeedback}
         >
           <Send className="size-4" /> {t.akun.hubungi.feedbackButton}
         </button>
@@ -1394,21 +1620,21 @@ function TentangBody() {
           iconBg="#F3F4F6"
           name={t.akun.tentang.privacyPolicyName}
           right={CHEVRON}
-          onClick={() => toast(t.akun.tentang.privacyPolicyName)}
+          onClick={() => toast(t.akun.tentang.toastComingSoon)}
         />
         <SetRow
           icon={<Scale className="size-4 text-muted-foreground" />}
           iconBg="#F3F4F6"
           name={t.akun.tentang.termsName}
           right={CHEVRON}
-          onClick={() => toast(t.akun.tentang.termsName)}
+          onClick={() => toast(t.akun.tentang.toastComingSoon)}
         />
         <SetRow
           icon={<Code className="size-4 text-brand-purple" />}
           iconBg="#EDE9FE"
           name={t.akun.tentang.licenseName}
           right={CHEVRON}
-          onClick={() => toast(t.akun.tentang.licenseName)}
+          onClick={() => toast(t.akun.tentang.toastComingSoon)}
         />
       </SetSection>
       <div className="px-0 pt-2 pb-1 text-center text-[11.5px] text-muted-foreground">
@@ -1603,17 +1829,6 @@ function FamilyBody({
               </StatusBadge>
             }
             sub={`Admin · ${m.email}`}
-            right={
-              <button
-                aria-label={`${t.akun.family.manageAccessPrefix} ${m.name}`}
-                onClick={() =>
-                  toast(`${t.akun.family.manageAccessPrefix} ${m.name}`)
-                }
-                className="cursor-pointer text-muted-foreground"
-              >
-                <EllipsisVertical className="size-4" />
-              </button>
-            }
           />
         ))}
         <button
@@ -2071,15 +2286,18 @@ function AddAdminDialog({
 }) {
   const { t } = useLocale();
   const emailRef = useRef<HTMLInputElement>(null);
+  // Real role picker (EPIC-016 Task D) — exactly the 2 roles the invitation
+  // endpoint (CreateInvitationDto) actually accepts besides "owner".
+  const [role, setRole] = useState<"member" | "admin_staff">("admin_staff");
 
   const { mutate: sendInvite, isPending } = useMutation({
-    mutationFn: (email: string) =>
+    mutationFn: (vars: { email: string; role: "member" | "admin_staff" }) =>
       apiFetch<{ token: string }>(
         `/family-groups/${familyGroupId}/invitations`,
         {
           method: "POST",
           token,
-          body: JSON.stringify({ email, role: "admin_staff" }),
+          body: JSON.stringify(vars),
         },
       ),
     onSuccess: (invitation) => {
@@ -2100,31 +2318,8 @@ function AddAdminDialog({
   function handleSend() {
     const email = emailRef.current?.value?.trim() ?? "";
     if (!email || !familyGroupId) return;
-    sendInvite(email);
+    sendInvite({ email, role });
   }
-
-  const accessRows = [
-    {
-      label: t.akun.addAdmin.accessInputTxnLabel,
-      sub: t.akun.addAdmin.accessInputTxnSub,
-      on: true,
-    },
-    {
-      label: t.akun.addAdmin.accessOcrLabel,
-      sub: t.akun.addAdmin.accessOcrSub,
-      on: true,
-    },
-    {
-      label: t.akun.addAdmin.accessViewBalanceLabel,
-      sub: t.akun.addAdmin.accessViewBalanceSub,
-      on: false,
-    },
-    {
-      label: t.akun.addAdmin.accessLimitCategoryLabel,
-      sub: t.akun.addAdmin.accessLimitCategorySub,
-      on: false,
-    },
-  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -2135,12 +2330,6 @@ function AddAdminDialog({
         <div className="mb-4 text-[12px] text-muted-foreground">
           {t.akun.addAdmin.dialogDesc}
         </div>
-        <Field label={t.akun.profil.nameLabel}>
-          <input
-            className={FIELD_CLASS}
-            placeholder={t.akun.addAdmin.namePlaceholder}
-          />
-        </Field>
         <Field label={t.akun.profil.emailLabel}>
           <input
             ref={emailRef}
@@ -2152,39 +2341,16 @@ function AddAdminDialog({
         <Field label={t.akun.addAdmin.roleLabel}>
           <select
             className={FIELD_CLASS}
-            defaultValue={t.akun.addAdmin.roleOptions.secretary}
+            value={role}
+            onChange={(e) =>
+              setRole(e.target.value as "member" | "admin_staff")
+            }
           >
-            <option>{t.akun.addAdmin.roleOptions.secretary}</option>
-            <option>{t.akun.addAdmin.roleOptions.driver}</option>
-            <option>{t.akun.addAdmin.roleOptions.householdAssistant}</option>
-            <option>{t.akun.addAdmin.roleOptions.personalAssistant}</option>
-            <option>{t.akun.addAdmin.roleOptions.accountant}</option>
-            <option>{t.akun.addAdmin.roleOptions.other}</option>
+            <option value="admin_staff">
+              {t.akun.addAdmin.roleOptions.adminStaff}
+            </option>
+            <option value="member">{t.akun.addAdmin.roleOptions.member}</option>
           </select>
-        </Field>
-        <Field label={t.akun.addAdmin.accessLabel}>
-          <div className="rounded-md border bg-card px-3.5 py-3">
-            {accessRows.map((r, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between gap-3 border-b py-2.5 first:pt-0 last:border-b-0 last:pb-0"
-              >
-                <div>
-                  <div className="text-[13px] font-semibold text-foreground">
-                    {r.label}
-                  </div>
-                  <div className="mt-0.5 text-[11.5px] text-muted-foreground">
-                    {r.sub}
-                  </div>
-                </div>
-                <Switch
-                  aria-label={r.label}
-                  defaultChecked={r.on}
-                  className="shrink-0"
-                />
-              </div>
-            ))}
-          </div>
         </Field>
         <button
           disabled={isPending || !familyGroupId}

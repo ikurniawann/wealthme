@@ -1,6 +1,6 @@
 # EPIC-014: Feature Maximizers (Wealth Intelligence)
 
-status: ready-for-qa
+status: done
 environment: dev
 retries: 0
 phase: 4
@@ -81,3 +81,5 @@ Implemented in main session per `/nerve`; gates via `scripts/{qa,test,security-c
   2026-07-18T11:31:05Z, merge commit `0747a1e`, into `development`. `origin/development` fast-forwarded
   120 files (+6561/-748). Merge blocker resolved. Still `ready-for-qa` pending human QA sign-off (per
   `CLAUDE.md` "What Remains Manual") before promotion to `done` + archive.
+
+- **2026-08-03/04 — /nerve QA sweep (delegated QA; user confirms from the live system). Evidence: gates green on development@5f2383f (qa/test/security); fresh DEV deploy clean (compose build, migrate+seed exit 0, api/web healthy); e2e vs https://wealthme.demo-wit.id — auth, route-protection, and all page regression specs green (57 passed, 2 flaky passed on serial retry, 0 real failures); code-level criteria verification by 4 parallel QA agents. **Verdict: QA-PASS after remediation. NetWorthSnapshot cron+history, goal auto-debit (idempotent, capped, audited), tax zakat recompute, recon confidence scoring all verified. Fixed in PR #203: snapshot day-idempotency was check-then-insert — now a (familyGroupId,date) unique constraint (dedup backfill migration) + atomic UTC-anchored upsert. Status → done.

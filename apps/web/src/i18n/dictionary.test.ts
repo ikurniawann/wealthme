@@ -85,8 +85,12 @@ describe("i18n dictionary key parity", () => {
       male: "Male",
       female: "Female",
     });
-    expect(en.akun.keamanan.currentSessionSub).toBe("Jakarta · Active now");
-    expect(en.akun.koneksi.connectedSync).toBe("Connected · Sync active");
+    // EPIC-016 Task C/K — the fake "connected/synced" bank badges and the
+    // mock "Jakarta · Active now" session copy were removed in favor of real
+    // account data and real `authClient.listSessions()` rows; assert their
+    // honest replacements instead.
+    expect(en.akun.keamanan.sessionActivePrefix).toBe("Active since ");
+    expect(en.akun.koneksi.manualLabel).toBe("Manual");
   });
 
   it("akun.bantuan.faqs carries exactly the 6 FAQ entries with non-empty questions in both locales", () => {
@@ -117,6 +121,186 @@ describe("i18n dictionary key parity", () => {
       expect(id.panduan.features[key].desc).toBeTruthy();
       expect(en.panduan.features[key].title).toBeTruthy();
       expect(en.panduan.features[key].desc).toBeTruthy();
+    }
+  });
+
+  // EPIC-018 Task A4 — /asuransi, /kalkulator, /quickinput, /ai coverage
+  // guards, mirroring the targeted checks A1/A2 added above.
+  it("asuransi enum-keyed labels cover every insurance type/period/status in both locales without changing persisted values", () => {
+    const typeIds = [
+      "jiwa",
+      "kesehatan",
+      "kendaraan",
+      "properti",
+      "lainnya",
+    ] as const;
+    for (const key of typeIds) {
+      expect(id.asuransi.typeLabels[key]).toBeTruthy();
+      expect(en.asuransi.typeLabels[key]).toBeTruthy();
+    }
+    const periodIds = ["monthly", "quarterly", "yearly"] as const;
+    for (const key of periodIds) {
+      expect(id.asuransi.periodSuffixLabels[key]).toBeTruthy();
+      expect(en.asuransi.periodSuffixLabels[key]).toBeTruthy();
+      expect(id.asuransi.periodOptionLabels[key]).toBeTruthy();
+      expect(en.asuransi.periodOptionLabels[key]).toBeTruthy();
+    }
+    const statusIds = ["aktif", "tidak_aktif", "kadaluarsa"] as const;
+    for (const key of statusIds) {
+      expect(id.asuransi.statusLabels[key]).toBeTruthy();
+      expect(en.asuransi.statusLabels[key]).toBeTruthy();
+    }
+  });
+
+  it("kalkulator.tabs covers all 7 sub-tools and months has exactly 12 entries in both locales", () => {
+    const tabIds = [
+      "zakat",
+      "pph21",
+      "investasi",
+      "kredit",
+      "pensiun",
+      "tabungan",
+      "splitgroup",
+    ] as const;
+    for (const key of tabIds) {
+      expect(id.kalkulator.tabs[key]).toBeTruthy();
+      expect(en.kalkulator.tabs[key]).toBeTruthy();
+    }
+    expect(id.kalkulator.months).toHaveLength(12);
+    expect(en.kalkulator.months).toHaveLength(12);
+  });
+
+  it("quickinput.cards covers all 12 quick-action cards with non-empty name/desc in both locales", () => {
+    const cardIds = [
+      "transaksi",
+      "investasi",
+      "rekening",
+      "ewallet",
+      "aset",
+      "liabilitas",
+      "asuransi",
+      "tujuan",
+      "anggaran",
+      "warisan",
+      "donasi",
+      "splitbill",
+    ] as const;
+    expect(Object.keys(id.quickinput.cards)).toHaveLength(12);
+    for (const key of cardIds) {
+      expect(id.quickinput.cards[key].name).toBeTruthy();
+      expect(id.quickinput.cards[key].desc).toBeTruthy();
+      expect(en.quickinput.cards[key].name).toBeTruthy();
+      expect(en.quickinput.cards[key].desc).toBeTruthy();
+    }
+  });
+
+  it("ai.chips carries exactly 6 popular-question chips with non-empty text in both locales", () => {
+    expect(id.ai.chips).toHaveLength(6);
+    expect(en.ai.chips).toHaveLength(6);
+    for (const chip of id.ai.chips) expect(chip).toBeTruthy();
+    for (const chip of en.ai.chips) expect(chip).toBeTruthy();
+  });
+
+  // EPIC-018 Task A5 — /investasi, /aset, /liabilitas, /masterdata,
+  // /mastercoa coverage guards, mirroring the targeted checks A1/A2/A4 added
+  // above.
+  it("investasi.typeLabels covers every instrument type in both locales without changing persisted values", () => {
+    const typeIds = [
+      "saham",
+      "reksa_dana",
+      "obligasi",
+      "emas",
+      "kripto",
+      "lainnya",
+    ] as const;
+    for (const key of typeIds) {
+      expect(id.investasi.typeLabels[key]).toBeTruthy();
+      expect(en.investasi.typeLabels[key]).toBeTruthy();
+    }
+  });
+
+  it("aset covers tabs, asset/account/investment type labels in both locales", () => {
+    const tabIds = ["semua", "dana", "rekening", "investasi", "fisik"] as const;
+    for (const key of tabIds) {
+      expect(id.aset.tabs[key]).toBeTruthy();
+      expect(en.aset.tabs[key]).toBeTruthy();
+    }
+    const assetTypeIds = [
+      "properti",
+      "kendaraan",
+      "elektronik",
+      "perhiasan",
+      "lainnya",
+    ] as const;
+    for (const key of assetTypeIds) {
+      expect(id.aset.assetTypeLabels[key]).toBeTruthy();
+      expect(en.aset.assetTypeLabels[key]).toBeTruthy();
+    }
+    const accountTypeIds = [
+      "bank",
+      "ewallet",
+      "cash",
+      "investment",
+      "property",
+    ] as const;
+    for (const key of accountTypeIds) {
+      expect(id.aset.accountTypeLabels[key]).toBeTruthy();
+      expect(en.aset.accountTypeLabels[key]).toBeTruthy();
+    }
+    // Regression guard for the explicit "Aset" (sidebar) vs "Aset Saya" (page
+    // title) distinction is covered in the shell test above; this page's own
+    // "Aset Fisik" tab label must stay distinct from the shell's "Aset".
+    expect(id.aset.tabs.fisik).not.toBe(id.shell.navSections.aset);
+  });
+
+  it("liabilitas.typeLabels covers every liability type in both locales without changing persisted values", () => {
+    const typeIds = [
+      "kartu_kredit",
+      "pinjaman_pribadi",
+      "kpr",
+      "kendaraan",
+      "lainnya",
+    ] as const;
+    for (const key of typeIds) {
+      expect(id.liabilitas.typeLabels[key]).toBeTruthy();
+      expect(en.liabilitas.typeLabels[key]).toBeTruthy();
+    }
+  });
+
+  it("masterdata.groups covers all 7 system reference groups with a title+label in both locales", () => {
+    const groupIds = [
+      "mdbank",
+      "mdtxntype",
+      "mdinvtype",
+      "mdewallet",
+      "mdlembaga",
+      "mdasettype",
+      "mdinstype",
+    ] as const;
+    expect(Object.keys(id.masterdata.groups)).toHaveLength(7);
+    for (const key of groupIds) {
+      expect(id.masterdata.groups[key].title).toBeTruthy();
+      expect(id.masterdata.groups[key].label).toBeTruthy();
+      expect(en.masterdata.groups[key].title).toBeTruthy();
+      expect(en.masterdata.groups[key].label).toBeTruthy();
+    }
+  });
+
+  it("mastercoa.groupLabels covers all 6 COA groups and direction/budget-type labels in both locales", () => {
+    const groupNums = [1, 2, 3, 4, 5, 6] as const;
+    for (const key of groupNums) {
+      expect(id.mastercoa.groupLabels[key]).toBeTruthy();
+      expect(en.mastercoa.groupLabels[key]).toBeTruthy();
+    }
+    const directionIds = ["INCOME", "EXPENSE", "TRANSFER"] as const;
+    for (const key of directionIds) {
+      expect(id.mastercoa.directionLabels[key]).toBeTruthy();
+      expect(en.mastercoa.directionLabels[key]).toBeTruthy();
+    }
+    const budgetTypeIds = ["FIXED", "VARIABLE", "REIMBURSEMENT"] as const;
+    for (const key of budgetTypeIds) {
+      expect(id.mastercoa.budgetTypeLabels[key]).toBeTruthy();
+      expect(en.mastercoa.budgetTypeLabels[key]).toBeTruthy();
     }
   });
 });
