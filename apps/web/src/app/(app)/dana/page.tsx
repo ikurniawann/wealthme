@@ -18,6 +18,17 @@ const EWALLET_TYPES = new Set(["ewallet"]);
 const CASH_TYPES = new Set(["cash"]);
 const DANA_TYPES = new Set(["ewallet", "cash"]);
 
+// EPIC-021 #3 — cash accounts are real, plural accounts (AccountType
+// "cash", name-scoped uniqueness — see apps/api/src/accounts), same as
+// e-wallets. Both sections below get the same Add/Edit/Delete treatment
+// instead of cash being a read-only display of a single hardcoded row.
+type DanaEntity = "cash" | "ewallet";
+
+const ENTITY_LABEL: Record<DanaEntity, string> = {
+  cash: "Kas Tunai",
+  ewallet: "E-Wallet",
+};
+
 function WalletRow({
   item,
   border,
@@ -111,12 +122,31 @@ export default function DanaPage() {
     });
   }
 
+  function openAdd(entity: DanaEntity) {
+    setEditingId(null);
+    setCrudState({ entity, mode: "add" });
+  }
+
+  function openEdit(entity: DanaEntity, item: AccountDto) {
+    setEditingId(item.id);
+    setCrudState({
+      entity,
+      mode: "edit",
+      initialValues: {
+        nama: item.name,
+        saldo: String(item.balance),
+      },
+    });
+  }
+
   async function handleSubmit(
-    _entity: string,
+    entity: string,
     mode: "add" | "edit",
     values: Record<string, string>,
   ) {
     if (!familyGroupId || !token) return;
+    const danaEntity = (entity === "cash" ? "cash" : "ewallet") as DanaEntity;
+    const label = ENTITY_LABEL[danaEntity];
     try {
       const balance = parseRupiah(values.saldo ?? "0");
       if (mode === "edit" && editingId) {
@@ -128,38 +158,39 @@ export default function DanaPage() {
             body: JSON.stringify({ name: values.nama, balance }),
           },
         );
-        toast.success("E-Wallet berhasil diperbarui!");
+        toast.success(`${label} berhasil diperbarui!`);
       } else {
         await apiFetch(`/family-groups/${familyGroupId}/accounts`, {
           token,
           method: "POST",
           body: JSON.stringify({
-            type: "ewallet",
+            type: danaEntity,
             name: values.nama,
-            institution: values.nama,
+            institution: danaEntity === "ewallet" ? values.nama : undefined,
             maskedNumber: values.phone || undefined,
             balance,
           }),
         });
-        toast.success("E-Wallet berhasil ditambahkan!");
+        toast.success(`${label} berhasil ditambahkan!`);
       }
       await invalidateAccounts();
     } catch {
-      toast.error("Gagal menyimpan e-wallet. Coba lagi.");
+      toast.error(`Gagal menyimpan ${label.toLowerCase()}. Coba lagi.`);
     }
   }
 
   async function handleDeleteConfirm() {
     if (!familyGroupId || !token || !deleting) return;
+    const label = CASH_TYPES.has(deleting.type) ? "Kas Tunai" : "E-Wallet";
     try {
       await apiFetch(
         `/family-groups/${familyGroupId}/accounts/${deleting.id}`,
         { token, method: "DELETE" },
       );
-      toast.success("E-Wallet berhasil dihapus.");
+      toast.success(`${label} berhasil dihapus.`);
       await invalidateAccounts();
     } catch {
-      toast.error("Gagal menghapus e-wallet. Coba lagi.");
+      toast.error(`Gagal menghapus ${label.toLowerCase()}. Coba lagi.`);
     } finally {
       setDeleting(null);
     }
@@ -191,24 +222,47 @@ export default function DanaPage() {
         </div>
       )}
 
-      {cashItems.length > 0 && (
-        <SectionCard title="Dompet &amp; Cash" bodyClassName="-my-3">
-          {cashItems.map((item, i) => (
-            <WalletRow
-              key={item.id}
-              item={item}
-              border={i < cashItems.length - 1}
-            />
-          ))}
-        </SectionCard>
-      )}
+      {/* EPIC-021 #3 — Kas Tunai is now a real, plural account list (Add/Edit/
+          Delete), not a single read-only "Kas Tunai" row. */}
+      <SectionCard
+        title="Dompet &amp; Cash"
+        action={
+          <CardLink
+            className="rounded-md bg-accent px-3 py-[5px] text-[11px]"
+            onClick={() => openAdd("cash")}
+          >
+            + Tambah
+          </CardLink>
+        }
+        bodyClassName="-my-3"
+      >
+        {isLoading && (
+          <div className="py-3 text-[13px] text-muted-foreground">
+            Memuat...
+          </div>
+        )}
+        {!isLoading && cashItems.length === 0 && (
+          <div className="py-3 text-[13px] text-muted-foreground">
+            Belum ada kas tunai.
+          </div>
+        )}
+        {cashItems.map((item, i) => (
+          <WalletRow
+            key={item.id}
+            item={item}
+            border={i < cashItems.length - 1}
+            onEdit={() => openEdit("cash", item)}
+            onDelete={() => setDeleting(item)}
+          />
+        ))}
+      </SectionCard>
 
       <SectionCard
         title="E-Wallet"
         action={
           <CardLink
             className="rounded-md bg-accent px-3 py-[5px] text-[11px]"
-            onClick={() => setCrudState({ entity: "ewallet", mode: "add" })}
+            onClick={() => openAdd("ewallet")}
           >
             + Tambah
           </CardLink>
@@ -230,17 +284,7 @@ export default function DanaPage() {
             key={item.id}
             item={item}
             border={i < ewalletItems.length - 1}
-            onEdit={() => {
-              setEditingId(item.id);
-              setCrudState({
-                entity: "ewallet",
-                mode: "edit",
-                initialValues: {
-                  nama: item.name,
-                  saldo: String(item.balance),
-                },
-              });
-            }}
+            onEdit={() => openEdit("ewallet", item)}
             onDelete={() => setDeleting(item)}
           />
         ))}

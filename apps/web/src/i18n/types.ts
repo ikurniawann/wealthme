@@ -1021,6 +1021,8 @@ export type I18nDictionary = {
     modalTitleAdd: string;
     fieldCodeLabel: string;
     fieldCodePlaceholder: string;
+    /** EPIC-021 #4 — shown when adding (code omitted/blank auto-generates). */
+    fieldCodeAutoPlaceholder: string;
     fieldGroupLabel: string;
     fieldNameLabel: string;
     fieldNamePlaceholder: string;
