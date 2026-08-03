@@ -950,6 +950,7 @@ export const en = {
     detailInterestRateLabel: "Annual Interest Rate",
     detailProjectedYieldLabel: "Projected Annual Yield",
     detailNoInterestRate: "Not applicable for this investment type",
+    detailNoRateSet: "No rate set",
   },
   aset: {
     tabs: {

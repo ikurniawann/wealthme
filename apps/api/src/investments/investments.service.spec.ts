@@ -245,6 +245,54 @@ describe("InvestmentsService P&L", () => {
     });
   });
 
+  describe("update() — interestRatePct bounds", () => {
+    const existingInvestment = {
+      id: "inv-1",
+      familyGroupId: "fg-1",
+      ticker: "OBLIGASI1",
+      name: "Obligasi Negara",
+      type: "obligasi",
+      quantity: new Decimal("10"),
+      costBasisPerUnit: new Decimal("1000000"),
+      currency: "IDR",
+      notes: null,
+      interestRatePct: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    it("accepts a rate within 0..100 on update", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue(existingInvestment);
+      mockPrisma.investment.update.mockResolvedValue({
+        ...existingInvestment,
+        interestRatePct: new Decimal("8"),
+      });
+
+      await expect(
+        service.update("fg-1", "inv-1", { interestRatePct: "8" }),
+      ).resolves.toBeDefined();
+      expect(mockPrisma.investment.update).toHaveBeenCalled();
+    });
+
+    it("rejects a rate above 100 on update", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue(existingInvestment);
+
+      await expect(
+        service.update("fg-1", "inv-1", { interestRatePct: "150" }),
+      ).rejects.toThrow();
+      expect(mockPrisma.investment.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects a negative rate on update", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue(existingInvestment);
+
+      await expect(
+        service.update("fg-1", "inv-1", { interestRatePct: "-5" }),
+      ).rejects.toThrow();
+      expect(mockPrisma.investment.update).not.toHaveBeenCalled();
+    });
+  });
+
   describe("findAll() — projectedAnnualYield + latest price provenance", () => {
     it("computes projectedAnnualYield as currentValue × interestRatePct / 100", async () => {
       const today = new Date();

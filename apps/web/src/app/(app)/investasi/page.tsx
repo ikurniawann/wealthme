@@ -777,7 +777,9 @@ export default function InvestasiPage() {
                               </>
                             ) : (
                               <div className="col-span-2 text-muted-foreground">
-                                {t.investasi.detailNoInterestRate}
+                                {INTEREST_BEARING_TYPES.includes(h.type)
+                                  ? t.investasi.detailNoRateSet
+                                  : t.investasi.detailNoInterestRate}
                               </div>
                             )}
                           </div>

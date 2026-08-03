@@ -169,6 +169,59 @@ describe("AssetsService", () => {
     });
   });
 
+  describe("update — valueChangeRatePct bounds", () => {
+    const existingAsset = {
+      id: ASSET_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      name: "Rumah",
+      type: "properti",
+      currentValue: 1_000_000_000n,
+      currency: "IDR",
+      notes: null,
+      valueChangeRatePct: null,
+      categoryId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    it("accepts a rate within -100..100", async () => {
+      prisma.asset.findUnique.mockResolvedValue(existingAsset);
+      prisma.asset.update.mockResolvedValue({
+        ...existingAsset,
+        valueChangeRatePct: new Decimal("7.5"),
+      });
+
+      await expect(
+        service.update(FAMILY_GROUP_ID, ASSET_ID, {
+          valueChangeRatePct: "7.5",
+        }),
+      ).resolves.toBeDefined();
+      expect(prisma.asset.update).toHaveBeenCalled();
+    });
+
+    it("rejects a rate above 100 on update", async () => {
+      prisma.asset.findUnique.mockResolvedValue(existingAsset);
+
+      await expect(
+        service.update(FAMILY_GROUP_ID, ASSET_ID, {
+          valueChangeRatePct: "101",
+        }),
+      ).rejects.toThrow();
+      expect(prisma.asset.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects a rate below -100 on update", async () => {
+      prisma.asset.findUnique.mockResolvedValue(existingAsset);
+
+      await expect(
+        service.update(FAMILY_GROUP_ID, ASSET_ID, {
+          valueChangeRatePct: "-101",
+        }),
+      ).rejects.toThrow();
+      expect(prisma.asset.update).not.toHaveBeenCalled();
+    });
+  });
+
   describe("create/update — categoryId tenant scope", () => {
     it("accepts a categoryId that belongs to the same family group", async () => {
       prisma.category.findFirst.mockResolvedValue({ id: CATEGORY_ID });

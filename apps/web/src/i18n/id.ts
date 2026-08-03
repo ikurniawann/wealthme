@@ -951,6 +951,7 @@ export const id = {
     detailInterestRateLabel: "Suku Bunga Tahunan",
     detailProjectedYieldLabel: "Estimasi Imbal Hasil Tahunan",
     detailNoInterestRate: "Tidak berlaku untuk jenis investasi ini",
+    detailNoRateSet: "Suku bunga belum diisi",
   },
   aset: {
     tabs: {

@@ -830,7 +830,11 @@ export type I18nDictionary = {
     detailSourceLabel: string;
     detailInterestRateLabel: string;
     detailProjectedYieldLabel: string;
+    // Genuinely non-applicable type (e.g. saham/emas — no interest concept).
     detailNoInterestRate: string;
+    // Interest-bearing type (obligasi) but interestRatePct hasn't been set yet
+    // — distinct from detailNoInterestRate so the message isn't misleading.
+    detailNoRateSet: string;
   };
   /** EPIC-018 Task A5 — `/aset` (consolidated assets) page copy. */
   aset: {
