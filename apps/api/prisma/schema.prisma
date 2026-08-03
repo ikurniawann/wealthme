@@ -452,6 +452,10 @@ model NetWorthSnapshot {
   id               String      @id @default(uuid())
   familyGroupId    String
   capturedAt       DateTime    @default(now())
+  // Calendar day the snapshot represents (distinct from the precise
+  // `capturedAt` timestamp). Unique per family group so the writer can
+  // upsert instead of check-then-insert, closing the double-write race.
+  date             DateTime    @db.Date
   totalCash        BigInt
   totalInvestments BigInt
   totalAssets      BigInt
@@ -459,6 +463,7 @@ model NetWorthSnapshot {
   netWorth         BigInt
   familyGroup      FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
 
+  @@unique([familyGroupId, date])
   @@index([familyGroupId, capturedAt])
   @@map("net_worth_snapshots")
 }

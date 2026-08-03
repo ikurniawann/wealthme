@@ -1,6 +1,6 @@
 # EPIC-002: Core Money Tracking (MVP)
 
-status: ready-for-qa
+status: done
 environment: dev
 phase: 2
 priority: P0
@@ -106,3 +106,5 @@ sehingga aplikasi benar-benar bisa dipakai mencatat dan memantau keuangan. **Ini
 ## Dependencies
 
 - EPIC-001 (auth, DB, RBAC, query client).
+
+- **2026-08-03/04 — /nerve QA sweep (delegated QA; user confirms from the live system). Evidence: gates green on development@5f2383f (qa/test/security); fresh DEV deploy clean (compose build, migrate+seed exit 0, api/web healthy); e2e vs https://wealthme.demo-wit.id — auth, route-protection, and all page regression specs green (57 passed, 2 flaky passed on serial retry, 0 real failures); code-level criteria verification by 4 parallel QA agents. **Verdict: QA-PASS after remediation. All MVP modules + wired pages verified real (no toast fakes). Fixed in PR #203: dashboard summary netWorth previously omitted investments+liabilities (now full rollup); search-dialog SEARCH_DATA mock residue removed (real API results only). Deviations accepted: search is Prisma ILIKE not Postgres FTS (Meilisearch upgrade remains a Phase-6 seed); notifications are 30s polling, not push. Status → done.

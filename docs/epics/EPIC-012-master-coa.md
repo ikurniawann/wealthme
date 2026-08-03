@@ -1,6 +1,6 @@
 # EPIC-012: Master COA (Chart of Accounts)
 
-status: ready-for-qa
+status: done
 environment: dev
 retries: 0
 phase: 4
@@ -131,3 +131,5 @@ no `Category` FK; reports resolve direction via a read-time util.
 - **2026-07-18 — /nerve "PR #171 merged".** PR #171 (bundled EPIC-012 + EPIC-014) merged to
   `development` at `0747a1e`. Merge blocker resolved. Still `ready-for-qa` pending human QA sign-off
   (per `CLAUDE.md` "What Remains Manual") before promotion to `done` + archive.
+
+- **2026-08-03/04 — /nerve QA sweep (delegated QA; user confirms from the live system). Evidence: gates green on development@5f2383f (qa/test/security); fresh DEV deploy clean (compose build, migrate+seed exit 0, api/web healthy); e2e vs https://wealthme.demo-wit.id — auth, route-protection, and all page regression specs green (57 passed, 2 flaky passed on serial retry, 0 real failures); code-level criteria verification by 4 parallel QA agents. **Verdict: QA-PASS, superseded scope. /mastercoa CRUD real+tenant-scoped. AC text drift recorded: seed is a hand-written 78-account chart (no xlsx parse, ~115 claim stale) and the 'no FK / util-based direction' wording is obsolete — EPIC-017 added the mandatory Category→CoaAccount FK and retired coa-direction.util.ts. This epic is superseded by EPIC-017 for everything downstream of the registry. Status → done.

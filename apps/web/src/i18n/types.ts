@@ -321,9 +321,8 @@ export type I18nDictionary = {
       placeholder: string;
       dialogTitle: string;
       financialResultsHeader: string;
-      pagesHeader: string;
-      quickAccessHeader: string;
       noResultsFor: string;
+      typeToSearchHint: string;
     };
   };
   /** EPIC-018 A2 — `/akun` page and sub-page copy. */

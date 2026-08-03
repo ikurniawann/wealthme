@@ -1,6 +1,6 @@
 # EPIC-009: Missing Pages MVP — 404 & Placeholder Features
 
-status: ready-for-qa
+status: done
 environment: dev
 phase: 3
 priority: P1
@@ -167,3 +167,5 @@ agar semua menu di sidebar dapat diakses dan memberikan value nyata kepada user.
 - **Verifikasi:** tsc 0 error (api+web), eslint clean, route live (401 ter-guard). Round-trip authenticated
   via curl tak bisa diuji (token `/auth/login` legacy ≠ session BetterAuthGuard); alur UI pakai mekanisme
   auth sama dgn GET/POST kategori yg sudah terbukti jalan. Proof UI Playwright opsional bila diminta.
+
+- **2026-08-03/04 — /nerve QA sweep (delegated QA; user confirms from the live system). Evidence: gates green on development@5f2383f (qa/test/security); fresh DEV deploy clean (compose build, migrate+seed exit 0, api/web healthy); e2e vs https://wealthme.demo-wit.id — auth, route-protection, and all page regression specs green (57 passed, 2 flaky passed on serial retry, 0 real failures); code-level criteria verification by 4 parallel QA agents. **Verdict: QA-PASS with deviations. All sidebar routes resolve; rfamily/rinv/rpajak tabs render real API data; donation/tax/splitbill/quickinput/ai pages are API-backed (ai = real SSE). Deviations accepted: /masterdata reference lists other than Kategori are local-only (documented in-code; kategori is the only real master API); AC path names were remapped (per logged user decision) without rewording the AC text. Status → done.
