@@ -21,9 +21,12 @@ ringkasan: [`../BACKLOG.md`](../BACKLOG.md) · arsitektur: [`../WealthMe_Backend
 | [EPIC-012](EPIC-012-master-coa.md)                     | Phase 4 | Master COA (Chart of Accounts)                     | P2        | ready-for-qa |
 | [EPIC-014](EPIC-014-feature-maximizers.md)             | Phase 4 | Feature Maximizers (Wealth Intel)                  | P1        | ready-for-qa |
 | [EPIC-015](EPIC-015-product-integrity.md)              | Phase 4 | Product Integrity & Trust Pass                     | P0        | ready-for-qa |
-| [EPIC-016](EPIC-016-ui-integrity-akun-and-actions.md)  | Phase 4 | UI Integrity — Non-Functional Actions & Fake Data  | P0        | backlog      |
-| [EPIC-017](EPIC-017-master-coa-integration.md)         | Phase 4 | Master COA Integration — CoA as Real Backbone      | P2        | backlog      |
+| [EPIC-016](EPIC-016-ui-integrity-akun-and-actions.md)  | Phase 4 | UI Integrity — Non-Functional Actions & Fake Data  | P0        | on-progress  |
+| [EPIC-017](EPIC-017-master-coa-integration.md)         | Phase 4 | Master COA Integration — CoA as Real Backbone      | P2        | ready-for-qa |
 | [EPIC-018](EPIC-018-member-model-i18n-responsive.md)   | Phase 4 | Per-Member Finances, i18n Coverage & Responsive UI | P2        | on-progress  |
+| [EPIC-019](EPIC-019-family-subaccounts-allowances.md)  | Phase 5 | Family Sub-Accounts & Allowances                   | P2        | backlog      |
+| [EPIC-020](EPIC-020-txn-detail-report-filters-pdf.md)  | Phase 4 | Txn Detail, Report Filters, Real PDF Export        | P1        | backlog      |
+| [EPIC-021](EPIC-021-client-revisions-230720236.md)     | Phase 4 | Client Revision Punch-List (30 items)              | P1        | backlog      |
 
 ## Archived (done + human QA signed off)
 

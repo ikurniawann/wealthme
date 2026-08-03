@@ -1,6 +1,6 @@
 # EPIC-017: Master COA Integration — Real Chart-of-Accounts Backbone
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 retries: 0
 phase: 4
@@ -370,3 +370,22 @@ CoaAccount` direction (new `txCoaDirection` helper); category-less tx fall back
   `ready-for-qa` without an actual deploy + smoke check. Action needed: run
   `bash scripts/deploy-dev.sh` from a session with Docker access (the real dev
   host), verify `/health` + report numbers, then flip status.
+- 2026-08-03 DEV deploy UNBLOCKED and completed — user started the Docker
+  infra (postgres/redis/minio/mailhog), `bash scripts/deploy-dev.sh` built the
+  api/web/migrate images, one-shot migrate+seed ran clean (demo@wealthme.id
+  seeded), api `/health` returns `{"status":"ok"}` on :4000, web healthy on
+  :3000. **Status flipped to `ready-for-qa`.** Human QA remaining (from Task F
+  note): verify report numbers shifted sanely — esp. PNL / Arus Kas /
+  Ringkasan where categories map to TRANSFER-direction COA accounts.
+- 2026-08-03 QA-assist pass (API-level, seeded demo tenant) ahead of human
+  sign-off. **All COA checks verified sane:** (1) /beranda ↔ /laporan
+  Ringkasan identical across all 6 months, both columns; (2) TRANSFER
+  exclusion proven arithmetically — July raw type=expense sums to 16.175.000
+  but reports show 10.175.000, exactly the 2× Rp 3jt "Tabungan & Investasi"
+  (Wealth-Allocation COA) entries excluded; (3) savings rates + cashflow
+  opening/closing internally consistent. One nuance (not a defect): PNL/Arus
+  Kas window is month-to-date while dashboard currentMonth is full calendar
+  month, so a future-dated seed tx (Cicilan KPR 4.2jt, Aug 5) appears only in
+  the dashboard figure. Full report delivered to the user
+  (QA-EPIC-017-report.md) with a 2-minute UI checklist; human flip to `done`
+  pending.
