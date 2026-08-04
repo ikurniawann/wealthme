@@ -1350,6 +1350,11 @@ export const id = {
     toastDeleteFailed: "Gagal menghapus tujuan. Coba lagi.",
     activeGoalsSuffix: " Tujuan Aktif",
     totalAllocatedPrefix: "Total dialokasikan: ",
+    // EPIC-022 A3 — goals are a manual tracker, not real money: this total
+    // is an earmark the family maintains by hand, never a bank balance or a
+    // real transfer between accounts.
+    trackerDisclaimer:
+      "Progres dicatat manual, terpisah dari saldo rekening/dompet.",
     addGoalButton: "Tambah Tujuan",
     onTrackLabel: "On Track",
     onTrackDesc: "tujuan berjalan baik",

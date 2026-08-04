@@ -133,6 +133,17 @@ type FamilyMember = {
   createdAt: string;
 };
 
+/**
+ * EPIC-022 A1 — surface the API's real validation message (e.g. "email must
+ * be an email", a duplicate-invitation 409) instead of a generic toast.
+ * Mirrors the identical page-local helper in mastercoa/page.tsx.
+ */
+function extractApiErrorMessage(err: unknown, fallback: string): string {
+  return err && typeof err === "object" && "message" in err
+    ? String((err as { message: unknown }).message)
+    : fallback;
+}
+
 /* ─────────────────── Shared field / row primitives ─────────────────── */
 
 const FIELD_CLASS =
@@ -2632,12 +2643,16 @@ export default function AkunPage() {
             : t.akun.crud.ewalletAdded,
         );
       } else if (entity === "member") {
+        // EPIC-022 A1 — the role select only ever offers "member" /
+        // "admin_staff" (see crud-config.ts), so this is a real, wired-up
+        // choice now, not the previous hardcoded "member".
+        const role = values.role === "admin_staff" ? "admin_staff" : "member";
         const invitation = await apiFetch<{ token: string }>(
           `/family-groups/${familyGroupId}/invitations`,
           {
             token,
             method: "POST",
-            body: JSON.stringify({ email: values.email, role: "member" }),
+            body: JSON.stringify({ email: values.email, role }),
           },
         );
         const link = `${window.location.origin}/join/${invitation.token}`;
@@ -2647,8 +2662,11 @@ export default function AkunPage() {
           duration: 10000,
         });
       }
-    } catch {
-      toast.error(t.akun.crud.saveFailed);
+    } catch (err) {
+      // EPIC-022 A1 — surface the server's real validation message (e.g.
+      // "email must be an email", a duplicate-invitation 409) instead of the
+      // generic toast that used to swallow it.
+      toast.error(extractApiErrorMessage(err, t.akun.crud.saveFailed));
     }
   }
 
@@ -2898,6 +2916,20 @@ export default function AkunPage() {
         state={crud}
         onClose={() => setCrud(null)}
         onSubmit={handleCrudSubmit}
+        // EPIC-022 A1 — the "member" entity's `role` field (crud-config.ts)
+        // uses raw enum values ("member"/"admin_staff") as its static
+        // options so the form stays valid even without this override; here
+        // we swap in the same translated labels already used by the
+        // "Tambah Admin/Staf" dialog instead of duplicating the copy.
+        dynamicOptions={{
+          role: [
+            { value: "member", label: t.akun.addAdmin.roleOptions.member },
+            {
+              value: "admin_staff",
+              label: t.akun.addAdmin.roleOptions.adminStaff,
+            },
+          ],
+        }}
       />
     </div>
   );

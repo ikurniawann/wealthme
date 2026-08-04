@@ -31,7 +31,10 @@ function makePrisma() {
       create: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
-      findUnique: jest.fn(),
+      // EPIC-022 A6 follow-up — update()/remove() now look up the existing
+      // row via findFirst (not findUnique) so the same relation-based
+      // privacy filter findOne() already applies also gates a PATCH/DELETE.
+      findFirst: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
       aggregate: jest.fn(),
@@ -541,7 +544,7 @@ describe("TransactionsService", () => {
     });
 
     it("remove() reverses BOTH sides of a two-sided transfer", async () => {
-      prisma.transaction.findUnique.mockResolvedValue({
+      prisma.transaction.findFirst.mockResolvedValue({
         id: "tx-transfer-1",
         familyGroupId: FAMILY_GROUP_ID,
         accountId: ACCOUNT_ID,
@@ -770,7 +773,7 @@ describe("TransactionsService", () => {
         [ACCOUNT_ID]: { type: "ewallet", balance: BigInt(1_000_000) },
         [TO_ACCOUNT_ID]: { type: "bank", balance: BigInt(100) },
       });
-      prisma.transaction.findUnique.mockResolvedValue({
+      prisma.transaction.findFirst.mockResolvedValue({
         id: "tx-transfer-guard",
         familyGroupId: FAMILY_GROUP_ID,
         accountId: ACCOUNT_ID,
@@ -824,7 +827,7 @@ describe("TransactionsService", () => {
     }
 
     it("transfer -> expense: reverts the destination leg and clears toAccountId", async () => {
-      prisma.transaction.findUnique.mockResolvedValue({
+      prisma.transaction.findFirst.mockResolvedValue({
         id: "tx-upd",
         familyGroupId: FAMILY_GROUP_ID,
         accountId: ACCOUNT_ID,
@@ -865,7 +868,7 @@ describe("TransactionsService", () => {
     });
 
     it("expense -> transfer: applies both legs", async () => {
-      prisma.transaction.findUnique.mockResolvedValue({
+      prisma.transaction.findFirst.mockResolvedValue({
         id: "tx-upd",
         familyGroupId: FAMILY_GROUP_ID,
         accountId: ACCOUNT_ID,
@@ -904,7 +907,7 @@ describe("TransactionsService", () => {
     });
 
     it("amount change on an existing transfer: both legs adjusted", async () => {
-      prisma.transaction.findUnique.mockResolvedValue({
+      prisma.transaction.findFirst.mockResolvedValue({
         id: "tx-upd",
         familyGroupId: FAMILY_GROUP_ID,
         accountId: ACCOUNT_ID,
@@ -939,7 +942,7 @@ describe("TransactionsService", () => {
     });
 
     it("accountId change on an existing transfer: old source reverted, new source debited", async () => {
-      prisma.transaction.findUnique.mockResolvedValue({
+      prisma.transaction.findFirst.mockResolvedValue({
         id: "tx-upd",
         familyGroupId: FAMILY_GROUP_ID,
         accountId: ACCOUNT_ID,
@@ -982,7 +985,7 @@ describe("TransactionsService", () => {
     });
 
     it("rejects patching accountId to equal the row's existing toAccountId (self-transfer bypass guard)", async () => {
-      prisma.transaction.findUnique.mockResolvedValue({
+      prisma.transaction.findFirst.mockResolvedValue({
         id: "tx-upd",
         familyGroupId: FAMILY_GROUP_ID,
         accountId: ACCOUNT_ID,
@@ -1007,7 +1010,7 @@ describe("TransactionsService", () => {
     });
 
     it("toAccountId change: old destination reverted, new destination credited", async () => {
-      prisma.transaction.findUnique.mockResolvedValue({
+      prisma.transaction.findFirst.mockResolvedValue({
         id: "tx-upd",
         familyGroupId: FAMILY_GROUP_ID,
         accountId: ACCOUNT_ID,
@@ -1050,7 +1053,7 @@ describe("TransactionsService", () => {
     });
 
     it("explicit toAccountId: null clears the destination, keeping the row a legacy one-sided transfer", async () => {
-      prisma.transaction.findUnique.mockResolvedValue({
+      prisma.transaction.findFirst.mockResolvedValue({
         id: "tx-upd",
         familyGroupId: FAMILY_GROUP_ID,
         accountId: ACCOUNT_ID,
@@ -1090,7 +1093,7 @@ describe("TransactionsService", () => {
     });
 
     it("rejects toAccountId supplied together with an effective non-transfer type", async () => {
-      prisma.transaction.findUnique.mockResolvedValue({
+      prisma.transaction.findFirst.mockResolvedValue({
         id: "tx-upd",
         familyGroupId: FAMILY_GROUP_ID,
         accountId: ACCOUNT_ID,
@@ -1122,7 +1125,7 @@ describe("TransactionsService", () => {
       // Existing row is a "transfer" (unconstrained); the patch only changes
       // `type`, so `categoryId` comes from the EXISTING row, not the payload —
       // the effective-state check must still catch this.
-      prisma.transaction.findUnique.mockResolvedValue({
+      prisma.transaction.findFirst.mockResolvedValue({
         id: "tx-upd",
         familyGroupId: FAMILY_GROUP_ID,
         accountId: ACCOUNT_ID,
@@ -1150,7 +1153,7 @@ describe("TransactionsService", () => {
     });
 
     it("allows a PATCH to an allowed category for a constrained member", async () => {
-      prisma.transaction.findUnique.mockResolvedValue({
+      prisma.transaction.findFirst.mockResolvedValue({
         id: "tx-upd",
         familyGroupId: FAMILY_GROUP_ID,
         accountId: ACCOUNT_ID,
@@ -1463,6 +1466,7 @@ interface FakeTx {
 }
 
 interface TxWhere {
+  id?: string;
   account?: { isPrivate: boolean };
   OR?: unknown;
   type?: string;
@@ -1484,6 +1488,9 @@ function makeFakePrivacyPrisma(
 
   function filterTx(where: TxWhere): FakeTx[] {
     let rows = transactions;
+    if (where.id) {
+      rows = rows.filter((t) => t.id === where.id);
+    }
     if (where.account?.isPrivate === false) {
       rows = rows.filter((t) => !accountById.get(t.accountId)?.isPrivate);
     }
@@ -1499,8 +1506,11 @@ function makeFakePrivacyPrisma(
     return rows;
   }
 
-  return {
-    account: { findUnique: jest.fn(), update: jest.fn() },
+  const prisma = {
+    account: {
+      findUnique: jest.fn(),
+      update: jest.fn().mockResolvedValue({}),
+    },
     category: { findUnique: jest.fn(), findMany: jest.fn() },
     budget: { findFirst: jest.fn() },
     member: { findFirst: jest.fn() },
@@ -1525,8 +1535,36 @@ function makeFakePrivacyPrisma(
         const sum = filterTx(where).reduce((acc, t) => acc + t.amount, 0n);
         return Promise.resolve({ _sum: { amount: sum } });
       }),
+      // EPIC-022 A6 follow-up — update()/remove() now look up the existing
+      // row this way; honors the same privacy `where` fragment as
+      // findMany/count above, so a member's PATCH/DELETE on a
+      // private-tied transaction 404s exactly like `findAll` excludes it.
+      findFirst: jest.fn(({ where }: { where: TxWhere }) => {
+        const [row] = filterTx(where);
+        if (!row) return Promise.resolve(null);
+        return Promise.resolve({
+          ...row,
+          toAccountId: null,
+        });
+      }),
+      update: jest.fn(({ where }: { where: { id: string } }) => {
+        const row = transactions.find((t) => t.id === where.id);
+        return Promise.resolve({
+          ...row,
+          toAccountId: null,
+          category: null,
+          account: { name: "" },
+          toAccount: null,
+        });
+      }),
+      delete: jest.fn().mockResolvedValue({}),
     },
-    $transaction: jest.fn(),
+  };
+  return {
+    ...prisma,
+    $transaction: jest.fn((cb: (tx: typeof prisma) => Promise<unknown>) =>
+      cb(prisma),
+    ),
   };
 }
 
@@ -1625,5 +1663,163 @@ describe("TransactionsService.findAll privacy enforcement", () => {
     expect(result.data.map((t) => t.id).sort()).toEqual(
       ["tx-private-account", "tx-private-category", "tx-visible"].sort(),
     );
+  });
+});
+
+// EPIC-022 A6 follow-up — the same privacy hole `findAll`/`findOne` were
+// already fixed for existed, unfixed, on `update()`/`remove()`: a member
+// holding a private-tied transaction's id could still PATCH or DELETE it.
+describe("TransactionsService.update/remove privacy enforcement (EPIC-022 A6 follow-up)", () => {
+  const accounts: FakeAccount[] = [
+    { id: "acc-visible", isPrivate: false },
+    { id: "acc-private", isPrivate: true },
+  ];
+  const categories: FakeCategory[] = [
+    { id: "cat-visible", name: "Public Cat", isPrivate: false },
+    { id: "cat-private", name: "Private Cat", isPrivate: true },
+  ];
+  const now = new Date();
+  const transactions: FakeTx[] = [
+    {
+      id: "tx-visible",
+      familyGroupId: FAMILY_GROUP_ID,
+      accountId: "acc-visible",
+      categoryId: null,
+      amount: 50n,
+      type: "income",
+      description: null,
+      occurredAt: now,
+      createdAt: now,
+    },
+    {
+      id: "tx-private-account",
+      familyGroupId: FAMILY_GROUP_ID,
+      accountId: "acc-private",
+      categoryId: null,
+      amount: 30n,
+      type: "expense",
+      description: null,
+      occurredAt: now,
+      createdAt: now,
+    },
+    {
+      id: "tx-private-category",
+      familyGroupId: FAMILY_GROUP_ID,
+      accountId: "acc-visible",
+      categoryId: "cat-private",
+      amount: 20n,
+      type: "expense",
+      description: null,
+      occurredAt: now,
+      createdAt: now,
+    },
+  ];
+
+  async function buildServiceAndPrisma() {
+    const prisma = makeFakePrivacyPrisma(accounts, categories, transactions);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        TransactionsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: OCR_PORT, useValue: { extractFromBase64: jest.fn() } },
+        {
+          provide: CATEGORIZATION_PORT,
+          useValue: { suggest: jest.fn().mockResolvedValue(null) },
+        },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { send: jest.fn(), sendEmail: jest.fn() },
+        },
+      ],
+    }).compile();
+    return {
+      service: module.get<TransactionsService>(TransactionsService),
+      prisma,
+    };
+  }
+
+  it("update() 404s a member on a transaction tied to a private account, and never opens a $transaction", async () => {
+    const { service, prisma } = await buildServiceAndPrisma();
+    await expect(
+      service.update(
+        FAMILY_GROUP_ID,
+        "tx-private-account",
+        { description: "renamed" },
+        null,
+        false,
+      ),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("update() 404s a member on a transaction tied to a private category, and never opens a $transaction", async () => {
+    const { service, prisma } = await buildServiceAndPrisma();
+    await expect(
+      service.update(
+        FAMILY_GROUP_ID,
+        "tx-private-category",
+        { description: "renamed" },
+        null,
+        false,
+      ),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("update() still lets a member edit a transaction tied to a public account/category", async () => {
+    const { service } = await buildServiceAndPrisma();
+    const result = await service.update(
+      FAMILY_GROUP_ID,
+      "tx-visible",
+      { description: "renamed" },
+      null,
+      false,
+    );
+    expect(result).toBeDefined();
+  });
+
+  it("update() lets an owner/admin_staff viewer edit a transaction tied to a private account", async () => {
+    const { service } = await buildServiceAndPrisma();
+    const result = await service.update(
+      FAMILY_GROUP_ID,
+      "tx-private-account",
+      { description: "renamed" },
+      null,
+      true,
+    );
+    expect(result).toBeDefined();
+  });
+
+  it("remove() 404s a member on a transaction tied to a private account, and never deletes", async () => {
+    const { service, prisma } = await buildServiceAndPrisma();
+    await expect(
+      service.remove(FAMILY_GROUP_ID, "tx-private-account", false),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(prisma.transaction.delete).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("remove() 404s a member on a transaction tied to a private category, and never deletes", async () => {
+    const { service, prisma } = await buildServiceAndPrisma();
+    await expect(
+      service.remove(FAMILY_GROUP_ID, "tx-private-category", false),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(prisma.transaction.delete).not.toHaveBeenCalled();
+  });
+
+  it("remove() still lets a member delete a transaction tied to a public account/category", async () => {
+    const { service, prisma } = await buildServiceAndPrisma();
+    await service.remove(FAMILY_GROUP_ID, "tx-visible", false);
+    expect(prisma.transaction.delete).toHaveBeenCalledWith({
+      where: { id: "tx-visible" },
+    });
+  });
+
+  it("remove() lets an owner/admin_staff viewer delete a transaction tied to a private category", async () => {
+    const { service, prisma } = await buildServiceAndPrisma();
+    await service.remove(FAMILY_GROUP_ID, "tx-private-category", true);
+    expect(prisma.transaction.delete).toHaveBeenCalledWith({
+      where: { id: "tx-private-category" },
+    });
   });
 });

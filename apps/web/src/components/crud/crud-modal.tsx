@@ -245,7 +245,13 @@ function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
                   />
                 ) : (
                   <Input
-                    type={f.type === "number" ? "number" : "text"}
+                    type={
+                      f.type === "number"
+                        ? "number"
+                        : f.type === "email"
+                          ? "email"
+                          : "text"
+                    }
                     className="text-[13px]"
                     placeholder={f.placeholder}
                     value={values[f.key] ?? ""}
