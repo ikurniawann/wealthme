@@ -117,16 +117,16 @@ after A6, so it lands on top of an already-translated `ringkasan`.
     16 report-tab sub-views (tab labels come from A1's `shell` section; this
     phase covers per-tab body content/headers/table copy).
 
-- [ ] ### A4 — i18n: asuransi, kalkulator, quickinput, ai
+- [x] ### A4 — i18n: asuransi, kalkulator, quickinput, ai
   - `asuransi/page.tsx` (123), `kalkulator/page.tsx` (112, multiple calculator
     sub-tools), `quickinput/page.tsx` (104, high literal-density form
     labels/options), `ai/page.tsx` (25).
 
-- [ ] ### A5 — i18n: wealth & asset pages
+- [x] ### A5 — i18n: wealth & asset pages
   - `investasi/page.tsx` (88), `masterdata/page.tsx` (87), `aset/page.tsx`
     (86), `liabilitas/page.tsx` (84), `mastercoa/page.tsx` (77).
 
-- [ ] ### A6 — i18n: remaining pages
+- [x] ### A6 — i18n: remaining pages
   - `transaksi/page.tsx` (71), `rekonsiliasi/page.tsx` (79),
     `splitbill/page.tsx` (61), `anggaran/page.tsx` (60), `rekening/page.tsx`
     (59), `donation/page.tsx` (54), `warisan/page.tsx` (48), `tujuan/page.tsx`
@@ -145,7 +145,7 @@ after A6, so it lands on top of an already-translated `ringkasan`.
     it supersedes EPIC-018 Task B") should be resolved there. No schema
     change made in this epic.
 
-- [ ] ### C — Responsive layout redesign for sparse pages
+- [x] ### C — Responsive layout redesign for sparse pages
   - **Resolved 2026-07-25 (AskUserQuestion):** redesign chosen over
     accept-whitespace.
   - `beranda/page.tsx` and `ringkasan/page.tsx` both already use internal
@@ -300,3 +300,20 @@ advisory` PR #186 pattern); flagged to the user as a separate, urgent
   role labels remains a legitimate future idea but needs its own explicitly-
   scoped task (would also need to fix the `page.tsx:2057` inconsistency), not
   bundled into "faithful i18n port."
+
+- **2026-08-04 — /nerve wave: A4, A5, A6, C shipped; A3 in flight.** A4 (PR #206:
+  asuransi/kalkulator/quickinput/ai), A5 (#209: investasi/masterdata/aset/
+  liabilitas/mastercoa), A6 (#213: the remaining 12 pages) completed the phased
+  i18n rollout — with A1/A2 already merged, **24 of 25 app pages plus the shell
+  render in both locales**; only `/laporan` (A3) remains and is in progress.
+  Each cluster followed the same rules: typed per-page dictionary sections,
+  byte-faithful Indonesian, persisted enum values untouched (only display labels
+  translate), prefix/suffix splitting for mixed label+value rows, locale-aware
+  date formatting, and dictionary parity guards in `dictionary.test.ts`.
+  Documented value-locked residuals: `crud-config.ts`-owned modal copy, bank and
+  institution names, sample participant names, currency symbols. Task C (#215)
+  chose the recorded redesign over accept-whitespace: `/beranda` and `/ringkasan`
+  re-flow their existing card blocks into a main+aside grid at `lg`+ via
+  `lg:contents` on the existing row wrappers, so **mobile markup is byte-identical**
+  and no protected shell file was touched. Gates green throughout (web 13 suites /
+  122 tests at A6+C; api unaffected).
