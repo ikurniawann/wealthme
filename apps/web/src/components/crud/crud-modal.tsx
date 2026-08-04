@@ -47,10 +47,18 @@ interface CrudModalProps {
   dynamicOptions?: Record<string, { value: string; label: string }[]>;
 }
 
-function formatThousands(raw: string): string {
+// EPIC-021 #21 — `allowNegative` (only `cash.saldo` today) preserves a
+// leading "-" instead of stripping it with every other non-digit character,
+// so a cash account that has gone negative (via an over-budget expense) can
+// still be typed, edited, and round-tripped correctly through this shared
+// "amount" field. Every other field keeps the original strip-everything
+// behavior by omitting the flag.
+function formatThousands(raw: string, allowNegative = false): string {
+  const isNegative = allowNegative && raw.trim().startsWith("-");
   const digits = raw.replace(/\D/g, "");
-  if (!digits) return "";
-  return parseInt(digits, 10).toLocaleString("id-ID");
+  if (!digits) return isNegative ? "-" : "";
+  const formatted = parseInt(digits, 10).toLocaleString("id-ID");
+  return isNegative ? `-${formatted}` : formatted;
 }
 
 function initialFieldValues(
@@ -61,7 +69,8 @@ function initialFieldValues(
   for (const f of fields) {
     const given = initial?.[f.key];
     if (given !== undefined) {
-      values[f.key] = f.type === "amount" ? formatThousands(given) : given;
+      values[f.key] =
+        f.type === "amount" ? formatThousands(given, f.allowNegative) : given;
     } else if (f.type === "select" || f.type === "iconpick") {
       values[f.key] = f.options?.[0] ?? "";
     } else if (f.type === "toggle") {
@@ -193,12 +202,15 @@ function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
                       Rp
                     </span>
                     <Input
-                      inputMode="numeric"
+                      inputMode={f.allowNegative ? "text" : "numeric"}
                       className="pl-9 text-[13px]"
                       placeholder="0"
                       value={values[f.key] ?? ""}
                       onChange={(e) =>
-                        setField(f.key, formatThousands(e.target.value))
+                        setField(
+                          f.key,
+                          formatThousands(e.target.value, f.allowNegative),
+                        )
                       }
                     />
                   </div>

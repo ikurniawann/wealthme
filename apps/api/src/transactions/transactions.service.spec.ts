@@ -574,6 +574,230 @@ describe("TransactionsService", () => {
     });
   });
 
+  describe("bank overdraft guard (EPIC-021 #21/#22)", () => {
+    const now = new Date("2026-06-15T10:00:00.000Z");
+
+    /** account.findUnique that returns a full row (with type/balance) by id. */
+    function mockAccountsById(
+      accounts: Record<string, { type: string; balance: bigint }>,
+    ) {
+      prisma.account.findUnique.mockImplementation(
+        ({ where }: { where: { id: string } }) => {
+          const found = accounts[where.id];
+          return Promise.resolve(
+            found
+              ? {
+                  id: where.id,
+                  familyGroupId: FAMILY_GROUP_ID,
+                  name: where.id,
+                  ...found,
+                }
+              : null,
+          );
+        },
+      );
+    }
+
+    function mockCreate(overrides: Record<string, unknown> = {}) {
+      const createdTx = {
+        id: "tx-guard-1",
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        toAccountId: null,
+        categoryId: null,
+        amount: BigInt(50000),
+        type: "expense" as const,
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+        ...overrides,
+      };
+      prisma.$transaction.mockImplementation(
+        async (fn: Parameters<typeof prisma.$transaction>[0]) => {
+          const innerPrisma = {
+            ...prisma,
+            transaction: {
+              ...prisma.transaction,
+              create: jest.fn().mockResolvedValue(createdTx),
+            },
+          };
+          return (fn as (p: typeof innerPrisma) => Promise<unknown>)(
+            innerPrisma,
+          );
+        },
+      );
+    }
+
+    it("rejects an expense that would take a bank account below zero (#22)", async () => {
+      mockAccountsById({
+        [ACCOUNT_ID]: { type: "bank", balance: BigInt(30000) },
+      });
+      mockCreate();
+
+      await expect(
+        service.create(FAMILY_GROUP_ID, {
+          accountId: ACCOUNT_ID,
+          amount: 50000,
+          type: "expense",
+          occurredAt: now.toISOString(),
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.account.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects a transfer FROM a bank account exceeding its balance (#22)", async () => {
+      mockAccountsById({
+        [ACCOUNT_ID]: { type: "bank", balance: BigInt(30000) },
+        [TO_ACCOUNT_ID]: { type: "ewallet", balance: BigInt(0) },
+      });
+      mockCreate({ type: "transfer", toAccountId: TO_ACCOUNT_ID });
+
+      await expect(
+        service.create(FAMILY_GROUP_ID, {
+          accountId: ACCOUNT_ID,
+          toAccountId: TO_ACCOUNT_ID,
+          amount: 50000,
+          type: "transfer",
+          occurredAt: now.toISOString(),
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.account.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects an admin fee that would take a bank destination account below zero (#22/#28)", async () => {
+      // Small top-up (2.000), oversized fee (5.000) — the fee exceeding the
+      // transfer amount is a real case (see create()'s comment), and is
+      // chosen here so the guard fires whether or not this stateless mock
+      // reflects the just-applied transfer credit (1.000 + 2.000 = 3.000,
+      // still < the 5.000 fee either way).
+      mockAccountsById({
+        [ACCOUNT_ID]: { type: "ewallet", balance: BigInt(1_000_000) },
+        [TO_ACCOUNT_ID]: { type: "bank", balance: BigInt(1000) },
+      });
+      mockCreate({ type: "transfer", toAccountId: TO_ACCOUNT_ID });
+
+      await expect(
+        service.create(FAMILY_GROUP_ID, {
+          accountId: ACCOUNT_ID,
+          toAccountId: TO_ACCOUNT_ID,
+          amount: 2000,
+          adminFee: 5000,
+          type: "transfer",
+          occurredAt: now.toISOString(),
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("allows a cash account to go negative (#21)", async () => {
+      mockAccountsById({
+        [ACCOUNT_ID]: { type: "cash", balance: BigInt(30000) },
+      });
+      mockCreate();
+
+      const result = await service.create(FAMILY_GROUP_ID, {
+        accountId: ACCOUNT_ID,
+        amount: 50000,
+        type: "expense",
+        occurredAt: now.toISOString(),
+      });
+
+      expect(result.id).toBe("tx-guard-1");
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(-50000) } },
+      });
+    });
+
+    it("allows a credit (income) on an already-negative bank account (#22 grandfather)", async () => {
+      mockAccountsById({
+        [ACCOUNT_ID]: { type: "bank", balance: BigInt(-20000) },
+      });
+      mockCreate({ type: "income" });
+
+      const result = await service.create(FAMILY_GROUP_ID, {
+        accountId: ACCOUNT_ID,
+        amount: 10000,
+        type: "income",
+        occurredAt: now.toISOString(),
+      });
+
+      expect(result.id).toBe("tx-guard-1");
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(10000) } },
+      });
+    });
+
+    it("rejects a further debit on an already-negative bank account (#22 grandfather)", async () => {
+      mockAccountsById({
+        [ACCOUNT_ID]: { type: "bank", balance: BigInt(-20000) },
+      });
+      mockCreate();
+
+      await expect(
+        service.create(FAMILY_GROUP_ID, {
+          accountId: ACCOUNT_ID,
+          amount: 5000,
+          type: "expense",
+          occurredAt: now.toISOString(),
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.account.update).not.toHaveBeenCalled();
+    });
+
+    it("allows a bank expense that lands exactly at zero (boundary)", async () => {
+      mockAccountsById({
+        [ACCOUNT_ID]: { type: "bank", balance: BigInt(50000) },
+      });
+      mockCreate();
+
+      const result = await service.create(FAMILY_GROUP_ID, {
+        accountId: ACCOUNT_ID,
+        amount: 50000,
+        type: "expense",
+        occurredAt: now.toISOString(),
+      });
+
+      expect(result.id).toBe("tx-guard-1");
+    });
+
+    it("delete-reversal is never blocked, even when it takes a bank account below zero", async () => {
+      // The destination bank account has since been spent down to a low
+      // balance; reversing the original 200.000 credit that funded it would
+      // take it deeply negative. This must still succeed — reversal
+      // integrity beats the overdraft invariant (see applyTransferBalanceDelta).
+      mockAccountsById({
+        [ACCOUNT_ID]: { type: "ewallet", balance: BigInt(1_000_000) },
+        [TO_ACCOUNT_ID]: { type: "bank", balance: BigInt(100) },
+      });
+      prisma.transaction.findUnique.mockResolvedValue({
+        id: "tx-transfer-guard",
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        toAccountId: TO_ACCOUNT_ID,
+        categoryId: null,
+        amount: BigInt(200000),
+        type: "transfer",
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      });
+      prisma.$transaction.mockImplementation(
+        async (fn: Parameters<typeof prisma.$transaction>[0]) =>
+          (fn as (p: typeof prisma) => Promise<unknown>)(prisma),
+      );
+
+      await expect(
+        service.remove(FAMILY_GROUP_ID, "tx-transfer-guard"),
+      ).resolves.toBeUndefined();
+
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: TO_ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(-200000) } },
+      });
+    });
+  });
+
   describe("update() transfer permutations (EPIC-021 Group B)", () => {
     const now = new Date("2026-06-15T10:00:00.000Z");
     const NEW_SOURCE_ID = "acc-new-source-uuid";

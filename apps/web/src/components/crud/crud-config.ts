@@ -41,6 +41,12 @@ export interface CrudField {
    * Return null to hide. Must be pure — it is called on every render.
    */
   helper?: (values: Record<string, string>) => string | null;
+  /**
+   * EPIC-021 #21 — an "amount" field that may hold a negative value (only
+   * `cash.saldo` today: physical cash can run short with no external floor).
+   * Every other "amount" field keeps stripping "-" like before.
+   */
+  allowNegative?: boolean;
 }
 
 export interface CrudEntityConfig {
@@ -152,7 +158,15 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         type: "text",
         placeholder: "cth: Kas Tunai, Dompet Kerja",
       },
-      { key: "saldo", label: "Saldo Saat Ini", type: "amount" },
+      // EPIC-021 #21 — "Data Kas bisa minus": physical cash may go negative,
+      // so this is the one "amount" field across every entity that keeps a
+      // typed/displayed "-" sign instead of stripping it.
+      {
+        key: "saldo",
+        label: "Saldo Saat Ini",
+        type: "amount",
+        allowNegative: true,
+      },
     ],
   },
   investasi: {
