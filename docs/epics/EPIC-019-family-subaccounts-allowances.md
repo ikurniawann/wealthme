@@ -1,6 +1,6 @@
 # EPIC-019: Family Sub-Accounts & Role-Scoped Allowances
 
-status: on-progress
+status: done
 environment: dev
 retries: 0
 phase: 4
@@ -240,3 +240,5 @@ owner and a constrained member.
   a requester index. Security review PASS (owner-only CASL on decide, tenant
   guards, row-scoped reads, notification content non-injectable). Gates: api 31
   suites / 308 tests, web 13 suites / 122 tests, qa + test green.
+- **2026-08-04 — epic done.** Merged as #214 after the approval-atomicity fix;
+  final DEV deploy applied the additive migration cleanly.

@@ -1,6 +1,6 @@
 # EPIC-021: Client Revision Punch-List (WealthMe 230720236)
 
-status: on-progress
+status: done
 environment: dev
 retries: 0
 priority: P1
@@ -145,17 +145,17 @@ Key audit evidence (full detail in the per-item audit, session 2026-08-03):
 Task groups are defined **after** the audit lands, grouped by subsystem so each
 group is one reviewable PR. Placeholder groupings (subject to audit results):
 
-- [ ] ### A — Account taxonomy: Cash / Bank / E-Wallet (items 15, 25, 26, 21, 22)
+- [x] ### A — Account taxonomy: Cash / Bank / E-Wallet (items 15, 25, 26, 21, 22)
 - [x] ### B — Transfer/Mutasi semantics: source→destination (items 5, 23, 24, 27, 28)
-- [ ] ### C — Reconciliation detail + fee splitting (items 9, 29)
+- [x] ### C — Reconciliation detail + fee splitting (items 9, 29)
 - [x] ### D — Warisan/Asuransi heirs by percentage (items 11, 12, 13, 14)
 - [x] ### E — Asset depreciation/appreciation + investment detail (items 16, 17, 18, 19, 20)
-- [ ] ### F — Multi-currency + consolidated total (items 1, 6)
+- [x] ### F — Multi-currency + consolidated total (items 1, 6)
 - [x] ### G — COA code auto-gen but editable + cash master data (items 3, 4)
 - [x] ### H — Split bill: picture bug + per-person calculator (items 8, 10)
 - [x] ### I — Quick Input transactions (item 7)
 - [x] ### J — Financial-goal per-period breakdown (item 30)
-- [ ] ### K — i18n (item 2) — **owned by EPIC-018**, tracked here only for traceability
+- [x] ### K — i18n (item 2) — **owned by EPIC-018**, tracked here only for traceability
 
 ## Open Design Decisions
 
@@ -296,3 +296,21 @@ dependent task group starts.
     before merge. Groups A (taxonomy + balance rules), C (recon detail + fee split)
     and F (multi-currency + consolidated total) are in flight; K is owned by
     EPIC-018 and is complete except `/laporan`.
+
+- **2026-08-04 — groups A, C, F closed; all 30 punch-list items addressed; epic
+  done.** A (#217) applied the Cash/Bank/E-Wallet taxonomy as label-only
+  dictionary changes (routes and `AccountType` ids untouched, per Decisions
+  #4/#5), let **cash** balances go negative (#21) and made **bank** overdrafts a
+  hard service-layer reject (#22) — deliberately exempting the revert/reapply
+  paths of update and delete, because reversal integrity outranks the invariant.
+  C (#218) gave every reconciliation line a detail view (#9) and a "Pecah"
+  action that splits a composite bank line into **real ledger entries** —
+  principal as a transfer, admin fee as its own expense (#29, Decision #10).
+  F (#219) added AUD + CNY to the indicative rate table (#1) and a consolidated
+  IDR + USD + gram-emas total (#6); per Decision #6 **no gold feed was
+  invented** — the price is an owner-maintained value, always labeled "diinput
+  manual", and an unset price shows a prompt rather than a number. K was
+  delivered by EPIC-018 (all 25 pages bilingual).
+  Final DEV deploy applied all four new migrations cleanly; api and web healthy;
+  the e2e suite passed 55 with the usual tunnel-latency flakes (each green on a
+  serial retry) and zero real failures.

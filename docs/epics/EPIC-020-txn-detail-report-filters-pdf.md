@@ -1,6 +1,6 @@
 # EPIC-020: Transaction Detail, Report Period Filters & PDF Export Fix
 
-status: on-progress
+status: done
 environment: dev
 retries: 0
 phase: 4
@@ -169,3 +169,5 @@ acceptance criteria hold across a fresh QA pass of `/transaksi` and `/laporan`.
   paginated tables, repeated headers, width-clamped text — verified per report
   type by `%PDF-` magic bytes plus an empty-data and a >1-page case; the CSV path
   is byte-unchanged. C also closes EPIC-016 Task L.
+- **2026-08-04 — epic done.** All three groups merged (#200, #202, #205) and
+  verified on the final DEV deploy.
