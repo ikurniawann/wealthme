@@ -294,359 +294,380 @@ function BerandaPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-        {/* Wealth Hero */}
-        <Rise index={0}>
-          <HeroCard className="gradient-wealth">
-            <div className="flex items-center gap-1.5 text-[12.5px] font-semibold opacity-90">
-              <Gem className="size-[13px] opacity-80" /> {t.beranda.totalWealth}
-              <button
-                aria-label={t.common.toggleBalance}
-                className="ml-0.5 cursor-pointer opacity-60"
-              >
-                <Eye className="size-[13px]" />
-              </button>
-            </div>
-            <h1 className="mono mt-1 text-[28px] font-extrabold tracking-tight">
-              {isLoading || (isIndicative && !isReady) ? (
-                t.common.loading
-              ) : isIndicative ? (
-                <>≈ {formatMoney(netWorth)}</>
-              ) : (
-                <CountUpRupiah value={netWorth} />
-              )}
-            </h1>
-            {isIndicative && (
-              <div className="mt-0.5 text-[10.5px] opacity-70">
-                Perkiraan dalam {currency} · kurs indikatif, bukan kurs pasar
-                real-time
-              </div>
-            )}
-            {currentMonth && (
-              <div className="mt-1 text-[12.5px]">
-                <span
-                  className={
-                    currentMonth.net >= 0
-                      ? "font-semibold text-emerald-300"
-                      : "font-semibold text-red-300"
-                  }
-                >
-                  {currentMonth.net >= 0 ? "▲" : "▼"}{" "}
-                  {money(Math.abs(currentMonth.net))} {t.beranda.thisMonth}
-                </span>{" "}
-                <span className="opacity-60">
-                  ({t.common.savingsRate} {currentMonth.savingsRate}%)
-                </span>
-              </div>
-            )}
-
-            <div
-              role="group"
-              aria-label={t.common.period}
-              className="mt-3.5 flex gap-1.5"
-            >
-              {PERIODS.map((p) => (
+      {/*
+        Wide-viewport main+aside reflow (EPIC-018 Task C). Below `lg` this
+        wrapper is a plain `space-y-3.5` stack, so the blocks below render in
+        exactly today's order/spacing — untouched. At `lg`+ it becomes a
+        3-col grid (main = col 1-2 / ~2/3, aside = col 3 / ~1/3); the two
+        "row" wrapper divs below switch to `display: contents` at `lg` so
+        their children become direct grid items — DOM order stays identical,
+        only visual placement changes. Hero + the cashflow chart stay wide in
+        the main column; the allocation breakdown, recent activity, and
+        goals lists move into the narrower aside alongside them.
+      */}
+      <div className="space-y-3.5 lg:grid lg:grid-cols-3 lg:items-start lg:gap-3.5 lg:space-y-0">
+        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:contents">
+          {/* Wealth Hero */}
+          <Rise
+            index={0}
+            className="lg:col-start-1 lg:col-end-3 lg:row-start-1"
+          >
+            <HeroCard className="gradient-wealth">
+              <div className="flex items-center gap-1.5 text-[12.5px] font-semibold opacity-90">
+                <Gem className="size-[13px] opacity-80" />{" "}
+                {t.beranda.totalWealth}
                 <button
-                  key={p}
-                  onClick={() => setPeriod(p)}
-                  aria-pressed={period === p}
-                  className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
-                    period === p
-                      ? "bg-white text-primary"
-                      : "bg-white/15 text-white hover:bg-white/25"
-                  }`}
+                  aria-label={t.common.toggleBalance}
+                  className="ml-0.5 cursor-pointer opacity-60"
                 >
-                  {p}
+                  <Eye className="size-[13px]" />
                 </button>
-              ))}
-            </div>
+              </div>
+              <h1 className="mono mt-1 text-[28px] font-extrabold tracking-tight">
+                {isLoading || (isIndicative && !isReady) ? (
+                  t.common.loading
+                ) : isIndicative ? (
+                  <>≈ {formatMoney(netWorth)}</>
+                ) : (
+                  <CountUpRupiah value={netWorth} />
+                )}
+              </h1>
+              {isIndicative && (
+                <div className="mt-0.5 text-[10.5px] opacity-70">
+                  Perkiraan dalam {currency} · kurs indikatif, bukan kurs pasar
+                  real-time
+                </div>
+              )}
+              {currentMonth && (
+                <div className="mt-1 text-[12.5px]">
+                  <span
+                    className={
+                      currentMonth.net >= 0
+                        ? "font-semibold text-emerald-300"
+                        : "font-semibold text-red-300"
+                    }
+                  >
+                    {currentMonth.net >= 0 ? "▲" : "▼"}{" "}
+                    {money(Math.abs(currentMonth.net))} {t.beranda.thisMonth}
+                  </span>{" "}
+                  <span className="opacity-60">
+                    ({t.common.savingsRate} {currentMonth.savingsRate}%)
+                  </span>
+                </div>
+              )}
 
-            <div className="mt-3 -mx-[22px]">
-              <Sparkline points={sparklinePoints} />
-              <div className="mt-1 flex justify-between px-[22px] text-[10px] opacity-60">
-                {sparkLabels.map((l) => (
-                  <span key={l}>{l}</span>
+              <div
+                role="group"
+                aria-label={t.common.period}
+                className="mt-3.5 flex gap-1.5"
+              >
+                {PERIODS.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPeriod(p)}
+                    aria-pressed={period === p}
+                    className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
+                      period === p
+                        ? "bg-white text-primary"
+                        : "bg-white/15 text-white hover:bg-white/25"
+                    }`}
+                  >
+                    {p}
+                  </button>
                 ))}
               </div>
-            </div>
-          </HeroCard>
-        </Rise>
 
-        {/* Allocation */}
-        <Rise index={1}>
+              <div className="mt-3 -mx-[22px]">
+                <Sparkline points={sparklinePoints} />
+                <div className="mt-1 flex justify-between px-[22px] text-[10px] opacity-60">
+                  {sparkLabels.map((l) => (
+                    <span key={l}>{l}</span>
+                  ))}
+                </div>
+              </div>
+            </HeroCard>
+          </Rise>
+
+          {/* Allocation */}
+          <Rise index={1} className="lg:col-start-3 lg:row-start-1">
+            <SectionCard
+              title={t.beranda.wealthBreakdown}
+              action={
+                <CardLink onClick={() => router.push("/aset")}>
+                  {t.common.viewDetail}
+                </CardLink>
+              }
+            >
+              {isLoading ? (
+                <div className="flex h-[105px] items-center justify-center text-[13px] text-muted-foreground">
+                  {t.common.loading}
+                </div>
+              ) : allocation.length === 0 ? (
+                <div className="flex h-[105px] items-center justify-center text-[13px] text-muted-foreground">
+                  {t.common.noData}
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-3.5">
+                  <Donut
+                    segments={allocation}
+                    size={105}
+                    thickness={17}
+                    centerValue={donutCenterValue}
+                    centerLabel={t.common.total}
+                  />
+                  <div className="min-w-[110px] flex-1">
+                    <DonutLegend segments={allocation} total={100} />
+                  </div>
+                </div>
+              )}
+            </SectionCard>
+          </Rise>
+        </div>
+
+        {/* Summary cards */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:col-start-1 lg:col-end-3 lg:row-start-2 lg:grid-cols-3 xl:grid-cols-5">
+          {isLoading
+            ? Array(5)
+                .fill(null)
+                .map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-[88px] animate-pulse rounded-[14px] bg-muted"
+                  />
+                ))
+            : summaryCards.slice(0, 5).map((s, i) => (
+                <Rise key={s.label} index={2 + i}>
+                  <div
+                    role="link"
+                    tabIndex={0}
+                    aria-label={`Buka ${s.label}`}
+                    onClick={() => router.push(s.href)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ")
+                        router.push(s.href);
+                    }}
+                    className="cursor-pointer transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]"
+                  >
+                    <SummaryCard
+                      icon={
+                        <IconChip icon={s.icon} className={s.chip} size={34} />
+                      }
+                      iconBg="transparent"
+                      label={s.label}
+                      amount={s.amount}
+                      delta={
+                        <>
+                          {s.up ? (
+                            <ArrowUp className="size-[9px]" />
+                          ) : (
+                            <ArrowDown className="size-[9px]" />
+                          )}
+                          {s.delta}
+                        </>
+                      }
+                      deltaUp={s.up}
+                    />
+                  </div>
+                </Rise>
+              ))}
+        </div>
+
+        {/* Row 3 */}
+        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3 lg:contents">
+          {/* Cashflow */}
           <SectionCard
-            title={t.beranda.wealthBreakdown}
+            title={t.common.cashFlow}
+            className="lg:col-start-1 lg:col-end-3 lg:row-start-3"
             action={
-              <CardLink onClick={() => router.push("/aset")}>
-                {t.common.viewDetail}
+              <span className="rounded-md border bg-background px-2 py-[3px] text-[11px] text-muted-foreground">
+                {cashflow?.months[cashflow.months.length - 1] ?? "—"}{" "}
+                {t.common.latest}
+              </span>
+            }
+          >
+            <div className="mb-2.5 flex flex-wrap gap-4">
+              <div>
+                <div className="text-[10.5px] text-muted-foreground">
+                  {t.common.income}
+                </div>
+                <div className="text-[15px] font-extrabold text-success">
+                  {isLoading ? "..." : money(currentMonth?.income ?? 0)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10.5px] text-muted-foreground">
+                  {t.common.expense}
+                </div>
+                <div className="text-[15px] font-extrabold text-destructive">
+                  {isLoading ? "..." : money(currentMonth?.expense ?? 0)}
+                </div>
+              </div>
+            </div>
+            <div className="mb-2 text-[11px] text-muted-foreground">
+              {t.common.surplus}{" "}
+              <span className="font-bold text-success">
+                {isLoading ? "..." : money(currentMonth?.net ?? 0)}
+              </span>
+            </div>
+            {cashflow && (
+              <BarChart
+                months={cashflow.months}
+                income={cashflow.income}
+                expense={cashflow.expense}
+                max={cashflow.max}
+                height={90}
+              />
+            )}
+          </SectionCard>
+
+          {/* Recent activity */}
+          <SectionCard
+            title={t.beranda.recentTransactions}
+            className="lg:col-start-3 lg:row-start-2"
+            action={
+              <CardLink onClick={() => router.push("/transaksi")}>
+                {t.common.viewAll}
               </CardLink>
             }
           >
             {isLoading ? (
-              <div className="flex h-[105px] items-center justify-center text-[13px] text-muted-foreground">
-                {t.common.loading}
+              <div className="space-y-2">
+                {Array(3)
+                  .fill(null)
+                  .map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-[42px] animate-pulse rounded-md bg-muted"
+                    />
+                  ))}
               </div>
-            ) : allocation.length === 0 ? (
-              <div className="flex h-[105px] items-center justify-center text-[13px] text-muted-foreground">
-                {t.common.noData}
+            ) : activities.length === 0 ? (
+              <div className="py-4 text-center text-[13px] text-muted-foreground">
+                {t.beranda.noTransactions}
               </div>
             ) : (
-              <div className="flex flex-wrap items-center gap-3.5">
-                <Donut
-                  segments={allocation}
-                  size={105}
-                  thickness={17}
-                  centerValue={donutCenterValue}
-                  centerLabel={t.common.total}
-                />
-                <div className="min-w-[110px] flex-1">
-                  <DonutLegend segments={allocation} total={100} />
-                </div>
+              <div className="divide-y">
+                {activities.map((a, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
+                  >
+                    <IconChip
+                      icon={a.icon}
+                      className={a.chip}
+                      size={34}
+                      rounded="rounded-full"
+                    />
+                    <div className="flex-1">
+                      <div className="text-[13px] font-semibold">{a.name}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {a.cat}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div
+                        className={`text-[13px] font-bold ${a.inc ? "text-success" : "text-destructive"}`}
+                      >
+                        {a.amt}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {a.date}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </SectionCard>
-        </Rise>
-      </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {isLoading
-          ? Array(5)
-              .fill(null)
-              .map((_, i) => (
-                <div
-                  key={i}
-                  className="h-[88px] animate-pulse rounded-[14px] bg-muted"
-                />
-              ))
-          : summaryCards.slice(0, 5).map((s, i) => (
-              <Rise key={s.label} index={2 + i}>
-                <div
-                  role="link"
-                  tabIndex={0}
-                  aria-label={`Buka ${s.label}`}
-                  onClick={() => router.push(s.href)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") router.push(s.href);
-                  }}
-                  className="cursor-pointer transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]"
+          {/* Goals */}
+          <SectionCard
+            title={t.beranda.financialGoals}
+            className="lg:col-start-3 lg:row-start-3"
+            action={
+              <CardLink onClick={() => router.push("/tujuan")}>
+                {t.common.viewAll}
+              </CardLink>
+            }
+            bodyClassName="flex flex-1 flex-col"
+          >
+            {isGoalsLoading ? (
+              <div className="space-y-3.5">
+                {Array(3)
+                  .fill(null)
+                  .map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-[52px] animate-pulse rounded-md bg-muted"
+                    />
+                  ))}
+              </div>
+            ) : goalItems.length === 0 ? (
+              <div className="flex flex-1 flex-col items-center justify-center gap-2 py-4 text-center">
+                <Target className="size-7 text-muted-foreground/40" />
+                <div className="text-[13px] text-muted-foreground">
+                  {t.beranda.noGoals}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => router.push("/tujuan")}
+                  className="text-[12px] font-semibold text-primary hover:underline"
                 >
-                  <SummaryCard
-                    icon={
-                      <IconChip icon={s.icon} className={s.chip} size={34} />
-                    }
-                    iconBg="transparent"
-                    label={s.label}
-                    amount={s.amount}
-                    delta={
-                      <>
-                        {s.up ? (
-                          <ArrowUp className="size-[9px]" />
-                        ) : (
-                          <ArrowDown className="size-[9px]" />
-                        )}
-                        {s.delta}
-                      </>
-                    }
-                    deltaUp={s.up}
-                  />
-                </div>
-              </Rise>
-            ))}
-      </div>
-
-      {/* Row 3 */}
-      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
-        {/* Cashflow */}
-        <SectionCard
-          title={t.common.cashFlow}
-          action={
-            <span className="rounded-md border bg-background px-2 py-[3px] text-[11px] text-muted-foreground">
-              {cashflow?.months[cashflow.months.length - 1] ?? "—"}{" "}
-              {t.common.latest}
-            </span>
-          }
-        >
-          <div className="mb-2.5 flex flex-wrap gap-4">
-            <div>
-              <div className="text-[10.5px] text-muted-foreground">
-                {t.common.income}
+                  + {t.beranda.addGoalCta}
+                </button>
               </div>
-              <div className="text-[15px] font-extrabold text-success">
-                {isLoading ? "..." : money(currentMonth?.income ?? 0)}
-              </div>
-            </div>
-            <div>
-              <div className="text-[10.5px] text-muted-foreground">
-                {t.common.expense}
-              </div>
-              <div className="text-[15px] font-extrabold text-destructive">
-                {isLoading ? "..." : money(currentMonth?.expense ?? 0)}
-              </div>
-            </div>
-          </div>
-          <div className="mb-2 text-[11px] text-muted-foreground">
-            {t.common.surplus}{" "}
-            <span className="font-bold text-success">
-              {isLoading ? "..." : money(currentMonth?.net ?? 0)}
-            </span>
-          </div>
-          {cashflow && (
-            <BarChart
-              months={cashflow.months}
-              income={cashflow.income}
-              expense={cashflow.expense}
-              max={cashflow.max}
-              height={90}
-            />
-          )}
-        </SectionCard>
-
-        {/* Recent activity */}
-        <SectionCard
-          title={t.beranda.recentTransactions}
-          action={
-            <CardLink onClick={() => router.push("/transaksi")}>
-              {t.common.viewAll}
-            </CardLink>
-          }
-        >
-          {isLoading ? (
-            <div className="space-y-2">
-              {Array(3)
-                .fill(null)
-                .map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-[42px] animate-pulse rounded-md bg-muted"
-                  />
+            ) : (
+              <div className="space-y-3.5">
+                {goalItems.map((g) => (
+                  <div key={g.id}>
+                    <div className="mb-1.5 flex items-center gap-2">
+                      <div
+                        className="flex size-[26px] items-center justify-center rounded-md text-[13px]"
+                        style={{ background: g.iconBg }}
+                      >
+                        {g.icon}
+                      </div>
+                      <div className="flex-1 text-[13px] font-semibold">
+                        {g.name}
+                      </div>
+                      <div
+                        className="text-[13px] font-bold"
+                        style={{ color: g.color }}
+                      >
+                        {g.pct}%
+                      </div>
+                    </div>
+                    <AnimatedProgress value={g.pct} color={g.color} />
+                    <div className="mt-1 flex justify-between text-[10.5px] text-muted-foreground">
+                      <span>{g.now}</span>
+                      <span>{g.target}</span>
+                    </div>
+                  </div>
                 ))}
-            </div>
-          ) : activities.length === 0 ? (
-            <div className="py-4 text-center text-[13px] text-muted-foreground">
-              {t.beranda.noTransactions}
-            </div>
-          ) : (
-            <div className="divide-y">
-              {activities.map((a, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
-                >
-                  <IconChip
-                    icon={a.icon}
-                    className={a.chip}
-                    size={34}
-                    rounded="rounded-full"
-                  />
-                  <div className="flex-1">
-                    <div className="text-[13px] font-semibold">{a.name}</div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {a.cat}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div
-                      className={`text-[13px] font-bold ${a.inc ? "text-success" : "text-destructive"}`}
-                    >
-                      {a.amt}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {a.date}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </SectionCard>
-
-        {/* Goals */}
-        <SectionCard
-          title={t.beranda.financialGoals}
-          action={
-            <CardLink onClick={() => router.push("/tujuan")}>
-              {t.common.viewAll}
-            </CardLink>
-          }
-          bodyClassName="flex flex-1 flex-col"
-        >
-          {isGoalsLoading ? (
-            <div className="space-y-3.5">
-              {Array(3)
-                .fill(null)
-                .map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-[52px] animate-pulse rounded-md bg-muted"
-                  />
-                ))}
-            </div>
-          ) : goalItems.length === 0 ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 py-4 text-center">
-              <Target className="size-7 text-muted-foreground/40" />
-              <div className="text-[13px] text-muted-foreground">
-                {t.beranda.noGoals}
               </div>
-              <button
-                type="button"
-                onClick={() => router.push("/tujuan")}
-                className="text-[12px] font-semibold text-primary hover:underline"
-              >
-                + {t.beranda.addGoalCta}
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3.5">
-              {goalItems.map((g) => (
-                <div key={g.id}>
-                  <div className="mb-1.5 flex items-center gap-2">
-                    <div
-                      className="flex size-[26px] items-center justify-center rounded-md text-[13px]"
-                      style={{ background: g.iconBg }}
-                    >
-                      {g.icon}
-                    </div>
-                    <div className="flex-1 text-[13px] font-semibold">
-                      {g.name}
-                    </div>
-                    <div
-                      className="text-[13px] font-bold"
-                      style={{ color: g.color }}
-                    >
-                      {g.pct}%
-                    </div>
-                  </div>
-                  <AnimatedProgress value={g.pct} color={g.color} />
-                  <div className="mt-1 flex justify-between text-[10.5px] text-muted-foreground">
-                    <span>{g.now}</span>
-                    <span>{g.target}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </SectionCard>
-      </div>
-
-      {/* AI insight banner */}
-      <div className="flex items-center gap-3.5 rounded-[14px] bg-accent p-4">
-        <div className="text-[26px]">📊</div>
-        <div className="flex-1">
-          <div className="text-[13px] font-bold text-primary-strong">
-            {t.beranda.aiInsightTitle}
-          </div>
-          <div className="mt-0.5 text-[12px] text-muted-foreground">
-            {t.beranda.aiInsightBody}
-          </div>
+            )}
+          </SectionCard>
         </div>
-        <button
-          type="button"
-          onClick={() => router.push("/ai")}
-          className="cursor-pointer rounded-lg bg-primary px-3.5 py-2 text-[12px] font-semibold whitespace-nowrap text-primary-foreground hover:opacity-90"
-        >
-          {t.beranda.aiInsightCta}
-        </button>
+
+        {/* AI insight banner */}
+        <div className="flex items-center gap-3.5 rounded-[14px] bg-accent p-4 lg:col-start-1 lg:col-end-4 lg:row-start-4">
+          <div className="text-[26px]">📊</div>
+          <div className="flex-1">
+            <div className="text-[13px] font-bold text-primary-strong">
+              {t.beranda.aiInsightTitle}
+            </div>
+            <div className="mt-0.5 text-[12px] text-muted-foreground">
+              {t.beranda.aiInsightBody}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => router.push("/ai")}
+            className="cursor-pointer rounded-lg bg-primary px-3.5 py-2 text-[12px] font-semibold whitespace-nowrap text-primary-foreground hover:opacity-90"
+          >
+            {t.beranda.aiInsightCta}
+          </button>
+        </div>
       </div>
     </div>
   );

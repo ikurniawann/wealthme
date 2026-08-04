@@ -193,238 +193,265 @@ export default function RingkasanPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-        <SectionCard title={t.ringkasan.netWorthTrendTitle}>
-          {isLoading ? (
-            <div className="h-[90px] animate-pulse rounded-md bg-muted" />
-          ) : trend.points.length === 0 ? (
-            <div className="flex h-[90px] items-center justify-center text-[12px] text-muted-foreground">
-              {t.ringkasan.emptyCashflow}
-            </div>
-          ) : (
-            <svg
-              viewBox="0 0 320 90"
-              width="100%"
-              height={90}
-              preserveAspectRatio="none"
-            >
-              <defs>
-                <linearGradient id="ng" x1="0" y1="0" x2="0" y2="1">
-                  <stop
-                    offset="0%"
-                    stopColor="var(--primary)"
-                    stopOpacity={0.18}
+      {/*
+        Wide-viewport main+aside reflow (EPIC-018 Task C). Below `lg` this
+        wrapper is a plain `space-y-3.5` stack — the blocks below render in
+        exactly today's order/spacing, untouched. At `lg`+ it becomes a
+        3-col grid (main = col 1-2 / ~2/3, aside = col 3 / ~1/3); the two
+        "row" wrapper divs below switch to `display: contents` at `lg` so
+        their children become direct grid items — DOM order stays identical,
+        only visual placement changes. The net-worth trend chart and the
+        cash flow breakdown stay wide in the main column; the composition,
+        top-expenses, and health-score lists move into the narrower aside
+        alongside them.
+      */}
+      <div className="space-y-3.5 lg:grid lg:grid-cols-3 lg:items-start lg:gap-3.5 lg:space-y-0">
+        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:contents">
+          <SectionCard
+            title={t.ringkasan.netWorthTrendTitle}
+            className="lg:col-start-1 lg:col-end-3 lg:row-start-1"
+          >
+            {isLoading ? (
+              <div className="h-[90px] animate-pulse rounded-md bg-muted" />
+            ) : trend.points.length === 0 ? (
+              <div className="flex h-[90px] items-center justify-center text-[12px] text-muted-foreground">
+                {t.ringkasan.emptyCashflow}
+              </div>
+            ) : (
+              <svg
+                viewBox="0 0 320 90"
+                width="100%"
+                height={90}
+                preserveAspectRatio="none"
+              >
+                <defs>
+                  <linearGradient id="ng" x1="0" y1="0" x2="0" y2="1">
+                    <stop
+                      offset="0%"
+                      stopColor="var(--primary)"
+                      stopOpacity={0.18}
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor="var(--primary)"
+                      stopOpacity={0.01}
+                    />
+                  </linearGradient>
+                </defs>
+                {trend.areaPath && <path d={trend.areaPath} fill="url(#ng)" />}
+                {trend.linePath && (
+                  <path
+                    d={trend.linePath}
+                    fill="none"
+                    stroke="var(--primary)"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
                   />
-                  <stop
-                    offset="100%"
-                    stopColor="var(--primary)"
-                    stopOpacity={0.01}
+                )}
+                {trend.points.length > 0 && (
+                  <circle
+                    cx={trend.points[trend.points.length - 1]!.x}
+                    cy={trend.points[trend.points.length - 1]!.y}
+                    r="4"
+                    fill="var(--primary)"
                   />
-                </linearGradient>
-              </defs>
-              {trend.areaPath && <path d={trend.areaPath} fill="url(#ng)" />}
-              {trend.linePath && (
-                <path
-                  d={trend.linePath}
-                  fill="none"
-                  stroke="var(--primary)"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                />
-              )}
-              {trend.points.length > 0 && (
-                <circle
-                  cx={trend.points[trend.points.length - 1]!.x}
-                  cy={trend.points[trend.points.length - 1]!.y}
-                  r="4"
-                  fill="var(--primary)"
-                />
-              )}
-            </svg>
-          )}
-          <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
-            {(summary?.cashflow.months ?? []).map((m, i) => (
-              <span key={`${m}-${i}`}>{m}</span>
-            ))}
-          </div>
-        </SectionCard>
-
-        {/* Asset composition — horizontal labelled bar list */}
-        <SectionCard title={t.ringkasan.compositionTitle}>
-          {isLoading ? (
-            <div className="space-y-2">
-              {Array(3)
-                .fill(null)
-                .map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-[32px] animate-pulse rounded-md bg-muted"
-                  />
-                ))}
-            </div>
-          ) : composition.length === 0 ? (
-            <div className="py-4 text-center text-[13px] text-muted-foreground">
-              {t.ringkasan.emptyComposition}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {composition.map((c) => (
-                <div key={c.label}>
-                  <div className="mb-1 flex items-center justify-between gap-2 text-[12px]">
-                    <span className="flex items-center gap-1.5 font-semibold truncate">
-                      <span
-                        className="inline-block size-2 shrink-0 rounded-full"
-                        style={{ background: c.color }}
-                      />
-                      {c.label}
-                    </span>
-                    <span className="shrink-0 text-muted-foreground">
-                      {c.value}
-                    </span>
-                  </div>
-                  <ProgressBar value={c.pct} color={c.color} height={6} />
-                </div>
+                )}
+              </svg>
+            )}
+            <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+              {(summary?.cashflow.months ?? []).map((m, i) => (
+                <span key={`${m}-${i}`}>{m}</span>
               ))}
             </div>
-          )}
-        </SectionCard>
-      </div>
+          </SectionCard>
 
-      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
-        {/* Cash Flow */}
-        <SectionCard
-          title={`${t.ringkasan.cashFlowTitlePrefix}${summary?.cashflow.months.at(-1) ?? ""}`}
-        >
-          <div className="mb-2.5">
-            <div className="text-[11px] text-muted-foreground">
-              {t.ringkasan.incomeLabel}
-            </div>
-            <div className="text-[18px] font-extrabold text-success">
-              {isLoading ? "..." : moneyFull(monthIncome)}
-            </div>
-          </div>
-          <div className="mb-2.5">
-            <div className="text-[11px] text-muted-foreground">
-              {t.ringkasan.expenseLabel}
-            </div>
-            <div className="text-[18px] font-extrabold text-destructive">
-              {isLoading ? "..." : moneyFull(monthExpense)}
-            </div>
-          </div>
-          <div className="border-t pt-2.5">
-            <div className="text-[11px] text-muted-foreground">
-              {t.ringkasan.surplusLabel}
-            </div>
-            <div
-              className={`text-[18px] font-extrabold ${monthNet >= 0 ? "text-success" : "text-destructive"}`}
-            >
-              {isLoading ? "..." : moneyFull(monthNet)}
-            </div>
-          </div>
-        </SectionCard>
-
-        <SectionCard title={t.ringkasan.topExpensesTitle}>
-          <div className="divide-y">
-            {isLoading && (
-              <div className="py-4 text-center text-[13px] text-muted-foreground">
-                {t.ringkasan.loadingLabel}
+          {/* Asset composition — horizontal labelled bar list */}
+          <SectionCard
+            title={t.ringkasan.compositionTitle}
+            className="lg:col-start-3 lg:row-start-1"
+          >
+            {isLoading ? (
+              <div className="space-y-2">
+                {Array(3)
+                  .fill(null)
+                  .map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-[32px] animate-pulse rounded-md bg-muted"
+                    />
+                  ))}
               </div>
-            )}
-            {!isLoading && topExpenses.length === 0 && (
+            ) : composition.length === 0 ? (
               <div className="py-4 text-center text-[13px] text-muted-foreground">
-                {t.ringkasan.emptyTopExpenses}
+                {t.ringkasan.emptyComposition}
               </div>
-            )}
-            {topExpenses.slice(0, 5).map((expenseItem, idx) => (
-              <div
-                key={expenseItem.categoryName}
-                className="flex items-center gap-3 py-2 first:pt-0 last:pb-0"
-              >
-                <div
-                  className="flex size-[30px] shrink-0 items-center justify-center rounded-md text-[13px]"
-                  style={{
-                    background:
-                      expenseItem.color ??
-                      ["#EEF2FF", "#DCFCE7", "#FEF9C3", "#FEE2E2", "#F3F4F6"][
-                        idx % 5
-                      ],
-                  }}
-                >
-                  {["🏠", "😊", "🚗", "🏥", "💡"][idx % 5]}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[13px] font-semibold">
-                    {expenseItem.categoryName}
+            ) : (
+              <div className="space-y-3">
+                {composition.map((c) => (
+                  <div key={c.label}>
+                    <div className="mb-1 flex items-center justify-between gap-2 text-[12px]">
+                      <span className="flex items-center gap-1.5 font-semibold truncate">
+                        <span
+                          className="inline-block size-2 shrink-0 rounded-full"
+                          style={{ background: c.color }}
+                        />
+                        {c.label}
+                      </span>
+                      <span className="shrink-0 text-muted-foreground">
+                        {c.value}
+                      </span>
+                    </div>
+                    <ProgressBar value={c.pct} color={c.color} height={6} />
                   </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3 lg:contents">
+          {/* Cash Flow */}
+          <SectionCard
+            title={`${t.ringkasan.cashFlowTitlePrefix}${summary?.cashflow.months.at(-1) ?? ""}`}
+            className="lg:col-start-1 lg:col-end-3 lg:row-start-2"
+          >
+            <div className="mb-2.5">
+              <div className="text-[11px] text-muted-foreground">
+                {t.ringkasan.incomeLabel}
+              </div>
+              <div className="text-[18px] font-extrabold text-success">
+                {isLoading ? "..." : moneyFull(monthIncome)}
+              </div>
+            </div>
+            <div className="mb-2.5">
+              <div className="text-[11px] text-muted-foreground">
+                {t.ringkasan.expenseLabel}
+              </div>
+              <div className="text-[18px] font-extrabold text-destructive">
+                {isLoading ? "..." : moneyFull(monthExpense)}
+              </div>
+            </div>
+            <div className="border-t pt-2.5">
+              <div className="text-[11px] text-muted-foreground">
+                {t.ringkasan.surplusLabel}
+              </div>
+              <div
+                className={`text-[18px] font-extrabold ${monthNet >= 0 ? "text-success" : "text-destructive"}`}
+              >
+                {isLoading ? "..." : moneyFull(monthNet)}
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            title={t.ringkasan.topExpensesTitle}
+            className="lg:col-start-3 lg:row-start-2"
+          >
+            <div className="divide-y">
+              {isLoading && (
+                <div className="py-4 text-center text-[13px] text-muted-foreground">
+                  {t.ringkasan.loadingLabel}
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <StatusBadge variant="gray">
-                    {expenseItem.percentage}%
-                  </StatusBadge>
-                  <div className="text-right">
-                    <div className="text-[13px] font-bold text-destructive">
-                      {moneyFull(expenseItem.amount)}
+              )}
+              {!isLoading && topExpenses.length === 0 && (
+                <div className="py-4 text-center text-[13px] text-muted-foreground">
+                  {t.ringkasan.emptyTopExpenses}
+                </div>
+              )}
+              {topExpenses.slice(0, 5).map((expenseItem, idx) => (
+                <div
+                  key={expenseItem.categoryName}
+                  className="flex items-center gap-3 py-2 first:pt-0 last:pb-0"
+                >
+                  <div
+                    className="flex size-[30px] shrink-0 items-center justify-center rounded-md text-[13px]"
+                    style={{
+                      background:
+                        expenseItem.color ??
+                        ["#EEF2FF", "#DCFCE7", "#FEF9C3", "#FEE2E2", "#F3F4F6"][
+                          idx % 5
+                        ],
+                    }}
+                  >
+                    {["🏠", "😊", "🚗", "🏥", "💡"][idx % 5]}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[13px] font-semibold">
+                      {expenseItem.categoryName}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <StatusBadge variant="gray">
+                      {expenseItem.percentage}%
+                    </StatusBadge>
+                    <div className="text-right">
+                      <div className="text-[13px] font-bold text-destructive">
+                        {moneyFull(expenseItem.amount)}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </SectionCard>
+              ))}
+            </div>
+          </SectionCard>
 
-        {/* Health Score */}
-        <SectionCard title={t.ringkasan.healthScoreTitle}>
-          <div className="py-2.5 text-center">
-            <svg
-              viewBox="0 0 120 70"
-              width="140"
-              height="80"
-              className="mx-auto"
-            >
-              <path
-                d="M10,60 A50,50 0 0,1 110,60"
-                fill="none"
-                stroke="var(--muted)"
-                strokeWidth="12"
-                strokeLinecap="round"
-              />
-              <path
-                d="M10,60 A50,50 0 0,1 110,60"
-                fill="none"
-                stroke="var(--primary)"
-                strokeWidth="12"
-                strokeLinecap="round"
-                strokeDasharray="157"
-                strokeDashoffset={Math.round(
-                  157 - (Math.max(0, Math.min(100, savingsRate)) / 100) * 157,
-                )}
-              />
-            </svg>
-            <div className="-mt-3.5 text-[32px] font-black text-primary">
-              {savingsRate}
-            </div>
-            <div className="text-[11px] text-muted-foreground">
-              {t.ringkasan.financialHealthScoreLabel}
-            </div>
-            <div className="mt-2">
-              <StatusBadge
-                variant={
-                  savingsRate >= 20
-                    ? "success"
-                    : savingsRate >= 10
-                      ? "info"
-                      : "danger"
-                }
+          {/* Health Score */}
+          <SectionCard
+            title={t.ringkasan.healthScoreTitle}
+            className="lg:col-start-3 lg:row-start-3"
+          >
+            <div className="py-2.5 text-center">
+              <svg
+                viewBox="0 0 120 70"
+                width="140"
+                height="80"
+                className="mx-auto"
               >
-                {savingsRate >= 20
-                  ? t.ringkasan.healthStatusGood
-                  : savingsRate >= 10
-                    ? t.ringkasan.healthStatusFair
-                    : t.ringkasan.healthStatusNeedsAttention}
-              </StatusBadge>
+                <path
+                  d="M10,60 A50,50 0 0,1 110,60"
+                  fill="none"
+                  stroke="var(--muted)"
+                  strokeWidth="12"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M10,60 A50,50 0 0,1 110,60"
+                  fill="none"
+                  stroke="var(--primary)"
+                  strokeWidth="12"
+                  strokeLinecap="round"
+                  strokeDasharray="157"
+                  strokeDashoffset={Math.round(
+                    157 - (Math.max(0, Math.min(100, savingsRate)) / 100) * 157,
+                  )}
+                />
+              </svg>
+              <div className="-mt-3.5 text-[32px] font-black text-primary">
+                {savingsRate}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {t.ringkasan.financialHealthScoreLabel}
+              </div>
+              <div className="mt-2">
+                <StatusBadge
+                  variant={
+                    savingsRate >= 20
+                      ? "success"
+                      : savingsRate >= 10
+                        ? "info"
+                        : "danger"
+                  }
+                >
+                  {savingsRate >= 20
+                    ? t.ringkasan.healthStatusGood
+                    : savingsRate >= 10
+                      ? t.ringkasan.healthStatusFair
+                      : t.ringkasan.healthStatusNeedsAttention}
+                </StatusBadge>
+              </div>
             </div>
-          </div>
-        </SectionCard>
+          </SectionCard>
+        </div>
       </div>
     </div>
   );
