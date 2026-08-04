@@ -49,7 +49,8 @@ describe("investmentCurrentValue", () => {
     expect(result).toBe(5_000_000);
     // The exact regression this test guards against: the old formula
     // (`parseFloat(currentValue) * parseFloat(quantity)`) would have
-    // returned 2,500,000,000,000 here — 500,000× too large.
+    // returned 2.500.000.000 (2,5 billion / 2,5 miliar) here — 500× too
+    // large, one multiplication by `quantity` more than correct.
     expect(result).not.toBe(5_000_000 * 500);
   });
 
@@ -91,113 +92,101 @@ describe("investmentCurrentValue", () => {
   });
 });
 
-// EPIC-022 B1 — hardened per adversarial review: `totalLiabilities +
-// netWorth ≡ totalAssets` is an algebraic tautology given how the API
-// defines `netWorth` (see the function's doc comment) — no constructible
-// input could ever fail that comparison, so it cannot honestly be called a
-// "verification". These tests instead exercise the falsifiable check: the
-// reported `totalAssets`/`totalLiabilities` scalars reconciled against an
-// independently-summed `assets`/`liabilities` breakdown array. Every
-// "imbalanced" case below is a payload the function must be able to reject.
+// EPIC-022 B1 — hardened TWICE per adversarial review. Round 1 compared
+// `totalAssets` against `totalLiabilities + netWorth` (unfalsifiable: the
+// API defines netWorth as their difference in the same payload). Round 2
+// compared the reported totalAssets/totalLiabilities scalars against a
+// client-side sum of their own assets[]/liabilities[] breakdown arrays —
+// STILL unfalsifiable, because reports.service.ts builds those very
+// scalars *by* summing the same arrays (`totalAssets = assets.reduce(...)`)
+// — re-summing on the client is the same computation twice. This round
+// compares against a genuinely different source: the dashboard's
+// independently computed net worth (a different service, a different
+// query path). Every "imbalanced" case below is a payload the function
+// must be able to reject; the "does NOT reconcile via ..." cases prove the
+// two prior (removed) checks are actually gone.
 describe("computeBalanceSheetIdentity", () => {
-  it("reports balanced when the breakdown arrays sum to their reported totals", () => {
-    const result = computeBalanceSheetIdentity({
-      totalAssets: 1_000_000,
-      totalLiabilities: 200_000,
-      netWorth: 800_000,
-      assets: [{ amount: 700_000 }, { amount: 300_000 }],
-      liabilities: [{ amount: 200_000 }],
-    });
+  it("reports balanced when the two independently-computed net worths agree", () => {
+    const result = computeBalanceSheetIdentity(
+      { totalLiabilities: 200_000, netWorth: 800_000 },
+      { netWorth: "800000" },
+    );
     expect(result.totalLiabilitiesPlusEquity).toBe(1_000_000);
-    expect(result.assetsBreakdownSum).toBe(1_000_000);
-    expect(result.liabilitiesBreakdownSum).toBe(200_000);
-    expect(result.assetsDiff).toBe(0);
-    expect(result.liabilitiesDiff).toBe(0);
+    expect(result.dashboardNetWorth).toBe(800_000);
+    expect(result.diff).toBe(0);
     expect(result.isBalanced).toBe(true);
   });
 
-  it("is falsifiable: reports imbalanced when the asset breakdown does not sum to totalAssets", () => {
-    // The exact bar the adversarial review set: construct input data that
-    // makes this report an imbalance. A dropped/duplicated asset group is a
-    // real, constructible bug class this must catch.
-    const result = computeBalanceSheetIdentity({
-      totalAssets: 1_000_000,
-      totalLiabilities: 200_000,
-      netWorth: 800_000,
-      assets: [{ amount: 700_000 }], // sums to 700_000, not the reported 1_000_000
-      liabilities: [{ amount: 200_000 }],
-    });
-    expect(result.assetsBreakdownSum).toBe(700_000);
-    expect(result.assetsDiff).toBe(300_000);
+  it("is falsifiable: reports imbalanced when the dashboard's independently computed net worth disagrees", () => {
+    // The exact bar the adversarial review set (twice): construct input
+    // data that makes this report an imbalance. This is the real defect
+    // class it now catches — e.g. the balance sheet omitting a whole asset
+    // class (investments) that the dashboard's separate query includes.
+    const result = computeBalanceSheetIdentity(
+      { totalLiabilities: 200_000, netWorth: 800_000 },
+      { netWorth: "1300000" }, // dashboard includes Rp 500.000 the balance sheet is missing
+    );
+    expect(result.dashboardNetWorth).toBe(1_300_000);
+    expect(result.diff).toBe(-500_000);
     expect(result.isBalanced).toBe(false);
   });
 
-  it("is falsifiable: reports imbalanced when the liability breakdown does not sum to totalLiabilities", () => {
-    const result = computeBalanceSheetIdentity({
-      totalAssets: 1_000_000,
-      totalLiabilities: 200_000,
-      netWorth: 800_000,
-      assets: [{ amount: 1_000_000 }],
-      liabilities: [{ amount: 150_000 }], // sums to 150_000, not the reported 200_000
-    });
-    expect(result.liabilitiesBreakdownSum).toBe(150_000);
-    expect(result.liabilitiesDiff).toBe(50_000);
+  it("does NOT reconcile via the totalAssets = totalLiabilities + netWorth identity — that check is gone", () => {
+    // Round-1's removed check would have called this "balanced" purely
+    // because netWorth was internally consistent — irrelevant here, since
+    // this function no longer even accepts totalAssets as input.
+    const result = computeBalanceSheetIdentity(
+      { totalLiabilities: 200_000, netWorth: 800_000 }, // totalAssets would be 1_000_000
+      { netWorth: "50000" }, // but the dashboard says net worth is only 50.000
+    );
     expect(result.isBalanced).toBe(false);
   });
 
-  it("does NOT reconcile via the netWorth identity — an inconsistent netWorth with a matching breakdown still reports balanced", () => {
-    // Proves the old (removed) check is gone: netWorth here does not equal
-    // totalAssets - totalLiabilities, but since the breakdown arrays DO sum
-    // to their own reported totals, this is correctly "balanced" under the
-    // new, independent check.
-    const result = computeBalanceSheetIdentity({
-      totalAssets: 1_000_000,
-      totalLiabilities: 200_000,
-      netWorth: 1, // deliberately inconsistent with totalAssets - totalLiabilities
-      assets: [{ amount: 1_000_000 }],
-      liabilities: [{ amount: 200_000 }],
-    });
+  it("does NOT reconcile via re-summing a breakdown array — that check is gone too", () => {
+    // Round-2's removed check took an `assets`/`liabilities` array; this
+    // function's type no longer accepts one at all, proving the tautology
+    // was actually removed, not just hidden behind an unused parameter.
+    const result = computeBalanceSheetIdentity(
+      { totalLiabilities: 200_000, netWorth: 800_000 },
+      { netWorth: "800000" },
+    );
+    expect(result).not.toHaveProperty("assetsBreakdownSum");
+    expect(result).not.toHaveProperty("assetsDiff");
     expect(result.isBalanced).toBe(true);
-    // The "Total L+E" row value is still computed honestly from the
-    // (inconsistent) netWorth field — it is not silently corrected.
-    expect(result.totalLiabilitiesPlusEquity).toBe(200_001);
   });
 
   it("treats a sub-1-rupiah rounding slack as still balanced", () => {
-    const result = computeBalanceSheetIdentity({
-      totalAssets: 1_000_000,
-      totalLiabilities: 200_000,
-      netWorth: 800_000,
-      assets: [{ amount: 999_999.6 }],
-      liabilities: [{ amount: 200_000 }],
-    });
+    const result = computeBalanceSheetIdentity(
+      { totalLiabilities: 200_000, netWorth: 800_000 },
+      { netWorth: "800000.4" },
+    );
     expect(result.isBalanced).toBe(true);
   });
 
-  it("sums across multiple asset/liability groups", () => {
-    const result = computeBalanceSheetIdentity({
-      totalAssets: 1_500_000,
-      totalLiabilities: 300_000,
-      netWorth: 1_200_000,
-      assets: [{ amount: 500_000 }, { amount: 700_000 }, { amount: 300_000 }],
-      liabilities: [{ amount: 100_000 }, { amount: 200_000 }],
-    });
-    expect(result.assetsBreakdownSum).toBe(1_500_000);
-    expect(result.liabilitiesBreakdownSum).toBe(300_000);
-    expect(result.isBalanced).toBe(true);
+  it("reports isBalanced as null (not false) while the dashboard figure is unavailable — no claim until both numbers are in hand", () => {
+    const pending = computeBalanceSheetIdentity(
+      { totalLiabilities: 200_000, netWorth: 800_000 },
+      undefined,
+    );
+    expect(pending.isBalanced).toBeNull();
+    expect(pending.dashboardNetWorth).toBeNull();
+    // The "Total L+E" row is still computed even while the check is pending.
+    expect(pending.totalLiabilitiesPlusEquity).toBe(1_000_000);
+
+    const alsoPending = computeBalanceSheetIdentity(
+      { totalLiabilities: 200_000, netWorth: 800_000 },
+      null,
+    );
+    expect(alsoPending.isBalanced).toBeNull();
   });
 
   it("holds for the zero-data (fresh family group) case", () => {
-    const result = computeBalanceSheetIdentity({
-      totalAssets: 0,
-      totalLiabilities: 0,
-      netWorth: 0,
-      assets: [],
-      liabilities: [],
-    });
+    const result = computeBalanceSheetIdentity(
+      { totalLiabilities: 0, netWorth: 0 },
+      { netWorth: "0" },
+    );
     expect(result.isBalanced).toBe(true);
-    expect(result.assetsDiff).toBe(0);
-    expect(result.liabilitiesDiff).toBe(0);
+    expect(result.diff).toBe(0);
   });
 });
 

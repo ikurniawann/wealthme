@@ -1994,14 +1994,15 @@ export const id = {
       liabilitiesLabel: "Liabilitas",
       equityLabel: "Ekuitas",
       totalLPlusELabel: "Total L + E",
-      balancedTitle: "Rincian Sesuai dengan Total Terlapor",
+      balancedTitle: "Net Worth Cocok dengan Ringkasan",
       balancedDescPrefix:
-        "Rincian Aset & Liabilitas di atas cocok dengan Total Aset dan Total Liabilitas yang dilaporkan. Debt-to-Asset ratio",
-      imbalancedTitle: "Rincian Tidak Sesuai dengan Total Terlapor",
+        "Net Worth pada Balance Sheet ini cocok dengan Net Worth di Ringkasan (dihitung secara terpisah). Debt-to-Asset ratio",
+      imbalancedTitle: "Net Worth Tidak Cocok dengan Ringkasan",
       imbalancedDescPrefix:
-        "Rincian Aset/Liabilitas tidak cocok dengan total yang dilaporkan.",
-      assetsDiscrepancyLabel: "Selisih Aset:",
-      liabilitiesDiscrepancyLabel: "Selisih Liabilitas:",
+        "Net Worth pada Balance Sheet ini berbeda dari Net Worth di Ringkasan (dihitung secara terpisah). Selisih:",
+      checkingLabel: "Memeriksa kecocokan Net Worth dengan Ringkasan…",
+      currentBalanceDisclosure:
+        "Nilai di bawah ini adalah saldo saat ini, bukan nilai historis pada tanggal tersebut.",
     },
     cashflow: {
       titlePrefix: "Cashflow Statement —",

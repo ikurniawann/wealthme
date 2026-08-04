@@ -1325,9 +1325,17 @@ function PnlSection({
 function BalanceSection({
   balanceSheet,
   isLoading,
+  dashboardNetWorth,
+  isDashboardNetWorthLoading,
 }: {
   balanceSheet?: BalanceSheetDto;
   isLoading?: boolean;
+  /** Independently computed net worth from a different service/query path
+   * (`/dashboard/net-worth`) — the only genuine cross-check available; see
+   * computeBalanceSheetIdentity's doc comment for why an in-payload check
+   * can never be falsifiable here. */
+  dashboardNetWorth?: NetWorthDto;
+  isDashboardNetWorthLoading?: boolean;
 }) {
   const { t, locale } = useLocale();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
@@ -1341,41 +1349,33 @@ function BalanceSection({
 
   // EPIC-022 B1 — the "Total L+E" row always shows the real value (Total
   // Liabilities + Equity), never a re-display of totalAssets. The ✅/⚠️
-  // banner below is a SEPARATE, falsifiable reconciliation check — see
-  // computeBalanceSheetIdentity's doc comment for why comparing totalAssets
-  // against `totalLiabilities + netWorth` (the original B1 fix) is an
-  // unfalsifiable tautology given how the API defines netWorth, and why the
-  // breakdown-vs-aggregate check replaces it.
-  const {
-    totalLiabilitiesPlusEquity,
-    assetsDiff,
-    liabilitiesDiff,
-    isBalanced,
-  } = computeBalanceSheetIdentity(
-    balanceSheet ?? {
-      totalAssets: 0,
-      totalLiabilities: 0,
-      netWorth: 0,
-      assets: [],
-      liabilities: [],
-    },
-  );
-  const discrepancyParts: string[] = [];
-  if (Math.abs(assetsDiff) >= 1) {
-    discrepancyParts.push(
-      `${t.laporan.balance.assetsDiscrepancyLabel} ${formatRupiah(Math.abs(assetsDiff))}`,
+  // banner below is a SEPARATE cross-source check — see
+  // computeBalanceSheetIdentity's doc comment for why two prior in-payload
+  // comparisons were both unfalsifiable, and why comparing against the
+  // dashboard's independently computed net worth is the one that isn't.
+  const { totalLiabilitiesPlusEquity, diff, isBalanced } =
+    computeBalanceSheetIdentity(
+      balanceSheet ?? { totalLiabilities: 0, netWorth: 0 },
+      dashboardNetWorth,
     );
-  }
-  if (Math.abs(liabilitiesDiff) >= 1) {
-    discrepancyParts.push(
-      `${t.laporan.balance.liabilitiesDiscrepancyLabel} ${formatRupiah(Math.abs(liabilitiesDiff))}`,
-    );
-  }
+  const isCheckPending =
+    Boolean(balanceSheet) &&
+    (isDashboardNetWorthLoading || isBalanced === null);
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <div className="text-[15px] font-bold">
-        {t.laporan.balance.titlePrefix} {asOf}
+      <div>
+        <div className="text-[15px] font-bold">
+          {t.laporan.balance.titlePrefix} {asOf}
+        </div>
+        {/* EPIC-022 (adversarial review round 3, item 3) — asOfDate is
+            accepted but there is no historical-balance data model; every
+            figure below is the CURRENT balance, not a true point-in-time
+            snapshot as of the date above. Disclose rather than silently
+            imply otherwise (same pattern as B3's Saldo Awal/Akhir note). */}
+        <div className="text-[10.5px] text-muted-foreground">
+          {t.laporan.balance.currentBalanceDisclosure}
+        </div>
       </div>
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
         <SectionCard
@@ -1474,7 +1474,12 @@ function BalanceSection({
           </table>
         </SectionCard>
       </div>
-      {balanceSheet && isBalanced && (
+      {isCheckPending && (
+        <div className="flex items-center gap-2 rounded-[12px] border border-border bg-muted/40 p-3 text-[12px] text-muted-foreground">
+          {t.laporan.balance.checkingLabel}
+        </div>
+      )}
+      {balanceSheet && isBalanced === true && (
         <div className="flex items-start gap-3 rounded-[12px] border border-primary/20 bg-accent p-3.5">
           <div className="text-[22px]">✅</div>
           <div>
@@ -1487,7 +1492,7 @@ function BalanceSection({
           </div>
         </div>
       )}
-      {balanceSheet && !isBalanced && (
+      {balanceSheet && isBalanced === false && (
         <div className="flex items-start gap-3 rounded-[12px] border border-warning/30 bg-warning-soft p-3.5">
           <div className="text-[22px]">⚠️</div>
           <div>
@@ -1495,9 +1500,8 @@ function BalanceSection({
               {t.laporan.balance.imbalancedTitle}
             </div>
             <div className="text-[12px] text-muted-foreground">
-              {t.laporan.balance.imbalancedDescPrefix}
-              {discrepancyParts.length > 0 &&
-                " " + discrepancyParts.join(" · ")}
+              {t.laporan.balance.imbalancedDescPrefix}{" "}
+              {formatRupiah(Math.abs(diff))}.
             </div>
           </div>
         </div>
@@ -2811,6 +2815,12 @@ function LaporanInner() {
     staleTime: 60_000,
   });
 
+  // EPIC-022 (adversarial review round 3, item 2) — also enabled for
+  // "rbalance": BalanceSection cross-checks the balance sheet's `netWorth`
+  // against this dashboard figure, a genuinely independent computation
+  // (different service, different query path — DashboardService's
+  // computeNetWorthBreakdown vs ReportsService's getBalanceSheet) instead of
+  // an in-payload identity that can never disagree with itself.
   const { data: familyNetWorth, isLoading: isNetWorthLoading } =
     useQuery<NetWorthDto>({
       queryKey: queryKeys.netWorth.summary(familyGroupId),
@@ -2819,7 +2829,7 @@ function LaporanInner() {
           `/family-groups/${familyGroupId}/dashboard/net-worth`,
           { token },
         ),
-      enabled: enabled && tab === "rfamily",
+      enabled: enabled && (tab === "rfamily" || tab === "rbalance"),
       staleTime: 60_000,
     });
 
@@ -3013,6 +3023,8 @@ function LaporanInner() {
           <BalanceSection
             balanceSheet={balanceSheet}
             isLoading={isBalanceLoading}
+            dashboardNetWorth={familyNetWorth}
+            isDashboardNetWorthLoading={isNetWorthLoading}
           />
         );
       case "rcashflow":

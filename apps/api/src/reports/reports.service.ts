@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { CoaDirection } from "@prisma/client";
 
 import { txCoaDirection } from "../common/utils/coa-classify.util";
+import { investmentPositionValue } from "../common/utils/investment-value.util";
 import {
   accountPrivacyWhere,
   nestedTransactionCategoryPrivacyWhere,
@@ -443,25 +444,56 @@ export class ReportsService {
     };
   }
 
+  /**
+   * EPIC-022 (adversarial review round 3, finding 3) — `asOfDate` is
+   * accepted but there is no historical-balance data model for accounts,
+   * assets, liabilities, or investments (only a daily aggregate
+   * `NetWorthSnapshot`, not an itemized one) — every query below reads
+   * CURRENT balances, same as the rest of the app. The UI discloses this
+   * (matching the B3 Saldo Awal/Akhir precedent) rather than silently
+   * implying a true point-in-time statement; do not add a date filter here
+   * without also adding real historical balance tracking.
+   */
   async getBalanceSheet(
     familyGroupId: string,
     asOfDate: Date,
     canSeePrivate: boolean,
   ): Promise<BalanceSheetDto> {
-    const [accounts, assetsList, liabilitiesList] = await Promise.all([
-      this.prisma.account.findMany({
-        where: { familyGroupId, ...accountPrivacyWhere(canSeePrivate) },
-        select: { name: true, type: true, balance: true },
-      }),
-      this.prisma.asset.findMany({
-        where: { familyGroupId },
-        select: { name: true, type: true, currentValue: true },
-      }),
-      this.prisma.liability.findMany({
-        where: { familyGroupId },
-        select: { name: true, type: true, remainingBalance: true },
-      }),
-    ]);
+    const [accounts, assetsList, liabilitiesList, investmentsList] =
+      await Promise.all([
+        this.prisma.account.findMany({
+          where: { familyGroupId, ...accountPrivacyWhere(canSeePrivate) },
+          select: { name: true, type: true, balance: true },
+        }),
+        this.prisma.asset.findMany({
+          where: { familyGroupId },
+          select: { name: true, type: true, currentValue: true },
+        }),
+        this.prisma.liability.findMany({
+          where: { familyGroupId },
+          select: { name: true, type: true, remainingBalance: true },
+        }),
+        // EPIC-022 (adversarial review round 3, finding 1, CRITICAL) —
+        // investments were never queried here at all, so any family holding
+        // investments had its balance sheet under-report totalAssets/
+        // netWorth by the entire portfolio while /ringkasan and /beranda
+        // (dashboard.service.ts's computeNetWorthBreakdown) reported
+        // correctly — and the ✅ "Seimbang" banner printed over the
+        // discrepancy. No `isPrivate` field exists on Investment (matches
+        // computeNetWorthBreakdown, which also applies no privacy filter
+        // here), so nothing to scope. Same read-only, no-live-refresh price
+        // basis as the dashboard — see investment-value.util.ts.
+        this.prisma.investment.findMany({
+          where: { familyGroupId },
+          select: {
+            name: true,
+            ticker: true,
+            quantity: true,
+            costBasisPerUnit: true,
+            prices: { orderBy: { recordedAt: "desc" }, take: 1 },
+          },
+        }),
+      ]);
 
     // Group account balances into "Kas & Setara Kas"
     const cashTotal = accounts.reduce((s, a) => s + Number(a.balance), 0);
@@ -479,6 +511,21 @@ export class ReportsService {
         amount: Number(a.balance),
       })),
     });
+
+    // Investment portfolio bucket — valued on the same basis as the rest of
+    // the app (investmentPositionValue: latest recorded price × quantity,
+    // falling back to cost basis), rounded to the nearest rupiah to match
+    // every other (BigInt-backed) balance-sheet figure.
+    if (investmentsList.length > 0) {
+      const investmentItems = investmentsList.map((inv) => ({
+        name: `${inv.ticker} — ${inv.name}`,
+        amount: Math.round(investmentPositionValue(inv).toNumber()),
+      }));
+      assetsGrouped.set("Investasi", {
+        amount: investmentItems.reduce((s, i) => s + i.amount, 0),
+        items: investmentItems,
+      });
+    }
 
     // Physical assets grouped by type
     for (const asset of assetsList) {

@@ -1993,14 +1993,15 @@ export const en = {
       liabilitiesLabel: "Liabilities",
       equityLabel: "Equity",
       totalLPlusELabel: "Total L + E",
-      balancedTitle: "Breakdown Matches Reported Totals",
+      balancedTitle: "Net Worth Matches Ringkasan",
       balancedDescPrefix:
-        "The Assets & Liabilities breakdown above matches the reported Total Assets and Total Liabilities. Debt-to-Asset ratio",
-      imbalancedTitle: "Breakdown Doesn't Match Reported Totals",
+        "This Balance Sheet's Net Worth matches the Net Worth on Ringkasan (computed separately). Debt-to-Asset ratio",
+      imbalancedTitle: "Net Worth Doesn't Match Ringkasan",
       imbalancedDescPrefix:
-        "The Assets/Liabilities breakdown doesn't match the reported totals.",
-      assetsDiscrepancyLabel: "Asset discrepancy:",
-      liabilitiesDiscrepancyLabel: "Liability discrepancy:",
+        "This Balance Sheet's Net Worth differs from the Net Worth on Ringkasan (computed separately). Difference:",
+      checkingLabel: "Checking Net Worth reconciliation with Ringkasan…",
+      currentBalanceDisclosure:
+        "The figures below are current balances, not historical values as of the stated date.",
     },
     cashflow: {
       titlePrefix: "Cashflow Statement —",

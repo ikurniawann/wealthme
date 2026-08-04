@@ -1871,8 +1871,8 @@ export type I18nDictionary = {
       balancedDescPrefix: string;
       imbalancedTitle: string;
       imbalancedDescPrefix: string;
-      assetsDiscrepancyLabel: string;
-      liabilitiesDiscrepancyLabel: string;
+      checkingLabel: string;
+      currentBalanceDisclosure: string;
     };
     cashflow: {
       titlePrefix: string;

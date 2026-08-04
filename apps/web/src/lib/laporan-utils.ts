@@ -49,72 +49,68 @@ export function txTypeToBadgeVariant(
 export interface BalanceSheetIdentity {
   /** Total Liabilities + Equity (net worth) — the real right-hand side of
    * the "Total L+E" row, never a re-display of totalAssets. Always shown;
-   * unrelated to the falsifiable check below (see isBalanced doc). */
+   * unrelated to the cross-source check below (see isBalanced doc). */
   totalLiabilitiesPlusEquity: number;
-  /** Sum of `assets[].amount`, computed independently of the API's own
-   * `totalAssets` scalar. */
-  assetsBreakdownSum: number;
-  /** Sum of `liabilities[].amount`, computed independently of the API's own
-   * `totalLiabilities` scalar. */
-  liabilitiesBreakdownSum: number;
-  /** totalAssets − assetsBreakdownSum. Zero when the reported aggregate
-   * genuinely reconciles with its own itemized breakdown. */
-  assetsDiff: number;
-  /** totalLiabilities − liabilitiesBreakdownSum. */
-  liabilitiesDiff: number;
-  /** True only when both diffs are within a whole-rupiah rounding slack
-   * (< 1). */
-  isBalanced: boolean;
+  /** The dashboard's independently computed net worth
+   * (`DashboardService.computeNetWorthBreakdown`), or `null` when that
+   * figure has not been fetched/loaded yet. */
+  dashboardNetWorth: number | null;
+  /** balanceSheet.netWorth − dashboardNetWorth. Only meaningful when
+   * `dashboardNetWorth` is not null. */
+  diff: number;
+  /** True/false only once `dashboardNetWorth` is available; `null` while
+   * there is nothing to compare against yet (still loading) — no claim is
+   * made until both independently-computed figures are in hand. */
+  isBalanced: boolean | null;
 }
 
 /**
- * Computes a falsifiable balance-sheet integrity check (EPIC-022 B1,
- * hardened per adversarial review).
+ * Computes a genuinely falsifiable balance-sheet check (EPIC-022 B1,
+ * hardened twice per adversarial review).
  *
- * `netWorth` is defined server-side as `totalAssets - totalLiabilities`
- * (`apps/api/src/reports/reports.service.ts`), in the SAME payload as those
- * two fields — so `totalLiabilities + netWorth ≡ totalAssets` is an
- * algebraic tautology for any input whatsoever; no bug anywhere could ever
- * make it fail, so a banner built on that comparison could never honestly
- * claim to have "verified" anything.
+ * Round 1 compared `totalAssets` against `totalLiabilities + netWorth` —
+ * unfalsifiable because the API defines `netWorth` as their difference in
+ * the same payload. Round 2 compared the reported `totalAssets`/
+ * `totalLiabilities` scalars against a client-side sum of their own
+ * `assets[]`/`liabilities[]` breakdown arrays — STILL unfalsifiable,
+ * because `reports.service.ts` builds those very scalars *by* summing the
+ * exact same arrays (`totalAssets = assets.reduce(...)`); re-summing them
+ * on the client is the same computation twice, differing only in float
+ * addition order, and cannot disagree on any input the API can actually
+ * produce.
  *
- * Instead this reconciles the two REPORTED AGGREGATE SCALARS
- * (`totalAssets`, `totalLiabilities`) against their own itemized breakdown
- * arrays (`assets[].amount`, `liabilities[].amount`) — two different fields
- * of the wire payload, summed independently on the client. This is
- * falsifiable: a payload whose breakdown doesn't add up to its own reported
- * total (a real, constructible bug — e.g. a dropped/duplicated group, or a
- * future change that decouples the scalar from the array) makes
- * `isBalanced` false. The "Total L+E" row above is unaffected — it still
- * always shows the correct `totalLiabilities + netWorth` value.
+ * This compares the balance sheet's `netWorth` against a DIFFERENT
+ * endpoint's independently computed net worth
+ * (`DashboardService.computeNetWorthBreakdown`, served at
+ * `/dashboard/net-worth` — a different service, a different query path,
+ * used by /ringkasan and /beranda). A real bug that under/over-counts an
+ * asset class in one path but not the other (exactly the missing-
+ * investments defect this hardening round also fixed) makes the two
+ * figures disagree, and `isBalanced` reports false. The "Total L+E" row
+ * above is unaffected — it still always shows the correct
+ * `totalLiabilities + netWorth` value from the balance sheet itself.
  */
-export function computeBalanceSheetIdentity(balanceSheet: {
-  totalAssets: number;
-  totalLiabilities: number;
-  netWorth: number;
-  assets: { amount: number }[];
-  liabilities: { amount: number }[];
-}): BalanceSheetIdentity {
+export function computeBalanceSheetIdentity(
+  balanceSheet: { totalLiabilities: number; netWorth: number },
+  dashboardNetWorth: { netWorth: string } | null | undefined,
+): BalanceSheetIdentity {
   const totalLiabilitiesPlusEquity =
     balanceSheet.totalLiabilities + balanceSheet.netWorth;
-  const assetsBreakdownSum = balanceSheet.assets.reduce(
-    (sum, group) => sum + group.amount,
-    0,
-  );
-  const liabilitiesBreakdownSum = balanceSheet.liabilities.reduce(
-    (sum, group) => sum + group.amount,
-    0,
-  );
-  const assetsDiff = balanceSheet.totalAssets - assetsBreakdownSum;
-  const liabilitiesDiff =
-    balanceSheet.totalLiabilities - liabilitiesBreakdownSum;
+  if (dashboardNetWorth == null) {
+    return {
+      totalLiabilitiesPlusEquity,
+      dashboardNetWorth: null,
+      diff: 0,
+      isBalanced: null,
+    };
+  }
+  const dashboardValue = Number(dashboardNetWorth.netWorth);
+  const diff = balanceSheet.netWorth - dashboardValue;
   return {
     totalLiabilitiesPlusEquity,
-    assetsBreakdownSum,
-    liabilitiesBreakdownSum,
-    assetsDiff,
-    liabilitiesDiff,
-    isBalanced: Math.abs(assetsDiff) < 1 && Math.abs(liabilitiesDiff) < 1,
+    dashboardNetWorth: dashboardValue,
+    diff,
+    isBalanced: Math.abs(diff) < 1,
   };
 }
 

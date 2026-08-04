@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { CoaDirection } from "@prisma/client";
 
 import { txCoaDirection } from "../common/utils/coa-classify.util";
+import { investmentPositionValue } from "../common/utils/investment-value.util";
 import {
   accountPrivacyWhere,
   transactionPrivacyWhere,
@@ -261,10 +262,12 @@ export class DashboardService {
     });
     const totalAssets = assets.reduce((sum, a) => sum + a.currentValue, 0n);
 
-    // EPIC-QA-sweep #2: value at the latest recorded price (nested `prices`
-    // take-1 per investment), falling back to cost basis only when no price
-    // row exists yet. Same valuation basis as investments.service, minus its
-    // market-data refresh — the dashboard only reads already-stored prices.
+    // EPIC-QA-sweep #2 / EPIC-022 (adversarial review round 3) — value at
+    // the latest recorded price via the shared `investmentPositionValue`
+    // helper, falling back to cost basis only when no price row exists yet.
+    // Same valuation basis as investments.service and ReportsService's
+    // balance sheet (see investment-value.util.ts), minus a live
+    // market-data refresh — this only reads already-stored prices.
     const investments = await this.prisma.investment.findMany({
       where: { familyGroupId },
       select: {
@@ -275,10 +278,10 @@ export class DashboardService {
     });
     const totalInvestments = BigInt(
       Math.round(
-        investments.reduce((sum, inv) => {
-          const price = inv.prices[0]?.price ?? inv.costBasisPerUnit;
-          return sum + inv.quantity.toNumber() * price.toNumber();
-        }, 0),
+        investments.reduce(
+          (sum, inv) => sum + investmentPositionValue(inv).toNumber(),
+          0,
+        ),
       ),
     );
 

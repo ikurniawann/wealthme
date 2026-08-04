@@ -124,6 +124,12 @@ function makeFakePrisma(
     },
     asset: { findMany: jest.fn(() => Promise.resolve([])) },
     liability: { findMany: jest.fn(() => Promise.resolve([])) },
+    // EPIC-022 (adversarial review round 3, finding 1) — getBalanceSheet
+    // now also queries investments; the dedicated investments-bucket
+    // coverage lives in reports-dashboard-networth-parity.spec.ts, this
+    // default keeps the pre-existing privacy-enforcement fixtures (which
+    // never mention investments) working unchanged.
+    investment: { findMany: jest.fn(() => Promise.resolve([])) },
     transaction: {
       findMany: jest.fn(({ where }: { where: TxWhere }) =>
         Promise.resolve(filterTx(transactions, where).map(withRelations)),
