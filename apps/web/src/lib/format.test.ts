@@ -66,6 +66,27 @@ describe("formatRupiah", () => {
     expect(result).toMatch(/\d\.\d{2}$/);
   });
 
+  // EPIC-021 Group F (#1) — AUD/CNY added to the supported currency list.
+  it("with target: AUD conversion with 2 decimals", () => {
+    // AUD rate is approximately 0.000097 (IDR to AUD)
+    // 1,000,000 IDR * 0.000097 = ~97 AUD
+    const target = { code: "AUD", rate: 0.000097 };
+    const result = formatRupiah(1000000, target);
+
+    expect(result).toMatch(/A\$|AUD/);
+    expect(result).toMatch(/\d\.\d{2}$/);
+  });
+
+  it("with target: CNY conversion with 2 decimals, distinguishable from JPY", () => {
+    // CNY rate is approximately 0.000448 (IDR to CNY)
+    // 1,000,000 IDR * 0.000448 = ~448 CNY
+    const target = { code: "CNY", rate: 0.000448 };
+    const result = formatRupiah(1000000, target);
+
+    expect(result).toMatch(/CN¥|CNY/);
+    expect(result).toMatch(/\d\.\d{2}$/);
+  });
+
   it("with target: IDR (should still work, 0 decimals)", () => {
     // Passing IDR as target should not break anything
     // (rate = 1 means no conversion, just display as Rp with 0 decimals)

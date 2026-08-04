@@ -476,4 +476,64 @@ describe("i18n dictionary key parity", () => {
     expect(id.dana.emptyCash).toBeTruthy();
     expect(en.dana.emptyCash).toBeTruthy();
   });
+
+  // EPIC-021 Group F (#1) — AUD + CNY added to the supported currency list.
+  it("akun.pengaturan.currencies covers AUD and CNY in both locales without changing pre-existing entries", () => {
+    const currencyIds = [
+      "IDR",
+      "USD",
+      "SGD",
+      "EUR",
+      "JPY",
+      "AUD",
+      "CNY",
+    ] as const;
+    for (const key of currencyIds) {
+      expect(id.akun.pengaturan.currencies[key].title).toBeTruthy();
+      expect(id.akun.pengaturan.currencies[key].name).toBeTruthy();
+      expect(en.akun.pengaturan.currencies[key].title).toBeTruthy();
+      expect(en.akun.pengaturan.currencies[key].name).toBeTruthy();
+    }
+  });
+
+  // EPIC-021 Group F (#6) — manual gold price settings + consolidated total
+  // (IDR/USD/gram-emas) copy exists in both locales.
+  it("akun.pengaturan gold-price copy is present in both locales", () => {
+    const keys = [
+      "goldPriceSectionTitle",
+      "goldPriceHint",
+      "goldPriceLabel",
+      "goldPricePlaceholder",
+      "goldPriceSaveButton",
+      "goldPriceUnsetLabel",
+      "goldPriceManualLabelPrefix",
+      "goldPriceOwnerOnlyNote",
+      "toastGoldPriceUpdated",
+      "toastGoldPriceFailed",
+      "toastGoldPriceInvalid",
+    ] as const;
+    for (const key of keys) {
+      expect(id.akun.pengaturan[key]).toBeTruthy();
+      expect(en.akun.pengaturan[key]).toBeTruthy();
+    }
+  });
+
+  it("consolidatedTotal copy is present in both locales", () => {
+    const keys = [
+      "title",
+      "idrLabel",
+      "usdLabel",
+      "goldLabel",
+      "goldUnitSuffix",
+      "goldPromptText",
+      "goldPromptLinkLabel",
+      "manualLabelPrefix",
+      "indicativeFxNote",
+      "loadingLabel",
+    ] as const;
+    for (const key of keys) {
+      expect(id.consolidatedTotal[key]).toBeTruthy();
+      expect(en.consolidatedTotal[key]).toBeTruthy();
+    }
+  });
 });

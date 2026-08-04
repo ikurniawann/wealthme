@@ -10,6 +10,7 @@ import { formatRupiah, formatRupiahCompact } from "@/lib/format";
 import { useCurrencyPreference } from "@/hooks/use-currency-preference";
 import { useLocale } from "@/hooks/use-locale";
 import { buildNetWorthTrendPath } from "@/lib/chart-utils";
+import { ConsolidatedTotalCard } from "@/components/consolidated-total-card";
 import type {
   DashboardSummaryDto,
   NetWorthDto,
@@ -192,6 +193,10 @@ export default function RingkasanPage() {
           {t.ringkasan.indicativeFxNoteSuffix}
         </div>
       )}
+
+      {/* EPIC-021 Group F (#6) — consolidated total shown simultaneously in
+          IDR + USD + gram-emas (Open Design Decision #6). */}
+      <ConsolidatedTotalCard netWorthIdr={netWorth} isLoading={isLoading} />
 
       {/*
         Wide-viewport main+aside reflow (EPIC-018 Task C). Below `lg` this

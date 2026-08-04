@@ -337,6 +337,8 @@ export const id = {
         },
         EUR: { title: "EUR — Euro", name: "€ · Euro" },
         JPY: { title: "JPY — Japanese Yen", name: "¥ · Yen Jepang" },
+        AUD: { title: "AUD — Dollar Australia", name: "A$ · Dollar Australia" },
+        CNY: { title: "CNY — Yuan Tiongkok", name: "CN¥ · Yuan Tiongkok" },
       },
       displaySectionTitle: "Bahasa & Tampilan",
       languageLabel: "Bahasa",
@@ -358,6 +360,19 @@ export const id = {
       toastCurrencyUpdated: "✅ Mata uang tampilan diperbarui",
       toastCurrencyFailed: "Gagal menyimpan mata uang",
       toastSettingsSaved: "✅ Pengaturan disimpan",
+      goldPriceSectionTitle: "Harga Emas",
+      goldPriceHint:
+        "Harga emas per gram (IDR) untuk menghitung setara emas dari kekayaan bersih. Tidak ada feed harga pasar real-time — nilai ini diinput manual oleh pemilik keluarga.",
+      goldPriceLabel: "Harga per Gram (Rp)",
+      goldPricePlaceholder: "Contoh: 1.150.000",
+      goldPriceSaveButton: "Simpan Harga Emas",
+      goldPriceUnsetLabel: "Belum diatur",
+      goldPriceManualLabelPrefix: "Diinput manual, per ",
+      goldPriceOwnerOnlyNote:
+        "Hanya pemilik keluarga (owner) yang dapat mengubah harga emas.",
+      toastGoldPriceUpdated: "✅ Harga emas diperbarui",
+      toastGoldPriceFailed: "Gagal menyimpan harga emas",
+      toastGoldPriceInvalid: "Masukkan harga emas yang valid (lebih dari 0)",
     },
     notifSetting: {
       transactionSectionTitle: "Transaksi",
@@ -1263,6 +1278,19 @@ export const id = {
     toastSaveFailedSuffix: ". Coba lagi.",
     toastDeleteFailedPrefix: "Gagal menghapus ",
     toastDeleteFailedSuffix: ". Coba lagi.",
+  },
+  consolidatedTotal: {
+    title: "Total Konsolidasi",
+    idrLabel: "Rupiah (IDR)",
+    usdLabel: "Dollar AS (USD)",
+    goldLabel: "Setara Emas",
+    goldUnitSuffix: " gram",
+    goldPromptText: "Atur harga emas untuk melihat setara emas.",
+    goldPromptLinkLabel: "Atur harga emas",
+    manualLabelPrefix: "Diinput manual, per ",
+    indicativeFxNote:
+      "Nilai USD adalah perkiraan menggunakan kurs indikatif, bukan kurs pasar real-time.",
+    loadingLabel: "Memuat...",
   },
   ringkasan: {
     errorLoad: "Gagal memuat data ringkasan. Coba muat ulang halaman.",
