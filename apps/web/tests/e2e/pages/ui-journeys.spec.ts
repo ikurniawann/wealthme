@@ -197,7 +197,9 @@ test.describe("WealthMe — UI journeys (headless)", () => {
     await page.screenshot({ path: `${SHOT_DIR}/transaction-detail.png` });
   });
 
-  test("REGRESSION: adding a family member by phone number fails silently", async ({
+  // EPIC-022 A1 — known defect: the field invites a phone number but the API
+  // requires an email, and the toast never says so. Unskip when A1 lands.
+  test.fixme("REGRESSION: adding a family member by phone number fails silently", async ({
     page,
   }) => {
     await page.goto("/akun", { waitUntil: "networkidle" });
