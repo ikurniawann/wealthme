@@ -4,12 +4,19 @@ import { FxPort } from "./fx.port";
 
 @Injectable()
 export class FxMockService extends FxPort {
+  // EPIC-021 Group F (#1) — AUD/CNY added to the same indicative mock table
+  // as the pre-existing currencies (Open Design Decision #6: no live rate
+  // feed exists and none may be invented). Every non-IDR value derived from
+  // this table must stay labeled "kurs indikatif, bukan kurs pasar
+  // real-time" — never presented as an authoritative/live conversion.
   private readonly rates: Record<string, number> = {
     IDR: 1,
     USD: 0.000063,
     SGD: 0.000085,
     EUR: 0.000058,
     JPY: 0.0095,
+    AUD: 0.000097,
+    CNY: 0.000448,
   };
 
   async getRate(from: string, to: string): Promise<number> {

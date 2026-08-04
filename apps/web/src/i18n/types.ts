@@ -23,7 +23,8 @@ type AkunSubpageId =
   | "tentang"
   | "family";
 
-type AkunCurrencyCode = "IDR" | "USD" | "SGD" | "EUR" | "JPY";
+// EPIC-021 Group F (#1) — AUD + CNY added to the supported currency list.
+type AkunCurrencyCode = "IDR" | "USD" | "SGD" | "EUR" | "JPY" | "AUD" | "CNY";
 
 /** A FAQ / help-copy answer with at most one bolded mid-sentence phrase. */
 type AkunRichAnswer = {
@@ -531,6 +532,22 @@ export type I18nDictionary = {
       toastCurrencyUpdated: string;
       toastCurrencyFailed: string;
       toastSettingsSaved: string;
+      /**
+       * EPIC-021 Group F (#6) — family-wide manual gold price per gram.
+       * No live gold price feed exists or may be fabricated (Open Design
+       * Decision #6); every display must carry the manual-entry disclosure.
+       */
+      goldPriceSectionTitle: string;
+      goldPriceHint: string;
+      goldPriceLabel: string;
+      goldPricePlaceholder: string;
+      goldPriceSaveButton: string;
+      goldPriceUnsetLabel: string;
+      goldPriceManualLabelPrefix: string;
+      goldPriceOwnerOnlyNote: string;
+      toastGoldPriceUpdated: string;
+      toastGoldPriceFailed: string;
+      toastGoldPriceInvalid: string;
     };
     notifSetting: {
       transactionSectionTitle: string;
@@ -1185,6 +1202,23 @@ export type I18nDictionary = {
     toastSaveFailedSuffix: string;
     toastDeleteFailedPrefix: string;
     toastDeleteFailedSuffix: string;
+  };
+  /**
+   * EPIC-021 Group F (#6) — shared copy for the consolidated-total display
+   * (IDR + USD + gram-emas simultaneously), used on `/ringkasan` and
+   * `/beranda`'s net-worth hero card.
+   */
+  consolidatedTotal: {
+    title: string;
+    idrLabel: string;
+    usdLabel: string;
+    goldLabel: string;
+    goldUnitSuffix: string;
+    goldPromptText: string;
+    goldPromptLinkLabel: string;
+    manualLabelPrefix: string;
+    indicativeFxNote: string;
+    loadingLabel: string;
   };
   /** EPIC-018 Task A6 — `/ringkasan` (financial summary dashboard) page copy. */
   ringkasan: {
