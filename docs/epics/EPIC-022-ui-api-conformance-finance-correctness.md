@@ -119,7 +119,30 @@ is entirely in the form.
     (`laporan/page.tsx:1007,1025`; `beranda/page.tsx:248`) while their category
     badge is neutral — the same row contradicts itself.
   - **B9 — Three different definitions of investment value on one tab**
-    (`laporan/page.tsx:1653-1674` vs `:1661/1697` vs `:1792`).
+    (`laporan/page.tsx:1653-1674` vs `:1661/1697` vs `:1792`). Worse than a
+    naming inconsistency: the "Alokasi per Jenis" rollup on `development` today
+    computes `parseFloat(inv.currentValue ?? inv.costBasisPerUnit) *
+parseFloat(inv.quantity)` (`laporan/page.tsx:1655-1657`), but the API
+    already returns `currentValue = currentPrice × quantity`
+    (`investments.service.ts:94`). Only the `costBasisPerUnit` fallback is
+    per-unit. So every holding that has a market price is squared by its
+    quantity — 500 shares at Rp 10.000 render as Rp 2,5 M instead of Rp 5 jt,
+    and the allocation percentages are wrong with it. The correct per-row value
+    at `:1792` (`currentValue` used as-is) is what made the two disagree. Fix by
+    correcting the rollup, not by propagating the bug for consistency.
+
+  - **B10 — The balance sheet omits investments entirely.** `getBalanceSheet`
+    (`reports.service.ts:446-470`) queries only `account`, `asset`, and
+    `liability` — never `investment`. The dashboard's net worth is
+    `accountsTotal + investmentsTotal + assetsTotal`
+    (`dashboard.service.ts` `computeNetWorthBreakdown`), so for any family
+    holding investments `/laporan` under-reports total assets and net worth by
+    the whole portfolio while `/ringkasan` and `/beranda` report it correctly —
+    and the page prints ✅ "Seimbang" over the gap. Found while checking why
+    B1's identity check could never fail.
+  - **B11 — `getBalanceSheet` accepts `asOfDate` and never uses it.** No date
+    filter is applied to any of its three queries, so a balance sheet requested
+    "per 31 Maret" silently shows today's balances.
 
 - [ ] ### C — Budgets and goals behave unlike real budgets and goals
   - **C1 — Weekly and yearly budgets are selectable but not implemented.** The
@@ -245,7 +268,7 @@ is entirely in the form.
     A user who records more than one or two heirs cannot save. The same shape of
     risk applies to the insurance beneficiary editor and split-bill participants.
     Fix: give the dialog body `max-h-[85dvh] overflow-y-auto` — the `/asuransi`
-    modal already does the right thing (full-screen *with* internal scroll) and
+    modal already does the right thing (full-screen _with_ internal scroll) and
     measures clean at both viewports.
   - **G2 — the onboarding welcome dialog blocks the whole app for a fresh
     session** (`fixed inset-0 z-50` overlay). Expected for a first-run tour, but
@@ -267,17 +290,22 @@ is entirely in the form.
 
 ## Open Design Decisions
 
-1. **Goals: real money or honest tracker?** (gates A3, C9) Back `Goal` with an
-   account and move real money through the transfer primitive, or remove the
-   phantom transaction and label goals as manual earmarking. Recommendation:
-   honest tracker first (small, immediate), real funding as a follow-up epic.
-2. **Budget periods: implement or remove?** (gates C1) Implementing weekly and
-   yearly windows is the right end state; removing the options is a five-line
-   change that stops the app misleading anyone today. Recommendation: remove now,
-   implement in the same epic if capacity allows.
-3. **Zakat: implement haul or stop asserting?** (gates E1) Recommendation: keep
-   the calculator, restate the output as an _estimate conditional on haul_, add
-   the haul question to the form, and wire nisab to the family gold price.
+1. **Goals: real money or honest tracker?** (gates A3, C9) — **DECIDED
+   2026-08-04: honest tracker.** The phantom `type: transfer` transaction is
+   removed; goals stay a manual target + progress figure, labelled as tracked
+   separately from account balances. Real funding is deliberately out of scope
+   and may become a later epic.
+2. **Budget periods: implement or remove?** (gates C1) — **DECIDED 2026-08-04:
+   implement.** The spend window must follow `budget.period` (weekly / monthly /
+   yearly) in the service rather than always using the calendar month. Follow-on
+   questions this raises — week start day, pro-rata on a mid-period create, and
+   whether past periods are retained — are answered in group C with documented
+   defaults (week starts Monday, no pro-rata, current period only) unless
+   overridden.
+3. **Zakat: implement haul or stop asserting?** (gates E1) — **DECIDED
+   2026-08-04: keep the calculator, add the haul question.** Output is an
+   estimate conditional on haul; `isObligated` requires nisab _and_ confirmed
+   haul; nisab derives from the family gold price when set.
 4. **Investment prices: keep the mock or gate the feature?** (gates D3)
    Recommendation: label every mock-derived figure as indicative (the pattern
    already used for FX and gold) and fix the tour copy; a real feed is a separate
@@ -340,6 +368,50 @@ unexplained failed requests on every route.
   and truthfulness) is not queued behind cosmetics. Status set `on-progress`;
   five Open Design Decisions need human sign-off before their dependent groups
   start. No code changed.
+- 2026-08-04 — Decisions 1, 2 and 3 signed off (goals = honest tracker; budget
+  periods = implement; zakat = keep the calculator and add the haul question).
+  Groups **A, B, E and G shipped** as PRs #226, #228, #225, #227, all merged to
+  `development`. Four `code-agent`s ran in isolated worktrees, each followed by
+  an adversarial reviewer instructed to disprove the fix rather than confirm it.
+  That second pass earned its keep — **every group needed at least one more
+  round, and the three worst defects of the wave were found by review, not by
+  implementation**:
+  - **The balance sheet never included investments.** `getBalanceSheet` queried
+    only accounts, assets and liabilities, so `/laporan` under-reported net
+    worth by the entire portfolio while `/ringkasan` and `/beranda` were right —
+    under a green "Seimbang" banner. Found by asking why B1's identity check
+    could not fail. Logged as B10; fixed via a shared `investmentPositionValue`
+    used by both the dashboard rollup and the balance sheet, plus a
+    cross-service parity spec.
+  - **B1 was tautological twice.** First `totalLiabilities + netWorth` vs
+    `totalAssets` (the API defines `netWorth = assets − liabilities`), then a
+    client re-sum of `assets[]` vs `totalAssets` (the API computes that total by
+    summing that same array). Now compared against `/dashboard/net-worth`, a
+    genuinely separate service and query path, with `isBalanced: null` and no
+    banner until both figures load.
+  - **The mobile dialog fix was silently no-op'd where it mattered most.**
+    `crud-modal.tsx` and `akun`'s category allow-list carried pre-existing `vh`
+    caps that `tailwind-merge` correctly let win over the new `dvh` default, so
+    the two dialogs most likely to overflow were exempt from their own fix.
+    Also caught and fixed: investment values inflated by a factor of `quantity`
+    (B9, live on `development` before this wave); legacy non-zakat rows flagged
+    `isTaxDeductible` still cutting tax on every read (E5 read path + backfill);
+    the retirement calculator using the loan-amortisation formula (E3, ~12×
+    overstated); budget privacy filtering absent from create/update/remove and
+    from transactions (A6); a check-then-act race on category delete, closed with
+    Serializable isolation and a `P2034` → 409 mapping so the abort is honest
+    rather than a bare 500; and `laporan-period.test.ts` passing only on a WIB
+    machine (7 of 23 failed under `TZ=UTC`, which is what CI runs).
+    Three stale hand-compiled `.js`/`.mjs` mirrors were deleted across the wave —
+    Jest resolves `.js` before `.ts`, so they were shadowing real sources and
+    hiding new exports from the gate runner.
+    Gates green on every branch; CI green on all four PRs. Remaining in this
+    epic: **C** (budget periods per decision 2, plus goal semantics), **D**
+    (liabilities, investment lots, insurance premiums, asset history) and **F**
+    (error surfacing, role gating, empty-vs-error states).
+    Still unproven and deliberately stated: the `dvh` behaviour under mobile
+    browser chrome cannot be demonstrated in headless desktop Chromium
+    (`dvh === vh` there) — it needs WebKit or a real device.
 
 - 2026-08-04 — **Live headless crawl completed** (Playwright/Chromium; this host
   has no desktop and none is needed): 22 routes × 2 viewports (1440×900 and
