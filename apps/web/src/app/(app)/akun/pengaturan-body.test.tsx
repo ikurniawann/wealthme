@@ -209,7 +209,7 @@ describe("PengaturanBody — Theme & Language Picker Wiring", () => {
       const languageSelect = selects[0];
 
       // Act
-      await user.selectOptions(languageSelect, "🇬🇧 English");
+      await user.selectOptions(languageSelect, "EN — English");
 
       // Assert
       // (Currently FAILS because PengaturanBody doesn't call setLocale)
@@ -233,7 +233,7 @@ describe("PengaturanBody — Theme & Language Picker Wiring", () => {
       const languageSelect = selects[0];
 
       // Act
-      await user.selectOptions(languageSelect, "🇮🇩 Bahasa Indonesia");
+      await user.selectOptions(languageSelect, "ID — Bahasa Indonesia");
 
       // Assert
       expect(mockSetLocale).toHaveBeenCalledWith("id");
@@ -252,12 +252,12 @@ describe("PengaturanBody — Theme & Language Picker Wiring", () => {
       // Act
       render(<PengaturanBody />);
 
-      // Assert — the language select should display "🇬🇧 English"
+      // Assert — the language select should display "EN — English"
       const selects = screen.getAllByRole("combobox");
       const languageSelect = selects[0] as HTMLSelectElement;
 
       // Currently this FAILS because PengaturanBody reads from orphaned
-      // localStorage["wealthme_settings"], which defaults to "🇮🇩 Bahasa Indonesia"
+      // localStorage["wealthme_settings"], which defaults to "ID — Bahasa Indonesia"
       // regardless of what useLocale() returns
       expect(languageSelect.value).toMatch(/English/);
     });
@@ -284,9 +284,9 @@ describe("PengaturanBody — Theme & Language Picker Wiring", () => {
       const selects = screen.getAllByRole("combobox");
       const languageSelect = selects[0] as HTMLSelectElement;
 
-      // Currently FAILS: languageSelect.value === "🇮🇩 Bahasa Indonesia"
-      // (from orphaned settings default) instead of "🇬🇧 English"
-      expect(languageSelect.value).toBe("🇬🇧 English");
+      // Currently FAILS: languageSelect.value === "ID — Bahasa Indonesia"
+      // (from orphaned settings default) instead of "EN — English"
+      expect(languageSelect.value).toBe("EN — English");
     });
 
     it("should not show a mismatch where picker says Light but app is in Dark mode", async () => {
@@ -324,7 +324,7 @@ describe("PengaturanBody — Theme & Language Picker Wiring", () => {
       const saveButton = screen.getByText("Simpan Pengaturan");
 
       // Act — change language and click save
-      await user.selectOptions(languageSelect, "🇬🇧 English");
+      await user.selectOptions(languageSelect, "EN — English");
       await user.click(saveButton);
 
       // Assert — clicking save should have triggered setLocale,

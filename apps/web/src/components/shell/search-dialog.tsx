@@ -111,9 +111,21 @@ export function SearchDialog() {
 
   return (
     <Dialog open={searchOpen} onOpenChange={handleOpenChange}>
+      {/* EPIC-022 Group G (G1) — `overflow-y-auto`, not `overflow-hidden`:
+          this dialog now inherits DialogContent's `max-h-[85dvh]` default
+          uncontested (no max-h override here), so a hard `overflow-hidden`
+          would silently clip content past that cap with no scroll escape —
+          tailwind-merge's `overflow` group lets this class fully replace the
+          base `overflow-y-auto`. The inner result list already self-limits
+          at `max-h-[60vh]` below, so in practice this outer scroll rarely
+          engages; it exists as a safety net if the header row or result
+          list ever grows (long query text wraps, a future extra row) past
+          the 85dvh cap on a short viewport. `overflow-y-auto` still clips
+          children to the `rounded-xl` corners exactly like `overflow-hidden`
+          did — it only adds the scroll affordance when actually needed. */}
       <DialogContent
         showCloseButton={false}
-        className="top-[12%] max-w-[520px] translate-y-0 gap-0 overflow-hidden p-0 sm:max-w-[520px]"
+        className="top-[12%] max-w-[520px] translate-y-0 gap-0 overflow-y-auto p-0 sm:max-w-[520px]"
       >
         <DialogTitle className="sr-only">
           {t.shell.searchDialog.dialogTitle}
@@ -129,7 +141,10 @@ export function SearchDialog() {
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
         </div>
-        <div className="max-h-[60vh] overflow-y-auto py-2">
+        {/* Same dynamic-viewport reasoning as the DialogContent override
+            above — `dvh` so this inner cap tracks the visible viewport on a
+            real mobile browser, not the full layout viewport. */}
+        <div className="max-h-[60dvh] overflow-y-auto py-2">
           {showApi && (
             <>
               <div className="px-[18px] pt-1 pb-1.5 text-[10.5px] font-bold uppercase tracking-[0.8px] text-muted-foreground">

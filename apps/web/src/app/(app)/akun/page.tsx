@@ -971,9 +971,12 @@ const THEME_OPTIONS: { value: "light" | "dark" | "system" }[] = [
 // Language names intentionally stay out of `t.akun.*` — a language picker
 // conventionally shows each language's own native name regardless of the
 // currently active UI locale (so "Bahasa Indonesia"/"English" never change).
+// EPIC-022 Group G (G3) — text label, not a flag emoji: this renders inside
+// a native <option>, and 🇮🇩/🇬🇧 render as tofu boxes on systems without an
+// emoji-flag font (same fix as the onboarding language picker).
 const LANGUAGE_OPTIONS: { value: "id" | "en"; label: string }[] = [
-  { value: "id", label: "🇮🇩 Bahasa Indonesia" },
-  { value: "en", label: "🇬🇧 English" },
+  { value: "id", label: "ID — Bahasa Indonesia" },
+  { value: "en", label: "EN — English" },
 ];
 
 type ThemeLabels = { light: string; dark: string; system: string };
@@ -2004,7 +2007,12 @@ function CategoryLimitDialog({
 
   return (
     <Dialog open={!!member} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[80vh] max-w-[420px] overflow-y-auto p-6 sm:max-w-[420px]">
+      {/* EPIC-022 Group G (G1) — `dvh`, not `vh`: this list grows with the
+          family's expense category count (can be 8+), and this override
+          fully replaces the DialogContent default via tailwind-merge, so it
+          must carry the same dynamic-viewport unit or it silently
+          reintroduces the bug (see components/ui/dialog.tsx). */}
+      <DialogContent className="max-h-[80dvh] max-w-[420px] overflow-y-auto p-6 sm:max-w-[420px]">
         <DialogHeader>
           <DialogTitle className="text-[15px] font-bold">
             {t.akun.family.categoryLimitDialogTitle}

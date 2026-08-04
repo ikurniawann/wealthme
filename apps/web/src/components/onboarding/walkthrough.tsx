@@ -199,7 +199,11 @@ export function Walkthrough() {
                   : "text-muted-foreground",
               )}
             >
-              🇮🇩 Bahasa Indonesia
+              {/* EPIC-022 Group G (G3) — text label instead of a flag emoji:
+                  🇮🇩/🇬🇧 render as tofu boxes on systems without an
+                  emoji-flag font, so this stays legible everywhere. */}
+              <span className="mr-1 font-black tracking-tight">ID</span>
+              Bahasa Indonesia
             </button>
             <button
               type="button"
@@ -211,7 +215,8 @@ export function Walkthrough() {
                   : "text-muted-foreground",
               )}
             >
-              🇬🇧 English
+              <span className="mr-1 font-black tracking-tight">EN</span>
+              English
             </button>
           </div>
 

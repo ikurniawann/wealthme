@@ -240,9 +240,14 @@ export function TransactionDialog() {
 
   return (
     <Dialog open={txnOpen} onOpenChange={handleOpenChange}>
+      {/* EPIC-022 Group G (G1) — `dvh`, not `vh`: this override fully
+          replaces the DialogContent default via tailwind-merge, so it must
+          carry the same dynamic-viewport unit or it silently reintroduces
+          the bug (see components/ui/dialog.tsx). No reason for this
+          global, frequently-opened dialog to be exempt from the fix. */}
       <DialogContent
         showCloseButton={view === "form"}
-        className="max-h-[90vh] w-full max-w-[480px] gap-0 overflow-x-hidden overflow-y-auto p-0 sm:max-w-[480px]"
+        className="max-h-[90dvh] w-full max-w-[480px] gap-0 overflow-x-hidden overflow-y-auto p-0 sm:max-w-[480px]"
       >
         {view === "form" && (
           <div className="p-6">

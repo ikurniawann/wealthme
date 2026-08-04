@@ -571,9 +571,13 @@ function InsuranceModal({
       aria-modal="true"
       aria-labelledby="add-insurance-title"
     >
+      {/* EPIC-022 Group G (G1) — `dvh`, not `vh`: hand-rolled, does not
+          inherit components/ui/dialog.tsx's DialogContent default, so this
+          unit must be kept correct independently (see that file's comment
+          for why `vh` under-caps on a real mobile browser). */}
       <div
         ref={innerRef}
-        className="max-h-[85vh] w-full max-w-[480px] overflow-y-auto rounded-[16px] bg-card p-6 shadow-xl"
+        className="max-h-[85dvh] w-full max-w-[480px] overflow-y-auto rounded-[16px] bg-card p-6 shadow-xl"
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 id="add-insurance-title" className="text-[17px] font-extrabold">
