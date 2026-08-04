@@ -1,4 +1,5 @@
 import { Test, type TestingModule } from "@nestjs/testing";
+import { Prisma } from "@prisma/client";
 
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -251,6 +252,38 @@ describe("CategoriesService", () => {
       // not as separate, independently-awaited round trips.
       expect(prisma.budget.count).toHaveBeenCalledTimes(1);
       expect(prisma.category.delete).toHaveBeenCalledTimes(1);
+    });
+
+    it("maps a P2034 serialization failure to a retryable 409 with an honest 'try again' message, not the generic 500 (EPIC-022 A5 follow-up)", async () => {
+      // Simulates exactly what Postgres/Prisma raise when the Serializable
+      // transaction above detects the write conflict it exists to catch — a
+      // Budget/MemberCategoryAllowance committed concurrently mid-delete.
+      prisma.$transaction.mockImplementationOnce(() => {
+        throw new Prisma.PrismaClientKnownRequestError(
+          "Transaction failed due to a write conflict or a deadlock. Please retry your transaction",
+          { code: "P2034", clientVersion: "6.19.3" },
+        );
+      });
+
+      await expect(
+        service.remove(FAMILY_GROUP_ID, CATEGORY_ID),
+      ).rejects.toMatchObject({
+        status: 409,
+        message: expect.stringContaining("Coba lagi"),
+      });
+    });
+
+    it("does not swallow other Prisma errors behind the P2034 retry message", async () => {
+      prisma.$transaction.mockImplementationOnce(() => {
+        throw new Prisma.PrismaClientKnownRequestError("Some other failure", {
+          code: "P2025",
+          clientVersion: "6.19.3",
+        });
+      });
+
+      await expect(
+        service.remove(FAMILY_GROUP_ID, CATEGORY_ID),
+      ).rejects.toThrow("Some other failure");
     });
   });
 });

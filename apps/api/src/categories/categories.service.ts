@@ -127,30 +127,53 @@ export class CategoriesService {
     // Serializable isolation makes Postgres detect that write conflict and
     // abort with a retryable serialization failure instead of silently
     // cascading.
-    await this.prisma.$transaction(
-      async (tx) => {
-        const [budgetCount, allowanceCount] = await Promise.all([
-          tx.budget.count({ where: { categoryId: id } }),
-          tx.memberCategoryAllowance.count({ where: { categoryId: id } }),
-        ]);
+    try {
+      await this.prisma.$transaction(
+        async (tx) => {
+          const [budgetCount, allowanceCount] = await Promise.all([
+            tx.budget.count({ where: { categoryId: id } }),
+            tx.memberCategoryAllowance.count({ where: { categoryId: id } }),
+          ]);
 
-        const blockers: string[] = [];
-        if (budgetCount > 0) {
-          blockers.push(`${budgetCount} anggaran`);
-        }
-        if (allowanceCount > 0) {
-          blockers.push(`${allowanceCount} batasan kategori anggota`);
-        }
-        if (blockers.length > 0) {
-          throw new ConflictException(
-            `Kategori ini dipakai ${blockers.join(" dan ")}. Hapus atau ubah dulu sebelum menghapus kategori ini.`,
-          );
-        }
+          const blockers: string[] = [];
+          if (budgetCount > 0) {
+            blockers.push(`${budgetCount} anggaran`);
+          }
+          if (allowanceCount > 0) {
+            blockers.push(`${allowanceCount} batasan kategori anggota`);
+          }
+          if (blockers.length > 0) {
+            throw new ConflictException(
+              `Kategori ini dipakai ${blockers.join(" dan ")}. Hapus atau ubah dulu sebelum menghapus kategori ini.`,
+            );
+          }
 
-        await tx.category.delete({ where: { id, familyGroupId } });
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-    );
+          await tx.category.delete({ where: { id, familyGroupId } });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (err) {
+      // EPIC-022 A5 follow-up — Serializable isolation is what makes the
+      // count-then-delete race above actually safe: Postgres detects a
+      // conflicting concurrent write (e.g. a Budget created in the same
+      // window) and aborts this transaction with a serialization failure
+      // (Prisma surfaces it as P2034) rather than silently letting the
+      // cascade delete it. Left unmapped, `AllExceptionsFilter` turns any
+      // non-HttpException into a bare "Internal server error" 500 — trading
+      // the silent data loss this guard exists to prevent for an
+      // unexplained failure instead. Surface it as a retryable 409 with an
+      // honest "try again" message; the caller just needs to resubmit the
+      // same delete.
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === "P2034"
+      ) {
+        throw new ConflictException(
+          "Terjadi konflik saat menghapus kategori ini karena ada perubahan data bersamaan. Coba lagi.",
+        );
+      }
+      throw err;
+    }
   }
 
   /**
