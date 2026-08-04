@@ -726,3 +726,83 @@ describe("AccountsService owner=me|family|all filter", () => {
     expect(result).toEqual([]);
   });
 });
+
+/**
+ * EPIC-022 F — reproduced live on DEV before this fix: adding a second account
+ * under a name the family already used returned HTTP 500 "Internal server
+ * error" behind a generic "Gagal menyimpan ... Coba lagi." toast. The API log
+ * showed `Unique constraint failed on the fields: (familyGroupId, name)` —
+ * Prisma P2002 from the unique index on `Account(familyGroupId, name)`, which
+ * nothing mapped, so `AllExceptionsFilter` flattened it to a bare 500.
+ */
+describe("AccountsService duplicate-name handling", () => {
+  let service: AccountsService;
+  let prisma: ReturnType<typeof makePrisma>;
+
+  const duplicate = new Prisma.PrismaClientKnownRequestError(
+    "Unique constraint failed on the fields: (`familyGroupId`,`name`)",
+    { code: "P2002", clientVersion: "6.0.0" },
+  );
+
+  beforeEach(async () => {
+    prisma = makePrisma();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AccountsService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: CryptoService,
+          useValue: { encrypt: (v: string) => v, decrypt: (v: string) => v },
+        },
+      ],
+    }).compile();
+    service = module.get(AccountsService);
+  });
+
+  it("create maps P2002 to a 409 naming the conflicting name", async () => {
+    prisma.account.create.mockRejectedValue(duplicate);
+    await expect(
+      service.create(FAMILY_GROUP_ID, {
+        name: "Kas Tunai",
+        type: "cash",
+        balance: "100000",
+      } as never),
+    ).rejects.toThrow(ConflictException);
+    await expect(
+      service.create(FAMILY_GROUP_ID, {
+        name: "Kas Tunai",
+        type: "cash",
+        balance: "100000",
+      } as never),
+    ).rejects.toThrow(/Kas Tunai/);
+  });
+
+  it("update maps P2002 to a 409", async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      name: "Lama",
+    });
+    prisma.account.update.mockRejectedValue(duplicate);
+    await expect(
+      service.update(FAMILY_GROUP_ID, ACCOUNT_ID, {
+        name: "Kas Tunai",
+      } as never),
+    ).rejects.toThrow(ConflictException);
+  });
+
+  it("passes through non-P2002 Prisma errors untouched", async () => {
+    const other = new Prisma.PrismaClientKnownRequestError("boom", {
+      code: "P2025",
+      clientVersion: "6.0.0",
+    });
+    prisma.account.create.mockRejectedValue(other);
+    await expect(
+      service.create(FAMILY_GROUP_ID, {
+        name: "X",
+        type: "cash",
+        balance: "0",
+      } as never),
+    ).rejects.toBe(other);
+  });
+});

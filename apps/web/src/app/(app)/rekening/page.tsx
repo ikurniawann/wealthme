@@ -47,6 +47,16 @@ function parseSignedRupiah(value: string | null | undefined): number {
   return isNegative ? -digits : digits;
 }
 
+// EPIC-022 F — the API's ConflictException carries a message the user can act
+// on (e.g. a duplicate account name); the generic toast threw it away and
+// left "Coba lagi" as the only guidance. Prefer the server's message and fall
+// back only when there isn't one.
+function extractApiErrorMessage(err: unknown, fallback: string): string {
+  return err && typeof err === "object" && "message" in err
+    ? String((err as { message: unknown }).message)
+    : fallback;
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -584,8 +594,8 @@ export default function RekeningPage() {
         );
         toast.success(t.rekening.toastUpdated);
         await invalidateAccounts();
-      } catch {
-        toast.error(t.rekening.toastSaveFailed);
+      } catch (err: unknown) {
+        toast.error(extractApiErrorMessage(err, t.rekening.toastSaveFailed));
       }
       return;
     }
@@ -627,8 +637,8 @@ export default function RekeningPage() {
         toast.success(t.rekening.toastAdded);
       }
       await invalidateAccounts();
-    } catch {
-      toast.error(t.rekening.toastSaveFailed);
+    } catch (err: unknown) {
+      toast.error(extractApiErrorMessage(err, t.rekening.toastSaveFailed));
     }
   }
 
