@@ -1,6 +1,6 @@
 # EPIC-016: UI Integrity — Non-Functional Actions & Fake Data
 
-status: on-progress
+status: done
 environment: dev
 retries: 0
 phase: 4
@@ -388,3 +388,7 @@ maskedNumber` pattern). Attempt 1 review found 3 HIGH issues (silent data-loss
   api 146) security ❌ only on the pre-existing dependency baseline (21
   advisories incl. fast-uri chain; no manifest touched here — tracked as a
   separate remediation item, same precedent as PR #196/#197).
+- **2026-08-04 — epic done.** Tasks A–K shipped in #172–#177 and #201; Task L
+  closed by the real PDF export in EPIC-020 C (#200). Every button, toggle and
+  form on the audited screens now either does what it says or discloses that it
+  is not built yet.

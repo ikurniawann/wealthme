@@ -1,6 +1,6 @@
 # EPIC-018: Per-Member Finances, i18n Coverage & Responsive UI
 
-status: on-progress
+status: done
 environment: dev
 retries: 0
 phase: 4
@@ -112,7 +112,7 @@ after A6, so it lands on top of an already-translated `ringkasan`.
     47-268: 9 journeys × title/subtitle + 24 nested features × title/desc = 66
     string fields) into `t.panduan.*`, including "Buka →".
 
-- [ ] ### A3 — i18n: laporan
+- [x] ### A3 — i18n: laporan
   - `laporan/page.tsx` (352 literals, 2916 lines — largest file in the app) —
     16 report-tab sub-views (tab labels come from A1's `shell` section; this
     phase covers per-tab body content/headers/table copy).
@@ -317,3 +317,13 @@ advisory` PR #186 pattern); flagged to the user as a separate, urgent
   `lg:contents` on the existing row wrappers, so **mobile markup is byte-identical**
   and no protected shell file was touched. Gates green throughout (web 13 suites /
   122 tests at A6+C; api unaffected).
+
+- **2026-08-04 — A3 shipped (#220); epic done.** `/laporan` was the last
+  untranslated page: all 16 report sections, the shared period filter and the
+  export panel now resolve from a typed `laporan` dictionary, tab pills read the
+  shared `t.shell.reportTabs`, and hardcoded `id-ID` date formatting became
+  locale-aware. **All 25 app pages plus the shell render in both locales**, so
+  the epic's i18n acceptance criterion is met in full. Folded in one honest-UI
+  fix: the export button that emits CSV is now labeled "Export CSV" (the PDF
+  path became a real PDF in EPIC-020 C). Task B stays dropped — EPIC-019
+  delivered per-member finances instead.
