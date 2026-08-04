@@ -107,8 +107,13 @@ export class TransactionsController {
   create(
     @Param("familyGroupId") familyGroupId: string,
     @Body() dto: CreateTransactionDto,
+    @Req() req: Request,
   ): Promise<TransactionResponseDto> {
-    return this.transactionsService.create(familyGroupId, dto);
+    return this.transactionsService.create(
+      familyGroupId,
+      dto,
+      req.tenantContext?.member,
+    );
   }
 
   @Get(":id")
@@ -138,8 +143,14 @@ export class TransactionsController {
     @Param("familyGroupId") familyGroupId: string,
     @Param("id") id: string,
     @Body() dto: UpdateTransactionDto,
+    @Req() req: Request,
   ): Promise<TransactionResponseDto> {
-    return this.transactionsService.update(familyGroupId, id, dto);
+    return this.transactionsService.update(
+      familyGroupId,
+      id,
+      dto,
+      req.tenantContext?.member,
+    );
   }
 
   @Delete(":id")

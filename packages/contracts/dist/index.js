@@ -31,9 +31,17 @@ var CreateAccountInputSchema = z3.object({
   maskedNumber: z3.string().optional(),
   balance: z3.number().int(),
   currency: z3.string().default("IDR"),
-  isPrivate: z3.boolean().optional()
+  isPrivate: z3.boolean().optional(),
+  // EPIC-019 Task A — owning member's user id; omit for family-shared.
+  ownerUserId: z3.string().uuid().optional()
 });
-var UpdateAccountInputSchema = CreateAccountInputSchema.partial();
+var UpdateAccountInputSchema = CreateAccountInputSchema.partial().extend({
+  // Overrides the inherited (non-nullable) optional field: `null` explicitly
+  // clears ownership back to family-shared; `undefined` (omitted) leaves it
+  // unchanged.
+  ownerUserId: z3.string().uuid().nullable().optional()
+});
+var AccountOwnerFilterSchema = z3.enum(["me", "family", "all"]);
 var AccountDtoSchema = z3.object({
   id: z3.string(),
   familyGroupId: z3.string(),
@@ -44,24 +52,62 @@ var AccountDtoSchema = z3.object({
   balance: z3.string(),
   currency: z3.string(),
   isPrivate: z3.boolean(),
+  ownerUserId: z3.string().nullable(),
+  ownerName: z3.string().nullable(),
   createdAt: z3.string(),
   updatedAt: z3.string()
 });
 
-// src/categories/index.ts
+// src/allowance-requests/index.ts
 import { z as z4 } from "zod";
-var CategoryKindSchema = z4.enum(["income", "expense"]);
-var CategoryDtoSchema = z4.object({
-  id: z4.string().uuid(),
-  familyGroupId: z4.string().uuid(),
-  name: z4.string(),
+var AllowanceRequestStatusSchema = z4.enum([
+  "pending",
+  "approved",
+  "rejected"
+]);
+var CreateAllowanceRequestInputSchema = z4.object({
+  targetAccountId: z4.string().uuid(),
+  amount: z4.number().int().positive(),
+  note: z4.string().optional()
+});
+var ApproveAllowanceRequestInputSchema = z4.object({
+  fromAccountId: z4.string().uuid()
+});
+var RejectAllowanceRequestInputSchema = z4.object({
+  reason: z4.string().optional()
+});
+var AllowanceRequestDtoSchema = z4.object({
+  id: z4.string(),
+  familyGroupId: z4.string(),
+  requesterUserId: z4.string(),
+  requesterName: z4.string(),
+  targetAccountId: z4.string(),
+  targetAccountName: z4.string(),
+  fromAccountId: z4.string().nullable(),
+  fromAccountName: z4.string().nullable(),
+  amount: z4.string(),
+  note: z4.string().nullable(),
+  status: AllowanceRequestStatusSchema,
+  createdAt: z4.string(),
+  decidedAt: z4.string().nullable(),
+  decidedByUserId: z4.string().nullable(),
+  decidedByName: z4.string().nullable()
+});
+
+// src/categories/index.ts
+import { z as z5 } from "zod";
+var CategoryKindSchema = z5.enum(["income", "expense"]);
+var CategoryDtoSchema = z5.object({
+  id: z5.string().uuid(),
+  familyGroupId: z5.string().uuid(),
+  name: z5.string(),
   kind: CategoryKindSchema,
   // EPIC-017: mandatory COA link (same family group).
-  coaAccountId: z4.string().uuid(),
-  color: z4.string().nullable(),
-  icon: z4.string().nullable(),
-  isPrivate: z4.boolean(),
-  createdAt: z4.string()
+  coaAccountId: z5.string().uuid(),
+  color: z5.string().nullable(),
+  icon: z5.string().nullable(),
+  isPrivate: z5.boolean(),
+  createdAt: z5.string()
 });
 
 // src/coa/index.ts
@@ -277,66 +323,90 @@ function defaultCoaCodeForCategory(kind, name) {
 }
 
 // src/transactions/index.ts
-import { z as z5 } from "zod";
-var TransactionTypeSchema = z5.enum(["income", "expense", "transfer"]);
-var CreateTransactionInputSchema = z5.object({
-  accountId: z5.string().uuid(),
-  categoryId: z5.string().uuid().optional(),
-  amount: z5.number().int().positive(),
+import { z as z6 } from "zod";
+var TransactionTypeSchema = z6.enum(["income", "expense", "transfer"]);
+var CreateTransactionInputSchema = z6.object({
+  accountId: z6.string().uuid(),
+  categoryId: z6.string().uuid().optional(),
+  amount: z6.number().int().positive(),
   type: TransactionTypeSchema,
-  description: z5.string().optional(),
-  occurredAt: z5.string(),
-  toAccountId: z5.string().uuid().optional(),
+  description: z6.string().optional(),
+  occurredAt: z6.string(),
+  toAccountId: z6.string().uuid().optional(),
   // EPIC-021 Group B #28 — e-wallet top-up admin fee. Only meaningful when
   // type = transfer with a toAccountId; deducted from the DESTINATION
   // account as a separate linked expense (see transactions.service.ts).
-  adminFee: z5.number().int().min(0).optional()
+  adminFee: z6.number().int().min(0).optional()
 });
-var TransactionDtoSchema = z5.object({
-  id: z5.string().uuid(),
-  familyGroupId: z5.string().uuid(),
-  accountId: z5.string().uuid(),
-  toAccountId: z5.string().uuid().nullable(),
-  categoryId: z5.string().uuid().nullable(),
-  amount: z5.string(),
+var TransactionDtoSchema = z6.object({
+  id: z6.string().uuid(),
+  familyGroupId: z6.string().uuid(),
+  accountId: z6.string().uuid(),
+  toAccountId: z6.string().uuid().nullable(),
+  categoryId: z6.string().uuid().nullable(),
+  amount: z6.string(),
   type: TransactionTypeSchema,
-  description: z5.string().nullable(),
-  categoryName: z5.string().nullable(),
-  accountName: z5.string(),
-  toAccountName: z5.string().nullable(),
-  occurredAt: z5.string(),
-  createdAt: z5.string()
+  description: z6.string().nullable(),
+  categoryName: z6.string().nullable(),
+  accountName: z6.string(),
+  toAccountName: z6.string().nullable(),
+  occurredAt: z6.string(),
+  createdAt: z6.string()
 });
-var TransactionSummarySchema = z5.object({
-  totalIncome: z5.string(),
-  totalExpense: z5.string(),
-  netBalance: z5.string(),
-  period: z5.object({
-    from: z5.string().nullable(),
-    to: z5.string().nullable()
+var TransactionSummarySchema = z6.object({
+  totalIncome: z6.string(),
+  totalExpense: z6.string(),
+  netBalance: z6.string(),
+  period: z6.object({
+    from: z6.string().nullable(),
+    to: z6.string().nullable()
   })
 });
-var TransactionListResponseSchema = z5.object({
-  data: z5.array(TransactionDtoSchema),
-  meta: z5.object({
-    total: z5.number(),
-    page: z5.number(),
-    limit: z5.number()
+var TransactionListResponseSchema = z6.object({
+  data: z6.array(TransactionDtoSchema),
+  meta: z6.object({
+    total: z6.number(),
+    page: z6.number(),
+    limit: z6.number()
   }),
   summary: TransactionSummarySchema
 });
+
+// src/member-category-allowances/index.ts
+import { z as z7 } from "zod";
+var SetMemberCategoryAllowanceInputSchema = z7.object({
+  categoryIds: z7.array(z7.string().uuid())
+});
+var AllowedCategoryDtoSchema = z7.object({
+  id: z7.string(),
+  name: z7.string()
+});
+var MemberCategoryAllowanceDtoSchema = z7.object({
+  memberId: z7.string(),
+  // Empty = unrestricted (backward compatible default for every member).
+  categories: z7.array(AllowedCategoryDtoSchema)
+});
 export {
   AccountDtoSchema,
+  AccountOwnerFilterSchema,
   AccountTypeSchema,
+  AllowanceRequestDtoSchema,
+  AllowanceRequestStatusSchema,
+  AllowedCategoryDtoSchema,
+  ApproveAllowanceRequestInputSchema,
   AuthUserSchema,
   CONTRACTS_VERSION,
   CategoryDtoSchema,
   CategoryKindSchema,
   CreateAccountInputSchema,
+  CreateAllowanceRequestInputSchema,
   CreateTransactionInputSchema,
   GENERIC_COA_CHART,
   LoginInputSchema,
+  MemberCategoryAllowanceDtoSchema,
+  RejectAllowanceRequestInputSchema,
   RupiahSchema,
+  SetMemberCategoryAllowanceInputSchema,
   TransactionDtoSchema,
   TransactionListResponseSchema,
   TransactionSummarySchema,

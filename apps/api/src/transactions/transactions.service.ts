@@ -1,10 +1,12 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   Logger,
   NotFoundException,
 } from "@nestjs/common";
+import { Role } from "@prisma/client";
 
 import {
   CATEGORIZATION_PORT,
@@ -33,6 +35,13 @@ import type {
 } from "./dto/transaction-response.dto";
 import type { UpdateTransactionDto } from "./dto/update-transaction.dto";
 import type { TransactionType } from "@prisma/client";
+
+// EPIC-019 Task C — the acting member's identity, as read off
+// `req.tenantContext.member` by the controller. `undefined`/`null` (the
+// default) means an internal/non-member-facing caller — e.g. existing tests,
+// or a future service-to-service call — and stays fully unrestricted, exactly
+// like the pre-existing `canSeePrivate = true` default elsewhere in this file.
+export type ActingMember = { id: string; role: Role } | null;
 
 // EPIC-021 Group B #28 — description for the linked admin-fee expense
 // auto-created on the destination account of a transfer (e.g. e-wallet
@@ -131,6 +140,7 @@ export class TransactionsService {
   async create(
     familyGroupId: string,
     dto: CreateTransactionDto,
+    actingMember?: ActingMember,
   ): Promise<TransactionResponseDto> {
     const account = await this.prisma.account.findUnique({
       where: { id: dto.accountId, familyGroupId },
@@ -172,6 +182,12 @@ export class TransactionsService {
 
     let resolvedCategoryId = dto.categoryId ?? null;
 
+    // EPIC-019 Task C — a constrained member's allow-list (null = no rows =
+    // unrestricted). Resolved once so it can both narrow the auto-category
+    // suggestion below to an allowed category AND gate the final check.
+    const allowedCategoryIds =
+      await this.resolveAllowedCategoryIds(actingMember);
+
     if (resolvedCategoryId) {
       const category = await this.prisma.category.findUnique({
         where: { id: resolvedCategoryId, familyGroupId },
@@ -180,7 +196,11 @@ export class TransactionsService {
         throw new NotFoundException(`Category ${resolvedCategoryId} not found`);
     } else if (dto.type === "expense" && dto.description) {
       const candidates = await this.prisma.category.findMany({
-        where: { familyGroupId, kind: "expense" },
+        where: {
+          familyGroupId,
+          kind: "expense",
+          ...(allowedCategoryIds && { id: { in: allowedCategoryIds } }),
+        },
         select: { id: true, name: true, kind: true },
       });
       try {
@@ -195,6 +215,12 @@ export class TransactionsService {
         this.logger.warn(`Auto-categorization skipped: ${msg}`);
       }
     }
+
+    this.assertCategoryAllowed(
+      dto.type,
+      resolvedCategoryId,
+      allowedCategoryIds,
+    );
 
     const created = await this.prisma.$transaction(async (prisma) => {
       const tx = await prisma.transaction.create({
@@ -462,6 +488,7 @@ export class TransactionsService {
     familyGroupId: string,
     id: string,
     dto: UpdateTransactionDto,
+    actingMember?: ActingMember,
   ): Promise<TransactionResponseDto> {
     const existing = await this.prisma.transaction.findUnique({
       where: { id, familyGroupId },
@@ -482,6 +509,19 @@ export class TransactionsService {
       if (!cat)
         throw new NotFoundException(`Category ${dto.categoryId} not found`);
     }
+
+    // EPIC-019 Task C — enforce against the EFFECTIVE (post-patch) type and
+    // category, same rationale as the toAccountId invariants below: a PATCH
+    // that only changes `type` to "expense" while the category silently
+    // stays a disallowed one must be rejected too, not just an explicit
+    // `categoryId` in this same payload.
+    const effectiveCategoryId =
+      dto.categoryId !== undefined ? dto.categoryId : existing.categoryId;
+    this.assertCategoryAllowed(
+      dto.type ?? existing.type,
+      effectiveCategoryId,
+      await this.resolveAllowedCategoryIds(actingMember),
+    );
 
     // EPIC-021 Group B — every destination-related invariant below is
     // checked against the EFFECTIVE state (the existing row merged with
@@ -738,6 +778,44 @@ export class TransactionsService {
         to: query.to ?? null,
       },
     };
+  }
+
+  /**
+   * EPIC-019 Task C — resolves a constrained member's allow-listed category
+   * ids. `null` means unrestricted: no acting member context (internal
+   * caller), an owner/admin_staff (always exempt per the epic decision), or
+   * a `member` with zero MemberCategoryAllowance rows (backward compatible
+   * with every pre-existing member).
+   */
+  private async resolveAllowedCategoryIds(
+    actingMember?: ActingMember,
+  ): Promise<string[] | null> {
+    if (!actingMember || actingMember.role !== Role.member) return null;
+    const rows = await this.prisma.memberCategoryAllowance.findMany({
+      where: { memberId: actingMember.id },
+      select: { categoryId: true },
+    });
+    if (rows.length === 0) return null;
+    return rows.map((r) => r.categoryId);
+  }
+
+  /**
+   * EPIC-019 Task C — only expense transactions are constrained; income and
+   * transfer are unaffected. `allowedCategoryIds === null` means unrestricted
+   * (see `resolveAllowedCategoryIds`). A restricted member must pick one of
+   * their allowed categories — an uncategorized expense is also rejected,
+   * since "must use an allowed category" implies a positive selection.
+   */
+  private assertCategoryAllowed(
+    type: TransactionType,
+    categoryId: string | null,
+    allowedCategoryIds: string[] | null,
+  ): void {
+    if (type !== "expense" || allowedCategoryIds === null) return;
+    if (categoryId && allowedCategoryIds.includes(categoryId)) return;
+    throw new ForbiddenException(
+      `Kategori ${categoryId ?? "(tidak dipilih)"} tidak diizinkan untuk akun ini. Kategori yang diizinkan: ${allowedCategoryIds.join(", ")}`,
+    );
   }
 
   private async applyBalanceDelta(

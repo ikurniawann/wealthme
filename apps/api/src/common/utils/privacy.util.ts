@@ -1,5 +1,7 @@
 import { Role } from "@prisma/client";
 
+import { AccountOwnerFilter } from "../../accounts/dto/list-accounts-query.dto";
+
 import type { Prisma } from "@prisma/client";
 
 /**
@@ -24,6 +26,24 @@ export function categoryPrivacyWhere(
   canSeePrivate: boolean,
 ): Prisma.CategoryWhereInput {
   return canSeePrivate ? {} : { isPrivate: false };
+}
+
+/**
+ * `where` fragment for the EPIC-019 Task A "mine vs family" accounts lens.
+ * `me` with no `requestingUserId` (should not happen on an authenticated
+ * route) matches nothing rather than silently falling back to "all".
+ */
+export function accountOwnerWhere(
+  filter: AccountOwnerFilter | undefined,
+  requestingUserId: string | undefined,
+): Prisma.AccountWhereInput {
+  if (filter === AccountOwnerFilter.me) {
+    return { ownerUserId: requestingUserId ?? "" };
+  }
+  if (filter === AccountOwnerFilter.family) {
+    return { ownerUserId: null };
+  }
+  return {};
 }
 
 /**
