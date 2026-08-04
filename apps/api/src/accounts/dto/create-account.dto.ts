@@ -6,7 +6,6 @@ import {
   IsInt,
   IsOptional,
   IsString,
-  IsUUID,
   Length,
   MaxLength,
   Min,
@@ -82,6 +81,15 @@ export class CreateAccountDto {
       "EPIC-019 Task A — owning member's user id (must be a Member of the same family group). Omit or leave unset for a family-shared account.",
   })
   @IsOptional()
-  @IsUUID()
+  // NOT `@IsUUID()`. `User.id` is only a UUID for rows created by the Prisma
+  // seed (`@default(uuid())`); better-auth generates its own 32-char id for
+  // every user who registers through the app, so `@IsUUID()` rejected every
+  // real account owner with "ownerUserId must be a UUID" and only ever passed
+  // for the seeded demo user — which is why it survived every test.
+  // `create-heir.dto.ts` and `create-insurance-beneficiary.dto.ts` already
+  // model member user ids this way. Membership and tenant scope are enforced
+  // by `assertOwnerIsFamilyMember`, not by the id's shape.
+  @IsString()
+  @MinLength(1)
   ownerUserId?: string;
 }

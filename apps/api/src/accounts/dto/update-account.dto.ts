@@ -1,5 +1,5 @@
 import { ApiPropertyOptional, OmitType, PartialType } from "@nestjs/swagger";
-import { IsOptional, IsUUID, ValidateIf } from "class-validator";
+import { IsOptional, IsString, MinLength, ValidateIf } from "class-validator";
 
 import { CreateAccountDto } from "./create-account.dto";
 
@@ -23,6 +23,10 @@ export class UpdateAccountDto extends UpdateAccountBaseDto {
   })
   @IsOptional()
   @ValidateIf((_, value) => value !== null)
-  @IsUUID()
+  // NOT `@IsUUID()` — see the note on `CreateAccountDto.ownerUserId`:
+  // better-auth issues non-UUID ids to every user who registers, so this
+  // rejected every real owner and only accepted the seeded demo user.
+  @IsString()
+  @MinLength(1)
   ownerUserId?: string | null;
 }

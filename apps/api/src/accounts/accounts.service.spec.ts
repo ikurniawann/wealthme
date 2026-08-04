@@ -806,3 +806,43 @@ describe("AccountsService duplicate-name handling", () => {
     ).rejects.toBe(other);
   });
 });
+
+/**
+ * EPIC-022 F — reported by a user: choosing themselves as "Pemilik" when adding
+ * an account failed with `ownerUserId must be a UUID`.
+ *
+ * `User.id` is `@default(uuid())` in the Prisma schema, but better-auth issues
+ * its own 32-character id to everyone who registers through the app, so the
+ * Prisma default only ever applies to the seeded demo user. Verified on DEV:
+ *   demo@wealthme.id       320a230f-320e-4c1e-9ac2-24a5802bb7b5  (36, UUID)
+ *   andrsrjld28@gmail.com  3cjwIXqVk2y8bil1NCjtgGcU6O7fmBsK      (32, not UUID)
+ * `@IsUUID()` on `ownerUserId` therefore rejected every real user and passed
+ * only for the seed — which is why no existing test caught it.
+ */
+describe("CreateAccountDto.ownerUserId accepts a better-auth user id", () => {
+  it("accepts a 32-char better-auth id and a UUID, rejects an empty string", async () => {
+    const { validate } = await import("class-validator");
+    const { plainToInstance } = await import("class-transformer");
+    const { CreateAccountDto: Dto } = await import("./dto/create-account.dto");
+
+    const errorsFor = async (ownerUserId: unknown) => {
+      const dto = plainToInstance(Dto, {
+        type: "cash",
+        name: "Kas",
+        balance: 1000,
+        ownerUserId,
+      });
+      const errs = await validate(dto as object);
+      return errs.filter((e) => e.property === "ownerUserId");
+    };
+
+    // The exact id shape better-auth issues to a registered user.
+    expect(await errorsFor("3cjwIXqVk2y8bil1NCjtgGcU6O7fmBsK")).toHaveLength(0);
+    // The seeded shape must keep working too.
+    expect(
+      await errorsFor("320a230f-320e-4c1e-9ac2-24a5802bb7b5"),
+    ).toHaveLength(0);
+    // Still validated: an empty id is not a member reference.
+    expect((await errorsFor("")).length).toBeGreaterThan(0);
+  });
+});
