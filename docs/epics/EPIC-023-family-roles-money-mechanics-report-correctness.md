@@ -427,15 +427,106 @@ epic:
 
 ## Agent Routing
 
-`code-agent` per task group, each in its own worktree. `ecc:typescript-reviewer`
-and `ecc:react-reviewer` on every diff; `database-reviewer` for the migration in
-A1 and the schema changes in C1/E1; `ecc:security-reviewer` for group C and D
-(permissions, credentials, PIN) and G3 (key storage). Adversarial review before
-merge on every group — the last two waves each needed a second round, and the
-three worst defects were found by review rather than implementation. Gates via
-`test-agent` / `security-agent`; `deploy-agent` for DEV only.
+Routing decided in a `/grilling` session on 2026-08-05, from what is actually
+installed on this machine rather than what a generic epic would assume.
 
-Per task: `/task-work EPIC-023 <n>`.
+### Execution order — two waves
+
+Groups have real dependencies; running them flat would build on foundations that
+are still wrong.
+
+**Wave 1** (parallel, one worktree each): **A**, **C**, **G**, **H1**, **I**.
+
+**Wave 2** (starts only after wave 1 is merged and DEV is green): **B**, **D**,
+**E**, **F**, **H2**, **H3**.
+
+Why: **E** posts payments through COA shelves, so it must not land before **A**
+corrects them — otherwise every instalment inflates expenses and the data then
+needs repairing. **B**'s reconciliation bridge cannot balance until **A** is
+right. **D** and **F1** both read `Member`, so they wait for **C**.
+
+**Migration ordering hazard.** A1 and C1 both add migrations. Create them
+**sequentially, never concurrently** — parallel worktrees have collided on
+migration timestamps in this repo before. A1's migration is authored and merged
+first; C1 rebases onto it.
+
+### Per-group routing
+
+| Group                                     | Implement                                          | Domain skills to load first                                                           | Review (beyond the standard gate)                                                     |
+| ----------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| **A** COA shelves, principal/interest     | `code-agent` + `tdd-guide`                         | `ecc:database-migrations`, `ecc:prisma-patterns`                                      | **adversarial**, `database-reviewer`, `ecc:typescript-reviewer`                       |
+| **B** periods + bridge                    | `code-agent` + `tdd-guide`                         | —                                                                                     | **adversarial**, `ecc:react-reviewer`, `ecc:typescript-reviewer`                      |
+| **C** roles & kinship                     | `code-agent`                                       | `ecc:nestjs-patterns`, `ecc:prisma-patterns`                                          | **adversarial**, `ecc:security-reviewer`, `database-reviewer`, `type-design-analyzer` |
+| **D** onboarding, PIN, threshold          | `code-agent`                                       | `vercel:auth`, `docs-lookup` (better-auth username + PIN)                             | **adversarial**, `ecc:security-reviewer`, `e2e-runner`                                |
+| **E** payments                            | `code-agent` + `tdd-guide`                         | `ecc:nestjs-patterns`                                                                 | **adversarial**, `database-reviewer`, `silent-failure-hunter`                         |
+| **F** beneficiaries, religion, split bill | `code-agent`                                       | `shadcn`, `frontend-design`                                                           | `ecc:react-reviewer`, `ecc:typescript-reviewer`, `silent-failure-hunter`              |
+| **G** prices, reconciliation, AI keys     | `code-agent`                                       | `claude-api` (G3 provider adapters), `docs-lookup` (CoinGecko, Yahoo, OpenAI, Gemini) | `ecc:security-reviewer` (G3 key storage), `silent-failure-hunter` (G2 parsers)        |
+| **H** assets, COA copy, onboarding        | `code-agent`                                       | `shadcn`, `frontend-design`, `a11y-architect` (H3)                                    | standard gate only                                                                    |
+| **I** undiagnosed defects                 | **`mattpocock:diagnosing-bugs`**, not `code-agent` | —                                                                                     | standard gate + reproduction evidence                                                 |
+
+### Mandatory before touching shared code
+
+`graphify-out/graph.json` exists in this repo — query it for blast radius before
+editing anything shared, rather than grepping. Required before touching
+`components/crud/crud-config.ts`, `components/shell/transaction-dialog.tsx`,
+`casl-ability.factory.ts`, `components/ui/*`, `lib/format.ts`, or the i18n
+dictionaries.
+
+This is not ceremony: EPIC-022 G shipped a mobile-dialog fix that was silently
+no-op'd on the two dialogs that most needed it, because pre-existing `vh`
+overrides won. A blast-radius query lists every override in one step.
+
+### Adversarial review protocol
+
+Groups **A, B, C, D, E** — everything touching money, permissions, or credentials
+— get a review pass whose brief is to **disprove the fix, not to approve it**.
+Groups **H2, H3** take the standard gate only; a rewritten explainer page does
+not warrant it.
+
+The instruction that worked, and should be reused verbatim in shape:
+
+> Assume it is wrong until you prove otherwise. Do not restate what the diff
+> does; hunt for what it broke. For each claimed fix, state whether it holds,
+> with `file:line` evidence and a concrete failure scenario. Verify each new test
+> would **fail** on the pre-change code — say which ones you are confident about.
+
+This earned its place. Over two waves it caught: a "balanced" check that was
+algebraically incapable of failing (twice, in two different disguises), a
+dialog fix that `tailwind-merge` correctly neutralised exactly where it mattered,
+investment values inflated by a factor of quantity, and legacy rows still cutting
+tax on every read. None of those were caught by the standard review gate.
+
+### Test-first for money groups
+
+**A, B and E are test-first.** The expected value must exist on paper before the
+code does — a hand-worked amortisation schedule for A2, a constructed month for
+B3's bridge where profit and net-worth change by deliberately different amounts.
+Write the test, watch it fail, then implement.
+
+The reason is specific: EPIC-022's retirement test asserted
+`projectedValue === targetAmount`, which holds by construction and passes even
+with a wrong PMT formula. Writing a test after the code invites pasting the
+code's own output into it, and such a test can never fail. `tdd-guide` drives
+this; the golden values go in the PR body so a reviewer can recompute them.
+
+### Autonomy
+
+Full autonomy through DEV deploy, as run in the EPIC-022 waves: implement →
+gates → PR → merge → `deploy-dev.sh` → verify on the running system → report.
+
+One safeguard applies regardless, because **A1 changes historical report
+figures** for existing families: before that migration runs on DEV, capture the
+current P&L and balance-sheet totals for the demo family, and report them
+alongside the post-migration figures. A number that moves is expected; a number
+that moves by an unexplained amount is a finding.
+
+Standard gates are unchanged: `review-qa-agent` (acceptance criteria, WM
+conventions, tenant scoping), `security-agent` + `ecc:security-reviewer`,
+`test-agent` (`qa.sh` → `test.sh`), `ecc:react-build` on a broken build,
+`deploy-agent` for DEV only. Bounded at 3 retries, then `status: blocked` with
+reason, logs and recommended action.
+
+Per task: `/task-work EPIC-023 <n>`. Whole epic: `/epic-loop docs/epics/EPIC-023-family-roles-money-mechanics-report-correctness.md`.
 
 ## Done Signal
 
@@ -457,3 +548,22 @@ whose P&L and balance sheet reconcile through the bridge.
   save failure, split-bill dialog responsiveness) are recorded as group I
   **without** a diagnosis, to be reproduced rather than guessed. Status
   `backlog`; set `on-progress` to start. No code changed.
+- 2026-08-05 — Agent routing reworked in a `/grilling` session against what is
+  actually installed on this machine. Four decisions: **(1)** adversarial review
+  tiered by risk — groups A/B/C/D/E get a reviewer briefed to disprove the fix,
+  plus `database-reviewer` on migrations and `silent-failure-hunter` on error
+  paths; H2/H3 keep the standard gate. **(2)** Groups A, B and E are test-first
+  with hand-computed golden values, because EPIC-022's retirement test asserted
+  an identity that held by construction and passed with a wrong formula.
+  **(3)** Two waves by dependency — A/C/G/H1/I first, then B/D/E/F/H2/H3 — with
+  A1's and C1's migrations authored sequentially to avoid the timestamp
+  collision that has bitten parallel worktrees here before. **(4)** Full autonomy
+  through DEV deploy, with one safeguard: capture the demo family's P&L and
+  balance-sheet totals before A1's migration runs and report them beside the
+  post-migration figures, since that migration changes historical numbers.
+  Also wired in tooling that was installed but unused: `graphify` blast-radius
+  queries before editing shared files, `docs-lookup`/Context7 for better-auth and
+  the price and LLM providers, the `claude-api` skill for G3's provider adapters,
+  `type-design-analyzer` for the two-axis role model, `e2e-runner` for group D's
+  journeys, and `mattpocock:diagnosing-bugs` — rather than `code-agent` — for the
+  undiagnosed defects in group I.
