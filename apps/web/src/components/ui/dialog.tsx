@@ -57,10 +57,30 @@ function DialogContent({
           // default so any dialog whose body grows with user-added rows
           // (heirs, beneficiaries, participants, long CRUD forms) keeps its
           // header and submit action reachable instead of growing past the
-          // viewport with no way to scroll to it. Individual dialogs may
-          // still override max-h/overflow via their own className (e.g. the
-          // global transaction dialog's max-h-[90vh]) — tailwind-merge lets
-          // the caller's class win.
+          // viewport with no way to scroll to it.
+          //
+          // `dvh` (not `vh`): `vh` is the CSS *layout* viewport, which is
+          // fixed to the largest possible viewport and ignores mobile browser
+          // chrome (address bar). `dvh` tracks the *dynamic/visible*
+          // viewport, so it shrinks correctly when the address bar is
+          // showing — the whole reason this unit was chosen. On an iPhone SE
+          // (375x667, ~460-480px visible once the address bar + our own
+          // dialog header/footer padding are subtracted), `vh`-based 85%
+          // caps against the full 667px layout viewport and still overflows
+          // the ~480px actually visible; `dvh` caps against the real number.
+          //
+          // Why 85: leaves ~15% (safe-area/rounded-corner breathing room)
+          // between the dialog edge and the viewport edge — the same ratio
+          // already used by the /asuransi reference modal and crud-modal.tsx
+          // before this fix. It is a target, not a guarantee of a specific
+          // usable body height — actual remaining space for form fields
+          // depends on each dialog's own header/footer/padding.
+          //
+          // Individual dialogs may still override max-h/overflow via their
+          // own className — tailwind-merge lets the caller's class win, so
+          // every override must also use `dvh` (see crud-modal.tsx,
+          // akun/page.tsx's CategoryLimitDialog, and the global transaction
+          // dialog) or it silently reintroduces this exact bug.
           "fixed top-1/2 left-1/2 z-50 grid max-h-[85dvh] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className,
         )}

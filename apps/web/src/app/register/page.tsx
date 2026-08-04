@@ -113,7 +113,9 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {/* Language choice — persists via setLocale() and applies app-wide. */}
+        {/* Language choice — persists via setLocale() and applies app-wide.
+            EPIC-022 Group G (G3) — text label, not a flag emoji: 🇮🇩/🇬🇧
+            render as tofu boxes on systems without an emoji-flag font. */}
         <div className="mx-auto mb-6 flex w-fit items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
           <button
             type="button"
@@ -125,7 +127,8 @@ export default function RegisterPage() {
                 : "text-slate-400"
             }`}
           >
-            🇮🇩 Indonesia
+            <span className="mr-1 font-black tracking-tight">ID</span>
+            Indonesia
           </button>
           <button
             type="button"
@@ -137,7 +140,8 @@ export default function RegisterPage() {
                 : "text-slate-400"
             }`}
           >
-            🇬🇧 English
+            <span className="mr-1 font-black tracking-tight">EN</span>
+            English
           </button>
         </div>
 

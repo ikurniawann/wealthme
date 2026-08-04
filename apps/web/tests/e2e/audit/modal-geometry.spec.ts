@@ -10,14 +10,44 @@
  * `y < 0`, with "Simpan Aset Warisan" ending ~164px below the fold and
  * unreachable. The same growth shape applies to the insurance beneficiary
  * editor and split-bill participants. Fix: bound every dialog body to
- * `max-h-[85dvh]` with `overflow-y-auto` (apps/web/src/components/ui/dialog.tsx)
- * so the header and the submit action stay reachable at any content length.
+ * `max-h-[85dvh]` with `overflow-y-auto` (apps/web/src/components/ui/dialog.tsx).
+ *
+ * Coverage note (this spec is NOT uniformly 1:1 with the code fix):
+ *   - warisan and splitbill use the shadcn `DialogContent` primitive with no
+ *     className override, so those two scenarios directly exercise the base
+ *     primitive's new `max-h-[85dvh] overflow-y-auto` default.
+ *   - The `asuransi` scenario opens a HAND-ROLLED `role="dialog"` component
+ *     (InsuranceModal) that never inherited the primitive — it carries its
+ *     OWN independent `max-h-[85dvh]` (fixed from a pre-existing `85vh`).
+ *     It was already governed by that cap before this change, so this
+ *     scenario passing does not exercise `components/ui/dialog.tsx` at all;
+ *     it only guards the hand-rolled modal's own cap.
+ *   - The `tujuan` and `akun` (category allow-list) scenarios below open
+ *     dialogs that carry their OWN `className` override
+ *     (`crud-modal.tsx` / `akun/page.tsx`'s `CategoryLimitDialog`), which
+ *     tailwind-merge lets fully replace the primitive's default — those
+ *     two overrides were fixed from `vh` to `dvh` directly at the source,
+ *     independently of the primitive change, and these scenarios exist to
+ *     guard THAT fix specifically (see the per-file comments for why).
  *
  * G2: the onboarding welcome dialog must stay dismissible ("Lewati" always
  * in-viewport at 390px) and must never re-appear for a returning session.
  *
  * G3: the onboarding language picker must not depend on an emoji-flag font
  * (🇮🇩/🇬🇧 render as tofu boxes on systems without one) — text labels only.
+ *
+ * IMPORTANT — what this spec CANNOT prove in this environment: the entire
+ * `vh` vs `dvh` defect (mobile browser chrome shrinking the *visible*
+ * viewport below the *layout* viewport that `vh` uses) is invisible to
+ * Playwright's desktop Chromium with an emulated/resized viewport — Chromium
+ * reports `dvh === vh` there (no browser chrome is actually simulated). Every
+ * assertion below that references `dvh`-bounded dialogs will measure
+ * IDENTICALLY whether the source used `vh` or `dvh` in this test run; this
+ * spec only proves the dialogs are bounded/scrollable/reachable at all
+ * (which they already were, for the pre-existing `vh`-capped dialogs). The
+ * `vh` -> `dvh` correctness itself is a source-level fix verified by
+ * reading, not by this harness — proving it empirically needs WebKit or a
+ * real device with the address bar visible.
  *
  * Run against the DEPLOYED site to reproduce the pre-fix failure:
  *   BASE_URL=https://wealthme.demo-wit.id pnpm --filter web exec playwright test audit/modal-geometry
@@ -26,7 +56,13 @@
  *   BASE_URL=http://localhost:3000 pnpm --filter web exec playwright test audit/modal-geometry
  */
 
-import { test, expect, type Page, type Locator } from "@playwright/test";
+import {
+  test,
+  expect,
+  type Page,
+  type Locator,
+  type Browser,
+} from "@playwright/test";
 
 const DEMO_EMAIL = "demo@wealthme.id";
 const DEMO_PASSWORD = "demo1234";
@@ -119,6 +155,24 @@ const SCENARIOS: ModalScenario[] = [
     addRowClicks: 3,
     submitButtonName: "Buat & Bagikan Link",
   },
+  {
+    // Review finding (HIGH) — the generic CrudModal (components/crud/crud-modal.tsx)
+    // carries its own `max-h-[85vh]` (now `85dvh`) className that fully
+    // replaces the DialogContent primitive default via tailwind-merge, so a
+    // scenario that only ever opens primitive-default dialogs never exercises
+    // that override. "tujuan" (financial goal) is a simple, always-reachable
+    // CrudModal-backed add flow with no extra setup — it has no dynamically
+    // growing rows, so `addRowButtonName` is null; it exists to guard
+    // crud-modal.tsx's own max-h/overflow className, not row growth.
+    label: "tujuan — Tambah Tujuan (CrudModal add flow)",
+    route: "/tujuan",
+    openTrigger: (page) =>
+      page.getByRole("button", { name: "Tambah Tujuan", exact: true }),
+    content: (dialog) => dialog,
+    addRowButtonName: null,
+    addRowClicks: 0,
+    submitButtonName: "Simpan",
+  },
 ];
 
 /**
@@ -193,7 +247,10 @@ test.describe("EPIC-022 Group G — mobile modal geometry", () => {
       });
 
       for (const scenario of SCENARIOS) {
-        test(`${scenario.label} stays reachable with 3 added rows`, async () => {
+        const titleSuffix = scenario.addRowButtonName
+          ? ` with ${scenario.addRowClicks} added rows`
+          : "";
+        test(`${scenario.label} stays reachable${titleSuffix}`, async () => {
           await page.goto(scenario.route, {
             waitUntil: "domcontentloaded",
             timeout: 30_000,
@@ -232,6 +289,177 @@ test.describe("EPIC-022 Group G — mobile modal geometry", () => {
       }
     });
   }
+});
+
+// ---------------------------------------------------------------------------
+// akun — CategoryLimitDialog (EPIC-019 per-member category allow-list)
+// ---------------------------------------------------------------------------
+//
+// Review finding (HIGH) — akun/page.tsx's CategoryLimitDialog carries its own
+// `max-h-[80vh]` (now `80dvh`) className, another override the primitive fix
+// alone cannot reach. This dialog's checkbox list grows with the family's
+// EXPENSE category count (20 in the seeded demo data — comfortably "8+"),
+// and it only renders for a family member whose role is exactly "member"
+// (never the owner's own row, never "admin_staff"). The seeded demo family
+// has no such member by default, so reaching this dialog requires creating
+// one through the app's own invite -> register -> accept flow first.
+
+const QA_FIXTURE_MEMBER_NAME = "QA Modal Geometry Fixture";
+const QA_FIXTURE_MEMBER_PASSWORD = "QaFixture1234!";
+// A fixed email would collide with the same fixture created by a concurrent
+// agent/run against this shared demo DB (already observed once — "invalid
+// email or password" on login because a differently-seeded run owned the
+// account under that exact address). Generated fresh per invocation instead,
+// trading run-to-run idempotency (each run that needs to create one adds a
+// new fixture member) for collision-safety — cheap on a disposable demo DB.
+function newFixtureMemberEmail(): string {
+  return `qa-modal-geometry-fixture+${Date.now()}-${Math.floor(Math.random() * 1e6)}@wealthme.id`;
+}
+
+/** Opens the family group management panel from the /akun hub. */
+async function openFamilyPanel(page: Page): Promise<void> {
+  await page.goto("/akun", { waitUntil: "domcontentloaded" });
+  await page.waitForLoadState("load").catch(() => {});
+  await dismissOnboardingIfPresent(page, 2_000);
+  // The family card is a <button> whose accessible name is the dynamic
+  // family name + role + member count — not stable across seed data. The
+  // "Group Family" heading right above it IS stable; the button is the next
+  // interactive element after it in document order.
+  const heading = page.getByText("👨‍👩‍👧‍👦 Group Family", { exact: true });
+  await heading.waitFor({ state: "visible", timeout: 15_000 });
+  await heading.locator("xpath=following::button[1]").click();
+  await page
+    .getByRole("button", { name: "Undang Anggota", exact: true })
+    .waitFor({ state: "visible", timeout: 15_000 });
+}
+
+/**
+ * Returns the "Batasi Kategori" trigger for a family member whose role is
+ * exactly "member", creating one via the app's own invite/register/accept
+ * flow if none exists yet. Reuses ANY existing qualifying member first
+ * (idempotent across runs when one is already present, from this helper or
+ * otherwise); only creates a fresh, uniquely-emailed fixture member when
+ * none exists at all.
+ */
+async function ensureCategoryLimitTrigger(
+  page: Page,
+  browser: Browser,
+): Promise<Locator> {
+  await openFamilyPanel(page);
+  const existingTrigger = page
+    .locator('button[aria-label^="Batasi Kategori"]')
+    .first();
+  if (await existingTrigger.count()) return existingTrigger;
+
+  // No "member"-role user yet — invite one (placeholders read straight from
+  // components/crud/crud-config.ts's "member" entity fields).
+  const fixtureEmail = newFixtureMemberEmail();
+  await page
+    .getByRole("button", { name: "Undang Anggota", exact: true })
+    .click();
+  await page.getByPlaceholder("cth: Siti Arsandi").fill(QA_FIXTURE_MEMBER_NAME);
+  await page.getByPlaceholder("email atau nomor").fill(fixtureEmail);
+
+  const [inviteResponse] = await Promise.all([
+    page.waitForResponse(
+      (r) =>
+        r.url().includes("/invitations") && r.request().method() === "POST",
+      { timeout: 15_000 },
+    ),
+    page.getByRole("button", { name: "Simpan", exact: true }).click(),
+  ]);
+  const invitation = (await inviteResponse.json()) as { token: string };
+
+  // Accept the invite as a brand-new account, in an isolated context so the
+  // demo/owner session on `page` is never touched.
+  const inviteeContext = await browser.newContext();
+  const inviteePage = await inviteeContext.newPage();
+  await inviteePage.goto("/register", { waitUntil: "domcontentloaded" });
+  await inviteePage.locator("#name").fill(QA_FIXTURE_MEMBER_NAME);
+  await inviteePage.locator("#email").fill(fixtureEmail);
+  await inviteePage.locator("#password").fill(QA_FIXTURE_MEMBER_PASSWORD);
+  await inviteePage
+    .locator("#confirmPassword")
+    .fill(QA_FIXTURE_MEMBER_PASSWORD);
+  await inviteePage
+    .getByRole("button", { name: "Daftar", exact: true })
+    .click();
+  await inviteePage.waitForURL(/\/beranda/, { timeout: 20_000 });
+
+  await inviteePage.goto(`/join/${invitation.token}`, {
+    waitUntil: "domcontentloaded",
+  });
+  const acceptButton = inviteePage.getByRole("button", {
+    name: "Terima Undangan",
+    exact: true,
+  });
+  // Already-accepted-on-a-prior-run is fine — the member row already exists
+  // for the owner to see below regardless.
+  const canAccept = await acceptButton
+    .waitFor({ state: "visible", timeout: 10_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (canAccept) {
+    await acceptButton.click();
+    await inviteePage.waitForTimeout(2_000); // signOut() fires on a 1.5s timer
+  }
+  await inviteeContext.close();
+
+  // Reload the owner's family panel — the invited member should now appear.
+  await openFamilyPanel(page);
+  return page.locator('button[aria-label^="Batasi Kategori"]').first();
+}
+
+test.describe("EPIC-022 Group G — akun CategoryLimitDialog (crud override coverage)", () => {
+  // Single viewport: the setup cost (invite + register + accept) is high and
+  // — per this file's header note — a viewport-emulated Chromium run cannot
+  // distinguish `vh` from `dvh` regardless, so a second (desktop) run adds
+  // cost without adding coverage. 390x844 is where G1 actually bites.
+  test("akun — Batasi Kategori category allow-list (8+ categories) stays reachable", async ({
+    page,
+    browser,
+  }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await login(page);
+
+    const trigger = await ensureCategoryLimitTrigger(page, browser);
+    await expect(
+      trigger,
+      'a member with role "member" should exist (seeded or fixture-created) so Batasi Kategori is visible',
+    ).toBeVisible({ timeout: 15_000 });
+    await trigger.click();
+
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    // The seeded family has 20 expense categories, comfortably above the
+    // "8+" the review asked this scenario to cover — no per-row clicking
+    // needed, the list is already long from live data. The category list and
+    // the member's current selections load via two independent queries, so
+    // wait for the first checkbox to actually mount instead of racing an
+    // instant `.count()` against whichever query resolves second.
+    await expect(dialog.locator('input[type="checkbox"]').first()).toBeVisible({
+      timeout: 10_000,
+    });
+    const categoryCheckboxCount = await dialog
+      .locator('input[type="checkbox"]')
+      .count();
+    expect(
+      categoryCheckboxCount,
+      "expected the seeded family's expense category list to already be 8+ long",
+    ).toBeGreaterThanOrEqual(8);
+
+    const submitButton = dialog.getByRole("button", {
+      name: "Simpan Batasan",
+      exact: true,
+    });
+    await assertDialogFitsViewport(
+      dialog,
+      submitButton,
+      844,
+      "akun CategoryLimitDialog @ mobile",
+    );
+  });
 });
 
 test.describe("EPIC-022 Group G — onboarding welcome dialog (G2 + G3)", () => {
