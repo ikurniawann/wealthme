@@ -568,7 +568,8 @@ whose P&L and balance sheet reconcile through the bridge.
   journeys, and `mattpocock:diagnosing-bugs` — rather than `code-agent` — for the
   undiagnosed defects in group I.
 - 2026-08-05 /epic-loop EPIC-023 #1 "A — Report correctness: COA shelves,
-  principal/interest split (do first)" → PASS (attempts: 3), PR: pending.
+  principal/interest split (do first)" → PASS (attempts: 3),
+  PR: https://github.com/andrsrjld/wealthme-web/pull/236.
   Test-first as routed: the golden six-month amortisation schedule was
   hand-computed before any code existed, and the two A3 report tests were
   written against the pre-fix chart. Three findings the epic did not anticipate:
