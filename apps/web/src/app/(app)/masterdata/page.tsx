@@ -72,6 +72,18 @@ const REFERENCE_GROUPS: MasterDataGroup[] = [
   },
 ];
 
+/**
+ * EPIC-022 A5 — surface the API's real validation message (e.g. the 409
+ * naming which budgets/allowances depend on a category) instead of a
+ * generic toast. Mirrors the identical page-local helper in
+ * mastercoa/page.tsx and akun/page.tsx.
+ */
+function extractApiErrorMessage(err: unknown, fallback: string): string {
+  return err && typeof err === "object" && "message" in err
+    ? String((err as { message: unknown }).message)
+    : fallback;
+}
+
 export default function MasterDataPage() {
   const { t } = useLocale();
   const { data: session } = useSession();
@@ -243,8 +255,13 @@ export default function MasterDataPage() {
         void queryClient.invalidateQueries({
           queryKey: queryKeys.categories.all(familyGroupId),
         });
-      } catch {
-        toast.error(t.masterdata.toastCategoryDeleteFailed);
+      } catch (err) {
+        // EPIC-022 A5 — the API now rejects with a 409 naming exactly which
+        // budgets/allowances are attached; surface that instead of the
+        // generic "gagal menghapus" toast.
+        toast.error(
+          extractApiErrorMessage(err, t.masterdata.toastCategoryDeleteFailed),
+        );
       }
     })();
   };

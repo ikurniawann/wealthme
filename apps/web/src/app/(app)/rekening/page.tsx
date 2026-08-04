@@ -34,6 +34,19 @@ import { formatRupiah, parseRupiah, formatAmountInput } from "@/lib/format";
 
 import type { AccountDto } from "@wealthme/contracts";
 
+// EPIC-022 A2 — "Data Kas bisa minus": `parseRupiah` (lib/format.ts, a
+// protected foundation file) strips every non-digit character including a
+// leading "-", so it can never round-trip a negative cash balance. This
+// page-local helper mirrors /dana's (see WM_CONVENTIONS.md — inline a helper
+// here instead of touching lib/*) and is only used for the `cash` entity
+// below; every other account type keeps using the shared `parseRupiah`.
+function parseSignedRupiah(value: string | null | undefined): number {
+  if (!value) return 0;
+  const isNegative = value.trim().startsWith("-");
+  const digits = parseInt(value.replace(/\D/g, ""), 10) || 0;
+  return isNegative ? -digits : digits;
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -48,6 +61,13 @@ type AccountCard = {
   balance: string;
   rawBalance: number;
   type: string;
+  // EPIC-022 A2 — the original `AccountDto.type` ("bank" | "ewallet" | "cash"
+  // | "investment" | "property"), kept alongside the display-formatted
+  // `type` string above so edit routing can branch on it (a `cash` account
+  // must open the "cash" CRUD entity — see `openEdit` — instead of the
+  // "Rekening Bank" form, whose "Saldo" field can't round-trip a negative
+  // balance).
+  rawType: string;
   isPrivate: boolean;
   // EPIC-019 Task A — per-member ownership; null = family-shared (unchanged).
   ownerUserId: string | null;
@@ -144,6 +164,7 @@ function toCardData(
     type: account.institution
       ? `${typeLabel} · ${account.institution}`
       : typeLabel,
+    rawType: account.type,
     isPrivate: account.isPrivate,
     ownerUserId: account.ownerUserId,
     ownerName: account.ownerName,
@@ -502,6 +523,23 @@ export default function RekeningPage() {
 
   function openEdit(account: AccountCard) {
     setEditingId(account.id);
+    // EPIC-022 A2 — a `cash` account must use the "cash" CRUD entity (same
+    // one /dana already uses correctly): its "Saldo" field is the only
+    // "amount" field configured with `allowNegative`, so a negative balance
+    // pre-fills with its sign intact instead of silently displaying (and
+    // then re-saving) as positive. The "Rekening Bank" form's bank/norek/
+    // jenis fields don't apply to a cash account either way.
+    if (account.rawType === "cash") {
+      setCrudState({
+        entity: "cash",
+        mode: "edit",
+        initialValues: {
+          nama: account.name,
+          saldo: String(account.rawBalance),
+        },
+      });
+      return;
+    }
     setCrudState({
       entity: "rekening",
       mode: "edit",
@@ -522,11 +560,35 @@ export default function RekeningPage() {
   }
 
   async function handleSubmit(
-    _entity: string,
+    entity: string,
     mode: "add" | "edit",
     values: Record<string, string>,
   ) {
     if (!familyGroupId || !token) return;
+    // EPIC-022 A2 — cash accounts round-trip through the "cash" CRUD entity
+    // (see `openEdit`): parse the balance signed (so a negative cash balance
+    // survives an untouched edit) and resend `type: "cash"` even though this
+    // is a partial update, because `UpdateAccountDto.balance`'s negative-
+    // balance allowance is gated on `type` — omitting it makes the API see
+    // `type: undefined !== "cash"` and reject/clamp the balance to >= 0.
+    if (entity === "cash" && mode === "edit" && editingId) {
+      try {
+        const balance = parseSignedRupiah(values.saldo ?? "0");
+        await apiFetch(
+          `/family-groups/${familyGroupId}/accounts/${editingId}`,
+          {
+            token,
+            method: "PATCH",
+            body: JSON.stringify({ name: values.nama, balance, type: "cash" }),
+          },
+        );
+        toast.success(t.rekening.toastUpdated);
+        await invalidateAccounts();
+      } catch {
+        toast.error(t.rekening.toastSaveFailed);
+      }
+      return;
+    }
     try {
       const balance = parseRupiah(values.saldo ?? "0");
       const isPrivate = values.isPrivate === "true";

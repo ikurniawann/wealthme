@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
 import {
-  GoalStatus as PrismaGoalStatus,
-  TransactionType,
-} from "@prisma/client";
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { GoalStatus as PrismaGoalStatus } from "@prisma/client";
 
 import { ownerNotifPrefs } from "../notifications/notification-prefs";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -157,6 +158,21 @@ export class GoalsService {
         ? BigInt(dto.autoDebitAmount)
         : existing.autoDebitAmount;
 
+    // EPIC-022 A4 follow-up — `currentAmount` was only ever bounded by
+    // `@Min(0)`/`@Max(999_999_999_999)` here, never against `targetAmount`,
+    // unlike `runAutoDebit` (which clamps). Reject rather than silently
+    // clamp: this is a manual PATCH the user typed a specific number into
+    // (an "earmark" the family maintains by hand — see the A3 tracker
+    // decision), so quietly rewriting their input to a different number
+    // would be exactly the kind of silent-lie UI this epic exists to
+    // remove. Checked against the EFFECTIVE (post-patch) target, so a
+    // request that raises both fields together is judged consistently.
+    if (currentAmount > targetAmount) {
+      throw new BadRequestException(
+        "Sudah Terkumpul tidak boleh melebihi Target Jumlah",
+      );
+    }
+
     const status = computeStatus(currentAmount, targetAmount, targetDate);
 
     const updated = await this.prisma.goal.update({
@@ -188,7 +204,18 @@ export class GoalsService {
    * Execute monthly auto-debit across every goal that has an `autoDebitAmount`.
    * Idempotent per calendar month via `lastAutoDebitAt`, so re-running within the
    * same month is a no-op. Each debit caps `currentAmount` at `targetAmount`,
-   * recomputes status, records an audit `Transaction`, and fires a `Notification`.
+   * recomputes status, and fires a `Notification`.
+   *
+   * EPIC-022 A3 / USER DECISION — goals are a manual tracker, not real money.
+   * This does NOT move any real money and does NOT write a `Transaction`:
+   * `Goal.currentAmount` is an earmark the family maintains by hand (or via
+   * this scheduled bump), never backed by an `Account` balance. It previously
+   * also inserted a `type: transfer` Transaction row against an arbitrary
+   * account, which looked like a real transfer in the ledger but never
+   * touched that account's balance — a family reconciling against a real
+   * bank statement could never make that row add up. Real funding (backing
+   * a goal with an account and moving money through
+   * `TransactionsService.create`) is deliberately out of scope here.
    * Returns the number of goals actually debited.
    */
   async runAutoDebit(now: Date = new Date()): Promise<number> {
@@ -230,42 +257,22 @@ export class GoalsService {
         goal.targetDate,
       );
 
-      const account = await this.prisma.account.findFirst({
-        where: { familyGroupId: goal.familyGroupId },
-        orderBy: { createdAt: "asc" },
-        select: { id: true },
-      });
-      const category = await this.prisma.category.findFirst({
-        where: {
-          familyGroupId: goal.familyGroupId,
-          name: "Tabungan & Investasi",
-        },
-        select: { id: true },
-      });
       const notifPrefs = await ownerNotifPrefs(this.prisma, goal.familyGroupId);
 
+      // EPIC-022 A3 / USER DECISION — goals are a manual tracker, not real
+      // money: `currentAmount` is an earmark the family maintains, it is
+      // never backed by a real account or a real transfer. This used to
+      // also insert a `type: transfer` Transaction row here, but no
+      // `Account.balance` was ever touched — the family saw a transaction
+      // that did not happen, and it could never be reconciled against a
+      // real bank statement. Real funding (backing a goal with an account
+      // and moving money through `TransactionsService.create`) is
+      // deliberately out of scope; this only bumps the tracker and notifies.
       await this.prisma.$transaction(async (tx) => {
         await tx.goal.update({
           where: { id: goal.id },
           data: { currentAmount: newCurrent, status, lastAutoDebitAt: now },
         });
-
-        // ponytail: audit transaction only when an account exists; account
-        // balance is not mutated — goal funding is tracked on the goal, not
-        // the ledger. Add balance movement here if real debits are needed.
-        if (account) {
-          await tx.transaction.create({
-            data: {
-              familyGroupId: goal.familyGroupId,
-              accountId: account.id,
-              categoryId: category?.id ?? null,
-              amount: actual,
-              type: TransactionType.transfer,
-              description: `Auto-debit: ${goal.name}`,
-              occurredAt: now,
-            },
-          });
-        }
 
         if (notifPrefs.goalMilestone) {
           await tx.notification.create({
