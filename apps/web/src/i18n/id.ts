@@ -1481,9 +1481,9 @@ export const id = {
     fieldDebtLabel: "Utang Jatuh Tempo (Rp)",
     zakatDueLabel: "Zakat yang Wajib Ditunaikan (2,5%)",
     nisabReachedMsg:
-      "✅ Harta sudah mencapai nisab (setara 85gr emas ≈ Rp 102 jt)",
+      "✅ Harta sudah mencapai nisab (85gr emas × Rp 1.100.000/gr = Rp 93.500.000)",
     nisabNotReachedMsg:
-      "⚠️ Harta belum mencapai nisab (Rp 102 jt) — belum wajib zakat",
+      "⚠️ Harta belum mencapai nisab (Rp 93.500.000) — belum wajib zakat",
     nisabIndicativeNote:
       "Nisab indikatif (≈85 gram emas) — bukan harga emas real-time.",
     payZakatNowButton: "Tunaikan Zakat Sekarang",

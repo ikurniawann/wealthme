@@ -12,6 +12,15 @@ export class Pph21RequestDto {
   @IsNumber()
   @Min(0)
   zakatPaid?: number;
+
+  @ApiPropertyOptional({
+    description:
+      "PTKP (non-taxable income threshold) for the taxpayer's marital/dependents status (IDR). Defaults to TK/0 (Rp 54.000.000) when omitted.",
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  ptkp?: number;
 }
 
 export class TaxBracketDto {

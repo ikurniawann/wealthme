@@ -50,12 +50,16 @@ export class CalculatorsService {
   calculatePph21(dto: Pph21RequestDto): Pph21ResultDto {
     const gross = dto.grossIncome;
     const zakatDeduction = dto.zakatPaid ?? 0;
+    const ptkp = dto.ptkp ?? PTKP;
 
     const biayaJabatan = Math.min(
       gross * BIAYA_JABATAN_RATE,
       BIAYA_JABATAN_MAX,
     );
-    const pkp = Math.max(0, gross - biayaJabatan - PTKP - zakatDeduction);
+    // PKP (taxable income) is rounded down to the nearest Rp 1,000 per DJP
+    // rounding practice for PPh 21.
+    const pkpRaw = Math.max(0, gross - biayaJabatan - ptkp - zakatDeduction);
+    const pkp = Math.floor(pkpRaw / 1000) * 1000;
 
     const taxBreakdown = this.computeTaxBrackets(pkp);
     const totalTax = taxBreakdown.reduce((sum, b) => sum + b.tax, 0);
@@ -64,7 +68,7 @@ export class CalculatorsService {
     return {
       grossIncome: gross,
       biayaJabatan,
-      ptkp: PTKP,
+      ptkp,
       zakatDeduction,
       pkp,
       taxBreakdown,

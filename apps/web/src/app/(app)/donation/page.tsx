@@ -1,9 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, HandHeart } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -20,12 +25,23 @@ import type {
   CreateDonationDto,
   DonationDto,
   DonationType,
+  ZakatResultDto,
 } from "@wealthme/contracts";
 
 const FIELD_CLASS =
   "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
 
-const NISAB = 102_000_000; // ≈85gr emas
+// Debounce a fast-changing input value so the zakat calculator only queries
+// the /calculators/zakat endpoint after the user pauses typing, instead of
+// on every keystroke.
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
 
 const DONATION_TYPE_ICON: Record<string, string> = {
   zakat_maal: "🕌",
@@ -114,19 +130,41 @@ export default function DonationPage() {
   const fgId = session?.familyGroupId ?? undefined;
   const token = session?.accessToken;
 
-  // Zakat Maal calculator state (local — no API)
+  // Zakat Maal calculator — inputs are local, but the actual zakat/nisab
+  // math is computed by the shared BE calculator (/calculators/zakat) so
+  // this stays in sync with the kalkulator page and PPh21 deduction logic
+  // instead of duplicating the formula + a stale nisab constant client-side.
   const [cash, setCash] = useState("");
   const [gold, setGold] = useState("");
   const [invest, setInvest] = useState("");
   const [debt, setDebt] = useState("");
 
-  const harta =
-    parseRupiah(cash) +
-    parseRupiah(gold) +
-    parseRupiah(invest) -
-    parseRupiah(debt);
-  const reachedNisab = harta >= NISAB;
-  const zakat = reachedNisab ? Math.round(harta * 0.025) : 0;
+  const debouncedCash = useDebounce(cash, 300);
+  const debouncedGold = useDebounce(gold, 300);
+  const debouncedInvest = useDebounce(invest, 300);
+  const debouncedDebt = useDebounce(debt, 300);
+
+  const zakatInput = {
+    cash: parseRupiah(debouncedCash),
+    investments: parseRupiah(debouncedInvest),
+    gold: parseRupiah(debouncedGold),
+    liabilities: parseRupiah(debouncedDebt),
+  };
+
+  const { data: zakatResult } = useQuery<ZakatResultDto>({
+    queryKey: ["calculators", "zakat", zakatInput],
+    queryFn: () =>
+      apiFetch<ZakatResultDto>("/calculators/zakat", {
+        method: "POST",
+        token,
+        body: JSON.stringify(zakatInput),
+      }),
+    enabled: !!token,
+    placeholderData: keepPreviousData,
+  });
+
+  const reachedNisab = zakatResult?.isObligated ?? false;
+  const zakat = zakatResult?.zakat ?? 0;
   const nisabMsg = reachedNisab
     ? t.donation.nisabReachedMsg
     : t.donation.nisabNotReachedMsg;

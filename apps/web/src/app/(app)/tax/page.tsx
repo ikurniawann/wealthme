@@ -1,9 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Send, FileText } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { useLocale } from "@/hooks/use-locale";
@@ -16,6 +21,7 @@ import { queryKeys } from "@/lib/query-keys";
 
 import type {
   CreateTaxRecordDto,
+  Pph21ResultDto,
   TaxRecordDto,
   SptStatus,
   UpdateTaxRecordDto,
@@ -35,22 +41,26 @@ const PTKP_OPTIONS: { value: number; id: TaxPtkpId }[] = [
   { value: 72000000, id: "k3" },
 ];
 
-// [limit, rate] progressive brackets (UU HPP)
-const BRACKETS: [number, number][] = [
-  [60_000_000, 0.05],
-  [190_000_000, 0.15],
-  [250_000_000, 0.25],
-  [4_500_000_000, 0.3],
-  [Infinity, 0.35],
-];
-
-// Display rows for the progressive breakdown table
+// Display rows for the progressive breakdown table. `idx` indexes into the
+// BE's taxBreakdown array (UU HPP progressive brackets, in order) — the
+// actual rates/thresholds live server-side in calculators.service.ts.
 const BRACKET_ROWS: { id: TaxBracketId; rate: string; idx: number }[] = [
   { id: "b0", rate: "5%", idx: 0 },
   { id: "b1", rate: "15%", idx: 1 },
   { id: "b2", rate: "25%", idx: 2 },
   { id: "b4", rate: "35%", idx: 4 },
 ];
+
+// Debounce a fast-changing input value so the PPh 21 calculator only queries
+// the /calculators/pph21 endpoint after the user pauses typing.
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
 
 const SPT_STATUS_CLASS: Record<SptStatus, string> = {
   belum_lapor: "text-warning",
@@ -67,35 +77,47 @@ export default function TaxPage() {
   const fgId = session?.familyGroupId ?? undefined;
   const token = session?.accessToken;
 
-  // Local PPh 21 calculator state (kept local per task spec)
+  // PPh 21 calculator inputs are local; the tax math itself is computed by
+  // the shared BE calculator (/calculators/pph21) so this stays in sync
+  // with the kalkulator page instead of duplicating the PTKP/bracket
+  // formulas + rounding rules client-side.
   const [gross, setGross] = useState("");
   const [ptkp, setPtkp] = useState(54000000);
   const [zakat, setZakat] = useState("");
 
   const grossN = parseRupiah(gross);
-  const zakatN = parseRupiah(zakat);
 
-  const jabatan = Math.min(grossN * 0.05, 6_000_000);
-  let pkp = Math.max(0, grossN - jabatan - ptkp - zakatN);
-  pkp = Math.floor(pkp / 1000) * 1000;
+  const debouncedGross = useDebounce(gross, 300);
+  const debouncedZakat = useDebounce(zakat, 300);
 
-  const layerTax: number[] = new Array(BRACKETS.length).fill(0);
-  let tax = 0;
-  let sisa = pkp;
-  for (let i = 0; i < BRACKETS.length; i++) {
-    if (sisa <= 0) break;
-    const [lim, rate] = BRACKETS[i];
-    const ken = Math.min(sisa, lim);
-    const layerAmt = ken * rate;
-    layerTax[i] = layerAmt;
-    tax += layerAmt;
-    sisa -= ken;
-  }
-  tax = Math.round(tax);
-  const effRate =
-    grossN > 0
-      ? ((tax / grossN) * 100).toFixed(1).replace(".", ",") + "%"
-      : "0%";
+  const pph21Input = {
+    grossIncome: parseRupiah(debouncedGross),
+    zakatPaid: parseRupiah(debouncedZakat),
+    ptkp,
+  };
+
+  const { data: pph21Result } = useQuery<Pph21ResultDto>({
+    queryKey: ["calculators", "pph21", pph21Input],
+    queryFn: () =>
+      apiFetch<Pph21ResultDto>("/calculators/pph21", {
+        method: "POST",
+        token,
+        body: JSON.stringify(pph21Input),
+      }),
+    enabled: !!token,
+    placeholderData: keepPreviousData,
+  });
+
+  const jabatan = pph21Result?.biayaJabatan ?? 0;
+  const pkp = pph21Result?.pkp ?? 0;
+  // Rounded to whole rupiah before it can be persisted via handleSaveTaxRecord
+  // (String(tax)) — formatRupiah() already rounds for display, but the save
+  // payload needs the same guarantee.
+  const tax = Math.round(pph21Result?.totalTax ?? 0);
+  const taxBreakdown = pph21Result?.taxBreakdown ?? [];
+  const effRate = pph21Result
+    ? (pph21Result.effectiveRate * 100).toFixed(1).replace(".", ",") + "%"
+    : "0%";
 
   // Fetch tax records
   const { data: taxRecords = [] } = useQuery<TaxRecordDto[]>({
@@ -363,7 +385,7 @@ export default function TaxPage() {
             </thead>
             <tbody>
               {BRACKET_ROWS.map((row) => {
-                const layerAmt = layerTax[row.idx];
+                const layerAmt = taxBreakdown[row.idx]?.tax ?? 0;
                 const muted = layerAmt <= 0;
                 return (
                   <tr key={row.id} className="border-b last:border-b-0">
