@@ -202,8 +202,10 @@ type TaxSptStatusId = "belum_lapor" | "sudah_lapor" | "terlambat";
 type TaxPtkpId = "tk0" | "k0" | "k1" | "k2" | "k3";
 
 /** EPIC-018 Task A6 — `/tax` progressive-bracket row ids (local display
- * rows for the breakdown table; `idx` maps into the fixed bracket math). */
-type TaxBracketId = "b0" | "b1" | "b2" | "b4";
+ * rows for the breakdown table; `idx` maps into the fixed bracket math).
+ * EPIC-022 E4 added `b3` (30%, 500jt–5M) — the table previously skipped it,
+ * so displayed rows never summed to the headline tax above Rp 500jt. */
+type TaxBracketId = "b0" | "b1" | "b2" | "b3" | "b4";
 
 /** EPIC-018 Task A6 — `/rekening` account-type ids (local wording distinct
  * from `aset.accountTypeLabels` — same keys as `Account.type`, different
@@ -808,20 +810,40 @@ export type I18nDictionary = {
     calculating: string;
     zakat: {
       cardTitle: string;
-      nisabNotePrefix: string;
-      nisabNoteValue: string;
+      /** EPIC-022 E2 — replaces the old hardcoded `nisabNotePrefix` +
+       * `nisabNoteValue` pair: nisab is now derived server-side (from the
+       * family gold price or the indicative fallback), never hardcoded here. */
+      nisabAutoNote: string;
       fieldCash: string;
       fieldInvestments: string;
       fieldGold: string;
       fieldLiabilities: string;
+      /** EPIC-022 E1 — the haul (1 lunar year holding period) question the
+       * form now asks before the result can be presented as an obligation. */
+      haulCheckboxLabel: string;
       calculateButton: string;
       errorCalculate: string;
       resultObligated: string;
+      /** EPIC-022 E1 — shown when nisab is met but haul is not confirmed:
+       * the amount is still computed, but never asserted as a settled
+       * obligation. */
+      resultEstimated: string;
       resultNotObligated: string;
       detailZakatablePrefix: string;
       detailNisabPrefix: string;
+      /** EPIC-022 E1 — note shown alongside `resultEstimated`. */
+      estimateNote: string;
       belowNisabPrefix: string;
       belowNisabSuffix: string;
+      /** EPIC-022 E2 — nisab-source disclosure (family gold price vs the
+       * indicative fallback). `nisabSourceFamilyPrefix` + `formatRupiah(price)`
+       * + `nisabSourceFamilyMidfix` + `consolidatedTotal.manualLabelPrefix` +
+       * a formatted date + `nisabSourceFamilySuffix`, so the Rp figure is
+       * actually printed (not just the "diinput manual" disclosure). */
+      nisabSourceFamilyPrefix: string;
+      nisabSourceFamilyMidfix: string;
+      nisabSourceFamilySuffix: string;
+      nisabSourceIndicative: string;
     };
     pph21: {
       cardTitle: string;
@@ -865,8 +887,18 @@ export type I18nDictionary = {
       fieldRetireAge: string;
       fieldCurrentMonthlyExpense: string;
       fieldInvestmentReturn: string;
+      /** EPIC-022 E3 — this tab now calls `POST /calculators/retirement`
+       * (the correct sinking-fund formula) instead of a client-side loan
+       * amortisation formula that overstated the required saving ~12×. */
+      calculateButton: string;
+      errorCalculate: string;
+      invalidAgeRangeError: string;
       resultLabel: string;
       detailMonthlyInvestmentNeededPrefix: string;
+      /** EPIC-022 E3 (LOW) — discloses that the target assumes 20× current
+       * annual expenses (≈5% withdrawal rate) — the multiplier itself is
+       * unchanged, only its basis is now stated instead of hidden. */
+      targetBasisNote: string;
     };
     tabungan: {
       cardTitle: string;
@@ -1406,10 +1438,28 @@ export type I18nDictionary = {
     zakatDueLabel: string;
     zakatCalculatingMsg: string;
     zakatCalcErrorMsg: string;
-    nisabReachedMsg: string;
-    nisabNotReachedMsg: string;
+    /** EPIC-022 E1 — the haul (1 lunar year) confirmation question. */
+    haulCheckboxLabel: string;
+    /** EPIC-022 E1/E2 — replaces the old `nisabReachedMsg`/`nisabNotReachedMsg`
+     * (which hardcoded the nisab rupiah figure); these are prefix/suffix
+     * pairs wrapped around the server-computed `formatRupiah(nisab)`, and
+     * the "reached" case now splits on whether haul is also confirmed. */
+    nisabNotReachedPrefix: string;
+    nisabNotReachedSuffix: string;
+    nisabReachedObligatedPrefix: string;
+    nisabReachedObligatedSuffix: string;
+    nisabReachedEstimatePrefix: string;
+    nisabReachedEstimateSuffix: string;
+    /** EPIC-022 E2 — shown when nisab derives from the family's own gold
+     * price rather than the indicative fallback. */
+    nisabFamilyPricePrefix: string;
+    nisabFamilyPriceSuffix: string;
     nisabIndicativeNote: string;
     payZakatNowButton: string;
+    /** EPIC-022 E1 — CTA label used instead of `payZakatNowButton` while
+     * nisab is met but haul is not yet confirmed (an estimate, not a
+     * settled obligation). */
+    recordZakatEstimateButton: string;
     historyTitle: string;
     loadingLabel: string;
     emptyHistory: string;
@@ -1425,6 +1475,9 @@ export type I18nDictionary = {
     accountNoneOption: string;
     accountHint: string;
     taxDeductibleCheckboxLabel: string;
+    /** EPIC-022 E5 — shown next to the checkbox when the selected donation
+     * type cannot legally be tax deductible (only zakat to an amil can). */
+    taxDeductibleIneligibleNote: string;
     savingLabel: string;
     saveRecordButton: string;
     toastSaved: string;

@@ -7,19 +7,39 @@ export interface ZakatRequestDto {
   investments: number;
   /** Total gold value (IDR) */
   gold: number;
-  /** Total liabilities/debts (IDR) */
+  /** Total short-term / due liabilities (IDR) */
   liabilities: number;
+  /**
+   * Whether this wealth has been held for a full lunar year (haul). A
+   * balance-sheet snapshot alone can never confirm haul — without it the
+   * result is an estimate, not a settled obligation (EPIC-022 E1).
+   */
+  haulConfirmed: boolean;
+  /**
+   * Owner-maintained `FamilyGroup.goldPricePerGram` (IDR). When provided,
+   * nisab = 85g × this price; when omitted, nisab falls back to an
+   * indicative constant (EPIC-022 E2).
+   */
+  goldPricePerGram?: number;
 }
 
 export interface ZakatResultDto {
   /** Total zakatable wealth = cash + investments + gold − liabilities */
   zakatable: number;
-  /** Nisab threshold (85g gold × Rp 1,100,000) */
+  /** Nisab threshold (85g gold × the price used — see `nisabSource`) */
   nisab: number;
-  /** Zakat amount due (2.5% of zakatable if obligated) */
+  /** Zakat amount due (2.5% of zakatable once nisab is met) — an estimate
+   * until `isObligated` is also true. */
   zakat: number;
-  /** Whether zakat is obligated (zakatable >= nisab) */
+  /** Whether zakatable wealth meets/exceeds nisab (threshold only — does
+   * NOT by itself confirm haul). */
+  meetsNisab: boolean;
+  /** True only when nisab is met AND haul is confirmed by the caller — the
+   * actual zakat obligation. Never inferred from the snapshot alone. */
   isObligated: boolean;
+  /** Whether nisab was derived from the family's own gold price or the
+   * indicative fallback constant. */
+  nisabSource: "family" | "indicative";
 }
 
 /* ─── PPh 21 ─────────────────────────────────────────────── */

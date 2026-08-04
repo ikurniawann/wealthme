@@ -7,6 +7,8 @@ import { useSession } from "@/lib/auth-compat";
 import { toast } from "sonner";
 import { SectionCard } from "@/components/wm";
 import { Button } from "@/components/ui/button";
+import { formatManualDate } from "@/components/consolidated-total-card";
+import { useGoldPrice } from "@/hooks/use-gold-price";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import {
@@ -15,7 +17,11 @@ import {
   formatAmountInput,
   formatNumber,
 } from "@/lib/format";
-import type { Pph21ResultDto, ZakatResultDto } from "@wealthme/contracts";
+import type {
+  Pph21ResultDto,
+  RetirementCalcResultDto,
+  ZakatResultDto,
+} from "@wealthme/contracts";
 
 const FIELD_CLASS =
   "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
@@ -88,14 +94,20 @@ function ResultCard({
 /* ─────────────────────────── Zakat Maal ─────────────────────────── */
 
 function ZakatTab({ token }: { token: string | undefined }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [cash, setCash] = useState("50.000.000");
   const [investments, setInvestments] = useState("30.000.000");
   const [gold, setGold] = useState("0");
   const [liabilities, setLiabilities] = useState("0");
+  const [haulConfirmed, setHaulConfirmed] = useState(false);
   const [result, setResult] = useState<ZakatResultDto | null>(null);
   const [loading, setLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const {
+    pricePerGram: familyGoldPrice,
+    updatedAt: familyGoldPriceUpdatedAt,
+    hasPrice: hasFamilyGoldPrice,
+  } = useGoldPrice();
 
   async function handleCalculate() {
     if (!token) {
@@ -116,6 +128,12 @@ function ZakatTab({ token }: { token: string | undefined }) {
           investments: parseRupiah(investments),
           gold: parseRupiah(gold),
           liabilities: parseRupiah(liabilities),
+          haulConfirmed,
+          // E2 — nisab derives from the family's own gold price when set;
+          // the BE falls back to an indicative constant when omitted.
+          goldPricePerGram: hasFamilyGoldPrice
+            ? (familyGoldPrice ?? undefined)
+            : undefined,
         }),
       });
       if (!ctrl.signal.aborted) setResult(res);
@@ -130,10 +148,7 @@ function ZakatTab({ token }: { token: string | undefined }) {
   return (
     <SectionCard title={t.kalkulator.zakat.cardTitle}>
       <div className="-mt-1 mb-3.5 text-[12px] text-muted-foreground">
-        {t.kalkulator.zakat.nisabNotePrefix}{" "}
-        <strong className="text-foreground">
-          {t.kalkulator.zakat.nisabNoteValue}
-        </strong>
+        {t.kalkulator.zakat.nisabAutoNote}
       </div>
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
         <Field label={t.kalkulator.zakat.fieldCash}>
@@ -173,6 +188,21 @@ function ZakatTab({ token }: { token: string | undefined }) {
           />
         </Field>
       </div>
+      <div className="mt-3.5 flex items-center gap-2">
+        <input
+          id="kalkulator-zakat-haul"
+          type="checkbox"
+          checked={haulConfirmed}
+          onChange={(e) => setHaulConfirmed(e.target.checked)}
+          className="size-4 accent-primary"
+        />
+        <label
+          htmlFor="kalkulator-zakat-haul"
+          className="text-[12.5px] text-muted-foreground"
+        >
+          {t.kalkulator.zakat.haulCheckboxLabel}
+        </label>
+      </div>
       <Button
         className="mt-4 w-full"
         onClick={handleCalculate}
@@ -186,9 +216,14 @@ function ZakatTab({ token }: { token: string | undefined }) {
         <>
           <ResultCard
             label={
-              result.isObligated
-                ? t.kalkulator.zakat.resultObligated
-                : t.kalkulator.zakat.resultNotObligated
+              // E1 — a snapshot alone can never confirm haul, so the label
+              // never asserts "wajib" unless the server also confirms
+              // `isObligated` (nisab met AND haul confirmed above).
+              !result.meetsNisab
+                ? t.kalkulator.zakat.resultNotObligated
+                : result.isObligated
+                  ? t.kalkulator.zakat.resultObligated
+                  : t.kalkulator.zakat.resultEstimated
             }
             value={formatRupiah(result.zakat)}
             detail={
@@ -204,13 +239,27 @@ function ZakatTab({ token }: { token: string | undefined }) {
               </>
             }
           />
-          {!result.isObligated && (
+          {!result.meetsNisab && (
             <p className="mt-2 text-center text-[12px] text-muted-foreground">
               {t.kalkulator.zakat.belowNisabPrefix}
               {formatRupiah(result.nisab)}
               {t.kalkulator.zakat.belowNisabSuffix}
             </p>
           )}
+          {result.meetsNisab && !result.isObligated && (
+            <p className="mt-2 text-center text-[12px] text-muted-foreground">
+              {t.kalkulator.zakat.estimateNote}
+            </p>
+          )}
+          <p className="mt-2 text-center text-[11px] text-muted-foreground/80">
+            {result.nisabSource === "family"
+              ? `${t.kalkulator.zakat.nisabSourceFamilyPrefix}${formatRupiah(familyGoldPrice ?? 0)}${t.kalkulator.zakat.nisabSourceFamilyMidfix}${t.consolidatedTotal.manualLabelPrefix}${
+                  familyGoldPriceUpdatedAt
+                    ? formatManualDate(familyGoldPriceUpdatedAt, locale)
+                    : ""
+                }${t.kalkulator.zakat.nisabSourceFamilySuffix}`
+              : t.kalkulator.zakat.nisabSourceIndicative}
+          </p>
         </>
       )}
     </SectionCard>
@@ -529,28 +578,59 @@ function KreditTab() {
 
 /* ─────────────────────────── Pensiun ─────────────────────────── */
 
-function PensiunTab() {
+function PensiunTab({ token }: { token: string | undefined }) {
   const { t } = useLocale();
   const [now, setNow] = useState("30");
   const [retire, setRetire] = useState("55");
   const [monthly, setMonthly] = useState("10.000.000");
   const [ret, setRet] = useState("10");
+  const [result, setResult] = useState<RetirementCalcResultDto | null>(null);
+  const [loading, setLoading] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const { needed, pmt } = useMemo(() => {
+  // E3 — this used to run a loan-amortisation formula client-side, which
+  // overstates the required monthly saving by ~12× (it divides by a much
+  // smaller denominator than the sinking-fund formula a savings goal needs).
+  // The BE's `/calculators/retirement` already implements the correct
+  // sinking-fund PMT, so this tab now calls it instead of duplicating math.
+  async function handleCalculate() {
+    if (!token) {
+      toast.error(t.kalkulator.sessionExpired);
+      return;
+    }
     const years = Number(retire) - Number(now);
-    const mo = parseRupiah(monthly);
-    const neededCalc = mo * 12 * 20;
-    const r = Number(ret) / 100 / 12;
-    const n = years * 12;
-    const factor = Math.pow(1 + r, n);
-    const pmtCalc =
-      n <= 0
-        ? 0
-        : r === 0
-          ? neededCalc / n
-          : (neededCalc * r * factor) / (factor - 1);
-    return { needed: neededCalc, pmt: pmtCalc };
-  }, [now, retire, monthly, ret]);
+    if (!Number.isFinite(years) || years < 1) {
+      toast.error(t.kalkulator.pensiun.invalidAgeRangeError);
+      return;
+    }
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setLoading(true);
+    try {
+      const res = await apiFetch<RetirementCalcResultDto>(
+        "/calculators/retirement",
+        {
+          method: "POST",
+          token,
+          signal: ctrl.signal,
+          body: JSON.stringify({
+            // 20 years of the current monthly expense — same target basis
+            // the page always used, just funded via the correct formula now.
+            targetAmount: parseRupiah(monthly) * 12 * 20,
+            years,
+            annualRate: Number(ret) / 100,
+          }),
+        },
+      );
+      if (!ctrl.signal.aborted) setResult(res);
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      toast.error(t.kalkulator.pensiun.errorCalculate);
+    } finally {
+      if (!ctrl.signal.aborted) setLoading(false);
+    }
+  }
 
   return (
     <SectionCard title={t.kalkulator.pensiun.cardTitle}>
@@ -589,16 +669,37 @@ function PensiunTab() {
           />
         </Field>
       </div>
-      <ResultCard
-        label={t.kalkulator.pensiun.resultLabel}
-        value={formatRupiah(needed)}
-        detail={
-          <>
-            {t.kalkulator.pensiun.detailMonthlyInvestmentNeededPrefix}{" "}
-            <strong className="text-primary">{formatRupiah(pmt)}</strong>
-          </>
-        }
-      />
+      <Button
+        className="mt-4 w-full"
+        onClick={handleCalculate}
+        disabled={loading}
+      >
+        {loading
+          ? t.kalkulator.calculating
+          : t.kalkulator.pensiun.calculateButton}
+      </Button>
+      {result && (
+        <>
+          <ResultCard
+            label={t.kalkulator.pensiun.resultLabel}
+            value={formatRupiah(result.projectedValue)}
+            detail={
+              <>
+                {t.kalkulator.pensiun.detailMonthlyInvestmentNeededPrefix}{" "}
+                <strong className="text-primary">
+                  {formatRupiah(result.monthlyContribution)}
+                </strong>
+              </>
+            }
+          />
+          {/* E3 (LOW) — the target is 20× current annual expenses (a ~5%
+              withdrawal rate), more aggressive than the common 25×/4% rule.
+              Disclose the basis rather than leaving the multiplier hidden. */}
+          <p className="mt-2 text-center text-[11px] text-muted-foreground/80">
+            {t.kalkulator.pensiun.targetBasisNote}
+          </p>
+        </>
+      )}
     </SectionCard>
   );
 }
@@ -809,7 +910,7 @@ export default function KalkulatorPage() {
       {tab === "pph21" && <Pph21Tab token={token} />}
       {tab === "investasi" && <InvestasiTab />}
       {tab === "kredit" && <KreditTab />}
-      {tab === "pensiun" && <PensiunTab />}
+      {tab === "pensiun" && <PensiunTab token={token} />}
       {tab === "tabungan" && <TabunganTab />}
       {tab === "splitgroup" && <SplitGroupTab />}
     </div>

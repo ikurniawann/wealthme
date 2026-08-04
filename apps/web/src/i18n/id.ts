@@ -827,20 +827,28 @@ export const id = {
     calculating: "Menghitung...",
     zakat: {
       cardTitle: "Kalkulator Zakat Maal",
-      nisabNotePrefix: "Nisab = 85g emas × Rp 1.100.000/g =",
-      nisabNoteValue: "Rp 93.500.000",
+      nisabAutoNote:
+        "Nisab dihitung otomatis — dari harga emas keluarga (jika sudah diatur) atau harga acuan indikatif.",
       fieldCash: "Kas & Tabungan (Rp)",
       fieldInvestments: "Investasi (Rp)",
       fieldGold: "Nilai Emas (Rp)",
-      fieldLiabilities: "Hutang / Liabilitas (Rp)",
+      fieldLiabilities: "Utang Jatuh Tempo (Rp)",
+      haulCheckboxLabel: "Harta sudah dimiliki penuh selama 1 tahun (haul)",
       calculateButton: "Hitung Zakat",
       errorCalculate: "Gagal menghitung zakat. Coba lagi.",
       resultObligated: "Zakat yang Wajib Dibayar",
+      resultEstimated: "Estimasi Zakat (bila haul terpenuhi)",
       resultNotObligated: "Belum Wajib Zakat",
       detailZakatablePrefix: "Harta zakatable:",
       detailNisabPrefix: "· Nisab:",
+      estimateNote:
+        "Estimasi ini berlaku bila kepemilikan sudah genap 1 tahun (haul). Centang kotak di atas untuk konfirmasi kewajiban.",
       belowNisabPrefix: "Harta zakatable belum mencapai nisab (",
       belowNisabSuffix: ").",
+      nisabSourceFamilyPrefix: "Nisab dari harga emas keluarga: Rp ",
+      nisabSourceFamilyMidfix: "/gram (",
+      nisabSourceFamilySuffix: ")",
+      nisabSourceIndicative: "Nisab indikatif — bukan harga emas real-time.",
     },
     pph21: {
       cardTitle: "Kalkulator PPh 21 (UU HPP)",
@@ -885,8 +893,14 @@ export const id = {
       fieldRetireAge: "Target Usia Pensiun",
       fieldCurrentMonthlyExpense: "Pengeluaran/Bulan Saat Ini (Rp)",
       fieldInvestmentReturn: "Return Investasi (%/thn)",
+      calculateButton: "Hitung Dana Pensiun",
+      errorCalculate: "Gagal menghitung dana pensiun. Coba lagi.",
+      invalidAgeRangeError:
+        "Usia pensiun harus lebih besar dari usia sekarang.",
       resultLabel: "Dana Pensiun yang Dibutuhkan",
       detailMonthlyInvestmentNeededPrefix: "Investasi bulanan yang dibutuhkan:",
+      targetBasisNote:
+        "Target diasumsikan 20× pengeluaran tahunan saat ini (≈5% tarik dana/tahun) — bukan aturan 25×/4% yang lebih umum digunakan.",
     },
     tabungan: {
       cardTitle: "Kalkulator Tabungan",
@@ -1382,6 +1396,7 @@ export const id = {
       b0: "0 – 60 jt",
       b1: "60 – 250 jt",
       b2: "250 – 500 jt",
+      b3: "500 jt – 5 M",
       b4: "> 5 M",
     },
     heroLabelPrefix: "Estimasi Pajak Terutang ",
@@ -1514,16 +1529,24 @@ export const id = {
     fieldGoldLabel: "Emas & Perak (Rp)",
     fieldInvestLabel: "Investasi & Saham (Rp)",
     fieldDebtLabel: "Utang Jatuh Tempo (Rp)",
-    zakatDueLabel: "Zakat yang Wajib Ditunaikan (2,5%)",
+    zakatDueLabel: "Zakat (2,5%)",
     zakatCalculatingMsg: "Menghitung...",
     zakatCalcErrorMsg: "Gagal menghitung zakat. Coba lagi.",
-    nisabReachedMsg:
-      "✅ Harta sudah mencapai nisab (85gr emas × Rp 1.100.000/gr = Rp 93.500.000)",
-    nisabNotReachedMsg:
-      "⚠️ Harta belum mencapai nisab (Rp 93.500.000) — belum wajib zakat",
+    haulCheckboxLabel: "Harta sudah dimiliki penuh selama 1 tahun (haul)",
+    nisabNotReachedPrefix: "⚠️ Harta belum mencapai nisab (",
+    nisabNotReachedSuffix: ") — belum wajib zakat",
+    nisabReachedObligatedPrefix:
+      "✅ Harta mencapai nisab & haul — zakat wajib ditunaikan (nisab: ",
+    nisabReachedObligatedSuffix: ")",
+    nisabReachedEstimatePrefix: "🕓 Harta mencapai nisab (",
+    nisabReachedEstimateSuffix:
+      ") — estimasi, menunggu konfirmasi haul (1 tahun) sebelum wajib",
+    nisabFamilyPricePrefix: "Nisab dihitung dari harga emas keluarga: Rp ",
+    nisabFamilyPriceSuffix: "/gram",
     nisabIndicativeNote:
       "Nisab indikatif (≈85 gram emas) — bukan harga emas real-time.",
     payZakatNowButton: "Tunaikan Zakat Sekarang",
+    recordZakatEstimateButton: "Catat Estimasi Zakat",
     historyTitle: "Riwayat Donasi & Zakat",
     loadingLabel: "Memuat...",
     emptyHistory: "Belum ada catatan donasi",
@@ -1542,6 +1565,8 @@ export const id = {
       "Pilih rekening agar total kekayaan bersih ikut berkurang saat donasi dicatat.",
     taxDeductibleCheckboxLabel:
       "Pengurang pajak penghasilan (zakat ke lembaga resmi)",
+    taxDeductibleIneligibleNote:
+      "Hanya Zakat Maal / Zakat Fitrah yang dapat menjadi pengurang pajak.",
     savingLabel: "Menyimpan...",
     saveRecordButton: "Simpan Catatan",
     toastSaved: "✅ Donasi berhasil dicatat!",

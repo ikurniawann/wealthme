@@ -14,7 +14,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { HeroCard, SectionCard, StatusBadge } from "@/components/wm";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { formatManualDate } from "@/components/consolidated-total-card";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useGoldPrice } from "@/hooks/use-gold-price";
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
 import { apiFetch } from "@/lib/api-client";
@@ -61,6 +63,15 @@ const JENIS_OPTIONS: {
   { value: "sedekah", group: "umum" },
   { value: "lainnya", group: "umum" },
 ];
+
+// EPIC-022 E5 — only zakat paid to an approved amil legally qualifies as an
+// income-tax-deductible religious donation (mirrors the server-side check
+// in `donations.service.ts`, which is the actual enforcement — this is only
+// so the checkbox never invites a state the API would reject).
+const TAX_DEDUCTIBLE_DONATION_TYPES: ReadonlySet<DonationType> = new Set([
+  "zakat_maal",
+  "zakat_fitrah",
+]);
 
 // NOTE: these are the actual `recipient` values persisted on a donation
 // record (free-text institution name), not a translated enum — kept in
@@ -127,17 +138,30 @@ export default function DonationPage() {
   const [gold, setGold] = useState("");
   const [invest, setInvest] = useState("");
   const [debt, setDebt] = useState("");
+  const [haulConfirmed, setHaulConfirmed] = useState(false);
 
   const debouncedCash = useDebounce(cash, 300);
   const debouncedGold = useDebounce(gold, 300);
   const debouncedInvest = useDebounce(invest, 300);
   const debouncedDebt = useDebounce(debt, 300);
 
+  // E2 — nisab derives from the family's own gold price when the owner has
+  // set one; the BE falls back to an indicative constant when omitted.
+  const {
+    pricePerGram: familyGoldPrice,
+    updatedAt: familyGoldPriceUpdatedAt,
+    hasPrice: hasFamilyGoldPrice,
+  } = useGoldPrice();
+
   const zakatInput = {
     cash: parseRupiah(debouncedCash),
     investments: parseRupiah(debouncedInvest),
     gold: parseRupiah(debouncedGold),
     liabilities: parseRupiah(debouncedDebt),
+    haulConfirmed,
+    goldPricePerGram: hasFamilyGoldPrice
+      ? (familyGoldPrice ?? undefined)
+      : undefined,
   };
 
   const {
@@ -161,11 +185,26 @@ export default function DonationPage() {
   // "Pay Zakat Now" is allowed, so we never prefill/persist a donation with
   // a stale or default-zero amount the server hasn't actually confirmed.
   const hasZakatResult = !!zakatResult;
-  const reachedNisab = zakatResult?.isObligated ?? false;
+  const meetsNisab = zakatResult?.meetsNisab ?? false;
+  // E1 — a balance-sheet snapshot alone can never confirm haul: the CTA and
+  // message below only assert "wajib" once the server also confirms
+  // `isObligated` (nisab met AND haul confirmed by the checkbox above).
+  const isObligated = zakatResult?.isObligated ?? false;
+  const nisab = zakatResult?.nisab ?? 0;
   const zakat = zakatResult?.zakat ?? 0;
-  const nisabMsg = reachedNisab
-    ? t.donation.nisabReachedMsg
-    : t.donation.nisabNotReachedMsg;
+  const nisabMessage = !meetsNisab
+    ? `${t.donation.nisabNotReachedPrefix}${formatRupiah(nisab)}${t.donation.nisabNotReachedSuffix}`
+    : isObligated
+      ? `${t.donation.nisabReachedObligatedPrefix}${formatRupiah(nisab)}${t.donation.nisabReachedObligatedSuffix}`
+      : `${t.donation.nisabReachedEstimatePrefix}${formatRupiah(nisab)}${t.donation.nisabReachedEstimateSuffix}`;
+  const nisabSourceNote =
+    zakatResult?.nisabSource === "family"
+      ? `${t.donation.nisabFamilyPricePrefix}${formatRupiah(familyGoldPrice ?? 0)}${t.donation.nisabFamilyPriceSuffix}${
+          familyGoldPriceUpdatedAt
+            ? ` ${t.consolidatedTotal.manualLabelPrefix}${formatManualDate(familyGoldPriceUpdatedAt, locale)}`
+            : ""
+        }`
+      : t.donation.nisabIndicativeNote;
   const canPayZakatNow = hasZakatResult && !isZakatFetching && !isZakatError;
 
   // Donation modal state
@@ -178,6 +217,8 @@ export default function DonationPage() {
   );
   const [isTaxDeductible, setIsTaxDeductible] = useState(false);
   const [accountId, setAccountId] = useState("");
+  // E5 — only zakat (to an approved amil) may be marked tax deductible.
+  const isDeductibleEligible = TAX_DEDUCTIBLE_DONATION_TYPES.has(jenis);
 
   // Fetch donations list
   const { data: donations = [], isLoading } = useQuery<DonationDto[]>({
@@ -252,7 +293,8 @@ export default function DonationPage() {
       recipient: lembaga,
       amount: String(amountNum),
       donatedAt: new Date(tanggal).toISOString(),
-      isTaxDeductible,
+      // E5 — never send a deductible flag the API would reject for this type.
+      isTaxDeductible: isTaxDeductible && isDeductibleEligible,
       accountId: accountId || undefined,
     });
   }
@@ -316,6 +358,21 @@ export default function DonationPage() {
             onChange={setDebt}
           />
         </div>
+        <div className="mt-3.5 flex items-center gap-2">
+          <input
+            id="donation-zakat-haul"
+            type="checkbox"
+            checked={haulConfirmed}
+            onChange={(e) => setHaulConfirmed(e.target.checked)}
+            className="size-4 accent-primary"
+          />
+          <label
+            htmlFor="donation-zakat-haul"
+            className="text-[12.5px] text-muted-foreground"
+          >
+            {t.donation.haulCheckboxLabel}
+          </label>
+        </div>
         <div className="mt-4 rounded-[12px] border border-primary/15 bg-accent p-4 text-center">
           <div className="text-[11.5px] text-muted-foreground">
             {t.donation.zakatDueLabel}
@@ -334,10 +391,10 @@ export default function DonationPage() {
                 {formatRupiah(zakat)}
               </div>
               <div className="mt-1.5 text-xs text-muted-foreground">
-                {nisabMsg}
+                {nisabMessage}
               </div>
               <div className="mt-1 text-[11px] text-muted-foreground/80">
-                {t.donation.nisabIndicativeNote}
+                {nisabSourceNote}
               </div>
             </>
           )}
@@ -347,7 +404,10 @@ export default function DonationPage() {
           disabled={!canPayZakatNow}
           className="mt-3.5 h-auto px-4 py-2.5"
         >
-          <HandHeart className="size-4" /> {t.donation.payZakatNowButton}
+          <HandHeart className="size-4" />{" "}
+          {isObligated
+            ? t.donation.payZakatNowButton
+            : t.donation.recordZakatEstimateButton}
         </Button>
       </SectionCard>
 
@@ -424,7 +484,15 @@ export default function DonationPage() {
               </label>
               <select
                 value={jenis}
-                onChange={(e) => setJenis(e.target.value as DonationType)}
+                onChange={(e) => {
+                  const next = e.target.value as DonationType;
+                  setJenis(next);
+                  // E5 — deductibility is restricted to zakat; switching away
+                  // from a qualifying type must not leave a stale checked box.
+                  if (!TAX_DEDUCTIBLE_DONATION_TYPES.has(next)) {
+                    setIsTaxDeductible(false);
+                  }
+                }}
                 className={FIELD_CLASS}
               >
                 {JENIS_OPTIONS.map((o) => (
@@ -503,20 +571,33 @@ export default function DonationPage() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
-              <input
-                id="tax-deductible"
-                type="checkbox"
-                checked={isTaxDeductible}
-                onChange={(e) => setIsTaxDeductible(e.target.checked)}
-                className="size-4 accent-primary"
-              />
-              <label
-                htmlFor="tax-deductible"
-                className="text-[12.5px] text-muted-foreground"
-              >
-                {t.donation.taxDeductibleCheckboxLabel}
-              </label>
+            <div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="tax-deductible"
+                  type="checkbox"
+                  checked={isTaxDeductible && isDeductibleEligible}
+                  disabled={!isDeductibleEligible}
+                  onChange={(e) => setIsTaxDeductible(e.target.checked)}
+                  className="size-4 accent-primary disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                <label
+                  htmlFor="tax-deductible"
+                  className={
+                    "text-[12.5px] " +
+                    (isDeductibleEligible
+                      ? "text-muted-foreground"
+                      : "text-muted-foreground/60")
+                  }
+                >
+                  {t.donation.taxDeductibleCheckboxLabel}
+                </label>
+              </div>
+              {!isDeductibleEligible && (
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {t.donation.taxDeductibleIneligibleNote}
+                </p>
+              )}
             </div>
 
             <Button

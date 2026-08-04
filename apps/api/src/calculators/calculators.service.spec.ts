@@ -22,6 +22,7 @@ describe("CalculatorsService", () => {
         investments: 5_000_000,
         gold: 0,
         liabilities: 0,
+        haulConfirmed: true,
       };
 
       // Act
@@ -30,17 +31,20 @@ describe("CalculatorsService", () => {
       // Assert
       expect(result.zakatable).toBe(15_000_000);
       expect(result.nisab).toBe(93_500_000);
+      expect(result.meetsNisab).toBe(false);
       expect(result.isObligated).toBe(false);
       expect(result.zakat).toBe(0);
+      expect(result.nisabSource).toBe("indicative");
     });
 
-    it("is obligated and charges 2.5% when zakatable assets exceed nisab", () => {
+    it("is obligated and charges 2.5% when zakatable assets exceed nisab AND haul is confirmed", () => {
       // Arrange
       const dto = {
         cash: 60_000_000,
         investments: 40_000_000,
         gold: 0,
         liabilities: 0,
+        haulConfirmed: true,
       };
 
       // Act
@@ -48,17 +52,39 @@ describe("CalculatorsService", () => {
 
       // Assert
       expect(result.zakatable).toBe(100_000_000);
+      expect(result.meetsNisab).toBe(true);
       expect(result.isObligated).toBe(true);
       expect(result.zakat).toBe(2_500_000);
     });
 
-    it("is obligated at exactly the nisab boundary (>=)", () => {
+    it("E1: meets nisab but is NOT obligated when haul is not confirmed — zakat stays an estimate", () => {
+      // Arrange — same wealth as the previous case, haul unconfirmed
+      const dto = {
+        cash: 60_000_000,
+        investments: 40_000_000,
+        gold: 0,
+        liabilities: 0,
+        haulConfirmed: false,
+      };
+
+      // Act
+      const result = service.calculateZakat(dto);
+
+      // Assert — the estimated amount is still reported...
+      expect(result.meetsNisab).toBe(true);
+      expect(result.zakat).toBe(2_500_000);
+      // ...but obligation is never asserted from a snapshot alone.
+      expect(result.isObligated).toBe(false);
+    });
+
+    it("is obligated at exactly the nisab boundary (>=) with haul confirmed", () => {
       // Arrange
       const dto = {
         cash: 93_500_000,
         investments: 0,
         gold: 0,
         liabilities: 0,
+        haulConfirmed: true,
       };
 
       // Act
@@ -66,6 +92,7 @@ describe("CalculatorsService", () => {
 
       // Assert
       expect(result.zakatable).toBe(93_500_000);
+      expect(result.meetsNisab).toBe(true);
       expect(result.isObligated).toBe(true);
       expect(result.zakat).toBe(2_337_500);
     });
@@ -77,6 +104,7 @@ describe("CalculatorsService", () => {
         investments: 0,
         gold: 0,
         liabilities: 25_000_000,
+        haulConfirmed: true,
       };
 
       // Act
@@ -84,8 +112,52 @@ describe("CalculatorsService", () => {
 
       // Assert
       expect(result.zakatable).toBe(0);
+      expect(result.meetsNisab).toBe(false);
       expect(result.isObligated).toBe(false);
       expect(result.zakat).toBe(0);
+    });
+
+    // ────────────────────────────────────────────────────────────
+    // E2 — nisab derives from the family's own gold price when
+    // supplied, and falls back to the indicative constant otherwise.
+    // ────────────────────────────────────────────────────────────
+
+    it("E2: derives nisab from the family's own gold price when provided", () => {
+      // Arrange — family set Rp 1.500.000/g → nisab = 85 × 1.500.000
+      const dto = {
+        cash: 130_000_000,
+        investments: 0,
+        gold: 0,
+        liabilities: 0,
+        haulConfirmed: true,
+        goldPricePerGram: 1_500_000,
+      };
+
+      // Act
+      const result = service.calculateZakat(dto);
+
+      // Assert
+      expect(result.nisab).toBe(127_500_000);
+      expect(result.nisabSource).toBe("family");
+      expect(result.meetsNisab).toBe(true);
+    });
+
+    it("E2: falls back to the indicative nisab constant when no family gold price is set", () => {
+      // Arrange
+      const dto = {
+        cash: 10_000_000,
+        investments: 0,
+        gold: 0,
+        liabilities: 0,
+        haulConfirmed: true,
+      };
+
+      // Act
+      const result = service.calculateZakat(dto);
+
+      // Assert
+      expect(result.nisab).toBe(93_500_000);
+      expect(result.nisabSource).toBe("indicative");
     });
   });
 
@@ -270,6 +342,67 @@ describe("CalculatorsService", () => {
       expect(result.zakatDeduction).toBe(10_000_000);
       expect(result.pkp).toBe(50_000_000);
       expect(result.totalTax).toBe(2_500_000);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────
+  // E3 — retirement calculator: sinking-fund PMT, not loan
+  // amortisation. Golden case from the epic: age 30→55 (25 years),
+  // 10%/yr, Rp 10jt/month current expense (target = 20 years of that
+  // expense) → required saving ≈ Rp 1.808.818/month, NOT the
+  // ~Rp 21.808.818/month a loan-amortisation formula would produce.
+  // ──────────────────────────────────────────────────────────────
+
+  describe("calculateRetirement() — sinking-fund PMT, not loan amortisation", () => {
+    it("age 30→55, 10%/yr, Rp 10jt/month expense → ≈ Rp 1.808.818/month, not ~12× that", () => {
+      // Arrange
+      const dto = {
+        targetAmount: 10_000_000 * 12 * 20, // Rp 2.4B — 20 years of expense
+        years: 25, // 55 − 30
+        annualRate: 0.1,
+      };
+
+      // Act
+      const result = service.calculateRetirement(dto);
+
+      // Assert — the correct sinking-fund answer, and nowhere near the
+      // ~12× overstatement a loan-amortisation formula would produce
+      // (that formula gives ≈ Rp 21.808.818/month for the same inputs).
+      expect(result.monthlyContribution).toBeCloseTo(1_808_818, 0);
+      expect(result.monthlyContribution).toBeLessThan(2_000_000);
+
+      // The API's own projectedValue must equal the target it was asked
+      // to reach — not compound the whole contribution stream as if
+      // every instalment were deposited at t=0.
+      expect(result.projectedValue).toBe(dto.targetAmount);
+    });
+
+    it("projectedValue still equals the target when existing savings are supplied", () => {
+      // Arrange — some savings already accumulated, still reachable
+      const dto = {
+        targetAmount: 2_400_000_000,
+        years: 25,
+        annualRate: 0.1,
+        existingAmount: 100_000_000,
+      };
+
+      // Act
+      const result = service.calculateRetirement(dto);
+
+      // Assert
+      expect(result.projectedValue).toBeCloseTo(dto.targetAmount, 4);
+    });
+
+    it("handles a zero interest rate without dividing by zero", () => {
+      // Arrange
+      const dto = { targetAmount: 120_000_000, years: 10, annualRate: 0 };
+
+      // Act
+      const result = service.calculateRetirement(dto);
+
+      // Assert — with 0% return, PMT × n must equal the target exactly
+      expect(result.monthlyContribution).toBeCloseTo(1_000_000, 6);
+      expect(result.projectedValue).toBeCloseTo(dto.targetAmount, 6);
     });
   });
 });
