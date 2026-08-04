@@ -263,4 +263,44 @@ describe("ExportsService PDF export (Task C — real PDF)", () => {
     const doc = await PDFDocument.load(bytes);
     expect(doc.getPageCount()).toBeGreaterThan(1);
   });
+
+  // EPIC-022 B6 — the exported "Ringkasan" must reflect the period the user
+  // was viewing on /laporan (the request's `endDate`), not always the
+  // trailing 6 months ending "today".
+  describe("summary export anchors the trailing-months window on the request's endDate", () => {
+    it("threads request.endDate through to reportsService.getSummary as the anchor", async () => {
+      const request: ExportJobRequestDto = {
+        type: "summary",
+        format: "pdf",
+        startDate: "2025-01-01T00:00:00.000Z",
+        endDate: "2025-03-15T00:00:00.000Z",
+        months: 3,
+      };
+
+      await service.generate(FAMILY_GROUP_ID, request, true);
+
+      expect(reportsService.getSummary).toHaveBeenCalledWith(
+        FAMILY_GROUP_ID,
+        "monthly",
+        3,
+        true,
+        new Date("2025-03-15T00:00:00.000Z"),
+      );
+    });
+
+    it("still anchors on the current time when no endDate is supplied (unchanged default)", async () => {
+      const request: ExportJobRequestDto = { type: "summary", format: "pdf" };
+
+      const before = new Date();
+      await service.generate(FAMILY_GROUP_ID, request, true);
+      const after = new Date();
+
+      const anchorArg = reportsService.getSummary.mock.calls.at(-1)?.[4] as
+        | Date
+        | undefined;
+      expect(anchorArg).toBeInstanceOf(Date);
+      expect(anchorArg!.getTime()).toBeGreaterThanOrEqual(before.getTime());
+      expect(anchorArg!.getTime()).toBeLessThanOrEqual(after.getTime());
+    });
+  });
 });

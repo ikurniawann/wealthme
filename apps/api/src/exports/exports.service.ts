@@ -219,11 +219,16 @@ export class ExportsService {
       case "summary":
         return {
           type,
+          // EPIC-022 B6 — anchor the trailing-months window on the caller's
+          // selected `endDate` (not the default `new Date()`), so the
+          // exported "Ringkasan" matches the period the /laporan screen is
+          // actually showing instead of always ending today.
           data: await this.reportsService.getSummary(
             familyGroupId,
             "monthly",
             months,
             canSeePrivate,
+            endDate,
           ),
         };
       case "bank":

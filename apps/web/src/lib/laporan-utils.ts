@@ -1,3 +1,4 @@
+import { formatRupiah } from "@/lib/format";
 import type { CategoryBreakdownItem, SankeyDto } from "@wealthme/contracts";
 import type { DonutSegment } from "@/components/charts/donut";
 
@@ -24,12 +25,57 @@ export function categoryBreakdownToDonut(
     }));
 }
 
+/**
+ * Formats a signed rupiah amount with a real sign — EPIC-022 B2. The
+ * previous inline `fmt()` on /laporan prepended "+" for non-negatives but
+ * then ran `Math.abs()` on negatives before formatting, silently stripping
+ * the minus and leaving color as the only (easy to miss) signal that a
+ * cashflow figure was negative.
+ */
+export function formatSignedRupiah(amount: number): string {
+  return amount >= 0
+    ? `+${formatRupiah(amount)}`
+    : `-${formatRupiah(Math.abs(amount))}`;
+}
+
 export function txTypeToBadgeVariant(
   type: string,
 ): "success" | "info" | "danger" | "purple" {
   if (type === "income") return "success";
   if (type === "expense") return "danger";
   return "info";
+}
+
+export interface BalanceSheetIdentity {
+  /** Total Liabilities + Equity (net worth) — the real right-hand side of
+   * the balance-sheet identity, never a re-display of totalAssets. */
+  totalLiabilitiesPlusEquity: number;
+  /** totalAssets − totalLiabilitiesPlusEquity. Zero when the sheet is
+   * genuinely balanced; non-zero discloses a real discrepancy. */
+  diff: number;
+  /** True only when `diff` is within a whole-rupiah rounding slack (< 1). */
+  isBalanced: boolean;
+}
+
+/**
+ * Computes the real balance-sheet identity (EPIC-022 B1). The UI must never
+ * claim "balanced" by re-displaying `totalAssets` on both sides of the
+ * table — it must derive the right-hand side from `totalLiabilities` +
+ * `netWorth` and only report balanced when the two sides actually match.
+ */
+export function computeBalanceSheetIdentity(balanceSheet: {
+  totalAssets: number;
+  totalLiabilities: number;
+  netWorth: number;
+}): BalanceSheetIdentity {
+  const totalLiabilitiesPlusEquity =
+    balanceSheet.totalLiabilities + balanceSheet.netWorth;
+  const diff = balanceSheet.totalAssets - totalLiabilitiesPlusEquity;
+  return {
+    totalLiabilitiesPlusEquity,
+    diff,
+    isBalanced: Math.abs(diff) < 1,
+  };
 }
 
 export function formatJuta(amount: number): string {

@@ -41,6 +41,7 @@ import {
   daysInMonth,
   getPeriodDateRange,
   getYearDateRange,
+  REPORT_TIMEZONE_LABEL,
   type ReportPeriodSelection,
 } from "@/lib/laporan-period";
 import type {
@@ -64,7 +65,9 @@ import {
   balanceSheetToWealthAlloc,
   buildInvChartData,
   categoryBreakdownToDonut,
+  computeBalanceSheetIdentity,
   formatJuta,
+  formatSignedRupiah,
   sankeyToFlowBars,
   txTypeToBadgeVariant,
 } from "@/lib/laporan-utils";
@@ -1005,6 +1008,10 @@ function DetailSection({
               {txs.length > 0 ? (
                 txs.map((tx) => {
                   const isIncome = tx.type === "income";
+                  // EPIC-022 B8 — a transfer is neither income nor expense;
+                  // render it neutrally (no +/- sign, muted colour) instead
+                  // of a red negative that contradicts its neutral badge.
+                  const isTransfer = tx.type === "transfer";
                   const tgl = formatLocaleDateShort(tx.occurredAt, locale);
                   return (
                     <tr key={tx.id} className="border-b last:border-0">
@@ -1019,10 +1026,14 @@ function DetailSection({
                       <td
                         className={
                           "mono py-2.5 text-right " +
-                          (isIncome ? "text-success" : "text-destructive")
+                          (isTransfer
+                            ? "text-muted-foreground"
+                            : isIncome
+                              ? "text-success"
+                              : "text-destructive")
                         }
                       >
-                        {isIncome ? "+" : "-"}
+                        {isTransfer ? "" : isIncome ? "+" : "-"}
                         {formatRupiah(tx.amount)}
                       </td>
                     </tr>
@@ -1318,6 +1329,18 @@ function BalanceSection({
       ? `${Math.round((balanceSheet.totalLiabilities / balanceSheet.totalAssets) * 100 * 10) / 10}%`
       : "—";
 
+  // EPIC-022 B1 — the real accounting identity: Total Assets should equal
+  // Total Liabilities + Equity (net worth). Never re-display totalAssets on
+  // both sides of the table — compute the right-hand side from its own
+  // fields, and only claim "balanced" when the two sides actually match.
+  const {
+    totalLiabilitiesPlusEquity,
+    diff: balanceDiff,
+    isBalanced,
+  } = computeBalanceSheetIdentity(
+    balanceSheet ?? { totalAssets: 0, totalLiabilities: 0, netWorth: 0 },
+  );
+
   return (
     <div className={"space-y-3.5 " + loadingClass}>
       <div className="text-[15px] font-bold">
@@ -1410,7 +1433,7 @@ function BalanceSection({
               <StatementRow
                 label={t.laporan.balance.totalLPlusELabel}
                 value={
-                  balanceSheet ? formatJuta(balanceSheet.totalAssets) : "—"
+                  balanceSheet ? formatJuta(totalLiabilitiesPlusEquity) : "—"
                 }
                 className="border-t-2 border-primary"
                 labelClass="py-2 font-extrabold"
@@ -1420,7 +1443,7 @@ function BalanceSection({
           </table>
         </SectionCard>
       </div>
-      {balanceSheet && (
+      {balanceSheet && isBalanced && (
         <div className="flex items-start gap-3 rounded-[12px] border border-primary/20 bg-accent p-3.5">
           <div className="text-[22px]">✅</div>
           <div>
@@ -1429,6 +1452,20 @@ function BalanceSection({
             </div>
             <div className="text-[12px] text-muted-foreground">
               {t.laporan.balance.balancedDescPrefix} {debtRatio}.
+            </div>
+          </div>
+        </div>
+      )}
+      {balanceSheet && !isBalanced && (
+        <div className="flex items-start gap-3 rounded-[12px] border border-warning/30 bg-warning-soft p-3.5">
+          <div className="text-[22px]">⚠️</div>
+          <div>
+            <div className="text-[13px] font-bold text-warning">
+              {t.laporan.balance.imbalancedTitle}
+            </div>
+            <div className="text-[12px] text-muted-foreground">
+              {t.laporan.balance.imbalancedDescPrefix}{" "}
+              {formatRupiah(Math.abs(balanceDiff))}.
             </div>
           </div>
         </div>
@@ -1451,7 +1488,10 @@ function CashflowSection({
   const { t } = useLocale();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const bulan = periodLabel;
-  const fmt = (n: number) => `${n >= 0 ? "+" : ""}${formatRupiah(Math.abs(n))}`;
+  // EPIC-022 B2 — a negative net figure must render with a real minus sign;
+  // the previous inline `fmt()` silently turned every negative into a bare
+  // positive number via `Math.abs()`, distinguished only by colour.
+  const fmt = formatSignedRupiah;
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
@@ -1499,24 +1539,17 @@ function CashflowSection({
               className="border-b-2 border-border"
               labelClass="py-2.5 font-bold text-brand-purple"
             />
+            {/* EPIC-022 B3 — investing cashflow is not tracked yet (always
+                hard-coded to zero server-side); disclose that plainly
+                instead of printing "Rp 0" as if it were measured. */}
             <StatementRow
               label={t.laporan.cashflow.netInvestingLabel}
-              value={cashflow ? fmt(cashflow.netInvesting) : "Rp —"}
+              value={
+                cashflow ? t.laporan.cashflow.investingUntrackedLabel : "Rp —"
+              }
               className="border-b border-border"
               labelClass="py-2 font-bold"
               valueClass="font-extrabold text-muted-foreground"
-            />
-            <StatementRow
-              label={t.laporan.cashflow.openingBalanceLabel}
-              value={cashflow ? formatRupiah(cashflow.openingBalance) : "Rp —"}
-              indent
-              valueColor="var(--muted-foreground)"
-            />
-            <StatementRow
-              label={t.laporan.cashflow.closingBalanceLabel}
-              value={cashflow ? formatRupiah(cashflow.closingBalance) : "Rp —"}
-              indent
-              valueColor="var(--muted-foreground)"
             />
             <StatementRow
               label={t.laporan.cashflow.netCashflowLabel}
@@ -1532,7 +1565,38 @@ function CashflowSection({
             />
           </tbody>
         </table>
+        {cashflow && (
+          <div className="mt-3 rounded-md bg-muted/50 px-3 py-2 text-[11px] text-muted-foreground">
+            {t.laporan.cashflow.investingDisclosure}
+          </div>
+        )}
       </SectionCard>
+      {/* EPIC-022 B3 — Saldo Awal/Akhir moved out of the INVESTING block
+          into their own section; they are derived backward from current
+          account balances, not point-in-time historical values, so they get
+          their own disclosure rather than sitting silently inside a cashflow
+          statement's investing lines. */}
+      {cashflow && (
+        <SectionCard title={t.laporan.cashflow.balanceSectionTitle}>
+          <table className="w-full border-collapse text-[13px]">
+            <tbody>
+              <StatementRow
+                label={t.laporan.cashflow.openingBalanceLabel}
+                value={formatRupiah(cashflow.openingBalance)}
+                valueColor="var(--muted-foreground)"
+              />
+              <StatementRow
+                label={t.laporan.cashflow.closingBalanceLabel}
+                value={formatRupiah(cashflow.closingBalance)}
+                valueColor="var(--muted-foreground)"
+              />
+            </tbody>
+          </table>
+          <div className="mt-3 rounded-md bg-muted/50 px-3 py-2 text-[11px] text-muted-foreground">
+            {t.laporan.cashflow.balanceDisclosure}
+          </div>
+        </SectionCard>
+      )}
     </div>
   );
 }
@@ -1789,7 +1853,14 @@ function InvSection({
               </thead>
               <tbody>
                 {investments.map((inv) => {
-                  const val = parseFloat(inv.currentValue ?? "0");
+                  // EPIC-022 B9 — use the same current-value basis as the
+                  // portfolio-by-type breakdown above and `invSummary`
+                  // (fall back to cost basis when no market price is
+                  // recorded yet), so this table never disagrees with the
+                  // totals shown elsewhere on this tab.
+                  const val =
+                    parseFloat(inv.currentValue ?? inv.costBasisPerUnit) *
+                    parseFloat(inv.quantity);
                   const ret = parseFloat(inv.returnRp ?? "0");
                   const typeLabel = t.laporan.investasi.typeLabels[inv.type];
                   return (
@@ -2976,7 +3047,17 @@ function LaporanInner() {
         <div className="text-[13px] text-muted-foreground">
           {t.laporan.subtitle}
         </div>
-        <PeriodFilter period={period} onChange={setPeriod} />
+        <div className="flex flex-col items-end gap-1">
+          <PeriodFilter period={period} onChange={setPeriod} />
+          {/* EPIC-022 B7 — report boundaries are pinned to WIB (never the
+              viewer's local offset); disclose the pin instead of leaving it
+              silent. */}
+          <div className="text-[10.5px] text-muted-foreground">
+            {t.laporan.periodFilter.timezoneNotePrefix}
+            {REPORT_TIMEZONE_LABEL}
+            {t.laporan.periodFilter.timezoneNoteSuffix}
+          </div>
+        </div>
       </div>
 
       {/* Tab bar */}

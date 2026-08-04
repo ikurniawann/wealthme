@@ -243,10 +243,16 @@ function BerandaPage() {
         : tx.type === "expense"
           ? t.common.expense2
           : t.common.transfer),
+    // EPIC-022 B8 — a transfer is neither income nor expense; render it
+    // neutrally (no +/- sign) instead of a red negative that contradicts
+    // its neutral (violet) chip above.
     amt: !isReady
       ? t.common.loading
-      : (tx.type === "income" ? "+" : "-") + money(tx.amount),
+      : tx.type === "transfer"
+        ? money(tx.amount)
+        : (tx.type === "income" ? "+" : "-") + money(tx.amount),
     inc: tx.type === "income",
+    isTransfer: tx.type === "transfer",
     date: formatRelativeDate(tx.occurredAt),
   }));
 
@@ -595,7 +601,13 @@ function BerandaPage() {
                     </div>
                     <div className="text-right">
                       <div
-                        className={`text-[13px] font-bold ${a.inc ? "text-success" : "text-destructive"}`}
+                        className={`text-[13px] font-bold ${
+                          a.isTransfer
+                            ? "text-muted-foreground"
+                            : a.inc
+                              ? "text-success"
+                              : "text-destructive"
+                        }`}
                       >
                         {a.amt}
                       </div>

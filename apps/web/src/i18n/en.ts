@@ -1308,7 +1308,9 @@ export const en = {
     indicativeFxNoteSuffix:
       " are estimated using an indicative rate, not a real-time market rate.",
     netWorthTrendTitle: "Net Worth Trend (6 Months)",
-    emptyCashflow: "No cash flow data yet",
+    netWorthTrendRangeStart: "6 months ago",
+    netWorthTrendRangeEnd: "Now",
+    emptyNetWorthTrend: "No net worth history yet.",
     compositionTitle: "Asset Composition",
     emptyComposition: "Add account balances to see your asset composition.",
     cashFlowTitlePrefix: "Cash Flow ",
@@ -1879,6 +1881,8 @@ export const en = {
       monthAriaLabel: "Month",
       dayAriaLabel: "Date",
       allDatesOption: "All Dates",
+      timezoneNotePrefix: "Report period boundaries use ",
+      timezoneNoteSuffix: " time.",
     },
     totalIncomeLabel: "Total Income",
     totalExpenseLabel: "Total Expenses",
@@ -1992,6 +1996,9 @@ export const en = {
       balancedTitle: "Balance Sheet Balanced",
       balancedDescPrefix:
         "Total Assets = Total Liabilities + Equity. Debt-to-Asset ratio",
+      imbalancedTitle: "Balance Sheet Not Balanced",
+      imbalancedDescPrefix:
+        "Difference between Total Assets and Total Liabilities + Equity:",
     },
     cashflow: {
       titlePrefix: "Cashflow Statement —",
@@ -2001,9 +2008,15 @@ export const en = {
       netOperatingLabel: "Net Operating",
       investingLabel: "INVESTING CASH FLOW",
       netInvestingLabel: "Net Investing",
+      investingUntrackedLabel: "Not tracked yet",
+      investingDisclosure:
+        "Investing cash flow (buying/selling instruments) isn't tracked as transactions yet — this isn't a measured Rp 0, it simply isn't recorded.",
       openingBalanceLabel: "Opening Balance",
       closingBalanceLabel: "Closing Balance",
       netCashflowLabel: "NET CASHFLOW",
+      balanceSectionTitle: "Cash Balance",
+      balanceDisclosure:
+        "Opening and closing balances are derived backward from current account balances, not historical point-in-time values.",
     },
     kas: {
       title: "Cash Flow",
