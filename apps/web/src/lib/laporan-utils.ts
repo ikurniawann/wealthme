@@ -1,3 +1,4 @@
+import { formatRupiah } from "@/lib/format";
 import type { CategoryBreakdownItem, SankeyDto } from "@wealthme/contracts";
 import type { DonutSegment } from "@/components/charts/donut";
 
@@ -24,12 +25,93 @@ export function categoryBreakdownToDonut(
     }));
 }
 
+/**
+ * Formats a signed rupiah amount with a real sign — EPIC-022 B2. The
+ * previous inline `fmt()` on /laporan prepended "+" for non-negatives but
+ * then ran `Math.abs()` on negatives before formatting, silently stripping
+ * the minus and leaving color as the only (easy to miss) signal that a
+ * cashflow figure was negative.
+ */
+export function formatSignedRupiah(amount: number): string {
+  return amount >= 0
+    ? `+${formatRupiah(amount)}`
+    : `-${formatRupiah(Math.abs(amount))}`;
+}
+
 export function txTypeToBadgeVariant(
   type: string,
 ): "success" | "info" | "danger" | "purple" {
   if (type === "income") return "success";
   if (type === "expense") return "danger";
   return "info";
+}
+
+export interface BalanceSheetIdentity {
+  /** Total Liabilities + Equity (net worth) — the real right-hand side of
+   * the "Total L+E" row, never a re-display of totalAssets. Always shown;
+   * unrelated to the cross-source check below (see isBalanced doc). */
+  totalLiabilitiesPlusEquity: number;
+  /** The dashboard's independently computed net worth
+   * (`DashboardService.computeNetWorthBreakdown`), or `null` when that
+   * figure has not been fetched/loaded yet. */
+  dashboardNetWorth: number | null;
+  /** balanceSheet.netWorth − dashboardNetWorth. Only meaningful when
+   * `dashboardNetWorth` is not null. */
+  diff: number;
+  /** True/false only once `dashboardNetWorth` is available; `null` while
+   * there is nothing to compare against yet (still loading) — no claim is
+   * made until both independently-computed figures are in hand. */
+  isBalanced: boolean | null;
+}
+
+/**
+ * Computes a genuinely falsifiable balance-sheet check (EPIC-022 B1,
+ * hardened twice per adversarial review).
+ *
+ * Round 1 compared `totalAssets` against `totalLiabilities + netWorth` —
+ * unfalsifiable because the API defines `netWorth` as their difference in
+ * the same payload. Round 2 compared the reported `totalAssets`/
+ * `totalLiabilities` scalars against a client-side sum of their own
+ * `assets[]`/`liabilities[]` breakdown arrays — STILL unfalsifiable,
+ * because `reports.service.ts` builds those very scalars *by* summing the
+ * exact same arrays (`totalAssets = assets.reduce(...)`); re-summing them
+ * on the client is the same computation twice, differing only in float
+ * addition order, and cannot disagree on any input the API can actually
+ * produce.
+ *
+ * This compares the balance sheet's `netWorth` against a DIFFERENT
+ * endpoint's independently computed net worth
+ * (`DashboardService.computeNetWorthBreakdown`, served at
+ * `/dashboard/net-worth` — a different service, a different query path,
+ * used by /ringkasan and /beranda). A real bug that under/over-counts an
+ * asset class in one path but not the other (exactly the missing-
+ * investments defect this hardening round also fixed) makes the two
+ * figures disagree, and `isBalanced` reports false. The "Total L+E" row
+ * above is unaffected — it still always shows the correct
+ * `totalLiabilities + netWorth` value from the balance sheet itself.
+ */
+export function computeBalanceSheetIdentity(
+  balanceSheet: { totalLiabilities: number; netWorth: number },
+  dashboardNetWorth: { netWorth: string } | null | undefined,
+): BalanceSheetIdentity {
+  const totalLiabilitiesPlusEquity =
+    balanceSheet.totalLiabilities + balanceSheet.netWorth;
+  if (dashboardNetWorth == null) {
+    return {
+      totalLiabilitiesPlusEquity,
+      dashboardNetWorth: null,
+      diff: 0,
+      isBalanced: null,
+    };
+  }
+  const dashboardValue = Number(dashboardNetWorth.netWorth);
+  const diff = balanceSheet.netWorth - dashboardValue;
+  return {
+    totalLiabilitiesPlusEquity,
+    dashboardNetWorth: dashboardValue,
+    diff,
+    isBalanced: Math.abs(diff) < 1,
+  };
 }
 
 export function formatJuta(amount: number): string {
@@ -125,6 +207,29 @@ export function buildInvChartData(
     modalPct: Math.round((modal / max) * 100),
     hasReturn: nilai >= modal,
   };
+}
+
+/**
+ * The current position value of one investment holding — EPIC-022 B9
+ * (CRITICAL fix). `inv.currentValue` (when present) is already the TOTAL
+ * position value: `apps/api/src/investments/investments.service.ts`
+ * computes it as `currentPrice.times(quantity)`, and `getSummary()` there
+ * adds `h.currentValue` to the portfolio total AS-IS (never re-multiplying
+ * by quantity) — it only multiplies `costBasisPerUnit` by `quantity` in the
+ * fallback branch, because that field genuinely is per-unit. Multiplying
+ * `currentValue` by `quantity` again (the previous bug here) computes
+ * `price × quantity²`, inflating every priced holding by a factor of its
+ * own share count.
+ */
+export function investmentCurrentValue(inv: {
+  currentValue: string | null;
+  costBasisPerUnit: string;
+  quantity: string;
+}): number {
+  if (inv.currentValue !== null) {
+    return parseFloat(inv.currentValue);
+  }
+  return parseFloat(inv.costBasisPerUnit) * parseFloat(inv.quantity);
 }
 
 export function getMonthDateRange(): { startDate: string; endDate: string } {

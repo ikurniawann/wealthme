@@ -41,6 +41,7 @@ import {
   daysInMonth,
   getPeriodDateRange,
   getYearDateRange,
+  REPORT_TIMEZONE_LABEL,
   type ReportPeriodSelection,
 } from "@/lib/laporan-period";
 import type {
@@ -64,7 +65,10 @@ import {
   balanceSheetToWealthAlloc,
   buildInvChartData,
   categoryBreakdownToDonut,
+  computeBalanceSheetIdentity,
   formatJuta,
+  formatSignedRupiah,
+  investmentCurrentValue,
   sankeyToFlowBars,
   txTypeToBadgeVariant,
 } from "@/lib/laporan-utils";
@@ -529,6 +533,11 @@ function HarianSection({
         {dailyReport && dailyReport.transactions.length > 0 ? (
           dailyReport.transactions.map((tx, i) => {
             const isIncome = tx.type === "income";
+            // EPIC-022 B8 — a transfer is neither income nor expense;
+            // render it neutrally (no +/- sign, muted colour) instead of a
+            // red negative that contradicts its neutral category badge
+            // elsewhere on this page. Same fix as DetailSection below.
+            const isTransfer = tx.type === "transfer";
             const time = formatLocaleTime(tx.occurredAt, locale);
             return (
               <ActItem
@@ -541,10 +550,14 @@ function HarianSection({
                   <div
                     className={
                       "text-[13px] font-bold " +
-                      (isIncome ? "text-success" : "text-destructive")
+                      (isTransfer
+                        ? "text-muted-foreground"
+                        : isIncome
+                          ? "text-success"
+                          : "text-destructive")
                     }
                   >
-                    {isIncome ? "+" : "-"}
+                    {isTransfer ? "" : isIncome ? "+" : "-"}
                     {formatRupiah(tx.amount)}
                   </div>
                 }
@@ -1005,6 +1018,10 @@ function DetailSection({
               {txs.length > 0 ? (
                 txs.map((tx) => {
                   const isIncome = tx.type === "income";
+                  // EPIC-022 B8 — a transfer is neither income nor expense;
+                  // render it neutrally (no +/- sign, muted colour) instead
+                  // of a red negative that contradicts its neutral badge.
+                  const isTransfer = tx.type === "transfer";
                   const tgl = formatLocaleDateShort(tx.occurredAt, locale);
                   return (
                     <tr key={tx.id} className="border-b last:border-0">
@@ -1019,10 +1036,14 @@ function DetailSection({
                       <td
                         className={
                           "mono py-2.5 text-right " +
-                          (isIncome ? "text-success" : "text-destructive")
+                          (isTransfer
+                            ? "text-muted-foreground"
+                            : isIncome
+                              ? "text-success"
+                              : "text-destructive")
                         }
                       >
-                        {isIncome ? "+" : "-"}
+                        {isTransfer ? "" : isIncome ? "+" : "-"}
                         {formatRupiah(tx.amount)}
                       </td>
                     </tr>
@@ -1304,9 +1325,17 @@ function PnlSection({
 function BalanceSection({
   balanceSheet,
   isLoading,
+  dashboardNetWorth,
+  isDashboardNetWorthLoading,
 }: {
   balanceSheet?: BalanceSheetDto;
   isLoading?: boolean;
+  /** Independently computed net worth from a different service/query path
+   * (`/dashboard/net-worth`) — the only genuine cross-check available; see
+   * computeBalanceSheetIdentity's doc comment for why an in-payload check
+   * can never be falsifiable here. */
+  dashboardNetWorth?: NetWorthDto;
+  isDashboardNetWorthLoading?: boolean;
 }) {
   const { t, locale } = useLocale();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
@@ -1318,10 +1347,35 @@ function BalanceSection({
       ? `${Math.round((balanceSheet.totalLiabilities / balanceSheet.totalAssets) * 100 * 10) / 10}%`
       : "—";
 
+  // EPIC-022 B1 — the "Total L+E" row always shows the real value (Total
+  // Liabilities + Equity), never a re-display of totalAssets. The ✅/⚠️
+  // banner below is a SEPARATE cross-source check — see
+  // computeBalanceSheetIdentity's doc comment for why two prior in-payload
+  // comparisons were both unfalsifiable, and why comparing against the
+  // dashboard's independently computed net worth is the one that isn't.
+  const { totalLiabilitiesPlusEquity, diff, isBalanced } =
+    computeBalanceSheetIdentity(
+      balanceSheet ?? { totalLiabilities: 0, netWorth: 0 },
+      dashboardNetWorth,
+    );
+  const isCheckPending =
+    Boolean(balanceSheet) &&
+    (isDashboardNetWorthLoading || isBalanced === null);
+
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <div className="text-[15px] font-bold">
-        {t.laporan.balance.titlePrefix} {asOf}
+      <div>
+        <div className="text-[15px] font-bold">
+          {t.laporan.balance.titlePrefix} {asOf}
+        </div>
+        {/* EPIC-022 (adversarial review round 3, item 3) — asOfDate is
+            accepted but there is no historical-balance data model; every
+            figure below is the CURRENT balance, not a true point-in-time
+            snapshot as of the date above. Disclose rather than silently
+            imply otherwise (same pattern as B3's Saldo Awal/Akhir note). */}
+        <div className="text-[10.5px] text-muted-foreground">
+          {t.laporan.balance.currentBalanceDisclosure}
+        </div>
       </div>
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
         <SectionCard
@@ -1410,7 +1464,7 @@ function BalanceSection({
               <StatementRow
                 label={t.laporan.balance.totalLPlusELabel}
                 value={
-                  balanceSheet ? formatJuta(balanceSheet.totalAssets) : "—"
+                  balanceSheet ? formatJuta(totalLiabilitiesPlusEquity) : "—"
                 }
                 className="border-t-2 border-primary"
                 labelClass="py-2 font-extrabold"
@@ -1420,7 +1474,12 @@ function BalanceSection({
           </table>
         </SectionCard>
       </div>
-      {balanceSheet && (
+      {isCheckPending && (
+        <div className="flex items-center gap-2 rounded-[12px] border border-border bg-muted/40 p-3 text-[12px] text-muted-foreground">
+          {t.laporan.balance.checkingLabel}
+        </div>
+      )}
+      {balanceSheet && isBalanced === true && (
         <div className="flex items-start gap-3 rounded-[12px] border border-primary/20 bg-accent p-3.5">
           <div className="text-[22px]">✅</div>
           <div>
@@ -1429,6 +1488,20 @@ function BalanceSection({
             </div>
             <div className="text-[12px] text-muted-foreground">
               {t.laporan.balance.balancedDescPrefix} {debtRatio}.
+            </div>
+          </div>
+        </div>
+      )}
+      {balanceSheet && isBalanced === false && (
+        <div className="flex items-start gap-3 rounded-[12px] border border-warning/30 bg-warning-soft p-3.5">
+          <div className="text-[22px]">⚠️</div>
+          <div>
+            <div className="text-[13px] font-bold text-warning">
+              {t.laporan.balance.imbalancedTitle}
+            </div>
+            <div className="text-[12px] text-muted-foreground">
+              {t.laporan.balance.imbalancedDescPrefix}{" "}
+              {formatRupiah(Math.abs(diff))}.
             </div>
           </div>
         </div>
@@ -1451,7 +1524,10 @@ function CashflowSection({
   const { t } = useLocale();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const bulan = periodLabel;
-  const fmt = (n: number) => `${n >= 0 ? "+" : ""}${formatRupiah(Math.abs(n))}`;
+  // EPIC-022 B2 — a negative net figure must render with a real minus sign;
+  // the previous inline `fmt()` silently turned every negative into a bare
+  // positive number via `Math.abs()`, distinguished only by colour.
+  const fmt = formatSignedRupiah;
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
@@ -1499,24 +1575,17 @@ function CashflowSection({
               className="border-b-2 border-border"
               labelClass="py-2.5 font-bold text-brand-purple"
             />
+            {/* EPIC-022 B3 — investing cashflow is not tracked yet (always
+                hard-coded to zero server-side); disclose that plainly
+                instead of printing "Rp 0" as if it were measured. */}
             <StatementRow
               label={t.laporan.cashflow.netInvestingLabel}
-              value={cashflow ? fmt(cashflow.netInvesting) : "Rp —"}
+              value={
+                cashflow ? t.laporan.cashflow.investingUntrackedLabel : "Rp —"
+              }
               className="border-b border-border"
               labelClass="py-2 font-bold"
               valueClass="font-extrabold text-muted-foreground"
-            />
-            <StatementRow
-              label={t.laporan.cashflow.openingBalanceLabel}
-              value={cashflow ? formatRupiah(cashflow.openingBalance) : "Rp —"}
-              indent
-              valueColor="var(--muted-foreground)"
-            />
-            <StatementRow
-              label={t.laporan.cashflow.closingBalanceLabel}
-              value={cashflow ? formatRupiah(cashflow.closingBalance) : "Rp —"}
-              indent
-              valueColor="var(--muted-foreground)"
             />
             <StatementRow
               label={t.laporan.cashflow.netCashflowLabel}
@@ -1532,7 +1601,38 @@ function CashflowSection({
             />
           </tbody>
         </table>
+        {cashflow && (
+          <div className="mt-3 rounded-md bg-muted/50 px-3 py-2 text-[11px] text-muted-foreground">
+            {t.laporan.cashflow.investingDisclosure}
+          </div>
+        )}
       </SectionCard>
+      {/* EPIC-022 B3 — Saldo Awal/Akhir moved out of the INVESTING block
+          into their own section; they are derived backward from current
+          account balances, not point-in-time historical values, so they get
+          their own disclosure rather than sitting silently inside a cashflow
+          statement's investing lines. */}
+      {cashflow && (
+        <SectionCard title={t.laporan.cashflow.balanceSectionTitle}>
+          <table className="w-full border-collapse text-[13px]">
+            <tbody>
+              <StatementRow
+                label={t.laporan.cashflow.openingBalanceLabel}
+                value={formatRupiah(cashflow.openingBalance)}
+                valueColor="var(--muted-foreground)"
+              />
+              <StatementRow
+                label={t.laporan.cashflow.closingBalanceLabel}
+                value={formatRupiah(cashflow.closingBalance)}
+                valueColor="var(--muted-foreground)"
+              />
+            </tbody>
+          </table>
+          <div className="mt-3 rounded-md bg-muted/50 px-3 py-2 text-[11px] text-muted-foreground">
+            {t.laporan.cashflow.balanceDisclosure}
+          </div>
+        </SectionCard>
+      )}
     </div>
   );
 }
@@ -1652,9 +1752,11 @@ function InvSection({
 
   const byType = new Map<InvestmentType, number>();
   for (const inv of investments ?? []) {
-    const val =
-      parseFloat(inv.currentValue ?? inv.costBasisPerUnit) *
-      parseFloat(inv.quantity);
+    // EPIC-022 B9 (CRITICAL fix) — inv.currentValue is already the total
+    // position value; only the costBasisPerUnit fallback is per-unit. See
+    // investmentCurrentValue's doc comment for the exact inflation bug this
+    // replaces (price × quantity² whenever a market price existed).
+    const val = investmentCurrentValue(inv);
     byType.set(inv.type, (byType.get(inv.type) ?? 0) + val);
   }
 
@@ -1789,7 +1891,13 @@ function InvSection({
               </thead>
               <tbody>
                 {investments.map((inv) => {
-                  const val = parseFloat(inv.currentValue ?? "0");
+                  // EPIC-022 B9 — use the same current-value basis as the
+                  // portfolio-by-type breakdown above and `invSummary` (see
+                  // investmentCurrentValue: currentValue is already a total,
+                  // not per-unit — do NOT multiply it by quantity again), so
+                  // this table never disagrees with the totals shown
+                  // elsewhere on this tab.
+                  const val = investmentCurrentValue(inv);
                   const ret = parseFloat(inv.returnRp ?? "0");
                   const typeLabel = t.laporan.investasi.typeLabels[inv.type];
                   return (
@@ -2707,6 +2815,12 @@ function LaporanInner() {
     staleTime: 60_000,
   });
 
+  // EPIC-022 (adversarial review round 3, item 2) — also enabled for
+  // "rbalance": BalanceSection cross-checks the balance sheet's `netWorth`
+  // against this dashboard figure, a genuinely independent computation
+  // (different service, different query path — DashboardService's
+  // computeNetWorthBreakdown vs ReportsService's getBalanceSheet) instead of
+  // an in-payload identity that can never disagree with itself.
   const { data: familyNetWorth, isLoading: isNetWorthLoading } =
     useQuery<NetWorthDto>({
       queryKey: queryKeys.netWorth.summary(familyGroupId),
@@ -2715,7 +2829,7 @@ function LaporanInner() {
           `/family-groups/${familyGroupId}/dashboard/net-worth`,
           { token },
         ),
-      enabled: enabled && tab === "rfamily",
+      enabled: enabled && (tab === "rfamily" || tab === "rbalance"),
       staleTime: 60_000,
     });
 
@@ -2909,6 +3023,8 @@ function LaporanInner() {
           <BalanceSection
             balanceSheet={balanceSheet}
             isLoading={isBalanceLoading}
+            dashboardNetWorth={familyNetWorth}
+            isDashboardNetWorthLoading={isNetWorthLoading}
           />
         );
       case "rcashflow":
@@ -2976,7 +3092,17 @@ function LaporanInner() {
         <div className="text-[13px] text-muted-foreground">
           {t.laporan.subtitle}
         </div>
-        <PeriodFilter period={period} onChange={setPeriod} />
+        <div className="flex flex-col items-end gap-1">
+          <PeriodFilter period={period} onChange={setPeriod} />
+          {/* EPIC-022 B7 — report boundaries are pinned to WIB (never the
+              viewer's local offset); disclose the pin instead of leaving it
+              silent. */}
+          <div className="text-[10.5px] text-muted-foreground">
+            {t.laporan.periodFilter.timezoneNotePrefix}
+            {REPORT_TIMEZONE_LABEL}
+            {t.laporan.periodFilter.timezoneNoteSuffix}
+          </div>
+        </div>
       </div>
 
       {/* Tab bar */}

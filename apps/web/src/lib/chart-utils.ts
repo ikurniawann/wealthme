@@ -79,40 +79,38 @@ export interface TrendPathResult {
 }
 
 /**
- * Converts 6-month income/expense cashflow arrays into SVG path data for a
- * cumulative net worth trend line.
+ * Converts an ordered series of point-in-time net worth values (e.g. from
+ * `/dashboard/net-worth/history` snapshots) into SVG path data for a trend
+ * line.
+ *
+ * EPIC-022 B4 — this used to take separate income/expense arrays and plot
+ * their *cumulative running sum from zero*, which is cumulative cashflow,
+ * not net worth (net worth includes investments, other assets, and
+ * liabilities, and does not reset to zero at the start of the window). It
+ * now takes the real net worth values directly and plots them as-is.
  *
  * Algorithm:
- *  1. Compute monthly net = income[i] - expense[i]
- *  2. Accumulate cumulative net worth change
- *  3. Map to SVG coordinates (y-axis inverted: higher value = lower y)
- *  4. Emit smooth cubic-bezier path segments
+ *  1. Scale each value into the [padding, svgHeight - padding] band by the
+ *     series' own min/max (y-axis inverted: higher value = lower y)
+ *  2. Emit smooth cubic-bezier path segments
  */
 export function buildNetWorthTrendPath(
-  income: number[],
-  expense: number[],
+  values: number[],
   svgWidth: number,
   svgHeight: number,
   padding = 8,
 ): TrendPathResult {
-  if (income.length === 0) {
+  if (values.length === 0) {
     return { linePath: "", areaPath: "", points: [] };
   }
 
-  const cumulative: number[] = [];
-  let running = 0;
-  for (let i = 0; i < income.length; i++) {
-    running += (income[i] ?? 0) - (expense[i] ?? 0);
-    cumulative.push(running);
-  }
-
-  const min = Math.min(...cumulative, 0);
-  const max = Math.max(...cumulative, 0);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
   const range = max - min || 1;
-  const n = cumulative.length;
+  const n = values.length;
   const innerH = svgHeight - padding * 2;
 
-  const points = cumulative.map((v, i) => ({
+  const points = values.map((v, i) => ({
     x: n === 1 ? svgWidth / 2 : (i / (n - 1)) * svgWidth,
     y: padding + ((max - v) / range) * innerH,
   }));

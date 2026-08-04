@@ -1322,7 +1322,9 @@ export const en = {
     indicativeFxNoteSuffix:
       " are estimated using an indicative rate, not a real-time market rate.",
     netWorthTrendTitle: "Net Worth Trend (6 Months)",
-    emptyCashflow: "No cash flow data yet",
+    netWorthTrendRangeStart: "6 months ago",
+    netWorthTrendRangeEnd: "Now",
+    emptyNetWorthTrend: "No net worth history yet.",
     compositionTitle: "Asset Composition",
     emptyComposition: "Add account balances to see your asset composition.",
     cashFlowTitlePrefix: "Cash Flow ",
@@ -1908,6 +1910,8 @@ export const en = {
       monthAriaLabel: "Month",
       dayAriaLabel: "Date",
       allDatesOption: "All Dates",
+      timezoneNotePrefix: "Report period boundaries use ",
+      timezoneNoteSuffix: " time.",
     },
     totalIncomeLabel: "Total Income",
     totalExpenseLabel: "Total Expenses",
@@ -2018,9 +2022,15 @@ export const en = {
       liabilitiesLabel: "Liabilities",
       equityLabel: "Equity",
       totalLPlusELabel: "Total L + E",
-      balancedTitle: "Balance Sheet Balanced",
+      balancedTitle: "Net Worth Matches Ringkasan",
       balancedDescPrefix:
-        "Total Assets = Total Liabilities + Equity. Debt-to-Asset ratio",
+        "This Balance Sheet's Net Worth matches the Net Worth on Ringkasan (computed separately). Debt-to-Asset ratio",
+      imbalancedTitle: "Net Worth Doesn't Match Ringkasan",
+      imbalancedDescPrefix:
+        "This Balance Sheet's Net Worth differs from the Net Worth on Ringkasan (computed separately). Difference:",
+      checkingLabel: "Checking Net Worth reconciliation with Ringkasan…",
+      currentBalanceDisclosure:
+        "The figures below are current balances, not historical values as of the stated date.",
     },
     cashflow: {
       titlePrefix: "Cashflow Statement —",
@@ -2030,9 +2040,15 @@ export const en = {
       netOperatingLabel: "Net Operating",
       investingLabel: "INVESTING CASH FLOW",
       netInvestingLabel: "Net Investing",
+      investingUntrackedLabel: "Not tracked yet",
+      investingDisclosure:
+        "Investing cash flow (buying/selling instruments) isn't tracked as transactions yet — this isn't a measured Rp 0, it simply isn't recorded.",
       openingBalanceLabel: "Opening Balance",
       closingBalanceLabel: "Closing Balance",
       netCashflowLabel: "NET CASHFLOW",
+      balanceSectionTitle: "Cash Balance",
+      balanceDisclosure:
+        "Opening and closing balances are derived backward from current account balances, not historical point-in-time values.",
     },
     kas: {
       title: "Cash Flow",

@@ -1269,7 +1269,9 @@ export type I18nDictionary = {
     indicativeFxNotePrefix: string;
     indicativeFxNoteSuffix: string;
     netWorthTrendTitle: string;
-    emptyCashflow: string;
+    netWorthTrendRangeStart: string;
+    netWorthTrendRangeEnd: string;
+    emptyNetWorthTrend: string;
     compositionTitle: string;
     emptyComposition: string;
     cashFlowTitlePrefix: string;
@@ -1812,6 +1814,8 @@ export type I18nDictionary = {
       monthAriaLabel: string;
       dayAriaLabel: string;
       allDatesOption: string;
+      timezoneNotePrefix: string;
+      timezoneNoteSuffix: string;
     };
     // Shared exact-repeat phrases (used across 2+ tab sections below).
     totalIncomeLabel: string;
@@ -1919,6 +1923,10 @@ export type I18nDictionary = {
       totalLPlusELabel: string;
       balancedTitle: string;
       balancedDescPrefix: string;
+      imbalancedTitle: string;
+      imbalancedDescPrefix: string;
+      checkingLabel: string;
+      currentBalanceDisclosure: string;
     };
     cashflow: {
       titlePrefix: string;
@@ -1928,9 +1936,13 @@ export type I18nDictionary = {
       netOperatingLabel: string;
       investingLabel: string;
       netInvestingLabel: string;
+      investingUntrackedLabel: string;
+      investingDisclosure: string;
       openingBalanceLabel: string;
       closingBalanceLabel: string;
       netCashflowLabel: string;
+      balanceSectionTitle: string;
+      balanceDisclosure: string;
     };
     kas: {
       title: string;

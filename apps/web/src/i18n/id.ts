@@ -1323,7 +1323,9 @@ export const id = {
     indicativeFxNoteSuffix:
       " adalah perkiraan menggunakan kurs indikatif, bukan kurs pasar real-time.",
     netWorthTrendTitle: "Tren Kekayaan Bersih (6 Bulan)",
-    emptyCashflow: "Belum ada data cashflow",
+    netWorthTrendRangeStart: "6 bulan lalu",
+    netWorthTrendRangeEnd: "Sekarang",
+    emptyNetWorthTrend: "Belum ada riwayat kekayaan bersih.",
     compositionTitle: "Komposisi Aset",
     emptyComposition: "Tambah saldo akun untuk melihat komposisi aset.",
     cashFlowTitlePrefix: "Cash Flow ",
@@ -1910,6 +1912,8 @@ export const id = {
       monthAriaLabel: "Bulan",
       dayAriaLabel: "Tanggal",
       allDatesOption: "Semua Tanggal",
+      timezoneNotePrefix: "Batas periode laporan menggunakan zona waktu ",
+      timezoneNoteSuffix: ".",
     },
     totalIncomeLabel: "Total Pemasukan",
     totalExpenseLabel: "Total Pengeluaran",
@@ -2020,9 +2024,15 @@ export const id = {
       liabilitiesLabel: "Liabilitas",
       equityLabel: "Ekuitas",
       totalLPlusELabel: "Total L + E",
-      balancedTitle: "Balance Sheet Seimbang",
+      balancedTitle: "Net Worth Cocok dengan Ringkasan",
       balancedDescPrefix:
-        "Total Aset = Total Liabilitas + Ekuitas. Debt-to-Asset ratio",
+        "Net Worth pada Balance Sheet ini cocok dengan Net Worth di Ringkasan (dihitung secara terpisah). Debt-to-Asset ratio",
+      imbalancedTitle: "Net Worth Tidak Cocok dengan Ringkasan",
+      imbalancedDescPrefix:
+        "Net Worth pada Balance Sheet ini berbeda dari Net Worth di Ringkasan (dihitung secara terpisah). Selisih:",
+      checkingLabel: "Memeriksa kecocokan Net Worth dengan Ringkasan…",
+      currentBalanceDisclosure:
+        "Nilai di bawah ini adalah saldo saat ini, bukan nilai historis pada tanggal tersebut.",
     },
     cashflow: {
       titlePrefix: "Cashflow Statement —",
@@ -2032,9 +2042,15 @@ export const id = {
       netOperatingLabel: "Net Operasi",
       investingLabel: "ARUS KAS INVESTASI",
       netInvestingLabel: "Net Investasi",
+      investingUntrackedLabel: "Belum dilacak",
+      investingDisclosure:
+        "Arus kas investasi (pembelian/penjualan instrumen) belum dilacak sebagai transaksi — nilainya bukan Rp 0 yang terukur, hanya belum tercatat.",
       openingBalanceLabel: "Saldo Awal",
       closingBalanceLabel: "Saldo Akhir",
       netCashflowLabel: "NET CASHFLOW",
+      balanceSectionTitle: "Saldo Kas",
+      balanceDisclosure:
+        "Saldo awal & akhir dihitung mundur dari saldo akun saat ini, bukan nilai historis pada tanggal tersebut.",
     },
     kas: {
       title: "Arus Kas",

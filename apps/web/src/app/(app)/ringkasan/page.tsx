@@ -14,6 +14,7 @@ import { ConsolidatedTotalCard } from "@/components/consolidated-total-card";
 import type {
   DashboardSummaryDto,
   NetWorthDto,
+  NetWorthHistoryDto,
   ReportSummaryDto,
 } from "@wealthme/contracts";
 
@@ -80,10 +81,16 @@ export default function RingkasanPage() {
     });
 
   const netWorth = summary?.netWorth ?? 0;
-  const totalAssets = (summary?.accountSummary ?? []).reduce(
-    (sum, s) => sum + (s.total > 0 ? s.total : 0),
-    0,
-  );
+  // EPIC-022 B5 — use the API's own net-worth rollup (accounts + investments
+  // + other assets) so this card reconciles with the net-worth figure beside
+  // it. The previous computation re-derived "Total Aset" from
+  // `accountSummary` filtered to positive balances only — it silently
+  // dropped overdrawn accounts and excluded investments/other assets that
+  // ARE part of net worth.
+  const totalAssets =
+    Number(netWorthData?.accountsTotal ?? 0) +
+    Number(netWorthData?.investmentsTotal ?? 0) +
+    Number(netWorthData?.assetsTotal ?? 0);
   const savingsRate = summary?.currentMonth.savingsRate ?? 0;
   const monthIncome = summary?.currentMonth.income ?? 0;
   const monthExpense = summary?.currentMonth.expense ?? 0;
@@ -106,9 +113,32 @@ export default function RingkasanPage() {
 
   const topExpenses = reportSummary?.topExpenseCategories ?? [];
 
-  const trendIncome = summary?.cashflow.income ?? [];
-  const trendExpense = summary?.cashflow.expense ?? [];
-  const trend = buildNetWorthTrendPath(trendIncome, trendExpense, 320, 90);
+  // EPIC-022 B4 — "Tren Kekayaan Bersih (6 Bulan)" now plots the real
+  // net-worth history endpoint (already used by /beranda), instead of a
+  // cumulative running sum of income − expense from zero, which is
+  // cumulative cashflow, not net worth. Chosen over relabelling because the
+  // real data source already exists and fits the "6 months" window exactly.
+  const { data: netWorthHistory, isLoading: isNetWorthHistoryLoading } =
+    useQuery<NetWorthHistoryDto>({
+      queryKey: ["dashboard", familyGroupId ?? "", "net-worth-history", "6m"],
+      queryFn: () =>
+        apiFetch<NetWorthHistoryDto>(
+          `/family-groups/${familyGroupId}/dashboard/net-worth/history?range=6m`,
+          { token: session?.accessToken },
+        ),
+      enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
+      staleTime: 60_000,
+    });
+  const netWorthTrendPoints = (netWorthHistory?.points ?? []).map((p) =>
+    Number(p.netWorth),
+  );
+  // A trend needs at least two points to mean anything — one snapshot would
+  // render as a flat single dot, which looks like data rather than "not
+  // enough history yet".
+  const trend =
+    netWorthTrendPoints.length >= 2
+      ? buildNetWorthTrendPath(netWorthTrendPoints, 320, 90)
+      : { linePath: "", areaPath: "", points: [] };
 
   const composition = (summary?.allocation ?? []).map((item) => ({
     label: item.label,
@@ -153,7 +183,7 @@ export default function RingkasanPage() {
             {t.ringkasan.totalAssetsLabel}
           </div>
           <div className="text-[20px] font-black text-success">
-            {isLoading ? "..." : money(totalAssets)}
+            {isLoading || isNetWorthLoading ? "..." : money(totalAssets)}
           </div>
           <div className="text-[11px] text-muted-foreground">
             {summary?.accountSummary.length
@@ -216,11 +246,11 @@ export default function RingkasanPage() {
             title={t.ringkasan.netWorthTrendTitle}
             className="lg:col-start-1 lg:col-end-3 lg:row-start-1"
           >
-            {isLoading ? (
+            {isNetWorthHistoryLoading ? (
               <div className="h-[90px] animate-pulse rounded-md bg-muted" />
             ) : trend.points.length === 0 ? (
               <div className="flex h-[90px] items-center justify-center text-[12px] text-muted-foreground">
-                {t.ringkasan.emptyCashflow}
+                {t.ringkasan.emptyNetWorthTrend}
               </div>
             ) : (
               <svg
@@ -263,11 +293,12 @@ export default function RingkasanPage() {
                 )}
               </svg>
             )}
-            <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
-              {(summary?.cashflow.months ?? []).map((m, i) => (
-                <span key={`${m}-${i}`}>{m}</span>
-              ))}
-            </div>
+            {trend.points.length > 0 && (
+              <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+                <span>{t.ringkasan.netWorthTrendRangeStart}</span>
+                <span>{t.ringkasan.netWorthTrendRangeEnd}</span>
+              </div>
+            )}
           </SectionCard>
 
           {/* Asset composition — horizontal labelled bar list */}
