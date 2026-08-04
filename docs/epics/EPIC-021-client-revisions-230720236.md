@@ -146,15 +146,15 @@ Task groups are defined **after** the audit lands, grouped by subsystem so each
 group is one reviewable PR. Placeholder groupings (subject to audit results):
 
 - [ ] ### A — Account taxonomy: Cash / Bank / E-Wallet (items 15, 25, 26, 21, 22)
-- [ ] ### B — Transfer/Mutasi semantics: source→destination (items 5, 23, 24, 27, 28)
+- [x] ### B — Transfer/Mutasi semantics: source→destination (items 5, 23, 24, 27, 28)
 - [ ] ### C — Reconciliation detail + fee splitting (items 9, 29)
-- [ ] ### D — Warisan/Asuransi heirs by percentage (items 11, 12, 13, 14)
-- [ ] ### E — Asset depreciation/appreciation + investment detail (items 16, 17, 18, 19, 20)
+- [x] ### D — Warisan/Asuransi heirs by percentage (items 11, 12, 13, 14)
+- [x] ### E — Asset depreciation/appreciation + investment detail (items 16, 17, 18, 19, 20)
 - [ ] ### F — Multi-currency + consolidated total (items 1, 6)
-- [ ] ### G — COA code auto-gen but editable + cash master data (items 3, 4)
-- [ ] ### H — Split bill: picture bug + per-person calculator (items 8, 10)
-- [ ] ### I — Quick Input transactions (item 7)
-- [ ] ### J — Financial-goal per-period breakdown (item 30)
+- [x] ### G — COA code auto-gen but editable + cash master data (items 3, 4)
+- [x] ### H — Split bill: picture bug + per-person calculator (items 8, 10)
+- [x] ### I — Quick Input transactions (item 7)
+- [x] ### J — Financial-goal per-period breakdown (item 30)
 - [ ] ### K — i18n (item 2) — **owned by EPIC-018**, tracked here only for traceability
 
 ## Open Design Decisions
@@ -256,3 +256,43 @@ dependent task group starts.
   listed as backlog; 019/020/021 absent) — fixed in the same docs PR.
   Implementation order: quick wins with no open decisions first (#5, #7, #24,
   #30, #21 test-lock), then decision-gated groups as the client answers.
+
+## Automation Log
+
+- **2026-08-04 — /nerve wave: groups B, D, E, G, H shipped (I and J had landed
+  earlier as quick wins).** Open Design Decisions resolved as recorded below and
+  implemented:
+  - **B (#207, items 5/23/27/28)** — Decision #1 = single `Transaction` row with a
+    nullable `toAccountId` (not paired legs). Source debited and destination
+    credited atomically; Transfer tab now has Sumber Dana → Transfer ke plus an
+    optional Biaya Admin recorded as a standalone expense on the destination
+    (#28); any account→any account covers bank↔bank and ewallet↔ewallet (#27);
+    per-account mutasi now matches source **or** destination so incoming transfers
+    appear. Review caught and fixed a real corruption path: deleting a transfer
+    **source** account would cascade-delete the row while the destination kept the
+    credit — now rejected 409, as is deleting a destination (P2003 mapped).
+  - **D (#210, items 11–14)** — Decision #9 = free-text heir/beneficiary with an
+    optional family-member link; percentages sum ≤ 100 (partial allocation shown
+    as "belum dialokasikan"); warisan and asuransi share one shape. `pendidikan`
+    added to `InsuranceType` and the legacy coercion that silently saved it as
+    `lainnya` removed. Inheritance can now link an existing Asset instead of
+    manual re-entry. Review fixed: `memberUserId` was not tenant-validated (HIGH);
+    a stale `assetId` permanently blocked edits.
+  - **E (#211, items 16–20)** — Decision #8 = one signed value-change rate per
+    asset, compute-on-read, floored at 0, labeled "estimasi"; #19 = filter tabs on
+    /investasi; assets link to real master-data categories; interest-bearing
+    investments show rate + projected annual yield with "no rate set" distinguished
+    from "not applicable".
+  - **G (#212, items 3/4)** — Decision #11 = COA codes auto-generate when blank
+    (smallest free `{groupNum}{0001..}` per group) and are editable with
+    group-prefix + tenant-uniqueness validation. Cash is no longer one hardcoded
+    "Kas Tunai": /dana lists real plural cash accounts with full CRUD.
+  - **H (#208, items 8/10)** — Decision #2 = the "picture error" is the share link
+    404; the public `/split/[shareToken]` page now exists. Custom split gained a
+    per-person calculator with live remainder, "bagi rata sisa", and a save block
+    when amounts ≠ total.
+    Every group shipped with gates green and adversarial review rounds (TypeScript,
+    database, security, React reviewers as applicable); all findings were fixed
+    before merge. Groups A (taxonomy + balance rules), C (recon detail + fee split)
+    and F (multi-currency + consolidated total) are in flight; K is owned by
+    EPIC-018 and is complete except `/laporan`.
