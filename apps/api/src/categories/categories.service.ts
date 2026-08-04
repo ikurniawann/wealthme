@@ -113,25 +113,44 @@ export class CategoriesService {
     // category. Count dependants first and reject with a clear message
     // naming what is attached, instead of a dialog that only warns "tidak
     // bisa dikembalikan" about the category itself.
-    const [budgetCount, allowanceCount] = await Promise.all([
-      this.prisma.budget.count({ where: { categoryId: id } }),
-      this.prisma.memberCategoryAllowance.count({ where: { categoryId: id } }),
-    ]);
+    //
+    // EPIC-022 A5 follow-up — the count and the delete used to be two plain,
+    // separate `await`s: a Budget or MemberCategoryAllowance created in the
+    // window between them was invisible to the guard above and then
+    // silently wiped by the cascade anyway — the exact data loss this guard
+    // exists to prevent, just moved into a race. Wrapping in `$transaction`
+    // alone is not sufficient to close it: under the default Read
+    // Committed isolation, a DELETE re-resolves its cascade targets against
+    // a fresh snapshot taken at DELETE time, so a concurrent insert
+    // committed between the count and the delete would still be visible to
+    // (and cascaded by) the delete even inside a plain transaction.
+    // Serializable isolation makes Postgres detect that write conflict and
+    // abort with a retryable serialization failure instead of silently
+    // cascading.
+    await this.prisma.$transaction(
+      async (tx) => {
+        const [budgetCount, allowanceCount] = await Promise.all([
+          tx.budget.count({ where: { categoryId: id } }),
+          tx.memberCategoryAllowance.count({ where: { categoryId: id } }),
+        ]);
 
-    const blockers: string[] = [];
-    if (budgetCount > 0) {
-      blockers.push(`${budgetCount} anggaran`);
-    }
-    if (allowanceCount > 0) {
-      blockers.push(`${allowanceCount} batasan kategori anggota`);
-    }
-    if (blockers.length > 0) {
-      throw new ConflictException(
-        `Kategori ini dipakai ${blockers.join(" dan ")}. Hapus atau ubah dulu sebelum menghapus kategori ini.`,
-      );
-    }
+        const blockers: string[] = [];
+        if (budgetCount > 0) {
+          blockers.push(`${budgetCount} anggaran`);
+        }
+        if (allowanceCount > 0) {
+          blockers.push(`${allowanceCount} batasan kategori anggota`);
+        }
+        if (blockers.length > 0) {
+          throw new ConflictException(
+            `Kategori ini dipakai ${blockers.join(" dan ")}. Hapus atau ubah dulu sebelum menghapus kategori ini.`,
+          );
+        }
 
-    await this.prisma.category.delete({ where: { id, familyGroupId } });
+        await tx.category.delete({ where: { id, familyGroupId } });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 
   /**

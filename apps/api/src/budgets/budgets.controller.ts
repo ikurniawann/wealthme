@@ -56,8 +56,12 @@ export class BudgetsController {
   create(
     @Param("familyGroupId") familyGroupId: string,
     @Body() dto: CreateBudgetDto,
+    @Req() req: Request,
   ) {
-    return this.budgets.create(familyGroupId, dto);
+    // EPIC-022 A6 follow-up — a member must not be able to budget a
+    // category they cannot see (same role resolution as `findAll`).
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
+    return this.budgets.create(familyGroupId, dto, canSeePrivate);
   }
 
   @Patch(":id")
@@ -68,8 +72,12 @@ export class BudgetsController {
     @Param("familyGroupId") familyGroupId: string,
     @Param("id") id: string,
     @Body() dto: UpdateBudgetDto,
+    @Req() req: Request,
   ) {
-    return this.budgets.update(familyGroupId, id, dto);
+    // EPIC-022 A6 follow-up — a member must not be able to PATCH a budget
+    // tied to a private category (same role resolution as `findAll`).
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
+    return this.budgets.update(familyGroupId, id, dto, canSeePrivate);
   }
 
   @Delete(":id")
@@ -80,7 +88,10 @@ export class BudgetsController {
   remove(
     @Param("familyGroupId") familyGroupId: string,
     @Param("id") id: string,
+    @Req() req: Request,
   ) {
-    return this.budgets.remove(familyGroupId, id);
+    // EPIC-022 A6 follow-up — same role resolution as `findAll`.
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
+    return this.budgets.remove(familyGroupId, id, canSeePrivate);
   }
 }

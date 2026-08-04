@@ -96,12 +96,21 @@ export class BudgetsService {
   async create(
     familyGroupId: string,
     dto: CreateBudgetDto,
+    canSeePrivate = true,
   ): Promise<BudgetDto> {
     const category = await this.prisma.category.findUnique({
       where: { id: dto.categoryId },
-      select: { familyGroupId: true },
+      select: { familyGroupId: true, isPrivate: true },
     });
-    if (!category || category.familyGroupId !== familyGroupId) {
+    // EPIC-022 A6 follow-up — same denial for "wrong family group" and
+    // "private category I can't see": a member probing categoryIds must not
+    // be able to distinguish "doesn't exist" from "exists but is private"
+    // from the error alone.
+    if (
+      !category ||
+      category.familyGroupId !== familyGroupId ||
+      (category.isPrivate && !canSeePrivate)
+    ) {
       throw new UnprocessableEntityException(
         "Category not found in this family group",
       );
@@ -131,12 +140,22 @@ export class BudgetsService {
     familyGroupId: string,
     id: string,
     dto: UpdateBudgetDto,
+    canSeePrivate = true,
   ): Promise<BudgetDto> {
     const existing = await this.prisma.budget.findUnique({
       where: { id, familyGroupId },
-      select: { id: true, familyGroupId: true },
+      select: {
+        id: true,
+        familyGroupId: true,
+        category: { select: { isPrivate: true } },
+      },
     });
-    if (!existing) {
+    // EPIC-022 A6 follow-up — a member must not be able to PATCH (or read
+    // back category.name/icon from) a budget tied to a private category,
+    // the same way `findAll` already excludes it. 404, not 403, so a
+    // private budget's id can't be distinguished from one that never
+    // existed.
+    if (!existing || (existing.category.isPrivate && !canSeePrivate)) {
       throw new NotFoundException("Budget not found");
     }
 
@@ -161,12 +180,21 @@ export class BudgetsService {
     return this.toDto(updated, 0);
   }
 
-  async remove(familyGroupId: string, id: string): Promise<void> {
+  async remove(
+    familyGroupId: string,
+    id: string,
+    canSeePrivate = true,
+  ): Promise<void> {
     const existing = await this.prisma.budget.findUnique({
       where: { id, familyGroupId },
-      select: { id: true, familyGroupId: true },
+      select: {
+        id: true,
+        familyGroupId: true,
+        category: { select: { isPrivate: true } },
+      },
     });
-    if (!existing) {
+    // EPIC-022 A6 follow-up — same 404-not-403 treatment as `update`.
+    if (!existing || (existing.category.isPrivate && !canSeePrivate)) {
       throw new NotFoundException("Budget not found");
     }
     await this.prisma.budget.delete({ where: { id, familyGroupId } });

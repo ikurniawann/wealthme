@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { GoalStatus as PrismaGoalStatus } from "@prisma/client";
 
 import { ownerNotifPrefs } from "../notifications/notification-prefs";
@@ -153,6 +157,21 @@ export class GoalsService {
       dto.autoDebitAmount != null
         ? BigInt(dto.autoDebitAmount)
         : existing.autoDebitAmount;
+
+    // EPIC-022 A4 follow-up — `currentAmount` was only ever bounded by
+    // `@Min(0)`/`@Max(999_999_999_999)` here, never against `targetAmount`,
+    // unlike `runAutoDebit` (which clamps). Reject rather than silently
+    // clamp: this is a manual PATCH the user typed a specific number into
+    // (an "earmark" the family maintains by hand — see the A3 tracker
+    // decision), so quietly rewriting their input to a different number
+    // would be exactly the kind of silent-lie UI this epic exists to
+    // remove. Checked against the EFFECTIVE (post-patch) target, so a
+    // request that raises both fields together is judged consistently.
+    if (currentAmount > targetAmount) {
+      throw new BadRequestException(
+        "Sudah Terkumpul tidak boleh melebihi Target Jumlah",
+      );
+    }
 
     const status = computeStatus(currentAmount, targetAmount, targetDate);
 

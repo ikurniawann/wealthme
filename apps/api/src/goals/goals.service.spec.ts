@@ -47,6 +47,7 @@ function makePrisma() {
   const prisma = {
     goal: {
       findMany: jest.fn(),
+      findUnique: jest.fn(),
       update: jest.fn(),
     },
     member: {
@@ -166,5 +167,98 @@ describe("GoalsService.runAutoDebit — goals are a manual tracker (EPIC-022 A3)
     });
     expect(prisma.transaction.create).not.toHaveBeenCalled();
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("GoalsService.update — currentAmount vs targetAmount (EPIC-022 A4 follow-up)", () => {
+  let service: GoalsService;
+  let prisma: ReturnType<typeof makePrisma>;
+
+  beforeEach(async () => {
+    prisma = makePrisma();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [GoalsService, { provide: PrismaService, useValue: prisma }],
+    }).compile();
+    service = module.get(GoalsService);
+  });
+
+  it("rejects a currentAmount that exceeds the existing targetAmount, and never writes", async () => {
+    prisma.goal.findUnique.mockResolvedValue(makeGoal({ currentAmount: 0n }));
+
+    await expect(
+      service.update(FAMILY_GROUP_ID, GOAL_ID, { currentAmount: 15_000_000 }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(prisma.goal.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects when a lowered targetAmount would put the EXISTING currentAmount over it", async () => {
+    prisma.goal.findUnique.mockResolvedValue(
+      makeGoal({ currentAmount: 8_000_000n, targetAmount: 10_000_000n }),
+    );
+
+    await expect(
+      service.update(FAMILY_GROUP_ID, GOAL_ID, { targetAmount: 5_000_000 }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(prisma.goal.update).not.toHaveBeenCalled();
+  });
+
+  it("judges both fields together: raising target and current in the same PATCH is allowed", async () => {
+    prisma.goal.findUnique.mockResolvedValue(
+      makeGoal({ currentAmount: 5_000_000n, targetAmount: 10_000_000n }),
+    );
+    prisma.goal.update.mockResolvedValue(
+      makeGoal({
+        currentAmount: 18_000_000n,
+        targetAmount: 20_000_000n,
+        status: PrismaGoalStatus.on_track,
+      }),
+    );
+
+    const result = await service.update(FAMILY_GROUP_ID, GOAL_ID, {
+      targetAmount: 20_000_000,
+      currentAmount: 18_000_000,
+    });
+
+    expect(result.currentAmount).toBe(18_000_000);
+    expect(prisma.goal.update).toHaveBeenCalled();
+  });
+
+  it("allows currentAmount exactly equal to targetAmount (achieved boundary)", async () => {
+    prisma.goal.findUnique.mockResolvedValue(
+      makeGoal({ currentAmount: 0n, targetAmount: 10_000_000n }),
+    );
+    prisma.goal.update.mockResolvedValue(
+      makeGoal({
+        currentAmount: 10_000_000n,
+        status: PrismaGoalStatus.achieved,
+      }),
+    );
+
+    const result = await service.update(FAMILY_GROUP_ID, GOAL_ID, {
+      currentAmount: 10_000_000,
+    });
+
+    expect(result.currentAmount).toBe(10_000_000);
+    expect(result.status).toBe("achieved");
+  });
+
+  it("allows an unrelated edit (name only) that never touches either amount", async () => {
+    prisma.goal.findUnique.mockResolvedValue(
+      makeGoal({ currentAmount: 2_000_000n, targetAmount: 10_000_000n }),
+    );
+    prisma.goal.update.mockResolvedValue(
+      makeGoal({
+        name: "Renamed",
+        currentAmount: 2_000_000n,
+        targetAmount: 10_000_000n,
+      }),
+    );
+
+    const result = await service.update(FAMILY_GROUP_ID, GOAL_ID, {
+      name: "Renamed",
+    });
+
+    expect(result.name).toBe("Renamed");
+    expect(prisma.goal.update).toHaveBeenCalled();
   });
 });

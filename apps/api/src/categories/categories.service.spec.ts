@@ -8,7 +8,7 @@ const FAMILY_GROUP_ID = "fg-1";
 const CATEGORY_ID = "cat-1";
 
 function makePrisma() {
-  return {
+  const prisma = {
     category: {
       create: jest.fn(),
       findUnique: jest.fn(),
@@ -26,7 +26,17 @@ function makePrisma() {
     memberCategoryAllowance: {
       count: jest.fn().mockResolvedValue(0),
     },
+    $transaction: jest.fn(),
   };
+  // EPIC-022 A5 follow-up — `remove()` now runs the count-and-delete inside
+  // a Serializable `$transaction`; this fake just invokes the callback with
+  // the same mock object (the `tx` handed to real Prisma callbacks has the
+  // identical shape), so every existing assertion on `prisma.category.delete`
+  // etc. keeps working unmodified.
+  prisma.$transaction.mockImplementation(
+    (cb: (tx: typeof prisma) => Promise<unknown>) => cb(prisma),
+  );
+  return prisma;
 }
 
 describe("CategoriesService", () => {
@@ -226,6 +236,21 @@ describe("CategoriesService", () => {
         service.remove(FAMILY_GROUP_ID, "nonexistent"),
       ).rejects.toMatchObject({ status: 404 });
       expect(prisma.budget.count).not.toHaveBeenCalled();
+    });
+
+    it("runs the count-and-delete inside a single Serializable $transaction (EPIC-022 A5 follow-up — closes the check-then-act race)", async () => {
+      await service.remove(FAMILY_GROUP_ID, CATEGORY_ID);
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      const [, options] = prisma.$transaction.mock.calls[0] as [
+        unknown,
+        { isolationLevel?: string },
+      ];
+      expect(options?.isolationLevel).toBe("Serializable");
+      // The count and the delete both ran inside that one transaction call,
+      // not as separate, independently-awaited round trips.
+      expect(prisma.budget.count).toHaveBeenCalledTimes(1);
+      expect(prisma.category.delete).toHaveBeenCalledTimes(1);
     });
   });
 });
