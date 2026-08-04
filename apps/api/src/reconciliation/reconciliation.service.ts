@@ -1,7 +1,16 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { TransactionsService } from "../transactions/transactions.service";
+
+import type { SplitEntryDto } from "./dto/split-entry.dto";
+import type { TransactionResponseDto } from "../transactions/dto/transaction-response.dto";
 
 export type ParsedRow = {
   date: Date;
@@ -39,6 +48,28 @@ export type BankSyncDto = {
   rowCount: number;
 };
 
+/**
+ * EPIC-021 Group C (#9) — read-only summary of the matched Transaction shown
+ * inline on a reconciliation entry. `matchedTxId`/`suggestedTxId` on
+ * `BankSyncEntry` are plain string columns (no Prisma relation — same
+ * loose-FK convention as `Donation.transactionId`), so this is always
+ * assembled via a manual second query, never a Prisma `include`.
+ */
+export type MatchedTransactionSummaryDto = {
+  id: string;
+  accountId: string;
+  accountName: string;
+  toAccountId: string | null;
+  toAccountName: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
+  amount: string;
+  type: string;
+  description: string | null;
+  occurredAt: string;
+  createdAt: string;
+};
+
 export type BankSyncEntryDto = {
   id: string;
   bankSyncId: string;
@@ -50,12 +81,71 @@ export type BankSyncEntryDto = {
   matchedTxId: string | null;
   suggestedTxId: string | null;
   createdAt: string;
+  // EPIC-021 Group C (#9) — null when unmatched/suggested-only, or when the
+  // matched transaction id no longer resolves to a row in this tenant.
+  matchedTransaction: MatchedTransactionSummaryDto | null;
 };
 
 export type AutoMatchResultDto = {
   totalEntries: number;
   suggested: number;
 };
+
+/** Raw shape of a batch-fetched matched Transaction row (see getEntries). */
+type RawMatchedTxRow = {
+  id: string;
+  accountId: string;
+  toAccountId: string | null;
+  categoryId: string | null;
+  amount: bigint;
+  type: string;
+  description: string | null;
+  occurredAt: Date;
+  createdAt: Date;
+  account: { name: string } | null;
+  toAccount: { name: string } | null;
+  category: { name: string } | null;
+};
+
+function toMatchedTransactionDto(
+  tx: RawMatchedTxRow,
+): MatchedTransactionSummaryDto {
+  return {
+    id: tx.id,
+    accountId: tx.accountId,
+    accountName: tx.account?.name ?? "",
+    toAccountId: tx.toAccountId,
+    toAccountName: tx.toAccount?.name ?? null,
+    categoryId: tx.categoryId,
+    categoryName: tx.category?.name ?? null,
+    amount: tx.amount.toString(),
+    type: tx.type,
+    description: tx.description,
+    occurredAt: tx.occurredAt.toISOString(),
+    createdAt: tx.createdAt.toISOString(),
+  };
+}
+
+/** Maps the already-stringified TransactionsService response (used right
+ * after `splitEntry` creates the transfer) into the same summary shape. */
+function transactionResponseToMatchedSummary(
+  tx: TransactionResponseDto,
+): MatchedTransactionSummaryDto {
+  return {
+    id: tx.id,
+    accountId: tx.accountId,
+    accountName: tx.accountName,
+    toAccountId: tx.toAccountId,
+    toAccountName: tx.toAccountName,
+    categoryId: tx.categoryId,
+    categoryName: tx.categoryName,
+    amount: tx.amount,
+    type: tx.type,
+    description: tx.description,
+    occurredAt: tx.occurredAt,
+    createdAt: tx.createdAt,
+  };
+}
 
 function toBankSyncDto(row: BankSyncRow): BankSyncDto {
   return {
@@ -67,7 +157,10 @@ function toBankSyncDto(row: BankSyncRow): BankSyncDto {
   };
 }
 
-function toBankSyncEntryDto(row: BankSyncEntryRow): BankSyncEntryDto {
+function toBankSyncEntryDto(
+  row: BankSyncEntryRow,
+  matchedTransaction: MatchedTransactionSummaryDto | null = null,
+): BankSyncEntryDto {
   return {
     id: row.id,
     bankSyncId: row.bankSyncId,
@@ -79,12 +172,16 @@ function toBankSyncEntryDto(row: BankSyncEntryRow): BankSyncEntryDto {
     matchedTxId: row.matchedTxId,
     suggestedTxId: row.suggestedTxId,
     createdAt: row.createdAt.toISOString(),
+    matchedTransaction,
   };
 }
 
 @Injectable()
 export class ReconciliationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly transactionsService: TransactionsService,
+  ) {}
 
   async upload(
     familyGroupId: string,
@@ -141,7 +238,46 @@ export class ReconciliationService {
       where: { bankSyncId: syncId },
       orderBy: { date: "asc" },
     });
-    return entries.map(toBankSyncEntryDto);
+
+    const txById = await this.fetchMatchedTxMap(familyGroupId, entries);
+    return entries.map((e) =>
+      toBankSyncEntryDto(
+        e,
+        e.matchedTxId ? (txById.get(e.matchedTxId) ?? null) : null,
+      ),
+    );
+  }
+
+  /**
+   * EPIC-021 Group C (#9) — batch-fetches the matched Transaction (+ account/
+   * category names) for every entry that has a `matchedTxId`, in a single
+   * query, instead of N+1 lookups per row. `matchedTxId` is a plain string
+   * column with no Prisma relation (see `MatchedTransactionSummaryDto`
+   * comment), so this manual join is the only option.
+   */
+  private async fetchMatchedTxMap(
+    familyGroupId: string,
+    entries: { matchedTxId: string | null }[],
+  ): Promise<Map<string, MatchedTransactionSummaryDto>> {
+    const ids = [
+      ...new Set(
+        entries
+          .map((e) => e.matchedTxId)
+          .filter((id): id is string => id !== null),
+      ),
+    ];
+    if (ids.length === 0) return new Map();
+
+    const txs = await this.prisma.transaction.findMany({
+      where: { id: { in: ids }, familyGroupId },
+      include: {
+        account: { select: { name: true } },
+        toAccount: { select: { name: true } },
+        category: { select: { name: true } },
+      },
+    });
+
+    return new Map(txs.map((t) => [t.id, toMatchedTransactionDto(t)]));
   }
 
   async matchEntry(
@@ -166,7 +302,11 @@ export class ReconciliationService {
 
     const tx = await this.prisma.transaction.findUnique({
       where: { id: transactionId, familyGroupId },
-      select: { id: true },
+      include: {
+        account: { select: { name: true } },
+        toAccount: { select: { name: true } },
+        category: { select: { name: true } },
+      },
     });
     if (!tx) throw new NotFoundException("Transaction not found");
 
@@ -174,7 +314,86 @@ export class ReconciliationService {
       where: { id: entryId },
       data: { reconStatus: "matched", matchedTxId: transactionId },
     });
-    return toBankSyncEntryDto(updated);
+    return toBankSyncEntryDto(updated, toMatchedTransactionDto(tx));
+  }
+
+  /**
+   * EPIC-021 Group C (#29) — split a reconciliation line (bank shows one
+   * combined amount, e.g. an e-wallet top-up + admin fee) into a real
+   * principal transfer + linked fee expense, then mark the entry matched
+   * against the transfer. Delegates the actual Transaction creation to
+   * `TransactionsService.create`, which already tenant-validates both
+   * accounts, rejects same-account transfers, and — per EPIC-021 Decision
+   * #10/#28 — creates the admin-fee expense on the DESTINATION account
+   * atomically with the transfer inside its own `$transaction`.
+   *
+   * NOT fully atomic end-to-end: `transactionsService.create` commits its
+   * own `$transaction` first, then this method issues a SEPARATE
+   * `bankSyncEntry.update` to record the match. If that second write fails,
+   * the transfer/fee Transactions already exist but the entry stays
+   * unmatched — a retry would then create a duplicate transfer. Accepted for
+   * this iteration (matches the task's own "atomically-enough" framing); a
+   * future hardening pass could expose a transaction-scoped create on
+   * TransactionsService so both writes share one Prisma `$transaction`.
+   */
+  async splitEntry(
+    familyGroupId: string,
+    syncId: string,
+    entryId: string,
+    dto: SplitEntryDto,
+  ): Promise<BankSyncEntryDto> {
+    const sync = await this.prisma.bankSync.findUnique({
+      where: { id: syncId, familyGroupId },
+    });
+    if (!sync) {
+      throw new NotFoundException("BankSync not found");
+    }
+
+    const entry = await this.prisma.bankSyncEntry.findUnique({
+      where: { id: entryId, bankSyncId: syncId },
+    });
+    if (!entry) {
+      throw new NotFoundException("BankSyncEntry not found");
+    }
+
+    if (entry.reconStatus === "matched") {
+      throw new BadRequestException(
+        "Entry is already matched — unmatch it first before splitting",
+      );
+    }
+
+    // Bank-statement amount follows signed convention (negative = money
+    // leaving the account, the normal case for an e-wallet top-up debit);
+    // principal/adminFee are always entered as positive magnitudes by the
+    // user, so the sum is compared against the entry's absolute value.
+    const entryMagnitude = entry.amount < 0n ? -entry.amount : entry.amount;
+    const splitTotal = BigInt(dto.principalAmount) + BigInt(dto.adminFee);
+    if (splitTotal !== entryMagnitude) {
+      throw new BadRequestException(
+        `Principal + admin fee (${splitTotal.toString()}) must equal the entry amount (${entryMagnitude.toString()})`,
+      );
+    }
+
+    const transfer: TransactionResponseDto =
+      await this.transactionsService.create(familyGroupId, {
+        accountId: dto.accountId,
+        toAccountId: dto.toAccountId,
+        amount: dto.principalAmount,
+        adminFee: dto.adminFee,
+        type: "transfer",
+        description: dto.description,
+        occurredAt: entry.date.toISOString(),
+      });
+
+    const updated = await this.prisma.bankSyncEntry.update({
+      where: { id: entryId },
+      data: { reconStatus: "matched", matchedTxId: transfer.id },
+    });
+
+    return toBankSyncEntryDto(
+      updated,
+      transactionResponseToMatchedSummary(transfer),
+    );
   }
 
   async autoMatch(

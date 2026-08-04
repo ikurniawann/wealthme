@@ -225,11 +225,11 @@ owner and a constrained member.
   owner sees a pending panel on /akun and approves by picking a source account,
   which executes a real transfer. Task C enforces the allow-list server-side at
   the single transactions choke point, on create **and** on the effective
-  post-patch state of an update; owner/admin_staff and members with an empty
+  post-patch state of an update; owner/admin*staff and members with an empty
   list stay unrestricted (backward compatible). Task D gives the member their
   balance and request action, and the owner a per-member roll-up.
   **Review found and fixed a CRITICAL money bug:** approval executed the
-  transfer and _then_ wrote the status in a separate statement, with only a
+  transfer and \_then* wrote the status in a separate statement, with only a
   plain read guarding "pending" — two concurrent approvals could transfer twice.
   It now claims the row atomically (`updateMany` conditional on
   `status: "pending"` → 409 if already decided) _before_ transferring, and

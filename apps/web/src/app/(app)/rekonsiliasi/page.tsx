@@ -14,12 +14,14 @@ import {
   Lightbulb,
   RotateCw,
   Save,
+  Scissors,
   Bot,
   X,
   ChevronRight,
 } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   SectionCard,
   StatusBadge,
@@ -28,6 +30,7 @@ import {
 } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
+import { formatAmountInput, parseRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 
 /* ─────────────────────────── Types ─────────────────────────── */
@@ -38,6 +41,27 @@ type BankSyncDto = {
   fileName: string;
   uploadedAt: string;
   rowCount: number;
+};
+
+/**
+ * EPIC-021 Group C (#9) — read-only summary of the entry's matched
+ * Transaction, embedded by the API's `/entries` and `/split` responses
+ * (mirrors `apps/api/src/reconciliation/reconciliation.service.ts`'s
+ * `MatchedTransactionSummaryDto`).
+ */
+type MatchedTransactionSummaryDto = {
+  id: string;
+  accountId: string;
+  accountName: string;
+  toAccountId: string | null;
+  toAccountName: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
+  amount: string;
+  type: string;
+  description: string | null;
+  occurredAt: string;
+  createdAt: string;
 };
 
 type BankSyncEntryDto = {
@@ -51,12 +75,17 @@ type BankSyncEntryDto = {
   matchedTxId: string | null;
   suggestedTxId: string | null;
   createdAt: string;
+  matchedTransaction: MatchedTransactionSummaryDto | null;
 };
 
 type AutoMatchResultDto = {
   totalEntries: number;
   suggested: number;
 };
+
+/** Minimal account shape for the split dialog's source/destination selects
+ * (same shape as `@/components/shell/transaction-dialog.tsx`'s local AccountDto). */
+type AccountDto = { id: string; name: string; institution: string | null };
 
 /* ─────────────────────────── Static data ─────────────────────────── */
 
@@ -157,6 +186,475 @@ function entryStatus(reconStatus: string): MatchStatus {
   if (reconStatus === "matched") return "ok";
   if (reconStatus === "suggested") return "warn";
   return "err";
+}
+
+/**
+ * EPIC-021 Group C (#9/#29) — `BankSyncEntry.amount` matches
+ * `Transaction.amount`'s plain-Rupiah scale (confirmed by the seed data and
+ * by `ReconciliationService.autoMatch`, which compares the two directly with
+ * no scaling). This deliberately does NOT reuse the Step-3 row's existing
+ * `/100` display division below — that division only makes sense for the
+ * CSV-upload path's amount parsing and does not match real (seeded) entries;
+ * fixing that pre-existing display quirk is out of scope here. Both new
+ * dialogs below need the un-scaled value: the detail view to show it
+ * correctly, and the split dialog because its principal+fee sum is
+ * validated server-side against the raw, un-scaled `entry.amount`.
+ */
+function formatEntryAmount(
+  entry: Pick<BankSyncEntryDto, "amount" | "currency">,
+  numLocale: string,
+): { display: string; className: string; magnitude: number } {
+  const amtNum = Number(entry.amount);
+  const formatted = new Intl.NumberFormat(numLocale, {
+    style: "currency",
+    currency: entry.currency || "IDR",
+    minimumFractionDigits: 0,
+  }).format(Math.abs(amtNum));
+  return {
+    display: amtNum < 0 ? `-${formatted}` : `+${formatted}`,
+    className: amtNum < 0 ? "text-destructive" : "text-success",
+    magnitude: Math.abs(amtNum),
+  };
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b py-2 last:border-b-0">
+      <span className="text-[12px] text-muted-foreground">{label}</span>
+      <span className="text-right text-[13px] font-medium">{value}</span>
+    </div>
+  );
+}
+
+/** EPIC-021 Group C (#9) — read-only detail view for a reconciliation
+ * entry, opened by clicking/tapping its row (mirrors the `/transaksi`
+ * `TxRow` → `TransactionDetailDialog` pattern). Shows the entry itself and,
+ * when matched, the full matched Transaction. */
+export function EntryDetailDialog({
+  entry,
+  onClose,
+}: {
+  entry: BankSyncEntryDto | null;
+  onClose: () => void;
+}) {
+  const { t, locale } = useLocale();
+  const numLocale = locale === "en" ? "en-US" : "id-ID";
+  const dateOpts: Intl.DateTimeFormatOptions = {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  };
+
+  const amt = entry
+    ? formatEntryAmount(entry, numLocale)
+    : { display: "", className: "" };
+  const status = entry ? entryStatus(entry.reconStatus) : "err";
+  const statusLabel =
+    status === "ok"
+      ? t.rekonsiliasi.matchedLabel
+      : status === "warn"
+        ? t.rekonsiliasi.suggestedLabel
+        : t.rekonsiliasi.notFoundLabel;
+  const statusChipClass =
+    status === "ok"
+      ? "bg-success-soft text-emerald-700 dark:text-emerald-300"
+      : status === "warn"
+        ? "bg-warning-soft text-amber-700 dark:text-amber-300"
+        : "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  const tx = entry?.matchedTransaction ?? null;
+  const txTypeLabels = t.rekonsiliasi.txTypeLabels as Record<string, string>;
+  const txAmountDisplay = tx
+    ? new Intl.NumberFormat(numLocale, {
+        style: "currency",
+        currency: "IDR",
+        minimumFractionDigits: 0,
+      }).format(Number(tx.amount))
+    : "";
+
+  return (
+    <Dialog
+      open={!!entry}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
+      <DialogContent className="max-w-sm">
+        <DialogTitle>{t.rekonsiliasi.detailDialogTitle}</DialogTitle>
+        {entry && (
+          <div className="space-y-1 pt-1">
+            <div className="mb-2 flex items-center justify-between">
+              <span
+                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusChipClass}`}
+              >
+                {statusLabel}
+              </span>
+              <span className={`text-[17px] font-bold ${amt.className}`}>
+                {amt.display}
+              </span>
+            </div>
+            <DetailRow
+              label={t.rekonsiliasi.detailDateLabel}
+              value={new Date(entry.date).toLocaleDateString(
+                numLocale,
+                dateOpts,
+              )}
+            />
+            <DetailRow
+              label={t.rekonsiliasi.detailDescriptionLabel}
+              value={entry.description}
+            />
+            {/* Status is not repeated as its own row — the colored chip
+                above already states it; a duplicate row would render the
+                same status text twice for no added information. */}
+            {tx ? (
+              <>
+                <div className="mb-1 mt-3 text-[12px] font-bold">
+                  {t.rekonsiliasi.detailMatchedTxTitle}
+                </div>
+                <DetailRow
+                  label={t.rekonsiliasi.detailTxTypeLabel}
+                  value={txTypeLabels[tx.type] ?? tx.type}
+                />
+                <DetailRow
+                  label={t.rekonsiliasi.detailTxAccountLabel}
+                  value={tx.accountName}
+                />
+                {tx.toAccountName && (
+                  <DetailRow
+                    label={t.rekonsiliasi.detailTxToAccountLabel}
+                    value={tx.toAccountName}
+                  />
+                )}
+                <DetailRow
+                  label={t.rekonsiliasi.detailTxCategoryLabel}
+                  value={tx.categoryName ?? "—"}
+                />
+                <DetailRow
+                  label={t.rekonsiliasi.detailTxAmountLabel}
+                  value={txAmountDisplay}
+                />
+                <DetailRow
+                  label={t.rekonsiliasi.detailTxDateLabel}
+                  value={new Date(tx.occurredAt).toLocaleDateString(
+                    numLocale,
+                    dateOpts,
+                  )}
+                />
+              </>
+            ) : (
+              <div className="mt-3 text-[12px] text-muted-foreground">
+                {t.rekonsiliasi.detailNoMatchedTx}
+              </div>
+            )}
+            <div className="pt-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full rounded-md border py-2.5 text-[13px] font-semibold"
+              >
+                {t.rekonsiliasi.closeButton}
+              </button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const splitFieldClass =
+  "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
+
+// Explicit `htmlFor`/`id` pairing (not the shell `transaction-dialog.tsx`
+// Field's unassociated sibling `<label>`) — a real `<label for>` gives every
+// field a correct accessible name for screen readers AND `getByLabelText`,
+// and keeps the label's own text (e.g. "Jumlah Pokok") from being polluted
+// by unrelated decorative text (the "Rp" prefix) rendered inside `children`.
+function SplitField({
+  id,
+  label,
+  children,
+}: {
+  id: string;
+  label: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-3.5">
+      <label
+        htmlFor={id}
+        className="mb-1.5 block text-xs font-semibold text-muted-foreground"
+      >
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+/** EPIC-021 Group C (#29) — fee-split dialog (Decision #10: produces real
+ * Transactions, not a side-table). Captures a principal + admin fee that
+ * must sum to the entry's amount, plus source/destination accounts, then
+ * POSTs to the split endpoint which creates the transfer (+ linked fee
+ * expense on the destination, per Decision #10/#28) and marks the entry
+ * matched. */
+export function SplitEntryDialog({
+  entry,
+  accounts,
+  familyGroupId,
+  syncId,
+  token,
+  onClose,
+  onSuccess,
+}: {
+  entry: BankSyncEntryDto | null;
+  accounts: AccountDto[];
+  familyGroupId: string | undefined;
+  syncId: string | null;
+  token: string | undefined;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const { t, locale } = useLocale();
+  const numLocale = locale === "en" ? "en-US" : "id-ID";
+  const [sourceAccountId, setSourceAccountId] = React.useState("");
+  const [destAccountId, setDestAccountId] = React.useState("");
+  const [principal, setPrincipal] = React.useState("");
+  const [adminFee, setAdminFee] = React.useState("");
+  const [description, setDescription] = React.useState("");
+
+  // The form resets to fresh, empty state whenever a different entry is
+  // targeted (or the dialog closes) because the CALLER renders this
+  // component with `key={splitEntryTarget?.id ?? "..."}` — a key change
+  // remounts it, which is React's own recommended way to "reset state when
+  // a prop changes" (no reset-effect needed). Re-opening the SAME entry
+  // after a failed submit keeps its in-progress values, since the key (and
+  // therefore this instance) does not change in that case.
+  const entryMagnitude = entry ? Math.abs(Number(entry.amount)) : 0;
+  const entryAmountDisplay = entry
+    ? new Intl.NumberFormat(numLocale, {
+        style: "currency",
+        currency: entry.currency || "IDR",
+        minimumFractionDigits: 0,
+      }).format(entryMagnitude)
+    : "";
+
+  const splitMutation = useMutation({
+    mutationFn: () => {
+      if (!familyGroupId || !syncId || !entry) {
+        throw new Error(t.rekonsiliasi.errorSessionInactive);
+      }
+      return apiFetch<BankSyncEntryDto>(
+        `/family-groups/${familyGroupId}/reconciliation/${syncId}/entries/${entry.id}/split`,
+        {
+          method: "POST",
+          token,
+          body: JSON.stringify({
+            accountId: sourceAccountId,
+            toAccountId: destAccountId,
+            principalAmount: parseRupiah(principal),
+            adminFee: parseRupiah(adminFee) || 0,
+            ...(description ? { description } : {}),
+          }),
+        },
+      );
+    },
+    onSuccess: () => {
+      toast.success(t.rekonsiliasi.toastSplitSuccess);
+      onSuccess();
+    },
+    onError: (err: unknown) => {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : t.rekonsiliasi.toastSplitFailedDefault;
+      toast.error(msg);
+    },
+  });
+
+  function handleSubmit() {
+    if (!sourceAccountId) {
+      toast.error(t.rekonsiliasi.splitValidationSelectSourceAccount);
+      return;
+    }
+    if (!destAccountId) {
+      toast.error(t.rekonsiliasi.splitValidationSelectDestAccount);
+      return;
+    }
+    if (sourceAccountId === destAccountId) {
+      toast.error(t.rekonsiliasi.splitValidationSameAccount);
+      return;
+    }
+    const principalNum = parseRupiah(principal);
+    if (!principalNum || principalNum <= 0) {
+      toast.error(t.rekonsiliasi.splitValidationPrincipalPositive);
+      return;
+    }
+    const feeNum = parseRupiah(adminFee) || 0;
+    if (principalNum + feeNum !== entryMagnitude) {
+      toast.error(t.rekonsiliasi.splitValidationSumMismatch);
+      return;
+    }
+    splitMutation.mutate();
+  }
+
+  return (
+    <Dialog
+      open={!!entry}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
+      <DialogContent className="max-w-[440px] sm:max-w-[440px]">
+        <DialogTitle>{t.rekonsiliasi.splitDialogTitle}</DialogTitle>
+        {entry && (
+          <div className="pt-1">
+            <p className="mb-3.5 text-[12.5px] text-muted-foreground">
+              {t.rekonsiliasi.splitDialogDescription}
+            </p>
+
+            <DetailRow
+              label={t.rekonsiliasi.splitEntryAmountLabel}
+              value={entryAmountDisplay}
+            />
+
+            <div className="mt-3.5">
+              <SplitField
+                id="split-source-account"
+                label={t.rekonsiliasi.splitSourceAccountLabel}
+              >
+                <select
+                  id="split-source-account"
+                  className={splitFieldClass}
+                  value={sourceAccountId}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setSourceAccountId(next);
+                    if (destAccountId === next) setDestAccountId("");
+                  }}
+                >
+                  <option value="">
+                    {t.rekonsiliasi.splitSourceAccountPlaceholder}
+                  </option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                      {a.institution ? ` — ${a.institution}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </SplitField>
+
+              <SplitField
+                id="split-dest-account"
+                label={t.rekonsiliasi.splitDestAccountLabel}
+              >
+                <select
+                  id="split-dest-account"
+                  className={splitFieldClass}
+                  value={destAccountId}
+                  onChange={(e) => setDestAccountId(e.target.value)}
+                >
+                  <option value="">
+                    {t.rekonsiliasi.splitDestAccountPlaceholder}
+                  </option>
+                  {accounts
+                    .filter((a) => a.id !== sourceAccountId)
+                    .map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                        {a.institution ? ` — ${a.institution}` : ""}
+                      </option>
+                    ))}
+                </select>
+              </SplitField>
+
+              <SplitField
+                id="split-principal"
+                label={t.rekonsiliasi.splitPrincipalLabel}
+              >
+                <div className="relative">
+                  <span
+                    aria-hidden="true"
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground"
+                  >
+                    Rp
+                  </span>
+                  <input
+                    id="split-principal"
+                    inputMode="numeric"
+                    value={principal}
+                    onChange={(e) =>
+                      setPrincipal(formatAmountInput(e.target.value))
+                    }
+                    placeholder="0"
+                    className={`${splitFieldClass} pl-[38px]`}
+                  />
+                </div>
+              </SplitField>
+
+              <SplitField
+                id="split-admin-fee"
+                label={t.rekonsiliasi.splitAdminFeeLabel}
+              >
+                <div className="relative">
+                  <span
+                    aria-hidden="true"
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground"
+                  >
+                    Rp
+                  </span>
+                  <input
+                    id="split-admin-fee"
+                    inputMode="numeric"
+                    value={adminFee}
+                    onChange={(e) =>
+                      setAdminFee(formatAmountInput(e.target.value))
+                    }
+                    placeholder="0"
+                    className={`${splitFieldClass} pl-[38px]`}
+                  />
+                </div>
+              </SplitField>
+
+              <SplitField
+                id="split-description"
+                label={t.rekonsiliasi.splitDescriptionLabel}
+              >
+                <input
+                  id="split-description"
+                  type="text"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder={t.rekonsiliasi.splitDescriptionPlaceholder}
+                  className={splitFieldClass}
+                />
+              </SplitField>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 rounded-md border py-2.5 text-[13px] font-semibold"
+              >
+                {t.rekonsiliasi.splitCancelButton}
+              </button>
+              <button
+                type="button"
+                disabled={splitMutation.isPending}
+                onClick={handleSubmit}
+                className="flex-1 rounded-md bg-primary py-2.5 text-[13px] font-semibold text-white disabled:opacity-60"
+              >
+                {t.rekonsiliasi.splitSubmitButton}
+              </button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 /* ─────────────────────────── Page ─────────────────────────── */
@@ -341,6 +839,54 @@ export default function RekonsiliasiPage() {
       toast.error(msg);
     },
   });
+
+  /* ─── Step 3: entry detail (#9) + fee-split (#29) dialogs ─── */
+  const [detailEntry, setDetailEntry] = React.useState<BankSyncEntryDto | null>(
+    null,
+  );
+  const [splitEntryTarget, setSplitEntryTarget] =
+    React.useState<BankSyncEntryDto | null>(null);
+
+  const accountsQuery = useQuery<AccountDto[]>({
+    queryKey: familyGroupId
+      ? queryKeys.accounts.all(familyGroupId)
+      : ["accounts-disabled"],
+    queryFn: () =>
+      apiFetch<AccountDto[]>(`/family-groups/${familyGroupId}/accounts`, {
+        token,
+      }),
+    enabled: step === 3 && !!familyGroupId && !!token,
+  });
+
+  /** The split endpoint creates real Transactions (a transfer + linked
+   * admin-fee expense) — refresh every view those balances/reports feed,
+   * mirroring the invalidation set in `components/shell/transaction-dialog.tsx`'s
+   * createMutation.onSuccess. */
+  function handleSplitSuccess() {
+    if (familyGroupId && syncId) {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.reconciliation.entries(familyGroupId, syncId),
+      });
+    }
+    if (familyGroupId) {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.accounts.all(familyGroupId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.dashboard.summary(familyGroupId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["reports", familyGroupId],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.netWorth.summary(familyGroupId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.transactions.all(familyGroupId),
+      });
+    }
+    setSplitEntryTarget(null);
+  }
 
   /* ─── Step 4 summary counts ─── */
   const entries = entriesQuery.data ?? [];
@@ -701,10 +1247,32 @@ export default function RekonsiliasiPage() {
                     month: "short",
                   },
                 );
+                // EPIC-021 Group C (#9) — detail-trigger is keyboard-operable
+                // (Enter/Space), mirroring the `/transaksi` TxRow convention.
+                // The Confirm/Pecah buttons below render as SIBLINGS of this
+                // role="button" element (not nested inside it) so neither a
+                // click nor a keydown on those buttons bubbles up and
+                // re-triggers this row's own handler.
+                const openDetail = () => setDetailEntry(entry);
+                const handleRowKeyDown = (
+                  e: React.KeyboardEvent<HTMLDivElement>,
+                ) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    openDetail();
+                  }
+                };
 
                 return (
                   <div key={entry.id} className="flex items-stretch">
-                    <div className="flex-1 rounded-lg border bg-card px-3 py-2">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={openDetail}
+                      onKeyDown={handleRowKeyDown}
+                      aria-label={`${t.rekonsiliasi.entryDetailAriaLabelPrefix} ${entry.description}, ${amtDisplay}`}
+                      className="flex-1 cursor-pointer rounded-lg border bg-card px-3 py-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
                       <div className="text-[11px] text-muted-foreground">
                         {entryDate} · {entry.description}
                       </div>
@@ -738,26 +1306,48 @@ export default function RekonsiliasiPage() {
                           <div className="text-[11px] text-warning">
                             {t.rekonsiliasi.suggestedLabel}
                           </div>
-                          <button
-                            type="button"
-                            disabled={confirmMutation.isPending}
-                            onClick={() => {
-                              if (entry.suggestedTxId) {
-                                confirmMutation.mutate({
-                                  entryId: entry.id,
-                                  transactionId: entry.suggestedTxId,
-                                });
-                              }
-                            }}
-                            className="rounded-md bg-primary px-2.5 py-1 text-[11px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
-                          >
-                            {t.rekonsiliasi.confirmButton}
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              disabled={confirmMutation.isPending}
+                              onClick={() => {
+                                if (entry.suggestedTxId) {
+                                  confirmMutation.mutate({
+                                    entryId: entry.id,
+                                    transactionId: entry.suggestedTxId,
+                                  });
+                                }
+                              }}
+                              className="rounded-md bg-primary px-2.5 py-1 text-[11px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                            >
+                              {t.rekonsiliasi.confirmButton}
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={`${t.rekonsiliasi.splitButtonAriaLabelPrefix} ${entry.description}`}
+                              onClick={() => setSplitEntryTarget(entry)}
+                              className="flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-bold transition-colors hover:bg-accent"
+                            >
+                              <Scissors className="size-3" />
+                              {t.rekonsiliasi.splitButton}
+                            </button>
+                          </div>
                         </div>
                       )}
                       {status === "err" && (
-                        <div className="text-[11px] text-destructive">
-                          {t.rekonsiliasi.notFoundLabel}
+                        <div className="flex w-full items-center justify-between gap-2">
+                          <div className="text-[11px] text-destructive">
+                            {t.rekonsiliasi.notFoundLabel}
+                          </div>
+                          <button
+                            type="button"
+                            aria-label={`${t.rekonsiliasi.splitButtonAriaLabelPrefix} ${entry.description}`}
+                            onClick={() => setSplitEntryTarget(entry)}
+                            className="flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-bold transition-colors hover:bg-accent"
+                          >
+                            <Scissors className="size-3" />
+                            {t.rekonsiliasi.splitButton}
+                          </button>
                         </div>
                       )}
                     </div>
@@ -851,6 +1441,27 @@ export default function RekonsiliasiPage() {
           </div>
         </SectionCard>
       )}
+
+      {/* EPIC-021 Group C — dialogs stay mounted regardless of step; each
+          uses `open={!!entry}` so they only render/open when a row targets
+          them. */}
+      <EntryDetailDialog
+        entry={detailEntry}
+        onClose={() => setDetailEntry(null)}
+      />
+      <SplitEntryDialog
+        // `key` on the entry id: a genuinely different (or newly-null)
+        // target remounts the dialog with fresh state — see the component's
+        // own comment for why this replaces a reset-effect.
+        key={splitEntryTarget?.id ?? "no-split-entry"}
+        entry={splitEntryTarget}
+        accounts={accountsQuery.data ?? []}
+        familyGroupId={familyGroupId}
+        syncId={syncId}
+        token={token}
+        onClose={() => setSplitEntryTarget(null)}
+        onSuccess={handleSplitSuccess}
+      />
     </div>
   );
 }
