@@ -29,6 +29,8 @@ export interface Pph21RequestDto {
   grossIncome: number;
   /** Zakat paid in the year (reduces PKP) */
   zakatPaid?: number;
+  /** PTKP override (IDR) for the taxpayer's marital/dependents status. Defaults to TK/0 (Rp 54,000,000) when omitted. */
+  ptkp?: number;
 }
 
 export interface TaxBracketDto {

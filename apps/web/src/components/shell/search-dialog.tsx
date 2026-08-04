@@ -27,6 +27,7 @@ import { useSession } from "@/lib/auth-compat";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useLocale } from "@/hooks/use-locale";
 import { useShell } from "./shell-context";
 
@@ -49,15 +50,6 @@ const ICONS: Record<string, LucideIcon> = {
   User,
   Bell,
 };
-
-function useDebounce(value: string, delay: number): string {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return debounced;
-}
 
 export function SearchDialog() {
   const { searchOpen, setSearchOpen } = useShell();

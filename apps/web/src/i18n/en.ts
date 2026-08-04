@@ -1396,6 +1396,8 @@ export const en = {
     fieldJabatanLabel: "Job Expense Allowance (automatic)",
     fieldZakatLabel: "Zakat/Donation (deduction)",
     estimateLabel: "Estimated PPh 21 Due/Year",
+    calculatingLabel: "Calculating...",
+    calcErrorLabel: "Failed to calculate. Try again.",
     pkpPrefix: "Taxable Income: ",
     effectiveRatePrefix: " · Effective Rate ",
     savingLabel: "Saving...",
@@ -1507,10 +1509,12 @@ export const en = {
     fieldInvestLabel: "Investments & Stocks (Rp)",
     fieldDebtLabel: "Debt Due (Rp)",
     zakatDueLabel: "Zakat Due (2.5%)",
+    zakatCalculatingMsg: "Calculating...",
+    zakatCalcErrorMsg: "Failed to calculate zakat. Try again.",
     nisabReachedMsg:
-      "✅ Your wealth has reached nisab (equal to 85g gold ≈ Rp 102 million)",
+      "✅ Your wealth has reached nisab (85g gold × Rp 1.100.000/g = Rp 93.500.000)",
     nisabNotReachedMsg:
-      "⚠️ Your wealth hasn't reached nisab (Rp 102 million) — zakat isn't obligatory yet",
+      "⚠️ Your wealth hasn't reached nisab (Rp 93.500.000) — zakat isn't obligatory yet",
     nisabIndicativeNote:
       "Indicative nisab (≈85 grams of gold) — not a real-time gold price.",
     payZakatNowButton: "Pay Zakat Now",

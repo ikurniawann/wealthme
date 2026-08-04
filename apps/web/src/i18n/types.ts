@@ -1310,6 +1310,8 @@ export type I18nDictionary = {
     fieldJabatanLabel: string;
     fieldZakatLabel: string;
     estimateLabel: string;
+    calculatingLabel: string;
+    calcErrorLabel: string;
     pkpPrefix: string;
     effectiveRatePrefix: string;
     savingLabel: string;
@@ -1401,6 +1403,8 @@ export type I18nDictionary = {
     fieldInvestLabel: string;
     fieldDebtLabel: string;
     zakatDueLabel: string;
+    zakatCalculatingMsg: string;
+    zakatCalcErrorMsg: string;
     nisabReachedMsg: string;
     nisabNotReachedMsg: string;
     nisabIndicativeNote: string;

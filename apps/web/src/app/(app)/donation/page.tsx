@@ -3,12 +3,18 @@
 import { useState } from "react";
 import { Plus, HandHeart } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { HeroCard, SectionCard, StatusBadge } from "@/components/wm";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
 import { apiFetch } from "@/lib/api-client";
@@ -20,12 +26,11 @@ import type {
   CreateDonationDto,
   DonationDto,
   DonationType,
+  ZakatResultDto,
 } from "@wealthme/contracts";
 
 const FIELD_CLASS =
   "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
-
-const NISAB = 102_000_000; // ≈85gr emas
 
 const DONATION_TYPE_ICON: Record<string, string> = {
   zakat_maal: "🕌",
@@ -114,22 +119,54 @@ export default function DonationPage() {
   const fgId = session?.familyGroupId ?? undefined;
   const token = session?.accessToken;
 
-  // Zakat Maal calculator state (local — no API)
+  // Zakat Maal calculator — inputs are local, but the actual zakat/nisab
+  // math is computed by the shared BE calculator (/calculators/zakat) so
+  // this stays in sync with the kalkulator page and PPh21 deduction logic
+  // instead of duplicating the formula + a stale nisab constant client-side.
   const [cash, setCash] = useState("");
   const [gold, setGold] = useState("");
   const [invest, setInvest] = useState("");
   const [debt, setDebt] = useState("");
 
-  const harta =
-    parseRupiah(cash) +
-    parseRupiah(gold) +
-    parseRupiah(invest) -
-    parseRupiah(debt);
-  const reachedNisab = harta >= NISAB;
-  const zakat = reachedNisab ? Math.round(harta * 0.025) : 0;
+  const debouncedCash = useDebounce(cash, 300);
+  const debouncedGold = useDebounce(gold, 300);
+  const debouncedInvest = useDebounce(invest, 300);
+  const debouncedDebt = useDebounce(debt, 300);
+
+  const zakatInput = {
+    cash: parseRupiah(debouncedCash),
+    investments: parseRupiah(debouncedInvest),
+    gold: parseRupiah(debouncedGold),
+    liabilities: parseRupiah(debouncedDebt),
+  };
+
+  const {
+    data: zakatResult,
+    isFetching: isZakatFetching,
+    isError: isZakatError,
+  } = useQuery<ZakatResultDto>({
+    queryKey: ["calculators", "zakat", zakatInput],
+    queryFn: () =>
+      apiFetch<ZakatResultDto>("/calculators/zakat", {
+        method: "POST",
+        token,
+        body: JSON.stringify(zakatInput),
+      }),
+    enabled: !!token,
+    placeholderData: keepPreviousData,
+  });
+
+  // Whether the visible zakat figure is a trustworthy, fully-computed answer
+  // (vs. still loading / errored) — gates both what we render and whether
+  // "Pay Zakat Now" is allowed, so we never prefill/persist a donation with
+  // a stale or default-zero amount the server hasn't actually confirmed.
+  const hasZakatResult = !!zakatResult;
+  const reachedNisab = zakatResult?.isObligated ?? false;
+  const zakat = zakatResult?.zakat ?? 0;
   const nisabMsg = reachedNisab
     ? t.donation.nisabReachedMsg
     : t.donation.nisabNotReachedMsg;
+  const canPayZakatNow = hasZakatResult && !isZakatFetching && !isZakatError;
 
   // Donation modal state
   const [open, setOpen] = useState(false);
@@ -283,16 +320,31 @@ export default function DonationPage() {
           <div className="text-[11.5px] text-muted-foreground">
             {t.donation.zakatDueLabel}
           </div>
-          <div className="mt-1 text-[24px] font-black text-primary">
-            {formatRupiah(zakat)}
-          </div>
-          <div className="mt-1.5 text-xs text-muted-foreground">{nisabMsg}</div>
-          <div className="mt-1 text-[11px] text-muted-foreground/80">
-            {t.donation.nisabIndicativeNote}
-          </div>
+          {isZakatError ? (
+            <div className="mt-1 text-[13px] font-semibold text-destructive">
+              {t.donation.zakatCalcErrorMsg}
+            </div>
+          ) : !hasZakatResult ? (
+            <div className="mt-1 text-[13px] text-muted-foreground">
+              {t.donation.zakatCalculatingMsg}
+            </div>
+          ) : (
+            <>
+              <div className="mt-1 text-[24px] font-black text-primary">
+                {formatRupiah(zakat)}
+              </div>
+              <div className="mt-1.5 text-xs text-muted-foreground">
+                {nisabMsg}
+              </div>
+              <div className="mt-1 text-[11px] text-muted-foreground/80">
+                {t.donation.nisabIndicativeNote}
+              </div>
+            </>
+          )}
         </div>
         <Button
           onClick={() => openModal(true)}
+          disabled={!canPayZakatNow}
           className="mt-3.5 h-auto px-4 py-2.5"
         >
           <HandHeart className="size-4" /> {t.donation.payZakatNowButton}
