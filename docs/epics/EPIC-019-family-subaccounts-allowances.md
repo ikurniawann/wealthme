@@ -1,6 +1,6 @@
 # EPIC-019: Family Sub-Accounts & Role-Scoped Allowances
 
-status: backlog
+status: on-progress
 environment: dev
 retries: 0
 phase: 4
@@ -67,7 +67,7 @@ Verified against the current tree, 2026-07-24:
 
 ## Tasks
 
-- [ ] ### A — Per-member account ownership + member-login linking
+- [x] ### A — Per-member account ownership + member-login linking
   - Schema: add a **nullable** `ownerUserId` FK to `Account`
     (`schema.prisma:305-325`), tenant-scoped within the family group; nullable
     so existing rows stay "family-shared." Additive migration only (no drops,
@@ -82,7 +82,7 @@ Verified against the current tree, 2026-07-24:
     (anak/pembantu/supir) and a member sees their linked account under a
     "Milik saya" view. Preserve full backward compatibility for null-owner data.
 
-- [ ] ### B — Owner → member funding (allowance)
+- [x] ### B — Owner → member funding (allowance)
   - **Gated on Open Design Decision #1 and #2.**
   - Let the owner allocate money from the master account into a member's
     account, and let a member/staff **request** an allowance the owner grants.
@@ -95,7 +95,7 @@ Verified against the current tree, 2026-07-24:
   - Surface allocation/allowance history and remaining balance/allowance to
     both the owner and the member.
 
-- [ ] ### C — Role-scoped category constraints
+- [x] ### C — Role-scoped category constraints
   - **Gated on Open Design Decision #3.**
   - Constrain a member/staff account to a specific spending category set:
     pembantu → `belanja`, supir → `operasional`. Enforce on **both** the
@@ -106,7 +106,7 @@ Verified against the current tree, 2026-07-24:
     additive) or an extended role taxonomy. Enforcement must be tenant- and
     member-scoped and covered by CASL.
 
-- [ ] ### D — Member / staff view
+- [x] ### D — Member / staff view
   - A constrained member/staff sees, on login: their linked account, current
     balance/allowance, remaining allowance, their allowed category(ies), and a
     "request allowance" action (if Decision #2 = request→approve).
@@ -210,4 +210,33 @@ owner and a constrained member.
 
 ## Automation Log
 
-<!-- Append automation results here. -->
+- **2026-08-04 — /nerve: all four task groups shipped (PR #214).** Open Design
+  Decisions resolved as recommended and implemented: **#1 = (A) real transfer
+  ledger** — funding moves actual balances through the EPIC-021 B
+  `toAccountId` primitive; **#2 = (i) member requests → owner approves** —
+  `AllowanceRequest` model with notifications both directions; **#3 = (a)
+  per-member category allow-list** — `MemberCategoryAllowance` join table;
+  **#4** — this epic supersedes EPIC-018 Task B, which stays dropped there.
+  Task A adds a nullable `Account.ownerUserId` (additive migration) validated
+  against same-group membership, an `owner=me|family|all` list filter, ownership
+  badges plus a "Milik saya" chip on /rekening, and reverts owned accounts to
+  family-shared inside the same transaction as member removal. Task B adds the
+  request→approve flow: a member requests funds for an account they own, the
+  owner sees a pending panel on /akun and approves by picking a source account,
+  which executes a real transfer. Task C enforces the allow-list server-side at
+  the single transactions choke point, on create **and** on the effective
+  post-patch state of an update; owner/admin_staff and members with an empty
+  list stay unrestricted (backward compatible). Task D gives the member their
+  balance and request action, and the owner a per-member roll-up.
+  **Review found and fixed a CRITICAL money bug:** approval executed the
+  transfer and _then_ wrote the status in a separate statement, with only a
+  plain read guarding "pending" — two concurrent approvals could transfer twice.
+  It now claims the row atomically (`updateMany` conditional on
+  `status: "pending"` → 409 if already decided) _before_ transferring, and
+  compensates the claim if the transfer throws; covered by double-approve,
+  approve-vs-reject race, and transfer-failure tests. Also fixed: missing
+  accounts/transactions cache invalidation after a real balance move, missing
+  request-list invalidation on create, `Role` enum usage, an array-size cap, and
+  a requester index. Security review PASS (owner-only CASL on decide, tenant
+  guards, row-scoped reads, notification content non-injectable). Gates: api 31
+  suites / 308 tests, web 13 suites / 122 tests, qa + test green.
