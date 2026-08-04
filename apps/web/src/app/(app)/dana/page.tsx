@@ -15,6 +15,16 @@ import type { CrudModalState } from "@/components/crud";
 
 import type { AccountDto } from "@wealthme/contracts";
 
+// EPIC-022 F — the API's ConflictException carries a message the user can act
+// on (e.g. a duplicate cash-account name); the generic toast threw it away and
+// left "Coba lagi" as the only guidance. Prefer the server's message and fall
+// back only when there isn't one.
+function extractApiErrorMessage(err: unknown, fallback: string): string {
+  return err && typeof err === "object" && "message" in err
+    ? String((err as { message: unknown }).message)
+    : fallback;
+}
+
 const EWALLET_TYPES = new Set(["ewallet"]);
 const CASH_TYPES = new Set(["cash"]);
 const DANA_TYPES = new Set(["ewallet", "cash"]);
@@ -200,9 +210,12 @@ export default function DanaPage() {
         toast.success(`${label}${t.dana.toastAddedSuffix}`);
       }
       await invalidateAccounts();
-    } catch {
+    } catch (err: unknown) {
       toast.error(
-        `${t.dana.toastSaveFailedPrefix}${label.toLowerCase()}${t.dana.toastSaveFailedSuffix}`,
+        extractApiErrorMessage(
+          err,
+          `${t.dana.toastSaveFailedPrefix}${label.toLowerCase()}${t.dana.toastSaveFailedSuffix}`,
+        ),
       );
     }
   }

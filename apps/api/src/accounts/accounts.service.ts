@@ -20,6 +20,31 @@ import type { CreateAccountDto } from "./dto/create-account.dto";
 import type { AccountOwnerFilter } from "./dto/list-accounts-query.dto";
 import type { UpdateAccountDto } from "./dto/update-account.dto";
 
+/**
+ * `Account` has a unique index on `(familyGroupId, name)`, so saving a second
+ * account under a name the family already uses raises Prisma P2002. Nothing
+ * mapped it, and `AllExceptionsFilter` flattens every non-`HttpException` to a
+ * bare "Internal server error", so the user saw a 500 behind a generic "Gagal
+ * menyimpan" toast with no way to tell that the name was the problem.
+ * Reproduced live on DEV: the second `POST /accounts` with a duplicate name
+ * returned 500 `Internal server error`, API log
+ * `Unique constraint failed on the fields: (familyGroupId, name)`.
+ *
+ * Returns the error to throw so both `create` and `update` map it identically;
+ * any other Prisma code is passed through untouched.
+ */
+function mapDuplicateAccountName(err: unknown, name: string): unknown {
+  if (
+    err instanceof Prisma.PrismaClientKnownRequestError &&
+    err.code === "P2002"
+  ) {
+    return new ConflictException(
+      `Nama "${name}" sudah dipakai akun lain di keluarga ini. Pakai nama yang berbeda.`,
+    );
+  }
+  return err;
+}
+
 @Injectable()
 export class AccountsService {
   constructor(
@@ -76,23 +101,27 @@ export class AccountsService {
       await this.assertOwnerIsFamilyMember(familyGroupId, dto.ownerUserId);
     }
 
-    const account = await this.prisma.account.create({
-      data: {
-        familyGroupId,
-        name: dto.name,
-        type: dto.type,
-        institution: dto.institution ?? null,
-        maskedNumber: dto.maskedNumber
-          ? this.crypto.encrypt(dto.maskedNumber)
-          : null,
-        balance: BigInt(dto.balance),
-        currency: dto.currency ?? "IDR",
-        isPrivate: dto.isPrivate ?? false,
-        ownerUserId: dto.ownerUserId ?? null,
-      },
-      include: { owner: { select: { name: true } } },
-    });
-    return this.toDto(account);
+    try {
+      const account = await this.prisma.account.create({
+        data: {
+          familyGroupId,
+          name: dto.name,
+          type: dto.type,
+          institution: dto.institution ?? null,
+          maskedNumber: dto.maskedNumber
+            ? this.crypto.encrypt(dto.maskedNumber)
+            : null,
+          balance: BigInt(dto.balance),
+          currency: dto.currency ?? "IDR",
+          isPrivate: dto.isPrivate ?? false,
+          ownerUserId: dto.ownerUserId ?? null,
+        },
+        include: { owner: { select: { name: true } } },
+      });
+      return this.toDto(account);
+    } catch (err: unknown) {
+      throw mapDuplicateAccountName(err, dto.name);
+    }
   }
 
   async update(
@@ -115,25 +144,31 @@ export class AccountsService {
       await this.assertOwnerIsFamilyMember(familyGroupId, dto.ownerUserId);
     }
 
-    const updated = await this.prisma.account.update({
-      where: { id, familyGroupId },
-      data: {
-        ...(dto.name !== undefined && { name: dto.name }),
-        ...(dto.type !== undefined && { type: dto.type }),
-        ...(dto.institution !== undefined && { institution: dto.institution }),
-        ...(dto.maskedNumber !== undefined && {
-          maskedNumber: this.crypto.encrypt(dto.maskedNumber),
-        }),
-        ...(dto.balance !== undefined && { balance: BigInt(dto.balance) }),
-        ...(dto.currency !== undefined && { currency: dto.currency }),
-        ...(dto.isPrivate !== undefined && { isPrivate: dto.isPrivate }),
-        ...(dto.ownerUserId !== undefined && {
-          ownerUserId: dto.ownerUserId,
-        }),
-      },
-      include: { owner: { select: { name: true } } },
-    });
-    return this.toDto(updated);
+    try {
+      const updated = await this.prisma.account.update({
+        where: { id, familyGroupId },
+        data: {
+          ...(dto.name !== undefined && { name: dto.name }),
+          ...(dto.type !== undefined && { type: dto.type }),
+          ...(dto.institution !== undefined && {
+            institution: dto.institution,
+          }),
+          ...(dto.maskedNumber !== undefined && {
+            maskedNumber: this.crypto.encrypt(dto.maskedNumber),
+          }),
+          ...(dto.balance !== undefined && { balance: BigInt(dto.balance) }),
+          ...(dto.currency !== undefined && { currency: dto.currency }),
+          ...(dto.isPrivate !== undefined && { isPrivate: dto.isPrivate }),
+          ...(dto.ownerUserId !== undefined && {
+            ownerUserId: dto.ownerUserId,
+          }),
+        },
+        include: { owner: { select: { name: true } } },
+      });
+      return this.toDto(updated);
+    } catch (err: unknown) {
+      throw mapDuplicateAccountName(err, dto.name ?? existing.name);
+    }
   }
 
   /**
