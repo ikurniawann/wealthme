@@ -7,6 +7,7 @@ import {
   IsString,
   Max,
   MaxLength,
+  Min,
 } from "class-validator";
 
 const MAX_AMOUNT = 999_999_999_999;
@@ -31,10 +32,15 @@ export class UpdateGoalDto {
   @Max(MAX_AMOUNT)
   targetAmount?: number;
 
+  // EPIC-022 A4/C9 — `0` must be a legal value: a fresh goal is created with
+  // `currentAmount: 0`, so `@IsPositive()` (which rejects 0, unlike
+  // `@IsOptional()` which only skips `undefined`) 400'd every edit of a
+  // brand-new goal, and there was no way to withdraw/clear a goal back to
+  // 0 either. `@Min(0)` still rejects negative values.
   @ApiPropertyOptional()
   @IsOptional()
   @IsInt()
-  @IsPositive()
+  @Min(0)
   @Max(MAX_AMOUNT)
   currentAmount?: number;
 

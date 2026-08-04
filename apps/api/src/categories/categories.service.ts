@@ -106,6 +106,31 @@ export class CategoriesService {
       where: { id, familyGroupId },
     });
     if (!existing) throw new NotFoundException("Category not found");
+
+    // EPIC-022 A5 — `Budget.category` and `MemberCategoryAllowance.category`
+    // are `onDelete: Cascade` in the schema, so a bare delete here silently
+    // wiped every budget and per-member spending limit built on top of this
+    // category. Count dependants first and reject with a clear message
+    // naming what is attached, instead of a dialog that only warns "tidak
+    // bisa dikembalikan" about the category itself.
+    const [budgetCount, allowanceCount] = await Promise.all([
+      this.prisma.budget.count({ where: { categoryId: id } }),
+      this.prisma.memberCategoryAllowance.count({ where: { categoryId: id } }),
+    ]);
+
+    const blockers: string[] = [];
+    if (budgetCount > 0) {
+      blockers.push(`${budgetCount} anggaran`);
+    }
+    if (allowanceCount > 0) {
+      blockers.push(`${allowanceCount} batasan kategori anggota`);
+    }
+    if (blockers.length > 0) {
+      throw new ConflictException(
+        `Kategori ini dipakai ${blockers.join(" dan ")}. Hapus atau ubah dulu sebelum menghapus kategori ini.`,
+      );
+    }
+
     await this.prisma.category.delete({ where: { id, familyGroupId } });
   }
 

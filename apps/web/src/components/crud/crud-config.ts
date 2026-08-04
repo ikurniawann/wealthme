@@ -19,6 +19,7 @@ function monthsUntil(deadline: string): number {
 
 export type CrudFieldType =
   | "text"
+  | "email"
   | "number"
   | "amount"
   | "date"
@@ -307,30 +308,33 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
   },
   member: {
     title: "Anggota Family",
+    // EPIC-022 A1 — the invitation endpoint (`CreateInvitationDto`) only
+    // ever accepted `email` + `role`; it never had `nama`/`hubungan` fields
+    // to send them to, so those two were collected and silently dropped
+    // (whitelist: true, no forbidNonWhitelisted). Decision: remove them
+    // rather than grow the API to match — the join flow captures the
+    // member's own name once they accept the invite. The "Email / No. HP"
+    // field is now email-only (it always POSTed to an `@IsEmail` DTO, so a
+    // phone number here always 400'd), and "Peran" offers the two roles the
+    // DTO actually accepts (`member` / `admin_staff`) instead of a
+    // "Co-Owner" option that isn't a real role and was never wired up
+    // (submission hardcoded "member" regardless of this field).
     fields: [
       {
-        key: "nama",
-        label: "Nama Lengkap",
-        type: "text",
-        placeholder: "cth: Siti Arsandi",
-      },
-      {
         key: "email",
-        label: "Email / No. HP",
-        type: "text",
-        placeholder: "email atau nomor",
+        label: "Email",
+        type: "email",
+        placeholder: "nama@email.com",
       },
       {
-        key: "hubungan",
-        label: "Hubungan",
-        type: "select",
-        options: ["Pasangan", "Anak", "Orang Tua", "Saudara", "Lainnya"],
-      },
-      {
+        // Static options double as a safe fallback value/label; the call
+        // site (akun/page.tsx) overrides the label via `dynamicOptions` so
+        // this stays in sync with the translated "Tambah Admin/Staf" role
+        // labels instead of duplicating them here.
         key: "role",
         label: "Peran",
         type: "select",
-        options: ["Member", "Co-Owner"],
+        options: ["member", "admin_staff"],
       },
     ],
   },

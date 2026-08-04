@@ -4,6 +4,7 @@ import {
   UnprocessableEntityException,
 } from "@nestjs/common";
 
+import { categoryPrivacyWhere } from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -28,9 +29,21 @@ type BudgetWithCategory = {
 export class BudgetsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(familyGroupId: string): Promise<BudgetDto[]> {
+  /**
+   * `canSeePrivate` defaults to `true` so internal/non-member-facing callers
+   * stay unfiltered — the controller passes `false` for a plain `member`
+   * (see `canSeePrivateItems`), matching every other shared read
+   * (categories, transactions, dashboard).
+   */
+  async findAll(
+    familyGroupId: string,
+    canSeePrivate = true,
+  ): Promise<BudgetDto[]> {
     const budgets = await this.prisma.budget.findMany({
-      where: { familyGroupId },
+      where: {
+        familyGroupId,
+        category: categoryPrivacyWhere(canSeePrivate),
+      },
       include: {
         category: {
           select: {
@@ -61,6 +74,12 @@ export class BudgetsService {
         type: "expense",
         occurredAt: { gte: monthStart, lte: monthEnd },
         categoryId: { in: budgets.map((b) => b.categoryId) },
+        // EPIC-022 A6 — belt-and-suspenders: `budgets` above is already
+        // privacy-filtered, so `categoryId: { in: ... } ` already excludes
+        // private categories' spend; this repeats the same filter directly
+        // on the spend query so it stays correct even if the `in` list
+        // above is ever computed differently.
+        category: categoryPrivacyWhere(canSeePrivate),
       },
       _sum: { amount: true },
     });

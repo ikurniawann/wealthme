@@ -244,6 +244,11 @@ export default function TujuanPage() {
 
   const [crud, setCrud] = useState<CrudModalState | null>(null);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
+  // EPIC-022 A4 — the "original" currentAmount the edit form was seeded
+  // with, so `buildGoalBody` can omit `currentAmount` from the PATCH when
+  // the user never touched "Sudah Terkumpul" (see goals-utils.ts).
+  const [editingOriginalCurrentAmount, setEditingOriginalCurrentAmount] =
+    useState<number | null>(null);
   const [deletingGoal, setDeletingGoal] = useState<GoalDto | null>(null);
 
   const {
@@ -273,6 +278,7 @@ export default function TujuanPage() {
 
   function handleEdit(goal: GoalDto) {
     setEditingGoalId(goal.id);
+    setEditingOriginalCurrentAmount(goal.currentAmount);
     setCrud({
       entity: "tujuan",
       mode: "edit",
@@ -291,6 +297,7 @@ export default function TujuanPage() {
   function handleCloseCrud() {
     setCrud(null);
     setEditingGoalId(null);
+    setEditingOriginalCurrentAmount(null);
   }
 
   async function handleSubmit(
@@ -303,7 +310,12 @@ export default function TujuanPage() {
       return;
     }
     try {
-      const body = buildGoalBody(values);
+      const body = buildGoalBody(
+        values,
+        mode === "edit"
+          ? (editingOriginalCurrentAmount ?? undefined)
+          : undefined,
+      );
       if (mode === "edit" && editingGoalId) {
         await apiFetch(
           `/family-groups/${familyGroupId}/goals/${editingGoalId}`,
@@ -356,6 +368,12 @@ export default function TujuanPage() {
           <div className="text-xs text-muted-foreground">
             {t.tujuan.totalAllocatedPrefix}
             {isLoading ? "…" : <CountUpRupiah value={totalAllocated} />}
+          </div>
+          {/* EPIC-022 A3 — goals are a manual tracker, not real money: make
+              that explicit here so this total can't be read as a bank
+              balance or a real transfer between accounts. */}
+          <div className="text-[10.5px] text-muted-foreground/70">
+            {t.tujuan.trackerDisclaimer}
           </div>
         </div>
         <Button
