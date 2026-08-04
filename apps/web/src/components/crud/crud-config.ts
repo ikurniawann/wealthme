@@ -315,10 +315,17 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
     // rather than grow the API to match — the join flow captures the
     // member's own name once they accept the invite. The "Email / No. HP"
     // field is now email-only (it always POSTed to an `@IsEmail` DTO, so a
-    // phone number here always 400'd), and "Peran" offers the two roles the
-    // DTO actually accepts (`member` / `admin_staff`) instead of a
-    // "Co-Owner" option that isn't a real role and was never wired up
-    // (submission hardcoded "member" regardless of this field).
+    // phone number here always 400'd), and "Peran" offers the roles the DTO
+    // actually accepts instead of a "Co-Owner" option that isn't a real role
+    // and was never wired up (submission hardcoded "member" regardless of
+    // this field).
+    // EPIC-023 Task C retry (MEDIUM six-reviewer finding) — `spouse` added:
+    // `AddAdminDialog` (akun/page.tsx) already offers it, and both dialogs
+    // invite into the same `CreateInvitationDto`, so this picker was one
+    // invite path behind. The call site widens its role coercion to match
+    // (akun/page.tsx's `handleCrudSubmit`) — do not add `spouse` here
+    // without widening that coercion, or a spouse invite silently
+    // downgrades to "member".
     fields: [
       {
         key: "email",
@@ -334,7 +341,7 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         key: "role",
         label: "Peran",
         type: "select",
-        options: ["member", "admin_staff"],
+        options: ["member", "admin_staff", "spouse"],
       },
     ],
   },

@@ -60,6 +60,10 @@ export class CaslAbilityFactory {
         // admin_staff), not the general "manage Transaction" grant every
         // role effectively already has.
         can("manage", "Reconciliation");
+        // EPIC-023 Task C retry (six-reviewer finding) — SplitBill had no
+        // grant on any role; owner gets the same full "manage" every other
+        // money surface gets.
+        can("manage", "SplitBill");
         can("manage", "TaxRecord");
         can("manage", "Transaction");
         break;
@@ -86,10 +90,22 @@ export class CaslAbilityFactory {
         can("read", "MemberCategoryAllowance");
         can("manage", "Notification");
         can("read", "Notification");
-        // EPIC-021 Group C (#29) — deliberately NOT granted to `member`: bank
-        // reconciliation fee-splitting is a bookkeeping action reserved for
-        // owner/admin_staff (recorded epic decision), even though `member`
-        // already has full "manage Transaction" for its own day-to-day use.
+        // EPIC-023 Task C retry (HIGH six-reviewer finding) — restores the
+        // day-to-day reconciliation workflow (upload/list/match/auto-match)
+        // to `member`: EPIC-021 Group C (#29) only ever reserved the
+        // fee-SPLIT action (creates real ledger Transactions, gated
+        // "manage" below/on owner+admin_staff+spouse) for the bookkeeping
+        // roles — its own commit message states the pre-existing
+        // upload/match/auto-match endpoints were left untouched. Round 2
+        // wrongly flattened the whole controller onto "manage" and 403'd
+        // `member` on everything; gate by the action each route performs
+        // instead (reconciliation.controller.ts).
+        can("read", "Reconciliation");
+        can("create", "Reconciliation");
+        // EPIC-023 Task C retry — a plain member may fully manage a split
+        // bill (create/settle/delete one they set up), same as every other
+        // household-coordination surface (Budget/Goal/Donation/...) below.
+        can("manage", "SplitBill");
         can("manage", "TaxRecord");
         can("manage", "Transaction");
         break;
@@ -114,13 +130,84 @@ export class CaslAbilityFactory {
         // EPIC-021 Group C (#29) — bookkeeper role can perform the
         // reconciliation fee-split (see the owner-case comment above).
         can("manage", "Reconciliation");
+        // EPIC-023 Task C retry — bookkeeper can see split bills (needed to
+        // reconcile them against the ledger) but never create/settle/delete
+        // one; that stays a household-coordination action for owner/spouse/
+        // member.
+        can("read", "SplitBill");
         can("read", "TaxRecord");
         can("create", "Transaction");
         can("read", "Transaction");
         break;
 
-      default:
+      // EPIC-023 Task C (D2) — a financial co-owner: full CRUD on every
+      // money surface `owner` has, EXCEPT Member (read-only, never
+      // "manage" — one accountable head stays responsible for who is in
+      // the family) and no family-group deletion capability (no role is
+      // granted that today; see the "FamilyGroup" subject, unused above).
+      case Role.spouse:
+        can("manage", "Account");
+        can("manage", "AllowanceRequest");
+        can("manage", "Asset");
+        can("manage", "Budget");
+        can("manage", "Category");
+        can("manage", "CoaAccount");
+        can("manage", "Donation");
+        can("manage", "Goal");
+        can("manage", "Inheritance");
+        can("manage", "Insurance");
+        can("manage", "Investment");
+        can("manage", "Liability");
+        can("read", "Member");
+        can("manage", "MemberCategoryAllowance");
+        can("manage", "Notification");
+        can("manage", "Reconciliation");
+        // EPIC-023 Task C retry — a spouse is a full financial co-owner
+        // (D2), same "manage" every other money surface above gets.
+        can("manage", "SplitBill");
+        can("manage", "TaxRecord");
+        can("manage", "Transaction");
         break;
+
+      // EPIC-023 Task C (D3) — a child: scoped to their own account and
+      // their own transactions (row-level scoping is enforced in every
+      // service read path, see common/utils/privacy.util.ts — the subject
+      // grants below are necessary but not sufficient). Full "read" on
+      // Inheritance is an explicit accepted consequence (D4/C3), not an
+      // oversight. No Member, CoaAccount, Reconciliation, or TaxRecord
+      // access; "create"+"read" only on Transaction — never "manage",
+      // matching admin_staff's shape (no update/delete of ledger history).
+      case Role.dependant:
+        can("read", "Account");
+        can("create", "AllowanceRequest");
+        can("read", "AllowanceRequest");
+        can("read", "Inheritance");
+        can("create", "Transaction");
+        can("read", "Transaction");
+        break;
+
+      // EPIC-023 Task C (D5) — a helper/driver: their own account AND its
+      // balance (otherwise the role cannot function), plus their own
+      // transactions. Nothing else — no Inheritance, no Member, no COA, no
+      // Reconciliation, no TaxRecord.
+      case Role.operational:
+        can("read", "Account");
+        can("create", "AllowanceRequest");
+        can("read", "AllowanceRequest");
+        can("create", "Transaction");
+        can("read", "Transaction");
+        break;
+
+      default: {
+        // EPIC-023 Task C retry (six-reviewer finding) — exhaustiveness
+        // guard: if `Role` ever gains a seventh member without a `case`
+        // above, this assignment fails to compile (the new enum literal is
+        // not assignable to `never`) instead of silently falling through to
+        // a zero-grant ability at runtime.
+        const _exhaustiveCheck: never = member.role;
+        void _exhaustiveCheck;
+        break;
+      }
     }
 
     return build();

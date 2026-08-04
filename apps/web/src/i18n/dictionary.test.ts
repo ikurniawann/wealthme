@@ -10,6 +10,8 @@
  * plain index signature, this test still catches drift between locales.
  */
 
+import { RoleSchema } from "@wealthme/contracts";
+
 import { id } from "./id";
 import { en } from "./en";
 
@@ -506,11 +508,23 @@ describe("i18n dictionary key parity", () => {
     }
   });
 
-  it("laporan.family.roleLabels covers every family-report role in both locales without changing persisted values", () => {
-    const roleIds = ["owner", "admin", "member"] as const;
+  // EPIC-023 Task C retry (six-reviewer finding) — `common.roleLabels` is
+  // now the SINGLE shared map every page routes a member's role display
+  // through (`/laporan`'s family roster, `/akun`'s member list, ...). This
+  // list covers all six real `Role` enum values (previously only 3 of 6
+  // were tested, and the tested "admin" key didn't even match the real
+  // enum value `admin_staff` — a future omission on a new/renamed role now
+  // fails this test instead of silently rendering the raw enum string).
+  //
+  // EPIC-023 Task C retry (LOW six-reviewer finding) — the ids are derived
+  // from the shared `@wealthme/contracts` `RoleSchema` instead of a
+  // hardcoded literal list, so a seventh role added there is covered here
+  // automatically instead of silently passing an out-of-date test.
+  it("common.roleLabels covers every member role in both locales without changing persisted values", () => {
+    const roleIds = RoleSchema.options;
     for (const key of roleIds) {
-      expect(id.laporan.family.roleLabels[key]).toBeTruthy();
-      expect(en.laporan.family.roleLabels[key]).toBeTruthy();
+      expect(id.common.roleLabels[key]).toBeTruthy();
+      expect(en.common.roleLabels[key]).toBeTruthy();
     }
   });
 

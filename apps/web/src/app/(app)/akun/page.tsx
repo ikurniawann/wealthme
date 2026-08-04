@@ -74,6 +74,7 @@ import type {
   AllowanceRequestDto,
   CategoryDto,
   MemberCategoryAllowanceDto,
+  Role,
 } from "@wealthme/contracts";
 
 type SubPageId =
@@ -119,7 +120,7 @@ type FamilyGroupMine = {
   id: string;
   name: string;
   memberCount: number;
-  myRole: string;
+  myRole: Role;
   createdAt: string;
 };
 
@@ -127,7 +128,7 @@ type FamilyMember = {
   id: string;
   userId: string;
   familyGroupId: string;
-  role: string;
+  role: Role;
   name: string;
   email: string;
   createdAt: string;
@@ -1818,7 +1819,13 @@ function FamilyBody({
   const { t } = useLocale();
   const regularMembers = members.filter((m) => m.role !== "admin_staff");
   const adminMembers = members.filter((m) => m.role === "admin_staff");
-  const isOwner = group?.myRole === "owner";
+  // EPIC-023 Task C retry (MEDIUM six-reviewer finding) — mirrors the
+  // server's "elevated" bucket (owner + spouse): round 2 made `canSeeAll`
+  // true for `spouse` on AllowanceRequestsPanel's list endpoint and let a
+  // spouse set a member's category limit server-side (D2, full financial
+  // co-owner), but both surfaces below were still gated on an `isOwner`-only
+  // check, so a spouse could never reach either control from the UI.
+  const isElevated = group?.myRole === "owner" || group?.myRole === "spouse";
   const [categoryLimitMember, setCategoryLimitMember] =
     useState<FamilyMember | null>(null);
 
@@ -1841,7 +1848,9 @@ function FamilyBody({
             </div>
             <div className="mt-0.5 text-[12px] opacity-80">
               {group
-                ? `${group.memberCount} ${t.akun.memberCountSuffix} · ${group.myRole}`
+                ? `${group.memberCount} ${t.akun.memberCountSuffix} · ${
+                    t.common.roleLabels[group.myRole] ?? group.myRole
+                  }`
                 : "—"}
             </div>
           </div>
@@ -1865,15 +1874,21 @@ function FamilyBody({
                 </StatusBadge>
               ) : undefined
             }
-            sub={`${m.role} · ${m.email}`}
+            sub={`${t.common.roleLabels[m.role] ?? m.role} · ${m.email}`}
             right={
               <div className="flex items-center gap-1.5">
                 {m.userId !== myUserId && (
-                  <StatusBadge variant="gray">{m.role}</StatusBadge>
+                  <StatusBadge variant="gray">
+                    {t.common.roleLabels[m.role] ?? m.role}
+                  </StatusBadge>
                 )}
                 {/* EPIC-019 Task C — only a `member` (never owner/admin_staff,
-                    which are always exempt server-side) can be constrained. */}
-                {isOwner && m.role === "member" && (
+                    which are always exempt server-side) can be constrained.
+                    EPIC-023 Task C retry — actor half widened to `isElevated`
+                    (owner + spouse, mirrors the server's D2 grant); target
+                    half stays `m.role === "member"` unchanged — only a
+                    member-role target can be constrained. */}
+                {isElevated && m.role === "member" && (
                   <button
                     type="button"
                     aria-label={`${t.akun.family.categoryLimitButton} ${m.name}`}
@@ -1938,13 +1953,12 @@ function FamilyBody({
       </SetSection>
       <SetSection>
         <SectionTitle>{t.akun.family.groupSettingsSectionTitle}</SectionTitle>
+        {/* EPIC-023 Task C (D8) — "Tampilkan Saldo ke Anggota" removed:
+            it was never wired to anything (FamilyGroup has no settings
+            column backing it), and roles are now the single source of
+            truth for balance visibility (see privacy.util.ts). */}
         <ToggleBox
           rows={[
-            {
-              label: t.akun.family.showBalanceToMembersLabel,
-              sub: t.akun.family.showBalanceToMembersSub,
-              defaultChecked: true,
-            },
             {
               label: t.akun.family.memberTxnNotifLabel,
               sub: t.akun.family.memberTxnNotifSub,
@@ -1952,8 +1966,11 @@ function FamilyBody({
           ]}
         />
       </SetSection>
-      {/* EPIC-019 Task B/D — owner-only pending funding requests. */}
-      {isOwner && (
+      {/* EPIC-019 Task B/D — pending funding requests, owner + spouse
+          (EPIC-023 Task C retry — `isElevated` mirrors the server's
+          `canSeeAll` bucket so a spouse can actually reach the panel it was
+          made to approve requests from). */}
+      {isElevated && (
         <AllowanceRequestsPanel familyGroupId={familyGroupId} token={token} />
       )}
       <CategoryLimitDialog
@@ -2396,12 +2413,19 @@ function AddAdminDialog({
 }) {
   const { t } = useLocale();
   const emailRef = useRef<HTMLInputElement>(null);
-  // Real role picker (EPIC-016 Task D) — exactly the 2 roles the invitation
-  // endpoint (CreateInvitationDto) actually accepts besides "owner".
-  const [role, setRole] = useState<"member" | "admin_staff">("admin_staff");
+  // Real role picker (EPIC-016 Task D). EPIC-023 Task C retry — the
+  // invitation endpoint (CreateInvitationDto) now accepts 3 roles besides
+  // "owner": "member", "admin_staff", and "spouse" (D2/D6 — a spouse is
+  // invited by email like everyone else, not auto-derived from kinship).
+  const [role, setRole] = useState<"member" | "admin_staff" | "spouse">(
+    "admin_staff",
+  );
 
   const { mutate: sendInvite, isPending } = useMutation({
-    mutationFn: (vars: { email: string; role: "member" | "admin_staff" }) =>
+    mutationFn: (vars: {
+      email: string;
+      role: "member" | "admin_staff" | "spouse";
+    }) =>
       apiFetch<{ token: string }>(
         `/family-groups/${familyGroupId}/invitations`,
         {
@@ -2453,13 +2477,14 @@ function AddAdminDialog({
             className={FIELD_CLASS}
             value={role}
             onChange={(e) =>
-              setRole(e.target.value as "member" | "admin_staff")
+              setRole(e.target.value as "member" | "admin_staff" | "spouse")
             }
           >
             <option value="admin_staff">
               {t.akun.addAdmin.roleOptions.adminStaff}
             </option>
             <option value="member">{t.akun.addAdmin.roleOptions.member}</option>
+            <option value="spouse">{t.akun.addAdmin.roleOptions.spouse}</option>
           </select>
         </Field>
         <button
@@ -2646,7 +2671,14 @@ export default function AkunPage() {
         // EPIC-022 A1 — the role select only ever offers "member" /
         // "admin_staff" (see crud-config.ts), so this is a real, wired-up
         // choice now, not the previous hardcoded "member".
-        const role = values.role === "admin_staff" ? "admin_staff" : "member";
+        // EPIC-023 Task C retry (MEDIUM six-reviewer finding) — the select
+        // now also offers "spouse" (crud-config.ts); this coercion must
+        // widen to match or a spouse invite silently downgrades to
+        // "member" — a control that lies about what it does.
+        const role: "admin_staff" | "spouse" | "member" =
+          values.role === "admin_staff" || values.role === "spouse"
+            ? values.role
+            : "member";
         const invitation = await apiFetch<{ token: string }>(
           `/family-groups/${familyGroupId}/invitations`,
           {
@@ -2778,7 +2810,8 @@ export default function AkunPage() {
                 {primaryGroup?.name ?? t.akun.noFamilyGroup}
                 {primaryGroup && (
                   <StatusBadge variant="info" className="text-[10px]">
-                    {primaryGroup.myRole}
+                    {t.common.roleLabels[primaryGroup.myRole] ??
+                      primaryGroup.myRole}
                   </StatusBadge>
                 )}
               </div>
@@ -2917,10 +2950,13 @@ export default function AkunPage() {
         onClose={() => setCrud(null)}
         onSubmit={handleCrudSubmit}
         // EPIC-022 A1 — the "member" entity's `role` field (crud-config.ts)
-        // uses raw enum values ("member"/"admin_staff") as its static
-        // options so the form stays valid even without this override; here
-        // we swap in the same translated labels already used by the
-        // "Tambah Admin/Staf" dialog instead of duplicating the copy.
+        // uses raw enum values ("member"/"admin_staff"/"spouse") as its
+        // static options so the form stays valid even without this
+        // override; here we swap in the same translated labels already
+        // used by the "Tambah Admin/Staf" dialog instead of duplicating the
+        // copy. EPIC-023 Task C retry — "spouse" added, matching
+        // `AddAdminDialog`'s options and `handleCrudSubmit`'s widened
+        // coercion above.
         dynamicOptions={{
           role: [
             { value: "member", label: t.akun.addAdmin.roleOptions.member },
@@ -2928,6 +2964,7 @@ export default function AkunPage() {
               value: "admin_staff",
               label: t.akun.addAdmin.roleOptions.adminStaff,
             },
+            { value: "spouse", label: t.akun.addAdmin.roleOptions.spouse },
           ],
         }}
       />

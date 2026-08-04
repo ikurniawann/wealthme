@@ -241,7 +241,7 @@ asset & investment values = closing net worth`. This is what answers "why is
 investment revaluation = closing`, every residual named. Unit tests on a
     constructed month. (D24, US-RPT-11)
 
-- [ ] ### C — Roles, kinship and access
+- [x] ### C — Roles, kinship and access ✅
   - **C1** — Add `Member.relationship`; extend `Role` with the dependant and
     operational tiers; relationship pre-fills a default role. (D1, US-FAM-8/9)
   - **C2** — CASL: spouse gets full money CRUD without member management; child
@@ -605,3 +605,49 @@ whose P&L and balance sheet reconcile through the bridge.
   excludes it. **Outstanding safeguard:** the pre/post-migration P&L and
   balance-sheet capture for the demo family has NOT been done — it must run
   against DEV before this migration is applied there.
+- 2026-08-05 /epic-loop EPIC-023 #2 "C — Roles, kinship and access" → PASS
+  (attempts: 3), PR: pending. Three roles became six: `spouse` was added beyond
+  the "dependant and operational" tiers the epic names, because D2 makes a
+  spouse a financial co-owner with full money CRUD but no member management,
+  which no existing tier expressed. Kinship (`Member.relationship`) is a
+  separate, nullable axis that grants nothing; `DEFAULT_ROLE_BY_RELATIONSHIP`
+  lives in `packages/contracts` as an exhaustive `Record`, so adding a
+  relationship without mapping it is a compile error.
+  **`Transaction.createdByUserId` had to be added** — the acceptance criterion
+  "transactions on accounts they own **or that they recorded**" was
+  unimplementable without it. It is never backfilled, so a child correctly sees
+  none of the pre-existing household ledger.
+  **The dominant finding was structural, and it is worth carrying beyond this
+  epic**: `AbilitiesGuard` returns `true` for any route with no `@CheckAbility`,
+  and `TenantGuard` checks only family membership, not role. Row scoping was
+  applied carefully to accounts, transactions, dashboard, search, reports and
+  exports — and reconciliation (5 routes), split-bills (5 routes), the AI
+  advisor, `listMembers` and the GDPR export were all still readable by a child
+  or driver, because nobody had audited them. Adding a low-trust role means
+  auditing **every** controller, not the ones the feature touches. A second trap
+  from the same change: CASL's `manage` is not implied by `create`, so granting
+  the new roles `create` while the route checked `manage` made the one action
+  D3/D5 exist to give them return 403 — and every unit test missed it by calling
+  the service directly, bypassing the guard. There is now a guard-level spec
+  that drives the real guard against the real controllers.
+  Round 2 then over-corrected in the opposite direction: gating reconciliation
+  on `manage` stripped plain `member` of upload/match access that commit
+  `1fa5c1f` had deliberately preserved. Fixed by tiering — `member` holds
+  `read`+`create`, the money-moving `splitEntry` stays `manage` per EPIC-021 #29.
+  The GDPR export needed two passes: accounts and transactions were scoped
+  per-membership, but goals and notifications kept a blanket query, and
+  notification bodies embed literal amounts, so the ledger leaked through
+  notification _text_ while the transactions themselves were correctly hidden.
+  A stale `packages/contracts/dist` (committed build output) crashed the Next.js
+  type-checker with a SIGTRAP rather than a readable error — rebuild contracts
+  after editing its source.
+  **Deferred to group D, by decision:** nav role-filtering (`apps/web/src/lib/nav.ts`
+  is a protected foundation file, and `dependant`/`operational` will see many
+  entries they cannot use, not just reconciliation — it needs doing once,
+  properly); the relationship picker driven by `defaultRoleForRelationship`;
+  surfacing `relationship` on the client `FamilyMember` type. **Owned by neither
+  C nor D as written, and needing an explicit line item: editing an existing
+  member's role or relationship — there is no `PATCH .../members/:id` UI at all,
+  so US-FAM-8 has no end-to-end delivery yet.** Also recorded: the `test/e2e`
+  suite is not wired into `scripts/test.sh`, needs an absent `.env.test`, and
+  has drifted (uppercase enum values that would now fail `@IsEnum`).

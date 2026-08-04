@@ -15,7 +15,10 @@ import {
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
-import { canSeePrivateItems } from "../common/utils/privacy.util";
+import {
+  assertHouseholdWideReadAllowed,
+  canSeePrivateItems,
+} from "../common/utils/privacy.util";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { DashboardService } from "./dashboard.service";
@@ -38,7 +41,12 @@ export class DashboardController {
     @Req() req: Request,
   ): Promise<DashboardSummaryDto> {
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
-    return this.dashboardService.getSummary(familyGroupId, canSeePrivate);
+    return this.dashboardService.getSummary(
+      familyGroupId,
+      canSeePrivate,
+      req.tenantContext?.member?.role ?? null,
+      req.tenantContext?.userId,
+    );
   }
 
   @Get("net-worth")
@@ -51,7 +59,12 @@ export class DashboardController {
     @Req() req: Request,
   ): Promise<NetWorthDto> {
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
-    return this.dashboardService.getNetWorth(familyGroupId, canSeePrivate);
+    return this.dashboardService.getNetWorth(
+      familyGroupId,
+      canSeePrivate,
+      req.tenantContext?.member?.role ?? null,
+      req.tenantContext?.userId,
+    );
   }
 
   @Get("net-worth/history")
@@ -62,8 +75,15 @@ export class DashboardController {
   @ApiResponse({ status: 200, description: "Net-worth snapshots over time" })
   getNetWorthHistory(
     @Param("familyGroupId") familyGroupId: string,
+    @Req() req: Request,
     @Query("range") range?: string,
   ): Promise<NetWorthHistoryDto> {
+    // EPIC-023 Task C — snapshots are pre-aggregated family-wide totals with
+    // no per-viewer dimension (see DashboardService.captureSnapshot); a
+    // dependant/operational cannot be scoped to "their own" history without
+    // a new snapshot dimension this task does not add, so this endpoint is
+    // denied outright rather than leaking the household's wealth trend.
+    assertHouseholdWideReadAllowed(req.tenantContext?.member?.role);
     return this.dashboardService.getNetWorthHistory(familyGroupId, range);
   }
 }

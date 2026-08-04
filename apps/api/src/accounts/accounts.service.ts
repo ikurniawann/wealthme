@@ -9,6 +9,7 @@ import { Prisma } from "@prisma/client";
 import {
   accountOwnerWhere,
   accountPrivacyWhere,
+  restrictedAccountWhere,
 } from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CryptoService } from "../crypto/crypto.service";
@@ -19,6 +20,7 @@ import type { AccountResponseDto } from "./dto/account-response.dto";
 import type { CreateAccountDto } from "./dto/create-account.dto";
 import type { AccountOwnerFilter } from "./dto/list-accounts-query.dto";
 import type { UpdateAccountDto } from "./dto/update-account.dto";
+import type { Role } from "@prisma/client";
 
 /**
  * `Account` has a unique index on `(familyGroupId, name)`, so saving a second
@@ -55,18 +57,25 @@ export class AccountsService {
   /**
    * `canSeePrivate` defaults to `true` so internal/non-member-facing callers
    * stay unfiltered — only member-facing controller calls pass `false`.
+   * `viewerRole`/`requestingUserId` (EPIC-023 Task C) narrow a `dependant`/
+   * `operational` viewer to accounts they own — `restrictedAccountWhere` is
+   * spread AFTER `accountOwnerWhere` so it wins the `ownerUserId` key: a
+   * row-scoped role's own account is all they ever see, regardless of what
+   * `?owner=family` (or any other value) asks for.
    */
   async findAll(
     familyGroupId: string,
     canSeePrivate = true,
     ownerFilter?: AccountOwnerFilter,
     requestingUserId?: string,
+    viewerRole: Role | null = null,
   ): Promise<AccountResponseDto[]> {
     const accounts = await this.prisma.account.findMany({
       where: {
         familyGroupId,
         ...accountPrivacyWhere(canSeePrivate),
         ...accountOwnerWhere(ownerFilter, requestingUserId),
+        ...restrictedAccountWhere(viewerRole, requestingUserId),
       },
       include: { owner: { select: { name: true } } },
       orderBy: { createdAt: "asc" },
@@ -78,13 +87,20 @@ export class AccountsService {
     familyGroupId: string,
     id: string,
     canSeePrivate = true,
+    viewerRole: Role | null = null,
+    requestingUserId?: string,
   ): Promise<AccountResponseDto> {
     const account = await this.prisma.account.findUnique({
       // Privacy fragment first: id/familyGroupId are fixed literals that
       // must win the merge, keeping this a `AccountWhereUniqueInput` (id
       // typed as `string`, not a Prisma filter) instead of the broader
       // `AccountWhereInput` shape `accountPrivacyWhere` uses.
-      where: { ...accountPrivacyWhere(canSeePrivate), id, familyGroupId },
+      where: {
+        ...accountPrivacyWhere(canSeePrivate),
+        ...restrictedAccountWhere(viewerRole, requestingUserId),
+        id,
+        familyGroupId,
+      },
       include: { owner: { select: { name: true } } },
     });
     if (!account) {

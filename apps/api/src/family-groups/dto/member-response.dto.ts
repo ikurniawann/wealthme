@@ -1,5 +1,5 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { Role } from "@prisma/client";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { MemberRelationship, Role } from "@prisma/client";
 
 export class MemberResponseDto {
   @ApiProperty({ type: String })
@@ -13,6 +13,11 @@ export class MemberResponseDto {
 
   @ApiProperty({ enum: Role })
   role!: Role;
+
+  // EPIC-023 Task C (D1) — purely descriptive kinship; null for every
+  // pre-existing member.
+  @ApiPropertyOptional({ enum: MemberRelationship, nullable: true })
+  relationship!: MemberRelationship | null;
 
   @ApiProperty({ type: String })
   name!: string;

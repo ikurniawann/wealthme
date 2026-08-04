@@ -6,11 +6,16 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useSession, signOut } from "@/lib/auth-compat";
 import { apiFetch } from "@/lib/api-client";
+import { id } from "@/i18n/id";
+
+import type { Role } from "@wealthme/contracts";
 
 type Invitation = {
   familyGroupName: string;
   email: string;
-  role: string;
+  // Typed as the shared `Role` union (not bare `string`) so the label lookup
+  // below needs no cast and a new role forces a label — EPIC-023 Task C.
+  role: Role;
   expiresAt: string;
 };
 
@@ -94,7 +99,8 @@ export default function JoinPage({
               &ldquo;{invitation.familyGroupName}&rdquo;
             </div>
             <div className="mt-2 text-[13px] text-muted-foreground">
-              Untuk {invitation.email} · peran {invitation.role}
+              Untuk {invitation.email} · peran{" "}
+              {id.common.roleLabels[invitation.role] ?? invitation.role}
             </div>
 
             {session?.accessToken ? (

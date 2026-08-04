@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { Role } from "@prisma/client";
+import { MemberRelationship, Role } from "@prisma/client";
 
 export class InvitationResponseDto {
   @ApiProperty({ type: String })
@@ -19,6 +19,10 @@ export class InvitationResponseDto {
 
   @ApiProperty({ enum: Role })
   role!: Role;
+
+  // EPIC-023 Task C (D1) — purely descriptive kinship.
+  @ApiPropertyOptional({ enum: MemberRelationship, nullable: true })
+  relationship!: MemberRelationship | null;
 
   @ApiProperty({ type: String, format: "date-time" })
   expiresAt!: string;

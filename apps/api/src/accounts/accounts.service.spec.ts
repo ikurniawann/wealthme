@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
-import { Prisma } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
 
 import { CryptoService } from "../crypto/crypto.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -724,6 +724,102 @@ describe("AccountsService owner=me|family|all filter", () => {
       AccountOwnerFilter.me,
     );
     expect(result).toEqual([]);
+  });
+});
+
+// EPIC-023 Task C (D5, US-FAM-13) — a row-scoped role (dependant/
+// operational) must see only the account they own, never a family-shared
+// or another member's account, regardless of the `owner` query filter.
+describe("AccountsService row-scoped roles (dependant/operational)", () => {
+  let service: AccountsService;
+
+  const DRIVER_ACCOUNT_ID = "account-driver";
+  const SHARED_ACCOUNT_ID = "account-shared";
+  const OTHER_MEMBER_ACCOUNT_ID = "account-other-member";
+  const DRIVER_USER_ID = "user-driver";
+
+  function buildAccounts(): OwnedFakeAccount[] {
+    const now = new Date();
+    const base = {
+      type: "bank",
+      institution: null,
+      maskedNumber: null,
+      balance: 250_000n,
+      currency: "IDR",
+      isPrivate: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    return [
+      {
+        ...base,
+        id: DRIVER_ACCOUNT_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        name: "Kas Sopir",
+        ownerUserId: DRIVER_USER_ID,
+      },
+      {
+        ...base,
+        id: SHARED_ACCOUNT_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        name: "Rekening Keluarga",
+        ownerUserId: null,
+      },
+      {
+        ...base,
+        id: OTHER_MEMBER_ACCOUNT_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        name: "Rekening Ibu",
+        ownerUserId: "user-mother",
+      },
+    ];
+  }
+
+  beforeEach(async () => {
+    const prisma = makeOwnerFilterPrisma(buildAccounts());
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AccountsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: CryptoService, useValue: {} },
+      ],
+    }).compile();
+    service = module.get(AccountsService);
+  });
+
+  it("an operational member sees only their own account, never the family-shared account — DENIAL proven on concrete data", async () => {
+    const result = await service.findAll(
+      FAMILY_GROUP_ID,
+      true,
+      undefined,
+      DRIVER_USER_ID,
+      Role.operational,
+    );
+
+    expect(result.map((a) => a.id)).toEqual([DRIVER_ACCOUNT_ID]);
+    expect(result.map((a) => a.id)).not.toContain(SHARED_ACCOUNT_ID);
+    expect(result.map((a) => a.id)).not.toContain(OTHER_MEMBER_ACCOUNT_ID);
+    // D5 — the balance IS visible on the account they own.
+    expect(result[0]?.balance).toBe("250000");
+  });
+
+  it("a row-scoped role ignores the owner=family query filter — still restricted to their own account", async () => {
+    const result = await service.findAll(
+      FAMILY_GROUP_ID,
+      true,
+      AccountOwnerFilter.family,
+      DRIVER_USER_ID,
+      Role.dependant,
+    );
+
+    expect(result.map((a) => a.id)).toEqual([DRIVER_ACCOUNT_ID]);
+  });
+
+  it("owner/spouse/member/admin_staff are unaffected (null/undefined role stays unrestricted)", async () => {
+    const result = await service.findAll(FAMILY_GROUP_ID, true);
+    expect(result.map((a) => a.id).sort()).toEqual(
+      [DRIVER_ACCOUNT_ID, SHARED_ACCOUNT_ID, OTHER_MEMBER_ACCOUNT_ID].sort(),
+    );
   });
 });
 

@@ -20,10 +20,16 @@ function makePrisma() {
       findFirst: jest.fn(),
       count: jest.fn(),
       delete: jest.fn(),
+      update: jest.fn(),
+      create: jest.fn(),
     },
     account: { updateMany: jest.fn() },
     familyGroup: { findUnique: jest.fn(), update: jest.fn() },
-    invitation: { create: jest.fn() },
+    invitation: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
     $transaction: jest.fn(async (ops: Array<Promise<unknown>>) =>
       Promise.all(ops),
     ),
@@ -278,5 +284,146 @@ describe("FamilyGroupsService gold price", () => {
       expect(result.pricePerGram).toBe("1150000");
       expect(result.updatedAt).toBe("2026-08-04T00:00:00.000Z");
     });
+  });
+});
+
+// EPIC-023 Task C (D1, US-FAM-8/9) — two axes: relationship is descriptive,
+// role carries permission. The owner may set/clear either independently and
+// pair ANY relationship with ANY role — kinship never constrains authority.
+describe("FamilyGroupsService.updateMemberRole — relationship (EPIC-023 Task C)", () => {
+  let service: FamilyGroupsService;
+  let prisma: ReturnType<typeof makePrisma>;
+
+  beforeEach(async () => {
+    prisma = makePrisma();
+    prisma.member.findUnique.mockResolvedValue({ role: Role.owner });
+    prisma.member.findFirst.mockResolvedValue({
+      id: MEMBER_ID,
+      role: Role.member,
+      userId: MEMBER_USER_ID,
+    });
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        FamilyGroupsService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { sendEmail: jest.fn() },
+        },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+      ],
+    }).compile();
+    service = module.get(FamilyGroupsService);
+  });
+
+  it("assigns the new spouse/dependant/operational roles and pairs a relationship the mapping would not have defaulted (any pair is valid)", async () => {
+    prisma.member.update.mockResolvedValue({
+      id: MEMBER_ID,
+      userId: MEMBER_USER_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      role: Role.operational,
+      relationship: "kakek",
+      user: { name: "Kakek", email: "kakek@example.com" },
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+
+    const result = await service.updateMemberRole(
+      FAMILY_GROUP_ID,
+      MEMBER_ID,
+      REQUESTER_ID,
+      { role: Role.operational, relationship: "kakek" },
+    );
+
+    expect(prisma.member.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: MEMBER_ID },
+        data: { role: Role.operational, relationship: "kakek" },
+      }),
+    );
+    expect(result.role).toBe(Role.operational);
+    expect(result.relationship).toBe("kakek");
+  });
+
+  it("omitting relationship leaves it unchanged (undefined is dropped from the update payload)", async () => {
+    prisma.member.update.mockResolvedValue({
+      id: MEMBER_ID,
+      userId: MEMBER_USER_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      role: Role.spouse,
+      relationship: null,
+      user: { name: "Pasangan", email: "pasangan@example.com" },
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+
+    await service.updateMemberRole(FAMILY_GROUP_ID, MEMBER_ID, REQUESTER_ID, {
+      role: Role.spouse,
+    });
+
+    expect(prisma.member.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: MEMBER_ID },
+        data: { role: Role.spouse },
+      }),
+    );
+  });
+});
+
+describe("FamilyGroupsService.acceptInvitation — relationship carried through (EPIC-023 Task C)", () => {
+  let service: FamilyGroupsService;
+  let prisma: ReturnType<typeof makePrisma>;
+
+  const TOKEN = "tok-relationship";
+  const ACCEPTING_USER_ID = "user-accepting";
+
+  beforeEach(async () => {
+    prisma = makePrisma();
+    prisma.invitation.findUnique.mockResolvedValue({
+      token: TOKEN,
+      familyGroupId: FAMILY_GROUP_ID,
+      role: Role.spouse,
+      relationship: "istri",
+      expiresAt: new Date(Date.now() + 86_400_000),
+      usedAt: null,
+      familyGroup: { name: "Keluarga Arsandi" },
+    });
+    prisma.member.findUnique.mockResolvedValue(null);
+    prisma.member.create.mockResolvedValue({
+      id: "member-new",
+      userId: ACCEPTING_USER_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      role: Role.spouse,
+      relationship: "istri",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      user: { name: "Istri", email: "istri@example.com" },
+    });
+    prisma.invitation.update.mockResolvedValue({});
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        FamilyGroupsService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { sendEmail: jest.fn() },
+        },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+      ],
+    }).compile();
+    service = module.get(FamilyGroupsService);
+  });
+
+  it("carries the invitation's relationship onto the created Member row", async () => {
+    const result = await service.acceptInvitation(TOKEN, ACCEPTING_USER_ID);
+
+    expect(prisma.member.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          role: Role.spouse,
+          relationship: "istri",
+        }),
+      }),
+    );
+    expect(result.relationship).toBe("istri");
   });
 });

@@ -57,6 +57,7 @@ export class AccountsController {
       canSeePrivate,
       query.owner,
       req.tenantContext?.userId,
+      req.tenantContext?.member?.role ?? null,
     );
   }
 
@@ -85,7 +86,13 @@ export class AccountsController {
     @Req() req: Request,
   ): Promise<AccountResponseDto> {
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
-    return this.accountsService.findOne(familyGroupId, id, canSeePrivate);
+    return this.accountsService.findOne(
+      familyGroupId,
+      id,
+      canSeePrivate,
+      req.tenantContext?.member?.role ?? null,
+      req.tenantContext?.userId,
+    );
   }
 
   @Patch(":id")

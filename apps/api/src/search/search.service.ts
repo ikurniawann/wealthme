@@ -1,15 +1,33 @@
 import { Injectable } from "@nestjs/common";
 
+import {
+  restrictedAccountWhere,
+  restrictedTransactionWhere,
+} from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
+import type { Role } from "@prisma/client";
 import type { SearchResponseDto, SearchResultDto } from "@wealthme/contracts";
 
 @Injectable()
 export class SearchService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async search(familyGroupId: string, q: string): Promise<SearchResponseDto> {
+  /**
+   * `viewerRole`/`viewerUserId` (EPIC-023 Task C) — a `dependant`/
+   * `operational` viewer's account/transaction search results are
+   * restricted to rows they own or personally recorded, same rule as every
+   * other read path (see privacy.util.ts). Category results are left
+   * unscoped: a category name (e.g. "Makanan") is shared taxonomy, not a
+   * financial value tied to any one member.
+   */
+  async search(
+    familyGroupId: string,
+    q: string,
+    viewerRole: Role | null = null,
+    viewerUserId?: string,
+  ): Promise<SearchResponseDto> {
     const trimmed = q.trim();
     if (trimmed.length < 2) {
       return { results: [], query: trimmed };
@@ -23,6 +41,7 @@ export class SearchService {
             { name: { contains: trimmed, mode: "insensitive" } },
             { institution: { contains: trimmed, mode: "insensitive" } },
           ],
+          ...restrictedAccountWhere(viewerRole, viewerUserId),
         },
         take: 5,
       }),
@@ -37,6 +56,10 @@ export class SearchService {
         where: {
           familyGroupId,
           description: { contains: trimmed, mode: "insensitive" },
+          // Safe to spread directly (not AND-wrapped): this query has no
+          // other top-level `OR`, so `restrictedTransactionWhere`'s `OR` (if
+          // any) cannot clobber anything here.
+          ...restrictedTransactionWhere(viewerRole, viewerUserId),
         },
         orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
         take: 5,

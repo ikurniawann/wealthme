@@ -42,6 +42,16 @@ export const id = {
     expense2: "Pengeluaran",
     transfer: "Transfer",
     sparkLabels: ["Hari 1", "Hari 8", "Hari 15", "Hari 22", "Hari 30"],
+    // EPIC-023 Task C retry — shared across every page that displays a
+    // member's role; see `MemberRoleId` in ./types.ts.
+    roleLabels: {
+      owner: "Pemilik",
+      member: "Anggota",
+      admin_staff: "Admin / Staf",
+      spouse: "Pasangan",
+      dependant: "Tanggungan",
+      operational: "Staf Operasional",
+    },
   },
   beranda: {
     title: "Beranda",
@@ -519,8 +529,6 @@ export const id = {
       adminInfoNote:
         "Admin (sekretaris, supir, ART, asisten) bisa mencatat transaksi atas nama family, tapi tidak bisa mengubah pengaturan group atau melihat saldo pribadi anggota.",
       groupSettingsSectionTitle: "Pengaturan Group",
-      showBalanceToMembersLabel: "Tampilkan Saldo ke Anggota",
-      showBalanceToMembersSub: "Anggota bisa lihat total saldo bersama",
       memberTxnNotifLabel: "Notif Transaksi Anggota",
       memberTxnNotifSub: "Terima notif transaksi dari anggota lain",
       // EPIC-019 Task C — per-member expense category allow-list.
@@ -560,6 +568,7 @@ export const id = {
       roleOptions: {
         member: "Anggota",
         adminStaff: "Admin / Staf",
+        spouse: "Pasangan",
       },
       sending: "Mengirim...",
       sendButton: "Kirim Undangan Admin",
@@ -1977,11 +1986,6 @@ export const id = {
       rowLiabilities: "Liabilitas",
       membersTitlePrefix: "Anggota Keluarga",
       emptyMembers: "Belum ada anggota keluarga",
-      roleLabels: {
-        owner: "Pemilik",
-        admin: "Admin",
-        member: "Anggota",
-      },
       noteConsolidation:
         "Konsolidasi ditampilkan pada level grup keluarga. Rincian saldo per-anggota berada di luar cakupan API saat ini.",
     },

@@ -1,4 +1,5 @@
 import { Test, type TestingModule } from "@nestjs/testing";
+import { Role } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 
 import { PrismaService } from "../prisma/prisma.service";
@@ -13,6 +14,9 @@ interface FakeAccount {
   type: string;
   name: string;
   isPrivate: boolean;
+  // EPIC-023 Task C — per-member ownership, needed by the row-scoped
+  // viewer tests below. Optional so every pre-existing fixture stays valid.
+  ownerUserId?: string | null;
 }
 
 interface FakeCategory {
@@ -32,6 +36,9 @@ interface FakeTransaction {
   description: string | null;
   occurredAt: Date;
   createdAt: Date;
+  // EPIC-023 Task C — who recorded this row. Optional so every pre-existing
+  // fixture stays valid.
+  createdByUserId?: string | null;
 }
 
 interface FakeInvestment {
@@ -58,13 +65,23 @@ function makeFakePrisma(
 
   return {
     account: {
-      findMany: jest.fn(({ where }: { where: { isPrivate?: boolean } }) => {
-        const rows =
-          where.isPrivate === false
-            ? accounts.filter((a) => !a.isPrivate)
-            : accounts;
-        return Promise.resolve(rows);
-      }),
+      findMany: jest.fn(
+        ({
+          where,
+        }: {
+          where: { isPrivate?: boolean; ownerUserId?: string };
+        }) => {
+          let rows =
+            where.isPrivate === false
+              ? accounts.filter((a) => !a.isPrivate)
+              : accounts;
+          // EPIC-023 Task C — restrictedAccountWhere's ownerUserId filter.
+          if (where.ownerUserId !== undefined) {
+            rows = rows.filter((a) => a.ownerUserId === where.ownerUserId);
+          }
+          return Promise.resolve(rows);
+        },
+      ),
     },
     asset: { findMany: jest.fn(() => Promise.resolve([])) },
     investment: { findMany: jest.fn(() => Promise.resolve(investments)) },
@@ -75,24 +92,46 @@ function makeFakePrisma(
       ),
     },
     transaction: {
+      // EPIC-023 Task C — the service now combines its privacy fragment and
+      // its row-scoping fragment (restrictedTransactionWhere) via a shared
+      // `AND` array rather than flat top-level keys (so neither fragment's
+      // `OR` can clobber the other's — see transactions.service.ts#buildWhere).
+      // This fake reads both privacy AND row-scoping out of `where.AND`.
       findMany: jest.fn(
         ({
           where,
         }: {
           where: {
-            account?: { isPrivate: boolean };
-            OR?: unknown;
+            AND?: {
+              account?: { isPrivate?: boolean; ownerUserId?: string };
+              createdByUserId?: string;
+              OR?: { account?: { ownerUserId?: string } }[];
+            }[];
           };
         }) => {
           let rows = transactions;
-          if (where.account?.isPrivate === false) {
+          const privacyFragment = where.AND?.[0];
+          const scopeFragment = where.AND?.[1];
+
+          if (privacyFragment?.account?.isPrivate === false) {
             rows = rows.filter((t) => !accountById.get(t.accountId)?.isPrivate);
           }
-          if (where.OR) {
+          if (privacyFragment?.OR) {
             rows = rows.filter((t) => {
               if (t.categoryId === null) return true;
               return !categoryById.get(t.categoryId)?.isPrivate;
             });
+          }
+          if (scopeFragment?.OR) {
+            rows = rows.filter((t) =>
+              scopeFragment.OR?.some(
+                (clause) =>
+                  clause.account?.ownerUserId ===
+                    accountById.get(t.accountId)?.ownerUserId ||
+                  (clause as { createdByUserId?: string }).createdByUserId ===
+                    t.createdByUserId,
+              ),
+            );
           }
           return Promise.resolve(
             rows.map((t) => ({
@@ -304,6 +343,128 @@ describe("DashboardService privacy enforcement", () => {
     );
 
     expect(written).toBe(false);
+  });
+});
+
+// EPIC-023 Task C (D5) — a row-scoped viewer's dashboard rollup must reflect
+// only their own account, never the family-shared account or its assets/
+// investments/liabilities (neither role holds "read" on those subjects).
+describe("DashboardService row-scoped viewer (dependant/operational)", () => {
+  const DRIVER_USER_ID = "user-driver";
+
+  function buildRestrictedFixtures() {
+    const now = new Date();
+    const accounts: FakeAccount[] = [
+      {
+        id: "acc-driver",
+        balance: 250_000n,
+        type: "cash",
+        name: "Kas Sopir",
+        isPrivate: false,
+        ownerUserId: DRIVER_USER_ID,
+      },
+      {
+        id: "acc-shared",
+        balance: 10_000_000n,
+        type: "bank",
+        name: "Rekening Keluarga",
+        isPrivate: false,
+        ownerUserId: null,
+      },
+    ];
+    const transactions: FakeTransaction[] = [
+      {
+        id: "tx-driver",
+        accountId: "acc-driver",
+        categoryId: null,
+        amount: 50_000n,
+        type: "expense",
+        description: "Bensin",
+        occurredAt: now,
+        createdAt: now,
+        createdByUserId: DRIVER_USER_ID,
+      },
+      {
+        id: "tx-family",
+        accountId: "acc-shared",
+        categoryId: null,
+        amount: 1_000_000n,
+        type: "expense",
+        description: "Belanja bulanan",
+        occurredAt: now,
+        createdAt: now,
+        createdByUserId: "user-head",
+      },
+    ];
+    return { accounts, transactions };
+  }
+
+  it("getSummary/getNetWorth restrict an operational viewer to their own account — the family-shared account is absent", async () => {
+    const { accounts, transactions } = buildRestrictedFixtures();
+    const prisma = makeFakePrisma(accounts, [], transactions);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        DashboardService,
+        { provide: PrismaService, useValue: prisma },
+      ],
+    }).compile();
+    const service = module.get<DashboardService>(DashboardService);
+
+    const netWorth = await service.getNetWorth(
+      FAMILY_GROUP_ID,
+      true,
+      Role.operational,
+      DRIVER_USER_ID,
+    );
+    // Only the driver's own 250,000 counts — the 10,000,000 shared account
+    // never appears.
+    expect(netWorth.accountsTotal).toBe("250000");
+    expect(netWorth.netWorth).toBe("250000");
+
+    const summary = await service.getSummary(
+      FAMILY_GROUP_ID,
+      true,
+      Role.operational,
+      DRIVER_USER_ID,
+    );
+    expect(summary.netWorth).toBe(250_000);
+    expect(summary.recentTransactions.map((t) => t.id)).toEqual(["tx-driver"]);
+    expect(summary.recentTransactions.map((t) => t.id)).not.toContain(
+      "tx-family",
+    );
+  });
+
+  it("collapses assets/investments/liabilities to 0 for a row-scoped viewer, without querying them", async () => {
+    const investments: FakeInvestment[] = [
+      {
+        quantity: new Decimal("10"),
+        costBasisPerUnit: new Decimal("9500"),
+        prices: [{ price: new Decimal("10000") }],
+      },
+    ];
+    const { accounts } = buildRestrictedFixtures();
+    const prisma = makeFakePrisma(accounts, [], [], investments);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        DashboardService,
+        { provide: PrismaService, useValue: prisma },
+      ],
+    }).compile();
+    const service = module.get<DashboardService>(DashboardService);
+
+    const netWorth = await service.getNetWorth(
+      FAMILY_GROUP_ID,
+      true,
+      Role.dependant,
+      DRIVER_USER_ID,
+    );
+
+    expect(netWorth.investmentsTotal).toBe("0");
+    expect(netWorth.assetsTotal).toBe("0");
+    expect(netWorth.liabilitiesTotal).toBe("0");
+    expect(prisma.investment.findMany).not.toHaveBeenCalled();
+    expect(prisma.asset.findMany).not.toHaveBeenCalled();
+    expect(prisma.liability.findMany).not.toHaveBeenCalled();
   });
 });
 

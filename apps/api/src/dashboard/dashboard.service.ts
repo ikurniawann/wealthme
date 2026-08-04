@@ -1,10 +1,13 @@
 import { Injectable } from "@nestjs/common";
-import { CoaDirection } from "@prisma/client";
+import { CoaDirection, type Role } from "@prisma/client";
 
 import { txCoaDirection } from "../common/utils/coa-classify.util";
 import { investmentPositionValue } from "../common/utils/investment-value.util";
 import {
   accountPrivacyWhere,
+  isRowScopedRole,
+  restrictedAccountWhere,
+  restrictedTransactionWhere,
   transactionPrivacyWhere,
 } from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -57,21 +60,38 @@ const MONTH_LABELS = [
 export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * `viewerRole`/`viewerUserId` (EPIC-023 Task C, D5) — a `dependant`/
+   * `operational` viewer only ever sees their OWN account's cash and their
+   * own transactions here; Asset/Investment/Liability totals collapse to 0
+   * for them (CASL grants neither role "read" on those subjects — see
+   * casl-ability.factory.ts — so this dashboard must not compose a total
+   * from data they cannot otherwise see).
+   */
   async getSummary(
     familyGroupId: string,
     canSeePrivate: boolean,
+    viewerRole: Role | null = null,
+    viewerUserId?: string,
   ): Promise<DashboardSummaryDto> {
     const now = new Date();
 
     const accounts = await this.prisma.account.findMany({
-      where: { familyGroupId, ...accountPrivacyWhere(canSeePrivate) },
+      where: {
+        familyGroupId,
+        ...accountPrivacyWhere(canSeePrivate),
+        ...restrictedAccountWhere(viewerRole, viewerUserId),
+      },
       select: { balance: true, type: true, name: true },
     });
 
-    const assetsList = await this.prisma.asset.findMany({
-      where: { familyGroupId },
-      select: { currentValue: true },
-    });
+    const isRestricted = isRowScopedRole(viewerRole);
+    const assetsList = isRestricted
+      ? []
+      : await this.prisma.asset.findMany({
+          where: { familyGroupId },
+          select: { currentValue: true },
+        });
     const assetsTotalBigInt = assetsList.reduce(
       (sum, a) => sum + a.currentValue,
       0n,
@@ -83,6 +103,8 @@ export class DashboardService {
     const netWorthBreakdown = await this.computeNetWorthBreakdown(
       familyGroupId,
       canSeePrivate,
+      viewerRole,
+      viewerUserId,
     );
     const netWorth = Number(netWorthBreakdown.netWorth);
 
@@ -123,7 +145,13 @@ export class DashboardService {
       where: {
         familyGroupId,
         occurredAt: { gte: sixMonthsAgo },
-        ...transactionPrivacyWhere(canSeePrivate),
+        // Both fragments may contribute a top-level `OR` — combined via
+        // `AND` (not object-spread) so neither can clobber the other. See
+        // transactions.service.ts#buildWhere for the established pattern.
+        AND: [
+          transactionPrivacyWhere(canSeePrivate),
+          restrictedTransactionWhere(viewerRole, viewerUserId),
+        ],
       },
       select: {
         id: true,
@@ -246,20 +274,38 @@ export class DashboardService {
     };
   }
 
+  /**
+   * `viewerRole`/`viewerUserId` (EPIC-023 Task C) — a row-scoped viewer's
+   * cash total is restricted to the account(s) they own; Asset/Investment/
+   * Liability totals are forced to 0 rather than queried at all, since
+   * neither `dependant` nor `operational` holds "read" on those subjects
+   * (see casl-ability.factory.ts) — this dashboard rollup must not leak
+   * them through a side door.
+   */
   private async computeNetWorthBreakdown(
     familyGroupId: string,
     canSeePrivate: boolean,
+    viewerRole: Role | null = null,
+    viewerUserId?: string,
   ): Promise<NetWorthBreakdown> {
+    const isRestricted = isRowScopedRole(viewerRole);
+
     const accounts = await this.prisma.account.findMany({
-      where: { familyGroupId, ...accountPrivacyWhere(canSeePrivate) },
+      where: {
+        familyGroupId,
+        ...accountPrivacyWhere(canSeePrivate),
+        ...restrictedAccountWhere(viewerRole, viewerUserId),
+      },
       select: { balance: true },
     });
     const totalCash = accounts.reduce((sum, a) => sum + a.balance, 0n);
 
-    const assets = await this.prisma.asset.findMany({
-      where: { familyGroupId },
-      select: { currentValue: true },
-    });
+    const assets = isRestricted
+      ? []
+      : await this.prisma.asset.findMany({
+          where: { familyGroupId },
+          select: { currentValue: true },
+        });
     const totalAssets = assets.reduce((sum, a) => sum + a.currentValue, 0n);
 
     // EPIC-QA-sweep #2 / EPIC-022 (adversarial review round 3) — value at
@@ -268,14 +314,16 @@ export class DashboardService {
     // Same valuation basis as investments.service and ReportsService's
     // balance sheet (see investment-value.util.ts), minus a live
     // market-data refresh — this only reads already-stored prices.
-    const investments = await this.prisma.investment.findMany({
-      where: { familyGroupId },
-      select: {
-        quantity: true,
-        costBasisPerUnit: true,
-        prices: { orderBy: { recordedAt: "desc" }, take: 1 },
-      },
-    });
+    const investments = isRestricted
+      ? []
+      : await this.prisma.investment.findMany({
+          where: { familyGroupId },
+          select: {
+            quantity: true,
+            costBasisPerUnit: true,
+            prices: { orderBy: { recordedAt: "desc" }, take: 1 },
+          },
+        });
     const totalInvestments = BigInt(
       Math.round(
         investments.reduce(
@@ -285,10 +333,12 @@ export class DashboardService {
       ),
     );
 
-    const liabilityRecords = await this.prisma.liability.findMany({
-      where: { familyGroupId },
-      select: { remainingBalance: true },
-    });
+    const liabilityRecords = isRestricted
+      ? []
+      : await this.prisma.liability.findMany({
+          where: { familyGroupId },
+          select: { remainingBalance: true },
+        });
     const totalLiabilities = liabilityRecords.reduce(
       (sum, l) => sum + l.remainingBalance,
       0n,
@@ -309,8 +359,15 @@ export class DashboardService {
   async getNetWorth(
     familyGroupId: string,
     canSeePrivate: boolean,
+    viewerRole: Role | null = null,
+    viewerUserId?: string,
   ): Promise<NetWorthDto> {
-    const b = await this.computeNetWorthBreakdown(familyGroupId, canSeePrivate);
+    const b = await this.computeNetWorthBreakdown(
+      familyGroupId,
+      canSeePrivate,
+      viewerRole,
+      viewerUserId,
+    );
     return {
       accountsTotal: b.totalCash.toString(),
       investmentsTotal: b.totalInvestments.toString(),

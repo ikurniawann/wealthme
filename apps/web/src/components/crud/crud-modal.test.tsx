@@ -48,7 +48,10 @@ describe("CrudModal — 'member' entity (EPIC-022 A1)", () => {
     expect(emailInput).toHaveAttribute("type", "email");
   });
 
-  it("offers only the two real invitable roles, never 'Co-Owner'", async () => {
+  it("offers only the three real invitable roles, never 'Co-Owner'", async () => {
+    // EPIC-023 Task C retry (MEDIUM six-reviewer finding) — "spouse" added
+    // to match `AddAdminDialog`'s options; both dialogs invite into the same
+    // `CreateInvitationDto`, so this picker was one invite path behind.
     render(
       <CrudModal
         state={{ entity: "member", mode: "add" }}
@@ -60,7 +63,7 @@ describe("CrudModal — 'member' entity (EPIC-022 A1)", () => {
     const dialog = within(await screen.findByRole("dialog"));
     const roleSelect = dialog.getByDisplayValue("member") as HTMLSelectElement;
     const optionValues = Array.from(roleSelect.options).map((o) => o.value);
-    expect(optionValues.sort()).toEqual(["admin_staff", "member"]);
+    expect(optionValues.sort()).toEqual(["admin_staff", "member", "spouse"]);
     expect(optionValues).not.toContain("Co-Owner");
   });
 

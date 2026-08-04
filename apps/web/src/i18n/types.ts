@@ -5,6 +5,7 @@ import type {
   PageTitleId,
   ReportTabId,
 } from "@/lib/nav";
+import type { Role } from "@wealthme/contracts";
 
 /**
  * EPIC-018 Task A2 — `/akun` sub-page ids. Kept local to the dictionary
@@ -253,10 +254,25 @@ type TransaksiSortId = "newest" | "oldest";
 /** EPIC-018 Task A6 — `/rekonsiliasi` wizard step numbers (1-4). */
 type RekonsiliasiStepNum = 1 | 2 | 3 | 4;
 
-/** EPIC-018 Task A3 — `/laporan` "Group Family" tab roster role ids (mirrors
- * the API member `role` value — persisted values stay unchanged, only
- * display labels translate). */
-type LaporanRoleId = "owner" | "admin" | "member";
+/**
+ * EPIC-023 Task C retry (six-reviewer finding) — mirrors the API's `Role`
+ * enum in full (all six values). Shared across every page that displays a
+ * member's role (`/laporan`'s family roster, `/akun`'s member list, ...) via
+ * `common.roleLabels` so a role localizes identically everywhere instead of
+ * each page inventing its own partial map — the previous `/laporan`-only
+ * map covered just 3 of 6 roles and its "admin" key didn't even match the
+ * real enum value `admin_staff`. Persisted values stay unchanged — only
+ * display labels translate.
+ *
+ * EPIC-023 Task C retry (MEDIUM six-reviewer finding) — derived from
+ * `@wealthme/contracts`'s `RoleSchema`-backed `Role` type instead of
+ * restating the six literals by hand: this was the fourth place the role
+ * list was hand-typed (Prisma's `Role` enum, `packages/contracts`'s
+ * `RoleSchema`, this file, and `dictionary.test.ts`'s coverage test), with no
+ * barrier stopping the two from drifting apart — `apps/web` already depends
+ * on `@wealthme/contracts` in dozens of other files.
+ */
+type MemberRoleId = Role;
 
 /** EPIC-018 Task A3 — `/laporan` export-panel report-type ids (mirrors
  * `ExportReportType` from `@wealthme/contracts`, kept local to the
@@ -312,6 +328,8 @@ export type I18nDictionary = {
     expense2: string;
     transfer: string;
     sparkLabels: [string, string, string, string, string];
+    /** EPIC-023 Task C retry — see `MemberRoleId` above. */
+    roleLabels: Record<MemberRoleId, string>;
   };
   beranda: {
     title: string;
@@ -656,8 +674,6 @@ export type I18nDictionary = {
       addAdminButton: string;
       adminInfoNote: string;
       groupSettingsSectionTitle: string;
-      showBalanceToMembersLabel: string;
-      showBalanceToMembersSub: string;
       memberTxnNotifLabel: string;
       memberTxnNotifSub: string;
       categoryLimitButton: string;
@@ -689,6 +705,9 @@ export type I18nDictionary = {
       roleOptions: {
         member: string;
         adminStaff: string;
+        // EPIC-023 Task C retry — the invitation endpoint has accepted
+        // "spouse" since D2/D6, but the picker only ever offered 2 roles.
+        spouse: string;
       };
       sending: string;
       sendButton: string;
@@ -1879,7 +1898,6 @@ export type I18nDictionary = {
       rowLiabilities: string;
       membersTitlePrefix: string;
       emptyMembers: string;
-      roleLabels: Record<LaporanRoleId, string>;
       noteConsolidation: string;
     };
     bank: {
