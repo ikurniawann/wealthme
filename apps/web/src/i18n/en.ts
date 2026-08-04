@@ -845,7 +845,8 @@ export const en = {
         "This estimate applies once ownership has reached a full year (haul). Check the box above to confirm the obligation.",
       belowNisabPrefix: "Zakatable assets haven't reached the nisab (",
       belowNisabSuffix: ").",
-      nisabSourceFamilyPrefix: "Nisab from your family's gold price (",
+      nisabSourceFamilyPrefix: "Nisab from your family's gold price: Rp ",
+      nisabSourceFamilyMidfix: "/gram (",
       nisabSourceFamilySuffix: ")",
       nisabSourceIndicative: "Indicative nisab — not a real-time gold price.",
     },
@@ -898,6 +899,8 @@ export const en = {
         "Retirement age must be greater than the current age.",
       resultLabel: "Required Retirement Fund",
       detailMonthlyInvestmentNeededPrefix: "Monthly investment needed:",
+      targetBasisNote:
+        "The target assumes 20× current annual expenses (a ~5% withdrawal rate) — not the more common 25×/4% rule.",
     },
     tabungan: {
       cardTitle: "Savings Calculator",

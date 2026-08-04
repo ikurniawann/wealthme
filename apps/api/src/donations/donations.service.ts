@@ -281,6 +281,14 @@ export class DonationsService {
       where: {
         familyGroupId,
         isTaxDeductible: true,
+        // EPIC-022 Group E (E5) — defense in depth: `assertDeductibleTypeAllowed`
+        // blocks new writes, but a row written before that guard existed (the
+        // checkbox used to be selectable for any donation type) would keep
+        // understating tax on every read forever without this filter. The read
+        // path must never trust `isTaxDeductible` alone, regardless of how it
+        // got set — a one-off migration also corrects existing rows, but this
+        // filter is what makes the read path safe even if that ever regresses.
+        type: { in: Array.from(TAX_DEDUCTIBLE_DONATION_TYPES) },
         donatedAt: { gte: start, lt: end },
       },
       _sum: { amount: true },

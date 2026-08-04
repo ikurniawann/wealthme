@@ -836,9 +836,12 @@ export type I18nDictionary = {
       belowNisabPrefix: string;
       belowNisabSuffix: string;
       /** EPIC-022 E2 — nisab-source disclosure (family gold price vs the
-       * indicative fallback), joined around `consolidatedTotal.manualLabelPrefix`
-       * + a formatted date when the source is "family". */
+       * indicative fallback). `nisabSourceFamilyPrefix` + `formatRupiah(price)`
+       * + `nisabSourceFamilyMidfix` + `consolidatedTotal.manualLabelPrefix` +
+       * a formatted date + `nisabSourceFamilySuffix`, so the Rp figure is
+       * actually printed (not just the "diinput manual" disclosure). */
       nisabSourceFamilyPrefix: string;
+      nisabSourceFamilyMidfix: string;
       nisabSourceFamilySuffix: string;
       nisabSourceIndicative: string;
     };
@@ -892,6 +895,10 @@ export type I18nDictionary = {
       invalidAgeRangeError: string;
       resultLabel: string;
       detailMonthlyInvestmentNeededPrefix: string;
+      /** EPIC-022 E3 (LOW) — discloses that the target assumes 20× current
+       * annual expenses (≈5% withdrawal rate) — the multiplier itself is
+       * unchanged, only its basis is now stated instead of hidden. */
+      targetBasisNote: string;
     };
     tabungan: {
       cardTitle: string;

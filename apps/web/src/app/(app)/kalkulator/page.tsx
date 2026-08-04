@@ -253,7 +253,7 @@ function ZakatTab({ token }: { token: string | undefined }) {
           )}
           <p className="mt-2 text-center text-[11px] text-muted-foreground/80">
             {result.nisabSource === "family"
-              ? `${t.kalkulator.zakat.nisabSourceFamilyPrefix}${t.consolidatedTotal.manualLabelPrefix}${
+              ? `${t.kalkulator.zakat.nisabSourceFamilyPrefix}${formatRupiah(familyGoldPrice ?? 0)}${t.kalkulator.zakat.nisabSourceFamilyMidfix}${t.consolidatedTotal.manualLabelPrefix}${
                   familyGoldPriceUpdatedAt
                     ? formatManualDate(familyGoldPriceUpdatedAt, locale)
                     : ""
@@ -679,18 +679,26 @@ function PensiunTab({ token }: { token: string | undefined }) {
           : t.kalkulator.pensiun.calculateButton}
       </Button>
       {result && (
-        <ResultCard
-          label={t.kalkulator.pensiun.resultLabel}
-          value={formatRupiah(result.projectedValue)}
-          detail={
-            <>
-              {t.kalkulator.pensiun.detailMonthlyInvestmentNeededPrefix}{" "}
-              <strong className="text-primary">
-                {formatRupiah(result.monthlyContribution)}
-              </strong>
-            </>
-          }
-        />
+        <>
+          <ResultCard
+            label={t.kalkulator.pensiun.resultLabel}
+            value={formatRupiah(result.projectedValue)}
+            detail={
+              <>
+                {t.kalkulator.pensiun.detailMonthlyInvestmentNeededPrefix}{" "}
+                <strong className="text-primary">
+                  {formatRupiah(result.monthlyContribution)}
+                </strong>
+              </>
+            }
+          />
+          {/* E3 (LOW) — the target is 20× current annual expenses (a ~5%
+              withdrawal rate), more aggressive than the common 25×/4% rule.
+              Disclose the basis rather than leaving the multiplier hidden. */}
+          <p className="mt-2 text-center text-[11px] text-muted-foreground/80">
+            {t.kalkulator.pensiun.targetBasisNote}
+          </p>
+        </>
       )}
     </SectionCard>
   );

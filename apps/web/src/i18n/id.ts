@@ -845,7 +845,8 @@ export const id = {
         "Estimasi ini berlaku bila kepemilikan sudah genap 1 tahun (haul). Centang kotak di atas untuk konfirmasi kewajiban.",
       belowNisabPrefix: "Harta zakatable belum mencapai nisab (",
       belowNisabSuffix: ").",
-      nisabSourceFamilyPrefix: "Nisab dari harga emas keluarga (",
+      nisabSourceFamilyPrefix: "Nisab dari harga emas keluarga: Rp ",
+      nisabSourceFamilyMidfix: "/gram (",
       nisabSourceFamilySuffix: ")",
       nisabSourceIndicative: "Nisab indikatif — bukan harga emas real-time.",
     },
@@ -898,6 +899,8 @@ export const id = {
         "Usia pensiun harus lebih besar dari usia sekarang.",
       resultLabel: "Dana Pensiun yang Dibutuhkan",
       detailMonthlyInvestmentNeededPrefix: "Investasi bulanan yang dibutuhkan:",
+      targetBasisNote:
+        "Target diasumsikan 20× pengeluaran tahunan saat ini (≈5% tarik dana/tahun) — bukan aturan 25×/4% yang lebih umum digunakan.",
     },
     tabungan: {
       cardTitle: "Kalkulator Tabungan",

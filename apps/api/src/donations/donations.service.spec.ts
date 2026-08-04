@@ -171,4 +171,73 @@ describe("DonationsService", () => {
       ).rejects.toThrow(BadRequestException);
     });
   });
+
+  // ──────────────────────────────────────────────────────────────
+  // EPIC-022 Group E (E5) — read-side defense in depth. The write guard
+  // above only stops NEW rows; a row written by the old, unvalidated
+  // code (the checkbox used to be selectable for any donation type)
+  // must still be excluded from the deductible total on every read.
+  // ──────────────────────────────────────────────────────────────
+
+  describe("getTotalDeductibleAmount() excludes ineligible types (E5 read-side guard)", () => {
+    it("excludes a legacy infaq row marked isTaxDeductible even though the DB still has it set", async () => {
+      // Arrange — simulate pre-guard legacy data: an `infaq` row written
+      // directly via Prisma (bypassing the service) with the deductible
+      // flag already true, alongside a real zakat_maal donation.
+      const legacyDonatedAt = new Date("2026-03-01T00:00:00.000Z");
+      const seeded = [
+        {
+          ...BASE_DONATION,
+          id: "don-legacy-infaq",
+          type: "infaq",
+          amount: BigInt(500_000),
+          isTaxDeductible: true,
+          donatedAt: legacyDonatedAt,
+        },
+        {
+          ...BASE_DONATION,
+          id: "don-real-zakat",
+          type: "zakat_maal",
+          amount: BigInt(2_000_000),
+          isTaxDeductible: true,
+          donatedAt: legacyDonatedAt,
+        },
+      ];
+
+      // A faithful-enough fake: applies the same `where` predicates the
+      // service builds against the seeded rows, so a regression that drops
+      // the type filter would sum the legacy infaq row and fail this test.
+      prisma.donation.aggregate.mockImplementation(
+        async ({
+          where,
+        }: {
+          where: {
+            isTaxDeductible: boolean;
+            type: { in: string[] };
+            donatedAt: { gte: Date; lt: Date };
+          };
+        }) => {
+          const matched = seeded.filter(
+            (d) =>
+              d.isTaxDeductible === where.isTaxDeductible &&
+              where.type.in.includes(d.type) &&
+              d.donatedAt >= where.donatedAt.gte &&
+              d.donatedAt < where.donatedAt.lt,
+          );
+          const sum = matched.reduce((acc, d) => acc + d.amount, BigInt(0));
+          return { _sum: { amount: sum } };
+        },
+      );
+
+      // Act
+      const total = await service.getTotalDeductibleAmount(
+        FAMILY_GROUP_ID,
+        2026,
+      );
+
+      // Assert — only the zakat_maal amount counts; the legacy infaq row
+      // is excluded even though its isTaxDeductible flag is still true.
+      expect(total).toBe(BigInt(2_000_000));
+    });
+  });
 });
