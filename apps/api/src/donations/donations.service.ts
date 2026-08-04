@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { DonationType } from "@prisma/client";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
@@ -32,6 +37,32 @@ const DONATION_TYPE_LABEL: Record<string, string> = {
   wakaf: "Wakaf",
   lainnya: "Donasi",
 };
+
+/**
+ * EPIC-022 Group E (E5) — only zakat paid to an approved amil (BAZNAS/LAZ)
+ * legally qualifies as an income-tax-deductible religious donation in
+ * Indonesia (PP 60/2010). `infaq`/`sedekah`/`wakaf`/`lainnya` are voluntary
+ * giving, not "zakat atau sumbangan keagamaan yang sifatnya wajib" — they
+ * must never feed `TaxService`'s deductible total. This is a type check,
+ * not an institution registry: the UI still asks for BAZNAS/LAZ as the
+ * recipient, but the server never trusts `isTaxDeductible` on a type that
+ * cannot legally carry it.
+ */
+const TAX_DEDUCTIBLE_DONATION_TYPES: ReadonlySet<DonationType> = new Set([
+  DonationType.zakat_maal,
+  DonationType.zakat_fitrah,
+]);
+
+function assertDeductibleTypeAllowed(
+  type: DonationType,
+  isTaxDeductible: boolean,
+): void {
+  if (isTaxDeductible && !TAX_DEDUCTIBLE_DONATION_TYPES.has(type)) {
+    throw new BadRequestException(
+      "Hanya Zakat Maal / Zakat Fitrah yang dapat ditandai sebagai pengurang pajak.",
+    );
+  }
+}
 
 function toDonationDto(row: DonationRow): DonationResponseDto {
   return {
@@ -89,6 +120,7 @@ export class DonationsService {
     familyGroupId: string,
     dto: CreateDonationDto,
   ): Promise<DonationResponseDto> {
+    assertDeductibleTypeAllowed(dto.type, dto.isTaxDeductible ?? false);
     const amount = BigInt(dto.amount);
     const donatedAt = new Date(dto.donatedAt);
 
@@ -175,6 +207,11 @@ export class DonationsService {
       dto.donatedAt !== undefined
         ? new Date(dto.donatedAt)
         : existing.donatedAt;
+    const isTaxDeductible =
+      dto.isTaxDeductible !== undefined
+        ? dto.isTaxDeductible
+        : existing.isTaxDeductible;
+    assertDeductibleTypeAllowed(type, isTaxDeductible);
 
     const row = await this.prisma.$transaction(async (tx) => {
       if (existing.accountId && existing.transactionId) {
@@ -202,10 +239,7 @@ export class DonationsService {
           amount,
           currency: dto.currency ?? existing.currency,
           donatedAt,
-          isTaxDeductible:
-            dto.isTaxDeductible !== undefined
-              ? dto.isTaxDeductible
-              : existing.isTaxDeductible,
+          isTaxDeductible,
           receiptUrl:
             dto.receiptUrl !== undefined
               ? (dto.receiptUrl ?? null)

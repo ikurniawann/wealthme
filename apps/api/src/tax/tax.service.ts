@@ -1,5 +1,10 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 
+import {
+  computePkp,
+  computeTaxBrackets,
+  sumTaxRounded,
+} from "../common/utils/pph21.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { DonationsService } from "../donations/donations.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -24,45 +29,25 @@ type TaxRecordRow = {
   updatedAt: Date;
 };
 
-// PPh 21 progressive brackets (UU HPP) — mirrors the /tax page calculator so
-// server-computed netTax matches what the user sees while typing.
-const PPH21_BRACKETS: Array<[number, number]> = [
-  [60_000_000, 0.05],
-  [190_000_000, 0.15],
-  [250_000_000, 0.25],
-  [4_500_000_000, 0.3],
-  [Infinity, 0.35],
-];
-const BIAYA_JABATAN_RATE = 0.05;
-const BIAYA_JABATAN_CAP = 6_000_000;
-
 /**
  * Compute annual PPh 21 from gross income, PTKP, and zakat deduction.
  * Amounts are IDR (BigInt in storage); safe in Number well past realistic
- * incomes (< 9e15).
+ * incomes (< 9e15). Delegates to the shared `pph21.util` brackets so this
+ * never silently diverges from `CalculatorsService.calculatePph21` — the
+ * two engines used to define the same law twice (EPIC-022 E6).
  */
 export function computeNetTax(
   grossIncome: bigint,
   ptkp: bigint,
   zakatDeduction: bigint,
 ): bigint {
-  const gross = Number(grossIncome);
-  const jabatan = Math.min(gross * BIAYA_JABATAN_RATE, BIAYA_JABATAN_CAP);
-  let pkp = Math.max(
-    0,
-    gross - jabatan - Number(ptkp) - Number(zakatDeduction),
+  const { pkp } = computePkp(
+    Number(grossIncome),
+    Number(ptkp),
+    Number(zakatDeduction),
   );
-  pkp = Math.floor(pkp / 1000) * 1000;
-
-  let tax = 0;
-  let sisa = pkp;
-  for (const [limit, rate] of PPH21_BRACKETS) {
-    if (sisa <= 0) break;
-    const slice = Math.min(sisa, limit);
-    tax += slice * rate;
-    sisa -= slice;
-  }
-  return BigInt(Math.round(tax));
+  const totalTax = sumTaxRounded(computeTaxBrackets(pkp));
+  return BigInt(totalTax);
 }
 
 function toTaxRecordDto(row: TaxRecordRow): TaxRecordResponseDto {

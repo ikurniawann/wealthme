@@ -827,20 +827,27 @@ export const en = {
     calculating: "Calculating...",
     zakat: {
       cardTitle: "Zakat Maal Calculator",
-      nisabNotePrefix: "Nisab = 85g gold × Rp 1.100.000/g =",
-      nisabNoteValue: "Rp 93.500.000",
+      nisabAutoNote:
+        "Nisab is calculated automatically — from your family's gold price (if set) or an indicative reference price.",
       fieldCash: "Cash & Savings (Rp)",
       fieldInvestments: "Investments (Rp)",
       fieldGold: "Gold Value (Rp)",
-      fieldLiabilities: "Debt / Liabilities (Rp)",
+      fieldLiabilities: "Debt Due (Rp)",
+      haulCheckboxLabel: "Wealth has been held for a full year (haul)",
       calculateButton: "Calculate Zakat",
       errorCalculate: "Failed to calculate zakat. Try again.",
       resultObligated: "Zakat Due",
+      resultEstimated: "Estimated Zakat (once haul is fulfilled)",
       resultNotObligated: "Not Yet Obligated for Zakat",
       detailZakatablePrefix: "Zakatable assets:",
       detailNisabPrefix: "· Nisab:",
+      estimateNote:
+        "This estimate applies once ownership has reached a full year (haul). Check the box above to confirm the obligation.",
       belowNisabPrefix: "Zakatable assets haven't reached the nisab (",
       belowNisabSuffix: ").",
+      nisabSourceFamilyPrefix: "Nisab from your family's gold price (",
+      nisabSourceFamilySuffix: ")",
+      nisabSourceIndicative: "Indicative nisab — not a real-time gold price.",
     },
     pph21: {
       cardTitle: "PPh 21 Income Tax Calculator (UU HPP)",
@@ -885,6 +892,10 @@ export const en = {
       fieldRetireAge: "Target Retirement Age",
       fieldCurrentMonthlyExpense: "Current Monthly Expenses (Rp)",
       fieldInvestmentReturn: "Investment Return (%/yr)",
+      calculateButton: "Calculate Retirement Fund",
+      errorCalculate: "Failed to calculate retirement fund. Try again.",
+      invalidAgeRangeError:
+        "Retirement age must be greater than the current age.",
       resultLabel: "Required Retirement Fund",
       detailMonthlyInvestmentNeededPrefix: "Monthly investment needed:",
     },
@@ -1376,6 +1387,7 @@ export const en = {
       b0: "0 – 60 million",
       b1: "60 – 250 million",
       b2: "250 – 500 million",
+      b3: "500 million – 5 billion",
       b4: "> 5 billion",
     },
     heroLabelPrefix: "Estimated Tax Due ",
@@ -1508,16 +1520,24 @@ export const en = {
     fieldGoldLabel: "Gold & Silver (Rp)",
     fieldInvestLabel: "Investments & Stocks (Rp)",
     fieldDebtLabel: "Debt Due (Rp)",
-    zakatDueLabel: "Zakat Due (2.5%)",
+    zakatDueLabel: "Zakat (2.5%)",
     zakatCalculatingMsg: "Calculating...",
     zakatCalcErrorMsg: "Failed to calculate zakat. Try again.",
-    nisabReachedMsg:
-      "✅ Your wealth has reached nisab (85g gold × Rp 1.100.000/g = Rp 93.500.000)",
-    nisabNotReachedMsg:
-      "⚠️ Your wealth hasn't reached nisab (Rp 93.500.000) — zakat isn't obligatory yet",
+    haulCheckboxLabel: "Wealth has been held for a full year (haul)",
+    nisabNotReachedPrefix: "⚠️ Your wealth hasn't reached nisab (",
+    nisabNotReachedSuffix: ") — zakat isn't obligatory yet",
+    nisabReachedObligatedPrefix:
+      "✅ Wealth reached nisab & haul — zakat is due (nisab: ",
+    nisabReachedObligatedSuffix: ")",
+    nisabReachedEstimatePrefix: "🕓 Wealth has reached nisab (",
+    nisabReachedEstimateSuffix:
+      ") — an estimate, pending haul (1 year) confirmation before it's due",
+    nisabFamilyPricePrefix: "Nisab from your family's gold price: Rp ",
+    nisabFamilyPriceSuffix: "/gram",
     nisabIndicativeNote:
       "Indicative nisab (≈85 grams of gold) — not a real-time gold price.",
     payZakatNowButton: "Pay Zakat Now",
+    recordZakatEstimateButton: "Record Zakat Estimate",
     historyTitle: "Donation & Zakat History",
     loadingLabel: "Loading...",
     emptyHistory: "No donation records yet",
@@ -1536,6 +1556,8 @@ export const en = {
       "Select an account so your net worth decreases when the donation is recorded.",
     taxDeductibleCheckboxLabel:
       "Income tax deduction (zakat to an official institution)",
+    taxDeductibleIneligibleNote:
+      "Only Zakat Maal / Zakat Fitrah can be tax deductible.",
     savingLabel: "Saving...",
     saveRecordButton: "Save Record",
     toastSaved: "✅ Donation recorded successfully!",

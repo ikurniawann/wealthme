@@ -1,5 +1,12 @@
 import { Injectable } from "@nestjs/common";
 
+import {
+  PPH21_DEFAULT_PTKP,
+  computePkp,
+  computeTaxBrackets,
+  sumTaxRounded,
+} from "../common/utils/pph21.util";
+
 import type {
   InvestmentCalcRequestDto,
   InvestmentCalcResultDto,
@@ -9,60 +16,60 @@ import type {
   Pph21ResultDto,
   RetirementCalcRequestDto,
   RetirementCalcResultDto,
-  TaxBracketDto,
   ZakatRequestDto,
   ZakatResultDto,
 } from "@wealthme/contracts";
 
-/** Nisab = 85 g gold × Rp 1,100,000 / g */
-const GOLD_PRICE_PER_GRAM = 1_100_000;
+/**
+ * Indicative fallback nisab gold price (Rp/g) — used ONLY when the family
+ * has not set `FamilyGroup.goldPricePerGram` (EPIC-021 Group F). Whenever a
+ * caller supplies `goldPricePerGram`, nisab is derived from that instead —
+ * see E2 (EPIC-022 Group E): this constant must never be the only source of
+ * truth for nisab, and the result always reports which source was used via
+ * `nisabSource` so the UI can label it honestly.
+ */
+const INDICATIVE_GOLD_PRICE_PER_GRAM = 1_100_000;
 const NISAB_GRAMS = 85;
-const NISAB = NISAB_GRAMS * GOLD_PRICE_PER_GRAM; // Rp 93,500,000
-
-/** PTKP TK/0 per UU HPP */
-const PTKP = 54_000_000;
-/** Biaya jabatan rate (5%) and cap */
-const BIAYA_JABATAN_RATE = 0.05;
-const BIAYA_JABATAN_MAX = 6_000_000;
-
-/** PPh 21 progressive brackets (UU HPP 2021) */
-const TAX_BRACKETS: { limit: number; rate: number; label: string }[] = [
-  { limit: 60_000_000, rate: 0.05, label: "0 – 60 Juta" },
-  { limit: 250_000_000, rate: 0.15, label: "60 – 250 Juta" },
-  { limit: 500_000_000, rate: 0.25, label: "250 – 500 Juta" },
-  { limit: 5_000_000_000, rate: 0.3, label: "500 Juta – 5 Miliar" },
-  { limit: Infinity, rate: 0.35, label: "> 5 Miliar" },
-];
 
 @Injectable()
 export class CalculatorsService {
   calculateZakat(dto: ZakatRequestDto): ZakatResultDto {
+    const goldPricePerGram =
+      dto.goldPricePerGram && dto.goldPricePerGram > 0
+        ? dto.goldPricePerGram
+        : INDICATIVE_GOLD_PRICE_PER_GRAM;
+    const nisabSource: ZakatResultDto["nisabSource"] =
+      dto.goldPricePerGram && dto.goldPricePerGram > 0
+        ? "family"
+        : "indicative";
+    const nisab = NISAB_GRAMS * goldPricePerGram;
+
     const zakatable = Math.max(
       0,
       dto.cash + dto.investments + dto.gold - dto.liabilities,
     );
-    const isObligated = zakatable >= NISAB;
-    const zakat = isObligated ? zakatable * 0.025 : 0;
+    // E1 (EPIC-022 Group E): a snapshot alone can only tell us whether nisab
+    // is met, never whether haul (the 1-lunar-year holding period) has been
+    // fulfilled — that is not data this calculator has. `isObligated` is
+    // therefore true ONLY when the caller explicitly confirms haul; when
+    // nisab is met but haul is not confirmed, `zakat` still reports the
+    // estimated amount (useful to plan for) but `isObligated` stays false so
+    // no caller can present it as a settled religious obligation.
+    const meetsNisab = zakatable >= nisab;
+    const isObligated = meetsNisab && dto.haulConfirmed === true;
+    const zakat = meetsNisab ? zakatable * 0.025 : 0;
 
-    return { zakatable, nisab: NISAB, zakat, isObligated };
+    return { zakatable, nisab, zakat, meetsNisab, isObligated, nisabSource };
   }
 
   calculatePph21(dto: Pph21RequestDto): Pph21ResultDto {
     const gross = dto.grossIncome;
     const zakatDeduction = dto.zakatPaid ?? 0;
-    const ptkp = dto.ptkp ?? PTKP;
+    const ptkp = dto.ptkp ?? PPH21_DEFAULT_PTKP;
 
-    const biayaJabatan = Math.min(
-      gross * BIAYA_JABATAN_RATE,
-      BIAYA_JABATAN_MAX,
-    );
-    // PKP (taxable income) is rounded down to the nearest Rp 1,000 per DJP
-    // rounding practice for PPh 21.
-    const pkpRaw = Math.max(0, gross - biayaJabatan - ptkp - zakatDeduction);
-    const pkp = Math.floor(pkpRaw / 1000) * 1000;
-
-    const taxBreakdown = this.computeTaxBrackets(pkp);
-    const totalTax = taxBreakdown.reduce((sum, b) => sum + b.tax, 0);
+    const { biayaJabatan, pkp } = computePkp(gross, ptkp, zakatDeduction);
+    const taxBreakdown = computeTaxBrackets(pkp);
+    const totalTax = sumTaxRounded(taxBreakdown);
     const effectiveRate = gross > 0 ? totalTax / gross : 0;
 
     return {
@@ -119,44 +126,25 @@ export class CalculatorsService {
     // Remaining target to fund via contributions
     const remaining = Math.max(0, dto.targetAmount - fvExisting);
 
-    // PMT = remaining × r / ((1+r)^n - 1)   [future value of annuity]
+    // PMT = remaining × r / ((1+r)^n - 1)   [sinking-fund / future value of
+    // an ordinary annuity solved for the payment — NOT loan amortisation,
+    // which divides by a much smaller denominator and overstates the
+    // required contribution by an order of magnitude (E3, EPIC-022 Group E)]
     const monthlyContribution =
       n <= 0 ? 0 : r === 0 ? remaining / n : (remaining * r) / (factor - 1);
 
-    const totalContributions = monthlyContribution * n;
-    const projectedValue =
+    // E3 (EPIC-022 Group E): `projectedValue` is the future value of the
+    // contribution stream itself — PMT × ((1+r)^n − 1) / r — not the whole
+    // stream re-compounded by `factor` as if every instalment were deposited
+    // at t=0. By construction this equals `remaining` (and so, together with
+    // `fvExisting`, equals the target whenever the target is reachable).
+    const fvContributions =
       r === 0
-        ? fvExisting + totalContributions
-        : fvExisting + totalContributions * factor;
+        ? monthlyContribution * n
+        : (monthlyContribution * (factor - 1)) / r;
+    const totalContributions = monthlyContribution * n;
+    const projectedValue = fvExisting + fvContributions;
 
     return { monthlyContribution, totalContributions, projectedValue };
-  }
-
-  private computeTaxBrackets(pkp: number): TaxBracketDto[] {
-    const breakdown: TaxBracketDto[] = [];
-    let remaining = pkp;
-    let previousLimit = 0;
-
-    for (const bracket of TAX_BRACKETS) {
-      if (remaining <= 0) break;
-      const bandWidth =
-        bracket.limit === Infinity
-          ? remaining
-          : Math.min(remaining, bracket.limit - previousLimit);
-      const taxableAmount = Math.min(remaining, bandWidth);
-      const tax = taxableAmount * bracket.rate;
-
-      breakdown.push({
-        bracket: bracket.label,
-        taxableAmount,
-        rate: bracket.rate,
-        tax,
-      });
-
-      remaining -= taxableAmount;
-      previousLimit = bracket.limit;
-    }
-
-    return breakdown;
   }
 }

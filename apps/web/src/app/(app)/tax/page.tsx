@@ -29,7 +29,7 @@ import type {
 } from "@wealthme/contracts";
 
 type TaxPtkpId = "tk0" | "k0" | "k1" | "k2" | "k3";
-type TaxBracketId = "b0" | "b1" | "b2" | "b4";
+type TaxBracketId = "b0" | "b1" | "b2" | "b3" | "b4";
 
 const FIELD_CLASS =
   "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
@@ -45,10 +45,13 @@ const PTKP_OPTIONS: { value: number; id: TaxPtkpId }[] = [
 // Display rows for the progressive breakdown table. `idx` indexes into the
 // BE's taxBreakdown array (UU HPP progressive brackets, in order) — the
 // actual rates/thresholds live server-side in calculators.service.ts.
+// EPIC-022 E4 — this table used to skip idx 3 (30%, 500jt–5M), so the
+// displayed rows never summed to the headline tax above Rp 500jt.
 const BRACKET_ROWS: { id: TaxBracketId; rate: string; idx: number }[] = [
   { id: "b0", rate: "5%", idx: 0 },
   { id: "b1", rate: "15%", idx: 1 },
   { id: "b2", rate: "25%", idx: 2 },
+  { id: "b3", rate: "30%", idx: 3 },
   { id: "b4", rate: "35%", idx: 4 },
 ];
 
