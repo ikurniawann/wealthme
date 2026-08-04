@@ -233,6 +233,46 @@
 
 ---
 
+## 20. EPIC-023 — Family Roles, Money Mechanics & Report Correctness
+
+> Added 2026-08-05 from two `/grilling` sessions with the product owner. Every
+> story traces to a signed-off decision recorded in
+> [`../epics/EPIC-023-family-roles-money-mechanics-report-correctness.md`](../epics/EPIC-023-family-roles-money-mechanics-report-correctness.md).
+
+| ID         | Story                                                                                                                                                                                              | Priority | Epic     |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------- |
+| US-FAM-8   | As a head of family, I want to record how each member is related to me (wife, child, driver, secretary), so that the app reflects my actual household rather than three generic roles.             | P0       | EPIC-023 |
+| US-FAM-9   | As a head of family, I want a member's permissions to default from their relationship but stay editable, so that I can trust a grandmother fully and still restrict a driver.                      | P0       | EPIC-023 |
+| US-FAM-10  | As a spouse, I want full control over every money surface without being able to remove family members, so that we are equal partners over the money while one head stays accountable.              | P0       | EPIC-023 |
+| US-FAM-11  | As a child, I want to see only my own account and transactions, so that I can manage my allowance without reading the household's finances.                                                        | P0       | EPIC-023 |
+| US-FAM-12  | As a head of family, I want to create accounts for my child and driver without an email address, so that people who have no email can still use the app.                                           | P0       | EPIC-023 |
+| US-FAM-13  | As a driver, I want to unlock the app with a PIN on my own phone, so that I do not retype a password every time I record fuel.                                                                     | P1       | EPIC-023 |
+| US-FAM-14  | As a head of family, I want spending above a limit I set per member to wait for my approval, so that money cannot leave before I have seen it.                                                     | P0       | EPIC-023 |
+| US-AUTH-9  | As a member given an account by the head, I want to be forced to change my password at first login, so that nobody else keeps my credentials.                                                      | P0       | EPIC-023 |
+| US-LIAB-3  | As a head of family, I want a new liability to appear in my monthly budget automatically, so that my plan reflects what I am actually obliged to pay.                                              | P0       | EPIC-023 |
+| US-LIAB-4  | As a head of family, I want to pay an instalment from the budget page and choose the source account, so that the payment moves real money instead of flipping a status.                            | P0       | EPIC-023 |
+| US-LIAB-5  | As a head of family, I want credit-card spending to raise the card's debt without touching my bank balance, so that my accounts reflect what actually happened.                                    | P0       | EPIC-023 |
+| US-INS-4   | As a head of family, I want to pay a premium and have it debit a chosen account, so that I do not record the same payment twice by hand.                                                           | P0       | EPIC-023 |
+| US-INS-5   | As a head of family, I want to choose beneficiaries from my family members, so that I do not retype names that the app already knows.                                                              | P1       | EPIC-023 |
+| US-TXN-8   | As any user, I want the Transfer tab to stop asking for a category, so that I am not blocked by a dropdown that can never have options.                                                            | P1       | EPIC-023 |
+| US-RPT-9   | As a head of family, I want repaying loan principal to stop counting as an expense, so that my profit and loss is not understated by thousands every month.                                        | P0       | EPIC-023 |
+| US-RPT-10  | As a head of family, I want money I lend out to stop counting as income, so that my profit reflects earnings rather than movements.                                                                | P0       | EPIC-023 |
+| US-RPT-11  | As a head of family, I want to see how my opening net worth became my closing net worth, so that I understand why profit and wealth changed by different amounts.                                  | P0       | EPIC-023 |
+| US-RPT-12  | As any user, I want to filter every report by a date range or a quick preset such as "last 3 months", so that I can look at the period I care about rather than one calendar month.                | P0       | EPIC-023 |
+| US-RPT-13  | As any user, I want the report to state that it is cash basis, so that I know why an unpaid invoice does not appear as revenue.                                                                    | P1       | EPIC-023 |
+| US-INV-7   | As an investor, I want crypto and IDX equity prices to update automatically and everything else to be clearly labelled as manually entered, so that I never mistake a stale figure for a live one. | P1       | EPIC-023 |
+| US-ASSET-4 | As a head of family, I want my recorded asset value to be the official one and any projection shown separately, so that my net worth only changes when something real happens.                     | P0       | EPIC-023 |
+| US-DON-6   | As a Christian user, I want a tithe calculator rather than a zakat calculator relabelled, so that the figure I am shown is actually correct for my faith.                                          | P0       | EPIC-023 |
+| US-DON-7   | As any user, I want obligatory religious contributions of my own faith to reduce my taxable income where the law allows, so that I am not excluded by a rule written only for zakat.               | P1       | EPIC-023 |
+| US-SPLIT-5 | As a friend receiving a split-bill link, I want to see my share and where to transfer, so that the link is worth opening.                                                                          | P1       | EPIC-023 |
+| US-SPLIT-6 | As a bill owner, I want to confirm a friend's claim before it becomes income, so that a claim is never mistaken for money received.                                                                | P1       | EPIC-023 |
+| US-RECON-4 | As a head of family, I want to map my bank's columns once and reuse it, so that every future statement imports without work.                                                                       | P0       | EPIC-023 |
+| US-RECON-5 | As a head of family, I want a PDF upload refused with a clear reason, so that I never believe an import succeeded when nothing was imported.                                                       | P0       | EPIC-023 |
+| US-AI-5    | As a head of family, I want to supply my own AI provider key, so that the advisor works without anyone else paying for or reading my usage.                                                        | P1       | EPIC-023 |
+| US-DASH-7  | As a new user, I want onboarding to build my first account, transaction and budget with me, so that I finish understanding how the system works instead of where the buttons are.                  | P1       | EPIC-023 |
+
+---
+
 ## Coverage Check
 
 All 21 product pages (PRD Appendix A) map to at least one story domain above. Domains 1–3 + 16 (partial) are delivered in EPIC-001/002; domains 4–15 + 16 (delivery) are planned in EPIC-003→007. The Akun page is covered by domain 1 (US-AUTH-4..8) and wired via EPIC-005 task **T-505**.
