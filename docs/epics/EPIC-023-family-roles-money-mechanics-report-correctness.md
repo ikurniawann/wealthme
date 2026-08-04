@@ -606,7 +606,8 @@ whose P&L and balance sheet reconcile through the bridge.
   balance-sheet capture for the demo family has NOT been done — it must run
   against DEV before this migration is applied there.
 - 2026-08-05 /epic-loop EPIC-023 #2 "C — Roles, kinship and access" → PASS
-  (attempts: 3), PR: pending. Three roles became six: `spouse` was added beyond
+  (attempts: 3),
+  PR: https://github.com/andrsrjld/wealthme-web/pull/237. Three roles became six: `spouse` was added beyond
   the "dependant and operational" tiers the epic names, because D2 makes a
   spouse a financial co-owner with full money CRUD but no member management,
   which no existing tier expressed. Kinship (`Member.relationship`) is a
