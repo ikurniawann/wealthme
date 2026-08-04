@@ -9,6 +9,7 @@ import { Role } from "@prisma/client";
 export type Action = "manage" | "create" | "read" | "update" | "delete";
 export type Subject =
   | "Account"
+  | "AllowanceRequest"
   | "Asset"
   | "Budget"
   | "Category"
@@ -21,6 +22,7 @@ export type Subject =
   | "Investment"
   | "Liability"
   | "Member"
+  | "MemberCategoryAllowance"
   | "Notification"
   | "Reconciliation"
   | "Report"
@@ -39,6 +41,7 @@ export class CaslAbilityFactory {
     switch (member.role) {
       case Role.owner:
         can("manage", "Account");
+        can("manage", "AllowanceRequest");
         can("manage", "Asset");
         can("manage", "Budget");
         can("manage", "Category");
@@ -50,6 +53,7 @@ export class CaslAbilityFactory {
         can("manage", "Investment");
         can("manage", "Liability");
         can("manage", "Member");
+        can("manage", "MemberCategoryAllowance");
         can("manage", "Notification");
         // EPIC-021 Group C (#29) — reconciliation fee-splitting creates real
         // ledger Transactions; gate it as a bookkeeping action (owner +
@@ -62,6 +66,10 @@ export class CaslAbilityFactory {
 
       case Role.member:
         can("read", "Account");
+        // EPIC-019 Task B — a member may file/read their own allowance
+        // requests; only an owner may approve/reject (see "manage" above).
+        can("create", "AllowanceRequest");
+        can("read", "AllowanceRequest");
         can("manage", "Asset");
         can("manage", "Budget");
         can("read", "Category");
@@ -73,6 +81,9 @@ export class CaslAbilityFactory {
         can("manage", "Investment");
         can("manage", "Liability");
         can("read", "Member");
+        // EPIC-019 Task C — a member may see their own category allow-list;
+        // only an owner may set it (see "manage" above).
+        can("read", "MemberCategoryAllowance");
         can("manage", "Notification");
         can("read", "Notification");
         // EPIC-021 Group C (#29) — deliberately NOT granted to `member`: bank
@@ -85,6 +96,8 @@ export class CaslAbilityFactory {
 
       case Role.admin_staff:
         can("read", "Account");
+        can("create", "AllowanceRequest");
+        can("read", "AllowanceRequest");
         can("read", "Asset");
         can("read", "Budget");
         can("read", "Category");
@@ -96,6 +109,7 @@ export class CaslAbilityFactory {
         can("read", "Investment");
         can("read", "Liability");
         can("read", "Member");
+        can("read", "MemberCategoryAllowance");
         can("read", "Notification");
         // EPIC-021 Group C (#29) — bookkeeper role can perform the
         // reconciliation fee-split (see the owner-case comment above).

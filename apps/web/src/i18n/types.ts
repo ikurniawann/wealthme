@@ -624,6 +624,26 @@ export type I18nDictionary = {
       showBalanceToMembersSub: string;
       memberTxnNotifLabel: string;
       memberTxnNotifSub: string;
+      categoryLimitButton: string;
+      categoryLimitDialogTitle: string;
+      categoryLimitDialogDesc: string;
+      categoryLimitEmptyCategories: string;
+      categoryLimitUnrestrictedHint: string;
+      categoryLimitSaveButton: string;
+      categoryLimitSaving: string;
+      categoryLimitSaved: string;
+      categoryLimitSaveFailed: string;
+      allowanceRequestsSectionTitle: string;
+      allowanceRequestsEmpty: string;
+      allowanceRequestPendingBadge: string;
+      allowanceRequestApproveButton: string;
+      allowanceRequestRejectButton: string;
+      allowanceRequestApproveDialogTitle: string;
+      allowanceRequestSourceAccountLabel: string;
+      allowanceRequestApproved: string;
+      allowanceRequestApproveFailed: string;
+      allowanceRequestRejected: string;
+      allowanceRequestRejectFailed: string;
     };
     addAdmin: {
       dialogTitle: string;
@@ -1290,6 +1310,23 @@ export type I18nDictionary = {
     toastSaveFailed: string;
     toastDeleted: string;
     toastDeleteFailed: string;
+    ownerSelectFamilyLabel: string;
+    ownerMineBadge: string;
+    ownerBadgePrefix: string;
+    ownerUnknownLabel: string;
+    filterAllLabel: string;
+    filterMineLabel: string;
+    emptyMineState: string;
+    mintaDanaButtonLabel: string;
+    mintaDanaDialogTitle: string;
+    mintaDanaAmountLabel: string;
+    mintaDanaAmountInvalidToast: string;
+    mintaDanaNoteLabel: string;
+    mintaDanaNotePlaceholder: string;
+    mintaDanaSubmitButton: string;
+    mintaDanaSubmitting: string;
+    mintaDanaSuccessToast: string;
+    mintaDanaFailToast: string;
   };
   /**
    * EPIC-018 Task A6 — `/donation` (donation & zakat) page copy.

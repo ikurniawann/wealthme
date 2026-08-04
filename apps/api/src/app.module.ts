@@ -6,6 +6,7 @@ import { LoggerModule } from "nestjs-pino";
 
 import { AccountsModule } from "./accounts/accounts.module";
 import { AiAdvisorModule } from "./ai-advisor/ai-advisor.module";
+import { AllowanceRequestsModule } from "./allowance-requests/allowance-requests.module";
 import { AssetsModule } from "./assets/assets.module";
 import { AuditInterceptor } from "./audit/audit.interceptor";
 import { AuditModule } from "./audit/audit.module";
@@ -34,6 +35,7 @@ import { InheritanceModule } from "./inheritance/inheritance.module";
 import { InsurancesModule } from "./insurances/insurances.module";
 import { InvestmentsModule } from "./investments/investments.module";
 import { LiabilitiesModule } from "./liabilities/liabilities.module";
+import { MemberCategoryAllowancesModule } from "./member-category-allowances/member-category-allowances.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { OpenBankingModule } from "./open-banking/open-banking.module";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -112,6 +114,8 @@ import type { IncomingMessage } from "node:http";
     GdprModule,
     ReconciliationModule,
     OpenBankingModule,
+    AllowanceRequestsModule,
+    MemberCategoryAllowancesModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

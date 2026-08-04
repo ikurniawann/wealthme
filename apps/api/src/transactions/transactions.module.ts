@@ -30,6 +30,9 @@ import type { Env } from "../config/env";
   // EPIC-021 Group C (#29) — ReconciliationModule reuses TransactionsService
   // directly (transfer + linked admin-fee creation) instead of re-deriving
   // that logic, so it must be exported for cross-module injection.
+  // EPIC-019 Task B — AllowanceRequestsModule reuses TransactionsService to
+  // execute an approved request as a REAL transfer (the EPIC-021 Group B
+  // primitive), instead of duplicating the balance-move logic.
   exports: [TransactionsService],
 })
 export class TransactionsModule {}

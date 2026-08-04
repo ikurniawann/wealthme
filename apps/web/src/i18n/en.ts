@@ -508,6 +508,31 @@ export const en = {
       showBalanceToMembersSub: "Members can see the shared total balance",
       memberTxnNotifLabel: "Member Transaction Notifications",
       memberTxnNotifSub: "Receive transaction notifications from other members",
+      // EPIC-019 Task C — per-member expense category allow-list.
+      categoryLimitButton: "Limit Categories",
+      categoryLimitDialogTitle: "Limit Categories",
+      categoryLimitDialogDesc:
+        "Choose the expense categories this member may record. Leave all unchecked for no restriction (default).",
+      categoryLimitEmptyCategories:
+        "No expense categories yet. Add one on the Transactions page first.",
+      categoryLimitUnrestrictedHint: "Unrestricted — every category is allowed",
+      categoryLimitSaveButton: "Save Limit",
+      categoryLimitSaving: "Saving...",
+      categoryLimitSaved: "Category limit saved successfully.",
+      categoryLimitSaveFailed: "Failed to save the category limit. Try again.",
+      // EPIC-019 Task B/D — owner-side pending funding requests.
+      allowanceRequestsSectionTitle: "Funding Requests",
+      allowanceRequestsEmpty: "No funding requests yet.",
+      allowanceRequestPendingBadge: "Pending",
+      allowanceRequestApproveButton: "Approve",
+      allowanceRequestRejectButton: "Reject",
+      allowanceRequestApproveDialogTitle: "Approve Funding Request",
+      allowanceRequestSourceAccountLabel: "Source Account",
+      allowanceRequestApproved: "Funding request approved — funds transferred.",
+      allowanceRequestApproveFailed:
+        "Failed to approve the request. Try again.",
+      allowanceRequestRejected: "Funding request rejected.",
+      allowanceRequestRejectFailed: "Failed to reject the request. Try again.",
     },
     addAdmin: {
       dialogTitle: "Add Admin / Staff",
@@ -1399,6 +1424,26 @@ export const en = {
     toastSaveFailed: "Failed to save account. Please try again.",
     toastDeleted: "Account deleted successfully.",
     toastDeleteFailed: "Failed to delete account. Please try again.",
+    // EPIC-019 Task A — per-member account ownership.
+    ownerSelectFamilyLabel: "Family (shared)",
+    ownerMineBadge: "👤 Mine",
+    ownerBadgePrefix: "👤 ",
+    ownerUnknownLabel: "Member",
+    filterAllLabel: "All",
+    filterMineLabel: "👤 Mine",
+    emptyMineState: "You don't own any accounts yet.",
+    // EPIC-019 Task B/D — member-request -> owner-approve funding.
+    mintaDanaButtonLabel: "Request Funds",
+    mintaDanaDialogTitle: "Request Funds",
+    mintaDanaAmountLabel: "Amount",
+    mintaDanaAmountInvalidToast: "Enter a valid amount.",
+    mintaDanaNoteLabel: "Note (optional)",
+    mintaDanaNotePlaceholder: "e.g. this month's allowance",
+    mintaDanaSubmitButton: "Send Request",
+    mintaDanaSubmitting: "Sending...",
+    mintaDanaSuccessToast:
+      "Funding request sent. Waiting for the family owner's approval.",
+    mintaDanaFailToast: "Failed to send the funding request. Please try again.",
   },
   donation: {
     typeLabels: {

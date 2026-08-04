@@ -55,7 +55,7 @@ Verified against the current tree, 2026-07-24:
 
 ## Tasks
 
-- [ ] ### A — Clickable transaction rows → detail view
+- [x] ### A — Clickable transaction rows → detail view
   - Make each `TxRow` open a **read-only transaction detail** (dialog or drawer)
     showing all `TransactionDto` fields: type, amount, category, account,
     date/time, description, created-at. Keep the existing edit/delete actions
@@ -64,7 +64,7 @@ Verified against the current tree, 2026-07-24:
     rebuild a modal primitive. Keep the row keyboard-accessible (button/role).
   - Preserve current filter/sort/day-grouping behavior unchanged.
 
-- [ ] ### B — Consistent year/month/date filter across all report sections
+- [x] ### B — Consistent year/month/date filter across all report sections
   - Add a shared period selector (year + month + optional day/range) that drives
     **every** report section, not just Harian. Sections that currently ignore
     user input (`now`-hard-coded and fixed-window ones) must re-query for the
@@ -76,7 +76,7 @@ Verified against the current tree, 2026-07-24:
   - One filter pattern, reused across sections — do not hand-roll a different
     picker per tab. Match the existing Harian date-input styling.
 
-- [ ] ### C — Real PDF export
+- [x] ### C — Real PDF export
   - Replace the plaintext stub in `buildPdf` (`exports.service.ts:360-532`) with
     **actual PDF generation** (a server-side PDF library, e.g. `pdfkit` /
     `pdf-lib` — final choice belongs to `/plan`), returning a
@@ -155,3 +155,17 @@ acceptance criteria hold across a fresh QA pass of `/transaksi` and `/laporan`.
   server-side (summary endDate anchor param added, additive); Harian input
   synced to the shared filter; Balance Sheet uses asOfDate; export jobs get
   the selected period. 19 new date-bounds tests. react-review PASS.
+- **2026-08-04 — all three task groups merged; epic complete.** A (#202) makes
+  each transaction row a keyboard-operable detail trigger — a react-review round
+  caught that nesting the edit/delete buttons inside a `role="button"` row
+  hijacked their keyboard activation (WCAG 2.1.1), so the trigger and the row
+  actions ship as siblings, with a regression test pinning it. B (#205) adds one
+  shared year/month/day filter that drives **every** report section server-side
+  (an additive `endDate` anchor was added to the summary endpoint; balance sheet
+  uses it as an as-of date; export jobs inherit the selected period), with 19
+  date-bounds unit tests; sections with no period semantics (investment holdings,
+  net-worth roll-up, family roster) are documented as deliberately excluded. C
+  (#200) replaces the plaintext `buildPdf` stub with real pdf-lib output —
+  paginated tables, repeated headers, width-clamped text — verified per report
+  type by `%PDF-` magic bytes plus an empty-data and a >1-page case; the CSV path
+  is byte-unchanged. C also closes EPIC-016 Task L.

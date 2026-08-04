@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
 } from "@nestjs/common";
 import {
@@ -28,6 +29,8 @@ import { AccountResponseDto } from "./dto/account-response.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateAccountDto } from "./dto/create-account.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { ListAccountsQueryDto } from "./dto/list-accounts-query.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateAccountDto } from "./dto/update-account.dto";
 
 import type { Request } from "express";
@@ -45,10 +48,16 @@ export class AccountsController {
   @ApiResponse({ status: 200, type: [AccountResponseDto] })
   findAll(
     @Param("familyGroupId") familyGroupId: string,
+    @Query() query: ListAccountsQueryDto,
     @Req() req: Request,
   ): Promise<AccountResponseDto[]> {
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
-    return this.accountsService.findAll(familyGroupId, canSeePrivate);
+    return this.accountsService.findAll(
+      familyGroupId,
+      canSeePrivate,
+      query.owner,
+      req.tenantContext?.userId,
+    );
   }
 
   @Post()
