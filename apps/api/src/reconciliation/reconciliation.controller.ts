@@ -16,8 +16,13 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 
+import { type AppAbility } from "../casl/casl-ability.factory";
+import { CheckAbility } from "../common/decorators/check-ability.decorator";
+
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { MatchEntryDto } from "./dto/match-entry.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { SplitEntryDto } from "./dto/split-entry.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UploadSyncDto } from "./dto/upload-sync.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -106,5 +111,32 @@ export class ReconciliationController {
     @Param("syncId") syncId: string,
   ): Promise<AutoMatchResultDto> {
     return this.reconciliationService.autoMatch(familyGroupId, syncId);
+  }
+
+  // EPIC-021 Group C (#29) — reconciliation fee-split creates real ledger
+  // Transactions, so it is gated as a bookkeeping action (owner/admin_staff)
+  // rather than left open like the read/upload/match endpoints above.
+  @Post(":syncId/entries/:entryId/split")
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Reconciliation"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "syncId", type: String })
+  @ApiParam({ name: "entryId", type: String })
+  @ApiOperation({
+    summary:
+      "Split a bank-statement entry into a principal transfer + admin-fee expense, then mark it matched",
+  })
+  @ApiResponse({ status: 201, description: "Updated BankSyncEntry" })
+  splitEntry(
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("syncId") syncId: string,
+    @Param("entryId") entryId: string,
+    @Body() dto: SplitEntryDto,
+  ): Promise<BankSyncEntryDto> {
+    return this.reconciliationService.splitEntry(
+      familyGroupId,
+      syncId,
+      entryId,
+      dto,
+    );
   }
 }

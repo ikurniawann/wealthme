@@ -11,6 +11,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
 } from "class-validator";
 
 export class CreateAccountDto {
@@ -44,9 +45,14 @@ export class CreateAccountDto {
 
   @ApiProperty({
     description:
-      "Initial balance in smallest currency unit (e.g. rupiah, no decimals)",
+      "Initial balance in smallest currency unit (e.g. rupiah, no decimals). " +
+      "EPIC-021 #21/#22 — only `cash` accounts may go negative (physical cash " +
+      "can run short without an external floor); bank/e-wallet/investment/" +
+      "property accounts must stay >= 0 here. The bank-specific overdraft " +
+      "guard for transaction-driven debits lives in transactions.service.ts.",
   })
   @IsInt()
+  @ValidateIf((o: CreateAccountDto) => o.type !== AccountType.cash)
   @Min(0)
   balance!: number;
 

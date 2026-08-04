@@ -33,6 +33,11 @@ describe("CaslAbilityFactory", () => {
       expect(ability.can("manage", "Member")).toBe(true);
     });
 
+    it("can manage Reconciliation (EPIC-021 #29 fee-split)", () => {
+      const ability = factory.createForMember({ role: Role.owner });
+      expect(ability.can("manage", "Reconciliation")).toBe(true);
+    });
+
     it("can manage AllowanceRequest (approve/reject)", () => {
       const ability = factory.createForMember({ role: Role.owner });
       expect(ability.can("manage", "AllowanceRequest")).toBe(true);
@@ -73,6 +78,11 @@ describe("CaslAbilityFactory", () => {
       expect(ability.can("delete", "Member")).toBe(false);
     });
 
+    it("cannot manage Reconciliation (EPIC-021 #29 — bookkeeping action reserved for owner/admin_staff)", () => {
+      const ability = factory.createForMember({ role: Role.member });
+      expect(ability.can("manage", "Reconciliation")).toBe(false);
+    });
+
     it("can create and read AllowanceRequest but not approve/reject it", () => {
       const ability = factory.createForMember({ role: Role.member });
       expect(ability.can("create", "AllowanceRequest")).toBe(true);
@@ -109,6 +119,11 @@ describe("CaslAbilityFactory", () => {
     it("cannot update Category", () => {
       const ability = factory.createForMember({ role: Role.admin_staff });
       expect(ability.can("update", "Category")).toBe(false);
+    });
+
+    it("can manage Reconciliation (EPIC-021 #29 fee-split)", () => {
+      const ability = factory.createForMember({ role: Role.admin_staff });
+      expect(ability.can("manage", "Reconciliation")).toBe(true);
     });
 
     it("can create/read AllowanceRequest but cannot approve/reject it", () => {

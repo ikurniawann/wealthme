@@ -1662,5 +1662,48 @@ export type I18nDictionary = {
     toastConfirmed: string;
     toastConfirmFailedDefault: string;
     errorSessionInactive: string;
+    // EPIC-021 Group C (#9) — entry detail dialog (read-only, opened by
+    // clicking/tapping an entry row, mirrors the `/transaksi` TxRow pattern).
+    entryDetailAriaLabelPrefix: string;
+    detailDialogTitle: string;
+    detailDateLabel: string;
+    detailDescriptionLabel: string;
+    detailAmountLabel: string;
+    detailStatusLabel: string;
+    detailMatchedTxTitle: string;
+    detailTxTypeLabel: string;
+    detailTxAccountLabel: string;
+    detailTxToAccountLabel: string;
+    detailTxCategoryLabel: string;
+    detailTxAmountLabel: string;
+    detailTxDateLabel: string;
+    detailNoMatchedTx: string;
+    closeButton: string;
+    txTypeLabels: { income: string; expense: string; transfer: string };
+    // EPIC-021 Group C (#29) — fee-split dialog (Decision #10: produces real
+    // Transactions, not a side-table).
+    splitButton: string;
+    splitButtonAriaLabelPrefix: string;
+    splitDialogTitle: string;
+    splitDialogDescription: string;
+    splitSourceAccountLabel: string;
+    splitSourceAccountPlaceholder: string;
+    splitDestAccountLabel: string;
+    splitDestAccountPlaceholder: string;
+    splitPrincipalLabel: string;
+    splitAdminFeeLabel: string;
+    splitDescriptionLabel: string;
+    splitDescriptionPlaceholder: string;
+    splitTotalLabel: string;
+    splitEntryAmountLabel: string;
+    splitSubmitButton: string;
+    splitCancelButton: string;
+    splitValidationSelectSourceAccount: string;
+    splitValidationSelectDestAccount: string;
+    splitValidationSameAccount: string;
+    splitValidationPrincipalPositive: string;
+    splitValidationSumMismatch: string;
+    toastSplitSuccess: string;
+    toastSplitFailedDefault: string;
   };
 };
