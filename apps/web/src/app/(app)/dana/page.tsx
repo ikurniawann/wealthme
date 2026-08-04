@@ -19,6 +19,19 @@ const EWALLET_TYPES = new Set(["ewallet"]);
 const CASH_TYPES = new Set(["cash"]);
 const DANA_TYPES = new Set(["ewallet", "cash"]);
 
+// EPIC-021 #21 — "Data Kas bisa minus": `parseRupiah` (lib/format.ts, a
+// protected foundation file) strips every non-digit character including a
+// leading "-", so it can never round-trip a negative cash balance. This
+// page-local helper (see WM_CONVENTIONS.md — inline a helper here instead of
+// touching lib/*) preserves the sign; only used for the `cash` entity below,
+// e-wallet keeps using the shared `parseRupiah`.
+function parseSignedRupiah(value: string | null | undefined): number {
+  if (!value) return 0;
+  const isNegative = value.trim().startsWith("-");
+  const digits = parseInt(value.replace(/\D/g, ""), 10) || 0;
+  return isNegative ? -digits : digits;
+}
+
 // EPIC-021 #3 — cash accounts are real, plural accounts (AccountType
 // "cash", name-scoped uniqueness — see apps/api/src/accounts), same as
 // e-wallets. Both sections below get the same Add/Edit/Delete treatment
@@ -148,14 +161,27 @@ export default function DanaPage() {
     const danaEntity = (entity === "cash" ? "cash" : "ewallet") as DanaEntity;
     const label = t.dana.entityLabels[danaEntity];
     try {
-      const balance = parseRupiah(values.saldo ?? "0");
+      // EPIC-021 #21 — cash balances may be negative; e-wallets stay
+      // non-negative via the shared parseRupiah.
+      const balance =
+        danaEntity === "cash"
+          ? parseSignedRupiah(values.saldo ?? "0")
+          : parseRupiah(values.saldo ?? "0");
       if (mode === "edit" && editingId) {
         await apiFetch(
           `/family-groups/${familyGroupId}/accounts/${editingId}`,
           {
             token,
             method: "PATCH",
-            body: JSON.stringify({ name: values.nama, balance }),
+            // EPIC-021 #21 — `type` must be resent so the API's negative-
+            // balance relaxation (cash only, see CreateAccountDto.balance)
+            // can see this is a cash account even on a partial update that
+            // doesn't otherwise touch `type`.
+            body: JSON.stringify({
+              name: values.nama,
+              balance,
+              type: danaEntity,
+            }),
           },
         );
         toast.success(`${label}${t.dana.toastUpdatedSuffix}`);

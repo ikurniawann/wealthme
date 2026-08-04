@@ -243,7 +243,9 @@ export class TransactionsService {
 
       if (toAccount) {
         // Real two-sided transfer: debit source, credit destination
-        // atomically within this same $transaction.
+        // atomically within this same $transaction. `enforceBankFloor: true`
+        // — this is a fresh, user-initiated debit of the SOURCE account
+        // (EPIC-021 #22); the destination's credit leg is never guarded.
         await this.applyTransferBalanceDelta(
           prisma,
           familyGroupId,
@@ -251,6 +253,7 @@ export class TransactionsService {
           toAccount.id,
           BigInt(dto.amount),
           "add",
+          true,
         );
 
         // #28 — e-wallet top-up admin fee: the destination is credited the
@@ -275,6 +278,9 @@ export class TransactionsService {
               occurredAt: new Date(dto.occurredAt),
             },
           });
+          // EPIC-021 #22 — admin fee is itself a fresh debit against the
+          // (bank) destination account, guarded the same as any other
+          // user-initiated expense.
           await this.applyBalanceDelta(
             prisma,
             familyGroupId,
@@ -282,9 +288,12 @@ export class TransactionsService {
             toAccount.id,
             BigInt(dto.adminFee),
             "add",
+            true,
           );
         }
       } else {
+        // EPIC-021 #22 — fresh, user-initiated debit (income is a no-op for
+        // the guard; see applyBalanceDelta's early income return).
         await this.applyBalanceDelta(
           prisma,
           familyGroupId,
@@ -292,6 +301,7 @@ export class TransactionsService {
           dto.accountId,
           BigInt(dto.amount),
           "add",
+          true,
         );
       }
 
@@ -587,6 +597,14 @@ export class TransactionsService {
         // Revert whatever effect the existing row currently has — a real
         // two-sided transfer reverses both legs, everything else reverses
         // its single account delta.
+        //
+        // EPIC-021 #22 — neither the revert call below nor the reapply call
+        // further down passes `enforceBankFloor`, so both stay unguarded by
+        // the bank-overdraft check (default `false`). This is deliberate:
+        // an already-persisted transaction must always remain editable, even
+        // on a bank account that has since been spent down below the
+        // original credit — reversal integrity beats the overdraft
+        // invariant here. Only create()'s fresh debits are guarded.
         if (existing.toAccountId) {
           await this.applyTransferBalanceDelta(
             prisma,
@@ -673,6 +691,10 @@ export class TransactionsService {
       // (income/expense/legacy one-sided transfer) reverses its single
       // account delta. The admin-fee expense (if any) is NOT cascaded here —
       // see the create() comment: it is a standalone Transaction.
+      // EPIC-021 #22 — `enforceBankFloor` is deliberately omitted (defaults
+      // false): deleting a transaction must always be possible, even if the
+      // bank account it touches has since been spent below the original
+      // credit. See applyBalanceDelta's doc for the full rationale.
       if (existing.toAccountId) {
         await this.applyTransferBalanceDelta(
           prisma,
@@ -818,6 +840,40 @@ export class TransactionsService {
     );
   }
 
+  /**
+   * EPIC-021 #22 — a `bank`-type account may never be pushed below zero by a
+   * fresh, user-initiated debit. Already-negative bank rows are grandfathered
+   * (never auto-corrected, never blocked from receiving credits) but must
+   * not be allowed to go MORE negative: `balance - debitAmount < 0` rejects
+   * both "this debit would newly cross zero" (balance >= 0 today) and
+   * "this account is already negative, reject further debits" (balance < 0
+   * today, so subtracting any positive amount is always < 0) with the same
+   * single comparison.
+   *
+   * Reads the account fresh via the caller's transactional `prisma` client
+   * so the check sees the live, in-transaction balance. Non-bank types
+   * (`cash`, `ewallet`, `investment`, `property`) are never guarded here —
+   * #21 explicitly allows cash to go negative, and this epic only scopes
+   * the hard floor to bank accounts.
+   */
+  private async assertBankNotOverdrawn(
+    prisma: Parameters<Parameters<PrismaService["$transaction"]>[0]>[0],
+    familyGroupId: string,
+    accountId: string,
+    debitAmount: bigint,
+  ): Promise<void> {
+    const account = await prisma.account.findUnique({
+      where: { id: accountId, familyGroupId },
+      select: { type: true, balance: true, name: true },
+    });
+    if (!account || account.type !== "bank") return;
+    if (account.balance - debitAmount < BigInt(0)) {
+      throw new BadRequestException(
+        `Saldo rekening bank "${account.name}" tidak mencukupi untuk transaksi ini. Rekening bank tidak boleh memiliki saldo minus.`,
+      );
+    }
+  }
+
   private async applyBalanceDelta(
     prisma: Parameters<Parameters<PrismaService["$transaction"]>[0]>[0],
     familyGroupId: string,
@@ -825,6 +881,17 @@ export class TransactionsService {
     accountId: string,
     amount: bigint,
     direction: "add" | "revert",
+    // EPIC-021 #22 — true ONLY for a fresh, user-initiated debit (create()'s
+    // expense/legacy-one-sided-transfer and admin-fee call sites). MUST stay
+    // false (the default) for every call inside update()/remove()'s
+    // revert-then-reapply cycle: those re-derive the account's state from a
+    // previously-persisted, already-accepted transaction, and reversal
+    // integrity (a transaction must always be editable/deletable, even on an
+    // account that has since been spent down below the original credit)
+    // beats the overdraft invariant on those paths. Guarding the revert step
+    // would also produce false positives from the two-phase revert-then-
+    // reapply mechanic itself, not the user's actual net edit.
+    enforceBankFloor = false,
   ): Promise<void> {
     const sign = direction === "add" ? BigInt(1) : BigInt(-1);
 
@@ -833,14 +900,24 @@ export class TransactionsService {
         where: { id: accountId, familyGroupId },
         data: { balance: { increment: amount * sign } },
       });
-    } else {
-      // "expense" and legacy one-sided "transfer" (no toAccountId) both
-      // debit the single tracked account — unchanged, pre-existing behavior.
-      await prisma.account.update({
-        where: { id: accountId, familyGroupId },
-        data: { balance: { increment: -amount * sign } },
-      });
+      return;
     }
+
+    // "expense" and legacy one-sided "transfer" (no toAccountId) both debit
+    // the single tracked account — unchanged, pre-existing behavior.
+    const debitAmount = amount * sign;
+    if (enforceBankFloor && debitAmount > BigInt(0)) {
+      await this.assertBankNotOverdrawn(
+        prisma,
+        familyGroupId,
+        accountId,
+        debitAmount,
+      );
+    }
+    await prisma.account.update({
+      where: { id: accountId, familyGroupId },
+      data: { balance: { increment: -debitAmount } },
+    });
   }
 
   /**
@@ -856,11 +933,25 @@ export class TransactionsService {
     toAccountId: string,
     amount: bigint,
     direction: "add" | "revert",
+    // EPIC-021 #22 — see applyBalanceDelta's doc above; true ONLY for
+    // create()'s fresh transfer-FROM-bank source debit, never for
+    // update()/remove()'s revert-then-reapply cycle. Only the SOURCE leg is
+    // ever guarded — the destination's credit leg is never blocked.
+    enforceBankFloor = false,
   ): Promise<void> {
     const sign = direction === "add" ? BigInt(1) : BigInt(-1);
+    const sourceDebit = amount * sign;
+    if (enforceBankFloor && sourceDebit > BigInt(0)) {
+      await this.assertBankNotOverdrawn(
+        prisma,
+        familyGroupId,
+        accountId,
+        sourceDebit,
+      );
+    }
     await prisma.account.update({
       where: { id: accountId, familyGroupId },
-      data: { balance: { increment: -amount * sign } },
+      data: { balance: { increment: -sourceDebit } },
     });
     await prisma.account.update({
       where: { id: toAccountId, familyGroupId },
