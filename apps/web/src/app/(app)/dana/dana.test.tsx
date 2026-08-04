@@ -215,4 +215,75 @@ describe("DanaPage — multiple cash accounts as master data (EPIC-021 #3)", () 
       `/family-groups/${FAMILY_GROUP_ID}/accounts/acc-1`,
     );
   });
+
+  // EPIC-021 #21 — "Data Kas bisa minus": the cash amount field must accept
+  // and round-trip a "-" sign, unlike every other "amount" field (which
+  // strips it).
+  it("allows typing a negative balance in the add-cash form and submits it signed", async () => {
+    mockApiFetch.mockResolvedValueOnce([]); // initial accounts list
+    const user = userEvent.setup();
+    render(<DanaPage />);
+    await screen.findByText("Belum ada kas tunai.");
+
+    mockApiFetch.mockResolvedValueOnce({ id: "acc-new" }); // POST response
+    mockApiFetch.mockResolvedValueOnce([buildAccount({ id: "acc-new" })]); // refetch
+
+    await user.click(screen.getAllByText("+ Tambah")[0]!);
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.type(
+      dialog.getByPlaceholderText("cth: Kas Tunai, Dompet Kerja"),
+      "Kas Toko",
+    );
+    // The amount field has no accessible name — it's the sole placeholder="0"
+    // input in this dialog.
+    await user.type(dialog.getByPlaceholderText("0"), "-50000");
+    await user.click(dialog.getByRole("button", { name: /Simpan/i }));
+
+    const postCall = mockApiFetch.mock.calls.find(
+      (call) => call[1]?.method === "POST",
+    );
+    expect(postCall).toBeDefined();
+    const body = JSON.parse(postCall![1].body as string) as {
+      balance: number;
+    };
+    expect(body.balance).toBe(-50000);
+  });
+
+  it("preserves an already-negative cash balance across an unrelated edit (no sign-flip regression)", async () => {
+    // Arrange — this account already went negative via an over-budget
+    // expense transaction (the pre-existing, transaction-driven path).
+    mockApiFetch.mockResolvedValue([
+      buildAccount({ id: "acc-1", name: "Kas Tunai", balance: "-75000" }),
+    ]);
+    const user = userEvent.setup();
+    render(<DanaPage />);
+    await screen.findByText("Kas Tunai");
+
+    mockApiFetch.mockResolvedValueOnce({ id: "acc-1" }); // PATCH response
+    mockApiFetch.mockResolvedValueOnce([
+      buildAccount({
+        id: "acc-1",
+        name: "Kas Tunai Renamed",
+        balance: "-75000",
+      }),
+    ]); // refetch
+
+    // Act — edit only the name, never touching the amount field.
+    await user.click(screen.getAllByRole("button", { name: "Edit" })[0]!);
+    const dialog = within(await screen.findByRole("dialog"));
+    // The amount field must display the existing negative balance, not a
+    // sign-stripped positive one.
+    expect(dialog.getByPlaceholderText("0")).toHaveValue("-75.000");
+    await user.click(dialog.getByRole("button", { name: /Simpan/i }));
+
+    // Assert — the PATCH resubmits the SAME negative balance, not +75000.
+    const patchCall = mockApiFetch.mock.calls.find(
+      (call) => call[1]?.method === "PATCH",
+    );
+    expect(patchCall).toBeDefined();
+    const body = JSON.parse(patchCall![1].body as string) as {
+      balance: number;
+    };
+    expect(body.balance).toBe(-75000);
+  });
 });
