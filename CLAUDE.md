@@ -493,3 +493,27 @@ Goal: Maximum efficiency with minimum token consumption.
 - QA sign-off on `ready-for-qa` epics
 - Security audit for CRITICAL findings
 - Infrastructure and database schema changes
+
+---
+
+## Agent skills
+
+Configuration the Matt Pocock engineering skills read. Edit these files directly;
+re-running the setup skill is only needed to switch trackers or start over.
+
+### Issue tracker
+
+Work is tracked as epic files under `docs/epics/`, **not** GitHub Issues —
+issues #1–79 are historical and closed. The unit of work is one `### task group`
+inside an epic. See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md).
+
+### Domain docs
+
+Multi-context: `CONTEXT-MAP.md` at the root points at one `CONTEXT.md` per
+context (`apps/web`, `apps/api`, `packages/contracts`), with system-wide ADRs in
+`docs/adr/` and app-scoped ADRs alongside each context. Files are created lazily
+by `/domain-modeling` — their absence is not a problem to flag. See
+[`docs/agents/domain.md`](docs/agents/domain.md).
+
+> No triage labels are configured: the `triage` skill is not installed in this
+> project. Add `docs/agents/triage-labels.md` if that changes.
