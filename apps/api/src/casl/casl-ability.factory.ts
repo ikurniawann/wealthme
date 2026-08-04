@@ -22,6 +22,7 @@ export type Subject =
   | "Liability"
   | "Member"
   | "Notification"
+  | "Reconciliation"
   | "Report"
   | "SplitBill"
   | "TaxRecord"
@@ -50,6 +51,11 @@ export class CaslAbilityFactory {
         can("manage", "Liability");
         can("manage", "Member");
         can("manage", "Notification");
+        // EPIC-021 Group C (#29) — reconciliation fee-splitting creates real
+        // ledger Transactions; gate it as a bookkeeping action (owner +
+        // admin_staff), not the general "manage Transaction" grant every
+        // role effectively already has.
+        can("manage", "Reconciliation");
         can("manage", "TaxRecord");
         can("manage", "Transaction");
         break;
@@ -69,6 +75,10 @@ export class CaslAbilityFactory {
         can("read", "Member");
         can("manage", "Notification");
         can("read", "Notification");
+        // EPIC-021 Group C (#29) — deliberately NOT granted to `member`: bank
+        // reconciliation fee-splitting is a bookkeeping action reserved for
+        // owner/admin_staff (recorded epic decision), even though `member`
+        // already has full "manage Transaction" for its own day-to-day use.
         can("manage", "TaxRecord");
         can("manage", "Transaction");
         break;
@@ -87,6 +97,9 @@ export class CaslAbilityFactory {
         can("read", "Liability");
         can("read", "Member");
         can("read", "Notification");
+        // EPIC-021 Group C (#29) — bookkeeper role can perform the
+        // reconciliation fee-split (see the owner-case comment above).
+        can("manage", "Reconciliation");
         can("read", "TaxRecord");
         can("create", "Transaction");
         can("read", "Transaction");

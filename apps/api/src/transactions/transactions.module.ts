@@ -27,5 +27,9 @@ import type { Env } from "../config/env";
       inject: [ConfigService],
     },
   ],
+  // EPIC-021 Group C (#29) — ReconciliationModule reuses TransactionsService
+  // directly (transfer + linked admin-fee creation) instead of re-deriving
+  // that logic, so it must be exported for cross-module injection.
+  exports: [TransactionsService],
 })
 export class TransactionsModule {}
