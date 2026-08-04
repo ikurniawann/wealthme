@@ -1369,6 +1369,8 @@ export const id = {
     fieldJabatanLabel: "Biaya Jabatan (otomatis)",
     fieldZakatLabel: "Zakat/Donasi (pengurang)",
     estimateLabel: "Estimasi PPh 21 Terutang/Tahun",
+    calculatingLabel: "Menghitung...",
+    calcErrorLabel: "Gagal menghitung. Coba lagi.",
     pkpPrefix: "PKP: ",
     effectiveRatePrefix: " · Efektif ",
     savingLabel: "Menyimpan...",
@@ -1480,6 +1482,8 @@ export const id = {
     fieldInvestLabel: "Investasi & Saham (Rp)",
     fieldDebtLabel: "Utang Jatuh Tempo (Rp)",
     zakatDueLabel: "Zakat yang Wajib Ditunaikan (2,5%)",
+    zakatCalculatingMsg: "Menghitung...",
+    zakatCalcErrorMsg: "Gagal menghitung zakat. Coba lagi.",
     nisabReachedMsg:
       "✅ Harta sudah mencapai nisab (85gr emas × Rp 1.100.000/gr = Rp 93.500.000)",
     nisabNotReachedMsg:

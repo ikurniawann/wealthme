@@ -140,6 +140,20 @@ describe("CalculatorsService", () => {
       expect(result.totalTax).toBe(30_000_000);
     });
 
+    it("boundary: pkp exactly at the 250jt bracket-2/bracket-3 edge stays entirely in brackets 1–2", () => {
+      // Arrange — gross 310jt: biayaJabatan capped at 6jt, pkp=250jt exactly
+      const dto = { grossIncome: 310_000_000 };
+
+      // Act
+      const result = service.calculatePph21(dto);
+
+      // Assert
+      expect(result.pkp).toBe(250_000_000);
+      expect(result.taxBreakdown).toHaveLength(2);
+      // bracket 1: 60jt × 5% = 3jt · bracket 2: 190jt × 15% = 28.5jt
+      expect(result.totalTax).toBe(31_500_000);
+    });
+
     it("bracket 3 (25%, 250–500jt): pkp reaches into the third bracket", () => {
       // Arrange — gross 360jt: biayaJabatan capped at 6jt, pkp=300jt
       const dto = { grossIncome: 360_000_000 };
@@ -155,6 +169,20 @@ describe("CalculatorsService", () => {
       expect(result.totalTax).toBe(44_000_000);
     });
 
+    it("boundary: pkp exactly at the 500jt bracket-3/bracket-4 edge stays entirely in brackets 1–3", () => {
+      // Arrange — gross 560jt: biayaJabatan capped at 6jt, pkp=500jt exactly
+      const dto = { grossIncome: 560_000_000 };
+
+      // Act
+      const result = service.calculatePph21(dto);
+
+      // Assert
+      expect(result.pkp).toBe(500_000_000);
+      expect(result.taxBreakdown).toHaveLength(3);
+      // 3jt + 28.5jt + (250jt × 25% = 62.5jt)
+      expect(result.totalTax).toBe(94_000_000);
+    });
+
     it("bracket 4 (30%, 500jt–5M): pkp reaches into the fourth bracket", () => {
       // Arrange — gross 1.06M: biayaJabatan capped at 6jt, pkp=1M
       const dto = { grossIncome: 1_060_000_000 };
@@ -168,6 +196,20 @@ describe("CalculatorsService", () => {
       expect(result.taxBreakdown[3].rate).toBe(0.3);
       // 3jt + 28.5jt + 62.5jt + (500jt × 30% = 150jt)
       expect(result.totalTax).toBe(244_000_000);
+    });
+
+    it("boundary: pkp exactly at the 5M bracket-4/bracket-5 edge stays entirely in brackets 1–4 (below top rate)", () => {
+      // Arrange — gross 5.06M: biayaJabatan capped at 6jt, pkp=5M exactly
+      const dto = { grossIncome: 5_060_000_000 };
+
+      // Act
+      const result = service.calculatePph21(dto);
+
+      // Assert
+      expect(result.pkp).toBe(5_000_000_000);
+      expect(result.taxBreakdown).toHaveLength(4);
+      // 3jt + 28.5jt + 62.5jt + (4,5M × 30% = 1.35M)
+      expect(result.totalTax).toBe(1_444_000_000);
     });
 
     it("bracket 5 (35%, >5M): pkp exceeds the top bracket threshold", () => {
@@ -187,6 +229,21 @@ describe("CalculatorsService", () => {
         1_794_000_000 / 6_060_000_000,
         6,
       );
+    });
+
+    it("floors a non-round pkp down to the nearest Rp 1.000 (DJP rounding rule)", () => {
+      // Arrange — gross 100jt + zakatPaid 999 forces an unrounded raw pkp of
+      // 40.999.001 (100jt - 5jt biayaJabatan - 54jt PTKP - 999 zakat).
+      const dto = { grossIncome: 100_000_000, zakatPaid: 999 };
+
+      // Act
+      const result = service.calculatePph21(dto);
+
+      // Assert
+      expect(result.pkp).toBe(40_999_000); // floored, not 40_999_001
+      expect(result.pkp % 1000).toBe(0);
+      // 40.999.000 × 5% = 2.049.950
+      expect(result.totalTax).toBe(2_049_950);
     });
 
     it("applies an explicit ptkp override instead of the TK/0 default", () => {

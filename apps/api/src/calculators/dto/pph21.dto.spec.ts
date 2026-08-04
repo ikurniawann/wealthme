@@ -1,0 +1,45 @@
+import { plainToInstance } from "class-transformer";
+import { validate } from "class-validator";
+
+import { Pph21RequestDto, PTKP_VALUES } from "./pph21.dto";
+
+// TS review fix (MEDIUM #3) — /calculators/pph21 is @Public() (no auth
+// guard), so `ptkp` must be whitelisted to the 5 legal UU HPP values
+// instead of accepting an arbitrary number.
+describe("Pph21RequestDto validation", () => {
+  it("passes without a ptkp (defaults to TK/0 server-side)", async () => {
+    const dto = plainToInstance(Pph21RequestDto, { grossIncome: 100_000_000 });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+
+  it.each(PTKP_VALUES)("passes with the legal ptkp value %d", async (ptkp) => {
+    const dto = plainToInstance(Pph21RequestDto, {
+      grossIncome: 100_000_000,
+      ptkp,
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+
+  it("rejects a ptkp value outside the 5 legal UU HPP thresholds", async () => {
+    const dto = plainToInstance(Pph21RequestDto, {
+      grossIncome: 100_000_000,
+      ptkp: 999_000_000,
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.property).toBe("ptkp");
+    expect(errors[0]?.constraints).toHaveProperty("isIn");
+  });
+
+  it("rejects a negative ptkp value", async () => {
+    const dto = plainToInstance(Pph21RequestDto, {
+      grossIncome: 100_000_000,
+      ptkp: -54_000_000,
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.property).toBe("ptkp");
+  });
+});

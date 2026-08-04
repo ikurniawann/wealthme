@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Send, FileText } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import {
@@ -11,6 +11,7 @@ import {
 } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { useDebounce } from "@/hooks/use-debounce";
 import { useLocale } from "@/hooks/use-locale";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -51,17 +52,6 @@ const BRACKET_ROWS: { id: TaxBracketId; rate: string; idx: number }[] = [
   { id: "b4", rate: "35%", idx: 4 },
 ];
 
-// Debounce a fast-changing input value so the PPh 21 calculator only queries
-// the /calculators/pph21 endpoint after the user pauses typing.
-function useDebounce<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-  return debounced;
-}
-
 const SPT_STATUS_CLASS: Record<SptStatus, string> = {
   belum_lapor: "text-warning",
   sudah_lapor: "text-success",
@@ -85,8 +75,6 @@ export default function TaxPage() {
   const [ptkp, setPtkp] = useState(54000000);
   const [zakat, setZakat] = useState("");
 
-  const grossN = parseRupiah(gross);
-
   const debouncedGross = useDebounce(gross, 300);
   const debouncedZakat = useDebounce(zakat, 300);
 
@@ -96,7 +84,11 @@ export default function TaxPage() {
     ptkp,
   };
 
-  const { data: pph21Result } = useQuery<Pph21ResultDto>({
+  const {
+    data: pph21Result,
+    isFetching: isPph21Fetching,
+    isError: isPph21Error,
+  } = useQuery<Pph21ResultDto>({
     queryKey: ["calculators", "pph21", pph21Input],
     queryFn: () =>
       apiFetch<Pph21ResultDto>("/calculators/pph21", {
@@ -108,16 +100,19 @@ export default function TaxPage() {
     placeholderData: keepPreviousData,
   });
 
+  // Whether the visible calculator numbers are a trustworthy, fully-computed
+  // answer (vs. still loading / errored) — gates both what we render and
+  // whether Save is allowed, so we never persist a value the server hasn't
+  // actually echoed back to us.
+  const hasPph21Result = !!pph21Result;
   const jabatan = pph21Result?.biayaJabatan ?? 0;
   const pkp = pph21Result?.pkp ?? 0;
-  // Rounded to whole rupiah before it can be persisted via handleSaveTaxRecord
-  // (String(tax)) — formatRupiah() already rounds for display, but the save
-  // payload needs the same guarantee.
   const tax = Math.round(pph21Result?.totalTax ?? 0);
   const taxBreakdown = pph21Result?.taxBreakdown ?? [];
   const effRate = pph21Result
     ? (pph21Result.effectiveRate * 100).toFixed(1).replace(".", ",") + "%"
     : "0%";
+  const canSaveTaxRecord = hasPph21Result && !isPph21Fetching && !isPph21Error;
 
   // Fetch tax records
   const { data: taxRecords = [] } = useQuery<TaxRecordDto[]>({
@@ -168,11 +163,17 @@ export default function TaxPage() {
   });
 
   function handleSaveTaxRecord(): void {
+    // Build the payload entirely from the server-echoed pph21Result (never
+    // from the raw `gross`/`ptkp`/`zakat` input state), so a save that lands
+    // mid-debounce/mid-refetch can never pair a NEW gross income with an OLD
+    // netTax — canSaveTaxRecord already keeps the button disabled while the
+    // two could disagree.
+    if (!pph21Result) return;
     upsertMutation.mutate({
       taxYear: CURRENT_YEAR,
-      grossIncome: String(grossN),
-      ptkp: String(ptkp),
-      netTax: String(tax),
+      grossIncome: String(pph21Result.grossIncome),
+      ptkp: String(pph21Result.ptkp),
+      netTax: String(Math.round(pph21Result.totalTax)),
     });
   }
 
@@ -193,9 +194,19 @@ export default function TaxPage() {
           {CURRENT_YEAR}
         </div>
         <div className="text-[30px] font-black tracking-[-1px]">
-          {currentRecord
-            ? formatRupiah(Number(currentRecord.netTax))
-            : formatRupiah(tax)}
+          {currentRecord ? (
+            formatRupiah(Number(currentRecord.netTax))
+          ) : isPph21Error ? (
+            <span className="text-[16px] font-semibold">
+              {t.tax.calcErrorLabel}
+            </span>
+          ) : hasPph21Result ? (
+            formatRupiah(tax)
+          ) : (
+            <span className="text-[16px] font-semibold opacity-85">
+              {t.tax.calculatingLabel}
+            </span>
+          )}
         </div>
         <div className="mt-1.5 text-xs opacity-85">{t.tax.heroSubtitle}</div>
         <div className="pointer-events-none absolute -top-5 -right-5 text-[140px] opacity-[0.12]">
@@ -277,10 +288,14 @@ export default function TaxPage() {
         </div>
         <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
           <div>
-            <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
+            <label
+              htmlFor="tax-gross-input"
+              className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground"
+            >
               {t.tax.fieldGrossLabel}
             </label>
             <input
+              id="tax-gross-input"
               type="text"
               inputMode="numeric"
               value={gross}
@@ -344,19 +359,31 @@ export default function TaxPage() {
           <div className="text-[11.5px] text-muted-foreground">
             {t.tax.estimateLabel}
           </div>
-          <div className="mt-1 text-[24px] font-black text-primary">
-            {formatRupiah(tax)}
-          </div>
-          <div className="mt-1.5 text-xs text-muted-foreground">
-            {t.tax.pkpPrefix}
-            <strong className="text-primary">{formatRupiah(pkp)}</strong>
-            {t.tax.effectiveRatePrefix}
-            <strong>{effRate}</strong>
-          </div>
+          {isPph21Error ? (
+            <div className="mt-1 text-[13px] font-semibold text-destructive">
+              {t.tax.calcErrorLabel}
+            </div>
+          ) : !hasPph21Result ? (
+            <div className="mt-1 text-[13px] text-muted-foreground">
+              {t.tax.calculatingLabel}
+            </div>
+          ) : (
+            <>
+              <div className="mt-1 text-[24px] font-black text-primary">
+                {formatRupiah(tax)}
+              </div>
+              <div className="mt-1.5 text-xs text-muted-foreground">
+                {t.tax.pkpPrefix}
+                <strong className="text-primary">{formatRupiah(pkp)}</strong>
+                {t.tax.effectiveRatePrefix}
+                <strong>{effRate}</strong>
+              </div>
+            </>
+          )}
         </div>
         <Button
           onClick={handleSaveTaxRecord}
-          disabled={upsertMutation.isPending}
+          disabled={!canSaveTaxRecord || upsertMutation.isPending}
           className="mt-3.5 h-auto px-4 py-2.5"
           variant="outline"
         >

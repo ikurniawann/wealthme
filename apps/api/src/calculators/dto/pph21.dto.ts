@@ -1,5 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsNumber, IsOptional, Min } from "class-validator";
+import { IsIn, IsNumber, IsOptional, Min } from "class-validator";
+
+/** Legal PTKP (non-taxable income threshold) values per UU HPP, TK/0 through K/3. */
+export const PTKP_VALUES = [
+  54_000_000, 58_500_000, 63_000_000, 67_500_000, 72_000_000,
+] as const;
 
 export class Pph21RequestDto {
   @ApiProperty({ description: "Annual gross income (IDR)" })
@@ -15,11 +20,11 @@ export class Pph21RequestDto {
 
   @ApiPropertyOptional({
     description:
-      "PTKP (non-taxable income threshold) for the taxpayer's marital/dependents status (IDR). Defaults to TK/0 (Rp 54.000.000) when omitted.",
+      "PTKP (non-taxable income threshold) for the taxpayer's marital/dependents status (IDR): one of TK/0 54.000.000, K/0 58.500.000, K/1 63.000.000, K/2 67.500.000, K/3 72.000.000. Defaults to TK/0 when omitted.",
+    enum: PTKP_VALUES,
   })
   @IsOptional()
-  @IsNumber()
-  @Min(0)
+  @IsIn(PTKP_VALUES)
   ptkp?: number;
 }
 

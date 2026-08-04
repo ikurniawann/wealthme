@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Plus, HandHeart } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import {
@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { HeroCard, SectionCard, StatusBadge } from "@/components/wm";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
 import { apiFetch } from "@/lib/api-client";
@@ -30,18 +31,6 @@ import type {
 
 const FIELD_CLASS =
   "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
-
-// Debounce a fast-changing input value so the zakat calculator only queries
-// the /calculators/zakat endpoint after the user pauses typing, instead of
-// on every keystroke.
-function useDebounce<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-  return debounced;
-}
 
 const DONATION_TYPE_ICON: Record<string, string> = {
   zakat_maal: "🕌",
@@ -151,7 +140,11 @@ export default function DonationPage() {
     liabilities: parseRupiah(debouncedDebt),
   };
 
-  const { data: zakatResult } = useQuery<ZakatResultDto>({
+  const {
+    data: zakatResult,
+    isFetching: isZakatFetching,
+    isError: isZakatError,
+  } = useQuery<ZakatResultDto>({
     queryKey: ["calculators", "zakat", zakatInput],
     queryFn: () =>
       apiFetch<ZakatResultDto>("/calculators/zakat", {
@@ -163,11 +156,17 @@ export default function DonationPage() {
     placeholderData: keepPreviousData,
   });
 
+  // Whether the visible zakat figure is a trustworthy, fully-computed answer
+  // (vs. still loading / errored) — gates both what we render and whether
+  // "Pay Zakat Now" is allowed, so we never prefill/persist a donation with
+  // a stale or default-zero amount the server hasn't actually confirmed.
+  const hasZakatResult = !!zakatResult;
   const reachedNisab = zakatResult?.isObligated ?? false;
   const zakat = zakatResult?.zakat ?? 0;
   const nisabMsg = reachedNisab
     ? t.donation.nisabReachedMsg
     : t.donation.nisabNotReachedMsg;
+  const canPayZakatNow = hasZakatResult && !isZakatFetching && !isZakatError;
 
   // Donation modal state
   const [open, setOpen] = useState(false);
@@ -321,16 +320,31 @@ export default function DonationPage() {
           <div className="text-[11.5px] text-muted-foreground">
             {t.donation.zakatDueLabel}
           </div>
-          <div className="mt-1 text-[24px] font-black text-primary">
-            {formatRupiah(zakat)}
-          </div>
-          <div className="mt-1.5 text-xs text-muted-foreground">{nisabMsg}</div>
-          <div className="mt-1 text-[11px] text-muted-foreground/80">
-            {t.donation.nisabIndicativeNote}
-          </div>
+          {isZakatError ? (
+            <div className="mt-1 text-[13px] font-semibold text-destructive">
+              {t.donation.zakatCalcErrorMsg}
+            </div>
+          ) : !hasZakatResult ? (
+            <div className="mt-1 text-[13px] text-muted-foreground">
+              {t.donation.zakatCalculatingMsg}
+            </div>
+          ) : (
+            <>
+              <div className="mt-1 text-[24px] font-black text-primary">
+                {formatRupiah(zakat)}
+              </div>
+              <div className="mt-1.5 text-xs text-muted-foreground">
+                {nisabMsg}
+              </div>
+              <div className="mt-1 text-[11px] text-muted-foreground/80">
+                {t.donation.nisabIndicativeNote}
+              </div>
+            </>
+          )}
         </div>
         <Button
           onClick={() => openModal(true)}
+          disabled={!canPayZakatNow}
           className="mt-3.5 h-auto px-4 py-2.5"
         >
           <HandHeart className="size-4" /> {t.donation.payZakatNowButton}
