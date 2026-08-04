@@ -2008,6 +2008,8 @@ export const id = {
     },
     pnl: {
       titlePrefix: "Profit & Loss Statement —",
+      cashBasisNote:
+        "Basis kas — pendapatan diakui saat uang diterima, beban diakui saat uang dibayarkan",
       revenueLabel: "PENDAPATAN",
       totalRevenueLabel: "Total Pendapatan",
       expensesLabel: "BEBAN",

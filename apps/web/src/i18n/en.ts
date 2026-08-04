@@ -2006,6 +2006,8 @@ export const en = {
     },
     pnl: {
       titlePrefix: "Profit & Loss Statement —",
+      cashBasisNote:
+        "Cash basis — revenue recognised when money is received, expenses recognised when money is paid",
       revenueLabel: "REVENUE",
       totalRevenueLabel: "Total Revenue",
       expensesLabel: "EXPENSES",

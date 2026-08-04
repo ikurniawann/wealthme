@@ -1,6 +1,6 @@
 # EPIC-023: Family Roles, Money Mechanics & Report Correctness
 
-status: backlog
+status: on-progress
 environment: dev
 retries: 0
 phase: 4
@@ -217,7 +217,7 @@ asset & investment values = closing net worth`. This is what answers "why is
 
 ## Tasks
 
-- [ ] ### A — Report correctness: COA shelves, principal/interest split (do first)
+- [x] ### A — Report correctness: COA shelves, principal/interest split (do first) ✅
   - **A1** — Change seeded COA groups 4 (Receivable) and 5 (Payable) from
     `INCOME`/`EXPENSE` to `TRANSFER`; add a "Bunga Pinjaman" category in group 2
     with direction `EXPENSE`. Additive migration correcting existing families'
@@ -567,3 +567,40 @@ whose P&L and balance sheet reconcile through the bridge.
   `type-design-analyzer` for the two-axis role model, `e2e-runner` for group D's
   journeys, and `mattpocock:diagnosing-bugs` — rather than `code-agent` — for the
   undiagnosed defects in group I.
+- 2026-08-05 /epic-loop EPIC-023 #1 "A — Report correctness: COA shelves,
+  principal/interest split (do first)" → PASS (attempts: 3), PR: pending.
+  Test-first as routed: the golden six-month amortisation schedule was
+  hand-computed before any code existed, and the two A3 report tests were
+  written against the pre-fix chart. Three findings the epic did not anticipate:
+  **(1)** the bug lived in _two_ charts, not one — `GENERIC_COA_CHART`
+  (`packages/contracts/src/coa/index.ts`) is what real families are provisioned
+  from at `auth.service.ts:150` and `web/src/lib/auth.ts:114`, and it mis-shelved
+  `40001 Piutang` as INCOME and `50001 Utang`/`50002 Cicilan` as EXPENSE
+  independently of `seed.ts`. Both are corrected; the migration repairs existing
+  families regardless of origin. **(2)** The first draft of the A3 tests pinned
+  the buggy direction as a literal in the fixture, which made them unpassable
+  except by special-casing `groupNum` inside `ReportsService` — the opposite of
+  D23. They were rewritten to read direction from the chart, so they track the
+  real taxonomy and cannot be gamed. **(3)** `CoaAccountsService` accepted any
+  direction for any `groupNum`, so the API could have recreated this exact bug
+  the day after the migration shipped; `assertValidCoaDirection` now rejects
+  group 4/5 with a non-TRANSFER direction on both create and update.
+  Adversarial review earned its place again over three rounds: it caught a
+  lost-update race on `Liability.remainingBalance` (read-then-write, while the
+  account beside it was decremented atomically — a double-click lost a whole
+  principal payment), a missing bank-overdraft floor that let `pay()` bypass the
+  EPIC-021 #22 invariant the rest of the app enforces, and then — by reproducing
+  it live against Postgres 17 — proved that the P2002 recovery added to fix the
+  category self-heal race was itself impossible: Prisma's interactive
+  transactions issue no savepoints, so any query after a caught error dies with
+  `25P02`. The fix routes P2002 through the same bounded retry as P2034, so a
+  fresh transaction sees the winner's committed row. `assertBankNotOverdrawn`
+  was extracted to `common/utils/bank-overdraft.util.ts` and is now shared by
+  `TransactionsService` and `LiabilitiesService` — one definition for one
+  invariant. **Deferred by decision, not oversight:** the `liabilityId` FK on
+  `Transaction` and switching the principal leg's `Transaction.type` from
+  `expense` to `transfer` both belong to E1; until then the transaction list
+  badges a principal repayment as an expense even though the P&L correctly
+  excludes it. **Outstanding safeguard:** the pre/post-migration P&L and
+  balance-sheet capture for the demo family has NOT been done — it must run
+  against DEV before this migration is applied there.

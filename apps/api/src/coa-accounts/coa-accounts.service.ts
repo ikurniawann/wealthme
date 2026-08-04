@@ -9,7 +9,11 @@ import { type CoaBudgetType, type CoaDirection, Prisma } from "@prisma/client";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
-import { assertValidCoaCode, nextFreeCoaCode } from "./coa-code.util";
+import {
+  assertValidCoaCode,
+  assertValidCoaDirection,
+  nextFreeCoaCode,
+} from "./coa-code.util";
 
 import type { CoaAccountResponseDto } from "./dto/coa-account-response.dto";
 import type { CreateCoaAccountDto } from "./dto/create-coa-account.dto";
@@ -31,6 +35,7 @@ export class CoaAccountsService {
     familyGroupId: string,
     dto: CreateCoaAccountDto,
   ): Promise<CoaAccountResponseDto> {
+    assertValidCoaDirection(dto.groupNum, dto.direction);
     const code = await this.resolveCreateCode(familyGroupId, dto);
     try {
       const row = await this.prisma.coaAccount.create({
@@ -69,6 +74,16 @@ export class CoaAccountsService {
     if (!existing) throw new NotFoundException("COA account not found");
 
     const nextCode = this.resolveUpdateCode(existing, dto);
+
+    // EPIC-023 review follow-up — validated against the EFFECTIVE (post-patch)
+    // groupNum/direction, matching resolveUpdateCode's own effective-groupNum
+    // pattern above: a PATCH that only changes `direction` (existing groupNum
+    // already 4/5) or only changes `groupNum` to 4/5 (existing direction
+    // still INCOME/EXPENSE) must both be rejected, not just the combination
+    // where both fields are supplied together.
+    const effectiveGroupNum = dto.groupNum ?? existing.groupNum;
+    const effectiveDirection = dto.direction ?? existing.direction;
+    assertValidCoaDirection(effectiveGroupNum, effectiveDirection);
 
     try {
       const row = await this.prisma.coaAccount.update({

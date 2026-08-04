@@ -3,16 +3,30 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 
+import { assertBankNotOverdrawn } from "../common/utils/bank-overdraft.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
+
+import { splitPayment } from "./amortisation.util";
 
 import type { CreateLiabilityDto } from "./dto/create-liability.dto";
 import type {
   LiabilityResponseDto,
   LiabilitySummaryResponseDto,
 } from "./dto/liability-response.dto";
+import type { PayLiabilityDto } from "./dto/pay-liability.dto";
 import type { UpdateLiabilityDto } from "./dto/update-liability.dto";
+
+// EPIC-023 A1/A2 — the loan-interest EXPENSE account each chart provisions:
+// GENERIC_COA_CHART (every real family, via registration + the A1 backfill
+// migration) uses 20009 "Bunga Pinjaman"; the demo seed's richer chart uses
+// 21304 "Loan Interest". Matching on either code keeps `pay()` correct for
+// both charts without hardcoding one over the other.
+const LOAN_INTEREST_COA_CODES = ["20009", "21304"];
+
+type TxClient = Parameters<Parameters<PrismaService["$transaction"]>[0]>[0];
 
 function toLiabilityDto(liability: {
   id: string;
@@ -197,5 +211,282 @@ export class LiabilitiesService {
       throw new NotFoundException("Liability not found");
     }
     await this.prisma.liability.delete({ where: { id, familyGroupId } });
+  }
+
+  /**
+   * Records a payment against a liability: splits it into principal and
+   * interest (EPIC-023 A2 — `splitPayment`), debits the source account by
+   * the full payment, reduces `remainingBalance` by the principal only, and
+   * posts the principal against a group-5 TRANSFER category and the
+   * interest (when non-zero) against the loan-interest EXPENSE category.
+   * Everything happens inside one `$transaction` so a failure never leaves
+   * the account debited without the liability/ledger updated, or vice versa.
+   *
+   * EPIC-023 review follow-up — a plain (default READ COMMITTED)
+   * `$transaction` is NOT enough here: `liability.remainingBalance` and the
+   * `maxPayable` guard were both derived from a read taken at the top of the
+   * transaction, so two concurrent `pay()` calls could each read the same
+   * balance, each compute a valid-looking principal/maxPayable, and both
+   * commit — under-reducing the balance while jointly overpaying past what
+   * either payment alone would have allowed. Mirrors the count-then-act race
+   * `CategoriesService.remove()` closes the same way (see its comment for
+   * the full Postgres rationale): run the transaction at Serializable
+   * isolation so Postgres detects the conflicting concurrent write and
+   * aborts the loser with a serialization failure (Prisma P2034), then
+   * retry a bounded number of times so the loser re-reads the now-current
+   * balance and recomputes correctly instead of surfacing a raw 500 to the
+   * user for what is, from their point of view, a transient conflict.
+   *
+   * The same retry also covers P2002 from `createCategoryOrUseRaceWinner()`:
+   * two concurrent first-ever `pay()` calls for a family group can race to
+   * create the same self-heal Category. That P2002 aborts the whole
+   * transaction (see that method's comment for why it cannot be recovered
+   * in-transaction), so the fix is the same shape as P2034 — roll back and
+   * retry in a fresh transaction, where the self-heal `findFirst` now finds
+   * the winner's already-committed row.
+   */
+  async pay(
+    familyGroupId: string,
+    id: string,
+    dto: PayLiabilityDto,
+  ): Promise<LiabilityResponseDto> {
+    const paymentAmount = guardBigInt("amount", dto.amount);
+    if (paymentAmount <= BigInt(0)) {
+      throw new BadRequestException("amount must be greater than zero");
+    }
+
+    const MAX_ATTEMPTS = 3;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        return await this.prisma.$transaction(
+          (tx) => this.runPayment(tx, familyGroupId, id, dto, paymentAmount),
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        );
+      } catch (err) {
+        // Retryable: P2034 (serialization failure on the balance/overdraft
+        // read-then-write) and P2002 (concurrent category self-heal race —
+        // see createCategoryOrUseRaceWinner()'s comment for why it cannot be
+        // recovered inside the same aborted transaction). Anything else is
+        // rethrown immediately; both known codes are rethrown once
+        // MAX_ATTEMPTS is exhausted.
+        const isRetryable =
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          (err.code === "P2034" || err.code === "P2002");
+        if (!isRetryable || attempt === MAX_ATTEMPTS) {
+          throw err;
+        }
+        // Retry: another concurrent pay() committed first. Looping re-enters
+        // $transaction, which re-reads the liability/account/category state
+        // inside runPayment against the now-current, post-conflict state.
+      }
+    }
+    // Unreachable — the loop above always either returns or throws.
+    throw new Error("pay() retry loop exited unexpectedly");
+  }
+
+  private async runPayment(
+    tx: TxClient,
+    familyGroupId: string,
+    id: string,
+    dto: PayLiabilityDto,
+    paymentAmount: bigint,
+  ): Promise<LiabilityResponseDto> {
+    const liability = await tx.liability.findUnique({
+      where: { id, familyGroupId },
+    });
+    if (!liability) {
+      throw new NotFoundException("Liability not found");
+    }
+
+    // Tenant scoping: the source account must belong to the SAME family
+    // group as the liability being paid.
+    const sourceAccount = await tx.account.findUnique({
+      where: { id: dto.sourceAccountId, familyGroupId },
+    });
+    if (!sourceAccount) {
+      throw new NotFoundException(`Account ${dto.sourceAccountId} not found`);
+    }
+
+    const { interest, principal } = splitPayment({
+      paymentAmount,
+      remainingBalance: liability.remainingBalance,
+      annualInterestRatePercent: liability.interestRate.toString(),
+    });
+
+    const maxPayable = liability.remainingBalance + interest;
+    if (paymentAmount > maxPayable) {
+      throw new BadRequestException(
+        `Payment amount exceeds the remaining balance plus interest due (max ${maxPayable.toString()})`,
+      );
+    }
+
+    // EPIC-021 #22 — this is a fresh, user-initiated debit of the SOURCE
+    // account, exactly the class of debit the bank-overdraft floor guards
+    // against elsewhere (TransactionsService.create()). Shared helper so
+    // both services enforce the same invariant from one definition.
+    await assertBankNotOverdrawn(
+      tx,
+      familyGroupId,
+      sourceAccount.id,
+      paymentAmount,
+    );
+
+    await tx.account.update({
+      where: { id: sourceAccount.id, familyGroupId },
+      data: { balance: { decrement: paymentAmount } },
+    });
+
+    // Atomic decrement (defence in depth alongside Serializable isolation
+    // above) — never re-derives the new balance from the stale `liability`
+    // read, so even if isolation were ever loosened this can't silently
+    // regress to the read-then-write race this fix closes.
+    const updated = await tx.liability.update({
+      where: { id, familyGroupId },
+      data: { remainingBalance: { decrement: principal } },
+    });
+
+    const occurredAt = new Date();
+
+    if (principal > BigInt(0)) {
+      const principalCategoryId = await this.resolvePrincipalCategoryId(
+        tx,
+        familyGroupId,
+      );
+      await tx.transaction.create({
+        data: {
+          familyGroupId,
+          accountId: sourceAccount.id,
+          categoryId: principalCategoryId,
+          amount: principal,
+          type: "expense",
+          description: `Pembayaran pokok ${liability.name}`,
+          occurredAt,
+        },
+      });
+    }
+
+    // Skip the interest transaction entirely when interest is 0 (e.g. a
+    // 0% liability) — there is nothing real to post.
+    if (interest > BigInt(0)) {
+      const interestCategoryId = await this.resolveInterestCategoryId(
+        tx,
+        familyGroupId,
+      );
+      await tx.transaction.create({
+        data: {
+          familyGroupId,
+          accountId: sourceAccount.id,
+          categoryId: interestCategoryId,
+          amount: interest,
+          type: "expense",
+          description: `Bunga ${liability.name}`,
+          occurredAt,
+        },
+      });
+    }
+
+    return toLiabilityDto(updated);
+  }
+
+  /**
+   * Finds (or, self-healing like `CategoriesService.create()`'s P2002
+   * recovery, creates) a Category in this family group linked to a group-5
+   * TRANSFER CoaAccount, so the principal leg of a payment always has
+   * somewhere honest to post against.
+   */
+  private async resolvePrincipalCategoryId(
+    tx: TxClient,
+    familyGroupId: string,
+  ): Promise<string> {
+    const existing = await tx.category.findFirst({
+      where: {
+        familyGroupId,
+        coaAccount: { groupNum: 5, direction: "TRANSFER" },
+      },
+      select: { id: true },
+    });
+    if (existing) return existing.id;
+
+    const coaAccount = await tx.coaAccount.findFirst({
+      where: { familyGroupId, groupNum: 5, direction: "TRANSFER" },
+      orderBy: { code: "asc" },
+    });
+    if (!coaAccount) {
+      throw new BadRequestException(
+        "This family group has no group-5 (Account Payable) COA account provisioned",
+      );
+    }
+
+    return this.createCategoryOrUseRaceWinner(tx, familyGroupId, coaAccount);
+  }
+
+  /** Same self-healing lookup as above, scoped to the loan-interest account. */
+  private async resolveInterestCategoryId(
+    tx: TxClient,
+    familyGroupId: string,
+  ): Promise<string> {
+    const existing = await tx.category.findFirst({
+      where: {
+        familyGroupId,
+        coaAccount: { code: { in: LOAN_INTEREST_COA_CODES } },
+      },
+      select: { id: true },
+    });
+    if (existing) return existing.id;
+
+    const coaAccount = await tx.coaAccount.findFirst({
+      where: { familyGroupId, code: { in: LOAN_INTEREST_COA_CODES } },
+      orderBy: { code: "asc" },
+    });
+    if (!coaAccount) {
+      throw new BadRequestException(
+        "This family group has no loan-interest COA account provisioned",
+      );
+    }
+
+    return this.createCategoryOrUseRaceWinner(tx, familyGroupId, coaAccount);
+  }
+
+  /**
+   * EPIC-023 review follow-up — `Category` has `@@unique([familyGroupId,
+   * name, kind])`. Two concurrent first-ever `pay()` calls for the same
+   * family can both pass the `findFirst` self-healing check above (neither
+   * category exists yet) and then race to `create()` it; the loser gets a
+   * Prisma P2002.
+   *
+   * Unlike `CategoriesService.create()` (which maps P2002 straight to a
+   * `ConflictException` and stops), this path used to try to recover by
+   * re-reading the row on the SAME transaction client. That recovery is
+   * impossible: once any statement inside a Postgres transaction errors,
+   * Postgres marks the whole transaction aborted and rejects every
+   * subsequent statement with SQLSTATE 25P02 ("current transaction is
+   * aborted, commands ignored until end of transaction block") until the
+   * transaction ends. Prisma's interactive `$transaction` does not wrap
+   * individual queries in implicit SAVEPOINTs, so a follow-up `findFirst` on
+   * `tx` after catching P2002 is guaranteed to fail — with an opaque
+   * `PrismaClientUnknownRequestError`, not a P2002, so it would not even be
+   * retried. Do not reintroduce an in-transaction re-read here.
+   *
+   * Instead, let P2002 propagate out of `runPayment()` and out of this
+   * `$transaction` call entirely, rolling the whole attempt back. `pay()`'s
+   * bounded retry loop treats P2002 the same as a P2034 serialization
+   * failure: it re-enters `$transaction` in a fresh attempt, and that
+   * attempt's `findFirst` self-heal check above now finds the winner's
+   * already-committed category.
+   */
+  private async createCategoryOrUseRaceWinner(
+    tx: TxClient,
+    familyGroupId: string,
+    coaAccount: { id: string; name: string },
+  ): Promise<string> {
+    const created = await tx.category.create({
+      data: {
+        familyGroupId,
+        name: coaAccount.name,
+        kind: "expense",
+        coaAccountId: coaAccount.id,
+      },
+    });
+    return created.id;
   }
 }
