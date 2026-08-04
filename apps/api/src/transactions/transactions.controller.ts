@@ -145,11 +145,14 @@ export class TransactionsController {
     @Body() dto: UpdateTransactionDto,
     @Req() req: Request,
   ): Promise<TransactionResponseDto> {
+    // EPIC-022 A6 follow-up — same role resolution as `findOne`/`findAll`.
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
     return this.transactionsService.update(
       familyGroupId,
       id,
       dto,
       req.tenantContext?.member,
+      canSeePrivate,
     );
   }
 
@@ -164,7 +167,10 @@ export class TransactionsController {
   remove(
     @Param("familyGroupId") familyGroupId: string,
     @Param("id") id: string,
+    @Req() req: Request,
   ): Promise<void> {
-    return this.transactionsService.remove(familyGroupId, id);
+    // EPIC-022 A6 follow-up — same role resolution as `findOne`/`findAll`.
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
+    return this.transactionsService.remove(familyGroupId, id, canSeePrivate);
   }
 }

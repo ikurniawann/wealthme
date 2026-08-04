@@ -499,9 +499,15 @@ export class TransactionsService {
     id: string,
     dto: UpdateTransactionDto,
     actingMember?: ActingMember,
+    canSeePrivate = true,
   ): Promise<TransactionResponseDto> {
-    const existing = await this.prisma.transaction.findUnique({
-      where: { id, familyGroupId },
+    // EPIC-022 A6 follow-up — `findFirst` (not `findUnique`) so the same
+    // relation-based privacy filter `findOne` already applies also gates a
+    // PATCH: a `member` must not be able to edit (or read back via the
+    // response) a transaction tied to a private account/category. Its
+    // existence must not leak, so this 404s exactly like "doesn't exist".
+    const existing = await this.prisma.transaction.findFirst({
+      where: { id, familyGroupId, ...transactionPrivacyWhere(canSeePrivate) },
     });
     if (!existing) throw new NotFoundException("Transaction not found");
 
@@ -679,9 +685,15 @@ export class TransactionsService {
     return this.toDto(updated);
   }
 
-  async remove(familyGroupId: string, id: string): Promise<void> {
-    const existing = await this.prisma.transaction.findUnique({
-      where: { id, familyGroupId },
+  async remove(
+    familyGroupId: string,
+    id: string,
+    canSeePrivate = true,
+  ): Promise<void> {
+    // EPIC-022 A6 follow-up — same 404-not-403, no-existence-leak treatment
+    // as `update`/`findOne`.
+    const existing = await this.prisma.transaction.findFirst({
+      where: { id, familyGroupId, ...transactionPrivacyWhere(canSeePrivate) },
     });
     if (!existing) throw new NotFoundException("Transaction not found");
 

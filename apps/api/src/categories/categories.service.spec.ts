@@ -1,4 +1,5 @@
 import { Test, type TestingModule } from "@nestjs/testing";
+import { Prisma } from "@prisma/client";
 
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -8,17 +9,35 @@ const FAMILY_GROUP_ID = "fg-1";
 const CATEGORY_ID = "cat-1";
 
 function makePrisma() {
-  return {
+  const prisma = {
     category: {
       create: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     },
     // EPIC-017: create/update resolve a COA link via coaAccount.findFirst.
     coaAccount: {
       findFirst: jest.fn().mockResolvedValue({ id: "coa-1" }),
     },
+    // EPIC-022 A5 — dependant counts guarding `remove`.
+    budget: {
+      count: jest.fn().mockResolvedValue(0),
+    },
+    memberCategoryAllowance: {
+      count: jest.fn().mockResolvedValue(0),
+    },
+    $transaction: jest.fn(),
   };
+  // EPIC-022 A5 follow-up — `remove()` now runs the count-and-delete inside
+  // a Serializable `$transaction`; this fake just invokes the callback with
+  // the same mock object (the `tx` handed to real Prisma callbacks has the
+  // identical shape), so every existing assertion on `prisma.category.delete`
+  // etc. keeps working unmodified.
+  prisma.$transaction.mockImplementation(
+    (cb: (tx: typeof prisma) => Promise<unknown>) => cb(prisma),
+  );
+  return prisma;
 }
 
 describe("CategoriesService", () => {
@@ -154,6 +173,117 @@ describe("CategoriesService", () => {
         where: { id: CATEGORY_ID, familyGroupId: FAMILY_GROUP_ID },
         data: { name: "Renamed" },
       });
+    });
+  });
+
+  describe("remove (EPIC-022 A5 — dependant guard)", () => {
+    beforeEach(() => {
+      prisma.category.findUnique.mockResolvedValue({
+        id: CATEGORY_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+      });
+    });
+
+    it("deletes the category when nothing depends on it", async () => {
+      await service.remove(FAMILY_GROUP_ID, CATEGORY_ID);
+
+      expect(prisma.category.delete).toHaveBeenCalledWith({
+        where: { id: CATEGORY_ID, familyGroupId: FAMILY_GROUP_ID },
+      });
+    });
+
+    it("rejects with a 409 naming the budgets attached, and never deletes", async () => {
+      prisma.budget.count.mockResolvedValue(2);
+
+      await expect(
+        service.remove(FAMILY_GROUP_ID, CATEGORY_ID),
+      ).rejects.toMatchObject({
+        status: 409,
+        message: expect.stringContaining("2 anggaran"),
+      });
+      expect(prisma.category.delete).not.toHaveBeenCalled();
+    });
+
+    it("rejects with a 409 naming the member allowances attached, and never deletes", async () => {
+      prisma.memberCategoryAllowance.count.mockResolvedValue(1);
+
+      await expect(
+        service.remove(FAMILY_GROUP_ID, CATEGORY_ID),
+      ).rejects.toMatchObject({
+        status: 409,
+        message: expect.stringContaining("1 batasan kategori anggota"),
+      });
+      expect(prisma.category.delete).not.toHaveBeenCalled();
+    });
+
+    it("names both budgets and allowances when both are attached", async () => {
+      prisma.budget.count.mockResolvedValue(3);
+      prisma.memberCategoryAllowance.count.mockResolvedValue(2);
+
+      await expect(
+        service.remove(FAMILY_GROUP_ID, CATEGORY_ID),
+      ).rejects.toMatchObject({
+        message: expect.stringContaining(
+          "3 anggaran dan 2 batasan kategori anggota",
+        ),
+      });
+      expect(prisma.category.delete).not.toHaveBeenCalled();
+    });
+
+    it("still 404s on a category that does not exist, before counting dependants", async () => {
+      prisma.category.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.remove(FAMILY_GROUP_ID, "nonexistent"),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(prisma.budget.count).not.toHaveBeenCalled();
+    });
+
+    it("runs the count-and-delete inside a single Serializable $transaction (EPIC-022 A5 follow-up — closes the check-then-act race)", async () => {
+      await service.remove(FAMILY_GROUP_ID, CATEGORY_ID);
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      const [, options] = prisma.$transaction.mock.calls[0] as [
+        unknown,
+        { isolationLevel?: string },
+      ];
+      expect(options?.isolationLevel).toBe("Serializable");
+      // The count and the delete both ran inside that one transaction call,
+      // not as separate, independently-awaited round trips.
+      expect(prisma.budget.count).toHaveBeenCalledTimes(1);
+      expect(prisma.category.delete).toHaveBeenCalledTimes(1);
+    });
+
+    it("maps a P2034 serialization failure to a retryable 409 with an honest 'try again' message, not the generic 500 (EPIC-022 A5 follow-up)", async () => {
+      // Simulates exactly what Postgres/Prisma raise when the Serializable
+      // transaction above detects the write conflict it exists to catch — a
+      // Budget/MemberCategoryAllowance committed concurrently mid-delete.
+      prisma.$transaction.mockImplementationOnce(() => {
+        throw new Prisma.PrismaClientKnownRequestError(
+          "Transaction failed due to a write conflict or a deadlock. Please retry your transaction",
+          { code: "P2034", clientVersion: "6.19.3" },
+        );
+      });
+
+      await expect(
+        service.remove(FAMILY_GROUP_ID, CATEGORY_ID),
+      ).rejects.toMatchObject({
+        status: 409,
+        message: expect.stringContaining("Coba lagi"),
+      });
+    });
+
+    it("does not swallow other Prisma errors behind the P2034 retry message", async () => {
+      prisma.$transaction.mockImplementationOnce(() => {
+        throw new Prisma.PrismaClientKnownRequestError("Some other failure", {
+          code: "P2025",
+          clientVersion: "6.19.3",
+        });
+      });
+
+      await expect(
+        service.remove(FAMILY_GROUP_ID, CATEGORY_ID),
+      ).rejects.toThrow("Some other failure");
     });
   });
 });
