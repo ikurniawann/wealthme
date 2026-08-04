@@ -48,33 +48,73 @@ export function txTypeToBadgeVariant(
 
 export interface BalanceSheetIdentity {
   /** Total Liabilities + Equity (net worth) — the real right-hand side of
-   * the balance-sheet identity, never a re-display of totalAssets. */
+   * the "Total L+E" row, never a re-display of totalAssets. Always shown;
+   * unrelated to the falsifiable check below (see isBalanced doc). */
   totalLiabilitiesPlusEquity: number;
-  /** totalAssets − totalLiabilitiesPlusEquity. Zero when the sheet is
-   * genuinely balanced; non-zero discloses a real discrepancy. */
-  diff: number;
-  /** True only when `diff` is within a whole-rupiah rounding slack (< 1). */
+  /** Sum of `assets[].amount`, computed independently of the API's own
+   * `totalAssets` scalar. */
+  assetsBreakdownSum: number;
+  /** Sum of `liabilities[].amount`, computed independently of the API's own
+   * `totalLiabilities` scalar. */
+  liabilitiesBreakdownSum: number;
+  /** totalAssets − assetsBreakdownSum. Zero when the reported aggregate
+   * genuinely reconciles with its own itemized breakdown. */
+  assetsDiff: number;
+  /** totalLiabilities − liabilitiesBreakdownSum. */
+  liabilitiesDiff: number;
+  /** True only when both diffs are within a whole-rupiah rounding slack
+   * (< 1). */
   isBalanced: boolean;
 }
 
 /**
- * Computes the real balance-sheet identity (EPIC-022 B1). The UI must never
- * claim "balanced" by re-displaying `totalAssets` on both sides of the
- * table — it must derive the right-hand side from `totalLiabilities` +
- * `netWorth` and only report balanced when the two sides actually match.
+ * Computes a falsifiable balance-sheet integrity check (EPIC-022 B1,
+ * hardened per adversarial review).
+ *
+ * `netWorth` is defined server-side as `totalAssets - totalLiabilities`
+ * (`apps/api/src/reports/reports.service.ts`), in the SAME payload as those
+ * two fields — so `totalLiabilities + netWorth ≡ totalAssets` is an
+ * algebraic tautology for any input whatsoever; no bug anywhere could ever
+ * make it fail, so a banner built on that comparison could never honestly
+ * claim to have "verified" anything.
+ *
+ * Instead this reconciles the two REPORTED AGGREGATE SCALARS
+ * (`totalAssets`, `totalLiabilities`) against their own itemized breakdown
+ * arrays (`assets[].amount`, `liabilities[].amount`) — two different fields
+ * of the wire payload, summed independently on the client. This is
+ * falsifiable: a payload whose breakdown doesn't add up to its own reported
+ * total (a real, constructible bug — e.g. a dropped/duplicated group, or a
+ * future change that decouples the scalar from the array) makes
+ * `isBalanced` false. The "Total L+E" row above is unaffected — it still
+ * always shows the correct `totalLiabilities + netWorth` value.
  */
 export function computeBalanceSheetIdentity(balanceSheet: {
   totalAssets: number;
   totalLiabilities: number;
   netWorth: number;
+  assets: { amount: number }[];
+  liabilities: { amount: number }[];
 }): BalanceSheetIdentity {
   const totalLiabilitiesPlusEquity =
     balanceSheet.totalLiabilities + balanceSheet.netWorth;
-  const diff = balanceSheet.totalAssets - totalLiabilitiesPlusEquity;
+  const assetsBreakdownSum = balanceSheet.assets.reduce(
+    (sum, group) => sum + group.amount,
+    0,
+  );
+  const liabilitiesBreakdownSum = balanceSheet.liabilities.reduce(
+    (sum, group) => sum + group.amount,
+    0,
+  );
+  const assetsDiff = balanceSheet.totalAssets - assetsBreakdownSum;
+  const liabilitiesDiff =
+    balanceSheet.totalLiabilities - liabilitiesBreakdownSum;
   return {
     totalLiabilitiesPlusEquity,
-    diff,
-    isBalanced: Math.abs(diff) < 1,
+    assetsBreakdownSum,
+    liabilitiesBreakdownSum,
+    assetsDiff,
+    liabilitiesDiff,
+    isBalanced: Math.abs(assetsDiff) < 1 && Math.abs(liabilitiesDiff) < 1,
   };
 }
 
@@ -171,6 +211,29 @@ export function buildInvChartData(
     modalPct: Math.round((modal / max) * 100),
     hasReturn: nilai >= modal,
   };
+}
+
+/**
+ * The current position value of one investment holding — EPIC-022 B9
+ * (CRITICAL fix). `inv.currentValue` (when present) is already the TOTAL
+ * position value: `apps/api/src/investments/investments.service.ts`
+ * computes it as `currentPrice.times(quantity)`, and `getSummary()` there
+ * adds `h.currentValue` to the portfolio total AS-IS (never re-multiplying
+ * by quantity) — it only multiplies `costBasisPerUnit` by `quantity` in the
+ * fallback branch, because that field genuinely is per-unit. Multiplying
+ * `currentValue` by `quantity` again (the previous bug here) computes
+ * `price × quantity²`, inflating every priced holding by a factor of its
+ * own share count.
+ */
+export function investmentCurrentValue(inv: {
+  currentValue: string | null;
+  costBasisPerUnit: string;
+  quantity: string;
+}): number {
+  if (inv.currentValue !== null) {
+    return parseFloat(inv.currentValue);
+  }
+  return parseFloat(inv.costBasisPerUnit) * parseFloat(inv.quantity);
 }
 
 export function getMonthDateRange(): { startDate: string; endDate: string } {

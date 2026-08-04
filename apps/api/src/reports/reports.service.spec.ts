@@ -486,4 +486,74 @@ describe("ReportsService privacy enforcement", () => {
     // aggregate totals are COA-classified.
     expect(detail.transactions[0]?.type).toBe("expense");
   });
+
+  it("getSummary: bounds the category breakdown to the anchor's trailing-months window (EPIC-022 finding 5)", async () => {
+    // Reproduces the exact scenario B6 introduced: exporting "as of March"
+    // (a historical anchor) while real transactions exist beyond that
+    // month. totalIncome/points were already bounded via monthKeys, but
+    // topIncomeCategories previously summed every transaction from
+    // startDate through the unbounded upper end — this test fails on the
+    // pre-fix code (amount would be 6000, not 1000).
+    const accounts: FakeAccount[] = [
+      {
+        id: "a1",
+        balance: 0n,
+        type: "bank",
+        name: "A",
+        institution: null,
+        isPrivate: false,
+      },
+    ];
+    const categories: FakeCategory[] = [
+      {
+        id: "c-income",
+        name: "Gaji",
+        color: null,
+        isPrivate: false,
+        coaAccount: { direction: "INCOME" },
+      },
+    ];
+    const inWindow = new Date(2026, 2, 10); // March 10, 2026 — inside the window
+    const afterWindow = new Date(2026, 3, 5); // April 5, 2026 — after the anchor's month
+    const transactions: FakeTransaction[] = [
+      {
+        id: "t-march",
+        accountId: "a1",
+        categoryId: "c-income",
+        amount: 1_000n,
+        type: "income",
+        description: null,
+        occurredAt: inWindow,
+        createdAt: inWindow,
+      },
+      {
+        id: "t-april-leak",
+        accountId: "a1",
+        categoryId: "c-income",
+        amount: 5_000n,
+        type: "income",
+        description: null,
+        occurredAt: afterWindow,
+        createdAt: afterWindow,
+      },
+    ];
+    const p = makeFakePrisma(accounts, categories, transactions);
+    const mod = await Test.createTestingModule({
+      providers: [ReportsService, { provide: PrismaService, useValue: p }],
+    }).compile();
+    const svc = mod.get(ReportsService);
+
+    const anchor = new Date(2026, 2, 15); // March 15, 2026 — a mid-month anchor
+    const summary = await svc.getSummary(
+      FAMILY_GROUP_ID,
+      "monthly",
+      1,
+      true,
+      anchor,
+    );
+
+    expect(summary.totalIncome).toBe(1_000);
+    expect(summary.topIncomeCategories).toHaveLength(1);
+    expect(summary.topIncomeCategories[0]?.amount).toBe(1_000);
+  });
 });

@@ -80,11 +80,24 @@ export class ReportsService {
       1,
     );
     startDate.setHours(0, 0, 0, 0);
+    // EPIC-022 finding 5 — bound the query to the same trailing-months
+    // window `monthKeys` builds below (through the end of `anchor`'s
+    // month). `totalIncome`/`totalExpense`/`points` were already implicitly
+    // bounded (they only read `monthKeys`-matching buckets), but
+    // `incomeByCat`/`expenseByCat` below accumulate every matching
+    // transaction unconditionally — without this upper bound they silently
+    // included every transaction from `startDate` through the real "now",
+    // even when `anchor` is a historical date (EPIC-022 B6 threads a past
+    // `endDate` into this as the anchor for exports): a March export's
+    // headline total would be correct, but its category breakdown would
+    // leak April-onward data.
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    endDate.setHours(23, 59, 59, 999);
 
     const transactions = await this.prisma.transaction.findMany({
       where: {
         familyGroupId,
-        occurredAt: { gte: startDate },
+        occurredAt: { gte: startDate, lte: endDate },
         ...transactionPrivacyWhere(canSeePrivate),
       },
       select: {

@@ -68,6 +68,7 @@ import {
   computeBalanceSheetIdentity,
   formatJuta,
   formatSignedRupiah,
+  investmentCurrentValue,
   sankeyToFlowBars,
   txTypeToBadgeVariant,
 } from "@/lib/laporan-utils";
@@ -532,6 +533,11 @@ function HarianSection({
         {dailyReport && dailyReport.transactions.length > 0 ? (
           dailyReport.transactions.map((tx, i) => {
             const isIncome = tx.type === "income";
+            // EPIC-022 B8 — a transfer is neither income nor expense;
+            // render it neutrally (no +/- sign, muted colour) instead of a
+            // red negative that contradicts its neutral category badge
+            // elsewhere on this page. Same fix as DetailSection below.
+            const isTransfer = tx.type === "transfer";
             const time = formatLocaleTime(tx.occurredAt, locale);
             return (
               <ActItem
@@ -544,10 +550,14 @@ function HarianSection({
                   <div
                     className={
                       "text-[13px] font-bold " +
-                      (isIncome ? "text-success" : "text-destructive")
+                      (isTransfer
+                        ? "text-muted-foreground"
+                        : isIncome
+                          ? "text-success"
+                          : "text-destructive")
                     }
                   >
-                    {isIncome ? "+" : "-"}
+                    {isTransfer ? "" : isIncome ? "+" : "-"}
                     {formatRupiah(tx.amount)}
                   </div>
                 }
@@ -1329,17 +1339,38 @@ function BalanceSection({
       ? `${Math.round((balanceSheet.totalLiabilities / balanceSheet.totalAssets) * 100 * 10) / 10}%`
       : "—";
 
-  // EPIC-022 B1 — the real accounting identity: Total Assets should equal
-  // Total Liabilities + Equity (net worth). Never re-display totalAssets on
-  // both sides of the table — compute the right-hand side from its own
-  // fields, and only claim "balanced" when the two sides actually match.
+  // EPIC-022 B1 — the "Total L+E" row always shows the real value (Total
+  // Liabilities + Equity), never a re-display of totalAssets. The ✅/⚠️
+  // banner below is a SEPARATE, falsifiable reconciliation check — see
+  // computeBalanceSheetIdentity's doc comment for why comparing totalAssets
+  // against `totalLiabilities + netWorth` (the original B1 fix) is an
+  // unfalsifiable tautology given how the API defines netWorth, and why the
+  // breakdown-vs-aggregate check replaces it.
   const {
     totalLiabilitiesPlusEquity,
-    diff: balanceDiff,
+    assetsDiff,
+    liabilitiesDiff,
     isBalanced,
   } = computeBalanceSheetIdentity(
-    balanceSheet ?? { totalAssets: 0, totalLiabilities: 0, netWorth: 0 },
+    balanceSheet ?? {
+      totalAssets: 0,
+      totalLiabilities: 0,
+      netWorth: 0,
+      assets: [],
+      liabilities: [],
+    },
   );
+  const discrepancyParts: string[] = [];
+  if (Math.abs(assetsDiff) >= 1) {
+    discrepancyParts.push(
+      `${t.laporan.balance.assetsDiscrepancyLabel} ${formatRupiah(Math.abs(assetsDiff))}`,
+    );
+  }
+  if (Math.abs(liabilitiesDiff) >= 1) {
+    discrepancyParts.push(
+      `${t.laporan.balance.liabilitiesDiscrepancyLabel} ${formatRupiah(Math.abs(liabilitiesDiff))}`,
+    );
+  }
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
@@ -1464,8 +1495,9 @@ function BalanceSection({
               {t.laporan.balance.imbalancedTitle}
             </div>
             <div className="text-[12px] text-muted-foreground">
-              {t.laporan.balance.imbalancedDescPrefix}{" "}
-              {formatRupiah(Math.abs(balanceDiff))}.
+              {t.laporan.balance.imbalancedDescPrefix}
+              {discrepancyParts.length > 0 &&
+                " " + discrepancyParts.join(" · ")}
             </div>
           </div>
         </div>
@@ -1716,9 +1748,11 @@ function InvSection({
 
   const byType = new Map<InvestmentType, number>();
   for (const inv of investments ?? []) {
-    const val =
-      parseFloat(inv.currentValue ?? inv.costBasisPerUnit) *
-      parseFloat(inv.quantity);
+    // EPIC-022 B9 (CRITICAL fix) — inv.currentValue is already the total
+    // position value; only the costBasisPerUnit fallback is per-unit. See
+    // investmentCurrentValue's doc comment for the exact inflation bug this
+    // replaces (price × quantity² whenever a market price existed).
+    const val = investmentCurrentValue(inv);
     byType.set(inv.type, (byType.get(inv.type) ?? 0) + val);
   }
 
@@ -1854,13 +1888,12 @@ function InvSection({
               <tbody>
                 {investments.map((inv) => {
                   // EPIC-022 B9 — use the same current-value basis as the
-                  // portfolio-by-type breakdown above and `invSummary`
-                  // (fall back to cost basis when no market price is
-                  // recorded yet), so this table never disagrees with the
-                  // totals shown elsewhere on this tab.
-                  const val =
-                    parseFloat(inv.currentValue ?? inv.costBasisPerUnit) *
-                    parseFloat(inv.quantity);
+                  // portfolio-by-type breakdown above and `invSummary` (see
+                  // investmentCurrentValue: currentValue is already a total,
+                  // not per-unit — do NOT multiply it by quantity again), so
+                  // this table never disagrees with the totals shown
+                  // elsewhere on this tab.
+                  const val = investmentCurrentValue(inv);
                   const ret = parseFloat(inv.returnRp ?? "0");
                   const typeLabel = t.laporan.investasi.typeLabels[inv.type];
                   return (

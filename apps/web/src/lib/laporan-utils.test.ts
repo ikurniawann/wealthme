@@ -26,53 +26,165 @@ import {
   formatSignedRupiah,
   getMonthDateRange,
   getTodayDateRange,
+  investmentCurrentValue,
   sankeyToFlowBars,
   txTypeToBadgeVariant,
 } from "./laporan-utils";
 
+// EPIC-022 B9 (CRITICAL fix) — inv.currentValue from the API is already the
+// TOTAL position value (investments.service.ts: currentPrice.times(quantity)),
+// never per-unit. Multiplying it by quantity again — the pre-fix bug at both
+// /laporan call sites — computed price × quantity², inflating every priced
+// holding by a factor of its own share count. These cases use quantity > 1
+// specifically because the bug is invisible whenever quantity === 1.
+describe("investmentCurrentValue", () => {
+  it("uses currentValue as-is when present — does NOT multiply by quantity again", () => {
+    // 500 shares, market price implies a Rp 5.000.000 total position — the
+    // API already returns that total in currentValue.
+    const result = investmentCurrentValue({
+      currentValue: "5000000",
+      costBasisPerUnit: "9000",
+      quantity: "500",
+    });
+    expect(result).toBe(5_000_000);
+    // The exact regression this test guards against: the old formula
+    // (`parseFloat(currentValue) * parseFloat(quantity)`) would have
+    // returned 2,500,000,000,000 here — 500,000× too large.
+    expect(result).not.toBe(5_000_000 * 500);
+  });
+
+  it("multiplies costBasisPerUnit by quantity only in the fallback (no price recorded yet)", () => {
+    const result = investmentCurrentValue({
+      currentValue: null,
+      costBasisPerUnit: "9500",
+      quantity: "10",
+    });
+    expect(result).toBe(95_000);
+  });
+
+  it("matches the API's own getSummary basis for a priced holding with quantity > 1", () => {
+    // Mirrors apps/api/src/investments/investments.service.spec.ts's
+    // fixture: inv-1 currentValue = 10000 * 10 = 100_000.
+    const result = investmentCurrentValue({
+      currentValue: "100000",
+      costBasisPerUnit: "9500",
+      quantity: "10",
+    });
+    expect(result).toBe(100_000);
+  });
+
+  it("a quantity=1 holding cannot distinguish the bug — confirms the fix is not a no-op for quantity>1", () => {
+    const qty1 = investmentCurrentValue({
+      currentValue: "10000",
+      costBasisPerUnit: "9000",
+      quantity: "1",
+    });
+    const qty500 = investmentCurrentValue({
+      currentValue: "10000",
+      costBasisPerUnit: "9000",
+      quantity: "500",
+    });
+    // Same currentValue, different quantity — the correct result ignores
+    // quantity entirely once currentValue is present, so both must be equal.
+    expect(qty1).toBe(10_000);
+    expect(qty500).toBe(10_000);
+  });
+});
+
+// EPIC-022 B1 — hardened per adversarial review: `totalLiabilities +
+// netWorth ≡ totalAssets` is an algebraic tautology given how the API
+// defines `netWorth` (see the function's doc comment) — no constructible
+// input could ever fail that comparison, so it cannot honestly be called a
+// "verification". These tests instead exercise the falsifiable check: the
+// reported `totalAssets`/`totalLiabilities` scalars reconciled against an
+// independently-summed `assets`/`liabilities` breakdown array. Every
+// "imbalanced" case below is a payload the function must be able to reject.
 describe("computeBalanceSheetIdentity", () => {
-  it("reports balanced when Assets == Liabilities + Equity", () => {
+  it("reports balanced when the breakdown arrays sum to their reported totals", () => {
     const result = computeBalanceSheetIdentity({
       totalAssets: 1_000_000,
       totalLiabilities: 200_000,
       netWorth: 800_000,
+      assets: [{ amount: 700_000 }, { amount: 300_000 }],
+      liabilities: [{ amount: 200_000 }],
     });
     expect(result.totalLiabilitiesPlusEquity).toBe(1_000_000);
-    expect(result.diff).toBe(0);
+    expect(result.assetsBreakdownSum).toBe(1_000_000);
+    expect(result.liabilitiesBreakdownSum).toBe(200_000);
+    expect(result.assetsDiff).toBe(0);
+    expect(result.liabilitiesDiff).toBe(0);
     expect(result.isBalanced).toBe(true);
   });
 
-  it("never re-displays totalAssets as the right-hand side — it derives from liabilities + netWorth", () => {
-    // netWorth deliberately inconsistent with totalAssets - totalLiabilities,
-    // simulating a future data inconsistency the UI must be able to catch
-    // rather than silently reflecting totalAssets back at itself.
+  it("is falsifiable: reports imbalanced when the asset breakdown does not sum to totalAssets", () => {
+    // The exact bar the adversarial review set: construct input data that
+    // makes this report an imbalance. A dropped/duplicated asset group is a
+    // real, constructible bug class this must catch.
     const result = computeBalanceSheetIdentity({
       totalAssets: 1_000_000,
       totalLiabilities: 200_000,
-      netWorth: 750_000, // should have been 800_000
+      netWorth: 800_000,
+      assets: [{ amount: 700_000 }], // sums to 700_000, not the reported 1_000_000
+      liabilities: [{ amount: 200_000 }],
     });
-    expect(result.totalLiabilitiesPlusEquity).toBe(950_000);
-    expect(result.diff).toBe(50_000);
+    expect(result.assetsBreakdownSum).toBe(700_000);
+    expect(result.assetsDiff).toBe(300_000);
     expect(result.isBalanced).toBe(false);
+  });
+
+  it("is falsifiable: reports imbalanced when the liability breakdown does not sum to totalLiabilities", () => {
+    const result = computeBalanceSheetIdentity({
+      totalAssets: 1_000_000,
+      totalLiabilities: 200_000,
+      netWorth: 800_000,
+      assets: [{ amount: 1_000_000 }],
+      liabilities: [{ amount: 150_000 }], // sums to 150_000, not the reported 200_000
+    });
+    expect(result.liabilitiesBreakdownSum).toBe(150_000);
+    expect(result.liabilitiesDiff).toBe(50_000);
+    expect(result.isBalanced).toBe(false);
+  });
+
+  it("does NOT reconcile via the netWorth identity — an inconsistent netWorth with a matching breakdown still reports balanced", () => {
+    // Proves the old (removed) check is gone: netWorth here does not equal
+    // totalAssets - totalLiabilities, but since the breakdown arrays DO sum
+    // to their own reported totals, this is correctly "balanced" under the
+    // new, independent check.
+    const result = computeBalanceSheetIdentity({
+      totalAssets: 1_000_000,
+      totalLiabilities: 200_000,
+      netWorth: 1, // deliberately inconsistent with totalAssets - totalLiabilities
+      assets: [{ amount: 1_000_000 }],
+      liabilities: [{ amount: 200_000 }],
+    });
+    expect(result.isBalanced).toBe(true);
+    // The "Total L+E" row value is still computed honestly from the
+    // (inconsistent) netWorth field — it is not silently corrected.
+    expect(result.totalLiabilitiesPlusEquity).toBe(200_001);
   });
 
   it("treats a sub-1-rupiah rounding slack as still balanced", () => {
     const result = computeBalanceSheetIdentity({
       totalAssets: 1_000_000,
       totalLiabilities: 200_000,
-      netWorth: 800_000.4,
+      netWorth: 800_000,
+      assets: [{ amount: 999_999.6 }],
+      liabilities: [{ amount: 200_000 }],
     });
     expect(result.isBalanced).toBe(true);
   });
 
-  it("discloses the real discrepancy amount when out of balance", () => {
+  it("sums across multiple asset/liability groups", () => {
     const result = computeBalanceSheetIdentity({
-      totalAssets: 500_000,
-      totalLiabilities: 100_000,
-      netWorth: 300_000, // 100k short of matching totalAssets
+      totalAssets: 1_500_000,
+      totalLiabilities: 300_000,
+      netWorth: 1_200_000,
+      assets: [{ amount: 500_000 }, { amount: 700_000 }, { amount: 300_000 }],
+      liabilities: [{ amount: 100_000 }, { amount: 200_000 }],
     });
-    expect(result.diff).toBe(100_000);
-    expect(result.isBalanced).toBe(false);
+    expect(result.assetsBreakdownSum).toBe(1_500_000);
+    expect(result.liabilitiesBreakdownSum).toBe(300_000);
+    expect(result.isBalanced).toBe(true);
   });
 
   it("holds for the zero-data (fresh family group) case", () => {
@@ -80,9 +192,12 @@ describe("computeBalanceSheetIdentity", () => {
       totalAssets: 0,
       totalLiabilities: 0,
       netWorth: 0,
+      assets: [],
+      liabilities: [],
     });
     expect(result.isBalanced).toBe(true);
-    expect(result.diff).toBe(0);
+    expect(result.assetsDiff).toBe(0);
+    expect(result.liabilitiesDiff).toBe(0);
   });
 });
 

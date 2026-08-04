@@ -1994,12 +1994,14 @@ export const id = {
       liabilitiesLabel: "Liabilitas",
       equityLabel: "Ekuitas",
       totalLPlusELabel: "Total L + E",
-      balancedTitle: "Balance Sheet Seimbang",
+      balancedTitle: "Rincian Sesuai dengan Total Terlapor",
       balancedDescPrefix:
-        "Total Aset = Total Liabilitas + Ekuitas. Debt-to-Asset ratio",
-      imbalancedTitle: "Balance Sheet Belum Seimbang",
+        "Rincian Aset & Liabilitas di atas cocok dengan Total Aset dan Total Liabilitas yang dilaporkan. Debt-to-Asset ratio",
+      imbalancedTitle: "Rincian Tidak Sesuai dengan Total Terlapor",
       imbalancedDescPrefix:
-        "Selisih antara Total Aset dan Total Liabilitas + Ekuitas:",
+        "Rincian Aset/Liabilitas tidak cocok dengan total yang dilaporkan.",
+      assetsDiscrepancyLabel: "Selisih Aset:",
+      liabilitiesDiscrepancyLabel: "Selisih Liabilitas:",
     },
     cashflow: {
       titlePrefix: "Cashflow Statement —",

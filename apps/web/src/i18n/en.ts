@@ -1993,12 +1993,14 @@ export const en = {
       liabilitiesLabel: "Liabilities",
       equityLabel: "Equity",
       totalLPlusELabel: "Total L + E",
-      balancedTitle: "Balance Sheet Balanced",
+      balancedTitle: "Breakdown Matches Reported Totals",
       balancedDescPrefix:
-        "Total Assets = Total Liabilities + Equity. Debt-to-Asset ratio",
-      imbalancedTitle: "Balance Sheet Not Balanced",
+        "The Assets & Liabilities breakdown above matches the reported Total Assets and Total Liabilities. Debt-to-Asset ratio",
+      imbalancedTitle: "Breakdown Doesn't Match Reported Totals",
       imbalancedDescPrefix:
-        "Difference between Total Assets and Total Liabilities + Equity:",
+        "The Assets/Liabilities breakdown doesn't match the reported totals.",
+      assetsDiscrepancyLabel: "Asset discrepancy:",
+      liabilitiesDiscrepancyLabel: "Liability discrepancy:",
     },
     cashflow: {
       titlePrefix: "Cashflow Statement —",

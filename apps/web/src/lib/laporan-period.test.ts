@@ -8,6 +8,17 @@
  * repo has followed before — see `laporan-utils.test.ts` for the EPIC-022
  * B1/B2 case where a stale hand-maintained `.js` mirror was actively hiding
  * new exports from Jest and was removed rather than kept in sync by hand).
+ *
+ * EPIC-022 B7 hardening (adversarial review, HIGH finding) — every
+ * assertion below on `getPeriodDateRange`/`getYearDateRange` output reads
+ * either the exact UTC ISO string or `getUTC*` accessors, NEVER local
+ * `Date` getters (`getDate()`, `getHours()`, `getFullYear()` without the
+ * `UTC` prefix). Local getters read the *test runner's* timezone, which
+ * only coincidentally matched WIB in the original sandbox — under
+ * `TZ=UTC` (e.g. `ubuntu-latest` in CI, which sets no `TZ` at all) 7 of
+ * these tests failed. The exact-UTC assertions below are correct under any
+ * `process.env.TZ`; verified locally with `TZ=UTC` and
+ * `TZ=America/New_York`.
  */
 
 import {
@@ -63,112 +74,105 @@ describe("clampDayToMonth", () => {
   });
 });
 
+// Every WIB (UTC+7) wall-clock instant below was computed by hand as
+// `Date.UTC(...) - 7h`, matching `wibWallClockToIso` in laporan-period.ts.
+// Asserting the exact resulting ISO string is TZ-runner-independent by
+// construction — no local getter is involved anywhere in this file.
 describe("getPeriodDateRange — whole month (no day pinned)", () => {
-  it("returns first-of-month 00:00:00.000 through last-of-month 23:59:59.999", () => {
+  it("returns first-of-month 00:00:00.000 through last-of-month 23:59:59.999, both WIB", () => {
     const { startDate, endDate } = getPeriodDateRange({
       year: 2026,
       month: 3,
       day: null,
     });
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    expect(start.getFullYear()).toBe(2026);
-    expect(start.getMonth()).toBe(2); // 0-indexed March
-    expect(start.getDate()).toBe(1);
-    expect(start.getHours()).toBe(0);
-    expect(end.getDate()).toBe(31);
-    expect(end.getHours()).toBe(23);
-    expect(end.getMinutes()).toBe(59);
-    expect(start.getTime()).toBeLessThan(end.getTime());
+    // 2026-03-01 00:00:00.000 WIB (+07:00) = 2026-02-28 17:00:00.000 UTC.
+    expect(startDate).toBe("2026-02-28T17:00:00.000Z");
+    // 2026-03-31 23:59:59.999 WIB = 2026-03-31 16:59:59.999 UTC.
+    expect(endDate).toBe("2026-03-31T16:59:59.999Z");
+    expect(new Date(startDate).getTime()).toBeLessThan(
+      new Date(endDate).getTime(),
+    );
   });
 
-  it("December → January rollover: December bounds stay within December, not spilling into next year", () => {
+  it("December → January rollover: December bounds stay within December WIB, not spilling into next year", () => {
     const { startDate, endDate } = getPeriodDateRange({
       year: 2025,
       month: 12,
       day: null,
     });
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    expect(start.getFullYear()).toBe(2025);
-    expect(start.getMonth()).toBe(11); // December
-    expect(start.getDate()).toBe(1);
-    expect(end.getFullYear()).toBe(2025);
-    expect(end.getMonth()).toBe(11);
-    expect(end.getDate()).toBe(31);
+    // 2025-12-01 00:00:00.000 WIB = 2025-11-30 17:00:00.000 UTC.
+    expect(startDate).toBe("2025-11-30T17:00:00.000Z");
+    // 2025-12-31 23:59:59.999 WIB = 2025-12-31 16:59:59.999 UTC — still
+    // 2025, not spilled into 2026.
+    expect(endDate).toBe("2025-12-31T16:59:59.999Z");
   });
 
-  it("January bounds start on Jan 1 of the requested year (no bleed from December)", () => {
+  it("January bounds start on Jan 1 WIB of the requested year (no bleed from December)", () => {
     const { startDate } = getPeriodDateRange({
       year: 2026,
       month: 1,
       day: null,
     });
-    const start = new Date(startDate);
-    expect(start.getFullYear()).toBe(2026);
-    expect(start.getMonth()).toBe(0);
-    expect(start.getDate()).toBe(1);
+    // 2026-01-01 00:00:00.000 WIB = 2025-12-31 17:00:00.000 UTC. The UTC
+    // calendar date (Dec 31) differs from the WIB calendar date (Jan 1) —
+    // that's the fixed 7-hour offset, not a bug; the WIB wall-clock value
+    // this instant represents is unambiguously Jan 1, per the exact
+    // `wibWallClockToIso(year, 0, 1, 0, 0, 0, 0)` construction.
+    expect(startDate).toBe("2025-12-31T17:00:00.000Z");
   });
 
-  it("leap Feb: month bounds cover all 29 days", () => {
+  it("leap Feb: month bounds cover all 29 days WIB", () => {
     const { startDate, endDate } = getPeriodDateRange({
       year: 2024,
       month: 2,
       day: null,
     });
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    expect(start.getDate()).toBe(1);
-    expect(end.getDate()).toBe(29);
+    expect(startDate).toBe("2024-01-31T17:00:00.000Z"); // Feb 1 WIB
+    expect(endDate).toBe("2024-02-29T16:59:59.999Z"); // Feb 29 23:59:59.999 WIB
   });
 
-  it("non-leap Feb: month bounds cover only 28 days", () => {
+  it("non-leap Feb: month bounds cover only 28 days WIB", () => {
     const { endDate } = getPeriodDateRange({ year: 2026, month: 2, day: null });
-    const end = new Date(endDate);
-    expect(end.getDate()).toBe(28);
+    expect(endDate).toBe("2026-02-28T16:59:59.999Z"); // Feb 28 23:59:59.999 WIB
   });
 });
 
 describe("getPeriodDateRange — single day pinned", () => {
-  it("returns the exact day's 00:00:00.000 through 23:59:59.999 bounds", () => {
+  it("returns the exact day's 00:00:00.000 through 23:59:59.999 WIB bounds", () => {
     const { startDate, endDate } = getPeriodDateRange({
       year: 2026,
       month: 5,
       day: 17,
     });
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    expect(start.getDate()).toBe(17);
-    expect(start.getHours()).toBe(0);
-    expect(end.getDate()).toBe(17);
-    expect(end.getHours()).toBe(23);
-    expect(end.getMinutes()).toBe(59);
-    expect(end.getSeconds()).toBe(59);
+    // 2026-05-17 00:00:00.000 WIB = 2026-05-16 17:00:00.000 UTC.
+    expect(startDate).toBe("2026-05-16T17:00:00.000Z");
+    // 2026-05-17 23:59:59.999 WIB = 2026-05-17 16:59:59.999 UTC.
+    expect(endDate).toBe("2026-05-17T16:59:59.999Z");
   });
 
   it("clamps an out-of-range day (e.g. day=31 in April) to the last valid day", () => {
     const { startDate, endDate } = getPeriodDateRange({
       year: 2026,
       month: 4,
-      day: 31,
+      day: 31, // April has 30 days — clamped to 30
     });
-    expect(new Date(startDate).getDate()).toBe(30);
-    expect(new Date(endDate).getDate()).toBe(30);
+    // 2026-04-30 00:00:00.000 WIB = 2026-04-29 17:00:00.000 UTC.
+    expect(startDate).toBe("2026-04-29T17:00:00.000Z");
+    // 2026-04-30 23:59:59.999 WIB = 2026-04-30 16:59:59.999 UTC.
+    expect(endDate).toBe("2026-04-30T16:59:59.999Z");
   });
 });
 
 describe("getYearDateRange", () => {
-  it("returns Jan 1 00:00:00.000 through Dec 31 23:59:59.999 of the given year", () => {
+  it("returns Jan 1 00:00:00.000 through Dec 31 23:59:59.999 WIB of the given year", () => {
     const { startDate, endDate } = getYearDateRange(2025);
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    expect(start.getFullYear()).toBe(2025);
-    expect(start.getMonth()).toBe(0);
-    expect(start.getDate()).toBe(1);
-    expect(end.getFullYear()).toBe(2025);
-    expect(end.getMonth()).toBe(11);
-    expect(end.getDate()).toBe(31);
-    expect(start.getTime()).toBeLessThan(end.getTime());
+    // 2025-01-01 00:00:00.000 WIB = 2024-12-31 17:00:00.000 UTC.
+    expect(startDate).toBe("2024-12-31T17:00:00.000Z");
+    // 2025-12-31 23:59:59.999 WIB = 2025-12-31 16:59:59.999 UTC.
+    expect(endDate).toBe("2025-12-31T16:59:59.999Z");
+    expect(new Date(startDate).getTime()).toBeLessThan(
+      new Date(endDate).getTime(),
+    );
   });
 
   it("year rollover: two consecutive years never overlap", () => {
