@@ -237,6 +237,23 @@ is entirely in the form.
     classify its income as expense (`categories.service.ts:118-134`).
 
 - [ ] ### G — Responsive and modal layout pass
+  - **G1 (VERIFIED BLOCKER) — the warisan dialog becomes unusable on a phone once
+    heirs are added.** Empty, it already fills 843 of 844px with **no internal
+    scroll**. Measured at 390×844 after adding three heirs: the dialog grows to
+    **1220px tall at `y = -188`** — the top is clipped, and "Simpan Aset Warisan"
+    ends at `y = 1008`, i.e. **164px below the fold with no way to scroll to it**.
+    A user who records more than one or two heirs cannot save. The same shape of
+    risk applies to the insurance beneficiary editor and split-bill participants.
+    Fix: give the dialog body `max-h-[85dvh] overflow-y-auto` — the `/asuransi`
+    modal already does the right thing (full-screen *with* internal scroll) and
+    measures clean at both viewports.
+  - **G2 — the onboarding welcome dialog blocks the whole app for a fresh
+    session** (`fixed inset-0 z-50` overlay). Expected for a first-run tour, but
+    it also blocks any deep link until dismissed; confirm it never re-appears for
+    a returning user and that "Lewati" is always reachable.
+  - **G3 — flag emoji render as tofu boxes** in the onboarding language picker on
+    systems without an emoji-flag font. Use text labels or an inline SVG rather
+    than depending on the host font stack.
   - Audit every dialog at 390×844 and 1440×900 with the Playwright harness
     (headless — no desktop required on this host) and fix: dialogs missing the
     `max-w-[N]` + `sm:max-w-[N]` pair, long forms (insurance beneficiaries,
@@ -323,3 +340,22 @@ unexplained failed requests on every route.
   and truthfulness) is not queued behind cosmetics. Status set `on-progress`;
   five Open Design Decisions need human sign-off before their dependent groups
   start. No code changed.
+
+- 2026-08-04 — **Live headless crawl completed** (Playwright/Chromium; this host
+  has no desktop and none is needed): 22 routes × 2 viewports (1440×900 and
+  390×844), 43 full-page screenshots, console + network capture, plus a modal
+  geometry pass over 8 dialogs at both viewports.
+  **The page-level surface is healthy** — no error banners, no horizontal
+  overflow, no console errors beyond HTTP 429s caused by the audit's own request
+  rate, and one `networkidle` timeout on `/investasi` (its price WebSocket never
+  goes idle — a harness artifact, not a defect). Modal geometry measured clean on
+  7 of 8 dialogs.
+  **The crawl found one real deployment defect and one verified mobile blocker.**
+  (a) DEV login was broken at crawl time: the running web container carried
+  `BETTER_AUTH_URL=http://localhost:3000`, a value that exists only in
+  `docker-compose.override.yml`, so the stack had been started without
+  `-f docker-compose.yml` (most likely a `docker compose` run from an agent
+  worktree with no repo-root `.env`). The browser bundle then called
+  `localhost:3000` from the public origin and every sign-in was blocked by CORS.
+  Fixed by redeploying through `scripts/deploy-dev.sh`; login verified working
+  again. Worth a guard so it cannot recur silently. (b) G1 above.
