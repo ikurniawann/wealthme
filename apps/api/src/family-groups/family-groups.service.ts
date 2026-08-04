@@ -22,8 +22,10 @@ import type { Env } from "../config/env";
 import type { CreateFamilyGroupDto } from "./dto/create-family-group.dto";
 import type { CreateInvitationDto } from "./dto/create-invitation.dto";
 import type { FamilyGroupResponseDto } from "./dto/family-group-response.dto";
+import type { GoldPriceResponseDto } from "./dto/gold-price-response.dto";
 import type { InvitationResponseDto } from "./dto/invitation-response.dto";
 import type { MemberResponseDto } from "./dto/member-response.dto";
+import type { UpdateGoldPriceDto } from "./dto/update-gold-price.dto";
 import type { UpdateMemberRoleDto } from "./dto/update-member-role.dto";
 
 const INVITATION_TTL_DAYS = 7;
@@ -341,6 +343,59 @@ export class FamilyGroupsService {
       name: member.user.name,
       email: member.user.email,
       createdAt: member.createdAt.toISOString(),
+    };
+  }
+
+  /**
+   * EPIC-021 Group F (#6) — read the family's manually-entered gold price
+   * per gram. Any member may read it (needed to render the consolidated
+   * total); only the owner may change it (see `updateGoldPrice`).
+   */
+  async getGoldPrice(
+    familyGroupId: string,
+    requesterId: string,
+  ): Promise<GoldPriceResponseDto> {
+    await this.assertMember(familyGroupId, requesterId);
+
+    const group = await this.prisma.familyGroup.findUnique({
+      where: { id: familyGroupId },
+      select: { goldPricePerGram: true, goldPriceUpdatedAt: true },
+    });
+    if (!group) throw new NotFoundException("Family group not found");
+
+    return {
+      pricePerGram: group.goldPricePerGram?.toString() ?? null,
+      updatedAt: group.goldPriceUpdatedAt?.toISOString() ?? null,
+    };
+  }
+
+  /**
+   * EPIC-021 Group F (#6) — owner-only: set/replace the family's manually
+   * entered gold price per gram. No live gold price feed exists or may be
+   * fabricated (Open Design Decision #6) — `goldPriceUpdatedAt` is stamped
+   * so every display can honestly label the value "diinput manual, per
+   * <date>" rather than implying a live quote.
+   */
+  async updateGoldPrice(
+    familyGroupId: string,
+    requesterId: string,
+    dto: UpdateGoldPriceDto,
+  ): Promise<GoldPriceResponseDto> {
+    await this.assertOwner(familyGroupId, requesterId);
+
+    const now = new Date();
+    const group = await this.prisma.familyGroup.update({
+      where: { id: familyGroupId },
+      data: {
+        goldPricePerGram: BigInt(dto.pricePerGram),
+        goldPriceUpdatedAt: now,
+      },
+      select: { goldPricePerGram: true, goldPriceUpdatedAt: true },
+    });
+
+    return {
+      pricePerGram: group.goldPricePerGram?.toString() ?? null,
+      updatedAt: group.goldPriceUpdatedAt?.toISOString() ?? null,
     };
   }
 

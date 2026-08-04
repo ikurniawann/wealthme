@@ -27,8 +27,11 @@ import { CreateFamilyGroupDto } from "./dto/create-family-group.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateInvitationDto } from "./dto/create-invitation.dto";
 import { FamilyGroupResponseDto } from "./dto/family-group-response.dto";
+import { GoldPriceResponseDto } from "./dto/gold-price-response.dto";
 import { InvitationResponseDto } from "./dto/invitation-response.dto";
 import { MemberResponseDto } from "./dto/member-response.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { UpdateGoldPriceDto } from "./dto/update-gold-price.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateMemberRoleDto } from "./dto/update-member-role.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -70,6 +73,39 @@ export class FamilyGroupsController {
     @Request() req: AuthRequest,
   ): Promise<MemberResponseDto[]> {
     return this.familyGroupsService.listMembers(familyGroupId, req.user.sub);
+  }
+
+  @Get(":familyGroupId/gold-price")
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiOperation({
+    summary:
+      "Get the family's manually-entered gold price per gram (null until an owner sets one)",
+  })
+  @ApiResponse({ status: 200, type: GoldPriceResponseDto })
+  getGoldPrice(
+    @Param("familyGroupId") familyGroupId: string,
+    @Request() req: AuthRequest,
+  ): Promise<GoldPriceResponseDto> {
+    return this.familyGroupsService.getGoldPrice(familyGroupId, req.user.sub);
+  }
+
+  @Patch(":familyGroupId/gold-price")
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiOperation({
+    summary:
+      "Set the family's manually-entered gold price per gram (owner only)",
+  })
+  @ApiResponse({ status: 200, type: GoldPriceResponseDto })
+  updateGoldPrice(
+    @Request() req: AuthRequest,
+    @Param("familyGroupId") familyGroupId: string,
+    @Body() dto: UpdateGoldPriceDto,
+  ): Promise<GoldPriceResponseDto> {
+    return this.familyGroupsService.updateGoldPrice(
+      familyGroupId,
+      req.user.sub,
+      dto,
+    );
   }
 
   @Patch(":familyGroupId/members/:memberId")

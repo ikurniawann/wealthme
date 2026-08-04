@@ -39,6 +39,8 @@ import {
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { useLocale } from "@/hooks/use-locale";
 import { useCurrencyPreference } from "@/hooks/use-currency-preference";
+import { useGoldPrice } from "@/hooks/use-gold-price";
+import { formatGoldGrams } from "@/components/consolidated-total-card";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, formatRupiahCompact } from "@/lib/format";
@@ -91,6 +93,9 @@ function BerandaPage() {
   const { t } = useLocale();
   const { currency, formatMoney, isIndicative, isReady } =
     useCurrencyPreference();
+  // EPIC-021 Group F (#6) — the hero card's gold-equivalent line (part of
+  // the consolidated IDR/USD/gram-emas total, Open Design Decision #6).
+  const { hasPrice: hasGoldPrice, toGoldGrams } = useGoldPrice();
   // Every monetary display on this page routes through these two helpers so
   // conversion coverage stays consistent — never a fabricated 1:1-rate
   // number rendered under a foreign currency symbol while the FX rate is
@@ -260,6 +265,9 @@ function BerandaPage() {
   const cashflow = summary?.cashflow;
   const netWorth = summary?.netWorth ?? 0;
   const currentMonth = summary?.currentMonth;
+  // EPIC-021 Group F (#6) — gold-equivalent of net worth, null until the
+  // family owner sets a price (Open Design Decision #6: manual only).
+  const goldGrams = hasGoldPrice ? toGoldGrams(netWorth) : null;
 
   if (isError) {
     return (
@@ -336,6 +344,27 @@ function BerandaPage() {
                 <div className="mt-0.5 text-[10.5px] opacity-70">
                   Perkiraan dalam {currency} · kurs indikatif, bukan kurs pasar
                   real-time
+                </div>
+              )}
+              {/* EPIC-021 Group F (#6) — gold-equivalent line, part of the
+                  consolidated IDR/USD/gram-emas total (Open Design
+                  Decision #6: no live gold feed, manual price only). */}
+              {!isLoading && goldGrams !== null && (
+                <div className="mt-0.5 text-[10.5px] opacity-70">
+                  ≈ {formatGoldGrams(goldGrams)}
+                  {t.consolidatedTotal.goldUnitSuffix}{" "}
+                  {t.consolidatedTotal.goldLabel.toLowerCase()}
+                </div>
+              )}
+              {!isLoading && goldGrams === null && (
+                <div className="mt-0.5 text-[10.5px] opacity-70">
+                  <button
+                    type="button"
+                    onClick={() => router.push("/akun")}
+                    className="cursor-pointer underline decoration-white/40 underline-offset-2 hover:decoration-white"
+                  >
+                    {t.consolidatedTotal.goldPromptText}
+                  </button>
                 </div>
               )}
               {currentMonth && (

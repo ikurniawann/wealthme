@@ -476,4 +476,166 @@ describe("i18n dictionary key parity", () => {
     expect(id.dana.emptyCash).toBeTruthy();
     expect(en.dana.emptyCash).toBeTruthy();
   });
+
+  // EPIC-018 Task A3 — /laporan (the last untranslated page) coverage
+  // guards: 16 tab sections, the shared period filter, and the export
+  // panel, mirroring the targeted checks A1/A2/A4/A5/A6 added above.
+  it("laporan.months has exactly 12 entries and the shared period filter/export copy is present in both locales", () => {
+    expect(id.laporan.months).toHaveLength(12);
+    expect(en.laporan.months).toHaveLength(12);
+    expect(id.laporan.periodFilter.allDatesOption).toBeTruthy();
+    expect(en.laporan.periodFilter.allDatesOption).toBeTruthy();
+    expect(id.laporan.subtitle).toBeTruthy();
+    expect(en.laporan.subtitle).toBeTruthy();
+  });
+
+  it("laporan hoists exact-repeat phrases (Total Pemasukan, Surplus, Net Worth, ...) to the top level in both locales", () => {
+    const sharedKeys = [
+      "totalIncomeLabel",
+      "totalExpenseLabel",
+      "surplusLabel",
+      "savingsRateLabel",
+      "totalAssetsLabel",
+      "totalLiabilitiesLabel",
+      "netWorthLabel",
+      "emptyMonthTransactions",
+    ] as const;
+    for (const key of sharedKeys) {
+      expect(id.laporan[key]).toBeTruthy();
+      expect(en.laporan[key]).toBeTruthy();
+    }
+  });
+
+  it("laporan.family.roleLabels covers every family-report role in both locales without changing persisted values", () => {
+    const roleIds = ["owner", "admin", "member"] as const;
+    for (const key of roleIds) {
+      expect(id.laporan.family.roleLabels[key]).toBeTruthy();
+      expect(en.laporan.family.roleLabels[key]).toBeTruthy();
+    }
+  });
+
+  it("laporan.investasi.typeLabels covers every instrument type in both locales without changing persisted values", () => {
+    const typeIds = [
+      "saham",
+      "reksa_dana",
+      "obligasi",
+      "emas",
+      "kripto",
+      "lainnya",
+    ] as const;
+    for (const key of typeIds) {
+      expect(id.laporan.investasi.typeLabels[key]).toBeTruthy();
+      expect(en.laporan.investasi.typeLabels[key]).toBeTruthy();
+    }
+  });
+
+  it("laporan.export.reportTypeLabels covers every export report type in both locales without changing persisted values", () => {
+    const reportTypeIds = [
+      "summary",
+      "bank",
+      "detail",
+      "pnl",
+      "balance-sheet",
+      "cashflow",
+    ] as const;
+    for (const key of reportTypeIds) {
+      expect(id.laporan.export.reportTypeLabels[key]).toBeTruthy();
+      expect(en.laporan.export.reportTypeLabels[key]).toBeTruthy();
+    }
+    // Honest-UI fix: the "Export Excel" button always downloaded a CSV
+    // (buildCsv server-side) — relabeled to "Export CSV" in both locales.
+    expect(id.laporan.export.csvButton).toBe("Export CSV");
+    expect(en.laporan.export.csvButton).toBe("Export CSV");
+    expect(id.laporan.export.pdfButton).toBe("Export PDF");
+    expect(en.laporan.export.pdfButton).toBe("Export PDF");
+  });
+
+  it("laporan tab sections (harian, bulanan, tahunan, bank, detail, aliran, pnl, balance, cashflow, kas, asetLiabilitas, performa, pajak) expose non-empty core copy in both locales", () => {
+    expect(id.laporan.harian.txnTodayTitle).toBeTruthy();
+    expect(en.laporan.harian.txnTodayTitle).toBeTruthy();
+    expect(id.laporan.bulanan.title).toBeTruthy();
+    expect(en.laporan.bulanan.title).toBeTruthy();
+    expect(id.laporan.tahunan.title).toBeTruthy();
+    expect(en.laporan.tahunan.title).toBeTruthy();
+    expect(id.laporan.bank.title).toBeTruthy();
+    expect(en.laporan.bank.title).toBeTruthy();
+    expect(id.laporan.detail.title).toBeTruthy();
+    expect(en.laporan.detail.title).toBeTruthy();
+    expect(id.laporan.aliran.title).toBeTruthy();
+    expect(en.laporan.aliran.title).toBeTruthy();
+    expect(id.laporan.pnl.revenueLabel).toBeTruthy();
+    expect(en.laporan.pnl.revenueLabel).toBeTruthy();
+    expect(id.laporan.balance.assetLabel).toBeTruthy();
+    expect(en.laporan.balance.assetLabel).toBeTruthy();
+    expect(id.laporan.cashflow.operatingLabel).toBeTruthy();
+    expect(en.laporan.cashflow.operatingLabel).toBeTruthy();
+    expect(id.laporan.kas.title).toBeTruthy();
+    expect(en.laporan.kas.title).toBeTruthy();
+    expect(id.laporan.asetLiabilitas.ratioTitle).toBeTruthy();
+    expect(en.laporan.asetLiabilitas.ratioTitle).toBeTruthy();
+    expect(id.laporan.performa.title).toBeTruthy();
+    expect(en.laporan.performa.title).toBeTruthy();
+    expect(id.laporan.pajak.title).toBeTruthy();
+    expect(en.laporan.pajak.title).toBeTruthy();
+  });
+
+  // EPIC-021 Group F (#1) — AUD + CNY added to the supported currency list.
+  it("akun.pengaturan.currencies covers AUD and CNY in both locales without changing pre-existing entries", () => {
+    const currencyIds = [
+      "IDR",
+      "USD",
+      "SGD",
+      "EUR",
+      "JPY",
+      "AUD",
+      "CNY",
+    ] as const;
+    for (const key of currencyIds) {
+      expect(id.akun.pengaturan.currencies[key].title).toBeTruthy();
+      expect(id.akun.pengaturan.currencies[key].name).toBeTruthy();
+      expect(en.akun.pengaturan.currencies[key].title).toBeTruthy();
+      expect(en.akun.pengaturan.currencies[key].name).toBeTruthy();
+    }
+  });
+
+  // EPIC-021 Group F (#6) — manual gold price settings + consolidated total
+  // (IDR/USD/gram-emas) copy exists in both locales.
+  it("akun.pengaturan gold-price copy is present in both locales", () => {
+    const keys = [
+      "goldPriceSectionTitle",
+      "goldPriceHint",
+      "goldPriceLabel",
+      "goldPricePlaceholder",
+      "goldPriceSaveButton",
+      "goldPriceUnsetLabel",
+      "goldPriceManualLabelPrefix",
+      "goldPriceOwnerOnlyNote",
+      "toastGoldPriceUpdated",
+      "toastGoldPriceFailed",
+      "toastGoldPriceInvalid",
+    ] as const;
+    for (const key of keys) {
+      expect(id.akun.pengaturan[key]).toBeTruthy();
+      expect(en.akun.pengaturan[key]).toBeTruthy();
+    }
+  });
+
+  it("consolidatedTotal copy is present in both locales", () => {
+    const keys = [
+      "title",
+      "idrLabel",
+      "usdLabel",
+      "goldLabel",
+      "goldUnitSuffix",
+      "goldPromptText",
+      "goldPromptLinkLabel",
+      "manualLabelPrefix",
+      "indicativeFxNote",
+      "loadingLabel",
+    ] as const;
+    for (const key of keys) {
+      expect(id.consolidatedTotal[key]).toBeTruthy();
+      expect(en.consolidatedTotal[key]).toBeTruthy();
+    }
+  });
 });

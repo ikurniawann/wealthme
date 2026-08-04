@@ -23,7 +23,8 @@ type AkunSubpageId =
   | "tentang"
   | "family";
 
-type AkunCurrencyCode = "IDR" | "USD" | "SGD" | "EUR" | "JPY";
+// EPIC-021 Group F (#1) — AUD + CNY added to the supported currency list.
+type AkunCurrencyCode = "IDR" | "USD" | "SGD" | "EUR" | "JPY" | "AUD" | "CNY";
 
 /** A FAQ / help-copy answer with at most one bolded mid-sentence phrase. */
 type AkunRichAnswer = {
@@ -249,6 +250,23 @@ type TransaksiSortId = "newest" | "oldest";
 
 /** EPIC-018 Task A6 — `/rekonsiliasi` wizard step numbers (1-4). */
 type RekonsiliasiStepNum = 1 | 2 | 3 | 4;
+
+/** EPIC-018 Task A3 — `/laporan` "Group Family" tab roster role ids (mirrors
+ * the API member `role` value — persisted values stay unchanged, only
+ * display labels translate). */
+type LaporanRoleId = "owner" | "admin" | "member";
+
+/** EPIC-018 Task A3 — `/laporan` export-panel report-type ids (mirrors
+ * `ExportReportType` from `@wealthme/contracts`, kept local to the
+ * dictionary rather than imported — matching this file's convention of not
+ * depending on API contract types here). */
+type LaporanExportTypeId =
+  | "summary"
+  | "bank"
+  | "detail"
+  | "pnl"
+  | "balance-sheet"
+  | "cashflow";
 
 export type I18nDictionary = {
   locale: "id" | "en";
@@ -514,6 +532,22 @@ export type I18nDictionary = {
       toastCurrencyUpdated: string;
       toastCurrencyFailed: string;
       toastSettingsSaved: string;
+      /**
+       * EPIC-021 Group F (#6) — family-wide manual gold price per gram.
+       * No live gold price feed exists or may be fabricated (Open Design
+       * Decision #6); every display must carry the manual-entry disclosure.
+       */
+      goldPriceSectionTitle: string;
+      goldPriceHint: string;
+      goldPriceLabel: string;
+      goldPricePlaceholder: string;
+      goldPriceSaveButton: string;
+      goldPriceUnsetLabel: string;
+      goldPriceManualLabelPrefix: string;
+      goldPriceOwnerOnlyNote: string;
+      toastGoldPriceUpdated: string;
+      toastGoldPriceFailed: string;
+      toastGoldPriceInvalid: string;
     };
     notifSetting: {
       transactionSectionTitle: string;
@@ -1169,6 +1203,23 @@ export type I18nDictionary = {
     toastDeleteFailedPrefix: string;
     toastDeleteFailedSuffix: string;
   };
+  /**
+   * EPIC-021 Group F (#6) — shared copy for the consolidated-total display
+   * (IDR + USD + gram-emas simultaneously), used on `/ringkasan` and
+   * `/beranda`'s net-worth hero card.
+   */
+  consolidatedTotal: {
+    title: string;
+    idrLabel: string;
+    usdLabel: string;
+    goldLabel: string;
+    goldUnitSuffix: string;
+    goldPromptText: string;
+    goldPromptLinkLabel: string;
+    manualLabelPrefix: string;
+    indicativeFxNote: string;
+    loadingLabel: string;
+  };
   /** EPIC-018 Task A6 — `/ringkasan` (financial summary dashboard) page copy. */
   ringkasan: {
     errorLoad: string;
@@ -1675,5 +1726,247 @@ export type I18nDictionary = {
     splitValidationSumMismatch: string;
     toastSplitSuccess: string;
     toastSplitFailedDefault: string;
+  };
+  /**
+   * EPIC-018 Task A3 — `/laporan` (reports) page copy, the last untranslated
+   * page: 16 tab sections + the shared year/month(/day) period filter + the
+   * export panel. A handful of exact-repeat phrases (e.g. "Total Pemasukan",
+   * "Surplus", "Net Worth") are hoisted to this top level and reused by
+   * several tab sections, mirroring `kalkulator.months` being shared above
+   * its per-tool nested objects. Reuses `InvestasiTypeId` (declared above for
+   * Task A5) for this page's own emoji-prefixed portfolio-breakdown labels —
+   * same convention as `aset`'s separate `invTypeLabels`.
+   */
+  laporan: {
+    subtitle: string;
+    months: [
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+    ];
+    periodFilter: {
+      yearAriaLabel: string;
+      monthAriaLabel: string;
+      dayAriaLabel: string;
+      allDatesOption: string;
+    };
+    // Shared exact-repeat phrases (used across 2+ tab sections below).
+    totalIncomeLabel: string;
+    totalExpenseLabel: string;
+    surplusLabel: string;
+    savingsRateLabel: string;
+    totalAssetsLabel: string;
+    totalLiabilitiesLabel: string;
+    netWorthLabel: string;
+    emptyMonthTransactions: string;
+    ringkasan: {
+      financeTitle: string;
+      expenseAllocTitle: string;
+      emptyExpenseAlloc: string;
+      wealthAllocTitle: string;
+      emptyWealthAlloc: string;
+      invPerformanceTitle: string;
+      totalValueLabel: string;
+      todayReturnPrefix: string;
+      donutNilaiLabel: string;
+      donutModalLabel: string;
+      portfolioUpLabel: string;
+      portfolioDownLabel: string;
+      emptyInvestment: string;
+      aiInsightTitle: string;
+      aiInsightBody: string;
+      aiInsightCta: string;
+    };
+    harian: {
+      titlePrefix: string;
+      incomeTodayLabel: string;
+      expenseTodayLabel: string;
+      netDailyLabel: string;
+      txnCountLabel: string;
+      txnTodayTitle: string;
+      emptyToday: string;
+    };
+    bulanan: {
+      title: string;
+      trendTitle: string;
+      recapTitle: string;
+      colBulan: string;
+      colMasuk: string;
+      colKeluar: string;
+      colNet: string;
+    };
+    tahunan: {
+      title: string;
+      netYearLabel: string;
+      emptyYear: string;
+      trendTitle: string;
+    };
+    family: {
+      title: string;
+      consolidationTitle: string;
+      totalNetWorthLabel: string;
+      wealthCompositionTitle: string;
+      rowAccountsCash: string;
+      rowInvestments: string;
+      rowOtherAssets: string;
+      rowLiabilities: string;
+      membersTitlePrefix: string;
+      emptyMembers: string;
+      roleLabels: Record<LaporanRoleId, string>;
+      noteConsolidation: string;
+    };
+    bank: {
+      title: string;
+      balancePerAccountTitle: string;
+      emptyAccounts: string;
+      inOutTitle: string;
+    };
+    detail: {
+      title: string;
+      colDate: string;
+      colDesc: string;
+      colCategory: string;
+      colAccount: string;
+      colAmount: string;
+    };
+    aliran: {
+      title: string;
+      cardTitlePrefix: string;
+      incomeSourceLabel: string;
+      expenseAllocLabel: string;
+      emptyFlow: string;
+    };
+    pnl: {
+      titlePrefix: string;
+      revenueLabel: string;
+      totalRevenueLabel: string;
+      expensesLabel: string;
+      totalExpensesLabel: string;
+      netProfitLabel: string;
+      netMarginLabel: string;
+      directionNotePrefix: string;
+      masterCoaLink: string;
+    };
+    balance: {
+      titlePrefix: string;
+      assetLabel: string;
+      liabilityEquityLabel: string;
+      liabilitiesLabel: string;
+      equityLabel: string;
+      totalLPlusELabel: string;
+      balancedTitle: string;
+      balancedDescPrefix: string;
+    };
+    cashflow: {
+      titlePrefix: string;
+      operatingLabel: string;
+      totalInflowLabel: string;
+      totalOutflowLabel: string;
+      netOperatingLabel: string;
+      investingLabel: string;
+      netInvestingLabel: string;
+      openingBalanceLabel: string;
+      closingBalanceLabel: string;
+      netCashflowLabel: string;
+    };
+    kas: {
+      title: string;
+      incomeSourcesTitle: string;
+      emptyIncome: string;
+    };
+    investasi: {
+      sectionTitle: string;
+      totalPortfolioLabel: string;
+      totalReturnLabel: string;
+      instrumentCountSuffix: string;
+      portfolioByTypeTitle: string;
+      typeLabels: Record<InvestasiTypeId, string>;
+      emptyInvestment: string;
+      addNowLink: string;
+      instrumentListTitle: string;
+      colName: string;
+      colType: string;
+      colValue: string;
+      colReturn: string;
+      editLink: string;
+      toastUpdated: string;
+      toastDeleted: string;
+      toastDeleteFailed: string;
+      deleteDialogTitle: string;
+      deleteConfirmPrefix: string;
+      deleteConfirmSuffix: string;
+      deletingLabel: string;
+    };
+    asetLiabilitas: {
+      ratioTitle: string;
+      debtRatioLabel: string;
+      netWorthDesc: string;
+      safeLabel: string;
+      warningLabel: string;
+    };
+    performa: {
+      title: string;
+      savingsRateTargetLabel: string;
+      achievedSuffix: string;
+      needsImprovementSuffix: string;
+      investReturnTargetLabel: string;
+      exceededSuffix: string;
+      emptyPerf: string;
+      noteText: string;
+    };
+    pajak: {
+      title: string;
+      grossYearLabel: string;
+      pkpLabel: string;
+      estimatedTaxLabel: string;
+      effectiveRateLabel: string;
+      calcTitle: string;
+      grossIncomeLabel: string;
+      laborCostLabel: string;
+      ptkpLabel: string;
+      zakatDeductionLabel: string;
+      pkpFullLabel: string;
+      bracketBreakdownTitle: string;
+      colBracket: string;
+      colTaxBase: string;
+      colRate: string;
+      colTax: string;
+      totalTaxYearLabel: string;
+      emptyIncomeNote: string;
+      estimateNoteBefore: string;
+      estimateNoteBold: string;
+      estimateNoteAfter: string;
+      calculatorLinkLabel: string;
+    };
+    export: {
+      title: string;
+      downloadButton: string;
+      reportTypeLabel: string;
+      reportTypeLabels: Record<LaporanExportTypeId, string>;
+      pdfButton: string;
+      csvButton: string;
+      statusLabel: string;
+      statusPending: string;
+      statusProcessing: string;
+      statusDone: string;
+      statusFailedPrefix: string;
+      toastExportDone: string;
+      toastExportFailedPrefix: string;
+      unknownErrorFallback: string;
+      toastFetchStatusFailed: string;
+      toastInvalidSession: string;
+      creatingExportPrefix: string;
+      creatingExportSuffix: string;
+      toastExportCreateFailed: string;
+    };
   };
 };

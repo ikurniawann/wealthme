@@ -33,6 +33,9 @@ import {
 } from "@/components/ui/dialog";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah } from "@/lib/format";
+import { useLocale } from "@/hooks/use-locale";
+import type { Locale } from "@/i18n";
+import { REPORT_TABS } from "@/lib/nav";
 import {
   clampDayToMonth,
   daysInMonth,
@@ -66,27 +69,6 @@ import {
   txTypeToBadgeVariant,
 } from "@/lib/laporan-utils";
 
-/* ───────────────────────── Tab definitions ───────────────────────── */
-
-const TABS: { id: string; label: string }[] = [
-  { id: "rsum", label: "Ringkasan" },
-  { id: "rharian", label: "Harian" },
-  { id: "rbulanan", label: "Bulanan" },
-  { id: "rtahunan", label: "Tahunan" },
-  { id: "rfamily", label: "Group Family" },
-  { id: "rbank", label: "Bank" },
-  { id: "rdetail", label: "Detail" },
-  { id: "raliran", label: "Aliran Dana" },
-  { id: "rpnl", label: "PNL" },
-  { id: "rbalance", label: "Balance Sheet" },
-  { id: "rcashflow", label: "Cashflow" },
-  { id: "rkas", label: "Arus Kas" },
-  { id: "rinv", label: "Investasi" },
-  { id: "rasl", label: "Aset & Liabilitas" },
-  { id: "rperf", label: "Performa" },
-  { id: "rpajak", label: "Pajak" },
-];
-
 /** Family group member (mirrors API MemberResponseDto). */
 type FamilyMember = {
   id: string;
@@ -98,14 +80,39 @@ type FamilyMember = {
   createdAt: string;
 };
 
-const ROLE_META: Record<
-  string,
-  { label: string; variant: "success" | "info" | "purple" }
-> = {
-  owner: { label: "Pemilik", variant: "success" },
-  admin: { label: "Admin", variant: "purple" },
-  member: { label: "Anggota", variant: "info" },
+const ROLE_VARIANTS: Record<string, "success" | "info" | "purple"> = {
+  owner: "success",
+  admin: "purple",
+  member: "info",
 };
+
+/* ───────────────────────── Locale-aware date helpers ───────────────────────── */
+
+function localeTag(locale: Locale): string {
+  return locale === "en" ? "en-US" : "id-ID";
+}
+
+function formatLocaleDateLong(iso: string, locale: Locale): string {
+  return new Date(iso).toLocaleDateString(localeTag(locale), {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatLocaleDateShort(iso: string, locale: Locale): string {
+  return new Date(iso).toLocaleDateString(localeTag(locale), {
+    day: "2-digit",
+    month: "2-digit",
+  });
+}
+
+function formatLocaleTime(iso: string, locale: Locale): string {
+  return new Date(iso).toLocaleTimeString(localeTag(locale), {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 /* ───────────────────────── Small helpers ───────────────────────── */
 
@@ -212,6 +219,7 @@ function RingkasanSection({
   balanceSheet?: BalanceSheetDto;
   isLoading?: boolean;
 }) {
+  const { t } = useLocale();
   const chartMonths = summary?.points.map((p) => p.label) ?? [];
   const chartIncome = summary?.points.map((p) => p.income / 1_000_000) ?? [];
   const chartExpense = summary?.points.map((p) => p.expense / 1_000_000) ?? [];
@@ -235,26 +243,26 @@ function RingkasanSection({
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <SectionCard title="Ringkasan Keuangan">
+      <SectionCard title={t.laporan.ringkasan.financeTitle}>
         <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
           <MoneyStat
-            label="Total Pemasukan"
+            label={t.laporan.totalIncomeLabel}
             value={summary ? formatRupiah(summary.totalIncome) : "Rp —"}
             valueClass="text-success"
           />
           <MoneyStat
-            label="Total Pengeluaran"
+            label={t.laporan.totalExpenseLabel}
             value={summary ? formatRupiah(summary.totalExpense) : "Rp —"}
             valueClass="text-destructive"
           />
           <MoneyStat
-            label="Surplus"
+            label={t.laporan.surplusLabel}
             value={summary ? formatRupiah(summary.netSavings) : "Rp —"}
             valueClass="text-success"
           />
           <div>
             <div className="mb-[3px] text-[11px] text-muted-foreground">
-              Savings Rate
+              {t.laporan.savingsRateLabel}
             </div>
             <div className="text-[17px] font-extrabold text-primary">
               {summary ? `${summary.savingsRate}%` : "—"}
@@ -275,7 +283,7 @@ function RingkasanSection({
       </SectionCard>
 
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-        <SectionCard title="Alokasi Pengeluaran">
+        <SectionCard title={t.laporan.ringkasan.expenseAllocTitle}>
           <div className="flex flex-wrap items-center gap-3.5">
             {expenseDonut.length > 0 ? (
               <>
@@ -284,7 +292,7 @@ function RingkasanSection({
                   size={110}
                   thickness={16}
                   centerValue={expenseCenterValue}
-                  centerLabel="Total"
+                  centerLabel={t.common.total}
                 />
                 <div className="min-w-[120px] flex-1">
                   <DonutLegend segments={expenseDonut} />
@@ -292,12 +300,12 @@ function RingkasanSection({
               </>
             ) : (
               <div className="py-4 text-[12px] text-muted-foreground">
-                Belum ada data pengeluaran
+                {t.laporan.ringkasan.emptyExpenseAlloc}
               </div>
             )}
           </div>
         </SectionCard>
-        <SectionCard title="Wealth Allocation">
+        <SectionCard title={t.laporan.ringkasan.wealthAllocTitle}>
           <div className="flex flex-wrap items-center gap-3.5">
             {wealthAlloc.length > 0 ? (
               <>
@@ -306,7 +314,7 @@ function RingkasanSection({
                   size={110}
                   thickness={16}
                   centerValue={wealthCenterValue}
-                  centerLabel="Total"
+                  centerLabel={t.common.total}
                 />
                 <div className="min-w-[120px] flex-1">
                   <DonutLegend segments={wealthAlloc} />
@@ -314,7 +322,7 @@ function RingkasanSection({
               </>
             ) : (
               <div className="py-4 text-[12px] text-muted-foreground">
-                Belum ada data aset
+                {t.laporan.ringkasan.emptyWealthAlloc}
               </div>
             )}
           </div>
@@ -322,12 +330,16 @@ function RingkasanSection({
       </div>
 
       <SectionCard
-        title="Performa Investasi"
-        action={<CardLink onClick={() => go("rinv")}>Lihat detail</CardLink>}
+        title={t.laporan.ringkasan.invPerformanceTitle}
+        action={
+          <CardLink onClick={() => go("rinv")}>{t.common.viewDetail}</CardLink>
+        }
       >
         <div className="grid grid-cols-1 items-center gap-4 md:grid-cols-2">
           <div>
-            <div className="text-[11px] text-muted-foreground">Total Nilai</div>
+            <div className="text-[11px] text-muted-foreground">
+              {t.laporan.ringkasan.totalValueLabel}
+            </div>
             <div className="text-[20px] font-black">
               {invSummary
                 ? formatRupiah(parseFloat(invSummary.totalCurrentValue))
@@ -355,7 +367,7 @@ function RingkasanSection({
                       : "text-destructive")
                   }
                 >
-                  Return hari ini:{" "}
+                  {t.laporan.ringkasan.todayReturnPrefix}{" "}
                   {parseFloat(invSummary.todayReturnRp) >= 0 ? "+" : ""}
                   {formatRupiah(parseFloat(invSummary.todayReturnRp))} (
                   {invSummary.todayReturnPct.toFixed(2)}%)
@@ -374,7 +386,7 @@ function RingkasanSection({
                           className="size-2 rounded-[2px]"
                           style={{ background: "var(--primary)" }}
                         />
-                        Nilai
+                        {t.laporan.ringkasan.donutNilaiLabel}
                       </span>
                       <span>{invChart.nilaiPct}%</span>
                     </div>
@@ -395,7 +407,7 @@ function RingkasanSection({
                           className="size-2 rounded-[2px]"
                           style={{ background: "#10B981" }}
                         />
-                        Modal
+                        {t.laporan.ringkasan.donutModalLabel}
                       </span>
                       <span>{invChart.modalPct}%</span>
                     </div>
@@ -412,13 +424,13 @@ function RingkasanSection({
                 </div>
                 <div className="mt-2 text-[10.5px] text-muted-foreground">
                   {invChart.hasReturn
-                    ? "▲ Portofolio untung"
-                    : "▼ Portofolio rugi"}
+                    ? t.laporan.ringkasan.portfolioUpLabel
+                    : t.laporan.ringkasan.portfolioDownLabel}
                 </div>
               </>
             ) : (
               <div className="flex h-[70px] items-center justify-center text-[12px] text-muted-foreground">
-                Belum ada data investasi
+                {t.laporan.ringkasan.emptyInvestment}
               </div>
             )}
           </div>
@@ -429,18 +441,17 @@ function RingkasanSection({
         <div className="text-[24px]">🤖</div>
         <div className="flex-1">
           <div className="text-[13px] font-bold text-primary-strong">
-            Insight AI
+            {t.laporan.ringkasan.aiInsightTitle}
           </div>
           <div className="text-[12px] text-muted-foreground">
-            Pengeluaran gaya hidupmu naik 18% dibanding bulan lalu. Coba atur
-            budget agar savings rate tetap sehat.
+            {t.laporan.ringkasan.aiInsightBody}
           </div>
         </div>
         <a
           href="/ai"
           className="self-center whitespace-nowrap text-[12px] font-bold text-primary hover:underline"
         >
-          Lihat Rekomendasi →
+          {t.laporan.ringkasan.aiInsightCta}
         </a>
       </div>
     </div>
@@ -471,6 +482,7 @@ function HarianSection({
   date: string;
   onDateChange: (d: string) => void;
 }) {
+  const { t, locale } = useLocale();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const net =
     (dailyReport?.totalIncome ?? 0) - (dailyReport?.totalExpense ?? 0);
@@ -479,12 +491,8 @@ function HarianSection({
     <div className={"space-y-3.5 " + loadingClass}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-[15px] font-bold">
-          Laporan Harian —{" "}
-          {new Date(`${date}T00:00:00`).toLocaleDateString("id-ID", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}
+          {t.laporan.harian.titlePrefix}{" "}
+          {formatLocaleDateLong(`${date}T00:00:00`, locale)}
         </div>
         <input
           type="date"
@@ -495,36 +503,33 @@ function HarianSection({
       </div>
       <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
         <StatTile
-          label="Pemasukan Hari Ini"
+          label={t.laporan.harian.incomeTodayLabel}
           value={dailyReport ? formatRupiah(dailyReport.totalIncome) : "Rp —"}
           valueClass="text-success"
         />
         <StatTile
-          label="Pengeluaran Hari Ini"
+          label={t.laporan.harian.expenseTodayLabel}
           value={dailyReport ? formatRupiah(dailyReport.totalExpense) : "Rp —"}
           valueClass="text-destructive"
         />
         <StatTile
-          label="Net Harian"
+          label={t.laporan.harian.netDailyLabel}
           value={
             dailyReport ? `${net >= 0 ? "+" : ""}${formatRupiah(net)}` : "Rp —"
           }
           valueClass={net >= 0 ? "text-success" : "text-destructive"}
         />
         <StatTile
-          label="Jumlah Transaksi"
+          label={t.laporan.harian.txnCountLabel}
           value={dailyReport ? String(dailyReport.count) : "—"}
           valueClass="text-primary"
         />
       </div>
-      <SectionCard title="Transaksi Hari Ini">
+      <SectionCard title={t.laporan.harian.txnTodayTitle}>
         {dailyReport && dailyReport.transactions.length > 0 ? (
           dailyReport.transactions.map((tx, i) => {
             const isIncome = tx.type === "income";
-            const time = new Date(tx.occurredAt).toLocaleTimeString("id-ID", {
-              hour: "2-digit",
-              minute: "2-digit",
-            });
+            const time = formatLocaleTime(tx.occurredAt, locale);
             return (
               <ActItem
                 key={tx.id}
@@ -549,7 +554,7 @@ function HarianSection({
           })
         ) : (
           <div className="py-4 text-center text-[12px] text-muted-foreground">
-            Tidak ada transaksi hari ini
+            {t.laporan.harian.emptyToday}
           </div>
         )}
       </SectionCard>
@@ -566,6 +571,7 @@ function BulananSection({
   summary?: ReportSummaryDto;
   isLoading?: boolean;
 }) {
+  const { t } = useLocale();
   const chartMonths = summary?.points.map((p) => p.label) ?? [];
   const chartIncome = summary?.points.map((p) => p.income / 1_000_000) ?? [];
   const chartExpense = summary?.points.map((p) => p.expense / 1_000_000) ?? [];
@@ -576,10 +582,10 @@ function BulananSection({
   return (
     <div className={"space-y-3.5 " + loadingClass}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[15px] font-bold">Laporan Bulanan</div>
+        <div className="text-[15px] font-bold">{t.laporan.bulanan.title}</div>
       </div>
       {chartMonths.length > 0 && (
-        <SectionCard title="Tren 6 Bulan Terakhir">
+        <SectionCard title={t.laporan.bulanan.trendTitle}>
           <BarChart
             months={chartMonths}
             income={chartIncome}
@@ -589,15 +595,23 @@ function BulananSection({
           />
         </SectionCard>
       )}
-      <SectionCard title="Rekap per Bulan">
+      <SectionCard title={t.laporan.bulanan.recapTitle}>
         <div className="w-full overflow-x-auto">
           <table className="w-full text-[12.5px]">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
-                <th className="py-2 font-semibold">Bulan</th>
-                <th className="py-2 font-semibold">Masuk</th>
-                <th className="py-2 font-semibold">Keluar</th>
-                <th className="py-2 font-semibold">Net</th>
+                <th className="py-2 font-semibold">
+                  {t.laporan.bulanan.colBulan}
+                </th>
+                <th className="py-2 font-semibold">
+                  {t.laporan.bulanan.colMasuk}
+                </th>
+                <th className="py-2 font-semibold">
+                  {t.laporan.bulanan.colKeluar}
+                </th>
+                <th className="py-2 font-semibold">
+                  {t.laporan.bulanan.colNet}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -628,7 +642,7 @@ function BulananSection({
                     colSpan={4}
                     className="py-6 text-center text-[12px] text-muted-foreground"
                   >
-                    Belum ada transaksi bulan ini
+                    {t.laporan.emptyMonthTransactions}
                   </td>
                 </tr>
               )}
@@ -649,6 +663,7 @@ function TahunanSection({
   yearly?: ReportSummaryDto;
   isLoading?: boolean;
 }) {
+  const { t } = useLocale();
   const points = yearly?.points ?? [];
   const maxIncome = Math.max(...points.map((p) => p.income), 1);
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
@@ -663,26 +678,26 @@ function TahunanSection({
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <div className="text-[15px] font-bold">Laporan Tahunan</div>
+      <div className="text-[15px] font-bold">{t.laporan.tahunan.title}</div>
       {latest ? (
         <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
           <StatTile
-            label={`Total Pemasukan ${latest.label}`}
+            label={`${t.laporan.totalIncomeLabel} ${latest.label}`}
             value={formatRupiah(latest.income)}
             valueClass="text-success"
           />
           <StatTile
-            label="Total Pengeluaran"
+            label={t.laporan.totalExpenseLabel}
             value={formatRupiah(latest.expense)}
             valueClass="text-destructive"
           />
           <StatTile
-            label="Net Tahunan"
+            label={t.laporan.tahunan.netYearLabel}
             value={(latest.net >= 0 ? "+" : "") + formatRupiah(latest.net)}
             valueClass={latest.net >= 0 ? "text-success" : "text-destructive"}
           />
           <StatTile
-            label="Savings Rate"
+            label={t.laporan.savingsRateLabel}
             value={
               latest.income > 0
                 ? `${Math.round(((latest.income - latest.expense) / latest.income) * 100)}%`
@@ -693,11 +708,11 @@ function TahunanSection({
         </div>
       ) : (
         <div className="rounded-[12px] border p-6 text-center text-[12px] text-muted-foreground">
-          Belum ada data tahunan
+          {t.laporan.tahunan.emptyYear}
         </div>
       )}
       {points.length > 0 && (
-        <SectionCard title="Tren Pemasukan per Tahun">
+        <SectionCard title={t.laporan.tahunan.trendTitle}>
           <div className="flex flex-col gap-2.5">
             {points.map((p, i) => (
               <BarRow
@@ -735,26 +750,43 @@ function FamilySection({
   summary?: ReportSummaryDto;
   isLoading?: boolean;
 }) {
+  const { t } = useLocale();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const memberList = members ?? [];
 
   const netWorthRows = netWorth
     ? [
-        { label: "Rekening & Kas", value: netWorth.accountsTotal, neg: false },
-        { label: "Investasi", value: netWorth.investmentsTotal, neg: false },
-        { label: "Aset Lain", value: netWorth.assetsTotal, neg: false },
-        { label: "Liabilitas", value: netWorth.liabilitiesTotal, neg: true },
+        {
+          label: t.laporan.family.rowAccountsCash,
+          value: netWorth.accountsTotal,
+          neg: false,
+        },
+        {
+          label: t.laporan.family.rowInvestments,
+          value: netWorth.investmentsTotal,
+          neg: false,
+        },
+        {
+          label: t.laporan.family.rowOtherAssets,
+          value: netWorth.assetsTotal,
+          neg: false,
+        },
+        {
+          label: t.laporan.family.rowLiabilities,
+          value: netWorth.liabilitiesTotal,
+          neg: true,
+        },
       ]
     : [];
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <div className="text-[15px] font-bold">Laporan Group Family</div>
+      <div className="text-[15px] font-bold">{t.laporan.family.title}</div>
 
-      <SectionCard title="Konsolidasi Keuangan Keluarga">
+      <SectionCard title={t.laporan.family.consolidationTitle}>
         <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
           <MoneyStat
-            label="Total Net Worth"
+            label={t.laporan.family.totalNetWorthLabel}
             value={
               netWorth
                 ? formatRupiah(parseFloat(netWorth.netWorth) || 0)
@@ -763,17 +795,17 @@ function FamilySection({
             valueClass="text-primary"
           />
           <MoneyStat
-            label="Total Pemasukan"
+            label={t.laporan.totalIncomeLabel}
             value={summary ? formatRupiah(summary.totalIncome) : "Rp —"}
             valueClass="text-success"
           />
           <MoneyStat
-            label="Total Pengeluaran"
+            label={t.laporan.totalExpenseLabel}
             value={summary ? formatRupiah(summary.totalExpense) : "Rp —"}
             valueClass="text-destructive"
           />
           <MoneyStat
-            label="Surplus"
+            label={t.laporan.surplusLabel}
             value={summary ? formatRupiah(summary.netSavings) : "Rp —"}
             valueClass="text-success"
           />
@@ -781,7 +813,7 @@ function FamilySection({
       </SectionCard>
 
       {netWorthRows.length > 0 && (
-        <SectionCard title="Komposisi Kekayaan Keluarga">
+        <SectionCard title={t.laporan.family.wealthCompositionTitle}>
           <div className="flex flex-col">
             {netWorthRows.map((row, i) => (
               <div
@@ -809,7 +841,9 @@ function FamilySection({
         </SectionCard>
       )}
 
-      <SectionCard title={`Anggota Keluarga (${memberList.length})`}>
+      <SectionCard
+        title={`${t.laporan.family.membersTitlePrefix} (${memberList.length})`}
+      >
         {memberList.length > 0 ? (
           memberList.map((m, i) => (
             <ActItem
@@ -821,8 +855,10 @@ function FamilySection({
               name={m.name}
               cat={m.email}
               right={
-                <StatusBadge variant={ROLE_META[m.role]?.variant ?? "info"}>
-                  {ROLE_META[m.role]?.label ?? m.role}
+                <StatusBadge variant={ROLE_VARIANTS[m.role] ?? "info"}>
+                  {t.laporan.family.roleLabels[
+                    m.role as keyof typeof t.laporan.family.roleLabels
+                  ] ?? m.role}
                 </StatusBadge>
               }
               last={i === memberList.length - 1}
@@ -830,14 +866,13 @@ function FamilySection({
           ))
         ) : (
           <div className="py-4 text-center text-[12px] text-muted-foreground">
-            Belum ada anggota keluarga
+            {t.laporan.family.emptyMembers}
           </div>
         )}
       </SectionCard>
 
       <div className="rounded-[12px] border border-primary/20 bg-accent p-3.5 text-[12px] text-muted-foreground">
-        Konsolidasi ditampilkan pada level grup keluarga. Rincian saldo
-        per-anggota berada di luar cakupan API saat ini.
+        {t.laporan.family.noteConsolidation}
       </div>
     </div>
   );
@@ -860,16 +895,15 @@ function BankSection({
   bankReport?: BankReportDto;
   isLoading?: boolean;
 }) {
+  const { t } = useLocale();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const banks = bankReport?.banks ?? [];
   const maxIncome = Math.max(...banks.map((b) => b.income), 1);
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <div className="text-[15px] font-bold">
-        Laporan Bank — Konsolidasi Rekening
-      </div>
-      <SectionCard title="Saldo per Rekening">
+      <div className="text-[15px] font-bold">{t.laporan.bank.title}</div>
+      <SectionCard title={t.laporan.bank.balancePerAccountTitle}>
         {banks.length > 0 ? (
           banks.map((b, i) => (
             <ActItem
@@ -893,12 +927,12 @@ function BankSection({
           ))
         ) : (
           <div className="py-4 text-center text-[12px] text-muted-foreground">
-            Belum ada rekening
+            {t.laporan.bank.emptyAccounts}
           </div>
         )}
       </SectionCard>
       {banks.length > 0 && (
-        <SectionCard title="Mutasi Masuk vs Keluar per Bank">
+        <SectionCard title={t.laporan.bank.inOutTitle}>
           <div className="flex flex-col gap-2.5">
             {banks.map((b, i) => (
               <BarRow
@@ -936,34 +970,42 @@ function DetailSection({
   detailReport?: DetailReportDto;
   isLoading?: boolean;
 }) {
+  const { t, locale } = useLocale();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const txs = detailReport?.transactions ?? [];
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[15px] font-bold">Laporan Detail Transaksi</div>
+        <div className="text-[15px] font-bold">{t.laporan.detail.title}</div>
       </div>
       <SectionCard>
         <div className="w-full overflow-x-auto">
           <table className="min-w-[580px] w-full text-[12.5px]">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
-                <th className="py-2 font-semibold">Tanggal</th>
-                <th className="py-2 font-semibold">Keterangan</th>
-                <th className="py-2 font-semibold">Kategori</th>
-                <th className="py-2 font-semibold">Akun</th>
-                <th className="py-2 text-right font-semibold">Jumlah</th>
+                <th className="py-2 font-semibold">
+                  {t.laporan.detail.colDate}
+                </th>
+                <th className="py-2 font-semibold">
+                  {t.laporan.detail.colDesc}
+                </th>
+                <th className="py-2 font-semibold">
+                  {t.laporan.detail.colCategory}
+                </th>
+                <th className="py-2 font-semibold">
+                  {t.laporan.detail.colAccount}
+                </th>
+                <th className="py-2 text-right font-semibold">
+                  {t.laporan.detail.colAmount}
+                </th>
               </tr>
             </thead>
             <tbody>
               {txs.length > 0 ? (
                 txs.map((tx) => {
                   const isIncome = tx.type === "income";
-                  const tgl = new Date(tx.occurredAt).toLocaleDateString(
-                    "id-ID",
-                    { day: "2-digit", month: "2-digit" },
-                  );
+                  const tgl = formatLocaleDateShort(tx.occurredAt, locale);
                   return (
                     <tr key={tx.id} className="border-b last:border-0">
                       <td className="mono py-2.5">{tgl}</td>
@@ -992,7 +1034,7 @@ function DetailSection({
                     colSpan={5}
                     className="py-6 text-center text-[12px] text-muted-foreground"
                   >
-                    Belum ada transaksi bulan ini
+                    {t.laporan.emptyMonthTransactions}
                   </td>
                 </tr>
               )}
@@ -1055,6 +1097,7 @@ function AliranSection({
   isLoading?: boolean;
   periodLabel: string;
 }) {
+  const { t } = useLocale();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const incomeBars = sankeyData ? sankeyToFlowBars(sankeyData, "income") : [];
   const expenseBars = sankeyData ? sankeyToFlowBars(sankeyData, "expense") : [];
@@ -1063,13 +1106,13 @@ function AliranSection({
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <div className="text-[15px] font-bold">Laporan Aliran Dana</div>
-      <SectionCard title={`Aliran Dana — ${bulan}`}>
+      <div className="text-[15px] font-bold">{t.laporan.aliran.title}</div>
+      <SectionCard title={`${t.laporan.aliran.cardTitlePrefix} ${bulan}`}>
         {sankeyData && (incomeBars.length > 0 || expenseBars.length > 0) ? (
           <div className="flex flex-col gap-3.5">
             <div>
               <div className="mb-2 text-[11px] font-bold text-success">
-                SUMBER DANA MASUK
+                {t.laporan.aliran.incomeSourceLabel}
               </div>
               <div className="flex flex-col gap-3">
                 {incomeBars.map((b, i) => (
@@ -1091,7 +1134,7 @@ function AliranSection({
             </div>
             <div>
               <div className="mb-2 text-[11px] font-bold text-destructive">
-                ALOKASI DANA KELUAR
+                {t.laporan.aliran.expenseAllocLabel}
               </div>
               <div className="flex flex-col gap-3">
                 {expenseBars.map((b, i) => (
@@ -1111,7 +1154,7 @@ function AliranSection({
           </div>
         ) : (
           <div className="py-4 text-center text-[12px] text-muted-foreground">
-            Belum ada data aliran dana bulan ini
+            {t.laporan.aliran.emptyFlow}
           </div>
         )}
       </SectionCard>
@@ -1165,6 +1208,7 @@ function PnlSection({
   periodLabel: string;
 }) {
   const router = useRouter();
+  const { t } = useLocale();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const bulan = periodLabel;
   const netMargin =
@@ -1175,13 +1219,13 @@ function PnlSection({
   return (
     <div className={"space-y-3.5 " + loadingClass}>
       <div className="text-[15px] font-bold">
-        Profit &amp; Loss Statement — {bulan}
+        {t.laporan.pnl.titlePrefix} {bulan}
       </div>
       <SectionCard>
         <table className="w-full border-collapse text-[13px]">
           <tbody>
             <StatementRow
-              label="PENDAPATAN"
+              label={t.laporan.pnl.revenueLabel}
               className="border-b-2 border-border"
               labelClass="py-2.5 font-bold text-success"
             />
@@ -1194,14 +1238,14 @@ function PnlSection({
               />
             ))}
             <StatementRow
-              label="Total Pendapatan"
+              label={t.laporan.pnl.totalRevenueLabel}
               value={pnl ? formatRupiah(pnl.revenue) : "Rp —"}
               className="border-b border-border"
               labelClass="py-2 font-bold"
               valueClass="font-extrabold text-success"
             />
             <StatementRow
-              label="BEBAN"
+              label={t.laporan.pnl.expensesLabel}
               className="border-b-2 border-border"
               labelClass="py-2.5 font-bold text-destructive"
             />
@@ -1214,14 +1258,14 @@ function PnlSection({
               />
             ))}
             <StatementRow
-              label="Total Beban"
+              label={t.laporan.pnl.totalExpensesLabel}
               value={pnl ? formatRupiah(pnl.expenses) : "Rp —"}
               className="border-b border-border"
               labelClass="py-2 font-bold"
               valueClass="font-extrabold text-destructive"
             />
             <StatementRow
-              label="NET PROFIT"
+              label={t.laporan.pnl.netProfitLabel}
               value={pnl ? formatRupiah(pnl.netProfit) : "Rp —"}
               className="border-t-2 border-primary"
               labelClass="py-3 text-[15px] font-extrabold"
@@ -1233,7 +1277,7 @@ function PnlSection({
               }
             />
             <StatementRow
-              label="Net Margin"
+              label={t.laporan.pnl.netMarginLabel}
               value={netMargin}
               labelClass="py-1 text-[11px] text-muted-foreground"
               valueClass="text-[11px] text-muted-foreground"
@@ -1241,13 +1285,13 @@ function PnlSection({
           </tbody>
         </table>
         <div className="mt-2 text-right text-[11px] text-muted-foreground">
-          Arah pendapatan/beban mengikuti{" "}
+          {t.laporan.pnl.directionNotePrefix}{" "}
           <button
             type="button"
             onClick={() => router.push("/mastercoa")}
             className="cursor-pointer font-semibold text-primary hover:underline"
           >
-            Master COA
+            {t.laporan.pnl.masterCoaLink}
           </button>
         </div>
       </SectionCard>
@@ -1264,13 +1308,10 @@ function BalanceSection({
   balanceSheet?: BalanceSheetDto;
   isLoading?: boolean;
 }) {
+  const { t, locale } = useLocale();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const asOf = balanceSheet
-    ? new Date(balanceSheet.asOfDate).toLocaleDateString("id-ID", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
+    ? formatLocaleDateLong(balanceSheet.asOfDate, locale)
     : "—";
   const debtRatio =
     balanceSheet && balanceSheet.totalAssets > 0
@@ -1279,9 +1320,15 @@ function BalanceSection({
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <div className="text-[15px] font-bold">Balance Sheet — Per {asOf}</div>
+      <div className="text-[15px] font-bold">
+        {t.laporan.balance.titlePrefix} {asOf}
+      </div>
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-        <SectionCard title={<span className="text-success">ASET</span>}>
+        <SectionCard
+          title={
+            <span className="text-success">{t.laporan.balance.assetLabel}</span>
+          }
+        >
           <table className="w-full border-collapse text-[12.5px]">
             <tbody>
               {balanceSheet?.assets.map((group) => (
@@ -1301,7 +1348,7 @@ function BalanceSection({
                 </Fragment>
               ))}
               <StatementRow
-                label="Total Aset"
+                label={t.laporan.totalAssetsLabel}
                 value={
                   balanceSheet ? formatJuta(balanceSheet.totalAssets) : "—"
                 }
@@ -1314,13 +1361,15 @@ function BalanceSection({
         </SectionCard>
         <SectionCard
           title={
-            <span className="text-destructive">LIABILITAS &amp; EKUITAS</span>
+            <span className="text-destructive">
+              {t.laporan.balance.liabilityEquityLabel}
+            </span>
           }
         >
           <table className="w-full border-collapse text-[12.5px]">
             <tbody>
               <StatementRow
-                label="Liabilitas"
+                label={t.laporan.balance.liabilitiesLabel}
                 labelClass="py-1.5 font-bold text-muted-foreground"
               />
               {balanceSheet?.liabilities.map((group) => (
@@ -1341,7 +1390,7 @@ function BalanceSection({
                 </Fragment>
               ))}
               <StatementRow
-                label="Total Liabilitas"
+                label={t.laporan.totalLiabilitiesLabel}
                 value={
                   balanceSheet ? formatJuta(balanceSheet.totalLiabilities) : "—"
                 }
@@ -1350,16 +1399,16 @@ function BalanceSection({
                 valueClass="font-bold text-destructive"
               />
               <StatementRow
-                label="Ekuitas"
+                label={t.laporan.balance.equityLabel}
                 labelClass="py-1.5 font-bold text-muted-foreground"
               />
               <StatementRow
-                label="Net Worth"
+                label={t.laporan.netWorthLabel}
                 value={balanceSheet ? formatJuta(balanceSheet.netWorth) : "—"}
                 indent
               />
               <StatementRow
-                label="Total L + E"
+                label={t.laporan.balance.totalLPlusELabel}
                 value={
                   balanceSheet ? formatJuta(balanceSheet.totalAssets) : "—"
                 }
@@ -1376,11 +1425,10 @@ function BalanceSection({
           <div className="text-[22px]">✅</div>
           <div>
             <div className="text-[13px] font-bold text-primary-strong">
-              Balance Sheet Seimbang
+              {t.laporan.balance.balancedTitle}
             </div>
             <div className="text-[12px] text-muted-foreground">
-              Total Aset = Total Liabilitas + Ekuitas. Debt-to-Asset ratio{" "}
-              {debtRatio}.
+              {t.laporan.balance.balancedDescPrefix} {debtRatio}.
             </div>
           </div>
         </div>
@@ -1400,29 +1448,32 @@ function CashflowSection({
   isLoading?: boolean;
   periodLabel: string;
 }) {
+  const { t } = useLocale();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const bulan = periodLabel;
   const fmt = (n: number) => `${n >= 0 ? "+" : ""}${formatRupiah(Math.abs(n))}`;
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <div className="text-[15px] font-bold">Cashflow Statement — {bulan}</div>
+      <div className="text-[15px] font-bold">
+        {t.laporan.cashflow.titlePrefix} {bulan}
+      </div>
       <SectionCard>
         <table className="w-full border-collapse text-[13px]">
           <tbody>
             <StatementRow
-              label="ARUS KAS OPERASI"
+              label={t.laporan.cashflow.operatingLabel}
               className="border-b-2 border-border"
               labelClass="py-2.5 font-bold text-primary"
             />
             <StatementRow
-              label="Total Penerimaan"
+              label={t.laporan.cashflow.totalInflowLabel}
               value={cashflow ? fmt(cashflow.operatingInflows) : "Rp —"}
               indent
               valueColor="var(--success)"
             />
             <StatementRow
-              label="Total Pengeluaran"
+              label={t.laporan.cashflow.totalOutflowLabel}
               value={
                 cashflow
                   ? `-${formatRupiah(cashflow.operatingOutflows)}`
@@ -1432,7 +1483,7 @@ function CashflowSection({
               valueColor="var(--destructive)"
             />
             <StatementRow
-              label="Net Operasi"
+              label={t.laporan.cashflow.netOperatingLabel}
               value={cashflow ? fmt(cashflow.netOperating) : "Rp —"}
               className="border-b border-border"
               labelClass="py-2 font-bold"
@@ -1444,31 +1495,31 @@ function CashflowSection({
               }
             />
             <StatementRow
-              label="ARUS KAS INVESTASI"
+              label={t.laporan.cashflow.investingLabel}
               className="border-b-2 border-border"
               labelClass="py-2.5 font-bold text-brand-purple"
             />
             <StatementRow
-              label="Net Investasi"
+              label={t.laporan.cashflow.netInvestingLabel}
               value={cashflow ? fmt(cashflow.netInvesting) : "Rp —"}
               className="border-b border-border"
               labelClass="py-2 font-bold"
               valueClass="font-extrabold text-muted-foreground"
             />
             <StatementRow
-              label="Saldo Awal"
+              label={t.laporan.cashflow.openingBalanceLabel}
               value={cashflow ? formatRupiah(cashflow.openingBalance) : "Rp —"}
               indent
               valueColor="var(--muted-foreground)"
             />
             <StatementRow
-              label="Saldo Akhir"
+              label={t.laporan.cashflow.closingBalanceLabel}
               value={cashflow ? formatRupiah(cashflow.closingBalance) : "Rp —"}
               indent
               valueColor="var(--muted-foreground)"
             />
             <StatementRow
-              label="NET CASHFLOW"
+              label={t.laporan.cashflow.netCashflowLabel}
               value={cashflow ? fmt(cashflow.netChange) : "Rp —"}
               className="border-t-2 border-primary"
               labelClass="py-3 text-[15px] font-extrabold"
@@ -1495,6 +1546,7 @@ function KasSection({
   summary?: ReportSummaryDto;
   isLoading?: boolean;
 }) {
+  const { t } = useLocale();
   const chartMonths = summary?.points.map((p) => p.label) ?? [];
   const chartIncome = summary?.points.map((p) => p.income / 1_000_000) ?? [];
   const chartExpense = summary?.points.map((p) => p.expense / 1_000_000) ?? [];
@@ -1504,25 +1556,25 @@ function KasSection({
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <SectionCard title="Arus Kas">
+      <SectionCard title={t.laporan.kas.title}>
         <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
           <MoneyStat
-            label="Pemasukan"
+            label={t.common.income}
             value={summary ? formatRupiah(summary.totalIncome) : "Rp —"}
             valueClass="text-success"
           />
           <MoneyStat
-            label="Pengeluaran"
+            label={t.common.expense}
             value={summary ? formatRupiah(summary.totalExpense) : "Rp —"}
             valueClass="text-destructive"
           />
           <MoneyStat
-            label="Surplus"
+            label={t.laporan.surplusLabel}
             value={summary ? formatRupiah(summary.netSavings) : "Rp —"}
             valueClass="text-success"
           />
           <MoneyStat
-            label="Savings Rate"
+            label={t.laporan.savingsRateLabel}
             value={summary ? `${summary.savingsRate}%` : "—"}
             valueClass="text-primary"
           />
@@ -1539,7 +1591,7 @@ function KasSection({
           </div>
         )}
       </SectionCard>
-      <SectionCard title="Sumber Pemasukan">
+      <SectionCard title={t.laporan.kas.incomeSourcesTitle}>
         {summary?.topIncomeCategories &&
         summary.topIncomeCategories.length > 0 ? (
           summary.topIncomeCategories.map((cat, i) => (
@@ -1561,7 +1613,7 @@ function KasSection({
           ))
         ) : (
           <div className="py-4 text-center text-[12px] text-muted-foreground">
-            Belum ada data pemasukan
+            {t.laporan.kas.emptyIncome}
           </div>
         )}
       </SectionCard>
@@ -1571,15 +1623,14 @@ function KasSection({
 
 /* ───────────────────────── Section: Investasi ───────────────────────── */
 
-const INV_TYPE_META: Record<InvestmentType, { label: string; color: string }> =
-  {
-    saham: { label: "📉 Saham", color: "var(--brand-cyan)" },
-    reksa_dana: { label: "📊 Reksa Dana", color: "var(--primary)" },
-    obligasi: { label: "🏛️ Obligasi", color: "var(--success)" },
-    emas: { label: "🥇 Emas", color: "var(--warning)" },
-    kripto: { label: "₿ Kripto", color: "#F97316" },
-    lainnya: { label: "💼 Lainnya", color: "#8B5CF6" },
-  };
+const INV_TYPE_COLORS: Record<InvestmentType, string> = {
+  saham: "var(--brand-cyan)",
+  reksa_dana: "var(--primary)",
+  obligasi: "var(--success)",
+  emas: "var(--warning)",
+  kripto: "#F97316",
+  lainnya: "#8B5CF6",
+};
 
 function InvSection({
   investments,
@@ -1596,6 +1647,7 @@ function InvSection({
   onEdit?: (inv: InvestmentDto) => void;
   onDelete?: (inv: InvestmentDto) => void;
 }) {
+  const { t } = useLocale();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
 
   const byType = new Map<InvestmentType, number>();
@@ -1613,7 +1665,8 @@ function InvSection({
   const typeRows = Array.from(byType.entries())
     .sort((a, b) => b[1] - a[1])
     .map(([type, value]) => ({
-      ...INV_TYPE_META[type],
+      label: t.laporan.investasi.typeLabels[type],
+      color: INV_TYPE_COLORS[type],
       value,
       pct: totalValue > 0 ? Math.round((value / totalValue) * 100) : 0,
     }));
@@ -1623,20 +1676,22 @@ function InvSection({
   return (
     <div className={"space-y-3.5 " + loadingClass}>
       <div className="flex items-center justify-between">
-        <div className="text-[15px] font-bold">Portofolio Investasi</div>
+        <div className="text-[15px] font-bold">
+          {t.laporan.investasi.sectionTitle}
+        </div>
         {onAdd && (
           <button
             onClick={onAdd}
             className="rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground hover:opacity-90"
           >
-            + Tambah
+            + {t.common.add}
           </button>
         )}
       </div>
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
         <div className="rounded-[12px] border bg-card p-4">
           <div className="mb-1 text-[11px] text-muted-foreground">
-            Total Portofolio
+            {t.laporan.investasi.totalPortfolioLabel}
           </div>
           <div className="text-[22px] font-black text-primary">
             {invSummary ? formatRupiah(totalValue) : "Rp —"}
@@ -1657,7 +1712,7 @@ function InvSection({
         </div>
         <div className="rounded-[12px] border bg-card p-4">
           <div className="mb-1 text-[11px] text-muted-foreground">
-            Total Return
+            {t.laporan.investasi.totalReturnLabel}
           </div>
           <div
             className={
@@ -1670,53 +1725,63 @@ function InvSection({
               : "—"}
           </div>
           <div className="mt-1 text-[12px] text-muted-foreground">
-            {investments ? `${investments.length} instrumen` : "—"}
+            {investments
+              ? `${investments.length} ${t.laporan.investasi.instrumentCountSuffix}`
+              : "—"}
           </div>
         </div>
       </div>
-      <SectionCard title="Portofolio per Jenis">
+      <SectionCard title={t.laporan.investasi.portfolioByTypeTitle}>
         {typeRows.length > 0 ? (
           <div className="flex flex-col gap-2.5">
-            {typeRows.map((t) => (
+            {typeRows.map((row) => (
               <BarRow
-                key={t.label}
-                label={t.label}
+                key={row.label}
+                label={row.label}
                 right={
-                  <span className="font-bold" style={{ color: t.color }}>
-                    {formatRupiah(t.value)} · {t.pct}%
+                  <span className="font-bold" style={{ color: row.color }}>
+                    {formatRupiah(row.value)} · {row.pct}%
                   </span>
                 }
                 value={
-                  maxValue > 0 ? Math.round((t.value / maxValue) * 100) : 0
+                  maxValue > 0 ? Math.round((row.value / maxValue) * 100) : 0
                 }
-                color={t.color}
+                color={row.color}
               />
             ))}
           </div>
         ) : (
           <div className="py-4 text-center text-[12px] text-muted-foreground">
-            Belum ada investasi.{" "}
+            {t.laporan.investasi.emptyInvestment}{" "}
             {onAdd && (
               <button
                 onClick={onAdd}
                 className="text-primary underline underline-offset-2"
               >
-                Tambah sekarang
+                {t.laporan.investasi.addNowLink}
               </button>
             )}
           </div>
         )}
       </SectionCard>
       {investments && investments.length > 0 && (
-        <SectionCard title="Daftar Instrumen">
+        <SectionCard title={t.laporan.investasi.instrumentListTitle}>
           <div className="w-full overflow-x-auto">
             <table className="w-full text-[12px]">
               <thead>
                 <tr className="border-b text-left text-muted-foreground">
-                  <th className="py-2 font-semibold">Nama</th>
-                  <th className="py-2 font-semibold">Jenis</th>
-                  <th className="py-2 font-semibold">Nilai</th>
-                  <th className="py-2 font-semibold">Return</th>
+                  <th className="py-2 font-semibold">
+                    {t.laporan.investasi.colName}
+                  </th>
+                  <th className="py-2 font-semibold">
+                    {t.laporan.investasi.colType}
+                  </th>
+                  <th className="py-2 font-semibold">
+                    {t.laporan.investasi.colValue}
+                  </th>
+                  <th className="py-2 font-semibold">
+                    {t.laporan.investasi.colReturn}
+                  </th>
                   {(onEdit ?? onDelete) && (
                     <th className="py-2 font-semibold"></th>
                   )}
@@ -1726,7 +1791,7 @@ function InvSection({
                 {investments.map((inv) => {
                   const val = parseFloat(inv.currentValue ?? "0");
                   const ret = parseFloat(inv.returnRp ?? "0");
-                  const meta = INV_TYPE_META[inv.type];
+                  const typeLabel = t.laporan.investasi.typeLabels[inv.type];
                   return (
                     <tr key={inv.id} className="border-b last:border-0">
                       <td className="py-2.5">
@@ -1736,7 +1801,7 @@ function InvSection({
                         </div>
                       </td>
                       <td className="py-2.5 text-[11px]">
-                        {meta?.label ?? inv.type}
+                        {typeLabel ?? inv.type}
                       </td>
                       <td className="mono py-2.5">
                         {val > 0 ? formatRupiah(val) : "—"}
@@ -1759,7 +1824,7 @@ function InvSection({
                                 onClick={() => onEdit(inv)}
                                 className="text-[11px] text-primary hover:underline"
                               >
-                                Edit
+                                {t.laporan.investasi.editLink}
                               </button>
                             )}
                             {onDelete && (
@@ -1767,7 +1832,7 @@ function InvSection({
                                 onClick={() => onDelete(inv)}
                                 className="text-[11px] text-destructive hover:underline"
                               >
-                                Hapus
+                                {t.common.delete}
                               </button>
                             )}
                           </div>
@@ -1794,6 +1859,7 @@ function AslSection({
   balanceSheet?: BalanceSheetDto;
   isLoading?: boolean;
 }) {
+  const { t } = useLocale();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const debtRatio =
     balanceSheet && balanceSheet.totalAssets > 0
@@ -1807,7 +1873,7 @@ function AslSection({
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
         <div className="rounded-[12px] border bg-card p-4">
           <div className="mb-1 text-[11px] text-muted-foreground">
-            Total Aset
+            {t.laporan.totalAssetsLabel}
           </div>
           <div className="text-[22px] font-black text-success">
             {balanceSheet ? formatRupiah(balanceSheet.totalAssets) : "Rp —"}
@@ -1815,7 +1881,7 @@ function AslSection({
         </div>
         <div className="rounded-[12px] border bg-card p-4">
           <div className="mb-1 text-[11px] text-muted-foreground">
-            Total Liabilitas
+            {t.laporan.totalLiabilitiesLabel}
           </div>
           <div className="text-[22px] font-black text-destructive">
             {balanceSheet
@@ -1824,11 +1890,11 @@ function AslSection({
           </div>
         </div>
       </div>
-      <SectionCard title="Rasio Keuangan">
+      <SectionCard title={t.laporan.asetLiabilitas.ratioTitle}>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-md bg-muted p-3">
             <div className="text-[10.5px] text-muted-foreground">
-              Debt-to-Asset Ratio
+              {t.laporan.asetLiabilitas.debtRatioLabel}
             </div>
             <div
               className="text-[20px] font-extrabold"
@@ -1851,12 +1917,14 @@ function AslSection({
               }}
             >
               {debtRatio !== null && debtRatio < 30
-                ? "Sangat Aman (<30%)"
-                : "Perlu Perhatian"}
+                ? t.laporan.asetLiabilitas.safeLabel
+                : t.laporan.asetLiabilitas.warningLabel}
             </div>
           </div>
           <div className="rounded-md bg-muted p-3">
-            <div className="text-[10.5px] text-muted-foreground">Net Worth</div>
+            <div className="text-[10.5px] text-muted-foreground">
+              {t.laporan.netWorthLabel}
+            </div>
             <div
               className="text-[20px] font-extrabold"
               style={{ color: "var(--success)" }}
@@ -1864,7 +1932,7 @@ function AslSection({
               {balanceSheet ? formatJuta(balanceSheet.netWorth) : "—"}
             </div>
             <div className="text-[10.5px]" style={{ color: "var(--success)" }}>
-              Aset - Liabilitas
+              {t.laporan.asetLiabilitas.netWorthDesc}
             </div>
           </div>
         </div>
@@ -1884,17 +1952,18 @@ function PerfSection({
   invSummary?: InvestmentSummaryDto;
   isLoading?: boolean;
 }) {
+  const { t } = useLocale();
   const savingsRate = summary?.savingsRate ?? null;
   const invReturn = invSummary?.totalReturnPct ?? null;
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <SectionCard title="Performa vs Target">
+      <SectionCard title={t.laporan.performa.title}>
         <div className="flex flex-col gap-2.5">
           {savingsRate !== null && (
             <BarRow
-              label="Savings Rate (Target 30%)"
+              label={t.laporan.performa.savingsRateTargetLabel}
               right={
                 <StatusBadge
                   variant={
@@ -1907,8 +1976,8 @@ function PerfSection({
                 >
                   {savingsRate}%
                   {savingsRate >= 30
-                    ? " · Tercapai ✓"
-                    : " · Perlu ditingkatkan"}
+                    ? t.laporan.performa.achievedSuffix
+                    : t.laporan.performa.needsImprovementSuffix}
                 </StatusBadge>
               }
               value={Math.min(savingsRate, 100)}
@@ -1923,7 +1992,7 @@ function PerfSection({
           )}
           {invReturn !== null && (
             <BarRow
-              label="Investment Return (Target 12%)"
+              label={t.laporan.performa.investReturnTargetLabel}
               right={
                 <StatusBadge
                   variant={
@@ -1935,7 +2004,7 @@ function PerfSection({
                   }
                 >
                   {invReturn.toFixed(1)}%
-                  {invReturn >= 12 ? " · Terlampaui ✓" : ""}
+                  {invReturn >= 12 ? t.laporan.performa.exceededSuffix : ""}
                 </StatusBadge>
               }
               value={Math.min(Math.max(invReturn, 0), 100)}
@@ -1944,13 +2013,12 @@ function PerfSection({
           )}
           {savingsRate === null && invReturn === null && (
             <div className="py-6 text-center text-[12px] text-muted-foreground">
-              Belum ada data untuk menghitung performa
+              {t.laporan.performa.emptyPerf}
             </div>
           )}
         </div>
         <div className="mt-3 text-[11px] text-muted-foreground">
-          Net Worth Growth dan Budget Adherence memerlukan data historis lebih
-          lengkap
+          {t.laporan.performa.noteText}
         </div>
       </SectionCard>
     </div>
@@ -1968,62 +2036,61 @@ function PajakSection({
   grossIncome?: number;
   isLoading?: boolean;
 }) {
+  const { t } = useLocale();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const hasIncome = grossIncome != null && grossIncome > 0;
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <div className="text-[15px] font-bold">
-        Laporan Pajak — Estimasi PPh 21
-      </div>
+      <div className="text-[15px] font-bold">{t.laporan.pajak.title}</div>
 
       <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
         <StatTile
-          label="Bruto Setahun"
+          label={t.laporan.pajak.grossYearLabel}
           value={grossIncome != null ? formatRupiah(grossIncome) : "Rp —"}
         />
         <StatTile
-          label="PKP"
+          label={t.laporan.pajak.pkpLabel}
           value={pph21 ? formatRupiah(pph21.pkp) : "Rp —"}
         />
         <StatTile
-          label="Estimasi PPh 21"
+          label={t.laporan.pajak.estimatedTaxLabel}
           value={pph21 ? formatRupiah(pph21.totalTax) : "Rp —"}
           valueClass="text-destructive"
         />
         <StatTile
-          label="Tarif Efektif"
+          label={t.laporan.pajak.effectiveRateLabel}
           value={pph21 ? `${(pph21.effectiveRate * 100).toFixed(2)}%` : "—"}
           valueClass="text-primary"
         />
       </div>
 
-      <SectionCard title="Perhitungan">
+      <SectionCard title={t.laporan.pajak.calcTitle}>
         <table className="w-full border-collapse text-[13px]">
           <tbody>
             <StatementRow
-              label="Penghasilan Bruto Setahun"
+              label={t.laporan.pajak.grossIncomeLabel}
               value={grossIncome != null ? formatRupiah(grossIncome) : "Rp —"}
             />
             <StatementRow
-              label="Biaya Jabatan (5%, maks Rp 6 jt)"
+              label={t.laporan.pajak.laborCostLabel}
               value={pph21 ? `-${formatRupiah(pph21.biayaJabatan)}` : "Rp —"}
               indent
             />
             <StatementRow
-              label="PTKP (TK/0)"
+              label={t.laporan.pajak.ptkpLabel}
               value={pph21 ? `-${formatRupiah(pph21.ptkp)}` : "Rp —"}
               indent
             />
             {pph21 && pph21.zakatDeduction > 0 && (
               <StatementRow
-                label="Pengurang Zakat"
+                label={t.laporan.pajak.zakatDeductionLabel}
                 value={`-${formatRupiah(pph21.zakatDeduction)}`}
                 indent
               />
             )}
             <StatementRow
-              label="Penghasilan Kena Pajak (PKP)"
+              label={t.laporan.pajak.pkpFullLabel}
               value={pph21 ? formatRupiah(pph21.pkp) : "Rp —"}
               className="border-t border-border"
               labelClass="py-2 font-bold"
@@ -2034,15 +2101,23 @@ function PajakSection({
       </SectionCard>
 
       {pph21 && pph21.taxBreakdown.length > 0 && (
-        <SectionCard title="Rincian per Lapisan Tarif (UU HPP)">
+        <SectionCard title={t.laporan.pajak.bracketBreakdownTitle}>
           <div className="w-full overflow-x-auto">
             <table className="w-full text-[12.5px]">
               <thead>
                 <tr className="border-b text-left text-muted-foreground">
-                  <th className="py-2 font-semibold">Lapisan</th>
-                  <th className="py-2 font-semibold">Dasar Kena Pajak</th>
-                  <th className="py-2 font-semibold">Tarif</th>
-                  <th className="py-2 text-right font-semibold">Pajak</th>
+                  <th className="py-2 font-semibold">
+                    {t.laporan.pajak.colBracket}
+                  </th>
+                  <th className="py-2 font-semibold">
+                    {t.laporan.pajak.colTaxBase}
+                  </th>
+                  <th className="py-2 font-semibold">
+                    {t.laporan.pajak.colRate}
+                  </th>
+                  <th className="py-2 text-right font-semibold">
+                    {t.laporan.pajak.colTax}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -2060,7 +2135,7 @@ function PajakSection({
                 ))}
                 <tr className="border-t-2 border-primary">
                   <td className="py-2.5 font-extrabold" colSpan={3}>
-                    Total PPh 21 Setahun
+                    {t.laporan.pajak.totalTaxYearLabel}
                   </td>
                   <td className="mono py-2.5 text-right text-[14px] font-black text-destructive">
                     {formatRupiah(pph21.totalTax)}
@@ -2074,21 +2149,21 @@ function PajakSection({
 
       {!isLoading && !hasIncome && (
         <div className="rounded-[12px] border p-6 text-center text-[12px] text-muted-foreground">
-          Belum ada data penghasilan dalam 12 bulan terakhir untuk dihitung.
+          {t.laporan.pajak.emptyIncomeNote}
         </div>
       )}
 
       <div className="flex items-start gap-3 rounded-[12px] border border-primary/20 bg-accent p-3.5">
         <div className="text-[20px]">🧾</div>
         <div className="flex-1 text-[12px] text-muted-foreground">
-          Estimasi sederhana berbasis penghasilan 12 bulan terakhir dengan
-          asumsi status PTKP <strong>TK/0</strong> (lajang, tanpa tanggungan).
-          Untuk status pernikahan/tanggungan lain, gunakan{" "}
+          {t.laporan.pajak.estimateNoteBefore}{" "}
+          <strong>{t.laporan.pajak.estimateNoteBold}</strong>{" "}
+          {t.laporan.pajak.estimateNoteAfter}{" "}
           <a
             href="/kalkulator"
             className="font-bold text-primary hover:underline"
           >
-            Kalkulator PPh 21
+            {t.laporan.pajak.calculatorLinkLabel}
           </a>
           .
         </div>
@@ -2099,13 +2174,13 @@ function PajakSection({
 
 /* ───────────────────────── Export Section ───────────────────────── */
 
-const EXPORT_REPORT_TYPES: { id: ExportReportType; label: string }[] = [
-  { id: "summary", label: "Ringkasan" },
-  { id: "bank", label: "Bank" },
-  { id: "detail", label: "Detail" },
-  { id: "pnl", label: "PNL" },
-  { id: "balance-sheet", label: "Balance Sheet" },
-  { id: "cashflow", label: "Cashflow" },
+const EXPORT_REPORT_TYPE_IDS: ExportReportType[] = [
+  "summary",
+  "bank",
+  "detail",
+  "pnl",
+  "balance-sheet",
+  "cashflow",
 ];
 
 function ExportSection({
@@ -2121,6 +2196,7 @@ function ExportSection({
   startDate: string;
   endDate: string;
 }) {
+  const { t } = useLocale();
   const [reportType, setReportType] = useState<ExportReportType>("summary");
   const [jobId, setJobId] = useState<string | null>(null);
   const [status, setStatus] = useState<ExportJobStatusDto | null>(null);
@@ -2150,23 +2226,25 @@ function ExportSection({
         if (res.status === "done" || res.status === "failed") {
           stopPolling();
           if (res.status === "done") {
-            toast.success("Ekspor selesai! Klik Download untuk mengunduh.");
+            toast.success(t.laporan.export.toastExportDone);
           } else {
-            toast.error(`Ekspor gagal: ${res.errorMessage ?? "unknown error"}`);
+            toast.error(
+              `${t.laporan.export.toastExportFailedPrefix} ${res.errorMessage ?? t.laporan.export.unknownErrorFallback}`,
+            );
           }
         }
       } catch {
         stopPolling();
-        toast.error("Gagal mengambil status ekspor.");
+        toast.error(t.laporan.export.toastFetchStatusFailed);
       }
     },
-    [familyGroupId, accessToken, stopPolling],
+    [familyGroupId, accessToken, stopPolling, t],
   );
 
   const startExport = useCallback(
     async (format: "pdf" | "excel") => {
       if (!familyGroupId || !accessToken) {
-        toast.error("Sesi tidak valid.");
+        toast.error(t.laporan.export.toastInvalidSession);
         return;
       }
       stopPolling();
@@ -2192,13 +2270,15 @@ function ExportSection({
         );
         setJobId(res.id);
         setStatus(res);
-        toast(`Membuat ekspor ${format.toUpperCase()}...`);
+        toast(
+          `${t.laporan.export.creatingExportPrefix} ${format.toUpperCase()}${t.laporan.export.creatingExportSuffix}`,
+        );
 
         pollRef.current = setInterval(() => {
           void pollStatus(res.id);
         }, 2000);
       } catch {
-        toast.error("Gagal membuat ekspor.");
+        toast.error(t.laporan.export.toastExportCreateFailed);
       } finally {
         setIsSubmitting(false);
       }
@@ -2211,6 +2291,7 @@ function ExportSection({
       endDate,
       stopPolling,
       pollStatus,
+      t,
     ],
   );
 
@@ -2244,20 +2325,20 @@ function ExportSection({
   return (
     <div className="rounded-[12px] border bg-card p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[13px] font-bold">Export Laporan</div>
+        <div className="text-[13px] font-bold">{t.laporan.export.title}</div>
         {isDone && status.downloadUrl && (
           <button
             onClick={handleDownload}
             className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:opacity-90"
           >
-            <Download className="size-3.5" /> Download
+            <Download className="size-3.5" /> {t.laporan.export.downloadButton}
           </button>
         )}
       </div>
       <div className="flex flex-wrap items-end gap-2">
         <div className="flex flex-col gap-1">
           <label className="text-[11px] text-muted-foreground">
-            Tipe Laporan
+            {t.laporan.export.reportTypeLabel}
           </label>
           <select
             value={reportType}
@@ -2265,9 +2346,9 @@ function ExportSection({
             disabled={!!isActive || isSubmitting}
             className="rounded-md border bg-background px-3 py-[7px] text-[13px] outline-none focus:border-primary disabled:opacity-50"
           >
-            {EXPORT_REPORT_TYPES.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.label}
+            {EXPORT_REPORT_TYPE_IDS.map((id) => (
+              <option key={id} value={id}>
+                {t.laporan.export.reportTypeLabels[id]}
               </option>
             ))}
           </select>
@@ -2277,19 +2358,21 @@ function ExportSection({
           disabled={!!isActive || isSubmitting}
           className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3.5 py-[8px] text-[12px] font-semibold transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <Download className="size-3.5" /> Export PDF
+          <Download className="size-3.5" /> {t.laporan.export.pdfButton}
         </button>
         <button
           onClick={() => void startExport("excel")}
           disabled={!!isActive || isSubmitting}
           className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3.5 py-[8px] text-[12px] font-semibold transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <FileSpreadsheet className="size-3.5" /> Export Excel
+          <FileSpreadsheet className="size-3.5" /> {t.laporan.export.csvButton}
         </button>
       </div>
       {status && (
         <div className="mt-3 flex items-center gap-2 text-[12px]">
-          <span className="text-muted-foreground">Status:</span>
+          <span className="text-muted-foreground">
+            {t.laporan.export.statusLabel}
+          </span>
           <span
             className={
               status.status === "done"
@@ -2299,11 +2382,12 @@ function ExportSection({
                   : "font-semibold text-primary"
             }
           >
-            {status.status === "pending" && "Menunggu..."}
-            {status.status === "processing" && "Memproses..."}
-            {status.status === "done" && "Selesai"}
+            {status.status === "pending" && t.laporan.export.statusPending}
+            {status.status === "processing" &&
+              t.laporan.export.statusProcessing}
+            {status.status === "done" && t.laporan.export.statusDone}
             {status.status === "failed" &&
-              `Gagal: ${status.errorMessage ?? ""}`}
+              `${t.laporan.export.statusFailedPrefix} ${status.errorMessage ?? ""}`}
           </span>
           {jobId && <span className="text-muted-foreground">#{jobId}</span>}
         </div>
@@ -2314,21 +2398,6 @@ function ExportSection({
 
 /* ───────────────────────── Shared period filter ───────────────────────── */
 
-const MONTH_NAMES = [
-  "Januari",
-  "Februari",
-  "Maret",
-  "April",
-  "Mei",
-  "Juni",
-  "Juli",
-  "Agustus",
-  "September",
-  "Oktober",
-  "November",
-  "Desember",
-];
-
 /** Native-input year/month/day filter that drives every /laporan section. */
 function PeriodFilter({
   period,
@@ -2337,6 +2406,7 @@ function PeriodFilter({
   period: ReportPeriodSelection;
   onChange: (next: ReportPeriodSelection) => void;
 }) {
+  const { t } = useLocale();
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 6 }, (_, i) => currentYear - i);
   const maxDay = daysInMonth(period.year, period.month);
@@ -2346,7 +2416,7 @@ function PeriodFilter({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <select
-        aria-label="Tahun"
+        aria-label={t.laporan.periodFilter.yearAriaLabel}
         value={period.year}
         onChange={(e) => {
           const year = Number(e.target.value);
@@ -2364,7 +2434,7 @@ function PeriodFilter({
         ))}
       </select>
       <select
-        aria-label="Bulan"
+        aria-label={t.laporan.periodFilter.monthAriaLabel}
         value={period.month}
         onChange={(e) => {
           const month = Number(e.target.value);
@@ -2375,14 +2445,14 @@ function PeriodFilter({
         }}
         className={fieldClass}
       >
-        {MONTH_NAMES.map((label, i) => (
+        {t.laporan.months.map((label, i) => (
           <option key={label} value={i + 1}>
             {label}
           </option>
         ))}
       </select>
       <select
-        aria-label="Tanggal"
+        aria-label={t.laporan.periodFilter.dayAriaLabel}
         value={period.day ?? ""}
         onChange={(e) => {
           const value = e.target.value;
@@ -2390,7 +2460,7 @@ function PeriodFilter({
         }}
         className={fieldClass}
       >
-        <option value="">Semua Tanggal</option>
+        <option value="">{t.laporan.periodFilter.allDatesOption}</option>
         {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
           <option key={d} value={d}>
             {d}
@@ -2407,6 +2477,7 @@ function LaporanInner() {
   const sp = useSearchParams();
   const router = useRouter();
   const tab = sp.get("tab") ?? "rsum";
+  const { t, locale } = useLocale();
 
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId ?? "";
@@ -2443,13 +2514,13 @@ function LaporanInner() {
   // Cashflow) so their heading always matches the period actually queried.
   const periodLabel = period.day
     ? new Date(period.year, period.month - 1, period.day).toLocaleDateString(
-        "id-ID",
+        localeTag(locale),
         { day: "numeric", month: "long", year: "numeric" },
       )
-    : new Date(period.year, period.month - 1, 1).toLocaleDateString("id-ID", {
-        month: "long",
-        year: "numeric",
-      });
+    : new Date(period.year, period.month - 1, 1).toLocaleDateString(
+        localeTag(locale),
+        { month: "long", year: "numeric" },
+      );
 
   const { data: summary, isLoading: isSummaryLoading } =
     useQuery<ReportSummaryDto>({
@@ -2735,12 +2806,14 @@ function LaporanInner() {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.investments.summary(familyGroupId),
       });
-      toast.success(isEdit ? "Investasi diperbarui" : "Investasi ditambahkan");
+      toast.success(
+        isEdit ? t.laporan.investasi.toastUpdated : t.investasi.toastAdded,
+      );
       setShowAddInv(false);
       setEditingInv(null);
     } catch {
       toast.error(
-        isEdit ? "Gagal memperbarui investasi" : "Gagal menambahkan investasi",
+        isEdit ? t.investasi.toastUpdateFailed : t.investasi.toastAddFailed,
       );
     } finally {
       setInvSubmitting(false);
@@ -2764,10 +2837,10 @@ function LaporanInner() {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.investments.summary(familyGroupId),
       });
-      toast.success("Investasi dihapus");
+      toast.success(t.laporan.investasi.toastDeleted);
       setDeletingInv(null);
     } catch {
-      toast.error("Gagal menghapus investasi");
+      toast.error(t.laporan.investasi.toastDeleteFailed);
     } finally {
       setInvSubmitting(false);
     }
@@ -2901,7 +2974,7 @@ function LaporanInner() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-[13px] text-muted-foreground">
-          Pantau keuangan dan investasi kamu
+          {t.laporan.subtitle}
         </div>
         <PeriodFilter period={period} onChange={setPeriod} />
       </div>
@@ -2909,12 +2982,12 @@ function LaporanInner() {
       {/* Tab bar */}
       <div className="relative">
         <div className="hide-scrollbar flex gap-0.5 overflow-x-auto rounded-md border bg-background p-1">
-          {TABS.map((t) => {
-            const active = t.id === tab;
+          {REPORT_TABS.map((tabItem) => {
+            const active = tabItem.id === tab;
             return (
               <button
-                key={t.id}
-                onClick={() => go(t.id)}
+                key={tabItem.id}
+                onClick={() => go(tabItem.id)}
                 className={
                   "whitespace-nowrap rounded px-3.5 py-2 text-[13px] font-semibold transition-colors " +
                   (active
@@ -2922,7 +2995,7 @@ function LaporanInner() {
                     : "text-muted-foreground hover:text-foreground")
                 }
               >
-                {t.label}
+                {t.shell.reportTabs[tabItem.id]}
               </button>
             );
           })}
@@ -2959,7 +3032,9 @@ function LaporanInner() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingInv ? "Edit Investasi" : "Tambah Investasi"}
+              {editingInv
+                ? t.investasi.modalTitleEdit
+                : t.investasi.modalTitleAdd}
             </DialogTitle>
           </DialogHeader>
           <form
@@ -2971,7 +3046,9 @@ function LaporanInner() {
             {(["ticker", "name"] as const).map((field) => (
               <div key={field} className="space-y-1">
                 <label className="text-[12px] text-muted-foreground capitalize">
-                  {field === "ticker" ? "Ticker" : "Nama"}
+                  {field === "ticker"
+                    ? t.investasi.fieldTickerLabel
+                    : t.investasi.fieldNameLabel}
                 </label>
                 <input
                   required
@@ -2981,15 +3058,17 @@ function LaporanInner() {
                   }
                   placeholder={
                     field === "ticker"
-                      ? "contoh: BBCA"
-                      : "contoh: Bank Central Asia"
+                      ? t.investasi.fieldTickerPlaceholder
+                      : t.investasi.fieldNamePlaceholder
                   }
                   className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
             ))}
             <div className="space-y-1">
-              <label className="text-[12px] text-muted-foreground">Jenis</label>
+              <label className="text-[12px] text-muted-foreground">
+                {t.investasi.fieldTypeLabel}
+              </label>
               <select
                 value={invForm.type}
                 onChange={(e) =>
@@ -3009,9 +3088,9 @@ function LaporanInner() {
                     "kripto",
                     "lainnya",
                   ] as InvestmentType[]
-                ).map((t) => (
-                  <option key={t} value={t}>
-                    {t.replace("_", " ")}
+                ).map((typeOption) => (
+                  <option key={typeOption} value={typeOption}>
+                    {typeOption.replace("_", " ")}
                   </option>
                 ))}
               </select>
@@ -3020,8 +3099,8 @@ function LaporanInner() {
               <div key={field} className="space-y-1">
                 <label className="text-[12px] text-muted-foreground">
                   {field === "quantity"
-                    ? "Jumlah (lot/unit)"
-                    : "Harga Beli per Unit (Rp)"}
+                    ? t.investasi.fieldQuantityLabel
+                    : t.investasi.fieldCostBasisLabel}
                 </label>
                 <input
                   type="number"
@@ -3038,7 +3117,7 @@ function LaporanInner() {
             ))}
             <DialogFooter>
               <Button type="submit" disabled={invSubmitting} className="w-full">
-                {invSubmitting ? "Menyimpan..." : "Simpan"}
+                {invSubmitting ? t.investasi.saving : t.investasi.saveButton}
               </Button>
             </DialogFooter>
           </form>
@@ -3054,14 +3133,14 @@ function LaporanInner() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Hapus Investasi</DialogTitle>
+            <DialogTitle>{t.laporan.investasi.deleteDialogTitle}</DialogTitle>
           </DialogHeader>
           <p className="text-[13px] text-muted-foreground">
-            Yakin ingin menghapus{" "}
+            {t.laporan.investasi.deleteConfirmPrefix}{" "}
             <span className="font-semibold text-foreground">
               {deletingInv?.ticker} — {deletingInv?.name}
             </span>
-            ? Tindakan ini tidak dapat dibatalkan.
+            {t.laporan.investasi.deleteConfirmSuffix}
           </p>
           <DialogFooter className="flex gap-2">
             <Button
@@ -3069,7 +3148,7 @@ function LaporanInner() {
               onClick={() => setDeletingInv(null)}
               disabled={invSubmitting}
             >
-              Batal
+              {t.common.cancel}
             </Button>
             <Button
               variant="destructive"
@@ -3078,7 +3157,9 @@ function LaporanInner() {
               }}
               disabled={invSubmitting}
             >
-              {invSubmitting ? "Menghapus..." : "Hapus"}
+              {invSubmitting
+                ? t.laporan.investasi.deletingLabel
+                : t.common.delete}
             </Button>
           </DialogFooter>
         </DialogContent>

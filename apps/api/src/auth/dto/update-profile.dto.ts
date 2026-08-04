@@ -9,7 +9,17 @@ import {
 } from "class-validator";
 
 const GENDER_OPTIONS = ["Laki-laki", "Perempuan"] as const;
-const CURRENCY_OPTIONS = ["IDR", "USD", "SGD", "EUR", "JPY"] as const;
+// EPIC-021 Group F (#1) — AUD + CNY added to the supported display
+// currencies; conversion rates come from the mock FxPort (indicative only).
+const CURRENCY_OPTIONS = [
+  "IDR",
+  "USD",
+  "SGD",
+  "EUR",
+  "JPY",
+  "AUD",
+  "CNY",
+] as const;
 
 export class UpdateProfileDto {
   @ApiPropertyOptional({ type: String, description: "Display name" })

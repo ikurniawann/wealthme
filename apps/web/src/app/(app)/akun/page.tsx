@@ -7,10 +7,12 @@ import { useSession } from "@/lib/auth-compat";
 import { authClient } from "@/lib/auth-client";
 import { useLocale } from "@/hooks/use-locale";
 import { useProfile } from "@/hooks/use-profile";
+import { useGoldPrice } from "@/hooks/use-gold-price";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { formatRupiah, parseRupiah } from "@/lib/format";
+import { formatRupiah, parseRupiah, formatAmountInput } from "@/lib/format";
+import { formatManualDate } from "@/components/consolidated-total-card";
 import { useShell } from "@/components/shell/shell-context";
 import {
   ChevronRight,
@@ -906,7 +908,8 @@ function KoneksiBody({
 
 // Structural only (code/flag) — title/name resolve from
 // `t.akun.pengaturan.currencies[code]` at render time.
-type CurrencyCode = "IDR" | "USD" | "SGD" | "EUR" | "JPY";
+// EPIC-021 Group F (#1) — AUD + CNY added to the supported currency list.
+type CurrencyCode = "IDR" | "USD" | "SGD" | "EUR" | "JPY" | "AUD" | "CNY";
 
 const CURRENCIES: { code: CurrencyCode; flag: string }[] = [
   { code: "IDR", flag: "🇮🇩" },
@@ -914,6 +917,8 @@ const CURRENCIES: { code: CurrencyCode; flag: string }[] = [
   { code: "SGD", flag: "🇸🇬" },
   { code: "EUR", flag: "🇪🇺" },
   { code: "JPY", flag: "🇯🇵" },
+  { code: "AUD", flag: "🇦🇺" },
+  { code: "CNY", flag: "🇨🇳" },
 ];
 
 const SETTINGS_KEY = "wealthme_settings";
@@ -1006,6 +1011,18 @@ export function PengaturanBody() {
   // the server itself defaults new/untouched rows to "IDR", so this mirrors
   // that default rather than inventing a different one client-side.
   const currency = profile?.currency ?? "IDR";
+  // EPIC-021 Group F (#6) — family-wide manual gold price per gram
+  // (owner-only write; the API also enforces this — see
+  // FamilyGroupsService.updateGoldPrice). No live gold price feed exists or
+  // may be fabricated (Open Design Decision #6).
+  const {
+    pricePerGram: goldPricePerGram,
+    updatedAt: goldPriceUpdatedAt,
+    isOwner: isGoldPriceOwner,
+    updateGoldPrice,
+    isUpdating: isGoldPriceUpdating,
+  } = useGoldPrice();
+  const [goldPriceInput, setGoldPriceInput] = useState("");
   const [mounted, setMounted] = useState(false);
   // Resolve the real theme only after mount; avoids an SSR/client mismatch
   // (same pattern as components/shell/theme-toggle.tsx).
@@ -1045,6 +1062,21 @@ export function PengaturanBody() {
   function save() {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     toast.success(t.akun.pengaturan.toastSettingsSaved);
+  }
+
+  function saveGoldPrice() {
+    const parsed = parseRupiah(goldPriceInput);
+    if (!parsed || parsed <= 0) {
+      toast.error(t.akun.pengaturan.toastGoldPriceInvalid);
+      return;
+    }
+    updateGoldPrice(parsed, {
+      onSuccess: () => {
+        setGoldPriceInput("");
+        toast.success(t.akun.pengaturan.toastGoldPriceUpdated);
+      },
+      onError: () => toast.error(t.akun.pengaturan.toastGoldPriceFailed),
+    });
   }
 
   return (
@@ -1089,6 +1121,54 @@ export function PengaturanBody() {
             );
           })}
         </div>
+      </SetSection>
+      <SetSection>
+        <SectionTitle>{t.akun.pengaturan.goldPriceSectionTitle}</SectionTitle>
+        <div className="mb-2.5 text-[12px] text-muted-foreground">
+          {t.akun.pengaturan.goldPriceHint}
+        </div>
+        {goldPricePerGram !== null && (
+          <div className="mb-2.5 text-[13px] font-semibold text-foreground">
+            {formatRupiah(goldPricePerGram)}
+            {goldPriceUpdatedAt && (
+              <span className="ml-1.5 text-[11.5px] font-normal text-muted-foreground">
+                ({t.akun.pengaturan.goldPriceManualLabelPrefix}
+                {formatManualDate(goldPriceUpdatedAt, locale)})
+              </span>
+            )}
+          </div>
+        )}
+        {isGoldPriceOwner ? (
+          <Field label={t.akun.pengaturan.goldPriceLabel}>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                className={FIELD_CLASS}
+                placeholder={t.akun.pengaturan.goldPricePlaceholder}
+                value={goldPriceInput}
+                onChange={(e) =>
+                  setGoldPriceInput(formatAmountInput(e.target.value))
+                }
+              />
+              <button
+                type="button"
+                onClick={saveGoldPrice}
+                disabled={isGoldPriceUpdating}
+                className="shrink-0 rounded-md bg-primary px-3.5 py-2.5 text-[12.5px] font-semibold whitespace-nowrap text-primary-foreground disabled:opacity-60"
+              >
+                {t.akun.pengaturan.goldPriceSaveButton}
+              </button>
+            </div>
+          </Field>
+        ) : (
+          <div className="text-[12px] text-muted-foreground">
+            {goldPricePerGram === null
+              ? t.akun.pengaturan.goldPriceUnsetLabel
+              : null}{" "}
+            {t.akun.pengaturan.goldPriceOwnerOnlyNote}
+          </div>
+        )}
       </SetSection>
       <SetSection>
         <SectionTitle>{t.akun.pengaturan.displaySectionTitle}</SectionTitle>
