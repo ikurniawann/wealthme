@@ -8,6 +8,10 @@ type CurrencyConfig = { symbol: string; decimals: number; locale: string };
 // EPIC-016 Task B2 — display-currency config. Rates that produce these
 // targets come from the mock FxPort (apps/api/src/fx), so any non-IDR
 // output is always indicative, never a live market rate.
+// EPIC-021 Group F (#1) — AUD/CNY added alongside the pre-existing
+// currencies (reviewed foundation change: this file is otherwise
+// protected). Rates still come from the mock FxPort, so both stay
+// indicative, never a live market rate.
 const CURRENCY_CONFIG: Record<string, CurrencyConfig> = {
   IDR: { symbol: "Rp", decimals: 0, locale: "id-ID" },
   USD: { symbol: "$", decimals: 2, locale: "en-US" },
@@ -17,6 +21,9 @@ const CURRENCY_CONFIG: Record<string, CurrencyConfig> = {
   // manually, so the locale here only controls digit grouping.
   EUR: { symbol: "€", decimals: 2, locale: "en-US" },
   JPY: { symbol: "¥", decimals: 0, locale: "ja-JP" },
+  AUD: { symbol: "A$", decimals: 2, locale: "en-AU" },
+  // "CN¥" (not a bare "¥") so it never reads as JPY at a glance.
+  CNY: { symbol: "CN¥", decimals: 2, locale: "zh-CN" },
 };
 
 /**

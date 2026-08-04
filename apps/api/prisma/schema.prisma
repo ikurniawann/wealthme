@@ -263,6 +263,14 @@ model FamilyGroup {
   coaAccounts       CoaAccount[]
   // EPIC-019 Task B — member-request -> owner-approve funding requests.
   allowanceRequests AllowanceRequest[]
+  // EPIC-021 Group F (#6) — user-maintained gold price per gram (IDR),
+  // manually entered by the family owner via PATCH .../gold-price. No live
+  // gold price feed exists or may be fabricated (Open Design Decision #6),
+  // so this is nullable: the consolidated total shows an honest "set your
+  // gold price" prompt until an owner sets one, and every display of it is
+  // labeled "diinput manual, per <date>" using goldPriceUpdatedAt.
+  goldPricePerGram   BigInt?
+  goldPriceUpdatedAt DateTime?
 
   @@map("family_groups")
 }

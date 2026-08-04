@@ -337,6 +337,11 @@ export const en = {
         },
         EUR: { title: "EUR — Euro", name: "€ · Euro" },
         JPY: { title: "JPY — Japanese Yen", name: "¥ · Japanese Yen" },
+        AUD: {
+          title: "AUD — Australian Dollar",
+          name: "A$ · Australian Dollar",
+        },
+        CNY: { title: "CNY — Chinese Yuan", name: "CN¥ · Chinese Yuan" },
       },
       displaySectionTitle: "Language & Display",
       languageLabel: "Language",
@@ -358,6 +363,19 @@ export const en = {
       toastCurrencyUpdated: "✅ Display currency updated",
       toastCurrencyFailed: "Failed to save currency",
       toastSettingsSaved: "✅ Settings saved",
+      goldPriceSectionTitle: "Gold Price",
+      goldPriceHint:
+        "Gold price per gram (IDR) used to compute the gold equivalent of net worth. No live market feed exists — this value is entered manually by the family owner.",
+      goldPriceLabel: "Price per Gram (Rp)",
+      goldPricePlaceholder: "e.g. 1,150,000",
+      goldPriceSaveButton: "Save Gold Price",
+      goldPriceUnsetLabel: "Not set",
+      goldPriceManualLabelPrefix: "Manually entered, as of ",
+      goldPriceOwnerOnlyNote:
+        "Only the family owner can change the gold price.",
+      toastGoldPriceUpdated: "✅ Gold price updated",
+      toastGoldPriceFailed: "Failed to save gold price",
+      toastGoldPriceInvalid: "Enter a valid gold price (greater than 0)",
     },
     notifSetting: {
       transactionSectionTitle: "Transactions",
@@ -1259,6 +1277,19 @@ export const en = {
     toastSaveFailedSuffix: ". Please try again.",
     toastDeleteFailedPrefix: "Failed to delete ",
     toastDeleteFailedSuffix: ". Please try again.",
+  },
+  consolidatedTotal: {
+    title: "Consolidated Total",
+    idrLabel: "Rupiah (IDR)",
+    usdLabel: "US Dollar (USD)",
+    goldLabel: "Gold Equivalent",
+    goldUnitSuffix: " grams",
+    goldPromptText: "Set a gold price to see the gold equivalent.",
+    goldPromptLinkLabel: "Set gold price",
+    manualLabelPrefix: "Manually entered, as of ",
+    indicativeFxNote:
+      "The USD value is an approximation using an indicative rate, not a real-time market rate.",
+    loadingLabel: "Loading...",
   },
   ringkasan: {
     errorLoad: "Failed to load summary data. Please reload the page.",

@@ -22,7 +22,7 @@ function makePrisma() {
       delete: jest.fn(),
     },
     account: { updateMany: jest.fn() },
-    familyGroup: { findUnique: jest.fn() },
+    familyGroup: { findUnique: jest.fn(), update: jest.fn() },
     invitation: { create: jest.fn() },
     $transaction: jest.fn(async (ops: Array<Promise<unknown>>) =>
       Promise.all(ops),
@@ -169,5 +169,114 @@ describe("FamilyGroupsService.createInvitation — invitation email (QA-sweep #4
     expect(result.token).toBe("tok-123");
     await flushMicrotasks();
     expect(sender.sendEmail).toHaveBeenCalledTimes(1);
+  });
+});
+
+// EPIC-021 Group F (#6) — user-maintained gold price per gram, owner-only
+// write, no live feed. Open Design Decision #6.
+describe("FamilyGroupsService gold price", () => {
+  let service: FamilyGroupsService;
+  let prisma: ReturnType<typeof makePrisma>;
+
+  beforeEach(async () => {
+    prisma = makePrisma();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        FamilyGroupsService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { sendEmail: jest.fn() },
+        },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+      ],
+    }).compile();
+    service = module.get(FamilyGroupsService);
+  });
+
+  describe("getGoldPrice", () => {
+    it("throws ForbiddenException when the requester is not a member", async () => {
+      prisma.member.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.getGoldPrice(FAMILY_GROUP_ID, REQUESTER_ID),
+      ).rejects.toThrow("Not a member of this family group");
+    });
+
+    it("returns null pricePerGram/updatedAt when no price has been set (null path)", async () => {
+      prisma.member.findUnique.mockResolvedValue({ role: "member" });
+      prisma.familyGroup.findUnique.mockResolvedValue({
+        goldPricePerGram: null,
+        goldPriceUpdatedAt: null,
+      });
+
+      const result = await service.getGoldPrice(
+        FAMILY_GROUP_ID,
+        MEMBER_USER_ID,
+      );
+
+      expect(result).toEqual({ pricePerGram: null, updatedAt: null });
+    });
+
+    it("serializes a set price as a string with an ISO updatedAt", async () => {
+      prisma.member.findUnique.mockResolvedValue({ role: "member" });
+      prisma.familyGroup.findUnique.mockResolvedValue({
+        goldPricePerGram: 1150000n,
+        goldPriceUpdatedAt: new Date("2026-08-04T00:00:00.000Z"),
+      });
+
+      const result = await service.getGoldPrice(
+        FAMILY_GROUP_ID,
+        MEMBER_USER_ID,
+      );
+
+      expect(result).toEqual({
+        pricePerGram: "1150000",
+        updatedAt: "2026-08-04T00:00:00.000Z",
+      });
+    });
+
+    it("throws NotFoundException when the family group does not exist", async () => {
+      prisma.member.findUnique.mockResolvedValue({ role: "member" });
+      prisma.familyGroup.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.getGoldPrice(FAMILY_GROUP_ID, MEMBER_USER_ID),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe("updateGoldPrice", () => {
+    it("throws ForbiddenException when the requester is not an owner", async () => {
+      prisma.member.findUnique.mockResolvedValue({ role: "member" });
+
+      await expect(
+        service.updateGoldPrice(FAMILY_GROUP_ID, MEMBER_USER_ID, {
+          pricePerGram: 1150000,
+        }),
+      ).rejects.toThrow("Only owners can perform this action");
+      expect(prisma.familyGroup.update).not.toHaveBeenCalled();
+    });
+
+    it("owner: persists the price as BigInt and stamps goldPriceUpdatedAt", async () => {
+      prisma.member.findUnique.mockResolvedValue({ role: "owner" });
+      prisma.familyGroup.update.mockResolvedValue({
+        goldPricePerGram: 1150000n,
+        goldPriceUpdatedAt: new Date("2026-08-04T00:00:00.000Z"),
+      });
+
+      const result = await service.updateGoldPrice(FAMILY_GROUP_ID, OWNER_ID, {
+        pricePerGram: 1150000,
+      });
+
+      expect(prisma.familyGroup.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: FAMILY_GROUP_ID },
+          data: expect.objectContaining({ goldPricePerGram: 1150000n }),
+        }),
+      );
+      expect(result.pricePerGram).toBe("1150000");
+      expect(result.updatedAt).toBe("2026-08-04T00:00:00.000Z");
+    });
   });
 });
