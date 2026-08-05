@@ -1181,3 +1181,70 @@ status` showing a clean tree with no `MERGE_HEAD`, before treating a merge
   minio/mailhog) healthy. Group D is complete, gated, PR-open, and running
   on DEV. **Epic NOT set `ready-for-qa`**: wave-2 groups E, F, H2, H3
   remain; that status is for when every task passes.
+- 2026-08-06 /epic-loop EPIC-023 "E — Payments that move money" →
+  **IN PROGRESS, NOT PASSED.** Implementation and one full fix round are
+  committed on `feat/EPIC-023-task-9-e-payments-that-move-money` (`f64e490`,
+  `773b2fe`, `9450c87`, `07f9687`); the deterministic gates are green
+  (`qa.sh`, `test.sh`, `security-check.sh` all exit 0; **api 961/961 in 80
+  suites, web 324/324 in 35 suites**), but the round-2 review gates were
+  killed mid-run by a session limit and **have not returned a verdict**. E is
+  therefore unverified, not done. The branch is **stacked on group D's**
+  branch, not on `development`: `gh pr merge 244` was refused by the
+  permission classifier as a merge with no visible human approval, so D must
+  merge before E.
+  Round 1 ran six gates (adversarial, database, security, react, typescript,
+  silent-failure, review-qa) and **all seven returned FAIL** on findings that
+  clustered into two root causes, both since fixed.
+  **Root cause 1 — the budget line was shared where D11 and E2 both say
+  "its" line, singular per obligation.** Three gates found it independently
+  from three angles: `update()` never re-derived `limitAmount`, which only
+  ever incremented, so a money figure the UI presents as the family's
+  committed obligation drifted upward silently; `Budget.liabilityId` was set
+  only for the first contributor, so the `onDelete: Restrict` FK guarded only
+  that one obligation while the schema comment claimed a fail-closed
+  guarantee for all of them; and `remove()` checked the shared category
+  rather than the obligation's own line, so a `minimumPayment: 0` liability
+  that never seeded a line was still refused, and once any line existed no
+  liability was deletable without destroying budgeting for the rest. Fixed by
+  giving each liability and insurance **its own `Category`** (`ownCategoryName`
+  util, `principalCategoryId`/`premiumCategoryId`) and therefore its own
+  `Budget` row — required because `BudgetsService.findAll` groups
+  `spentAmount` by `categoryId`, so two rows sharing a category would each be
+  attributed the combined spend.
+  **Root cause 2 — making `Transaction.accountId` nullable (E3's model for a
+  card purchase, which must touch no account) broke consumers a property-access
+  audit could not see.** The adversarial pass found the one place where
+  nullability changes _query_ semantics rather than property access:
+  `privacy.util.ts` matched an optional relation with an object, which Prisma
+  reads as requiring the relation to exist, so every card purchase vanished
+  for any restricted viewer — and **the B3 bridge fabricated a residual**,
+  since `profit` lost the expense while `closing` kept the debt. The correct
+  pattern was already written one line below for the nullable `categoryId`.
+  Related: `null` was laundered to `""` in four services, so a real "no
+  account, it is on a card" state rendered as a blank row indistinguishable
+  from missing data, and `/transaksi`'s `isCreditCard` substring heuristic —
+  which the DTO's new `liabilityId` was added to replace — silently excluded
+  exactly the rows E3 creates.
+  **Two further findings worth carrying beyond this task.** A double debit:
+  `paidThisPeriod` changed only the Pay button's `variant`, so a row badged
+  "Sudah Dibayar" still debited again on click, and the paid fixture existed
+  but was deliberately never clicked. And an automatic behaviour resolved
+  against the **generic catch-all COA code** `20099`, so creating an insurance
+  policy inflated the user's own "Pengeluaran Lainnya" budget, flipped a
+  shared `CoaAccount` from VARIABLE to FIXED (re-classifying unrelated
+  categories), and blocked every future policy deletion. Premiums now have a
+  dedicated code, backfilled for existing families as A1's migration
+  precedent established. **Never resolve an automatic behaviour to a
+  catch-all.**
+  The adversarial pass again earned its place, and again by execution rather
+  than inspection: it mutation-verified eight fixes, and proved the fail-open
+  guard probe genuinely closed by stripping `@CheckAbility` off the insurance
+  pay route and watching three guard tests fail. It also caught four
+  assertions that could not fail — including one the file's own comment
+  explained was vacuous.
+  **Known residual, not fixed:** pre-migration shared budget lines are not
+  retroactively split, so a family created before this change keeps a stale
+  shared line until its obligations are edited. **Outstanding from task A1
+  and still undone:** the pre/post-migration P&L and balance-sheet capture for
+  the demo family, which must run against DEV before A1's migration is applied
+  there.
