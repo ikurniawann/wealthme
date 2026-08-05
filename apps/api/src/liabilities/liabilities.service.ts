@@ -3,6 +3,7 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { type Role } from "@prisma/client";
@@ -121,6 +122,8 @@ function guardBigInt(field: string, value: string): bigint {
 
 @Injectable()
 export class LiabilitiesService {
+  private readonly logger = new Logger(LiabilitiesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(NOTIFICATION_SENDER_PORT)
@@ -859,6 +862,22 @@ export class LiabilitiesService {
   ): Promise<string> {
     if (liability.principalCategoryId) return liability.principalCategoryId;
 
+    // HIGH 10 (group E retry round 3b) — this liability is about to be
+    // SPLIT OUT of whatever category its past principal payments were
+    // posted against into its own, brand-new category. If that PRIOR
+    // category still carries a FIXED budget line, that line's `limitAmount`
+    // was very likely set (pre-this-feature) to cover MULTIPLE liabilities'
+    // combined `minimumPayment` (the old "one shared cicilan-pokok line"
+    // design `create()`'s doc comment describes) — this liability's own
+    // NEW line (below) adds its contribution a SECOND time, on top of the
+    // still-unchanged shared line, permanently inflating the family's total
+    // budgeted limit. There is no way to safely subtract "this liability's
+    // share" from that shared line from the data available (it was never
+    // recorded per-liability), so — per this task's guidance — this is
+    // detected and surfaced LOUDLY (a Logger.warn plus a persisted
+    // Notification) instead of silently guessed at.
+    await this.warnIfPriorSharedBudgetLine(tx, familyGroupId, liability);
+
     const coaAccount = await tx.coaAccount.findFirst({
       where: { familyGroupId, groupNum: 5, direction: "TRANSFER" },
       orderBy: { code: "asc" },
@@ -884,6 +903,51 @@ export class LiabilitiesService {
     });
 
     return category.id;
+  }
+
+  /**
+   * HIGH 10 (group E retry round 3b) — finds the categoryId this
+   * liability's own PAST principal payments (if any) were posted against
+   * BEFORE this self-heal, and warns loudly (log + persisted Notification)
+   * when that category still carries a FIXED budget line — see
+   * `resolveOwnPrincipalCategoryId`'s doc comment for the full reasoning.
+   * A brand-new liability with no prior "transfer" payment has nothing to
+   * warn about and this is a silent no-op for it.
+   */
+  private async warnIfPriorSharedBudgetLine(
+    tx: TxClient,
+    familyGroupId: string,
+    liability: { id: string; name: string },
+  ): Promise<void> {
+    const priorPayment = await tx.transaction.findFirst({
+      where: { familyGroupId, liabilityId: liability.id, type: "transfer" },
+      select: { categoryId: true },
+      orderBy: { occurredAt: "desc" },
+    });
+    if (!priorPayment?.categoryId) return;
+
+    const priorSharedBudget = await tx.budget.findFirst({
+      where: {
+        familyGroupId,
+        categoryId: priorPayment.categoryId,
+        budgetType: "FIXED",
+      },
+      select: { id: true, limitAmount: true },
+    });
+    if (!priorSharedBudget) return;
+
+    this.logger.warn(
+      `HIGH 10: liability "${liability.name}" (${liability.id}) is being split into its own principal category, but its prior category still carries a FIXED budget line (budget ${priorSharedBudget.id}, limit ${priorSharedBudget.limitAmount.toString()}) that may still include this liability's contribution — the family's total budgeted limit may now be double-counted. This cannot be safely auto-corrected from the data available; review this family's budgets manually.`,
+    );
+
+    await tx.notification.create({
+      data: {
+        familyGroupId,
+        title: "Perhatian: kemungkinan anggaran cicilan ganda",
+        body: `"${liability.name}" baru saja mendapat kategori anggaran sendiri, tapi anggaran lama (id ${priorSharedBudget.id}) masih memiliki batas tetap yang mungkin masih menghitung kontribusi cicilan ini. Silakan tinjau anggaran keluarga Anda.`,
+        icon: "⚠️",
+      },
+    });
   }
 
   /** Same self-healing lookup as `pay()` always used, scoped to the loan-interest account. */

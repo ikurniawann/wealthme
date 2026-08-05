@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Logger, NotFoundException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { Prisma } from "@prisma/client";
 
@@ -70,7 +70,18 @@ function makePrisma() {
       // (called inside `pay()`'s transaction) looks this up; `null` by
       // default means "no existing payment this period" unless a test
       // overrides it.
+      //
+      // HIGH 10 (group E retry round 3b) —
+      // `warnIfPriorSharedBudgetLine` ALSO calls `findFirst`, looking for
+      // this liability's PRIOR principal-payment transaction; `null` by
+      // default means "brand new liability, nothing to warn about" unless
+      // a test overrides it.
       findFirst: jest.fn().mockResolvedValue(null),
+    },
+    // HIGH 10 (group E retry round 3b) — `warnIfPriorSharedBudgetLine`
+    // persists a Notification when it detects a stale shared budget line.
+    notification: {
+      create: jest.fn(),
     },
     $transaction: jest.fn(),
   };
@@ -411,6 +422,49 @@ describe("LiabilitiesService", () => {
       });
       expect(prisma.budget.upsert).not.toHaveBeenCalled();
     });
+
+    // HIGH 9 (group E retry round 3b) — a PATCH that only changes `notes`
+    // must never revert a concurrent `pay()`'s balance change. The outer
+    // `findUnique` (before the Serializable retry loop) is STALE by the
+    // time the transaction actually reads: someone else paid in between,
+    // dropping `remainingBalance`. `runUpdate` must fall back to the FRESH
+    // `findUniqueOrThrow` read taken inside the (possibly retried)
+    // transaction, never to the stale outer read, when the caller did not
+    // explicitly supply that field.
+    it("keeps a concurrent payment's balance drop when a PATCH only changes notes (never reverts to the stale outer read)", async () => {
+      const staleOuterRead = {
+        ...BASE,
+        totalDebt: BigInt(10_000_000),
+        remainingBalance: BigInt(10_000_000), // stale: read before the payment
+        minimumPayment: BigInt(2_083_000),
+        principalCategoryId: "cat-principal",
+      };
+      const freshInsideTx = {
+        ...staleOuterRead,
+        remainingBalance: BigInt(7_000_000), // a concurrent pay() already landed
+      };
+      prisma.liability.findUnique.mockResolvedValue(staleOuterRead);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(freshInsideTx);
+      prisma.liability.update.mockResolvedValue({
+        ...freshInsideTx,
+        notes: "updated notes",
+      });
+
+      await service.update("fg-1", "lid-1", { notes: "updated notes" });
+
+      expect(prisma.liability.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            // Must be the FRESH balance (7,000,000), never the stale outer
+            // read (10,000,000) — the whole point of this fix.
+            remainingBalance: BigInt(7_000_000),
+            totalDebt: BigInt(10_000_000),
+            minimumPayment: BigInt(2_083_000),
+            notes: "updated notes",
+          }),
+        }),
+      );
+    });
   });
 
   describe("remove", () => {
@@ -734,6 +788,22 @@ describe("LiabilitiesService", () => {
         amount: "5000000",
       });
 
+      // HIGH 6 (group E retry round 3b) — this is the assertion the whole
+      // finding is about: `reports.service.ts` classifies a transaction
+      // PURELY by its category's `txCoaDirection` (category-first rule),
+      // so which COA the own principal category resolves to is what keeps
+      // a principal repayment OFF the P&L everywhere (Ringkasan, P&L, Cash
+      // Flow, Sankey, B3 reconciliation). Pinning the exact `where` here
+      // means flipping this lookup to, say,
+      // `{ groupNum: 2, direction: "EXPENSE" }` (an ordinary expense
+      // account) fails THIS test — before, nothing in the suite could tell
+      // the difference because every test just mocked the return value
+      // regardless of the query used to get it.
+      expect(prisma.coaAccount.findFirst).toHaveBeenCalledWith({
+        where: { familyGroupId: "fg-1", groupNum: 5, direction: "TRANSFER" },
+        orderBy: { code: "asc" },
+      });
+
       // HIGH 4 — the principal category name bakes in the liability's own
       // id ("lid-1"), unlike the still-shared interest category.
       expect(prisma.category.create).toHaveBeenCalledWith({
@@ -756,6 +826,73 @@ describe("LiabilitiesService", () => {
           coaAccountId: "coa-interest",
         },
       });
+    });
+
+    // HIGH 10 (group E retry round 3b) — self-healing this liability's OWN
+    // category must warn LOUDLY (log + persisted Notification) when its
+    // PRIOR principal-payment category still carries a FIXED budget line —
+    // that line's `limitAmount` likely still covers this liability's
+    // contribution too, so the family's total budgeted limit is now
+    // double-counted (A + 2B + C) and nothing else would ever surface it.
+    it("warns loudly when self-healing finds a prior FIXED budget line still on this liability's old (shared) category", async () => {
+      prisma.liability.findUnique.mockResolvedValue({
+        ...LIABILITY,
+        principalCategoryId: null,
+      });
+      prisma.account.findUnique.mockResolvedValue(ACCOUNT);
+      prisma.category.findFirst.mockResolvedValueOnce(null); // interest: none exists yet either
+      // First call: assertNotAlreadyPaidThisPeriod — no payment yet this
+      // period. Second call: warnIfPriorSharedBudgetLine — this liability's
+      // last principal payment was posted against the OLD shared category.
+      prisma.transaction.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ categoryId: "cat-old-shared" });
+      prisma.budget.findFirst.mockResolvedValueOnce({
+        id: "budget-old-shared",
+        limitAmount: BigInt(6_249_000), // e.g. A + B + C from before the split
+      });
+      prisma.coaAccount.findFirst
+        .mockResolvedValueOnce({
+          id: "coa-5",
+          code: "50001",
+          name: "Utang",
+          groupNum: 5,
+          direction: "TRANSFER",
+        })
+        .mockResolvedValueOnce({
+          id: "coa-interest",
+          code: "20009",
+          name: "Bunga Pinjaman",
+        });
+      prisma.category.create
+        .mockResolvedValueOnce({ id: "cat-new-principal" })
+        .mockResolvedValueOnce({ id: "cat-new-interest" });
+      prisma.liability.update.mockResolvedValue({
+        ...LIABILITY,
+        remainingBalance: BigInt(96_000_000),
+      });
+
+      const warnSpy = jest
+        .spyOn(Logger.prototype, "warn")
+        .mockImplementation(() => undefined);
+
+      await service.pay("fg-1", "lid-1", {
+        sourceAccountId: "acc-1",
+        amount: "5000000",
+      });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("budget-old-shared"),
+      );
+      expect(prisma.notification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            familyGroupId: "fg-1",
+            icon: "⚠️",
+          }),
+        }),
+      );
+      warnSpy.mockRestore();
     });
 
     // HIGH — EPIC-021 #22's bank-overdraft floor previously did not apply to
@@ -909,6 +1046,26 @@ describe("LiabilitiesService", () => {
       await expect(
         service.purchase("fg-1", "missing-id", { amount: "100000" }),
       ).rejects.toThrow(NotFoundException);
+      expect(prisma.liability.update).not.toHaveBeenCalled();
+      expect(prisma.transaction.create).not.toHaveBeenCalled();
+    });
+
+    // HIGH 7 (group E retry round 3b) — `purchase()`'s entire rationale
+    // ("a credit card stays a liability; spending raises the card's debt
+    // and leaves the bank untouched", D12) only makes sense for a
+    // `kartu_kredit`. Nothing previously checked `liability.type`, so this
+    // route could increment a MORTGAGE's `remainingBalance`/`totalDebt`
+    // and corrupt its `paymentRatio`.
+    it("rejects a purchase against a non-kartu_kredit liability (e.g. a mortgage)", async () => {
+      prisma.liability.findUnique.mockResolvedValue({
+        ...CARD,
+        id: "kpr-1",
+        type: "kpr",
+      });
+
+      await expect(
+        service.purchase("fg-1", "kpr-1", { amount: "150000" }),
+      ).rejects.toThrow(BadRequestException);
       expect(prisma.liability.update).not.toHaveBeenCalled();
       expect(prisma.transaction.create).not.toHaveBeenCalled();
     });

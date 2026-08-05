@@ -411,6 +411,52 @@ describe("InsurancesService", () => {
       });
     });
 
+    // HIGH 11 (group E retry round 3b) — a family whose chart already
+    // provisions the richer, purpose-built "21104" (the demo seed's own
+    // insurance code) must keep using it for every NEW policy, never get
+    // silently switched to the generic "20010" the backfill migration also
+    // inserts for EVERY family. `findFirst({ code: { in: [...] } },
+    // orderBy: { code: "asc" } })` would pick "20010" here purely because
+    // "20010" < "21104" as a string — this pins that the family's PREFERRED
+    // ("21104") code wins when BOTH exist, by querying each code in
+    // priority order rather than sorting alphabetically.
+    it("prefers the richer 21104 code over the generic 20010 when a family's chart provisions both", async () => {
+      prisma.insurance.create.mockResolvedValue({
+        ...BASE_ROW,
+        premiumCategoryId: null,
+      });
+      // Both codes exist for this family — "21104" must be tried FIRST and
+      // win, never "20010" (which would win under `orderBy: { code: "asc" }`
+      // since "20010" < "21104" lexically).
+      prisma.coaAccount.findFirst.mockImplementation(
+        async ({ where }: { where: { code: string } }) => {
+          if (where.code === "21104") {
+            return { id: "coa-21104", name: "Asset & Other Insurance" };
+          }
+          if (where.code === "20010") {
+            return { id: "coa-20010", name: "Premi Asuransi" };
+          }
+          return null;
+        },
+      );
+      prisma.category.create.mockResolvedValue({ id: "cat-new-premium" });
+
+      await service.create(FAMILY_GROUP_ID, {
+        name: "Asuransi Jiwa",
+        type: "jiwa" as const,
+        premiumAmount: "1500000",
+      });
+
+      expect(prisma.category.create).toHaveBeenCalledWith({
+        data: {
+          familyGroupId: FAMILY_GROUP_ID,
+          name: "Asset & Other Insurance — Asuransi Jiwa (ins-1)",
+          kind: "expense",
+          coaAccountId: "coa-21104",
+        },
+      });
+    });
+
     it("normalises a yearly premium to its monthly contribution", async () => {
       prisma.insurance.create.mockResolvedValue({
         ...BASE_ROW,
@@ -875,6 +921,45 @@ describe("InsurancesService", () => {
         where: { id: INSURANCE_ID, familyGroupId: FAMILY_GROUP_ID },
         data: {},
       });
+    });
+
+    // MEDIUM 13 (group E retry round 3b) — a monthly policy 3 months
+    // overdue, paid today, must advance renewalDate ONE period from TODAY
+    // (so `billing-cycle.processor.ts`'s catch-up has nothing left to
+    // correct), never one period from the stale, long-past stored
+    // `renewalDate` — the bug this anchor fixes: unconditionally advancing
+    // from the stale date left it still in the past, and the NEXT
+    // catch-up run would then advance it several more periods on top,
+    // compounding into "one payment silently advanced the renewal by four
+    // months".
+    it("anchors the advance to TODAY (not the stale date) when the policy is overdue", async () => {
+      jest.useFakeTimers().setSystemTime(new Date("2026-06-15T00:00:00.000Z"));
+      try {
+        const overdue = {
+          ...POLICY,
+          renewalDate: new Date("2026-03-15T00:00:00.000Z"), // 3 months overdue
+        };
+        prisma.insurance.findUnique.mockResolvedValue(overdue);
+        prisma.account.findUnique.mockResolvedValue(ACCOUNT);
+        prisma.insurance.update.mockResolvedValue({
+          ...overdue,
+          renewalDate: new Date("2026-07-15T00:00:00.000Z"),
+        });
+
+        await service.pay(FAMILY_GROUP_ID, INSURANCE_ID, {
+          sourceAccountId: "acc-1",
+        });
+
+        // Anchored to today (2026-06-15) + one month = 2026-07-15. NEVER
+        // anchored to the stale stored renewalDate (2026-03-15) + one
+        // month = 2026-04-15, which would still be in the past.
+        expect(prisma.insurance.update).toHaveBeenCalledWith({
+          where: { id: INSURANCE_ID, familyGroupId: FAMILY_GROUP_ID },
+          data: { renewalDate: new Date("2026-07-15T00:00:00.000Z") },
+        });
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it("self-heals by creating its OWN premium expense category when it has none yet (premiumCategoryId: null)", async () => {
