@@ -809,6 +809,84 @@ describe("ReportsService privacy enforcement", () => {
     ).toBeUndefined();
   });
 
+  // EPIC-023 E1 — LiabilitiesService.pay() now posts the principal leg as
+  // `type: "transfer"` (previously "expense", the deferred half of A3's
+  // fix — see liabilities.service.ts's runPayment doc comment). This proves
+  // the P&L exclusion above does NOT regress: `txCoaDirection` reads the
+  // category's own COA direction first and only falls back to `tx.type`
+  // when a transaction has no category at all, so a group-5 (Account
+  // Payable) category still excludes the row from expenses regardless of
+  // which `type` posted it.
+  it("getPnl: a mortgage principal repayment posted as type=transfer (EPIC-023 E1) still does not appear in P&L expenses", async () => {
+    const now = new Date();
+    const accounts: FakeAccount[] = [
+      {
+        id: "a1",
+        balance: 0n,
+        type: "bank",
+        name: "A",
+        institution: null,
+        isPrivate: false,
+      },
+    ];
+    const categories: FakeCategory[] = [
+      {
+        id: "c-legit-expense",
+        name: "Makan & Minum",
+        color: null,
+        isPrivate: false,
+        coaAccount: { direction: "EXPENSE" },
+      },
+      {
+        id: "c-mortgage-principal",
+        name: "Cicilan Pokok KPR",
+        color: null,
+        isPrivate: false,
+        coaAccount: { direction: chartDirection("50002") },
+      },
+    ];
+    const transactions: FakeTransaction[] = [
+      {
+        id: "t-legit-expense",
+        accountId: "a1",
+        categoryId: "c-legit-expense",
+        amount: 500_000n,
+        type: "expense",
+        toAccountId: null,
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      },
+      {
+        id: "t-mortgage-principal",
+        accountId: "a1",
+        categoryId: "c-mortgage-principal",
+        amount: 3_500_000n,
+        // The only difference from the A3 test above: type is now
+        // "transfer" (E1), not "expense".
+        type: "transfer",
+        toAccountId: null,
+        description: "Cicilan KPR — pokok",
+        occurredAt: now,
+        createdAt: now,
+      },
+    ];
+    const p = makeFakePrisma(accounts, categories, transactions);
+    const mod = await Test.createTestingModule({
+      providers: [ReportsService, { provide: PrismaService, useValue: p }],
+    }).compile();
+    const svc = mod.get(ReportsService);
+    const start = new Date(now.getTime() - 86_400_000);
+    const end = new Date(now.getTime() + 86_400_000);
+
+    const pnl = await svc.getPnl(FAMILY_GROUP_ID, start, end, true);
+
+    expect(pnl.expenses).toBe(500_000);
+    expect(
+      pnl.expenseBreakdown.find((b) => b.categoryName === "Cicilan Pokok KPR"),
+    ).toBeUndefined();
+  });
+
   it("getPnl: a loan disbursement (group-4 Receivable category) does not appear as P&L revenue (EPIC-023 A3)", async () => {
     const now = new Date();
     const accounts: FakeAccount[] = [

@@ -830,6 +830,7 @@ interface LiabilityDto {
     dueDate: string | null;
     autoAdvanceDueDate: boolean;
     paymentRatio: number;
+    paidThisPeriod: boolean;
     notes: string | null;
     currency: string;
     createdAt: string;
@@ -999,6 +1000,7 @@ interface InsuranceDto {
     notes: string | null;
     currency: string;
     beneficiaries: InsuranceBeneficiaryDto[];
+    paidThisPeriod: boolean;
     createdAt: string;
     updatedAt: string;
 }

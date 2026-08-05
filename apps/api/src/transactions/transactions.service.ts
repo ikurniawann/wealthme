@@ -215,6 +215,27 @@ export class TransactionsService {
       this.assertAccountOwnedByActingMember(toAccount, actingMember);
     }
 
+    // EPIC-023 E1 — tenant-scoped lookups: an unscoped FK write would let a
+    // caller link a transaction to another family's Liability/Insurance row
+    // just by guessing its id. Composite `{ id, familyGroupId }` where,
+    // mirrors every other cross-family FK check in this file.
+    if (dto.liabilityId) {
+      const liability = await this.prisma.liability.findUnique({
+        where: { id: dto.liabilityId, familyGroupId },
+      });
+      if (!liability) {
+        throw new NotFoundException(`Liability ${dto.liabilityId} not found`);
+      }
+    }
+    if (dto.insuranceId) {
+      const insurance = await this.prisma.insurance.findUnique({
+        where: { id: dto.insuranceId, familyGroupId },
+      });
+      if (!insurance) {
+        throw new NotFoundException(`Insurance ${dto.insuranceId} not found`);
+      }
+    }
+
     let resolvedCategoryId = dto.categoryId ?? null;
 
     // EPIC-019 Task C — a constrained member's allow-list (null = no rows =
@@ -302,6 +323,9 @@ export class TransactionsService {
           // non-member-facing caller, exactly like every other actingMember
           // default in this file).
           createdByUserId: actingMember?.userId ?? null,
+          // EPIC-023 E1 — already tenant-scope-verified above.
+          liabilityId: dto.liabilityId ?? null,
+          insuranceId: dto.insuranceId ?? null,
         },
         include: {
           category: { select: { name: true } },

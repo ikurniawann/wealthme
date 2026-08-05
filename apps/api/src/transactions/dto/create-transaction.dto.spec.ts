@@ -66,4 +66,41 @@ describe("CreateTransactionDto validation", () => {
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === "toAccountId")).toBe(true);
   });
+
+  // EPIC-023 E1 — optional obligation links.
+  it("passes when liabilityId is a valid UUID", async () => {
+    const dto = plainToInstance(CreateTransactionDto, {
+      ...BASE,
+      liabilityId: "33333333-3333-4333-8333-333333333333",
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+
+  it("passes when insuranceId is a valid UUID", async () => {
+    const dto = plainToInstance(CreateTransactionDto, {
+      ...BASE,
+      insuranceId: "44444444-4444-4444-8444-444444444444",
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+
+  it("fails when liabilityId is not a valid UUID", async () => {
+    const dto = plainToInstance(CreateTransactionDto, {
+      ...BASE,
+      liabilityId: "not-a-uuid",
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === "liabilityId")).toBe(true);
+  });
+
+  it("fails when insuranceId is not a valid UUID", async () => {
+    const dto = plainToInstance(CreateTransactionDto, {
+      ...BASE,
+      insuranceId: "not-a-uuid",
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === "insuranceId")).toBe(true);
+  });
 });

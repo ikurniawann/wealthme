@@ -66,4 +66,22 @@ export class CreateTransactionDto {
   })
   @IsDateString()
   occurredAt!: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    description:
+      "Liability UUID this transaction pays down (EPIC-023 E1). Must belong to the same family group.",
+  })
+  @IsUUID()
+  @IsOptional()
+  liabilityId?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    description:
+      "Insurance policy UUID this transaction is a premium payment for (EPIC-023 E1). Must belong to the same family group.",
+  })
+  @IsUUID()
+  @IsOptional()
+  insuranceId?: string;
 }

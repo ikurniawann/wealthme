@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -28,23 +29,26 @@ const LOAN_INTEREST_COA_CODES = ["20009", "21304"];
 
 type TxClient = Parameters<Parameters<PrismaService["$transaction"]>[0]>[0];
 
-function toLiabilityDto(liability: {
-  id: string;
-  familyGroupId: string;
-  name: string;
-  institution: string | null;
-  type: string;
-  totalDebt: bigint;
-  remainingBalance: bigint;
-  minimumPayment: bigint;
-  interestRate: { toString(): string };
-  dueDate: Date | null;
-  autoAdvanceDueDate: boolean;
-  notes: string | null;
-  currency: string;
-  createdAt: Date;
-  updatedAt: Date;
-}): LiabilityResponseDto {
+function toLiabilityDto(
+  liability: {
+    id: string;
+    familyGroupId: string;
+    name: string;
+    institution: string | null;
+    type: string;
+    totalDebt: bigint;
+    remainingBalance: bigint;
+    minimumPayment: bigint;
+    interestRate: { toString(): string };
+    dueDate: Date | null;
+    autoAdvanceDueDate: boolean;
+    notes: string | null;
+    currency: string;
+    createdAt: Date;
+    updatedAt: Date;
+  },
+  paidThisPeriod = false,
+): LiabilityResponseDto {
   const paymentRatio =
     liability.totalDebt > BigInt(0)
       ? Number(
@@ -67,10 +71,24 @@ function toLiabilityDto(liability: {
     dueDate: liability.dueDate?.toISOString() ?? null,
     autoAdvanceDueDate: liability.autoAdvanceDueDate,
     paymentRatio,
+    // EPIC-023 E2 — whether a payment linked to THIS liability (`liabilityId`
+    // on Transaction, E1) landed within the current calendar-month period.
+    // Drives the budget page's obligations Pay list (D11, US-LIAB-3) without
+    // requiring the frontend to separately query transactions.
+    paidThisPeriod,
     notes: liability.notes,
     currency: liability.currency,
     createdAt: liability.createdAt.toISOString(),
     updatedAt: liability.updatedAt.toISOString(),
+  };
+}
+
+/** Mirrors `BudgetsService.findAll`'s "this calendar month" window. */
+function currentMonthBounds(): { monthStart: Date; monthEnd: Date } {
+  const now = new Date();
+  return {
+    monthStart: new Date(now.getFullYear(), now.getMonth(), 1),
+    monthEnd: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59),
   };
 }
 
@@ -92,7 +110,37 @@ export class LiabilitiesService {
       where: { familyGroupId },
       orderBy: { createdAt: "asc" },
     });
-    return liabilities.map(toLiabilityDto);
+
+    const paidSet = await this.paidThisPeriodIds(
+      familyGroupId,
+      liabilities.map((l) => l.id),
+    );
+
+    return liabilities.map((l) => toLiabilityDto(l, paidSet.has(l.id)));
+  }
+
+  /**
+   * EPIC-023 E2 — set of liability ids with at least one payment
+   * (`Transaction.liabilityId`, E1) `occurredAt` in the current calendar
+   * month. One extra query, same "current month" window
+   * `BudgetsService.findAll` already uses.
+   */
+  private async paidThisPeriodIds(
+    familyGroupId: string,
+    liabilityIds: string[],
+  ): Promise<Set<string>> {
+    if (liabilityIds.length === 0) return new Set();
+    const { monthStart, monthEnd } = currentMonthBounds();
+    const rows = await this.prisma.transaction.findMany({
+      where: {
+        familyGroupId,
+        liabilityId: { in: liabilityIds },
+        occurredAt: { gte: monthStart, lte: monthEnd },
+      },
+      select: { liabilityId: true },
+      distinct: ["liabilityId"],
+    });
+    return new Set(rows.map((r) => r.liabilityId!));
   }
 
   async getSummary(
@@ -119,6 +167,29 @@ export class LiabilitiesService {
     };
   }
 
+  /**
+   * EPIC-023 E2 (D11, US-LIAB-3) — creating a liability with a non-zero
+   * `minimumPayment` auto-creates (or tops up) a FIXED budget line for it,
+   * so the obligation shows up on the budget page without a manual step.
+   * `minimumPayment === 0` liabilities (e.g. 0% family loans with no
+   * scheduled payment) intentionally get NO budget line — there is nothing
+   * due to budget for yet; adding a minimum payment later via `update()` is
+   * out of this task's scope (deferred, see this task's Automation Log).
+   *
+   * Category derivation: reuses `resolvePrincipalCategoryId` UNCHANGED —
+   * the SAME group-5 (Account Payable) TRANSFER category `pay()` already
+   * posts the principal leg against (see that method's doc comment). This
+   * is deliberate, not incidental: the budget's `spentAmount` is computed
+   * by `BudgetsService` from `Transaction` rows sharing the budget's
+   * `categoryId` (EPIC-022 A6). Giving the budget a DIFFERENT, liability-
+   * specific category would look plausible but would silently break
+   * budget-vs-actual tracking — payments would never register as spend
+   * against it. Every liability in a family group therefore shares ONE
+   * FIXED "cicilan pokok" budget line (monthly period), whose limit is the
+   * SUM of every liability's `minimumPayment` — see `upsertFixedBudgetLine`
+   * for how the `@@unique([familyGroupId, categoryId, period])` collision
+   * this implies is handled (via `upsert`, not a caught P2002).
+   */
   async create(
     familyGroupId: string,
     dto: CreateLiabilityDto,
@@ -132,21 +203,39 @@ export class LiabilitiesService {
       ? guardBigInt("minimumPayment", dto.minimumPayment)
       : BigInt(0);
 
-    const liability = await this.prisma.liability.create({
-      data: {
-        familyGroupId,
-        name: dto.name,
-        institution: dto.institution ?? null,
-        type: dto.type,
-        totalDebt,
-        remainingBalance,
-        minimumPayment,
-        interestRate: dto.interestRate ?? "0",
-        dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
-        autoAdvanceDueDate: dto.autoAdvanceDueDate ?? false,
-        notes: dto.notes ?? null,
-        currency: dto.currency ?? "IDR",
-      },
+    const liability = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.liability.create({
+        data: {
+          familyGroupId,
+          name: dto.name,
+          institution: dto.institution ?? null,
+          type: dto.type,
+          totalDebt,
+          remainingBalance,
+          minimumPayment,
+          interestRate: dto.interestRate ?? "0",
+          dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+          autoAdvanceDueDate: dto.autoAdvanceDueDate ?? false,
+          notes: dto.notes ?? null,
+          currency: dto.currency ?? "IDR",
+        },
+      });
+
+      if (minimumPayment > BigInt(0)) {
+        const categoryId = await this.resolvePrincipalCategoryId(
+          tx,
+          familyGroupId,
+        );
+        await this.markCategoryFixed(tx, categoryId);
+        await this.upsertFixedBudgetLine(tx, {
+          familyGroupId,
+          categoryId,
+          contribution: minimumPayment,
+          liabilityId: created.id,
+        });
+      }
+
+      return created;
     });
 
     return toLiabilityDto(liability);
@@ -203,6 +292,13 @@ export class LiabilitiesService {
     return toLiabilityDto(updated);
   }
 
+  /**
+   * EPIC-023 E2 (D11) — refuses (409, never a silent cascade) while a FIXED
+   * budget line derived from this liability's category still exists. This
+   * is a READ-ONLY category lookup (no self-heal `create`): if the shared
+   * principal category was never provisioned, there is nothing to check
+   * and deletion proceeds.
+   */
   async remove(familyGroupId: string, id: string): Promise<void> {
     const existing = await this.prisma.liability.findUnique({
       where: { id, familyGroupId },
@@ -210,7 +306,94 @@ export class LiabilitiesService {
     if (!existing) {
       throw new NotFoundException("Liability not found");
     }
+
+    const category = await this.prisma.category.findFirst({
+      where: {
+        familyGroupId,
+        coaAccount: { groupNum: 5, direction: "TRANSFER" },
+      },
+      select: { id: true, name: true },
+    });
+    if (category) {
+      const budget = await this.prisma.budget.findUnique({
+        where: {
+          familyGroupId_categoryId_period: {
+            familyGroupId,
+            categoryId: category.id,
+            period: "monthly",
+          },
+        },
+      });
+      if (budget) {
+        throw new ConflictException(
+          `Tidak dapat menghapus liabilitas ini karena masih memiliki anggaran tetap "${category.name}". Hapus atau sesuaikan anggaran tersebut terlebih dahulu.`,
+        );
+      }
+    }
+
     await this.prisma.liability.delete({ where: { id, familyGroupId } });
+  }
+
+  /**
+   * Idempotently sets `budgetType: FIXED` on the category's linked
+   * CoaAccount so the auto-created budget line reads as FIXED (D11) via
+   * the existing transitive `Category.coaAccount.budgetType` field
+   * (`BudgetsService.toDto`) — no new column on `Budget` needed for this.
+   */
+  private async markCategoryFixed(
+    tx: TxClient,
+    categoryId: string,
+  ): Promise<void> {
+    const category = await tx.category.findUniqueOrThrow({
+      where: { id: categoryId },
+      select: { coaAccountId: true },
+    });
+    await tx.coaAccount.update({
+      where: { id: category.coaAccountId },
+      data: { budgetType: "FIXED" },
+    });
+  }
+
+  /**
+   * `Budget` has `@@unique([familyGroupId, categoryId, period])`; since
+   * every liability in a family group shares ONE principal category (see
+   * `create()`'s doc comment), a second liability's auto-budget WILL
+   * collide with the first's row. `upsert` (a single atomic
+   * `INSERT ... ON CONFLICT DO UPDATE`) handles that collision without a
+   * caught P2002 or a retry loop: the first liability creates the line,
+   * every subsequent one tops up `limitAmount` by its own contribution.
+   * `liabilityId` is only set on the `create` branch — see the `Budget`
+   * model's doc comment for what that FK means once shared.
+   */
+  private async upsertFixedBudgetLine(
+    tx: TxClient,
+    params: {
+      familyGroupId: string;
+      categoryId: string;
+      contribution: bigint;
+      liabilityId: string;
+    },
+  ): Promise<void> {
+    const { familyGroupId, categoryId, contribution, liabilityId } = params;
+    await tx.budget.upsert({
+      where: {
+        familyGroupId_categoryId_period: {
+          familyGroupId,
+          categoryId,
+          period: "monthly",
+        },
+      },
+      create: {
+        familyGroupId,
+        categoryId,
+        period: "monthly",
+        limitAmount: contribution,
+        liabilityId,
+      },
+      update: {
+        limitAmount: { increment: contribution },
+      },
+    });
   }
 
   /**
@@ -352,13 +535,22 @@ export class LiabilitiesService {
         tx,
         familyGroupId,
       );
+      // EPIC-023 E1 — the principal leg is money moving from cash into
+      // paying down debt, not a real expense (the group-5 TRANSFER category
+      // above already excludes it from P&L via txCoaDirection's
+      // category-first rule — see reports.service.spec.ts's A3 tests). This
+      // finishes that fix: `type` now matches the category's own direction
+      // instead of lying "expense", so the transaction list badge is honest
+      // too (deferred from Task A's Automation Log). `liabilityId` links
+      // this row back to the obligation it settles (D10, US-LIAB-4).
       await tx.transaction.create({
         data: {
           familyGroupId,
           accountId: sourceAccount.id,
           categoryId: principalCategoryId,
           amount: principal,
-          type: "expense",
+          type: "transfer",
+          liabilityId: id,
           description: `Pembayaran pokok ${liability.name}`,
           occurredAt,
         },

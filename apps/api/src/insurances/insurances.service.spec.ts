@@ -31,8 +31,17 @@ const BASE_ROW = {
 // update() — supply a `tx` proxy that delegates back to the same mocked
 // delegates so nested calls inside the callback are observable on the mocks.
 let prismaTx: {
-  insurance: { update: jest.Mock };
+  insurance: { update: jest.Mock; findUnique: jest.Mock; create: jest.Mock };
   insuranceBeneficiary: { deleteMany: jest.Mock };
+  account: { findUnique: jest.Mock; update: jest.Mock };
+  category: {
+    findFirst: jest.Mock;
+    create: jest.Mock;
+    findUniqueOrThrow: jest.Mock;
+  };
+  coaAccount: { findFirst: jest.Mock; update: jest.Mock };
+  budget: { upsert: jest.Mock };
+  transaction: { create: jest.Mock };
 };
 
 function makePrisma() {
@@ -53,6 +62,30 @@ function makePrisma() {
     member: {
       findFirst: jest.fn(),
     },
+    // EPIC-023 E1 — used inside pay()'s $transaction.
+    account: {
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
+    category: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
+    },
+    coaAccount: {
+      findFirst: jest.fn(),
+      update: jest.fn(),
+    },
+    // EPIC-023 E2 — used inside create()'s $transaction and remove()'s
+    // read-only guard.
+    budget: {
+      upsert: jest.fn(),
+      findUnique: jest.fn(),
+    },
+    transaction: {
+      create: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
     $transaction: jest.fn(async (fn: (tx: unknown) => unknown) => fn(prismaTx)),
   };
 }
@@ -64,12 +97,41 @@ describe("InsurancesService", () => {
   beforeEach(async () => {
     prisma = makePrisma();
     prismaTx = {
-      insurance: { update: prisma.insurance.update },
+      insurance: {
+        update: prisma.insurance.update,
+        findUnique: prisma.insurance.findUnique,
+        create: prisma.insurance.create,
+      },
       insuranceBeneficiary: {
         deleteMany: prisma.insuranceBeneficiary.deleteMany,
       },
+      account: {
+        findUnique: prisma.account.findUnique,
+        update: prisma.account.update,
+      },
+      category: {
+        findFirst: prisma.category.findFirst,
+        create: prisma.category.create,
+        findUniqueOrThrow: prisma.category.findUniqueOrThrow,
+      },
+      coaAccount: {
+        findFirst: prisma.coaAccount.findFirst,
+        update: prisma.coaAccount.update,
+      },
+      budget: { upsert: prisma.budget.upsert },
+      transaction: { create: prisma.transaction.create },
     };
     jest.clearAllMocks();
+    // EPIC-023 E2 — safe default for every test that calls create() but
+    // does not care about the auto-budget side-effect: the premium
+    // category already exists, so resolvePremiumCategoryId() short-circuits
+    // without needing a COA account mocked too. Tests exercising the
+    // self-heal / delete-guard paths override this explicitly.
+    prisma.category.findFirst.mockResolvedValue({ id: "cat-premium" });
+    prisma.category.findUniqueOrThrow.mockResolvedValue({
+      coaAccountId: "coa-premium",
+    });
+    prisma.transaction.findMany.mockResolvedValue([]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -180,7 +242,36 @@ describe("InsurancesService", () => {
     });
   });
 
+  describe("paidThisPeriod", () => {
+    it("is true when a premium payment landed this month", async () => {
+      prisma.insurance.findMany.mockResolvedValue([{ ...BASE_ROW }]);
+      prisma.transaction.findMany.mockResolvedValue([
+        { insuranceId: INSURANCE_ID },
+      ]);
+      const [item] = await service.findAll(FAMILY_GROUP_ID);
+      expect(item!.paidThisPeriod).toBe(true);
+    });
+
+    it("is false when no premium payment landed this month", async () => {
+      prisma.insurance.findMany.mockResolvedValue([{ ...BASE_ROW }]);
+      prisma.transaction.findMany.mockResolvedValue([]);
+      const [item] = await service.findAll(FAMILY_GROUP_ID);
+      expect(item!.paidThisPeriod).toBe(false);
+    });
+  });
+
   describe("create()", () => {
+    beforeEach(() => {
+      // EPIC-023 E2 — every create() with a non-zero premium now resolves
+      // (self-heals) the shared premium category; default to "already
+      // exists" so pre-existing tests that don't care about the budget
+      // side-effect stay focused on their own assertion.
+      prisma.category.findFirst.mockResolvedValue({ id: "cat-premium" });
+      prisma.category.findUniqueOrThrow.mockResolvedValue({
+        coaAccountId: "coa-premium",
+      });
+    });
+
     it("returns InsuranceResponseDto with stringified amounts", async () => {
       // Arrange
       prisma.insurance.create.mockResolvedValue({ ...BASE_ROW });
@@ -221,6 +312,63 @@ describe("InsurancesService", () => {
       // Assert
       expect(prisma.notification.create).not.toHaveBeenCalled();
     });
+
+    // EPIC-023 E2 (D11) — a non-zero monthly-normalised premium
+    // auto-creates the FIXED budget line for this policy's shared premium
+    // category.
+    it("auto-creates a FIXED budget line for a monthly premium", async () => {
+      prisma.insurance.create.mockResolvedValue({ ...BASE_ROW });
+
+      await service.create(FAMILY_GROUP_ID, {
+        name: "Asuransi Jiwa",
+        type: "jiwa" as const,
+        premiumAmount: "1500000",
+        premiumPeriod: "monthly" as const,
+      });
+
+      expect(prisma.coaAccount.update).toHaveBeenCalledWith({
+        where: { id: "coa-premium" },
+        data: { budgetType: "FIXED" },
+      });
+      expect(prisma.budget.upsert).toHaveBeenCalledWith({
+        where: {
+          familyGroupId_categoryId_period: {
+            familyGroupId: FAMILY_GROUP_ID,
+            categoryId: "cat-premium",
+            period: "monthly",
+          },
+        },
+        create: {
+          familyGroupId: FAMILY_GROUP_ID,
+          categoryId: "cat-premium",
+          period: "monthly",
+          limitAmount: BigInt(1_500_000),
+          insuranceId: INSURANCE_ID,
+        },
+        update: { limitAmount: { increment: BigInt(1_500_000) } },
+      });
+    });
+
+    it("normalises a yearly premium to its monthly contribution", async () => {
+      prisma.insurance.create.mockResolvedValue({
+        ...BASE_ROW,
+        premiumAmount: BigInt(12_000_000),
+        premiumPeriod: "yearly",
+      });
+
+      await service.create(FAMILY_GROUP_ID, {
+        name: "Asuransi Jiwa",
+        type: "jiwa" as const,
+        premiumAmount: "12000000",
+        premiumPeriod: "yearly" as const,
+      });
+
+      expect(prisma.budget.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ limitAmount: BigInt(1_000_000) }),
+        }),
+      );
+    });
   });
 
   describe("remove()", () => {
@@ -232,6 +380,36 @@ describe("InsurancesService", () => {
       await expect(
         service.remove(FAMILY_GROUP_ID, "nonexistent-id"),
       ).rejects.toThrow(NotFoundException);
+      expect(prisma.insurance.delete).not.toHaveBeenCalled();
+    });
+
+    it("deletes when no FIXED budget line exists for the premium category", async () => {
+      prisma.insurance.findUnique.mockResolvedValue(BASE_ROW);
+      prisma.category.findFirst.mockResolvedValue(null);
+
+      await service.remove(FAMILY_GROUP_ID, INSURANCE_ID);
+
+      expect(prisma.insurance.delete).toHaveBeenCalledWith({
+        where: { id: INSURANCE_ID, familyGroupId: FAMILY_GROUP_ID },
+      });
+    });
+
+    // EPIC-023 E2 (D11, Honesty AC) — refused with a message naming the
+    // blocking budget line, never a silent cascade.
+    it("refuses (409) when a FIXED budget line still references the premium category", async () => {
+      prisma.insurance.findUnique.mockResolvedValue(BASE_ROW);
+      prisma.category.findFirst.mockResolvedValue({
+        id: "cat-premium",
+        name: "Premi Asuransi",
+      });
+      prisma.budget.findUnique.mockResolvedValue({
+        id: "budget-1",
+        limitAmount: BigInt(1_500_000),
+      });
+
+      await expect(
+        service.remove(FAMILY_GROUP_ID, INSURANCE_ID),
+      ).rejects.toThrow(/Premi Asuransi/);
       expect(prisma.insurance.delete).not.toHaveBeenCalled();
     });
   });
@@ -421,6 +599,175 @@ describe("InsurancesService", () => {
           data: expect.objectContaining({ type: "pendidikan" }),
         }),
       );
+    });
+  });
+
+  // EPIC-023 E1 — paying a premium creates ONE linked (insuranceId)
+  // transaction, debits the source account, and advances renewalDate by one
+  // premium period. All inside `pay()`'s one `$transaction`.
+  describe("pay", () => {
+    const POLICY = {
+      ...BASE_ROW,
+      premiumAmount: BigInt(1_500_000),
+      premiumPeriod: "monthly" as const,
+      renewalDate: new Date("2026-03-15T00:00:00.000Z"),
+    };
+    const ACCOUNT = {
+      id: "acc-1",
+      familyGroupId: FAMILY_GROUP_ID,
+      type: "bank",
+      balance: BigInt(10_000_000),
+      name: "BCA",
+    };
+
+    it("throws NotFoundException when the policy does not exist in this family group", async () => {
+      prisma.insurance.findUnique.mockResolvedValue(null);
+      await expect(
+        service.pay(FAMILY_GROUP_ID, "missing-id", {
+          sourceAccountId: "acc-1",
+        }),
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.account.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects a source account from another family group (tenant scoping)", async () => {
+      prisma.insurance.findUnique.mockResolvedValue(POLICY);
+      prisma.account.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.pay(FAMILY_GROUP_ID, INSURANCE_ID, {
+          sourceAccountId: "acc-other-family",
+        }),
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.account.update).not.toHaveBeenCalled();
+      expect(prisma.insurance.update).not.toHaveBeenCalled();
+    });
+
+    it("defaults amount to the policy's premiumAmount, debits the account, links insuranceId, and advances renewalDate by one period", async () => {
+      prisma.insurance.findUnique.mockResolvedValue(POLICY);
+      prisma.account.findUnique.mockResolvedValue(ACCOUNT);
+      prisma.category.findFirst.mockResolvedValue({ id: "cat-premium" });
+      prisma.insurance.update.mockResolvedValue({
+        ...POLICY,
+        renewalDate: new Date("2026-04-15T00:00:00.000Z"),
+      });
+
+      const result = await service.pay(FAMILY_GROUP_ID, INSURANCE_ID, {
+        sourceAccountId: "acc-1",
+      });
+
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: "acc-1", familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { decrement: BigInt(1_500_000) } },
+      });
+      expect(prisma.transaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            familyGroupId: FAMILY_GROUP_ID,
+            accountId: "acc-1",
+            categoryId: "cat-premium",
+            amount: BigInt(1_500_000),
+            type: "expense",
+            insuranceId: INSURANCE_ID,
+          }),
+        }),
+      );
+      // Golden value — same clamped-advance algorithm as
+      // next-renewal-date.util.spec.ts's "advances a mid-month date by one
+      // month" case: 2026-03-15 monthly -> 2026-04-15.
+      expect(prisma.insurance.update).toHaveBeenCalledWith({
+        where: { id: INSURANCE_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { renewalDate: new Date("2026-04-15T00:00:00.000Z") },
+      });
+      expect(result.renewalDate).toBe("2026-04-15T00:00:00.000Z");
+    });
+
+    it("uses an explicit amount instead of the policy's premiumAmount when provided", async () => {
+      prisma.insurance.findUnique.mockResolvedValue(POLICY);
+      prisma.account.findUnique.mockResolvedValue(ACCOUNT);
+      prisma.category.findFirst.mockResolvedValue({ id: "cat-premium" });
+      prisma.insurance.update.mockResolvedValue(POLICY);
+
+      await service.pay(FAMILY_GROUP_ID, INSURANCE_ID, {
+        sourceAccountId: "acc-1",
+        amount: "2000000",
+      });
+
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: "acc-1", familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { decrement: BigInt(2_000_000) } },
+      });
+    });
+
+    it("leaves renewalDate untouched when the policy has none set", async () => {
+      prisma.insurance.findUnique.mockResolvedValue({
+        ...POLICY,
+        renewalDate: null,
+      });
+      prisma.account.findUnique.mockResolvedValue(ACCOUNT);
+      prisma.category.findFirst.mockResolvedValue({ id: "cat-premium" });
+      prisma.insurance.update.mockResolvedValue({
+        ...POLICY,
+        renewalDate: null,
+      });
+
+      await service.pay(FAMILY_GROUP_ID, INSURANCE_ID, {
+        sourceAccountId: "acc-1",
+      });
+
+      expect(prisma.insurance.update).toHaveBeenCalledWith({
+        where: { id: INSURANCE_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: {},
+      });
+    });
+
+    it("self-heals by creating the premium expense category when none exists yet", async () => {
+      prisma.insurance.findUnique.mockResolvedValue(POLICY);
+      prisma.account.findUnique.mockResolvedValue(ACCOUNT);
+      prisma.category.findFirst.mockResolvedValue(null);
+      prisma.coaAccount.findFirst.mockResolvedValue({
+        id: "coa-other-expense",
+        code: "20099",
+        name: "Pengeluaran Lainnya",
+      });
+      prisma.category.create.mockResolvedValue({ id: "cat-new-premium" });
+      prisma.insurance.update.mockResolvedValue(POLICY);
+
+      await service.pay(FAMILY_GROUP_ID, INSURANCE_ID, {
+        sourceAccountId: "acc-1",
+      });
+
+      expect(prisma.category.create).toHaveBeenCalledWith({
+        data: {
+          familyGroupId: FAMILY_GROUP_ID,
+          name: "Pengeluaran Lainnya",
+          kind: "expense",
+          coaAccountId: "coa-other-expense",
+        },
+      });
+      expect(prisma.transaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ categoryId: "cat-new-premium" }),
+        }),
+      );
+    });
+
+    // HIGH — EPIC-021 #22's bank-overdraft floor must apply to insurance
+    // premium payments exactly like every other fresh debit.
+    it("rejects a payment from a bank account whose balance would go below zero (EPIC-021 #22)", async () => {
+      prisma.insurance.findUnique.mockResolvedValue(POLICY);
+      prisma.account.findUnique.mockResolvedValue({
+        ...ACCOUNT,
+        balance: BigInt(1_000_000),
+      });
+
+      await expect(
+        service.pay(FAMILY_GROUP_ID, INSURANCE_ID, {
+          sourceAccountId: "acc-1",
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.account.update).not.toHaveBeenCalled();
+      expect(prisma.insurance.update).not.toHaveBeenCalled();
     });
   });
 });

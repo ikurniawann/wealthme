@@ -13,6 +13,11 @@ export class LiabilityResponseDto {
   @ApiProperty({ nullable: true }) dueDate!: string | null;
   @ApiProperty() autoAdvanceDueDate!: boolean;
   @ApiProperty() paymentRatio!: number;
+  @ApiProperty({
+    description:
+      "EPIC-023 E2 — true when a payment transaction linked to this liability landed within the current calendar-month period",
+  })
+  paidThisPeriod!: boolean;
   @ApiProperty({ nullable: true }) notes!: string | null;
   @ApiProperty() currency!: string;
   @ApiProperty() createdAt!: string;

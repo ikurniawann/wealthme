@@ -39,6 +39,9 @@ function makePrisma() {
     // allow-list (unrestricted) so every pre-existing test that never passes
     // actingMember keeps working unmodified.
     memberCategoryAllowance: { findMany: jest.fn().mockResolvedValue([]) },
+    // EPIC-023 E1 — tenant-scoped lookups for the optional obligation links.
+    liability: { findUnique: jest.fn() },
+    insurance: { findUnique: jest.fn() },
     notification: { findFirst: jest.fn(), create: jest.fn() },
     transaction: {
       create: jest.fn(),
@@ -191,6 +194,101 @@ describe("TransactionsService", () => {
 
       expect(result.type).toBe("income");
       expect(result.amount).toBe("5000000");
+    });
+
+    // EPIC-023 E1 — an unscoped FK write is a tenant-scoping hole: a
+    // liabilityId/insuranceId from ANOTHER family group must never be
+    // writable onto this family's transaction.
+    describe("liabilityId / insuranceId tenant scoping (EPIC-023 E1)", () => {
+      const LIABILITY_ID = "liab-test-uuid";
+      const INSURANCE_ID = "ins-test-uuid";
+
+      beforeEach(() => {
+        prisma.account.findUnique.mockResolvedValue(mockAccount);
+      });
+
+      it("rejects a liabilityId that does not belong to this family group", async () => {
+        prisma.liability.findUnique.mockResolvedValue(null);
+
+        await expect(
+          service.create(FAMILY_GROUP_ID, {
+            accountId: ACCOUNT_ID,
+            amount: 1_000_000,
+            type: "transfer",
+            occurredAt: new Date().toISOString(),
+            liabilityId: LIABILITY_ID,
+          }),
+        ).rejects.toThrow(NotFoundException);
+        expect(prisma.liability.findUnique).toHaveBeenCalledWith({
+          where: { id: LIABILITY_ID, familyGroupId: FAMILY_GROUP_ID },
+        });
+        expect(prisma.$transaction).not.toHaveBeenCalled();
+      });
+
+      it("rejects an insuranceId that does not belong to this family group", async () => {
+        prisma.insurance.findUnique.mockResolvedValue(null);
+
+        await expect(
+          service.create(FAMILY_GROUP_ID, {
+            accountId: ACCOUNT_ID,
+            amount: 500_000,
+            type: "expense",
+            occurredAt: new Date().toISOString(),
+            insuranceId: INSURANCE_ID,
+          }),
+        ).rejects.toThrow(NotFoundException);
+        expect(prisma.insurance.findUnique).toHaveBeenCalledWith({
+          where: { id: INSURANCE_ID, familyGroupId: FAMILY_GROUP_ID },
+        });
+        expect(prisma.$transaction).not.toHaveBeenCalled();
+      });
+
+      it("writes liabilityId onto the created transaction when it belongs to this family group", async () => {
+        prisma.liability.findUnique.mockResolvedValue({
+          id: LIABILITY_ID,
+          familyGroupId: FAMILY_GROUP_ID,
+        });
+        const now = new Date("2026-06-15T10:00:00.000Z");
+        const createdTx = {
+          id: "tx-liab-linked",
+          familyGroupId: FAMILY_GROUP_ID,
+          accountId: ACCOUNT_ID,
+          categoryId: null,
+          amount: BigInt(1_000_000),
+          type: "transfer" as const,
+          description: null,
+          occurredAt: now,
+          createdAt: now,
+        };
+        let capturedData: Record<string, unknown> | undefined;
+        prisma.$transaction.mockImplementation(
+          async (fn: Parameters<typeof prisma.$transaction>[0]) => {
+            const innerPrisma = {
+              ...prisma,
+              transaction: {
+                ...prisma.transaction,
+                create: jest.fn().mockImplementation(({ data }) => {
+                  capturedData = data;
+                  return Promise.resolve(createdTx);
+                }),
+              },
+            };
+            return (fn as (p: typeof innerPrisma) => Promise<unknown>)(
+              innerPrisma,
+            );
+          },
+        );
+
+        await service.create(FAMILY_GROUP_ID, {
+          accountId: ACCOUNT_ID,
+          amount: 1_000_000,
+          type: "transfer",
+          occurredAt: now.toISOString(),
+          liabilityId: LIABILITY_ID,
+        });
+
+        expect(capturedData?.liabilityId).toBe(LIABILITY_ID);
+      });
     });
   });
 

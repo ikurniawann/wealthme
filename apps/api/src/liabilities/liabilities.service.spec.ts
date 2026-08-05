@@ -44,13 +44,20 @@ function makePrisma() {
     },
     category: {
       findFirst: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
       create: jest.fn(),
     },
     coaAccount: {
       findFirst: jest.fn(),
+      update: jest.fn(),
+    },
+    budget: {
+      upsert: jest.fn(),
+      findUnique: jest.fn(),
     },
     transaction: {
       create: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
     },
     $transaction: jest.fn(),
   };
@@ -133,6 +140,36 @@ describe("LiabilitiesService", () => {
     });
   });
 
+  describe("paidThisPeriod", () => {
+    it("is true when a payment transaction landed this month", async () => {
+      prisma.liability.findMany.mockResolvedValue([
+        {
+          ...BASE,
+          id: "lid-1",
+          totalDebt: BigInt(1),
+          remainingBalance: BigInt(1),
+        },
+      ]);
+      prisma.transaction.findMany.mockResolvedValue([{ liabilityId: "lid-1" }]);
+      const [result] = await service.findAll("fg-1");
+      expect(result.paidThisPeriod).toBe(true);
+    });
+
+    it("is false when no payment transaction landed this month", async () => {
+      prisma.liability.findMany.mockResolvedValue([
+        {
+          ...BASE,
+          id: "lid-1",
+          totalDebt: BigInt(1),
+          remainingBalance: BigInt(1),
+        },
+      ]);
+      prisma.transaction.findMany.mockResolvedValue([]);
+      const [result] = await service.findAll("fg-1");
+      expect(result.paidThisPeriod).toBe(false);
+    });
+  });
+
   describe("getSummary", () => {
     it("sums remaining balances across multiple liabilities", async () => {
       prisma.liability.findMany.mockResolvedValue([
@@ -164,6 +201,70 @@ describe("LiabilitiesService", () => {
         }),
       ).rejects.toThrow(BadRequestException);
     });
+
+    // EPIC-023 E2 (D11) — a non-zero minimumPayment auto-creates the FIXED
+    // budget line for this liability's shared principal category.
+    it("auto-creates a FIXED budget line when minimumPayment is set", async () => {
+      prisma.liability.create.mockResolvedValue({
+        ...BASE,
+        id: "lid-new",
+        totalDebt: BigInt(10_000_000),
+        remainingBalance: BigInt(10_000_000),
+      });
+      prisma.category.findFirst.mockResolvedValue({ id: "cat-principal" });
+      prisma.category.findUniqueOrThrow.mockResolvedValue({
+        coaAccountId: "coa-5",
+      });
+
+      await service.create("fg-1", {
+        name: "KTA BNI",
+        type: "pinjaman_pribadi" as never,
+        totalDebt: "10000000",
+        remainingBalance: "10000000",
+        minimumPayment: "2083000",
+      });
+
+      expect(prisma.coaAccount.update).toHaveBeenCalledWith({
+        where: { id: "coa-5" },
+        data: { budgetType: "FIXED" },
+      });
+      expect(prisma.budget.upsert).toHaveBeenCalledWith({
+        where: {
+          familyGroupId_categoryId_period: {
+            familyGroupId: "fg-1",
+            categoryId: "cat-principal",
+            period: "monthly",
+          },
+        },
+        create: {
+          familyGroupId: "fg-1",
+          categoryId: "cat-principal",
+          period: "monthly",
+          limitAmount: BigInt(2_083_000),
+          liabilityId: "lid-new",
+        },
+        update: { limitAmount: { increment: BigInt(2_083_000) } },
+      });
+    });
+
+    it("does NOT create a budget line when minimumPayment is zero", async () => {
+      prisma.liability.create.mockResolvedValue({
+        ...BASE,
+        id: "lid-new",
+        totalDebt: BigInt(10_000_000),
+        remainingBalance: BigInt(10_000_000),
+      });
+
+      await service.create("fg-1", {
+        name: "0% Family Loan",
+        type: "pinjaman_pribadi" as never,
+        totalDebt: "10000000",
+        remainingBalance: "10000000",
+      });
+
+      expect(prisma.budget.upsert).not.toHaveBeenCalled();
+      expect(prisma.coaAccount.update).not.toHaveBeenCalled();
+    });
   });
 
   describe("remove", () => {
@@ -172,6 +273,36 @@ describe("LiabilitiesService", () => {
       await expect(service.remove("fg-1", "missing-id")).rejects.toThrow(
         NotFoundException,
       );
+    });
+
+    it("deletes when no FIXED budget line exists for the principal category", async () => {
+      prisma.liability.findUnique.mockResolvedValue(BASE);
+      prisma.category.findFirst.mockResolvedValue(null);
+
+      await service.remove("fg-1", "lid-1");
+
+      expect(prisma.liability.delete).toHaveBeenCalledWith({
+        where: { id: "lid-1", familyGroupId: "fg-1" },
+      });
+    });
+
+    // EPIC-023 E2 (D11, Honesty AC) — refused with a message naming the
+    // blocking budget line, never a silent cascade.
+    it("refuses (409) when a FIXED budget line still references the principal category", async () => {
+      prisma.liability.findUnique.mockResolvedValue(BASE);
+      prisma.category.findFirst.mockResolvedValue({
+        id: "cat-principal",
+        name: "Cicilan Pokok",
+      });
+      prisma.budget.findUnique.mockResolvedValue({
+        id: "budget-1",
+        limitAmount: BigInt(2_083_000),
+      });
+
+      await expect(service.remove("fg-1", "lid-1")).rejects.toThrow(
+        /Cicilan Pokok/,
+      );
+      expect(prisma.liability.delete).not.toHaveBeenCalled();
     });
   });
 
@@ -314,6 +445,54 @@ describe("LiabilitiesService", () => {
         }),
       );
       expect(result.remainingBalance).toBe("96000000");
+    });
+
+    // EPIC-023 E1 — the principal leg links liabilityId and is posted as a
+    // TRANSFER (money moving from cash into paying down debt, not a real
+    // expense — the deferred half of A3's fix, see liabilities.service.ts's
+    // runPayment doc comment). The interest leg stays an ordinary EXPENSE
+    // and does NOT carry liabilityId — it is real money spent, not a debt
+    // paydown. Golden values: same month-1 split as the test above (12% on
+    // 100,000,000 -> interest 1,000,000, principal 4,000,000).
+    it("links the principal leg to the liability as a transfer; the interest leg stays an unlinked expense (EPIC-023 E1)", async () => {
+      prisma.liability.findUnique.mockResolvedValue(LIABILITY);
+      prisma.account.findUnique.mockResolvedValue(ACCOUNT);
+      prisma.category.findFirst
+        .mockResolvedValueOnce({ id: "cat-principal" })
+        .mockResolvedValueOnce({ id: "cat-interest" });
+      prisma.liability.update.mockResolvedValue({
+        ...LIABILITY,
+        remainingBalance: BigInt(96_000_000),
+      });
+
+      await service.pay("fg-1", "lid-1", {
+        sourceAccountId: "acc-1",
+        amount: "5000000",
+      });
+
+      expect(prisma.transaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            categoryId: "cat-principal",
+            amount: BigInt(4_000_000),
+            type: "transfer",
+            liabilityId: "lid-1",
+          }),
+        }),
+      );
+      expect(prisma.transaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            categoryId: "cat-interest",
+            amount: BigInt(1_000_000),
+            type: "expense",
+          }),
+        }),
+      );
+      const interestCall = prisma.transaction.create.mock.calls.find(
+        (call) => call[0].data.categoryId === "cat-interest",
+      );
+      expect(interestCall?.[0].data.liabilityId).toBeUndefined();
     });
 
     it("skips the interest transaction entirely when interest is 0 (a 0% liability)", async () => {

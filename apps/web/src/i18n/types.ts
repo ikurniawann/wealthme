@@ -850,7 +850,11 @@ export type I18nDictionary = {
     payConfirmSuffix: string;
     payProcessing: string;
     payConfirmButton: string;
+    /** EPIC-023 E2 — source-account picker for the real premium payment. */
+    paySourceAccountLabel: string;
+    paySourceAccountPlaceholder: string;
     toastRenewalRecordedPrefix: string;
+    toastPaySuccessNoRenewal: string;
     toastRenewalFailed: string;
     /** EPIC-021 Group D (#14) — policy beneficiaries, mirroring warisan's
      * heir editor UX (allocation bar + optional family-member link). */
@@ -1733,6 +1737,18 @@ export type I18nDictionary = {
     toastAmountInvalid: string;
     toastNoFamilyGroup: string;
     errorCategoryNotFoundAfterConflict: string;
+    /** EPIC-023 E2 — "this period's obligations" Pay list (D11, US-LIAB-3). */
+    obligationsSectionTitle: string;
+    obligationsDueBadge: string;
+    obligationsPaidBadge: string;
+    obligationsPayButton: string;
+    obligationsPayDialogTitle: string;
+    obligationsSourceAccountLabel: string;
+    obligationsSourceAccountPlaceholder: string;
+    obligationsPayProcessing: string;
+    obligationsPayConfirmButton: string;
+    obligationsToastPaySuccess: string;
+    obligationsToastPayFailed: string;
   };
   /** EPIC-018 Task A6 — `/transaksi` (transactions list) page copy. */
   transaksi: {
