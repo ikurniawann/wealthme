@@ -80,6 +80,15 @@ function makeFakePrisma() {
     investment: {
       findMany: jest.fn().mockResolvedValue(investmentsList),
     },
+    // EPIC-023 B2 — `getBalanceSheet` now checks for a `NetWorthSnapshot`
+    // first. This fixture models a family with no snapshot history at all
+    // yet (`findFirst` always resolves `null`), so `getBalanceSheet` falls
+    // back to the same LIVE computation this parity test exercises —
+    // unchanged from before B2, and still comparable against
+    // `DashboardService.getNetWorth`'s own live computation below.
+    netWorthSnapshot: {
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
   };
 }
 
@@ -147,6 +156,8 @@ describe("ReportsService.getBalanceSheet vs DashboardService.getNetWorth — cro
       asset: { findMany: jest.fn().mockResolvedValue([]) },
       liability: { findMany: jest.fn().mockResolvedValue([]) },
       investment: { findMany: jest.fn().mockResolvedValue([]) },
+      // See the comment in `makeFakePrisma` above — no snapshot history yet.
+      netWorthSnapshot: { findFirst: jest.fn().mockResolvedValue(null) },
     };
 
     const reportsMod: TestingModule = await Test.createTestingModule({

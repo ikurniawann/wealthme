@@ -24,6 +24,7 @@ import type {
   CashflowStatementDto,
   DetailReportDto,
   PnlDto,
+  ReconciliationBridgeDto,
   ReportPeriod,
   ReportSummaryDto,
   SankeyDto,
@@ -34,6 +35,27 @@ function parseDate(iso: string | undefined, fallback: Date): Date {
   if (!iso) return fallback;
   const d = new Date(iso);
   return isNaN(d.getTime()) ? fallback : d;
+}
+
+/**
+ * EPIC-023 Task B3 review (LOW, batch fix 6) — WIB (UTC+7, fixed, no DST)
+ * start-of-month, mirroring `wibWallClockToIso`/`wibCalendarParts` in
+ * `apps/web/src/lib/laporan-period.ts` (EPIC-022 B7). Scoped to
+ * `getReconciliationBridge` only, NOT applied to this controller's other
+ * `new Date(now.getFullYear(), now.getMonth(), 1)` call sites — those use
+ * server-LOCAL month boundaries and changing them is a wider blast radius
+ * than this fix's scope; every real client already sends an explicit
+ * `startDate` from `resolvePreset`, so this only matters for a caller that
+ * omits it.
+ */
+const WIB_UTC_OFFSET_MINUTES = 7 * 60;
+
+function defaultMonthStartWib(now: Date): Date {
+  const wibNow = new Date(now.getTime() + WIB_UTC_OFFSET_MINUTES * 60_000);
+  const utcMs =
+    Date.UTC(wibNow.getUTCFullYear(), wibNow.getUTCMonth(), 1, 0, 0, 0, 0) -
+    WIB_UTC_OFFSET_MINUTES * 60_000;
+  return new Date(utcMs);
 }
 
 @ApiTags("reports")
@@ -238,6 +260,44 @@ export class ReportsController {
     assertHouseholdWideReadAllowed(req.tenantContext?.member?.role);
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
     return this.reportsService.getSankey(
+      familyGroupId,
+      startDate,
+      endDate,
+      canSeePrivate,
+    );
+  }
+
+  // EPIC-023 Task B (B3, D24, US-RPT-11) — same ability/tenant-scoping shape
+  // as every other route on this controller: `@CheckAbility` is required or
+  // `AbilitiesGuard` fails OPEN, and `assertHouseholdWideReadAllowed` keeps
+  // dependant/operational off this household-wide reconciliation view.
+  @Get("reconciliation-bridge")
+  @CheckAbility((ab: AppAbility) => ab.can("read", "Account"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiQuery({ name: "startDate", required: false, type: String })
+  @ApiQuery({ name: "endDate", required: false, type: String })
+  @ApiOperation({
+    summary:
+      "Get the profit vs. net-worth-change reconciliation bridge (US-RPT-11)",
+  })
+  @ApiResponse({ status: 200, description: "Reconciliation bridge data" })
+  getReconciliationBridge(
+    @Param("familyGroupId") familyGroupId: string,
+    @Req() req: Request,
+    @Query("startDate") startDateStr?: string,
+    @Query("endDate") endDateStr?: string,
+  ): Promise<ReconciliationBridgeDto> {
+    const now = new Date();
+    // EPIC-023 Task B3 review (LOW, batch fix 6) — WIB-anchored, not
+    // server-local: `new Date(y, m, 1)` drops the first 7 hours of the WIB
+    // month when the client omits `startDate`, consistent with what B1
+    // established for the web-side presets.
+    const defaultStart = defaultMonthStartWib(now);
+    const startDate = parseDate(startDateStr, defaultStart);
+    const endDate = parseDate(endDateStr, now);
+    assertHouseholdWideReadAllowed(req.tenantContext?.member?.role);
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
+    return this.reportsService.getReconciliationBridge(
       familyGroupId,
       startDate,
       endDate,

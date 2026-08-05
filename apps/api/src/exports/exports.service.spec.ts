@@ -142,6 +142,12 @@ function fakeBalanceSheet(): BalanceSheetDto {
         items: [{ name: "Visa", amount: 200_000 }],
       },
     ],
+    // EPIC-023 Task B (B2/retry) — a live (non-snapshot), unrestricted
+    // figure: this fixture models the export path, which always requests
+    // the current balance sheet regardless of history/privacy nuance.
+    dataAvailable: true,
+    isHistorical: false,
+    restrictedForViewer: false,
   };
 }
 

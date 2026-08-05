@@ -27,6 +27,7 @@ import {
   getPeriodDateRange,
   getYearDateRange,
   REPORT_TIMEZONE_LABEL,
+  resolvePreset,
 } from "./laporan-period";
 
 describe("daysInMonth", () => {
@@ -235,5 +236,178 @@ describe("getPeriodDateRange / getYearDateRange — pinned to WIB (Asia/Jakarta,
 
   it("exposes a human-readable timezone label for the period-filter disclosure", () => {
     expect(REPORT_TIMEZONE_LABEL).toBe("WIB (UTC+7)");
+  });
+});
+
+// EPIC-023 Task B (B1) — RED phase. `resolvePreset` does not exist yet;
+// this pins the date-range-preset contract Task B must land: This Month ·
+// Last Month · Last 3/6/12 Months · This Year · Last Year · Custom.
+//
+// Every boundary below is computed BY HAND against a fixed anchor `now`
+// (2026-08-05T10:00 WIB), the same convention the rest of this file already
+// follows for `getPeriodDateRange`/`getYearDateRange` — never recomputed
+// from `resolvePreset`'s own arithmetic, so a wrong implementation actually
+// fails these assertions instead of trivially matching them.
+//
+// Preset semantics assumed here (no contract existed before this test) —
+// documented so whoever lands B1 knows exactly what is pinned:
+//   - thisMonth         : [month-start 00:00 WIB, TODAY 23:59:59.999 WIB] (to-date)
+//   - lastMonth         : the full previous calendar month
+//   - last3/6/12Months  : trailing N-month window ENDING TODAY (to-date),
+//     starting on the anchor's day-of-month N months back, clamped into the
+//     target month exactly like `clampDayToMonth` above (leap-year aware,
+//     since it is built on the same `daysInMonth`)
+//   - thisYear          : [Jan 1 this year 00:00 WIB, TODAY 23:59:59.999 WIB]
+//   - lastYear          : the full previous calendar year
+//   - custom            : an explicit { start: {year,month,day}, end: {...} }
+//     range, WIB-pinned the same way `getPeriodDateRange`'s single-day
+//     branch already is; throws without one — there is no default "custom" window
+describe("resolvePreset — date-range presets (EPIC-023 B1)", () => {
+  // Anchor: 2026-08-05 10:00:00 WIB (+07:00) = 2026-08-05T03:00:00.000Z.
+  const NOW = new Date("2026-08-05T03:00:00.000Z");
+
+  it("thisMonth: month-start through TODAY's last WIB instant", () => {
+    const { startDate, endDate } = resolvePreset("thisMonth", NOW);
+    // Aug 1 2026 00:00:00.000 WIB = Jul 31 2026 17:00:00.000 UTC.
+    expect(startDate).toBe("2026-07-31T17:00:00.000Z");
+    // Aug 5 2026 23:59:59.999 WIB = Aug 5 2026 16:59:59.999 UTC.
+    expect(endDate).toBe("2026-08-05T16:59:59.999Z");
+  });
+
+  it("lastMonth: the full previous calendar month (Jul 2026)", () => {
+    const { startDate, endDate } = resolvePreset("lastMonth", NOW);
+    expect(startDate).toBe("2026-06-30T17:00:00.000Z"); // Jul 1 00:00 WIB
+    expect(endDate).toBe("2026-07-31T16:59:59.999Z"); // Jul 31 23:59:59.999 WIB
+  });
+
+  it("last3Months: trailing 3 months (May 5 – Aug 5) ending TODAY", () => {
+    const { startDate, endDate } = resolvePreset("last3Months", NOW);
+    expect(startDate).toBe("2026-05-04T17:00:00.000Z"); // May 5 00:00 WIB
+    expect(endDate).toBe("2026-08-05T16:59:59.999Z");
+  });
+
+  it("last6Months: trailing 6 months (Feb 5 – Aug 5) ending TODAY", () => {
+    const { startDate, endDate } = resolvePreset("last6Months", NOW);
+    expect(startDate).toBe("2026-02-04T17:00:00.000Z"); // Feb 5 00:00 WIB
+    expect(endDate).toBe("2026-08-05T16:59:59.999Z");
+  });
+
+  it("last12Months: trailing 12 months (Aug 5 2025 – Aug 5 2026) ending TODAY", () => {
+    const { startDate, endDate } = resolvePreset("last12Months", NOW);
+    expect(startDate).toBe("2025-08-04T17:00:00.000Z"); // Aug 5 2025 00:00 WIB
+    expect(endDate).toBe("2026-08-05T16:59:59.999Z");
+  });
+
+  it("thisYear: Jan 1 this year through TODAY's last WIB instant", () => {
+    const { startDate, endDate } = resolvePreset("thisYear", NOW);
+    expect(startDate).toBe("2025-12-31T17:00:00.000Z"); // Jan 1 2026 00:00 WIB
+    expect(endDate).toBe("2026-08-05T16:59:59.999Z");
+  });
+
+  it("lastYear: the full previous calendar year (2025) — independently cross-checked against the already-verified getYearDateRange(2025)", () => {
+    const { startDate, endDate } = resolvePreset("lastYear", NOW);
+    expect(startDate).toBe("2024-12-31T17:00:00.000Z");
+    expect(endDate).toBe("2025-12-31T16:59:59.999Z");
+    // Bonus cross-check against a DIFFERENT, already-implemented function —
+    // not a re-run of resolvePreset's own arithmetic.
+    const independentlyComputed = getYearDateRange(2025);
+    expect(startDate).toBe(independentlyComputed.startDate);
+    expect(endDate).toBe(independentlyComputed.endDate);
+  });
+
+  it("custom: an explicit start/end range, WIB-pinned like getPeriodDateRange's single-day branch", () => {
+    const { startDate, endDate } = resolvePreset("custom", NOW, {
+      start: { year: 2026, month: 6, day: 10 },
+      end: { year: 2026, month: 7, day: 20 },
+    });
+    expect(startDate).toBe("2026-06-09T17:00:00.000Z"); // Jun 10 00:00 WIB
+    expect(endDate).toBe("2026-07-20T16:59:59.999Z"); // Jul 20 23:59:59.999 WIB
+  });
+
+  it("custom: throws a specific 'range required' error without an explicit range — there is no default 'custom' window", () => {
+    // A bare `.toThrow()` (no message match) would pass today for the WRONG
+    // reason — `resolvePreset` doesn't exist yet, so ANY call throws
+    // "... is not a function", which is not the contract being pinned.
+    // Matching the message keeps this genuinely RED until the real
+    // validation exists, and genuinely GREEN only once it does.
+    expect(() => resolvePreset("custom", NOW)).toThrow(/custom.*range/i);
+  });
+
+  // EPIC-023 Task B retry (MEDIUM) — an inverted range used to silently
+  // produce `startDate > endDate` (every downstream `gte`/`lte` query then
+  // matches nothing, with no signal why). Guard it explicitly.
+  it("custom: throws when end is before start — an inverted range must not silently yield startDate > endDate", () => {
+    expect(() =>
+      resolvePreset("custom", NOW, {
+        start: { year: 2026, month: 7, day: 20 },
+        end: { year: 2026, month: 6, day: 10 },
+      }),
+    ).toThrow(/end.*(on or after|before).*start/i);
+  });
+
+  it("custom: a single-day range (start === end) is valid, not an inversion", () => {
+    const { startDate, endDate } = resolvePreset("custom", NOW, {
+      start: { year: 2026, month: 6, day: 10 },
+      end: { year: 2026, month: 6, day: 10 },
+    });
+    expect(startDate).toBe("2026-06-09T17:00:00.000Z");
+    expect(endDate).toBe("2026-06-10T16:59:59.999Z");
+  });
+
+  // Month-length edges (leap years, 31-day months, year rollovers) — built
+  // on the same `daysInMonth`/`clampDayToMonth` already proven above.
+  describe("month-length edges", () => {
+    it("last3Months from May 31 clamps the start day into February (28 days, non-leap 2026)", () => {
+      const anchor = new Date("2026-05-31T08:00:00.000Z"); // 2026-05-31T15:00 WIB
+      const { startDate, endDate } = resolvePreset("last3Months", anchor);
+      expect(startDate).toBe("2026-02-27T17:00:00.000Z"); // Feb 28 2026 00:00 WIB (31 clamped to 28)
+      expect(endDate).toBe("2026-05-31T16:59:59.999Z"); // May 31 2026 23:59:59.999 WIB
+    });
+
+    it("last3Months from Feb 29 (leap year 2024) rolls back into November of the PREVIOUS year — no clamp needed", () => {
+      const anchor = new Date("2024-02-29T05:00:00.000Z"); // 2024-02-29T12:00 WIB
+      const { startDate, endDate } = resolvePreset("last3Months", anchor);
+      expect(startDate).toBe("2023-11-28T17:00:00.000Z"); // Nov 29 2023 00:00 WIB
+      expect(endDate).toBe("2024-02-29T16:59:59.999Z"); // Feb 29 2024 23:59:59.999 WIB — the leap day itself, not rolled to Mar 1
+    });
+
+    it("lastMonth from a January anchor rolls back into December of the PREVIOUS year", () => {
+      const anchor = new Date("2026-01-15T02:00:00.000Z"); // 2026-01-15T09:00 WIB
+      const { startDate, endDate } = resolvePreset("lastMonth", anchor);
+      expect(startDate).toBe("2025-11-30T17:00:00.000Z"); // Dec 1 2025 00:00 WIB
+      expect(endDate).toBe("2025-12-31T16:59:59.999Z"); // Dec 31 2025 23:59:59.999 WIB
+    });
+  });
+
+  // EPIC-023 B1 explicit requirement — "date-range presets under a non-WIB
+  // TZ". If a wrong implementation reads local `Date` getters
+  // (`.getMonth()`, `.getDate()`, `.getFullYear()` without the `UTC` prefix)
+  // instead of computing the WIB wall-clock date from the UTC instant, these
+  // fail under a non-WIB `process.env.TZ` even though they pass by
+  // coincidence under WIB/UTC.
+  describe("a non-WIB TZ must not change any preset boundary", () => {
+    const originalTz = process.env.TZ;
+
+    afterEach(() => {
+      process.env.TZ = originalTz;
+    });
+
+    it("thisMonth is identical under America/New_York as under UTC", () => {
+      for (const tz of ["UTC", "America/New_York"]) {
+        process.env.TZ = tz;
+        const { startDate, endDate } = resolvePreset("thisMonth", NOW);
+        expect(startDate).toBe("2026-07-31T17:00:00.000Z");
+        expect(endDate).toBe("2026-08-05T16:59:59.999Z");
+      }
+    });
+
+    it("last3Months is identical under America/New_York as under UTC", () => {
+      for (const tz of ["UTC", "America/New_York"]) {
+        process.env.TZ = tz;
+        const { startDate, endDate } = resolvePreset("last3Months", NOW);
+        expect(startDate).toBe("2026-05-04T17:00:00.000Z");
+        expect(endDate).toBe("2026-08-05T16:59:59.999Z");
+      }
+    });
   });
 });

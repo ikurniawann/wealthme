@@ -1113,6 +1113,14 @@ interface PnlDto {
     expenseBreakdown: CategoryBreakdownItem[];
 }
 interface BalanceSheetDto {
+    /**
+     * The date these figures actually represent. When `dataAvailable` is true
+     * and the figures come from a `NetWorthSnapshot` (EPIC-023 B2), this is
+     * the SNAPSHOT's own date — which may be earlier than the requested
+     * as-of date when it is the most recent snapshot on or before it, never a
+     * later one. Reporting the requested date instead would silently imply
+     * fresher data than what is actually shown.
+     */
     asOfDate: string;
     totalAssets: number;
     totalLiabilities: number;
@@ -1133,6 +1141,88 @@ interface BalanceSheetDto {
             amount: number;
         }[];
     }[];
+    /**
+     * EPIC-023 B2 (closes EPIC-022 B11) — honest "do we actually have a
+     * figure for this date" signal. False when the family has snapshot
+     * history but none on or before the requested date — the response is
+     * zeroed out rather than inventing a real-looking figure. (When the
+     * family has captured no snapshot at all yet, this is still true and the
+     * response falls back to live current totals — see reports.service.ts.)
+     */
+    dataAvailable: boolean;
+    /**
+     * True when the figures above come from a historical `NetWorthSnapshot`
+     * (a real point-in-time figure). False when they were computed from
+     * live/current balances instead (no snapshot history exists yet for this
+     * family) — in that case the figures are NOT a historical statement for
+     * `asOfDate`, only the current totals.
+     */
+    isHistorical: boolean;
+    /**
+     * EPIC-023 Task B retry (CRITICAL 2) — a `NetWorthSnapshot` is captured
+     * with privacy fully open (`computeNetWorthBreakdown(familyGroupId, true)`
+     * — see dashboard.service.ts's `captureSnapshot`), so it has no per-viewer
+     * breakdown to fall back to. True when this viewer may NOT see private
+     * items (`canSeePrivate` false) AND the family has at least one private
+     * account: the snapshot exists but cannot be shown to THIS viewer without
+     * leaking hidden money, so every figure above is zeroed out and
+     * `dataAvailable` is false for that reason alone (distinct from "no
+     * snapshot exists for this date at all"). Always false when the family
+     * has no private accounts, or when the viewer may see everything.
+     */
+    restrictedForViewer: boolean;
+}
+interface ReconciliationBridgeDto {
+    startDate: string;
+    endDate: string;
+    /** Net worth at the start of the period (from the last snapshot on or
+     * before `startDate` itself), or 0 when unavailable. */
+    opening: number;
+    /** Net worth at the end of the period (from the last snapshot on or
+     * before `endDate`), or 0 when unavailable. */
+    closing: number;
+    /** Revenue − expenses over the period, COA-direction classified — TRANSFER
+     * (wealth allocation / debt principal) is excluded, matching the P&L. */
+    profit: number;
+    /** Signed sum of the period's COA group-3 ("Wealth Allocation") TRANSFER
+     * transactions — cash moved into a holding (+) or withdrawn back to cash
+     * (−). A real two-sided transfer between two of the family's own
+     * accounts contributes 0 (both legs are already inside `totalCash`). A
+     * real SUBTRAHEND in the identity above now, not a memo line folded into
+     * a derived figure — see `holdingsChange` below for why. */
+    contribution: number;
+    /** RAW combined change in physical assets AND investments: (Δ
+     * totalAssets + Δ totalInvestments). Nothing is subtracted — this is the
+     * directly-measured snapshot delta, not a market-movement-only figure.
+     * Not split by asset/investment — nothing links a contribution to which
+     * of the two it funded, so a split would misattribute a real gain the
+     * same way an asset-vs-investment contribution split once misattributed
+     * a contribution. */
+    holdingsChange: number;
+    /** `closing − (opening + profit − contribution + holdingsChange)` — an
+     * HONESTLY NAMED residual, not forced to zero. Two independent, named
+     * reasons it is not always zero: (1) COA group 4 (Receivable) has no
+     * counterpart in the net-worth breakdown (no receivable table backs it),
+     * so lending money out lowers cash with nothing to offset it; (2) a
+     * back-dated entry can move a balance in one snapshot period and its
+     * profit in another, since snapshots record CAPTURE time while profit is
+     * computed from `occurredAt` — see `getReconciliationBridge`'s doc
+     * comment. Naming the gap is more honest than hiding it inside another
+     * term. */
+    unexplained: number;
+    /** False when either endpoint has no snapshot at or before it — an
+     * honest "no data" signal, matching `BalanceSheetDto.dataAvailable`. */
+    dataAvailable: boolean;
+    /** EPIC-023 Task B retry (CRITICAL 2), widened by EPIC-023 Task B3 review
+     * (HIGH, FIX 2) — true when this viewer may not see private items AND
+     * the family has at least one private `Account` OR at least one private
+     * `Category`, so `opening`/`closing` (privacy-unaware snapshot totals)
+     * cannot be shown alongside a privacy-filtered `profit`/`contribution`.
+     * Wider than `BalanceSheetDto.restrictedForViewer` (accounts only) —
+     * see `familyHasPrivateItems`'s doc comment in reports.service.ts for
+     * why this endpoint needs the category check and the balance sheet does
+     * not. */
+    restrictedForViewer: boolean;
 }
 interface CashflowStatementDto {
     startDate: string;
@@ -1368,4 +1458,4 @@ interface UpdateTaxRecordDto {
     notes?: string;
 }
 
-export { type AccountDto, AccountDtoSchema, type AccountOwnerFilter, AccountOwnerFilterSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AllowanceRequestDto, AllowanceRequestDtoSchema, type AllowanceRequestStatus, AllowanceRequestStatusSchema, AllowedCategoryDtoSchema, type ApproveAllowanceRequestInput, ApproveAllowanceRequestInputSchema, type AssetDto, type AssetHistoryDto, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CreateAccountInput, CreateAccountInputSchema, type CreateAllowanceRequestInput, CreateAllowanceRequestInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceBeneficiaryDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, DEFAULT_ROLE_BY_RELATIONSHIP, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, GENERIC_COA_CHART, type GoalDto, type GoalStatus, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceBeneficiaryDto, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDto, type InvestmentSummaryDto, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type MemberCategoryAllowanceDto, MemberCategoryAllowanceDtoSchema, type MemberRelationship, MemberRelationshipSchema, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type ParticipantStatus, type PeriodPoint, type PnlDto, type Pph21RequestDto, type Pph21ResultDto, type PremiumPeriod, type RejectAllowanceRequestInput, RejectAllowanceRequestInputSchema, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Role, RoleSchema, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SetMemberCategoryAllowanceInput, SetMemberCategoryAllowanceInputSchema, type SplitBillDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type TaxBracketDto, type TaxRecordDto, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto, defaultCoaCodeForCategory, defaultRoleForRelationship };
+export { type AccountDto, AccountDtoSchema, type AccountOwnerFilter, AccountOwnerFilterSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AllowanceRequestDto, AllowanceRequestDtoSchema, type AllowanceRequestStatus, AllowanceRequestStatusSchema, AllowedCategoryDtoSchema, type ApproveAllowanceRequestInput, ApproveAllowanceRequestInputSchema, type AssetDto, type AssetHistoryDto, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CreateAccountInput, CreateAccountInputSchema, type CreateAllowanceRequestInput, CreateAllowanceRequestInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceBeneficiaryDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, DEFAULT_ROLE_BY_RELATIONSHIP, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, GENERIC_COA_CHART, type GoalDto, type GoalStatus, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceBeneficiaryDto, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDto, type InvestmentSummaryDto, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type MemberCategoryAllowanceDto, MemberCategoryAllowanceDtoSchema, type MemberRelationship, MemberRelationshipSchema, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type ParticipantStatus, type PeriodPoint, type PnlDto, type Pph21RequestDto, type Pph21ResultDto, type PremiumPeriod, type ReconciliationBridgeDto, type RejectAllowanceRequestInput, RejectAllowanceRequestInputSchema, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Role, RoleSchema, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SetMemberCategoryAllowanceInput, SetMemberCategoryAllowanceInputSchema, type SplitBillDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type TaxBracketDto, type TaxRecordDto, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto, defaultCoaCodeForCategory, defaultRoleForRelationship };

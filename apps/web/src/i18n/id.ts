@@ -1933,6 +1933,21 @@ export const id = {
       allDatesOption: "Semua Tanggal",
       timezoneNotePrefix: "Batas periode laporan menggunakan zona waktu ",
       timezoneNoteSuffix: ".",
+      presetAriaLabel: "Rentang cepat",
+      presetThisMonth: "Bulan Ini",
+      presetLastMonth: "Bulan Lalu",
+      presetLast3Months: "3 Bulan Terakhir",
+      presetLast6Months: "6 Bulan Terakhir",
+      presetLast12Months: "12 Bulan Terakhir",
+      presetThisYear: "Tahun Ini",
+      presetLastYear: "Tahun Lalu",
+      // EPIC-023 Task B retry (MEDIUM) — lihat catatan di en.ts: label ini
+      // menjelaskan apa yang benar-benar terjadi (kembali ke filter
+      // tahun/bulan/tanggal), bukan rentang tanggal bebas.
+      presetCustom: "Bulan/Tahun Tertentu",
+      // EPIC-023 Task B retry (HIGH) — lihat catatan di en.ts.
+      periodNotApplicableNote:
+        "Tampilan ini selalu menampilkan data terkini — pemilih periode di atas tidak menyaringnya.",
     },
     totalIncomeLabel: "Total Pemasukan",
     totalExpenseLabel: "Total Pengeluaran",
@@ -2049,6 +2064,28 @@ export const id = {
       checkingLabel: "Memeriksa kecocokan Net Worth dengan Ringkasan…",
       currentBalanceDisclosure:
         "Nilai di bawah ini adalah saldo saat ini, bukan nilai historis pada tanggal tersebut.",
+      noDataTitle: "Belum Ada Data Historis",
+      noDataDescription:
+        "Belum ada snapshot net worth pada atau sebelum tanggal ini — daripada menampilkan angka nol yang seolah nyata, kami tampilkan apa adanya: belum ada data.",
+      restrictedForViewerTitle: "Tidak Tersedia Untuk Peran Anda",
+      restrictedForViewerDescription:
+        "Snapshot historis untuk tanggal ini ada, tapi diambil dengan menyertakan semua akun. Karena peran Anda tidak bisa melihat akun privat, kami tidak bisa menampilkannya tanpa membocorkan saldo yang disembunyikan.",
+      bridgeTitle: "Jembatan Rekonsiliasi",
+      bridgeDescription:
+        "Kenapa net worth berubah dengan jumlah berbeda dari profit — kontribusi tunai ke aset/investasi dan perubahan nilai aset & investasi ditampilkan terpisah, dengan sisa yang belum terjelaskan diberi nama, bukan disembunyikan.",
+      bridgeOpeningLabel: "Net Worth Awal",
+      bridgeProfitLabel: "+ Profit (Laba Rugi)",
+      bridgeContributionLabel:
+        "+ Kontribusi Tunai ke Aset/Investasi (net-netral)",
+      bridgeHoldingsChangeLabel: "+ Perubahan Nilai Aset & Investasi",
+      bridgeClosingLabel: "= Net Worth Akhir",
+      bridgeNetWorthChangeLabel: "Perubahan Net Worth",
+      bridgeNoDataDescription:
+        "Riwayat snapshot belum cukup untuk merekonsiliasi periode ini.",
+      bridgeRestrictedDescription:
+        "Snapshot untuk periode ini ada, tapi menyertakan semua akun. Karena peran Anda tidak bisa melihat akun privat, jembatan ini tidak bisa ditampilkan tanpa membocorkan saldo yang disembunyikan.",
+      bridgeUnexplainedLabel: "Belum Terjelaskan",
+      bridgeUnexplainedWarningPrefix: "Peringatan:",
     },
     cashflow: {
       titlePrefix: "Cashflow Statement —",
