@@ -859,6 +859,11 @@ export type I18nDictionary = {
     /** EPIC-023 E2 — source-account picker for the real premium payment. */
     paySourceAccountLabel: string;
     paySourceAccountPlaceholder: string;
+    /**
+     * EPIC-023 group E retry round 4 (C3) — aria-label/title on the
+     * `/asuransi` card's Bayar icon button when `paidThisPeriod` is true.
+     */
+    payAlreadyPaidTooltip: string;
     toastRenewalRecordedPrefix: string;
     toastPaySuccessNoRenewal: string;
     toastRenewalFailed: string;

@@ -196,10 +196,21 @@ describe("TransactionsService", () => {
       expect(result.amount).toBe("5000000");
     });
 
-    // EPIC-023 E1 — an unscoped FK write is a tenant-scoping hole: a
-    // liabilityId/insuranceId from ANOTHER family group must never be
-    // writable onto this family's transaction.
-    describe("liabilityId / insuranceId tenant scoping (EPIC-023 E1)", () => {
+    // EPIC-023 group E retry (CRITICAL 1.4 / C2) — `liabilityId`/
+    // `insuranceId` used to be accepted straight from client input on
+    // `CreateTransactionDto` and written onto the created row unscoped —
+    // a forgeable double-payment bypass (any member could POST a Rp 1
+    // expense carrying `liabilityId = <someone else's KPR id>` and flip
+    // that obligation's `paidThisPeriod` to "paid" without a real payment).
+    // Both fields were REMOVED from the DTO; `create()` never reads them —
+    // only `LiabilitiesService.pay()`/`purchase()` and
+    // `InsurancesService.pay()` may set them, writing directly via Prisma
+    // inside their own transaction. These tests assert `create()` ignores
+    // the fields entirely (no lookup, no persistence) even if a caller
+    // manages to smuggle them onto the plain object passed in (defense in
+    // depth beyond the global `ValidationPipe({ whitelist: true })` that
+    // already strips them at the HTTP boundary).
+    describe("liabilityId / insuranceId are not settable via create() (EPIC-023 group E retry, C2)", () => {
       const LIABILITY_ID = "liab-test-uuid";
       const INSURANCE_ID = "ins-test-uuid";
 
@@ -207,50 +218,10 @@ describe("TransactionsService", () => {
         prisma.account.findUnique.mockResolvedValue(mockAccount);
       });
 
-      it("rejects a liabilityId that does not belong to this family group", async () => {
-        prisma.liability.findUnique.mockResolvedValue(null);
-
-        await expect(
-          service.create(FAMILY_GROUP_ID, {
-            accountId: ACCOUNT_ID,
-            amount: 1_000_000,
-            type: "transfer",
-            occurredAt: new Date().toISOString(),
-            liabilityId: LIABILITY_ID,
-          }),
-        ).rejects.toThrow(NotFoundException);
-        expect(prisma.liability.findUnique).toHaveBeenCalledWith({
-          where: { id: LIABILITY_ID, familyGroupId: FAMILY_GROUP_ID },
-        });
-        expect(prisma.$transaction).not.toHaveBeenCalled();
-      });
-
-      it("rejects an insuranceId that does not belong to this family group", async () => {
-        prisma.insurance.findUnique.mockResolvedValue(null);
-
-        await expect(
-          service.create(FAMILY_GROUP_ID, {
-            accountId: ACCOUNT_ID,
-            amount: 500_000,
-            type: "expense",
-            occurredAt: new Date().toISOString(),
-            insuranceId: INSURANCE_ID,
-          }),
-        ).rejects.toThrow(NotFoundException);
-        expect(prisma.insurance.findUnique).toHaveBeenCalledWith({
-          where: { id: INSURANCE_ID, familyGroupId: FAMILY_GROUP_ID },
-        });
-        expect(prisma.$transaction).not.toHaveBeenCalled();
-      });
-
-      it("writes liabilityId onto the created transaction when it belongs to this family group", async () => {
-        prisma.liability.findUnique.mockResolvedValue({
-          id: LIABILITY_ID,
-          familyGroupId: FAMILY_GROUP_ID,
-        });
+      it("never looks up a smuggled liabilityId, and never writes it onto the created transaction", async () => {
         const now = new Date("2026-06-15T10:00:00.000Z");
         const createdTx = {
-          id: "tx-liab-linked",
+          id: "tx-no-link",
           familyGroupId: FAMILY_GROUP_ID,
           accountId: ACCOUNT_ID,
           categoryId: null,
@@ -284,40 +255,40 @@ describe("TransactionsService", () => {
           amount: 1_000_000,
           type: "transfer",
           occurredAt: now.toISOString(),
-          liabilityId: LIABILITY_ID,
+          // Cast: `liabilityId` is intentionally absent from
+          // `CreateTransactionDto`'s type — this simulates a caller that
+          // smuggles it past TypeScript (e.g. a raw HTTP body).
+          ...({ liabilityId: LIABILITY_ID } as Record<string, unknown>),
         });
 
-        expect(capturedData?.liabilityId).toBe(LIABILITY_ID);
+        expect(prisma.liability.findUnique).not.toHaveBeenCalled();
+        expect(capturedData?.liabilityId).toBeUndefined();
       });
 
-      // MEDIUM 6 (group E retry) — insuranceId was write-only: accepted on
-      // CreateTransactionDto and persisted, but TransactionResponseDto
-      // never surfaced it back, unlike liabilityId (symmetric fix).
-      it("round-trips insuranceId on the response DTO, symmetric with liabilityId", async () => {
-        prisma.insurance.findUnique.mockResolvedValue({
-          id: INSURANCE_ID,
-          familyGroupId: FAMILY_GROUP_ID,
-        });
+      it("never looks up a smuggled insuranceId, and never writes it onto the created transaction", async () => {
         const now = new Date("2026-06-15T10:00:00.000Z");
         const createdTx = {
-          id: "tx-ins-linked",
+          id: "tx-no-link",
           familyGroupId: FAMILY_GROUP_ID,
           accountId: ACCOUNT_ID,
           categoryId: null,
-          insuranceId: INSURANCE_ID,
           amount: BigInt(500_000),
           type: "expense" as const,
           description: null,
           occurredAt: now,
           createdAt: now,
         };
+        let capturedData: Record<string, unknown> | undefined;
         prisma.$transaction.mockImplementation(
           async (fn: Parameters<typeof prisma.$transaction>[0]) => {
             const innerPrisma = {
               ...prisma,
               transaction: {
                 ...prisma.transaction,
-                create: jest.fn().mockResolvedValue(createdTx),
+                create: jest.fn().mockImplementation(({ data }) => {
+                  capturedData = data;
+                  return Promise.resolve(createdTx);
+                }),
               },
             };
             return (fn as (p: typeof innerPrisma) => Promise<unknown>)(
@@ -331,12 +302,14 @@ describe("TransactionsService", () => {
           amount: 500_000,
           type: "expense",
           occurredAt: now.toISOString(),
-          insuranceId: INSURANCE_ID,
+          ...({ insuranceId: INSURANCE_ID } as Record<string, unknown>),
         });
 
+        expect(prisma.insurance.findUnique).not.toHaveBeenCalled();
+        expect(capturedData?.insuranceId).toBeUndefined();
         expect(result).not.toHaveProperty("held");
         if (!("held" in result)) {
-          expect(result.insuranceId).toBe(INSURANCE_ID);
+          expect(result.insuranceId).toBeNull();
         }
       });
     });

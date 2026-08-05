@@ -67,21 +67,13 @@ export class CreateTransactionDto {
   @IsDateString()
   occurredAt!: string;
 
-  @ApiPropertyOptional({
-    type: String,
-    description:
-      "Liability UUID this transaction pays down (EPIC-023 E1). Must belong to the same family group.",
-  })
-  @IsUUID()
-  @IsOptional()
-  liabilityId?: string;
-
-  @ApiPropertyOptional({
-    type: String,
-    description:
-      "Insurance policy UUID this transaction is a premium payment for (EPIC-023 E1). Must belong to the same family group.",
-  })
-  @IsUUID()
-  @IsOptional()
-  insuranceId?: string;
+  // EPIC-023 group E retry (CRITICAL 1.4) — `liabilityId`/`insuranceId` were
+  // REMOVED from this DTO. They used to let ANY caller (including a `member`
+  // role, via a plain `POST /transactions`) link an arbitrary expense to
+  // someone else's liability/insurance id just by guessing it, which flipped
+  // that obligation's `paidThisPeriod` flag to "paid" without a real payment
+  // ever happening — a forgeable double-payment bypass. `apps/web` never sent
+  // these fields; only `LiabilitiesService.pay()`/`purchase()` and
+  // `InsurancesService.pay()` are allowed to set them, writing directly via
+  // Prisma inside their own transaction, never from client input.
 }

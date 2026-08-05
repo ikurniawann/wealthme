@@ -67,40 +67,32 @@ describe("CreateTransactionDto validation", () => {
     expect(errors.some((e) => e.property === "toAccountId")).toBe(true);
   });
 
-  // EPIC-023 E1 — optional obligation links.
-  it("passes when liabilityId is a valid UUID", async () => {
-    const dto = plainToInstance(CreateTransactionDto, {
-      ...BASE,
-      liabilityId: "33333333-3333-4333-8333-333333333333",
-    });
-    const errors = await validate(dto);
-    expect(errors).toHaveLength(0);
-  });
-
-  it("passes when insuranceId is a valid UUID", async () => {
-    const dto = plainToInstance(CreateTransactionDto, {
-      ...BASE,
-      insuranceId: "44444444-4444-4444-8444-444444444444",
-    });
-    const errors = await validate(dto);
-    expect(errors).toHaveLength(0);
-  });
-
-  it("fails when liabilityId is not a valid UUID", async () => {
+  // EPIC-023 group E retry (CRITICAL 1.4 / C2) — `liabilityId`/`insuranceId`
+  // were REMOVED from this DTO: they used to let ANY caller (any `member`,
+  // via a plain `POST /transactions`) link an arbitrary expense to someone
+  // else's liability/insurance id just by guessing it, flipping that
+  // obligation's `paidThisPeriod` to "paid" without a real payment — a
+  // forgeable double-payment bypass. Only `LiabilitiesService.pay()`/
+  // `purchase()` and `InsurancesService.pay()` may set these fields, writing
+  // directly via Prisma inside their own transaction, never from client
+  // input. These tests assert the field stays UNRECOGNIZED by validation —
+  // a class-validator decorator reappearing here would silently reopen the
+  // forgery bypass even if nothing else changed.
+  it("ignores a client-supplied liabilityId — no validator decorates it, so it never surfaces as a validation error regardless of shape", async () => {
     const dto = plainToInstance(CreateTransactionDto, {
       ...BASE,
       liabilityId: "not-a-uuid",
     });
     const errors = await validate(dto);
-    expect(errors.some((e) => e.property === "liabilityId")).toBe(true);
+    expect(errors.some((e) => e.property === "liabilityId")).toBe(false);
   });
 
-  it("fails when insuranceId is not a valid UUID", async () => {
+  it("ignores a client-supplied insuranceId — no validator decorates it, so it never surfaces as a validation error regardless of shape", async () => {
     const dto = plainToInstance(CreateTransactionDto, {
       ...BASE,
       insuranceId: "not-a-uuid",
     });
     const errors = await validate(dto);
-    expect(errors.some((e) => e.property === "insuranceId")).toBe(true);
+    expect(errors.some((e) => e.property === "insuranceId")).toBe(false);
   });
 });

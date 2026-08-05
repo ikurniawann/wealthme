@@ -1,14 +1,27 @@
 import {
   BadRequestException,
+  ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { type Role } from "@prisma/client";
 
 import { assertBankNotOverdrawn } from "../common/utils/bank-overdraft.util";
 import { ownCategoryName } from "../common/utils/own-category-name.util";
+import { currentPaymentPeriodBounds } from "../common/utils/payment-period.util";
 import { runSerializableWithRetry } from "../common/utils/serializable-retry.util";
+import {
+  NOTIFICATION_SENDER_PORT,
+  type NotificationSenderPort,
+} from "../notifications/notification-sender.port";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
+import {
+  checkBudgetAlert,
+  checkCashFlowAlert,
+  notifyTransaction,
+} from "../transactions/transaction-alerts.util";
 
 import { splitPayment } from "./amortisation.util";
 
@@ -30,6 +43,13 @@ import type { UpdateLiabilityDto } from "./dto/update-liability.dto";
 // it never gets a budget line, so it does not need the per-obligation
 // treatment `principalCategoryId` gets below (group E retry, HIGH 4).
 const LOAN_INTEREST_COA_CODES = ["20009", "21304"];
+
+// EPIC-023 group E retry (HIGH 3) — mirrors TransactionsService's own
+// ActingMember shape (not imported directly, to avoid a service-to-service
+// coupling for one type): the acting member's identity, used to stamp
+// `createdByUserId` on a card purchase and to notify like every other
+// expense-shaped write.
+export type ActingMember = { id: string; userId: string; role: Role } | null;
 
 type TxClient = Parameters<Parameters<PrismaService["$transaction"]>[0]>[0];
 
@@ -90,15 +110,6 @@ function toLiabilityDto(
   };
 }
 
-/** Mirrors `BudgetsService.findAll`'s "this calendar month" window. */
-function currentMonthBounds(): { monthStart: Date; monthEnd: Date } {
-  const now = new Date();
-  return {
-    monthStart: new Date(now.getFullYear(), now.getMonth(), 1),
-    monthEnd: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59),
-  };
-}
-
 function guardBigInt(field: string, value: string): bigint {
   if (!/^\d+$/.test(value)) {
     throw new BadRequestException(
@@ -110,7 +121,11 @@ function guardBigInt(field: string, value: string): bigint {
 
 @Injectable()
 export class LiabilitiesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(NOTIFICATION_SENDER_PORT)
+    private readonly notificationSender: NotificationSenderPort,
+  ) {}
 
   async findAll(familyGroupId: string): Promise<LiabilityResponseDto[]> {
     const liabilities = await this.prisma.liability.findMany({
@@ -137,12 +152,15 @@ export class LiabilitiesService {
     liabilityIds: string[],
   ): Promise<Set<string>> {
     if (liabilityIds.length === 0) return new Set();
-    const { monthStart, monthEnd } = currentMonthBounds();
+    // Liabilities have no premiumPeriod-equivalent field — their FIXED
+    // budget line is always `period: "monthly"` (syncPrincipalBudgetLine),
+    // so "monthly" is the correct (and only) period here.
+    const { periodStart, periodEnd } = currentPaymentPeriodBounds("monthly");
     const rows = await this.prisma.transaction.findMany({
       where: {
         familyGroupId,
         liabilityId: { in: liabilityIds },
-        occurredAt: { gte: monthStart, lte: monthEnd },
+        occurredAt: { gte: periodStart, lte: periodEnd },
       },
       select: { liabilityId: true },
       distinct: ["liabilityId"],
@@ -271,15 +289,23 @@ export class LiabilitiesService {
       throw new NotFoundException("Liability not found");
     }
 
+    // HIGH 9 (group E retry round 3) — validate the SHAPE of the supplied
+    // strings here (fast BadRequestException feedback), but do NOT resolve
+    // the "keep existing value" fallback from this outer read. That read is
+    // taken before the Serializable transaction/retry loop; if a concurrent
+    // `pay()` changes `remainingBalance` between this read and the write
+    // below, falling back to THIS stale value would silently overwrite the
+    // payment. `runUpdate` re-reads fresh inside the (possibly retried) tx
+    // and falls back to THAT value instead.
     const totalDebt = dto.totalDebt
       ? guardBigInt("totalDebt", dto.totalDebt)
-      : existing.totalDebt;
+      : undefined;
     const remainingBalance = dto.remainingBalance
       ? guardBigInt("remainingBalance", dto.remainingBalance)
-      : existing.remainingBalance;
+      : undefined;
     const minimumPayment = dto.minimumPayment
       ? guardBigInt("minimumPayment", dto.minimumPayment)
-      : existing.minimumPayment;
+      : undefined;
 
     const updated = await runSerializableWithRetry(this.prisma, (tx) =>
       this.runUpdate(tx, familyGroupId, id, dto, {
@@ -299,6 +325,15 @@ export class LiabilitiesService {
    * and any other change re-derives `limitAmount` to the NEW contribution
    * via a plain `update` (never `increment`) — the old code only ever grew
    * `limitAmount`, it never shrank or resynced it.
+   *
+   * HIGH 9 (group E retry round 3) — `amounts` now carries `undefined` for
+   * any field the caller did not explicitly supply; the fallback to "keep
+   * the current value" is resolved HERE, against the freshly re-read
+   * `existing`, never against a value read before this (possibly retried)
+   * transaction started. A concurrent `pay()` that changed
+   * `remainingBalance` between the outer `update()` read and this
+   * transaction's own read is therefore never silently reverted by an
+   * unrelated PATCH (e.g. one that only changes `notes`).
    */
   private async runUpdate(
     tx: TxClient,
@@ -306,9 +341,9 @@ export class LiabilitiesService {
     id: string,
     dto: UpdateLiabilityDto,
     amounts: {
-      totalDebt: bigint;
-      remainingBalance: bigint;
-      minimumPayment: bigint;
+      totalDebt: bigint | undefined;
+      remainingBalance: bigint | undefined;
+      minimumPayment: bigint | undefined;
     },
   ): Promise<LiabilityRow> {
     // Re-read fresh inside the (possibly retried) transaction — a retry
@@ -316,6 +351,11 @@ export class LiabilitiesService {
     const existing = await tx.liability.findUniqueOrThrow({
       where: { id, familyGroupId },
     });
+
+    const totalDebt = amounts.totalDebt ?? existing.totalDebt;
+    const remainingBalance =
+      amounts.remainingBalance ?? existing.remainingBalance;
+    const minimumPayment = amounts.minimumPayment ?? existing.minimumPayment;
 
     const updated = await tx.liability.update({
       where: { id, familyGroupId },
@@ -326,9 +366,9 @@ export class LiabilitiesService {
             ? (dto.institution ?? null)
             : existing.institution,
         type: dto.type ?? existing.type,
-        totalDebt: amounts.totalDebt,
-        remainingBalance: amounts.remainingBalance,
-        minimumPayment: amounts.minimumPayment,
+        totalDebt,
+        remainingBalance,
+        minimumPayment,
         interestRate: dto.interestRate ?? existing.interestRate,
         dueDate:
           dto.dueDate !== undefined
@@ -347,7 +387,7 @@ export class LiabilitiesService {
       tx,
       familyGroupId,
       { ...updated, principalCategoryId: existing.principalCategoryId },
-      amounts.minimumPayment,
+      minimumPayment,
     );
 
     return updated;
@@ -379,7 +419,6 @@ export class LiabilitiesService {
       familyGroupId,
       liability,
     );
-    await this.markCategoryFixed(tx, categoryId);
     await tx.budget.upsert({
       where: {
         familyGroupId_categoryId_period: {
@@ -394,20 +433,31 @@ export class LiabilitiesService {
         period: "monthly",
         limitAmount: contribution,
         liabilityId: liability.id,
+        budgetType: "FIXED",
       },
       // Re-derived, not incremented — this line is exclusive to this
       // liability, so its limit IS its current contribution.
-      update: { limitAmount: contribution, liabilityId: liability.id },
+      update: {
+        limitAmount: contribution,
+        liabilityId: liability.id,
+        budgetType: "FIXED",
+      },
     });
   }
 
   /**
-   * EPIC-023 E2 (D11) redesigned by the group E retry (HIGH 4) — deletes
-   * this liability's OWN budget line (now exclusive to it, never shared)
-   * and the liability itself in one transaction, instead of the old 409
-   * "delete your shared budget first" block that made every liability
-   * sharing a category undeletable until the user found and deleted a
-   * budget line that also covered every OTHER liability.
+   * EPIC-023 E2 (D11) — CRITICAL 2 (group E retry round 3): the previous
+   * "redesigned by HIGH 4" version of this method silently `deleteMany`'d
+   * the liability's budget line before deleting the liability itself — a
+   * silent cascade the D11 acceptance criterion explicitly forbids
+   * ("Deleting a liability is refused while its budget line exists — never
+   * a silent cascade"; "refused with a message naming what blocks it").
+   * Restored: a liability with a budget line refuses deletion with a
+   * `ConflictException` naming the liability and its budget line. Per-
+   * obligation budget rows (HIGH 4's own Category per liability) make this
+   * check EXACT (never false-positives on a sibling liability's line the
+   * way the pre-HIGH-4 shared-category design used to) — a liability that
+   * never had a line (minimumPayment stayed 0) is still freely deletable.
    */
   async remove(familyGroupId: string, id: string): Promise<void> {
     const existing = await this.prisma.liability.findUnique({
@@ -417,32 +467,46 @@ export class LiabilitiesService {
       throw new NotFoundException("Liability not found");
     }
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.budget.deleteMany({
-        where: { familyGroupId, liabilityId: id },
-      });
-      await tx.liability.delete({ where: { id, familyGroupId } });
+    const budget = await this.prisma.budget.findFirst({
+      where: { familyGroupId, liabilityId: id },
+      select: { id: true },
     });
+    if (budget) {
+      throw new ConflictException(
+        `Tidak dapat menghapus "${existing.name}" — hapus dulu anggaran (budget) terkait (id ${budget.id})`,
+      );
+    }
+
+    await this.prisma.liability.delete({ where: { id, familyGroupId } });
   }
 
   /**
-   * Idempotently sets `budgetType: FIXED` on the category's linked
-   * CoaAccount so the auto-created budget line reads as FIXED (D11) via
-   * the existing transitive `Category.coaAccount.budgetType` field
-   * (`BudgetsService.toDto`) — no new column on `Budget` needed for this.
+   * CRITICAL 3 (group E retry round 3) — rejects a second payment against
+   * the SAME liability within the current period. Runs inside the same
+   * Serializable transaction as the balance mutation in `runPayment`, so it
+   * is race-safe with itself (two concurrent `pay()` calls can't both pass
+   * this check and both commit).
    */
-  private async markCategoryFixed(
+  private async assertNotAlreadyPaidThisPeriod(
     tx: TxClient,
-    categoryId: string,
+    familyGroupId: string,
+    liabilityId: string,
+    liabilityName: string,
   ): Promise<void> {
-    const category = await tx.category.findUniqueOrThrow({
-      where: { id: categoryId },
-      select: { coaAccountId: true },
+    const { periodStart, periodEnd } = currentPaymentPeriodBounds("monthly");
+    const existing = await tx.transaction.findFirst({
+      where: {
+        familyGroupId,
+        liabilityId,
+        occurredAt: { gte: periodStart, lte: periodEnd },
+      },
+      select: { id: true },
     });
-    await tx.coaAccount.update({
-      where: { id: category.coaAccountId },
-      data: { budgetType: "FIXED" },
-    });
+    if (existing) {
+      throw new ConflictException(
+        `"${liabilityName}" sudah dibayar periode ini — koreksi transaksi yang ada, jangan bayar dua kali`,
+      );
+    }
   }
 
   /**
@@ -500,6 +564,28 @@ export class LiabilitiesService {
       throw new NotFoundException("Liability not found");
     }
 
+    // CRITICAL 1 (group E retry round 3) — the previous "already paid" guard
+    // was a disabled BUTTON ONLY on the web page; neither this method nor
+    // `InsurancesService.runPay` rejected a second payment server-side, so
+    // two tabs, a stale page, a replayed request, or a direct API call could
+    // all double-debit the same obligation. Enforced here, inside the SAME
+    // Serializable transaction as the balance mutation, so it is race-safe
+    // with itself. No override path: a genuine correction (wrong amount,
+    // wrong account) is handled by deleting/editing the mistaken Transaction
+    // row, not by re-running `pay()` — see this task's Automation Log for
+    // the full reasoning.
+    await this.assertNotAlreadyPaidThisPeriod(
+      tx,
+      familyGroupId,
+      id,
+      liability.name,
+    );
+
+    // CRITICAL 3 (group E retry round 3) — a payment recorded through the
+    // transaction dialog / a bank import never sets `liabilityId`, so it
+    // never trips this guard. Accepted: fixing that would require inferring
+    // intent from an ordinary expense row, which this task does not attempt.
+
     // Tenant scoping: the source account must belong to the SAME family
     // group as the liability being paid.
     const sourceAccount = await tx.account.findUnique({
@@ -549,12 +635,31 @@ export class LiabilitiesService {
 
     const occurredAt = new Date();
 
-    if (principal > BigInt(0)) {
-      const principalCategoryId = await this.resolveOwnPrincipalCategoryId(
+    // CRITICAL 3 (group E retry round 3) — `syncPrincipalBudgetLine` used to
+    // only ever be called from `create()`/`update()`. `pay()` self-healed
+    // `principalCategoryId` (creating a brand-new Category) but NEVER
+    // created the matching Budget row, so a family that only ever presses
+    // Pay never got a budget line and its payments stayed invisible to
+    // every budget. Resolved ONCE here (self-healing the category the first
+    // time it is needed) and reused below for both the principal-transaction
+    // categoryId and the budget sync, so a concurrent self-heal race can
+    // only ever create ONE category (never a second, orphaned one from a
+    // second `resolveOwnPrincipalCategoryId` call further down).
+    const principalCategoryId = await this.resolveOwnPrincipalCategoryId(
+      tx,
+      familyGroupId,
+      liability,
+    );
+    if (liability.minimumPayment > BigInt(0)) {
+      await this.syncPrincipalBudgetLine(
         tx,
         familyGroupId,
-        liability,
+        { ...liability, principalCategoryId },
+        liability.minimumPayment,
       );
+    }
+
+    if (principal > BigInt(0)) {
       // EPIC-023 E1 — the principal leg is money moving from cash into
       // paying down debt, not a real expense (the group-5 TRANSFER category
       // above already excludes it from P&L via txCoaDirection's
@@ -589,6 +694,15 @@ export class LiabilitiesService {
           categoryId: interestCategoryId,
           amount: interest,
           type: "expense",
+          // CRITICAL 1 (group E retry round 3) — an interest-only payment
+          // (principal === 0, e.g. a payment that only covers accrued
+          // interest) used to create ONLY this row, which carried no
+          // `liabilityId` — `paidThisPeriod` stayed false forever for a
+          // real payment, letting the same period be "paid" an unbounded
+          // number of times. Linking it here means ANY payment against this
+          // liability (principal, interest, or both) is recorded as a
+          // payment for `paidThisPeriod` and the double-payment guard above.
+          liabilityId: id,
           description: `Bunga ${liability.name}`,
           occurredAt,
         },
@@ -630,6 +744,7 @@ export class LiabilitiesService {
     familyGroupId: string,
     id: string,
     dto: PurchaseLiabilityDto,
+    actingMember?: ActingMember,
   ): Promise<LiabilityResponseDto> {
     const amount = guardBigInt("amount", dto.amount);
     if (amount <= BigInt(0)) {
@@ -641,6 +756,17 @@ export class LiabilitiesService {
     });
     if (!liability) {
       throw new NotFoundException("Liability not found");
+    }
+
+    // HIGH 7 (group E retry round 3) — nothing previously checked
+    // `liability.type`, so `POST .../liabilities/<any-id>/purchase` could
+    // increment a MORTGAGE's `remainingBalance`/`totalDebt` and corrupt its
+    // `paymentRatio` — the whole point of this route ("a credit card stays
+    // a liability") only makes sense for a card.
+    if (liability.type !== "kartu_kredit") {
+      throw new BadRequestException(
+        "Only a kartu_kredit (credit card) liability accepts purchases",
+      );
     }
 
     // Tenant-scoped lookup — mirrors TransactionsService.create()'s
@@ -657,7 +783,7 @@ export class LiabilitiesService {
 
     const occurredAt = dto.occurredAt ? new Date(dto.occurredAt) : new Date();
 
-    const updated = await this.prisma.$transaction(async (tx) => {
+    const { updated, created } = await this.prisma.$transaction(async (tx) => {
       const nextLiability = await tx.liability.update({
         where: { id, familyGroupId },
         data: {
@@ -666,7 +792,7 @@ export class LiabilitiesService {
         },
       });
 
-      await tx.transaction.create({
+      const createdTx = await tx.transaction.create({
         data: {
           familyGroupId,
           // EPIC-023 E3 (D12) — no account, ever: this is the whole point.
@@ -677,11 +803,38 @@ export class LiabilitiesService {
           type: "expense",
           description: dto.description ?? null,
           occurredAt,
+          // HIGH 8 (group E retry round 3) — was hardcoded null: no record
+          // of who charged the card.
+          createdByUserId: actingMember?.userId ?? null,
+        },
+        include: {
+          category: { select: { name: true } },
+          account: { select: { name: true } },
         },
       });
 
-      return nextLiability;
+      return { updated: nextLiability, created: createdTx };
     });
+
+    // HIGH 8 — a card purchase is expense-shaped and must get the SAME
+    // notification/alert treatment `TransactionsService.create()` gives
+    // every other expense; this used to fire none of them.
+    if (dto.categoryId) {
+      void checkBudgetAlert(
+        this.prisma,
+        this.notificationSender,
+        familyGroupId,
+        dto.categoryId,
+      );
+    }
+    void checkCashFlowAlert(this.prisma, familyGroupId);
+    void notifyTransaction(
+      this.prisma,
+      familyGroupId,
+      "expense",
+      amount,
+      created,
+    );
 
     return toLiabilityDto(updated);
   }

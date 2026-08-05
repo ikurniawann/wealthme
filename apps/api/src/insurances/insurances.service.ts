@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -7,6 +8,10 @@ import {
 
 import { assertBankNotOverdrawn } from "../common/utils/bank-overdraft.util";
 import { ownCategoryName } from "../common/utils/own-category-name.util";
+import {
+  currentPaymentPeriodBounds,
+  type PaymentPeriod,
+} from "../common/utils/payment-period.util";
 import { runSerializableWithRetry } from "../common/utils/serializable-retry.util";
 import { ownerNotifPrefs } from "../notifications/notification-prefs";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -37,7 +42,16 @@ type TxClient = Parameters<Parameters<PrismaService["$transaction"]>[0]>[0];
 // shared bucket (increment its limit, flip it FIXED, and block its
 // deletion). The demo seed's richer chart provides "21104" (Asset & Other
 // Insurance), which was already a genuinely dedicated code, unchanged.
-const INSURANCE_PREMIUM_COA_CODES = ["20010", "21104"];
+//
+// HIGH 11 (group E retry round 3) — ORDER IS THE PREFERENCE, not
+// lexical/alphabetical. `resolveOwnPremiumCategoryId` below tries "21104"
+// FIRST: a family whose chart already provisions the richer, purpose-built
+// "21104" must keep using it for every new policy, never get silently
+// switched to the generic "20010" the migration also inserts for everyone
+// just because "20010" < "21104" as a string. A family with only "20010"
+// (the common case — every real GENERIC_COA_CHART family) falls through to
+// it.
+const INSURANCE_PREMIUM_COA_PRIORITY = ["21104", "20010"];
 
 type BeneficiaryRow = {
   id: string;
@@ -85,15 +99,6 @@ function toBeneficiaryDto(
     sharePercent: row.sharePercent.toString(),
     memberUserId: row.memberUserId,
     createdAt: row.createdAt.toISOString(),
-  };
-}
-
-/** Mirrors `BudgetsService.findAll`'s "this calendar month" window. */
-function currentMonthBounds(): { monthStart: Date; monthEnd: Date } {
-  const now = new Date();
-  return {
-    monthStart: new Date(now.getFullYear(), now.getMonth(), 1),
-    monthEnd: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59),
   };
 }
 
@@ -185,7 +190,7 @@ export class InsurancesService {
 
     const paidSet = await this.paidThisPeriodIds(
       familyGroupId,
-      rows.map((r) => r.id),
+      rows.map((r) => ({ id: r.id, premiumPeriod: r.premiumPeriod })),
     );
 
     return rows.map((r) => toInsuranceDto(r, paidSet.has(r.id)));
@@ -193,25 +198,46 @@ export class InsurancesService {
 
   /**
    * EPIC-023 E2 — set of insurance ids with at least one premium payment
-   * (`Transaction.insuranceId`, E1) `occurredAt` in the current calendar
-   * month. Mirrors `LiabilitiesService.paidThisPeriodIds`.
+   * (`Transaction.insuranceId`, E1) `occurredAt` in the CURRENT period FOR
+   * THAT POLICY'S OWN `premiumPeriod`. Mirrors
+   * `LiabilitiesService.paidThisPeriodIds`.
+   *
+   * CRITICAL 2 (group E retry round 3) — this used to hardcode a calendar-
+   * month window regardless of `premiumPeriod`, so a `yearly` policy paid
+   * in January read as unpaid again starting in February. Different
+   * policies can have different periods, so the ids are bucketed by period
+   * first and one `findMany` runs per DISTINCT period actually present
+   * (at most 3 — monthly/quarterly/yearly), not per policy.
    */
   private async paidThisPeriodIds(
     familyGroupId: string,
-    insuranceIds: string[],
+    insurances: { id: string; premiumPeriod: string }[],
   ): Promise<Set<string>> {
-    if (insuranceIds.length === 0) return new Set();
-    const { monthStart, monthEnd } = currentMonthBounds();
-    const rows = await this.prisma.transaction.findMany({
-      where: {
-        familyGroupId,
-        insuranceId: { in: insuranceIds },
-        occurredAt: { gte: monthStart, lte: monthEnd },
-      },
-      select: { insuranceId: true },
-      distinct: ["insuranceId"],
-    });
-    return new Set(rows.map((r) => r.insuranceId!));
+    if (insurances.length === 0) return new Set();
+
+    const byPeriod = new Map<PaymentPeriod, string[]>();
+    for (const ins of insurances) {
+      const period = ins.premiumPeriod as PaymentPeriod;
+      const bucket = byPeriod.get(period) ?? [];
+      bucket.push(ins.id);
+      byPeriod.set(period, bucket);
+    }
+
+    const paid = new Set<string>();
+    for (const [period, ids] of byPeriod) {
+      const { periodStart, periodEnd } = currentPaymentPeriodBounds(period);
+      const rows = await this.prisma.transaction.findMany({
+        where: {
+          familyGroupId,
+          insuranceId: { in: ids },
+          occurredAt: { gte: periodStart, lte: periodEnd },
+        },
+        select: { insuranceId: true },
+        distinct: ["insuranceId"],
+      });
+      for (const r of rows) paid.add(r.insuranceId!);
+    }
+    return paid;
   }
 
   async getSummary(
@@ -447,7 +473,6 @@ export class InsurancesService {
       familyGroupId,
       insurance,
     );
-    await this.markCategoryFixed(tx, categoryId);
     await tx.budget.upsert({
       where: {
         familyGroupId_categoryId_period: {
@@ -462,15 +487,23 @@ export class InsurancesService {
         period: "monthly",
         limitAmount: contribution,
         insuranceId: insurance.id,
+        budgetType: "FIXED",
       },
-      update: { limitAmount: contribution, insuranceId: insurance.id },
+      update: {
+        limitAmount: contribution,
+        insuranceId: insurance.id,
+        budgetType: "FIXED",
+      },
     });
   }
 
   /**
-   * EPIC-023 E2 (D11) redesigned by the group E retry (HIGH 4) — deletes
-   * this policy's OWN budget line (exclusive to it) and the policy itself
-   * in one transaction. See `LiabilitiesService.remove()`'s doc comment.
+   * EPIC-023 E2 (D11) — CRITICAL 1 (group E retry round 3): mirrors
+   * `LiabilitiesService.remove()`'s fix — the previous "redesigned by HIGH
+   * 4" version silently `deleteMany`'d this policy's budget line before
+   * deleting the policy, a silent cascade D11 forbids. Restored: a policy
+   * with a budget line refuses deletion with a `ConflictException` naming
+   * the policy and its budget line.
    */
   async remove(familyGroupId: string, id: string): Promise<void> {
     const existing = await this.prisma.insurance.findUnique({
@@ -480,27 +513,17 @@ export class InsurancesService {
       throw new NotFoundException("Insurance not found");
     }
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.budget.deleteMany({
-        where: { familyGroupId, insuranceId: id },
-      });
-      await tx.insurance.delete({ where: { id, familyGroupId } });
+    const budget = await this.prisma.budget.findFirst({
+      where: { familyGroupId, insuranceId: id },
+      select: { id: true },
     });
-  }
+    if (budget) {
+      throw new ConflictException(
+        `Tidak dapat menghapus "${existing.name}" — hapus dulu anggaran (budget) terkait (id ${budget.id})`,
+      );
+    }
 
-  /** Mirrors `LiabilitiesService.markCategoryFixed`. */
-  private async markCategoryFixed(
-    tx: TxClient,
-    categoryId: string,
-  ): Promise<void> {
-    const category = await tx.category.findUniqueOrThrow({
-      where: { id: categoryId },
-      select: { coaAccountId: true },
-    });
-    await tx.coaAccount.update({
-      where: { id: category.coaAccountId },
-      data: { budgetType: "FIXED" },
-    });
+    await this.prisma.insurance.delete({ where: { id, familyGroupId } });
   }
 
   /**
@@ -550,6 +573,21 @@ export class InsurancesService {
       throw new NotFoundException("Insurance not found");
     }
 
+    // CRITICAL 3 (group E retry round 3) — mirrors
+    // `LiabilitiesService.runPayment`'s guard: rejects a second premium
+    // payment for the SAME policy within the current period, inside the
+    // SAME Serializable transaction as the balance mutation. Also closes
+    // CRITICAL 3's second gap: the `/asuransi` page rendered no disabled
+    // state at all, so this was the ONLY thing standing between a second
+    // click and a second debit.
+    await this.assertNotAlreadyPaidThisPeriod(
+      tx,
+      familyGroupId,
+      id,
+      insurance.name,
+      insurance.premiumPeriod,
+    );
+
     // Tenant scoping: the source account must belong to the SAME family
     // group as the policy being paid.
     const sourceAccount = await tx.account.findUnique({
@@ -580,6 +618,25 @@ export class InsurancesService {
       familyGroupId,
       insurance,
     );
+
+    // CRITICAL 4 (group E retry round 3) — mirrors
+    // `LiabilitiesService.runPayment`: `syncPremiumBudgetLine` used to only
+    // ever run from `create()`/`update()`. `pay()` self-healed
+    // `premiumCategoryId` but never created the matching Budget row, so a
+    // family that only ever presses Pay never got a budget line.
+    const monthlyContribution = monthlyAmount(
+      insurance.premiumAmount,
+      insurance.premiumPeriod,
+    );
+    if (monthlyContribution > BigInt(0)) {
+      await this.syncPremiumBudgetLine(
+        tx,
+        familyGroupId,
+        { ...insurance, premiumCategoryId: categoryId },
+        monthlyContribution,
+      );
+    }
+
     await tx.transaction.create({
       data: {
         familyGroupId,
@@ -593,29 +650,71 @@ export class InsurancesService {
       },
     });
 
+    // MEDIUM 13 (group E retry round 3) — anchored to `max(renewalDate,
+    // now)`, not unconditionally to the (possibly long-overdue) stored
+    // `renewalDate`. An overdue policy paid today now lands ONE period
+    // ahead of TODAY, not one period ahead of the stale date — so
+    // `billing-cycle.processor.ts`'s catch-up (`advanceUntilFuture`) has
+    // nothing left to correct and can no longer compound with this advance
+    // (the observed bug: one payment silently advancing renewal by several
+    // periods). Paying early (renewalDate already in the future) is
+    // unaffected — it still advances from the actual renewalDate, so
+    // prepayments stack correctly.
+    const anchor =
+      insurance.renewalDate && insurance.renewalDate > new Date()
+        ? insurance.renewalDate
+        : new Date();
     const updated = await tx.insurance.update({
       where: { id, familyGroupId },
       data: insurance.renewalDate
-        ? {
-            renewalDate: nextRenewalDate(
-              insurance.renewalDate,
-              insurance.premiumPeriod,
-            ),
-          }
+        ? { renewalDate: nextRenewalDate(anchor, insurance.premiumPeriod) }
         : {},
     });
 
     return toInsuranceDto(updated);
   }
 
+  /** Mirrors `LiabilitiesService.assertNotAlreadyPaidThisPeriod`. */
+  private async assertNotAlreadyPaidThisPeriod(
+    tx: TxClient,
+    familyGroupId: string,
+    insuranceId: string,
+    insuranceName: string,
+    premiumPeriod: string,
+  ): Promise<void> {
+    const { periodStart, periodEnd } = currentPaymentPeriodBounds(
+      premiumPeriod as PaymentPeriod,
+    );
+    const existing = await tx.transaction.findFirst({
+      where: {
+        familyGroupId,
+        insuranceId,
+        occurredAt: { gte: periodStart, lte: periodEnd },
+      },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new ConflictException(
+        `"${insuranceName}" sudah dibayar periode ini — koreksi transaksi yang ada, jangan bayar dua kali`,
+      );
+    }
+  }
+
   /**
    * Finds this policy's OWN premium Category — self-healing (creating it,
-   * `INSURANCE_PREMIUM_COA_CODES`) the first time it is needed — HIGH 4
+   * `INSURANCE_PREMIUM_COA_PRIORITY`) the first time it is needed — HIGH 4
    * redesign, mirrors `LiabilitiesService.resolveOwnPrincipalCategoryId`.
    * The category name bakes in the policy's own id (`ownCategoryName`,
    * shared with `LiabilitiesService`), eliminating the
    * `@@unique([familyGroupId, name, kind])` collision class between two
    * DIFFERENT policies by construction.
+   *
+   * HIGH 11 (group E retry round 3) — looks up each code in
+   * `INSURANCE_PREMIUM_COA_PRIORITY` IN ORDER (one `findFirst` per code,
+   * first hit wins) instead of a single `findFirst({ code: { in: [...] } },
+   * orderBy: { code: "asc" } })`, which picked whichever code sorted first
+   * ALPHABETICALLY ("20010" < "21104") regardless of which one was actually
+   * the better fit for this family's chart.
    */
   private async resolveOwnPremiumCategoryId(
     tx: TxClient,
@@ -624,10 +723,14 @@ export class InsurancesService {
   ): Promise<string> {
     if (insurance.premiumCategoryId) return insurance.premiumCategoryId;
 
-    const coaAccount = await tx.coaAccount.findFirst({
-      where: { familyGroupId, code: { in: INSURANCE_PREMIUM_COA_CODES } },
-      orderBy: { code: "asc" },
-    });
+    let coaAccount: { id: string; name: string } | null = null;
+    for (const code of INSURANCE_PREMIUM_COA_PRIORITY) {
+      coaAccount = await tx.coaAccount.findFirst({
+        where: { familyGroupId, code },
+        select: { id: true, name: true },
+      });
+      if (coaAccount) break;
+    }
     if (!coaAccount) {
       throw new BadRequestException(
         "This family group has no insurance-premium expense COA account provisioned",

@@ -230,7 +230,13 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
             </div>
           )}
         </div>
-        <CardSideActions onEdit={onEdit} onPay={onPay} onDelete={onDelete} />
+        <CardSideActions
+          onEdit={onEdit}
+          onPay={onPay}
+          onDelete={onDelete}
+          payDisabled={item.paidThisPeriod}
+          payDisabledLabel={t.asuransi.payAlreadyPaidTooltip}
+        />
       </div>
     </Card>
   );

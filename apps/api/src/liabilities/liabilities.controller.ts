@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Req,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -34,6 +35,8 @@ import { PurchaseLiabilityDto } from "./dto/purchase-liability.dto";
 import { UpdateLiabilityDto } from "./dto/update-liability.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { LiabilitiesService } from "./liabilities.service";
+
+import type { Request } from "express";
 
 @ApiTags("liabilities")
 @ApiBearerAuth()
@@ -131,8 +134,14 @@ export class LiabilitiesController {
     @Param("familyGroupId") familyGroupId: string,
     @Param("id") id: string,
     @Body() dto: PurchaseLiabilityDto,
+    @Req() req: Request,
   ): Promise<LiabilityResponseDto> {
-    return this.liabilitiesService.purchase(familyGroupId, id, dto);
+    return this.liabilitiesService.purchase(
+      familyGroupId,
+      id,
+      dto,
+      req.tenantContext?.member,
+    );
   }
 
   @Delete(":id")

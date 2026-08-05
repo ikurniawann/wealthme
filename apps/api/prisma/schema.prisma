@@ -687,6 +687,14 @@ model Budget {
   // ordering, not the primary mechanism.
   liabilityId   String?
   insuranceId   String?
+  // EPIC-023 group E retry round 3 (MEDIUM 12) — set directly by
+  // `LiabilitiesService`/`InsurancesService` when they auto-create this
+  // obligation's own budget line, instead of the old `markCategoryFixed`
+  // which mutated the category's SHARED `CoaAccount.budgetType` and
+  // silently reclassified every OTHER category on that account too. Null
+  // for a normal user-made budget — `BudgetsService.toDto` falls back to
+  // `category.coaAccount.budgetType` in that case.
+  budgetType    CoaBudgetType?
   familyGroup   FamilyGroup  @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
   category      Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   liability     Liability?   @relation(fields: [liabilityId], references: [id], onDelete: Restrict)

@@ -2,6 +2,7 @@ import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { Prisma } from "@prisma/client";
 
+import { NOTIFICATION_SENDER_PORT } from "../notifications/notification-sender.port";
 import { PrismaService } from "../prisma/prisma.service";
 
 import { LiabilitiesService } from "./liabilities.service";
@@ -56,11 +57,20 @@ function makePrisma() {
     budget: {
       upsert: jest.fn(),
       findUnique: jest.fn(),
+      // C1 (group E retry round 4) — `remove()` looks this up to decide
+      // whether to refuse deletion; `null` by default means "no budget
+      // line, delete freely" unless a test overrides it.
+      findFirst: jest.fn().mockResolvedValue(null),
       deleteMany: jest.fn(),
     },
     transaction: {
       create: jest.fn(),
       findMany: jest.fn().mockResolvedValue([]),
+      // C3 (group E retry round 4) — `assertNotAlreadyPaidThisPeriod`
+      // (called inside `pay()`'s transaction) looks this up; `null` by
+      // default means "no existing payment this period" unless a test
+      // overrides it.
+      findFirst: jest.fn().mockResolvedValue(null),
     },
     $transaction: jest.fn(),
   };
@@ -95,6 +105,10 @@ describe("LiabilitiesService", () => {
       providers: [
         LiabilitiesService,
         { provide: PrismaService, useValue: prisma },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { send: jest.fn(), sendEmail: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -249,10 +263,6 @@ describe("LiabilitiesService", () => {
         where: { id: "lid-new", familyGroupId: "fg-1" },
         data: { principalCategoryId: "cat-principal" },
       });
-      expect(prisma.coaAccount.update).toHaveBeenCalledWith({
-        where: { id: "coa-5" },
-        data: { budgetType: "FIXED" },
-      });
       expect(prisma.budget.upsert).toHaveBeenCalledWith({
         where: {
           familyGroupId_categoryId_period: {
@@ -267,10 +277,12 @@ describe("LiabilitiesService", () => {
           period: "monthly",
           limitAmount: BigInt(2_083_000),
           liabilityId: "lid-new",
+          budgetType: "FIXED",
         },
         update: {
           limitAmount: BigInt(2_083_000),
           liabilityId: "lid-new",
+          budgetType: "FIXED",
         },
       });
     });
@@ -366,7 +378,11 @@ describe("LiabilitiesService", () => {
 
       expect(prisma.budget.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          update: { limitAmount: BigInt(3_000_000), liabilityId: "lid-1" },
+          update: {
+            limitAmount: BigInt(3_000_000),
+            liabilityId: "lid-1",
+            budgetType: "FIXED",
+          },
         }),
       );
       // No self-heal category creation — it already had one.
@@ -407,7 +423,7 @@ describe("LiabilitiesService", () => {
 
     it("deletes when there is no budget line for this liability", async () => {
       prisma.liability.findUnique.mockResolvedValue(BASE);
-      prisma.budget.deleteMany.mockResolvedValue({ count: 0 });
+      prisma.budget.findFirst.mockResolvedValue(null);
 
       await service.remove("fg-1", "lid-1");
 
@@ -416,23 +432,29 @@ describe("LiabilitiesService", () => {
       });
     });
 
-    // EPIC-023 group E retry (HIGH 4) — a liability's budget line is now
-    // EXCLUSIVE to it (its own Category, never shared), so deleting the
-    // liability auto-removes ITS OWN line instead of the old 409 that
-    // blocked deletion until the user found and deleted a budget line
-    // shared with every OTHER liability in the family.
-    it("auto-removes this liability's OWN budget line, scoped by liabilityId, before deleting it — never a 409", async () => {
+    // EPIC-023 group E retry round 4 (C1) — D11 verbatim: "Deleting a
+    // liability is refused while its budget line exists — never a silent
+    // cascade." A prior version of this method silently `deleteMany`'d the
+    // liability's budget line before deleting the liability — exactly the
+    // cascade D11 forbids. Per-obligation budget rows (HIGH 4's own
+    // Category per liability) make the refusal check EXACT: a liability
+    // that never had a line (minimumPayment stayed 0) is still freely
+    // deletable (covered above); one that DOES have a line refuses with a
+    // `ConflictException` naming the liability and its budget line, and
+    // neither `budget.deleteMany` nor `liability.delete` is ever called.
+    it("refuses deletion with a ConflictException naming the liability and its budget line when one exists — never a silent cascade", async () => {
       prisma.liability.findUnique.mockResolvedValue(BASE);
-      prisma.budget.deleteMany.mockResolvedValue({ count: 1 });
+      prisma.budget.findFirst.mockResolvedValue({ id: "budget-1" });
 
-      await service.remove("fg-1", "lid-1");
-
-      expect(prisma.budget.deleteMany).toHaveBeenCalledWith({
-        where: { familyGroupId: "fg-1", liabilityId: "lid-1" },
+      await expect(service.remove("fg-1", "lid-1")).rejects.toMatchObject({
+        status: 409,
+        message: expect.stringContaining(BASE.name),
       });
-      expect(prisma.liability.delete).toHaveBeenCalledWith({
-        where: { id: "lid-1", familyGroupId: "fg-1" },
+      await expect(service.remove("fg-1", "lid-1")).rejects.toMatchObject({
+        message: expect.stringContaining("budget-1"),
       });
+      expect(prisma.budget.deleteMany).not.toHaveBeenCalled();
+      expect(prisma.liability.delete).not.toHaveBeenCalled();
     });
   });
 
@@ -466,6 +488,26 @@ describe("LiabilitiesService", () => {
       balance: BigInt(50_000_000),
       name: "BCA",
     };
+
+    // C3 (group E retry round 4) — server-side idempotency: a second payment
+    // for the SAME liability within the current period must be rejected,
+    // not merely disabled client-side. This is the ONLY thing that stops a
+    // double debit from a second tab, a stale page, a replayed request, or
+    // a direct API call.
+    it("rejects a second payment for the same liability within the current period", async () => {
+      prisma.liability.findUnique.mockResolvedValue(LIABILITY);
+      prisma.transaction.findFirst.mockResolvedValue({ id: "tx-existing" });
+
+      await expect(
+        service.pay("fg-1", "lid-1", {
+          sourceAccountId: "acc-1",
+          amount: "1000000",
+        }),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(prisma.account.findUnique).not.toHaveBeenCalled();
+      expect(prisma.account.update).not.toHaveBeenCalled();
+      expect(prisma.transaction.create).not.toHaveBeenCalled();
+    });
 
     it("throws NotFoundException when the liability does not exist in this family group", async () => {
       prisma.liability.findUnique.mockResolvedValue(null);
@@ -590,7 +632,15 @@ describe("LiabilitiesService", () => {
     // and does NOT carry liabilityId — it is real money spent, not a debt
     // paydown. Golden values: same month-1 split as the test above (12% on
     // 100,000,000 -> interest 1,000,000, principal 4,000,000).
-    it("links the principal leg to the liability as a transfer; the interest leg stays an unlinked expense (EPIC-023 E1)", async () => {
+    // C2 bullet 1 (group E retry round 4) — the interest leg used to carry
+    // NO `liabilityId`: an interest-only payment (principal === 0, e.g. a
+    // payment that only covers accrued interest) posted ONLY this row, so
+    // `paidThisPeriod` never flipped true for a REAL payment, letting the
+    // same period be "paid" an unbounded number of times. BOTH legs now
+    // link `liabilityId` — the interest leg stays an ordinary EXPENSE
+    // (still excluded from the liability's own TRANSFER-only budget line,
+    // C5), but IS counted by the double-payment guard.
+    it("links BOTH the principal (transfer) and interest (expense) legs to the liability (EPIC-023 E1 / C2)", async () => {
       prisma.liability.findUnique.mockResolvedValue(LIABILITY);
       prisma.account.findUnique.mockResolvedValue(ACCOUNT);
       prisma.category.findFirst.mockResolvedValueOnce({ id: "cat-interest" });
@@ -620,13 +670,10 @@ describe("LiabilitiesService", () => {
             categoryId: "cat-interest",
             amount: BigInt(1_000_000),
             type: "expense",
+            liabilityId: "lid-1",
           }),
         }),
       );
-      const interestCall = prisma.transaction.create.mock.calls.find(
-        (call) => call[0].data.categoryId === "cat-interest",
-      );
-      expect(interestCall?.[0].data.liabilityId).toBeUndefined();
     });
 
     it("skips the interest transaction entirely when interest is 0 (a 0% liability)", async () => {

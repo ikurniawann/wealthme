@@ -89,11 +89,21 @@ function makePrisma() {
     budget: {
       upsert: jest.fn(),
       findUnique: jest.fn(),
+      // C1 (group E retry round 4) — `remove()` looks this up to decide
+      // whether to refuse deletion; `findFirst` returning `null` by
+      // default means "no budget line, delete freely" unless a test
+      // overrides it.
+      findFirst: jest.fn().mockResolvedValue(null),
       deleteMany: jest.fn(),
     },
     transaction: {
       create: jest.fn(),
       findMany: jest.fn().mockResolvedValue([]),
+      // C3 (group E retry round 4) — `assertNotAlreadyPaidThisPeriod`
+      // (called inside `pay()`'s transaction) looks this up; `null` by
+      // default means "no existing payment this period" unless a test
+      // overrides it.
+      findFirst: jest.fn().mockResolvedValue(null),
     },
     $transaction: jest.fn(),
   };
@@ -343,10 +353,6 @@ describe("InsurancesService", () => {
         premiumPeriod: "monthly" as const,
       });
 
-      expect(prisma.coaAccount.update).toHaveBeenCalledWith({
-        where: { id: "coa-premium" },
-        data: { budgetType: "FIXED" },
-      });
       expect(prisma.budget.upsert).toHaveBeenCalledWith({
         where: {
           familyGroupId_categoryId_period: {
@@ -361,8 +367,13 @@ describe("InsurancesService", () => {
           period: "monthly",
           limitAmount: BigInt(1_500_000),
           insuranceId: INSURANCE_ID,
+          budgetType: "FIXED",
         },
-        update: { limitAmount: BigInt(1_500_000), insuranceId: INSURANCE_ID },
+        update: {
+          limitAmount: BigInt(1_500_000),
+          insuranceId: INSURANCE_ID,
+          budgetType: "FIXED",
+        },
       });
     });
 
@@ -454,6 +465,7 @@ describe("InsurancesService", () => {
           update: {
             limitAmount: BigInt(3_000_000),
             insuranceId: INSURANCE_ID,
+            budgetType: "FIXED",
           },
         }),
       );
@@ -475,6 +487,7 @@ describe("InsurancesService", () => {
           update: {
             limitAmount: BigInt(1_500_000),
             insuranceId: INSURANCE_ID,
+            budgetType: "FIXED",
           },
         }),
       );
@@ -495,7 +508,7 @@ describe("InsurancesService", () => {
 
     it("deletes when there is no budget line for this policy", async () => {
       prisma.insurance.findUnique.mockResolvedValue(BASE_ROW);
-      prisma.budget.deleteMany.mockResolvedValue({ count: 0 });
+      prisma.budget.findFirst.mockResolvedValue(null);
 
       await service.remove(FAMILY_GROUP_ID, INSURANCE_ID);
 
@@ -504,22 +517,31 @@ describe("InsurancesService", () => {
       });
     });
 
-    // EPIC-023 group E retry (HIGH 4) — a policy's budget line is now
-    // EXCLUSIVE to it, so deleting the policy auto-removes ITS OWN line —
-    // never the old 409 that blocked deletion until the user found and
-    // deleted a budget line shared with every OTHER policy in the family.
-    it("auto-removes this policy's OWN budget line, scoped by insuranceId, before deleting it — never a 409", async () => {
+    // EPIC-023 group E retry round 4 (C1) — D11 verbatim: "Deleting a
+    // liability [or policy] is refused while its budget line exists — never
+    // a silent cascade." A prior version of this method silently
+    // `deleteMany`'d the policy's budget line before deleting the policy —
+    // exactly the cascade D11 forbids. Restored: a policy with a budget
+    // line refuses deletion with a `ConflictException` naming the policy
+    // and its budget line; `insurance.delete` and `budget.deleteMany` are
+    // never called.
+    it("refuses deletion with a ConflictException naming the policy and its budget line when one exists — never a silent cascade", async () => {
       prisma.insurance.findUnique.mockResolvedValue(BASE_ROW);
-      prisma.budget.deleteMany.mockResolvedValue({ count: 1 });
+      prisma.budget.findFirst.mockResolvedValue({ id: "budget-1" });
 
-      await service.remove(FAMILY_GROUP_ID, INSURANCE_ID);
-
-      expect(prisma.budget.deleteMany).toHaveBeenCalledWith({
-        where: { familyGroupId: FAMILY_GROUP_ID, insuranceId: INSURANCE_ID },
+      await expect(
+        service.remove(FAMILY_GROUP_ID, INSURANCE_ID),
+      ).rejects.toMatchObject({
+        status: 409,
+        message: expect.stringContaining(BASE_ROW.name),
       });
-      expect(prisma.insurance.delete).toHaveBeenCalledWith({
-        where: { id: INSURANCE_ID, familyGroupId: FAMILY_GROUP_ID },
+      await expect(
+        service.remove(FAMILY_GROUP_ID, INSURANCE_ID),
+      ).rejects.toMatchObject({
+        message: expect.stringContaining("budget-1"),
       });
+      expect(prisma.budget.deleteMany).not.toHaveBeenCalled();
+      expect(prisma.insurance.delete).not.toHaveBeenCalled();
     });
   });
 
@@ -719,7 +741,14 @@ describe("InsurancesService", () => {
       ...BASE_ROW,
       premiumAmount: BigInt(1_500_000),
       premiumPeriod: "monthly" as const,
-      renewalDate: new Date("2026-03-15T00:00:00.000Z"),
+      // MEDIUM 13 (group E retry round 3) — `runPay` anchors the advance to
+      // `max(renewalDate, now)`, not unconditionally to the stored
+      // `renewalDate`: an OVERDUE policy anchors to today instead of
+      // compounding with `billing-cycle.processor.ts`'s catch-up. Kept far
+      // in the future here so these tests exercise the (more common)
+      // "paying on time" path — advancing from the actual `renewalDate` —
+      // without the anchor silently becoming "now" as the test suite ages.
+      renewalDate: new Date("2099-03-15T00:00:00.000Z"),
     };
     const ACCOUNT = {
       id: "acc-1",
@@ -728,6 +757,27 @@ describe("InsurancesService", () => {
       balance: BigInt(10_000_000),
       name: "BCA",
     };
+
+    // C3 (group E retry round 4) — server-side idempotency: a second premium
+    // payment for the SAME policy within the current period must be
+    // rejected, not merely disabled client-side (a client-side `disabled`
+    // cannot be the whole control on a money path — see /asuransi's missing
+    // disabled state, fixed separately on the web side). This is the ONLY
+    // thing that stops a double debit from a second tab, a stale page, a
+    // replayed request, or a direct API call.
+    it("rejects a second premium payment for the same policy within the current period", async () => {
+      prisma.insurance.findUnique.mockResolvedValue(POLICY);
+      prisma.transaction.findFirst.mockResolvedValue({ id: "tx-existing" });
+
+      await expect(
+        service.pay(FAMILY_GROUP_ID, INSURANCE_ID, {
+          sourceAccountId: "acc-1",
+        }),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(prisma.account.findUnique).not.toHaveBeenCalled();
+      expect(prisma.account.update).not.toHaveBeenCalled();
+      expect(prisma.transaction.create).not.toHaveBeenCalled();
+    });
 
     it("throws NotFoundException when the policy does not exist in this family group", async () => {
       prisma.insurance.findUnique.mockResolvedValue(null);
@@ -757,7 +807,7 @@ describe("InsurancesService", () => {
       prisma.account.findUnique.mockResolvedValue(ACCOUNT);
       prisma.insurance.update.mockResolvedValue({
         ...POLICY,
-        renewalDate: new Date("2026-04-15T00:00:00.000Z"),
+        renewalDate: new Date("2099-04-15T00:00:00.000Z"),
       });
 
       const result = await service.pay(FAMILY_GROUP_ID, INSURANCE_ID, {
@@ -782,12 +832,12 @@ describe("InsurancesService", () => {
       );
       // Golden value — same clamped-advance algorithm as
       // next-renewal-date.util.spec.ts's "advances a mid-month date by one
-      // month" case: 2026-03-15 monthly -> 2026-04-15.
+      // month" case: 2099-03-15 monthly -> 2099-04-15.
       expect(prisma.insurance.update).toHaveBeenCalledWith({
         where: { id: INSURANCE_ID, familyGroupId: FAMILY_GROUP_ID },
-        data: { renewalDate: new Date("2026-04-15T00:00:00.000Z") },
+        data: { renewalDate: new Date("2099-04-15T00:00:00.000Z") },
       });
-      expect(result.renewalDate).toBe("2026-04-15T00:00:00.000Z");
+      expect(result.renewalDate).toBe("2099-04-15T00:00:00.000Z");
     });
 
     it("uses an explicit amount instead of the policy's premiumAmount when provided", async () => {

@@ -19,10 +19,6 @@ import {
   transactionPrivacyWhere,
 } from "../common/utils/privacy.util";
 import {
-  ownerNotifPrefs,
-  resolveNotifPrefs,
-} from "../notifications/notification-prefs";
-import {
   NOTIFICATION_SENDER_PORT,
   type NotificationSenderPort,
 } from "../notifications/notification-sender.port";
@@ -30,6 +26,11 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 
 import { OCR_PORT, type OcrPort, type OcrResult } from "./ocr/ocr.port";
+import {
+  checkBudgetAlert,
+  checkCashFlowAlert,
+  notifyTransaction,
+} from "./transaction-alerts.util";
 
 import type { CreateTransactionDto } from "./dto/create-transaction.dto";
 import type { ListTransactionsQueryDto } from "./dto/list-transactions-query.dto";
@@ -56,15 +57,6 @@ export type ActingMember = { id: string; userId: string; role: Role } | null;
 // top-up). Kept in Indonesian to match the rest of user-facing transaction
 // copy generated server-side (see WM_CONVENTIONS.md fidelity note).
 const ADMIN_FEE_DESCRIPTION = "Biaya admin top-up";
-
-function escapeHtml(raw: string): string {
-  return raw
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#x27;");
-}
 
 @Injectable()
 export class TransactionsService {
@@ -215,27 +207,6 @@ export class TransactionsService {
       this.assertAccountOwnedByActingMember(toAccount, actingMember);
     }
 
-    // EPIC-023 E1 — tenant-scoped lookups: an unscoped FK write would let a
-    // caller link a transaction to another family's Liability/Insurance row
-    // just by guessing its id. Composite `{ id, familyGroupId }` where,
-    // mirrors every other cross-family FK check in this file.
-    if (dto.liabilityId) {
-      const liability = await this.prisma.liability.findUnique({
-        where: { id: dto.liabilityId, familyGroupId },
-      });
-      if (!liability) {
-        throw new NotFoundException(`Liability ${dto.liabilityId} not found`);
-      }
-    }
-    if (dto.insuranceId) {
-      const insurance = await this.prisma.insurance.findUnique({
-        where: { id: dto.insuranceId, familyGroupId },
-      });
-      if (!insurance) {
-        throw new NotFoundException(`Insurance ${dto.insuranceId} not found`);
-      }
-    }
-
     let resolvedCategoryId = dto.categoryId ?? null;
 
     // EPIC-019 Task C — a constrained member's allow-list (null = no rows =
@@ -323,9 +294,6 @@ export class TransactionsService {
           // non-member-facing caller, exactly like every other actingMember
           // default in this file).
           createdByUserId: actingMember?.userId ?? null,
-          // EPIC-023 E1 — already tenant-scope-verified above.
-          liabilityId: dto.liabilityId ?? null,
-          insuranceId: dto.insuranceId ?? null,
         },
         include: {
           category: { select: { name: true } },
@@ -403,12 +371,18 @@ export class TransactionsService {
     });
 
     if (resolvedCategoryId && dto.type === "expense") {
-      void this.checkBudgetAlert(familyGroupId, resolvedCategoryId);
+      void checkBudgetAlert(
+        this.prisma,
+        this.notificationSender,
+        familyGroupId,
+        resolvedCategoryId,
+      );
     }
     if (dto.type === "expense") {
-      void this.checkCashFlowAlert(familyGroupId);
+      void checkCashFlowAlert(this.prisma, familyGroupId);
     }
-    void this.notifyTransaction(
+    void notifyTransaction(
+      this.prisma,
       familyGroupId,
       dto.type,
       BigInt(dto.amount),
@@ -503,184 +477,6 @@ export class TransactionsService {
       select: { largeTxnThreshold: true },
     });
     return member?.largeTxnThreshold ?? null;
-  }
-
-  private async checkBudgetAlert(
-    familyGroupId: string,
-    categoryId: string,
-  ): Promise<void> {
-    try {
-      const budget = await this.prisma.budget.findFirst({
-        where: { familyGroupId, categoryId },
-        select: { id: true, limitAmount: true },
-      });
-      if (!budget || budget.limitAmount <= BigInt(0)) return;
-
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-      const agg = await this.prisma.transaction.aggregate({
-        where: {
-          familyGroupId,
-          categoryId,
-          type: "expense",
-          occurredAt: { gte: monthStart, lt: nextMonthStart },
-        },
-        _sum: { amount: true },
-      });
-
-      // The new transaction is already committed when this runs, so the
-      // aggregate includes it — no manual addition needed.
-      const spent = agg._sum.amount ?? BigInt(0);
-      const usagePct = Number((spent * BigInt(100)) / budget.limitAmount);
-      if (usagePct < 80) return;
-
-      const [owner, category] = await Promise.all([
-        this.prisma.member.findFirst({
-          where: { familyGroupId, role: "owner" },
-          include: {
-            user: {
-              select: { email: true, name: true, notificationPrefs: true },
-            },
-          },
-        }),
-        this.prisma.category.findUnique({
-          where: { id: categoryId, familyGroupId },
-          select: { name: true },
-        }),
-      ]);
-      if (!owner) return;
-      if (!resolveNotifPrefs(owner.user.notificationPrefs).budget80) return;
-
-      const safeName = escapeHtml(category?.name ?? "kategori ini");
-      const subject =
-        usagePct >= 100
-          ? `Anggaran ${safeName} terlampaui!`
-          : `Anggaran ${safeName} sudah ${usagePct}%`;
-      const htmlBody = `<p>Halo ${escapeHtml(owner.user.name)},</p>
-<p>Pengeluaran untuk <strong>${safeName}</strong> bulan ini telah mencapai <strong>${usagePct}%</strong> dari anggaran.</p>
-<p>Segera tinjau anggaran Anda di WealthMe.</p>`;
-
-      await Promise.all([
-        this.notificationSender.sendEmail(
-          owner.user.email,
-          owner.user.name,
-          subject,
-          htmlBody,
-        ),
-        this.prisma.notification.create({
-          data: {
-            familyGroupId,
-            title: subject,
-            body: `Pengeluaran ${safeName} sudah ${usagePct}% dari anggaran bulan ini.`,
-            icon: "💸",
-          },
-        }),
-      ]);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Budget alert skipped: ${msg}`);
-    }
-  }
-
-  private async checkCashFlowAlert(familyGroupId: string): Promise<void> {
-    try {
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-      const [incomeAgg, expenseAgg] = await Promise.all([
-        this.prisma.transaction.aggregate({
-          where: {
-            familyGroupId,
-            type: "income",
-            occurredAt: { gte: monthStart, lt: nextMonthStart },
-          },
-          _sum: { amount: true },
-        }),
-        this.prisma.transaction.aggregate({
-          where: {
-            familyGroupId,
-            type: "expense",
-            occurredAt: { gte: monthStart, lt: nextMonthStart },
-          },
-          _sum: { amount: true },
-        }),
-      ]);
-
-      const income = incomeAgg._sum.amount ?? BigInt(0);
-      const expense = expenseAgg._sum.amount ?? BigInt(0);
-
-      if (income <= BigInt(0)) return;
-
-      const usagePct = Number((expense * BigInt(100)) / income);
-      if (usagePct < 80) return;
-
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const existing = await this.prisma.notification.findFirst({
-        where: { familyGroupId, icon: "⚠️", createdAt: { gte: today } },
-      });
-      if (existing) return;
-
-      const title =
-        usagePct >= 100
-          ? "Pengeluaran Melebihi Pemasukan!"
-          : `Pengeluaran Bulan Ini Sudah ${usagePct}%`;
-      const body =
-        usagePct >= 100
-          ? `Pengeluaran bulan ini sudah ${usagePct}% dari total pemasukan. Kurangi pengeluaran segera.`
-          : `Pengeluaran bulan ini sudah ${usagePct}% dari total pemasukan. Pantau pengeluaranmu.`;
-
-      await this.prisma.notification.create({
-        data: { familyGroupId, title, body, icon: "⚠️" },
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Cash flow alert skipped: ${msg}`);
-    }
-  }
-
-  private async notifyTransaction(
-    familyGroupId: string,
-    type: string,
-    amount: bigint,
-    tx: { category: { name: string } | null; account: { name: string } | null },
-    // EPIC-023 Task D (D3/D9) — the acting member's own largeTxnThreshold,
-    // when set. Trusted roles are never held (only row-scoped roles are —
-    // see create()'s gate above), so a threshold here only ever narrows
-    // WHEN this member's "large transaction" notification fires; it never
-    // blocks anything. Defaults to the pre-existing fixed cutoff when the
-    // member has no threshold set (the normal case for every pre-existing
-    // member).
-    bigThreshold: bigint = BigInt(5_000_000),
-  ): Promise<void> {
-    try {
-      // Only income/expense produce a feed notification; transfers stay silent.
-      const isIncome = type === "income";
-      const isExpense = type === "expense";
-      if (!isIncome && !isExpense) return;
-
-      const prefs = await ownerNotifPrefs(this.prisma, familyGroupId);
-      const isBig = amount >= bigThreshold;
-      const wantByType = isIncome ? prefs.txnIn : prefs.txnOut;
-      // txnBig is an additive alert for large amounts of either direction.
-      if (!wantByType && !(isBig && prefs.txnBig)) return;
-
-      const label = isIncome ? "Transaksi masuk" : "Transaksi keluar";
-      const catName = tx.category?.name ?? "Tanpa kategori";
-      await this.prisma.notification.create({
-        data: {
-          familyGroupId,
-          title: isBig ? `${label} besar` : label,
-          body: `${label} Rp ${amount.toString()} — ${catName}`,
-          icon: isIncome ? "📥" : "📤",
-        },
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Transaction notification skipped: ${msg}`);
-    }
   }
 
   async update(

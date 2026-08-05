@@ -871,6 +871,7 @@ export const en = {
     payConfirmButton: "Yes, Pay Now",
     paySourceAccountLabel: "Source Account",
     paySourceAccountPlaceholder: "Select an account...",
+    payAlreadyPaidTooltip: "Already paid this period",
     toastRenewalRecordedPrefix: "Premium paid — next due date ",
     toastPaySuccessNoRenewal: "Premium paid successfully.",
     toastRenewalFailed: "Failed to pay premium. Try again.",
