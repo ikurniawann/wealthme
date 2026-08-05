@@ -1147,6 +1147,10 @@ export const id = {
     fieldValueChangeRateLabel: "Perubahan Nilai per Tahun (%)",
     fieldValueChangeRatePlaceholder:
       "cth. -5 untuk penyusutan, 5 untuk apresiasi",
+    defaultRateHelperPrefix: "Perkiraan default untuk tipe ini",
+    fieldAcquisitionDateLabel: "Tanggal Perolehan (opsional)",
+    fieldAcquisitionDateHelper:
+      "Proyeksi nilai dihitung mulai dari tanggal ini. Jika dikosongkan, dihitung sejak aset ditambahkan.",
     fieldMasterDataCategoryLabel: "Kategori Master Data (opsional)",
     fieldMasterDataCategoryNone: "Tidak ada kategori",
     fieldNotesLabel: "Catatan (opsional)",
@@ -1161,7 +1165,10 @@ export const id = {
     emptyPhysical: "Belum ada aset fisik.",
     emptyDanaRekening: "Belum ada akun dalam kategori ini.",
     emptyInvestments: "Belum ada investasi.",
-    estimatedValueBadge: "estimasi",
+    projectionLabel: "Proyeksi",
+    useThisValueButton: "Gunakan nilai ini",
+    toastValueAdopted: "Nilai aset berhasil diperbarui",
+    toastValueAdoptFailed: "Gagal memperbarui nilai aset. Silakan coba lagi.",
   },
   liabilitas: {
     typeLabels: {

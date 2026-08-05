@@ -28,11 +28,13 @@ import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { IconChip, CountUpRupiah, Rise } from "@/components/wm";
 
+import { DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT } from "@wealthme/contracts";
 import type {
   AssetDto,
   AccountDto,
   InvestmentDto,
   CategoryDto,
+  AssetTypeId,
 } from "@wealthme/contracts";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -112,8 +114,25 @@ const ASSET_TYPES = [
   "elektronik",
   "perhiasan",
   "lainnya",
-] as const;
-type AssetTypeValue = (typeof ASSET_TYPES)[number];
+] as const satisfies readonly AssetTypeId[];
+
+/**
+ * EPIC-023 Task H1 review (HIGH fix 1): Indonesia Western Time — fixed
+ * UTC+7, no daylight saving. Mirrors the same-named constant/reasoning in
+ * `assets.service.ts` — duplicated here (not imported; `apps/web/src/lib`
+ * is a protected foundation file this task must not touch) because a
+ * calendar-date `max` computed from the browser's local/UTC calendar date
+ * blocks "today" for Jakarta users during the first ~7 hours of every WIB
+ * day (9h for WIT). DO NOT simplify this back to `new Date().toISOString()`.
+ */
+const WIB_UTC_OFFSET_MINUTES = 7 * 60;
+
+/** Today's calendar date (YYYY-MM-DD) in WIB wall-clock terms. */
+function wibTodayDateString(): string {
+  return new Date(Date.now() + WIB_UTC_OFFSET_MINUTES * 60_000)
+    .toISOString()
+    .slice(0, 10);
+}
 
 interface AddAssetModalProps {
   familyGroupId: string;
@@ -126,11 +145,14 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
   const [name, setName] = useState("");
-  const [type, setType] = useState<AssetTypeValue>("properti");
+  const [type, setType] = useState<AssetTypeId>("properti");
   const [value, setValue] = useState("");
   const [notes, setNotes] = useState("");
   const [valueChangeRatePct, setValueChangeRatePct] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  // EPIC-023 D19/US-ASSET-4: elapsed-time anchor for currentEstimatedValue,
+  // falls back to createdAt server-side when left blank.
+  const [acquisitionDate, setAcquisitionDate] = useState("");
 
   // EPIC-021 #16: real master-data categories for the optional category
   // select (same query key/cache as /masterdata).
@@ -151,6 +173,7 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
       notes?: string;
       valueChangeRatePct?: string;
       categoryId?: string;
+      acquisitionDate?: string;
     }) => {
       if (!token || !familyGroupId) {
         return Promise.reject(new Error("Not authenticated"));
@@ -187,6 +210,7 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
       notes: notes.trim() || undefined,
       valueChangeRatePct: valueChangeRatePct.trim() || undefined,
       categoryId: categoryId || undefined,
+      acquisitionDate: acquisitionDate || undefined,
     });
   }
 
@@ -212,10 +236,14 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
 
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <div>
-            <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
+            <label
+              htmlFor="asset-name"
+              className="mb-1 block text-[12px] font-semibold text-muted-foreground"
+            >
               {t.aset.fieldNameLabel}
             </label>
             <input
+              id="asset-name"
               className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
               placeholder={t.aset.fieldNamePlaceholder}
               maxLength={100}
@@ -226,13 +254,28 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
           </div>
 
           <div>
-            <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
+            <label
+              htmlFor="asset-type"
+              className="mb-1 block text-[12px] font-semibold text-muted-foreground"
+            >
               {t.aset.fieldCategoryLabel}
             </label>
             <select
+              id="asset-type"
               className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
               value={type}
-              onChange={(e) => setType(e.target.value as AssetTypeValue)}
+              onChange={(e) => {
+                const newType = e.target.value as AssetTypeId;
+                setType(newType);
+                // EPIC-023 D19/US-ASSET-4: pre-fill the rate field from the
+                // per-type default only when the user hasn't typed one yet
+                // — a suggestion, not a constraint; still freely editable.
+                if (!valueChangeRatePct.trim()) {
+                  setValueChangeRatePct(
+                    String(DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT[newType]),
+                  );
+                }
+              }}
             >
               {ASSET_TYPES.map((assetType) => (
                 <option key={assetType} value={assetType}>
@@ -243,10 +286,14 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
           </div>
 
           <div>
-            <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
+            <label
+              htmlFor="asset-value"
+              className="mb-1 block text-[12px] font-semibold text-muted-foreground"
+            >
               {t.aset.fieldValueLabel}
             </label>
             <input
+              id="asset-value"
               className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
               placeholder={t.aset.fieldValuePlaceholder}
               inputMode="numeric"
@@ -262,10 +309,14 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
           </div>
 
           <div>
-            <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
+            <label
+              htmlFor="asset-rate"
+              className="mb-1 block text-[12px] font-semibold text-muted-foreground"
+            >
               {t.aset.fieldValueChangeRateLabel}
             </label>
             <input
+              id="asset-rate"
               type="number"
               className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
               placeholder={t.aset.fieldValueChangeRatePlaceholder}
@@ -276,13 +327,41 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
               value={valueChangeRatePct}
               onChange={(e) => setValueChangeRatePct(e.target.value)}
             />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {t.aset.defaultRateHelperPrefix}:{" "}
+              {DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT[type]}%
+            </p>
           </div>
 
           <div>
-            <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
+            <label
+              htmlFor="asset-acquisition-date"
+              className="mb-1 block text-[12px] font-semibold text-muted-foreground"
+            >
+              {t.aset.fieldAcquisitionDateLabel}
+            </label>
+            <input
+              id="asset-acquisition-date"
+              type="date"
+              className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
+              max={wibTodayDateString()}
+              value={acquisitionDate}
+              onChange={(e) => setAcquisitionDate(e.target.value)}
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {t.aset.fieldAcquisitionDateHelper}
+            </p>
+          </div>
+
+          <div>
+            <label
+              htmlFor="asset-category"
+              className="mb-1 block text-[12px] font-semibold text-muted-foreground"
+            >
               {t.aset.fieldMasterDataCategoryLabel}
             </label>
             <select
+              id="asset-category"
               className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
@@ -297,10 +376,14 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
           </div>
 
           <div>
-            <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
+            <label
+              htmlFor="asset-notes"
+              className="mb-1 block text-[12px] font-semibold text-muted-foreground"
+            >
               {t.aset.fieldNotesLabel}
             </label>
             <input
+              id="asset-notes"
               className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
               placeholder={t.aset.fieldNotesPlaceholder}
               maxLength={500}
@@ -322,19 +405,147 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
   );
 }
 
+// ── Physical Asset Row ─────────────────────────────────────────────────────────
+
+interface AssetRowProps {
+  asset: AssetDto;
+  familyGroupId: string;
+  token: string | undefined;
+  subtitle: string;
+  isLast: boolean;
+  index: number;
+}
+
+/**
+ * EPIC-023 D19/US-ASSET-4: currentValue (recorded, authoritative) is the
+ * PRIMARY bold figure. currentEstimatedValue (compute-on-read projection)
+ * only appears as a secondary, clearly-labeled "Proyeksi:" line when it
+ * actually differs from currentValue — with an adoptable "use this figure"
+ * action that PATCHes currentValue to the projection.
+ *
+ * EPIC-023 Task H1 review (MEDIUM fix 5): `token` is received as a prop
+ * (threaded from AsetPage through AssetGroupCard) rather than calling
+ * useSession() again here — AsetPage already resolves it once at the top
+ * level, matching how familyGroupId is already passed down.
+ */
+function AssetRow({
+  asset,
+  familyGroupId,
+  token,
+  subtitle,
+  isLast,
+  index,
+}: AssetRowProps) {
+  const { t } = useLocale();
+  const queryClient = useQueryClient();
+
+  const cfg = ASSET_TYPE_ICON[asset.type] ?? {
+    icon: Package,
+    chip: "bg-gray-100 text-gray-600",
+  };
+  const recordedValue = BigInt(asset.currentValue ?? "0");
+  const estimatedValue = BigInt(
+    asset.currentEstimatedValue ?? asset.currentValue ?? "0",
+  );
+  const hasProjectionDrift = estimatedValue !== recordedValue;
+
+  const adoptMutation = useMutation({
+    mutationFn: () => {
+      // EPIC-023 Task H1 review (LOW fix 6): guard !familyGroupId too, for
+      // symmetry with AddAssetModal's mutationFn guard — familyGroupId is
+      // typed required but AssetGroupCard falls back to "" when absent.
+      if (!token || !familyGroupId) {
+        return Promise.reject(new Error("Not authenticated"));
+      }
+      return apiFetch<AssetDto>(
+        `/family-groups/${familyGroupId}/assets/${asset.id}`,
+        {
+          method: "PATCH",
+          token,
+          body: JSON.stringify({ currentValue: asset.currentEstimatedValue }),
+        },
+      );
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.assets.all(familyGroupId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.netWorth.summary(familyGroupId),
+      });
+      toast.success(t.aset.toastValueAdopted);
+    },
+    onError: () => {
+      toast.error(t.aset.toastValueAdoptFailed);
+    },
+  });
+
+  return (
+    <Rise index={index}>
+      <div
+        className={`flex items-center gap-3 py-3 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)] ${isLast ? "" : "border-b"}`}
+      >
+        <IconChip
+          icon={cfg.icon}
+          className={cfg.chip}
+          size={34}
+          rounded="rounded-full"
+        />
+        <div className="flex-1 min-w-0">
+          <div className="text-[13.5px] font-semibold truncate">
+            {asset.name}
+          </div>
+          <div className="text-[11.5px] text-muted-foreground truncate">
+            {subtitle}
+          </div>
+        </div>
+        <div className="text-right shrink-0">
+          <div className="text-[14px] font-extrabold">
+            {formatRupiah(Number(recordedValue))}
+          </div>
+          {hasProjectionDrift && (
+            <div className="mt-0.5 flex items-center justify-end gap-1.5">
+              <span className="text-[10px] text-muted-foreground">
+                {t.aset.projectionLabel}: {formatRupiah(Number(estimatedValue))}
+              </span>
+              <button
+                type="button"
+                onClick={() => adoptMutation.mutate()}
+                disabled={adoptMutation.isPending || !token || !familyGroupId}
+                className="cursor-pointer text-[10px] font-semibold text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {t.aset.useThisValueButton}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </Rise>
+  );
+}
+
 // ── Physical Asset Group Card ─────────────────────────────────────────────────
 
 interface AssetGroupCardProps {
   assets: AssetDto[];
   categoryNameById: Record<string, string>;
+  familyGroupId: string;
+  token: string | undefined;
 }
 
-function AssetGroupCard({ assets, categoryNameById }: AssetGroupCardProps) {
+function AssetGroupCard({
+  assets,
+  categoryNameById,
+  familyGroupId,
+  token,
+}: AssetGroupCardProps) {
   const { t } = useLocale();
-  // EPIC-021 #17/#18: currentEstimatedValue is currentValue pro-rata
-  // adjusted by valueChangeRatePct — equals currentValue when no rate is set.
+  // EPIC-023 D19/US-ASSET-4: currentValue (recorded) is authoritative for
+  // net worth — this total must always agree with what the rest of the app
+  // (dashboard, balance sheet) calls net worth, which also sums
+  // currentValue, never the compute-on-read projection.
   const groupTotal = assets.reduce(
-    (sum, a) => sum + BigInt(a.currentEstimatedValue ?? a.currentValue ?? "0"),
+    (sum, a) => sum + BigInt(a.currentValue ?? "0"),
     BigInt(0),
   );
 
@@ -357,57 +568,23 @@ function AssetGroupCard({ assets, categoryNameById }: AssetGroupCardProps) {
       </div>
       <div>
         {assets.map((asset, i) => {
-          const cfg = ASSET_TYPE_ICON[asset.type] ?? {
-            icon: Package,
-            chip: "bg-gray-100 text-gray-600",
-          };
+          const subtitle = asset.notes
+            ? asset.notes
+            : (asset.categoryId && categoryNameById[asset.categoryId]) ||
+              (t.aset.assetTypeLabels[
+                asset.type as keyof typeof t.aset.assetTypeLabels
+              ] ??
+                asset.type);
           return (
-            <Rise key={asset.id} index={i}>
-              <div
-                className={`flex items-center gap-3 py-3 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)] ${i < assets.length - 1 ? "border-b" : ""}`}
-              >
-                <IconChip
-                  icon={cfg.icon}
-                  className={cfg.chip}
-                  size={34}
-                  rounded="rounded-full"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13.5px] font-semibold truncate">
-                    {asset.name}
-                  </div>
-                  <div className="text-[11.5px] text-muted-foreground truncate">
-                    {asset.notes
-                      ? asset.notes
-                      : (asset.categoryId &&
-                          categoryNameById[asset.categoryId]) ||
-                        (t.aset.assetTypeLabels[
-                          asset.type as keyof typeof t.aset.assetTypeLabels
-                        ] ??
-                          asset.type)}
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="text-[14px] font-extrabold">
-                    {formatRupiah(
-                      Number(
-                        BigInt(
-                          asset.currentEstimatedValue ??
-                            asset.currentValue ??
-                            "0",
-                        ),
-                      ),
-                    )}
-                  </div>
-                  {asset.valueChangeRatePct &&
-                    parseFloat(asset.valueChangeRatePct) !== 0 && (
-                      <div className="text-[10px] text-muted-foreground">
-                        ({t.aset.estimatedValueBadge})
-                      </div>
-                    )}
-                </div>
-              </div>
-            </Rise>
+            <AssetRow
+              key={asset.id}
+              asset={asset}
+              familyGroupId={familyGroupId}
+              token={token}
+              subtitle={subtitle}
+              isLast={i === assets.length - 1}
+              index={i}
+            />
           );
         })}
         {assets.length === 0 && (
@@ -694,10 +871,12 @@ export default function AsetPage() {
     (sum, inv) => sum + parseFloat(inv.currentValue ?? "0"),
     0,
   );
-  // currentEstimatedValue is currentValue pro-rata adjusted by
-  // valueChangeRatePct (EPIC-021 #17/#18) — equals currentValue when unset.
+  // EPIC-023 D19/US-ASSET-4: currentValue (recorded) is authoritative for
+  // net worth — this banner must agree with the dashboard/balance sheet,
+  // which also sum currentValue, never currentEstimatedValue (the
+  // compute-on-read projection from valueChangeRatePct, EPIC-021 #17/#18).
   const assetsTotalBig = (assets ?? []).reduce(
-    (sum, a) => sum + BigInt(a.currentEstimatedValue ?? a.currentValue ?? "0"),
+    (sum, a) => sum + BigInt(a.currentValue ?? "0"),
     BigInt(0),
   );
   const grandTotal =
@@ -821,6 +1000,8 @@ export default function AsetPage() {
             <AssetGroupCard
               assets={assets ?? []}
               categoryNameById={categoryNameById}
+              familyGroupId={familyGroupId ?? ""}
+              token={token}
             />
           )}
         </>

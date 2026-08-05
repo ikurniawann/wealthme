@@ -20,12 +20,40 @@ const MIN_RATE_PCT = -100;
 const MAX_RATE_PCT = 100;
 
 /**
+ * EPIC-023 Task H1 review (HIGH fix 1): Indonesia Western Time — fixed
+ * UTC+7, no daylight saving. Mirrors `wibWallClockToIso`/`wibCalendarParts`
+ * in `apps/web/src/lib/laporan-period.ts` (EPIC-022 B7) and
+ * `defaultMonthStartWib` in `reports.controller.ts` (EPIC-023 Task B3
+ * review, fix 6) — duplicated here (not imported; `apps/web/src/lib` is a
+ * protected foundation file and this package cannot depend on it anyway)
+ * because this app is Rupiah/Indonesia-focused and comparing raw instants
+ * is wrong for a calendar-date field like acquisitionDate: `new
+ * Date("2026-08-05")` parses as UTC midnight, which is still ~7h in the
+ * FUTURE relative to `Date.now()` for the first 7 hours of every WIB day
+ * (9h for WIT) — rejecting a perfectly valid "today" acquisition date for a
+ * chunk of every single day. DO NOT simplify this back to
+ * `parsed.getTime() > Date.now()`.
+ */
+const WIB_UTC_OFFSET_MINUTES = 7 * 60;
+
+/** UTC-midnight-anchored "today" in WIB wall-clock terms, for calendar-date comparisons. */
+function wibTodayUtcMidnight(now: Date): Date {
+  const wibNow = new Date(now.getTime() + WIB_UTC_OFFSET_MINUTES * 60_000);
+  const utcMs = Date.UTC(
+    wibNow.getUTCFullYear(),
+    wibNow.getUTCMonth(),
+    wibNow.getUTCDate(),
+  );
+  return new Date(utcMs);
+}
+
+/**
  * Pro-rata, compute-on-read estimate of an asset's current value given a
  * signed annual value-change rate (negative = depreciation, positive =
  * appreciation). Linear approximation: currentValue × (1 + rate/100 ×
- * yearsElapsed), floored at 0. Asset has no purchase/acquisition date field,
- * so elapsed time is measured from `createdAt` (EPIC-021 Open Design
- * Decision #8).
+ * yearsElapsed), floored at 0. `since` is the asset's acquisition date when
+ * set (EPIC-023 D19/US-ASSET-4), falling back to `createdAt` for legacy
+ * assets that predate the field (EPIC-021 Open Design Decision #8).
  */
 export function computeEstimatedValue(
   currentValue: bigint,
@@ -51,6 +79,7 @@ function toAssetDto(asset: {
   notes: string | null;
   valueChangeRatePct: Decimal | null;
   categoryId: string | null;
+  acquisitionDate: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }): AssetResponseDto {
@@ -64,10 +93,11 @@ function toAssetDto(asset: {
     notes: asset.notes,
     valueChangeRatePct: asset.valueChangeRatePct?.toString() ?? null,
     categoryId: asset.categoryId,
+    acquisitionDate: asset.acquisitionDate?.toISOString() ?? null,
     currentEstimatedValue: computeEstimatedValue(
       asset.currentValue,
       asset.valueChangeRatePct,
-      asset.createdAt,
+      asset.acquisitionDate ?? asset.createdAt,
     ).toString(),
     createdAt: asset.createdAt.toISOString(),
     updatedAt: asset.updatedAt.toISOString(),
@@ -110,6 +140,7 @@ export class AssetsService {
       );
     }
     this.assertValidRatePct(dto.valueChangeRatePct);
+    this.assertValidAcquisitionDate(dto.acquisitionDate);
     const categoryId = await this.resolveCategoryId(
       familyGroupId,
       dto.categoryId,
@@ -125,6 +156,9 @@ export class AssetsService {
         notes: dto.notes ?? null,
         valueChangeRatePct: dto.valueChangeRatePct ?? null,
         categoryId: categoryId ?? null,
+        acquisitionDate: dto.acquisitionDate
+          ? new Date(dto.acquisitionDate)
+          : null,
       },
     });
 
@@ -156,6 +190,7 @@ export class AssetsService {
       );
     }
     this.assertValidRatePct(dto.valueChangeRatePct);
+    this.assertValidAcquisitionDate(dto.acquisitionDate);
     const newValue =
       dto.currentValue != null
         ? BigInt(dto.currentValue)
@@ -178,6 +213,12 @@ export class AssetsService {
             ? dto.valueChangeRatePct
             : existing.valueChangeRatePct,
         categoryId: categoryId ?? null,
+        acquisitionDate:
+          dto.acquisitionDate !== undefined
+            ? dto.acquisitionDate
+              ? new Date(dto.acquisitionDate)
+              : null
+            : existing.acquisitionDate,
       },
     });
 
@@ -198,6 +239,29 @@ export class AssetsService {
       throw new BadRequestException(
         `valueChangeRatePct must be between ${MIN_RATE_PCT} and ${MAX_RATE_PCT}`,
       );
+    }
+  }
+
+  /**
+   * EPIC-023 D19/US-ASSET-4: rejects an obviously-invalid or future
+   * acquisition date instead of silently coercing it — same posture as
+   * assertValidRatePct/currentValue above. class-validator's @IsDateString
+   * on the DTO already blocks non-ISO strings before this runs; this catches
+   * dates class-validator accepts as well-formed but that are not valid
+   * business inputs (e.g. tomorrow).
+   *
+   * EPIC-023 Task H1 review (HIGH fix 1): "future" is judged against WIB
+   * "today", not the raw `Date.now()` instant — see wibTodayUtcMidnight
+   * above for why.
+   */
+  private assertValidAcquisitionDate(value?: string): void {
+    if (value == null) return;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new BadRequestException("acquisitionDate must be a valid date");
+    }
+    if (parsed.getTime() > wibTodayUtcMidnight(new Date()).getTime()) {
+      throw new BadRequestException("acquisitionDate cannot be in the future");
     }
   }
 

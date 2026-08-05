@@ -20,8 +20,14 @@ export class AssetResponseDto {
   })
   categoryId!: string | null;
   @ApiProperty({
+    nullable: true,
     description:
-      "Compute-on-read pro-rata estimate of currentValue given valueChangeRatePct and elapsed time since createdAt",
+      "Date the asset was acquired (ISO string). Null when not set, in which case createdAt is used as the elapsed-time anchor.",
+  })
+  acquisitionDate!: string | null;
+  @ApiProperty({
+    description:
+      "Compute-on-read pro-rata estimate of currentValue given valueChangeRatePct and elapsed time since acquisitionDate (or createdAt when acquisitionDate is null)",
   })
   currentEstimatedValue!: string;
   @ApiProperty() createdAt!: string;

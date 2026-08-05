@@ -418,6 +418,20 @@ var TransactionListResponseSchema = z7.object({
   summary: TransactionSummarySchema
 });
 
+// src/assets/index.ts
+var DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT = {
+  properti: 3,
+  // modest appreciation
+  kendaraan: -12,
+  // typical vehicle depreciation
+  elektronik: -20,
+  // fast depreciation
+  perhiasan: 2,
+  // mild appreciation
+  lainnya: 0
+  // no assumption
+};
+
 // src/member-category-allowances/index.ts
 import { z as z8 } from "zod";
 var SetMemberCategoryAllowanceInputSchema = z8.object({
@@ -447,6 +461,7 @@ export {
   CreateAccountInputSchema,
   CreateAllowanceRequestInputSchema,
   CreateTransactionInputSchema,
+  DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT,
   DEFAULT_ROLE_BY_RELATIONSHIP,
   GENERIC_COA_CHART,
   LoginInputSchema,

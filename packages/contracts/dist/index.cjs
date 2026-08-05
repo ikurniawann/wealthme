@@ -34,6 +34,7 @@ __export(index_exports, {
   CreateAccountInputSchema: () => CreateAccountInputSchema,
   CreateAllowanceRequestInputSchema: () => CreateAllowanceRequestInputSchema,
   CreateTransactionInputSchema: () => CreateTransactionInputSchema,
+  DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT: () => DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT,
   DEFAULT_ROLE_BY_RELATIONSHIP: () => DEFAULT_ROLE_BY_RELATIONSHIP,
   GENERIC_COA_CHART: () => GENERIC_COA_CHART,
   LoginInputSchema: () => LoginInputSchema,
@@ -473,6 +474,20 @@ var TransactionListResponseSchema = import_zod7.z.object({
   summary: TransactionSummarySchema
 });
 
+// src/assets/index.ts
+var DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT = {
+  properti: 3,
+  // modest appreciation
+  kendaraan: -12,
+  // typical vehicle depreciation
+  elektronik: -20,
+  // fast depreciation
+  perhiasan: 2,
+  // mild appreciation
+  lainnya: 0
+  // no assumption
+};
+
 // src/member-category-allowances/index.ts
 var import_zod8 = require("zod");
 var SetMemberCategoryAllowanceInputSchema = import_zod8.z.object({
@@ -503,6 +518,7 @@ var MemberCategoryAllowanceDtoSchema = import_zod8.z.object({
   CreateAccountInputSchema,
   CreateAllowanceRequestInputSchema,
   CreateTransactionInputSchema,
+  DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT,
   DEFAULT_ROLE_BY_RELATIONSHIP,
   GENERIC_COA_CHART,
   LoginInputSchema,

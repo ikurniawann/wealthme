@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { AssetType } from "@prisma/client";
 import {
+  IsDateString,
   IsEnum,
   IsOptional,
   IsString,
@@ -56,4 +57,12 @@ export class CreateAssetDto {
   @IsOptional()
   @IsUUID()
   categoryId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Date the asset was acquired (ISO date string), used as the elapsed-time anchor for currentEstimatedValue instead of createdAt. Falls back to createdAt when omitted.",
+  })
+  @IsOptional()
+  @IsDateString()
+  acquisitionDate?: string;
 }

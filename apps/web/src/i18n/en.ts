@@ -1146,6 +1146,10 @@ export const en = {
     fieldValueChangeRateLabel: "Value Change per Year (%)",
     fieldValueChangeRatePlaceholder:
       "e.g. -5 for depreciation, 5 for appreciation",
+    defaultRateHelperPrefix: "Default estimate for this type",
+    fieldAcquisitionDateLabel: "Acquisition Date (optional)",
+    fieldAcquisitionDateHelper:
+      "The value projection is measured from this date. Falls back to when the asset was added if left blank.",
     fieldMasterDataCategoryLabel: "Master Data Category (optional)",
     fieldMasterDataCategoryNone: "No category",
     fieldNotesLabel: "Notes (optional)",
@@ -1160,7 +1164,10 @@ export const en = {
     emptyPhysical: "No physical assets yet.",
     emptyDanaRekening: "No accounts in this category yet.",
     emptyInvestments: "No investments yet.",
-    estimatedValueBadge: "estimated",
+    projectionLabel: "Projection",
+    useThisValueButton: "Use this figure",
+    toastValueAdopted: "Asset value updated successfully",
+    toastValueAdoptFailed: "Failed to update asset value. Please try again.",
   },
   liabilitas: {
     typeLabels: {

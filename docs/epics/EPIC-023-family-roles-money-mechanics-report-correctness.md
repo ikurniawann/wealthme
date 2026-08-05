@@ -299,7 +299,7 @@ holdingsChange + unexplained = closing`, every residual named. Unit tests
     when no key is set, never a mock answer. (D16, US-AI-5)
 
 - [ ] ### H — Assets, Master COA, onboarding
-  - **H1** — Recorded asset value is authoritative for net worth; projection
+  - **H1** ✅ — Recorded asset value is authoritative for net worth; projection
     shown beside it and adoptable; default rates per asset type; add an
     acquisition-date field. (D19, US-ASSET-4)
   - **H2** — Rewrite Master COA in plain language with worked examples. (D18)
@@ -963,3 +963,59 @@ status` showing a clean tree with no `MERGE_HEAD`, before treating a merge
   PR's record matches what actually shipped. A, C, G, I and B are now all
   merged into `development`; D, E, F, H2, H3 remain (H1 has not yet started
   in this loop despite being wave-1 — no branch exists for it).
+- 2026-08-05 /epic-loop EPIC-023 "H1 — Assets: recorded value authoritative,
+  acquisition date" → PASS (attempts: 2; standard gate, not adversarial tier,
+  per this epic's routing). The bug was in the frontend, not the backend:
+  `dashboard.service.ts`'s and `reports.service.ts`'s net-worth computations
+  already summed `Asset.currentValue` correctly — confirmed untouched by
+  this task, with a new regression test pinning that fact. The Aset page's
+  own displayed totals (`aset/page.tsx`) were the actual defect, summing
+  `currentEstimatedValue` (a compute-on-read, elapsed-time projection) as
+  the primary figure in three places, so the page's own numbers silently
+  drifted day to day even though real net worth elsewhere in the app did
+  not — "wealth that changes with no real event," just not where the epic's
+  evidence text implied. Fixed: `currentValue` is now the primary figure
+  everywhere on the page; the projection renders as a secondary labelled
+  line with an adoptable "Gunakan nilai ini" action that PATCHes the
+  recorded value to the projection. Added a nullable `acquisitionDate`
+  column (additive migration) used as the projection's elapsed-time anchor
+  instead of `createdAt`; default per-type rates
+  (`DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT` in `packages/contracts`) are a
+  frontend pre-fill suggestion only, deliberately never applied server-side
+  — auto-applying a default to every existing rate-less asset would have
+  been the same class of silent-drift bug this task exists to close.
+  Attempt 1's review caught two real findings neither the epic nor the
+  brief anticipated: **(1)** `assertValidAcquisitionDate` compared a
+  date-only string's UTC-midnight parse against raw `Date.now()`, so a
+  Jakarta (WIB, UTC+7) user picking "today" was rejected as a future date
+  for the first ~7 hours of every local day — the same bug independently
+  hit the frontend date-picker's `max`. Fixed with a duplicated (not
+  imported — `apps/web/src/lib/*` is a protected foundation file) WIB
+  calendar-day boundary calc on both sides, mirroring the shift-then-
+  `Date.UTC` pattern task B3 already established in
+  `reports.controller.ts`'s `defaultMonthStartWib`. **(2)** the new
+  `AssetTypeId` union in `packages/contracts` (kept a hand-duplicated plain
+  union, not importing `@prisma/client`, so contracts stays
+  framework-agnostic) had nothing stopping it drifting from Prisma's real
+  `AssetType` enum if a 6th type is ever added — closed with a dedicated
+  drift-detection spec, mutation-verified by both reviewers independently
+  (temporarily added a 6th enum value, confirmed the new test fails, then
+  reverted). A HIGH accessibility finding (`AddAssetModal`'s fields had no
+  `htmlFor`/`id` label association — pre-existing across the whole modal,
+  the new `acquisitionDate` field just repeated the pattern) was fixed for
+  all seven fields while already touching the form, not just the new one.
+  Every fix in the second gate round was independently mutation-tested by
+  the reviewing agent, not just re-read. Final: **api 803/803 (71 suites),
+  web 268/268 (25 suites)**, `qa.sh`/`security-check.sh` both exit 0,
+  `packages/contracts/dist` rebuilt byte-identical to `src`. **Noted, not
+  fixed here** (LOW, out of scope): the web `<select>`'s asset-type options
+  are a `satisfies`-checked array, which only enforces "every listed option
+  is a valid type," not "every valid type is listed" — a 6th `AssetType`
+  would fail the new drift spec loudly but not force the dropdown to be
+  updated, though the backend's own `@IsEnum(AssetType)` validation is
+  independent of this and would still accept it correctly. Also noted:
+  there is currently no way to clear an `acquisitionDate` once set through
+  the public API (`@IsDateString()` rejects an empty string before the
+  service's null-fallback branch is ever reached) — fails safe, not a
+  regression, just an absent capability; no edit-asset UI exists yet to
+  need it. Wave 1 (A, C, G, H1, I) is now fully complete and merged.
