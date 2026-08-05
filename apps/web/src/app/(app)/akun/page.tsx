@@ -132,7 +132,8 @@ type FamilyGroupMine = {
   createdAt: string;
 };
 
-type FamilyMember = {
+// Exported for tests only (EPIC-023 D3 ThresholdForm test coverage).
+export type FamilyMember = {
   id: string;
   userId: string;
   familyGroupId: string;
@@ -2502,7 +2503,9 @@ function ThresholdDialog({
   );
 }
 
-function ThresholdForm({
+// Exported for tests only (EPIC-023 D3 — react-review HIGH: no behavioral
+// coverage existed for the threshold form's prefill/clear-to-null path).
+export function ThresholdForm({
   member,
   familyGroupId,
   token,
@@ -2588,7 +2591,9 @@ function ThresholdForm({
 
 /* ──────────── Allowance requests panel (EPIC-019 Task B/D) ──────────── */
 
-function AllowanceRequestsPanel({
+// Exported for tests only (EPIC-023 D3 — react-review HIGH: no behavioral
+// coverage existed for the held-expense-vs-funding approval branching).
+export function AllowanceRequestsPanel({
   familyGroupId,
   token,
 }: {
