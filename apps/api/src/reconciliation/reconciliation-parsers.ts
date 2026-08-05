@@ -2,6 +2,8 @@ import { Readable } from "node:stream";
 
 import ExcelJS from "exceljs";
 
+import { assertZipExpansionWithinBounds } from "./zip-bounds.util";
+
 import type { CellValue } from "exceljs";
 
 /**
@@ -163,6 +165,13 @@ export const MAX_XLSX_CELLS = 500_000;
  * decompressed — the actual fix, not just a check that runs too late.
  */
 export async function parseExcelBuffer(buffer: Buffer): Promise<string[][]> {
+  // Bound what the archive may expand to BEFORE exceljs sees a byte. Every
+  // in-parser cap proved too late or too narrow, because each auxiliary cache
+  // (styles, sharedStrings, …) loads in full before the first row is yielded
+  // and none is counted by a row or cell limit. See zip-bounds.util.ts for the
+  // three measured escapes this closes at once.
+  assertZipExpansionWithinBounds(buffer);
+
   const reader = new ExcelJS.stream.xlsx.WorkbookReader(
     // `Readable.from(buffer)` special-cases a Buffer/string input into ONE
     // chunk (verified) rather than iterating it byte-by-byte the way a

@@ -19,6 +19,7 @@ import {
   parseCsv,
   parseExcelBuffer,
 } from "./reconciliation-parsers";
+import { ZipExpansionExceededError } from "./zip-bounds.util";
 
 import type { SplitEntryDto } from "./dto/split-entry.dto";
 import type { UpsertReconciliationTemplateDto } from "./dto/upsert-reconciliation-template.dto";
@@ -370,7 +371,14 @@ export class ReconciliationService {
         // gets its own clear message; every other unreadable-workbook error
         // (corrupt file, wrong format renamed to .xlsx, ...) keeps the
         // existing generic message.
-        if (err instanceof ExcelLimitExceededError) {
+        // Both bounds report under the same code: to the user they are one
+        // fact — "this workbook is too big to process" — and the distinction
+        // between "declared expansion too large" and "too many rows/cells" is
+        // ours, not theirs. Each carries its own specific message.
+        if (
+          err instanceof ExcelLimitExceededError ||
+          err instanceof ZipExpansionExceededError
+        ) {
           throw new BadRequestException(
             withCode(err.message, "XLSX_LIMIT_EXCEEDED"),
           );
