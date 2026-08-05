@@ -653,7 +653,9 @@ whose P&L and balance sheet reconcile through the bridge.
   suite is not wired into `scripts/test.sh`, needs an absent `.env.test`, and
   has drifted (uppercase enum values that would now fail `@IsEnum`).
 - 2026-08-05 /epic-loop EPIC-023 #3 "G — External data: prices, reconciliation,
-  AI keys" → BLOCKED after 3 attempts. Nearly everything in the group landed and
+  AI keys" → BLOCKED after 3 attempts. Draft PR (must NOT merge while the
+  finding below is open): https://github.com/andrsrjld/wealthme-web/pull/238.
+  Nearly everything in the group landed and
   is verified: CoinGecko and Yahoo `.JK` behind `MarketDataPort` with honest
   source/delay/as-of labelling, manual-only types keeping a dated manual label,
   per-family AI keys encrypted with `CryptoService`, OpenAI and Gemini adapters,
