@@ -1,6 +1,6 @@
 # EPIC-023: Family Roles, Money Mechanics & Report Correctness
 
-status: blocked
+status: on-progress
 environment: dev
 retries: 0
 phase: 4
@@ -679,10 +679,13 @@ whose P&L and balance sheet reconcile through the bridge.
   discarding `code` — while the test that looked like coverage asserted on the
   thrown exception rather than the wire body.
 
-## Blocker
+## Open finding — group G (.xlsx upload)
 
-**Task group G, attempt 3 of 3 exhausted. One HIGH finding open. Epic status
-`blocked` — human action required.**
+**Scoped to group G's draft PR #238, which must not merge until this is
+closed.** The epic itself continues: groups A and C are merged, and the
+remaining groups (I, B, D, E, F, H) are independent of this finding. Group G's
+prices, AI-key and CSV work is also unaffected and could be split out if the
+`.xlsx` upload needs to wait.
 
 ### The finding
 
