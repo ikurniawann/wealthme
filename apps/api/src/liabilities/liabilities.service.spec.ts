@@ -44,6 +44,7 @@ function makePrisma() {
     },
     category: {
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
       findUniqueOrThrow: jest.fn(),
       create: jest.fn(),
     },
@@ -684,6 +685,116 @@ describe("LiabilitiesService", () => {
         }),
       );
       expect(result.remainingBalance).toBe("96000000");
+    });
+  });
+
+  // EPIC-023 Task E3 (D12, US-LIAB-5) — "a credit card stays a liability;
+  // spending raises the card's debt and leaves the bank untouched."
+  describe("purchase", () => {
+    const CARD = {
+      ...BASE,
+      id: "card-1",
+      type: "kartu_kredit",
+      totalDebt: BigInt(5_000_000),
+      remainingBalance: BigInt(2_000_000),
+    };
+
+    it("rejects a zero or non-numeric amount before touching any table", async () => {
+      await expect(
+        service.purchase("fg-1", "card-1", { amount: "0" }),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        service.purchase("fg-1", "card-1", { amount: "abc" }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.liability.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("throws NotFoundException when the liability does not exist in this family group", async () => {
+      prisma.liability.findUnique.mockResolvedValue(null);
+      await expect(
+        service.purchase("fg-1", "missing-id", { amount: "100000" }),
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.liability.update).not.toHaveBeenCalled();
+      expect(prisma.transaction.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects a categoryId from another family group (tenant scoping)", async () => {
+      prisma.liability.findUnique.mockResolvedValue(CARD);
+      prisma.category.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.purchase("fg-1", "card-1", {
+          amount: "100000",
+          categoryId: "cat-other-family",
+        }),
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.liability.update).not.toHaveBeenCalled();
+    });
+
+    it("raises remainingBalance AND totalDebt atomically via increment, creates exactly one linked Transaction, and NEVER touches an Account", async () => {
+      prisma.liability.findUnique.mockResolvedValue(CARD);
+      prisma.category.findUnique.mockResolvedValue({ id: "cat-1" });
+      prisma.liability.update.mockResolvedValue({
+        ...CARD,
+        remainingBalance: BigInt(2_150_000),
+        totalDebt: BigInt(5_150_000),
+      });
+
+      const result = await service.purchase("fg-1", "card-1", {
+        amount: "150000",
+        categoryId: "cat-1",
+        description: "Belanja bulanan",
+      });
+
+      // Atomic `{ increment }` — NOT a read-then-write of the fetched
+      // `CARD.remainingBalance` — mirrors pay()'s lost-update fix.
+      expect(prisma.liability.update).toHaveBeenCalledWith({
+        where: { id: "card-1", familyGroupId: "fg-1" },
+        data: {
+          remainingBalance: { increment: BigInt(150_000) },
+          totalDebt: { increment: BigInt(150_000) },
+        },
+      });
+
+      expect(prisma.transaction.create).toHaveBeenCalledTimes(1);
+      expect(prisma.transaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            familyGroupId: "fg-1",
+            accountId: null,
+            liabilityId: "card-1",
+            categoryId: "cat-1",
+            amount: BigInt(150_000),
+            type: "expense",
+            description: "Belanja bulanan",
+          }),
+        }),
+      );
+
+      // The negative the acceptance criterion is built on: no account
+      // lookup, no account balance mutation, ever.
+      expect(prisma.account.findUnique).not.toHaveBeenCalled();
+      expect(prisma.account.update).not.toHaveBeenCalled();
+
+      expect(result.remainingBalance).toBe("2150000");
+    });
+
+    it("defaults occurredAt to now and categoryId/description to null when omitted", async () => {
+      prisma.liability.findUnique.mockResolvedValue(CARD);
+      prisma.liability.update.mockResolvedValue(CARD);
+
+      await service.purchase("fg-1", "card-1", { amount: "50000" });
+
+      expect(prisma.category.findUnique).not.toHaveBeenCalled();
+      expect(prisma.transaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            categoryId: null,
+            description: null,
+            accountId: null,
+          }),
+        }),
+      );
     });
   });
 });

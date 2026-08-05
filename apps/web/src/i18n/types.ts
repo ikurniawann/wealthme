@@ -378,6 +378,9 @@ export type I18nDictionary = {
       retryFallback: string;
       invalidAmount: string;
       selectAccountFirst: string;
+      // EPIC-023 Task E3 (D12) — the card tab's own account-equivalent
+      // validation message.
+      selectCardFirst: string;
       noFamilyGroup: string;
       savedAddMoreToast: string;
       savedToast: string;
@@ -406,6 +409,9 @@ export type I18nDictionary = {
       descriptionPlaceholder: string;
       categoryPlaceholder: string;
       accountPlaceholder: string;
+      // EPIC-023 Task E3 (D12) — the card tab's own picker labels.
+      cardLabel: string;
+      cardPlaceholder: string;
       saving: string;
       saveTransaction: string;
       saveAndAddMore: string;

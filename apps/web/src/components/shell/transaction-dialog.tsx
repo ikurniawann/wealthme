@@ -21,7 +21,29 @@ import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
 import { useShell } from "./shell-context";
 
-const TAB_TYPES = ["income", "expense", "transfer", "expense"] as const;
+// EPIC-023 Task E3/E4 (D12/D13) — reviewed foundation exception (this file
+// is protected per WM_CONVENTIONS.md; see the precedent comment below at
+// the held-expense branch). The 4th tab used to be a byte-identical copy of
+// the expense tab (`TAB_TYPES = [..., "expense"]`), so a credit-card
+// purchase silently debited a bank account it never touched and never
+// raised the card's own debt. `TAB_KINDS` gives the card tab its own
+// discriminator instead of reusing "expense": a card purchase posts through
+// a DIFFERENT endpoint (`POST .../liabilities/:id/purchase`, D12 — "a
+// credit card stays a liability; spending raises the card's debt and
+// leaves the bank untouched"), never `POST .../transactions`.
+const TAB_KINDS = ["income", "expense", "transfer", "card"] as const;
+type TabKind = (typeof TAB_KINDS)[number];
+// The category picker filters by CategoryKind ("income" | "expense"); a
+// card purchase still has a spending category (an expense in substance),
+// so it shares the "expense" bucket. The Transfer tab never renders the
+// category field at all (D13 — see the `tabKind !== "transfer"` guard
+// below), so it has no entry here.
+const CATEGORY_KIND_BY_TAB: Record<TabKind, "income" | "expense"> = {
+  income: "income",
+  expense: "expense",
+  transfer: "expense",
+  card: "expense",
+};
 
 type MeResponse = { familyGroupId: string | null };
 type AccountDto = { id: string; name: string; institution: string | null };
@@ -31,6 +53,8 @@ type CategoryDto = {
   kind: string;
   icon: string | null;
 };
+// EPIC-023 Task E3 — only the fields this dialog's card picker needs.
+type LiabilityDto = { id: string; name: string; type: string };
 type CreateTransactionInput = {
   accountId: string;
   categoryId?: string;
@@ -41,6 +65,14 @@ type CreateTransactionInput = {
   // EPIC-021 Group B (#23/#27/#28) — real source -> destination transfers.
   toAccountId?: string;
   adminFee?: number;
+};
+// EPIC-023 Task E3 (D12) — a card purchase never touches an account; it
+// only raises the card's own debt via LiabilitiesService.purchase().
+type PurchaseLiabilityInput = {
+  amount: string;
+  categoryId?: string;
+  description?: string;
+  occurredAt: string;
 };
 // EPIC-023 Task D (D3/D9, US-FAM-14) — the API's honest "did NOT create a
 // transaction" response for a row-scoped member's over-threshold expense
@@ -81,6 +113,9 @@ export function TransactionDialog() {
   const [toAccountId, setToAccountId] = useState("");
   const [adminFee, setAdminFee] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  // EPIC-023 Task E3 — the credit card selected on the card tab, sourced
+  // from liabilities (D12: a card is a liability, never an Account).
+  const [liabilityId, setLiabilityId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [description, setDescription] = useState("");
   const [showReceipt, setShowReceipt] = useState(false);
@@ -112,9 +147,22 @@ export function TransactionDialog() {
     enabled: !!fgId && !!token,
   });
 
-  const txType = TAB_TYPES[tab] ?? "expense";
+  // EPIC-023 Task E3 — the card tab picks a credit card from liabilities,
+  // not from accounts. Filtered client-side to `type === "kartu_kredit"`
+  // (LiabilityType) since the API returns every liability kind.
+  const { data: liabilities = [] } = useQuery<LiabilityDto[]>({
+    queryKey: fgId ? queryKeys.liabilities.all(fgId) : ["liabilities-off"],
+    queryFn: () =>
+      apiFetch<LiabilityDto[]>(`/family-groups/${fgId}/liabilities`, {
+        token,
+      }),
+    enabled: !!fgId && !!token,
+  });
+  const creditCards = liabilities.filter((l) => l.type === "kartu_kredit");
+
+  const tabKind: TabKind = TAB_KINDS[tab] ?? "expense";
   const relevantCategories = categories.filter(
-    (c) => c.kind === txType || c.kind === "both",
+    (c) => c.kind === CATEGORY_KIND_BY_TAB[tabKind] || c.kind === "both",
   );
 
   const createMutation = useMutation({
@@ -156,6 +204,40 @@ export function TransactionDialog() {
     },
   });
 
+  // EPIC-023 Task E3 (D12) — a card purchase posts through the liability's
+  // OWN endpoint, never `POST .../transactions`: it raises the card's debt
+  // and never debits any account. Invalidates the same query keys a normal
+  // transaction would EXCEPT accounts (no account balance ever changes).
+  const purchaseMutation = useMutation({
+    mutationFn: (dto: PurchaseLiabilityInput) =>
+      apiFetch(`/family-groups/${fgId}/liabilities/${liabilityId}/purchase`, {
+        method: "POST",
+        body: JSON.stringify(dto),
+        token,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.transactions.all(fgId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.dashboard.summary(fgId),
+      });
+      void queryClient.invalidateQueries({ queryKey: ["reports", fgId] });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.liabilities.all(fgId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.netWorth.summary(fgId),
+      });
+    },
+    onError: (err: { message?: string }) => {
+      toast.error(
+        t.shell.transactionDialog.saveFailedPrefix +
+          (err.message ?? t.shell.transactionDialog.retryFallback),
+      );
+    },
+  });
+
   const clearTimers = () => {
     timers.current.forEach(clearTimeout);
     timers.current = [];
@@ -167,6 +249,7 @@ export function TransactionDialog() {
     setToAccountId("");
     setAdminFee("");
     setCategoryId("");
+    setLiabilityId("");
     setDescription("");
     setDate(new Date().toISOString().slice(0, 10));
   };
@@ -190,17 +273,57 @@ export function TransactionDialog() {
     timers.current.push(setTimeout(() => setView("ocr-result"), 3400));
   };
 
+  const isSaving = createMutation.isPending || purchaseMutation.isPending;
+
   const saveTxn = (addMore?: boolean) => {
     const amountNum = parseRupiah(amount);
     if (!amountNum || amountNum <= 0) {
       toast.error(t.shell.transactionDialog.invalidAmount);
       return;
     }
+    if (!fgId) {
+      toast.error(t.shell.transactionDialog.noFamilyGroup);
+      return;
+    }
+
+    // EPIC-023 Task E3 (D12) — the card tab has its own validation/save
+    // path: it picks a LIABILITY, never an account, and posts through
+    // LiabilitiesService.purchase() instead of TransactionsService.create().
+    if (tabKind === "card") {
+      if (!liabilityId) {
+        toast.error(t.shell.transactionDialog.selectCardFirst);
+        return;
+      }
+      purchaseMutation.mutate(
+        {
+          amount: String(amountNum),
+          ...(categoryId ? { categoryId } : {}),
+          ...(description ? { description } : {}),
+          occurredAt: new Date(date).toISOString(),
+        },
+        {
+          onSuccess: () => {
+            toast.success(
+              addMore
+                ? t.shell.transactionDialog.savedAddMoreToast
+                : t.shell.transactionDialog.savedToast,
+            );
+            if (addMore) {
+              resetForm();
+            } else {
+              handleOpenChange(false);
+            }
+          },
+        },
+      );
+      return;
+    }
+
     if (!accountId) {
       toast.error(t.shell.transactionDialog.selectAccountFirst);
       return;
     }
-    if (txType === "transfer") {
+    if (tabKind === "transfer") {
       if (!toAccountId) {
         toast.error(t.shell.transactionDialog.selectDestAccountFirst);
         return;
@@ -210,22 +333,18 @@ export function TransactionDialog() {
         return;
       }
     }
-    if (!fgId) {
-      toast.error(t.shell.transactionDialog.noFamilyGroup);
-      return;
-    }
 
-    const adminFeeNum = txType === "transfer" ? parseRupiah(adminFee) : 0;
+    const adminFeeNum = tabKind === "transfer" ? parseRupiah(adminFee) : 0;
 
     createMutation.mutate(
       {
         accountId,
         ...(categoryId ? { categoryId } : {}),
         amount: amountNum,
-        type: txType,
+        type: tabKind,
         ...(description ? { description } : {}),
         occurredAt: new Date(date).toISOString(),
-        ...(txType === "transfer" ? { toAccountId } : {}),
+        ...(tabKind === "transfer" ? { toAccountId } : {}),
         ...(adminFeeNum > 0 ? { adminFee: adminFeeNum } : {}),
       },
       {
@@ -305,6 +424,8 @@ export function TransactionDialog() {
                     setCategoryId("");
                     setToAccountId("");
                     setAdminFee("");
+                    setAccountId("");
+                    setLiabilityId("");
                   }}
                   className={cn(
                     "rounded-md px-2 py-2 text-center text-xs font-semibold transition-colors",
@@ -336,25 +457,52 @@ export function TransactionDialog() {
               </div>
             </Field>
 
-            <Field label={t.shell.transactionDialog.categoryLabel}>
-              <select
-                className={fieldClass}
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-              >
-                <option value="">
-                  {t.shell.transactionDialog.categoryPlaceholder}
-                </option>
-                {relevantCategories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.icon ? `${c.icon} ` : ""}
-                    {c.name}
+            {/* EPIC-023 Task E4 (D13) — reviewed foundation exception (see
+                the E3 comment above the TAB_KINDS declaration): the
+                Transfer tab loses its category entirely. Moving money
+                between your own accounts is neither income nor expense
+                (CategoryKind is only "income" | "expense" — schema.prisma),
+                so this select was previously ALWAYS empty on that tab; the
+                category belongs on the tab where the money is actually
+                spent. */}
+            {tabKind !== "transfer" && (
+              <Field label={t.shell.transactionDialog.categoryLabel}>
+                <select
+                  className={fieldClass}
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                >
+                  <option value="">
+                    {t.shell.transactionDialog.categoryPlaceholder}
                   </option>
-                ))}
-              </select>
-            </Field>
+                  {relevantCategories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.icon ? `${c.icon} ` : ""}
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
 
-            {txType === "transfer" ? (
+            {tabKind === "card" ? (
+              <Field label={t.shell.transactionDialog.cardLabel}>
+                <select
+                  className={fieldClass}
+                  value={liabilityId}
+                  onChange={(e) => setLiabilityId(e.target.value)}
+                >
+                  <option value="">
+                    {t.shell.transactionDialog.cardPlaceholder}
+                  </option>
+                  {creditCards.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            ) : tabKind === "transfer" ? (
               <>
                 <Field label={t.shell.transactionDialog.sourceAccountLabel}>
                   <select
@@ -477,17 +625,17 @@ export function TransactionDialog() {
 
             <button
               onClick={() => saveTxn()}
-              disabled={createMutation.isPending}
+              disabled={isSaving}
               className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong disabled:opacity-60"
             >
               <Save className="size-4" />{" "}
-              {createMutation.isPending
+              {isSaving
                 ? t.shell.transactionDialog.saving
                 : t.shell.transactionDialog.saveTransaction}
             </button>
             <button
               onClick={() => saveTxn(true)}
-              disabled={createMutation.isPending}
+              disabled={isSaving}
               className="mt-2 mb-2 w-full rounded-md py-2.5 text-[13.5px] font-bold text-primary transition-colors hover:bg-accent disabled:opacity-60"
             >
               {t.shell.transactionDialog.saveAndAddMore}

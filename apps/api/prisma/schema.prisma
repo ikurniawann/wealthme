@@ -527,7 +527,13 @@ model Category {
 model Transaction {
   id              String          @id @default(uuid())
   familyGroupId   String
-  accountId       String
+  // EPIC-023 E3 (D12, US-LIAB-5) — nullable so a credit-card purchase can
+  // touch NO bank/cash account at all: it debits nothing here and instead
+  // raises `Liability.remainingBalance`/`totalDebt` via `liabilityId` below
+  // (see LiabilitiesService.purchase()). Every other transaction (income/
+  // expense/transfer created through TransactionsService.create()) keeps a
+  // required, non-null accountId — unchanged.
+  accountId       String?
   // Nullable destination account (EPIC-021 Group B / EPIC-019 Decision #1 —
   // single row + nullable toAccountId, NOT paired debit/credit legs). Only
   // meaningful when type = transfer; null on income/expense and on legacy
@@ -562,7 +568,7 @@ model Transaction {
   liabilityId     String?
   insuranceId     String?
   familyGroup     FamilyGroup     @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
-  account         Account         @relation("TransactionSourceAccount", fields: [accountId], references: [id], onDelete: Cascade)
+  account         Account?        @relation("TransactionSourceAccount", fields: [accountId], references: [id], onDelete: Cascade)
   toAccount       Account?        @relation("TransactionDestinationAccount", fields: [toAccountId], references: [id], onDelete: Restrict)
   category        Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   createdBy       User?           @relation("TransactionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)

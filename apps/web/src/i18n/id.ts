@@ -171,6 +171,10 @@ export const id = {
       retryFallback: "Coba lagi",
       invalidAmount: "Jumlah tidak valid",
       selectAccountFirst: "Pilih akun terlebih dahulu",
+      // EPIC-023 Task E3 (D12) — the card tab's own account-equivalent
+      // validation message: it picks a credit card (liability), not an
+      // account.
+      selectCardFirst: "Pilih kartu kredit terlebih dahulu",
       noFamilyGroup: "Tidak ada family group aktif",
       savedAddMoreToast: "Disimpan! Tambah lagi...",
       savedToast: "Transaksi berhasil disimpan!",
@@ -200,6 +204,10 @@ export const id = {
       descriptionPlaceholder: "Tulis deskripsi...",
       categoryPlaceholder: "Pilih kategori...",
       accountPlaceholder: "Pilih akun...",
+      // EPIC-023 Task E3 (D12) — the card tab's own picker labels: a credit
+      // card, sourced from liabilities, never from accounts.
+      cardLabel: "Kartu Kredit",
+      cardPlaceholder: "Pilih kartu kredit...",
       saving: "Menyimpan...",
       saveTransaction: "Simpan Transaksi",
       saveAndAddMore: "Simpan & Tambah Lagi",

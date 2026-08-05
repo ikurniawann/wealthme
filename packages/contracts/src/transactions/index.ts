@@ -23,9 +23,13 @@ export type CreateTransactionInput = z.infer<
 export const TransactionDtoSchema = z.object({
   id: z.string().uuid(),
   familyGroupId: z.string().uuid(),
-  accountId: z.string().uuid(),
+  // EPIC-023 E3 (D12) — null for a credit-card purchase (it touches no
+  // account); see liabilityId instead.
+  accountId: z.string().uuid().nullable(),
   toAccountId: z.string().uuid().nullable(),
   categoryId: z.string().uuid().nullable(),
+  // EPIC-023 E1/E3 — set for a liability payment or a credit-card purchase.
+  liabilityId: z.string().uuid().nullable(),
   amount: z.string(),
   type: TransactionTypeSchema,
   description: z.string().nullable(),

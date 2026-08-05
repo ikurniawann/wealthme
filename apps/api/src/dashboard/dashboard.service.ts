@@ -253,7 +253,8 @@ export class DashboardService {
       amount: Number(tx.amount),
       type: tx.type as "income" | "expense" | "transfer",
       categoryName: tx.category?.name ?? null,
-      accountName: tx.account.name,
+      // EPIC-023 E3 (D12) — a credit-card purchase has no account.
+      accountName: tx.account?.name ?? "",
       occurredAt: tx.occurredAt.toISOString(),
     }));
 

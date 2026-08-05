@@ -791,7 +791,10 @@ export class TransactionsService {
       if (amountChanged || typeChanged || accountChanged || toAccountChanged) {
         // Revert whatever effect the existing row currently has — a real
         // two-sided transfer reverses both legs, everything else reverses
-        // its single account delta.
+        // its single account delta. EPIC-023 E3 (D12) — a credit-card
+        // purchase (`existing.accountId === null`) never touched an account
+        // in the first place, so there is nothing to revert; skip both the
+        // transfer and single-account branches for it.
         //
         // EPIC-021 #22 — neither the revert call below nor the reapply call
         // further down passes `enforceBankFloor`, so both stay unguarded by
@@ -800,7 +803,7 @@ export class TransactionsService {
         // on a bank account that has since been spent down below the
         // original credit — reversal integrity beats the overdraft
         // invariant here. Only create()'s fresh debits are guarded.
-        if (existing.toAccountId) {
+        if (existing.toAccountId && existing.accountId) {
           await this.applyTransferBalanceDelta(
             prisma,
             familyGroupId,
@@ -809,7 +812,7 @@ export class TransactionsService {
             existing.amount,
             "revert",
           );
-        } else {
+        } else if (existing.accountId) {
           await this.applyBalanceDelta(
             prisma,
             familyGroupId,
@@ -823,7 +826,11 @@ export class TransactionsService {
         const newAmount =
           dto.amount !== undefined ? BigInt(dto.amount) : existing.amount;
 
-        if (newToAccountId) {
+        // EPIC-023 E3 (D12) — a null `effectiveAccountId` only happens for a
+        // liability-linked, accountless row whose PATCH also leaves
+        // accountId unset; there is nothing to (re)apply a balance delta
+        // against, so both branches below are skipped for it too.
+        if (newToAccountId && effectiveAccountId) {
           await this.applyTransferBalanceDelta(
             prisma,
             familyGroupId,
@@ -832,7 +839,7 @@ export class TransactionsService {
             newAmount,
             "add",
           );
-        } else {
+        } else if (effectiveAccountId) {
           await this.applyBalanceDelta(
             prisma,
             familyGroupId,
@@ -896,7 +903,9 @@ export class TransactionsService {
       // false): deleting a transaction must always be possible, even if the
       // bank account it touches has since been spent below the original
       // credit. See applyBalanceDelta's doc for the full rationale.
-      if (existing.toAccountId) {
+      // EPIC-023 E3 (D12) — a credit-card purchase (`accountId === null`)
+      // never touched an account; nothing to revert for it.
+      if (existing.toAccountId && existing.accountId) {
         await this.applyTransferBalanceDelta(
           prisma,
           familyGroupId,
@@ -905,7 +914,7 @@ export class TransactionsService {
           existing.amount,
           "revert",
         );
-      } else {
+      } else if (existing.accountId) {
         await this.applyBalanceDelta(
           prisma,
           familyGroupId,
@@ -1169,16 +1178,24 @@ export class TransactionsService {
   private toDto(tx: {
     id: string;
     familyGroupId: string;
-    accountId: string;
+    // EPIC-023 E3 (D12) — null for a credit-card purchase (LiabilitiesService
+    // .purchase()), which touches no account. Every transaction created
+    // through THIS service's own create() still requires a non-null
+    // accountId (CreateTransactionDto), unchanged.
+    accountId: string | null;
     toAccountId?: string | null;
     categoryId: string | null;
+    // EPIC-023 E1/E3 — surfaced on the response DTO so the web transaction
+    // list can identify a card purchase (liabilityId set, accountId null)
+    // instead of relying on an accountName text heuristic.
+    liabilityId?: string | null;
     amount: bigint;
     type: TransactionType;
     description: string | null;
     occurredAt: Date;
     createdAt: Date;
     category?: { name: string } | null;
-    account?: { name: string };
+    account?: { name: string } | null;
     toAccount?: { name: string } | null;
   }): TransactionResponseDto {
     return {
@@ -1187,6 +1204,7 @@ export class TransactionsService {
       accountId: tx.accountId,
       toAccountId: tx.toAccountId ?? null,
       categoryId: tx.categoryId,
+      liabilityId: tx.liabilityId ?? null,
       amount: tx.amount.toString(),
       type: tx.type,
       description: tx.description,

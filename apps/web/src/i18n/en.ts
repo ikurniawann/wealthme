@@ -171,6 +171,10 @@ export const en = {
       retryFallback: "Try again",
       invalidAmount: "Invalid amount",
       selectAccountFirst: "Select an account first",
+      // EPIC-023 Task E3 (D12) — the card tab's own account-equivalent
+      // validation message: it picks a credit card (liability), not an
+      // account.
+      selectCardFirst: "Select a credit card first",
       noFamilyGroup: "No active family group",
       savedAddMoreToast: "Saved! Add another...",
       savedToast: "Transaction saved successfully!",
@@ -200,6 +204,10 @@ export const en = {
       descriptionPlaceholder: "Write a description...",
       categoryPlaceholder: "Select a category...",
       accountPlaceholder: "Select an account...",
+      // EPIC-023 Task E3 (D12) — the card tab's own picker labels: a credit
+      // card, sourced from liabilities, never from accounts.
+      cardLabel: "Credit Card",
+      cardPlaceholder: "Select a credit card...",
       saving: "Saving...",
       saveTransaction: "Save Transaction",
       saveAndAddMore: "Save & Add Another",

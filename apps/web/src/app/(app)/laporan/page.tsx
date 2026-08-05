@@ -561,8 +561,8 @@ function HarianSection({
                 key={tx.id}
                 icon={TX_ICON[tx.type] ?? "💳"}
                 iconBg={TX_ICON_BG[tx.type] ?? "#F3F4F6"}
-                name={tx.description ?? tx.accountName}
-                cat={`${time} · ${tx.categoryName ?? tx.accountName}`}
+                name={tx.description ?? tx.accountName ?? "—"}
+                cat={`${time} · ${tx.categoryName ?? tx.accountName ?? "—"}`}
                 right={
                   <div
                     className={
@@ -1047,7 +1047,7 @@ function DetailSection({
                           {tx.categoryName ?? tx.type}
                         </StatusBadge>
                       </td>
-                      <td className="py-2.5">{tx.accountName}</td>
+                      <td className="py-2.5">{tx.accountName ?? "—"}</td>
                       <td
                         className={
                           "mono py-2.5 text-right " +

@@ -18,6 +18,7 @@ import type {
   LiabilitySummaryResponseDto,
 } from "./dto/liability-response.dto";
 import type { PayLiabilityDto } from "./dto/pay-liability.dto";
+import type { PurchaseLiabilityDto } from "./dto/purchase-liability.dto";
 import type { UpdateLiabilityDto } from "./dto/update-liability.dto";
 
 // EPIC-023 A1/A2 — the loan-interest EXPENSE account each chart provisions:
@@ -576,6 +577,94 @@ export class LiabilitiesService {
         },
       });
     }
+
+    return toLiabilityDto(updated);
+  }
+
+  /**
+   * EPIC-023 Task E3 (D12, US-LIAB-5) — records a credit-card purchase.
+   * Unlike `pay()`, this NEVER debits an Account: "a credit card stays a
+   * liability; spending raises the card's debt and leaves the bank
+   * untouched" (D12). Both `remainingBalance` (what is currently owed) and
+   * `totalDebt` (the lifetime figure `paymentRatio` is derived from) are
+   * raised by the SAME atomic `{ increment }` — a plain single-statement
+   * UPDATE, which Postgres always applies against the row's CURRENT value
+   * regardless of isolation level, so no read-then-write race is possible
+   * here (unlike `pay()`'s principal/interest split, which reads
+   * `remainingBalance` to COMPUTE a value before writing it back and
+   * therefore needs the Serializable-plus-retry treatment — see `pay()`'s
+   * doc comment). One linked Transaction is created with `accountId: null`
+   * (E3's schema change) and `liabilityId` set (E1), so the purchase shows
+   * up in the ledger without ever implying a bank/cash account paid for it.
+   *
+   * Access is gated `@CheckAbility("manage", "Liability")` at the
+   * controller — the SAME grant `pay()`/`create()`/`update()` already
+   * require. Per `CaslAbilityFactory`, the two ROW-SCOPED roles
+   * (`dependant`/`operational`, D3/D9's threshold-gated roles) hold NO
+   * grant at all on the `Liability` subject — not even `read` — so a
+   * row-scoped member cannot reach this endpoint in the first place and
+   * the D3/D9 large-transaction hold never applies to a card purchase.
+   * Every role that CAN reach it (owner/member/spouse) is a trusted role
+   * D9 already exempts from the hold. Substantively a card purchase IS an
+   * expense — but the gate that would matter (D9's threshold) is moot here
+   * by construction, not because this method special-cases it away.
+   */
+  async purchase(
+    familyGroupId: string,
+    id: string,
+    dto: PurchaseLiabilityDto,
+  ): Promise<LiabilityResponseDto> {
+    const amount = guardBigInt("amount", dto.amount);
+    if (amount <= BigInt(0)) {
+      throw new BadRequestException("amount must be greater than zero");
+    }
+
+    const liability = await this.prisma.liability.findUnique({
+      where: { id, familyGroupId },
+    });
+    if (!liability) {
+      throw new NotFoundException("Liability not found");
+    }
+
+    // Tenant-scoped lookup — mirrors TransactionsService.create()'s
+    // categoryId check: an unscoped lookup would let a caller link this
+    // purchase to another family's category just by guessing its id.
+    if (dto.categoryId) {
+      const category = await this.prisma.category.findUnique({
+        where: { id: dto.categoryId, familyGroupId },
+      });
+      if (!category) {
+        throw new NotFoundException(`Category ${dto.categoryId} not found`);
+      }
+    }
+
+    const occurredAt = dto.occurredAt ? new Date(dto.occurredAt) : new Date();
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const nextLiability = await tx.liability.update({
+        where: { id, familyGroupId },
+        data: {
+          remainingBalance: { increment: amount },
+          totalDebt: { increment: amount },
+        },
+      });
+
+      await tx.transaction.create({
+        data: {
+          familyGroupId,
+          // EPIC-023 E3 (D12) — no account, ever: this is the whole point.
+          accountId: null,
+          liabilityId: id,
+          categoryId: dto.categoryId ?? null,
+          amount,
+          type: "expense",
+          description: dto.description ?? null,
+          occurredAt,
+        },
+      });
+
+      return nextLiability;
+    });
 
     return toLiabilityDto(updated);
   }

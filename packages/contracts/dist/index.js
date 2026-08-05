@@ -401,9 +401,13 @@ var CreateTransactionInputSchema = z7.object({
 var TransactionDtoSchema = z7.object({
   id: z7.string().uuid(),
   familyGroupId: z7.string().uuid(),
-  accountId: z7.string().uuid(),
+  // EPIC-023 E3 (D12) — null for a credit-card purchase (it touches no
+  // account); see liabilityId instead.
+  accountId: z7.string().uuid().nullable(),
   toAccountId: z7.string().uuid().nullable(),
   categoryId: z7.string().uuid().nullable(),
+  // EPIC-023 E1/E3 — set for a liability payment or a credit-card purchase.
+  liabilityId: z7.string().uuid().nullable(),
   amount: z7.string(),
   type: TransactionTypeSchema,
   description: z7.string().nullable(),

@@ -290,6 +290,63 @@ describe("TransactionsService", () => {
         expect(capturedData?.liabilityId).toBe(LIABILITY_ID);
       });
     });
+
+    // EPIC-023 Task E4 (D13) trap regression — E4 removes the category
+    // PICKER from the manual Transfer tab (frontend-only); it must NEVER
+    // become a backend rule that a `type: "transfer"` transaction cannot
+    // carry a categoryId. Wealth-allocation (COA group 3) transfers
+    // legitimately carry a category, and reports.service.ts's
+    // txCoaDirection/wealthAllocationCashEffect read the CATEGORY's COA
+    // direction first (falling back to tx.type only when uncategorized) —
+    // see reports.service.spec.ts's extensive group-3 transfer coverage.
+    // Stripping categories server-side would silently break that bridge.
+    it("accepts a transfer WITH a categoryId — create() never rejects a category on a transfer type (EPIC-023 E4 trap)", async () => {
+      const now = new Date("2026-06-15T10:00:00.000Z");
+      const GROUP3_CATEGORY_ID = "cat-wealth-alloc";
+      prisma.account.findUnique.mockResolvedValue(mockAccount);
+      prisma.category.findUnique.mockResolvedValue({
+        id: GROUP3_CATEGORY_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+      });
+      const createdTx = {
+        id: "tx-transfer-with-category",
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        categoryId: GROUP3_CATEGORY_ID,
+        amount: BigInt(1_000_000),
+        type: "transfer" as const,
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      };
+      prisma.$transaction.mockImplementation(
+        async (fn: Parameters<typeof prisma.$transaction>[0]) => {
+          const innerPrisma = {
+            ...prisma,
+            transaction: {
+              ...prisma.transaction,
+              create: jest.fn().mockResolvedValue(createdTx),
+            },
+          };
+          return (fn as (p: typeof innerPrisma) => Promise<unknown>)(
+            innerPrisma,
+          );
+        },
+      );
+
+      const result = await service.create(FAMILY_GROUP_ID, {
+        accountId: ACCOUNT_ID,
+        amount: 1_000_000,
+        type: "transfer",
+        categoryId: GROUP3_CATEGORY_ID,
+        occurredAt: now.toISOString(),
+      });
+
+      expect(result).toMatchObject({
+        type: "transfer",
+        categoryId: GROUP3_CATEGORY_ID,
+      });
+    });
   });
 
   describe("category allow-list enforcement (EPIC-019 Task C)", () => {
@@ -1223,6 +1280,64 @@ describe("TransactionsService", () => {
         }),
       ).rejects.toThrow(BadRequestException);
       expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+  });
+
+  // EPIC-023 Task E3 (D12) — a credit-card purchase (LiabilitiesService
+  // .purchase()) creates a Transaction with `accountId: null`. If such a
+  // row is ever edited/deleted through the generic update()/remove() paths,
+  // there is NO account to revert or reapply a balance delta against — the
+  // guards added for the accountId-nullable schema change must skip both
+  // branches cleanly instead of crashing on `account.update({ where: { id:
+  // null } })`.
+  describe("update()/remove() on a null-accountId (credit-card) transaction (EPIC-023 E3)", () => {
+    const now = new Date("2026-06-15T10:00:00.000Z");
+    const CARD_TX = {
+      id: "tx-card-1",
+      familyGroupId: FAMILY_GROUP_ID,
+      accountId: null,
+      toAccountId: null,
+      categoryId: null,
+      liabilityId: "card-1",
+      amount: BigInt(150000),
+      type: "expense" as const,
+      description: null,
+      occurredAt: now,
+      createdAt: now,
+    };
+
+    it("update(): changing the amount never touches any account balance", async () => {
+      prisma.transaction.findFirst.mockResolvedValue(CARD_TX);
+      prisma.transaction.update.mockResolvedValue({
+        ...CARD_TX,
+        amount: BigInt(200000),
+      });
+      prisma.$transaction.mockImplementation(
+        async (fn: Parameters<typeof prisma.$transaction>[0]) =>
+          (fn as (p: typeof prisma) => Promise<unknown>)(prisma),
+      );
+
+      const result = await service.update(FAMILY_GROUP_ID, "tx-card-1", {
+        amount: 200000,
+      });
+
+      expect(result.amount).toBe("200000");
+      expect(prisma.account.update).not.toHaveBeenCalled();
+    });
+
+    it("remove(): deleting never touches any account balance", async () => {
+      prisma.transaction.findFirst.mockResolvedValue(CARD_TX);
+      prisma.$transaction.mockImplementation(
+        async (fn: Parameters<typeof prisma.$transaction>[0]) =>
+          (fn as (p: typeof prisma) => Promise<unknown>)(prisma),
+      );
+
+      await service.remove(FAMILY_GROUP_ID, "tx-card-1");
+
+      expect(prisma.account.update).not.toHaveBeenCalled();
+      expect(prisma.transaction.delete).toHaveBeenCalledWith({
+        where: { id: "tx-card-1" },
+      });
     });
   });
 

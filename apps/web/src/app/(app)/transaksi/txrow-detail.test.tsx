@@ -76,6 +76,7 @@ function buildTx(overrides: Partial<TransactionDto> = {}): TransactionDto {
     createdAt: "2026-07-20T09:31:00.000Z",
     toAccountId: null,
     toAccountName: null,
+    liabilityId: null,
     ...overrides,
   };
 }

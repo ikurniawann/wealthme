@@ -29,6 +29,8 @@ import {
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PayLiabilityDto } from "./dto/pay-liability.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { PurchaseLiabilityDto } from "./dto/purchase-liability.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateLiabilityDto } from "./dto/update-liability.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { LiabilitiesService } from "./liabilities.service";
@@ -111,6 +113,26 @@ export class LiabilitiesController {
     @Body() dto: PayLiabilityDto,
   ): Promise<LiabilityResponseDto> {
     return this.liabilitiesService.pay(familyGroupId, id, dto);
+  }
+
+  @Post(":id/purchase")
+  @HttpCode(HttpStatus.OK)
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Liability"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "id", type: String })
+  @ApiOperation({
+    summary:
+      "Record a credit-card purchase — raises the card's own debt, touches no account (EPIC-023 E3, D12)",
+  })
+  @ApiResponse({ status: 200, type: LiabilityResponseDto })
+  @ApiResponse({ status: 404, description: "Liability or category not found" })
+  @ApiResponse({ status: 400, description: "Invalid amount" })
+  purchase(
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("id") id: string,
+    @Body() dto: PurchaseLiabilityDto,
+  ): Promise<LiabilityResponseDto> {
+    return this.liabilitiesService.purchase(familyGroupId, id, dto);
   }
 
   @Delete(":id")

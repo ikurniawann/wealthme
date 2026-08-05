@@ -459,9 +459,13 @@ var CreateTransactionInputSchema = import_zod7.z.object({
 var TransactionDtoSchema = import_zod7.z.object({
   id: import_zod7.z.string().uuid(),
   familyGroupId: import_zod7.z.string().uuid(),
-  accountId: import_zod7.z.string().uuid(),
+  // EPIC-023 E3 (D12) — null for a credit-card purchase (it touches no
+  // account); see liabilityId instead.
+  accountId: import_zod7.z.string().uuid().nullable(),
   toAccountId: import_zod7.z.string().uuid().nullable(),
   categoryId: import_zod7.z.string().uuid().nullable(),
+  // EPIC-023 E1/E3 — set for a liability payment or a credit-card purchase.
+  liabilityId: import_zod7.z.string().uuid().nullable(),
   amount: import_zod7.z.string(),
   type: TransactionTypeSchema,
   description: import_zod7.z.string().nullable(),

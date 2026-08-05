@@ -118,7 +118,11 @@ export type BankSyncDto = {
  */
 export type MatchedTransactionSummaryDto = {
   id: string;
-  accountId: string;
+  // EPIC-023 E3 (D12) — null for a credit-card purchase, which a bank
+  // statement match should never realistically point to (it touches no
+  // account), but the type must still allow it since Transaction.accountId
+  // is now nullable.
+  accountId: string | null;
   accountName: string;
   toAccountId: string | null;
   toAccountName: string | null;
@@ -155,7 +159,7 @@ export type AutoMatchResultDto = {
 /** Raw shape of a batch-fetched matched Transaction row (see getEntries). */
 type RawMatchedTxRow = {
   id: string;
-  accountId: string;
+  accountId: string | null;
   toAccountId: string | null;
   categoryId: string | null;
   amount: bigint;
