@@ -927,3 +927,39 @@ contribution` absorbs any mismatch between a recorded contribution and its
   matched this task group's title — issues #1–79 predate this epic and do
   not map to its task groups; proceeded without a closing reference, per the
   loop's documented fallback.
+- 2026-08-05 /epic-loop EPIC-023 "G — External data: prices, reconciliation,
+  AI keys" — **merged**, PR: https://github.com/andrsrjld/wealthme-web/pull/238.
+  This branch's own implementation and the `.xlsx` decompression finding
+  (see `## Closed finding` above) were resolved in an earlier session; this
+  entry records closing it out. Three things needed doing to get it merged:
+  **(1)** `origin/development` had moved on (task B's PR #240) since the
+  branch was last touched, producing a merge conflict confined to
+  `packages/contracts/dist/*` (the committed build output) — resolved by
+  rebuilding from `src`, which reproduced the committed files byte-for-byte.
+  **(2)** the conflict resolution was staged but the merge commit itself was
+  never finalized — a dangling `MERGE_HEAD` sat on the branch until a review
+  agent's own `git commit` was denied by the permission classifier and it
+  flagged the state instead of working around it, which is what surfaced
+  the gap. Completed directly (`08921dc`) and pushed. **Process learning**:
+  resolving conflicts is not the same step as completing the merge — `git
+commit` after `git add` on every conflict resolution, verified by `git
+status` showing a clean tree with no `MERGE_HEAD`, before treating a merge
+  as done. **(3)** PR #238's own CI failed on push — not the guard logic,
+  but `reconciliation-parsers.spec.ts`'s two zip-bomb regression tests
+  (`refuses a workbook exceeding the row/cell cap`), which build and parse a
+  genuinely oversized real workbook and measured >4x slower on GitHub
+  Actions' shared runner than locally (7.3s local, exceeded a 30s Jest
+  timeout on CI). Widened to 90s; the fixture size and the guard being
+  tested are unchanged — shrinking the fixture would have stopped proving
+  the guard catches a real breach, which is exactly what this epic's own
+  postmortem on the declared-size bypass warns against. Also re-verified
+  before merging: `apps/api`'s generated Prisma client needed
+  `pnpm exec prisma generate` post-merge (missing `AiProvider`, added by
+  G's own schema migration) — final counts **790 API / 263 web tests**,
+  `qa.sh`/`security-check.sh` exit 0, `packages/contracts/dist` rebuilt
+  byte-identical to `src`. Also re-verified: PR #238's own body still
+  carried a stale "Draft — do not merge" banner written before the finding
+  was resolved four rounds earlier — updated before merging, so the merged
+  PR's record matches what actually shipped. A, C, G, I and B are now all
+  merged into `development`; D, E, F, H2, H3 remain (H1 has not yet started
+  in this loop despite being wave-1 — no branch exists for it).
