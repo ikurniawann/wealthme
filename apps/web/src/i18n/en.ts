@@ -42,6 +42,16 @@ export const en = {
     expense2: "Expense",
     transfer: "Transfer",
     sparkLabels: ["Day 1", "Day 8", "Day 15", "Day 22", "Day 30"],
+    // EPIC-023 Task C retry — shared across every page that displays a
+    // member's role; see `MemberRoleId` in ./types.ts.
+    roleLabels: {
+      owner: "Owner",
+      member: "Member",
+      admin_staff: "Admin / Staff",
+      spouse: "Spouse",
+      dependant: "Dependant",
+      operational: "Operational Staff",
+    },
   },
   beranda: {
     title: "Home",
@@ -522,8 +532,6 @@ export const en = {
       adminInfoNote:
         "Admins (secretary, driver, household assistant, personal aide) can record transactions on behalf of the family, but can't change group settings or view members' personal balances.",
       groupSettingsSectionTitle: "Group Settings",
-      showBalanceToMembersLabel: "Show Balance to Members",
-      showBalanceToMembersSub: "Members can see the shared total balance",
       memberTxnNotifLabel: "Member Transaction Notifications",
       memberTxnNotifSub: "Receive transaction notifications from other members",
       // EPIC-019 Task C — per-member expense category allow-list.
@@ -561,6 +569,7 @@ export const en = {
       roleOptions: {
         member: "Member",
         adminStaff: "Admin / Staff",
+        spouse: "Spouse",
       },
       sending: "Sending...",
       sendButton: "Send Admin Invitation",
@@ -1975,11 +1984,6 @@ export const en = {
       rowLiabilities: "Liabilities",
       membersTitlePrefix: "Family Members",
       emptyMembers: "No family members yet",
-      roleLabels: {
-        owner: "Owner",
-        admin: "Admin",
-        member: "Member",
-      },
       noteConsolidation:
         "Consolidation is shown at the family group level. Per-member balance breakdowns are outside the current API's scope.",
     },

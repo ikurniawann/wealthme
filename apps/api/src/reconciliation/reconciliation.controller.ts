@@ -41,7 +41,21 @@ import type {
 export class ReconciliationController {
   constructor(private readonly reconciliationService: ReconciliationService) {}
 
+  // EPIC-023 Task C retry (HIGH six-reviewer finding) — this whole controller
+  // carried no `@CheckAbility` except `splitEntry` below, so `AbilitiesGuard`
+  // waved every route through for every role, including the row-scoped
+  // `dependant`/`operational`. The FIRST retry over-corrected by flattening
+  // every route onto "manage Reconciliation" (owner/admin_staff/spouse
+  // only) — but EPIC-021 Group C (#29) never touched these routes; its own
+  // commit message states "the pre-existing upload/match/auto-match
+  // endpoints are left untouched", reserving only the ledger-writing
+  // `split` action (below) for the bookkeeping roles. Gate each route on
+  // the action it actually performs instead: "read" for the list endpoints,
+  // "create" for upload/match/auto-match — `member` now holds both (see
+  // casl-ability.factory.ts), while `dependant`/`operational` (granted
+  // neither) stay refused on every route below.
   @Post("upload")
+  @CheckAbility((ab: AppAbility) => ab.can("create", "Reconciliation"))
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiOperation({ summary: "Upload bank statement rows for reconciliation" })
   @ApiResponse({ status: 201, description: "BankSync created" })
@@ -59,6 +73,7 @@ export class ReconciliationController {
   }
 
   @Get()
+  @CheckAbility((ab: AppAbility) => ab.can("read", "Reconciliation"))
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiOperation({ summary: "List all bank syncs for a family group" })
   @ApiResponse({ status: 200, description: "List of BankSync records" })
@@ -69,6 +84,7 @@ export class ReconciliationController {
   }
 
   @Get(":syncId/entries")
+  @CheckAbility((ab: AppAbility) => ab.can("read", "Reconciliation"))
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiParam({ name: "syncId", type: String })
   @ApiOperation({ summary: "List entries for a bank sync" })
@@ -81,6 +97,7 @@ export class ReconciliationController {
   }
 
   @Patch(":syncId/entries/:entryId/match")
+  @CheckAbility((ab: AppAbility) => ab.can("create", "Reconciliation"))
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiParam({ name: "syncId", type: String })
   @ApiParam({ name: "entryId", type: String })
@@ -102,6 +119,7 @@ export class ReconciliationController {
 
   @Post(":syncId/auto-match")
   @HttpCode(HttpStatus.OK)
+  @CheckAbility((ab: AppAbility) => ab.can("create", "Reconciliation"))
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiParam({ name: "syncId", type: String })
   @ApiOperation({ summary: "Run auto-match for unmatched entries" })

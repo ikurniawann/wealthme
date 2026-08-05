@@ -13,7 +13,11 @@ import {
   type CategorizationPort,
 } from "../categorization/categorization.port";
 import { assertBankNotOverdrawn } from "../common/utils/bank-overdraft.util";
-import { transactionPrivacyWhere } from "../common/utils/privacy.util";
+import {
+  isRowScopedRole,
+  restrictedTransactionWhere,
+  transactionPrivacyWhere,
+} from "../common/utils/privacy.util";
 import {
   ownerNotifPrefs,
   resolveNotifPrefs,
@@ -35,14 +39,16 @@ import type {
   TransactionSummaryDto,
 } from "./dto/transaction-response.dto";
 import type { UpdateTransactionDto } from "./dto/update-transaction.dto";
-import type { TransactionType } from "@prisma/client";
+import type { Prisma, TransactionType } from "@prisma/client";
 
 // EPIC-019 Task C — the acting member's identity, as read off
 // `req.tenantContext.member` by the controller. `undefined`/`null` (the
 // default) means an internal/non-member-facing caller — e.g. existing tests,
 // or a future service-to-service call — and stays fully unrestricted, exactly
 // like the pre-existing `canSeePrivate = true` default elsewhere in this file.
-export type ActingMember = { id: string; role: Role } | null;
+// `userId` (EPIC-023 Task C) is needed to stamp `createdByUserId` and to
+// enforce the row-scoped roles' "own account only" invariant in `create()`.
+export type ActingMember = { id: string; userId: string; role: Role } | null;
 
 // EPIC-021 Group B #28 — description for the linked admin-fee expense
 // auto-created on the destination account of a transfer (e.g. e-wallet
@@ -75,17 +81,28 @@ export class TransactionsService {
   /**
    * `canSeePrivate` defaults to `true` so internal/non-member-facing callers
    * stay unfiltered — only member-facing controller calls pass `false`.
+   * `viewerRole`/`viewerUserId` (EPIC-023 Task C) narrow a `dependant`/
+   * `operational` viewer to transactions on an account they own or that
+   * they personally recorded — see `restrictedTransactionWhere`.
    */
   async findAll(
     familyGroupId: string,
     query: ListTransactionsQueryDto,
     canSeePrivate = true,
+    viewerRole: Role | null = null,
+    viewerUserId?: string,
   ): Promise<TransactionListResponseDto> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
-    const where = this.buildWhere(familyGroupId, query, canSeePrivate);
+    const where = this.buildWhere(
+      familyGroupId,
+      query,
+      canSeePrivate,
+      viewerRole,
+      viewerUserId,
+    );
 
     const [transactions, total] = await Promise.all([
       this.prisma.transaction.findMany({
@@ -109,6 +126,8 @@ export class TransactionsService {
       familyGroupId,
       query,
       canSeePrivate,
+      viewerRole,
+      viewerUserId,
     );
 
     return {
@@ -122,12 +141,24 @@ export class TransactionsService {
     familyGroupId: string,
     id: string,
     canSeePrivate = true,
+    viewerRole: Role | null = null,
+    viewerUserId?: string,
   ): Promise<TransactionResponseDto> {
     // findFirst (not findUnique) so the relation-based privacy filter can apply:
     // a `member` requesting a transaction tied to a private account/category
-    // gets the not-found path — its existence must not leak.
+    // gets the not-found path — its existence must not leak. Same treatment
+    // (EPIC-023 Task C) for a `dependant`/`operational` viewer and a
+    // transaction outside `restrictedTransactionWhere` — its existence must
+    // not leak either.
     const tx = await this.prisma.transaction.findFirst({
-      where: { id, familyGroupId, ...transactionPrivacyWhere(canSeePrivate) },
+      where: {
+        id,
+        familyGroupId,
+        AND: [
+          transactionPrivacyWhere(canSeePrivate),
+          restrictedTransactionWhere(viewerRole, viewerUserId),
+        ],
+      },
       include: {
         category: { select: { name: true } },
         account: { select: { name: true } },
@@ -148,6 +179,7 @@ export class TransactionsService {
     });
     if (!account)
       throw new NotFoundException(`Account ${dto.accountId} not found`);
+    this.assertAccountOwnedByActingMember(account, actingMember);
 
     // EPIC-021 Group B (#23/#27/#28) — real source -> destination transfers.
     // toAccountId/adminFee are only meaningful on a transfer; reject the
@@ -167,7 +199,7 @@ export class TransactionsService {
     // legitimately exceed the transfer amount itself. Only `@Min(0)` on the
     // DTO applies.
 
-    let toAccount: { id: string } | null = null;
+    let toAccount: { id: string; ownerUserId: string | null } | null = null;
     if (dto.type === "transfer" && dto.toAccountId) {
       if (dto.toAccountId === dto.accountId) {
         throw new BadRequestException(
@@ -179,6 +211,7 @@ export class TransactionsService {
       });
       if (!toAccount)
         throw new NotFoundException(`Account ${dto.toAccountId} not found`);
+      this.assertAccountOwnedByActingMember(toAccount, actingMember);
     }
 
     let resolvedCategoryId = dto.categoryId ?? null;
@@ -234,6 +267,10 @@ export class TransactionsService {
           type: dto.type,
           description: dto.description ?? null,
           occurredAt: new Date(dto.occurredAt),
+          // EPIC-023 Task C — who recorded this row (null for an internal/
+          // non-member-facing caller, exactly like every other actingMember
+          // default in this file).
+          createdByUserId: actingMember?.userId ?? null,
         },
         include: {
           category: { select: { name: true } },
@@ -277,6 +314,7 @@ export class TransactionsService {
               type: "expense",
               description: ADMIN_FEE_DESCRIPTION,
               occurredAt: new Date(dto.occurredAt),
+              createdByUserId: actingMember?.userId ?? null,
             },
           });
           // EPIC-021 #22 — admin fee is itself a fresh debit against the
@@ -735,8 +773,16 @@ export class TransactionsService {
     familyGroupId: string,
     query: ListTransactionsQueryDto,
     canSeePrivate = true,
+    viewerRole: Role | null = null,
+    viewerUserId?: string,
   ): Promise<TransactionSummaryDto> {
-    return this.computeSummary(familyGroupId, query, canSeePrivate);
+    return this.computeSummary(
+      familyGroupId,
+      query,
+      canSeePrivate,
+      viewerRole,
+      viewerUserId,
+    );
   }
 
   async scanReceipt(imageBase64: string): Promise<OcrResult> {
@@ -747,7 +793,30 @@ export class TransactionsService {
     familyGroupId: string,
     query: ListTransactionsQueryDto,
     canSeePrivate = true,
+    viewerRole: Role | null = null,
+    viewerUserId?: string,
   ) {
+    // `transactionPrivacyWhere`, `restrictedTransactionWhere` (EPIC-023 Task
+    // C), and the per-account "Mutasi" match below may EACH contribute a
+    // top-level `OR` key — collected into one `AND` array instead of
+    // object-spreading them together, so none can silently clobber another's
+    // `OR`. An empty `{}` fragment (the common case: an unrestricted role,
+    // or no accountId filter) is a no-op inside `AND`.
+    const andClauses: Prisma.TransactionWhereInput[] = [
+      transactionPrivacyWhere(canSeePrivate),
+      restrictedTransactionWhere(viewerRole, viewerUserId),
+    ];
+    if (query.accountId) {
+      // EPIC-021 Group B (#24 completeness) — a per-account "Mutasi" filter
+      // must include transactions where this account is either the SOURCE
+      // or the DESTINATION of a real two-sided transfer; matching only
+      // `accountId` silently hides every incoming transfer from that
+      // account's own statement view.
+      andClauses.push({
+        OR: [{ accountId: query.accountId }, { toAccountId: query.accountId }],
+      });
+    }
+
     return {
       familyGroupId,
       ...(query.type && { type: query.type }),
@@ -758,27 +827,7 @@ export class TransactionsService {
           ...(query.to && { lte: new Date(query.to) }),
         },
       }),
-      // `transactionPrivacyWhere` may itself contribute a top-level `account`
-      // and/or `OR` key — spread it BEFORE the account-transfer filter below
-      // so its shape is untouched, then fold the account match into its own
-      // `AND` branch (a distinct key) instead of a second top-level `OR`,
-      // which would silently clobber the privacy filter's `OR`.
-      ...transactionPrivacyWhere(canSeePrivate),
-      // EPIC-021 Group B (#24 completeness) — a per-account "Mutasi" filter
-      // must include transactions where this account is either the SOURCE
-      // or the DESTINATION of a real two-sided transfer; matching only
-      // `accountId` silently hides every incoming transfer from that
-      // account's own statement view.
-      ...(query.accountId && {
-        AND: [
-          {
-            OR: [
-              { accountId: query.accountId },
-              { toAccountId: query.accountId },
-            ],
-          },
-        ],
-      }),
+      AND: andClauses,
     };
   }
 
@@ -786,8 +835,16 @@ export class TransactionsService {
     familyGroupId: string,
     query: ListTransactionsQueryDto,
     canSeePrivate = true,
+    viewerRole: Role | null = null,
+    viewerUserId?: string,
   ): Promise<TransactionSummaryDto> {
-    const where = this.buildWhere(familyGroupId, query, canSeePrivate);
+    const where = this.buildWhere(
+      familyGroupId,
+      query,
+      canSeePrivate,
+      viewerRole,
+      viewerUserId,
+    );
 
     const [incomeAgg, expenseAgg] = await Promise.all([
       this.prisma.transaction.aggregate({
@@ -813,6 +870,27 @@ export class TransactionsService {
         to: query.to ?? null,
       },
     };
+  }
+
+  /**
+   * EPIC-023 Task C (D3/D5) — a `dependant`/`operational` acting member may
+   * only post a transaction against an account they own; every other role
+   * is unrestricted (the CASL "create Transaction" grant those two roles
+   * hold would otherwise let them move money on the shared family account,
+   * which the row-scoping decision explicitly forbids). No acting member
+   * context (internal caller) is also unrestricted, matching every other
+   * `actingMember` default in this file.
+   */
+  private assertAccountOwnedByActingMember(
+    account: { ownerUserId: string | null },
+    actingMember?: ActingMember,
+  ): void {
+    if (!actingMember || !isRowScopedRole(actingMember.role)) return;
+    if (account.ownerUserId !== actingMember.userId) {
+      throw new ForbiddenException(
+        "This role may only record transactions on an account they own",
+      );
+    }
   }
 
   /**

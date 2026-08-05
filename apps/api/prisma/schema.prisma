@@ -9,10 +9,35 @@ datasource db {
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
 
+// EPIC-023 Task C (D1/D2/D3/D5) — three roles became six. `owner` / `member` /
+// `admin_staff` are unchanged. `spouse` is a financial co-owner (full CRUD on
+// every money surface, Member stays read-only, never `manage`). `dependant`
+// (a child) and `operational` (a helper/driver) are ROW-scoped: CASL grants
+// them "read"/"create" at the subject level (see CaslAbilityFactory), but
+// every service read path additionally restricts them to rows they own or
+// personally recorded — see common/utils/privacy.util.ts.
 enum Role {
   owner
   member
   admin_staff
+  spouse
+  dependant
+  operational
+}
+
+// EPIC-023 Task C (D1) — purely descriptive kinship, carries NO permission.
+// `Member.role` is the only axis that grants authority; this enum only feeds
+// the default-role mapping in `packages/contracts` (relationship pre-fills a
+// role that stays fully editable — any (relationship, role) pair is valid).
+enum MemberRelationship {
+  istri
+  anak
+  kakek
+  nenek
+  bibi
+  supir
+  sekretaris
+  bendahara
 }
 
 enum AccountType {
@@ -188,6 +213,9 @@ model User {
   // EPIC-019 Task B — allowance requests this user filed / decided.
   allowanceRequestsMade    AllowanceRequest[] @relation("AllowanceRequestRequester")
   allowanceRequestsDecided AllowanceRequest[] @relation("AllowanceRequestDecider")
+  // EPIC-023 Task C — transactions this user personally recorded (nullable;
+  // never backfilled — see Transaction.createdByUserId).
+  createdTransactions      Transaction[]      @relation("TransactionCreatedBy")
 
   @@map("users")
 }
@@ -238,31 +266,31 @@ model Verification {
 }
 
 model FamilyGroup {
-  id                String             @id @default(uuid())
-  name              String
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  members           Member[]
-  accounts          Account[]
-  categories        Category[]
-  transactions      Transaction[]
-  budgets           Budget[]
-  goals             Goal[]
-  notifications     Notification[]
-  assets            Asset[]
-  investments       Investment[]
-  liabilities       Liability[]
-  insurances        Insurance[]
-  invitations       Invitation[]
-  splitBills        SplitBill[]
-  inheritanceAssets InheritanceAsset[]
-  donations         Donation[]
-  taxRecords        TaxRecord[]
-  bankSyncs         BankSync[]
-  netWorthSnapshots NetWorthSnapshot[]
-  coaAccounts       CoaAccount[]
+  id                 String             @id @default(uuid())
+  name               String
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  members            Member[]
+  accounts           Account[]
+  categories         Category[]
+  transactions       Transaction[]
+  budgets            Budget[]
+  goals              Goal[]
+  notifications      Notification[]
+  assets             Asset[]
+  investments        Investment[]
+  liabilities        Liability[]
+  insurances         Insurance[]
+  invitations        Invitation[]
+  splitBills         SplitBill[]
+  inheritanceAssets  InheritanceAsset[]
+  donations          Donation[]
+  taxRecords         TaxRecord[]
+  bankSyncs          BankSync[]
+  netWorthSnapshots  NetWorthSnapshot[]
+  coaAccounts        CoaAccount[]
   // EPIC-019 Task B — member-request -> owner-approve funding requests.
-  allowanceRequests AllowanceRequest[]
+  allowanceRequests  AllowanceRequest[]
   // EPIC-021 Group F (#6) — user-maintained gold price per gram (IDR),
   // manually entered by the family owner via PATCH .../gold-price. No live
   // gold price feed exists or may be fabricated (Open Design Decision #6),
@@ -298,15 +326,19 @@ model CoaAccount {
 }
 
 model Invitation {
-  id            String      @id @default(uuid())
-  token         String      @unique @default(uuid())
+  id            String              @id @default(uuid())
+  token         String              @unique @default(uuid())
   familyGroupId String
   email         String
-  role          Role        @default(member)
+  role          Role                @default(member)
+  // EPIC-023 Task C (D1) — optional kinship carried from invite to
+  // acceptance, for the roles that still arrive by email (spouse, bookkeeper
+  // — D6). Purely descriptive; does not constrain `role` above.
+  relationship  MemberRelationship?
   expiresAt     DateTime
   usedAt        DateTime?
-  createdAt     DateTime    @default(now())
-  familyGroup   FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  createdAt     DateTime            @default(now())
+  familyGroup   FamilyGroup         @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
 
   @@index([familyGroupId])
   @@index([email])
@@ -318,6 +350,9 @@ model Member {
   userId             String
   familyGroupId      String
   role               Role
+  // EPIC-023 Task C (D1) — nullable kinship descriptor; every pre-existing
+  // member stays valid with `relationship = null`. See MemberRelationship.
+  relationship       MemberRelationship?
   createdAt          DateTime                  @default(now())
   user               User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
   familyGroup        FamilyGroup               @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
@@ -403,9 +438,9 @@ model Category {
 }
 
 model Transaction {
-  id            String          @id @default(uuid())
-  familyGroupId String
-  accountId     String
+  id              String          @id @default(uuid())
+  familyGroupId   String
+  accountId       String
   // Nullable destination account (EPIC-021 Group B / EPIC-019 Decision #1 —
   // single row + nullable toAccountId, NOT paired debit/credit legs). Only
   // meaningful when type = transfer; null on income/expense and on legacy
@@ -414,22 +449,32 @@ model Transaction {
   // transfer destination cannot be deleted out from under its own history —
   // the source-side `account` FK below stays Cascade (unchanged, pre-existing
   // behavior) since that side already governs the row's lifecycle.
-  toAccountId   String?
-  categoryId    String?
-  amount        BigInt
-  type          TransactionType
-  description   String?
-  occurredAt    DateTime
-  createdAt     DateTime        @default(now())
-  familyGroup   FamilyGroup     @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
-  account       Account         @relation("TransactionSourceAccount", fields: [accountId], references: [id], onDelete: Cascade)
-  toAccount     Account?        @relation("TransactionDestinationAccount", fields: [toAccountId], references: [id], onDelete: Restrict)
-  category      Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  toAccountId     String?
+  categoryId      String?
+  amount          BigInt
+  type            TransactionType
+  description     String?
+  occurredAt      DateTime
+  createdAt       DateTime        @default(now())
+  // EPIC-023 Task C — who recorded this row, so a row-scoped role (dependant/
+  // operational) can see "transactions they own or that they recorded" even
+  // on a family-shared account. Nullable, NOT backfilled: every pre-existing
+  // row stays null, which correctly means a newly row-scoped member sees
+  // none of the pre-existing household ledger. onDelete: SetNull — a member
+  // leaving the family (or the app) must never cascade-delete transaction
+  // history; the row just loses its "recorded by" attribution.
+  createdByUserId String?
+  familyGroup     FamilyGroup     @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  account         Account         @relation("TransactionSourceAccount", fields: [accountId], references: [id], onDelete: Cascade)
+  toAccount       Account?        @relation("TransactionDestinationAccount", fields: [toAccountId], references: [id], onDelete: Restrict)
+  category        Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdBy       User?           @relation("TransactionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   @@index([familyGroupId, occurredAt])
   @@index([accountId])
   @@index([toAccountId])
   @@index([categoryId])
+  @@index([createdByUserId])
   @@map("transactions")
 }
 

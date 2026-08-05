@@ -34,10 +34,13 @@ __export(index_exports, {
   CreateAccountInputSchema: () => CreateAccountInputSchema,
   CreateAllowanceRequestInputSchema: () => CreateAllowanceRequestInputSchema,
   CreateTransactionInputSchema: () => CreateTransactionInputSchema,
+  DEFAULT_ROLE_BY_RELATIONSHIP: () => DEFAULT_ROLE_BY_RELATIONSHIP,
   GENERIC_COA_CHART: () => GENERIC_COA_CHART,
   LoginInputSchema: () => LoginInputSchema,
   MemberCategoryAllowanceDtoSchema: () => MemberCategoryAllowanceDtoSchema,
+  MemberRelationshipSchema: () => MemberRelationshipSchema,
   RejectAllowanceRequestInputSchema: () => RejectAllowanceRequestInputSchema,
+  RoleSchema: () => RoleSchema,
   RupiahSchema: () => RupiahSchema,
   SetMemberCategoryAllowanceInputSchema: () => SetMemberCategoryAllowanceInputSchema,
   TransactionDtoSchema: () => TransactionDtoSchema,
@@ -45,7 +48,8 @@ __export(index_exports, {
   TransactionSummarySchema: () => TransactionSummarySchema,
   TransactionTypeSchema: () => TransactionTypeSchema,
   UpdateAccountInputSchema: () => UpdateAccountInputSchema,
-  defaultCoaCodeForCategory: () => defaultCoaCodeForCategory
+  defaultCoaCodeForCategory: () => defaultCoaCodeForCategory,
+  defaultRoleForRelationship: () => defaultRoleForRelationship
 });
 module.exports = __toCommonJS(index_exports);
 
@@ -145,20 +149,54 @@ var AllowanceRequestDtoSchema = import_zod4.z.object({
   decidedByName: import_zod4.z.string().nullable()
 });
 
-// src/categories/index.ts
+// src/members/index.ts
 var import_zod5 = require("zod");
-var CategoryKindSchema = import_zod5.z.enum(["income", "expense"]);
-var CategoryDtoSchema = import_zod5.z.object({
-  id: import_zod5.z.string().uuid(),
-  familyGroupId: import_zod5.z.string().uuid(),
-  name: import_zod5.z.string(),
+var MemberRelationshipSchema = import_zod5.z.enum([
+  "istri",
+  "anak",
+  "kakek",
+  "nenek",
+  "bibi",
+  "supir",
+  "sekretaris",
+  "bendahara"
+]);
+var RoleSchema = import_zod5.z.enum([
+  "owner",
+  "member",
+  "admin_staff",
+  "spouse",
+  "dependant",
+  "operational"
+]);
+var DEFAULT_ROLE_BY_RELATIONSHIP = {
+  istri: "spouse",
+  anak: "dependant",
+  kakek: "member",
+  nenek: "member",
+  bibi: "member",
+  supir: "operational",
+  sekretaris: "operational",
+  bendahara: "admin_staff"
+};
+function defaultRoleForRelationship(relationship) {
+  return DEFAULT_ROLE_BY_RELATIONSHIP[relationship];
+}
+
+// src/categories/index.ts
+var import_zod6 = require("zod");
+var CategoryKindSchema = import_zod6.z.enum(["income", "expense"]);
+var CategoryDtoSchema = import_zod6.z.object({
+  id: import_zod6.z.string().uuid(),
+  familyGroupId: import_zod6.z.string().uuid(),
+  name: import_zod6.z.string(),
   kind: CategoryKindSchema,
   // EPIC-017: mandatory COA link (same family group).
-  coaAccountId: import_zod5.z.string().uuid(),
-  color: import_zod5.z.string().nullable(),
-  icon: import_zod5.z.string().nullable(),
-  isPrivate: import_zod5.z.boolean(),
-  createdAt: import_zod5.z.string()
+  coaAccountId: import_zod6.z.string().uuid(),
+  color: import_zod6.z.string().nullable(),
+  icon: import_zod6.z.string().nullable(),
+  isPrivate: import_zod6.z.boolean(),
+  createdAt: import_zod6.z.string()
 });
 
 // src/coa/index.ts
@@ -386,68 +424,68 @@ function defaultCoaCodeForCategory(kind, name) {
 }
 
 // src/transactions/index.ts
-var import_zod6 = require("zod");
-var TransactionTypeSchema = import_zod6.z.enum(["income", "expense", "transfer"]);
-var CreateTransactionInputSchema = import_zod6.z.object({
-  accountId: import_zod6.z.string().uuid(),
-  categoryId: import_zod6.z.string().uuid().optional(),
-  amount: import_zod6.z.number().int().positive(),
+var import_zod7 = require("zod");
+var TransactionTypeSchema = import_zod7.z.enum(["income", "expense", "transfer"]);
+var CreateTransactionInputSchema = import_zod7.z.object({
+  accountId: import_zod7.z.string().uuid(),
+  categoryId: import_zod7.z.string().uuid().optional(),
+  amount: import_zod7.z.number().int().positive(),
   type: TransactionTypeSchema,
-  description: import_zod6.z.string().optional(),
-  occurredAt: import_zod6.z.string(),
-  toAccountId: import_zod6.z.string().uuid().optional(),
+  description: import_zod7.z.string().optional(),
+  occurredAt: import_zod7.z.string(),
+  toAccountId: import_zod7.z.string().uuid().optional(),
   // EPIC-021 Group B #28 — e-wallet top-up admin fee. Only meaningful when
   // type = transfer with a toAccountId; deducted from the DESTINATION
   // account as a separate linked expense (see transactions.service.ts).
-  adminFee: import_zod6.z.number().int().min(0).optional()
+  adminFee: import_zod7.z.number().int().min(0).optional()
 });
-var TransactionDtoSchema = import_zod6.z.object({
-  id: import_zod6.z.string().uuid(),
-  familyGroupId: import_zod6.z.string().uuid(),
-  accountId: import_zod6.z.string().uuid(),
-  toAccountId: import_zod6.z.string().uuid().nullable(),
-  categoryId: import_zod6.z.string().uuid().nullable(),
-  amount: import_zod6.z.string(),
+var TransactionDtoSchema = import_zod7.z.object({
+  id: import_zod7.z.string().uuid(),
+  familyGroupId: import_zod7.z.string().uuid(),
+  accountId: import_zod7.z.string().uuid(),
+  toAccountId: import_zod7.z.string().uuid().nullable(),
+  categoryId: import_zod7.z.string().uuid().nullable(),
+  amount: import_zod7.z.string(),
   type: TransactionTypeSchema,
-  description: import_zod6.z.string().nullable(),
-  categoryName: import_zod6.z.string().nullable(),
-  accountName: import_zod6.z.string(),
-  toAccountName: import_zod6.z.string().nullable(),
-  occurredAt: import_zod6.z.string(),
-  createdAt: import_zod6.z.string()
+  description: import_zod7.z.string().nullable(),
+  categoryName: import_zod7.z.string().nullable(),
+  accountName: import_zod7.z.string(),
+  toAccountName: import_zod7.z.string().nullable(),
+  occurredAt: import_zod7.z.string(),
+  createdAt: import_zod7.z.string()
 });
-var TransactionSummarySchema = import_zod6.z.object({
-  totalIncome: import_zod6.z.string(),
-  totalExpense: import_zod6.z.string(),
-  netBalance: import_zod6.z.string(),
-  period: import_zod6.z.object({
-    from: import_zod6.z.string().nullable(),
-    to: import_zod6.z.string().nullable()
+var TransactionSummarySchema = import_zod7.z.object({
+  totalIncome: import_zod7.z.string(),
+  totalExpense: import_zod7.z.string(),
+  netBalance: import_zod7.z.string(),
+  period: import_zod7.z.object({
+    from: import_zod7.z.string().nullable(),
+    to: import_zod7.z.string().nullable()
   })
 });
-var TransactionListResponseSchema = import_zod6.z.object({
-  data: import_zod6.z.array(TransactionDtoSchema),
-  meta: import_zod6.z.object({
-    total: import_zod6.z.number(),
-    page: import_zod6.z.number(),
-    limit: import_zod6.z.number()
+var TransactionListResponseSchema = import_zod7.z.object({
+  data: import_zod7.z.array(TransactionDtoSchema),
+  meta: import_zod7.z.object({
+    total: import_zod7.z.number(),
+    page: import_zod7.z.number(),
+    limit: import_zod7.z.number()
   }),
   summary: TransactionSummarySchema
 });
 
 // src/member-category-allowances/index.ts
-var import_zod7 = require("zod");
-var SetMemberCategoryAllowanceInputSchema = import_zod7.z.object({
-  categoryIds: import_zod7.z.array(import_zod7.z.string().uuid())
+var import_zod8 = require("zod");
+var SetMemberCategoryAllowanceInputSchema = import_zod8.z.object({
+  categoryIds: import_zod8.z.array(import_zod8.z.string().uuid())
 });
-var AllowedCategoryDtoSchema = import_zod7.z.object({
-  id: import_zod7.z.string(),
-  name: import_zod7.z.string()
+var AllowedCategoryDtoSchema = import_zod8.z.object({
+  id: import_zod8.z.string(),
+  name: import_zod8.z.string()
 });
-var MemberCategoryAllowanceDtoSchema = import_zod7.z.object({
-  memberId: import_zod7.z.string(),
+var MemberCategoryAllowanceDtoSchema = import_zod8.z.object({
+  memberId: import_zod8.z.string(),
   // Empty = unrestricted (backward compatible default for every member).
-  categories: import_zod7.z.array(AllowedCategoryDtoSchema)
+  categories: import_zod8.z.array(AllowedCategoryDtoSchema)
 });
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
@@ -465,10 +503,13 @@ var MemberCategoryAllowanceDtoSchema = import_zod7.z.object({
   CreateAccountInputSchema,
   CreateAllowanceRequestInputSchema,
   CreateTransactionInputSchema,
+  DEFAULT_ROLE_BY_RELATIONSHIP,
   GENERIC_COA_CHART,
   LoginInputSchema,
   MemberCategoryAllowanceDtoSchema,
+  MemberRelationshipSchema,
   RejectAllowanceRequestInputSchema,
+  RoleSchema,
   RupiahSchema,
   SetMemberCategoryAllowanceInputSchema,
   TransactionDtoSchema,
@@ -476,5 +517,6 @@ var MemberCategoryAllowanceDtoSchema = import_zod7.z.object({
   TransactionSummarySchema,
   TransactionTypeSchema,
   UpdateAccountInputSchema,
-  defaultCoaCodeForCategory
+  defaultCoaCodeForCategory,
+  defaultRoleForRelationship
 });

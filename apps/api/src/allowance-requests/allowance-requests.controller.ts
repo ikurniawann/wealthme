@@ -78,8 +78,14 @@ export class AllowanceRequestsController {
     @Req() req: Request,
   ): Promise<AllowanceRequestResponseDto[]> {
     const member = requireMember(req);
+    // EPIC-023 Task C retry (HIGH six-reviewer finding) — a spouse holds
+    // "manage AllowanceRequest" (D2, full financial co-owner) and CAN
+    // approve/reject, but was missing from this list here, so they could
+    // never discover a request to act on in the first place.
     const canSeeAll =
-      member.role === Role.owner || member.role === Role.admin_staff;
+      member.role === Role.owner ||
+      member.role === Role.admin_staff ||
+      member.role === Role.spouse;
     return this.allowanceRequestsService.findAll(
       familyGroupId,
       member.userId,

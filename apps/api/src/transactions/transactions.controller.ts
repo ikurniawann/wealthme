@@ -63,6 +63,8 @@ export class TransactionsController {
       familyGroupId,
       query,
       canSeePrivate,
+      req.tenantContext?.member?.role ?? null,
+      req.tenantContext?.userId,
     );
   }
 
@@ -81,12 +83,20 @@ export class TransactionsController {
       familyGroupId,
       query,
       canSeePrivate,
+      req.tenantContext?.member?.role ?? null,
+      req.tenantContext?.userId,
     );
   }
 
+  // EPIC-023 Task C retry (CRITICAL six-reviewer finding) — CASL's "manage"
+  // is NOT implied by holding "create" (verified against @casl/ability
+  // 6.8.1): `dependant`/`operational` are granted only create+read on
+  // Transaction (D3/D5), and `admin_staff` has the identical create-without-
+  // manage shape, so gating this on "manage" 403'd all three roles on the
+  // one action they exist to perform. Check the action actually performed.
   @Post("scan")
   @Throttle({ default: { ttl: 60000, limit: 10 } })
-  @CheckAbility((ab: AppAbility) => ab.can("manage", "Transaction"))
+  @CheckAbility((ab: AppAbility) => ab.can("create", "Transaction"))
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiOperation({
     summary: "Scan a receipt image and extract transaction data",
@@ -100,7 +110,7 @@ export class TransactionsController {
   }
 
   @Post()
-  @CheckAbility((ab: AppAbility) => ab.can("manage", "Transaction"))
+  @CheckAbility((ab: AppAbility) => ab.can("create", "Transaction"))
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiOperation({ summary: "Create a transaction" })
   @ApiResponse({ status: 201, type: TransactionResponseDto })
@@ -129,7 +139,13 @@ export class TransactionsController {
     @Req() req: Request,
   ): Promise<TransactionResponseDto> {
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
-    return this.transactionsService.findOne(familyGroupId, id, canSeePrivate);
+    return this.transactionsService.findOne(
+      familyGroupId,
+      id,
+      canSeePrivate,
+      req.tenantContext?.member?.role ?? null,
+      req.tenantContext?.userId,
+    );
   }
 
   @Patch(":id")

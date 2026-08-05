@@ -59,6 +59,7 @@ import type {
   PnlDto,
   Pph21ResultDto,
   ReportSummaryDto,
+  Role,
   SankeyDto,
 } from "@wealthme/contracts";
 import {
@@ -78,16 +79,28 @@ type FamilyMember = {
   id: string;
   userId: string;
   familyGroupId: string;
-  role: string;
+  role: Role;
   name: string;
   email: string;
   createdAt: string;
 };
 
-const ROLE_VARIANTS: Record<string, "success" | "info" | "purple"> = {
+// EPIC-023 Task C retry (six-reviewer finding) — covers all six roles; the
+// previous map only covered 3 and its "admin" key never matched the real
+// enum value `admin_staff`, so admin_staff/spouse/dependant/operational all
+// silently fell back to the `?? "info"` default below. Text labels now come
+// from the shared `t.common.roleLabels` (see i18n/types.ts's `MemberRoleId`)
+// instead of a page-local partial map.
+const ROLE_VARIANTS: Record<
+  string,
+  "success" | "info" | "purple" | "warning" | "gray"
+> = {
   owner: "success",
-  admin: "purple",
-  member: "info",
+  spouse: "purple",
+  admin_staff: "info",
+  member: "gray",
+  dependant: "warning",
+  operational: "warning",
 };
 
 /* ───────────────────────── Locale-aware date helpers ───────────────────────── */
@@ -869,9 +882,7 @@ function FamilySection({
               cat={m.email}
               right={
                 <StatusBadge variant={ROLE_VARIANTS[m.role] ?? "info"}>
-                  {t.laporan.family.roleLabels[
-                    m.role as keyof typeof t.laporan.family.roleLabels
-                  ] ?? m.role}
+                  {t.common.roleLabels[m.role] ?? m.role}
                 </StatusBadge>
               }
               last={i === memberList.length - 1}

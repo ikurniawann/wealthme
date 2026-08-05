@@ -1,5 +1,10 @@
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
+import { Role } from "@prisma/client";
 
 import { CATEGORIZATION_PORT } from "../categorization/categorization.port";
 import { NOTIFICATION_SENDER_PORT } from "../notifications/notification-sender.port";
@@ -1445,6 +1450,9 @@ describe("TransactionsService", () => {
 interface FakeAccount {
   id: string;
   isPrivate: boolean;
+  // EPIC-023 Task C — per-member ownership, needed by the row-scoped
+  // viewer tests. Optional so every pre-existing fixture stays valid.
+  ownerUserId?: string | null;
 }
 
 interface FakeCategory {
@@ -1463,20 +1471,37 @@ interface FakeTx {
   description: string | null;
   occurredAt: Date;
   createdAt: Date;
+  // EPIC-023 Task C — who recorded this row. Optional so every pre-existing
+  // fixture stays valid.
+  createdByUserId?: string | null;
+  // EPIC-023 Task C retry — the destination leg of a transfer, needed by the
+  // "allowance-approval scenario" below. Optional so every pre-existing
+  // fixture stays valid.
+  toAccountId?: string | null;
 }
 
-interface TxWhere {
+interface TxWhereFragment {
+  account?: { isPrivate?: boolean; ownerUserId?: string };
+  OR?: unknown[];
+}
+
+interface TxWhere extends TxWhereFragment {
   id?: string;
-  account?: { isPrivate: boolean };
-  OR?: unknown;
   type?: string;
+  // EPIC-023 Task C — `findAll`/`getSummary`/`findOne` now combine their
+  // privacy and row-scoping fragments via a shared `AND` array (see
+  // transactions.service.ts#buildWhere) instead of flat top-level keys;
+  // `update()`/`remove()`'s existing-row lookup still spreads flat (never
+  // row-scoped — see the class-level note on why). This fake handles both.
+  AND?: TxWhereFragment[];
 }
 
 /**
  * A minimal in-memory Prisma stand-in that honors the transitive
  * account/category `isPrivate` filter TransactionsService builds via
- * `transactionPrivacyWhere`, so these tests exercise real filtering behavior
- * rather than just call shapes.
+ * `transactionPrivacyWhere`, plus the row-scoping fragment
+ * `restrictedTransactionWhere` may contribute, so these tests exercise real
+ * filtering behavior rather than just call shapes.
  */
 function makeFakePrivacyPrisma(
   accounts: FakeAccount[],
@@ -1486,22 +1511,55 @@ function makeFakePrivacyPrisma(
   const accountById = new Map(accounts.map((a) => [a.id, a]));
   const categoryById = new Map(categories.map((c) => [c.id, c]));
 
+  function applyFragment(rows: FakeTx[], frag: TxWhereFragment): FakeTx[] {
+    let out = rows;
+    if (frag.account?.isPrivate === false) {
+      out = out.filter((t) => !accountById.get(t.accountId)?.isPrivate);
+    }
+    if (frag.OR) {
+      const or = frag.OR as Array<{
+        categoryId?: null;
+        category?: { isPrivate: boolean };
+        account?: { ownerUserId?: string };
+        createdByUserId?: string;
+        // EPIC-023 Task C retry — the incoming-transfer leg of
+        // `restrictedTransactionWhere`.
+        toAccount?: { ownerUserId?: string };
+      }>;
+      const isCategoryPrivacyShape = or.some(
+        (item) => "categoryId" in item || "category" in item,
+      );
+      out = isCategoryPrivacyShape
+        ? out.filter((t) => {
+            if (t.categoryId === null) return true;
+            return !categoryById.get(t.categoryId)?.isPrivate;
+          })
+        : out.filter((t) =>
+            or.some(
+              (item) =>
+                item.account?.ownerUserId ===
+                  accountById.get(t.accountId)?.ownerUserId ||
+                item.createdByUserId === t.createdByUserId ||
+                (t.toAccountId != null &&
+                  item.toAccount?.ownerUserId ===
+                    accountById.get(t.toAccountId)?.ownerUserId),
+            ),
+          );
+    }
+    return out;
+  }
+
   function filterTx(where: TxWhere): FakeTx[] {
     let rows = transactions;
     if (where.id) {
       rows = rows.filter((t) => t.id === where.id);
     }
-    if (where.account?.isPrivate === false) {
-      rows = rows.filter((t) => !accountById.get(t.accountId)?.isPrivate);
-    }
-    if (where.OR) {
-      rows = rows.filter((t) => {
-        if (t.categoryId === null) return true;
-        return !categoryById.get(t.categoryId)?.isPrivate;
-      });
-    }
     if (where.type) {
       rows = rows.filter((t) => t.type === where.type);
+    }
+    const fragments: TxWhereFragment[] = where.AND ?? [where];
+    for (const frag of fragments) {
+      rows = applyFragment(rows, frag);
     }
     return rows;
   }
@@ -1527,6 +1585,37 @@ function makeFakePrivacyPrisma(
             account: { name: "" },
           })),
         );
+      }),
+      // EPIC-023 Task C retry — the "allowance-approval scenario" test
+      // exercises the REAL `create()` against this same fake so the row it
+      // writes (accountId = source, toAccountId = destination,
+      // createdByUserId = null — the exact shape an allowance approval
+      // produces) is then readable back through the REAL `findAll()`'s
+      // row-scoping. Pushes onto the same `transactions` array `filterTx`
+      // reads, so a subsequent `findMany` in the same test sees it.
+      create: jest.fn(({ data }: { data: Partial<FakeTx> }) => {
+        const row: FakeTx = {
+          id: data.id ?? `tx-fake-${transactions.length + 1}`,
+          familyGroupId: data.familyGroupId ?? FAMILY_GROUP_ID,
+          accountId: data.accountId ?? "",
+          categoryId: data.categoryId ?? null,
+          amount: data.amount ?? 0n,
+          type: data.type ?? "expense",
+          description: data.description ?? null,
+          occurredAt: data.occurredAt ?? new Date(),
+          createdAt: new Date(),
+          createdByUserId: data.createdByUserId ?? null,
+          toAccountId: data.toAccountId ?? null,
+        };
+        transactions.push(row);
+        return Promise.resolve({
+          ...row,
+          category: row.categoryId
+            ? { name: categoryById.get(row.categoryId)?.name ?? "" }
+            : null,
+          account: { name: "" },
+          toAccount: row.toAccountId ? { name: "" } : null,
+        });
       }),
       count: jest.fn(({ where }: { where: TxWhere }) =>
         Promise.resolve(filterTx(where).length),
@@ -1821,5 +1910,310 @@ describe("TransactionsService.update/remove privacy enforcement (EPIC-022 A6 fol
     expect(prisma.transaction.delete).toHaveBeenCalledWith({
       where: { id: "tx-private-category" },
     });
+  });
+});
+
+// EPIC-023 Task C (D3, US-FAM-11) — a dependant/operational viewer must see
+// only transactions on an account they own or that they personally
+// recorded, never the rest of the household ledger, on concrete data (not
+// just a `where`-shape assertion).
+describe("TransactionsService row-scoped viewer (dependant/operational)", () => {
+  const CHILD_USER_ID = "user-child";
+  const HEAD_USER_ID = "user-head";
+
+  const accounts: FakeAccount[] = [
+    { id: "acc-child", isPrivate: false, ownerUserId: CHILD_USER_ID },
+    { id: "acc-shared", isPrivate: false, ownerUserId: null },
+  ];
+  const categories: FakeCategory[] = [];
+  const now = new Date();
+  const transactions: FakeTx[] = [
+    {
+      id: "tx-child-own-account",
+      familyGroupId: FAMILY_GROUP_ID,
+      accountId: "acc-child",
+      categoryId: null,
+      amount: 20_000n,
+      type: "expense",
+      description: "Jajan",
+      occurredAt: now,
+      createdAt: now,
+      createdByUserId: CHILD_USER_ID,
+    },
+    {
+      id: "tx-child-recorded-on-shared",
+      familyGroupId: FAMILY_GROUP_ID,
+      accountId: "acc-shared",
+      categoryId: null,
+      amount: 15_000n,
+      type: "expense",
+      description: "Dicatat anak di rekening keluarga",
+      occurredAt: now,
+      createdAt: now,
+      createdByUserId: CHILD_USER_ID,
+    },
+    {
+      id: "tx-head-household-ledger",
+      familyGroupId: FAMILY_GROUP_ID,
+      accountId: "acc-shared",
+      categoryId: null,
+      amount: 2_000_000n,
+      type: "expense",
+      description: "Belanja bulanan kepala keluarga",
+      occurredAt: now,
+      createdAt: now,
+      createdByUserId: HEAD_USER_ID,
+    },
+  ];
+
+  async function buildService() {
+    const prisma = makeFakePrivacyPrisma(accounts, categories, transactions);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        TransactionsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: OCR_PORT, useValue: { extractFromBase64: jest.fn() } },
+        {
+          provide: CATEGORIZATION_PORT,
+          useValue: { suggest: jest.fn().mockResolvedValue(null) },
+        },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { send: jest.fn(), sendEmail: jest.fn() },
+        },
+      ],
+    }).compile();
+    return module.get<TransactionsService>(TransactionsService);
+  }
+
+  it("a dependant's transaction list includes only accounts they own or transactions they recorded — DENIAL: the head's household-ledger row is absent", async () => {
+    const service = await buildService();
+    const result = await service.findAll(
+      FAMILY_GROUP_ID,
+      {},
+      true,
+      Role.dependant,
+      CHILD_USER_ID,
+    );
+
+    expect(result.data.map((t) => t.id).sort()).toEqual(
+      ["tx-child-own-account", "tx-child-recorded-on-shared"].sort(),
+    );
+    expect(result.data.map((t) => t.id)).not.toContain(
+      "tx-head-household-ledger",
+    );
+  });
+
+  it("findOne 404s a dependant on a transaction outside their scope — its existence must not leak", async () => {
+    const service = await buildService();
+    await expect(
+      service.findOne(
+        FAMILY_GROUP_ID,
+        "tx-head-household-ledger",
+        true,
+        Role.dependant,
+        CHILD_USER_ID,
+      ),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it("an unrestricted role (owner/spouse/member/admin_staff) still sees the full ledger", async () => {
+    const service = await buildService();
+    const result = await service.findAll(FAMILY_GROUP_ID, {}, true);
+    expect(result.data.map((t) => t.id).sort()).toEqual(
+      [
+        "tx-child-own-account",
+        "tx-child-recorded-on-shared",
+        "tx-head-household-ledger",
+      ].sort(),
+    );
+  });
+});
+
+// EPIC-023 Task C (D3/D5) — create() must not let a row-scoped role move
+// money on an account they do not own, and must stamp who recorded a row.
+describe("TransactionsService.create — row-scoped roles and createdByUserId (EPIC-023 Task C)", () => {
+  let service: TransactionsService;
+  let prisma: ReturnType<typeof makePrisma>;
+
+  const OTHER_ACCOUNT_ID = "acc-other-member";
+  const CHILD_USER_ID = "user-child";
+
+  beforeEach(async () => {
+    prisma = makePrisma();
+    // Invoke the $transaction callback directly against the SAME prisma
+    // mock object (not a clone), so assertions below inspect the exact
+    // `transaction.create` mock the service actually called.
+    prisma.$transaction.mockImplementation(
+      async (fn: Parameters<typeof prisma.$transaction>[0]) =>
+        (fn as (p: typeof prisma) => Promise<unknown>)(prisma),
+    );
+    prisma.transaction.create.mockResolvedValue({
+      id: "tx-new",
+      familyGroupId: FAMILY_GROUP_ID,
+      accountId: ACCOUNT_ID,
+      categoryId: null,
+      amount: 50_000n,
+      type: "expense",
+      description: null,
+      occurredAt: new Date(),
+      createdAt: new Date(),
+    });
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        TransactionsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: OCR_PORT, useValue: { extractFromBase64: jest.fn() } },
+        {
+          provide: CATEGORIZATION_PORT,
+          useValue: { suggest: jest.fn().mockResolvedValue(null) },
+        },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { send: jest.fn(), sendEmail: jest.fn() },
+        },
+      ],
+    }).compile();
+    service = module.get<TransactionsService>(TransactionsService);
+  });
+
+  it("DENIAL — a dependant cannot record a transaction on an account they do not own", async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: OTHER_ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      ownerUserId: "user-someone-else",
+    });
+
+    await expect(
+      service.create(
+        FAMILY_GROUP_ID,
+        {
+          accountId: OTHER_ACCOUNT_ID,
+          amount: 50_000,
+          type: "expense",
+          occurredAt: new Date().toISOString(),
+        },
+        { id: "member-child", userId: CHILD_USER_ID, role: Role.dependant },
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("an operational member CAN record a transaction on the account they own", async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      ownerUserId: CHILD_USER_ID,
+    });
+
+    await service.create(
+      FAMILY_GROUP_ID,
+      {
+        accountId: ACCOUNT_ID,
+        amount: 50_000,
+        type: "expense",
+        occurredAt: new Date().toISOString(),
+      },
+      { id: "member-driver", userId: CHILD_USER_ID, role: Role.operational },
+    );
+
+    expect(prisma.transaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ createdByUserId: CHILD_USER_ID }),
+      }),
+    );
+  });
+
+  it("stamps createdByUserId for any acting member, and leaves it null with no acting member (internal caller)", async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      ownerUserId: null,
+    });
+
+    await service.create(FAMILY_GROUP_ID, {
+      accountId: ACCOUNT_ID,
+      amount: 50_000,
+      type: "expense",
+      occurredAt: new Date().toISOString(),
+    });
+
+    expect(prisma.transaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ createdByUserId: null }),
+      }),
+    );
+  });
+});
+
+// EPIC-023 Task C retry (MEDIUM finding) — end-to-end at service level:
+// `AllowanceRequestsService.approve()` calls `TransactionsService.create()`
+// with NO `actingMember` (see allowance-requests.service.ts), so the created
+// transfer has `createdByUserId: null` and `accountId` = the owner-chosen
+// source account (never the dependant's own). Only `toAccountId` ties it to
+// the child. Before `restrictedTransactionWhere`'s `toAccount` leg, this row
+// would be created successfully but never appear in the child's own
+// `findAll()` — the balance changes but the transaction that moved it is
+// invisible. This test drives the REAL `create()` exactly the way approve()
+// does, then reads it back through the REAL `findAll()` as the dependant.
+describe("TransactionsService — allowance-approval scenario (EPIC-023 Task C retry)", () => {
+  const HEAD_USER_ID = "user-head-allowance";
+  const CHILD_USER_ID = "user-child-allowance";
+  const PARENT_ACCOUNT_ID = "acc-parent-allowance";
+  const CHILD_ACCOUNT_ID = "acc-child-allowance";
+
+  it("a dependant sees the incoming transfer an owner recorded on their behalf, even though they neither own the source account nor recorded it themselves", async () => {
+    const accounts: FakeAccount[] = [
+      { id: PARENT_ACCOUNT_ID, isPrivate: false, ownerUserId: HEAD_USER_ID },
+      { id: CHILD_ACCOUNT_ID, isPrivate: false, ownerUserId: CHILD_USER_ID },
+    ];
+    const prisma = makeFakePrivacyPrisma(accounts, [], []);
+    prisma.account.findUnique.mockImplementation(
+      findUniqueAccountByWhereId(
+        { id: PARENT_ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        { id: CHILD_ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+      ),
+    );
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        TransactionsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: OCR_PORT, useValue: { extractFromBase64: jest.fn() } },
+        {
+          provide: CATEGORIZATION_PORT,
+          useValue: { suggest: jest.fn().mockResolvedValue(null) },
+        },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { send: jest.fn(), sendEmail: jest.fn() },
+        },
+      ],
+    }).compile();
+    const service = module.get<TransactionsService>(TransactionsService);
+
+    // Mirrors AllowanceRequestsService.approve() exactly — no actingMember.
+    const created = await service.create(FAMILY_GROUP_ID, {
+      accountId: PARENT_ACCOUNT_ID,
+      toAccountId: CHILD_ACCOUNT_ID,
+      amount: 50_000,
+      type: "transfer",
+      description: "Alokasi dana keluarga",
+      occurredAt: new Date().toISOString(),
+    });
+
+    // The shape that made the row invisible: no acting member, source
+    // account not owned by the child.
+    expect(created.toAccountId).toBe(CHILD_ACCOUNT_ID);
+
+    const result = await service.findAll(
+      FAMILY_GROUP_ID,
+      {},
+      true,
+      Role.dependant,
+      CHILD_USER_ID,
+    );
+
+    expect(result.data.map((t) => t.id)).toContain(created.id);
   });
 });

@@ -109,6 +109,7 @@ export class FamilyGroupsService {
       userId: m.userId,
       familyGroupId: m.familyGroupId,
       role: m.role,
+      relationship: m.relationship,
       name: m.user.name,
       email: m.user.email,
       createdAt: m.createdAt.toISOString(),
@@ -131,7 +132,16 @@ export class FamilyGroupsService {
 
     const updated = await this.prisma.member.update({
       where: { id: memberId },
-      data: { role: dto.role },
+      data: {
+        role: dto.role,
+        // EPIC-023 Task C (D1) — `relationship` is optional on this DTO:
+        // `undefined` leaves it unchanged, `null` explicitly clears it,
+        // any enum value sets/replaces it. Kinship is not authority — this
+        // never constrains which `role` above may be paired with it.
+        ...(dto.relationship !== undefined && {
+          relationship: dto.relationship,
+        }),
+      },
       include: { user: { select: { name: true, email: true } } },
     });
 
@@ -140,6 +150,7 @@ export class FamilyGroupsService {
       userId: updated.userId,
       familyGroupId: updated.familyGroupId,
       role: updated.role,
+      relationship: updated.relationship,
       name: updated.user.name,
       email: updated.user.email,
       createdAt: updated.createdAt.toISOString(),
@@ -204,6 +215,11 @@ export class FamilyGroupsService {
         familyGroupId,
         email: dto.email,
         role: dto.role ?? Role.member,
+        // EPIC-023 Task C (D1/D6) — purely descriptive; carried through to
+        // the Member row on acceptance. Spouse/bookkeeper still arrive by
+        // email (D6), so `role` above stays the head's explicit choice —
+        // relationship never auto-derives a role on this endpoint.
+        relationship: dto.relationship ?? null,
         expiresAt,
       },
     });
@@ -224,6 +240,7 @@ export class FamilyGroupsService {
       familyGroupName: group.name,
       email: invitation.email,
       role: invitation.role,
+      relationship: invitation.relationship,
       expiresAt: invitation.expiresAt.toISOString(),
       usedAt: null,
       createdAt: invitation.createdAt.toISOString(),
@@ -284,6 +301,7 @@ export class FamilyGroupsService {
       familyGroupName: invitation.familyGroup.name,
       email: invitation.email,
       role: invitation.role,
+      relationship: invitation.relationship,
       expiresAt: invitation.expiresAt.toISOString(),
       usedAt: null,
       createdAt: invitation.createdAt.toISOString(),
@@ -326,6 +344,8 @@ export class FamilyGroupsService {
           userId,
           familyGroupId: invitation.familyGroupId,
           role: invitation.role,
+          // EPIC-023 Task C (D1) — carried through from the invitation.
+          relationship: invitation.relationship,
         },
         include: { user: { select: { name: true, email: true } } },
       }),
@@ -340,6 +360,7 @@ export class FamilyGroupsService {
       userId: member.userId,
       familyGroupId: member.familyGroupId,
       role: member.role,
+      relationship: member.relationship,
       name: member.user.name,
       email: member.user.email,
       createdAt: member.createdAt.toISOString(),

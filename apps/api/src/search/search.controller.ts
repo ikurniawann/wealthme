@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Param, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 
@@ -6,6 +6,8 @@ import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { SearchService } from "./search.service";
+
+import type { Request } from "express";
 
 @ApiTags("search")
 @ApiBearerAuth()
@@ -18,7 +20,16 @@ export class SearchController {
   @Get()
   @CheckAbility((ab) => ab.can("read", "Account"))
   @ApiOperation({ summary: "Search accounts, categories, and transactions" })
-  search(@Param("familyGroupId") familyGroupId: string, @Query("q") q: string) {
-    return this.searchService.search(familyGroupId, q ?? "");
+  search(
+    @Param("familyGroupId") familyGroupId: string,
+    @Query("q") q: string,
+    @Req() req: Request,
+  ) {
+    return this.searchService.search(
+      familyGroupId,
+      q ?? "",
+      req.tenantContext?.member?.role ?? null,
+      req.tenantContext?.userId,
+    );
   }
 }

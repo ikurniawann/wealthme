@@ -10,7 +10,10 @@ import {
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
-import { canSeePrivateItems } from "../common/utils/privacy.util";
+import {
+  assertHouseholdWideReadAllowed,
+  canSeePrivateItems,
+} from "../common/utils/privacy.util";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ReportsService } from "./reports.service";
@@ -71,6 +74,11 @@ export class ReportsController {
     const safePeriod: ReportPeriod =
       period === "daily" || period === "yearly" ? period : "monthly";
     const anchor = parseDate(endDateStr, new Date());
+    // EPIC-023 Task C — reports.service.ts stays untouched (settled by Task
+    // A); a family-wide P&L/balance-sheet/cashflow statement cannot be
+    // narrowed to "my own" without producing a misleading result, so
+    // dependant/operational are denied outright at the entry point.
+    assertHouseholdWideReadAllowed(req.tenantContext?.member?.role);
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
     return this.reportsService.getSummary(
       familyGroupId,
@@ -98,6 +106,7 @@ export class ReportsController {
     const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const startDate = parseDate(startDateStr, defaultStart);
     const endDate = parseDate(endDateStr, now);
+    assertHouseholdWideReadAllowed(req.tenantContext?.member?.role);
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
     return this.reportsService.getBankReport(
       familyGroupId,
@@ -124,6 +133,7 @@ export class ReportsController {
     const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const startDate = parseDate(startDateStr, defaultStart);
     const endDate = parseDate(endDateStr, now);
+    assertHouseholdWideReadAllowed(req.tenantContext?.member?.role);
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
     return this.reportsService.getDetailReport(
       familyGroupId,
@@ -150,6 +160,7 @@ export class ReportsController {
     const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const startDate = parseDate(startDateStr, defaultStart);
     const endDate = parseDate(endDateStr, now);
+    assertHouseholdWideReadAllowed(req.tenantContext?.member?.role);
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
     return this.reportsService.getPnl(
       familyGroupId,
@@ -171,6 +182,7 @@ export class ReportsController {
     @Query("asOfDate") asOfDateStr?: string,
   ): Promise<BalanceSheetDto> {
     const asOfDate = parseDate(asOfDateStr, new Date());
+    assertHouseholdWideReadAllowed(req.tenantContext?.member?.role);
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
     return this.reportsService.getBalanceSheet(
       familyGroupId,
@@ -196,6 +208,7 @@ export class ReportsController {
     const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const startDate = parseDate(startDateStr, defaultStart);
     const endDate = parseDate(endDateStr, now);
+    assertHouseholdWideReadAllowed(req.tenantContext?.member?.role);
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
     return this.reportsService.getCashflowStatement(
       familyGroupId,
@@ -222,6 +235,7 @@ export class ReportsController {
     const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const startDate = parseDate(startDateStr, defaultStart);
     const endDate = parseDate(endDateStr, now);
+    assertHouseholdWideReadAllowed(req.tenantContext?.member?.role);
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
     return this.reportsService.getSankey(
       familyGroupId,

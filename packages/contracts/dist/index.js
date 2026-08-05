@@ -94,20 +94,54 @@ var AllowanceRequestDtoSchema = z4.object({
   decidedByName: z4.string().nullable()
 });
 
-// src/categories/index.ts
+// src/members/index.ts
 import { z as z5 } from "zod";
-var CategoryKindSchema = z5.enum(["income", "expense"]);
-var CategoryDtoSchema = z5.object({
-  id: z5.string().uuid(),
-  familyGroupId: z5.string().uuid(),
-  name: z5.string(),
+var MemberRelationshipSchema = z5.enum([
+  "istri",
+  "anak",
+  "kakek",
+  "nenek",
+  "bibi",
+  "supir",
+  "sekretaris",
+  "bendahara"
+]);
+var RoleSchema = z5.enum([
+  "owner",
+  "member",
+  "admin_staff",
+  "spouse",
+  "dependant",
+  "operational"
+]);
+var DEFAULT_ROLE_BY_RELATIONSHIP = {
+  istri: "spouse",
+  anak: "dependant",
+  kakek: "member",
+  nenek: "member",
+  bibi: "member",
+  supir: "operational",
+  sekretaris: "operational",
+  bendahara: "admin_staff"
+};
+function defaultRoleForRelationship(relationship) {
+  return DEFAULT_ROLE_BY_RELATIONSHIP[relationship];
+}
+
+// src/categories/index.ts
+import { z as z6 } from "zod";
+var CategoryKindSchema = z6.enum(["income", "expense"]);
+var CategoryDtoSchema = z6.object({
+  id: z6.string().uuid(),
+  familyGroupId: z6.string().uuid(),
+  name: z6.string(),
   kind: CategoryKindSchema,
   // EPIC-017: mandatory COA link (same family group).
-  coaAccountId: z5.string().uuid(),
-  color: z5.string().nullable(),
-  icon: z5.string().nullable(),
-  isPrivate: z5.boolean(),
-  createdAt: z5.string()
+  coaAccountId: z6.string().uuid(),
+  color: z6.string().nullable(),
+  icon: z6.string().nullable(),
+  isPrivate: z6.boolean(),
+  createdAt: z6.string()
 });
 
 // src/coa/index.ts
@@ -335,68 +369,68 @@ function defaultCoaCodeForCategory(kind, name) {
 }
 
 // src/transactions/index.ts
-import { z as z6 } from "zod";
-var TransactionTypeSchema = z6.enum(["income", "expense", "transfer"]);
-var CreateTransactionInputSchema = z6.object({
-  accountId: z6.string().uuid(),
-  categoryId: z6.string().uuid().optional(),
-  amount: z6.number().int().positive(),
+import { z as z7 } from "zod";
+var TransactionTypeSchema = z7.enum(["income", "expense", "transfer"]);
+var CreateTransactionInputSchema = z7.object({
+  accountId: z7.string().uuid(),
+  categoryId: z7.string().uuid().optional(),
+  amount: z7.number().int().positive(),
   type: TransactionTypeSchema,
-  description: z6.string().optional(),
-  occurredAt: z6.string(),
-  toAccountId: z6.string().uuid().optional(),
+  description: z7.string().optional(),
+  occurredAt: z7.string(),
+  toAccountId: z7.string().uuid().optional(),
   // EPIC-021 Group B #28 — e-wallet top-up admin fee. Only meaningful when
   // type = transfer with a toAccountId; deducted from the DESTINATION
   // account as a separate linked expense (see transactions.service.ts).
-  adminFee: z6.number().int().min(0).optional()
+  adminFee: z7.number().int().min(0).optional()
 });
-var TransactionDtoSchema = z6.object({
-  id: z6.string().uuid(),
-  familyGroupId: z6.string().uuid(),
-  accountId: z6.string().uuid(),
-  toAccountId: z6.string().uuid().nullable(),
-  categoryId: z6.string().uuid().nullable(),
-  amount: z6.string(),
+var TransactionDtoSchema = z7.object({
+  id: z7.string().uuid(),
+  familyGroupId: z7.string().uuid(),
+  accountId: z7.string().uuid(),
+  toAccountId: z7.string().uuid().nullable(),
+  categoryId: z7.string().uuid().nullable(),
+  amount: z7.string(),
   type: TransactionTypeSchema,
-  description: z6.string().nullable(),
-  categoryName: z6.string().nullable(),
-  accountName: z6.string(),
-  toAccountName: z6.string().nullable(),
-  occurredAt: z6.string(),
-  createdAt: z6.string()
+  description: z7.string().nullable(),
+  categoryName: z7.string().nullable(),
+  accountName: z7.string(),
+  toAccountName: z7.string().nullable(),
+  occurredAt: z7.string(),
+  createdAt: z7.string()
 });
-var TransactionSummarySchema = z6.object({
-  totalIncome: z6.string(),
-  totalExpense: z6.string(),
-  netBalance: z6.string(),
-  period: z6.object({
-    from: z6.string().nullable(),
-    to: z6.string().nullable()
+var TransactionSummarySchema = z7.object({
+  totalIncome: z7.string(),
+  totalExpense: z7.string(),
+  netBalance: z7.string(),
+  period: z7.object({
+    from: z7.string().nullable(),
+    to: z7.string().nullable()
   })
 });
-var TransactionListResponseSchema = z6.object({
-  data: z6.array(TransactionDtoSchema),
-  meta: z6.object({
-    total: z6.number(),
-    page: z6.number(),
-    limit: z6.number()
+var TransactionListResponseSchema = z7.object({
+  data: z7.array(TransactionDtoSchema),
+  meta: z7.object({
+    total: z7.number(),
+    page: z7.number(),
+    limit: z7.number()
   }),
   summary: TransactionSummarySchema
 });
 
 // src/member-category-allowances/index.ts
-import { z as z7 } from "zod";
-var SetMemberCategoryAllowanceInputSchema = z7.object({
-  categoryIds: z7.array(z7.string().uuid())
+import { z as z8 } from "zod";
+var SetMemberCategoryAllowanceInputSchema = z8.object({
+  categoryIds: z8.array(z8.string().uuid())
 });
-var AllowedCategoryDtoSchema = z7.object({
-  id: z7.string(),
-  name: z7.string()
+var AllowedCategoryDtoSchema = z8.object({
+  id: z8.string(),
+  name: z8.string()
 });
-var MemberCategoryAllowanceDtoSchema = z7.object({
-  memberId: z7.string(),
+var MemberCategoryAllowanceDtoSchema = z8.object({
+  memberId: z8.string(),
   // Empty = unrestricted (backward compatible default for every member).
-  categories: z7.array(AllowedCategoryDtoSchema)
+  categories: z8.array(AllowedCategoryDtoSchema)
 });
 export {
   AccountDtoSchema,
@@ -413,10 +447,13 @@ export {
   CreateAccountInputSchema,
   CreateAllowanceRequestInputSchema,
   CreateTransactionInputSchema,
+  DEFAULT_ROLE_BY_RELATIONSHIP,
   GENERIC_COA_CHART,
   LoginInputSchema,
   MemberCategoryAllowanceDtoSchema,
+  MemberRelationshipSchema,
   RejectAllowanceRequestInputSchema,
+  RoleSchema,
   RupiahSchema,
   SetMemberCategoryAllowanceInputSchema,
   TransactionDtoSchema,
@@ -424,5 +461,6 @@ export {
   TransactionSummarySchema,
   TransactionTypeSchema,
   UpdateAccountInputSchema,
-  defaultCoaCodeForCategory
+  defaultCoaCodeForCategory,
+  defaultRoleForRelationship
 };

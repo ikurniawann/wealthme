@@ -17,6 +17,8 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 
+import { type AppAbility } from "../casl/casl-ability.factory";
+import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { Public } from "../common/decorators/public.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -35,7 +37,15 @@ import { SplitBillsService } from "./split-bills.service";
 export class SplitBillsController {
   constructor(private readonly splitBillsService: SplitBillsService) {}
 
+  // EPIC-023 Task C retry (CRITICAL six-reviewer finding) — this whole
+  // controller carried no `@CheckAbility`, so `AbilitiesGuard` waved every
+  // route through for every role (including `dependant`/`operational`, who
+  // must have no SplitBill access — see casl-ability.factory.ts). Gate
+  // reads on "read" and writes on "manage" now that SplitBill has real
+  // grants: owner/spouse/member get "manage", admin_staff gets "read" only,
+  // dependant/operational get nothing.
   @Get("family-groups/:familyGroupId/split-bills")
+  @CheckAbility((ab: AppAbility) => ab.can("read", "SplitBill"))
   @ApiBearerAuth()
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiOperation({ summary: "List all split bills for a family group" })
@@ -47,6 +57,7 @@ export class SplitBillsController {
   }
 
   @Post("family-groups/:familyGroupId/split-bills")
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "SplitBill"))
   @ApiBearerAuth()
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiOperation({ summary: "Create a new split bill" })
@@ -59,6 +70,7 @@ export class SplitBillsController {
   }
 
   @Get("family-groups/:familyGroupId/split-bills/:id")
+  @CheckAbility((ab: AppAbility) => ab.can("read", "SplitBill"))
   @ApiBearerAuth()
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiParam({ name: "id", type: String })
@@ -73,6 +85,7 @@ export class SplitBillsController {
   }
 
   @Delete("family-groups/:familyGroupId/split-bills/:id")
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "SplitBill"))
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiParam({ name: "familyGroupId", type: String })
@@ -90,6 +103,7 @@ export class SplitBillsController {
   @Patch(
     "family-groups/:familyGroupId/split-bills/:id/participants/:participantId/settle",
   )
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "SplitBill"))
   @ApiBearerAuth()
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiParam({ name: "id", type: String })

@@ -20,6 +20,8 @@ import {
 import { type Request as ExpressRequest } from "express";
 
 import { type JwtPayload } from "../auth/strategies/jwt.strategy";
+import { type AppAbility } from "../casl/casl-ability.factory";
+import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { Public } from "../common/decorators/public.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -64,7 +66,13 @@ export class FamilyGroupsController {
     return this.familyGroupsService.create(req.user.sub, dto);
   }
 
+  // EPIC-023 Task C retry (HIGH six-reviewer finding) — this route carried
+  // no `@CheckAbility`; the service only calls `assertMember` (passes for
+  // ANY role), so a `dependant`/`operational` could fetch every member's
+  // name/email/role/kinship despite CASL explicitly denying them
+  // "read Member" (see casl-ability.factory.spec.ts).
   @Get(":familyGroupId/members")
+  @CheckAbility((ab: AppAbility) => ab.can("read", "Member"))
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiOperation({ summary: "List members of a family group" })
   @ApiResponse({ status: 200, type: [MemberResponseDto] })

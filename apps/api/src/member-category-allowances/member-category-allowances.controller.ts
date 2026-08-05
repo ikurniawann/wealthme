@@ -81,14 +81,24 @@ export class MemberCategoryAllowancesController {
   /**
    * CASL's "read" grant is role-level, not row-level: a plain `member` may
    * "read" MemberCategoryAllowance in general, but must only ever see their
-   * OWN allow-list, never another member's. Owner/admin_staff ("manage")
-   * bypass this — they may inspect anyone's.
+   * OWN allow-list, never another member's. Owner (full "manage"),
+   * admin_staff (elevated "read"-only bypass, pre-existing), and spouse
+   * (full "manage", D2) all bypass this row check — they may inspect
+   * anyone's.
+   *
+   * EPIC-023 Task C retry (HIGH six-reviewer finding) — `spouse` holds
+   * "manage MemberCategoryAllowance" (D2) and can blindly PUT another
+   * member's allow-list with no per-row check, but was missing here, so
+   * they were 403'd reading the very allow-list they can already overwrite.
+   * This closes that asymmetry.
    */
   private assertSelfOrOwner(req: Request, memberId: string): void {
     const member = req.tenantContext?.member;
     if (!member) throw new ForbiddenException("Access denied");
     const isElevated =
-      member.role === Role.owner || member.role === Role.admin_staff;
+      member.role === Role.owner ||
+      member.role === Role.admin_staff ||
+      member.role === Role.spouse;
     if (!isElevated && member.id !== memberId) {
       throw new ForbiddenException("Access denied");
     }
