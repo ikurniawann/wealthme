@@ -10,7 +10,7 @@
  */
 
 import type { ReactElement, ReactNode } from "react";
-import { render as rtlRender, screen } from "@testing-library/react";
+import { render as rtlRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -145,7 +145,13 @@ describe("KeamananBody — Sesi Aktif + PIN honesty (EPIC-016 Task K)", () => {
       isLoading: false,
     });
 
-    mockApiFetch.mockResolvedValue({ familyGroupId: null });
+    // EPIC-023 D2 — KeamananBody now also fetches GET /auth/devices (device
+    // management section). Route by path so the pre-existing /auth/me
+    // fallback (auth-compat.ts) keeps its own response shape.
+    mockApiFetch.mockImplementation((path: unknown) => {
+      if (path === "/auth/devices") return Promise.resolve([]);
+      return Promise.resolve({ familyGroupId: null });
+    });
   });
 
   it("renders session rows from mocked authClient.listSessions", async () => {
@@ -188,5 +194,134 @@ describe("KeamananBody — Sesi Aktif + PIN honesty (EPIC-016 Task K)", () => {
     // Assert — the PIN row no longer claims to be active; it's an honest
     // coming-soon affordance now (no "Aktif" badge anywhere on the page).
     expect(screen.queryByText("Aktif")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * EPIC-023 D2 fix — HIGH (react-reviewer, confirmed by typescript-reviewer +
+ * review-qa flagging the same dead i18n keys as a symptom) — device
+ * revocation now requires an explicit confirmation step instead of firing on
+ * a single click anywhere on the row, and the device-management list itself
+ * (previously zero test coverage per react-reviewer) is exercised here.
+ */
+describe("KeamananBody — device management (buka cepat) revoke confirmation (EPIC-023 D2)", () => {
+  const DEVICE_ROW = {
+    id: "device-1",
+    label: "iPhone 15",
+    hasPinSet: true,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    lastUsedAt: "2026-01-02T00:00:00.000Z",
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    queryClient.clear();
+
+    mockUseSessionAuth.mockReturnValue({
+      data: {
+        session: { token: CURRENT_TOKEN },
+        user: { id: "user-1", name: "Test User", email: "user@example.com" },
+      },
+      isPending: false,
+    });
+
+    mockListSessions.mockResolvedValue({ data: [], error: null });
+    mockRevokeSession.mockResolvedValue({
+      data: { status: true },
+      error: null,
+    });
+
+    mockUseProfile.mockReturnValue({
+      data: {
+        id: "user-1",
+        email: "user@example.com",
+        notificationPrefs: {},
+      },
+      isLoading: false,
+    });
+
+    mockApiFetch.mockImplementation((path: unknown, init?: unknown) => {
+      if (path === "/auth/devices") {
+        const method = (init as { method?: string } | undefined)?.method;
+        if (method === "DELETE") return Promise.resolve(undefined);
+        return Promise.resolve([DEVICE_ROW]);
+      }
+      if (
+        typeof path === "string" &&
+        path.startsWith("/auth/devices/") &&
+        (init as { method?: string } | undefined)?.method === "DELETE"
+      ) {
+        return Promise.resolve(undefined);
+      }
+      return Promise.resolve({ familyGroupId: null });
+    });
+  });
+
+  it("renders device rows from useDevices (GET /auth/devices)", async () => {
+    render(<KeamananBody />);
+
+    expect(await screen.findByText("iPhone 15")).toBeInTheDocument();
+    expect(screen.getByText(/PIN aktif/)).toBeInTheDocument();
+  });
+
+  it("clicking 'Lupakan' opens the confirmation dialog and does NOT call the revoke mutation yet", async () => {
+    const user = userEvent.setup();
+    render(<KeamananBody />);
+    await screen.findByText("iPhone 15");
+
+    await user.click(screen.getByText("Lupakan"));
+
+    // Assert — the confirmation dialog's previously-dead copy is now shown.
+    expect(
+      await screen.findByText("Lupakan perangkat ini?"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Perangkat ini tidak akan bisa lagi membuka aplikasi dengan PIN. Perangkat perlu password kamu untuk masuk lagi.",
+      ),
+    ).toBeInTheDocument();
+
+    // The DELETE call must NOT have fired merely from opening the dialog.
+    expect(mockApiFetch).not.toHaveBeenCalledWith(
+      expect.stringContaining("/auth/devices/"),
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("confirming the dialog calls the revoke mutation and shows a success toast", async () => {
+    const user = userEvent.setup();
+    render(<KeamananBody />);
+    await screen.findByText("iPhone 15");
+
+    await user.click(screen.getByText("Lupakan"));
+    await screen.findByText("Lupakan perangkat ini?");
+    await user.click(screen.getByRole("button", { name: "Lupakan perangkat" }));
+
+    await waitFor(() => {
+      expect(mockApiFetch).toHaveBeenCalledWith(
+        "/auth/devices/device-1",
+        expect.objectContaining({ method: "DELETE" }),
+      );
+    });
+  });
+
+  it("cancelling the dialog leaves the device in the list untouched and does not call the mutation", async () => {
+    const user = userEvent.setup();
+    render(<KeamananBody />);
+    await screen.findByText("iPhone 15");
+
+    await user.click(screen.getByText("Lupakan"));
+    await screen.findByText("Lupakan perangkat ini?");
+    await user.click(screen.getByText("Batal"));
+
+    // Dialog closes; device row is still present.
+    expect(
+      screen.queryByText("Lupakan perangkat ini?"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("iPhone 15")).toBeInTheDocument();
+    expect(mockApiFetch).not.toHaveBeenCalledWith(
+      expect.stringContaining("/auth/devices/"),
+      expect.objectContaining({ method: "DELETE" }),
+    );
   });
 });

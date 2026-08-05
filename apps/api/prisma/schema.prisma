@@ -237,8 +237,39 @@ model User {
   // EPIC-023 Task C — transactions this user personally recorded (nullable;
   // never backfilled — see Transaction.createdByUserId).
   createdTransactions      Transaction[]      @relation("TransactionCreatedBy")
+  // EPIC-023 D2 (US-FAM-13, D7) — devices this user has registered for PIN
+  // unlock. A PIN alone never authenticates; see Device below.
+  devices                  Device[]
 
   @@map("users")
+}
+
+// EPIC-023 D2 (US-FAM-13, D7) — "PIN is a device unlock, not a credential."
+// A row is created only from an ALREADY-authenticated session (right after a
+// real password login) — see DevicesService#registerDevice. The device is
+// identified by possession of `deviceSecret` (32+ random bytes generated
+// client-side, never sent again after registration in any other form, hashed
+// here with the same argon2 config used everywhere else in this codebase).
+// `pinHash` stays null until the user opts in to setting a PIN; a device that
+// never sets one simply keeps using password login every time (D7's "a new
+// device needs the password again" fallback). `failedPinAttempts`/
+// `lockedUntil` implement the 5-attempts/15-minute lockout in
+// DevicesService#unlock — the fallback is always a real password login,
+// which this lockout never affects.
+model Device {
+  id                String    @id @default(uuid())
+  userId            String
+  deviceSecretHash  String
+  pinHash           String?
+  failedPinAttempts Int       @default(0)
+  lockedUntil       DateTime?
+  label             String?
+  createdAt         DateTime  @default(now())
+  lastUsedAt        DateTime  @default(now())
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("devices")
 }
 
 model BaSession {

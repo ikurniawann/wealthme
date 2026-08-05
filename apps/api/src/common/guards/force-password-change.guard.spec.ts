@@ -171,4 +171,60 @@ describe("ForcePasswordChangeGuard (EPIC-023 D1)", () => {
       ForbiddenException,
     );
   });
+
+  // EPIC-023 D2 (US-FAM-13, D7) — the epic's own sequencing ("password on
+  // first login... afterwards the PIN") means a brand-new account's
+  // FIRST-EVER login already requires a password change (D1); PIN
+  // registration must only be reachable AFTER that. Registering a device
+  // before the mandatory change would let mustChangePassword be bypassed via
+  // a side door (set up a PIN, then unlock with it forever without ever
+  // having changed the initial password). These routes are deliberately
+  // NEITHER on the legacy allowlist NOR decorated with @SkipPasswordCheck(),
+  // so the guard's normal (blocking) path applies to them exactly like any
+  // other protected route.
+  it.each([
+    { method: "POST", path: "/auth/devices" },
+    { method: "GET", path: "/auth/devices" },
+    { method: "POST", path: "/auth/devices/device-1/pin" },
+    { method: "DELETE", path: "/auth/devices/device-1" },
+  ])(
+    "BLOCKS $method $path with 403 PASSWORD_CHANGE_REQUIRED — device registration/PIN setup must wait until AFTER the forced password change",
+    async ({ method, path }) => {
+      prisma.user.findUnique.mockResolvedValue({ mustChangePassword: true });
+      const ctx = makeContext({
+        user: { sub: USER_ID, email: "x@example.com" },
+        method,
+        path,
+      });
+
+      await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      try {
+        await guard.canActivate(ctx);
+        throw new Error("expected canActivate to reject");
+      } catch (err) {
+        expect((err as ForbiddenException).getResponse()).toEqual(
+          expect.objectContaining({ code: "PASSWORD_CHANGE_REQUIRED" }),
+        );
+      }
+    },
+  );
+
+  it("does NOT block POST /auth/devices/device-1/unlock — it is unauthenticated (@Public()), so req.user is never set for it in the first place", async () => {
+    // The unlock route never reaches this guard's blocking branch at all:
+    // BetterAuthGuard's @Public() short-circuit means req.user is undefined
+    // by the time ForcePasswordChangeGuard runs, matching every other
+    // @Public() route (see the "no-op when req.user is undefined" test
+    // above). Documented here explicitly since it's the one device route
+    // that must stay reachable with no session at all.
+    const ctx = makeContext({
+      user: undefined,
+      method: "POST",
+      path: "/auth/devices/device-1/unlock",
+    });
+
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
 });

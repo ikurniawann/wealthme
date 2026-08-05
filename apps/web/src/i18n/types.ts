@@ -518,7 +518,6 @@ export type I18nDictionary = {
       toastPasswordMismatch: string;
       toastChangeFailed: string;
       toastChangeSuccess: string;
-      toastSetPin: string;
       toastSessionEnded: string;
       toastSessionEndFailed: string;
       toastAuthPrefsSaved: string;
@@ -2303,5 +2302,50 @@ export type I18nDictionary = {
     toastMinLength: string;
     toastFailed: string;
     logoutButton: string;
+  };
+  // EPIC-023 D2 (US-FAM-13, D7) — device-bound PIN unlock. A PIN alone is
+  // NEVER a standalone credential; it only unlocks a device already bound at
+  // a real password login. See apps/api/src/devices for the two-factor model.
+  deviceUnlock: {
+    // "Set up quick unlock" prompt, offered (not forced) right after a
+    // successful password login.
+    promptTitle: string;
+    promptSubtitle: string;
+    promptSetPinLabel: string;
+    promptPinPlaceholder: string;
+    promptConfirmPinPlaceholder: string;
+    promptSkipButton: string;
+    promptSubmitButton: string;
+    promptSubmitting: string;
+    toastPinLength: string;
+    toastPinMismatch: string;
+    toastSetupSuccess: string;
+    toastSetupFailed: string;
+    // Pre-login PIN pad, shown instead of the password form when this
+    // device has a stored deviceSecret + a PIN already set.
+    padTitle: string;
+    padSubtitle: string;
+    padSubmitButton: string;
+    padSubmitting: string;
+    padUsePasswordInstead: string;
+    toastUnlockFailed: string;
+    toastUnlockLockedPrefix: string;
+    toastUnlockLockedSuffix: string;
+    // Device-management view (akun -> keamanan).
+    manageSectionTitle: string;
+    manageSetupButton: string;
+    manageEmptyState: string;
+    manageLoading: string;
+    manageError: string;
+    manageHasPinBadge: string;
+    manageNoPinBadge: string;
+    manageRevokeLink: string;
+    manageRevokeConfirmTitle: string;
+    manageRevokeConfirmBody: string;
+    manageRevokeConfirmButton: string;
+    manageDeviceFallbackLabel: string;
+    toastRevokeSuccess: string;
+    toastRevokeFailed: string;
+    toastRegisterFailed: string;
   };
 };

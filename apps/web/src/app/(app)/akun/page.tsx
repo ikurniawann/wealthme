@@ -9,12 +9,14 @@ import { useLocale } from "@/hooks/use-locale";
 import { useProfile } from "@/hooks/use-profile";
 import { useGoldPrice } from "@/hooks/use-gold-price";
 import { useAiKeyStatus, type AiProvider } from "@/hooks/use-ai-key";
+import { useDevices, useRevokeDevice } from "@/hooks/use-devices";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, parseRupiah, formatAmountInput } from "@/lib/format";
 import { formatManualDate } from "@/components/consolidated-total-card";
 import { useShell } from "@/components/shell/shell-context";
+import { QuickUnlockPrompt } from "@/components/auth/quick-unlock-prompt";
 import {
   ChevronRight,
   User,
@@ -531,6 +533,23 @@ export function KeamananBody() {
   const [confirmPw, setConfirmPw] = useState("");
   const [pwLoading, setPwLoading] = useState(false);
 
+  // EPIC-023 D2 (US-FAM-13, D7) — device-bound PIN unlock management.
+  const [showQuickUnlockPrompt, setShowQuickUnlockPrompt] = useState(false);
+  const {
+    data: devices,
+    isLoading: devicesLoading,
+    isError: devicesError,
+  } = useDevices();
+  const { mutate: revokeDevice } = useRevokeDevice();
+  // EPIC-023 D2 fix (FIX 2, react-reviewer) — revoking a device permanently
+  // kills its PIN-unlock capability, so it now requires an explicit confirm
+  // step instead of firing on a single click anywhere on the row. Holds the
+  // device pending confirmation, or null when no confirmation is open.
+  const [deviceToRevoke, setDeviceToRevoke] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
+
   async function handleChangePassword() {
     if (newPw.length < 8) {
       toast.error(t.akun.keamanan.toastPasswordMinLength);
@@ -711,7 +730,7 @@ export function KeamananBody() {
           name={t.akun.keamanan.pinRowName}
           sub={t.akun.keamanan.pinRowSub}
           right={CHEVRON}
-          onClick={() => toast(t.akun.keamanan.toastSetPin)}
+          onClick={() => setShowQuickUnlockPrompt(true)}
         />
       </SetSection>
       <SetSection>
@@ -802,6 +821,115 @@ export function KeamananBody() {
             );
           })}
       </SetSection>
+      <SetSection>
+        <SectionTitle>{t.deviceUnlock.manageSectionTitle}</SectionTitle>
+        {devicesLoading && (
+          <div className="py-3 text-[12px] text-muted-foreground">
+            {t.deviceUnlock.manageLoading}
+          </div>
+        )}
+        {devicesError && (
+          <div className="py-3 text-[12px] text-destructive">
+            {t.deviceUnlock.manageError}
+          </div>
+        )}
+        {!devicesLoading && !devicesError && devices?.length === 0 && (
+          <div className="py-3 text-[12px] text-muted-foreground">
+            {t.deviceUnlock.manageEmptyState}
+          </div>
+        )}
+        {!devicesLoading &&
+          !devicesError &&
+          devices?.map((d) => {
+            const dateStr = new Date(d.createdAt).toLocaleDateString(
+              locale === "en" ? "en-US" : "id-ID",
+              { day: "numeric", month: "short", year: "numeric" },
+            );
+            const deviceLabel =
+              d.label ?? t.deviceUnlock.manageDeviceFallbackLabel;
+            return (
+              <SetRow
+                key={d.id}
+                icon={<Hash className="size-4 text-primary" />}
+                iconBg="#EEF2FF"
+                name={deviceLabel}
+                sub={`${dateStr} · ${
+                  d.hasPinSet
+                    ? t.deviceUnlock.manageHasPinBadge
+                    : t.deviceUnlock.manageNoPinBadge
+                }`}
+                right={
+                  // A real <button>, not a <div onClick> — keyboard
+                  // reachable (react-reviewer) — and it no longer fires the
+                  // mutation directly; it only opens the confirmation
+                  // dialog below (react-reviewer/typescript-reviewer/
+                  // review-qa — this is a destructive, permanent action).
+                  <button
+                    type="button"
+                    className="shrink-0 text-[11px] text-destructive"
+                    onClick={() =>
+                      setDeviceToRevoke({ id: d.id, label: deviceLabel })
+                    }
+                  >
+                    {t.deviceUnlock.manageRevokeLink}
+                  </button>
+                }
+              />
+            );
+          })}
+        <button
+          type="button"
+          onClick={() => setShowQuickUnlockPrompt(true)}
+          className="mt-3 w-full rounded-lg border py-2.5 text-[13px] font-semibold text-foreground"
+        >
+          {t.deviceUnlock.manageSetupButton}
+        </button>
+      </SetSection>
+      {session?.userId && (
+        <QuickUnlockPrompt
+          userId={session.userId}
+          open={showQuickUnlockPrompt}
+          onOpenChange={setShowQuickUnlockPrompt}
+        />
+      )}
+      <Dialog
+        open={deviceToRevoke !== null}
+        onOpenChange={(open) => !open && setDeviceToRevoke(null)}
+      >
+        <DialogContent className="max-w-[min(400px,calc(100%-2rem))]">
+          <DialogHeader>
+            <DialogTitle>{t.deviceUnlock.manageRevokeConfirmTitle}</DialogTitle>
+          </DialogHeader>
+          <p className="text-[13px] text-muted-foreground">
+            {t.deviceUnlock.manageRevokeConfirmBody}
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              className="flex-1 rounded-lg border py-2 text-[13px] font-semibold text-foreground"
+              onClick={() => setDeviceToRevoke(null)}
+            >
+              {t.common.cancel}
+            </button>
+            <button
+              type="button"
+              className="flex-1 rounded-lg bg-destructive py-2 text-[13px] font-semibold text-destructive-foreground"
+              onClick={() => {
+                if (!deviceToRevoke) return;
+                const { id } = deviceToRevoke;
+                setDeviceToRevoke(null);
+                revokeDevice(id, {
+                  onSuccess: () =>
+                    toast.success(t.deviceUnlock.toastRevokeSuccess),
+                  onError: () => toast.error(t.deviceUnlock.toastRevokeFailed),
+                });
+              }}
+            >
+              {t.deviceUnlock.manageRevokeConfirmButton}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

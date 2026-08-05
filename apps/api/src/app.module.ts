@@ -25,6 +25,7 @@ import { TenantGuard } from "./common/guards/tenant.guard";
 import { validateEnv } from "./config/env";
 import { CryptoModule } from "./crypto/crypto.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
+import { DevicesModule } from "./devices/devices.module";
 import { DonationsModule } from "./donations/donations.module";
 import { ExportsModule } from "./exports/exports.module";
 import { FamilyGroupsModule } from "./family-groups/family-groups.module";
@@ -101,6 +102,7 @@ import type { IncomingMessage } from "node:http";
     AssetsModule,
     ExportsModule,
     FamilyGroupsModule,
+    DevicesModule,
     DonationsModule,
     InheritanceModule,
     InvestmentsModule,

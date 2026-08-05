@@ -28,7 +28,18 @@ const SENSITIVE_KEYS = new Set([
   "currentPassword",
   "passwordHash",
   "pin",
+  "pinHash",
   "secret",
+  // EPIC-023 D2 (US-FAM-13, D7) — POST /auth/devices returns the raw,
+  // one-time `deviceSecret` (the "possession" factor of the device-bound
+  // PIN-unlock scheme). This is an EXACT-match Set (see `sanitize` below),
+  // so a camelCase key like this one needs its own literal entry — it does
+  // NOT fall under the generic "secret" entry above. Confirmed missing by
+  // security-reviewer AND adversarial-reviewer (mutation testing) before
+  // this fix: without it, the raw secret was persisted in plaintext into
+  // `AuditLog.after`.
+  "deviceSecret",
+  "deviceSecretHash",
   "token",
   "accessToken",
   "refreshToken",

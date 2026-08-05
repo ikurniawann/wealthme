@@ -1,11 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, Info, Lock, LogIn, Mail, User } from "lucide-react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
+import { DeviceUnlockPad } from "@/components/auth/device-unlock-pad";
+import {
+  readAnyStoredDevice,
+  type StoredDevice,
+} from "@/components/auth/device-storage";
 
 // EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — a head-created dependant/
 // operational member has no email and signs in with a username instead
@@ -29,6 +34,24 @@ export default function LoginPage() {
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // EPIC-023 D2 (US-FAM-13, D7) — "PIN thereafter, a new device needs the
+  // password again". `storedDevice` starts `undefined` (not yet checked, so
+  // the PIN pad never flashes before the check runs) and resolves to either
+  // a `StoredDevice` (show the pad) or `null` (no binding on this browser —
+  // show the normal password form, unchanged default behavior).
+  const [storedDevice, setStoredDevice] = useState<
+    StoredDevice | null | undefined
+  >(undefined);
+
+  // localStorage is only reachable client-side (SSR has no window), so this
+  // genuinely needs a mount-time effect, not a derivable render value —
+  // matches the codebase's existing mount-detection pattern (see
+  // components/shell/theme-toggle.tsx).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setStoredDevice(readAnyStoredDevice());
+  }, []);
 
   const doLogin = async () => {
     setError("");
@@ -89,6 +112,32 @@ export default function LoginPage() {
       callbackURL: "/beranda",
     });
   };
+
+  // EPIC-023 D2 (US-FAM-13, D7) — a device with a stored deviceSecret gets
+  // the PIN pad instead of the password form. "Use password instead" always
+  // falls through to the normal form below (never trapped on the pad).
+  if (storedDevice) {
+    return (
+      <div
+        className="relative flex min-h-screen items-center justify-center p-5"
+        style={{
+          backgroundImage:
+            "linear-gradient(135deg,#1e1b4b 0%,#312e81 40%,#4338ca 70%,#6366f1 100%)",
+        }}
+      >
+        <DeviceUnlockPad
+          device={storedDevice}
+          onUnlocked={() => {
+            // Hard navigation — same reasoning as doUsernameLogin above: the
+            // session cookie was just set server-side by the route handler,
+            // so the app's session store needs a fresh load to pick it up.
+            window.location.href = "/beranda";
+          }}
+          onUsePassword={() => setStoredDevice(null)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div
