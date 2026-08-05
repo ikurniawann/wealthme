@@ -1,18 +1,94 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
+import { useAiKeyStatus } from "@/hooks/use-ai-key";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
-type Msg = { id: number; role: "user" | "assistant"; text: string };
+type Msg = {
+  id: number;
+  role: "user" | "assistant";
+  text: string;
+  // EPIC-023 Task G retry (MEDIUM five-reviewer finding, round 2) — kept as
+  // its own field (never concatenated into `text`) so the truncation notice
+  // can render as a visually distinct element instead of collapsing into
+  // the answer's own prose — see the render below.
+  truncated?: boolean;
+};
+
+/**
+ * EPIC-023 Task G retry (MEDIUM five-reviewer finding) — maps the backend's
+ * distinguishable SSE `code` to its own message instead of one generic
+ * "something went wrong" for auth failure, rate limit, timeout, and a
+ * corrupted stored key alike.
+ */
+function errorMessageForCode(
+  code: string | undefined,
+  t: ReturnType<typeof useLocale>["t"],
+): string {
+  switch (code) {
+    case "AI_NOT_CONFIGURED":
+      return t.ai.notConfiguredMidChat;
+    case "AI_KEY_CORRUPTED":
+      return t.ai.errorKeyCorrupted;
+    case "AI_AUTH_FAILED":
+      return t.ai.errorAuthFailed;
+    case "AI_RATE_LIMITED":
+      return t.ai.errorRateLimited;
+    case "AI_TIMEOUT":
+      return t.ai.errorTimeout;
+    default:
+      return t.ai.errorGeneric;
+  }
+}
+
+/**
+ * EPIC-023 G3 (D16) — a family with no AI provider key configured sees this
+ * disabled panel with instructions, never a mock answer presented as
+ * advice. `canManage` (owner/spouse) gets a direct link to Settings; every
+ * other role is told to ask them.
+ */
+function NotConfiguredPanel({
+  canManage,
+  t,
+}: {
+  canManage: boolean;
+  t: ReturnType<typeof useLocale>["t"];
+}) {
+  return (
+    <div className="mx-auto flex max-w-[560px] flex-col items-center gap-3 rounded-[14px] border bg-card py-14 text-center">
+      <div className="text-5xl">🔒</div>
+      <p className="text-[16px] font-bold text-foreground">
+        {t.ai.notConfiguredTitle}
+      </p>
+      <p className="max-w-[420px] text-[13px] text-muted-foreground">
+        {canManage ? t.ai.notConfiguredBodyOwner : t.ai.notConfiguredBodyOther}
+      </p>
+      {canManage && (
+        <Link
+          href="/akun"
+          className="mt-1 rounded-lg bg-primary px-5 py-2.5 text-[13px] font-bold text-white"
+        >
+          {t.ai.notConfiguredCta}
+        </Link>
+      )}
+    </div>
+  );
+}
 
 export default function AiPage() {
   const { t } = useLocale();
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId ?? undefined;
   const token = session?.accessToken ?? "";
+  const {
+    configured: aiKeyConfigured,
+    canManage: canManageAiKey,
+    isLoading: isAiKeyStatusLoading,
+  } = useAiKeyStatus();
 
   const [messages, setMessages] = React.useState<Msg[]>([
     {
@@ -99,7 +175,9 @@ export default function AiPage() {
             const parsed = JSON.parse(line.slice(6)) as {
               token?: string;
               done?: boolean;
+              truncated?: boolean;
               error?: string;
+              code?: string;
             };
             if (parsed.token) {
               setMessages((prev) =>
@@ -109,14 +187,36 @@ export default function AiPage() {
               );
             }
             if (parsed.error) {
+              // EPIC-023 G3 (D16) / Task G retry (MEDIUM finding) — every
+              // failure kind gets its own message instead of one generic
+              // toast for auth failure, rate limit, and timeout alike.
+              const text = errorMessageForCode(parsed.code, t);
               setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === aiMsgId ? { ...m, text: t.ai.errorGeneric } : m,
-                ),
+                prev.map((m) => (m.id === aiMsgId ? { ...m, text } : m)),
               );
               break;
             }
-            if (parsed.done) break;
+            if (parsed.done) {
+              // EPIC-023 Task G retry (CRITICAL five-reviewer finding) — a
+              // response cut off by the provider's token cap must say so
+              // explicitly, never look like a complete answer.
+              //
+              // EPIC-023 Task G retry (MEDIUM five-reviewer finding, round
+              // 2) — the notice is kept on its OWN field, not appended to
+              // `text`: appending made it collapse into one run-on sentence
+              // with the model's own prose (the bubble has no
+              // `whitespace-pre-wrap`), reading as though the model wrote
+              // the caveat itself. Rendered as a separate element below the
+              // bubble — see the message list render below.
+              if (parsed.truncated) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === aiMsgId ? { ...m, truncated: true } : m,
+                  ),
+                );
+              }
+              break;
+            }
           } catch {
             // ignore malformed SSE lines
           }
@@ -149,6 +249,14 @@ export default function AiPage() {
         <p className="text-sm text-muted-foreground">{t.ai.noGroupBody}</p>
       </div>
     );
+  }
+
+  // EPIC-023 G3 (D16) — disabled with instructions, never a mock answer
+  // presented as advice. Wait for the status query before deciding: a flash
+  // of the disabled panel on every load (before the query resolves) would
+  // be its own small honesty problem.
+  if (!isAiKeyStatusLoading && !aiKeyConfigured) {
+    return <NotConfiguredPanel canManage={canManageAiKey} t={t} />;
   }
 
   return (
@@ -197,11 +305,25 @@ export default function AiPage() {
                 >
                   🤖
                 </div>
-                <div className="max-w-[78%] rounded-2xl rounded-tl-sm bg-secondary px-3.5 py-2.5 text-[13px] leading-relaxed text-secondary-foreground">
-                  {msg.text || (
-                    <span className="animate-pulse text-muted-foreground">
-                      ●●●
-                    </span>
+                {/* EPIC-023 Task G retry (MEDIUM five-reviewer finding,
+                    round 2) — the truncation notice is a SEPARATE, visually
+                    distinct element below the bubble, not text appended
+                    into it (which collapsed into one run-on sentence and
+                    read as though the model wrote the caveat itself).
+                    `whitespace-pre-wrap` also lets the model's own
+                    intentional line breaks render instead of collapsing. */}
+                <div className="flex max-w-[78%] flex-col gap-1">
+                  <div className="whitespace-pre-wrap rounded-2xl rounded-tl-sm bg-secondary px-3.5 py-2.5 text-[13px] leading-relaxed text-secondary-foreground">
+                    {msg.text || (
+                      <span className="animate-pulse text-muted-foreground">
+                        ●●●
+                      </span>
+                    )}
+                  </div>
+                  {msg.truncated && (
+                    <div className="px-1 text-[11px] font-medium italic text-muted-foreground">
+                      {t.ai.truncatedNotice}
+                    </div>
                   )}
                 </div>
               </div>

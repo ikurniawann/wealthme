@@ -286,7 +286,7 @@ holdingsChange + unexplained = closing`, every residual named. Unit tests
     which posts real income to a chosen account. Token unguessable and revocable.
     (D21, US-SPLIT-5/6)
 
-- [ ] ### G — External data: prices, reconciliation, AI keys
+- [x] ### G — External data: prices, reconciliation, AI keys ✅
   - **G1** — Wire CoinGecko for crypto and Yahoo `.JK` for IDX equities behind
     the existing `MarketDataPort`; label them delayed and unofficial. Mutual
     funds, bonds and gold keep manual entry with a dated manual label. Per-type
@@ -652,6 +652,149 @@ whose P&L and balance sheet reconcile through the bridge.
   so US-FAM-8 has no end-to-end delivery yet.** Also recorded: the `test/e2e`
   suite is not wired into `scripts/test.sh`, needs an absent `.env.test`, and
   has drifted (uppercase enum values that would now fail `@IsEnum`).
+- 2026-08-05 /epic-loop EPIC-023 #3 "G — External data: prices, reconciliation,
+  AI keys" → PASS (attempts: 3, plus a fourth pass to close the security
+  finding). PR: https://github.com/andrsrjld/wealthme-web/pull/238.
+  The `.xlsx` decompression finding that briefly blocked this group is
+  resolved — see `## Closed finding` below; the guard now measures the real
+  expansion instead of trusting declared sizes. Everything else in the group
+  is verified: CoinGecko and Yahoo `.JK` behind `MarketDataPort` with honest
+  source/delay/as-of labelling, manual-only types keeping a dated manual label,
+  per-family AI keys encrypted with `CryptoService`, OpenAI and Gemini adapters,
+  the mock-advisor fallback deleted so the advisor is configured or visibly
+  disabled, PDF/`.xls`/empty/zero-row uploads refused with coded reasons, and
+  server-side CSV/XLSX parsing. 753 API and 227 web tests pass; `qa.sh`,
+  `test.sh` and `security-check.sh` all exit 0.
+  Four gates PASS (silent-failure, typescript, react, test). **Security FAILs on
+  one HIGH** — see `## Blocker`. Along the way the reviewers, all working by
+  execution rather than inspection, caught: an amount parser that reintroduced
+  the very ×100 bug this epic exists to kill (`"150.000,00"` → `15000000n`,
+  because every `.` and `,` was stripped as a thousands separator); CR/DR markers
+  silently discarded so half a statement's rows imported with the wrong sign;
+  ambiguous `DD/MM` vs `MM/DD` dates silently transposed, then — after the first
+  fix — a column-wide inference where **one** outlier row bound the reading of
+  every ambiguous row; truncated AI answers indistinguishable from complete ones,
+  then, after that fix, still indistinguishable whenever a stream ended cleanly
+  but early (a proxy idle timeout, the commonest real cause); and a localized
+  error-code path that never worked in production because the global
+  `AllExceptionsFilter` rebuilds the response body and forwards only `message`,
+  discarding `code` — while the test that looked like coverage asserted on the
+  thrown exception rather than the wire body.
+
+## Closed finding — group G (.xlsx upload)
+
+**RESOLVED.** Kept here in full because it took four attempts and the failed
+approaches are worth not repeating.
+
+The fix: `apps/api/src/reconciliation/zip-bounds.util.ts` now **measures** the
+real expansion instead of trusting declared sizes. Every DEFLATE entry is
+actually inflated and its output bytes counted, under `zlib`'s
+`maxOutputLength` so the check aborts mid-call rather than allocating the
+expansion first — the guard cannot become the attack. It walks **local file
+header signatures forward** and never consults the central directory or EOCD,
+so a forged trailer is irrelevant. Both previously-verified bypasses are now
+permanent, named regression tests: if either stops throwing, the vulnerability
+is back.
+
+### The finding
+
+Server-side `.xlsx` parsing (`apps/api/src/reconciliation/reconciliation-parsers.ts`,
+`parseExcelBuffer`) is vulnerable to decompression amplification. A crafted file
+well inside the 20 MiB upload limit exhausts process memory, taking down the
+shared API for every family — not just the uploader's. Any role holding
+`create Reconciliation` (owner, spouse, admin_staff, member) can reach it.
+
+Measured, not theorised, on the project's own code:
+
+| Round | Vector                                                                  | File         | Peak RSS    | Time       |
+| ----- | ----------------------------------------------------------------------- | ------------ | ----------- | ---------- |
+| 1     | `workbook.xlsx.load()` materialises the sheet before any cap runs       | 3.6 MiB      | 774 MiB     | —          |
+| 2     | fixed by streaming (`WorkbookReader`); row/cell caps now fire mid-parse | 18.6 MiB     | 165 MiB     | 307 ms     |
+| 3     | `styles: "cache"` — 2.5M `numFmt` entries, 3-cell worksheet             | 18.6 MiB     | 696 MiB     | 11.2 s     |
+| 3     | fixed by `styles: "ignore"`                                             | 18.6 MiB     | 174 MiB     | 446 ms     |
+| 4     | **`sharedStrings: "cache"` — 8M distinct strings, 3-cell worksheet**    | **19.2 MiB** | **969 MiB** | **10.7 s** |
+
+`MAX_XLSX_ROWS` and `MAX_XLSX_CELLS` cannot catch any of the cache vectors: they
+count data rows and cells actually iterated, while each auxiliary cache is
+loaded in full before the first row is yielded.
+
+### Why it was not fixed on the last attempt
+
+The same class has now relocated three rounds running, to whichever cache is
+still enabled. `styles` had an `"ignore"` mode and cost nothing to disable —
+a Date cell simply arrives as its Excel serial, which `parseExcelSerialDate`
+already resolves to the identical instant. `sharedStrings` has **no `"ignore"`
+mode**, because it holds the actual cell text (descriptions, bank names) rather
+than cosmetic formatting. `exceljs` offers only `"cache"` or `"emit"`.
+
+Closing it therefore needs new code, not a config change.
+
+### What was tried, and why it did not work
+
+**Option 2 above — the pre-parse probe — was implemented and then defeated.**
+`assertZipExpansionWithinBounds` (`apps/api/src/reconciliation/zip-bounds.util.ts`)
+reads the zip central directory, sums the declared uncompressed sizes, and
+refuses past 64 MiB before `exceljs` is handed anything. It closes both
+previously-measured bombs instantly, at baseline memory.
+
+It is not a defence, for a reason worth recording so nobody rebuilds it:
+
+- **Under-declaring defeats it.** `unzipper`, which exceljs streams through,
+  inflates the real DEFLATE payload regardless of what the local header or the
+  central directory claims — the declared size is decorative to the
+  decompression path. A 19.3 MiB archive declaring 500 bytes for a part that
+  truly inflates to 412 MiB consumed **956 MiB over ~10s and returned
+  successfully with three rows**. No exception, so nothing to alert on.
+- **A 22-byte append defeats it.** Adding a second, empty EOCD record makes the
+  backward scan find the attacker's trailer first, read "0 entries", sum nothing
+  and return silently, while exceljs ignores the trailer and parses the real
+  content. **344 MiB**, no lie needed, a fixed suffix appliable to any file.
+
+The defence-in-depth argument written into that code — "a liar can only
+under-declare, and the row/cell caps still apply" — **was wrong**. Those caps
+bound the worksheet row-iteration loop, and the auxiliary parts
+(`sharedStrings`, styles) are read in full _before_ that loop starts. Nothing
+counts them.
+
+The check has been kept, with its comments corrected to say plainly what it is:
+a cheap early-out that rejects an honestly-declared oversized workbook in about
+a millisecond. Worth having. Not a boundary.
+
+### Recommended fix, for whoever picks this up
+
+The bound has to come from something the archive cannot lie about. Header
+fields cannot, so the two remaining options are:
+
+1. **Meter the real inflate.** Enforce a hard output-byte ceiling _during_
+   decompression, independent of any declared size — so the stream is cut off
+   at N bytes whatever the headers claim. Precise, and keeps legitimate large
+   statements working, but means owning more of the unzip path than exceljs
+   currently exposes.
+2. **Isolate the parse.** Run it in a `worker_threads` worker with
+   `resourceLimits.maxOldGenerationSizeMb`, so an OOM kills one job rather than
+   the API process. This is the one to reach for first: it does not require
+   out-guessing a file format we do not control, and it bounds the blast radius
+   of _any_ amplification vector, including ones nobody has found yet. Pair it
+   with option 1 later if a precise refusal message matters.
+
+Three rounds of format-specific caps were each defeated by moving to a
+different part of the format. That is the signal to stop bounding the format
+and start bounding the process.
+
+### Status as of resolution (superseded — kept for the postmortem's own timeline)
+
+At the time this finding was open: tasks **A** (PR #236) and **C** (PR #237)
+were complete, fully gated, and independent of it. Group G's branch held work
+that was otherwise sound and well tested (753 API / 227 web tests green, all
+three gate scripts exit 0) but was held from merging while the `.xlsx`
+decompression finding above was open, since that is what introduces the
+upload path.
+
+**Current status**: resolved, as recorded at the top of this section and in
+the Automation Log entry above. A, C, G and I are all merged. See the
+Automation Log for B's resolution and this file's `## Tasks` checklist for
+what remains.
+
 - 2026-08-05 EPIC-023 Task I (group I, "reported defects awaiting
   reproduction") — recording three items deferred or discovered during
   implementation/review, none of which are fixed by this task:

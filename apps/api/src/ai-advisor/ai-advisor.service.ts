@@ -1,12 +1,15 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
-import { AI_ADVISOR_PORT } from "./ai-advisor.port";
+import { type AiAdvisorFactory } from "./ai-advisor-factory.service";
+import { AiAdvisorNotConfiguredError } from "./ai-advisor-not-configured.error";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { AiKeyService } from "./ai-key.service";
 
 import type {
-  AiAdvisorPort,
+  AdvisorChatResult,
   AdvisorContext,
   AdvisorMessage,
 } from "./ai-advisor.port";
@@ -15,7 +18,8 @@ import type {
 export class AiAdvisorService {
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(AI_ADVISOR_PORT) private readonly advisor: AiAdvisorPort,
+    private readonly aiKeyService: AiKeyService,
+    private readonly advisorFactory: AiAdvisorFactory,
   ) {}
 
   async buildContext(familyGroupId: string): Promise<AdvisorContext> {
@@ -90,12 +94,32 @@ export class AiAdvisorService {
     };
   }
 
+  /**
+   * EPIC-023 G3 (D16) — resolves the family's OWN key per request and
+   * builds the matching provider adapter fresh each call. Throws
+   * AiAdvisorNotConfiguredError when no key is set — there is deliberately
+   * NO fallback to a shared/server-wide key (ANTHROPIC_API_KEY remains
+   * configured for the unrelated OCR/categorization feature, but is never
+   * read here): a silent server-key fallback would mean one family paying
+   * for another's usage, which D16 rules out. There is also no mock
+   * fallback — MockAdvisorService is not wired into this path at all.
+   */
   async streamChat(
     familyGroupId: string,
     messages: AdvisorMessage[],
     onToken: (token: string) => void,
-  ): Promise<void> {
+  ): Promise<AdvisorChatResult> {
+    const resolvedKey =
+      await this.aiKeyService.resolveDecryptedKey(familyGroupId);
+    if (!resolvedKey) {
+      throw new AiAdvisorNotConfiguredError();
+    }
+
     const context = await this.buildContext(familyGroupId);
-    await this.advisor.chat(context, messages, onToken);
+    const advisor = this.advisorFactory.create(
+      resolvedKey.provider,
+      resolvedKey.apiKey,
+    );
+    return advisor.chat(context, messages, onToken);
   }
 }

@@ -9,6 +9,7 @@ import { Role } from "@prisma/client";
 export type Action = "manage" | "create" | "read" | "update" | "delete";
 export type Subject =
   | "Account"
+  | "AiKey"
   | "AllowanceRequest"
   | "Asset"
   | "Budget"
@@ -25,6 +26,7 @@ export type Subject =
   | "MemberCategoryAllowance"
   | "Notification"
   | "Reconciliation"
+  | "ReconciliationTemplate"
   | "Report"
   | "SplitBill"
   | "TaxRecord"
@@ -41,6 +43,11 @@ export class CaslAbilityFactory {
     switch (member.role) {
       case Role.owner:
         can("manage", "Account");
+        // EPIC-023 G3/G2 (D16/D17) — the AI provider key and saved
+        // reconciliation column-mapping templates are owner-level settings
+        // (credentials / saved configuration, not day-to-day ledger work).
+        can("manage", "AiKey");
+        can("manage", "ReconciliationTemplate");
         can("manage", "AllowanceRequest");
         can("manage", "Asset");
         can("manage", "Budget");
@@ -70,6 +77,12 @@ export class CaslAbilityFactory {
 
       case Role.member:
         can("read", "Account");
+        // EPIC-023 G3/G2 (D16/D17) — a member may see whether the AI
+        // advisor is configured (to know whether the chat surface is
+        // usable) and see saved bank templates (to know which banks are
+        // already mapped when uploading) — never manage/set/delete either.
+        can("read", "AiKey");
+        can("read", "ReconciliationTemplate");
         // EPIC-019 Task B — a member may file/read their own allowance
         // requests; only an owner may approve/reject (see "manage" above).
         can("create", "AllowanceRequest");
@@ -112,6 +125,14 @@ export class CaslAbilityFactory {
 
       case Role.admin_staff:
         can("read", "Account");
+        // EPIC-023 G3/G2 (D16/D17) — bookkeeper can see AI-advisor
+        // configuration status but not manage the key (that stays
+        // owner/spouse-level, matching "managing AI keys ... are
+        // owner-level actions"); bookkeeper CAN manage saved reconciliation
+        // templates, consistent with already holding "manage Reconciliation"
+        // below.
+        can("read", "AiKey");
+        can("manage", "ReconciliationTemplate");
         can("create", "AllowanceRequest");
         can("read", "AllowanceRequest");
         can("read", "Asset");
@@ -147,6 +168,10 @@ export class CaslAbilityFactory {
       // granted that today; see the "FamilyGroup" subject, unused above).
       case Role.spouse:
         can("manage", "Account");
+        // EPIC-023 G3/G2 (D2/D16/D17) — full financial co-owner: same
+        // owner-level reach over the AI key and reconciliation templates.
+        can("manage", "AiKey");
+        can("manage", "ReconciliationTemplate");
         can("manage", "AllowanceRequest");
         can("manage", "Asset");
         can("manage", "Budget");
@@ -174,9 +199,10 @@ export class CaslAbilityFactory {
       // service read path, see common/utils/privacy.util.ts — the subject
       // grants below are necessary but not sufficient). Full "read" on
       // Inheritance is an explicit accepted consequence (D4/C3), not an
-      // oversight. No Member, CoaAccount, Reconciliation, or TaxRecord
-      // access; "create"+"read" only on Transaction — never "manage",
-      // matching admin_staff's shape (no update/delete of ledger history).
+      // oversight. No Member, CoaAccount, Reconciliation, TaxRecord, AiKey,
+      // or ReconciliationTemplate access; "create"+"read" only on
+      // Transaction — never "manage", matching admin_staff's shape (no
+      // update/delete of ledger history).
       case Role.dependant:
         can("read", "Account");
         can("create", "AllowanceRequest");
@@ -189,7 +215,7 @@ export class CaslAbilityFactory {
       // EPIC-023 Task C (D5) — a helper/driver: their own account AND its
       // balance (otherwise the role cannot function), plus their own
       // transactions. Nothing else — no Inheritance, no Member, no COA, no
-      // Reconciliation, no TaxRecord.
+      // Reconciliation, no TaxRecord, no AiKey, no ReconciliationTemplate.
       case Role.operational:
         can("read", "Account");
         can("create", "AllowanceRequest");

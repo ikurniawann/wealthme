@@ -25,6 +25,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { RowActions, ConfirmDeleteDialog } from "@/components/crud";
+import { formatManualDate } from "@/components/consolidated-total-card";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -75,6 +76,22 @@ type FilterTabId = (typeof FILTER_TAB_IDS)[number];
 // interest-rate field only for it.
 const INTEREST_BEARING_TYPES: readonly InvestmentType[] = ["obligasi"];
 
+// EPIC-023 G1 (D15) — "automate what can be automated, label the rest".
+// Only saham (Yahoo .JK) and kripto (CoinGecko) ever get an automated
+// price; every other type is manual-only, matching MARKET_DATA_PORT's
+// AUTOMATED_PRICE_TYPES on the API.
+const AUTOMATED_PRICE_TYPES: readonly InvestmentType[] = ["saham", "kripto"];
+function isManualPriceType(type: InvestmentType): boolean {
+  return !AUTOMATED_PRICE_TYPES.includes(type);
+}
+
+const PRICE_SOURCE_LABEL_KEYS = {
+  "yahoo-finance": "yahooFinance",
+  coingecko: "coinGecko",
+  manual: "manual",
+  mock: "mock",
+} as const;
+
 interface AddInvestmentForm {
   ticker: string;
   name: string;
@@ -82,6 +99,11 @@ interface AddInvestmentForm {
   quantity: string;
   costBasisPerUnit: string;
   interestRatePct: string;
+  // EPIC-023 G1 (D15) — manual price entry, only rendered/used for manual
+  // price types. Optional: a holding can be recorded before its first
+  // manual price is known (matches the family gold price's "unset" state).
+  manualPrice: string;
+  manualPriceDate: string;
 }
 
 function toLogoText(ticker: string): string {
@@ -162,6 +184,8 @@ function AddInvestmentModal({
           quantity: editing.quantity,
           costBasisPerUnit: editing.costBasisPerUnit,
           interestRatePct: editing.interestRatePct ?? "",
+          manualPrice: "",
+          manualPriceDate: "",
         }
       : {
           ticker: "",
@@ -170,8 +194,11 @@ function AddInvestmentModal({
           quantity: "",
           costBasisPerUnit: "",
           interestRatePct: "",
+          manualPrice: "",
+          manualPriceDate: "",
         },
   );
+  const isManual = isManualPriceType(form.type);
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -197,22 +224,68 @@ function AddInvestmentModal({
       if (form.interestRatePct.trim()) {
         body["interestRatePct"] = form.interestRatePct.trim();
       }
-      await apiFetch(path, {
-        method: editing ? "PATCH" : "POST",
-        token,
-        body: JSON.stringify(body),
-      });
+      // EPIC-023 Task G retry (HIGH five-reviewer finding) — the holding
+      // save and the optional manual-price save are two INDEPENDENT
+      // failure modes. Previously both awaits shared one `try`/`catch`: if
+      // the holding saved but only the price write failed, the user was
+      // told the add/update FAILED even though the row existed
+      // server-side, `invalidateQueries` never ran, and retrying created a
+      // duplicate holding.
+      let saved: InvestmentDto;
+      try {
+        saved = await apiFetch<InvestmentDto>(path, {
+          method: editing ? "PATCH" : "POST",
+          token,
+          body: JSON.stringify(body),
+        });
+      } catch {
+        toast.error(
+          editing ? t.investasi.toastUpdateFailed : t.investasi.toastAddFailed,
+        );
+        return;
+      }
+
+      // The holding now exists server-side — every path from here on must
+      // invalidate + close, even if the optional price write below fails.
       await queryClient.invalidateQueries({
         queryKey: queryKeys.investments.all(familyGroupId),
       });
-      toast.success(
-        editing ? t.investasi.toastUpdated : t.investasi.toastAdded,
-      );
+
+      // EPIC-023 G1 (D15) — manual-only types never get an automated price;
+      // an entered manual price is recorded as a separate, dated
+      // InvestmentPrice right after the holding itself is saved.
+      let priceSaveFailed = false;
+      if (isManual && form.manualPrice.trim()) {
+        try {
+          await apiFetch(
+            `/family-groups/${familyGroupId}/investments/${saved.id}/price`,
+            {
+              method: "POST",
+              token,
+              body: JSON.stringify({
+                price: form.manualPrice.trim(),
+                ...(form.manualPriceDate
+                  ? { asOf: new Date(form.manualPriceDate).toISOString() }
+                  : {}),
+              }),
+            },
+          );
+          await queryClient.invalidateQueries({
+            queryKey: queryKeys.investments.all(familyGroupId),
+          });
+        } catch {
+          priceSaveFailed = true;
+        }
+      }
+
+      if (priceSaveFailed) {
+        toast.warning(t.investasi.toastPriceSaveFailed);
+      } else {
+        toast.success(
+          editing ? t.investasi.toastUpdated : t.investasi.toastAdded,
+        );
+      }
       onClose();
-    } catch {
-      toast.error(
-        editing ? t.investasi.toastUpdateFailed : t.investasi.toastAddFailed,
-      );
     } finally {
       setSubmitting(false);
     }
@@ -346,6 +419,57 @@ function AddInvestmentModal({
                 placeholder={t.investasi.fieldInterestRatePlaceholder}
                 className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
               />
+            </div>
+          )}
+          {/* EPIC-023 G1 (D15) — per-type pricing: manual types get a dated
+              manual-price field; automated types (saham/kripto) get an
+              honest note instead, since the price comes from Yahoo/CoinGecko. */}
+          {isManual ? (
+            <div className="space-y-2 rounded-md border border-dashed p-3">
+              <div className="text-[11.5px] text-muted-foreground">
+                {t.investasi.manualPriceNote}
+              </div>
+              <div className="space-y-1">
+                <label
+                  className="text-[12px] text-muted-foreground"
+                  htmlFor="manualPrice"
+                >
+                  {t.investasi.fieldManualPriceLabel}
+                </label>
+                <input
+                  id="manualPrice"
+                  name="manualPrice"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={form.manualPrice}
+                  onChange={handleChange}
+                  placeholder={t.investasi.fieldManualPricePlaceholder}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div className="space-y-1">
+                <label
+                  className="text-[12px] text-muted-foreground"
+                  htmlFor="manualPriceDate"
+                >
+                  {t.investasi.fieldManualPriceDateLabel}
+                </label>
+                <input
+                  id="manualPriceDate"
+                  name="manualPriceDate"
+                  type="date"
+                  value={form.manualPriceDate}
+                  onChange={handleChange}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-md border border-dashed p-3 text-[11.5px] text-muted-foreground">
+              {form.type === "kripto"
+                ? t.investasi.autoPriceNoteKripto
+                : t.investasi.autoPriceNoteSaham}
             </div>
           )}
           <DialogFooter>
@@ -654,6 +778,17 @@ export default function InvestasiPage() {
                   parseFloat(h.costBasisPerUnit) * parseFloat(h.quantity);
                 const isUp = parseFloat(h.returnRp ?? "0") >= 0;
                 const isExpanded = expandedId === h.id;
+                // EPIC-023 Task G retry (MEDIUM finding) — an unrecognised
+                // source (a future real provider not yet in
+                // PRICE_SOURCE_LABEL_KEYS) must render its own raw name, not
+                // fall back to "Simulated" and imply it's fake.
+                const priceSourceLabelKey =
+                  PRICE_SOURCE_LABEL_KEYS[
+                    h.latestPriceSource as keyof typeof PRICE_SOURCE_LABEL_KEYS
+                  ];
+                const priceSourceLabel = priceSourceLabelKey
+                  ? t.investasi.sourceLabels[priceSourceLabelKey]
+                  : h.latestPriceSource;
 
                 return (
                   <Fragment key={h.id}>
@@ -733,27 +868,76 @@ export default function InvestasiPage() {
                                 {formatDecimalRupiah(h.currentPrice)}
                               </div>
                             </div>
-                            <div>
-                              <div className="text-muted-foreground">
-                                {t.investasi.detailRecordedAtLabel}
+                            {/* EPIC-023 G1 (D15) — honesty bar: every
+                                automated price states its source and delay;
+                                every manual price states its entry date. */}
+                            {h.currentPrice === null ? (
+                              <div className="col-span-2 text-muted-foreground">
+                                {isManualPriceType(h.type as InvestmentType)
+                                  ? t.investasi.detailNoManualPrice
+                                  : t.investasi.detailPriceUnavailable}
                               </div>
-                              <div className="font-semibold">
-                                {h.latestPriceRecordedAt
-                                  ? formatLocaleDateTime(
-                                      h.latestPriceRecordedAt,
-                                      locale,
-                                    )
-                                  : "—"}
+                            ) : h.latestPriceSource === "manual" ? (
+                              <div className="col-span-2">
+                                <div className="text-muted-foreground">
+                                  {t.investasi.detailSourceLabel}
+                                </div>
+                                <div className="font-semibold">
+                                  {t.investasi.detailManualLabelPrefix}
+                                  {formatManualDate(
+                                    h.latestPriceAsOf ??
+                                      h.latestPriceRecordedAt ??
+                                      new Date().toISOString(),
+                                    locale,
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                            <div>
-                              <div className="text-muted-foreground">
-                                {t.investasi.detailSourceLabel}
-                              </div>
-                              <div className="font-semibold">
-                                {h.latestPriceSource ?? "—"}
-                              </div>
-                            </div>
+                            ) : (
+                              <>
+                                <div>
+                                  <div className="text-muted-foreground">
+                                    {t.investasi.detailRecordedAtLabel}
+                                  </div>
+                                  <div className="font-semibold">
+                                    {/* EPIC-023 Task G retry (MEDIUM finding)
+                                        — the provider's own quote time
+                                        (latestPriceAsOf), not the row's DB
+                                        write time. */}
+                                    {(h.latestPriceAsOf ??
+                                    h.latestPriceRecordedAt)
+                                      ? formatLocaleDateTime(
+                                          h.latestPriceAsOf ??
+                                            h.latestPriceRecordedAt ??
+                                            "",
+                                          locale,
+                                        )
+                                      : "—"}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="text-muted-foreground">
+                                    {t.investasi.detailSourceLabel}
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-1.5 font-semibold">
+                                    {priceSourceLabel}
+                                    {h.latestPriceDelayed && (
+                                      <StatusBadge variant="warning">
+                                        {t.investasi.detailDelayedLabel}
+                                      </StatusBadge>
+                                    )}
+                                    {/* EPIC-023 Task G retry (MEDIUM finding)
+                                        — a refresh WAS attempted this
+                                        request and failed: the price above
+                                        is retained/stale, not fresh. */}
+                                    {h.priceRefreshFailed && (
+                                      <StatusBadge variant="warning">
+                                        {t.investasi.detailRefreshFailedLabel}
+                                      </StatusBadge>
+                                    )}
+                                  </div>
+                                </div>
+                              </>
+                            )}
                             {h.interestRatePct ? (
                               <>
                                 <div>

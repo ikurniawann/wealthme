@@ -174,6 +174,14 @@ enum AllowanceRequestStatus {
   rejected
 }
 
+// EPIC-023 G3 (D16) — bring-your-own AI provider. Provider-agnostic: a
+// family picks exactly one at a time and supplies its own key.
+enum AiProvider {
+  claude
+  openai
+  gemini
+}
+
 // ── Models ────────────────────────────────────────────────────────────────────
 
 model User {
@@ -299,6 +307,13 @@ model FamilyGroup {
   // labeled "diinput manual, per <date>" using goldPriceUpdatedAt.
   goldPricePerGram   BigInt?
   goldPriceUpdatedAt DateTime?
+  // EPIC-023 G2 (D17) — per-bank saved column-mapping templates, so a
+  // returning statement imports without remapping columns each time.
+  reconciliationTemplates ReconciliationTemplate[]
+  // EPIC-023 G3 (D16) — bring-your-own AI provider key. One active key per
+  // family (nullable relation); the key itself is never stored plaintext
+  // (see FamilyAiKey.encryptedKey).
+  aiKey                   FamilyAiKey?
 
   @@map("family_groups")
 }
@@ -664,6 +679,14 @@ model InvestmentPrice {
   investmentId String
   price        Decimal    @db.Decimal(18, 2)
   source       String     @default("mock")
+  // EPIC-023 G1 (D15) — `asOf` is the provider's own quote timestamp (may
+  // predate `recordedAt`, e.g. Yahoo's delayed IDX feed); null on legacy rows
+  // written before this column existed, where `recordedAt` is the best
+  // available estimate. `delayed` is true only for feeds the honesty bar
+  // requires labelling as delayed/unofficial (Yahoo `.JK`); false for
+  // near-real-time feeds (CoinGecko) and manual entries.
+  asOf         DateTime?
+  delayed      Boolean    @default(false)
   recordedAt   DateTime   @default(now())
   investment   Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
 
@@ -898,4 +921,46 @@ model BankSyncEntry {
 
   @@index([bankSyncId])
   @@map("bank_sync_entries")
+}
+
+// EPIC-023 G2 (D17) — one saved column-mapping template per bank per family,
+// so a returning statement from the same bank imports without remapping.
+// Column identifiers are header text (case-insensitive match against the
+// parsed file's header row); `dateFormat` disambiguates day/month order for
+// non-ISO date columns (see reconciliation-parsers.ts).
+model ReconciliationTemplate {
+  id                String      @id @default(uuid())
+  familyGroupId     String
+  bankCode          String
+  name              String
+  dateColumn        String
+  descriptionColumn String
+  amountColumn      String
+  dateFormat        String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  familyGroup       FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([familyGroupId, bankCode])
+  @@index([familyGroupId])
+  @@map("reconciliation_templates")
+}
+
+// EPIC-023 G3 (D16) — the family's own AI provider key, AES-256-GCM
+// encrypted at rest via the existing CryptoService (same pattern as
+// Account.maskedNumber). `encryptedKey` is never returned to the client;
+// `keyHint` is a display-safe fragment (last 4 chars) only, never enough to
+// reconstruct the key. One row per family (@unique) — switching provider
+// overwrites the existing row rather than accumulating stale keys.
+model FamilyAiKey {
+  id            String      @id @default(uuid())
+  familyGroupId String      @unique
+  provider      AiProvider
+  encryptedKey  String
+  keyHint       String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  familyGroup   FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@map("family_ai_keys")
 }

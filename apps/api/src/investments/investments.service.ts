@@ -10,12 +10,17 @@ import { Decimal } from "@prisma/client/runtime/library";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
-import { MARKET_DATA_PORT } from "./market-data.port";
+import { isAutomatedPriceType, MARKET_DATA_PORT } from "./market-data.port";
 
 import type { CreateInvestmentDto } from "./dto/create-investment.dto";
+import type { SetManualPriceDto } from "./dto/set-manual-price.dto";
 import type { UpdateInvestmentDto } from "./dto/update-investment.dto";
 import type { MarketDataPort } from "./market-data.port";
-import type { InvestmentDto, InvestmentSummaryDto } from "@wealthme/contracts";
+import type {
+  InvestmentDto,
+  InvestmentPriceDto,
+  InvestmentSummaryDto,
+} from "@wealthme/contracts";
 
 const ZERO = new Decimal(0);
 const MIN_INTEREST_RATE_PCT = 0;
@@ -70,16 +75,43 @@ export class InvestmentsService {
     const results = await Promise.all(
       investments.map(async (inv) => {
         let latestPrice = inv.prices[0] ?? null;
+        // EPIC-023 Task G retry (MEDIUM finding) — true only when THIS
+        // request attempted a fresh quote and it failed, so the UI can say
+        // "refresh failed, showing the last known price" instead of
+        // presenting a retained price identically to a fresh one.
+        let priceRefreshFailed = false;
 
-        if (!latestPrice || latestPrice.recordedAt < today) {
-          const { price, source } = await this.marketData.getPrice(inv.ticker);
-          latestPrice = await this.prisma.investmentPrice.create({
-            data: {
-              investmentId: inv.id,
-              price: new Decimal(price),
-              source,
-            },
-          });
+        // EPIC-023 G1 (D15) — only saham/kripto ever get an automated quote.
+        // Mutual funds, bonds, gold and "lainnya" are manual-only: if no
+        // manual price has been entered yet, this stays null rather than
+        // fabricating one (see setManualPrice + the investasi page's
+        // "diinput manual, per <date>" prompt for the no-price case).
+        if (
+          isAutomatedPriceType(inv.type) &&
+          (!latestPrice || latestPrice.recordedAt < today)
+        ) {
+          try {
+            const { price, source, asOf, delayed } =
+              await this.marketData.getPrice(inv.ticker, inv.type);
+            latestPrice = await this.prisma.investmentPrice.create({
+              data: {
+                investmentId: inv.id,
+                price: new Decimal(price),
+                source,
+                asOf,
+                delayed,
+              },
+            });
+          } catch (err) {
+            // A down/rate-limited external feed must not break the whole
+            // portfolio view — fall back to the last known price (possibly
+            // still null) rather than throwing out of findAll().
+            priceRefreshFailed = true;
+            this.logger.warn(
+              `Price fetch failed for ${inv.ticker} (${inv.type}); keeping last known price`,
+              err,
+            );
+          }
         }
 
         const currentPrice = latestPrice?.price ?? null;
@@ -123,6 +155,15 @@ export class InvestmentsService {
           notes: inv.notes,
           latestPriceRecordedAt: latestPrice?.recordedAt.toISOString() ?? null,
           latestPriceSource: latestPrice?.source ?? null,
+          // EPIC-023 G1 (D15) — as-of time + delayed flag, so the UI can
+          // label every automated price with its source and delay honestly.
+          // `asOf` falls back to `recordedAt` for legacy rows written before
+          // this column existed (never null-vs-unknown ambiguity on screen).
+          latestPriceAsOf:
+            (latestPrice?.asOf ?? latestPrice?.recordedAt)?.toISOString() ??
+            null,
+          latestPriceDelayed: latestPrice?.delayed ?? null,
+          priceRefreshFailed,
           interestRatePct: inv.interestRatePct?.toString() ?? null,
           projectedAnnualYield: projectedAnnualYield
             ? decimalToString(projectedAnnualYield)
@@ -212,6 +253,9 @@ export class InvestmentsService {
       notes: investment.notes,
       latestPriceRecordedAt: null,
       latestPriceSource: null,
+      latestPriceAsOf: null,
+      latestPriceDelayed: null,
+      priceRefreshFailed: false,
       interestRatePct: investment.interestRatePct?.toString() ?? null,
       projectedAnnualYield: null,
       createdAt: investment.createdAt.toISOString(),
@@ -268,6 +312,9 @@ export class InvestmentsService {
       notes: updated.notes,
       latestPriceRecordedAt: null,
       latestPriceSource: null,
+      latestPriceAsOf: null,
+      latestPriceDelayed: null,
+      priceRefreshFailed: false,
       interestRatePct: updated.interestRatePct?.toString() ?? null,
       projectedAnnualYield: null,
       createdAt: updated.createdAt.toISOString(),
@@ -298,5 +345,46 @@ export class InvestmentsService {
       throw new NotFoundException("Investment not found");
     }
     await this.prisma.investment.delete({ where: { id, familyGroupId } });
+  }
+
+  /**
+   * EPIC-023 G1 (D15) — manual price entry, the honest counterpart to the
+   * automated CoinGecko/Yahoo feeds. Available for any instrument type (an
+   * owner may still want to correct a stale automated price), but it is the
+   * ONLY way a manual-only type (reksa_dana, obligasi, emas, lainnya) ever
+   * gets a price — never fabricated, always dated, `source: "manual"`.
+   */
+  async setManualPrice(
+    familyGroupId: string,
+    id: string,
+    dto: SetManualPriceDto,
+  ): Promise<InvestmentPriceDto> {
+    const existing = await this.prisma.investment.findUnique({
+      where: { id, familyGroupId },
+    });
+    if (!existing) {
+      throw new NotFoundException("Investment not found");
+    }
+
+    const asOf = dto.asOf ? new Date(dto.asOf) : new Date();
+    const created = await this.prisma.investmentPrice.create({
+      data: {
+        investmentId: id,
+        price: new Decimal(dto.price),
+        source: "manual",
+        asOf,
+        delayed: false,
+      },
+    });
+
+    return {
+      id: created.id,
+      investmentId: created.investmentId,
+      price: decimalToString(created.price),
+      source: created.source,
+      asOf: (created.asOf ?? created.recordedAt).toISOString(),
+      delayed: created.delayed,
+      recordedAt: created.recordedAt.toISOString(),
+    };
   }
 }

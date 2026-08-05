@@ -11,7 +11,15 @@
 import { ForbiddenException } from "@nestjs/common";
 import { Role } from "@prisma/client";
 
+import { ExternalRequestTimeoutError } from "../common/utils/external-fetch.util";
+
+import { AiAdvisorNotConfiguredError } from "./ai-advisor-not-configured.error";
+import {
+  AiAdvisorAuthError,
+  AiAdvisorRateLimitError,
+} from "./ai-advisor-provider.error";
 import { AiAdvisorController } from "./ai-advisor.controller";
+import { AiKeyCorruptedError } from "./ai-key-corrupted.error";
 
 import type { Request, Response } from "express";
 
@@ -44,7 +52,14 @@ describe("AiAdvisorController.chat (assertHouseholdWideReadAllowed)", () => {
   let controller: AiAdvisorController;
 
   beforeEach(() => {
-    service = { streamChat: jest.fn().mockResolvedValue(undefined) };
+    // EPIC-023 Task G retry — streamChat now resolves an AdvisorChatResult
+    // (`{ truncated }`), not `void`; the mock mirrors the real contract so
+    // the controller's `const { truncated } = await ...` destructure
+    // reflects an actual successful call rather than accidentally exercising
+    // the catch branch.
+    service = {
+      streamChat: jest.fn().mockResolvedValue({ truncated: false }),
+    };
     controller = new AiAdvisorController(service as never);
   });
 
@@ -83,7 +98,52 @@ describe("AiAdvisorController.chat (assertHouseholdWideReadAllowed)", () => {
         [{ role: "user", content: "Halo" }],
         expect.any(Function),
       );
+      // A genuinely successful call writes a `done` frame carrying the
+      // truncated flag — never an `error` frame from mishandling the
+      // resolved AdvisorChatResult.
+      expect(res.write).toHaveBeenCalledWith(
+        `data: ${JSON.stringify({ done: true, truncated: false })}\n\n`,
+      );
       expect(res.end).toHaveBeenCalled();
     }
+  });
+});
+
+// EPIC-023 Task G retry (MEDIUM five-reviewer finding) — every provider
+// failure kind gets its own distinguishable SSE `code` instead of one
+// generic message for auth failure, rate limit, and timeout alike.
+describe("AiAdvisorController.chat — error code mapping", () => {
+  function makeController(err: Error) {
+    const service = { streamChat: jest.fn().mockRejectedValue(err) };
+    return new AiAdvisorController(service as never);
+  }
+
+  const owner = Role.owner;
+
+  it.each([
+    [new AiAdvisorNotConfiguredError(), "AI_NOT_CONFIGURED"],
+    [new AiKeyCorruptedError(), "AI_KEY_CORRUPTED"],
+    [new AiAdvisorAuthError("Claude"), "AI_AUTH_FAILED"],
+    [new AiAdvisorRateLimitError("Claude"), "AI_RATE_LIMITED"],
+    [new ExternalRequestTimeoutError("Claude request"), "AI_TIMEOUT"],
+    [new Error("some other failure"), undefined],
+  ])("maps %p to code %p", async (err, expectedCode) => {
+    const controller = makeController(err);
+    const res = makeRes();
+
+    await controller.chat(
+      FAMILY_GROUP_ID,
+      { messages: [{ role: "user", content: "Halo" }] },
+      res,
+      makeReq(owner),
+    );
+
+    const writeCalls = (res.write as jest.Mock).mock.calls as [string][];
+    const lastFrame = writeCalls[writeCalls.length - 1]?.[0] ?? "";
+    const payload = JSON.parse(lastFrame.replace(/^data: /, "")) as {
+      error?: string;
+      code?: string;
+    };
+    expect(payload.code).toBe(expectedCode);
   });
 });

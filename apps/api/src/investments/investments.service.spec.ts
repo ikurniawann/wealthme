@@ -374,4 +374,201 @@ describe("InvestmentsService P&L", () => {
       expect(result?.projectedAnnualYield).toBeNull();
     });
   });
+
+  // ──────────────────────────────────────────────────────────────
+  // EPIC-023 G1 (D15): automate what can be automated, label the rest.
+  // ──────────────────────────────────────────────────────────────
+
+  describe("findAll() — routing by AUTOMATED_PRICE_TYPES", () => {
+    it("fetches an automated quote (kripto) when no price exists yet, storing source/asOf/delayed", async () => {
+      const asOf = new Date("2026-08-05T10:00:00.000Z");
+      mockMarketData.getPrice.mockResolvedValue({
+        price: 950_000_000,
+        source: "coingecko",
+        asOf,
+        delayed: false,
+      });
+      mockPrisma.investment.findMany.mockResolvedValue([
+        {
+          id: "inv-btc",
+          familyGroupId: "fg-1",
+          ticker: "BTC",
+          name: "Bitcoin",
+          type: "kripto",
+          quantity: new Decimal("0.01"),
+          costBasisPerUnit: new Decimal("900000000"),
+          currency: "IDR",
+          notes: null,
+          interestRatePct: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          prices: [],
+        },
+      ]);
+      mockPrisma.investmentPrice.create.mockResolvedValue({
+        id: "p-btc",
+        investmentId: "inv-btc",
+        price: new Decimal("950000000"),
+        source: "coingecko",
+        asOf,
+        delayed: false,
+        recordedAt: asOf,
+      });
+
+      const [result] = await service.findAll("fg-1");
+
+      expect(mockMarketData.getPrice).toHaveBeenCalledWith("BTC", "kripto");
+      expect(result?.latestPriceSource).toBe("coingecko");
+      expect(result?.latestPriceDelayed).toBe(false);
+      expect(result?.latestPriceAsOf).toBe(asOf.toISOString());
+    });
+
+    it("never calls MarketDataPort.getPrice for a manual-only type (reksa_dana), even with no price recorded", async () => {
+      mockPrisma.investment.findMany.mockResolvedValue([
+        {
+          id: "inv-rd",
+          familyGroupId: "fg-1",
+          ticker: "RDPU001",
+          name: "Reksa Dana Pasar Uang",
+          type: "reksa_dana",
+          quantity: new Decimal("1000"),
+          costBasisPerUnit: new Decimal("1500"),
+          currency: "IDR",
+          notes: null,
+          interestRatePct: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          prices: [],
+        },
+      ]);
+
+      const [result] = await service.findAll("fg-1");
+
+      expect(mockMarketData.getPrice).not.toHaveBeenCalled();
+      expect(mockPrisma.investmentPrice.create).not.toHaveBeenCalled();
+      expect(result?.currentPrice).toBeNull();
+      expect(result?.latestPriceSource).toBeNull();
+    });
+
+    it("falls back to the last known price instead of throwing when the feed fails", async () => {
+      const yesterday = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+      mockMarketData.getPrice.mockRejectedValue(new Error("network down"));
+      mockPrisma.investment.findMany.mockResolvedValue([
+        {
+          id: "inv-saham",
+          familyGroupId: "fg-1",
+          ticker: "BBCA",
+          name: "Bank BCA",
+          type: "saham",
+          quantity: new Decimal("10"),
+          costBasisPerUnit: new Decimal("9500"),
+          currency: "IDR",
+          notes: null,
+          interestRatePct: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          prices: [
+            {
+              id: "p-old",
+              investmentId: "inv-saham",
+              price: new Decimal("9800"),
+              source: "yahoo-finance",
+              asOf: yesterday,
+              delayed: true,
+              recordedAt: yesterday,
+            },
+          ],
+        },
+      ]);
+
+      const [result] = await service.findAll("fg-1");
+
+      expect(result?.currentPrice).toBe("9800");
+      expect(mockPrisma.investmentPrice.create).not.toHaveBeenCalled();
+      // EPIC-023 Task G retry (MEDIUM finding) — a retained (stale) price
+      // must be distinguishable from a fresh one: this request DID attempt
+      // a refresh and it failed.
+      expect(result?.priceRefreshFailed).toBe(true);
+    });
+
+    it("reports priceRefreshFailed:false when the feed succeeds", async () => {
+      const asOf = new Date("2026-08-05T10:00:00.000Z");
+      mockMarketData.getPrice.mockResolvedValue({
+        price: 950_000_000,
+        source: "coingecko",
+        asOf,
+        delayed: false,
+      });
+      mockPrisma.investment.findMany.mockResolvedValue([
+        {
+          id: "inv-btc",
+          familyGroupId: "fg-1",
+          ticker: "BTC",
+          name: "Bitcoin",
+          type: "kripto",
+          quantity: new Decimal("0.01"),
+          costBasisPerUnit: new Decimal("900000000"),
+          currency: "IDR",
+          notes: null,
+          interestRatePct: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          prices: [],
+        },
+      ]);
+      mockPrisma.investmentPrice.create.mockResolvedValue({
+        id: "p-btc",
+        investmentId: "inv-btc",
+        price: new Decimal("950000000"),
+        source: "coingecko",
+        asOf,
+        delayed: false,
+        recordedAt: asOf,
+      });
+
+      const [result] = await service.findAll("fg-1");
+
+      expect(result?.priceRefreshFailed).toBe(false);
+    });
+  });
+
+  describe("setManualPrice()", () => {
+    it("creates a manual price record with source 'manual' and delayed=false", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue({ id: "inv-1" });
+      const asOf = new Date("2026-08-01T00:00:00.000Z");
+      mockPrisma.investmentPrice.create.mockResolvedValue({
+        id: "price-1",
+        investmentId: "inv-1",
+        price: new Decimal("15250"),
+        source: "manual",
+        asOf,
+        delayed: false,
+        recordedAt: new Date("2026-08-05T00:00:00.000Z"),
+      });
+
+      const result = await service.setManualPrice("fg-1", "inv-1", {
+        price: "15250",
+        asOf: asOf.toISOString(),
+      });
+
+      expect(mockPrisma.investmentPrice.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          investmentId: "inv-1",
+          source: "manual",
+          delayed: false,
+        }),
+      });
+      expect(result.source).toBe("manual");
+      expect(result.asOf).toBe(asOf.toISOString());
+    });
+
+    it("throws NotFoundException for an investment outside the family group", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.setManualPrice("fg-1", "not-mine", { price: "100" }),
+      ).rejects.toThrow();
+      expect(mockPrisma.investmentPrice.create).not.toHaveBeenCalled();
+    });
+  });
 });

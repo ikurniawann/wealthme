@@ -18,6 +18,7 @@ import {
 } from "@nestjs/swagger";
 import {
   type InvestmentDto,
+  type InvestmentPriceDto,
   type InvestmentSummaryDto,
 } from "@wealthme/contracts";
 import { type Request as ExpressRequest } from "express";
@@ -26,6 +27,8 @@ import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateInvestmentDto } from "./dto/create-investment.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { SetManualPriceDto } from "./dto/set-manual-price.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateInvestmentDto } from "./dto/update-investment.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -90,5 +93,24 @@ export class InvestmentsController {
     @Param("id") id: string,
   ): Promise<void> {
     return this.investmentsService.remove(req.params.familyGroupId, id);
+  }
+
+  @Post(":id/price")
+  @CheckAbility((ab) => ab.can("manage", "Investment"))
+  @ApiOperation({
+    summary:
+      "Manually record a current price (the only pricing path for manual-only instrument types)",
+  })
+  @ApiResponse({ status: 201, description: "Created InvestmentPrice" })
+  setManualPrice(
+    @Request() req: ExpressRequest & { params: { familyGroupId: string } },
+    @Param("id") id: string,
+    @Body() dto: SetManualPriceDto,
+  ): Promise<InvestmentPriceDto> {
+    return this.investmentsService.setManualPrice(
+      req.params.familyGroupId,
+      id,
+      dto,
+    );
   }
 }

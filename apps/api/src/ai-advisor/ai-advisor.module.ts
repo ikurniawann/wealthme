@@ -1,30 +1,26 @@
 import { Module } from "@nestjs/common";
-import { ConfigModule, ConfigService } from "@nestjs/config";
 
 import { PrismaModule } from "../prisma/prisma.module";
 
+import { AiAdvisorFactory } from "./ai-advisor-factory.service";
 import { AiAdvisorController } from "./ai-advisor.controller";
-import { AI_ADVISOR_PORT } from "./ai-advisor.port";
 import { AiAdvisorService } from "./ai-advisor.service";
-import { ClaudeAdvisorService } from "./claude-advisor.service";
-import { MockAdvisorService } from "./mock-advisor.service";
+import { AiKeyController } from "./ai-key.controller";
+import { AiKeyService } from "./ai-key.service";
 
-import type { Env } from "../config/env";
-
+/**
+ * EPIC-023 G3 (D16) — no more `AI_ADVISOR_PORT` DI binding resolved once at
+ * boot from `ANTHROPIC_API_KEY` (that bound a single provider for every
+ * family, and fell back to MockAdvisorService when unset — exactly the
+ * mock-answer-as-advice and one-family-pays-for-another's-usage failure
+ * modes D16 forbids). AiAdvisorService now resolves the provider adapter
+ * PER REQUEST from the caller's own family key via AiKeyService +
+ * AiAdvisorFactory. `CryptoModule` is `@Global()` (see crypto.module.ts),
+ * so `AiKeyService`'s `CryptoService` dependency needs no import here.
+ */
 @Module({
-  imports: [PrismaModule, ConfigModule],
-  controllers: [AiAdvisorController],
-  providers: [
-    AiAdvisorService,
-    {
-      provide: AI_ADVISOR_PORT,
-      useFactory: (config: ConfigService<Env, true>) => {
-        const apiKey = config.get("ANTHROPIC_API_KEY", { infer: true });
-        if (apiKey) return new ClaudeAdvisorService(apiKey);
-        return new MockAdvisorService();
-      },
-      inject: [ConfigService],
-    },
-  ],
+  imports: [PrismaModule],
+  controllers: [AiAdvisorController, AiKeyController],
+  providers: [AiAdvisorService, AiKeyService, AiAdvisorFactory],
 })
 export class AiAdvisorModule {}

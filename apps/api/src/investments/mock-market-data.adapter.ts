@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 
-import type { MarketDataPort } from "./market-data.port";
+import type { MarketDataPort, MarketDataQuote } from "./market-data.port";
+import type { InvestmentType } from "@prisma/client";
 
 function hashTicker(ticker: string): number {
   let hash = 0;
@@ -18,10 +19,13 @@ function deterministicBasePrice(ticker: string): number {
 
 @Injectable()
 export class MockMarketDataAdapter implements MarketDataPort {
-  async getPrice(ticker: string): Promise<{ price: number; source: string }> {
+  async getPrice(
+    ticker: string,
+    _type: InvestmentType,
+  ): Promise<MarketDataQuote> {
     const base = deterministicBasePrice(ticker);
     const fluctuation = (Math.random() - 0.5) * 0.04; // ±2%
     const price = Math.round(base * (1 + fluctuation) * 100) / 100;
-    return { price, source: "mock" };
+    return { price, source: "mock", asOf: new Date(), delayed: false };
   }
 }

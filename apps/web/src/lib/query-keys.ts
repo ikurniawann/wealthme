@@ -125,10 +125,7 @@ export const queryKeys = {
       ["reports", familyGroupId, "cashflow", start, end] as const,
     sankey: (familyGroupId: string, start: string, end: string) =>
       ["reports", familyGroupId, "sankey", start, end] as const,
-    reconciliationBridge: (
-      familyGroupId: string,
-      start: string,
-      end: string,
-    ) => ["reports", familyGroupId, "reconciliationBridge", start, end] as const,
+    reconciliationBridge: (familyGroupId: string, start: string, end: string) =>
+      ["reports", familyGroupId, "reconciliationBridge", start, end] as const,
   },
 } as const;
