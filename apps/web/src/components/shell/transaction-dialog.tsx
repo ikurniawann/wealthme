@@ -141,6 +141,12 @@ export function TransactionDialog() {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.netWorth.summary(fgId),
       });
+      // EPIC-023 D3 — a row-scoped member's over-threshold expense returns
+      // { held } instead of posting; the new held AllowanceRequest must show
+      // up in the approvals panel without waiting for a refetch on focus.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.allowanceRequests.all(fgId),
+      });
     },
     onError: (err: { message?: string }) => {
       toast.error(

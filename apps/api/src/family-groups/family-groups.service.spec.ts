@@ -433,6 +433,112 @@ describe("FamilyGroupsService.acceptInvitation — relationship carried through 
   });
 });
 
+describe("FamilyGroupsService.updateMemberRole — largeTxnThreshold (EPIC-023 Task D, D3/D9)", () => {
+  let service: FamilyGroupsService;
+  let prisma: ReturnType<typeof makePrisma>;
+
+  beforeEach(async () => {
+    prisma = makePrisma();
+    prisma.member.findUnique.mockResolvedValue({ role: Role.owner });
+    prisma.member.findFirst.mockResolvedValue({
+      id: MEMBER_ID,
+      role: Role.operational,
+      userId: MEMBER_USER_ID,
+    });
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        FamilyGroupsService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { sendEmail: jest.fn() },
+        },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+      ],
+    }).compile();
+    service = module.get(FamilyGroupsService);
+  });
+
+  it("persists a positive threshold as BigInt and returns it as a string", async () => {
+    prisma.member.update.mockResolvedValue({
+      id: MEMBER_ID,
+      userId: MEMBER_USER_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      role: Role.operational,
+      relationship: null,
+      largeTxnThreshold: BigInt(500000),
+      user: { name: "Supir", email: "supir@example.com" },
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+
+    const result = await service.updateMemberRole(
+      FAMILY_GROUP_ID,
+      MEMBER_ID,
+      REQUESTER_ID,
+      { role: Role.operational, largeTxnThreshold: 500000 },
+    );
+
+    expect(prisma.member.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: MEMBER_ID },
+        data: expect.objectContaining({ largeTxnThreshold: BigInt(500000) }),
+      }),
+    );
+    // BigInt-safe: crosses the API boundary as a string, never a Number.
+    expect(result.largeTxnThreshold).toBe("500000");
+  });
+
+  it("omitting largeTxnThreshold leaves it unchanged (undefined dropped from the update payload)", async () => {
+    prisma.member.update.mockResolvedValue({
+      id: MEMBER_ID,
+      userId: MEMBER_USER_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      role: Role.operational,
+      relationship: null,
+      largeTxnThreshold: BigInt(500000),
+      user: { name: "Supir", email: "supir@example.com" },
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+
+    await service.updateMemberRole(FAMILY_GROUP_ID, MEMBER_ID, REQUESTER_ID, {
+      role: Role.operational,
+    });
+
+    const updateArg = prisma.member.update.mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
+    expect("largeTxnThreshold" in updateArg.data).toBe(false);
+  });
+
+  it("an explicit null clears the threshold (the gate is removed)", async () => {
+    prisma.member.update.mockResolvedValue({
+      id: MEMBER_ID,
+      userId: MEMBER_USER_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      role: Role.operational,
+      relationship: null,
+      largeTxnThreshold: null,
+      user: { name: "Supir", email: "supir@example.com" },
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+
+    const result = await service.updateMemberRole(
+      FAMILY_GROUP_ID,
+      MEMBER_ID,
+      REQUESTER_ID,
+      { role: Role.operational, largeTxnThreshold: null },
+    );
+
+    expect(prisma.member.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ largeTxnThreshold: null }),
+      }),
+    );
+    expect(result.largeTxnThreshold).toBeNull();
+  });
+});
+
 // EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/operational
 // member: name + username + initial password, no email, forced password
 // change at first login. Adversarial-tier coverage: real (unmocked) argon2

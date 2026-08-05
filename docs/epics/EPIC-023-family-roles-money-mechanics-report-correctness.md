@@ -251,14 +251,14 @@ holdingsChange + unexplained = closing`, every residual named. Unit tests
     (D4) — assert it in a test so nobody "fixes" it later.
   - **C4** — Remove the "Tampilkan Saldo ke Anggota" toggle and its strings. (D8)
 
-- [ ] ### D — Onboarding members without email, and PIN unlock
+- [x] ### D — Onboarding members without email, and PIN unlock ✅
   - **D1** ✅ — Head-created accounts for dependant/operational roles: name +
     username + initial password, no email; forced password change at first login.
     Requires username authentication in better-auth. (D6, US-FAM-12, US-AUTH-9)
-  - **D2** — Device-bound PIN unlock: password on first login per device, PIN
+  - **D2** ✅ — Device-bound PIN unlock: password on first login per device, PIN
     thereafter, attempt limits and lockout. Never a standalone credential. (D7,
     US-FAM-13)
-  - **D3** — Per-member large-transaction threshold; dependant and operational
+  - **D3** ✅ — Per-member large-transaction threshold; dependant and operational
     spending above it is held for approval through the existing
     `AllowanceRequest` primitive; trusted roles are notified only. (D9, US-FAM-14)
 
@@ -1080,3 +1080,83 @@ status` showing a clean tree with no `MERGE_HEAD`, before treating a merge
   than this task's stated scope; recorded here so it is not silently lost.
   D2 (PIN unlock) and D3 (per-member threshold via `AllowanceRequest`) were
   not attempted — separate rounds on this same branch, next.
+- 2026-08-05 /epic-loop EPIC-023 "D2 — Device-bound PIN unlock" → PASS
+  (attempts: 2; adversarial-tier). A PIN is never a standalone credential:
+  unlock requires BOTH a 32-byte `deviceSecret` (possession, bound to one
+  device at registration, which needs a real password login first) AND the
+  6-digit PIN. On success it mints a real `BaSession` directly via Prisma
+  (better-auth's own API is unreachable from `apps/api`, same precedent as
+  D1) with a CSPRNG token matching better-auth's own shape and 7-day
+  default expiry; the frontend bridge sets the cookie httpOnly server-side.
+  5 failed attempts → 15-minute per-device lockout; the fallback is always
+  a real password login, which the lockout never touches. Device
+  registration is deliberately blocked for a `mustChangePassword` account
+  so it cannot side-door D1's forced change. Five gate agents; adversarial
+  and security both FAILed round 1 with real HIGHs, all mutation-verified
+  fixed round 2: the raw `deviceSecret` leaked plaintext into `AuditLog`
+  because the interceptor's redaction list matched only the exact key
+  `secret`, not `deviceSecret` (added `deviceSecret`/`deviceSecretHash`/
+  `pinHash`); device revocation was a one-click destructive action with no
+  confirmation despite the confirm copy already existing unused (now a real
+  confirm dialog); a non-atomic `failedPinAttempts` increment allowed a
+  lockout race (now Prisma atomic `{increment:1}`, with deterministic
+  call-shape test teeth, not race-dependent); and an unknown `deviceId`
+  skipped `argon2.verify`, making response latency a device-enumeration
+  oracle (now verifies a cached dummy hash so timing converges). **Recovery
+  note**: a review agent's `git checkout` reverted `akun/page.tsx` to HEAD
+  mid-review, wiping the D2 device-management UI from the working tree; it
+  was recovered by validating a scratchpad snapshot's diff against the
+  committed baseline (only the expected D2 additions) and re-applying it as
+  targeted edits, byte-verified identical. Final: **api 875/875, web
+  307/307**, qa/security-check exit 0, migration clean. **Deferred, not
+  fixed**: better-auth's own `/sign-in/*` routes carry no rate limiting (a
+  separate Next.js process outside every `ThrottlerGuard`) — pre-existing,
+  and this adds a second lower-entropy vector; configuring better-auth's
+  `rateLimit` is a cross-cutting change beyond this task's scope. Committed
+  `2286183`.
+- 2026-08-05 /epic-loop EPIC-023 "D3 — Per-member large-transaction
+  threshold, held-expense approval" → PASS (attempts: 1 + fix round;
+  adversarial-tier). `Member.largeTxnThreshold BigInt?` (null = never
+  gated). A row-scoped member's (dependant/operational) `expense` above
+  their threshold (strict `>`, per the AC's "above") is captured as a new
+  `held_expense`-kind `AllowanceRequest` and returned `{held:true}` (HTTP 202) BEFORE any balance mutation — no `Transaction` row, no balance
+  change — spec-asserted end to end. Approving replays the ORIGINAL expense
+  via `TransactionsService.create(..., actingMember: null)` (the null
+  bypasses the row-scope re-gate so it can't re-hold itself), the first and
+  only debit, reusing the existing `updateMany` claim guard against
+  double-approval + compensate-on-failure. Reject moves nothing, ever, and
+  cannot later be approved. The `AllowanceRequest` primitive is genuinely
+  reused (a `kind` discriminator defaulting to `funding`; every existing
+  funding row and its transfer-on-approve behaviour is unchanged). Trusted
+  roles (owner/spouse/admin_staff/member) are never held; the stale
+  hardcoded `5_000_000` notification threshold the epic's Evidence section
+  flagged is now the acting member's own threshold. Honest UI: the
+  transaction dialog shows "held pending approval", never a success toast.
+  Five gate agents plus the standard scripts. Two review rounds; the second
+  ran on the committed base after a review agent's `git checkout` reverted
+  `allowance-requests.service.ts` to HEAD (recovered by reconstructing the
+  approve/held branch from the spec's exact contract + the modified DTOs,
+  then spec-verified 21/21). Findings fixed: `PATCH .../members/:memberId`
+  (D3's threshold control surface) had no `@CheckAbility` — `AbilitiesGuard`
+  fails OPEN on undecorated routes (this epic's own group-C lesson) — added
+  owner-only `manage Member`; missing behavioural coverage for the held-vs-
+  funding approvals panel and the threshold form (9 web tests added, two
+  key behaviours mutation-verified); a missing backend service test for the
+  threshold set/omit/clear-to-null branch (3 tests added, mirroring the
+  `relationship` pattern); label association + a reused i18n loading key;
+  and the transaction dialog now invalidates the allowance-requests query
+  so a freshly-held expense appears in the approvals panel without a
+  refetch. Adversarial (money/permissions, read-only on the committed base)
+  independently confirmed all ten invariants hold and are spec-asserted.
+  Final: **api 892/892 (77 suites), web 316/316 (33 suites)**, qa/
+  security-check exit 0, migration clean. Committed `7f6ea4f`, `1bc3659`,
+  and this round's follow-ups.
+  **Group D (D1 + D2 + D3) is complete.**
+  **Session-wide note, worth carrying beyond this epic:** review sub-agents
+  running `git checkout -- <file>` to "undo" a temporary mutation reverted
+  UNCOMMITTED task work to HEAD and silently destroyed it — this happened
+  twice (D2's `akun/page.tsx`, D3's `allowance-requests.service.ts`), each
+  costing a careful recovery. Committing a task's work BEFORE spawning
+  read-only review agents makes any such revert restore the correct
+  version instead of losing it; adversarial/QA reviews should be briefed
+  read-only and, where possible, run against the committed diff.
