@@ -8,6 +8,7 @@ import { authClient } from "@/lib/auth-client";
 import { useLocale } from "@/hooks/use-locale";
 import { useProfile } from "@/hooks/use-profile";
 import { useGoldPrice } from "@/hooks/use-gold-price";
+import { useAiKeyStatus, type AiProvider } from "@/hooks/use-ai-key";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -1038,6 +1039,23 @@ export function PengaturanBody() {
     isUpdating: isGoldPriceUpdating,
   } = useGoldPrice();
   const [goldPriceInput, setGoldPriceInput] = useState("");
+  // EPIC-023 G3 (D16) — bring-your-own AI provider key. `canManage` mirrors
+  // isGoldPriceOwner's role check but allows owner OR spouse (see
+  // casl-ability.factory.ts's AiKey subject — the API is the real
+  // enforcement; this only decides what the settings UI offers).
+  const {
+    configured: aiKeyConfigured,
+    provider: aiKeyProvider,
+    keyHint: aiKeyHint,
+    canManage: canManageAiKey,
+    setKey: setAiKey,
+    isSettingKey: isSettingAiKey,
+    deleteKey: deleteAiKey,
+    isDeletingKey: isDeletingAiKey,
+  } = useAiKeyStatus();
+  const [aiKeyProviderInput, setAiKeyProviderInput] =
+    useState<AiProvider>("claude");
+  const [aiKeyInput, setAiKeyInput] = useState("");
   const [mounted, setMounted] = useState(false);
   // Resolve the real theme only after mount; avoids an SSR/client mismatch
   // (same pattern as components/shell/theme-toggle.tsx).
@@ -1091,6 +1109,27 @@ export function PengaturanBody() {
         toast.success(t.akun.pengaturan.toastGoldPriceUpdated);
       },
       onError: () => toast.error(t.akun.pengaturan.toastGoldPriceFailed),
+    });
+  }
+
+  function saveAiKey() {
+    if (!aiKeyInput.trim()) return;
+    setAiKey(
+      { provider: aiKeyProviderInput, apiKey: aiKeyInput.trim() },
+      {
+        onSuccess: () => {
+          setAiKeyInput("");
+          toast.success(t.akun.pengaturan.toastAiKeySaved);
+        },
+        onError: () => toast.error(t.akun.pengaturan.toastAiKeySaveFailed),
+      },
+    );
+  }
+
+  function removeAiKey() {
+    deleteAiKey(undefined, {
+      onSuccess: () => toast.success(t.akun.pengaturan.toastAiKeyRemoved),
+      onError: () => toast.error(t.akun.pengaturan.toastAiKeyRemoveFailed),
     });
   }
 
@@ -1182,6 +1221,88 @@ export function PengaturanBody() {
               ? t.akun.pengaturan.goldPriceUnsetLabel
               : null}{" "}
             {t.akun.pengaturan.goldPriceOwnerOnlyNote}
+          </div>
+        )}
+      </SetSection>
+      <SetSection>
+        <SectionTitle>{t.akun.pengaturan.aiKeySectionTitle}</SectionTitle>
+        <div className="mb-2.5 text-[12px] text-muted-foreground">
+          {t.akun.pengaturan.aiKeyHint}
+        </div>
+        <div className="mb-2.5 text-[13px] font-semibold text-foreground">
+          {aiKeyConfigured ? (
+            <>
+              {t.akun.pengaturan.aiKeyConfiguredLabel}{" "}
+              {aiKeyProvider
+                ? t.akun.pengaturan.aiKeyProviderOptions[aiKeyProvider]
+                : null}
+              {aiKeyHint && (
+                <span className="ml-1.5 font-mono text-[11.5px] font-normal text-muted-foreground">
+                  ({aiKeyHint})
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="font-normal text-muted-foreground">
+              {t.akun.pengaturan.aiKeyNotConfiguredLabel}
+            </span>
+          )}
+        </div>
+        {canManageAiKey ? (
+          <>
+            <Field label={t.akun.pengaturan.aiKeyProviderLabel}>
+              <select
+                className={FIELD_CLASS}
+                value={aiKeyProviderInput}
+                onChange={(e) =>
+                  setAiKeyProviderInput(e.target.value as AiProvider)
+                }
+              >
+                <option value="claude">
+                  {t.akun.pengaturan.aiKeyProviderOptions.claude}
+                </option>
+                <option value="openai">
+                  {t.akun.pengaturan.aiKeyProviderOptions.openai}
+                </option>
+                <option value="gemini">
+                  {t.akun.pengaturan.aiKeyProviderOptions.gemini}
+                </option>
+              </select>
+            </Field>
+            <Field label={t.akun.pengaturan.aiKeyInputLabel}>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  autoComplete="off"
+                  className={FIELD_CLASS}
+                  placeholder={t.akun.pengaturan.aiKeyInputPlaceholder}
+                  value={aiKeyInput}
+                  onChange={(e) => setAiKeyInput(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={saveAiKey}
+                  disabled={isSettingAiKey || !aiKeyInput.trim()}
+                  className="shrink-0 rounded-md bg-primary px-3.5 py-2.5 text-[12.5px] font-semibold whitespace-nowrap text-primary-foreground disabled:opacity-60"
+                >
+                  {t.akun.pengaturan.aiKeySaveButton}
+                </button>
+              </div>
+            </Field>
+            {aiKeyConfigured && (
+              <button
+                type="button"
+                onClick={removeAiKey}
+                disabled={isDeletingAiKey}
+                className="text-[12px] font-semibold text-destructive disabled:opacity-60"
+              >
+                {t.akun.pengaturan.aiKeyRemoveButton}
+              </button>
+            )}
+          </>
+        ) : (
+          <div className="text-[12px] text-muted-foreground">
+            {t.akun.pengaturan.aiKeyOwnerOnlyNote}
           </div>
         )}
       </SetSection>

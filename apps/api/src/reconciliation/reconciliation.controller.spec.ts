@@ -63,14 +63,23 @@ describe("ReconciliationController (real AbilitiesGuard + CaslAbilityFactory)", 
     userId: "user-3",
     role: Role.operational,
   };
+  const owner = { id: "member-4", userId: "user-4", role: Role.owner };
 
   const readOrCreateRoutes = [
     "upload",
+    "uploadFile",
     "findAll",
     "getEntries",
     "matchEntry",
     "autoMatch",
   ] as const;
+
+  // EPIC-023 G2 (D17) — column-mapping templates are a saved-configuration
+  // surface: read is available to the day-to-day reconciliation workflow
+  // (member+), but create/update/delete is owner-level (see
+  // casl-ability.factory.ts).
+  const templateReadRoutes = ["listTemplates"] as const;
+  const templateManageRoutes = ["upsertTemplate", "deleteTemplate"] as const;
 
   beforeEach(() => {
     guard = new AbilitiesGuard(new Reflector(), new CaslAbilityFactory());
@@ -94,6 +103,40 @@ describe("ReconciliationController (real AbilitiesGuard + CaslAbilityFactory)", 
   it("DENIAL — dependant/operational are refused every reconciliation route", () => {
     for (const role of [dependant, operational]) {
       for (const handler of [...readOrCreateRoutes, "splitEntry"] as const) {
+        expect(() =>
+          guard.canActivate(buildContext(controller, handler, role)),
+        ).toThrow(ForbiddenException);
+      }
+    }
+  });
+
+  // EPIC-023 G2 (D17) — column-mapping templates: member reads, owner
+  // manages; dependant/operational are refused entirely (no AiKey/
+  // ReconciliationTemplate grant at all — see casl-ability.factory.ts).
+  it("PERMISSION — member can list templates but not create/update/delete one", () => {
+    for (const handler of templateReadRoutes) {
+      expect(guard.canActivate(buildContext(controller, handler, member))).toBe(
+        true,
+      );
+    }
+    for (const handler of templateManageRoutes) {
+      expect(() =>
+        guard.canActivate(buildContext(controller, handler, member)),
+      ).toThrow(ForbiddenException);
+    }
+  });
+
+  it("PERMISSION — owner can list and manage templates", () => {
+    for (const handler of [...templateReadRoutes, ...templateManageRoutes]) {
+      expect(guard.canActivate(buildContext(controller, handler, owner))).toBe(
+        true,
+      );
+    }
+  });
+
+  it("DENIAL — dependant/operational are refused every template route", () => {
+    for (const role of [dependant, operational]) {
+      for (const handler of [...templateReadRoutes, ...templateManageRoutes]) {
         expect(() =>
           guard.canActivate(buildContext(controller, handler, role)),
         ).toThrow(ForbiddenException);

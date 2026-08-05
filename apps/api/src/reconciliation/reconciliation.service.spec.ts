@@ -1,7 +1,16 @@
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  NotFoundException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
+import ExcelJS from "exceljs";
 
-import { ReconciliationService } from "./reconciliation.service";
+import {
+  MAX_SKIPPED_ROWS_RETURNED,
+  ReconciliationService,
+} from "./reconciliation.service";
 
+import type { UploadedStatementFile } from "./reconciliation.service";
 import type { TransactionResponseDto } from "../transactions/dto/transaction-response.dto";
 
 const FAMILY_GROUP_ID = "fg-test-uuid";
@@ -19,6 +28,12 @@ function makePrisma() {
       findMany: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+    },
+    reconciliationTemplate: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      upsert: jest.fn(),
+      delete: jest.fn(),
     },
     transaction: { findMany: jest.fn(), findUnique: jest.fn() },
     $transaction: jest.fn(),
@@ -74,9 +89,10 @@ describe("ReconciliationService", () => {
   beforeEach(() => {
     prisma = makePrisma();
     transactionsService = makeTransactionsService();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     service = new ReconciliationService(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       prisma as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       transactionsService as any,
     );
   });
@@ -281,6 +297,339 @@ describe("ReconciliationService", () => {
         }),
       ).rejects.toThrow(NotFoundException);
       expect(prisma.bankSyncEntry.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // EPIC-023 G2 (D17) — real server-side parsing. These tests fail against
+  // the pre-fix flow (web-side `split(",")` + ×100, non-CSV silently
+  // sending `rows: []`): a quoted-comma CSV description would have been
+  // truncated at the comma, and the stored amount would have been 100×
+  // the file's value.
+  describe("uploadFile", () => {
+    function file(
+      originalname: string,
+      content: string,
+    ): UploadedStatementFile {
+      return { originalname, buffer: Buffer.from(content, "utf8") };
+    }
+
+    beforeEach(() => {
+      prisma.$transaction.mockImplementation(
+        async (cb: (tx: unknown) => unknown) => cb(prisma),
+      );
+    });
+
+    it("refuses a PDF with a clear reason instead of importing zero rows", async () => {
+      await expect(
+        service.uploadFile(FAMILY_GROUP_ID, file("mutasi.pdf", "%PDF-1.4 ...")),
+      ).rejects.toThrow(UnprocessableEntityException);
+      expect(prisma.bankSync.create).not.toHaveBeenCalled();
+    });
+
+    // EPIC-023 Task G retry (MEDIUM five-reviewer finding) — every refusal
+    // carries a stable `code` alongside its Indonesian message, so the web
+    // app can render a localized message for an English-locale user instead
+    // of surfacing the Indonesian text verbatim.
+    it("carries a stable error code on the PDF refusal for locale-aware rendering", async () => {
+      try {
+        await service.uploadFile(
+          FAMILY_GROUP_ID,
+          file("mutasi.pdf", "%PDF-1.4 ..."),
+        );
+        throw new Error("expected uploadFile to reject");
+      } catch (err) {
+        expect(err).toBeInstanceOf(UnprocessableEntityException);
+        expect((err as UnprocessableEntityException).getResponse()).toEqual(
+          expect.objectContaining({ code: "PDF_UNSUPPORTED" }),
+        );
+      }
+    });
+
+    it("refuses an unrecognised extension rather than guessing", async () => {
+      await expect(
+        service.uploadFile(FAMILY_GROUP_ID, file("mutasi.txt", "irrelevant")),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.bankSync.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses legacy .xls (Excel 97-2003) with a clear reason — exceljs cannot read it", async () => {
+      await expect(
+        service.uploadFile(FAMILY_GROUP_ID, file("mutasi.xls", "irrelevant")),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.bankSync.create).not.toHaveBeenCalled();
+    });
+
+    it("imports a real .xlsx workbook", async () => {
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet("Mutasi");
+      sheet.addRow(["Tanggal", "Keterangan", "Jumlah"]);
+      sheet.addRow(["2026-08-01", "Setoran", 250000]);
+      const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+
+      prisma.bankSync.create.mockResolvedValue({
+        id: SYNC_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        fileName: "mutasi.xlsx",
+        uploadedAt: new Date(),
+        rowCount: 1,
+      });
+
+      const result = await service.uploadFile(FAMILY_GROUP_ID, {
+        originalname: "mutasi.xlsx",
+        buffer,
+      });
+
+      expect(result.rowCount).toBe(1);
+      expect(prisma.bankSyncEntry.createMany).toHaveBeenCalledWith({
+        data: [expect.objectContaining({ amount: 250_000n })],
+      });
+    });
+
+    it("throws instead of succeeding when the file has no rows", async () => {
+      await expect(
+        service.uploadFile(FAMILY_GROUP_ID, file("mutasi.csv", "")),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.bankSync.create).not.toHaveBeenCalled();
+    });
+
+    it("throws instead of succeeding when every row is unusable", async () => {
+      const csv = "tanggal,keterangan,jumlah\n2026-08-01,Baris rusak,\n";
+      await expect(
+        service.uploadFile(FAMILY_GROUP_ID, file("mutasi.csv", csv)),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.bankSync.create).not.toHaveBeenCalled();
+    });
+
+    it("imports a CSV with a quoted comma description and the exact whole-rupiah amount (no ×100)", async () => {
+      const csv =
+        "tanggal,keterangan,jumlah\n" +
+        '2026-08-01,"Belanja, Toko A",150000\n' +
+        "2026-08-02,Transfer Masuk,500000\n";
+
+      prisma.bankSync.create.mockResolvedValue({
+        id: SYNC_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        fileName: "mutasi.csv",
+        uploadedAt: new Date("2026-08-05T00:00:00.000Z"),
+        rowCount: 2,
+      });
+
+      const result = await service.uploadFile(
+        FAMILY_GROUP_ID,
+        file("mutasi.csv", csv),
+      );
+
+      expect(result.rowCount).toBe(2);
+      expect(prisma.bankSyncEntry.createMany).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({
+            description: "Belanja, Toko A",
+            amount: 150_000n,
+          }),
+          expect.objectContaining({
+            description: "Transfer Masuk",
+            amount: 500_000n,
+          }),
+        ],
+      });
+    });
+
+    // EPIC-023 Task G retry (HIGH five-reviewer finding) — a partial import
+    // must surface exactly which rows were skipped and why, not report an
+    // unqualified success identical to a fully-clean import.
+    it("surfaces skipped rows (with line + reason) alongside a successful partial import", async () => {
+      const csv =
+        "tanggal,keterangan,jumlah\n" +
+        "2026-08-01,Baris valid,150000\n" +
+        "2026-08-02,Baris rusak,\n";
+
+      prisma.bankSync.create.mockResolvedValue({
+        id: SYNC_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        fileName: "mutasi.csv",
+        uploadedAt: new Date("2026-08-05T00:00:00.000Z"),
+        rowCount: 1,
+      });
+
+      const result = await service.uploadFile(
+        FAMILY_GROUP_ID,
+        file("mutasi.csv", csv),
+      );
+
+      expect(result.rowCount).toBe(1);
+      expect(result.skippedRows).toEqual([
+        expect.objectContaining({ line: 3, reason: expect.any(String) }),
+      ]);
+    });
+
+    // EPIC-023 Task G retry (MEDIUM five-reviewer finding, round 2) — an
+    // unbounded skippedRows list produced a ~628 KB response for a
+    // 9,999-skip file; the list is now capped, with the real count still
+    // reported separately so the UI can say "and N more".
+    it("caps the returned skippedRows list and reports the real total separately", async () => {
+      const skipRowCount = MAX_SKIPPED_ROWS_RETURNED + 5;
+      const lines = ["tanggal,keterangan,jumlah"];
+      for (let i = 0; i < skipRowCount; i++) {
+        lines.push(`2026-08-01,Baris rusak ${i},`); // missing amount -> skipped
+      }
+      lines.push("2026-08-02,Baris valid,100000");
+      const csv = lines.join("\n") + "\n";
+
+      prisma.bankSync.create.mockResolvedValue({
+        id: SYNC_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        fileName: "mutasi.csv",
+        uploadedAt: new Date("2026-08-05T00:00:00.000Z"),
+        rowCount: 1,
+      });
+
+      const result = await service.uploadFile(
+        FAMILY_GROUP_ID,
+        file("mutasi.csv", csv),
+      );
+
+      expect(result.skippedRows).toHaveLength(MAX_SKIPPED_ROWS_RETURNED);
+      expect(result.skippedRowsTotal).toBe(skipRowCount);
+    });
+
+    it("omits skippedRows entirely when every row imports cleanly", async () => {
+      prisma.bankSync.create.mockResolvedValue({
+        id: SYNC_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        fileName: "mutasi.csv",
+        uploadedAt: new Date(),
+        rowCount: 1,
+      });
+
+      const result = await service.uploadFile(
+        FAMILY_GROUP_ID,
+        file(
+          "mutasi.csv",
+          "tanggal,keterangan,jumlah\n2026-08-01,Setoran,100000\n",
+        ),
+      );
+
+      expect(result.skippedRows).toBeUndefined();
+    });
+
+    it("applies a saved bank template's column mapping when bankCode is given", async () => {
+      prisma.reconciliationTemplate.findUnique.mockResolvedValue({
+        id: "tpl-1",
+        familyGroupId: FAMILY_GROUP_ID,
+        bankCode: "BCA",
+        name: "BCA Giro",
+        dateColumn: "Tgl Transaksi",
+        descriptionColumn: "Uraian Transaksi",
+        amountColumn: "Nominal",
+        dateFormat: "DD/MM/YYYY",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      prisma.bankSync.create.mockResolvedValue({
+        id: SYNC_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        fileName: "bca.csv",
+        uploadedAt: new Date(),
+        rowCount: 1,
+      });
+
+      const csv =
+        "Tgl Transaksi,Uraian Transaksi,Nominal\n05/08/2026,Setoran,250000\n";
+
+      await service.uploadFile(FAMILY_GROUP_ID, file("bca.csv", csv), "BCA");
+
+      expect(prisma.reconciliationTemplate.findUnique).toHaveBeenCalledWith({
+        where: {
+          familyGroupId_bankCode: {
+            familyGroupId: FAMILY_GROUP_ID,
+            bankCode: "BCA",
+          },
+        },
+      });
+      expect(prisma.bankSyncEntry.createMany).toHaveBeenCalledWith({
+        data: [expect.objectContaining({ amount: 250_000n })],
+      });
+    });
+
+    it("throws NotFoundException when bankCode has no saved template", async () => {
+      prisma.reconciliationTemplate.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.uploadFile(
+          FAMILY_GROUP_ID,
+          file("mutasi.csv", "tanggal,keterangan,jumlah\n2026-08-01,x,100\n"),
+          "BCA",
+        ),
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.bankSync.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("reconciliation templates", () => {
+    it("lists templates mapped to the DTO shape", async () => {
+      prisma.reconciliationTemplate.findMany.mockResolvedValue([
+        {
+          id: "tpl-1",
+          familyGroupId: FAMILY_GROUP_ID,
+          bankCode: "BCA",
+          name: "BCA Giro",
+          dateColumn: "Tanggal",
+          descriptionColumn: "Keterangan",
+          amountColumn: "Jumlah",
+          dateFormat: null,
+          createdAt: new Date("2026-08-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+        },
+      ]);
+
+      const result = await service.listTemplates(FAMILY_GROUP_ID);
+
+      expect(result).toEqual([
+        expect.objectContaining({ id: "tpl-1", bankCode: "BCA" }),
+      ]);
+    });
+
+    it("upserts a template keyed by (familyGroupId, bankCode)", async () => {
+      prisma.reconciliationTemplate.upsert.mockResolvedValue({
+        id: "tpl-1",
+        familyGroupId: FAMILY_GROUP_ID,
+        bankCode: "BCA",
+        name: "BCA Giro",
+        dateColumn: "Tanggal",
+        descriptionColumn: "Keterangan",
+        amountColumn: "Jumlah",
+        dateFormat: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await service.upsertTemplate(FAMILY_GROUP_ID, {
+        bankCode: "BCA",
+        name: "BCA Giro",
+        dateColumn: "Tanggal",
+        descriptionColumn: "Keterangan",
+        amountColumn: "Jumlah",
+      });
+
+      expect(prisma.reconciliationTemplate.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            familyGroupId_bankCode: {
+              familyGroupId: FAMILY_GROUP_ID,
+              bankCode: "BCA",
+            },
+          },
+        }),
+      );
+    });
+
+    it("throws NotFoundException deleting a template that does not exist", async () => {
+      prisma.reconciliationTemplate.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.deleteTemplate(FAMILY_GROUP_ID, "BCA"),
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.reconciliationTemplate.delete).not.toHaveBeenCalled();
     });
   });
 });

@@ -568,6 +568,26 @@ export type I18nDictionary = {
       toastGoldPriceUpdated: string;
       toastGoldPriceFailed: string;
       toastGoldPriceInvalid: string;
+      /**
+       * EPIC-023 G3 (D16) — bring-your-own AI provider key. Owner/spouse
+       * manage it; every other role sees a read-only status (see
+       * casl-ability.factory.ts's AiKey subject).
+       */
+      aiKeySectionTitle: string;
+      aiKeyHint: string;
+      aiKeyConfiguredLabel: string;
+      aiKeyProviderLabel: string;
+      aiKeyProviderOptions: Record<"claude" | "openai" | "gemini", string>;
+      aiKeyInputLabel: string;
+      aiKeyInputPlaceholder: string;
+      aiKeySaveButton: string;
+      aiKeyRemoveButton: string;
+      aiKeyOwnerOnlyNote: string;
+      aiKeyNotConfiguredLabel: string;
+      toastAiKeySaved: string;
+      toastAiKeySaveFailed: string;
+      toastAiKeyRemoved: string;
+      toastAiKeyRemoveFailed: string;
     };
     notifSetting: {
       transactionSectionTitle: string;
@@ -967,6 +987,23 @@ export type I18nDictionary = {
     inputPlaceholder: string;
     sendAriaLabel: string;
     disclaimer: string;
+    /**
+     * EPIC-023 G3 (D16) — a family with no AI provider key sees this
+     * disabled panel with instructions, NEVER a mock answer presented as
+     * advice. `notConfiguredBodyOwner` is shown to owner/spouse (who can
+     * act on it directly from /akun); `notConfiguredBodyOther` to every
+     * other role (who must ask the household head).
+     */
+    notConfiguredTitle: string;
+    notConfiguredBodyOwner: string;
+    notConfiguredBodyOther: string;
+    notConfiguredCta: string;
+    notConfiguredMidChat: string;
+    truncatedNotice: string;
+    errorKeyCorrupted: string;
+    errorAuthFailed: string;
+    errorRateLimited: string;
+    errorTimeout: string;
   };
   /** EPIC-018 Task A5 — `/investasi` (investment portfolio) page copy. */
   investasi: {
@@ -976,6 +1013,7 @@ export type I18nDictionary = {
     toastAdded: string;
     toastUpdateFailed: string;
     toastAddFailed: string;
+    toastPriceSaveFailed: string;
     toastDeleted: string;
     toastDeleteFailed: string;
     modalTitleEdit: string;
@@ -1027,6 +1065,28 @@ export type I18nDictionary = {
     // Interest-bearing type (obligasi) but interestRatePct hasn't been set yet
     // — distinct from detailNoInterestRate so the message isn't misleading.
     detailNoRateSet: string;
+    /**
+     * EPIC-023 G1 (D15) — "automate what can be automated, label the
+     * rest": every automated price states its source (sourceLabels) and,
+     * for Yahoo `.JK`, that it is delayed & unofficial; every manual price
+     * states its entry date (same "diinput manual, per <date>" pattern as
+     * the family gold price — consolidated-total-card.tsx).
+     */
+    sourceLabels: Record<
+      "yahooFinance" | "coinGecko" | "manual" | "mock",
+      string
+    >;
+    detailDelayedLabel: string;
+    detailRefreshFailedLabel: string;
+    detailManualLabelPrefix: string;
+    detailNoManualPrice: string;
+    detailPriceUnavailable: string;
+    fieldManualPriceLabel: string;
+    fieldManualPricePlaceholder: string;
+    fieldManualPriceDateLabel: string;
+    manualPriceNote: string;
+    autoPriceNoteSaham: string;
+    autoPriceNoteKripto: string;
   };
   /** EPIC-018 Task A5 — `/aset` (consolidated assets) page copy. */
   aset: {
@@ -1709,6 +1769,36 @@ export type I18nDictionary = {
     supportedBanksTitle: string;
     viewAllLink: string;
     othersLabel: string;
+    /**
+     * EPIC-023 G2 (D17) — bank picker (applies a saved column-mapping
+     * template) + the template manager dialog it opens for
+     * owner/admin_staff/spouse (casl-ability.factory.ts's
+     * ReconciliationTemplate subject).
+     */
+    bankPickerHint: string;
+    templateSavedIndicator: string;
+    bankSelectedWithTemplate: string;
+    bankSelectedNoTemplate: string;
+    manageTemplatesLink: string;
+    templateManagerTitle: string;
+    templateManagerHint: string;
+    templateDeleteButton: string;
+    templateBankLabel: string;
+    templateNameLabel: string;
+    templateNamePlaceholder: string;
+    templateDateColumnLabel: string;
+    templateDateColumnPlaceholder: string;
+    templateDescriptionColumnLabel: string;
+    templateDescriptionColumnPlaceholder: string;
+    templateAmountColumnLabel: string;
+    templateAmountColumnPlaceholder: string;
+    templateDateFormatLabel: string;
+    templateDateFormatIso: string;
+    templateSaveButton: string;
+    toastTemplateSaved: string;
+    toastTemplateSaveFailed: string;
+    toastTemplateDeleted: string;
+    toastTemplateDeleteFailed: string;
     recentDocsTitle: string;
     viewHistoryLink: string;
     loadingLabel: string;
@@ -1753,7 +1843,23 @@ export type I18nDictionary = {
     notMatchedSummaryLabel: string;
     newReconciliationButton: string;
     toastUploaded: string;
+    toastUploadedPartialPrefix: string;
+    toastUploadedPartialSuffix: string;
+    skippedRowsTitleSuffix: string;
+    skippedRowLinePrefix: string;
+    skippedRowsMorePrefix: string;
+    skippedRowsMoreSuffix: string;
     toastUploadFailedDefault: string;
+    uploadErrorPdfUnsupported: string;
+    uploadErrorXlsUnsupported: string;
+    uploadErrorUnsupportedFormat: string;
+    uploadErrorEmptyFile: string;
+    uploadErrorXlsxUnreadable: string;
+    uploadErrorXlsxLimitExceeded: string;
+    uploadErrorColumnMappingMismatch: string;
+    uploadErrorZeroValidRows: string;
+    uploadErrorNoAutoDetectMapping: string;
+    uploadErrorNoSavedTemplate: string;
     toastScanFailedDefault: string;
     toastConfirmed: string;
     toastConfirmFailedDefault: string;

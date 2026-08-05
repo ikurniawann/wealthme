@@ -24,6 +24,28 @@ function extractMessage(exception: HttpException): string | string[] {
   return exception.message;
 }
 
+/**
+ * EPIC-023 Task G retry (HIGH five-reviewer finding, round 2) — services
+ * like `ReconciliationService` attach a stable `code` (via a local
+ * `withCode()` helper) alongside the human-readable message on their
+ * thrown `HttpException`s, specifically so the web app can render its own
+ * localized copy instead of the raw (Indonesian) message. This filter used
+ * to build the response body from scratch and never read `code` off the
+ * exception at all — the field never reached the wire, so every
+ * locale-aware error path silently fell back to the raw message regardless
+ * of locale. Only forwarded for a genuine `HttpException` below 500: a
+ * 5xx or non-`HttpException` body must stay generic and never leak
+ * internals, `code` included.
+ */
+function extractCode(exception: HttpException): string | undefined {
+  const body = exception.getResponse();
+  if (body && typeof body === "object" && "code" in body) {
+    const code = (body as { code?: unknown }).code;
+    return typeof code === "string" ? code : undefined;
+  }
+  return undefined;
+}
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
@@ -47,6 +69,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       );
     }
 
+    const code =
+      exception instanceof HttpException && status < 500
+        ? extractCode(exception)
+        : undefined;
+
     response.status(status).json({
       statusCode: status,
       requestId,
@@ -55,6 +82,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         exception instanceof HttpException
           ? extractMessage(exception)
           : "Internal server error",
+      ...(code ? { code } : {}),
     });
   }
 }

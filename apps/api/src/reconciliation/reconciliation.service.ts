@@ -1,7 +1,10 @@
+import { extname } from "node:path";
+
 import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from "@nestjs/common";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -9,8 +12,47 @@ import { PrismaService } from "../prisma/prisma.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { TransactionsService } from "../transactions/transactions.service";
 
+import {
+  detectMapping,
+  ExcelLimitExceededError,
+  mapTableToRows,
+  parseCsv,
+  parseExcelBuffer,
+} from "./reconciliation-parsers";
+
 import type { SplitEntryDto } from "./dto/split-entry.dto";
+import type { UpsertReconciliationTemplateDto } from "./dto/upsert-reconciliation-template.dto";
+import type { TemplateMapping } from "./reconciliation-parsers";
 import type { TransactionResponseDto } from "../transactions/dto/transaction-response.dto";
+
+/** Structural subset of Express.Multer.File — kept narrow so this service
+ * has no direct dependency on multer's types (easier to unit-test). */
+export type UploadedStatementFile = {
+  originalname: string;
+  buffer: Buffer;
+};
+
+/**
+ * EPIC-023 Task G retry (MEDIUM five-reviewer finding) — the refusal
+ * messages below are Indonesian-only text surfaced VERBATIM to
+ * English-locale users. Passed as a NestJS exception body object (not a
+ * plain string), a stable `code` rides alongside the existing message so
+ * the web app can render its own localized copy for every known refusal —
+ * falling back to the raw (Indonesian) message only for a code it doesn't
+ * recognise, never the other way around.
+ */
+function withCode(
+  message: string,
+  code: string,
+): { message: string; code: string } {
+  return { message, code };
+}
+
+/** EPIC-023 Task G retry (MEDIUM five-reviewer finding, round 2) — caps the
+ * `skippedRows` list returned by `uploadFile` (see its `SkippedRowDto`
+ * comment and `BankSyncDto.skippedRowsTotal`). A file with thousands of
+ * skipped rows produced an unbounded, multi-hundred-KB response otherwise. */
+export const MAX_SKIPPED_ROWS_RETURNED = 200;
 
 export type ParsedRow = {
   date: Date;
@@ -40,12 +82,30 @@ type BankSyncEntryRow = {
   createdAt: Date;
 };
 
+/**
+ * EPIC-023 Task G retry (HIGH five-reviewer finding) — one row that failed
+ * to map/parse, reported with its 1-indexed line number (header = line 1)
+ * and a human-readable reason. Only ever populated by `uploadFile`'s
+ * response — a partial import (some rows skipped) must never look
+ * identical to a complete one.
+ */
+export type SkippedRowDto = {
+  line: number;
+  reason: string;
+};
+
 export type BankSyncDto = {
   id: string;
   familyGroupId: string;
   fileName: string;
   uploadedAt: string;
   rowCount: number;
+  skippedRows?: SkippedRowDto[];
+  // EPIC-023 Task G retry (MEDIUM five-reviewer finding, round 2) — the true
+  // count of skipped rows, even when `skippedRows` itself is capped (see
+  // `MAX_SKIPPED_ROWS_RETURNED`). Lets the UI say "and N more" instead of
+  // rendering (or the wire carrying) every one of a 9,999-row skip list.
+  skippedRowsTotal?: number;
 };
 
 /**
@@ -147,6 +207,49 @@ function transactionResponseToMatchedSummary(
   };
 }
 
+export type ReconciliationTemplateDto = {
+  id: string;
+  familyGroupId: string;
+  bankCode: string;
+  name: string;
+  dateColumn: string;
+  descriptionColumn: string;
+  amountColumn: string;
+  dateFormat: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type ReconciliationTemplateRow = {
+  id: string;
+  familyGroupId: string;
+  bankCode: string;
+  name: string;
+  dateColumn: string;
+  descriptionColumn: string;
+  amountColumn: string;
+  dateFormat: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+function toTemplateDto(
+  row: ReconciliationTemplateRow,
+): ReconciliationTemplateDto {
+  return {
+    id: row.id,
+    familyGroupId: row.familyGroupId,
+    bankCode: row.bankCode,
+    name: row.name,
+    dateColumn: row.dateColumn,
+    descriptionColumn: row.descriptionColumn,
+    amountColumn: row.amountColumn,
+    dateFormat: row.dateFormat,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
 function toBankSyncDto(row: BankSyncRow): BankSyncDto {
   return {
     id: row.id,
@@ -213,6 +316,234 @@ export class ReconciliationService {
     });
 
     return toBankSyncDto(sync);
+  }
+
+  /**
+   * EPIC-023 G2 (D17) — real server-side parsing for the actual upload
+   * flow. `upload()` above stays as the low-level pre-parsed-rows writer
+   * (kept for programmatic callers and its existing test coverage); the web
+   * app always calls this method now instead of parsing CSV client-side.
+   *
+   * Honesty bar: PDF is refused with a clear reason (never silently
+   * "succeeds" with zero rows); any other unrecognised extension is
+   * likewise refused rather than guessed at; and a table that yields zero
+   * usable rows after mapping is a BadRequestException, never a stored
+   * BankSync with rowCount 0.
+   */
+  async uploadFile(
+    familyGroupId: string,
+    file: UploadedStatementFile,
+    bankCode?: string,
+  ): Promise<BankSyncDto> {
+    const ext = extname(file.originalname).toLowerCase();
+
+    if (ext === ".pdf") {
+      throw new UnprocessableEntityException(
+        withCode(
+          "Statement PDF tidak bisa diproses secara otomatis. Silakan ekspor mutasi rekening sebagai CSV dari aplikasi/situs bank Anda, lalu unggah file CSV tersebut.",
+          "PDF_UNSUPPORTED",
+        ),
+      );
+    }
+
+    if (ext === ".xls") {
+      // Legacy binary Excel (97-2003). `exceljs` reads only the modern
+      // OOXML `.xlsx` format — refuse honestly rather than mis-parsing or
+      // silently returning zero rows (see reconciliation-parsers.ts's
+      // header comment for why this isn't the SheetJS/`xlsx` package).
+      throw new BadRequestException(
+        withCode(
+          "Format .xls (Excel 97-2003) lama tidak didukung. Simpan ulang sebagai .xlsx, atau ekspor sebagai CSV dari aplikasi/situs bank Anda.",
+          "XLS_UNSUPPORTED",
+        ),
+      );
+    }
+
+    let table: string[][];
+    if (ext === ".csv") {
+      table = parseCsv(file.buffer.toString("utf8"));
+    } else if (ext === ".xlsx") {
+      try {
+        table = await parseExcelBuffer(file.buffer);
+      } catch (err) {
+        // EPIC-023 Task G retry (HIGH finding) — a zip-bomb-bound refusal
+        // gets its own clear message; every other unreadable-workbook error
+        // (corrupt file, wrong format renamed to .xlsx, ...) keeps the
+        // existing generic message.
+        if (err instanceof ExcelLimitExceededError) {
+          throw new BadRequestException(
+            withCode(err.message, "XLSX_LIMIT_EXCEEDED"),
+          );
+        }
+        throw new BadRequestException(
+          withCode(
+            "File Excel tidak bisa dibaca — pastikan file benar-benar .xlsx (bukan .xls yang diganti nama) dan tidak rusak.",
+            "XLSX_UNREADABLE",
+          ),
+        );
+      }
+    } else {
+      throw new BadRequestException(
+        withCode(
+          `Format file "${ext || file.originalname}" tidak didukung. Gunakan CSV atau Excel (.xlsx).`,
+          "UNSUPPORTED_FORMAT",
+        ),
+      );
+    }
+
+    if (table.length === 0) {
+      throw new BadRequestException(
+        withCode(
+          "File kosong — tidak ada baris yang bisa diimpor.",
+          "EMPTY_FILE",
+        ),
+      );
+    }
+
+    const mapping = bankCode
+      ? await this.resolveTemplateMapping(familyGroupId, bankCode)
+      : this.autoDetectMapping(table[0] ?? []);
+
+    let rows: ParsedRow[];
+    let skipped: SkippedRowDto[];
+    try {
+      ({ rows, skipped } = mapTableToRows(table, mapping));
+    } catch (err) {
+      throw new BadRequestException(
+        withCode(
+          err instanceof Error ? err.message : "Gagal memetakan kolom file.",
+          "COLUMN_MAPPING_MISMATCH",
+        ),
+      );
+    }
+
+    if (rows.length === 0) {
+      // Every row was skipped individually, and `skipped` already holds the
+      // specific, actionable reason for each. When they all failed the same
+      // way — the common case, e.g. an ambiguous date column with no template
+      // format set — say so, instead of making the user guess from a generic
+      // "check your column mapping".
+      const reasons = new Set(skipped.map((s) => s.reason));
+      const sharedReason = reasons.size === 1 ? [...reasons][0] : undefined;
+      throw new BadRequestException(
+        withCode(
+          sharedReason
+            ? `Tidak ada baris valid yang bisa diimpor dari file ini. ${sharedReason}`
+            : "Tidak ada baris valid yang bisa diimpor dari file ini — periksa pemetaan kolom, atau format tanggal/jumlah.",
+          "ZERO_VALID_ROWS",
+        ),
+      );
+    }
+
+    const sync = await this.upload(familyGroupId, file.originalname, rows);
+
+    // EPIC-023 Task G retry (HIGH finding) — a partial import (some rows
+    // skipped) must never render as an unqualified success: surface exactly
+    // which lines were dropped and why, alongside the successful rowCount.
+    //
+    // EPIC-023 Task G retry (MEDIUM five-reviewer finding, round 2) — the
+    // list itself is bounded to `MAX_SKIPPED_ROWS_RETURNED`: a file with
+    // thousands of skipped rows was measured producing a ~628 KB response
+    // with no cap, one full line per row. `skippedRowsTotal` still carries
+    // the real count so the UI can say "and N more" rather than silently
+    // truncating with no indication more exist.
+    return skipped.length > 0
+      ? {
+          ...sync,
+          skippedRows: skipped.slice(0, MAX_SKIPPED_ROWS_RETURNED),
+          skippedRowsTotal: skipped.length,
+        }
+      : sync;
+  }
+
+  private autoDetectMapping(header: string[]): TemplateMapping {
+    const mapping = detectMapping(header);
+    if (!mapping) {
+      throw new BadRequestException(
+        withCode(
+          "Tidak bisa mendeteksi kolom tanggal/keterangan/jumlah secara otomatis. Simpan template pemetaan kolom untuk bank ini terlebih dahulu, atau pilih bank saat mengunggah.",
+          "NO_AUTO_DETECT_MAPPING",
+        ),
+      );
+    }
+    return mapping;
+  }
+
+  private async resolveTemplateMapping(
+    familyGroupId: string,
+    bankCode: string,
+  ): Promise<TemplateMapping> {
+    const template = await this.prisma.reconciliationTemplate.findUnique({
+      where: { familyGroupId_bankCode: { familyGroupId, bankCode } },
+    });
+    if (!template) {
+      throw new NotFoundException(
+        withCode(
+          `Belum ada template pemetaan kolom untuk bank "${bankCode}" — buat template terlebih dahulu.`,
+          "NO_SAVED_TEMPLATE",
+        ),
+      );
+    }
+    return {
+      dateColumn: template.dateColumn,
+      descriptionColumn: template.descriptionColumn,
+      amountColumn: template.amountColumn,
+      dateFormat: template.dateFormat,
+    };
+  }
+
+  /** EPIC-023 G2 (D17) — list this family's saved bank column-mapping
+   * templates. */
+  async listTemplates(
+    familyGroupId: string,
+  ): Promise<ReconciliationTemplateDto[]> {
+    const templates = await this.prisma.reconciliationTemplate.findMany({
+      where: { familyGroupId },
+      orderBy: { bankCode: "asc" },
+    });
+    return templates.map(toTemplateDto);
+  }
+
+  /** Create-or-replace by (familyGroupId, bankCode) — a family keeps at
+   * most one template per bank. */
+  async upsertTemplate(
+    familyGroupId: string,
+    dto: UpsertReconciliationTemplateDto,
+  ): Promise<ReconciliationTemplateDto> {
+    const template = await this.prisma.reconciliationTemplate.upsert({
+      where: {
+        familyGroupId_bankCode: { familyGroupId, bankCode: dto.bankCode },
+      },
+      create: {
+        familyGroupId,
+        bankCode: dto.bankCode,
+        name: dto.name,
+        dateColumn: dto.dateColumn,
+        descriptionColumn: dto.descriptionColumn,
+        amountColumn: dto.amountColumn,
+        dateFormat: dto.dateFormat ?? null,
+      },
+      update: {
+        name: dto.name,
+        dateColumn: dto.dateColumn,
+        descriptionColumn: dto.descriptionColumn,
+        amountColumn: dto.amountColumn,
+        dateFormat: dto.dateFormat ?? null,
+      },
+    });
+    return toTemplateDto(template);
+  }
+
+  async deleteTemplate(familyGroupId: string, bankCode: string): Promise<void> {
+    const template = await this.prisma.reconciliationTemplate.findUnique({
+      where: { familyGroupId_bankCode: { familyGroupId, bankCode } },
+    });
+    if (!template) {
+      throw new NotFoundException(`No saved template for bank "${bankCode}"`);
+    }
+    await this.prisma.reconciliationTemplate.delete({
+      where: { id: template.id },
+    });
   }
 
   async findAll(familyGroupId: string): Promise<BankSyncDto[]> {

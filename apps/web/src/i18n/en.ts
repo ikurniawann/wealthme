@@ -386,6 +386,27 @@ export const en = {
       toastGoldPriceUpdated: "✅ Gold price updated",
       toastGoldPriceFailed: "Failed to save gold price",
       toastGoldPriceInvalid: "Enter a valid gold price (greater than 0)",
+      aiKeySectionTitle: "AI Advisor API Key",
+      aiKeyHint:
+        "Connect your own API key (Claude, OpenAI, or Gemini) so the AI Advisor can be used. The key is stored encrypted and never shown again.",
+      aiKeyConfiguredLabel: "Connected with",
+      aiKeyProviderLabel: "AI Provider",
+      aiKeyProviderOptions: {
+        claude: "Claude (Anthropic)",
+        openai: "OpenAI",
+        gemini: "Gemini (Google)",
+      },
+      aiKeyInputLabel: "API Key",
+      aiKeyInputPlaceholder: "Paste your API key here",
+      aiKeySaveButton: "Save",
+      aiKeyRemoveButton: "Remove Key",
+      aiKeyOwnerOnlyNote:
+        "Only the family owner or spouse can manage the AI key.",
+      aiKeyNotConfiguredLabel: "No API key connected yet.",
+      toastAiKeySaved: "✅ AI key saved",
+      toastAiKeySaveFailed: "Failed to save the AI key",
+      toastAiKeyRemoved: "AI key removed",
+      toastAiKeyRemoveFailed: "Failed to remove the AI key",
     },
     notifSetting: {
       transactionSectionTitle: "Transactions",
@@ -958,7 +979,7 @@ export const en = {
   ai: {
     bannerTitle: "WealthMe AI Advisor",
     bannerSubtitle:
-      "Powered by Claude · Personal financial analysis based on real data.",
+      "Personal financial analysis based on real data, using your own API key.",
     popularQuestionsLabel: "💡 Popular Questions",
     chips: [
       "📊 Analyze this month's finances",
@@ -978,6 +999,26 @@ export const en = {
     sendAriaLabel: "Send",
     disclaimer:
       "AI advice is informational only, not professional investment advice. Always consult a professional for financial decisions.",
+    notConfiguredTitle: "AI Advisor is not active",
+    notConfiguredBodyOwner:
+      "Connect your own AI API key (Claude, OpenAI, or Gemini) in Account → Settings to enable the AI Advisor.",
+    notConfiguredBodyOther:
+      "The AI Advisor is not active for this family yet. Ask the family owner or spouse to connect an API key in Account → Settings.",
+    notConfiguredCta: "Open Settings",
+    notConfiguredMidChat:
+      "The AI key for this family is no longer available. Reconnect it in Account → Settings.",
+    // EPIC-023 Task G retry — CRITICAL/MEDIUM findings: a truncated answer
+    // must say so explicitly, and each provider-failure kind gets its own
+    // message instead of one generic error for all of them.
+    truncatedNotice:
+      "⚠️ This answer was cut off because it reached the AI response length limit.",
+    errorKeyCorrupted:
+      "The stored AI key could not be read — re-enter it in Account → Settings.",
+    errorAuthFailed:
+      "The AI provider rejected this key — check it again in Account → Settings.",
+    errorRateLimited:
+      "The AI provider is rate-limiting this request — try again shortly.",
+    errorTimeout: "The request to the AI provider timed out — try again.",
   },
   investasi: {
     typeLabels: {
@@ -993,6 +1034,11 @@ export const en = {
     toastAdded: "Investment added",
     toastUpdateFailed: "Failed to update investment",
     toastAddFailed: "Failed to add investment",
+    // EPIC-023 Task G retry (HIGH finding) — the holding itself DID save;
+    // only the separate manual-price write failed. Distinct from
+    // toastAddFailed/toastUpdateFailed, which imply nothing was saved.
+    toastPriceSaveFailed:
+      "Investment saved, but the price could not be saved. Edit it to add the price again.",
     toastDeleted: "Investment deleted successfully.",
     toastDeleteFailed: "Failed to delete investment. Try again.",
     modalTitleEdit: "Edit Investment",
@@ -1035,6 +1081,25 @@ export const en = {
     detailProjectedYieldLabel: "Projected Annual Yield",
     detailNoInterestRate: "Not applicable for this investment type",
     detailNoRateSet: "No rate set",
+    sourceLabels: {
+      yahooFinance: "Yahoo Finance",
+      coinGecko: "CoinGecko",
+      manual: "Manual Entry",
+      mock: "Simulated",
+    },
+    detailDelayedLabel: "Delayed & unofficial",
+    detailRefreshFailedLabel: "Refresh failed — showing last known price",
+    detailManualLabelPrefix: "Manually entered, as of ",
+    detailNoManualPrice: "No manual price yet — edit to add one.",
+    detailPriceUnavailable: "Price not available yet.",
+    fieldManualPriceLabel: "Current Price (Rp, optional)",
+    fieldManualPricePlaceholder: "e.g. 15250",
+    fieldManualPriceDateLabel: "As Of Date",
+    manualPriceNote:
+      "No automated price feed exists for this type — enter the current price manually, with its date.",
+    autoPriceNoteSaham:
+      "Price updates automatically from Yahoo Finance (.JK) — delayed & unofficial.",
+    autoPriceNoteKripto: "Price updates automatically from CoinGecko.",
   },
   aset: {
     tabs: {
@@ -1796,11 +1861,40 @@ export const en = {
     dragDropLabel: "Drag & drop a file here",
     orLabel: "or",
     chooseFileButton: "Choose File",
-    supportedFormatsLabel: "Supported formats: PDF, Excel (.xlsx, .xls), CSV",
+    supportedFormatsLabel:
+      "Supported formats: CSV, Excel (.xlsx). PDF will be refused — export as CSV from your bank's app instead.",
     maxFileSizeLabel: "Maximum file size: 20MB",
     supportedBanksTitle: "Supported Banks",
     viewAllLink: "View all",
     othersLabel: "••• Others",
+    bankPickerHint:
+      "Pick a bank to apply its saved column-mapping template, or leave unselected for automatic detection.",
+    templateSavedIndicator: "Mapping template saved",
+    bankSelectedWithTemplate:
+      "This bank's saved column-mapping template will be applied.",
+    bankSelectedNoTemplate:
+      "No template for this bank yet — columns will be auto-detected.",
+    manageTemplatesLink: "Manage Templates",
+    templateManagerTitle: "Column-Mapping Templates",
+    templateManagerHint:
+      "Save your bank's date/description/amount column names once, and every future upload from the same bank uses them automatically.",
+    templateDeleteButton: "Delete",
+    templateBankLabel: "Bank",
+    templateNameLabel: "Template Name",
+    templateNamePlaceholder: "e.g. BCA Checking",
+    templateDateColumnLabel: "Date Column",
+    templateDateColumnPlaceholder: "e.g. Date",
+    templateDescriptionColumnLabel: "Description Column",
+    templateDescriptionColumnPlaceholder: "e.g. Description",
+    templateAmountColumnLabel: "Amount Column",
+    templateAmountColumnPlaceholder: "e.g. Amount",
+    templateDateFormatLabel: "Date Format",
+    templateDateFormatIso: "Automatic / ISO (YYYY-MM-DD)",
+    templateSaveButton: "Save Template",
+    toastTemplateSaved: "✅ Column-mapping template saved",
+    toastTemplateSaveFailed: "Failed to save the column-mapping template",
+    toastTemplateDeleted: "Template deleted",
+    toastTemplateDeleteFailed: "Failed to delete the template",
     recentDocsTitle: "Recent Documents",
     viewHistoryLink: "View History",
     loadingLabel: "Loading...",
@@ -1846,7 +1940,36 @@ export const en = {
     notMatchedSummaryLabel: "Not Matched",
     newReconciliationButton: "New Reconciliation",
     toastUploaded: "File uploaded successfully!",
+    toastUploadedPartialPrefix: "File uploaded, but ",
+    toastUploadedPartialSuffix:
+      " row(s) could not be imported — see details below.",
+    skippedRowsTitleSuffix: " row(s) could not be imported:",
+    skippedRowLinePrefix: "Line ",
+    skippedRowsMorePrefix: "...and ",
+    skippedRowsMoreSuffix: " more row(s) not shown above.",
     toastUploadFailedDefault: "Failed to upload file",
+    // EPIC-023 Task G retry (MEDIUM finding) — localized text for every
+    // stable upload-refusal error code the API can return, so an
+    // English-locale user never sees the raw Indonesian API message.
+    uploadErrorPdfUnsupported:
+      "A statement PDF can't be processed automatically. Export the statement as CSV from your bank's app/site instead, then upload the CSV file.",
+    uploadErrorXlsUnsupported:
+      "The old .xls (Excel 97-2003) format isn't supported. Save it as .xlsx, or export as CSV from your bank's app/site.",
+    uploadErrorUnsupportedFormat:
+      "This file format isn't supported. Use CSV or Excel (.xlsx).",
+    uploadErrorEmptyFile: "The file is empty — there are no rows to import.",
+    uploadErrorXlsxUnreadable:
+      "The Excel file couldn't be read — make sure it's a real .xlsx (not a renamed .xls) and isn't corrupted.",
+    uploadErrorXlsxLimitExceeded:
+      "This Excel file is too large to process — split it into smaller files.",
+    uploadErrorColumnMappingMismatch:
+      "The column mapping doesn't match this file's header row — check the saved template or column names.",
+    uploadErrorZeroValidRows:
+      "No valid rows could be imported from this file — check the column mapping, or the date/amount format.",
+    uploadErrorNoAutoDetectMapping:
+      "Couldn't auto-detect the date/description/amount columns. Save a column-mapping template for this bank first, or pick a bank when uploading.",
+    uploadErrorNoSavedTemplate:
+      "There's no saved column-mapping template for this bank yet — create one first.",
     toastScanFailedDefault: "Failed to scan entries",
     toastConfirmed: "Entry confirmed successfully!",
     toastConfirmFailedDefault: "Failed to confirm",

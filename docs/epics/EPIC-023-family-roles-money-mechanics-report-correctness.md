@@ -1,6 +1,6 @@
 # EPIC-023: Family Roles, Money Mechanics & Report Correctness
 
-status: on-progress
+status: blocked
 environment: dev
 retries: 0
 phase: 4
@@ -652,3 +652,98 @@ whose P&L and balance sheet reconcile through the bridge.
   so US-FAM-8 has no end-to-end delivery yet.** Also recorded: the `test/e2e`
   suite is not wired into `scripts/test.sh`, needs an absent `.env.test`, and
   has drifted (uppercase enum values that would now fail `@IsEnum`).
+- 2026-08-05 /epic-loop EPIC-023 #3 "G — External data: prices, reconciliation,
+  AI keys" → BLOCKED after 3 attempts. Nearly everything in the group landed and
+  is verified: CoinGecko and Yahoo `.JK` behind `MarketDataPort` with honest
+  source/delay/as-of labelling, manual-only types keeping a dated manual label,
+  per-family AI keys encrypted with `CryptoService`, OpenAI and Gemini adapters,
+  the mock-advisor fallback deleted so the advisor is configured or visibly
+  disabled, PDF/`.xls`/empty/zero-row uploads refused with coded reasons, and
+  server-side CSV/XLSX parsing. 753 API and 227 web tests pass; `qa.sh`,
+  `test.sh` and `security-check.sh` all exit 0.
+  Four gates PASS (silent-failure, typescript, react, test). **Security FAILs on
+  one HIGH** — see `## Blocker`. Along the way the reviewers, all working by
+  execution rather than inspection, caught: an amount parser that reintroduced
+  the very ×100 bug this epic exists to kill (`"150.000,00"` → `15000000n`,
+  because every `.` and `,` was stripped as a thousands separator); CR/DR markers
+  silently discarded so half a statement's rows imported with the wrong sign;
+  ambiguous `DD/MM` vs `MM/DD` dates silently transposed, then — after the first
+  fix — a column-wide inference where **one** outlier row bound the reading of
+  every ambiguous row; truncated AI answers indistinguishable from complete ones,
+  then, after that fix, still indistinguishable whenever a stream ended cleanly
+  but early (a proxy idle timeout, the commonest real cause); and a localized
+  error-code path that never worked in production because the global
+  `AllExceptionsFilter` rebuilds the response body and forwards only `message`,
+  discarding `code` — while the test that looked like coverage asserted on the
+  thrown exception rather than the wire body.
+
+## Blocker
+
+**Task group G, attempt 3 of 3 exhausted. One HIGH finding open. Epic status
+`blocked` — human action required.**
+
+### The finding
+
+Server-side `.xlsx` parsing (`apps/api/src/reconciliation/reconciliation-parsers.ts`,
+`parseExcelBuffer`) is vulnerable to decompression amplification. A crafted file
+well inside the 20 MiB upload limit exhausts process memory, taking down the
+shared API for every family — not just the uploader's. Any role holding
+`create Reconciliation` (owner, spouse, admin_staff, member) can reach it.
+
+Measured, not theorised, on the project's own code:
+
+| Round | Vector                                                                  | File         | Peak RSS    | Time       |
+| ----- | ----------------------------------------------------------------------- | ------------ | ----------- | ---------- |
+| 1     | `workbook.xlsx.load()` materialises the sheet before any cap runs       | 3.6 MiB      | 774 MiB     | —          |
+| 2     | fixed by streaming (`WorkbookReader`); row/cell caps now fire mid-parse | 18.6 MiB     | 165 MiB     | 307 ms     |
+| 3     | `styles: "cache"` — 2.5M `numFmt` entries, 3-cell worksheet             | 18.6 MiB     | 696 MiB     | 11.2 s     |
+| 3     | fixed by `styles: "ignore"`                                             | 18.6 MiB     | 174 MiB     | 446 ms     |
+| 4     | **`sharedStrings: "cache"` — 8M distinct strings, 3-cell worksheet**    | **19.2 MiB** | **969 MiB** | **10.7 s** |
+
+`MAX_XLSX_ROWS` and `MAX_XLSX_CELLS` cannot catch any of the cache vectors: they
+count data rows and cells actually iterated, while each auxiliary cache is
+loaded in full before the first row is yielded.
+
+### Why it was not fixed on the last attempt
+
+The same class has now relocated three rounds running, to whichever cache is
+still enabled. `styles` had an `"ignore"` mode and cost nothing to disable —
+a Date cell simply arrives as its Excel serial, which `parseExcelSerialDate`
+already resolves to the identical instant. `sharedStrings` has **no `"ignore"`
+mode**, because it holds the actual cell text (descriptions, bank names) rather
+than cosmetic formatting. `exceljs` offers only `"cache"` or `"emit"`.
+
+Closing it therefore needs new code, not a config change.
+
+### Recommended fix, for whoever picks this up
+
+Either, in rough order of effort:
+
+1. **Bound the shared-string table.** Switch to `sharedStrings: "emit"` and
+   accumulate entries behind a cap mirroring the existing row/cell caps,
+   refusing the file with `XLSX_LIMIT_EXCEEDED` when exceeded. Keeps a legitimate
+   large statement working.
+2. **Probe before parsing.** Read the zip central directory's uncompressed sizes
+   and refuse a file whose total expansion exceeds a bound, before handing the
+   buffer to `exceljs` at all. Cheaper to write, and closes every present and
+   future cache vector at once — including ones not yet found.
+3. **Isolate the parse.** Run it in a worker with a hard memory ceiling, so an
+   OOM kills one job rather than the API process.
+
+Option 2 is the one that ends the whack-a-mole; option 1 is the most precise.
+
+### What is safe to merge now
+
+Tasks **A** (PR #236) and **C** (PR #237) are complete, fully gated, and
+independent of this. Group G's branch
+`feat/EPIC-023-task-3-g-external-data-prices-reconciliation-ai-keys` holds work
+that is otherwise sound and well tested (753 API / 227 web tests green, all
+three gate scripts exit 0) — but **it must not merge while this is open**,
+because it is what introduces the `.xlsx` upload path. The prices, AI-key and
+CSV halves of the group are unaffected by the finding and could be split out if
+the reconciliation upload needs to wait.
+
+### Not yet started
+
+Groups **I**, **B**, **D**, **E**, **F**, **H**. Wave-2 groups B, D, E and F
+depend on A and C, which are ready — they are unblocked the moment those merge.

@@ -35,13 +35,30 @@ import { queryKeys } from "@/lib/query-keys";
 
 /* ─────────────────────────── Types ─────────────────────────── */
 
+/** EPIC-023 Task G retry (HIGH five-reviewer finding) — one data row that
+ * failed to map/parse during upload, mirroring the API's SkippedRowDto. */
+type SkippedRowDto = {
+  line: number;
+  reason: string;
+};
+
 type BankSyncDto = {
   id: string;
   familyGroupId: string;
   fileName: string;
   uploadedAt: string;
   rowCount: number;
+  skippedRows?: SkippedRowDto[];
+  // EPIC-023 Task G retry (MEDIUM five-reviewer finding, round 2) — the real
+  // total, even when `skippedRows` itself is capped server-side (mirrors
+  // reconciliation.service.ts's BankSyncDto.skippedRowsTotal).
+  skippedRowsTotal?: number;
 };
+
+// EPIC-023 Task G retry (MEDIUM five-reviewer finding, round 2) — bounds
+// how many skipped-row lines this page renders, independent of the API's
+// own cap: a 9,999-skip file rendered one <li> per row with no limit here.
+const MAX_SKIPPED_ROWS_RENDERED = 50;
 
 /**
  * EPIC-021 Group C (#9) — read-only summary of the entry's matched
@@ -86,6 +103,21 @@ type AutoMatchResultDto = {
 /** Minimal account shape for the split dialog's source/destination selects
  * (same shape as `@/components/shell/transaction-dialog.tsx`'s local AccountDto). */
 type AccountDto = { id: string; name: string; institution: string | null };
+
+/** EPIC-023 G2 (D17) — mirrors reconciliation.service.ts's
+ * ReconciliationTemplateDto. */
+type ReconciliationTemplateDto = {
+  id: string;
+  familyGroupId: string;
+  bankCode: string;
+  name: string;
+  dateColumn: string;
+  descriptionColumn: string;
+  amountColumn: string;
+  dateFormat: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
 
 /* ─────────────────────────── Static data ─────────────────────────── */
 
@@ -657,6 +689,347 @@ export function SplitEntryDialog({
   );
 }
 
+/* ─────────────────────────── Column-mapping templates ─────────────────────────── */
+
+/**
+ * EPIC-023 G2 (D17) — "map my bank's columns once and reuse it": one saved
+ * template per bank per family. Create/update/delete is owner/admin_staff/
+ * spouse-level (casl-ability.factory.ts's ReconciliationTemplate subject) —
+ * the page only renders the "Kelola Template" entry point for those roles
+ * (see canManageTemplates in RekonsiliasiPage), but the API is the real
+ * enforcement.
+ */
+function ReconciliationTemplateManagerDialog({
+  open,
+  onClose,
+  familyGroupId,
+  token,
+}: {
+  open: boolean;
+  onClose: () => void;
+  familyGroupId?: string;
+  token?: string;
+}) {
+  const { t } = useLocale();
+  const queryClient = useQueryClient();
+  const [bankCode, setBankCode] = React.useState<string>(
+    SUPPORTED_BANKS[0].code,
+  );
+  const [name, setName] = React.useState("");
+  const [dateColumn, setDateColumn] = React.useState("");
+  const [descriptionColumn, setDescriptionColumn] = React.useState("");
+  const [amountColumn, setAmountColumn] = React.useState("");
+  const [dateFormat, setDateFormat] = React.useState("");
+
+  const templatesQuery = useQuery<ReconciliationTemplateDto[]>({
+    queryKey: familyGroupId
+      ? ["reconciliation-templates", familyGroupId]
+      : ["reconciliation-templates-disabled"],
+    queryFn: () =>
+      apiFetch<ReconciliationTemplateDto[]>(
+        `/family-groups/${familyGroupId}/reconciliation/templates`,
+        { token },
+      ),
+    enabled: open && !!familyGroupId && !!token,
+  });
+
+  function invalidateTemplates() {
+    if (!familyGroupId) return;
+    void queryClient.invalidateQueries({
+      queryKey: ["reconciliation-templates", familyGroupId],
+    });
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: () =>
+      apiFetch<ReconciliationTemplateDto>(
+        `/family-groups/${familyGroupId}/reconciliation/templates`,
+        {
+          method: "POST",
+          token,
+          body: JSON.stringify({
+            bankCode,
+            name: name.trim() || bankCode,
+            dateColumn,
+            descriptionColumn,
+            amountColumn,
+            ...(dateFormat ? { dateFormat } : {}),
+          }),
+        },
+      ),
+    onSuccess: () => {
+      invalidateTemplates();
+      toast.success(t.rekonsiliasi.toastTemplateSaved);
+      setName("");
+      setDateColumn("");
+      setDescriptionColumn("");
+      setAmountColumn("");
+      setDateFormat("");
+    },
+    onError: () => toast.error(t.rekonsiliasi.toastTemplateSaveFailed),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (code: string) =>
+      apiFetch<void>(
+        `/family-groups/${familyGroupId}/reconciliation/templates/${code}`,
+        { method: "DELETE", token },
+      ),
+    onSuccess: () => {
+      invalidateTemplates();
+      toast.success(t.rekonsiliasi.toastTemplateDeleted);
+    },
+    onError: () => toast.error(t.rekonsiliasi.toastTemplateDeleteFailed),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+      <DialogContent className="max-w-[480px] sm:max-w-[480px]">
+        <DialogTitle className="mb-4 text-[17px] font-extrabold">
+          {t.rekonsiliasi.templateManagerTitle}
+        </DialogTitle>
+        <div className="mb-4 text-[12px] text-muted-foreground">
+          {t.rekonsiliasi.templateManagerHint}
+        </div>
+
+        {(templatesQuery.data?.length ?? 0) > 0 && (
+          <div className="mb-4 space-y-1.5">
+            {templatesQuery.data?.map((tpl) => (
+              <div
+                key={tpl.id}
+                className="flex items-center justify-between rounded-md border px-3 py-2 text-[12.5px]"
+              >
+                <div>
+                  <span className="font-semibold">{tpl.bankCode}</span> —{" "}
+                  {tpl.name}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => deleteMutation.mutate(tpl.bankCode)}
+                  disabled={deleteMutation.isPending}
+                  className="text-destructive disabled:opacity-60"
+                >
+                  {t.rekonsiliasi.templateDeleteButton}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            saveMutation.mutate();
+          }}
+          className="space-y-2.5"
+        >
+          <div className="space-y-1">
+            <label
+              className="text-[12px] text-muted-foreground"
+              htmlFor="template-bank-code"
+            >
+              {t.rekonsiliasi.templateBankLabel}
+            </label>
+            <select
+              id="template-bank-code"
+              value={bankCode}
+              onChange={(e) => setBankCode(e.target.value)}
+              className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
+            >
+              {SUPPORTED_BANKS.map((b) => (
+                <option key={b.code} value={b.code}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label
+              className="text-[12px] text-muted-foreground"
+              htmlFor="template-name"
+            >
+              {t.rekonsiliasi.templateNameLabel}
+            </label>
+            <input
+              id="template-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t.rekonsiliasi.templateNamePlaceholder}
+              className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-1">
+              <label
+                className="text-[12px] text-muted-foreground"
+                htmlFor="template-date-column"
+              >
+                {t.rekonsiliasi.templateDateColumnLabel}
+              </label>
+              <input
+                id="template-date-column"
+                required
+                value={dateColumn}
+                onChange={(e) => setDateColumn(e.target.value)}
+                placeholder={t.rekonsiliasi.templateDateColumnPlaceholder}
+                className="w-full rounded-md border bg-background px-2.5 py-2 text-[12.5px] outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div className="space-y-1">
+              <label
+                className="text-[12px] text-muted-foreground"
+                htmlFor="template-description-column"
+              >
+                {t.rekonsiliasi.templateDescriptionColumnLabel}
+              </label>
+              <input
+                id="template-description-column"
+                required
+                value={descriptionColumn}
+                onChange={(e) => setDescriptionColumn(e.target.value)}
+                placeholder={
+                  t.rekonsiliasi.templateDescriptionColumnPlaceholder
+                }
+                className="w-full rounded-md border bg-background px-2.5 py-2 text-[12.5px] outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div className="space-y-1">
+              <label
+                className="text-[12px] text-muted-foreground"
+                htmlFor="template-amount-column"
+              >
+                {t.rekonsiliasi.templateAmountColumnLabel}
+              </label>
+              <input
+                id="template-amount-column"
+                required
+                value={amountColumn}
+                onChange={(e) => setAmountColumn(e.target.value)}
+                placeholder={t.rekonsiliasi.templateAmountColumnPlaceholder}
+                className="w-full rounded-md border bg-background px-2.5 py-2 text-[12.5px] outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label
+              className="text-[12px] text-muted-foreground"
+              htmlFor="template-date-format"
+            >
+              {t.rekonsiliasi.templateDateFormatLabel}
+            </label>
+            <select
+              id="template-date-format"
+              value={dateFormat}
+              onChange={(e) => setDateFormat(e.target.value)}
+              className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="">{t.rekonsiliasi.templateDateFormatIso}</option>
+              <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+              <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+            </select>
+          </div>
+          <button
+            type="submit"
+            disabled={saveMutation.isPending}
+            className="w-full rounded-md bg-primary py-2.5 text-[13px] font-semibold text-white disabled:opacity-60"
+          >
+            {t.rekonsiliasi.templateSaveButton}
+          </button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+/**
+ * EPIC-023 G2 (D17) — the real upload path: the raw file is sent to the
+ * server, which parses CSV (proper quote handling)/Excel for real, refuses
+ * PDF with a clear reason, and never reports success on zero imported rows
+ * (reconciliation-parsers.ts). This replaces the former client-side
+ * `split(",")` + ×100 parser entirely — `lib/api-client.ts` is protected
+ * and cannot be extended for multipart bodies, so this is a page-local
+ * fetch mirroring its error-shape handling (`{message}` on failure).
+ */
+/** EPIC-023 Task G retry (MEDIUM finding) — carries the API's stable error
+ * `code` alongside its (Indonesian) message, so the caller can render a
+ * localized message for an English-locale user instead of the raw text. */
+class ReconciliationUploadError extends Error {
+  code?: string;
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = "ReconciliationUploadError";
+    this.code = code;
+  }
+}
+
+async function uploadReconciliationFile(
+  familyGroupId: string,
+  token: string,
+  file: File,
+  bankCode: string | null,
+): Promise<BankSyncDto> {
+  const form = new FormData();
+  form.append("file", file);
+  if (bankCode) form.append("bankCode", bankCode);
+
+  const res = await fetch(
+    `${API_BASE}/family-groups/${familyGroupId}/reconciliation/upload-file`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    },
+  );
+
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as {
+      message?: string;
+      code?: string;
+    };
+    throw new ReconciliationUploadError(
+      body.message ?? res.statusText,
+      body.code,
+    );
+  }
+  return res.json() as Promise<BankSyncDto>;
+}
+
+/** EPIC-023 Task G retry (MEDIUM finding) — maps the backend's stable error
+ * code to a localized message; returns `undefined` for a code it doesn't
+ * recognise so the caller falls back to the raw (Indonesian) API message
+ * rather than showing nothing. */
+function uploadErrorMessageForCode(
+  code: string | undefined,
+  t: ReturnType<typeof useLocale>["t"],
+): string | undefined {
+  switch (code) {
+    case "PDF_UNSUPPORTED":
+      return t.rekonsiliasi.uploadErrorPdfUnsupported;
+    case "XLS_UNSUPPORTED":
+      return t.rekonsiliasi.uploadErrorXlsUnsupported;
+    case "UNSUPPORTED_FORMAT":
+      return t.rekonsiliasi.uploadErrorUnsupportedFormat;
+    case "EMPTY_FILE":
+      return t.rekonsiliasi.uploadErrorEmptyFile;
+    case "XLSX_UNREADABLE":
+      return t.rekonsiliasi.uploadErrorXlsxUnreadable;
+    case "XLSX_LIMIT_EXCEEDED":
+      return t.rekonsiliasi.uploadErrorXlsxLimitExceeded;
+    case "COLUMN_MAPPING_MISMATCH":
+      return t.rekonsiliasi.uploadErrorColumnMappingMismatch;
+    case "ZERO_VALID_ROWS":
+      return t.rekonsiliasi.uploadErrorZeroValidRows;
+    case "NO_AUTO_DETECT_MAPPING":
+      return t.rekonsiliasi.uploadErrorNoAutoDetectMapping;
+    case "NO_SAVED_TEMPLATE":
+      return t.rekonsiliasi.uploadErrorNoSavedTemplate;
+    default:
+      return undefined;
+  }
+}
+
 /* ─────────────────────────── Page ─────────────────────────── */
 
 export default function RekonsiliasiPage() {
@@ -670,8 +1043,61 @@ export default function RekonsiliasiPage() {
   const [syncId, setSyncId] = React.useState<string | null>(null);
   const [showTips, setShowTips] = React.useState(true);
   const [uploading, setUploading] = React.useState(false);
+  // EPIC-023 G2 (D17) — null = auto-detect columns from the file's header;
+  // otherwise the family's saved template for that bank is applied.
+  const [selectedBankCode, setSelectedBankCode] = React.useState<string | null>(
+    null,
+  );
+  const [templateManagerOpen, setTemplateManagerOpen] = React.useState(false);
+  // EPIC-023 Task G retry (HIGH five-reviewer finding) — rows the server
+  // skipped on the most recent upload, surfaced so a partial import never
+  // looks identical to a fully-clean one. Cleared on every new upload
+  // attempt so a previous file's skips don't linger against a new one.
+  const [lastUploadSkippedRows, setLastUploadSkippedRows] = React.useState<
+    SkippedRowDto[]
+  >([]);
+  // EPIC-023 Task G retry (MEDIUM five-reviewer finding, round 2) — the real
+  // total skipped count, which can exceed `lastUploadSkippedRows.length`
+  // once the server-side cap (`MAX_SKIPPED_ROWS_RETURNED`) applies.
+  const [lastUploadSkippedRowsTotal, setLastUploadSkippedRowsTotal] =
+    React.useState(0);
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // EPIC-023 G2 (D17) — column-mapping templates: read is available to
+  // whoever can already upload/reconcile (member+); the manager dialog
+  // (create/update/delete) is owner/admin_staff/spouse-level, mirroring
+  // casl-ability.factory.ts's ReconciliationTemplate subject. This is a UI
+  // convenience only — the API is the real enforcement.
+  const templatesQuery = useQuery<ReconciliationTemplateDto[]>({
+    queryKey: familyGroupId
+      ? ["reconciliation-templates", familyGroupId]
+      : ["reconciliation-templates-disabled"],
+    queryFn: () =>
+      apiFetch<ReconciliationTemplateDto[]>(
+        `/family-groups/${familyGroupId}/reconciliation/templates`,
+        { token },
+      ),
+    enabled: !!familyGroupId && !!token,
+  });
+  const templateBankCodes = new Set(
+    (templatesQuery.data ?? []).map((tpl) => tpl.bankCode),
+  );
+
+  const { data: familyGroupsMine } = useQuery<{ id: string; myRole: string }[]>(
+    {
+      queryKey: [...queryKeys.familyGroups.mine(), token],
+      queryFn: () =>
+        apiFetch<{ id: string; myRole: string }[]>("/family-groups/mine", {
+          token,
+        }),
+      enabled: !!token,
+      staleTime: 60_000,
+    },
+  );
+  const myRole = familyGroupsMine?.find((g) => g.id === familyGroupId)?.myRole;
+  const canManageTemplates =
+    myRole === "owner" || myRole === "admin_staff" || myRole === "spouse";
 
   const goto = React.useCallback((next: number) => {
     setStep(next);
@@ -697,37 +1123,11 @@ export default function RekonsiliasiPage() {
     mutationFn: async (file: File) => {
       if (!familyGroupId || !token)
         throw new Error(t.rekonsiliasi.errorSessionInactive);
-
-      let rows: {
-        date: string;
-        description: string;
-        amount: number;
-        currency?: string;
-      }[] = [];
-
-      if (file.name.endsWith(".csv")) {
-        const text = await file.text();
-        const lines = text.split("\n").filter((l) => l.trim() !== "");
-        rows = lines.slice(1).map((l) => {
-          const [date, description, amount] = l.split(",");
-          return {
-            date: new Date(date.trim()).toISOString(),
-            description: description?.trim() ?? "",
-            amount: Math.round(parseFloat((amount ?? "0").trim()) * 100),
-          };
-        });
-      } else {
-        // Non-CSV: send empty rows as placeholder — server handles parsing
-        rows = [];
-      }
-
-      return apiFetch<BankSyncDto>(
-        `/family-groups/${familyGroupId}/reconciliation/upload`,
-        {
-          method: "POST",
-          token,
-          body: JSON.stringify({ fileName: file.name, rows }),
-        },
+      return uploadReconciliationFile(
+        familyGroupId,
+        token,
+        file,
+        selectedBankCode,
       );
     },
     onSuccess: (data) => {
@@ -737,14 +1137,37 @@ export default function RekonsiliasiPage() {
           queryKey: queryKeys.reconciliation.list(familyGroupId),
         });
       }
-      toast.success(t.rekonsiliasi.toastUploaded);
+      const skipped = data.skippedRows ?? [];
+      // EPIC-023 Task G retry (MEDIUM five-reviewer finding, round 2) — the
+      // TRUE total, not the (possibly server-capped) array length, so the
+      // toast/banner count is accurate even for a file with thousands of
+      // skips.
+      const skippedTotal = data.skippedRowsTotal ?? skipped.length;
+      setLastUploadSkippedRows(skipped);
+      setLastUploadSkippedRowsTotal(skippedTotal);
+      // EPIC-023 Task G retry (HIGH five-reviewer finding) — a partial
+      // import (some rows skipped) must never read as an unqualified
+      // success; the full detail renders in the skipped-rows banner below.
+      if (skippedTotal > 0) {
+        toast.warning(
+          `${t.rekonsiliasi.toastUploadedPartialPrefix}${skippedTotal}${t.rekonsiliasi.toastUploadedPartialSuffix}`,
+        );
+      } else {
+        toast.success(t.rekonsiliasi.toastUploaded);
+      }
       goto(2);
     },
     onError: (err: unknown) => {
+      // EPIC-023 Task G retry (MEDIUM finding) — a known error code renders
+      // its own localized message; an unrecognised one falls back to the
+      // API's raw message rather than a blank toast.
+      const code =
+        err instanceof ReconciliationUploadError ? err.code : undefined;
       const msg =
-        err instanceof Error
+        uploadErrorMessageForCode(code, t) ??
+        (err instanceof Error
           ? err.message
-          : t.rekonsiliasi.toastUploadFailedDefault;
+          : t.rekonsiliasi.toastUploadFailedDefault);
       toast.error(msg);
     },
   });
@@ -753,6 +1176,8 @@ export default function RekonsiliasiPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
+    setLastUploadSkippedRows([]);
+    setLastUploadSkippedRowsTotal(0);
     uploadMutation.mutate(file, {
       onSettled: () => setUploading(false),
     });
@@ -904,6 +1329,44 @@ export default function RekonsiliasiPage() {
     <div>
       <Stepper step={step} />
 
+      {/* EPIC-023 Task G retry (HIGH five-reviewer finding) — a partial
+          import must stay visible past the upload toast: every skipped row
+          is listed with its line number and reason until the next upload.
+          EPIC-023 Task G retry (MEDIUM finding, round 2) — rendering is
+          bounded to MAX_SKIPPED_ROWS_RENDERED with an "and N more" line,
+          independent of the API's own MAX_SKIPPED_ROWS_RETURNED cap; a
+          9,999-skip file otherwise rendered one <li> per row with no limit.
+          `role="status"` (LOW finding) — a screen-reader user is told this
+          banner appeared instead of only sighted users noticing it. */}
+      {step > 1 && lastUploadSkippedRows.length > 0 && (
+        <div
+          role="status"
+          className="mb-4 rounded-[14px] border border-warning/40 bg-warning-soft p-4 text-[12.5px]"
+        >
+          <div className="mb-1.5 font-bold text-amber-800 dark:text-amber-300">
+            {lastUploadSkippedRowsTotal}
+            {t.rekonsiliasi.skippedRowsTitleSuffix}
+          </div>
+          <ul className="max-h-40 space-y-1 overflow-y-auto text-amber-800 dark:text-amber-300">
+            {lastUploadSkippedRows
+              .slice(0, MAX_SKIPPED_ROWS_RENDERED)
+              .map((row, i) => (
+                <li key={`${row.line}-${i}`}>
+                  {t.rekonsiliasi.skippedRowLinePrefix}
+                  {row.line}: {row.reason}
+                </li>
+              ))}
+          </ul>
+          {lastUploadSkippedRowsTotal > MAX_SKIPPED_ROWS_RENDERED && (
+            <div className="mt-1.5 font-semibold text-amber-800 dark:text-amber-300">
+              {t.rekonsiliasi.skippedRowsMorePrefix}
+              {lastUploadSkippedRowsTotal - MAX_SKIPPED_ROWS_RENDERED}
+              {t.rekonsiliasi.skippedRowsMoreSuffix}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ─── Step 1: Upload ─── */}
       {step === 1 && (
         <div className="space-y-4">
@@ -918,7 +1381,7 @@ export default function RekonsiliasiPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv,.xlsx,.xls,.pdf"
+              accept=".csv,.xlsx,.pdf"
               className="sr-only"
               onChange={handleFileChange}
             />
@@ -953,31 +1416,76 @@ export default function RekonsiliasiPage() {
             </button>
           </SectionCard>
 
-          {/* Supported banks */}
+          {/* EPIC-023 G2 (D17) — bank picker: selecting a bank applies its
+              saved column-mapping template; leaving it unselected falls
+              back to header-alias auto-detection on the server. */}
           <SectionCard
             title={t.rekonsiliasi.supportedBanksTitle}
-            action={<CardLink>{t.rekonsiliasi.viewAllLink}</CardLink>}
+            action={
+              canManageTemplates ? (
+                <CardLink onClick={() => setTemplateManagerOpen(true)}>
+                  {t.rekonsiliasi.manageTemplatesLink}
+                </CardLink>
+              ) : (
+                <CardLink>{t.rekonsiliasi.viewAllLink}</CardLink>
+              )
+            }
           >
+            <div className="mb-2.5 text-[11.5px] text-muted-foreground">
+              {t.rekonsiliasi.bankPickerHint}
+            </div>
             <div className="flex flex-wrap gap-2.5">
-              {SUPPORTED_BANKS.map((b) => (
-                <div
-                  key={b.code}
-                  className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-[12.5px] font-semibold"
-                >
-                  <div
-                    className="flex h-6 min-w-9 items-center justify-center rounded px-1 text-[10px] font-extrabold"
-                    style={{ background: b.bg, color: b.color }}
+              {SUPPORTED_BANKS.map((b) => {
+                const selected = selectedBankCode === b.code;
+                const hasTemplate = templateBankCodes.has(b.code);
+                return (
+                  <button
+                    key={b.code}
+                    type="button"
+                    onClick={() =>
+                      setSelectedBankCode(selected ? null : b.code)
+                    }
+                    className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-[12.5px] font-semibold transition-colors ${
+                      selected
+                        ? "border-primary bg-accent"
+                        : "bg-card hover:bg-accent/50"
+                    }`}
                   >
-                    {b.code}
-                  </div>
-                  {b.name}
-                </div>
-              ))}
+                    <div
+                      className="flex h-6 min-w-9 items-center justify-center rounded px-1 text-[10px] font-extrabold"
+                      style={{ background: b.bg, color: b.color }}
+                    >
+                      {b.code}
+                    </div>
+                    {b.name}
+                    {hasTemplate && (
+                      <span
+                        className="size-1.5 rounded-full bg-success"
+                        title={t.rekonsiliasi.templateSavedIndicator}
+                      />
+                    )}
+                  </button>
+                );
+              })}
               <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-[12.5px] font-semibold text-muted-foreground">
                 {t.rekonsiliasi.othersLabel}
               </div>
             </div>
+            {selectedBankCode && (
+              <div className="mt-2.5 text-[11.5px] text-primary">
+                {templateBankCodes.has(selectedBankCode)
+                  ? t.rekonsiliasi.bankSelectedWithTemplate
+                  : t.rekonsiliasi.bankSelectedNoTemplate}
+              </div>
+            )}
           </SectionCard>
+
+          <ReconciliationTemplateManagerDialog
+            open={templateManagerOpen}
+            onClose={() => setTemplateManagerOpen(false)}
+            familyGroupId={familyGroupId}
+            token={token}
+          />
 
           {/* Recent documents */}
           <SectionCard

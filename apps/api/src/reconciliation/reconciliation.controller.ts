@@ -1,20 +1,27 @@
 import {
+  BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
   Param,
   Patch,
   Post,
+  UploadedFile,
+  UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import {
   ApiBearerAuth,
+  ApiConsumes,
   ApiOperation,
   ApiParam,
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
+import { memoryStorage } from "multer";
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
@@ -24,7 +31,11 @@ import { MatchEntryDto } from "./dto/match-entry.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { SplitEntryDto } from "./dto/split-entry.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { UploadFileDto } from "./dto/upload-file.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UploadSyncDto } from "./dto/upload-sync.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { UpsertReconciliationTemplateDto } from "./dto/upsert-reconciliation-template.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ReconciliationService } from "./reconciliation.service";
 
@@ -33,7 +44,14 @@ import type {
   BankSyncDto,
   BankSyncEntryDto,
   ParsedRow,
+  ReconciliationTemplateDto,
 } from "./reconciliation.service";
+
+/** 20 MiB — matches the pre-existing "Maksimal ukuran file: 20MB" copy on
+ * the upload page; generous for a bank statement CSV/Excel export, small
+ * enough to bound memory use (files are parsed in-memory via multer's
+ * memoryStorage). */
+const MAX_STATEMENT_FILE_BYTES = 20 * 1024 * 1024;
 
 @ApiTags("reconciliation")
 @ApiBearerAuth()
@@ -70,6 +88,85 @@ export class ReconciliationController {
       currency: r.currency,
     }));
     return this.reconciliationService.upload(familyGroupId, dto.fileName, rows);
+  }
+
+  // EPIC-023 G2 (D17) — the real upload path: the raw file is parsed
+  // SERVER-SIDE (CSV with proper quote handling, .xlsx via `exceljs`, PDF
+  // and legacy .xls refused with a clear reason). Same "create
+  // Reconciliation" gate as the legacy JSON-rows `upload` above — this is
+  // the same action, just with honest parsing instead of a client-side
+  // guess.
+  @Post("upload-file")
+  @CheckAbility((ab: AppAbility) => ab.can("create", "Reconciliation"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiConsumes("multipart/form-data")
+  @ApiOperation({
+    summary:
+      "Upload a bank statement file (CSV/Excel) for reconciliation — parsed server-side; PDF refused",
+  })
+  @ApiResponse({ status: 201, description: "BankSync created" })
+  @UseInterceptors(
+    FileInterceptor("file", {
+      storage: memoryStorage(),
+      limits: { fileSize: MAX_STATEMENT_FILE_BYTES },
+    }),
+  )
+  uploadFile(
+    @Param("familyGroupId") familyGroupId: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Body() dto: UploadFileDto,
+  ): Promise<BankSyncDto> {
+    if (!file) {
+      throw new BadRequestException("No file uploaded");
+    }
+    return this.reconciliationService.uploadFile(
+      familyGroupId,
+      file,
+      dto.bankCode,
+    );
+  }
+
+  // EPIC-023 G2 (D17) — column-mapping templates are a saved-configuration
+  // surface (like the AI key), gated owner-level for writes; `member`
+  // (who already runs the day-to-day upload/match workflow) can read the
+  // saved templates to know which banks are already mapped.
+  @Get("templates")
+  @CheckAbility((ab: AppAbility) => ab.can("read", "ReconciliationTemplate"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiOperation({ summary: "List saved bank column-mapping templates" })
+  @ApiResponse({ status: 200, description: "List of ReconciliationTemplate" })
+  listTemplates(
+    @Param("familyGroupId") familyGroupId: string,
+  ): Promise<ReconciliationTemplateDto[]> {
+    return this.reconciliationService.listTemplates(familyGroupId);
+  }
+
+  @Post("templates")
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "ReconciliationTemplate"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiOperation({
+    summary: "Create or replace the column-mapping template for a bank",
+  })
+  @ApiResponse({ status: 201, description: "Created/updated template" })
+  upsertTemplate(
+    @Param("familyGroupId") familyGroupId: string,
+    @Body() dto: UpsertReconciliationTemplateDto,
+  ): Promise<ReconciliationTemplateDto> {
+    return this.reconciliationService.upsertTemplate(familyGroupId, dto);
+  }
+
+  @Delete("templates/:bankCode")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "ReconciliationTemplate"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "bankCode", type: String })
+  @ApiOperation({ summary: "Delete a bank's column-mapping template" })
+  @ApiResponse({ status: 204 })
+  deleteTemplate(
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("bankCode") bankCode: string,
+  ): Promise<void> {
+    return this.reconciliationService.deleteTemplate(familyGroupId, bankCode);
   }
 
   @Get()

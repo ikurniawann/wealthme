@@ -12,10 +12,17 @@ import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { ExternalRequestTimeoutError } from "../common/utils/external-fetch.util";
 import { assertHouseholdWideReadAllowed } from "../common/utils/privacy.util";
 
+import { AiAdvisorNotConfiguredError } from "./ai-advisor-not-configured.error";
+import {
+  AiAdvisorAuthError,
+  AiAdvisorRateLimitError,
+} from "./ai-advisor-provider.error";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AiAdvisorService } from "./ai-advisor.service";
+import { AiKeyCorruptedError } from "./ai-key-corrupted.error";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ChatRequestDto } from "./dto/chat-request.dto";
 
@@ -54,17 +61,38 @@ export class AiAdvisorController {
     res.flushHeaders();
 
     try {
-      await this.aiAdvisorService.streamChat(
+      const { truncated } = await this.aiAdvisorService.streamChat(
         familyGroupId,
         dto.messages,
         (token) => {
           res.write(`data: ${JSON.stringify({ token })}\n\n`);
         },
       );
-      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      // EPIC-023 Task G retry (CRITICAL five-reviewer finding) — a response
+      // that hit the provider's token cap must say so explicitly; `done:
+      // true` alone made a cut-off answer indistinguishable from a
+      // complete one.
+      res.write(`data: ${JSON.stringify({ done: true, truncated })}\n\n`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Unexpected error";
-      res.write(`data: ${JSON.stringify({ error: msg })}\n\n`);
+      // EPIC-023 G3 (D16) / Task G retry (MEDIUM finding) — a distinguishable
+      // code per failure kind so the web app renders "no key configured",
+      // "your stored key could not be read", "the provider rejected this
+      // key", "rate limited — try again", or "timed out" instead of one
+      // generic error toast for all of them.
+      const code =
+        err instanceof AiAdvisorNotConfiguredError
+          ? "AI_NOT_CONFIGURED"
+          : err instanceof AiKeyCorruptedError
+            ? "AI_KEY_CORRUPTED"
+            : err instanceof AiAdvisorAuthError
+              ? "AI_AUTH_FAILED"
+              : err instanceof AiAdvisorRateLimitError
+                ? "AI_RATE_LIMITED"
+                : err instanceof ExternalRequestTimeoutError
+                  ? "AI_TIMEOUT"
+                  : undefined;
+      res.write(`data: ${JSON.stringify({ error: msg, code })}\n\n`);
     } finally {
       res.end();
     }

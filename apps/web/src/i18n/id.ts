@@ -383,6 +383,27 @@ export const id = {
       toastGoldPriceUpdated: "✅ Harga emas diperbarui",
       toastGoldPriceFailed: "Gagal menyimpan harga emas",
       toastGoldPriceInvalid: "Masukkan harga emas yang valid (lebih dari 0)",
+      aiKeySectionTitle: "API Key AI Advisor",
+      aiKeyHint:
+        "Sambungkan API key Anda sendiri (Claude, OpenAI, atau Gemini) agar AI Advisor bisa digunakan. Key disimpan terenkripsi dan tidak pernah ditampilkan kembali.",
+      aiKeyConfiguredLabel: "Terhubung dengan",
+      aiKeyProviderLabel: "Penyedia AI",
+      aiKeyProviderOptions: {
+        claude: "Claude (Anthropic)",
+        openai: "OpenAI",
+        gemini: "Gemini (Google)",
+      },
+      aiKeyInputLabel: "API Key",
+      aiKeyInputPlaceholder: "Tempel API key di sini",
+      aiKeySaveButton: "Simpan",
+      aiKeyRemoveButton: "Hapus Key",
+      aiKeyOwnerOnlyNote:
+        "Hanya pemilik keluarga (owner) atau pasangan yang dapat mengatur API key AI.",
+      aiKeyNotConfiguredLabel: "Belum ada API key yang terhubung.",
+      toastAiKeySaved: "✅ API key AI berhasil disimpan",
+      toastAiKeySaveFailed: "Gagal menyimpan API key AI",
+      toastAiKeyRemoved: "API key AI dihapus",
+      toastAiKeyRemoveFailed: "Gagal menghapus API key AI",
     },
     notifSetting: {
       transactionSectionTitle: "Transaksi",
@@ -958,7 +979,7 @@ export const id = {
   ai: {
     bannerTitle: "WealthMe AI Advisor",
     bannerSubtitle:
-      "Powered by Claude · Analisa keuangan personal berdasarkan data nyata.",
+      "Analisa keuangan personal berdasarkan data nyata, memakai API key Anda sendiri.",
     popularQuestionsLabel: "💡 Pertanyaan Populer",
     chips: [
       "📊 Analisa keuangan bulan ini",
@@ -978,6 +999,26 @@ export const id = {
     sendAriaLabel: "Kirim",
     disclaimer:
       "Saran AI bersifat informatif, bukan nasihat investasi profesional. Selalu konsultasikan keputusan keuangan dengan ahli.",
+    notConfiguredTitle: "AI Advisor belum aktif",
+    notConfiguredBodyOwner:
+      "Sambungkan API key AI Anda sendiri (Claude, OpenAI, atau Gemini) di Akun → Pengaturan untuk mengaktifkan AI Advisor.",
+    notConfiguredBodyOther:
+      "AI Advisor belum aktif untuk keluarga ini. Minta pemilik keluarga (owner) atau pasangan untuk menyambungkan API key di Akun → Pengaturan.",
+    notConfiguredCta: "Buka Pengaturan",
+    notConfiguredMidChat:
+      "API key AI sudah tidak tersedia untuk keluarga ini. Sambungkan kembali di Akun → Pengaturan.",
+    // EPIC-023 Task G retry — CRITICAL/MEDIUM findings: a truncated answer
+    // must say so explicitly, and each provider-failure kind gets its own
+    // message instead of one generic error for all of them.
+    truncatedNotice:
+      "⚠️ Jawaban terpotong karena mencapai batas panjang respons AI.",
+    errorKeyCorrupted:
+      "API key AI yang tersimpan tidak bisa dibaca — masukkan ulang di Akun → Pengaturan.",
+    errorAuthFailed:
+      "Penyedia AI menolak API key ini — periksa kembali key Anda di Akun → Pengaturan.",
+    errorRateLimited:
+      "Penyedia AI membatasi permintaan ini sementara — coba lagi sebentar lagi.",
+    errorTimeout: "Permintaan ke penyedia AI kehabisan waktu — coba lagi.",
   },
   investasi: {
     typeLabels: {
@@ -993,6 +1034,12 @@ export const id = {
     toastAdded: "Investasi ditambahkan",
     toastUpdateFailed: "Gagal memperbarui investasi",
     toastAddFailed: "Gagal menambahkan investasi",
+    // EPIC-023 Task G retry (HIGH finding) — instrumen itu SENDIRI berhasil
+    // disimpan; hanya penulisan harga manual yang gagal. Berbeda dari
+    // toastAddFailed/toastUpdateFailed, yang menyiratkan tidak ada yang
+    // tersimpan.
+    toastPriceSaveFailed:
+      "Investasi tersimpan, tapi harga gagal disimpan. Edit untuk menambahkan harga lagi.",
     toastDeleted: "Investasi berhasil dihapus.",
     toastDeleteFailed: "Gagal menghapus investasi. Coba lagi.",
     modalTitleEdit: "Edit Investasi",
@@ -1035,6 +1082,25 @@ export const id = {
     detailProjectedYieldLabel: "Estimasi Imbal Hasil Tahunan",
     detailNoInterestRate: "Tidak berlaku untuk jenis investasi ini",
     detailNoRateSet: "Suku bunga belum diisi",
+    sourceLabels: {
+      yahooFinance: "Yahoo Finance",
+      coinGecko: "CoinGecko",
+      manual: "Input Manual",
+      mock: "Simulasi",
+    },
+    detailDelayedLabel: "Tertunda & tidak resmi",
+    detailRefreshFailedLabel: "Refresh gagal — menampilkan harga terakhir",
+    detailManualLabelPrefix: "Diinput manual, per ",
+    detailNoManualPrice: "Belum ada harga manual — edit untuk menambahkan.",
+    detailPriceUnavailable: "Harga belum tersedia.",
+    fieldManualPriceLabel: "Harga Saat Ini (Rp, opsional)",
+    fieldManualPricePlaceholder: "contoh: 15250",
+    fieldManualPriceDateLabel: "Per Tanggal",
+    manualPriceNote:
+      "Tidak ada feed harga otomatis untuk jenis ini — masukkan harga terkini secara manual, dengan tanggalnya.",
+    autoPriceNoteSaham:
+      "Harga diperbarui otomatis dari Yahoo Finance (.JK) — tertunda & tidak resmi.",
+    autoPriceNoteKripto: "Harga diperbarui otomatis dari CoinGecko.",
   },
   aset: {
     tabs: {
@@ -1799,11 +1865,39 @@ export const id = {
     orLabel: "atau",
     chooseFileButton: "Pilih File",
     supportedFormatsLabel:
-      "Format yang didukung: PDF, Excel (.xlsx, .xls), CSV",
+      "Format yang didukung: CSV, Excel (.xlsx). PDF akan ditolak — ekspor sebagai CSV dari aplikasi bank Anda.",
     maxFileSizeLabel: "Maksimal ukuran file: 20MB",
     supportedBanksTitle: "Bank yang Didukung",
     viewAllLink: "Lihat semua",
     othersLabel: "••• Lainnya",
+    bankPickerHint:
+      "Pilih bank untuk menerapkan template pemetaan kolom tersimpan, atau biarkan tidak dipilih untuk deteksi otomatis.",
+    templateSavedIndicator: "Template pemetaan tersimpan",
+    bankSelectedWithTemplate:
+      "Template pemetaan kolom untuk bank ini akan diterapkan.",
+    bankSelectedNoTemplate:
+      "Belum ada template untuk bank ini — kolom akan dideteksi otomatis.",
+    manageTemplatesLink: "Kelola Template",
+    templateManagerTitle: "Template Pemetaan Kolom",
+    templateManagerHint:
+      "Simpan nama kolom tanggal/keterangan/jumlah bank Anda sekali, dan setiap unggahan berikutnya dari bank yang sama akan otomatis memakainya.",
+    templateDeleteButton: "Hapus",
+    templateBankLabel: "Bank",
+    templateNameLabel: "Nama Template",
+    templateNamePlaceholder: "contoh: BCA Giro",
+    templateDateColumnLabel: "Kolom Tanggal",
+    templateDateColumnPlaceholder: "cth: Tanggal",
+    templateDescriptionColumnLabel: "Kolom Keterangan",
+    templateDescriptionColumnPlaceholder: "cth: Keterangan",
+    templateAmountColumnLabel: "Kolom Jumlah",
+    templateAmountColumnPlaceholder: "cth: Jumlah",
+    templateDateFormatLabel: "Format Tanggal",
+    templateDateFormatIso: "Otomatis / ISO (YYYY-MM-DD)",
+    templateSaveButton: "Simpan Template",
+    toastTemplateSaved: "✅ Template pemetaan kolom disimpan",
+    toastTemplateSaveFailed: "Gagal menyimpan template pemetaan kolom",
+    toastTemplateDeleted: "Template dihapus",
+    toastTemplateDeleteFailed: "Gagal menghapus template",
     recentDocsTitle: "Dokumen Terbaru",
     viewHistoryLink: "Lihat Riwayat",
     loadingLabel: "Memuat...",
@@ -1849,7 +1943,36 @@ export const id = {
     notMatchedSummaryLabel: "Tidak Cocok",
     newReconciliationButton: "Rekon Baru",
     toastUploaded: "File berhasil diunggah!",
+    toastUploadedPartialPrefix: "File diunggah, tapi ",
+    toastUploadedPartialSuffix:
+      " baris tidak bisa diimpor — lihat detail di bawah.",
+    skippedRowsTitleSuffix: " baris tidak bisa diimpor:",
+    skippedRowLinePrefix: "Baris ",
+    skippedRowsMorePrefix: "...dan ",
+    skippedRowsMoreSuffix: " baris lainnya tidak ditampilkan di atas.",
     toastUploadFailedDefault: "Gagal mengunggah file",
+    // EPIC-023 Task G retry (MEDIUM finding) — teks lokal untuk setiap kode
+    // error unggahan yang stabil dari API (mirror bahasa Indonesia dari
+    // pesan API — dipertahankan agar konsisten dengan pesan asli).
+    uploadErrorPdfUnsupported:
+      "Statement PDF tidak bisa diproses secara otomatis. Silakan ekspor mutasi rekening sebagai CSV dari aplikasi/situs bank Anda, lalu unggah file CSV tersebut.",
+    uploadErrorXlsUnsupported:
+      "Format .xls (Excel 97-2003) lama tidak didukung. Simpan ulang sebagai .xlsx, atau ekspor sebagai CSV dari aplikasi/situs bank Anda.",
+    uploadErrorUnsupportedFormat:
+      "Format file ini tidak didukung. Gunakan CSV atau Excel (.xlsx).",
+    uploadErrorEmptyFile: "File kosong — tidak ada baris yang bisa diimpor.",
+    uploadErrorXlsxUnreadable:
+      "File Excel tidak bisa dibaca — pastikan file benar-benar .xlsx (bukan .xls yang diganti nama) dan tidak rusak.",
+    uploadErrorXlsxLimitExceeded:
+      "File Excel ini terlalu besar untuk diproses — pisahkan menjadi beberapa file yang lebih kecil.",
+    uploadErrorColumnMappingMismatch:
+      "Pemetaan kolom tidak cocok dengan baris header file ini — periksa template tersimpan atau nama kolom.",
+    uploadErrorZeroValidRows:
+      "Tidak ada baris valid yang bisa diimpor dari file ini — periksa pemetaan kolom, atau format tanggal/jumlah.",
+    uploadErrorNoAutoDetectMapping:
+      "Tidak bisa mendeteksi kolom tanggal/keterangan/jumlah secara otomatis. Simpan template pemetaan kolom untuk bank ini terlebih dahulu, atau pilih bank saat mengunggah.",
+    uploadErrorNoSavedTemplate:
+      "Belum ada template pemetaan kolom untuk bank ini — buat template terlebih dahulu.",
     toastScanFailedDefault: "Gagal memindai entri",
     toastConfirmed: "Entri berhasil dikonfirmasi!",
     toastConfirmFailedDefault: "Gagal mengkonfirmasi",
