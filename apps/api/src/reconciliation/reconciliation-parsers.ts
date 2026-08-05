@@ -165,13 +165,13 @@ export const MAX_XLSX_CELLS = 500_000;
  * decompressed — the actual fix, not just a check that runs too late.
  */
 export async function parseExcelBuffer(buffer: Buffer): Promise<string[][]> {
-  // A cheap early-out for an honestly-declared oversized workbook — NOT a
-  // security boundary. A crafted archive defeats it by under-declaring its
-  // sizes or by appending a second empty EOCD; both were demonstrated against
-  // this code at ~950 MiB and ~344 MiB respectively, the first returning
-  // successfully with no error at all. The row/cell caps below do not cover
-  // that gap either, because the auxiliary parts are read before the row loop
-  // starts. See zip-bounds.util.ts's header and the epic's `## Blocker`.
+  // Bound what the archive really expands to, before exceljs is handed a byte.
+  // Every cap inside the parser was defeated by moving to whichever part was
+  // still being read (styles, then sharedStrings) — those are read in full
+  // before the first row is yielded, so the row/cell caps below never see them.
+  // This inflates each entry for real and counts the output, so an
+  // under-declared size or a forged trailer changes nothing. See
+  // zip-bounds.util.ts for the two measured bypasses this closes.
   assertZipExpansionWithinBounds(buffer);
 
   const reader = new ExcelJS.stream.xlsx.WorkbookReader(

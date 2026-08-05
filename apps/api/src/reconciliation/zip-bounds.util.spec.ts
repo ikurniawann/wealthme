@@ -1,18 +1,18 @@
 /**
- * EPIC-023 G2 — the declared-expansion early-out.
+ * EPIC-023 G2 — the decompression-amplification bound.
  *
  * The archives here are assembled from raw zip bytes rather than with a zip
- * library. That is deliberate: the check reads the central directory itself,
- * so the test should hand it bytes we control exactly — and it avoids pulling
- * a new dependency into the API purely to write a test.
+ * library, deliberately: the guard reads the container itself, so the tests
+ * should hand it bytes we control exactly — and it avoids pulling a new
+ * dependency into the API purely to write a test.
  *
- * **Scope of these tests.** Every archive below declares its sizes honestly.
- * That is the only case this check covers, and the tests should not be read as
- * proving more than that: a crafted archive defeats it by under-declaring, or
- * by appending a second empty EOCD, and both were demonstrated end to end
- * against this code (~956 MiB and ~344 MiB). See `zip-bounds.util.ts`'s header
- * for the detail and the epic's `## Blocker` for what an actual fix requires.
+ * The two BYPASS cases are the ones that matter. They are the exact techniques
+ * a security review used to defeat an earlier, declaration-trusting version of
+ * this guard end to end, at ~956 MiB and ~344 MiB. If either stops throwing,
+ * the vulnerability is back.
  */
+import { deflateRawSync } from "node:zlib";
+
 import ExcelJS from "exceljs";
 
 import { parseExcelBuffer } from "./reconciliation-parsers";
@@ -32,56 +32,39 @@ async function realWorkbookBuffer(): Promise<Buffer> {
 }
 
 /**
- * Builds a structurally valid single-entry zip whose central directory
- * declares `declaredUncompressed` bytes while carrying a tiny stored payload.
- * This is exactly the asymmetry the bound exists to catch — the archive is
- * small on the wire and enormous once expanded.
+ * One local zip entry holding a REAL deflate stream, whose header may declare
+ * any uncompressed size we like — including a lie.
  */
-function zipDeclaringExpansion(
+function deflateEntry(
   name: string,
-  declaredUncompressed: number,
+  raw: Buffer,
+  declaredUncompressed = raw.length,
 ): Buffer {
   const nameBytes = Buffer.from(name, "utf8");
-  const payload = Buffer.from("a", "utf8");
+  const compressed = deflateRawSync(raw, { level: 9 });
+  const header = Buffer.alloc(30);
+  header.writeUInt32LE(0x04034b50, 0); // local file header signature
+  header.writeUInt16LE(20, 4); // version needed
+  header.writeUInt16LE(8, 8); // method: DEFLATE
+  header.writeUInt32LE(compressed.length, 18); // compressed size
+  header.writeUInt32LE(declaredUncompressed, 22); // uncompressed size
+  header.writeUInt16LE(nameBytes.length, 26);
+  header.writeUInt16LE(0, 28); // extra length
+  return Buffer.concat([header, nameBytes, compressed]);
+}
 
-  const local = Buffer.alloc(30);
-  local.writeUInt32LE(0x04034b50, 0); // local file header signature
-  local.writeUInt16LE(20, 4); // version needed
-  local.writeUInt16LE(0, 6); // flags
-  local.writeUInt16LE(0, 8); // method: stored
-  local.writeUInt32LE(0, 14); // crc32 (not validated by the bound)
-  local.writeUInt32LE(payload.length, 18); // compressed size
-  local.writeUInt32LE(declaredUncompressed, 22); // uncompressed size
-  local.writeUInt16LE(nameBytes.length, 26);
-  local.writeUInt16LE(0, 28); // extra length
+/** An End Of Central Directory record. `entries: 0` makes a decoy trailer. */
+function eocd(entries: number): Buffer {
+  const rec = Buffer.alloc(22);
+  rec.writeUInt32LE(0x06054b50, 0);
+  rec.writeUInt16LE(entries, 8);
+  rec.writeUInt16LE(entries, 10);
+  return rec;
+}
 
-  const localRecord = Buffer.concat([local, nameBytes, payload]);
-
-  const central = Buffer.alloc(46);
-  central.writeUInt32LE(0x02014b50, 0); // central file header signature
-  central.writeUInt16LE(20, 4); // version made by
-  central.writeUInt16LE(20, 6); // version needed
-  central.writeUInt16LE(0, 8); // flags
-  central.writeUInt16LE(0, 10); // method: stored
-  central.writeUInt32LE(0, 16); // crc32
-  central.writeUInt32LE(payload.length, 20); // compressed size
-  central.writeUInt32LE(declaredUncompressed, 24); // uncompressed size
-  central.writeUInt16LE(nameBytes.length, 28);
-  central.writeUInt16LE(0, 30); // extra length
-  central.writeUInt16LE(0, 32); // comment length
-  central.writeUInt32LE(0, 42); // local header offset
-
-  const centralRecord = Buffer.concat([central, nameBytes]);
-
-  const eocd = Buffer.alloc(22);
-  eocd.writeUInt32LE(0x06054b50, 0); // EOCD signature
-  eocd.writeUInt16LE(1, 8); // entries on this disk
-  eocd.writeUInt16LE(1, 10); // entries total
-  eocd.writeUInt32LE(centralRecord.length, 12); // central directory size
-  eocd.writeUInt32LE(localRecord.length, 16); // central directory offset
-  eocd.writeUInt16LE(0, 20); // comment length
-
-  return Buffer.concat([localRecord, centralRecord, eocd]);
+/** Highly compressible filler — small on the wire, large once inflated. */
+function filler(bytes: number): Buffer {
+  return Buffer.alloc(bytes, 0x61);
 }
 
 describe("assertZipExpansionWithinBounds", () => {
@@ -91,63 +74,109 @@ describe("assertZipExpansionWithinBounds", () => {
   });
 
   it("stays silent on a buffer that is not a zip at all", () => {
-    // Reporting "not a spreadsheet" belongs to the parser, which already does
-    // it well; this function's only job is the size bound.
+    // Reporting "this is not a spreadsheet" belongs to the parser, which
+    // already does it well; this guard's only job is the size bound.
     const notAZip = Buffer.from("this is plainly not a spreadsheet", "utf8");
     expect(() => assertZipExpansionWithinBounds(notAZip)).not.toThrow();
   });
 
-  it("allows an archive that sits just under the bound", () => {
-    const ok = zipDeclaringExpansion(
-      "xl/sharedStrings.xml",
-      MAX_XLSX_UNCOMPRESSED_BYTES - 1,
-    );
+  it("allows an archive that really expands to well under the bound", () => {
+    const ok = Buffer.concat([
+      deflateEntry("xl/sharedStrings.xml", filler(8 * 1024 * 1024)),
+      eocd(1),
+    ]);
     expect(() => assertZipExpansionWithinBounds(ok)).not.toThrow();
   });
 
-  it("refuses an archive declaring more expansion than the bound", () => {
-    const bomb = zipDeclaringExpansion(
-      "xl/sharedStrings.xml",
-      MAX_XLSX_UNCOMPRESSED_BYTES + 1,
-    );
+  it("refuses an archive that really expands past the bound", () => {
+    const bomb = Buffer.concat([
+      deflateEntry(
+        "xl/sharedStrings.xml",
+        filler(MAX_XLSX_UNCOMPRESSED_BYTES + 1024 * 1024),
+      ),
+      eocd(1),
+    ]);
     expect(() => assertZipExpansionWithinBounds(bomb)).toThrow(
       ZipExpansionExceededError,
     );
   });
 
-  it("refuses an honestly-declared shared-string bomb", async () => {
-    // 8M distinct strings against a three-cell worksheet was measured at
-    // 969 MiB peak RSS. Row and cell caps cannot see it: they count data
-    // actually iterated, while this table loads in full beforehand. Note the
-    // qualifier — an archive that LIES about this size still gets through;
-    // that is the open finding, not something this test covers.
-    const bomb = zipDeclaringExpansion(
-      "xl/sharedStrings.xml",
-      800 * 1024 * 1024,
+  it("sums across entries, so many medium parts cannot pass individually", () => {
+    // Each part is comfortably under the cap alone; together they are not.
+    const parts = Array.from({ length: 10 }, (_, i) =>
+      deflateEntry(`xl/part${i}.xml`, filler(8 * 1024 * 1024)),
     );
-    await expect(parseExcelBuffer(bomb)).rejects.toThrow(
+    const bomb = Buffer.concat([...parts, eocd(parts.length)]);
+    expect(() => assertZipExpansionWithinBounds(bomb)).toThrow(
       ZipExpansionExceededError,
     );
   });
 
-  it("refuses an honestly-declared styles bomb by the same check", async () => {
-    // Checking the archive rather than each individual cache means this vector
-    // needs no styles-specific knowledge — for honestly-declared files.
-    const bomb = zipDeclaringExpansion("xl/styles.xml", 700 * 1024 * 1024);
-    await expect(parseExcelBuffer(bomb)).rejects.toThrow(
+  // ── The two verified bypasses of the previous, declaration-trusting guard ──
+
+  it("BYPASS A: refuses a part that under-declares its real expansion", () => {
+    // The defeated version summed DECLARED sizes. unzipper inflates the real
+    // payload whatever the header claims, so declaring 500 bytes for a part
+    // that truly inflates far past the cap sailed through and cost ~956 MiB.
+    // Nothing is trusted now — the entry is actually inflated and counted.
+    const bomb = Buffer.concat([
+      deflateEntry(
+        "xl/sharedStrings.xml",
+        filler(MAX_XLSX_UNCOMPRESSED_BYTES + 16 * 1024 * 1024),
+        500, // the lie
+      ),
+      eocd(1),
+    ]);
+    expect(() => assertZipExpansionWithinBounds(bomb)).toThrow(
       ZipExpansionExceededError,
     );
+  });
+
+  it("BYPASS B: refuses despite an appended decoy EOCD claiming zero entries", () => {
+    // The defeated version scanned backwards for the EOCD and believed the
+    // attacker's 22-byte trailer, summing nothing. This guard never consults
+    // the central directory or EOCD at all — it walks local file headers
+    // forward, the way a streaming unzipper meets them.
+    const bomb = Buffer.concat([
+      deflateEntry(
+        "xl/sharedStrings.xml",
+        filler(MAX_XLSX_UNCOMPRESSED_BYTES + 16 * 1024 * 1024),
+      ),
+      eocd(1),
+      eocd(0), // decoy, found first by a backward scan
+    ]);
+    expect(() => assertZipExpansionWithinBounds(bomb)).toThrow(
+      ZipExpansionExceededError,
+    );
+  });
+
+  it("keeps its own memory bounded while refusing — the guard is not the attack", () => {
+    // zlib's maxOutputLength aborts inside the call rather than allocating the
+    // whole expansion first. Without it, this check would itself be the bomb.
+    const bomb = Buffer.concat([
+      deflateEntry("xl/sharedStrings.xml", filler(400 * 1024 * 1024)),
+      eocd(1),
+    ]);
+    const before = process.memoryUsage().rss;
+    expect(() => assertZipExpansionWithinBounds(bomb)).toThrow(
+      ZipExpansionExceededError,
+    );
+    const grownMiB = (process.memoryUsage().rss - before) / (1024 * 1024);
+    expect(grownMiB).toBeLessThan(200);
   });
 
   it("fires before exceljs is handed the buffer", async () => {
-    // If the bound ran inside the parse, the memory would already be
-    // committed by the time it tripped. The archive below is not a valid
-    // workbook at all, so reaching exceljs would raise an unreadable-file
-    // error instead — getting the expansion error proves the ordering.
-    const bomb = zipDeclaringExpansion(
-      "xl/sharedStrings.xml",
-      900 * 1024 * 1024,
-    );
+    // If the bound ran inside the parse, the memory would already be committed
+    // by the time it tripped. This archive is not a valid workbook, so
+    // reaching exceljs would raise an unreadable-file error instead — getting
+    // the expansion error proves the ordering.
+    const bomb = Buffer.concat([
+      deflateEntry(
+        "xl/sharedStrings.xml",
+        filler(MAX_XLSX_UNCOMPRESSED_BYTES + 8 * 1024 * 1024),
+      ),
+      eocd(1),
+    ]);
     await expect(parseExcelBuffer(bomb)).rejects.toThrow(
       ZipExpansionExceededError,
     );

@@ -1,179 +1,156 @@
+import { inflateRawSync } from "node:zlib";
+
 /**
  * EPIC-023 G2 — decompression-amplification bound for uploaded `.xlsx` files.
  *
- * An `.xlsx` is a zip archive. Every cap that lives *inside* the parser has
- * turned out to be too late or too narrow, because each of exceljs's auxiliary
- * caches is loaded in full before the first worksheet row is yielded, and none
- * of them is counted by a row or cell limit:
+ * An `.xlsx` is a zip archive, and `exceljs` reads several of its parts in
+ * full before yielding a single worksheet row. Every bound placed *inside* the
+ * parser was defeated by moving to whichever part was still being read:
  *
  *   - `workbook.xlsx.load()` materialised the whole sheet up front:
  *     3.6 MiB file  → 774 MiB peak RSS, before any cap ran.
- *   - streaming reader fixed that, then `styles: "cache"` reopened it:
- *     18.6 MiB file (a THREE-cell worksheet, ~2.5M numFmt entries)
- *                   → 696 MiB peak RSS.
- *   - `styles: "ignore"` fixed that, then `sharedStrings: "cache"` reopened it:
- *     19.2 MiB file (a THREE-cell worksheet, 8M distinct strings)
- *                   → 969 MiB peak RSS.
+ *   - the streaming reader fixed that; `styles: "cache"` reopened it:
+ *     18.6 MiB file (a THREE-cell worksheet, ~2.5M numFmt entries) → 696 MiB.
+ *   - `styles: "ignore"` fixed that; `sharedStrings: "cache"` reopened it:
+ *     19.2 MiB file (a THREE-cell worksheet, 8M strings) → 969 MiB.
  *
- * Three rounds, three doors, one room. `sharedStrings` cannot simply be
- * disabled the way `styles` could — it holds the actual cell text, not
- * formatting — so the durable fix is to stop guessing which cache is
- * dangerous and instead bound what the archive can expand to *at all*,
- * before exceljs is handed a single byte.
+ * `sharedStrings` cannot simply be ignored — it holds the actual cell text,
+ * not formatting. So this stops guessing which part is dangerous and bounds
+ * the archive itself, before exceljs is handed a byte.
  *
- * This reads the zip central directory (a small, fixed-layout index at the end
- * of the file) and sums the declared uncompressed sizes. It never decompresses
- * anything, so the check itself cannot be turned into the attack.
+ * ─────────────────────────────────────────────────────────────────────────
+ * Why this measures instead of reading the declared sizes
+ * ─────────────────────────────────────────────────────────────────────────
  *
- * ────────────────────────────────────────────────────────────────────────────
- * THIS IS NOT A SECURITY BOUNDARY. Read before relying on it.
- * ────────────────────────────────────────────────────────────────────────────
+ * A previous revision summed the *declared* uncompressed sizes from the
+ * central directory. A security review defeated it end to end, twice:
  *
- * An earlier version of this comment argued that "a liar can only
- * under-declare, and an under-declaring archive still has to get past the row
- * and cell caps." **That reasoning is wrong**, and a security review defeated
- * it end to end with two independent techniques:
+ *   A. Under-declare. `unzipper` (which exceljs streams through) inflates the
+ *      real DEFLATE payload regardless of what any header claims — a declared
+ *      size is decorative to the decompression path. An archive declaring 500
+ *      bytes for a part that truly inflates to 412 MiB consumed 956 MiB and
+ *      **returned successfully**, leaving no error to alert on.
  *
- *   A. Under-declare the size. `unzipper` (which exceljs streams through)
- *      inflates the real DEFLATE payload regardless of what either the local
- *      header or the central directory claims — the declared size is decorative
- *      to the decompression path. A 19.3 MiB archive declaring 500 bytes for a
- *      part that truly inflates to 412 MiB consumed 956 MiB over ~10s and
- *      **returned successfully with 3 rows** — no error to alert on.
+ *   B. Append a second, empty 22-byte EOCD. A backward scan finds the
+ *      attacker's trailer first, reads "0 entries", and returns silently while
+ *      exceljs ignores the trailer and parses the real content. 344 MiB, no
+ *      lie required, a fixed suffix appliable to any file.
  *
- *   B. Append a second, empty 22-byte EOCD. The backward scan below finds the
- *      attacker's trailing record first, reads "0 entries", sums nothing and
- *      returns silently, while exceljs ignores the trailer and parses the real
- *      content. 344 MiB, no lie required, a fixed suffix appliable to any file.
+ * Both are closed here by construction:
  *
- * The row and cell caps do not catch either, because they bound the worksheet
- * row-iteration loop, and the auxiliary parts (`sharedStrings`, styles) are
- * read in full *before* that loop begins. Nothing counts them.
+ *   - **Nothing is trusted.** Every DEFLATE entry is really inflated and its
+ *     output bytes counted, so under-declaring changes nothing.
+ *   - **The central directory and EOCD are never consulted.** Entries are
+ *     found by scanning forward for local-file-header signatures, the way a
+ *     streaming unzipper meets them, so an appended trailer is irrelevant.
  *
- * What this function is, honestly: a cheap early-out that refuses an
- * *honestly-declared* oversized workbook in about a millisecond, before any
- * work is done. That is worth keeping — it costs nothing and rejects the
- * accidental and the naive. It is not a defence against a crafted file.
- *
- * Closing the vulnerability needs a bound derived from something the archive
- * cannot lie about. See the epic's `## Blocker` section: either meter the real
- * inflate against a hard byte ceiling, or run the parse in a worker with
- * `resourceLimits` so an OOM kills one job rather than the API process.
+ * The guard is bounded by its own cap — `maxOutputLength` makes zlib abort
+ * inside the call rather than allocating the full expansion first — so it can
+ * never become the attack it prevents. It costs one extra decompression of an
+ * already size-limited (≤20 MiB) upload, cheap next to the parse that follows.
  */
 
-/** Total declared uncompressed bytes an uploaded workbook may expand to.
+/** Total real uncompressed bytes an uploaded workbook may expand to.
  *
- * Sized against real use, not the attack: the row cap allows 20,000 rows, and
- * a 20,000-row statement with three text columns is a few MiB of XML. 64 MiB
- * is ~13x the 20 MiB upload ceiling and far beyond any genuine bank export,
- * while refusing every measured bomb above by an order of magnitude. */
+ * Sized against genuine use, not the attack: the row cap allows 20,000 rows,
+ * and a 20,000-row statement with three text columns is a few MiB of XML.
+ * 64 MiB is ~13x the 20 MiB upload ceiling and far beyond any real bank
+ * export, while refusing every measured bomb by an order of magnitude. */
 export const MAX_XLSX_UNCOMPRESSED_BYTES = 64 * 1024 * 1024;
 
-/** Thrown when an archive declares more expansion than we will process. Kept
- * distinct from a generic unreadable-file error so the caller can explain
- * what to do about it. */
+/** Thrown when an archive really does expand past the bound. Kept distinct
+ * from a generic unreadable-file error so the caller can explain it. */
 export class ZipExpansionExceededError extends Error {}
 
-const EOCD_SIGNATURE = 0x06054b50;
-const CENTRAL_FILE_HEADER_SIGNATURE = 0x02014b50;
-const ZIP64_EXTRA_HEADER_ID = 0x0001;
-const EOCD_MIN_SIZE = 22;
-/** A zip comment is a 16-bit length, so the EOCD starts at most 0xFFFF + 22
- * bytes from the end. */
-const EOCD_MAX_SEARCH = 0xffff + EOCD_MIN_SIZE;
-/** Sentinel meaning "the real value is in the ZIP64 extra field". */
-const ZIP64_SENTINEL_32 = 0xffffffff;
+const LOCAL_FILE_HEADER_SIGNATURE = 0x04034b50;
+const LOCAL_HEADER_FIXED_SIZE = 30;
+const METHOD_STORED = 0;
+const METHOD_DEFLATE = 8;
 
-/** Finds the End Of Central Directory record, scanning backwards from the end
- * so a trailing comment does not hide it. Returns -1 when absent (i.e. this is
- * not a zip at all — left to the caller to report). */
-function findEocdOffset(buffer: Buffer): number {
-  const searchFrom = Math.max(0, buffer.length - EOCD_MAX_SEARCH);
-  for (let i = buffer.length - EOCD_MIN_SIZE; i >= searchFrom; i--) {
-    if (buffer.readUInt32LE(i) === EOCD_SIGNATURE) return i;
-  }
-  return -1;
-}
-
-/** Reads the 64-bit uncompressed size out of a central-directory entry's
- * ZIP64 extra field. The extra field is a sequence of (id, size, payload)
- * blocks; within the ZIP64 block the uncompressed size comes first, so it is
- * only present when the 32-bit field was the sentinel. */
-function readZip64UncompressedSize(
-  extra: Buffer,
-  compressedWasSentinel: boolean,
-): number | null {
-  let offset = 0;
-  while (offset + 4 <= extra.length) {
-    const headerId = extra.readUInt16LE(offset);
-    const blockSize = extra.readUInt16LE(offset + 2);
-    const body = offset + 4;
-    if (headerId === ZIP64_EXTRA_HEADER_ID) {
-      if (body + 8 > extra.length) return null;
-      // Ordering within the ZIP64 block is uncompressed, then compressed —
-      // and each is present only if its 32-bit counterpart was the sentinel.
-      // We are here because uncompressed was, so it is the first 8 bytes.
-      void compressedWasSentinel;
-      return Number(extra.readBigUInt64LE(body));
-    }
-    offset = body + blockSize;
-  }
-  return null;
+function tooBig(): ZipExpansionExceededError {
+  return new ZipExpansionExceededError(
+    `Isi file Excel ini terlalu besar setelah diekstrak (melebihi ${Math.floor(
+      MAX_XLSX_UNCOMPRESSED_BYTES / (1024 * 1024),
+    )} MB) — pisahkan menjadi beberapa file yang lebih kecil, atau gunakan CSV.`,
+  );
 }
 
 /**
- * Refuses an archive whose central directory declares more total expansion
- * than `MAX_XLSX_UNCOMPRESSED_BYTES`.
+ * Inflates one DEFLATE stream starting at `start`, refusing once it would push
+ * the running total past the cap.
  *
- * Deliberately silent when the buffer is not a readable zip: reporting "this
- * is not a spreadsheet" is the parser's job and it already does it well. This
- * function's only responsibility is the size bound.
+ * `maxOutputLength` is what keeps this safe: without it, zlib would allocate
+ * the entire expansion before returning — precisely the behaviour being
+ * defended against. The caller's remaining headroom is passed in, so the
+ * *cumulative* total is what binds; ten 8 MiB parts must still trip a 64 MiB
+ * cap, not pass individually.
+ */
+function inflatedSize(
+  buffer: Buffer,
+  start: number,
+  remainingBudget: number,
+): number {
+  try {
+    return inflateRawSync(buffer.subarray(start), {
+      maxOutputLength: remainingBudget + 1,
+    }).length;
+  } catch (err) {
+    // zlib raises ERR_BUFFER_TOO_LARGE the moment maxOutputLength is passed —
+    // that is this function's refusal, not a malformed-file symptom.
+    if (
+      (err as NodeJS.ErrnoException | undefined)?.code ===
+      "ERR_BUFFER_TOO_LARGE"
+    ) {
+      throw tooBig();
+    }
+    // A truncated or corrupt stream is not this function's to report: the
+    // parser gives a far better message for "this is not a spreadsheet".
+    return 0;
+  }
+}
+
+/**
+ * Refuses an archive that genuinely expands past
+ * `MAX_XLSX_UNCOMPRESSED_BYTES`.
+ *
+ * Deliberately silent when the buffer is not a readable zip — reporting "this
+ * is not a spreadsheet" belongs to the parser, which already does it well.
+ * This function's only responsibility is the size bound.
  */
 export function assertZipExpansionWithinBounds(buffer: Buffer): void {
-  const eocd = findEocdOffset(buffer);
-  if (eocd < 0) return; // not a zip — the parser will report it
-
-  const entryCount = buffer.readUInt16LE(eocd + 10);
-  let offset = buffer.readUInt32LE(eocd + 16);
-
   let total = 0;
-  for (let i = 0; i < entryCount; i++) {
-    if (offset + 46 > buffer.length) return; // truncated index — parser reports
-    if (buffer.readUInt32LE(offset) !== CENTRAL_FILE_HEADER_SIGNATURE) return;
+  let offset = 0;
 
-    const compressedSize = buffer.readUInt32LE(offset + 20);
-    const uncompressedSize = buffer.readUInt32LE(offset + 24);
-    const nameLength = buffer.readUInt16LE(offset + 28);
-    const extraLength = buffer.readUInt16LE(offset + 30);
-    const commentLength = buffer.readUInt16LE(offset + 32);
-
-    let entrySize: number = uncompressedSize;
-    if (uncompressedSize === ZIP64_SENTINEL_32) {
-      const extraStart = offset + 46 + nameLength;
-      const extra = buffer.subarray(extraStart, extraStart + extraLength);
-      const zip64Size = readZip64UncompressedSize(
-        extra,
-        compressedSize === ZIP64_SENTINEL_32,
-      );
-      // A ZIP64 entry we cannot read is refused rather than waved through:
-      // an unreadable size is exactly what an attacker would arrange.
-      if (zip64Size === null) {
-        throw new ZipExpansionExceededError(
-          "Ukuran isi file Excel tidak bisa dibaca — file kemungkinan rusak atau tidak wajar. Ekspor ulang dari bank Anda, atau gunakan CSV.",
-        );
-      }
-      entrySize = zip64Size;
+  while (offset + LOCAL_HEADER_FIXED_SIZE <= buffer.length) {
+    if (buffer.readUInt32LE(offset) !== LOCAL_FILE_HEADER_SIGNATURE) {
+      // Advance by signature, never by arithmetic on declared lengths — those
+      // are exactly what an attacker controls.
+      offset++;
+      continue;
     }
 
-    total += entrySize;
-    if (total > MAX_XLSX_UNCOMPRESSED_BYTES) {
-      throw new ZipExpansionExceededError(
-        `Isi file Excel ini terlalu besar setelah diekstrak (melebihi ${Math.floor(
-          MAX_XLSX_UNCOMPRESSED_BYTES / (1024 * 1024),
-        )} MB) — pisahkan menjadi beberapa file yang lebih kecil, atau gunakan CSV.`,
+    const method = buffer.readUInt16LE(offset + 8);
+    const nameLength = buffer.readUInt16LE(offset + 26);
+    const extraLength = buffer.readUInt16LE(offset + 28);
+    const dataStart =
+      offset + LOCAL_HEADER_FIXED_SIZE + nameLength + extraLength;
+    if (dataStart >= buffer.length) break;
+
+    if (method === METHOD_DEFLATE) {
+      total += inflatedSize(
+        buffer,
+        dataStart,
+        MAX_XLSX_UNCOMPRESSED_BYTES - total,
       );
+    } else if (method === METHOD_STORED) {
+      // Stored data cannot amplify — it is already its own size — but it still
+      // counts, so a pile of stored parts cannot slip past the total.
+      const declared = buffer.readUInt32LE(offset + 22);
+      total += Math.min(declared, buffer.length - dataStart);
     }
 
-    offset += 46 + nameLength + extraLength + commentLength;
+    if (total > MAX_XLSX_UNCOMPRESSED_BYTES) throw tooBig();
+
+    offset = dataStart;
   }
 }
