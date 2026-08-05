@@ -257,6 +257,16 @@ describe("AllowanceRequestsService", () => {
       ).rejects.toThrow(NotFoundException);
     });
 
+    it("EPIC-023 Task D — rejects approving a funding request with no fromAccountId", async () => {
+      prisma.allowanceRequest.findFirst.mockResolvedValue(pendingRequest);
+
+      await expect(
+        service.approve(FAMILY_GROUP_ID, REQUEST_ID, OWNER_USER_ID, {}),
+      ).rejects.toThrow(BadRequestException);
+      expect(transactionsService.create).not.toHaveBeenCalled();
+      expect(prisma.allowanceRequest.updateMany).not.toHaveBeenCalled();
+    });
+
     it("rejects a source account that matches the target account", async () => {
       prisma.allowanceRequest.findFirst.mockResolvedValue(pendingRequest);
 
@@ -397,6 +407,113 @@ describe("AllowanceRequestsService", () => {
     });
   });
 
+  // EPIC-023 Task D (D3/D9, US-FAM-14) — approving a held_expense request
+  // replays the originally-attempted EXPENSE (never a transfer), moving the
+  // balance for the FIRST time at approval, atomically, exactly once.
+  describe("approve — held_expense (EPIC-023 Task D, D3/D9)", () => {
+    const heldExpenseRequest = {
+      id: REQUEST_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      requesterUserId: MEMBER_USER_ID,
+      // See schema.prisma's AllowanceRequest comment — for held_expense
+      // this is the account the deferred expense DEBITS.
+      targetAccountId: TARGET_ACCOUNT_ID,
+      fromAccountId: null,
+      amount: BigInt(750000),
+      note: null,
+      kind: "held_expense" as const,
+      categoryId: "cat-1",
+      description: "Servis motor",
+      status: "pending" as const,
+      createdAt: new Date(),
+      decidedAt: null,
+      decidedByUserId: null,
+    };
+
+    function mockApprovedResult() {
+      prisma.allowanceRequest.findUniqueOrThrow.mockResolvedValue({
+        ...heldExpenseRequest,
+        status: "approved",
+        decidedAt: new Date(),
+        decidedByUserId: OWNER_USER_ID,
+        targetAccount: { name: "Rekening Anak" },
+      });
+    }
+
+    it("posts the held expense (never a transfer) and needs no fromAccountId", async () => {
+      prisma.allowanceRequest.findFirst.mockResolvedValue(heldExpenseRequest);
+      prisma.allowanceRequest.updateMany.mockResolvedValue({ count: 1 });
+      mockApprovedResult();
+
+      const result = await service.approve(
+        FAMILY_GROUP_ID,
+        REQUEST_ID,
+        OWNER_USER_ID,
+        {},
+      );
+
+      expect(prisma.allowanceRequest.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: REQUEST_ID,
+          familyGroupId: FAMILY_GROUP_ID,
+          status: "pending",
+        },
+        data: expect.objectContaining({
+          status: "approved",
+          decidedByUserId: OWNER_USER_ID,
+        }),
+      });
+      // Real expense, on the held account, for the held amount — actingMember
+      // null so TransactionsService's row-scope re-gate never re-holds this.
+      expect(transactionsService.create).toHaveBeenCalledWith(
+        FAMILY_GROUP_ID,
+        expect.objectContaining({
+          accountId: TARGET_ACCOUNT_ID,
+          amount: 750000,
+          type: "expense",
+          categoryId: "cat-1",
+          description: "Servis motor",
+        }),
+        null,
+      );
+      // Never a transfer — no toAccountId, no source-account resolution.
+      expect(prisma.account.findUnique).not.toHaveBeenCalled();
+      expect(result.status).toBe("approved");
+      expect(result.kind).toBe("held_expense");
+    });
+
+    // SECURITY (CRITICAL, TOCTOU) — same double-approve guard as funding;
+    // a held expense must never post twice.
+    it("double-approve: the second concurrent approve gets 409 and never posts the expense", async () => {
+      prisma.allowanceRequest.findFirst.mockResolvedValue(heldExpenseRequest);
+      prisma.allowanceRequest.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        service.approve(FAMILY_GROUP_ID, REQUEST_ID, OWNER_USER_ID, {}),
+      ).rejects.toThrow(ConflictException);
+      expect(transactionsService.create).not.toHaveBeenCalled();
+    });
+
+    // SECURITY (CRITICAL) — if the replay fails after the claim succeeded,
+    // compensate back to pending instead of leaving a stuck "approved" with
+    // no actual posting.
+    it("reverts the claim back to pending when replaying the expense fails", async () => {
+      prisma.allowanceRequest.findFirst.mockResolvedValue(heldExpenseRequest);
+      prisma.allowanceRequest.updateMany.mockResolvedValue({ count: 1 });
+      const replayError = new Error("category not found");
+      transactionsService.create.mockRejectedValue(replayError);
+
+      await expect(
+        service.approve(FAMILY_GROUP_ID, REQUEST_ID, OWNER_USER_ID, {}),
+      ).rejects.toThrow(replayError);
+
+      expect(prisma.allowanceRequest.update).toHaveBeenCalledWith({
+        where: { id: REQUEST_ID },
+        data: { status: "pending", decidedAt: null, decidedByUserId: null },
+      });
+    });
+  });
+
   describe("reject", () => {
     const pendingRequest = {
       id: REQUEST_ID,
@@ -464,6 +581,48 @@ describe("AllowanceRequestsService", () => {
       });
       expect(prisma.notification.create).toHaveBeenCalled();
       expect(result.status).toBe("rejected");
+    });
+
+    // EPIC-023 Task D (D3/D9) — reject leaves balances untouched
+    // PERMANENTLY, for a held expense exactly as for a funding request: no
+    // Transaction is ever created, kind stays held_expense, decision final.
+    it("EPIC-023 Task D — rejecting a held_expense request never posts the expense", async () => {
+      const heldExpenseRequest = {
+        id: REQUEST_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        requesterUserId: MEMBER_USER_ID,
+        targetAccountId: TARGET_ACCOUNT_ID,
+        fromAccountId: null,
+        amount: BigInt(750000),
+        note: null,
+        kind: "held_expense" as const,
+        categoryId: null,
+        description: "Servis motor",
+        status: "pending" as const,
+        createdAt: new Date(),
+        decidedAt: null,
+        decidedByUserId: null,
+      };
+      prisma.allowanceRequest.findFirst.mockResolvedValue(heldExpenseRequest);
+      prisma.allowanceRequest.updateMany.mockResolvedValue({ count: 1 });
+      prisma.allowanceRequest.findUniqueOrThrow.mockResolvedValue({
+        ...heldExpenseRequest,
+        status: "rejected",
+        decidedAt: new Date(),
+        decidedByUserId: OWNER_USER_ID,
+        targetAccount: { name: "Rekening Anak" },
+      });
+
+      const result = await service.reject(
+        FAMILY_GROUP_ID,
+        REQUEST_ID,
+        OWNER_USER_ID,
+        {},
+      );
+
+      expect(transactionsService.create).not.toHaveBeenCalled();
+      expect(result.status).toBe("rejected");
+      expect(result.kind).toBe("held_expense");
     });
   });
 });

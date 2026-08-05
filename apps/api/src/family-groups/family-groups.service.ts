@@ -147,6 +147,7 @@ export class FamilyGroupsService {
       name: m.user.name,
       email: m.user.email,
       createdAt: m.createdAt.toISOString(),
+      largeTxnThreshold: m.largeTxnThreshold?.toString() ?? null,
     }));
   }
 
@@ -175,6 +176,15 @@ export class FamilyGroupsService {
         ...(dto.relationship !== undefined && {
           relationship: dto.relationship,
         }),
+        // EPIC-023 Task D (D3/D9) — same undefined/null/value contract as
+        // relationship above: undefined leaves it unchanged, null clears
+        // the gate, a number sets/replaces it.
+        ...(dto.largeTxnThreshold !== undefined && {
+          largeTxnThreshold:
+            dto.largeTxnThreshold === null
+              ? null
+              : BigInt(dto.largeTxnThreshold),
+        }),
       },
       include: { user: { select: { name: true, email: true } } },
     });
@@ -188,6 +198,7 @@ export class FamilyGroupsService {
       name: updated.user.name,
       email: updated.user.email,
       createdAt: updated.createdAt.toISOString(),
+      largeTxnThreshold: updated.largeTxnThreshold?.toString() ?? null,
     };
   }
 
@@ -398,6 +409,7 @@ export class FamilyGroupsService {
       name: member.user.name,
       email: member.user.email,
       createdAt: member.createdAt.toISOString(),
+      largeTxnThreshold: member.largeTxnThreshold?.toString() ?? null,
     };
   }
 

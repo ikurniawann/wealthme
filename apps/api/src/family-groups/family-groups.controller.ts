@@ -159,6 +159,12 @@ export class FamilyGroupsController {
   }
 
   @Patch(":familyGroupId/members/:memberId")
+  // EPIC-023 Task D (D3) — controller-level guard, not just the service's
+  // assertOwner(). AbilitiesGuard fails OPEN on an undecorated route, and
+  // this route is D3's threshold control surface, so the decorator is
+  // defense-in-depth against a future refactor dropping the service check.
+  // `manage Member` is owner-only (matches createDependantMember above).
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Member"))
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiParam({ name: "memberId", type: String })
   @ApiOperation({ summary: "Change a member role (owner only)" })

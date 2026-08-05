@@ -174,6 +174,11 @@ export const en = {
       noFamilyGroup: "No active family group",
       savedAddMoreToast: "Saved! Add another...",
       savedToast: "Transaction saved successfully!",
+      // EPIC-023 Task D (D3/D9, US-FAM-14) — the transaction was NOT
+      // posted: it exceeds the member's per-account threshold and is held
+      // pending the head's approval. Must never read as a success.
+      heldToast:
+        "Expense exceeds the threshold — held pending the head's approval, not recorded yet.",
       ocrSavedToast: "Alfamart transaction Rp 58.000 saved successfully!",
       title: "Add Transaction",
       manualInput: "Manual Input",
@@ -579,6 +584,23 @@ export const en = {
         "Failed to approve the request. Try again.",
       allowanceRequestRejected: "Funding request rejected.",
       allowanceRequestRejectFailed: "Failed to reject the request. Try again.",
+      // EPIC-023 Task D (D3/D9, US-FAM-14) — held-expense variant of the
+      // same AllowanceRequest primitive: a row-scoped member's over-
+      // threshold expense, held pending the head's approval.
+      allowanceRequestHeldBadge: "Awaiting Approval",
+      allowanceRequestHeldApproved: "Expense approved and recorded.",
+      // EPIC-023 Task D (D3/D9, US-FAM-14) — per-member large-transaction
+      // threshold.
+      thresholdButton: "Large-Transaction Threshold",
+      thresholdDialogTitle: "Large-Transaction Threshold",
+      thresholdDialogDesc:
+        "An expense above this threshold is held pending your approval before it posts. Leave empty for no limit.",
+      thresholdLabel: "Threshold Amount",
+      thresholdEmptyHint: "Leave empty for no limit (default)",
+      thresholdSaveButton: "Save Threshold",
+      thresholdSaving: "Saving...",
+      thresholdSaved: "Threshold saved.",
+      thresholdSaveFailed: "Failed to save the threshold. Try again.",
       addDependantButton: "Add Child / Operational",
     },
     addAdmin: {

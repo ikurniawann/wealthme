@@ -381,6 +381,9 @@ export type I18nDictionary = {
       noFamilyGroup: string;
       savedAddMoreToast: string;
       savedToast: string;
+      // EPIC-023 Task D (D3/D9, US-FAM-14) — held pending approval, not a
+      // success.
+      heldToast: string;
       ocrSavedToast: string;
       title: string;
       manualInput: string;
@@ -715,6 +718,21 @@ export type I18nDictionary = {
       allowanceRequestApproveFailed: string;
       allowanceRequestRejected: string;
       allowanceRequestRejectFailed: string;
+      // EPIC-023 Task D (D3/D9, US-FAM-14) — held-expense variant of the
+      // same AllowanceRequest primitive.
+      allowanceRequestHeldBadge: string;
+      allowanceRequestHeldApproved: string;
+      // EPIC-023 Task D (D3/D9, US-FAM-14) — per-member large-transaction
+      // threshold.
+      thresholdButton: string;
+      thresholdDialogTitle: string;
+      thresholdDialogDesc: string;
+      thresholdLabel: string;
+      thresholdEmptyHint: string;
+      thresholdSaveButton: string;
+      thresholdSaving: string;
+      thresholdSaved: string;
+      thresholdSaveFailed: string;
       // EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/
       // operational member (name + username + initial password, no email).
       addDependantButton: string;

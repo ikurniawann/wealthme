@@ -42,6 +42,12 @@ type CreateTransactionInput = {
   toAccountId?: string;
   adminFee?: number;
 };
+// EPIC-023 Task D (D3/D9, US-FAM-14) — the API's honest "did NOT create a
+// transaction" response for a row-scoped member's over-threshold expense
+// (POST /transactions returns 202 + this shape instead of 201 + the normal
+// transaction DTO). `held: true` is a literal discriminator — see
+// HeldExpenseResponseDto on the API.
+type CreateTransactionResult = { held: true } | Record<string, unknown>;
 // Simulated scanned-receipt content (merchant name/address, item list, OCR
 // "detected" values) — this represents what the camera would read off a real
 // (Indonesian) receipt, not app UI chrome, so it intentionally stays
@@ -113,7 +119,7 @@ export function TransactionDialog() {
 
   const createMutation = useMutation({
     mutationFn: (dto: CreateTransactionInput) =>
-      apiFetch(`/family-groups/${fgId}/transactions`, {
+      apiFetch<CreateTransactionResult>(`/family-groups/${fgId}/transactions`, {
         method: "POST",
         body: JSON.stringify(dto),
         token,
@@ -217,13 +223,25 @@ export function TransactionDialog() {
         ...(adminFeeNum > 0 ? { adminFee: adminFeeNum } : {}),
       },
       {
-        onSuccess: () => {
-          toast.success(
-            addMore
-              ? t.shell.transactionDialog.savedAddMoreToast
-              : t.shell.transactionDialog.savedToast,
+        // EPIC-023 Task D (D3/D9, US-FAM-14) — reviewed foundation
+        // exception: this dialog is a protected shell file, but the held
+        // response can only be branched on here, where the mutation's
+        // result actually arrives. Minimal diff: a row-scoped member's
+        // over-threshold expense was NOT posted — it must show an honest
+        // "held pending approval" message, never the success toast.
+        onSuccess: (result) => {
+          const wasHeld =
+            !!result && typeof result === "object" && "held" in result;
+          toast[wasHeld ? "warning" : "success"](
+            wasHeld
+              ? t.shell.transactionDialog.heldToast
+              : addMore
+                ? t.shell.transactionDialog.savedAddMoreToast
+                : t.shell.transactionDialog.savedToast,
           );
-          if (addMore) {
+          if (wasHeld) {
+            handleOpenChange(false);
+          } else if (addMore) {
             resetForm();
           } else {
             handleOpenChange(false);

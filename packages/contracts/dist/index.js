@@ -65,19 +65,24 @@ var AllowanceRequestStatusSchema = z4.enum([
   "approved",
   "rejected"
 ]);
+var AllowanceRequestKindSchema = z4.enum(["funding", "held_expense"]);
 var CreateAllowanceRequestInputSchema = z4.object({
   targetAccountId: z4.string().uuid(),
   amount: z4.number().int().positive(),
   note: z4.string().optional()
 });
 var ApproveAllowanceRequestInputSchema = z4.object({
-  fromAccountId: z4.string().uuid()
+  // EPIC-023 Task D (D3/D9) — required only to approve a `funding` request;
+  // a `held_expense` request already carries its own account and needs no
+  // choice at approval time.
+  fromAccountId: z4.string().uuid().optional()
 });
 var RejectAllowanceRequestInputSchema = z4.object({
   reason: z4.string().optional()
 });
 var AllowanceRequestDtoSchema = z4.object({
   id: z4.string(),
+  kind: AllowanceRequestKindSchema,
   familyGroupId: z4.string(),
   requesterUserId: z4.string(),
   requesterName: z4.string(),
@@ -87,11 +92,20 @@ var AllowanceRequestDtoSchema = z4.object({
   fromAccountName: z4.string().nullable(),
   amount: z4.string(),
   note: z4.string().nullable(),
+  // EPIC-023 Task D (D3/D9) — held_expense only; always null for funding.
+  categoryId: z4.string().nullable(),
+  categoryName: z4.string().nullable(),
+  description: z4.string().nullable(),
   status: AllowanceRequestStatusSchema,
   createdAt: z4.string(),
   decidedAt: z4.string().nullable(),
   decidedByUserId: z4.string().nullable(),
   decidedByName: z4.string().nullable()
+});
+var HeldExpenseResponseSchema = z4.object({
+  held: z4.literal(true),
+  allowanceRequestId: z4.string(),
+  amount: z4.string()
 });
 
 // src/members/index.ts
@@ -451,6 +465,7 @@ export {
   AccountOwnerFilterSchema,
   AccountTypeSchema,
   AllowanceRequestDtoSchema,
+  AllowanceRequestKindSchema,
   AllowanceRequestStatusSchema,
   AllowedCategoryDtoSchema,
   ApproveAllowanceRequestInputSchema,
@@ -464,6 +479,7 @@ export {
   DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT,
   DEFAULT_ROLE_BY_RELATIONSHIP,
   GENERIC_COA_CHART,
+  HeldExpenseResponseSchema,
   LoginInputSchema,
   MemberCategoryAllowanceDtoSchema,
   MemberRelationshipSchema,

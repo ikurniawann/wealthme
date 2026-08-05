@@ -53,6 +53,7 @@ import {
   X,
   Eye,
   EyeOff,
+  Gauge,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -139,6 +140,9 @@ type FamilyMember = {
   name: string;
   email: string;
   createdAt: string;
+  // EPIC-023 Task D (D3/D9, US-FAM-14) — string (BigInt-safe), null = no
+  // gate. Only ever meaningful for a row-scoped role (dependant/operational).
+  largeTxnThreshold: string | null;
 };
 
 /**
@@ -2083,6 +2087,9 @@ function FamilyBody({
   const isElevated = group?.myRole === "owner" || group?.myRole === "spouse";
   const [categoryLimitMember, setCategoryLimitMember] =
     useState<FamilyMember | null>(null);
+  const [thresholdMember, setThresholdMember] = useState<FamilyMember | null>(
+    null,
+  );
 
   return (
     <>
@@ -2153,6 +2160,23 @@ function FamilyBody({
                     <Target className="size-4" />
                   </button>
                 )}
+                {/* EPIC-023 Task D (D3/D9, US-FAM-14) — only a row-scoped
+                    role (dependant/operational) can be gated by a
+                    threshold; owner-only (NOT isElevated), matching
+                    addDependantButton above — the backend endpoint that
+                    sets it requires "manage Member", which per D2 is
+                    owner-only, never spouse. */}
+                {group?.myRole === "owner" &&
+                  (m.role === "dependant" || m.role === "operational") && (
+                    <button
+                      type="button"
+                      aria-label={`${t.akun.family.thresholdButton} ${m.name}`}
+                      className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      onClick={() => setThresholdMember(m)}
+                    >
+                      <Gauge className="size-4" />
+                    </button>
+                  )}
               </div>
             }
           />
@@ -2249,6 +2273,12 @@ function FamilyBody({
         familyGroupId={familyGroupId}
         token={token}
         onClose={() => setCategoryLimitMember(null)}
+      />
+      <ThresholdDialog
+        member={thresholdMember}
+        familyGroupId={familyGroupId}
+        token={token}
+        onClose={() => setThresholdMember(null)}
       />
     </>
   );
@@ -2434,6 +2464,128 @@ function CategoryLimitForm({
   );
 }
 
+/* ──────────── Large-transaction threshold dialog (EPIC-023 Task D, D3/D9) ──────────── */
+
+function ThresholdDialog({
+  member,
+  familyGroupId,
+  token,
+  onClose,
+}: {
+  member: FamilyMember | null;
+  familyGroupId: string | null;
+  token: string | undefined;
+  onClose: () => void;
+}) {
+  const { t } = useLocale();
+
+  return (
+    <Dialog open={!!member} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-[420px] p-6 sm:max-w-[420px]">
+        <DialogHeader>
+          <DialogTitle className="text-[15px] font-bold">
+            {t.akun.family.thresholdDialogTitle}
+            {member ? ` — ${member.name}` : ""}
+          </DialogTitle>
+        </DialogHeader>
+        {member && familyGroupId && (
+          <ThresholdForm
+            key={member.id}
+            member={member}
+            familyGroupId={familyGroupId}
+            token={token}
+            onClose={onClose}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ThresholdForm({
+  member,
+  familyGroupId,
+  token,
+  onClose,
+}: {
+  member: FamilyMember;
+  familyGroupId: string;
+  token: string | undefined;
+  onClose: () => void;
+}) {
+  const { t } = useLocale();
+  const queryClient = useQueryClient();
+  const [amount, setAmount] = useState(
+    member.largeTxnThreshold ? formatAmountInput(member.largeTxnThreshold) : "",
+  );
+  const [isSaving, setIsSaving] = useState(false);
+
+  async function handleSave() {
+    if (!token) return;
+    setIsSaving(true);
+    try {
+      const parsed = parseRupiah(amount);
+      await apiFetch(`/family-groups/${familyGroupId}/members/${member.id}`, {
+        token,
+        method: "PATCH",
+        body: JSON.stringify({
+          role: member.role,
+          largeTxnThreshold: parsed > 0 ? parsed : null,
+        }),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.familyGroups.members(familyGroupId),
+      });
+      toast.success(t.akun.family.thresholdSaved);
+      onClose();
+    } catch {
+      toast.error(t.akun.family.thresholdSaveFailed);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="mb-3 text-[12px] text-muted-foreground">
+        {t.akun.family.thresholdDialogDesc}
+      </div>
+      <label
+        htmlFor="threshold-amount"
+        className="mb-1.5 block text-[12px] font-semibold text-muted-foreground"
+      >
+        {t.akun.family.thresholdLabel}
+      </label>
+      <div className="relative">
+        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
+          Rp
+        </span>
+        <input
+          id="threshold-amount"
+          inputMode="numeric"
+          value={amount}
+          onChange={(e) => setAmount(formatAmountInput(e.target.value))}
+          placeholder="0"
+          className={`${FIELD_CLASS} pl-[38px]`}
+        />
+      </div>
+      <div className="mt-1.5 text-[11px] text-muted-foreground">
+        {t.akun.family.thresholdEmptyHint}
+      </div>
+      <button
+        disabled={isSaving}
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-60"
+        onClick={handleSave}
+      >
+        <Save className="size-4" />{" "}
+        {isSaving
+          ? t.akun.family.thresholdSaving
+          : t.akun.family.thresholdSaveButton}
+      </button>
+    </>
+  );
+}
+
 /* ──────────── Allowance requests panel (EPIC-019 Task B/D) ──────────── */
 
 function AllowanceRequestsPanel({
@@ -2489,6 +2641,23 @@ function AllowanceRequestsPanel({
     }
   }
 
+  // EPIC-023 Task D (D3/D9) — a held_expense request already carries its
+  // own account (the one the deferred expense debits); it needs no
+  // fromAccountId choice, so approving it never opens ApproveRequestDialog.
+  async function handleApproveHeld(request: AllowanceRequestDto) {
+    if (!familyGroupId || !token) return;
+    try {
+      await apiFetch(
+        `/family-groups/${familyGroupId}/allowance-requests/${request.id}/approve`,
+        { token, method: "PATCH", body: JSON.stringify({}) },
+      );
+      toast.success(t.akun.family.allowanceRequestHeldApproved);
+      await invalidate();
+    } catch {
+      toast.error(t.akun.family.allowanceRequestApproveFailed);
+    }
+  }
+
   const pending = (requests ?? []).filter((r) => r.status === "pending");
 
   return (
@@ -2501,41 +2670,63 @@ function AllowanceRequestsPanel({
           {t.akun.family.allowanceRequestsEmpty}
         </div>
       )}
-      {pending.map((r) => (
-        <div
-          key={r.id}
-          className="flex items-center gap-3 border-b py-3 last:border-b-0"
-        >
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-[13px] font-bold">
-              {r.requesterName} → {r.targetAccountName}
+      {pending.map((r) => {
+        // EPIC-023 Task D (D3/D9) — the two kinds mean DIFFERENT things:
+        // "approve" a funding request GIVES money; "approve" a held
+        // expense POSTS a spend the member already attempted. Visibly
+        // distinguished, never conflated.
+        const isHeld = r.kind === "held_expense";
+        return (
+          <div
+            key={r.id}
+            className="flex items-center gap-3 border-b py-3 last:border-b-0"
+          >
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[13px] font-bold">
+                {isHeld
+                  ? `${r.requesterName} · ${r.targetAccountName}`
+                  : `${r.requesterName} → ${r.targetAccountName}`}
+              </div>
+              <div className="mt-0.5 text-[12px] text-muted-foreground">
+                {formatRupiah(Number(r.amount))}
+                {isHeld
+                  ? r.description
+                    ? ` · ${r.description}`
+                    : r.categoryName
+                      ? ` · ${r.categoryName}`
+                      : ""
+                  : r.note
+                    ? ` · ${r.note}`
+                    : ""}
+              </div>
             </div>
-            <div className="mt-0.5 text-[12px] text-muted-foreground">
-              {formatRupiah(Number(r.amount))}
-              {r.note ? ` · ${r.note}` : ""}
-            </div>
+            <StatusBadge
+              variant={isHeld ? "danger" : "warning"}
+              className="text-[10px]"
+            >
+              {isHeld
+                ? t.akun.family.allowanceRequestHeldBadge
+                : t.akun.family.allowanceRequestPendingBadge}
+            </StatusBadge>
+            <button
+              type="button"
+              aria-label={t.akun.family.allowanceRequestApproveButton}
+              className="flex size-7 shrink-0 items-center justify-center rounded-md bg-success-soft text-success"
+              onClick={() => (isHeld ? handleApproveHeld(r) : setApproving(r))}
+            >
+              <Check className="size-4" />
+            </button>
+            <button
+              type="button"
+              aria-label={t.akun.family.allowanceRequestRejectButton}
+              className="flex size-7 shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive"
+              onClick={() => handleReject(r)}
+            >
+              <X className="size-4" />
+            </button>
           </div>
-          <StatusBadge variant="warning" className="text-[10px]">
-            {t.akun.family.allowanceRequestPendingBadge}
-          </StatusBadge>
-          <button
-            type="button"
-            aria-label={t.akun.family.allowanceRequestApproveButton}
-            className="flex size-7 shrink-0 items-center justify-center rounded-md bg-success-soft text-success"
-            onClick={() => setApproving(r)}
-          >
-            <Check className="size-4" />
-          </button>
-          <button
-            type="button"
-            aria-label={t.akun.family.allowanceRequestRejectButton}
-            className="flex size-7 shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive"
-            onClick={() => handleReject(r)}
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-      ))}
+        );
+      })}
       <ApproveRequestDialog
         request={approving}
         familyGroupId={familyGroupId}

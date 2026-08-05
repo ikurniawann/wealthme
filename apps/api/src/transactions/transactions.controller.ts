@@ -10,6 +10,7 @@ import {
   Post,
   Query,
   Req,
+  Res,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -31,6 +32,7 @@ import { ListTransactionsQueryDto } from "./dto/list-transactions-query.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ScanReceiptDto } from "./dto/scan-receipt.dto";
 import {
+  HeldExpenseResponseDto,
   TransactionListResponseDto,
   TransactionResponseDto,
   TransactionSummaryDto,
@@ -40,7 +42,7 @@ import { UpdateTransactionDto } from "./dto/update-transaction.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { TransactionsService } from "./transactions.service";
 
-import type { Request } from "express";
+import type { Request, Response } from "express";
 
 @ApiTags("transactions")
 @ApiBearerAuth()
@@ -112,18 +114,35 @@ export class TransactionsController {
   @Post()
   @CheckAbility((ab: AppAbility) => ab.can("create", "Transaction"))
   @ApiParam({ name: "familyGroupId", type: String })
-  @ApiOperation({ summary: "Create a transaction" })
+  @ApiOperation({
+    summary:
+      "Create a transaction. EPIC-023 Task D (D3/D9) — a row-scoped member's over-threshold expense returns 202 + HeldExpenseResponseDto instead of posting: no Transaction is created and no balance changes until the head approves the resulting AllowanceRequest.",
+  })
   @ApiResponse({ status: 201, type: TransactionResponseDto })
-  create(
+  @ApiResponse({
+    status: 202,
+    type: HeldExpenseResponseDto,
+    description: "Held pending the head's approval — nothing was posted",
+  })
+  async create(
     @Param("familyGroupId") familyGroupId: string,
     @Body() dto: CreateTransactionDto,
     @Req() req: Request,
-  ): Promise<TransactionResponseDto> {
-    return this.transactionsService.create(
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<TransactionResponseDto | HeldExpenseResponseDto> {
+    const result = await this.transactionsService.create(
       familyGroupId,
       dto,
       req.tenantContext?.member,
     );
+    // EPIC-023 Task D (D3/D9) — 202 Accepted, not 201 Created: nothing that
+    // looks like the requested Transaction was created, only an
+    // AllowanceRequest tracking the hold. The web dialog must branch on
+    // `"held" in result`, never surface this as a plain success.
+    if ("held" in result) {
+      res.status(202);
+    }
+    return result;
   }
 
   @Get(":id")

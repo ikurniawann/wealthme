@@ -34,6 +34,7 @@ import { OCR_PORT, type OcrPort, type OcrResult } from "./ocr/ocr.port";
 import type { CreateTransactionDto } from "./dto/create-transaction.dto";
 import type { ListTransactionsQueryDto } from "./dto/list-transactions-query.dto";
 import type {
+  HeldExpenseResponseDto,
   TransactionListResponseDto,
   TransactionResponseDto,
   TransactionSummaryDto,
@@ -173,7 +174,7 @@ export class TransactionsService {
     familyGroupId: string,
     dto: CreateTransactionDto,
     actingMember?: ActingMember,
-  ): Promise<TransactionResponseDto> {
+  ): Promise<TransactionResponseDto | HeldExpenseResponseDto> {
     const account = await this.prisma.account.findUnique({
       where: { id: dto.accountId, familyGroupId },
     });
@@ -255,6 +256,36 @@ export class TransactionsService {
       resolvedCategoryId,
       allowedCategoryIds,
     );
+
+    // EPIC-023 Task D (D3/D9, US-FAM-14) — every other validation above has
+    // already passed (account/category/allow-list), so a held expense is
+    // never blocked on something unrelated to the threshold itself. Read
+    // once, reused below both for the hold decision (row-scoped roles) and
+    // to make the trusted-role "large transaction" notification honestly
+    // per-member (see notifyTransaction) instead of a fixed number nobody
+    // set.
+    const actingMemberThreshold = actingMember
+      ? await this.getMemberThreshold(actingMember.id)
+      : null;
+
+    // STRICTLY BEFORE the balance-mutating $transaction below — a held
+    // expense must NEVER touch a balance. `>` not `>=`: the acceptance
+    // criterion says "above" the limit, so an expense AT the threshold
+    // posts normally.
+    if (
+      actingMember &&
+      isRowScopedRole(actingMember.role) &&
+      dto.type === "expense" &&
+      actingMemberThreshold !== null &&
+      BigInt(dto.amount) > actingMemberThreshold
+    ) {
+      return this.holdExpenseForApproval(
+        familyGroupId,
+        actingMember,
+        dto,
+        resolvedCategoryId,
+      );
+    }
 
     const created = await this.prisma.$transaction(async (prisma) => {
       const tx = await prisma.transaction.create({
@@ -358,9 +389,96 @@ export class TransactionsService {
       dto.type,
       BigInt(dto.amount),
       created,
+      // EPIC-023 Task D (D9) — trusted roles are never held, only notified;
+      // an honest per-member "large transaction" cutoff instead of a fixed
+      // number nobody set. `?? undefined`: a `null` threshold (the normal
+      // case) falls back to notifyTransaction's own default.
+      actingMemberThreshold ?? undefined,
     );
 
     return this.toDto(created);
+  }
+
+  /**
+   * EPIC-023 Task D (D3/D9, US-FAM-14) — the member already tried to spend;
+   * this NEVER creates a Transaction row and NEVER touches a balance (the
+   * acceptance criterion, verbatim: "no account balance changes until the
+   * head approves"). It records the attempt as an AllowanceRequest
+   * (kind = held_expense) so the head can replay it later via
+   * AllowanceRequestsService.approve, and notifies the trusted roles that
+   * something is waiting — D9's "merely notify trusted roles" half.
+   */
+  private async holdExpenseForApproval(
+    familyGroupId: string,
+    actingMember: NonNullable<ActingMember>,
+    dto: CreateTransactionDto,
+    categoryId: string | null,
+  ): Promise<HeldExpenseResponseDto> {
+    const request = await this.prisma.allowanceRequest.create({
+      data: {
+        familyGroupId,
+        requesterUserId: actingMember.userId,
+        // See the schema comment on AllowanceRequest — for `held_expense`
+        // this is the account the deferred expense would DEBIT, not an
+        // account being funded.
+        targetAccountId: dto.accountId,
+        kind: "held_expense",
+        amount: BigInt(dto.amount),
+        categoryId,
+        description: dto.description ?? null,
+      },
+    });
+
+    void this.notifyOwnersOfHeldExpense(
+      familyGroupId,
+      actingMember.userId,
+      BigInt(dto.amount),
+    );
+
+    return {
+      held: true,
+      allowanceRequestId: request.id,
+      amount: request.amount.toString(),
+    };
+  }
+
+  private async notifyOwnersOfHeldExpense(
+    familyGroupId: string,
+    requesterUserId: string,
+    amount: bigint,
+  ): Promise<void> {
+    try {
+      const requester = await this.prisma.user.findUnique({
+        where: { id: requesterUserId },
+        select: { name: true },
+      });
+      const requesterName = requester?.name ?? "Anggota keluarga";
+      await this.prisma.notification.create({
+        data: {
+          familyGroupId,
+          title: "Transaksi besar menunggu persetujuan",
+          body: `${requesterName} mencoba mencatat pengeluaran Rp ${amount.toString()} yang melebihi batas dan menunggu persetujuan Anda.`,
+          icon: "⏳",
+        },
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Held expense notification skipped: ${msg}`);
+    }
+  }
+
+  /**
+   * EPIC-023 Task D (D3) — a row-scoped member's own per-member threshold
+   * (null = unset, the normal case). No acting member context (internal
+   * caller) is always unrestricted, matching every other `actingMember`
+   * default in this file.
+   */
+  private async getMemberThreshold(memberId: string): Promise<bigint | null> {
+    const member = await this.prisma.member.findUnique({
+      where: { id: memberId },
+      select: { largeTxnThreshold: true },
+    });
+    return member?.largeTxnThreshold ?? null;
   }
 
   private async checkBudgetAlert(
@@ -504,6 +622,14 @@ export class TransactionsService {
     type: string,
     amount: bigint,
     tx: { category: { name: string } | null; account: { name: string } | null },
+    // EPIC-023 Task D (D3/D9) — the acting member's own largeTxnThreshold,
+    // when set. Trusted roles are never held (only row-scoped roles are —
+    // see create()'s gate above), so a threshold here only ever narrows
+    // WHEN this member's "large transaction" notification fires; it never
+    // blocks anything. Defaults to the pre-existing fixed cutoff when the
+    // member has no threshold set (the normal case for every pre-existing
+    // member).
+    bigThreshold: bigint = BigInt(5_000_000),
   ): Promise<void> {
     try {
       // Only income/expense produce a feed notification; transfers stay silent.
@@ -512,7 +638,7 @@ export class TransactionsService {
       if (!isIncome && !isExpense) return;
 
       const prefs = await ownerNotifPrefs(this.prisma, familyGroupId);
-      const isBig = amount >= BigInt(5_000_000);
+      const isBig = amount >= bigThreshold;
       const wantByType = isIncome ? prefs.txnIn : prefs.txnOut;
       // txnBig is an additive alert for large amounts of either direction.
       if (!wantByType && !(isBig && prefs.txnBig)) return;

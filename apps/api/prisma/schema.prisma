@@ -182,6 +182,17 @@ enum AiProvider {
   gemini
 }
 
+// EPIC-023 Task D (D3/D9) — what approving an AllowanceRequest DOES.
+// `funding` (default — every pre-existing row): approval executes a
+// TRANSFER (unchanged EPIC-019 Task B behavior). `held_expense`: a
+// row-scoped member's over-threshold EXPENSE never posted; approval
+// replays it as a real expense (see AllowanceRequest fields below and
+// AllowanceRequestsService.approve).
+enum AllowanceRequestKind {
+  funding
+  held_expense
+}
+
 // ── Models ────────────────────────────────────────────────────────────────────
 
 model User {
@@ -412,6 +423,20 @@ model Member {
   // EPIC-023 Task C (D1) — nullable kinship descriptor; every pre-existing
   // member stays valid with `relationship = null`. See MemberRelationship.
   relationship       MemberRelationship?
+  // EPIC-023 Task D (D3/D9, US-FAM-14) — per-member large-transaction
+  // threshold, IDR minor units. `null` (every pre-existing member,
+  // backward compatible) = no gate: this member's expenses are never held.
+  // A non-null value only ever gates a ROW-SCOPED role (dependant/
+  // operational, see isRowScopedRole in common/utils/privacy.util.ts) — an
+  // expense that STRICTLY EXCEEDS this amount is held pending the head's
+  // approval instead of posting immediately (see
+  // TransactionsService.create / AllowanceRequest.kind = held_expense
+  // below). Trusted roles (owner/spouse/admin_staff/member) are never held
+  // even if a threshold happens to be set on their row — D9 only gates
+  // row-scoped roles; a threshold on a trusted role's own row only ever
+  // adjusts THEIR "large transaction" notification cutoff (see
+  // TransactionsService.notifyTransaction), never a hold.
+  largeTxnThreshold  BigInt?
   createdAt          DateTime                  @default(now())
   user               User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
   familyGroup        FamilyGroup               @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
@@ -489,6 +514,9 @@ model Category {
   // EPIC-021 #16: physical-asset "master data" category. Reuses this model
   // (the only master-data entity with a real API) instead of a new table.
   assets           Asset[]
+  // EPIC-023 Task D (D3/D9) — a held_expense AllowanceRequest's captured
+  // category (null for a funding request).
+  allowanceRequests AllowanceRequest[]
 
   @@unique([familyGroupId, name, kind])
   @@index([familyGroupId])
@@ -543,6 +571,25 @@ model Transaction {
 // chosen `fromAccount` debits, the member's `targetAccount` credits,
 // atomically. This row is the request/decision audit trail, not the money
 // movement itself — the money movement is a normal Transaction row.
+//
+// EPIC-023 Task D (D3/D9) extends this SAME primitive to a second `kind`,
+// `held_expense`: a row-scoped member's over-threshold EXPENSE attempt,
+// captured here instead of posting, replayed as a real expense on
+// approval (AllowanceRequestsService.approve). Field meaning by `kind`:
+//   - `targetAccountId` — funding: the requester's account to be FUNDED.
+//                         held_expense: the account the deferred expense
+//                         would DEBIT (repurposed, not a new column, to
+//                         keep this one small primitive; the name reads
+//                         oddly for held_expense but is documented here).
+//   - `fromAccountId`   — funding only: the owner-chosen source account at
+//                         approval time. Always null for held_expense (no
+//                         second account is ever involved in an expense).
+//   - `categoryId`      — held_expense only: the expense's category (may
+//                         be null, same as Transaction.categoryId).
+//                         Always null for funding.
+//   - `description`     — held_expense only: the expense's free-text
+//                         description. Always null for funding.
+//   - `note`            — funding only: the requester's optional note.
 model AllowanceRequest {
   id              String                 @id @default(uuid())
   familyGroupId   String
@@ -553,6 +600,9 @@ model AllowanceRequest {
   fromAccountId   String?
   amount          BigInt
   note            String?
+  kind            AllowanceRequestKind   @default(funding)
+  categoryId      String?
+  description     String?
   status          AllowanceRequestStatus @default(pending)
   createdAt       DateTime               @default(now())
   decidedAt       DateTime?
@@ -561,10 +611,12 @@ model AllowanceRequest {
   requester       User                   @relation("AllowanceRequestRequester", fields: [requesterUserId], references: [id], onDelete: Cascade)
   targetAccount   Account                @relation("AllowanceRequestTarget", fields: [targetAccountId], references: [id], onDelete: Cascade)
   fromAccount     Account?               @relation("AllowanceRequestSource", fields: [fromAccountId], references: [id], onDelete: SetNull)
+  category        Category?              @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   decidedByUser   User?                  @relation("AllowanceRequestDecider", fields: [decidedByUserId], references: [id], onDelete: SetNull)
 
   @@index([familyGroupId, status])
   @@index([requesterUserId])
+  @@index([categoryId])
   @@map("allowance_requests")
 }
 

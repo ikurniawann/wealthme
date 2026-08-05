@@ -713,8 +713,9 @@ export class ReconciliationService {
       );
     }
 
-    const transfer: TransactionResponseDto =
-      await this.transactionsService.create(familyGroupId, {
+    const transferResult = await this.transactionsService.create(
+      familyGroupId,
+      {
         accountId: dto.accountId,
         toAccountId: dto.toAccountId,
         amount: dto.principalAmount,
@@ -722,7 +723,18 @@ export class ReconciliationService {
         type: "transfer",
         description: dto.description,
         occurredAt: entry.date.toISOString(),
-      });
+      },
+    );
+    // EPIC-023 Task D (D3/D9) — this internal call never passes an
+    // actingMember, so TransactionsService.create's hold gate (row-scoped
+    // roles only) can never trigger here; narrow defensively instead of
+    // casting so a future signature change fails loudly, not silently.
+    if ("held" in transferResult) {
+      throw new Error(
+        "Unexpected held expense from an internal reconciliation transfer",
+      );
+    }
+    const transfer: TransactionResponseDto = transferResult;
 
     const updated = await this.prisma.bankSyncEntry.update({
       where: { id: entryId },

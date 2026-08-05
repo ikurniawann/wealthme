@@ -174,6 +174,11 @@ export const id = {
       noFamilyGroup: "Tidak ada family group aktif",
       savedAddMoreToast: "Disimpan! Tambah lagi...",
       savedToast: "Transaksi berhasil disimpan!",
+      // EPIC-023 Task D (D3/D9, US-FAM-14) — the transaction was NOT
+      // posted: it exceeds the member's per-account threshold and is held
+      // pending the head's approval. Must never read as a success.
+      heldToast:
+        "Pengeluaran melebihi batas — menunggu persetujuan kepala keluarga, belum dicatat.",
       ocrSavedToast: "Transaksi Alfamart Rp 58.000 berhasil disimpan!",
       title: "Tambah Transaksi",
       manualInput: "Input Manual",
@@ -578,6 +583,23 @@ export const id = {
         "Gagal menyetujui permintaan dana. Coba lagi.",
       allowanceRequestRejected: "Permintaan dana ditolak.",
       allowanceRequestRejectFailed: "Gagal menolak permintaan dana. Coba lagi.",
+      // EPIC-023 Task D (D3/D9, US-FAM-14) — held-expense variant of the
+      // same AllowanceRequest primitive: a row-scoped member's over-
+      // threshold expense, held pending the head's approval.
+      allowanceRequestHeldBadge: "Menunggu Persetujuan",
+      allowanceRequestHeldApproved: "Pengeluaran disetujui dan telah dicatat.",
+      // EPIC-023 Task D (D3/D9, US-FAM-14) — per-member large-transaction
+      // threshold.
+      thresholdButton: "Batas Transaksi Besar",
+      thresholdDialogTitle: "Batas Transaksi Besar",
+      thresholdDialogDesc:
+        "Pengeluaran di atas batas ini akan ditahan menunggu persetujuan Anda sebelum dicatat. Kosongkan untuk tidak membatasi.",
+      thresholdLabel: "Batas Jumlah",
+      thresholdEmptyHint: "Kosongkan untuk tidak membatasi (default)",
+      thresholdSaveButton: "Simpan Batas",
+      thresholdSaving: "Menyimpan...",
+      thresholdSaved: "Batas transaksi berhasil disimpan.",
+      thresholdSaveFailed: "Gagal menyimpan batas transaksi. Coba lagi.",
       addDependantButton: "Tambah Anak / Operasional",
     },
     addAdmin: {
