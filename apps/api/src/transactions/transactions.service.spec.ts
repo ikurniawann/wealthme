@@ -289,6 +289,56 @@ describe("TransactionsService", () => {
 
         expect(capturedData?.liabilityId).toBe(LIABILITY_ID);
       });
+
+      // MEDIUM 6 (group E retry) — insuranceId was write-only: accepted on
+      // CreateTransactionDto and persisted, but TransactionResponseDto
+      // never surfaced it back, unlike liabilityId (symmetric fix).
+      it("round-trips insuranceId on the response DTO, symmetric with liabilityId", async () => {
+        prisma.insurance.findUnique.mockResolvedValue({
+          id: INSURANCE_ID,
+          familyGroupId: FAMILY_GROUP_ID,
+        });
+        const now = new Date("2026-06-15T10:00:00.000Z");
+        const createdTx = {
+          id: "tx-ins-linked",
+          familyGroupId: FAMILY_GROUP_ID,
+          accountId: ACCOUNT_ID,
+          categoryId: null,
+          insuranceId: INSURANCE_ID,
+          amount: BigInt(500_000),
+          type: "expense" as const,
+          description: null,
+          occurredAt: now,
+          createdAt: now,
+        };
+        prisma.$transaction.mockImplementation(
+          async (fn: Parameters<typeof prisma.$transaction>[0]) => {
+            const innerPrisma = {
+              ...prisma,
+              transaction: {
+                ...prisma.transaction,
+                create: jest.fn().mockResolvedValue(createdTx),
+              },
+            };
+            return (fn as (p: typeof innerPrisma) => Promise<unknown>)(
+              innerPrisma,
+            );
+          },
+        );
+
+        const result = await service.create(FAMILY_GROUP_ID, {
+          accountId: ACCOUNT_ID,
+          amount: 500_000,
+          type: "expense",
+          occurredAt: now.toISOString(),
+          insuranceId: INSURANCE_ID,
+        });
+
+        expect(result).not.toHaveProperty("held");
+        if (!("held" in result)) {
+          expect(result.insuranceId).toBe(INSURANCE_ID);
+        }
+      });
     });
 
     // EPIC-023 Task E4 (D13) trap regression — E4 removes the category
@@ -1685,7 +1735,9 @@ interface FakeCategory {
 interface FakeTx {
   id: string;
   familyGroupId: string;
-  accountId: string;
+  // EPIC-023 group E retry (CRITICAL 1) — nullable, mirroring
+  // Transaction.accountId (a credit-card purchase has accountId: null).
+  accountId: string | null;
   categoryId: string | null;
   amount: bigint;
   type: "income" | "expense" | "transfer";
@@ -1702,19 +1754,19 @@ interface FakeTx {
 }
 
 interface TxWhereFragment {
+  accountId?: null;
   account?: { isPrivate?: boolean; ownerUserId?: string };
-  OR?: unknown[];
+  categoryId?: null;
+  category?: { isPrivate?: boolean };
+  createdByUserId?: string;
+  toAccount?: { ownerUserId?: string };
+  OR?: TxWhereFragment[];
+  AND?: TxWhereFragment[];
 }
 
 interface TxWhere extends TxWhereFragment {
   id?: string;
   type?: string;
-  // EPIC-023 Task C — `findAll`/`getSummary`/`findOne` now combine their
-  // privacy and row-scoping fragments via a shared `AND` array (see
-  // transactions.service.ts#buildWhere) instead of flat top-level keys;
-  // `update()`/`remove()`'s existing-row lookup still spreads flat (never
-  // row-scoped — see the class-level note on why). This fake handles both.
-  AND?: TxWhereFragment[];
 }
 
 /**
@@ -1722,7 +1774,11 @@ interface TxWhere extends TxWhereFragment {
  * account/category `isPrivate` filter TransactionsService builds via
  * `transactionPrivacyWhere`, plus the row-scoping fragment
  * `restrictedTransactionWhere` may contribute, so these tests exercise real
- * filtering behavior rather than just call shapes.
+ * filtering behavior rather than just call shapes. Generic recursive
+ * AND/OR evaluator (EPIC-023 group E retry, CRITICAL 1) — NOT hardcoded to
+ * one fragment shape, so it proves the real `transactionPrivacyWhere` fix
+ * (nested `AND` of `OR`s, `accountId: null` admitted) against fixtures that
+ * include a credit-card purchase (`accountId: null`).
  */
 function makeFakePrivacyPrisma(
   accounts: FakeAccount[],
@@ -1732,42 +1788,48 @@ function makeFakePrivacyPrisma(
   const accountById = new Map(accounts.map((a) => [a.id, a]));
   const categoryById = new Map(categories.map((c) => [c.id, c]));
 
-  function applyFragment(rows: FakeTx[], frag: TxWhereFragment): FakeTx[] {
-    let out = rows;
-    if (frag.account?.isPrivate === false) {
-      out = out.filter((t) => !accountById.get(t.accountId)?.isPrivate);
-    }
-    if (frag.OR) {
-      const or = frag.OR as Array<{
-        categoryId?: null;
-        category?: { isPrivate: boolean };
-        account?: { ownerUserId?: string };
-        createdByUserId?: string;
-        // EPIC-023 Task C retry — the incoming-transfer leg of
-        // `restrictedTransactionWhere`.
-        toAccount?: { ownerUserId?: string };
-      }>;
-      const isCategoryPrivacyShape = or.some(
-        (item) => "categoryId" in item || "category" in item,
-      );
-      out = isCategoryPrivacyShape
-        ? out.filter((t) => {
-            if (t.categoryId === null) return true;
-            return !categoryById.get(t.categoryId)?.isPrivate;
-          })
-        : out.filter((t) =>
-            or.some(
-              (item) =>
-                item.account?.ownerUserId ===
-                  accountById.get(t.accountId)?.ownerUserId ||
-                item.createdByUserId === t.createdByUserId ||
-                (t.toAccountId != null &&
-                  item.toAccount?.ownerUserId ===
-                    accountById.get(t.toAccountId)?.ownerUserId),
-            ),
-          );
-    }
-    return out;
+  function evalClause(clause: TxWhereFragment, t: FakeTx): boolean {
+    return Object.entries(clause).every(([key, value]) => {
+      switch (key) {
+        case "AND":
+          return (value as TxWhereFragment[]).every((c) => evalClause(c, t));
+        case "OR":
+          return (value as TxWhereFragment[]).some((c) => evalClause(c, t));
+        case "accountId":
+          return t.accountId === null;
+        case "account": {
+          const acc = t.accountId ? accountById.get(t.accountId) : undefined;
+          const cond = value as { isPrivate?: boolean; ownerUserId?: string };
+          if (!acc) return false;
+          if (cond.isPrivate !== undefined && acc.isPrivate !== cond.isPrivate)
+            return false;
+          if (
+            cond.ownerUserId !== undefined &&
+            acc.ownerUserId !== cond.ownerUserId
+          )
+            return false;
+          return true;
+        }
+        case "categoryId":
+          return t.categoryId === null;
+        case "category": {
+          const cat = t.categoryId ? categoryById.get(t.categoryId) : undefined;
+          const cond = value as { isPrivate?: boolean };
+          return !!cat && cat.isPrivate === cond.isPrivate;
+        }
+        case "createdByUserId":
+          return t.createdByUserId === value;
+        case "toAccount": {
+          const acc = t.toAccountId
+            ? accountById.get(t.toAccountId)
+            : undefined;
+          const cond = value as { ownerUserId?: string };
+          return !!acc && acc.ownerUserId === cond.ownerUserId;
+        }
+        default:
+          return true;
+      }
+    });
   }
 
   function filterTx(where: TxWhere): FakeTx[] {
@@ -1778,10 +1840,7 @@ function makeFakePrivacyPrisma(
     if (where.type) {
       rows = rows.filter((t) => t.type === where.type);
     }
-    const fragments: TxWhereFragment[] = where.AND ?? [where];
-    for (const frag of fragments) {
-      rows = applyFragment(rows, frag);
-    }
+    rows = rows.filter((t) => evalClause(where, t));
     return rows;
   }
 

@@ -1189,6 +1189,10 @@ export class TransactionsService {
     // list can identify a card purchase (liabilityId set, accountId null)
     // instead of relying on an accountName text heuristic.
     liabilityId?: string | null;
+    // EPIC-023 E1 / group E retry (MEDIUM 6) — symmetric with liabilityId
+    // above; was accepted on create() and persisted, but never surfaced
+    // back on the response DTO until now.
+    insuranceId?: string | null;
     amount: bigint;
     type: TransactionType;
     description: string | null;
@@ -1205,6 +1209,7 @@ export class TransactionsService {
       toAccountId: tx.toAccountId ?? null,
       categoryId: tx.categoryId,
       liabilityId: tx.liabilityId ?? null,
+      insuranceId: tx.insuranceId ?? null,
       amount: tx.amount.toString(),
       type: tx.type,
       description: tx.description,

@@ -77,6 +77,7 @@ function buildTx(overrides: Partial<TransactionDto> = {}): TransactionDto {
     toAccountId: null,
     toAccountName: null,
     liabilityId: null,
+    insuranceId: null,
     ...overrides,
   };
 }

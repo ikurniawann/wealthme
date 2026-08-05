@@ -30,6 +30,9 @@ export const TransactionDtoSchema = z.object({
   categoryId: z.string().uuid().nullable(),
   // EPIC-023 E1/E3 — set for a liability payment or a credit-card purchase.
   liabilityId: z.string().uuid().nullable(),
+  // EPIC-023 E1 / group E retry (MEDIUM 6) — set for an insurance premium
+  // payment, symmetric with liabilityId above.
+  insuranceId: z.string().uuid().nullable(),
   amount: z.string(),
   type: TransactionTypeSchema,
   description: z.string().nullable(),

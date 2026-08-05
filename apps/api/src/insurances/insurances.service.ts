@@ -1,11 +1,13 @@
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 
 import { assertBankNotOverdrawn } from "../common/utils/bank-overdraft.util";
+import { ownCategoryName } from "../common/utils/own-category-name.util";
+import { runSerializableWithRetry } from "../common/utils/serializable-retry.util";
 import { ownerNotifPrefs } from "../notifications/notification-prefs";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
@@ -21,21 +23,21 @@ import type {
 } from "./dto/insurance-response.dto";
 import type { PayInsuranceDto } from "./dto/pay-insurance.dto";
 import type { UpdateInsuranceDto } from "./dto/update-insurance.dto";
+import type { PremiumPeriod } from "@prisma/client";
 
 type TxClient = Parameters<Parameters<PrismaService["$transaction"]>[0]>[0];
 
-// EPIC-023 E1 — GENERIC_COA_CHART (every real family) has no dedicated
-// insurance-premium COA line, unlike loans (20009/21304 — see
-// liabilities.service.ts's LOAN_INTEREST_COA_CODES). "20099" (Pengeluaran
-// Lainnya / Other Expenses) is the honest general-purpose EXPENSE code every
-// family already has — the same fallback `defaultCoaCodeForCategory`
-// (default-coa-chart.ts) uses for an unmatched expense category. The demo
-// seed's richer chart provides "21104" (Asset & Other Insurance) as its
-// closest dedicated match. Matching on either code keeps `pay()` correct for
-// both charts without hardcoding one over the other or inventing a new
-// per-InsuranceType mapping (jiwa/kesehatan/kendaraan/... categories do not
-// exist as distinct COA lines in either chart).
-const INSURANCE_PREMIUM_COA_CODES = ["20099", "21104"];
+// EPIC-023 group E retry (HIGH 3) — a DEDICATED insurance-premium expense
+// account. GENERIC_COA_CHART (every real family) now provisions "20010"
+// (Premi Asuransi) via the group-E-retry migration, mirroring loans' "20009"
+// (Bunga Pinjaman, A1/A2) exactly. "20099" (Pengeluaran Lainnya) — the
+// generic catch-all `defaultCoaCodeForCategory` falls back to for ANY
+// unmatched expense category — is GONE from this list: reusing it used to
+// silently hijack whatever user-made category/budget already lived on that
+// shared bucket (increment its limit, flip it FIXED, and block its
+// deletion). The demo seed's richer chart provides "21104" (Asset & Other
+// Insurance), which was already a genuinely dedicated code, unchanged.
+const INSURANCE_PREMIUM_COA_CODES = ["20010", "21104"];
 
 type BeneficiaryRow = {
   id: string;
@@ -62,6 +64,7 @@ type InsuranceRow = {
   policyNumber: string | null;
   notes: string | null;
   currency: string;
+  premiumCategoryId?: string | null;
   createdAt: Date;
   updatedAt: Date;
   beneficiaries?: BeneficiaryRow[];
@@ -139,6 +142,8 @@ function validateSharePercent(beneficiaries: { sharePercent: number }[]): void {
 
 @Injectable()
 export class InsurancesService {
+  private readonly logger = new Logger(InsurancesService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   // TS review fix #1 — tenant-scoped lookup so a beneficiary's optional
@@ -231,17 +236,12 @@ export class InsurancesService {
   }
 
   /**
-   * EPIC-023 E2 (D11, US-LIAB-3) — creating a policy auto-creates (or tops
-   * up) a FIXED budget line for its premium — see
-   * `LiabilitiesService.create()`'s doc comment for the full reasoning,
-   * which applies identically here: the category MUST be the same one
-   * `pay()` already posts premium payments against
-   * (`resolvePremiumCategoryId`, unchanged) so `BudgetsService`'s
-   * `spentAmount` tracks real payments, and every policy in a family group
-   * shares ONE FIXED "premi asuransi" budget line (monthly period) whose
-   * limit is the SUM of every policy's monthly-normalised premium
-   * (`monthlyAmount`, already used by `getSummary`) — `@@unique` collision
-   * handled the same way, via `upsert`.
+   * EPIC-023 E2 (D11, US-LIAB-3), redesigned by the group E retry (HIGH 4)
+   * — creating a policy auto-creates THIS POLICY'S OWN FIXED budget line
+   * for its premium. See `LiabilitiesService.create()`'s doc comment for
+   * the full HIGH 4 reasoning (per-obligation `Category`, never shared) —
+   * it applies identically here, with `premiumCategoryId` in place of
+   * `principalCategoryId`.
    */
   async create(
     familyGroupId: string,
@@ -258,49 +258,9 @@ export class InsurancesService {
     const premiumAmount = BigInt(dto.premiumAmount);
     const premiumPeriod = dto.premiumPeriod ?? "monthly";
 
-    const insurance = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.insurance.create({
-        data: {
-          familyGroupId,
-          name: dto.name,
-          provider: dto.provider ?? null,
-          type: dto.type,
-          status: dto.status ?? "aktif",
-          coverageAmount: dto.coverageAmount
-            ? BigInt(dto.coverageAmount)
-            : null,
-          premiumAmount,
-          premiumPeriod,
-          renewalDate: dto.renewalDate ? new Date(dto.renewalDate) : null,
-          autoRenewDate: dto.autoRenewDate ?? false,
-          policyNumber: dto.policyNumber ?? null,
-          notes: dto.notes ?? null,
-          currency: dto.currency ?? "IDR",
-          beneficiaries:
-            dto.beneficiaries && dto.beneficiaries.length > 0
-              ? { create: dto.beneficiaries.map(toBeneficiaryCreateInput) }
-              : undefined,
-        },
-        include: { beneficiaries: true },
-      });
-
-      const monthlyContribution = monthlyAmount(premiumAmount, premiumPeriod);
-      if (monthlyContribution > BigInt(0)) {
-        const categoryId = await this.resolvePremiumCategoryId(
-          tx,
-          familyGroupId,
-        );
-        await this.markCategoryFixed(tx, categoryId);
-        await this.upsertFixedBudgetLine(tx, {
-          familyGroupId,
-          categoryId,
-          contribution: monthlyContribution,
-          insuranceId: created.id,
-        });
-      }
-
-      return created;
-    });
+    const insurance = await runSerializableWithRetry(this.prisma, (tx) =>
+      this.runCreate(tx, familyGroupId, dto, premiumAmount, premiumPeriod),
+    );
 
     void this.maybeNotifyRenewal(
       familyGroupId,
@@ -309,6 +269,49 @@ export class InsurancesService {
     );
 
     return toInsuranceDto(insurance);
+  }
+
+  private async runCreate(
+    tx: TxClient,
+    familyGroupId: string,
+    dto: CreateInsuranceDto,
+    premiumAmount: bigint,
+    premiumPeriod: PremiumPeriod,
+  ): Promise<InsuranceRow> {
+    const created = await tx.insurance.create({
+      data: {
+        familyGroupId,
+        name: dto.name,
+        provider: dto.provider ?? null,
+        type: dto.type,
+        status: dto.status ?? "aktif",
+        coverageAmount: dto.coverageAmount ? BigInt(dto.coverageAmount) : null,
+        premiumAmount,
+        premiumPeriod,
+        renewalDate: dto.renewalDate ? new Date(dto.renewalDate) : null,
+        autoRenewDate: dto.autoRenewDate ?? false,
+        policyNumber: dto.policyNumber ?? null,
+        notes: dto.notes ?? null,
+        currency: dto.currency ?? "IDR",
+        beneficiaries:
+          dto.beneficiaries && dto.beneficiaries.length > 0
+            ? { create: dto.beneficiaries.map(toBeneficiaryCreateInput) }
+            : undefined,
+      },
+      include: { beneficiaries: true },
+    });
+
+    const monthlyContribution = monthlyAmount(premiumAmount, premiumPeriod);
+    if (monthlyContribution > BigInt(0)) {
+      await this.syncPremiumBudgetLine(
+        tx,
+        familyGroupId,
+        created,
+        monthlyContribution,
+      );
+    }
+
+    return created;
   }
 
   async update(
@@ -331,54 +334,9 @@ export class InsurancesService {
       );
     }
 
-    const updated = await this.prisma.$transaction(async (tx) => {
-      if (dto.beneficiaries !== undefined) {
-        await tx.insuranceBeneficiary.deleteMany({
-          where: { insuranceId: id },
-        });
-      }
-
-      return tx.insurance.update({
-        where: { id, familyGroupId },
-        data: {
-          name: dto.name ?? existing.name,
-          provider:
-            dto.provider !== undefined
-              ? (dto.provider ?? null)
-              : existing.provider,
-          type: dto.type ?? existing.type,
-          status: dto.status ?? existing.status,
-          coverageAmount:
-            dto.coverageAmount !== undefined
-              ? dto.coverageAmount
-                ? BigInt(dto.coverageAmount)
-                : null
-              : existing.coverageAmount,
-          premiumAmount: dto.premiumAmount
-            ? BigInt(dto.premiumAmount)
-            : existing.premiumAmount,
-          premiumPeriod: dto.premiumPeriod ?? existing.premiumPeriod,
-          renewalDate:
-            dto.renewalDate !== undefined
-              ? dto.renewalDate
-                ? new Date(dto.renewalDate)
-                : null
-              : existing.renewalDate,
-          autoRenewDate: dto.autoRenewDate ?? existing.autoRenewDate,
-          policyNumber:
-            dto.policyNumber !== undefined
-              ? (dto.policyNumber ?? null)
-              : existing.policyNumber,
-          notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
-          currency: dto.currency ?? existing.currency,
-          beneficiaries:
-            dto.beneficiaries !== undefined && dto.beneficiaries.length > 0
-              ? { create: dto.beneficiaries.map(toBeneficiaryCreateInput) }
-              : undefined,
-        },
-        include: { beneficiaries: true },
-      });
-    });
+    const updated = await runSerializableWithRetry(this.prisma, (tx) =>
+      this.runUpdate(tx, familyGroupId, id, dto),
+    );
 
     void this.maybeNotifyRenewal(
       familyGroupId,
@@ -390,11 +348,129 @@ export class InsurancesService {
   }
 
   /**
-   * EPIC-023 E2 (D11) — same treatment as `LiabilitiesService.remove()`:
-   * refuses (409, never a silent cascade) while a FIXED budget line
-   * derived from this policy's premium category still exists. The
-   * reasoning is identical — the premium category is shared and read-only
-   * looked up here (no self-heal `create`).
+   * HIGH 4 fix — mirrors `LiabilitiesService.runUpdate()`: the premium
+   * contribution (monthly-normalised) is re-derived every call and synced
+   * to THIS policy's own budget line — created if it did not exist,
+   * re-derived (never merely incremented) if it did, removed if the new
+   * contribution is 0.
+   */
+  private async runUpdate(
+    tx: TxClient,
+    familyGroupId: string,
+    id: string,
+    dto: UpdateInsuranceDto,
+  ): Promise<InsuranceRow> {
+    // Re-read fresh inside the (possibly retried) transaction.
+    const existing = await tx.insurance.findUniqueOrThrow({
+      where: { id, familyGroupId },
+    });
+
+    if (dto.beneficiaries !== undefined) {
+      await tx.insuranceBeneficiary.deleteMany({ where: { insuranceId: id } });
+    }
+
+    const premiumAmount = dto.premiumAmount
+      ? BigInt(dto.premiumAmount)
+      : existing.premiumAmount;
+    const premiumPeriod = dto.premiumPeriod ?? existing.premiumPeriod;
+
+    const updated = await tx.insurance.update({
+      where: { id, familyGroupId },
+      data: {
+        name: dto.name ?? existing.name,
+        provider:
+          dto.provider !== undefined
+            ? (dto.provider ?? null)
+            : existing.provider,
+        type: dto.type ?? existing.type,
+        status: dto.status ?? existing.status,
+        coverageAmount:
+          dto.coverageAmount !== undefined
+            ? dto.coverageAmount
+              ? BigInt(dto.coverageAmount)
+              : null
+            : existing.coverageAmount,
+        premiumAmount,
+        premiumPeriod,
+        renewalDate:
+          dto.renewalDate !== undefined
+            ? dto.renewalDate
+              ? new Date(dto.renewalDate)
+              : null
+            : existing.renewalDate,
+        autoRenewDate: dto.autoRenewDate ?? existing.autoRenewDate,
+        policyNumber:
+          dto.policyNumber !== undefined
+            ? (dto.policyNumber ?? null)
+            : existing.policyNumber,
+        notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
+        currency: dto.currency ?? existing.currency,
+        beneficiaries:
+          dto.beneficiaries !== undefined && dto.beneficiaries.length > 0
+            ? { create: dto.beneficiaries.map(toBeneficiaryCreateInput) }
+            : undefined,
+      },
+      include: { beneficiaries: true },
+    });
+
+    const monthlyContribution = monthlyAmount(premiumAmount, premiumPeriod);
+    await this.syncPremiumBudgetLine(
+      tx,
+      familyGroupId,
+      { ...updated, premiumCategoryId: existing.premiumCategoryId },
+      monthlyContribution,
+    );
+
+    return updated;
+  }
+
+  /**
+   * Creates, re-derives, or removes this policy's OWN FIXED budget line so
+   * `limitAmount` always equals ITS current monthly-normalised premium —
+   * mirrors `LiabilitiesService.syncPrincipalBudgetLine`.
+   */
+  private async syncPremiumBudgetLine(
+    tx: TxClient,
+    familyGroupId: string,
+    insurance: InsuranceRow,
+    contribution: bigint,
+  ): Promise<void> {
+    if (contribution <= BigInt(0)) {
+      await tx.budget.deleteMany({
+        where: { familyGroupId, insuranceId: insurance.id },
+      });
+      return;
+    }
+
+    const categoryId = await this.resolveOwnPremiumCategoryId(
+      tx,
+      familyGroupId,
+      insurance,
+    );
+    await this.markCategoryFixed(tx, categoryId);
+    await tx.budget.upsert({
+      where: {
+        familyGroupId_categoryId_period: {
+          familyGroupId,
+          categoryId,
+          period: "monthly",
+        },
+      },
+      create: {
+        familyGroupId,
+        categoryId,
+        period: "monthly",
+        limitAmount: contribution,
+        insuranceId: insurance.id,
+      },
+      update: { limitAmount: contribution, insuranceId: insurance.id },
+    });
+  }
+
+  /**
+   * EPIC-023 E2 (D11) redesigned by the group E retry (HIGH 4) — deletes
+   * this policy's OWN budget line (exclusive to it) and the policy itself
+   * in one transaction. See `LiabilitiesService.remove()`'s doc comment.
    */
   async remove(familyGroupId: string, id: string): Promise<void> {
     const existing = await this.prisma.insurance.findUnique({
@@ -404,31 +480,12 @@ export class InsurancesService {
       throw new NotFoundException("Insurance not found");
     }
 
-    const category = await this.prisma.category.findFirst({
-      where: {
-        familyGroupId,
-        coaAccount: { code: { in: INSURANCE_PREMIUM_COA_CODES } },
-      },
-      select: { id: true, name: true },
-    });
-    if (category) {
-      const budget = await this.prisma.budget.findUnique({
-        where: {
-          familyGroupId_categoryId_period: {
-            familyGroupId,
-            categoryId: category.id,
-            period: "monthly",
-          },
-        },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.budget.deleteMany({
+        where: { familyGroupId, insuranceId: id },
       });
-      if (budget) {
-        throw new ConflictException(
-          `Tidak dapat menghapus polis ini karena masih memiliki anggaran tetap "${category.name}". Hapus atau sesuaikan anggaran tersebut terlebih dahulu.`,
-        );
-      }
-    }
-
-    await this.prisma.insurance.delete({ where: { id, familyGroupId } });
+      await tx.insurance.delete({ where: { id, familyGroupId } });
+    });
   }
 
   /** Mirrors `LiabilitiesService.markCategoryFixed`. */
@@ -446,38 +503,6 @@ export class InsurancesService {
     });
   }
 
-  /** Mirrors `LiabilitiesService.upsertFixedBudgetLine`. */
-  private async upsertFixedBudgetLine(
-    tx: TxClient,
-    params: {
-      familyGroupId: string;
-      categoryId: string;
-      contribution: bigint;
-      insuranceId: string;
-    },
-  ): Promise<void> {
-    const { familyGroupId, categoryId, contribution, insuranceId } = params;
-    await tx.budget.upsert({
-      where: {
-        familyGroupId_categoryId_period: {
-          familyGroupId,
-          categoryId,
-          period: "monthly",
-        },
-      },
-      create: {
-        familyGroupId,
-        categoryId,
-        period: "monthly",
-        limitAmount: contribution,
-        insuranceId,
-      },
-      update: {
-        limitAmount: { increment: contribution },
-      },
-    });
-  }
-
   /**
    * Records a premium payment against an insurance policy: creates ONE
    * `Transaction` linked via `insuranceId`, debits the source account by the
@@ -486,20 +511,28 @@ export class InsurancesService {
    * `$transaction` so a failure never leaves the account debited without the
    * policy/ledger updated, or vice versa.
    *
-   * Unlike `LiabilitiesService.pay()`, this does not run at Serializable
-   * isolation with a bounded retry: there is no `remainingBalance`
-   * accumulator here whose read-then-write can race (the account debit is
-   * an atomic `decrement` regardless of isolation level), and a
-   * `renewalDate` double-advance from two genuinely concurrent premium
-   * payments on the SAME policy is an edge case this task deliberately
-   * does not add extra machinery for — see this task's Automation Log.
+   * EPIC-023 group E retry (HIGH 2) — this now runs under the SAME
+   * Serializable-plus-bounded-retry treatment as `LiabilitiesService.pay()`
+   * (`runSerializableWithRetry`). The PREVIOUS docblock here claimed
+   * Serializable was unnecessary because "the account debit is an atomic
+   * decrement" — that premise was false: `assertBankNotOverdrawn` READS the
+   * balance and compares against it, then `account.update({ decrement })`
+   * WRITES — a read-then-write pair, exactly what `LiabilitiesService.pay()`
+   * already identified as needing Serializable isolation. At READ COMMITTED
+   * with no retry, two concurrent premium payments against the same account
+   * could each read the same starting balance, each pass the overdraft
+   * floor check, and both commit — jointly overdrawing the account past
+   * what either payment alone would have allowed (bypassing EPIC-021 #22).
+   * The retry also fixes a second bug: a first-ever concurrent payment used
+   * to throw an opaque, unretried 500 from the category self-heal P2002
+   * race — it now retries exactly like `LiabilitiesService.pay()`.
    */
   async pay(
     familyGroupId: string,
     id: string,
     dto: PayInsuranceDto,
   ): Promise<InsuranceResponseDto> {
-    return this.prisma.$transaction((tx) =>
+    return runSerializableWithRetry(this.prisma, (tx) =>
       this.runPay(tx, familyGroupId, id, dto),
     );
   }
@@ -542,7 +575,11 @@ export class InsurancesService {
       data: { balance: { decrement: amount } },
     });
 
-    const categoryId = await this.resolvePremiumCategoryId(tx, familyGroupId);
+    const categoryId = await this.resolveOwnPremiumCategoryId(
+      tx,
+      familyGroupId,
+      insurance,
+    );
     await tx.transaction.create({
       data: {
         familyGroupId,
@@ -572,24 +609,20 @@ export class InsurancesService {
   }
 
   /**
-   * Finds (or, self-healing like `LiabilitiesService`'s category resolvers,
-   * creates) a Category in this family group linked to a general-purpose
-   * EXPENSE CoaAccount, so a premium payment always has somewhere honest to
-   * post against — see `INSURANCE_PREMIUM_COA_CODES`'s doc comment for why
-   * there is no dedicated per-policy-type category.
+   * Finds this policy's OWN premium Category — self-healing (creating it,
+   * `INSURANCE_PREMIUM_COA_CODES`) the first time it is needed — HIGH 4
+   * redesign, mirrors `LiabilitiesService.resolveOwnPrincipalCategoryId`.
+   * The category name bakes in the policy's own id (`ownCategoryName`,
+   * shared with `LiabilitiesService`), eliminating the
+   * `@@unique([familyGroupId, name, kind])` collision class between two
+   * DIFFERENT policies by construction.
    */
-  private async resolvePremiumCategoryId(
+  private async resolveOwnPremiumCategoryId(
     tx: TxClient,
     familyGroupId: string,
+    insurance: { id: string; name: string; premiumCategoryId?: string | null },
   ): Promise<string> {
-    const existing = await tx.category.findFirst({
-      where: {
-        familyGroupId,
-        coaAccount: { code: { in: INSURANCE_PREMIUM_COA_CODES } },
-      },
-      select: { id: true },
-    });
-    if (existing) return existing.id;
+    if (insurance.premiumCategoryId) return insurance.premiumCategoryId;
 
     const coaAccount = await tx.coaAccount.findFirst({
       where: { familyGroupId, code: { in: INSURANCE_PREMIUM_COA_CODES } },
@@ -597,24 +630,25 @@ export class InsurancesService {
     });
     if (!coaAccount) {
       throw new BadRequestException(
-        "This family group has no general-purpose expense COA account provisioned",
+        "This family group has no insurance-premium expense COA account provisioned",
       );
     }
 
-    // EPIC-023 review follow-up (liabilities.service.ts) — the same
-    // concurrent-self-heal P2002 race applies here; a fresh Category
-    // `create()` is left to surface (and, if ever needed, be retried by a
-    // caller) exactly like that file's documented, deliberate choice not to
-    // recover in-transaction.
-    const created = await tx.category.create({
+    const category = await tx.category.create({
       data: {
         familyGroupId,
-        name: coaAccount.name,
+        name: ownCategoryName(coaAccount.name, insurance.name, insurance.id),
         kind: "expense",
         coaAccountId: coaAccount.id,
       },
     });
-    return created.id;
+
+    await tx.insurance.update({
+      where: { id: insurance.id, familyGroupId },
+      data: { premiumCategoryId: category.id },
+    });
+
+    return category.id;
   }
 
   private async maybeNotifyRenewal(
@@ -638,8 +672,14 @@ export class InsurancesService {
           isRead: false,
         },
       });
-    } catch {
-      // notification is best-effort; never fail the main operation
+    } catch (err: unknown) {
+      // LOW (group E retry) — best-effort notification: never fail the
+      // main operation, but a systematic failure must not be invisible.
+      this.logger.warn(
+        `maybeNotifyRenewal failed for familyGroupId=${familyGroupId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
     }
   }
 }

@@ -72,4 +72,20 @@ describe("defaultCoaCodeForCategory", () => {
     expect(entry?.groupNum).toBe(2);
     expect(entry?.direction).toBe("EXPENSE");
   });
+
+  // EPIC-023 group E retry (HIGH 3) — InsurancesService must post premiums
+  // against a DEDICATED code, never the generic catch-all
+  // `defaultCoaCodeForCategory` falls back to for an unmatched expense
+  // category (that would hijack a user's own "Pengeluaran Lainnya" budget —
+  // see this task's Automation Log).
+  it("has a group-2 insurance-premium EXPENSE account at code 20010 (Premi Asuransi), distinct from the expense catch-all", () => {
+    const entry = GENERIC_COA_CHART.find((c) => c.code === "20010");
+    expect(entry).toBeDefined();
+    expect(entry?.name).toBe("Premi Asuransi");
+    expect(entry?.groupNum).toBe(2);
+    expect(entry?.direction).toBe("EXPENSE");
+    expect(entry?.code).not.toBe(
+      defaultCoaCodeForCategory("expense", "Sesuatu yang tidak dikenal"),
+    );
+  });
 });

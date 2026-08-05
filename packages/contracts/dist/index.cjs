@@ -334,6 +334,20 @@ var GENERIC_COA_CHART = [
     direction: "EXPENSE",
     budgetType: "FIXED"
   },
+  // EPIC-023 group E retry (HIGH 3) — a dedicated insurance-premium expense
+  // account. `InsurancesService` used to reuse "20099" (the generic
+  // catch-all `defaultCoaCodeForCategory` falls back to for ANY unmatched
+  // expense category), which meant creating a policy silently hijacked
+  // whatever user-made category/budget already lived on that shared
+  // catch-all bucket. Never reuse a catch-all code for automatic behavior —
+  // same precedent as "20009" above (A1/A2).
+  {
+    code: "20010",
+    name: "Premi Asuransi",
+    groupNum: 2,
+    direction: "EXPENSE",
+    budgetType: "FIXED"
+  },
   // Group 3 — Wealth Allocation
   {
     code: "30001",
@@ -466,6 +480,9 @@ var TransactionDtoSchema = import_zod7.z.object({
   categoryId: import_zod7.z.string().uuid().nullable(),
   // EPIC-023 E1/E3 — set for a liability payment or a credit-card purchase.
   liabilityId: import_zod7.z.string().uuid().nullable(),
+  // EPIC-023 E1 / group E retry (MEDIUM 6) — set for an insurance premium
+  // payment, symmetric with liabilityId above.
+  insuranceId: import_zod7.z.string().uuid().nullable(),
   amount: import_zod7.z.string(),
   type: TransactionTypeSchema,
   description: import_zod7.z.string().nullable(),

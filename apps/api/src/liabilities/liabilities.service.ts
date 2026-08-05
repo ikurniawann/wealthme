@@ -1,12 +1,12 @@
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
 
 import { assertBankNotOverdrawn } from "../common/utils/bank-overdraft.util";
+import { ownCategoryName } from "../common/utils/own-category-name.util";
+import { runSerializableWithRetry } from "../common/utils/serializable-retry.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -25,29 +25,35 @@ import type { UpdateLiabilityDto } from "./dto/update-liability.dto";
 // GENERIC_COA_CHART (every real family, via registration + the A1 backfill
 // migration) uses 20009 "Bunga Pinjaman"; the demo seed's richer chart uses
 // 21304 "Loan Interest". Matching on either code keeps `pay()` correct for
-// both charts without hardcoding one over the other.
+// both charts without hardcoding one over the other. UNCHANGED — the
+// interest leg is a real expense shared across every liability in a family,
+// it never gets a budget line, so it does not need the per-obligation
+// treatment `principalCategoryId` gets below (group E retry, HIGH 4).
 const LOAN_INTEREST_COA_CODES = ["20009", "21304"];
 
 type TxClient = Parameters<Parameters<PrismaService["$transaction"]>[0]>[0];
 
+type LiabilityRow = {
+  id: string;
+  familyGroupId: string;
+  name: string;
+  institution: string | null;
+  type: string;
+  totalDebt: bigint;
+  remainingBalance: bigint;
+  minimumPayment: bigint;
+  interestRate: { toString(): string };
+  dueDate: Date | null;
+  autoAdvanceDueDate: boolean;
+  notes: string | null;
+  currency: string;
+  principalCategoryId?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 function toLiabilityDto(
-  liability: {
-    id: string;
-    familyGroupId: string;
-    name: string;
-    institution: string | null;
-    type: string;
-    totalDebt: bigint;
-    remainingBalance: bigint;
-    minimumPayment: bigint;
-    interestRate: { toString(): string };
-    dueDate: Date | null;
-    autoAdvanceDueDate: boolean;
-    notes: string | null;
-    currency: string;
-    createdAt: Date;
-    updatedAt: Date;
-  },
+  liability: LiabilityRow,
   paidThisPeriod = false,
 ): LiabilityResponseDto {
   const paymentRatio =
@@ -169,27 +175,26 @@ export class LiabilitiesService {
   }
 
   /**
-   * EPIC-023 E2 (D11, US-LIAB-3) — creating a liability with a non-zero
-   * `minimumPayment` auto-creates (or tops up) a FIXED budget line for it,
-   * so the obligation shows up on the budget page without a manual step.
-   * `minimumPayment === 0` liabilities (e.g. 0% family loans with no
-   * scheduled payment) intentionally get NO budget line — there is nothing
-   * due to budget for yet; adding a minimum payment later via `update()` is
-   * out of this task's scope (deferred, see this task's Automation Log).
+   * EPIC-023 E2 (D11, US-LIAB-3), redesigned by the group E retry (HIGH 4)
+   * — creating a liability with a non-zero `minimumPayment` auto-creates
+   * this liability's OWN FIXED budget line. `minimumPayment === 0`
+   * liabilities (e.g. 0% family loans with no scheduled payment)
+   * intentionally get NO budget line — there is nothing due to budget for
+   * yet; `update()` creates one later if `minimumPayment` goes non-zero.
    *
-   * Category derivation: reuses `resolvePrincipalCategoryId` UNCHANGED —
-   * the SAME group-5 (Account Payable) TRANSFER category `pay()` already
-   * posts the principal leg against (see that method's doc comment). This
-   * is deliberate, not incidental: the budget's `spentAmount` is computed
-   * by `BudgetsService` from `Transaction` rows sharing the budget's
-   * `categoryId` (EPIC-022 A6). Giving the budget a DIFFERENT, liability-
-   * specific category would look plausible but would silently break
-   * budget-vs-actual tracking — payments would never register as spend
-   * against it. Every liability in a family group therefore shares ONE
-   * FIXED "cicilan pokok" budget line (monthly period), whose limit is the
-   * SUM of every liability's `minimumPayment` — see `upsertFixedBudgetLine`
-   * for how the `@@unique([familyGroupId, categoryId, period])` collision
-   * this implies is handled (via `upsert`, not a caught P2002).
+   * ONE BUDGET LINE PER LIABILITY (HIGH 4 fix) — every liability used to
+   * share ONE family-wide "cicilan pokok" category+budget row (via
+   * `increment`), which meant `Budget.liabilityId` only ever pointed at the
+   * FIRST liability that seeded it, `remove()` could not tell one
+   * liability's contribution apart from another's, and `limitAmount` never
+   * shrank. Each liability now gets its OWN `Category`
+   * (`principalCategoryId`, self-healed by `resolveOwnPrincipalCategoryId`)
+   * pointing at the SAME group-5 (Account Payable) TRANSFER `CoaAccount`
+   * `pay()` already posts the principal leg against — this is deliberate,
+   * not incidental: `BudgetsService` computes `spentAmount` by grouping
+   * `Transaction` rows on `categoryId` (EPIC-022 A6), so giving each
+   * liability its own category is what makes its `spentAmount` track only
+   * ITS OWN payments, `remove()` exact, and `limitAmount` re-derivable.
    */
   async create(
     familyGroupId: string,
@@ -204,42 +209,54 @@ export class LiabilitiesService {
       ? guardBigInt("minimumPayment", dto.minimumPayment)
       : BigInt(0);
 
-    const liability = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.liability.create({
-        data: {
-          familyGroupId,
-          name: dto.name,
-          institution: dto.institution ?? null,
-          type: dto.type,
-          totalDebt,
-          remainingBalance,
-          minimumPayment,
-          interestRate: dto.interestRate ?? "0",
-          dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
-          autoAdvanceDueDate: dto.autoAdvanceDueDate ?? false,
-          notes: dto.notes ?? null,
-          currency: dto.currency ?? "IDR",
-        },
-      });
-
-      if (minimumPayment > BigInt(0)) {
-        const categoryId = await this.resolvePrincipalCategoryId(
-          tx,
-          familyGroupId,
-        );
-        await this.markCategoryFixed(tx, categoryId);
-        await this.upsertFixedBudgetLine(tx, {
-          familyGroupId,
-          categoryId,
-          contribution: minimumPayment,
-          liabilityId: created.id,
-        });
-      }
-
-      return created;
-    });
+    const liability = await runSerializableWithRetry(this.prisma, (tx) =>
+      this.runCreate(tx, familyGroupId, dto, {
+        totalDebt,
+        remainingBalance,
+        minimumPayment,
+      }),
+    );
 
     return toLiabilityDto(liability);
+  }
+
+  private async runCreate(
+    tx: TxClient,
+    familyGroupId: string,
+    dto: CreateLiabilityDto,
+    amounts: {
+      totalDebt: bigint;
+      remainingBalance: bigint;
+      minimumPayment: bigint;
+    },
+  ): Promise<LiabilityRow> {
+    const created = await tx.liability.create({
+      data: {
+        familyGroupId,
+        name: dto.name,
+        institution: dto.institution ?? null,
+        type: dto.type,
+        totalDebt: amounts.totalDebt,
+        remainingBalance: amounts.remainingBalance,
+        minimumPayment: amounts.minimumPayment,
+        interestRate: dto.interestRate ?? "0",
+        dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+        autoAdvanceDueDate: dto.autoAdvanceDueDate ?? false,
+        notes: dto.notes ?? null,
+        currency: dto.currency ?? "IDR",
+      },
+    });
+
+    if (amounts.minimumPayment > BigInt(0)) {
+      await this.syncPrincipalBudgetLine(
+        tx,
+        familyGroupId,
+        created,
+        amounts.minimumPayment,
+      );
+    }
+
+    return created;
   }
 
   async update(
@@ -264,7 +281,43 @@ export class LiabilitiesService {
       ? guardBigInt("minimumPayment", dto.minimumPayment)
       : existing.minimumPayment;
 
-    const updated = await this.prisma.liability.update({
+    const updated = await runSerializableWithRetry(this.prisma, (tx) =>
+      this.runUpdate(tx, familyGroupId, id, dto, {
+        totalDebt,
+        remainingBalance,
+        minimumPayment,
+      }),
+    );
+
+    return toLiabilityDto(updated);
+  }
+
+  /**
+   * HIGH 4 fix — `minimumPayment` going 0 -> non-zero now actually creates a
+   * budget line (previously created NOTHING, silently), non-zero -> 0
+   * REMOVES this liability's line instead of leaving it inflated forever,
+   * and any other change re-derives `limitAmount` to the NEW contribution
+   * via a plain `update` (never `increment`) — the old code only ever grew
+   * `limitAmount`, it never shrank or resynced it.
+   */
+  private async runUpdate(
+    tx: TxClient,
+    familyGroupId: string,
+    id: string,
+    dto: UpdateLiabilityDto,
+    amounts: {
+      totalDebt: bigint;
+      remainingBalance: bigint;
+      minimumPayment: bigint;
+    },
+  ): Promise<LiabilityRow> {
+    // Re-read fresh inside the (possibly retried) transaction — a retry
+    // must never reuse a `principalCategoryId` read before the conflict.
+    const existing = await tx.liability.findUniqueOrThrow({
+      where: { id, familyGroupId },
+    });
+
+    const updated = await tx.liability.update({
       where: { id, familyGroupId },
       data: {
         name: dto.name ?? existing.name,
@@ -273,9 +326,9 @@ export class LiabilitiesService {
             ? (dto.institution ?? null)
             : existing.institution,
         type: dto.type ?? existing.type,
-        totalDebt,
-        remainingBalance,
-        minimumPayment,
+        totalDebt: amounts.totalDebt,
+        remainingBalance: amounts.remainingBalance,
+        minimumPayment: amounts.minimumPayment,
         interestRate: dto.interestRate ?? existing.interestRate,
         dueDate:
           dto.dueDate !== undefined
@@ -290,15 +343,71 @@ export class LiabilitiesService {
       },
     });
 
-    return toLiabilityDto(updated);
+    await this.syncPrincipalBudgetLine(
+      tx,
+      familyGroupId,
+      { ...updated, principalCategoryId: existing.principalCategoryId },
+      amounts.minimumPayment,
+    );
+
+    return updated;
   }
 
   /**
-   * EPIC-023 E2 (D11) — refuses (409, never a silent cascade) while a FIXED
-   * budget line derived from this liability's category still exists. This
-   * is a READ-ONLY category lookup (no self-heal `create`): if the shared
-   * principal category was never provisioned, there is nothing to check
-   * and deletion proceeds.
+   * Creates, re-derives, or removes this liability's OWN FIXED budget line
+   * so `limitAmount` always equals ITS current `minimumPayment` — see
+   * `create()`'s doc comment for the full HIGH 4 design.
+   */
+  private async syncPrincipalBudgetLine(
+    tx: TxClient,
+    familyGroupId: string,
+    liability: LiabilityRow,
+    contribution: bigint,
+  ): Promise<void> {
+    if (contribution <= BigInt(0)) {
+      // 0 (or reduced to 0): this liability no longer needs a budget line.
+      // Deleting (not merely decrementing to 0) is safe now that the line
+      // is exclusive to this liability — nothing else shares it.
+      await tx.budget.deleteMany({
+        where: { familyGroupId, liabilityId: liability.id },
+      });
+      return;
+    }
+
+    const categoryId = await this.resolveOwnPrincipalCategoryId(
+      tx,
+      familyGroupId,
+      liability,
+    );
+    await this.markCategoryFixed(tx, categoryId);
+    await tx.budget.upsert({
+      where: {
+        familyGroupId_categoryId_period: {
+          familyGroupId,
+          categoryId,
+          period: "monthly",
+        },
+      },
+      create: {
+        familyGroupId,
+        categoryId,
+        period: "monthly",
+        limitAmount: contribution,
+        liabilityId: liability.id,
+      },
+      // Re-derived, not incremented — this line is exclusive to this
+      // liability, so its limit IS its current contribution.
+      update: { limitAmount: contribution, liabilityId: liability.id },
+    });
+  }
+
+  /**
+   * EPIC-023 E2 (D11) redesigned by the group E retry (HIGH 4) — deletes
+   * this liability's OWN budget line (now exclusive to it, never shared)
+   * and the liability itself in one transaction, instead of the old 409
+   * "delete your shared budget first" block that made every liability
+   * sharing a category undeletable until the user found and deleted a
+   * budget line that also covered every OTHER liability.
    */
   async remove(familyGroupId: string, id: string): Promise<void> {
     const existing = await this.prisma.liability.findUnique({
@@ -308,31 +417,12 @@ export class LiabilitiesService {
       throw new NotFoundException("Liability not found");
     }
 
-    const category = await this.prisma.category.findFirst({
-      where: {
-        familyGroupId,
-        coaAccount: { groupNum: 5, direction: "TRANSFER" },
-      },
-      select: { id: true, name: true },
-    });
-    if (category) {
-      const budget = await this.prisma.budget.findUnique({
-        where: {
-          familyGroupId_categoryId_period: {
-            familyGroupId,
-            categoryId: category.id,
-            period: "monthly",
-          },
-        },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.budget.deleteMany({
+        where: { familyGroupId, liabilityId: id },
       });
-      if (budget) {
-        throw new ConflictException(
-          `Tidak dapat menghapus liabilitas ini karena masih memiliki anggaran tetap "${category.name}". Hapus atau sesuaikan anggaran tersebut terlebih dahulu.`,
-        );
-      }
-    }
-
-    await this.prisma.liability.delete({ where: { id, familyGroupId } });
+      await tx.liability.delete({ where: { id, familyGroupId } });
+    });
   }
 
   /**
@@ -356,55 +446,16 @@ export class LiabilitiesService {
   }
 
   /**
-   * `Budget` has `@@unique([familyGroupId, categoryId, period])`; since
-   * every liability in a family group shares ONE principal category (see
-   * `create()`'s doc comment), a second liability's auto-budget WILL
-   * collide with the first's row. `upsert` (a single atomic
-   * `INSERT ... ON CONFLICT DO UPDATE`) handles that collision without a
-   * caught P2002 or a retry loop: the first liability creates the line,
-   * every subsequent one tops up `limitAmount` by its own contribution.
-   * `liabilityId` is only set on the `create` branch — see the `Budget`
-   * model's doc comment for what that FK means once shared.
-   */
-  private async upsertFixedBudgetLine(
-    tx: TxClient,
-    params: {
-      familyGroupId: string;
-      categoryId: string;
-      contribution: bigint;
-      liabilityId: string;
-    },
-  ): Promise<void> {
-    const { familyGroupId, categoryId, contribution, liabilityId } = params;
-    await tx.budget.upsert({
-      where: {
-        familyGroupId_categoryId_period: {
-          familyGroupId,
-          categoryId,
-          period: "monthly",
-        },
-      },
-      create: {
-        familyGroupId,
-        categoryId,
-        period: "monthly",
-        limitAmount: contribution,
-        liabilityId,
-      },
-      update: {
-        limitAmount: { increment: contribution },
-      },
-    });
-  }
-
-  /**
    * Records a payment against a liability: splits it into principal and
    * interest (EPIC-023 A2 — `splitPayment`), debits the source account by
    * the full payment, reduces `remainingBalance` by the principal only, and
-   * posts the principal against a group-5 TRANSFER category and the
-   * interest (when non-zero) against the loan-interest EXPENSE category.
-   * Everything happens inside one `$transaction` so a failure never leaves
-   * the account debited without the liability/ledger updated, or vice versa.
+   * posts the principal against THIS LIABILITY'S OWN group-5 TRANSFER
+   * category (HIGH 4 — was a family-shared category) and the interest
+   * (when non-zero) against the loan-interest EXPENSE category (still
+   * shared — it never gets a budget line, see `LOAN_INTEREST_COA_CODES`'s
+   * comment). Everything happens inside one `$transaction` so a failure
+   * never leaves the account debited without the liability/ledger updated,
+   * or vice versa.
    *
    * EPIC-023 review follow-up — a plain (default READ COMMITTED)
    * `$transaction` is NOT enough here: `liability.remainingBalance` and the
@@ -412,22 +463,13 @@ export class LiabilitiesService {
    * transaction, so two concurrent `pay()` calls could each read the same
    * balance, each compute a valid-looking principal/maxPayable, and both
    * commit — under-reducing the balance while jointly overpaying past what
-   * either payment alone would have allowed. Mirrors the count-then-act race
-   * `CategoriesService.remove()` closes the same way (see its comment for
-   * the full Postgres rationale): run the transaction at Serializable
-   * isolation so Postgres detects the conflicting concurrent write and
-   * aborts the loser with a serialization failure (Prisma P2034), then
-   * retry a bounded number of times so the loser re-reads the now-current
-   * balance and recomputes correctly instead of surfacing a raw 500 to the
-   * user for what is, from their point of view, a transient conflict.
-   *
-   * The same retry also covers P2002 from `createCategoryOrUseRaceWinner()`:
-   * two concurrent first-ever `pay()` calls for a family group can race to
-   * create the same self-heal Category. That P2002 aborts the whole
-   * transaction (see that method's comment for why it cannot be recovered
-   * in-transaction), so the fix is the same shape as P2034 — roll back and
-   * retry in a fresh transaction, where the self-heal `findFirst` now finds
-   * the winner's already-committed row.
+   * either payment alone would have allowed. `runSerializableWithRetry`
+   * (extracted from this method, group E retry HIGH 2) runs the transaction
+   * at Serializable isolation with a bounded retry so the loser re-reads
+   * the now-current balance and recomputes correctly instead of surfacing
+   * a raw 500 for what is, from the user's point of view, a transient
+   * conflict. The same retry also covers P2002 from the category self-heal
+   * race — see that helper's doc comment for the full mechanism.
    */
   async pay(
     familyGroupId: string,
@@ -439,33 +481,9 @@ export class LiabilitiesService {
       throw new BadRequestException("amount must be greater than zero");
     }
 
-    const MAX_ATTEMPTS = 3;
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-      try {
-        return await this.prisma.$transaction(
-          (tx) => this.runPayment(tx, familyGroupId, id, dto, paymentAmount),
-          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-        );
-      } catch (err) {
-        // Retryable: P2034 (serialization failure on the balance/overdraft
-        // read-then-write) and P2002 (concurrent category self-heal race —
-        // see createCategoryOrUseRaceWinner()'s comment for why it cannot be
-        // recovered inside the same aborted transaction). Anything else is
-        // rethrown immediately; both known codes are rethrown once
-        // MAX_ATTEMPTS is exhausted.
-        const isRetryable =
-          err instanceof Prisma.PrismaClientKnownRequestError &&
-          (err.code === "P2034" || err.code === "P2002");
-        if (!isRetryable || attempt === MAX_ATTEMPTS) {
-          throw err;
-        }
-        // Retry: another concurrent pay() committed first. Looping re-enters
-        // $transaction, which re-reads the liability/account/category state
-        // inside runPayment against the now-current, post-conflict state.
-      }
-    }
-    // Unreachable — the loop above always either returns or throws.
-    throw new Error("pay() retry loop exited unexpectedly");
+    return runSerializableWithRetry(this.prisma, (tx) =>
+      this.runPayment(tx, familyGroupId, id, dto, paymentAmount),
+    );
   }
 
   private async runPayment(
@@ -532,18 +550,17 @@ export class LiabilitiesService {
     const occurredAt = new Date();
 
     if (principal > BigInt(0)) {
-      const principalCategoryId = await this.resolvePrincipalCategoryId(
+      const principalCategoryId = await this.resolveOwnPrincipalCategoryId(
         tx,
         familyGroupId,
+        liability,
       );
       // EPIC-023 E1 — the principal leg is money moving from cash into
       // paying down debt, not a real expense (the group-5 TRANSFER category
       // above already excludes it from P&L via txCoaDirection's
-      // category-first rule — see reports.service.spec.ts's A3 tests). This
-      // finishes that fix: `type` now matches the category's own direction
-      // instead of lying "expense", so the transaction list badge is honest
-      // too (deferred from Task A's Automation Log). `liabilityId` links
-      // this row back to the obligation it settles (D10, US-LIAB-4).
+      // category-first rule — see reports.service.spec.ts's A3 tests).
+      // `liabilityId` links this row back to the obligation it settles
+      // (D10, US-LIAB-4).
       await tx.transaction.create({
         data: {
           familyGroupId,
@@ -670,23 +687,24 @@ export class LiabilitiesService {
   }
 
   /**
-   * Finds (or, self-healing like `CategoriesService.create()`'s P2002
-   * recovery, creates) a Category in this family group linked to a group-5
-   * TRANSFER CoaAccount, so the principal leg of a payment always has
-   * somewhere honest to post against.
+   * Finds this liability's OWN principal Category — self-healing (creating
+   * it, group-5 TRANSFER CoaAccount) the first time it is needed — HIGH 4
+   * redesign, see `create()`'s doc comment. The category name bakes in the
+   * liability's own id, so two DIFFERENT liabilities can never collide on
+   * name even if they share a display name; the only remaining collision
+   * is two concurrent calls self-healing the SAME liability's category,
+   * which `runSerializableWithRetry`'s P2002 handling covers.
    */
-  private async resolvePrincipalCategoryId(
+  private async resolveOwnPrincipalCategoryId(
     tx: TxClient,
     familyGroupId: string,
+    liability: {
+      id: string;
+      name: string;
+      principalCategoryId?: string | null;
+    },
   ): Promise<string> {
-    const existing = await tx.category.findFirst({
-      where: {
-        familyGroupId,
-        coaAccount: { groupNum: 5, direction: "TRANSFER" },
-      },
-      select: { id: true },
-    });
-    if (existing) return existing.id;
+    if (liability.principalCategoryId) return liability.principalCategoryId;
 
     const coaAccount = await tx.coaAccount.findFirst({
       where: { familyGroupId, groupNum: 5, direction: "TRANSFER" },
@@ -698,10 +716,24 @@ export class LiabilitiesService {
       );
     }
 
-    return this.createCategoryOrUseRaceWinner(tx, familyGroupId, coaAccount);
+    const category = await tx.category.create({
+      data: {
+        familyGroupId,
+        name: ownCategoryName(coaAccount.name, liability.name, liability.id),
+        kind: "expense",
+        coaAccountId: coaAccount.id,
+      },
+    });
+
+    await tx.liability.update({
+      where: { id: liability.id, familyGroupId },
+      data: { principalCategoryId: category.id },
+    });
+
+    return category.id;
   }
 
-  /** Same self-healing lookup as above, scoped to the loan-interest account. */
+  /** Same self-healing lookup as `pay()` always used, scoped to the loan-interest account. */
   private async resolveInterestCategoryId(
     tx: TxClient,
     familyGroupId: string,
@@ -725,41 +757,6 @@ export class LiabilitiesService {
       );
     }
 
-    return this.createCategoryOrUseRaceWinner(tx, familyGroupId, coaAccount);
-  }
-
-  /**
-   * EPIC-023 review follow-up — `Category` has `@@unique([familyGroupId,
-   * name, kind])`. Two concurrent first-ever `pay()` calls for the same
-   * family can both pass the `findFirst` self-healing check above (neither
-   * category exists yet) and then race to `create()` it; the loser gets a
-   * Prisma P2002.
-   *
-   * Unlike `CategoriesService.create()` (which maps P2002 straight to a
-   * `ConflictException` and stops), this path used to try to recover by
-   * re-reading the row on the SAME transaction client. That recovery is
-   * impossible: once any statement inside a Postgres transaction errors,
-   * Postgres marks the whole transaction aborted and rejects every
-   * subsequent statement with SQLSTATE 25P02 ("current transaction is
-   * aborted, commands ignored until end of transaction block") until the
-   * transaction ends. Prisma's interactive `$transaction` does not wrap
-   * individual queries in implicit SAVEPOINTs, so a follow-up `findFirst` on
-   * `tx` after catching P2002 is guaranteed to fail — with an opaque
-   * `PrismaClientUnknownRequestError`, not a P2002, so it would not even be
-   * retried. Do not reintroduce an in-transaction re-read here.
-   *
-   * Instead, let P2002 propagate out of `runPayment()` and out of this
-   * `$transaction` call entirely, rolling the whole attempt back. `pay()`'s
-   * bounded retry loop treats P2002 the same as a P2034 serialization
-   * failure: it re-enters `$transaction` in a fresh attempt, and that
-   * attempt's `findFirst` self-heal check above now finds the winner's
-   * already-committed category.
-   */
-  private async createCategoryOrUseRaceWinner(
-    tx: TxClient,
-    familyGroupId: string,
-    coaAccount: { id: string; name: string },
-  ): Promise<string> {
     const created = await tx.category.create({
       data: {
         familyGroupId,

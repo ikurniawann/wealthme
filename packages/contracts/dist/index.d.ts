@@ -382,6 +382,7 @@ declare const TransactionDtoSchema: z.ZodObject<{
     toAccountId: z.ZodNullable<z.ZodString>;
     categoryId: z.ZodNullable<z.ZodString>;
     liabilityId: z.ZodNullable<z.ZodString>;
+    insuranceId: z.ZodNullable<z.ZodString>;
     amount: z.ZodString;
     type: z.ZodEnum<["income", "expense", "transfer"]>;
     description: z.ZodNullable<z.ZodString>;
@@ -403,6 +404,7 @@ declare const TransactionDtoSchema: z.ZodObject<{
     occurredAt: string;
     toAccountId: string | null;
     liabilityId: string | null;
+    insuranceId: string | null;
     accountName: string;
     toAccountName: string | null;
 }, {
@@ -418,6 +420,7 @@ declare const TransactionDtoSchema: z.ZodObject<{
     occurredAt: string;
     toAccountId: string | null;
     liabilityId: string | null;
+    insuranceId: string | null;
     accountName: string;
     toAccountName: string | null;
 }>;
@@ -462,6 +465,7 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         toAccountId: z.ZodNullable<z.ZodString>;
         categoryId: z.ZodNullable<z.ZodString>;
         liabilityId: z.ZodNullable<z.ZodString>;
+        insuranceId: z.ZodNullable<z.ZodString>;
         amount: z.ZodString;
         type: z.ZodEnum<["income", "expense", "transfer"]>;
         description: z.ZodNullable<z.ZodString>;
@@ -483,6 +487,7 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         occurredAt: string;
         toAccountId: string | null;
         liabilityId: string | null;
+        insuranceId: string | null;
         accountName: string;
         toAccountName: string | null;
     }, {
@@ -498,6 +503,7 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         occurredAt: string;
         toAccountId: string | null;
         liabilityId: string | null;
+        insuranceId: string | null;
         accountName: string;
         toAccountName: string | null;
     }>, "many">;
@@ -559,6 +565,7 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         occurredAt: string;
         toAccountId: string | null;
         liabilityId: string | null;
+        insuranceId: string | null;
         accountName: string;
         toAccountName: string | null;
     }[];
@@ -590,6 +597,7 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         occurredAt: string;
         toAccountId: string | null;
         liabilityId: string | null;
+        insuranceId: string | null;
         accountName: string;
         toAccountName: string | null;
     }[];

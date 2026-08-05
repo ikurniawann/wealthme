@@ -56,6 +56,14 @@ export class TransactionResponseDto {
   })
   liabilityId!: string | null;
 
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description:
+      "Insurance policy UUID this transaction is linked to (EPIC-023 E1) — set for a premium payment, null otherwise.",
+  })
+  insuranceId!: string | null;
+
   @ApiProperty({ type: String, format: "date-time" })
   occurredAt!: string;
 

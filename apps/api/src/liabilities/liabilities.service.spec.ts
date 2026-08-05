@@ -34,6 +34,7 @@ function makePrisma() {
     liability: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
@@ -55,6 +56,7 @@ function makePrisma() {
     budget: {
       upsert: jest.fn(),
       findUnique: jest.fn(),
+      deleteMany: jest.fn(),
     },
     transaction: {
       create: jest.fn(),
@@ -203,16 +205,24 @@ describe("LiabilitiesService", () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    // EPIC-023 E2 (D11) — a non-zero minimumPayment auto-creates the FIXED
-    // budget line for this liability's shared principal category.
-    it("auto-creates a FIXED budget line when minimumPayment is set", async () => {
+    // EPIC-023 E2 (D11), redesigned by the group E retry (HIGH 4) — a
+    // non-zero minimumPayment auto-creates THIS liability's OWN FIXED
+    // budget line (self-healing its own principal Category first, since a
+    // brand-new liability never has one yet).
+    it("auto-creates a FIXED budget line (and its own principal category) when minimumPayment is set", async () => {
       prisma.liability.create.mockResolvedValue({
         ...BASE,
         id: "lid-new",
         totalDebt: BigInt(10_000_000),
         remainingBalance: BigInt(10_000_000),
+        principalCategoryId: null,
       });
-      prisma.category.findFirst.mockResolvedValue({ id: "cat-principal" });
+      prisma.coaAccount.findFirst.mockResolvedValue({
+        id: "coa-5",
+        code: "50001",
+        name: "Utang",
+      });
+      prisma.category.create.mockResolvedValue({ id: "cat-principal" });
       prisma.category.findUniqueOrThrow.mockResolvedValue({
         coaAccountId: "coa-5",
       });
@@ -225,6 +235,20 @@ describe("LiabilitiesService", () => {
         minimumPayment: "2083000",
       });
 
+      // HIGH 4 — the category name bakes in the liability's OWN id, so two
+      // liabilities can never collide on name even with the same label.
+      expect(prisma.category.create).toHaveBeenCalledWith({
+        data: {
+          familyGroupId: "fg-1",
+          name: "Utang — KTA BNI (lid-new)",
+          kind: "expense",
+          coaAccountId: "coa-5",
+        },
+      });
+      expect(prisma.liability.update).toHaveBeenCalledWith({
+        where: { id: "lid-new", familyGroupId: "fg-1" },
+        data: { principalCategoryId: "cat-principal" },
+      });
       expect(prisma.coaAccount.update).toHaveBeenCalledWith({
         where: { id: "coa-5" },
         data: { budgetType: "FIXED" },
@@ -244,7 +268,10 @@ describe("LiabilitiesService", () => {
           limitAmount: BigInt(2_083_000),
           liabilityId: "lid-new",
         },
-        update: { limitAmount: { increment: BigInt(2_083_000) } },
+        update: {
+          limitAmount: BigInt(2_083_000),
+          liabilityId: "lid-new",
+        },
       });
     });
 
@@ -268,6 +295,108 @@ describe("LiabilitiesService", () => {
     });
   });
 
+  // EPIC-023 group E retry (HIGH 4) — `update()` must re-derive this
+  // liability's OWN budget line on every change to `minimumPayment`,
+  // including the two cases the old `increment`-only design silently
+  // dropped: 0 -> non-zero (used to create NOTHING) and non-zero -> 0 (used
+  // to leave the line inflated forever).
+  describe("update", () => {
+    it("throws NotFoundException when the liability does not exist", async () => {
+      prisma.liability.findUnique.mockResolvedValue(null);
+      await expect(
+        service.update("fg-1", "missing-id", { minimumPayment: "100000" }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it("minimumPayment 0 -> non-zero CREATES a budget line (previously created nothing)", async () => {
+      const existing = {
+        ...BASE,
+        totalDebt: BigInt(10_000_000),
+        remainingBalance: BigInt(10_000_000),
+        minimumPayment: BigInt(0),
+        principalCategoryId: null,
+      };
+      prisma.liability.findUnique.mockResolvedValue(existing);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(existing);
+      prisma.liability.update.mockResolvedValue({
+        ...existing,
+        minimumPayment: BigInt(2_083_000),
+      });
+      prisma.coaAccount.findFirst.mockResolvedValue({
+        id: "coa-5",
+        code: "50001",
+        name: "Utang",
+      });
+      prisma.category.create.mockResolvedValue({ id: "cat-principal" });
+      prisma.category.findUniqueOrThrow.mockResolvedValue({
+        coaAccountId: "coa-5",
+      });
+
+      await service.update("fg-1", "lid-1", { minimumPayment: "2083000" });
+
+      expect(prisma.budget.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            limitAmount: BigInt(2_083_000),
+            liabilityId: "lid-1",
+          }),
+        }),
+      );
+    });
+
+    it("minimumPayment non-zero -> non-zero RE-DERIVES limitAmount to the new value (never increments)", async () => {
+      const existing = {
+        ...BASE,
+        totalDebt: BigInt(10_000_000),
+        remainingBalance: BigInt(10_000_000),
+        minimumPayment: BigInt(2_083_000),
+        principalCategoryId: "cat-principal",
+      };
+      prisma.liability.findUnique.mockResolvedValue(existing);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(existing);
+      prisma.liability.update.mockResolvedValue({
+        ...existing,
+        minimumPayment: BigInt(3_000_000),
+      });
+      prisma.category.findUniqueOrThrow.mockResolvedValue({
+        coaAccountId: "coa-5",
+      });
+
+      await service.update("fg-1", "lid-1", { minimumPayment: "3000000" });
+
+      expect(prisma.budget.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: { limitAmount: BigInt(3_000_000), liabilityId: "lid-1" },
+        }),
+      );
+      // No self-heal category creation — it already had one.
+      expect(prisma.category.create).not.toHaveBeenCalled();
+    });
+
+    it("minimumPayment non-zero -> 0 REMOVES this liability's budget line (previously left it inflated forever)", async () => {
+      const existing = {
+        ...BASE,
+        totalDebt: BigInt(10_000_000),
+        remainingBalance: BigInt(10_000_000),
+        minimumPayment: BigInt(2_083_000),
+        principalCategoryId: "cat-principal",
+      };
+      prisma.liability.findUnique.mockResolvedValue(existing);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(existing);
+      prisma.liability.update.mockResolvedValue({
+        ...existing,
+        minimumPayment: BigInt(0),
+      });
+
+      await service.update("fg-1", "lid-1", { minimumPayment: "0" });
+
+      expect(prisma.budget.deleteMany).toHaveBeenCalledWith({
+        where: { familyGroupId: "fg-1", liabilityId: "lid-1" },
+      });
+      expect(prisma.budget.upsert).not.toHaveBeenCalled();
+    });
+  });
+
   describe("remove", () => {
     it("throws NotFoundException when liability does not exist", async () => {
       prisma.liability.findUnique.mockResolvedValue(null);
@@ -276,9 +405,9 @@ describe("LiabilitiesService", () => {
       );
     });
 
-    it("deletes when no FIXED budget line exists for the principal category", async () => {
+    it("deletes when there is no budget line for this liability", async () => {
       prisma.liability.findUnique.mockResolvedValue(BASE);
-      prisma.category.findFirst.mockResolvedValue(null);
+      prisma.budget.deleteMany.mockResolvedValue({ count: 0 });
 
       await service.remove("fg-1", "lid-1");
 
@@ -287,23 +416,23 @@ describe("LiabilitiesService", () => {
       });
     });
 
-    // EPIC-023 E2 (D11, Honesty AC) — refused with a message naming the
-    // blocking budget line, never a silent cascade.
-    it("refuses (409) when a FIXED budget line still references the principal category", async () => {
+    // EPIC-023 group E retry (HIGH 4) — a liability's budget line is now
+    // EXCLUSIVE to it (its own Category, never shared), so deleting the
+    // liability auto-removes ITS OWN line instead of the old 409 that
+    // blocked deletion until the user found and deleted a budget line
+    // shared with every OTHER liability in the family.
+    it("auto-removes this liability's OWN budget line, scoped by liabilityId, before deleting it — never a 409", async () => {
       prisma.liability.findUnique.mockResolvedValue(BASE);
-      prisma.category.findFirst.mockResolvedValue({
-        id: "cat-principal",
-        name: "Cicilan Pokok",
-      });
-      prisma.budget.findUnique.mockResolvedValue({
-        id: "budget-1",
-        limitAmount: BigInt(2_083_000),
-      });
+      prisma.budget.deleteMany.mockResolvedValue({ count: 1 });
 
-      await expect(service.remove("fg-1", "lid-1")).rejects.toThrow(
-        /Cicilan Pokok/,
-      );
-      expect(prisma.liability.delete).not.toHaveBeenCalled();
+      await service.remove("fg-1", "lid-1");
+
+      expect(prisma.budget.deleteMany).toHaveBeenCalledWith({
+        where: { familyGroupId: "fg-1", liabilityId: "lid-1" },
+      });
+      expect(prisma.liability.delete).toHaveBeenCalledWith({
+        where: { id: "lid-1", familyGroupId: "fg-1" },
+      });
     });
   });
 
@@ -318,6 +447,10 @@ describe("LiabilitiesService", () => {
       totalDebt: BigInt(100_000_000),
       remainingBalance: BigInt(100_000_000),
       interestRate: { toString: () => "12.00" },
+      // HIGH 4 — this liability already has its own principal category
+      // (resolveOwnPrincipalCategoryId returns it directly, no self-heal
+      // needed); see the dedicated self-heal test below for the null case.
+      principalCategoryId: "cat-principal",
     };
     // EPIC-023 review follow-up — a real `bank`-type account with enough
     // balance to cover every happy-path payment below. `balance: BigInt(0)`
@@ -397,9 +530,11 @@ describe("LiabilitiesService", () => {
     it("splits a payment into principal/interest, debits the source account by the full payment, and posts both legs", async () => {
       prisma.liability.findUnique.mockResolvedValue(LIABILITY);
       prisma.account.findUnique.mockResolvedValue(ACCOUNT);
-      prisma.category.findFirst
-        .mockResolvedValueOnce({ id: "cat-principal" }) // group-5 TRANSFER category already exists
-        .mockResolvedValueOnce({ id: "cat-interest" }); // loan-interest EXPENSE category already exists
+      // HIGH 4 — LIABILITY already carries its own principalCategoryId, so
+      // resolveOwnPrincipalCategoryId returns it directly (no category
+      // lookup at all for the principal leg). Only the (still-shared)
+      // interest category is looked up.
+      prisma.category.findFirst.mockResolvedValueOnce({ id: "cat-interest" });
       prisma.liability.update.mockResolvedValue({
         ...LIABILITY,
         remainingBalance: BigInt(96_000_000),
@@ -458,9 +593,7 @@ describe("LiabilitiesService", () => {
     it("links the principal leg to the liability as a transfer; the interest leg stays an unlinked expense (EPIC-023 E1)", async () => {
       prisma.liability.findUnique.mockResolvedValue(LIABILITY);
       prisma.account.findUnique.mockResolvedValue(ACCOUNT);
-      prisma.category.findFirst
-        .mockResolvedValueOnce({ id: "cat-principal" })
-        .mockResolvedValueOnce({ id: "cat-interest" });
+      prisma.category.findFirst.mockResolvedValueOnce({ id: "cat-interest" });
       prisma.liability.update.mockResolvedValue({
         ...LIABILITY,
         remainingBalance: BigInt(96_000_000),
@@ -503,7 +636,6 @@ describe("LiabilitiesService", () => {
         remainingBalance: BigInt(10_000_000),
       });
       prisma.account.findUnique.mockResolvedValue(ACCOUNT);
-      prisma.category.findFirst.mockResolvedValue({ id: "cat-principal" });
       prisma.liability.update.mockResolvedValue({
         ...LIABILITY,
         remainingBalance: BigInt(9_000_000),
@@ -522,10 +654,13 @@ describe("LiabilitiesService", () => {
       );
     });
 
-    it("self-heals by creating the group-5 TRANSFER category when none exists yet", async () => {
-      prisma.liability.findUnique.mockResolvedValue(LIABILITY);
+    it("self-heals by creating its OWN group-5 TRANSFER category when it has none yet (principalCategoryId: null)", async () => {
+      prisma.liability.findUnique.mockResolvedValue({
+        ...LIABILITY,
+        principalCategoryId: null,
+      });
       prisma.account.findUnique.mockResolvedValue(ACCOUNT);
-      prisma.category.findFirst.mockResolvedValue(null);
+      prisma.category.findFirst.mockResolvedValueOnce(null); // interest: none exists yet either
       prisma.coaAccount.findFirst
         .mockResolvedValueOnce({
           id: "coa-5",
@@ -552,13 +687,19 @@ describe("LiabilitiesService", () => {
         amount: "5000000",
       });
 
+      // HIGH 4 — the principal category name bakes in the liability's own
+      // id ("lid-1"), unlike the still-shared interest category.
       expect(prisma.category.create).toHaveBeenCalledWith({
         data: {
           familyGroupId: "fg-1",
-          name: "Utang",
+          name: "Utang — KTA BNI (lid-1)",
           kind: "expense",
           coaAccountId: "coa-5",
         },
+      });
+      expect(prisma.liability.update).toHaveBeenCalledWith({
+        where: { id: "lid-1", familyGroupId: "fg-1" },
+        data: { principalCategoryId: "cat-new-principal" },
       });
       expect(prisma.category.create).toHaveBeenCalledWith({
         data: {
@@ -596,9 +737,7 @@ describe("LiabilitiesService", () => {
     it("retries once on a P2034 serialization failure and succeeds on the second attempt", async () => {
       prisma.liability.findUnique.mockResolvedValue(LIABILITY);
       prisma.account.findUnique.mockResolvedValue(ACCOUNT);
-      prisma.category.findFirst
-        .mockResolvedValueOnce({ id: "cat-principal" })
-        .mockResolvedValueOnce({ id: "cat-interest" });
+      prisma.category.findFirst.mockResolvedValue({ id: "cat-interest" });
       prisma.liability.update.mockResolvedValue({
         ...LIABILITY,
         remainingBalance: BigInt(96_000_000),
@@ -647,13 +786,22 @@ describe("LiabilitiesService", () => {
     // retry loop treats P2002 as retryable exactly like P2034, and the
     // SECOND, fresh `$transaction` attempt's self-heal `findFirst` now sees
     // the winner's already-committed category.
-    it("retries the whole transaction on a concurrent category self-heal race (P2002), succeeding once the retry sees the winner's category", async () => {
-      prisma.liability.findUnique.mockResolvedValue(LIABILITY);
+    // HIGH 4 note — the SHARED-category race this test used to exercise
+    // (two DIFFERENT liabilities racing to self-heal the SAME family-wide
+    // category) is now structurally impossible: the category name bakes in
+    // this liability's OWN id (`ownCategoryName`). The race that remains is
+    // two CONCURRENT payments against the SAME liability, both reading
+    // `principalCategoryId: null` before either has committed its self-heal
+    // — exercised here.
+    it("retries the whole transaction on a concurrent OWN-category self-heal race (P2002) for the SAME liability, succeeding once the retry sees the winner's committed category", async () => {
+      prisma.liability.findUnique
+        .mockResolvedValueOnce({ ...LIABILITY, principalCategoryId: null }) // attempt 1: no own category yet
+        .mockResolvedValueOnce({
+          ...LIABILITY,
+          principalCategoryId: "cat-principal",
+        }); // attempt 2: the winning concurrent call already committed it
       prisma.account.findUnique.mockResolvedValue(ACCOUNT);
-      prisma.category.findFirst
-        .mockResolvedValueOnce(null) // attempt 1, principal: no existing category yet
-        .mockResolvedValueOnce({ id: "cat-principal" }) // attempt 2, principal: winner's row now exists
-        .mockResolvedValueOnce({ id: "cat-interest" }); // attempt 2, interest: already exists
+      prisma.category.findFirst.mockResolvedValueOnce({ id: "cat-interest" }); // attempt 2's interest lookup only
       prisma.coaAccount.findFirst.mockResolvedValueOnce({
         id: "coa-5",
         code: "50001",
@@ -663,7 +811,7 @@ describe("LiabilitiesService", () => {
       });
       // Attempt 1's category.create loses the race with P2002, aborting and
       // rolling back the whole transaction — never reached a second time
-      // because attempt 2's self-heal findFirst finds the category already.
+      // because attempt 2's principalCategoryId is already set.
       prisma.category.create.mockRejectedValueOnce(uniqueViolation());
       prisma.liability.update.mockResolvedValue({
         ...LIABILITY,

@@ -29,7 +29,9 @@ interface FakeCategory {
 
 interface FakeTransaction {
   id: string;
-  accountId: string;
+  // EPIC-023 group E retry (CRITICAL 1) — nullable, mirroring
+  // Transaction.accountId (a credit-card purchase has accountId: null).
+  accountId: string | null;
   categoryId: string | null;
   amount: bigint;
   type: "income" | "expense" | "transfer";
@@ -39,6 +41,22 @@ interface FakeTransaction {
   // EPIC-023 Task C — who recorded this row. Optional so every pre-existing
   // fixture stays valid.
   createdByUserId?: string | null;
+  // restrictedTransactionWhere's incoming-transfer leg. Optional so every
+  // pre-existing fixture stays valid.
+  toAccountId?: string | null;
+}
+
+interface TxWhereClause {
+  accountId?: null;
+  account?: { isPrivate?: boolean; ownerUserId?: string };
+  categoryId?: null;
+  category?: { isPrivate?: boolean };
+  createdByUserId?: string;
+  toAccount?: { ownerUserId?: string };
+  OR?: TxWhereClause[];
+  AND?: TxWhereClause[];
+  familyGroupId?: string;
+  occurredAt?: unknown;
 }
 
 interface FakeInvestment {
@@ -63,6 +81,53 @@ function makeFakePrisma(
 ) {
   const accountById = new Map(accounts.map((a) => [a.id, a]));
   const categoryById = new Map(categories.map((c) => [c.id, c]));
+
+  function evalClause(clause: TxWhereClause, t: FakeTransaction): boolean {
+    return Object.entries(clause).every(([key, value]) => {
+      switch (key) {
+        case "AND":
+          return (value as TxWhereClause[]).every((c) => evalClause(c, t));
+        case "OR":
+          return (value as TxWhereClause[]).some((c) => evalClause(c, t));
+        case "accountId":
+          return t.accountId === null;
+        case "account": {
+          const acc = t.accountId ? accountById.get(t.accountId) : undefined;
+          const cond = value as { isPrivate?: boolean; ownerUserId?: string };
+          if (!acc) return false;
+          if (cond.isPrivate !== undefined && acc.isPrivate !== cond.isPrivate)
+            return false;
+          if (
+            cond.ownerUserId !== undefined &&
+            acc.ownerUserId !== cond.ownerUserId
+          )
+            return false;
+          return true;
+        }
+        case "categoryId":
+          return t.categoryId === null;
+        case "category": {
+          const cat = t.categoryId ? categoryById.get(t.categoryId) : undefined;
+          const cond = value as { isPrivate?: boolean };
+          return !!cat && cat.isPrivate === cond.isPrivate;
+        }
+        case "createdByUserId":
+          return t.createdByUserId === value;
+        case "toAccount": {
+          const acc = t.toAccountId
+            ? accountById.get(t.toAccountId)
+            : undefined;
+          const cond = value as { ownerUserId?: string };
+          return !!acc && acc.ownerUserId === cond.ownerUserId;
+        }
+        case "familyGroupId":
+        case "occurredAt":
+          return true;
+        default:
+          throw new Error(`evalClause: unhandled key "${key}"`);
+      }
+    });
+  }
 
   return {
     account: {
@@ -100,59 +165,30 @@ function makeFakePrisma(
       // its row-scoping fragment (restrictedTransactionWhere) via a shared
       // `AND` array rather than flat top-level keys (so neither fragment's
       // `OR` can clobber the other's — see transactions.service.ts#buildWhere).
-      // This fake reads both privacy AND row-scoping out of `where.AND`.
-      findMany: jest.fn(
-        ({
-          where,
-        }: {
-          where: {
-            AND?: {
-              account?: { isPrivate?: boolean; ownerUserId?: string };
-              createdByUserId?: string;
-              OR?: { account?: { ownerUserId?: string } }[];
-            }[];
-          };
-        }) => {
-          let rows = transactions;
-          const privacyFragment = where.AND?.[0];
-          const scopeFragment = where.AND?.[1];
-
-          if (privacyFragment?.account?.isPrivate === false) {
-            rows = rows.filter((t) => !accountById.get(t.accountId)?.isPrivate);
-          }
-          if (privacyFragment?.OR) {
-            rows = rows.filter((t) => {
-              if (t.categoryId === null) return true;
-              return !categoryById.get(t.categoryId)?.isPrivate;
-            });
-          }
-          if (scopeFragment?.OR) {
-            rows = rows.filter((t) =>
-              scopeFragment.OR?.some(
-                (clause) =>
-                  clause.account?.ownerUserId ===
-                    accountById.get(t.accountId)?.ownerUserId ||
-                  (clause as { createdByUserId?: string }).createdByUserId ===
-                    t.createdByUserId,
-              ),
-            );
-          }
-          return Promise.resolve(
-            rows.map((t) => ({
-              ...t,
-              category: t.categoryId
-                ? {
-                    name: categoryById.get(t.categoryId)?.name ?? "",
-                    coaAccount: categoryById.get(t.categoryId)?.coaAccount ?? {
-                      direction: "EXPENSE",
-                    },
-                  }
-                : null,
-              account: { name: accountById.get(t.accountId)?.name ?? "" },
-            })),
-          );
-        },
-      ),
+      // EPIC-023 group E retry (CRITICAL 1) — `transactionPrivacyWhere`
+      // itself is now `{ AND: [...] }` (nested AND-of-OR), so this fake uses
+      // a generic recursive evaluator (not hardcoded to one fragment shape)
+      // to stay correct against BOTH the privacy and row-scoping fragments,
+      // and to admit an accountId: null row (credit-card purchase).
+      findMany: jest.fn(({ where }: { where: TxWhereClause }) => {
+        const rows = transactions.filter((t) => evalClause(where, t));
+        return Promise.resolve(
+          rows.map((t) => ({
+            ...t,
+            category: t.categoryId
+              ? {
+                  name: categoryById.get(t.categoryId)?.name ?? "",
+                  coaAccount: categoryById.get(t.categoryId)?.coaAccount ?? {
+                    direction: "EXPENSE",
+                  },
+                }
+              : null,
+            account: t.accountId
+              ? { name: accountById.get(t.accountId)?.name ?? "" }
+              : null,
+          })),
+        );
+      }),
     },
   };
 }
