@@ -579,6 +579,7 @@ export const id = {
         "Gagal menyetujui permintaan dana. Coba lagi.",
       allowanceRequestRejected: "Permintaan dana ditolak.",
       allowanceRequestRejectFailed: "Gagal menolak permintaan dana. Coba lagi.",
+      addDependantButton: "Tambah Anak / Operasional",
     },
     addAdmin: {
       dialogTitle: "Tambah Admin / Staf",
@@ -595,6 +596,35 @@ export const id = {
       sendButton: "Kirim Undangan Admin",
       toastInviteCreated: "Undangan dibuat — link disalin ke clipboard.",
       toastInviteFailed: "Gagal membuat undangan. Periksa email dan coba lagi.",
+    },
+    addDependant: {
+      dialogTitle: "Tambah Anak / Operasional",
+      dialogDesc:
+        "Untuk anggota tanpa email sendiri (anak, supir, asisten). Buatkan username dan password awal — mereka wajib menggantinya saat login pertama.",
+      nameLabel: "Nama",
+      namePlaceholder: "Nama lengkap",
+      usernameLabel: "Username",
+      usernamePlaceholder: "cth: adit_kecil",
+      usernameHint: "3-30 karakter, huruf/angka/underscore/titik",
+      passwordLabel: "Password Awal",
+      passwordPlaceholder: "Minimal 8 karakter",
+      passwordHint:
+        "Beri tahu password ini secara langsung — wajib diganti saat login pertama.",
+      showPassword: "Tampilkan password",
+      hidePassword: "Sembunyikan password",
+      roleLabel: "Peran",
+      roleOptions: {
+        dependant: "Anak (Dependant)",
+        operational: "Operasional (supir/asisten)",
+      },
+      relationshipLabel: "Hubungan Keluarga (opsional)",
+      relationshipNoneOption: "— Tidak diisi —",
+      creating: "Membuat...",
+      createButton: "Buat Akun",
+      toastCreated: "Akun berhasil dibuat",
+      toastCreatedDesc:
+        "Beri tahu username dan password awal ini langsung ke anggota terkait.",
+      toastCreateFailed: "Gagal membuat akun. Coba lagi.",
     },
     crud: {
       accountAdded: "Rekening berhasil ditambahkan!",
@@ -2343,5 +2373,20 @@ export const id = {
       creatingExportSuffix: "...",
       toastExportCreateFailed: "Gagal membuat ekspor.",
     },
+  },
+  forcePasswordChange: {
+    title: "Ganti Password Anda",
+    subtitle:
+      "Akun ini dibuat oleh kepala keluarga. Untuk keamanan, ganti password sebelum melanjutkan.",
+    currentPasswordLabel: "Password Saat Ini",
+    newPasswordLabel: "Password Baru",
+    confirmPasswordLabel: "Konfirmasi Password Baru",
+    submitButton: "Ganti Password",
+    submitting: "Menyimpan...",
+    toastSuccess: "Password berhasil diganti.",
+    toastMismatch: "Konfirmasi password tidak cocok.",
+    toastMinLength: "Password baru minimal 8 karakter.",
+    toastFailed: "Gagal mengganti password. Periksa password saat ini.",
+    logoutButton: "Keluar",
   },
 } satisfies I18nDictionary;

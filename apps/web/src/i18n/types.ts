@@ -716,6 +716,9 @@ export type I18nDictionary = {
       allowanceRequestApproveFailed: string;
       allowanceRequestRejected: string;
       allowanceRequestRejectFailed: string;
+      // EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/
+      // operational member (name + username + initial password, no email).
+      addDependantButton: string;
     };
     addAdmin: {
       dialogTitle: string;
@@ -733,6 +736,34 @@ export type I18nDictionary = {
       sendButton: string;
       toastInviteCreated: string;
       toastInviteFailed: string;
+    };
+    // EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/
+    // operational member: no email, username + initial password instead.
+    addDependant: {
+      dialogTitle: string;
+      dialogDesc: string;
+      nameLabel: string;
+      namePlaceholder: string;
+      usernameLabel: string;
+      usernamePlaceholder: string;
+      usernameHint: string;
+      passwordLabel: string;
+      passwordPlaceholder: string;
+      passwordHint: string;
+      showPassword: string;
+      hidePassword: string;
+      roleLabel: string;
+      roleOptions: {
+        dependant: string;
+        operational: string;
+      };
+      relationshipLabel: string;
+      relationshipNoneOption: string;
+      creating: string;
+      createButton: string;
+      toastCreated: string;
+      toastCreatedDesc: string;
+      toastCreateFailed: string;
     };
     crud: {
       accountAdded: string;
@@ -2256,5 +2287,21 @@ export type I18nDictionary = {
       creatingExportSuffix: string;
       toastExportCreateFailed: string;
     };
+  };
+  // EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — forced first-login password
+  // change for a head-created dependant/operational member.
+  forcePasswordChange: {
+    title: string;
+    subtitle: string;
+    currentPasswordLabel: string;
+    newPasswordLabel: string;
+    confirmPasswordLabel: string;
+    submitButton: string;
+    submitting: string;
+    toastSuccess: string;
+    toastMismatch: string;
+    toastMinLength: string;
+    toastFailed: string;
+    logoutButton: string;
   };
 };

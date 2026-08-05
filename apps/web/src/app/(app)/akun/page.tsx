@@ -49,6 +49,8 @@ import {
   Target,
   Check,
   X,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -70,11 +72,13 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 
+import { MemberRelationshipSchema } from "@wealthme/contracts";
 import type {
   AccountDto,
   AllowanceRequestDto,
   CategoryDto,
   MemberCategoryAllowanceDto,
+  MemberRelationship,
   Role,
 } from "@wealthme/contracts";
 
@@ -1917,6 +1921,7 @@ function memberInitials(name: string): string {
 function FamilyBody({
   onAddAdmin,
   onInviteMember,
+  onAddDependant,
   name,
   email,
   initials,
@@ -1928,6 +1933,7 @@ function FamilyBody({
 }: {
   onAddAdmin: () => void;
   onInviteMember: () => void;
+  onAddDependant: () => void;
   name: string;
   email: string;
   initials: string;
@@ -2034,6 +2040,22 @@ function FamilyBody({
         >
           <UserPlus className="size-4" /> {t.akun.family.inviteButton}
         </button>
+        {/* EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/
+            operational member (no email). FIX 3 (MEDIUM, three-way
+            consensus) — the backend route requires `can("manage", "Member")`,
+            which per casl-ability.factory.ts and D2 ("spouse gets full money
+            CRUD WITHOUT member management") spouse never holds — only
+            `read Member`. Gated owner-only (NOT `isElevated`, which also
+            includes spouse) so a spouse never sees a button that always
+            403s. */}
+        {group?.myRole === "owner" && (
+          <button
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-dashed border-primary bg-card px-4 py-2.5 text-[13.5px] font-semibold text-primary"
+            onClick={onAddDependant}
+          >
+            <UserCog className="size-4" /> {t.akun.family.addDependantButton}
+          </button>
+        )}
       </SetSection>
       <SetSection>
         <div className="mb-2.5 flex items-center justify-between">
@@ -2621,6 +2643,209 @@ function AddAdminDialog({
   );
 }
 
+// EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/operational
+// member: name + username + initial password, no email; forced password
+// change at first login (ForcePasswordChangeGuard on the API side).
+function AddDependantMemberDialog({
+  open,
+  onOpenChange,
+  familyGroupId,
+  token,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  familyGroupId: string | null;
+  token: string | undefined;
+}) {
+  const { t } = useLocale();
+  const queryClient = useQueryClient();
+  const nameRef = useRef<HTMLInputElement>(null);
+  const usernameRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const [role, setRole] = useState<"dependant" | "operational">("dependant");
+  const [relationship, setRelationship] = useState<MemberRelationship | "">("");
+  // FIX 2 (HIGH, react-reviewer + security-reviewer) — show/hide toggle so
+  // the head can verify the initial password before handing it over, same
+  // pattern as login/page.tsx, without it being permanently plaintext.
+  const [showPassword, setShowPassword] = useState(false);
+
+  const { mutate: createMember, isPending } = useMutation({
+    mutationFn: (vars: {
+      name: string;
+      username: string;
+      initialPassword: string;
+      role: "dependant" | "operational";
+      relationship?: MemberRelationship;
+    }) =>
+      apiFetch<{ username: string }>(
+        `/family-groups/${familyGroupId}/members/dependant`,
+        {
+          method: "POST",
+          token,
+          body: JSON.stringify(vars),
+        },
+      ),
+    onSuccess: (created) => {
+      onOpenChange(false);
+      // FIX 5 (MEDIUM, react-reviewer) — this dialog is mounted once at the
+      // page level; only the Base UI portal content unmounts on close, so
+      // `role`/`relationship` state (unlike the ref-based inputs, which
+      // reset with the portal) silently persisted across reopens. Reset
+      // alongside closing so the next member starts from the defaults.
+      setRole("dependant");
+      setRelationship("");
+      setShowPassword(false);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.familyGroups.members(familyGroupId ?? ""),
+      });
+      toast.success(t.akun.addDependant.toastCreated, {
+        description: `${t.akun.addDependant.toastCreatedDesc} (${created.username})`,
+        duration: 10000,
+      });
+    },
+    onError: (err) => {
+      toast.error(
+        extractApiErrorMessage(err, t.akun.addDependant.toastCreateFailed),
+      );
+    },
+  });
+
+  function handleCreate() {
+    const name = nameRef.current?.value?.trim() ?? "";
+    const username = usernameRef.current?.value?.trim() ?? "";
+    const initialPassword = passwordRef.current?.value ?? "";
+    if (!name || !username || !initialPassword || !familyGroupId) return;
+    createMember({
+      name,
+      username,
+      initialPassword,
+      role,
+      ...(relationship ? { relationship } : {}),
+    });
+  }
+
+  // FIX 5 follow-up (react-reviewer round 2) — onSuccess resets role/
+  // relationship/showPassword on submit, but the dialog's own close paths
+  // (X, Escape, overlay click) skip that reset entirely, so cancelling
+  // without submitting leaves stale values for the next open. Reset on
+  // every close, not just a successful submit.
+  function handleOpenChange(next: boolean) {
+    if (!next) {
+      setRole("dependant");
+      setRelationship("");
+      setShowPassword(false);
+    }
+    onOpenChange(next);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-[min(480px,calc(100%-2rem))] p-6">
+        <DialogTitle className="mb-1.5 text-[17px] font-extrabold">
+          {t.akun.addDependant.dialogTitle}
+        </DialogTitle>
+        <div className="mb-4 text-[12px] text-muted-foreground">
+          {t.akun.addDependant.dialogDesc}
+        </div>
+        <Field label={t.akun.addDependant.nameLabel}>
+          <input
+            ref={nameRef}
+            className={FIELD_CLASS}
+            placeholder={t.akun.addDependant.namePlaceholder}
+            type="text"
+          />
+        </Field>
+        <Field label={t.akun.addDependant.usernameLabel}>
+          <input
+            ref={usernameRef}
+            className={FIELD_CLASS}
+            placeholder={t.akun.addDependant.usernamePlaceholder}
+            type="text"
+          />
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {t.akun.addDependant.usernameHint}
+          </p>
+        </Field>
+        <Field label={t.akun.addDependant.passwordLabel}>
+          <div className="relative">
+            <input
+              ref={passwordRef}
+              className={`${FIELD_CLASS} pr-10`}
+              placeholder={t.akun.addDependant.passwordPlaceholder}
+              type={showPassword ? "text" : "password"}
+              autoComplete="new-password"
+            />
+            <button
+              type="button"
+              aria-label={
+                showPassword
+                  ? t.akun.addDependant.hidePassword
+                  : t.akun.addDependant.showPassword
+              }
+              aria-pressed={showPassword}
+              onClick={() => setShowPassword((s) => !s)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
+            >
+              {showPassword ? (
+                <EyeOff className="size-3.5" />
+              ) : (
+                <Eye className="size-3.5" />
+              )}
+            </button>
+          </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {t.akun.addDependant.passwordHint}
+          </p>
+        </Field>
+        <Field label={t.akun.addDependant.roleLabel}>
+          <select
+            className={FIELD_CLASS}
+            value={role}
+            onChange={(e) =>
+              setRole(e.target.value as "dependant" | "operational")
+            }
+          >
+            <option value="dependant">
+              {t.akun.addDependant.roleOptions.dependant}
+            </option>
+            <option value="operational">
+              {t.akun.addDependant.roleOptions.operational}
+            </option>
+          </select>
+        </Field>
+        <Field label={t.akun.addDependant.relationshipLabel}>
+          <select
+            className={FIELD_CLASS}
+            value={relationship}
+            onChange={(e) =>
+              setRelationship(e.target.value as MemberRelationship | "")
+            }
+          >
+            <option value="">
+              {t.akun.addDependant.relationshipNoneOption}
+            </option>
+            {MemberRelationshipSchema.options.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <button
+          disabled={isPending || !familyGroupId}
+          className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-60"
+          onClick={handleCreate}
+        >
+          <UserCog className="size-4" />{" "}
+          {isPending
+            ? t.akun.addDependant.creating
+            : t.akun.addDependant.createButton}
+        </button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /* ─────────────────────────── Menu row ─────────────────────────── */
 
 function MenuRow({
@@ -2671,6 +2896,7 @@ export default function AkunPage() {
   const { startTour } = useShell();
   const [subpage, setSubpage] = useState<SubPageId | null>(null);
   const [addAdminOpen, setAddAdminOpen] = useState(false);
+  const [addDependantOpen, setAddDependantOpen] = useState(false);
   const [crud, setCrud] = useState<CrudModalState | null>(null);
 
   const { data: session } = useSession();
@@ -2886,6 +3112,10 @@ export default function AkunPage() {
               setAddAdminOpen(true);
             }}
             onInviteMember={() => setCrud({ entity: "member", mode: "add" })}
+            onAddDependant={() => {
+              closeSheet();
+              setAddDependantOpen(true);
+            }}
           />
         );
     }
@@ -3063,6 +3293,12 @@ export default function AkunPage() {
       <AddAdminDialog
         open={addAdminOpen}
         onOpenChange={setAddAdminOpen}
+        familyGroupId={primaryGroup?.id ?? null}
+        token={token}
+      />
+      <AddDependantMemberDialog
+        open={addDependantOpen}
+        onOpenChange={setAddDependantOpen}
         familyGroupId={primaryGroup?.id ?? null}
         token={token}
       />

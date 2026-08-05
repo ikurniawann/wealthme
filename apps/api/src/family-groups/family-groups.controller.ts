@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -25,9 +26,12 @@ import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { Public } from "../common/decorators/public.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { CreateDependantMemberDto } from "./dto/create-dependant-member.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateFamilyGroupDto } from "./dto/create-family-group.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateInvitationDto } from "./dto/create-invitation.dto";
+import { DependantMemberResponseDto } from "./dto/dependant-member-response.dto";
 import { FamilyGroupResponseDto } from "./dto/family-group-response.dto";
 import { GoldPriceResponseDto } from "./dto/gold-price-response.dto";
 import { InvitationResponseDto } from "./dto/invitation-response.dto";
@@ -95,6 +99,44 @@ export class FamilyGroupsController {
     @Request() req: AuthRequest,
   ): Promise<GoldPriceResponseDto> {
     return this.familyGroupsService.getGoldPrice(familyGroupId, req.user.sub);
+  }
+
+  // EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head creates a dependant/
+  // operational member directly (name + username + initial password, no
+  // email). Gated on the "manage Member" ability, which per D2 ("a spouse
+  // is a full financial co-owner EXCEPT 'manage' of Member itself — one
+  // accountable head stays responsible for who is in the family") and
+  // casl-ability.factory.ts's `spouse` case is owner-only: spouse holds only
+  // "read Member", never "manage". FIX 3 correction — an earlier version of
+  // this comment incorrectly claimed spouse held the same "manage Member"
+  // ability; it does not, and the frontend button is gated owner-only to
+  // match (apps/web/src/app/(app)/akun/page.tsx).
+  @Post(":familyGroupId/members/dependant")
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Member"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiOperation({
+    summary:
+      "Create a dependant/operational member with a username + initial password (no email; forced password change at first login)",
+  })
+  @ApiResponse({ status: 201, type: DependantMemberResponseDto })
+  createDependantMember(
+    @Request() req: AuthRequest,
+    @Param("familyGroupId") familyGroupId: string,
+    @Body() dto: CreateDependantMemberDto,
+  ): Promise<DependantMemberResponseDto> {
+    // `req.tenantContext.familyGroupId` is TenantGuard's own verified copy
+    // of the URL param (only set once a Member row for THIS caller + THIS
+    // group was found) — used here instead of the raw `@Param` so the
+    // service never trusts a client-supplied value directly, per this
+    // task's tenant-scoping requirement.
+    const tenantFamilyGroupId = req.tenantContext?.familyGroupId;
+    if (!tenantFamilyGroupId || tenantFamilyGroupId !== familyGroupId) {
+      throw new ForbiddenException("Access denied");
+    }
+    return this.familyGroupsService.createDependantMember(
+      tenantFamilyGroupId,
+      dto,
+    );
   }
 
   @Patch(":familyGroupId/gold-price")

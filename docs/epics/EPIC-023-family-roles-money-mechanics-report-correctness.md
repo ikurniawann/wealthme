@@ -252,7 +252,7 @@ holdingsChange + unexplained = closing`, every residual named. Unit tests
   - **C4** — Remove the "Tampilkan Saldo ke Anggota" toggle and its strings. (D8)
 
 - [ ] ### D — Onboarding members without email, and PIN unlock
-  - **D1** — Head-created accounts for dependant/operational roles: name +
+  - **D1** ✅ — Head-created accounts for dependant/operational roles: name +
     username + initial password, no email; forced password change at first login.
     Requires username authentication in better-auth. (D6, US-FAM-12, US-AUTH-9)
   - **D2** — Device-bound PIN unlock: password on first login per device, PIN
@@ -1019,3 +1019,64 @@ status` showing a clean tree with no `MERGE_HEAD`, before treating a merge
   service's null-fallback branch is ever reached) — fails safe, not a
   regression, just an absent capability; no edit-asset UI exists yet to
   need it. Wave 1 (A, C, G, H1, I) is now fully complete and merged.
+- 2026-08-05 /epic-loop EPIC-023 "D1 — Head-created accounts, username auth,
+  forced password change" → PASS (attempts: 2; adversarial-tier, per this
+  epic's routing for credential-touching work). Pre-implementation scoping
+  found the epic's own premise needed correcting: better-auth
+  (`apps/web/src/lib/auth.ts`) is the ONLY live auth system — the NestJS
+  `AuthController`/`AuthService` (JWT, `register`/`login`) predates
+  better-auth's adoption and is reachable but dead in practice (nothing in
+  `apps/web` calls it, confirmed by grep), left untouched. Also found:
+  better-auth has no built-in path to create a user with zero email — even
+  the `admin` plugin's `createUser` requires `email` as mandatory — so D1
+  bypasses better-auth's own creation API entirely with a direct Prisma
+  transaction (`User` + a `providerId: "credential"` `BaAccount` row +
+  `Member`, hashed with the identical argon2 config `auth.ts` uses), which
+  also sidesteps the unwanted new-FamilyGroup auto-creation that
+  `databaseHooks.user.create.after` would otherwise trigger. Synthetic email
+  on the IANA-reserved `.invalid` TLD, `User.mustChangePassword` gates every
+  route through a new global guard until cleared.
+  Six gate agents ran in parallel (security, react, typescript, adversarial,
+  review-qa, plus the standard test/qa scripts run directly). Security,
+  typescript and adversarial PASSed outright — the adversarial pass traced
+  better-auth's REAL `signInUsername` runtime source (not just its `.d.mts`
+  types) to confirm the written credential genuinely authenticates, and
+  mutation-tested the new forced-password-change guard's allowlist logic.
+  React and review-qa FAILed with two real HIGHs: **(1)** the initial
+  password field rendered as `type="text"`, unmasked — fixed with a
+  password/show-toggle matching the pattern already used on the login page,
+  independently found by both the react and security reviewers. **(2)** the
+  literal acceptance criterion — "they are required to set a new password
+  before reaching any page" — did not hold: the guard rendered `children`
+  unconditionally and only redirected reactively from a `useEffect` after
+  the password-status query resolved, so a genuinely-affected account
+  briefly saw the app shell before being redirected. Fixed by gating
+  rendering synchronously in the render body (not an effect) on
+  pending-or-true, reusing `AppShell`'s own existing loading markup so the
+  common case (`mustChangePassword: false`) gets no new per-navigation
+  flash — `staleTime: 30s` keeps that path a no-op after the first check.
+  Mutation-tested by two independent reviewers in the second round: revert
+  the render-gating, confirm the new "children absent" tests fail, restore.
+  A third finding — confirmed independently by three reviewers (react,
+  adversarial, review-qa) — was a spouse-facing "Add Dependant" button that
+  always 403s, since D2 already established spouse holds `read Member`, not
+  `manage`; the frontend gate hadn't been updated to match. Fixed
+  (owner-only), plus a misleading controller comment that claimed spouse
+  shared the ability. review-qa also required, and got, a guard-level test
+  driving the REAL `AbilitiesGuard` against the real controller — this
+  epic's own group-C postmortem had already found that testing a service
+  method directly, bypassing the guard, can hide a genuine 403 gap; that
+  lesson is now applied here too. Final: **api 843/843 (74 suites), web
+  273/273 (26 suites)**, `qa.sh`/`security-check.sh` both exit 0, migration
+  status clean against the real (docker-network, not host-reachable)
+  Postgres instance. **Found and deliberately deferred, not fixed**: the
+  security reviewer independently flagged that better-auth's own
+  `/sign-in/username` and `/sign-in/email` routes (a separate Next.js
+  process from the NestJS API, outside every `ThrottlerGuard` this codebase
+  has) carry no rate limiting — pre-existing on the email path, and this
+  task adds a second, lower-entropy (short human-chosen usernames)
+  credential-guessing vector onto the same unthrottled handler. Configuring
+  better-auth's own `rateLimit` option is a larger, cross-cutting change
+  than this task's stated scope; recorded here so it is not silently lost.
+  D2 (PIN unlock) and D3 (per-member threshold via `AllowanceRequest`) were
+  not attempted — separate rounds on this same branch, next.

@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { username } from "better-auth/plugins";
 import { PrismaClient } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
 import argon2 from "argon2";
@@ -173,4 +174,9 @@ export const auth = betterAuth({
       },
     },
   },
+  // EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/
+  // operational members sign in by username, not email (they have no real
+  // email). Field names/defaults verified against the installed plugin's
+  // own schema (see User.username/displayUsername in prisma/schema.prisma).
+  plugins: [username()],
 });

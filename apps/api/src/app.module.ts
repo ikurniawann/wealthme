@@ -20,6 +20,7 @@ import { CategoriesModule } from "./categories/categories.module";
 import { CoaAccountsModule } from "./coa-accounts/coa-accounts.module";
 import { CommonModule } from "./common/common.module";
 import { AbilitiesGuard } from "./common/guards/abilities.guard";
+import { ForcePasswordChangeGuard } from "./common/guards/force-password-change.guard";
 import { TenantGuard } from "./common/guards/tenant.guard";
 import { validateEnv } from "./config/env";
 import { CryptoModule } from "./crypto/crypto.module";
@@ -120,6 +121,11 @@ import type { IncomingMessage } from "node:http";
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: BetterAuthGuard },
+    // EPIC-023 D1/D6 — after BetterAuthGuard (needs req.user populated),
+    // before TenantGuard/AbilitiesGuard (no point doing a Member lookup for
+    // a request that's about to be refused anyway). No-op for every account
+    // with `mustChangePassword: false` (every pre-existing user).
+    { provide: APP_GUARD, useClass: ForcePasswordChangeGuard },
     { provide: APP_GUARD, useClass: TenantGuard },
     { provide: APP_GUARD, useClass: AbilitiesGuard },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },

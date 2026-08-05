@@ -580,6 +580,7 @@ export const en = {
         "Failed to approve the request. Try again.",
       allowanceRequestRejected: "Funding request rejected.",
       allowanceRequestRejectFailed: "Failed to reject the request. Try again.",
+      addDependantButton: "Add Child / Operational",
     },
     addAdmin: {
       dialogTitle: "Add Admin / Staff",
@@ -597,6 +598,35 @@ export const en = {
       toastInviteCreated: "Invitation created — link copied to clipboard.",
       toastInviteFailed:
         "Failed to create invitation. Check the email and try again.",
+    },
+    addDependant: {
+      dialogTitle: "Add Child / Operational",
+      dialogDesc:
+        "For a member with no email of their own (a child, driver, or assistant). Set a username and an initial password — they must change it at their first login.",
+      nameLabel: "Name",
+      namePlaceholder: "Full name",
+      usernameLabel: "Username",
+      usernamePlaceholder: "e.g. adit_kecil",
+      usernameHint: "3-30 characters, letters/numbers/underscore/dot",
+      passwordLabel: "Initial Password",
+      passwordPlaceholder: "At least 8 characters",
+      passwordHint:
+        "Hand this password over directly — they must change it at their first login.",
+      showPassword: "Show password",
+      hidePassword: "Hide password",
+      roleLabel: "Role",
+      roleOptions: {
+        dependant: "Child (Dependant)",
+        operational: "Operational (driver/assistant)",
+      },
+      relationshipLabel: "Family Relationship (optional)",
+      relationshipNoneOption: "— Not set —",
+      creating: "Creating...",
+      createButton: "Create Account",
+      toastCreated: "Account created successfully",
+      toastCreatedDesc:
+        "Hand this username and initial password directly to the member.",
+      toastCreateFailed: "Failed to create the account. Try again.",
     },
     crud: {
       accountAdded: "Account added successfully!",
@@ -2345,5 +2375,20 @@ export const en = {
       creatingExportSuffix: "...",
       toastExportCreateFailed: "Failed to create export.",
     },
+  },
+  forcePasswordChange: {
+    title: "Change Your Password",
+    subtitle:
+      "This account was created by the family head. For security, change your password before continuing.",
+    currentPasswordLabel: "Current Password",
+    newPasswordLabel: "New Password",
+    confirmPasswordLabel: "Confirm New Password",
+    submitButton: "Change Password",
+    submitting: "Saving...",
+    toastSuccess: "Password changed successfully.",
+    toastMismatch: "Password confirmation does not match.",
+    toastMinLength: "New password must be at least 8 characters.",
+    toastFailed: "Failed to change password. Check your current password.",
+    logoutButton: "Log Out",
   },
 } satisfies I18nDictionary;

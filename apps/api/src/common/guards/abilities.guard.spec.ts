@@ -32,6 +32,7 @@ import {
   CaslAbilityFactory,
   type AppAbility,
 } from "../../casl/casl-ability.factory";
+import { FamilyGroupsController } from "../../family-groups/family-groups.controller";
 import { ReconciliationController } from "../../reconciliation/reconciliation.controller";
 import { SplitBillsController } from "../../split-bills/split-bills.controller";
 import { TransactionsController } from "../../transactions/transactions.controller";
@@ -333,6 +334,67 @@ describe("AbilitiesGuard against REAL controllers (closes the fixture-only seam)
       for (const m of [member, dependant, operational]) {
         expect(guard.canActivate(ctxFor(m))).toBe(true);
       }
+    });
+  });
+
+  // FIX 4 (MEDIUM, review-qa) — this epic's own group-C postmortem found
+  // that unit tests calling a service method directly (bypassing the REAL
+  // `AbilitiesGuard`) can miss a real 403 gap. The existing
+  // `family-groups.service.spec.ts` tests for `createDependantMember` call
+  // the service directly and prove nothing about the guard. This drives the
+  // REAL guard + REAL `CaslAbilityFactory` against the REAL
+  // `FamilyGroupsController.createDependantMember` handler (its actual
+  // `@CheckAbility` metadata, via `Reflector`), proving `owner` is let
+  // through and `spouse`/`member`/`dependant`/`operational` are all
+  // refused — closing the exact seam the postmortem flagged.
+  describe("FamilyGroupsController.createDependantMember (FIX 3/FIX 4 — owner-only, matches D2's Member-management carve-out)", () => {
+    const controller = new FamilyGroupsController({} as never);
+    const owner = {
+      id: "member-owner",
+      userId: "user-owner",
+      role: Role.owner,
+    };
+    const spouse = {
+      id: "member-spouse",
+      userId: "user-spouse",
+      role: Role.spouse,
+    };
+
+    function ctxFor(m: { id: string; userId: string; role: Role } | null) {
+      return buildRealContext(
+        FamilyGroupsController,
+        controller,
+        "createDependantMember",
+        m,
+      );
+    }
+
+    it("PERMISSION — owner passes the guard", () => {
+      expect(guard.canActivate(ctxFor(owner))).toBe(true);
+    });
+
+    it("DENIAL — spouse is refused (D2: full financial co-owner EXCEPT 'manage Member' — only 'read Member')", () => {
+      expect(() => guard.canActivate(ctxFor(spouse))).toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it("DENIAL — member is refused", () => {
+      expect(() => guard.canActivate(ctxFor(member))).toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it("DENIAL — dependant is refused", () => {
+      expect(() => guard.canActivate(ctxFor(dependant))).toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it("DENIAL — operational is refused", () => {
+      expect(() => guard.canActivate(ctxFor(operational))).toThrow(
+        ForbiddenException,
+      );
     });
   });
 });

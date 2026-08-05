@@ -1,5 +1,8 @@
+import { randomUUID } from "node:crypto";
+
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   GoneException,
   Inject,
@@ -9,7 +12,8 @@ import {
 } from "@nestjs/common";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ConfigService } from "@nestjs/config";
-import { Role } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
+import * as argon2 from "argon2";
 
 import {
   NOTIFICATION_SENDER_PORT,
@@ -19,8 +23,10 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 
 import type { Env } from "../config/env";
+import type { CreateDependantMemberDto } from "./dto/create-dependant-member.dto";
 import type { CreateFamilyGroupDto } from "./dto/create-family-group.dto";
 import type { CreateInvitationDto } from "./dto/create-invitation.dto";
+import type { DependantMemberResponseDto } from "./dto/dependant-member-response.dto";
 import type { FamilyGroupResponseDto } from "./dto/family-group-response.dto";
 import type { GoldPriceResponseDto } from "./dto/gold-price-response.dto";
 import type { InvitationResponseDto } from "./dto/invitation-response.dto";
@@ -29,6 +35,34 @@ import type { UpdateGoldPriceDto } from "./dto/update-gold-price.dto";
 import type { UpdateMemberRoleDto } from "./dto/update-member-role.dto";
 
 const INVITATION_TTL_DAYS = 7;
+
+// EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — a head-created dependant/
+// operational member has no real email; `User.email` is NOT NULL + unique
+// at the Prisma level (see schema.prisma), so a synthetic placeholder is
+// required. `.invalid` is the IANA-reserved TLD set aside exactly for
+// addresses that must never resolve or receive mail (RFC 2606 §2) — no DNS
+// registrar can ever issue it, so this can never collide with, or be
+// mistaken for, a real signup's address. The UUID component makes a
+// collision with another synthetic row astronomically unlikely on top of
+// that (2^122 possibilities) — and even if it somehow happened, `User.email`
+// is `@unique`, so the transaction would simply fail closed (P2002) rather
+// than silently overwrite another account.
+const SYNTHETIC_EMAIL_DOMAIN = "members.internal.wealthme.invalid";
+
+function withCode(
+  message: string,
+  code: string,
+): { message: string; code: string } {
+  return { message, code };
+}
+
+function initialsFromName(name: string): string {
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+}
 
 function escapeHtml(raw: string): string {
   return raw
@@ -365,6 +399,124 @@ export class FamilyGroupsService {
       email: member.user.email,
       createdAt: member.createdAt.toISOString(),
     };
+  }
+
+  /**
+   * EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/
+   * operational member: name + username + initial password, no email,
+   * forced password change at first login. The caller's own familyGroupId
+   * (URL param) and role are already verified by `TenantGuard` + the
+   * controller's `@CheckAbility(manage Member)` (owner/spouse only) before
+   * this method runs — see casl-ability.factory.ts.
+   *
+   * Deliberately bypasses better-auth's own user-creation API (its
+   * `databaseHooks.user.create.after` in `apps/web/src/lib/auth.ts` would
+   * auto-create a BRAND NEW family for this user, the opposite of what's
+   * needed here) with a single raw Prisma transaction: `User` + a credential
+   * `BaAccount` row (same `providerId: "credential"` / `accountId: user.id`
+   * convention better-auth's own `/sign-up/email` route uses — verified
+   * against node_modules/.../better-auth/dist/api/routes/sign-up.mjs — so a
+   * real `signInUsername` call finds and verifies it) + the target `Member`
+   * row, atomically.
+   */
+  async createDependantMember(
+    familyGroupId: string,
+    dto: CreateDependantMemberDto,
+  ): Promise<DependantMemberResponseDto> {
+    if (dto.role !== Role.dependant && dto.role !== Role.operational) {
+      throw new BadRequestException(
+        withCode(
+          "role must be 'dependant' or 'operational' for this endpoint",
+          "INVALID_ROLE_FOR_DEPENDANT_CREATION",
+        ),
+      );
+    }
+
+    // better-auth's `username` plugin default `usernameNormalization` is
+    // `(u) => u.toLowerCase()` (verified — see auth.ts's `plugins: [username()]`,
+    // no override passed). Store/compare the same way so a case-insensitive
+    // collision is caught here AND a real `/sign-in/username` lookup (which
+    // normalizes the same way) actually finds this row.
+    const normalizedUsername = dto.username.toLowerCase();
+
+    // Same argon2 config used everywhere else in this codebase (auth.ts's
+    // `emailAndPassword.password.hash`) — the hash must verify correctly
+    // the moment better-auth's own credential provider checks it.
+    const passwordHash = await argon2.hash(dto.initialPassword, {
+      type: argon2.argon2id,
+    });
+
+    try {
+      const member = await this.prisma.$transaction(async (tx) => {
+        const existingUsername = await tx.user.findUnique({
+          where: { username: normalizedUsername },
+          select: { id: true },
+        });
+        if (existingUsername) {
+          throw new ConflictException(
+            withCode("Username sudah digunakan", "USERNAME_TAKEN"),
+          );
+        }
+
+        const user = await tx.user.create({
+          data: {
+            // See SYNTHETIC_EMAIL_DOMAIN above for the collision-avoidance
+            // reasoning (`.invalid` TLD + UUID).
+            email: `member-${randomUUID()}@${SYNTHETIC_EMAIL_DOMAIN}`,
+            name: dto.name,
+            username: normalizedUsername,
+            displayUsername: dto.username,
+            avatarInitials: initialsFromName(dto.name),
+            mustChangePassword: true,
+            emailVerified: false,
+          },
+        });
+
+        await tx.baAccount.create({
+          data: {
+            userId: user.id,
+            providerId: "credential",
+            accountId: user.id,
+            password: passwordHash,
+          },
+        });
+
+        return tx.member.create({
+          data: {
+            userId: user.id,
+            familyGroupId,
+            role: dto.role,
+            relationship: dto.relationship ?? null,
+          },
+        });
+      });
+
+      return {
+        id: member.id,
+        userId: member.userId,
+        familyGroupId: member.familyGroupId,
+        role: member.role,
+        relationship: member.relationship,
+        name: dto.name,
+        username: normalizedUsername,
+        createdAt: member.createdAt.toISOString(),
+      };
+    } catch (err) {
+      // The pre-check above has a TOCTOU gap under real concurrency (two
+      // simultaneous requests for the same username) — `User.username`'s DB
+      // unique constraint is the actual enforcement; this converts that
+      // race into the same clean, code-carrying 409 instead of a raw 500.
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === "P2002" &&
+        (err.meta?.["target"] as string[] | undefined)?.includes("username")
+      ) {
+        throw new ConflictException(
+          withCode("Username sudah digunakan", "USERNAME_TAKEN"),
+        );
+      }
+      throw err;
+    }
   }
 
   /**

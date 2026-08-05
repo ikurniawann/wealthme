@@ -1,7 +1,12 @@
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Test, type TestingModule } from "@nestjs/testing";
-import { Role } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
+import * as argon2 from "argon2";
 
 import { NOTIFICATION_SENDER_PORT } from "../notifications/notification-sender.port";
 import { PrismaService } from "../prisma/prisma.service";
@@ -426,4 +431,285 @@ describe("FamilyGroupsService.acceptInvitation — relationship carried through 
     );
     expect(result.relationship).toBe("istri");
   });
+});
+
+// EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/operational
+// member: name + username + initial password, no email, forced password
+// change at first login. Adversarial-tier coverage: real (unmocked) argon2
+// calls prove the credential this endpoint writes is actually compatible
+// with better-auth's own verification algorithm, not just "assumed to work".
+describe("FamilyGroupsService.createDependantMember (EPIC-023 D1)", () => {
+  let service: FamilyGroupsService;
+  let tx: {
+    user: { findUnique: jest.Mock; create: jest.Mock };
+    baAccount: { create: jest.Mock };
+    member: { create: jest.Mock };
+  };
+  let prisma: { $transaction: jest.Mock };
+
+  const BASE_DTO = {
+    name: "Adit Kecil",
+    username: "Adit_01",
+    initialPassword: "changeMe123",
+    role: Role.dependant,
+  };
+
+  beforeEach(async () => {
+    tx = {
+      user: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn(),
+      },
+      baAccount: { create: jest.fn() },
+      member: { create: jest.fn() },
+    };
+    prisma = {
+      $transaction: jest.fn(async (fn: (tx: unknown) => unknown) => fn(tx)),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        FamilyGroupsService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { sendEmail: jest.fn() },
+        },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+      ],
+    }).compile();
+    service = module.get(FamilyGroupsService);
+  });
+
+  function mockCreatedRows(overrides?: { userId?: string }) {
+    const userId = overrides?.userId ?? "user-new-dependant";
+    tx.user.create.mockImplementation(
+      async (args: { data: Record<string, unknown> }) => ({
+        id: userId,
+        ...args.data,
+      }),
+    );
+    tx.baAccount.create.mockImplementation(
+      async (args: { data: Record<string, unknown> }) => ({
+        id: "ba-1",
+        ...args.data,
+      }),
+    );
+    tx.member.create.mockImplementation(
+      async (args: { data: Record<string, unknown> }) => ({
+        id: "member-new",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        ...args.data,
+      }),
+    );
+    return userId;
+  }
+
+  it("rejects a role other than dependant/operational with INVALID_ROLE_FOR_DEPENDANT_CREATION", async () => {
+    try {
+      await service.createDependantMember(FAMILY_GROUP_ID, {
+        ...BASE_DTO,
+        role: Role.member,
+      });
+      throw new Error("expected createDependantMember to reject");
+    } catch (err) {
+      expect(err).toBeInstanceOf(BadRequestException);
+      expect((err as BadRequestException).getResponse()).toEqual(
+        expect.objectContaining({
+          code: "INVALID_ROLE_FOR_DEPENDANT_CREATION",
+        }),
+      );
+    }
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("accepts 'operational' as well as 'dependant'", async () => {
+    mockCreatedRows();
+    const result = await service.createDependantMember(FAMILY_GROUP_ID, {
+      ...BASE_DTO,
+      role: Role.operational,
+    });
+    expect(result.role).toBe(Role.operational);
+  });
+
+  it("normalizes the username to lowercase for both the uniqueness check and storage (case-insensitive enforcement)", async () => {
+    mockCreatedRows();
+    await service.createDependantMember(FAMILY_GROUP_ID, {
+      ...BASE_DTO,
+      username: "Adit_01",
+    });
+
+    expect(tx.user.findUnique).toHaveBeenCalledWith({
+      where: { username: "adit_01" },
+      select: { id: true },
+    });
+    expect(tx.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          username: "adit_01",
+          displayUsername: "Adit_01",
+        }),
+      }),
+    );
+  });
+
+  it("rejects a username already taken, case-insensitively, via the pre-check (USERNAME_TAKEN)", async () => {
+    tx.user.findUnique.mockResolvedValue({ id: "existing-user" });
+
+    try {
+      await service.createDependantMember(FAMILY_GROUP_ID, BASE_DTO);
+      throw new Error("expected createDependantMember to reject");
+    } catch (err) {
+      expect(err).toBeInstanceOf(ConflictException);
+      expect((err as ConflictException).getResponse()).toEqual(
+        expect.objectContaining({ code: "USERNAME_TAKEN" }),
+      );
+    }
+    expect(tx.user.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a genuine race (two concurrent requests for the same username) via the DB's own unique constraint, not just the pre-check", async () => {
+    // Pre-check sees no conflict (TOCTOU gap) — the SECOND request's
+    // tx.user.create hits the real unique index instead.
+    tx.user.findUnique.mockResolvedValue(null);
+    tx.user.create.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError(
+        "Unique constraint failed on the fields: (`username`)",
+        {
+          code: "P2002",
+          clientVersion: "6.19.3",
+          meta: { target: ["username"] },
+        },
+      ),
+    );
+
+    try {
+      await service.createDependantMember(FAMILY_GROUP_ID, BASE_DTO);
+      throw new Error("expected createDependantMember to reject");
+    } catch (err) {
+      expect(err).toBeInstanceOf(ConflictException);
+      expect((err as ConflictException).getResponse()).toEqual(
+        expect.objectContaining({ code: "USERNAME_TAKEN" }),
+      );
+    }
+  });
+
+  it("does not swallow an unrelated P2002 (e.g. on a different unique column)", async () => {
+    tx.user.findUnique.mockResolvedValue(null);
+    const unrelated = new Prisma.PrismaClientKnownRequestError(
+      "Unique constraint failed on the fields: (`email`)",
+      {
+        code: "P2002",
+        clientVersion: "6.19.3",
+        meta: { target: ["email"] },
+      },
+    );
+    tx.user.create.mockRejectedValue(unrelated);
+
+    await expect(
+      service.createDependantMember(FAMILY_GROUP_ID, BASE_DTO),
+    ).rejects.toBe(unrelated);
+  });
+
+  it("creates User + credential BaAccount + Member atomically with the correct shape", async () => {
+    const userId = mockCreatedRows();
+
+    const result = await service.createDependantMember(FAMILY_GROUP_ID, {
+      ...BASE_DTO,
+      relationship: "anak",
+    });
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+
+    // User row: synthetic, reserved-TLD email; mustChangePassword true.
+    expect(tx.user.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        name: "Adit Kecil",
+        username: "adit_01",
+        displayUsername: "Adit_01",
+        mustChangePassword: true,
+        emailVerified: false,
+      }),
+    });
+    const userCreateArgs = tx.user.create.mock.calls[0][0] as {
+      data: { email: string; avatarInitials: string };
+    };
+    expect(userCreateArgs.data.email).toMatch(
+      /^member-[0-9a-f-]{36}@members\.internal\.wealthme\.invalid$/,
+    );
+    expect(userCreateArgs.data.avatarInitials).toBe("AK");
+
+    // Credential BaAccount row: EXACT convention better-auth's own
+    // /sign-up/email route uses (verified against
+    // node_modules/.../better-auth/dist/api/routes/sign-up.mjs:
+    // `linkAccount({ userId, providerId: "credential", accountId: createdUser.id, password: hash })`).
+    expect(tx.baAccount.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId,
+        providerId: "credential",
+        accountId: userId,
+      }),
+    });
+    const baAccountArgs = tx.baAccount.create.mock.calls[0][0] as {
+      data: { password: string };
+    };
+    // Real argon2id hash, not a placeholder — verified end-to-end below.
+    expect(baAccountArgs.data.password).toMatch(/^\$argon2id\$/);
+
+    // Member row: attached to the caller's own familyGroupId, role +
+    // relationship as given — never "manage"/never inherits the head's role.
+    expect(tx.member.create).toHaveBeenCalledWith({
+      data: {
+        userId,
+        familyGroupId: FAMILY_GROUP_ID,
+        role: Role.dependant,
+        relationship: "anak",
+      },
+    });
+
+    // Response never leaks the password/hash.
+    expect(result).not.toHaveProperty("password");
+    expect(result).not.toHaveProperty("initialPassword");
+    expect(JSON.stringify(result)).not.toContain(baAccountArgs.data.password);
+    expect(result.username).toBe("adit_01");
+  });
+
+  // Adversarial-tier requirement: prove the created dependant can actually
+  // authenticate afterward — through the REAL argon2 hash/verify path, not
+  // a mock that assumes it works. This reproduces better-auth's own
+  // `signInUsername` verification algorithm exactly as read from its
+  // source (node_modules/.../better-auth/dist/plugins/username/index.mjs):
+  // normalize the submitted username the same way, look up the `account`
+  // row with `providerId: "credential"` for that user, then
+  // `ctx.context.password.verify({ hash: account.password, password })` —
+  // which in this codebase IS `argon2.verify(hash, password)` (see
+  // apps/web/src/lib/auth.ts's `emailAndPassword.password.verify`). No live
+  // DB/better-auth server is reachable from this sandbox (see task notes),
+  // so this test stands in for that lookup with the EXACT row our service
+  // wrote, exercising the REAL, unmocked `argon2` module for the actual
+  // hash-then-verify round trip.
+  it("the credential row this endpoint writes is genuinely verifiable via argon2 (mirrors signInUsername's real algorithm)", async () => {
+    mockCreatedRows();
+
+    await service.createDependantMember(FAMILY_GROUP_ID, {
+      ...BASE_DTO,
+      initialPassword: "correctHorseBattery1",
+    });
+
+    const baAccountArgs = tx.baAccount.create.mock.calls[0][0] as {
+      data: { password: string };
+    };
+    const storedHash = baAccountArgs.data.password;
+
+    // Positive: the real initial password verifies against the real stored
+    // hash, using the SAME argon2 call better-auth's own verify() makes.
+    await expect(
+      argon2.verify(storedHash, "correctHorseBattery1"),
+    ).resolves.toBe(true);
+    // Negative: a wrong password must NOT verify — proves this isn't a
+    // tautology that would pass for any hash.
+    await expect(argon2.verify(storedHash, "wrong-password")).resolves.toBe(
+      false,
+    );
+  }, 15000);
 });

@@ -192,6 +192,19 @@ model User {
   image                    String?
   passwordHash             String?
   googleId                 String?            @unique
+  // EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — better-auth `username` plugin
+  // fields (verified against the installed plugin's own schema export,
+  // node_modules/.../better-auth/dist/plugins/username/schema.mjs: field
+  // names `username`/`displayUsername`, both optional strings, `username`
+  // unique). Populated only for head-created dependant/operational members
+  // (FamilyGroupsService#createDependantMember); every pre-existing user
+  // keeps both null and continues signing in by email as before.
+  username                 String?            @unique
+  displayUsername          String?
+  // EPIC-023 D1/D6 — true only for an account this endpoint just created;
+  // ForcePasswordChangeGuard refuses every request except a small allowlist
+  // until PasswordPolicyService#setPassword clears it back to false.
+  mustChangePassword       Boolean            @default(false)
   avatarInitials           String?
   phone                    String?
   // birthDate/monthlyIncome are stored ciphertext (AES-256-GCM via CryptoService),
