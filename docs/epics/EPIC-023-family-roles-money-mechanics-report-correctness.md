@@ -717,22 +717,57 @@ than cosmetic formatting. `exceljs` offers only `"cache"` or `"emit"`.
 
 Closing it therefore needs new code, not a config change.
 
+### What was tried, and why it did not work
+
+**Option 2 above — the pre-parse probe — was implemented and then defeated.**
+`assertZipExpansionWithinBounds` (`apps/api/src/reconciliation/zip-bounds.util.ts`)
+reads the zip central directory, sums the declared uncompressed sizes, and
+refuses past 64 MiB before `exceljs` is handed anything. It closes both
+previously-measured bombs instantly, at baseline memory.
+
+It is not a defence, for a reason worth recording so nobody rebuilds it:
+
+- **Under-declaring defeats it.** `unzipper`, which exceljs streams through,
+  inflates the real DEFLATE payload regardless of what the local header or the
+  central directory claims — the declared size is decorative to the
+  decompression path. A 19.3 MiB archive declaring 500 bytes for a part that
+  truly inflates to 412 MiB consumed **956 MiB over ~10s and returned
+  successfully with three rows**. No exception, so nothing to alert on.
+- **A 22-byte append defeats it.** Adding a second, empty EOCD record makes the
+  backward scan find the attacker's trailer first, read "0 entries", sum nothing
+  and return silently, while exceljs ignores the trailer and parses the real
+  content. **344 MiB**, no lie needed, a fixed suffix appliable to any file.
+
+The defence-in-depth argument written into that code — "a liar can only
+under-declare, and the row/cell caps still apply" — **was wrong**. Those caps
+bound the worksheet row-iteration loop, and the auxiliary parts
+(`sharedStrings`, styles) are read in full _before_ that loop starts. Nothing
+counts them.
+
+The check has been kept, with its comments corrected to say plainly what it is:
+a cheap early-out that rejects an honestly-declared oversized workbook in about
+a millisecond. Worth having. Not a boundary.
+
 ### Recommended fix, for whoever picks this up
 
-Either, in rough order of effort:
+The bound has to come from something the archive cannot lie about. Header
+fields cannot, so the two remaining options are:
 
-1. **Bound the shared-string table.** Switch to `sharedStrings: "emit"` and
-   accumulate entries behind a cap mirroring the existing row/cell caps,
-   refusing the file with `XLSX_LIMIT_EXCEEDED` when exceeded. Keeps a legitimate
-   large statement working.
-2. **Probe before parsing.** Read the zip central directory's uncompressed sizes
-   and refuse a file whose total expansion exceeds a bound, before handing the
-   buffer to `exceljs` at all. Cheaper to write, and closes every present and
-   future cache vector at once — including ones not yet found.
-3. **Isolate the parse.** Run it in a worker with a hard memory ceiling, so an
-   OOM kills one job rather than the API process.
+1. **Meter the real inflate.** Enforce a hard output-byte ceiling _during_
+   decompression, independent of any declared size — so the stream is cut off
+   at N bytes whatever the headers claim. Precise, and keeps legitimate large
+   statements working, but means owning more of the unzip path than exceljs
+   currently exposes.
+2. **Isolate the parse.** Run it in a `worker_threads` worker with
+   `resourceLimits.maxOldGenerationSizeMb`, so an OOM kills one job rather than
+   the API process. This is the one to reach for first: it does not require
+   out-guessing a file format we do not control, and it bounds the blast radius
+   of _any_ amplification vector, including ones nobody has found yet. Pair it
+   with option 1 later if a precise refusal message matters.
 
-Option 2 is the one that ends the whack-a-mole; option 1 is the most precise.
+Three rounds of format-specific caps were each defeated by moving to a
+different part of the format. That is the signal to stop bounding the format
+and start bounding the process.
 
 ### What is safe to merge now
 

@@ -25,10 +25,40 @@
  * of the file) and sums the declared uncompressed sizes. It never decompresses
  * anything, so the check itself cannot be turned into the attack.
  *
- * A declared size is attacker-controlled, so it is not trusted as *truth* —
- * only as a refusal trigger. A liar can only under-declare, and an archive
- * that under-declares still has to get past the row and cell caps that remain
- * in `parseExcelBuffer` as defence in depth.
+ * ────────────────────────────────────────────────────────────────────────────
+ * THIS IS NOT A SECURITY BOUNDARY. Read before relying on it.
+ * ────────────────────────────────────────────────────────────────────────────
+ *
+ * An earlier version of this comment argued that "a liar can only
+ * under-declare, and an under-declaring archive still has to get past the row
+ * and cell caps." **That reasoning is wrong**, and a security review defeated
+ * it end to end with two independent techniques:
+ *
+ *   A. Under-declare the size. `unzipper` (which exceljs streams through)
+ *      inflates the real DEFLATE payload regardless of what either the local
+ *      header or the central directory claims — the declared size is decorative
+ *      to the decompression path. A 19.3 MiB archive declaring 500 bytes for a
+ *      part that truly inflates to 412 MiB consumed 956 MiB over ~10s and
+ *      **returned successfully with 3 rows** — no error to alert on.
+ *
+ *   B. Append a second, empty 22-byte EOCD. The backward scan below finds the
+ *      attacker's trailing record first, reads "0 entries", sums nothing and
+ *      returns silently, while exceljs ignores the trailer and parses the real
+ *      content. 344 MiB, no lie required, a fixed suffix appliable to any file.
+ *
+ * The row and cell caps do not catch either, because they bound the worksheet
+ * row-iteration loop, and the auxiliary parts (`sharedStrings`, styles) are
+ * read in full *before* that loop begins. Nothing counts them.
+ *
+ * What this function is, honestly: a cheap early-out that refuses an
+ * *honestly-declared* oversized workbook in about a millisecond, before any
+ * work is done. That is worth keeping — it costs nothing and rejects the
+ * accidental and the naive. It is not a defence against a crafted file.
+ *
+ * Closing the vulnerability needs a bound derived from something the archive
+ * cannot lie about. See the epic's `## Blocker` section: either meter the real
+ * inflate against a hard byte ceiling, or run the parse in a worker with
+ * `resourceLimits` so an OOM kills one job rather than the API process.
  */
 
 /** Total declared uncompressed bytes an uploaded workbook may expand to.

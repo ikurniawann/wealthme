@@ -1,13 +1,17 @@
 /**
- * EPIC-023 G2 — the decompression-amplification bound.
+ * EPIC-023 G2 — the declared-expansion early-out.
  *
  * The archives here are assembled from raw zip bytes rather than with a zip
- * library. That is deliberate: the bound reads the central directory itself,
+ * library. That is deliberate: the check reads the central directory itself,
  * so the test should hand it bytes we control exactly — and it avoids pulling
  * a new dependency into the API purely to write a test.
  *
- * The bomb shape mirrors the one a reviewer measured at 969 MiB peak RSS: a
- * near-empty worksheet whose auxiliary table declares an enormous expansion.
+ * **Scope of these tests.** Every archive below declares its sizes honestly.
+ * That is the only case this check covers, and the tests should not be read as
+ * proving more than that: a crafted archive defeats it by under-declaring, or
+ * by appending a second empty EOCD, and both were demonstrated end to end
+ * against this code (~956 MiB and ~344 MiB). See `zip-bounds.util.ts`'s header
+ * for the detail and the epic's `## Blocker` for what an actual fix requires.
  */
 import ExcelJS from "exceljs";
 
@@ -111,10 +115,12 @@ describe("assertZipExpansionWithinBounds", () => {
     );
   });
 
-  it("refuses a shared-string bomb — the vector that escaped every in-parser cap", async () => {
+  it("refuses an honestly-declared shared-string bomb", async () => {
     // 8M distinct strings against a three-cell worksheet was measured at
     // 969 MiB peak RSS. Row and cell caps cannot see it: they count data
-    // actually iterated, while this table loads in full beforehand.
+    // actually iterated, while this table loads in full beforehand. Note the
+    // qualifier — an archive that LIES about this size still gets through;
+    // that is the open finding, not something this test covers.
     const bomb = zipDeclaringExpansion(
       "xl/sharedStrings.xml",
       800 * 1024 * 1024,
@@ -124,9 +130,9 @@ describe("assertZipExpansionWithinBounds", () => {
     );
   });
 
-  it("refuses a styles bomb by the same bound, without needing to know about styles", async () => {
-    // The point of bounding the archive rather than each cache: this vector
-    // is closed by the same check, and so is the next one nobody has found.
+  it("refuses an honestly-declared styles bomb by the same check", async () => {
+    // Checking the archive rather than each individual cache means this vector
+    // needs no styles-specific knowledge — for honestly-declared files.
     const bomb = zipDeclaringExpansion("xl/styles.xml", 700 * 1024 * 1024);
     await expect(parseExcelBuffer(bomb)).rejects.toThrow(
       ZipExpansionExceededError,
