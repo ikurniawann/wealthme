@@ -1583,11 +1583,23 @@ function BalanceSection({
 }
 
 /**
- * EPIC-023 Task B (B3, D24, US-RPT-11) — answers "why is my profit X but my
- * wealth up Y" on screen: opening/closing net worth from the snapshots, plus
- * profit and each revaluation term named SEPARATELY (never a single
- * unexplained residual — see `getReconciliationBridge`'s doc comment on the
- * API side for how each term is independently derived).
+ * EPIC-023 B3 (D24, US-RPT-11; rewrite, attempt 3) — answers "why is my
+ * profit X but my wealth up Y" on screen: opening/closing net worth from
+ * the snapshots, profit, a `contribution` figure, a single combined
+ * asset+investment `holdingsChange` figure, and — only when non-zero — an
+ * honestly-named `unexplained` residual (see `getReconciliationBridge`'s
+ * doc comment on the API side for why the identity does not always hold,
+ * e.g. a Receivable movement).
+ *
+ * EPIC-023 Task B3 review (HIGH x2, FIX 1) — every row from Opening through
+ * Unexplained is now a real addend of the identity `opening + profit −
+ * contribution + holdingsChange + unexplained = closing`, and reading the
+ * table top to bottom sums to `bridgeClosingLabel`'s value. Previously
+ * `contribution` was rendered as a small indented `↳` memo showing its raw
+ * (unsubtracted) sign — reading the rows top to bottom produced a number
+ * that did NOT match Closing. The contribution row now displays
+ * `-bridge.contribution` (the amount it actually subtracts from the running
+ * total), at full size, not as a memo.
  */
 function ReconciliationBridgeCard({
   bridge,
@@ -1599,11 +1611,19 @@ function ReconciliationBridgeCard({
   const { t } = useLocale();
   if (!bridge) return null;
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
-  const netWorthChange = bridge.closing - bridge.opening;
   // EPIC-023 Task B retry (CRITICAL 2) — distinct from the generic "not
   // enough history" no-data case: a snapshot exists, it just cannot be
   // shown to this viewer (see `restrictedForViewer`'s doc comment).
   const isRestrictedForViewer = bridge.restrictedForViewer === true;
+  // EPIC-023 Task B3 review (LOW, batch fix 6) — the `bridge.dataAvailable
+  // &&` clause used to be here too, but this value is only ever read inside
+  // the `bridge.dataAvailable === true` branch below, so it was dead.
+  // `Number.isFinite` guards against a deploy-skew payload (an older API
+  // build, or a network hiccup) delivering `undefined`/`NaN` for
+  // `unexplained` — treat that as "no warning" rather than rendering NaN.
+  const hasUnexplained =
+    Number.isFinite(bridge.unexplained) && bridge.unexplained !== 0;
+  const netWorthChange = bridge.closing - bridge.opening;
 
   return (
     <SectionCard
@@ -1632,33 +1652,43 @@ function ReconciliationBridgeCard({
               value={formatJuta(bridge.profit)}
               indent
             />
+            {/* A real subtrahend now, not a memo — displays the SIGNED
+                amount this row actually subtracts from the running total
+                (`-bridge.contribution`), so it participates correctly in
+                the top-to-bottom sum. */}
             <StatementRow
-              label={t.laporan.balance.bridgeAssetRevaluationLabel}
-              value={formatJuta(bridge.assetRevaluation)}
-              indent
-            />
-            {/* EPIC-023 Task B retry (CRITICAL 1) — named separately so a
-                cash-funded, net-worth-neutral contribution is never
-                mistaken for zero asset/investment activity this period. */}
-            <StatementRow
-              label={t.laporan.balance.bridgeAssetContributionLabel}
-              value={formatJuta(bridge.assetContribution)}
-              indent
-              labelClass="py-1 text-[11px] text-muted-foreground"
-              valueClass="text-[11px] text-muted-foreground"
-            />
-            <StatementRow
-              label={t.laporan.balance.bridgeInvestmentRevaluationLabel}
-              value={formatJuta(bridge.investmentRevaluation)}
+              label={t.laporan.balance.bridgeContributionLabel}
+              value={formatJuta(-bridge.contribution)}
               indent
             />
             <StatementRow
-              label={t.laporan.balance.bridgeInvestmentContributionLabel}
-              value={formatJuta(bridge.investmentContribution)}
+              label={t.laporan.balance.bridgeHoldingsChangeLabel}
+              value={formatJuta(bridge.holdingsChange)}
               indent
-              labelClass="py-1 text-[11px] text-muted-foreground"
-              valueClass="text-[11px] text-muted-foreground"
             />
+            {/* Shown only when non-zero — an honest residual, not a term
+                that is always present. See this component's doc comment.
+                EPIC-023 Task B3 review (MEDIUM, FIX 5) — an icon and bold
+                text carry the warning, not colour alone. */}
+            {hasUnexplained && (
+              <StatementRow
+                label={
+                  <span className="inline-flex items-center gap-1.5">
+                    <span aria-hidden="true">⚠️</span>
+                    <span className="font-bold">
+                      <span className="sr-only">
+                        {t.laporan.balance.bridgeUnexplainedWarningPrefix}{" "}
+                      </span>
+                      {t.laporan.balance.bridgeUnexplainedLabel}
+                    </span>
+                  </span>
+                }
+                value={formatJuta(bridge.unexplained)}
+                indent
+                labelClass="py-1.5 text-warning"
+                valueClass="font-bold text-warning"
+              />
+            )}
             <StatementRow
               label={t.laporan.balance.bridgeClosingLabel}
               value={formatJuta(bridge.closing)}

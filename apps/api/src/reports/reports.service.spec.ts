@@ -24,11 +24,14 @@ interface FakeCategory {
   color: string | null;
   isPrivate: boolean;
   // EPIC-017: every category maps to a COA account; reports classify by its
-  // direction, not the transaction type. `code`/`groupNum` are optional —
-  // only the EPIC-023 Task B retry (CRITICAL 1) contribution-split fixtures
-  // set them; every pre-existing fixture leaves them `undefined`, which
-  // `contributionBucket` (reports.service.ts) treats as "not a group-3
-  // Wealth Allocation account" — i.e. unchanged prior behavior.
+  // direction, not the transaction type. `groupNum` is optional — only the
+  // EPIC-023 B3 contribution fixtures set it to 3 ("Wealth Allocation");
+  // every pre-existing fixture leaves it `undefined`, which
+  // `getReconciliationBridge` (reports.service.ts) treats as "not a group-3
+  // account" — i.e. unchanged prior behavior. `code` is carried for
+  // readability only — EPIC-023 Task B retry (CRITICAL 2, closed by B3)
+  // removed the hardcoded "30002" discriminator that used to split
+  // contributions by code; every group-3 code now counts identically.
   coaAccount: {
     direction: "INCOME" | "EXPENSE" | "TRANSFER";
     code?: string;
@@ -45,6 +48,15 @@ interface FakeTransaction {
   description: string | null;
   occurredAt: Date;
   createdAt: Date;
+  // EPIC-023 Task B3 review (LOW, batch fix 6) — mirrors
+  // `Transaction.toAccountId`, which is always `string | null` once
+  // selected. Made mandatory (not optional) so every fixture must state its
+  // value explicitly: an optional field let a fixture silently omit it and
+  // fall through to `undefined`, which `tx.toAccountId === null` treats as
+  // "not a two-sided transfer" only by accident, not by an explicit
+  // decision. `null` mirrors a legacy one-sided transfer — see
+  // `wealthAllocationCashEffect`'s doc comment in reports.service.ts.
+  toAccountId: string | null;
 }
 
 interface TxWhere {
@@ -202,6 +214,21 @@ function makeFakePrisma(
         },
       ),
     },
+    // EPIC-023 Task B3 review (HIGH, FIX 2) — `familyHasPrivateItems`
+    // (reports.service.ts) queries `{ familyGroupId, isPrivate: true }`
+    // exactly like `familyHasPrivateAccounts` does for accounts; this fake
+    // honors the same shape for categories.
+    category: {
+      findFirst: jest.fn(
+        ({ where }: { where?: { isPrivate?: boolean } } = {}) => {
+          const rows =
+            where?.isPrivate === true
+              ? categories.filter((c) => c.isPrivate)
+              : categories;
+          return Promise.resolve(rows[0] ?? null);
+        },
+      ),
+    },
     asset: { findMany: jest.fn(() => Promise.resolve([])) },
     liability: { findMany: jest.fn(() => Promise.resolve([])) },
     // EPIC-022 (adversarial review round 3, finding 1) — getBalanceSheet
@@ -295,6 +322,7 @@ function buildFixtures() {
       categoryId: null,
       amount: 500n,
       type: "income",
+      toAccountId: null,
       description: null,
       occurredAt: now,
       createdAt: now,
@@ -305,6 +333,7 @@ function buildFixtures() {
       categoryId: null,
       amount: 300n,
       type: "expense",
+      toAccountId: null,
       description: null,
       occurredAt: now,
       createdAt: now,
@@ -315,6 +344,7 @@ function buildFixtures() {
       categoryId: "cat-private",
       amount: 200n,
       type: "expense",
+      toAccountId: null,
       description: null,
       occurredAt: now,
       createdAt: now,
@@ -420,6 +450,7 @@ describe("ReportsService privacy enforcement", () => {
       categoryId: null,
       amount: 999n,
       type: "expense",
+      toAccountId: null,
       description: null,
       occurredAt: prevPeriodDate,
       createdAt: prevPeriodDate,
@@ -527,6 +558,7 @@ describe("ReportsService privacy enforcement", () => {
         categoryId: "c-transfer",
         amount: 1000n,
         type: "expense",
+        toAccountId: null,
         description: null,
         occurredAt: now,
         createdAt: now,
@@ -583,6 +615,7 @@ describe("ReportsService privacy enforcement", () => {
         categoryId: "c-transfer",
         amount: 1000n,
         type: "expense",
+        toAccountId: null,
         description: null,
         occurredAt: now,
         createdAt: now,
@@ -642,6 +675,7 @@ describe("ReportsService privacy enforcement", () => {
         categoryId: "c-income",
         amount: 1_000n,
         type: "income",
+        toAccountId: null,
         description: null,
         occurredAt: inWindow,
         createdAt: inWindow,
@@ -652,6 +686,7 @@ describe("ReportsService privacy enforcement", () => {
         categoryId: "c-income",
         amount: 5_000n,
         type: "income",
+        toAccountId: null,
         description: null,
         occurredAt: afterWindow,
         createdAt: afterWindow,
@@ -739,6 +774,7 @@ describe("ReportsService privacy enforcement", () => {
         categoryId: "c-legit-expense",
         amount: 500_000n,
         type: "expense",
+        toAccountId: null,
         description: null,
         occurredAt: now,
         createdAt: now,
@@ -749,6 +785,7 @@ describe("ReportsService privacy enforcement", () => {
         categoryId: "c-mortgage-principal",
         amount: 3_500_000n,
         type: "expense",
+        toAccountId: null,
         description: "Cicilan KPR — pokok",
         occurredAt: now,
         createdAt: now,
@@ -809,6 +846,7 @@ describe("ReportsService privacy enforcement", () => {
         categoryId: "c-legit-income",
         amount: 25_850_000n,
         type: "income",
+        toAccountId: null,
         description: null,
         occurredAt: now,
         createdAt: now,
@@ -823,6 +861,7 @@ describe("ReportsService privacy enforcement", () => {
         // classification, not tx.type, decides P&L direction (EPIC-017), so
         // it is currently wrongly picked up as revenue.
         type: "expense",
+        toAccountId: null,
         description: "Pinjaman ke Budi",
         occurredAt: now,
         createdAt: now,
@@ -1009,24 +1048,49 @@ describe("ReportsService privacy enforcement", () => {
     });
   });
 
-  // EPIC-023 Task B (B3) — RED phase. `getReconciliationBridge` does not
-  // exist on `ReportsService` yet.
+  // EPIC-023 B3 (rewrite, attempt 3) — the DTO collapsed from four fields
+  // (`assetRevaluation`/`investmentRevaluation`/`assetContribution`/
+  // `investmentContribution`) to three (`contribution`/`revaluation`/
+  // `unexplained`), because the asset-vs-investment split was unsatisfiable:
+  // nothing links a `Transaction` to the `Asset`/`Investment` row it funded,
+  // so the old code guessed from a hardcoded COA `code` ("30002") — which
+  // misfiled every OTHER group-3 code — and ignored the transaction's
+  // direction entirely, so a withdrawal back to cash was ADDED to
+  // contributions instead of subtracted. See the two "CRITICAL 1" defect
+  // tests below.
+  //
+  // EPIC-023 Task B3 review (HIGH x2) — `revaluation` (`rawRevaluation -
+  // contribution`) is GONE. Nothing links a `Transaction` to the holding it
+  // funds, so a contribution recorded WITHOUT its matching holding update
+  // (or vice versa) used to be absorbed silently into `revaluation` — e.g. a
+  // 10,000,000 contribution with a flat snapshot produced `revaluation:
+  // -10,000,000`, a fabricated market loss, with `unexplained` staying
+  // exactly 0 (so the warning row that would have flagged it never
+  // rendered). `holdingsChange` replaces it: the RAW `(Δ totalAssets + Δ
+  // totalInvestments)`, nothing subtracted. The identity gains the
+  // `contribution` term back as a real subtrahend instead of folding it
+  // into a derived figure:
+  //   opening + profit − contribution + holdingsChange + unexplained = closing
+  // (D24 says "opening + (income − expenses) + change in asset & investment
+  // values = closing" — that formula is incomplete on its own, it omits the
+  // contribution outflow; the identity above is D24 with that term
+  // restored.) See "contribution/holding mismatch" below for the case this
+  // fixes.
   //
   // THE FIGURES BELOW ARE HAND-COMPUTED and must NEVER be replaced with
   // values read back from the bridge's own output. Adversarial review on
   // this epic has twice caught a "balanced" check that was algebraically
   // incapable of failing, in two different disguises — see
   // `computeBalanceSheetIdentity`'s history in
-  // apps/web/src/lib/laporan-utils.test.ts (round 1: totalAssets =
-  // totalLiabilities + netWorth, unfalsifiable because netWorth is DEFINED
-  // as their difference; round 2: re-summing a breakdown array the API
-  // itself built by summing the same array). If `getReconciliationBridge`
-  // derives `revaluation` as `closing - opening - profit`, then asserting
-  // `opening + profit + revaluation === closing` is that same tautology a
-  // third time — it cannot fail, whatever the code does. Every term here is
-  // independently known from the fixtures, and the FIRST assertions in each
-  // test are on the named component figures, not the sum.
-  describe("getReconciliationBridge — hand-computed month (EPIC-023 B3)", () => {
+  // apps/web/src/lib/laporan-utils.test.ts. `unexplained` is DEFINED as
+  // `closing - (opening + profit - contribution + holdingsChange)`, so
+  // asserting `opening + profit - contribution + holdingsChange +
+  // unexplained === closing` would be that same tautology a third time — it
+  // cannot fail, whatever the code does, and no test below relies on it.
+  // Every assertion is on `profit`, `contribution`, `holdingsChange`, or
+  // `unexplained` checked against a figure computed independently of the
+  // bridge's own output.
+  describe("getReconciliationBridge — contribution / holdingsChange / unexplained (EPIC-023 B3)", () => {
     function makeSnapshot(
       dateIso: string,
       figures: {
@@ -1057,292 +1121,6 @@ describe("ReportsService privacy enforcement", () => {
     const START = new Date("2026-07-31T17:00:00.000Z"); // Aug 1 2026 00:00:00.000 WIB
     const END = new Date("2026-08-31T16:59:59.999Z"); // Aug 31 2026 23:59:59.999 WIB
 
-    it("names the 8,000,000 investment gain as its own revaluation figure — not merely 'the equation balances', and shows the principal repayment as net-worth-neutral", async () => {
-      const accounts: FakeAccount[] = [
-        {
-          id: "a1",
-          balance: 0n,
-          type: "bank",
-          name: "A",
-          institution: null,
-          isPrivate: false,
-        },
-      ];
-      const categories: FakeCategory[] = [
-        {
-          id: "c-income",
-          name: "Gaji",
-          color: null,
-          isPrivate: false,
-          coaAccount: { direction: "INCOME" },
-        },
-        {
-          id: "c-expense",
-          name: "Belanja Bulanan",
-          color: null,
-          isPrivate: false,
-          coaAccount: { direction: "EXPENSE" },
-        },
-        {
-          id: "c-principal",
-          name: "Cicilan Pokok",
-          color: null,
-          isPrivate: false,
-          // Group A (EPIC-023 A1) moved COA groups 4/5 to TRANSFER — a
-          // principal repayment must NOT appear in profit.
-          coaAccount: { direction: "TRANSFER" },
-        },
-      ];
-      const transactions: FakeTransaction[] = [
-        {
-          id: "t-income",
-          accountId: "a1",
-          categoryId: "c-income",
-          amount: 25_000_000n,
-          type: "income",
-          description: null,
-          occurredAt: new Date("2026-08-10T00:00:00.000Z"),
-          createdAt: new Date("2026-08-10T00:00:00.000Z"),
-        },
-        {
-          id: "t-expense",
-          accountId: "a1",
-          categoryId: "c-expense",
-          amount: 10_000_000n,
-          type: "expense",
-          description: null,
-          occurredAt: new Date("2026-08-12T00:00:00.000Z"),
-          createdAt: new Date("2026-08-12T00:00:00.000Z"),
-        },
-        {
-          id: "t-principal",
-          accountId: "a1",
-          categoryId: "c-principal",
-          amount: 5_000_000n,
-          type: "expense",
-          description: "Cicilan pokok KPR",
-          occurredAt: new Date("2026-08-15T00:00:00.000Z"),
-          createdAt: new Date("2026-08-15T00:00:00.000Z"),
-        },
-      ];
-      // Opening (1 Aug): cash 100,000,000 · investments 50,000,000 ·
-      // assets 200,000,000 · liabilities 80,000,000 -> netWorth
-      // 270,000,000. Kept explicit per-field so every figure in this test
-      // is traceable straight to the brief's hand-computed month.
-      const snapshots: FakeSnapshot[] = [
-        makeSnapshot("2026-08-01T00:00:00.000Z", {
-          cash: 100_000_000n,
-          investments: 50_000_000n,
-          assets: 200_000_000n,
-          liabilities: 80_000_000n,
-        }), // netWorth 270,000,000
-        // Closing (31 Aug): cash 100,000,000 + 25,000,000 (income) -
-        // 10,000,000 (expense) - 5,000,000 (principal) = 110,000,000;
-        // investments 50,000,000 + 8,000,000 (revaluation) = 58,000,000;
-        // assets unchanged at 200,000,000; liabilities 80,000,000 -
-        // 5,000,000 (principal) = 75,000,000 -> netWorth 293,000,000.
-        makeSnapshot("2026-08-31T00:00:00.000Z", {
-          cash: 110_000_000n,
-          investments: 58_000_000n,
-          assets: 200_000_000n,
-          liabilities: 75_000_000n,
-        }), // netWorth 293,000,000
-      ];
-      const prisma = makeFakePrisma(
-        accounts,
-        categories,
-        transactions,
-        snapshots,
-      );
-      const mod: TestingModule = await Test.createTestingModule({
-        providers: [
-          ReportsService,
-          { provide: PrismaService, useValue: prisma },
-        ],
-      }).compile();
-      const svc = mod.get(ReportsService);
-
-      const bridge = await svc.getReconciliationBridge(
-        FAMILY_GROUP_ID,
-        START,
-        END,
-        true,
-      );
-
-      // 1. Revaluation asserted against the independently-known input
-      //    (58,000,000 - 50,000,000 = 8,000,000) — NOT derived from
-      //    opening/closing/profit.
-      expect(bridge.investmentRevaluation).toBe(8_000_000);
-      expect(bridge.assetRevaluation).toBe(0); // 200,000,000 - 200,000,000: physical assets untouched
-      // 2. Profit asserted independently (25,000,000 income - 10,000,000
-      //    expense). The 5,000,000 principal repayment is TRANSFER-
-      //    classified (group A) and must NOT reduce profit.
-      expect(bridge.profit).toBe(15_000_000);
-      // 3. Opening/closing read from the SNAPSHOTS, not recomputed.
-      expect(bridge.opening).toBe(270_000_000);
-      expect(bridge.closing).toBe(293_000_000);
-      // 4. Only now does the bridge sum: net worth moved 23,000,000 while
-      //    profit was only 15,000,000 — the remaining 8,000,000 is named
-      //    revaluation, and the principal repayment (cash -5,000,000,
-      //    liabilities -5,000,000) is net-worth-neutral, so it needs no
-      //    term of its own here.
-      expect(
-        bridge.opening +
-          bridge.profit +
-          bridge.assetRevaluation +
-          bridge.investmentRevaluation,
-      ).toBe(bridge.closing);
-    });
-
-    it("CHEAT DETECTOR — a distinct asset revaluation and investment revaluation in the SAME month must be reported separately, not as one combined residual", async () => {
-      // An implementation deriving a single `closing - opening - profit`
-      // residual can get the COMBINED total (11,000,000) right without ever
-      // computing the two components individually — it has no way to also
-      // report them as 3,000,000 and 8,000,000 on their own. That is
-      // exactly what this test is designed to catch: it asserts the two
-      // components SEPARATELY, before it ever looks at their sum.
-      const accounts: FakeAccount[] = [
-        {
-          id: "a1",
-          balance: 0n,
-          type: "bank",
-          name: "A",
-          institution: null,
-          isPrivate: false,
-        },
-      ];
-      const categories: FakeCategory[] = [
-        {
-          id: "c-income",
-          name: "Gaji",
-          color: null,
-          isPrivate: false,
-          coaAccount: { direction: "INCOME" },
-        },
-        {
-          id: "c-expense",
-          name: "Belanja Bulanan",
-          color: null,
-          isPrivate: false,
-          coaAccount: { direction: "EXPENSE" },
-        },
-      ];
-      const transactions: FakeTransaction[] = [
-        {
-          id: "t-income",
-          accountId: "a1",
-          categoryId: "c-income",
-          amount: 25_000_000n,
-          type: "income",
-          description: null,
-          occurredAt: new Date("2026-08-10T00:00:00.000Z"),
-          createdAt: new Date("2026-08-10T00:00:00.000Z"),
-        },
-        {
-          id: "t-expense",
-          accountId: "a1",
-          categoryId: "c-expense",
-          amount: 10_000_000n,
-          type: "expense",
-          description: null,
-          occurredAt: new Date("2026-08-12T00:00:00.000Z"),
-          createdAt: new Date("2026-08-12T00:00:00.000Z"),
-        },
-      ];
-      const snapshots: FakeSnapshot[] = [
-        makeSnapshot("2026-08-01T00:00:00.000Z", {
-          cash: 100_000_000n,
-          investments: 50_000_000n,
-          assets: 200_000_000n,
-          liabilities: 80_000_000n,
-        }), // netWorth 270,000,000
-        // No principal repayment this month: cash 100,000,000 + 25,000,000
-        // - 10,000,000 = 115,000,000; investments 50,000,000 + 8,000,000 =
-        // 58,000,000; assets 200,000,000 + 3,000,000 = 203,000,000;
-        // liabilities unchanged 80,000,000 -> netWorth 296,000,000.
-        makeSnapshot("2026-08-31T00:00:00.000Z", {
-          cash: 115_000_000n,
-          investments: 58_000_000n,
-          assets: 203_000_000n,
-          liabilities: 80_000_000n,
-        }), // netWorth 296,000,000
-      ];
-      const prisma = makeFakePrisma(
-        accounts,
-        categories,
-        transactions,
-        snapshots,
-      );
-      const mod: TestingModule = await Test.createTestingModule({
-        providers: [
-          ReportsService,
-          { provide: PrismaService, useValue: prisma },
-        ],
-      }).compile();
-      const svc = mod.get(ReportsService);
-
-      const bridge = await svc.getReconciliationBridge(
-        FAMILY_GROUP_ID,
-        START,
-        END,
-        true,
-      );
-
-      expect(bridge.assetRevaluation).toBe(3_000_000);
-      expect(bridge.investmentRevaluation).toBe(8_000_000);
-      expect(bridge.assetRevaluation).not.toBe(bridge.investmentRevaluation);
-      // The combined total alone is NOT sufficient proof — a
-      // residual-splitting implementation could satisfy this line while
-      // still failing the two named-component assertions above.
-      expect(bridge.assetRevaluation + bridge.investmentRevaluation).toBe(
-        11_000_000,
-      );
-      expect(
-        bridge.opening +
-          bridge.profit +
-          bridge.assetRevaluation +
-          bridge.investmentRevaluation,
-      ).toBe(bridge.closing);
-    });
-  });
-
-  // EPIC-023 Task B retry (CRITICAL 1) — `assetRevaluation`/
-  // `investmentRevaluation` used to be the RAW snapshot diff, conflating
-  // market revaluation with a cash-funded CONTRIBUTION (a COA group-3
-  // "Wealth Allocation" TRANSFER moving cash into an Investment/Asset with
-  // no automatic ledger link back to it). The fix subtracts the period's own
-  // contribution from each raw diff so only market movement remains.
-  describe("getReconciliationBridge — contributions vs revaluation (EPIC-023 Task B retry, CRITICAL 1)", () => {
-    function makeSnapshot(
-      dateIso: string,
-      figures: {
-        cash: bigint;
-        investments: bigint;
-        assets: bigint;
-        liabilities: bigint;
-      },
-    ): FakeSnapshot {
-      return {
-        familyGroupId: FAMILY_GROUP_ID,
-        date: new Date(dateIso),
-        capturedAt: new Date(dateIso),
-        totalCash: figures.cash,
-        totalInvestments: figures.investments,
-        totalAssets: figures.assets,
-        totalLiabilities: figures.liabilities,
-        netWorth:
-          figures.cash +
-          figures.investments +
-          figures.assets -
-          figures.liabilities,
-      };
-    }
-
-    // August 2026, WIB-pinned exactly like the "hand-computed month" describe
-    // above.
-    const START = new Date("2026-07-31T17:00:00.000Z"); // Aug 1 2026 00:00:00.000 WIB
-    const END = new Date("2026-08-31T16:59:59.999Z"); // Aug 31 2026 23:59:59.999 WIB
-
     const accounts: FakeAccount[] = [
       {
         id: "a1",
@@ -1352,114 +1130,27 @@ describe("ReportsService privacy enforcement", () => {
         institution: null,
         isPrivate: false,
       },
+      {
+        id: "a2",
+        balance: 0n,
+        type: "bank",
+        name: "B",
+        institution: null,
+        isPrivate: false,
+      },
     ];
 
-    it("the reviewer's exact scenario: a pure contribution with no market movement is NOT counted as an 8/10 jt gain", async () => {
+    it("clean month: profit, contribution and holdingsChange are three distinct non-zero figures, and unexplained is exactly zero", async () => {
       // Opening 270,000,000 (cash 100,000,000 / investments 50,000,000 /
-      // assets 200,000,000 / liabilities 80,000,000). One income of
-      // 25,000,000. One "Investasi" TRANSFER of 10,000,000 moving cash into
-      // a holding with NO market movement. True closing: 295,000,000 — the
-      // transfer is net-worth-neutral (cash down 10 jt, investments up 10
-      // jt), so net worth only moves by the 25,000,000 income.
-      const categories: FakeCategory[] = [
-        {
-          id: "c-income",
-          name: "Gaji",
-          color: null,
-          isPrivate: false,
-          coaAccount: { direction: "INCOME" },
-        },
-        {
-          id: "c-invest",
-          name: "Investasi",
-          color: null,
-          isPrivate: false,
-          coaAccount: { direction: "TRANSFER", groupNum: 3, code: "30002" },
-        },
-      ];
-      const transactions: FakeTransaction[] = [
-        {
-          id: "t-income",
-          accountId: "a1",
-          categoryId: "c-income",
-          amount: 25_000_000n,
-          type: "income",
-          description: null,
-          occurredAt: new Date("2026-08-10T00:00:00.000Z"),
-          createdAt: new Date("2026-08-10T00:00:00.000Z"),
-        },
-        {
-          id: "t-invest-contribution",
-          accountId: "a1",
-          categoryId: "c-invest",
-          amount: 10_000_000n,
-          type: "expense",
-          description: "Alokasi ke investasi",
-          occurredAt: new Date("2026-08-15T00:00:00.000Z"),
-          createdAt: new Date("2026-08-15T00:00:00.000Z"),
-        },
-      ];
-      const snapshots: FakeSnapshot[] = [
-        makeSnapshot("2026-08-01T00:00:00.000Z", {
-          cash: 100_000_000n,
-          investments: 50_000_000n,
-          assets: 200_000_000n,
-          liabilities: 80_000_000n,
-        }), // netWorth 270,000,000
-        // cash: 100,000,000 + 25,000,000 (income) - 10,000,000 (contribution)
-        // = 115,000,000; investments: 50,000,000 + 10,000,000 (contribution,
-        // NO market movement) = 60,000,000; assets/liabilities unchanged.
-        makeSnapshot("2026-08-31T00:00:00.000Z", {
-          cash: 115_000_000n,
-          investments: 60_000_000n,
-          assets: 200_000_000n,
-          liabilities: 80_000_000n,
-        }), // netWorth 295,000,000
-      ];
-      const prisma = makeFakePrisma(
-        accounts,
-        categories,
-        transactions,
-        snapshots,
-      );
-      const mod: TestingModule = await Test.createTestingModule({
-        providers: [
-          ReportsService,
-          { provide: PrismaService, useValue: prisma },
-        ],
-      }).compile();
-      const svc = mod.get(ReportsService);
-
-      const bridge = await svc.getReconciliationBridge(
-        FAMILY_GROUP_ID,
-        START,
-        END,
-        true,
-      );
-
-      // Named component figures FIRST, independently of the sum.
-      expect(bridge.opening).toBe(270_000_000);
-      expect(bridge.closing).toBe(295_000_000);
-      expect(bridge.profit).toBe(25_000_000);
-      expect(bridge.investmentContribution).toBe(10_000_000);
-      expect(bridge.assetContribution).toBe(0);
-      // The contribution is entirely market-movement-free — the raw
-      // snapshot diff (60,000,000 - 50,000,000 = 10,000,000) must NOT
-      // surface as the revaluation once the contribution is subtracted.
-      expect(bridge.investmentRevaluation).toBe(0);
-      expect(bridge.assetRevaluation).toBe(0);
-      // The bridge genuinely balances: 270,000,000 + 25,000,000 + 0 + 0 =
-      // 295,000,000 — NOT the old buggy 305,000,000 (opening + profit +
-      // raw 10,000,000 "revaluation").
-      expect(
-        bridge.opening +
-          bridge.profit +
-          bridge.assetRevaluation +
-          bridge.investmentRevaluation,
-      ).toBe(bridge.closing);
-    });
-
-    it("a contribution AND a real revaluation in the SAME period are not confused with each other", async () => {
+      // assets 200,000,000 / liabilities 80,000,000). Income 25,000,000,
+      // expense 10,000,000 (profit 15,000,000). A 10,000,000 cash-out
+      // contribution into the "Investasi" holding, plus an independently-
+      // known market gain of 8,000,000 (investments) + 3,000,000 (assets).
+      // holdingsChange is the RAW combined snapshot delta — 18,000,000
+      // (investments: the 10,000,000 contribution PLUS the 8,000,000 market
+      // gain) + 3,000,000 (assets: market gain only) = 21,000,000.
+      // Identity: 270,000,000 + 15,000,000 - 10,000,000 + 21,000,000 =
+      // 296,000,000.
       const categories: FakeCategory[] = [
         {
           id: "c-income",
@@ -1482,15 +1173,6 @@ describe("ReportsService privacy enforcement", () => {
           isPrivate: false,
           coaAccount: { direction: "TRANSFER", groupNum: 3, code: "30002" },
         },
-        // A DIFFERENT group-3 code (not the "Investasi" one) — asset-
-        // directed, e.g. a savings/emergency-fund allocation.
-        {
-          id: "c-tabungan",
-          name: "Tabungan",
-          color: null,
-          isPrivate: false,
-          coaAccount: { direction: "TRANSFER", groupNum: 3, code: "30001" },
-        },
       ];
       const transactions: FakeTransaction[] = [
         {
@@ -1499,6 +1181,7 @@ describe("ReportsService privacy enforcement", () => {
           categoryId: "c-income",
           amount: 25_000_000n,
           type: "income",
+          toAccountId: null,
           description: null,
           occurredAt: new Date("2026-08-10T00:00:00.000Z"),
           createdAt: new Date("2026-08-10T00:00:00.000Z"),
@@ -1509,6 +1192,7 @@ describe("ReportsService privacy enforcement", () => {
           categoryId: "c-expense",
           amount: 10_000_000n,
           type: "expense",
+          toAccountId: null,
           description: null,
           occurredAt: new Date("2026-08-12T00:00:00.000Z"),
           createdAt: new Date("2026-08-12T00:00:00.000Z"),
@@ -1519,38 +1203,28 @@ describe("ReportsService privacy enforcement", () => {
           categoryId: "c-invest",
           amount: 10_000_000n,
           type: "expense",
+          toAccountId: null,
           description: "Alokasi ke investasi",
           occurredAt: new Date("2026-08-15T00:00:00.000Z"),
           createdAt: new Date("2026-08-15T00:00:00.000Z"),
         },
-        {
-          id: "t-tabungan-contribution",
-          accountId: "a1",
-          categoryId: "c-tabungan",
-          amount: 5_000_000n,
-          type: "expense",
-          description: "Alokasi ke tabungan",
-          occurredAt: new Date("2026-08-16T00:00:00.000Z"),
-          createdAt: new Date("2026-08-16T00:00:00.000Z"),
-        },
       ];
       const snapshots: FakeSnapshot[] = [
-        makeSnapshot("2026-08-01T00:00:00.000Z", {
+        makeSnapshot("2026-07-31T02:00:00.000Z", {
           cash: 100_000_000n,
           investments: 50_000_000n,
           assets: 200_000_000n,
           liabilities: 80_000_000n,
         }), // netWorth 270,000,000
         // cash: 100,000,000 + 25,000,000 - 10,000,000 - 10,000,000
-        // (investment contribution) - 5,000,000 (asset/tabungan
-        // contribution) = 100,000,000; investments: 50,000,000 +
+        // (contribution) = 105,000,000; investments: 50,000,000 +
         // 10,000,000 (contribution) + 8,000,000 (market gain) =
-        // 68,000,000; assets: 200,000,000 + 5,000,000 (contribution) +
-        // 3,000,000 (market gain) = 208,000,000; liabilities unchanged.
+        // 68,000,000; assets: 200,000,000 + 3,000,000 (market gain, no
+        // contribution here) = 203,000,000; liabilities unchanged.
         makeSnapshot("2026-08-31T00:00:00.000Z", {
-          cash: 100_000_000n,
+          cash: 105_000_000n,
           investments: 68_000_000n,
-          assets: 208_000_000n,
+          assets: 203_000_000n,
           liabilities: 80_000_000n,
         }), // netWorth 296,000,000
       ];
@@ -1578,21 +1252,583 @@ describe("ReportsService privacy enforcement", () => {
       expect(bridge.opening).toBe(270_000_000);
       expect(bridge.closing).toBe(296_000_000);
       expect(bridge.profit).toBe(15_000_000);
-      expect(bridge.investmentContribution).toBe(10_000_000);
-      expect(bridge.assetContribution).toBe(5_000_000);
-      // Market-movement-only remainder: raw diffs (18,000,000 and
-      // 8,000,000) MINUS the contribution — proves the contribution was
-      // actually subtracted, not merely zero by coincidence.
-      expect(bridge.investmentRevaluation).toBe(8_000_000);
-      expect(bridge.assetRevaluation).toBe(3_000_000);
-      expect(bridge.investmentRevaluation).not.toBe(18_000_000);
-      expect(bridge.assetRevaluation).not.toBe(8_000_000);
-      expect(
-        bridge.opening +
-          bridge.profit +
-          bridge.assetRevaluation +
-          bridge.investmentRevaluation,
-      ).toBe(bridge.closing);
+      expect(bridge.contribution).toBe(10_000_000);
+      // Independently known RAW combined delta — 18,000,000 investments
+      // (10,000,000 contribution + 8,000,000 market gain) + 3,000,000
+      // assets (market gain only) = 21,000,000. Nothing is subtracted here
+      // — `contribution` is its own term in the identity now.
+      expect(bridge.holdingsChange).toBe(21_000_000);
+      expect(bridge.profit).not.toBe(bridge.contribution);
+      expect(bridge.contribution).not.toBe(bridge.holdingsChange);
+      expect(bridge.unexplained).toBe(0);
+    });
+
+    it("opening anchors to the last snapshot ON OR BEFORE startDate — never a same-WIB-day snapshot captured AFTER the period starts (EPIC-023 Task B3 review, HIGH, FIX 3)", async () => {
+      // Daily snapshots are captured at 02:00 UTC = 09:00 WIB
+      // (net-worth-snapshot.scheduler.ts). The OLD anchor (`startDate + 24h
+      // - 1ms`, i.e. same-WIB-day-inclusive) would have picked the 09:00
+      // WIB Aug 1 snapshot as "opening" even though it already includes the
+      // first ~9 hours of the period's own activity. The correct anchor
+      // (`lte: startDate`) must pick the PRIOR day's snapshot instead.
+      const priorClose = makeSnapshot("2026-07-31T02:00:00.000Z", {
+        cash: 100_000_000n,
+        investments: 0n,
+        assets: 0n,
+        liabilities: 0n,
+      }); // netWorth 100,000,000 — captured 09:00 WIB Jul 31, before START
+      const sameDayAfterStart = makeSnapshot("2026-08-01T02:00:00.000Z", {
+        cash: 150_000_000n,
+        investments: 0n,
+        assets: 0n,
+        liabilities: 0n,
+      }); // netWorth 150,000,000 — captured 09:00 WIB Aug 1, AFTER START
+      const closingSnap = makeSnapshot("2026-08-31T00:00:00.000Z", {
+        cash: 150_000_000n,
+        investments: 0n,
+        assets: 0n,
+        liabilities: 0n,
+      });
+      const prisma = makeFakePrisma(
+        accounts,
+        [],
+        [],
+        [priorClose, sameDayAfterStart, closingSnap],
+      );
+      const mod: TestingModule = await Test.createTestingModule({
+        providers: [
+          ReportsService,
+          { provide: PrismaService, useValue: prisma },
+        ],
+      }).compile();
+      const svc = mod.get(ReportsService);
+
+      const bridge = await svc.getReconciliationBridge(
+        FAMILY_GROUP_ID,
+        START,
+        END,
+        true,
+      );
+
+      expect(bridge.opening).toBe(100_000_000);
+      expect(bridge.opening).not.toBe(150_000_000);
+    });
+
+    it("opening anchor is INCLUSIVE (lte, not lt) — a snapshot dated exactly startDate is selected, one dated 1ms later is not (EPIC-023 Task B3 review round 2, MEDIUM)", async () => {
+      // Locks in the `lte: startDate` boundary itself, not just the
+      // same-WIB-day scenario above: a snapshot captured AT the exact
+      // startDate instant must count as "opening" (proves the query is
+      // `lte`, not an accidental `lt`), and one captured a single
+      // millisecond after must not.
+      const exactlyAtStart = makeSnapshot(START.toISOString(), {
+        cash: 100_000_000n,
+        investments: 0n,
+        assets: 0n,
+        liabilities: 0n,
+      }); // netWorth 100,000,000 — captured at the exact startDate instant
+      const oneMsAfterStart = makeSnapshot(
+        new Date(START.getTime() + 1).toISOString(),
+        { cash: 150_000_000n, investments: 0n, assets: 0n, liabilities: 0n },
+      ); // netWorth 150,000,000 — captured 1ms after startDate
+      const closingSnap = makeSnapshot("2026-08-31T00:00:00.000Z", {
+        cash: 150_000_000n,
+        investments: 0n,
+        assets: 0n,
+        liabilities: 0n,
+      });
+      const prisma = makeFakePrisma(
+        accounts,
+        [],
+        [],
+        [exactlyAtStart, oneMsAfterStart, closingSnap],
+      );
+      const mod: TestingModule = await Test.createTestingModule({
+        providers: [
+          ReportsService,
+          { provide: PrismaService, useValue: prisma },
+        ],
+      }).compile();
+      const svc = mod.get(ReportsService);
+
+      const bridge = await svc.getReconciliationBridge(
+        FAMILY_GROUP_ID,
+        START,
+        END,
+        true,
+      );
+
+      expect(bridge.opening).toBe(100_000_000);
+      expect(bridge.opening).not.toBe(150_000_000);
+    });
+
+    it("contribution/holding mismatch — a group-3 outflow recorded WITHOUT its matching holding update must not fabricate a loss (EPIC-023 Task B3 review, HIGH x2)", async () => {
+      // A 10,000,000 group-3 "Wealth Allocation" outflow is recorded, but
+      // the family never recorded the holding it funded — the snapshot's
+      // totalAssets/totalInvestments are held FLAT across the period. Under
+      // the OLD identity (`revaluation = rawRevaluation - contribution`)
+      // this produced `revaluation: -10,000,000` — a fabricated market
+      // loss — while `unexplained` stayed exactly 0, hiding the mismatch
+      // entirely (the warning row never rendered). The new identity must
+      // instead report `holdingsChange: 0` (nothing moved) and leave the
+      // 10,000,000 gap to show up honestly: cash left, no holding grew,
+      // and net worth genuinely dropped by 10,000,000 — `unexplained`
+      // stays 0 because that IS what happened, but no fabricated loss
+      // appears anywhere.
+      const categories: FakeCategory[] = [
+        {
+          id: "c-invest",
+          name: "Investasi",
+          color: null,
+          isPrivate: false,
+          coaAccount: { direction: "TRANSFER", groupNum: 3, code: "30002" },
+        },
+      ];
+      const transactions: FakeTransaction[] = [
+        {
+          id: "t-unrecorded-holding",
+          accountId: "a1",
+          categoryId: "c-invest",
+          amount: 10_000_000n,
+          type: "expense",
+          toAccountId: null,
+          description: "Alokasi ke investasi (holding tidak dicatat)",
+          occurredAt: new Date("2026-08-15T00:00:00.000Z"),
+          createdAt: new Date("2026-08-15T00:00:00.000Z"),
+        },
+      ];
+      const snapshots: FakeSnapshot[] = [
+        makeSnapshot("2026-07-31T02:00:00.000Z", {
+          cash: 100_000_000n,
+          investments: 50_000_000n,
+          assets: 200_000_000n,
+          liabilities: 80_000_000n,
+        }), // netWorth 270,000,000
+        // Cash left (-10,000,000), but the holding totals are held FLAT —
+        // nothing recorded on the other side.
+        makeSnapshot("2026-08-31T00:00:00.000Z", {
+          cash: 90_000_000n,
+          investments: 50_000_000n,
+          assets: 200_000_000n,
+          liabilities: 80_000_000n,
+        }), // netWorth 260,000,000
+      ];
+      const prisma = makeFakePrisma(
+        accounts,
+        categories,
+        transactions,
+        snapshots,
+      );
+      const mod: TestingModule = await Test.createTestingModule({
+        providers: [
+          ReportsService,
+          { provide: PrismaService, useValue: prisma },
+        ],
+      }).compile();
+      const svc = mod.get(ReportsService);
+
+      const bridge = await svc.getReconciliationBridge(
+        FAMILY_GROUP_ID,
+        START,
+        END,
+        true,
+      );
+
+      expect(bridge.contribution).toBe(10_000_000);
+      // The defect this guards against: the OLD code computed
+      // `rawRevaluation (0) - contribution (10,000,000) = -10,000,000`, a
+      // market loss that never happened.
+      expect(bridge.holdingsChange).toBe(0);
+      expect(bridge.holdingsChange).not.toBe(-10_000_000);
+      expect(bridge.opening).toBe(270_000_000);
+      expect(bridge.closing).toBe(260_000_000);
+      // 270,000,000 + 0 (profit) - 10,000,000 (contribution) + 0
+      // (holdingsChange) = 260,000,000 — the identity holds exactly,
+      // because a contribution with no matching holding update really
+      // does just reduce net worth by the contributed amount.
+      expect(bridge.unexplained).toBe(0);
+    });
+
+    it("CRITICAL 1 defect 1 — a withdrawal back to cash REDUCES the contribution, it is not added to it", async () => {
+      // A withdrawal (type "income") out of the SAME group-3 category used
+      // for deposits. The old code ignored `tx.type` entirely and always
+      // added the amount, breaking the identity by DOUBLE the withdrawn
+      // amount. The cash effect here comes from `tx.type`, not from the
+      // category's COA direction (still TRANSFER either way).
+      const categories: FakeCategory[] = [
+        {
+          id: "c-invest",
+          name: "Investasi",
+          color: null,
+          isPrivate: false,
+          coaAccount: { direction: "TRANSFER", groupNum: 3, code: "30002" },
+        },
+      ];
+      const transactions: FakeTransaction[] = [
+        {
+          id: "t-withdraw",
+          accountId: "a1",
+          categoryId: "c-invest",
+          amount: 4_000_000n,
+          type: "income",
+          toAccountId: null,
+          description: "Tarik dana investasi ke kas",
+          occurredAt: new Date("2026-08-15T00:00:00.000Z"),
+          createdAt: new Date("2026-08-15T00:00:00.000Z"),
+        },
+      ];
+      const snapshots: FakeSnapshot[] = [
+        makeSnapshot("2026-07-31T02:00:00.000Z", {
+          cash: 100_000_000n,
+          investments: 50_000_000n,
+          assets: 200_000_000n,
+          liabilities: 80_000_000n,
+        }), // netWorth 270,000,000
+        // cash: 100,000,000 + 4,000,000 (withdrawal in) = 104,000,000;
+        // investments: 50,000,000 - 4,000,000 (withdrawal out, no market
+        // movement) = 46,000,000; assets/liabilities unchanged ->
+        // netWorth still 270,000,000 (net-worth-neutral, like any
+        // contribution/withdrawal).
+        makeSnapshot("2026-08-31T00:00:00.000Z", {
+          cash: 104_000_000n,
+          investments: 46_000_000n,
+          assets: 200_000_000n,
+          liabilities: 80_000_000n,
+        }), // netWorth 270,000,000
+      ];
+      const prisma = makeFakePrisma(
+        accounts,
+        categories,
+        transactions,
+        snapshots,
+      );
+      const mod: TestingModule = await Test.createTestingModule({
+        providers: [
+          ReportsService,
+          { provide: PrismaService, useValue: prisma },
+        ],
+      }).compile();
+      const svc = mod.get(ReportsService);
+
+      const bridge = await svc.getReconciliationBridge(
+        FAMILY_GROUP_ID,
+        START,
+        END,
+        true,
+      );
+
+      expect(bridge.profit).toBe(0); // TRANSFER-classified despite tx.type "income"
+      // The defect: the old code would report +4,000,000 here (added, not
+      // subtracted), then a revaluation of -8,000,000 to compensate —
+      // fabricating a market loss that never happened.
+      expect(bridge.contribution).toBe(-4_000_000);
+      // holdingsChange is the RAW investments delta: 46,000,000 -
+      // 50,000,000 = -4,000,000 (the withdrawal leaving investments, no
+      // market movement). Identity: 270,000,000 + 0 - (-4,000,000) +
+      // (-4,000,000) = 270,000,000.
+      expect(bridge.holdingsChange).toBe(-4_000_000);
+      expect(bridge.opening).toBe(270_000_000);
+      expect(bridge.closing).toBe(270_000_000);
+      expect(bridge.unexplained).toBe(0);
+    });
+
+    it("a legacy one-sided TRANSFER (toAccountId null) into a group-3 holding counts as cash out, exactly like an expense", async () => {
+      const categories: FakeCategory[] = [
+        {
+          id: "c-invest",
+          name: "Investasi",
+          color: null,
+          isPrivate: false,
+          coaAccount: { direction: "TRANSFER", groupNum: 3, code: "30002" },
+        },
+      ];
+      const transactions: FakeTransaction[] = [
+        {
+          id: "t-legacy-transfer",
+          accountId: "a1",
+          categoryId: "c-invest",
+          amount: 7_000_000n,
+          type: "transfer",
+          toAccountId: null,
+          description: "Alokasi ke investasi (legacy)",
+          occurredAt: new Date("2026-08-15T00:00:00.000Z"),
+          createdAt: new Date("2026-08-15T00:00:00.000Z"),
+        },
+      ];
+      const snapshots: FakeSnapshot[] = [
+        makeSnapshot("2026-07-31T02:00:00.000Z", {
+          cash: 100_000_000n,
+          investments: 50_000_000n,
+          assets: 200_000_000n,
+          liabilities: 80_000_000n,
+        }), // netWorth 270,000,000
+        makeSnapshot("2026-08-31T00:00:00.000Z", {
+          cash: 93_000_000n, // 100,000,000 - 7,000,000
+          investments: 57_000_000n, // 50,000,000 + 7,000,000
+          assets: 200_000_000n,
+          liabilities: 80_000_000n,
+        }), // netWorth 270,000,000
+      ];
+      const prisma = makeFakePrisma(
+        accounts,
+        categories,
+        transactions,
+        snapshots,
+      );
+      const mod: TestingModule = await Test.createTestingModule({
+        providers: [
+          ReportsService,
+          { provide: PrismaService, useValue: prisma },
+        ],
+      }).compile();
+      const svc = mod.get(ReportsService);
+
+      const bridge = await svc.getReconciliationBridge(
+        FAMILY_GROUP_ID,
+        START,
+        END,
+        true,
+      );
+
+      expect(bridge.contribution).toBe(7_000_000);
+      // holdingsChange is the RAW investments delta — the contribution
+      // itself moving into "Investasi" with no separate market movement:
+      // 57,000,000 - 50,000,000 = 7,000,000. Identity: 270,000,000 + 0 -
+      // 7,000,000 + 7,000,000 = 270,000,000.
+      expect(bridge.holdingsChange).toBe(7_000_000);
+      expect(bridge.unexplained).toBe(0);
+    });
+
+    it("CRITICAL 1 defect 2 — a group-3 code OTHER than the seeded '30002' Investasi account counts toward contribution identically, never misfiled into a separate bucket", async () => {
+      // EPIC-023 Task B3 review (LOW, batch fix 6) — the generic chart every
+      // real family gets (`GENERIC_COA_CHART`, re-exported by
+      // default-coa-chart.ts) has FOUR group-3 codes (30001/30002/30003/
+      // 30099); "ten" is only true of the demo `prisma/seed.ts`, which real
+      // families never receive. The old code only recognized "30002" as
+      // investment-directed and misfiled everything else as "asset" —
+      // splitting one contribution into two fabricated figures that
+      // happened to sum correctly (4 codes misfiled > 1 code recognized is
+      // still the argument against that discriminator). This asserts the
+      // TOTAL is a single, unsplit figure.
+      const categories: FakeCategory[] = [
+        {
+          id: "c-invest",
+          name: "Investasi",
+          color: null,
+          isPrivate: false,
+          coaAccount: { direction: "TRANSFER", groupNum: 3, code: "30002" },
+        },
+        {
+          id: "c-stocks",
+          name: "Saham",
+          color: null,
+          isPrivate: false,
+          coaAccount: { direction: "TRANSFER", groupNum: 3, code: "30701" },
+        },
+      ];
+      const transactions: FakeTransaction[] = [
+        {
+          id: "t-invest",
+          accountId: "a1",
+          categoryId: "c-invest",
+          amount: 10_000_000n,
+          type: "expense",
+          toAccountId: null,
+          description: "Alokasi ke investasi",
+          occurredAt: new Date("2026-08-15T00:00:00.000Z"),
+          createdAt: new Date("2026-08-15T00:00:00.000Z"),
+        },
+        {
+          id: "t-stocks",
+          accountId: "a1",
+          categoryId: "c-stocks",
+          amount: 6_000_000n,
+          type: "expense",
+          toAccountId: null,
+          description: "Beli saham",
+          occurredAt: new Date("2026-08-16T00:00:00.000Z"),
+          createdAt: new Date("2026-08-16T00:00:00.000Z"),
+        },
+      ];
+      const snapshots: FakeSnapshot[] = [
+        makeSnapshot("2026-07-31T02:00:00.000Z", {
+          cash: 100_000_000n,
+          investments: 50_000_000n,
+          assets: 200_000_000n,
+          liabilities: 80_000_000n,
+        }), // netWorth 270,000,000
+        makeSnapshot("2026-08-31T00:00:00.000Z", {
+          cash: 84_000_000n, // 100,000,000 - 10,000,000 - 6,000,000
+          investments: 66_000_000n, // 50,000,000 + 10,000,000 + 6,000,000
+          assets: 200_000_000n,
+          liabilities: 80_000_000n,
+        }), // netWorth 270,000,000
+      ];
+      const prisma = makeFakePrisma(
+        accounts,
+        categories,
+        transactions,
+        snapshots,
+      );
+      const mod: TestingModule = await Test.createTestingModule({
+        providers: [
+          ReportsService,
+          { provide: PrismaService, useValue: prisma },
+        ],
+      }).compile();
+      const svc = mod.get(ReportsService);
+
+      const bridge = await svc.getReconciliationBridge(
+        FAMILY_GROUP_ID,
+        START,
+        END,
+        true,
+      );
+
+      // Both codes summed into ONE figure — 10,000,000 + 6,000,000.
+      expect(bridge.contribution).toBe(16_000_000);
+      // holdingsChange is the RAW investments delta — both contributions
+      // landing in "Investasi" with no separate market movement:
+      // 66,000,000 - 50,000,000 = 16,000,000.
+      expect(bridge.holdingsChange).toBe(16_000_000);
+      expect(bridge.unexplained).toBe(0);
+    });
+
+    it("a two-sided TRANSFER (toAccountId set) tagged with a group-3 category contributes ZERO — both legs are already inside totalCash", async () => {
+      const categories: FakeCategory[] = [
+        {
+          id: "c-invest",
+          name: "Investasi",
+          color: null,
+          isPrivate: false,
+          coaAccount: { direction: "TRANSFER", groupNum: 3, code: "30002" },
+        },
+      ];
+      const transactions: FakeTransaction[] = [
+        {
+          id: "t-internal-transfer",
+          accountId: "a1",
+          categoryId: "c-invest",
+          amount: 5_000_000n,
+          type: "transfer",
+          toAccountId: "a2",
+          description: "Pindah antar rekening sendiri",
+          occurredAt: new Date("2026-08-15T00:00:00.000Z"),
+          createdAt: new Date("2026-08-15T00:00:00.000Z"),
+        },
+      ];
+      const snapshots: FakeSnapshot[] = [
+        makeSnapshot("2026-07-31T02:00:00.000Z", {
+          cash: 100_000_000n,
+          investments: 50_000_000n,
+          assets: 200_000_000n,
+          liabilities: 80_000_000n,
+        }), // netWorth 270,000,000
+        // Cash simply moved between two of the family's own accounts —
+        // totalCash (and every other bucket) is unchanged.
+        makeSnapshot("2026-08-31T00:00:00.000Z", {
+          cash: 100_000_000n,
+          investments: 50_000_000n,
+          assets: 200_000_000n,
+          liabilities: 80_000_000n,
+        }), // netWorth 270,000,000
+      ];
+      const prisma = makeFakePrisma(
+        accounts,
+        categories,
+        transactions,
+        snapshots,
+      );
+      const mod: TestingModule = await Test.createTestingModule({
+        providers: [
+          ReportsService,
+          { provide: PrismaService, useValue: prisma },
+        ],
+      }).compile();
+      const svc = mod.get(ReportsService);
+
+      const bridge = await svc.getReconciliationBridge(
+        FAMILY_GROUP_ID,
+        START,
+        END,
+        true,
+      );
+
+      expect(bridge.contribution).toBe(0);
+      expect(bridge.holdingsChange).toBe(0);
+      expect(bridge.unexplained).toBe(0);
+    });
+
+    it("receivable month: a group-4 TRANSFER cash outflow has no counterpart in the snapshot — the gap is named unexplained, not hidden inside profit or holdingsChange", async () => {
+      // COA group 4 (Receivable) has no counterpart in
+      // `computeNetWorthBreakdown` — no receivable table backs it — so
+      // lending money to a friend lowers cash with nothing offsetting it.
+      // The identity genuinely does not hold this month; `unexplained`
+      // names the gap instead of hiding or forcing it to zero.
+      const categories: FakeCategory[] = [
+        {
+          id: "c-receivable",
+          name: "Piutang",
+          color: null,
+          isPrivate: false,
+          // EPIC-023 A1 moved COA group 4 to TRANSFER.
+          coaAccount: { direction: "TRANSFER", groupNum: 4, code: "40001" },
+        },
+      ];
+      const transactions: FakeTransaction[] = [
+        {
+          id: "t-lend",
+          accountId: "a1",
+          categoryId: "c-receivable",
+          amount: 3_000_000n,
+          type: "transfer",
+          toAccountId: null,
+          description: "Pinjamkan uang ke teman",
+          occurredAt: new Date("2026-08-15T00:00:00.000Z"),
+          createdAt: new Date("2026-08-15T00:00:00.000Z"),
+        },
+      ];
+      const snapshots: FakeSnapshot[] = [
+        makeSnapshot("2026-07-31T02:00:00.000Z", {
+          cash: 100_000_000n,
+          investments: 50_000_000n,
+          assets: 200_000_000n,
+          liabilities: 80_000_000n,
+        }), // netWorth 270,000,000
+        makeSnapshot("2026-08-31T00:00:00.000Z", {
+          cash: 97_000_000n, // 100,000,000 - 3,000,000, nothing offsets it
+          investments: 50_000_000n,
+          assets: 200_000_000n,
+          liabilities: 80_000_000n,
+        }), // netWorth 267,000,000
+      ];
+      const prisma = makeFakePrisma(
+        accounts,
+        categories,
+        transactions,
+        snapshots,
+      );
+      const mod: TestingModule = await Test.createTestingModule({
+        providers: [
+          ReportsService,
+          { provide: PrismaService, useValue: prisma },
+        ],
+      }).compile();
+      const svc = mod.get(ReportsService);
+
+      const bridge = await svc.getReconciliationBridge(
+        FAMILY_GROUP_ID,
+        START,
+        END,
+        true,
+      );
+
+      expect(bridge.profit).toBe(0);
+      expect(bridge.contribution).toBe(0); // groupNum 4, not 3 — never counted
+      expect(bridge.holdingsChange).toBe(0);
+      expect(bridge.opening).toBe(270_000_000);
+      expect(bridge.closing).toBe(267_000_000);
+      // Independently known: exactly the 3,000,000 lending outflow.
+      expect(bridge.unexplained).toBe(-3_000_000);
+      expect(bridge.unexplained).not.toBe(0);
     });
   });
 
@@ -1721,7 +1957,7 @@ describe("ReportsService privacy enforcement", () => {
 
     it("getReconciliationBridge: a member viewer must NOT see opening/closing once the family holds a private account", async () => {
       const snapshots = [
-        makeSnapshot("2026-08-01T00:00:00.000Z"),
+        makeSnapshot("2026-07-31T02:00:00.000Z"),
         makeSnapshot("2026-08-31T00:00:00.000Z"),
       ];
       const prisma = makeFakePrisma(accountsWithPrivate, [], [], snapshots);
@@ -1749,7 +1985,7 @@ describe("ReportsService privacy enforcement", () => {
 
     it("getReconciliationBridge: a member viewer sees opening/closing normally when the family holds NO private accounts", async () => {
       const snapshots = [
-        makeSnapshot("2026-08-01T00:00:00.000Z"),
+        makeSnapshot("2026-07-31T02:00:00.000Z"),
         makeSnapshot("2026-08-31T00:00:00.000Z"),
       ];
       const prisma = makeFakePrisma(accountsAllPublic, [], [], snapshots);
@@ -1772,6 +2008,161 @@ describe("ReportsService privacy enforcement", () => {
       expect(bridge.closing).toBe(1_009_000_000);
       expect(bridge.dataAvailable).toBe(true);
       expect(bridge.restrictedForViewer).toBe(false);
+    });
+
+    // EPIC-023 Task B retry (Automation Log, "Paused — group B") — a
+    // coverage gap the epic recorded by name: the equivalent already
+    // existed for `getBalanceSheet` ("the owner viewer still sees the
+    // snapshot in full") but not for `getReconciliationBridge`.
+    it("getReconciliationBridge: the owner viewer still sees opening/closing in full, even though the family holds a private account", async () => {
+      const snapshots = [
+        makeSnapshot("2026-07-31T02:00:00.000Z"),
+        makeSnapshot("2026-08-31T00:00:00.000Z"),
+      ];
+      const prisma = makeFakePrisma(accountsWithPrivate, [], [], snapshots);
+      const mod: TestingModule = await Test.createTestingModule({
+        providers: [
+          ReportsService,
+          { provide: PrismaService, useValue: prisma },
+        ],
+      }).compile();
+      const svc = mod.get(ReportsService);
+
+      const bridge = await svc.getReconciliationBridge(
+        FAMILY_GROUP_ID,
+        new Date("2026-07-31T17:00:00.000Z"),
+        new Date("2026-08-31T16:59:59.999Z"),
+        true, // owner
+      );
+
+      expect(bridge.opening).toBe(1_009_000_000);
+      expect(bridge.closing).toBe(1_009_000_000);
+      expect(bridge.dataAvailable).toBe(true);
+      expect(bridge.restrictedForViewer).toBe(false);
+    });
+
+    // EPIC-023 Task B3 review (HIGH, FIX 2) — `transactionPrivacyWhere`
+    // filters on BOTH `account.isPrivate` AND `category.isPrivate`, but the
+    // guard above (`familyHasPrivateAccounts`) only ever checked accounts.
+    // A family with ZERO private accounts but at least one private
+    // CATEGORY slipped through entirely: opening/closing came from the
+    // privacy-open snapshot while profit/contribution silently excluded
+    // the private-category transactions, and the gap landed in
+    // `unexplained` — rendered in warning colour, with
+    // `restrictedForViewer: false`, effectively an oracle on the hidden
+    // transaction's amount. `familyHasPrivateItems` closes this gap by
+    // checking categories too, for `getReconciliationBridge` only —
+    // `getBalanceSheet` stays on the accounts-only check (a private-
+    // category transaction still moves a VISIBLE account's balance, so
+    // the balance sheet discloses nothing a member cannot already see).
+    const categoriesWithPrivate: FakeCategory[] = [
+      {
+        id: "cat-private",
+        name: "Private Category",
+        color: null,
+        isPrivate: true,
+        coaAccount: { direction: "EXPENSE" },
+      },
+    ];
+
+    it("getReconciliationBridge: a member viewer must NOT see opening/closing when the family holds NO private accounts but has a private CATEGORY", async () => {
+      const snapshots = [
+        makeSnapshot("2026-07-31T02:00:00.000Z"),
+        makeSnapshot("2026-08-31T00:00:00.000Z"),
+      ];
+      const prisma = makeFakePrisma(
+        accountsAllPublic,
+        categoriesWithPrivate,
+        [],
+        snapshots,
+      );
+      const mod: TestingModule = await Test.createTestingModule({
+        providers: [
+          ReportsService,
+          { provide: PrismaService, useValue: prisma },
+        ],
+      }).compile();
+      const svc = mod.get(ReportsService);
+
+      const bridge = await svc.getReconciliationBridge(
+        FAMILY_GROUP_ID,
+        new Date("2026-07-31T17:00:00.000Z"),
+        new Date("2026-08-31T16:59:59.999Z"),
+        false, // member
+      );
+
+      // The regression this guards: a member must NOT see the privacy-open
+      // snapshot figure just because the family happens to have no private
+      // ACCOUNT — a private CATEGORY must gate it exactly the same way.
+      expect(bridge.opening).not.toBe(1_009_000_000);
+      expect(bridge.opening).toBe(0);
+      expect(bridge.closing).toBe(0);
+      expect(bridge.dataAvailable).toBe(false);
+      expect(bridge.restrictedForViewer).toBe(true);
+    });
+
+    it("getReconciliationBridge: the owner viewer still sees opening/closing in full when the family holds only a private CATEGORY", async () => {
+      const snapshots = [
+        makeSnapshot("2026-07-31T02:00:00.000Z"),
+        makeSnapshot("2026-08-31T00:00:00.000Z"),
+      ];
+      const prisma = makeFakePrisma(
+        accountsAllPublic,
+        categoriesWithPrivate,
+        [],
+        snapshots,
+      );
+      const mod: TestingModule = await Test.createTestingModule({
+        providers: [
+          ReportsService,
+          { provide: PrismaService, useValue: prisma },
+        ],
+      }).compile();
+      const svc = mod.get(ReportsService);
+
+      const bridge = await svc.getReconciliationBridge(
+        FAMILY_GROUP_ID,
+        new Date("2026-07-31T17:00:00.000Z"),
+        new Date("2026-08-31T16:59:59.999Z"),
+        true, // owner
+      );
+
+      expect(bridge.opening).toBe(1_009_000_000);
+      expect(bridge.closing).toBe(1_009_000_000);
+      expect(bridge.dataAvailable).toBe(true);
+      expect(bridge.restrictedForViewer).toBe(false);
+    });
+
+    it("getBalanceSheet: a member viewer is UNAFFECTED by a private CATEGORY — only accounts gate the snapshot", async () => {
+      const snapshots = [makeSnapshot("2026-08-31T00:00:00.000Z")];
+      const prisma = makeFakePrisma(
+        accountsAllPublic,
+        categoriesWithPrivate,
+        [],
+        snapshots,
+      );
+      const mod: TestingModule = await Test.createTestingModule({
+        providers: [
+          ReportsService,
+          { provide: PrismaService, useValue: prisma },
+        ],
+      }).compile();
+      const svc = mod.get(ReportsService);
+
+      const balanceSheet = await svc.getBalanceSheet(
+        FAMILY_GROUP_ID,
+        new Date("2026-08-31T16:59:59.999Z"),
+        false, // member
+      );
+
+      // A private-category transaction still moves a VISIBLE account's
+      // balance — the balance sheet discloses nothing a member cannot
+      // already see, so `getBalanceSheet` deliberately stays on the
+      // accounts-only check and must NOT be affected (unlike the bridge
+      // above).
+      expect(balanceSheet.netWorth).toBe(1_009_000_000);
+      expect(balanceSheet.dataAvailable).toBe(true);
+      expect(balanceSheet.restrictedForViewer).toBe(false);
     });
   });
 });

@@ -37,6 +37,27 @@ function parseDate(iso: string | undefined, fallback: Date): Date {
   return isNaN(d.getTime()) ? fallback : d;
 }
 
+/**
+ * EPIC-023 Task B3 review (LOW, batch fix 6) — WIB (UTC+7, fixed, no DST)
+ * start-of-month, mirroring `wibWallClockToIso`/`wibCalendarParts` in
+ * `apps/web/src/lib/laporan-period.ts` (EPIC-022 B7). Scoped to
+ * `getReconciliationBridge` only, NOT applied to this controller's other
+ * `new Date(now.getFullYear(), now.getMonth(), 1)` call sites — those use
+ * server-LOCAL month boundaries and changing them is a wider blast radius
+ * than this fix's scope; every real client already sends an explicit
+ * `startDate` from `resolvePreset`, so this only matters for a caller that
+ * omits it.
+ */
+const WIB_UTC_OFFSET_MINUTES = 7 * 60;
+
+function defaultMonthStartWib(now: Date): Date {
+  const wibNow = new Date(now.getTime() + WIB_UTC_OFFSET_MINUTES * 60_000);
+  const utcMs =
+    Date.UTC(wibNow.getUTCFullYear(), wibNow.getUTCMonth(), 1, 0, 0, 0, 0) -
+    WIB_UTC_OFFSET_MINUTES * 60_000;
+  return new Date(utcMs);
+}
+
 @ApiTags("reports")
 @ApiBearerAuth()
 @Controller("family-groups/:familyGroupId/reports")
@@ -267,7 +288,11 @@ export class ReportsController {
     @Query("endDate") endDateStr?: string,
   ): Promise<ReconciliationBridgeDto> {
     const now = new Date();
-    const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    // EPIC-023 Task B3 review (LOW, batch fix 6) — WIB-anchored, not
+    // server-local: `new Date(y, m, 1)` drops the first 7 hours of the WIB
+    // month when the client omits `startDate`, consistent with what B1
+    // established for the web-side presets.
+    const defaultStart = defaultMonthStartWib(now);
     const startDate = parseDate(startDateStr, defaultStart);
     const endDate = parseDate(endDateStr, now);
     assertHouseholdWideReadAllowed(req.tenantContext?.member?.role);

@@ -155,58 +155,91 @@ export interface BalanceSheetDto {
 
 // EPIC-023 Task B (B3) — US-RPT-11: reconciles the gap between P&L profit
 // and the actual net-worth change over the same period ("why is my profit
-// 10 jt but my wealth up 15 jt"). `assetRevaluation`/`investmentRevaluation`
-// are each derived independently from the opening/closing snapshots' own
-// `totalAssets`/`totalInvestments` columns — never as a single
-// `closing - opening - profit` residual split between the two (that would
-// be indistinguishable from a made-up split whenever both revalue in the
-// same period).
+// 10 jt but my wealth up 15 jt").
 //
-// EPIC-023 Task B retry (CRITICAL 1) — a snapshot's `totalAssets`/
+// EPIC-023 Task B, rewrite (attempt 3) — a snapshot's `totalAssets`/
 // `totalInvestments` columns move for TWO independent reasons: the market
 // value changing (a real revaluation), and a cash-funded CONTRIBUTION (a
 // COA group-3 "Wealth Allocation" TRANSFER moving cash into an Investment/
 // Asset that has no automatic ledger link back to the Transaction that
-// funded it — see reports.service.ts's `getReconciliationBridge` doc
-// comment). A contribution is net-worth-neutral (cash down, holding up by
-// the same amount) and must NOT be counted as a gain: `assetRevaluation`/
-// `investmentRevaluation` below are the snapshot diff MINUS the period's own
-// contributions, so they reflect market movement only.
+// funded it). Earlier attempts tried to split that contribution AND the
+// revaluation into asset-directed vs investment-directed halves; both are
+// unsatisfiable because `Transaction` has no FK to the `Asset`/`Investment`
+// row it funded — attempt 2's `code === "30002"` discriminator misfiled
+// every OTHER group-3 code and ignored transaction direction entirely (a
+// withdrawal back to cash was ADDED to contributions instead of
+// subtracted). This shape reports ONE combined `contribution` and ONE
+// combined `holdingsChange` instead — see reports.service.ts's
+// `getReconciliationBridge` doc comment for the exact derivation.
+//
+// EPIC-023 Task B3 review (HIGH x2) — the derived `revaluation` field
+// (`rawDelta - contribution`) is GONE, replaced by `holdingsChange` (the
+// RAW delta, nothing subtracted). Deriving `revaluation` looked like it
+// isolated "market movement only", but nothing links a `Transaction` to
+// the holding it funds: a contribution recorded WITHOUT its matching
+// holding update (or vice versa) was silently absorbed into `revaluation`
+// as a FABRICATED gain or loss, with `unexplained` staying exactly 0 (the
+// case that should have warned the family instead stayed silent). The full
+// identity is now:
+//
+//   opening + profit − contribution + holdingsChange + unexplained = closing
+//
+// (D24 itself says "opening + (income − expenses) + change in asset &
+// investment values = closing" — that formula OMITS the contribution
+// outflow; the identity above is D24 with that term restored, not a
+// departure from it. Do not "fix" this back to matching D24's shorter
+// wording literally — verify against the epic's own clean-month fixture,
+// which requires the `− contribution` term to balance.)
 export interface ReconciliationBridgeDto {
   startDate: string;
   endDate: string;
-  /** Net worth at the start of the period (from the snapshot on or before
-   * the period's first day), or 0 when unavailable. */
+  /** Net worth at the start of the period (from the last snapshot on or
+   * before `startDate` itself), or 0 when unavailable. */
   opening: number;
-  /** Net worth at the end of the period (from the snapshot on or before
-   * the period's last day), or 0 when unavailable. */
+  /** Net worth at the end of the period (from the last snapshot on or
+   * before `endDate`), or 0 when unavailable. */
   closing: number;
   /** Revenue − expenses over the period, COA-direction classified — TRANSFER
    * (wealth allocation / debt principal) is excluded, matching the P&L. */
   profit: number;
-  /** Market-movement-only change in physical assets: (closing.totalAssets −
-   * opening.totalAssets) − `assetContribution`. */
-  assetRevaluation: number;
-  /** Market-movement-only change in investments: (closing.totalInvestments −
-   * opening.totalInvestments) − `investmentContribution`. */
-  investmentRevaluation: number;
-  /** Cash moved into a physical/other asset this period via a COA group-3
-   * ("Wealth Allocation") TRANSFER OTHER than the "Investasi" account —
-   * net-worth-neutral (cash down, asset up by the same amount), named here
-   * so it is never silently folded into `assetRevaluation`. */
-  assetContribution: number;
-  /** Cash moved into the investment portfolio this period via the COA
-   * group-3 "Investasi" TRANSFER account — net-worth-neutral (cash down,
-   * investments up by the same amount), named here so it is never silently
-   * folded into `investmentRevaluation`. */
-  investmentContribution: number;
+  /** Signed sum of the period's COA group-3 ("Wealth Allocation") TRANSFER
+   * transactions — cash moved into a holding (+) or withdrawn back to cash
+   * (−). A real two-sided transfer between two of the family's own
+   * accounts contributes 0 (both legs are already inside `totalCash`). A
+   * real SUBTRAHEND in the identity above now, not a memo line folded into
+   * a derived figure — see `holdingsChange` below for why. */
+  contribution: number;
+  /** RAW combined change in physical assets AND investments: (Δ
+   * totalAssets + Δ totalInvestments). Nothing is subtracted — this is the
+   * directly-measured snapshot delta, not a market-movement-only figure.
+   * Not split by asset/investment — nothing links a contribution to which
+   * of the two it funded, so a split would misattribute a real gain the
+   * same way an asset-vs-investment contribution split once misattributed
+   * a contribution. */
+  holdingsChange: number;
+  /** `closing − (opening + profit − contribution + holdingsChange)` — an
+   * HONESTLY NAMED residual, not forced to zero. Two independent, named
+   * reasons it is not always zero: (1) COA group 4 (Receivable) has no
+   * counterpart in the net-worth breakdown (no receivable table backs it),
+   * so lending money out lowers cash with nothing to offset it; (2) a
+   * back-dated entry can move a balance in one snapshot period and its
+   * profit in another, since snapshots record CAPTURE time while profit is
+   * computed from `occurredAt` — see `getReconciliationBridge`'s doc
+   * comment. Naming the gap is more honest than hiding it inside another
+   * term. */
+  unexplained: number;
   /** False when either endpoint has no snapshot at or before it — an
    * honest "no data" signal, matching `BalanceSheetDto.dataAvailable`. */
   dataAvailable: boolean;
-  /** EPIC-023 Task B retry (CRITICAL 2) — same restriction as
-   * `BalanceSheetDto.restrictedForViewer`: true when this viewer may not
-   * see private items and the family has at least one private account, so
-   * `opening`/`closing` (privacy-unaware snapshot totals) cannot be shown. */
+  /** EPIC-023 Task B retry (CRITICAL 2), widened by EPIC-023 Task B3 review
+   * (HIGH, FIX 2) — true when this viewer may not see private items AND
+   * the family has at least one private `Account` OR at least one private
+   * `Category`, so `opening`/`closing` (privacy-unaware snapshot totals)
+   * cannot be shown alongside a privacy-filtered `profit`/`contribution`.
+   * Wider than `BalanceSheetDto.restrictedForViewer` (accounts only) —
+   * see `familyHasPrivateItems`'s doc comment in reports.service.ts for
+   * why this endpoint needs the category check and the balance sheet does
+   * not. */
   restrictedForViewer: boolean;
 }
 

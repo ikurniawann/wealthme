@@ -229,7 +229,7 @@ asset & investment values = closing net worth`. This is what answers "why is
     P&L expenses and a loan disbursement no longer appears as revenue.
   - **A4** — State the cash basis in the P&L header, both locales. (D26, US-RPT-13)
 
-- [ ] ### B — Report periods and the balance-sheet bridge
+- [x] ### B — Report periods and the balance-sheet bridge ✅
   - **B1** — Replace `ReportPeriodSelection` with a date range plus presets (This
     Month · Last Month · Last 3/6/12 Months · This Year · Last Year · Custom),
     applied across every report sub-view, WIB-anchored as EPIC-022 B7 established.
@@ -237,9 +237,9 @@ asset & investment values = closing net worth`. This is what answers "why is
   - **B2** — The balance sheet uses the range's end date and labels it
     ("Posisi per 5 Agu 2026"), honouring `asOfDate` via `NetWorthSnapshot`
     instead of silently showing today (closes EPIC-022 B11).
-  - **B3** — Reconciliation bridge: `opening + (income − expenses) + asset &
-investment revaluation = closing`, every residual named. Unit tests on a
-    constructed month. (D24, US-RPT-11)
+  - **B3** — Reconciliation bridge: `opening + profit − contribution +
+holdingsChange + unexplained = closing`, every residual named. Unit tests
+    on a constructed month. (D24, US-RPT-11)
 
 - [x] ### C — Roles, kinship and access ✅
   - **C1** — Add `Member.relationship`; extend `Role` with the dependant and
@@ -683,88 +683,98 @@ whose P&L and balance sheet reconcile through the bridge.
   tsconfig/ts-jest setup is its own piece of work and was deliberately left
   alone here.
 
-## Paused — group B (reconciliation bridge)
-
-**Not blocked by the retry rule** — 2 of 3 attempts used. Paused because the
-third cannot be verified: this sandbox became memory-exhausted (17.5 GB used /
-3.2 GB free), `scripts/test.sh` and `scripts/qa.sh` are OOM-killed (exit 137)
-when turbo runs packages in parallel, the `packages/contracts` build SIGTRAPs on
-a stale V8 compile cache, and the pre-commit hook itself now core-dumps.
-Spending the last attempt where the gates cannot run is how a wrong result gets
-shipped and believed.
-
-Branch `feat/EPIC-023-task-5-b-report-periods-and-the-balance-sheet-bridge`
-holds the work (commit `b24726d`). Run suites directly —
-`DISABLE_V8_COMPILE_CACHE=1 pnpm jest --runInBand` in `apps/api` / `apps/web` —
-until the environment recovers. Both pass that way: **597 API / 260 web**, lint
-clean in all three packages, `security-check.sh` exit 0.
-
-### Done and verified
-
-- **B1** — `resolvePreset`, WIB-anchored and timezone-independent (39 tests
-  including a non-WIB `TZ` run), end-of-day-inclusive bounds, inverted custom
-  range refused. Wired across the report sub-views; the two genuinely
-  period-agnostic tabs (`rfamily`, `rinv`) say so rather than rendering an inert
-  control.
-- **B2** — the balance sheet honours the range's end date via `NetWorthSnapshot`
-  and labels it, with honest states for "no snapshot at or before this date" and
-  "no snapshots at all". Closes EPIC-022 B11.
-- **A privacy regression, found and closed.** Snapshots are captured with
-  privacy fully open (`computeNetWorthBreakdown(fgId, true)`), so reading them
-  bypassed `accountPrivacyWhere`. A plain `member` saw **1,009,000,000** instead
-  of **10,000,000** — the owner's private account. Now a viewer who may not see
-  private items is refused the snapshot outright rather than shown totals
-  containing hidden money.
-- The fake-zero balance sheet on the no-data path, and the false "Neraca Tidak
-  Seimbang" warning that fired on every historical period.
-
-### Open — and it is a data-model problem, not a coding slip
-
-**B3's bridge cannot attribute a wealth-allocation transfer.** Moving cash into
-a holding is a COA group-3 `TRANSFER` (correctly out of the P&L), and it also
-moves `totalInvestments`/`totalAssets` in the snapshot. Nothing links the
-`Transaction` to the holding it funded, so the code guesses from a hardcoded COA
-code. Two consequences, both reproduced by a reviewer with real tests:
-
-1. **Direction is ignored.** A withdrawal back to cash carries the same group-3
-   category and is *added* to contributions, so the identity breaks by **double**
-   the amount (250,000,000 vs a true 270,000,000). Attempt 2 made this strictly
-   worse than attempt 1.
-2. **The `code === "30002"` discriminator misfiles the seeded chart**, which has
-   ten group-3 codes including `30701 Stocks` and `30702 Crypto`. Buying stock
-   renders "Asset Revaluation −Rp 10 jt" beside "Investment Revaluation +Rp 10
-   jt" — two fabricated figures that *sum correctly*, so nothing signals the
-   error. Worse than a visible imbalance.
-
-**The split into two named revaluations was an orchestration decision, and it
-was wrong.** The epic's own text says "asset & investment revaluation" — one
-term. It was split during the RED phase to defeat a single-residual cheat, and
-that split created a requirement the schema cannot satisfy.
-
-### Recommended fix — simpler than what is there
-
-Collapse to one signed contribution and one combined revaluation:
-
-- `contribution` = signed sum of group-3 `TRANSFER` transactions, using
-  `tx.type` for direction (out of cash = positive, back to cash = negative).
-- `revaluation` = `(Δassets + Δinvestments) − contribution`.
-- identity: `closing = opening + profit + revaluation`, with the contribution
-  shown as its own net-zero line.
-
-Misattribution becomes impossible because nothing is attributed. Keep the
-anti-cheat property by asserting `revaluation` against an independently-known
-market movement and `contribution` against independently-known transfers, rather
-than by splitting buckets.
-
-If per-holding attribution is genuinely wanted later, it needs the same
-treatment E1 gives liabilities and insurance: a link from `Transaction` to the
-holding it funds. That is a schema decision, not a reporting one.
-
-### Also recorded
-
-- `restrictedForViewer: true` discloses one bit — that the family has at least
-  one private account — which a `member` could not previously learn. Judged a
-  reasonable trade against silently showing a generic "no data" banner, but it
-  should be a conscious choice.
-- Missing coverage: owner + private account for `getReconciliationBridge`
-  (present for `getBalanceSheet`).
+- 2026-08-05 — Group B was paused mid-loop (2 of 3 attempts used, not blocked
+  by the retry rule): the sandbox appeared memory-exhausted (17.5 GB used /
+  3.2 GB free), `scripts/test.sh`/`scripts/qa.sh` exited 137 under turbo's
+  parallel package runs, the `packages/contracts` build SIGTRAPped, and the
+  pre-commit hook itself core-dumped. B1 and B2 were done and verified at that
+  point (`resolvePreset` WIB-anchored/timezone-independent, 39 tests; the
+  balance sheet honouring the range end date via `NetWorthSnapshot`, closing
+  EPIC-022 B11; a privacy regression found and closed — snapshots are captured
+  privacy-open, so a plain `member` briefly saw 1,009,000,000 instead of
+  10,000,000 before a restricted-viewer refusal was added). B3 (the
+  reconciliation bridge) was left open with two CRITICAL findings from a
+  reviewer's real tests: the `contribution`/`revaluation` split ignored
+  transfer direction (a withdrawal was _added_ to contributions, doubling the
+  error) and misfiled the seeded chart's ten group-3 codes via a hardcoded
+  `code === "30002"` discriminator, producing two fabricated figures that
+  happened to sum correctly. Recommended fix at the time: collapse to one
+  signed `contribution` and one combined `revaluation = (Δassets +
+Δinvestments) − contribution`.
+- 2026-08-05 — Resumed group B. **The paused environment's actual fault was
+  misdiagnosed as memory exhaustion; the real cause was a corrupt V8 compile
+  cache at `/tmp/v8-compile-cache-1000`** — `pnpm --version` itself SIGTRAPped.
+  `DISABLE_V8_COMPILE_CACHE=1` fixes direct calls; turbo strips env vars from
+  its task children by default, so `TURBO_ENV_MODE=loose` was additionally
+  required to make the real gate scripts (`scripts/test.sh`, `scripts/qa.sh`)
+  runnable again rather than substituting a weaker path. Both together restore
+  `pnpm turbo run build` to "3 successful, 3 total". The cache directory
+  itself could not be deleted (permission denied in this session) but did not
+  need to be — the env-var workaround is sufficient and was used throughout.
+  B3 attempt 3 (test-first, as routed) implemented the previously-recommended
+  fix — `contribution` (signed group-3 cash effect) and `revaluation =
+rawDelta − contribution` — and it closed both CRITICAL findings. Six gate
+  agents then ran in parallel: `ecc:react-reviewer`, `ecc:typescript-reviewer`,
+  `review-qa-agent`, `ecc:security-reviewer`, `security-agent`
+  (`security-check.sh` exit 0), and the adversarial reviewer. Five passed;
+  **the adversarial pass found the recommended fix itself was wrong**, by
+  mutation testing rather than by reading: `revaluation := rawDelta −
+contribution` absorbs any mismatch between a recorded contribution and its
+  (unlinked, since no FK exists) holding update, so a 10,000,000 group-3
+  outflow recorded with no matching asset/investment change produced
+  `revaluation: -10,000,000` — a fabricated market loss — with `unexplained`
+  landing exactly on 0, hiding the warning row. It also found the card's
+  visible rows did not sum to Closing (contribution rendered as a small
+  memo, not a real addend/subtrahend), and — independently — the security
+  reviewer found the privacy guard (`familyHasPrivateAccounts`, accounts-only)
+  did not cover `transactionPrivacyWhere`'s second filter on
+  `category.isPrivate`, so a family with zero private accounts but one
+  private category leaked its hidden transaction total through `unexplained`
+  to a `member` viewer. A third HIGH, found independently by re-deriving the
+  snapshot-capture schedule from `net-worth-snapshot.scheduler.ts` rather than
+  trusting the code's own comment: the opening anchor
+  (`startDate + 86_400_000 - 1`) selected the snapshot captured _within_ the
+  period's first ~9 hours (02:00 UTC = 09:00 WIB), double-counting that
+  window against `profit`.
+  **The fix that landed supersedes the originally-recommended one.** Rather
+  than repair the derived `revaluation`, it was deleted: `holdingsChange` is
+  now the RAW combined snapshot delta (Δassets + Δinvestments, nothing
+  subtracted), and `contribution` became a real subtrahend in the identity —
+  `opening + profit − contribution + holdingsChange + unexplained = closing`.
+  This is the epic's own D24 formula (`opening + profit + Δassets&investments
+= closing`) with the contribution term restored — D24 as stated is
+  incomplete; it omits the contribution outflow and does not balance on its
+  own. The privacy gap was closed with a new `familyHasPrivateItems` check
+  (accounts OR categories) wired to the bridge only; `getBalanceSheet` was
+  deliberately left on the narrower accounts-only check, since a
+  private-category transaction still moves a visible account's balance there
+  — nothing to leak. The snapshot anchor became a plain `lte: startDate`,
+  symmetric with closing's existing `lte: endDate`; `NetWorthSnapshot.date`
+  is a genuine SQL `DATE` column (not a timestamp), which makes the fix
+  correct for every period boundary under WIB's fixed UTC+7 offset, not just
+  the tested date. A second gate round then re-ran all five review agents
+  plus a `database-reviewer` pass focused specifically on the snapshot-anchor
+  arithmetic; four passed outright, and **every one of the four HIGH fixes
+  was independently confirmed by mutation testing** (flip the fix back,
+  confirm the specific regression test fails, restore, md5-verify the
+  restore is byte-identical) — the strongest evidence tier this epic's
+  process produces. `database-reviewer` FAILed on one MEDIUM: no test locked
+  in the anchor's `lte` (inclusive) vs. an accidental `lt` at the exact
+  boundary. Closed directly with one more test, itself mutation-verified the
+  same way. Final: **api 606/606 (55 suites), web 261/261 (23 suites)**,
+  `qa.sh`/`security-check.sh` both exit 0, `packages/contracts/dist` rebuilt
+  and byte-identical to `src`. **Deferred by decision, not oversight** (same
+  as A1's precedent in this epic): the identity's honest residual,
+  `unexplained`, cannot be zero on every month by construction — COA group-4
+  Receivable has no counterpart in `computeNetWorthBreakdown` (no receivable
+  table), so lending money out genuinely lowers net worth with nothing
+  offsetting it in the bridge, and a back-dated `occurredAt` against
+  capture-time snapshots can never fully reconcile against daily snapshots.
+  Both are named residuals landing in `unexplained`, by design, not bugs.
+  `restrictedForViewer: true` still discloses one bit (the family has at
+  least one private account) to a `member` who could not previously learn
+  it — a pre-existing, already-accepted trade-off, unchanged by this task.
+  The outstanding pre/post-migration P&L and balance-sheet capture for A1
+  (recorded as outstanding when task A closed) remains undone — it must run
+  against DEV before that migration is applied there, independent of this
+  task closing.

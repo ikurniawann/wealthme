@@ -2072,21 +2072,20 @@ export const id = {
         "Snapshot historis untuk tanggal ini ada, tapi diambil dengan menyertakan semua akun. Karena peran Anda tidak bisa melihat akun privat, kami tidak bisa menampilkannya tanpa membocorkan saldo yang disembunyikan.",
       bridgeTitle: "Jembatan Rekonsiliasi",
       bridgeDescription:
-        "Kenapa net worth berubah dengan jumlah berbeda dari profit — revaluasi aset dan investasi ditampilkan terpisah, bukan digabung jadi satu selisih yang tidak dijelaskan.",
+        "Kenapa net worth berubah dengan jumlah berbeda dari profit — kontribusi tunai ke aset/investasi dan perubahan nilai aset & investasi ditampilkan terpisah, dengan sisa yang belum terjelaskan diberi nama, bukan disembunyikan.",
       bridgeOpeningLabel: "Net Worth Awal",
       bridgeProfitLabel: "+ Profit (Laba Rugi)",
-      bridgeAssetRevaluationLabel: "+ Revaluasi Aset",
-      bridgeInvestmentRevaluationLabel: "+ Revaluasi Investasi",
-      bridgeAssetContributionLabel:
-        "  ↳ dari jumlah itu: kontribusi tunai ke aset (net-netral)",
-      bridgeInvestmentContributionLabel:
-        "  ↳ dari jumlah itu: kontribusi tunai ke investasi (net-netral)",
+      bridgeContributionLabel:
+        "+ Kontribusi Tunai ke Aset/Investasi (net-netral)",
+      bridgeHoldingsChangeLabel: "+ Perubahan Nilai Aset & Investasi",
       bridgeClosingLabel: "= Net Worth Akhir",
       bridgeNetWorthChangeLabel: "Perubahan Net Worth",
       bridgeNoDataDescription:
         "Riwayat snapshot belum cukup untuk merekonsiliasi periode ini.",
       bridgeRestrictedDescription:
         "Snapshot untuk periode ini ada, tapi menyertakan semua akun. Karena peran Anda tidak bisa melihat akun privat, jembatan ini tidak bisa ditampilkan tanpa membocorkan saldo yang disembunyikan.",
+      bridgeUnexplainedLabel: "Belum Terjelaskan",
+      bridgeUnexplainedWarningPrefix: "Peringatan:",
     },
     cashflow: {
       titlePrefix: "Cashflow Statement —",

@@ -123,10 +123,9 @@ function baseBridge(
     opening: 0,
     closing: 0,
     profit: 0,
-    assetRevaluation: 0,
-    investmentRevaluation: 0,
-    assetContribution: 0,
-    investmentContribution: 0,
+    contribution: 0,
+    holdingsChange: 0,
+    unexplained: 0,
     dataAvailable: true,
     restrictedForViewer: false,
     ...overrides,
@@ -256,23 +255,65 @@ describe("/laporan Balance Sheet tab — honest no-data states (EPIC-023 Task B 
     ).not.toBeInTheDocument();
   });
 
-  it("bridge card — names the asset/investment contribution separately from the revaluation, both on the same table", async () => {
+  it("bridge card — names the contribution separately from holdings-change, and the rows sum to Closing (EPIC-023 Task B3 review, HIGH x2 / FIX 1 & FIX 4)", async () => {
     balanceSheetFixture = baseBalanceSheet();
+    // The epic's own clean-month fixture: 270,000,000 + 15,000,000 -
+    // 10,000,000 + 21,000,000 + 0 = 296,000,000. Asserting the FORMATTED
+    // VALUES (not just the labels) is FIX 4 — a test that only checked
+    // `getByText("Belum Terjelaskan")` would still pass if the wrong field
+    // (or the wrong sign) were rendered in any of these slots.
     bridgeFixture = baseBridge({
       opening: 270_000_000,
-      closing: 295_000_000,
-      profit: 25_000_000,
-      assetRevaluation: 0,
-      investmentRevaluation: 0,
-      assetContribution: 0,
-      investmentContribution: 10_000_000,
+      closing: 296_000_000,
+      profit: 15_000_000,
+      contribution: 10_000_000,
+      holdingsChange: 21_000_000,
+      unexplained: 0,
     });
 
     render(<LaporanPage />);
 
     expect(await screen.findByText("Net Worth Awal")).toBeInTheDocument();
     expect(
-      screen.getByText(/kontribusi tunai ke investasi \(net-netral\)/),
+      screen.getByText(/kontribusi tunai ke aset\/investasi \(net-netral\)/i),
     ).toBeInTheDocument();
+    // The contribution row displays the SIGNED amount it actually
+    // subtracts from the running total (-10,000,000), not the raw
+    // +10,000,000 contribution — this is what makes the rows sum to
+    // Closing when read top to bottom (FIX 1's second defect).
+    expect(screen.getByText("-10 jt")).toBeInTheDocument();
+    expect(screen.getByText("21 jt")).toBeInTheDocument();
+    // The Closing figure itself — FIX 4 requires asserting this value in
+    // at least one bridge test.
+    expect(screen.getByText("296 jt")).toBeInTheDocument();
+    // unexplained is 0 — the row must not render at all.
+    expect(screen.queryByText("Belum Terjelaskan")).not.toBeInTheDocument();
+  });
+
+  it("bridge card — shows the unexplained row, honestly labelled and valued, only when it is non-zero (FIX 4)", async () => {
+    balanceSheetFixture = baseBalanceSheet();
+    bridgeFixture = baseBridge({
+      // profit is deliberately non-zero so `unexplained` (-3,000,000) does
+      // NOT coincide with `netWorthChange` (closing − opening = 2,000,000)
+      // — a collision that would make the "-3 jt" assertion below
+      // ambiguous between the Unexplained row and the informational
+      // Perubahan Net Worth row.
+      opening: 270_000_000,
+      closing: 272_000_000,
+      profit: 5_000_000,
+      contribution: 0,
+      holdingsChange: 0,
+      unexplained: -3_000_000,
+    });
+
+    render(<LaporanPage />);
+
+    expect(await screen.findByText("Net Worth Awal")).toBeInTheDocument();
+    expect(screen.getByText("Belum Terjelaskan")).toBeInTheDocument();
+    // The residual's formatted amount — FIX 4 requires asserting the
+    // actual value, not only the label, so a wrong field or a dropped sign
+    // in the Unexplained slot would fail this test.
+    expect(screen.getByText("-3 jt")).toBeInTheDocument();
+    expect(screen.getByText("272 jt")).toBeInTheDocument();
   });
 });

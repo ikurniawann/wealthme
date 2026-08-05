@@ -1996,20 +1996,38 @@ export type I18nDictionary = {
       bridgeDescription: string;
       bridgeOpeningLabel: string;
       bridgeProfitLabel: string;
-      bridgeAssetRevaluationLabel: string;
-      bridgeInvestmentRevaluationLabel: string;
-      // EPIC-023 Task B retry (CRITICAL 1) — a contribution (cash moved
-      // into an asset/investment via a COA group-3 TRANSFER) is net-worth-
-      // neutral and must not be folded into the revaluation figures above;
-      // it is named on its own instead.
-      bridgeAssetContributionLabel: string;
-      bridgeInvestmentContributionLabel: string;
+      // EPIC-023 B3 (rewrite, attempt 3) — a contribution (cash moved into
+      // or out of a holding via a COA group-3 TRANSFER) is net-worth-
+      // neutral overall but IS a real subtrahend in the identity (see
+      // `bridgeHoldingsChangeLabel` below); it is named on its own instead,
+      // as a single combined figure (no asset-vs-investment split — see
+      // reports.service.ts's `getReconciliationBridge` doc comment for why
+      // that split was unsatisfiable).
+      bridgeContributionLabel: string;
+      // EPIC-023 Task B3 review (HIGH x2) — renamed from
+      // `bridgeRevaluationLabel`. The value behind it is the RAW combined
+      // (Δ totalAssets + Δ totalInvestments) snapshot delta, not a
+      // market-movement-only "revaluation" — see
+      // `ReconciliationBridgeDto.holdingsChange`'s doc comment. Together
+      // with `bridgeContributionLabel` above (now displayed as the actual
+      // amount subtracted, not a memo), the rows on this card sum to
+      // `bridgeClosingLabel` when read top to bottom.
+      bridgeHoldingsChangeLabel: string;
       bridgeClosingLabel: string;
       bridgeNetWorthChangeLabel: string;
       bridgeNoDataDescription: string;
       // EPIC-023 Task B retry (CRITICAL 2) — the bridge's own restricted-
       // for-viewer state (see `restrictedForViewerDescription` above).
       bridgeRestrictedDescription: string;
+      // EPIC-023 B3 (rewrite, attempt 3) — an honestly-named residual,
+      // shown only when non-zero (see `ReconciliationBridgeDto.unexplained`
+      // doc comment for why the identity does not always hold).
+      bridgeUnexplainedLabel: string;
+      // EPIC-023 Task B3 review (MEDIUM, FIX 5) — visually hidden text read
+      // before `bridgeUnexplainedLabel` so the warning is not carried by
+      // colour and small text alone (screen readers get an explicit cue;
+      // sighted users get the ⚠️ icon rendered alongside it in page.tsx).
+      bridgeUnexplainedWarningPrefix: string;
     };
     cashflow: {
       titlePrefix: string;

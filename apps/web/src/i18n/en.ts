@@ -2075,21 +2075,20 @@ export const en = {
         "A historical snapshot exists for this date, but it was captured with every account included. Since your role can't see private accounts, we can't show it without revealing hidden balances.",
       bridgeTitle: "Reconciliation Bridge",
       bridgeDescription:
-        "Why your net worth moved by a different amount than your profit — asset and investment revaluations, named separately, not folded into a single unexplained gap.",
+        "Why your net worth moved by a different amount than your profit — cash contributed to assets/investments and the change in asset/investment value are named separately, with any remaining gap named too, never hidden.",
       bridgeOpeningLabel: "Opening Net Worth",
       bridgeProfitLabel: "+ Profit (P&L)",
-      bridgeAssetRevaluationLabel: "+ Asset Revaluation",
-      bridgeInvestmentRevaluationLabel: "+ Investment Revaluation",
-      bridgeAssetContributionLabel:
-        "  ↳ of which: cash contributed to assets (net-neutral)",
-      bridgeInvestmentContributionLabel:
-        "  ↳ of which: cash contributed to investments (net-neutral)",
+      bridgeContributionLabel:
+        "+ Cash Contribution to Assets/Investments (net-neutral)",
+      bridgeHoldingsChangeLabel: "+ Change in Asset & Investment Value",
       bridgeClosingLabel: "= Closing Net Worth",
       bridgeNetWorthChangeLabel: "Net Worth Change",
       bridgeNoDataDescription:
         "Not enough snapshot history yet to bridge this period.",
       bridgeRestrictedDescription:
         "A snapshot exists for this period, but it includes every account. Since your role can't see private accounts, the bridge can't be shown without revealing hidden balances.",
+      bridgeUnexplainedLabel: "Unexplained",
+      bridgeUnexplainedWarningPrefix: "Warning:",
     },
     cashflow: {
       titlePrefix: "Cashflow Statement —",

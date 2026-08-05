@@ -59,34 +59,46 @@ function buildCategoryBreakdown(
     }));
 }
 
-// EPIC-023 Task B retry (CRITICAL 1) — COA group 3 ("Wealth Allocation",
+// EPIC-023 B3 (rewrite, attempt 3) — COA group 3 ("Wealth Allocation",
 // default-coa-chart.ts) is the TRANSFER-classified group a family uses to
 // move cash into a wealth vehicle (savings/investment/emergency fund/other).
-// Every family starts with (and the add_category_coa_link migration backfills)
-// code "30002" as the ONE group-3 account that specifically funds the
-// Investment portfolio ("Investasi") — see GENERIC_COA_CHART. A custom
-// group-3 account under any OTHER code is treated as asset-directed (it
-// feeds the snapshot's `totalAssets` bucket, not `totalInvestments`), which
-// is the safer default for a family-defined savings/emergency-fund account.
+// A `Transaction` has no FK to the `Asset`/`Investment` row it funds, so
+// `getReconciliationBridge` cannot and does not attempt an asset-vs-
+// investment split (attempt 2's `code === "30002"` discriminator misfiled
+// every OTHER group-3 code). EPIC-023 Task B3 review (LOW, batch fix 6) —
+// corrected count: the chart every REAL family is provisioned from
+// (`GENERIC_COA_CHART`, re-exported by `default-coa-chart.ts`) has FOUR
+// group-3 codes (30001/30002/30003/30099); "ten" is only true of the demo
+// `prisma/seed.ts`, which real families never receive — 4 misfiled codes is
+// still the argument against that discriminator. Every group-3 account
+// counts toward ONE combined `contribution` figure, regardless of its code.
 const WEALTH_ALLOCATION_GROUP_NUM = 3;
-const INVESTMENT_CONTRIBUTION_CODE = "30002";
 
 /**
- * Classifies a TRANSFER transaction's COA account as an investment- or
- * asset-directed contribution (`getReconciliationBridge`'s CRITICAL 1 fix),
- * or `null` when it isn't a group-3 "Wealth Allocation" account at all (e.g.
- * a group-5 debt principal repayment — already net-worth-neutral through
- * `netWorth` itself and never a contribution).
+ * Signed cash effect of a group-3 "Wealth Allocation" TRANSFER, so
+ * `contribution` (`getReconciliationBridge`) reflects whether cash actually
+ * left or returned — attempt 2's CRITICAL 1 defect ignored this and always
+ * added the amount, so a withdrawal back to cash broke the identity by
+ * DOUBLE the withdrawn amount instead of correctly reducing it.
+ *
+ * The sign comes from `tx.type`/`toAccountId` (the transaction's real cash
+ * effect), never from the category's COA direction: every group-3 category
+ * is TRANSFER-classified regardless of which way money moved, so direction
+ * alone carries no sign.
+ *   - `expense`, or a legacy one-sided `transfer` (`toAccountId` null) —
+ *     cash left the family's cash accounts: +amount.
+ *   - `income` — cash came BACK to a cash account (a withdrawal): −amount.
+ *   - a real two-sided `transfer` (`toAccountId` set) — both the source and
+ *     destination are `Account` rows already inside `totalCash`, so net
+ *     cash is unchanged and nothing was allocated to a holding: 0.
  */
-function contributionBucket(
-  coaAccount: { groupNum: number; code: string } | undefined,
-): "investment" | "asset" | null {
-  if (!coaAccount || coaAccount.groupNum !== WEALTH_ALLOCATION_GROUP_NUM) {
-    return null;
-  }
-  return coaAccount.code === INVESTMENT_CONTRIBUTION_CODE
-    ? "investment"
-    : "asset";
+function wealthAllocationCashEffect(
+  tx: { type: "income" | "expense" | "transfer"; toAccountId: string | null },
+  amount: number,
+): number {
+  if (tx.type === "income") return -amount;
+  if (tx.type === "transfer") return tx.toAccountId === null ? amount : 0;
+  return amount; // expense
 }
 
 @Injectable()
@@ -554,6 +566,12 @@ export class ReportsService {
    * (an owner/admin_staff/spouse viewer never needs this check); a `true`
    * result means a privacy-open `NetWorthSnapshot` cannot be shown to this
    * viewer as-is.
+   *
+   * ACCOUNTS ONLY — deliberately narrower than `familyHasPrivateItems`
+   * below. `getBalanceSheet` is the only caller: a private-CATEGORY
+   * transaction still moves a VISIBLE account's balance, so the balance
+   * sheet discloses nothing a member cannot already see from that
+   * account's own total, and does not need the category check.
    */
   private async familyHasPrivateAccounts(
     familyGroupId: string,
@@ -563,6 +581,40 @@ export class ReportsService {
       select: { id: true },
     });
     return row !== null;
+  }
+
+  /**
+   * EPIC-023 Task B3 review (HIGH, FIX 2) — whether the family has any
+   * private `Account` OR any private `Category`. Only `getReconciliationBridge`
+   * calls this (not `getBalanceSheet` — see `familyHasPrivateAccounts`'s doc
+   * comment for why the narrower, accounts-only check is correct there).
+   *
+   * The bridge needs the wider check because it mixes a privacy-OPEN
+   * source (`NetWorthSnapshot.netWorth`, captured with
+   * `computeNetWorthBreakdown(..., true)`) with a privacy-FILTERED one
+   * (`transactionPrivacyWhere`, which excludes both a private account's
+   * AND a private category's transactions). A family with zero private
+   * accounts but at least one private category used to slip past the
+   * accounts-only guard entirely: `opening`/`closing` came from the
+   * privacy-open snapshot while `profit`/`contribution` silently excluded
+   * the private-category transactions, and the hidden amount landed
+   * verbatim in `unexplained` — rendered in warning colour, with
+   * `restrictedForViewer: false`, effectively an oracle a `member` could
+   * walk day-by-day (via the unclamped `startDate`/`endDate` query params)
+   * to recover a private transaction's exact amount.
+   */
+  private async familyHasPrivateItems(familyGroupId: string): Promise<boolean> {
+    const [privateAccount, privateCategory] = await Promise.all([
+      this.prisma.account.findFirst({
+        where: { familyGroupId, isPrivate: true },
+        select: { id: true },
+      }),
+      this.prisma.category.findFirst({
+        where: { familyGroupId, isPrivate: true },
+        select: { id: true },
+      }),
+    ]);
+    return privateAccount !== null || privateCategory !== null;
   }
 
   /** Honest "not for this viewer" balance sheet — see `familyHasPrivateAccounts`. */
@@ -925,42 +977,72 @@ export class ReportsService {
   }
 
   /**
-   * EPIC-023 B3 (D24, US-RPT-11) — reconciles the gap between P&L profit
-   * and the actual net-worth change over the same period, so a family can
-   * see WHY their profit and their wealth change disagree instead of only
-   * a "✅ Seimbang" banner that says nothing about the difference.
+   * EPIC-023 B3 (D24, US-RPT-11; rewrite, attempt 3) — reconciles the gap
+   * between P&L profit and the actual net-worth change over the same
+   * period, so a family can see WHY their profit and their wealth change
+   * disagree instead of only a "✅ Seimbang" banner that says nothing about
+   * the difference.
    *
-   * Every term is derived from its OWN source, never from a
-   * `closing - opening - profit` residual split between the two revaluation
-   * terms (that would be indistinguishable from an arbitrary split whenever
-   * both assets and investments revalue in the same period — see the
-   * "CHEAT DETECTOR" test in reports.service.spec.ts):
    *   - `opening`/`closing` come straight from the two `NetWorthSnapshot`
-   *     rows' own `netWorth` column.
+   *     rows' own `netWorth` column. `opening` anchors to the last
+   *     snapshot ON OR BEFORE `startDate` itself (EPIC-023 Task B3 review,
+   *     HIGH) — the previous anchor (`startDate + 24h - 1ms`) selected the
+   *     snapshot captured ON the period's first day, which (captured
+   *     daily at 02:00 UTC = 09:00 WIB — net-worth-snapshot.scheduler.ts)
+   *     already includes the first ~9 hours of that day's activity while
+   *     the transaction window starts at 00:00 WIB the same day — opening
+   *     and profit overlapped. `lte: startDate` is the standard "prior
+   *     close is this period's opening" anchor, symmetric with
+   *     `closing`'s own `lte: endDate`.
+   *
+   *     KNOWN, NAMED LIMITATION — not fixed here: snapshots record
+   *     balances at CAPTURE time, but profit is computed from
+   *     `occurredAt`. A back-dated entry (recorded 20 Aug, `occurredAt` 5
+   *     Jul) moves the balance in one snapshot period and the profit in
+   *     another; these can never fully reconcile against daily snapshots.
+   *     That residual correctly lands in `unexplained` — which is exactly
+   *     what the field is for. Fixing it would mean changing snapshot
+   *     capture semantics (B2 / the balance sheet), a product-owner
+   *     decision, not a bug in this method.
    *   - `profit` comes from the period's transactions, COA-direction
    *     classified exactly like `getPnl` (TRANSFER — wealth allocation and
    *     debt principal, per EPIC-023 A1 — is excluded from profit).
-   *   - `assetContribution`/`investmentContribution` come from the SAME
-   *     period's transactions too: a COA group-3 ("Wealth Allocation")
-   *     TRANSFER moves cash into an Investment/Asset that has no automatic
-   *     ledger link back to it (EPIC-023 Task B retry, CRITICAL 1) — the
-   *     snapshot sees only the resulting rise in totalInvestments/
-   *     totalAssets, with nothing to cancel the matching fall in cash.
-   *   - `assetRevaluation`/`investmentRevaluation` are the SAME two
-   *     snapshots' `totalAssets`/`totalInvestments` diff MINUS that period's
-   *     own contribution — the market-movement-only remainder — computed
-   *     independently of `profit` and of each other.
+   *   - `contribution` is the SIGNED sum of the period's group-3 ("Wealth
+   *     Allocation") TRANSFER transactions. A `Transaction` has no FK to
+   *     the `Asset`/`Investment` row it funds, so attempt 2 guessed an
+   *     asset-vs-investment split from a hardcoded COA `code` — which
+   *     misfiled every group-3 code except one — and ignored direction
+   *     entirely, so a withdrawal back to cash was ADDED to contributions
+   *     instead of subtracted (see `wealthAllocationCashEffect`'s doc
+   *     comment). This rewrite reports ONE combined figure instead, signed
+   *     by the transaction's real cash effect. It is now a real
+   *     SUBTRAHEND in the identity below, not a derived-away memo line.
+   *   - `holdingsChange` is the RAW combined snapshot delta — (Δ
+   *     totalAssets + Δ totalInvestments), nothing subtracted (EPIC-023
+   *     Task B3 review, HIGH — replaces the old derived `revaluation`
+   *     field). Deriving `revaluation` as `rawDelta - contribution` looked
+   *     like it isolated "market movement only", but nothing links a
+   *     `Transaction` to the `Asset`/`Investment` row it funds: when a
+   *     group-3 outflow was recorded WITHOUT its matching holding update
+   *     (or vice versa), that subtraction silently absorbed the mismatch
+   *     into a FABRICATED gain or loss — a 10,000,000 contribution with a
+   *     flat snapshot produced `revaluation: -10,000,000`, a market loss
+   *     that never happened, while `unexplained` stayed exactly 0 and hid
+   *     it. `holdingsChange` is directly measured instead — nothing about
+   *     it depends on `contribution` being right.
+   *   - `unexplained` is `closing − (opening + profit − contribution +
+   *     holdingsChange)` — an HONEST named residual, not forced to zero.
+   *     COA group 4 (Receivable) has no counterpart in
+   *     `computeNetWorthBreakdown` (no receivable table backs it), so
+   *     lending money to a friend lowers cash with nothing offsetting it —
+   *     the identity genuinely does not hold that month, and naming the
+   *     gap is more honest than hiding it inside another term.
    *
-   * A contribution is net-worth-neutral (cash down, holding up by the same
-   * amount) exactly like a debt principal repayment (cash down, liability
-   * down by the same amount, already net-worth-neutral through `netWorth`
-   * itself) — neither needs a term in the `opening + profit +
-   * assetRevaluation + investmentRevaluation = closing` identity, but a
-   * contribution IS named on its own (`assetContribution`/
-   * `investmentContribution`) so it is never silently invisible: without
-   * it, a family that moved 10 jt into an investment this month with flat
-   * markets would see "investment revaluation: 0" and have no idea the
-   * contribution happened at all.
+   * Full identity: `opening + profit − contribution + holdingsChange +
+   * unexplained = closing`. (D24 itself says "opening + (income −
+   * expenses) + change in asset & investment values = closing" — that
+   * formula omits the contribution outflow; this is D24 with that term
+   * restored, not a departure from it.)
    */
   async getReconciliationBridge(
     familyGroupId: string,
@@ -968,19 +1050,14 @@ export class ReportsService {
     endDate: Date,
     canSeePrivate: boolean,
   ): Promise<ReconciliationBridgeDto> {
-    // `startDate` is always a period's 00:00:00.000 (WIB) instant — the last
-    // instant of that SAME calendar day is `startDate + 24h - 1ms`, in any
-    // fixed-offset timezone (WIB has no DST). Anchoring "opening" there
-    // (instead of `startDate` itself) is what lets it land on the snapshot
-    // captured for that opening day, whose stored `date` is UTC-midnight
-    // truncated and can therefore fall a few hours AFTER the raw WIB
-    // 00:00:00.000 instant.
-    const openingAnchor = new Date(startDate.getTime() + 86_400_000 - 1);
-
     const [openingSnapshot, closingSnapshot, transactions, isRestricted] =
       await Promise.all([
+        // EPIC-023 Task B3 review (HIGH) — `lte: startDate`, NOT a
+        // same-day-inclusive anchor; see this method's doc comment for why
+        // the previous `startDate + 24h - 1ms` anchor double-counted the
+        // period's first ~9 hours.
         this.prisma.netWorthSnapshot.findFirst({
-          where: { familyGroupId, date: { lte: openingAnchor } },
+          where: { familyGroupId, date: { lte: startDate } },
           orderBy: { date: "desc" },
         }),
         this.prisma.netWorthSnapshot.findFirst({
@@ -996,21 +1073,26 @@ export class ReportsService {
           select: {
             amount: true,
             type: true,
+            toAccountId: true,
             category: {
               select: {
                 coaAccount: {
-                  select: { direction: true, groupNum: true, code: true },
+                  select: { direction: true, groupNum: true },
                 },
               },
             },
           },
         }),
-        // EPIC-023 Task B retry (CRITICAL 2) — only worth checking when this
-        // viewer may not see private items; an owner/admin_staff/spouse
-        // viewer never needs the restriction (mirrors `getBalanceSheet`).
+        // EPIC-023 Task B3 review (HIGH, FIX 2) — only worth checking when
+        // this viewer may not see private items; an owner/admin_staff/
+        // spouse viewer never needs the restriction. Uses
+        // `familyHasPrivateItems` (accounts OR categories), NOT
+        // `familyHasPrivateAccounts` — see that method's doc comment for
+        // why this endpoint needs the wider check and `getBalanceSheet`
+        // does not.
         canSeePrivate
           ? Promise.resolve(false)
-          : this.familyHasPrivateAccounts(familyGroupId),
+          : this.familyHasPrivateItems(familyGroupId),
       ]);
 
     if (!openingSnapshot || !closingSnapshot) {
@@ -1027,8 +1109,7 @@ export class ReportsService {
 
     let revenue = 0;
     let expenses = 0;
-    let assetContribution = 0;
-    let investmentContribution = 0;
+    let contribution = 0;
     for (const tx of transactions) {
       const amount = Number(tx.amount);
       const dir = txCoaDirection(tx);
@@ -1036,29 +1117,41 @@ export class ReportsService {
         revenue += amount;
       } else if (dir === CoaDirection.EXPENSE) {
         expenses += amount;
-      } else if (dir === CoaDirection.TRANSFER) {
-        const bucket = contributionBucket(tx.category?.coaAccount);
-        if (bucket === "investment") investmentContribution += amount;
-        else if (bucket === "asset") assetContribution += amount;
+      } else if (
+        dir === CoaDirection.TRANSFER &&
+        tx.category?.coaAccount.groupNum === WEALTH_ALLOCATION_GROUP_NUM
+      ) {
+        contribution += wealthAllocationCashEffect(tx, amount);
       }
     }
 
-    const rawAssetRevaluation =
-      Number(closingSnapshot.totalAssets) - Number(openingSnapshot.totalAssets);
-    const rawInvestmentRevaluation =
+    // RAW combined snapshot delta — nothing subtracted. See this method's
+    // doc comment (EPIC-023 Task B3 review, HIGH) for why the old derived
+    // `revaluation = rawDelta - contribution` fabricated a gain/loss
+    // whenever a contribution and its holding update did not both land in
+    // the snapshot's window.
+    const holdingsChange =
+      Number(closingSnapshot.totalAssets) -
+      Number(openingSnapshot.totalAssets) +
       Number(closingSnapshot.totalInvestments) -
       Number(openingSnapshot.totalInvestments);
+    const profit = revenue - expenses;
+    const opening = Number(openingSnapshot.netWorth);
+    const closing = Number(closingSnapshot.netWorth);
 
     return {
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
-      opening: Number(openingSnapshot.netWorth),
-      closing: Number(closingSnapshot.netWorth),
-      profit: revenue - expenses,
-      assetRevaluation: rawAssetRevaluation - assetContribution,
-      investmentRevaluation: rawInvestmentRevaluation - investmentContribution,
-      assetContribution,
-      investmentContribution,
+      opening,
+      closing,
+      profit,
+      contribution,
+      holdingsChange,
+      // Honest named residual, not forced to zero — see this method's doc
+      // comment for why the identity genuinely does not always hold (e.g. a
+      // COA group-4 Receivable movement, or a back-dated entry crossing a
+      // snapshot boundary).
+      unexplained: closing - (opening + profit - contribution + holdingsChange),
       dataAvailable: true,
       restrictedForViewer: false,
     };
@@ -1079,10 +1172,9 @@ export class ReportsService {
       opening: 0,
       closing: 0,
       profit: 0,
-      assetRevaluation: 0,
-      investmentRevaluation: 0,
-      assetContribution: 0,
-      investmentContribution: 0,
+      contribution: 0,
+      holdingsChange: 0,
+      unexplained: 0,
       dataAvailable: false,
       restrictedForViewer,
     };
