@@ -1851,6 +1851,20 @@ export type I18nDictionary = {
       allDatesOption: string;
       timezoneNotePrefix: string;
       timezoneNoteSuffix: string;
+      // EPIC-023 Task B (B1, US-RPT-12) — date-range presets, applied across
+      // every /laporan sub-view (see `resolvePreset` in laporan-period.ts).
+      presetAriaLabel: string;
+      presetThisMonth: string;
+      presetLastMonth: string;
+      presetLast3Months: string;
+      presetLast6Months: string;
+      presetLast12Months: string;
+      presetThisYear: string;
+      presetLastYear: string;
+      presetCustom: string;
+      // EPIC-023 Task B retry (HIGH) — shown on sub-views the active date
+      // range genuinely cannot filter (see laporan/page.tsx).
+      periodNotApplicableNote: string;
     };
     // Shared exact-repeat phrases (used across 2+ tab sections below).
     totalIncomeLabel: string;
@@ -1964,6 +1978,38 @@ export type I18nDictionary = {
       imbalancedDescPrefix: string;
       checkingLabel: string;
       currentBalanceDisclosure: string;
+      // EPIC-023 Task B (B2, closes EPIC-022 B11) — honest "no historical
+      // data for this date yet" state, shown when the API's
+      // `dataAvailable` is false instead of a zeroed-out balance sheet.
+      noDataTitle: string;
+      noDataDescription: string;
+      // EPIC-023 Task B retry (CRITICAL 2) — distinct from `noDataTitle`/
+      // `noDataDescription`: a snapshot DOES exist, it just cannot be shown
+      // to this viewer (privacy-open snapshot + a private account exists +
+      // this viewer may not see private items).
+      restrictedForViewerTitle: string;
+      restrictedForViewerDescription: string;
+      // EPIC-023 Task B (B3, D24, US-RPT-11) — the reconciliation bridge
+      // card, surfaced on this tab so "why is my profit X but my wealth up
+      // Y" is answered on screen, not just in a ✅/⚠️ banner.
+      bridgeTitle: string;
+      bridgeDescription: string;
+      bridgeOpeningLabel: string;
+      bridgeProfitLabel: string;
+      bridgeAssetRevaluationLabel: string;
+      bridgeInvestmentRevaluationLabel: string;
+      // EPIC-023 Task B retry (CRITICAL 1) — a contribution (cash moved
+      // into an asset/investment via a COA group-3 TRANSFER) is net-worth-
+      // neutral and must not be folded into the revaluation figures above;
+      // it is named on its own instead.
+      bridgeAssetContributionLabel: string;
+      bridgeInvestmentContributionLabel: string;
+      bridgeClosingLabel: string;
+      bridgeNetWorthChangeLabel: string;
+      bridgeNoDataDescription: string;
+      // EPIC-023 Task B retry (CRITICAL 2) — the bridge's own restricted-
+      // for-viewer state (see `restrictedForViewerDescription` above).
+      bridgeRestrictedDescription: string;
     };
     cashflow: {
       titlePrefix: string;

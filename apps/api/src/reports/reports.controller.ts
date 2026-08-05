@@ -24,6 +24,7 @@ import type {
   CashflowStatementDto,
   DetailReportDto,
   PnlDto,
+  ReconciliationBridgeDto,
   ReportPeriod,
   ReportSummaryDto,
   SankeyDto,
@@ -238,6 +239,40 @@ export class ReportsController {
     assertHouseholdWideReadAllowed(req.tenantContext?.member?.role);
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
     return this.reportsService.getSankey(
+      familyGroupId,
+      startDate,
+      endDate,
+      canSeePrivate,
+    );
+  }
+
+  // EPIC-023 Task B (B3, D24, US-RPT-11) — same ability/tenant-scoping shape
+  // as every other route on this controller: `@CheckAbility` is required or
+  // `AbilitiesGuard` fails OPEN, and `assertHouseholdWideReadAllowed` keeps
+  // dependant/operational off this household-wide reconciliation view.
+  @Get("reconciliation-bridge")
+  @CheckAbility((ab: AppAbility) => ab.can("read", "Account"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiQuery({ name: "startDate", required: false, type: String })
+  @ApiQuery({ name: "endDate", required: false, type: String })
+  @ApiOperation({
+    summary:
+      "Get the profit vs. net-worth-change reconciliation bridge (US-RPT-11)",
+  })
+  @ApiResponse({ status: 200, description: "Reconciliation bridge data" })
+  getReconciliationBridge(
+    @Param("familyGroupId") familyGroupId: string,
+    @Req() req: Request,
+    @Query("startDate") startDateStr?: string,
+    @Query("endDate") endDateStr?: string,
+  ): Promise<ReconciliationBridgeDto> {
+    const now = new Date();
+    const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startDate = parseDate(startDateStr, defaultStart);
+    const endDate = parseDate(endDateStr, now);
+    assertHouseholdWideReadAllowed(req.tenantContext?.member?.role);
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
+    return this.reportsService.getReconciliationBridge(
       familyGroupId,
       startDate,
       endDate,

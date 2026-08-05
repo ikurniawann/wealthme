@@ -1931,6 +1931,26 @@ export const en = {
       allDatesOption: "All Dates",
       timezoneNotePrefix: "Report period boundaries use ",
       timezoneNoteSuffix: " time.",
+      presetAriaLabel: "Quick range",
+      presetThisMonth: "This Month",
+      presetLastMonth: "Last Month",
+      presetLast3Months: "Last 3 Months",
+      presetLast6Months: "Last 6 Months",
+      presetLast12Months: "Last 12 Months",
+      presetThisYear: "This Year",
+      presetLastYear: "Last Year",
+      // EPIC-023 Task B retry (MEDIUM) — renamed from "Custom": selecting
+      // this option hands control to the year/month/day filter below it
+      // (never a free two-date picker), so the label says what it actually
+      // does instead of promising an arbitrary range `resolvePreset`'s own
+      // "custom" branch would build but this page never calls.
+      presetCustom: "Specific Month/Year",
+      // EPIC-023 Task B retry (HIGH) — shown next to the preset selector on
+      // sub-views the active date range genuinely cannot filter (roster/
+      // current-holdings views with no date param on their endpoint), so
+      // the control's inapplicability there is visible, not silent.
+      periodNotApplicableNote:
+        "This view always shows current data — the period selector above does not filter it.",
     },
     totalIncomeLabel: "Total Income",
     totalExpenseLabel: "Total Expenses",
@@ -2047,6 +2067,29 @@ export const en = {
       checkingLabel: "Checking Net Worth reconciliation with Ringkasan…",
       currentBalanceDisclosure:
         "The figures below are current balances, not historical values as of the stated date.",
+      noDataTitle: "No Historical Data Yet",
+      noDataDescription:
+        "No net worth snapshot exists on or before this date yet — nothing to show honestly, so we're not showing a made-up zero.",
+      restrictedForViewerTitle: "Not Available For Your Role",
+      restrictedForViewerDescription:
+        "A historical snapshot exists for this date, but it was captured with every account included. Since your role can't see private accounts, we can't show it without revealing hidden balances.",
+      bridgeTitle: "Reconciliation Bridge",
+      bridgeDescription:
+        "Why your net worth moved by a different amount than your profit — asset and investment revaluations, named separately, not folded into a single unexplained gap.",
+      bridgeOpeningLabel: "Opening Net Worth",
+      bridgeProfitLabel: "+ Profit (P&L)",
+      bridgeAssetRevaluationLabel: "+ Asset Revaluation",
+      bridgeInvestmentRevaluationLabel: "+ Investment Revaluation",
+      bridgeAssetContributionLabel:
+        "  ↳ of which: cash contributed to assets (net-neutral)",
+      bridgeInvestmentContributionLabel:
+        "  ↳ of which: cash contributed to investments (net-neutral)",
+      bridgeClosingLabel: "= Closing Net Worth",
+      bridgeNetWorthChangeLabel: "Net Worth Change",
+      bridgeNoDataDescription:
+        "Not enough snapshot history yet to bridge this period.",
+      bridgeRestrictedDescription:
+        "A snapshot exists for this period, but it includes every account. Since your role can't see private accounts, the bridge can't be shown without revealing hidden balances.",
     },
     cashflow: {
       titlePrefix: "Cashflow Statement —",

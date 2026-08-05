@@ -19,6 +19,7 @@ import type {
   DetailReportDto,
   PeriodPoint,
   PnlDto,
+  ReconciliationBridgeDto,
   ReportPeriod,
   ReportSummaryDto,
   SankeyDto,
@@ -56,6 +57,36 @@ function buildCategoryBreakdown(
       percentage: total > 0 ? Math.round((amount / total) * 100 * 10) / 10 : 0,
       color,
     }));
+}
+
+// EPIC-023 Task B retry (CRITICAL 1) — COA group 3 ("Wealth Allocation",
+// default-coa-chart.ts) is the TRANSFER-classified group a family uses to
+// move cash into a wealth vehicle (savings/investment/emergency fund/other).
+// Every family starts with (and the add_category_coa_link migration backfills)
+// code "30002" as the ONE group-3 account that specifically funds the
+// Investment portfolio ("Investasi") — see GENERIC_COA_CHART. A custom
+// group-3 account under any OTHER code is treated as asset-directed (it
+// feeds the snapshot's `totalAssets` bucket, not `totalInvestments`), which
+// is the safer default for a family-defined savings/emergency-fund account.
+const WEALTH_ALLOCATION_GROUP_NUM = 3;
+const INVESTMENT_CONTRIBUTION_CODE = "30002";
+
+/**
+ * Classifies a TRANSFER transaction's COA account as an investment- or
+ * asset-directed contribution (`getReconciliationBridge`'s CRITICAL 1 fix),
+ * or `null` when it isn't a group-3 "Wealth Allocation" account at all (e.g.
+ * a group-5 debt principal repayment — already net-worth-neutral through
+ * `netWorth` itself and never a contribution).
+ */
+function contributionBucket(
+  coaAccount: { groupNum: number; code: string } | undefined,
+): "investment" | "asset" | null {
+  if (!coaAccount || coaAccount.groupNum !== WEALTH_ALLOCATION_GROUP_NUM) {
+    return null;
+  }
+  return coaAccount.code === INVESTMENT_CONTRIBUTION_CODE
+    ? "investment"
+    : "asset";
 }
 
 @Injectable()
@@ -445,16 +476,175 @@ export class ReportsService {
   }
 
   /**
-   * EPIC-022 (adversarial review round 3, finding 3) — `asOfDate` is
-   * accepted but there is no historical-balance data model for accounts,
-   * assets, liabilities, or investments (only a daily aggregate
-   * `NetWorthSnapshot`, not an itemized one) — every query below reads
-   * CURRENT balances, same as the rest of the app. The UI discloses this
-   * (matching the B3 Saldo Awal/Akhir precedent) rather than silently
-   * implying a true point-in-time statement; do not add a date filter here
-   * without also adding real historical balance tracking.
+   * EPIC-023 B2 (closes EPIC-022 B11) — `asOfDate` used to be accepted but
+   * ignored: every figure below was always the CURRENT live balance, no
+   * matter which date was requested. This now reads the daily
+   * `NetWorthSnapshot` aggregate for the requested range's end date (or the
+   * most recent one on or before it — never a later one), so picking "last
+   * month" actually shows last month's figures.
+   *
+   * `NetWorthSnapshot` only stores family-wide TOTALS (no itemized
+   * per-account/asset/liability breakdown, and no per-viewer privacy
+   * dimension — see net-worth-snapshot's own "family-wide totals" note), so
+   * the snapshot-driven branch below can only report bucket totals, not the
+   * itemized `items` a live query can. Two honest fallbacks, in order:
+   *   1. A snapshot exists on/before `asOfDate` → use it (bucket totals only).
+   *   2. No snapshot exists on/before it, but the family HAS snapshot
+   *      history (just not this far back) → report `dataAvailable: false`
+   *      rather than a zero that looks like a real (empty) balance sheet.
+   *   3. The family has captured NO snapshot at all yet (e.g. brand new,
+   *      before the nightly capture has run even once) → fall back to the
+   *      previous LIVE, privacy-scoped computation so the balance sheet
+   *      still works on day one; `isHistorical: false` discloses that these
+   *      are current balances, not a true point-in-time statement.
+   *   4. EPIC-023 Task B retry (CRITICAL 2) — a snapshot on/before
+   *      `asOfDate` DOES exist, but it was captured with privacy fully open
+   *      (`captureSnapshot` always calls `computeNetWorthBreakdown(...,
+   *      true)`) and this viewer may NOT see private items. Showing it
+   *      would leak every private account's balance to a plain `member`.
+   *      When the family has at least one private account, refuse the
+   *      snapshot outright — `restrictedForViewer: true`, zeroed out, same
+   *      as the "no data" shape above — rather than silently substituting a
+   *      live (but still privacy-unaware) figure.
    */
   async getBalanceSheet(
+    familyGroupId: string,
+    asOfDate: Date,
+    canSeePrivate: boolean,
+  ): Promise<BalanceSheetDto> {
+    const snapshot = await this.prisma.netWorthSnapshot.findFirst({
+      where: { familyGroupId, date: { lte: asOfDate } },
+      orderBy: { date: "desc" },
+    });
+    if (snapshot) {
+      if (
+        !canSeePrivate &&
+        (await this.familyHasPrivateAccounts(familyGroupId))
+      ) {
+        return this.restrictedBalanceSheet(asOfDate);
+      }
+      return this.balanceSheetFromSnapshot(snapshot);
+    }
+
+    const anySnapshot = await this.prisma.netWorthSnapshot.findFirst({
+      where: { familyGroupId },
+    });
+    if (anySnapshot) {
+      // The family has real snapshot history — this specific `asOfDate`
+      // just predates all of it. Honest "no data", not an invented zero.
+      return {
+        asOfDate: asOfDate.toISOString(),
+        totalAssets: 0,
+        totalLiabilities: 0,
+        netWorth: 0,
+        assets: [],
+        liabilities: [],
+        dataAvailable: false,
+        isHistorical: false,
+        restrictedForViewer: false,
+      };
+    }
+
+    return this.computeLiveBalanceSheet(familyGroupId, asOfDate, canSeePrivate);
+  }
+
+  /**
+   * EPIC-023 Task B retry (CRITICAL 2) — whether ANY account in this family
+   * is flagged `isPrivate`. Only ever queried when `canSeePrivate` is false
+   * (an owner/admin_staff/spouse viewer never needs this check); a `true`
+   * result means a privacy-open `NetWorthSnapshot` cannot be shown to this
+   * viewer as-is.
+   */
+  private async familyHasPrivateAccounts(
+    familyGroupId: string,
+  ): Promise<boolean> {
+    const row = await this.prisma.account.findFirst({
+      where: { familyGroupId, isPrivate: true },
+      select: { id: true },
+    });
+    return row !== null;
+  }
+
+  /** Honest "not for this viewer" balance sheet — see `familyHasPrivateAccounts`. */
+  private restrictedBalanceSheet(asOfDate: Date): BalanceSheetDto {
+    return {
+      asOfDate: asOfDate.toISOString(),
+      totalAssets: 0,
+      totalLiabilities: 0,
+      netWorth: 0,
+      assets: [],
+      liabilities: [],
+      dataAvailable: false,
+      isHistorical: false,
+      restrictedForViewer: true,
+    };
+  }
+
+  /** Builds a `BalanceSheetDto` from a family-wide `NetWorthSnapshot` row —
+   * bucket totals only, no itemization (the snapshot has none to give). */
+  private balanceSheetFromSnapshot(snapshot: {
+    date: Date;
+    totalCash: bigint;
+    totalInvestments: bigint;
+    totalAssets: bigint;
+    totalLiabilities: bigint;
+    netWorth: bigint;
+  }): BalanceSheetDto {
+    const totalCash = Number(snapshot.totalCash);
+    const totalInvestments = Number(snapshot.totalInvestments);
+    const physicalAssets = Number(snapshot.totalAssets);
+    const totalLiabilities = Number(snapshot.totalLiabilities);
+
+    const assets: BalanceSheetDto["assets"] = [];
+    if (totalCash > 0) {
+      assets.push({
+        category: "Kas & Setara Kas",
+        amount: totalCash,
+        items: [],
+      });
+    }
+    if (totalInvestments > 0) {
+      assets.push({
+        category: "Investasi",
+        amount: totalInvestments,
+        items: [],
+      });
+    }
+    if (physicalAssets > 0) {
+      assets.push({
+        category: "Aset Lainnya",
+        amount: physicalAssets,
+        items: [],
+      });
+    }
+
+    const liabilities: BalanceSheetDto["liabilities"] = [];
+    if (totalLiabilities > 0) {
+      liabilities.push({
+        category: "Liabilitas",
+        amount: totalLiabilities,
+        items: [],
+      });
+    }
+
+    return {
+      // The snapshot's own date — see the `asOfDate` doc comment on
+      // BalanceSheetDto for why this must not be the requested date.
+      asOfDate: snapshot.date.toISOString(),
+      totalAssets: totalCash + totalInvestments + physicalAssets,
+      totalLiabilities,
+      netWorth: Number(snapshot.netWorth),
+      assets,
+      liabilities,
+      dataAvailable: true,
+      isHistorical: true,
+      restrictedForViewer: false,
+    };
+  }
+
+  /** The previous (pre-EPIC-023-B2) live, privacy-scoped computation — kept
+   * as the fallback for a family with no snapshot history at all yet. */
+  private async computeLiveBalanceSheet(
     familyGroupId: string,
     asOfDate: Date,
     canSeePrivate: boolean,
@@ -574,6 +764,9 @@ export class ReportsService {
       netWorth: totalAssets - totalLiabilities,
       assets,
       liabilities,
+      dataAvailable: true,
+      isHistorical: false,
+      restrictedForViewer: false,
     };
   }
 
@@ -729,5 +922,169 @@ export class ReportsService {
     }
 
     return { nodes: sankeyNodes, links };
+  }
+
+  /**
+   * EPIC-023 B3 (D24, US-RPT-11) — reconciles the gap between P&L profit
+   * and the actual net-worth change over the same period, so a family can
+   * see WHY their profit and their wealth change disagree instead of only
+   * a "✅ Seimbang" banner that says nothing about the difference.
+   *
+   * Every term is derived from its OWN source, never from a
+   * `closing - opening - profit` residual split between the two revaluation
+   * terms (that would be indistinguishable from an arbitrary split whenever
+   * both assets and investments revalue in the same period — see the
+   * "CHEAT DETECTOR" test in reports.service.spec.ts):
+   *   - `opening`/`closing` come straight from the two `NetWorthSnapshot`
+   *     rows' own `netWorth` column.
+   *   - `profit` comes from the period's transactions, COA-direction
+   *     classified exactly like `getPnl` (TRANSFER — wealth allocation and
+   *     debt principal, per EPIC-023 A1 — is excluded from profit).
+   *   - `assetContribution`/`investmentContribution` come from the SAME
+   *     period's transactions too: a COA group-3 ("Wealth Allocation")
+   *     TRANSFER moves cash into an Investment/Asset that has no automatic
+   *     ledger link back to it (EPIC-023 Task B retry, CRITICAL 1) — the
+   *     snapshot sees only the resulting rise in totalInvestments/
+   *     totalAssets, with nothing to cancel the matching fall in cash.
+   *   - `assetRevaluation`/`investmentRevaluation` are the SAME two
+   *     snapshots' `totalAssets`/`totalInvestments` diff MINUS that period's
+   *     own contribution — the market-movement-only remainder — computed
+   *     independently of `profit` and of each other.
+   *
+   * A contribution is net-worth-neutral (cash down, holding up by the same
+   * amount) exactly like a debt principal repayment (cash down, liability
+   * down by the same amount, already net-worth-neutral through `netWorth`
+   * itself) — neither needs a term in the `opening + profit +
+   * assetRevaluation + investmentRevaluation = closing` identity, but a
+   * contribution IS named on its own (`assetContribution`/
+   * `investmentContribution`) so it is never silently invisible: without
+   * it, a family that moved 10 jt into an investment this month with flat
+   * markets would see "investment revaluation: 0" and have no idea the
+   * contribution happened at all.
+   */
+  async getReconciliationBridge(
+    familyGroupId: string,
+    startDate: Date,
+    endDate: Date,
+    canSeePrivate: boolean,
+  ): Promise<ReconciliationBridgeDto> {
+    // `startDate` is always a period's 00:00:00.000 (WIB) instant — the last
+    // instant of that SAME calendar day is `startDate + 24h - 1ms`, in any
+    // fixed-offset timezone (WIB has no DST). Anchoring "opening" there
+    // (instead of `startDate` itself) is what lets it land on the snapshot
+    // captured for that opening day, whose stored `date` is UTC-midnight
+    // truncated and can therefore fall a few hours AFTER the raw WIB
+    // 00:00:00.000 instant.
+    const openingAnchor = new Date(startDate.getTime() + 86_400_000 - 1);
+
+    const [openingSnapshot, closingSnapshot, transactions, isRestricted] =
+      await Promise.all([
+        this.prisma.netWorthSnapshot.findFirst({
+          where: { familyGroupId, date: { lte: openingAnchor } },
+          orderBy: { date: "desc" },
+        }),
+        this.prisma.netWorthSnapshot.findFirst({
+          where: { familyGroupId, date: { lte: endDate } },
+          orderBy: { date: "desc" },
+        }),
+        this.prisma.transaction.findMany({
+          where: {
+            familyGroupId,
+            occurredAt: { gte: startDate, lte: endDate },
+            ...transactionPrivacyWhere(canSeePrivate),
+          },
+          select: {
+            amount: true,
+            type: true,
+            category: {
+              select: {
+                coaAccount: {
+                  select: { direction: true, groupNum: true, code: true },
+                },
+              },
+            },
+          },
+        }),
+        // EPIC-023 Task B retry (CRITICAL 2) — only worth checking when this
+        // viewer may not see private items; an owner/admin_staff/spouse
+        // viewer never needs the restriction (mirrors `getBalanceSheet`).
+        canSeePrivate
+          ? Promise.resolve(false)
+          : this.familyHasPrivateAccounts(familyGroupId),
+      ]);
+
+    if (!openingSnapshot || !closingSnapshot) {
+      return this.emptyReconciliationBridge(startDate, endDate, false);
+    }
+
+    // `opening`/`closing` come straight from the snapshots' own (privacy-
+    // open) `netWorth` column — a viewer who may not see private items
+    // cannot be shown either figure once the family holds a private
+    // account, exactly like `getBalanceSheet`'s snapshot branch.
+    if (isRestricted) {
+      return this.emptyReconciliationBridge(startDate, endDate, true);
+    }
+
+    let revenue = 0;
+    let expenses = 0;
+    let assetContribution = 0;
+    let investmentContribution = 0;
+    for (const tx of transactions) {
+      const amount = Number(tx.amount);
+      const dir = txCoaDirection(tx);
+      if (dir === CoaDirection.INCOME) {
+        revenue += amount;
+      } else if (dir === CoaDirection.EXPENSE) {
+        expenses += amount;
+      } else if (dir === CoaDirection.TRANSFER) {
+        const bucket = contributionBucket(tx.category?.coaAccount);
+        if (bucket === "investment") investmentContribution += amount;
+        else if (bucket === "asset") assetContribution += amount;
+      }
+    }
+
+    const rawAssetRevaluation =
+      Number(closingSnapshot.totalAssets) - Number(openingSnapshot.totalAssets);
+    const rawInvestmentRevaluation =
+      Number(closingSnapshot.totalInvestments) -
+      Number(openingSnapshot.totalInvestments);
+
+    return {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      opening: Number(openingSnapshot.netWorth),
+      closing: Number(closingSnapshot.netWorth),
+      profit: revenue - expenses,
+      assetRevaluation: rawAssetRevaluation - assetContribution,
+      investmentRevaluation: rawInvestmentRevaluation - investmentContribution,
+      assetContribution,
+      investmentContribution,
+      dataAvailable: true,
+      restrictedForViewer: false,
+    };
+  }
+
+  /** Zeroed-out `ReconciliationBridgeDto` — either genuinely no snapshot
+   * history yet (`restrictedForViewer: false`), or a snapshot exists but
+   * cannot be shown to this viewer (`restrictedForViewer: true`) — see
+   * `getReconciliationBridge`'s doc comment. */
+  private emptyReconciliationBridge(
+    startDate: Date,
+    endDate: Date,
+    restrictedForViewer: boolean,
+  ): ReconciliationBridgeDto {
+    return {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      opening: 0,
+      closing: 0,
+      profit: 0,
+      assetRevaluation: 0,
+      investmentRevaluation: 0,
+      assetContribution: 0,
+      investmentContribution: 0,
+      dataAvailable: false,
+      restrictedForViewer,
+    };
   }
 }

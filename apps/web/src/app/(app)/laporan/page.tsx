@@ -5,6 +5,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -34,7 +35,7 @@ import {
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah } from "@/lib/format";
 import { useLocale } from "@/hooks/use-locale";
-import type { Locale } from "@/i18n";
+import type { I18nDictionary, Locale } from "@/i18n";
 import { REPORT_TABS } from "@/lib/nav";
 import {
   clampDayToMonth,
@@ -42,7 +43,9 @@ import {
   getPeriodDateRange,
   getYearDateRange,
   REPORT_TIMEZONE_LABEL,
+  resolvePreset,
   type ReportPeriodSelection,
+  type ReportRangePreset,
 } from "@/lib/laporan-period";
 import type {
   BalanceSheetDto,
@@ -58,6 +61,7 @@ import type {
   NetWorthDto,
   PnlDto,
   Pph21ResultDto,
+  ReconciliationBridgeDto,
   ReportSummaryDto,
   Role,
   SankeyDto,
@@ -1343,6 +1347,8 @@ function BalanceSection({
   isLoading,
   dashboardNetWorth,
   isDashboardNetWorthLoading,
+  reconciliationBridge,
+  isBridgeLoading,
 }: {
   balanceSheet?: BalanceSheetDto;
   isLoading?: boolean;
@@ -1352,9 +1358,18 @@ function BalanceSection({
    * can never be falsifiable here. */
   dashboardNetWorth?: NetWorthDto;
   isDashboardNetWorthLoading?: boolean;
+  /** EPIC-023 B3 (D24, US-RPT-11) — why profit and net-worth change disagree. */
+  reconciliationBridge?: ReconciliationBridgeDto;
+  isBridgeLoading?: boolean;
 }) {
   const { t, locale } = useLocale();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
+  const hasData = balanceSheet ? balanceSheet.dataAvailable !== false : true;
+  // EPIC-023 Task B retry (CRITICAL 2) — distinct from the generic "no
+  // snapshot for this date" case: a snapshot DOES exist, it just cannot be
+  // shown to this viewer (see `restrictedForViewer`'s doc comment on the
+  // contract).
+  const isRestrictedForViewer = balanceSheet?.restrictedForViewer === true;
   const asOf = balanceSheet
     ? formatLocaleDateLong(balanceSheet.asOfDate, locale)
     : "—";
@@ -1374,8 +1389,16 @@ function BalanceSection({
       balanceSheet ?? { totalLiabilities: 0, netWorth: 0 },
       dashboardNetWorth,
     );
+  // EPIC-023 Task B retry (HIGH) — `dashboardNetWorth` is always LIVE (no
+  // date param on `/dashboard/net-worth`), so this cross-check is only
+  // meaningful when `balanceSheet` is ALSO a live/current figure
+  // (`isHistorical === false`). Comparing a historical snapshot against
+  // today's live net worth would fire a false "⚠️ Tidak Seimbang" on every
+  // past period, even when the books genuinely reconcile.
+  const identityCheckApplicable =
+    Boolean(balanceSheet) && hasData && balanceSheet?.isHistorical === false;
   const isCheckPending =
-    Boolean(balanceSheet) &&
+    identityCheckApplicable &&
     (isDashboardNetWorthLoading || isBalanced === null);
 
   return (
@@ -1384,118 +1407,147 @@ function BalanceSection({
         <div className="text-[15px] font-bold">
           {t.laporan.balance.titlePrefix} {asOf}
         </div>
-        {/* EPIC-022 (adversarial review round 3, item 3) — asOfDate is
-            accepted but there is no historical-balance data model; every
-            figure below is the CURRENT balance, not a true point-in-time
-            snapshot as of the date above. Disclose rather than silently
-            imply otherwise (same pattern as B3's Saldo Awal/Akhir note). */}
-        <div className="text-[10.5px] text-muted-foreground">
-          {t.laporan.balance.currentBalanceDisclosure}
+        {/* EPIC-023 B2 (closes EPIC-022 B11) — figures now come from a real
+            `NetWorthSnapshot` when one exists (`isHistorical`); the "these
+            are current balances, not historical" disclosure only applies to
+            the live-fallback path (a family with no snapshot history yet). */}
+        {balanceSheet && hasData && !balanceSheet.isHistorical && (
+          <div className="text-[10.5px] text-muted-foreground">
+            {t.laporan.balance.currentBalanceDisclosure}
+          </div>
+        )}
+      </div>
+      {balanceSheet && !hasData && (
+        <div className="flex items-start gap-3 rounded-[12px] border border-border bg-muted/40 p-3.5">
+          <div className="text-[22px]">
+            {isRestrictedForViewer ? "🔒" : "🕘"}
+          </div>
+          <div>
+            <div className="text-[13px] font-bold">
+              {isRestrictedForViewer
+                ? t.laporan.balance.restrictedForViewerTitle
+                : t.laporan.balance.noDataTitle}
+            </div>
+            <div className="text-[12px] text-muted-foreground">
+              {isRestrictedForViewer
+                ? t.laporan.balance.restrictedForViewerDescription
+                : t.laporan.balance.noDataDescription}
+            </div>
+          </div>
         </div>
-      </div>
-      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-        <SectionCard
-          title={
-            <span className="text-success">{t.laporan.balance.assetLabel}</span>
-          }
-        >
-          <table className="w-full border-collapse text-[12.5px]">
-            <tbody>
-              {balanceSheet?.assets.map((group) => (
-                <Fragment key={`g-${group.category}`}>
-                  <StatementRow
-                    label={group.category}
-                    labelClass="py-1.5 font-bold text-muted-foreground"
-                  />
-                  {group.items.map((item) => (
+      )}
+      {/* EPIC-023 Task B retry (CRITICAL 3) — without real figures behind
+          it, the asset/liability tables below used to render a fake
+          "Total Aset: Rp 0" / "Net Worth: 0" over the honest banner above. */}
+      {hasData && (
+        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+          <SectionCard
+            title={
+              <span className="text-success">
+                {t.laporan.balance.assetLabel}
+              </span>
+            }
+          >
+            <table className="w-full border-collapse text-[12.5px]">
+              <tbody>
+                {balanceSheet?.assets.map((group) => (
+                  <Fragment key={`g-${group.category}`}>
                     <StatementRow
-                      key={item.name}
-                      label={item.name}
-                      value={formatJuta(item.amount)}
+                      label={group.category}
+                      labelClass="py-1.5 font-bold text-muted-foreground"
+                    />
+                    {group.items.map((item) => (
+                      <StatementRow
+                        key={item.name}
+                        label={item.name}
+                        value={formatJuta(item.amount)}
+                        indent
+                      />
+                    ))}
+                  </Fragment>
+                ))}
+                <StatementRow
+                  label={t.laporan.totalAssetsLabel}
+                  value={
+                    balanceSheet ? formatJuta(balanceSheet.totalAssets) : "—"
+                  }
+                  className="border-t-2 border-success"
+                  labelClass="py-2 font-extrabold"
+                  valueClass="font-extrabold text-success"
+                />
+              </tbody>
+            </table>
+          </SectionCard>
+          <SectionCard
+            title={
+              <span className="text-destructive">
+                {t.laporan.balance.liabilityEquityLabel}
+              </span>
+            }
+          >
+            <table className="w-full border-collapse text-[12.5px]">
+              <tbody>
+                <StatementRow
+                  label={t.laporan.balance.liabilitiesLabel}
+                  labelClass="py-1.5 font-bold text-muted-foreground"
+                />
+                {balanceSheet?.liabilities.map((group) => (
+                  <Fragment key={`g-${group.category}`}>
+                    <StatementRow
+                      label={group.category}
+                      labelClass="py-1 text-[11px] text-muted-foreground"
                       indent
                     />
-                  ))}
-                </Fragment>
-              ))}
-              <StatementRow
-                label={t.laporan.totalAssetsLabel}
-                value={
-                  balanceSheet ? formatJuta(balanceSheet.totalAssets) : "—"
-                }
-                className="border-t-2 border-success"
-                labelClass="py-2 font-extrabold"
-                valueClass="font-extrabold text-success"
-              />
-            </tbody>
-          </table>
-        </SectionCard>
-        <SectionCard
-          title={
-            <span className="text-destructive">
-              {t.laporan.balance.liabilityEquityLabel}
-            </span>
-          }
-        >
-          <table className="w-full border-collapse text-[12.5px]">
-            <tbody>
-              <StatementRow
-                label={t.laporan.balance.liabilitiesLabel}
-                labelClass="py-1.5 font-bold text-muted-foreground"
-              />
-              {balanceSheet?.liabilities.map((group) => (
-                <Fragment key={`g-${group.category}`}>
-                  <StatementRow
-                    label={group.category}
-                    labelClass="py-1 text-[11px] text-muted-foreground"
-                    indent
-                  />
-                  {group.items.map((item) => (
-                    <StatementRow
-                      key={item.name}
-                      label={item.name}
-                      value={formatJuta(item.amount)}
-                      indent
-                    />
-                  ))}
-                </Fragment>
-              ))}
-              <StatementRow
-                label={t.laporan.totalLiabilitiesLabel}
-                value={
-                  balanceSheet ? formatJuta(balanceSheet.totalLiabilities) : "—"
-                }
-                className="border-b border-border"
-                labelClass="py-1.5 font-bold"
-                valueClass="font-bold text-destructive"
-              />
-              <StatementRow
-                label={t.laporan.balance.equityLabel}
-                labelClass="py-1.5 font-bold text-muted-foreground"
-              />
-              <StatementRow
-                label={t.laporan.netWorthLabel}
-                value={balanceSheet ? formatJuta(balanceSheet.netWorth) : "—"}
-                indent
-              />
-              <StatementRow
-                label={t.laporan.balance.totalLPlusELabel}
-                value={
-                  balanceSheet ? formatJuta(totalLiabilitiesPlusEquity) : "—"
-                }
-                className="border-t-2 border-primary"
-                labelClass="py-2 font-extrabold"
-                valueClass="font-extrabold text-primary"
-              />
-            </tbody>
-          </table>
-        </SectionCard>
-      </div>
+                    {group.items.map((item) => (
+                      <StatementRow
+                        key={item.name}
+                        label={item.name}
+                        value={formatJuta(item.amount)}
+                        indent
+                      />
+                    ))}
+                  </Fragment>
+                ))}
+                <StatementRow
+                  label={t.laporan.totalLiabilitiesLabel}
+                  value={
+                    balanceSheet
+                      ? formatJuta(balanceSheet.totalLiabilities)
+                      : "—"
+                  }
+                  className="border-b border-border"
+                  labelClass="py-1.5 font-bold"
+                  valueClass="font-bold text-destructive"
+                />
+                <StatementRow
+                  label={t.laporan.balance.equityLabel}
+                  labelClass="py-1.5 font-bold text-muted-foreground"
+                />
+                <StatementRow
+                  label={t.laporan.netWorthLabel}
+                  value={balanceSheet ? formatJuta(balanceSheet.netWorth) : "—"}
+                  indent
+                />
+                <StatementRow
+                  label={t.laporan.balance.totalLPlusELabel}
+                  value={
+                    balanceSheet ? formatJuta(totalLiabilitiesPlusEquity) : "—"
+                  }
+                  className="border-t-2 border-primary"
+                  labelClass="py-2 font-extrabold"
+                  valueClass="font-extrabold text-primary"
+                />
+              </tbody>
+            </table>
+          </SectionCard>
+        </div>
+      )}
       {isCheckPending && (
         <div className="flex items-center gap-2 rounded-[12px] border border-border bg-muted/40 p-3 text-[12px] text-muted-foreground">
           {t.laporan.balance.checkingLabel}
         </div>
       )}
-      {balanceSheet && isBalanced === true && (
+      {identityCheckApplicable && isBalanced === true && (
         <div className="flex items-start gap-3 rounded-[12px] border border-primary/20 bg-accent p-3.5">
           <div className="text-[22px]">✅</div>
           <div>
@@ -1508,7 +1560,7 @@ function BalanceSection({
           </div>
         </div>
       )}
-      {balanceSheet && isBalanced === false && (
+      {identityCheckApplicable && isBalanced === false && (
         <div className="flex items-start gap-3 rounded-[12px] border border-warning/30 bg-warning-soft p-3.5">
           <div className="text-[22px]">⚠️</div>
           <div>
@@ -1522,7 +1574,108 @@ function BalanceSection({
           </div>
         </div>
       )}
+      <ReconciliationBridgeCard
+        bridge={reconciliationBridge}
+        isLoading={isBridgeLoading}
+      />
     </div>
+  );
+}
+
+/**
+ * EPIC-023 Task B (B3, D24, US-RPT-11) — answers "why is my profit X but my
+ * wealth up Y" on screen: opening/closing net worth from the snapshots, plus
+ * profit and each revaluation term named SEPARATELY (never a single
+ * unexplained residual — see `getReconciliationBridge`'s doc comment on the
+ * API side for how each term is independently derived).
+ */
+function ReconciliationBridgeCard({
+  bridge,
+  isLoading,
+}: {
+  bridge?: ReconciliationBridgeDto;
+  isLoading?: boolean;
+}) {
+  const { t } = useLocale();
+  if (!bridge) return null;
+  const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
+  const netWorthChange = bridge.closing - bridge.opening;
+  // EPIC-023 Task B retry (CRITICAL 2) — distinct from the generic "not
+  // enough history" no-data case: a snapshot exists, it just cannot be
+  // shown to this viewer (see `restrictedForViewer`'s doc comment).
+  const isRestrictedForViewer = bridge.restrictedForViewer === true;
+
+  return (
+    <SectionCard
+      title={t.laporan.balance.bridgeTitle}
+      bodyClassName={loadingClass}
+    >
+      <div className="text-[11.5px] text-muted-foreground mb-2">
+        {t.laporan.balance.bridgeDescription}
+      </div>
+      {!bridge.dataAvailable ? (
+        <div className="text-[12px] text-muted-foreground">
+          {isRestrictedForViewer
+            ? t.laporan.balance.bridgeRestrictedDescription
+            : t.laporan.balance.bridgeNoDataDescription}
+        </div>
+      ) : (
+        <table className="w-full border-collapse text-[12.5px]">
+          <tbody>
+            <StatementRow
+              label={t.laporan.balance.bridgeOpeningLabel}
+              value={formatJuta(bridge.opening)}
+              labelClass="py-1.5 font-semibold text-muted-foreground"
+            />
+            <StatementRow
+              label={t.laporan.balance.bridgeProfitLabel}
+              value={formatJuta(bridge.profit)}
+              indent
+            />
+            <StatementRow
+              label={t.laporan.balance.bridgeAssetRevaluationLabel}
+              value={formatJuta(bridge.assetRevaluation)}
+              indent
+            />
+            {/* EPIC-023 Task B retry (CRITICAL 1) — named separately so a
+                cash-funded, net-worth-neutral contribution is never
+                mistaken for zero asset/investment activity this period. */}
+            <StatementRow
+              label={t.laporan.balance.bridgeAssetContributionLabel}
+              value={formatJuta(bridge.assetContribution)}
+              indent
+              labelClass="py-1 text-[11px] text-muted-foreground"
+              valueClass="text-[11px] text-muted-foreground"
+            />
+            <StatementRow
+              label={t.laporan.balance.bridgeInvestmentRevaluationLabel}
+              value={formatJuta(bridge.investmentRevaluation)}
+              indent
+            />
+            <StatementRow
+              label={t.laporan.balance.bridgeInvestmentContributionLabel}
+              value={formatJuta(bridge.investmentContribution)}
+              indent
+              labelClass="py-1 text-[11px] text-muted-foreground"
+              valueClass="text-[11px] text-muted-foreground"
+            />
+            <StatementRow
+              label={t.laporan.balance.bridgeClosingLabel}
+              value={formatJuta(bridge.closing)}
+              className="border-t-2 border-primary"
+              labelClass="py-2 font-extrabold"
+              valueClass="font-extrabold text-primary"
+            />
+            <StatementRow
+              label={t.laporan.balance.bridgeNetWorthChangeLabel}
+              value={formatJuta(netWorthChange)}
+              labelClass="pt-2 text-muted-foreground"
+              valueClass="text-muted-foreground"
+            />
+          </tbody>
+        </table>
+      )}
+    </SectionCard>
   );
 }
 
@@ -2595,6 +2748,69 @@ function PeriodFilter({
   );
 }
 
+/**
+ * EPIC-023 Task B (B1, US-RPT-12) — date-range presets, applied across every
+ * /laporan sub-view. Selecting a preset other than "Custom" overrides the
+ * year/month/day `PeriodFilter` above; picking "Custom" hands control back
+ * to it (see `LaporanInner`'s `rangeStart`/`rangeEnd` derivation).
+ */
+const RANGE_PRESET_IDS: ReportRangePreset[] = [
+  "thisMonth",
+  "lastMonth",
+  "last3Months",
+  "last6Months",
+  "last12Months",
+  "thisYear",
+  "lastYear",
+  "custom",
+];
+
+/** Shared preset → label map (EPIC-023 Task B retry, MEDIUM — this used to
+ * be duplicated verbatim in `RangePresetSelect` and in `LaporanInner`'s
+ * `periodLabel` derivation; one source now feeds both). */
+function buildRangePresetLabels(
+  t: I18nDictionary,
+): Record<ReportRangePreset, string> {
+  return {
+    thisMonth: t.laporan.periodFilter.presetThisMonth,
+    lastMonth: t.laporan.periodFilter.presetLastMonth,
+    last3Months: t.laporan.periodFilter.presetLast3Months,
+    last6Months: t.laporan.periodFilter.presetLast6Months,
+    last12Months: t.laporan.periodFilter.presetLast12Months,
+    thisYear: t.laporan.periodFilter.presetThisYear,
+    lastYear: t.laporan.periodFilter.presetLastYear,
+    custom: t.laporan.periodFilter.presetCustom,
+  };
+}
+
+function RangePresetSelect({
+  preset,
+  onChange,
+}: {
+  preset: ReportRangePreset;
+  onChange: (next: ReportRangePreset) => void;
+}) {
+  const { t } = useLocale();
+  const fieldClass =
+    "rounded-md border bg-background px-3 py-[7px] text-[13.5px] outline-none focus:border-primary";
+  const labels = buildRangePresetLabels(t);
+
+  return (
+    <select
+      aria-label={t.laporan.periodFilter.presetAriaLabel}
+      value={preset}
+      onChange={(e) => onChange(e.target.value as ReportRangePreset)}
+      className={fieldClass}
+    >
+      {RANGE_PRESET_IDS.map((id) => (
+        <option key={id} value={id}>
+          {labels[id]}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 /* ───────────────────────── Page shell ───────────────────────── */
 
 function LaporanInner() {
@@ -2619,11 +2835,49 @@ function LaporanInner() {
     return { year: now.getFullYear(), month: now.getMonth() + 1, day: null };
   });
 
-  // Range-style sections (Bank/Detail/PNL/Cashflow/Aliran Dana, and Balance
-  // Sheet's as-of date) narrow to a single day when the filter pins one;
-  // otherwise they span the whole selected month.
-  const { startDate: rangeStart, endDate: rangeEnd } =
+  // EPIC-023 Task B (B1, US-RPT-12) — date-range presets, applied across
+  // every /laporan sub-view. "custom" hands control back to the year/
+  // month/day `PeriodFilter` above (today's prior default behavior);
+  // anything else overrides `rangeStart`/`rangeEnd` below. `now` is frozen
+  // per preset selection (not recomputed every render) so the derived
+  // query keys stay stable instead of refetching on every re-render.
+  const [rangePreset, setRangePreset] = useState<ReportRangePreset>("custom");
+  // EPIC-023 Task B retry (MEDIUM) — the "to-date" presets (This Month/
+  // Year, Last N Months) end at `now`, frozen at the moment `resolvePreset`
+  // last ran. Recompute it when the tab regains focus/visibility so a long-
+  // lived session doesn't keep showing yesterday's "today" after a day
+  // rollover — a full re-derivation on every render would defeat the
+  // "stable query keys" reason `now` is frozen in the first place, so this
+  // is bounded to focus/visibility events only, not every render.
+  const [focusTick, setFocusTick] = useState(0);
+  useEffect(() => {
+    function recompute() {
+      setFocusTick((n) => n + 1);
+    }
+    window.addEventListener("focus", recompute);
+    document.addEventListener("visibilitychange", recompute);
+    return () => {
+      window.removeEventListener("focus", recompute);
+      document.removeEventListener("visibilitychange", recompute);
+    };
+  }, []);
+  // `focusTick` is an intentional recompute trigger (not a value
+  // `resolvePreset` itself reads), so it is force-included in the deps
+  // array below to invalidate the memo on focus/visibility change.
+  const presetRange = useMemo(
+    () => (rangePreset === "custom" ? null : resolvePreset(rangePreset)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rangePreset, focusTick],
+  );
+
+  // Range-style sections (Bank/Detail/PNL/Cashflow/Aliran Dana, Balance
+  // Sheet's as-of date, and the Reconciliation Bridge) narrow to a single
+  // day when the filter pins one; otherwise they span the whole selected
+  // month, or the active preset's window when one is selected.
+  const { startDate: periodRangeStart, endDate: periodRangeEnd } =
     getPeriodDateRange(period);
+  const rangeStart = presetRange?.startDate ?? periodRangeStart;
+  const rangeEnd = presetRange?.endDate ?? periodRangeEnd;
   // Trend-style "N months back" summary queries are always monthly-bucketed
   // server-side — they anchor on the selected month's end regardless of any
   // pinned day (a single day has no meaning for a multi-month trend).
@@ -2634,29 +2888,54 @@ function LaporanInner() {
   });
   // Tahunan re-queries the same trend anchored at the selected year's end.
   const { endDate: yearAnchorEnd } = getYearDateRange(period.year);
+  // EPIC-023 Task B retry (HIGH) — B1 previously only drove
+  // rbank/rdetail/rpnl/rbalance/rasl/rcashflow/raliran via `rangeStart`/
+  // `rangeEnd`; rsum/rbulanan/rkas/rperf/rtahunan/rpajak still anchored on
+  // the year/month/day filter alone, so picking a preset on those tabs
+  // (rsum is the DEFAULT landing tab) silently changed nothing. Every
+  // trend-style ("N months/years back") query below now anchors on the
+  // active preset's own end date when one is selected, falling back to the
+  // year/month/day filter's anchor for "custom".
+  const summaryAnchorEnd = presetRange ? rangeEnd : monthAnchorEnd;
+  const tahunanAnchorEnd = presetRange ? rangeEnd : yearAnchorEnd;
+  const presetLabels = buildRangePresetLabels(t);
   // Human-readable caption for the range-based sections (Aliran Dana/PNL/
-  // Cashflow) so their heading always matches the period actually queried.
-  const periodLabel = period.day
-    ? new Date(period.year, period.month - 1, period.day).toLocaleDateString(
-        localeTag(locale),
-        { day: "numeric", month: "long", year: "numeric" },
-      )
-    : new Date(period.year, period.month - 1, 1).toLocaleDateString(
-        localeTag(locale),
-        { month: "long", year: "numeric" },
-      );
+  // Cashflow) so their heading always matches the period actually queried —
+  // the active preset's own label when one is selected, else the year/
+  // month/day filter's period.
+  const periodLabel =
+    rangePreset !== "custom"
+      ? presetLabels[rangePreset]
+      : period.day
+        ? new Date(
+            period.year,
+            period.month - 1,
+            period.day,
+          ).toLocaleDateString(localeTag(locale), {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })
+        : new Date(period.year, period.month - 1, 1).toLocaleDateString(
+            localeTag(locale),
+            { month: "long", year: "numeric" },
+          );
 
   const { data: summary, isLoading: isSummaryLoading } =
     useQuery<ReportSummaryDto>({
+      // EPIC-023 Task B retry (HIGH) — feeds rsum (the default landing
+      // tab), rbulanan, rkas, and rperf; anchored on the active preset's
+      // end date (`summaryAnchorEnd`) so those tabs actually change when a
+      // preset is selected, not just Bank/Detail/PNL/Cashflow/Aliran Dana.
       queryKey: queryKeys.reports.summary(
         familyGroupId,
         SUMMARY_MONTHS,
         "monthly",
-        monthAnchorEnd,
+        summaryAnchorEnd,
       ),
       queryFn: () =>
         apiFetch<ReportSummaryDto>(
-          `/family-groups/${familyGroupId}/reports/summary?months=${SUMMARY_MONTHS}&endDate=${monthAnchorEnd}`,
+          `/family-groups/${familyGroupId}/reports/summary?months=${SUMMARY_MONTHS}&endDate=${summaryAnchorEnd}`,
           { token },
         ),
       enabled,
@@ -2750,6 +3029,24 @@ function LaporanInner() {
       staleTime: 60_000,
     });
 
+  // EPIC-023 Task B (B3, D24, US-RPT-11) — reconciles the period's profit
+  // against its actual net-worth change, surfaced on the Balance Sheet tab.
+  const { data: reconciliationBridge, isLoading: isBridgeLoading } =
+    useQuery<ReconciliationBridgeDto>({
+      queryKey: queryKeys.reports.reconciliationBridge(
+        familyGroupId,
+        rangeStart,
+        rangeEnd,
+      ),
+      queryFn: () =>
+        apiFetch<ReconciliationBridgeDto>(
+          `/family-groups/${familyGroupId}/reports/reconciliation-bridge?startDate=${rangeStart}&endDate=${rangeEnd}`,
+          { token },
+        ),
+      enabled: enabled && tab === "rbalance",
+      staleTime: 60_000,
+    });
+
   const { data: cashflow, isLoading: isCashflowLoading } =
     useQuery<CashflowStatementDto>({
       queryKey: queryKeys.reports.cashflow(familyGroupId, rangeStart, rangeEnd),
@@ -2773,6 +3070,13 @@ function LaporanInner() {
     staleTime: 60_000,
   });
 
+  // EPIC-023 Task B retry (HIGH) — like rfamily below, rinv's holdings list
+  // has no period semantics: `/investments` returns the family's CURRENT
+  // portfolio (no `asOfDate`/`startDate`/`endDate` param on the endpoint),
+  // so there is no "last month's holdings" to show. Left un-wired,
+  // deliberately, same reasoning as the rfamily comment further down; the
+  // preset selector's inapplicability is disclosed on-screen for both tabs
+  // (see `periodNotApplicableNote` usage in the header below).
   const { data: investments, isLoading: isInvLoading } = useQuery<
     InvestmentDto[]
   >({
@@ -2797,18 +3101,20 @@ function LaporanInner() {
   });
 
   // Tahunan (year granularity): re-anchors the same trend endpoint at the
-  // selected year's end instead of always ending at "now".
+  // selected year's end instead of always ending at "now" — or, when a
+  // range preset is active, at that preset's own end (EPIC-023 Task B
+  // retry, HIGH — rtahunan used to ignore the preset selector entirely).
   const { data: yearlySummary, isLoading: isYearlyLoading } =
     useQuery<ReportSummaryDto>({
       queryKey: queryKeys.reports.summary(
         familyGroupId,
         3,
         "yearly",
-        yearAnchorEnd,
+        tahunanAnchorEnd,
       ),
       queryFn: () =>
         apiFetch<ReportSummaryDto>(
-          `/family-groups/${familyGroupId}/reports/summary?months=3&period=yearly&endDate=${yearAnchorEnd}`,
+          `/family-groups/${familyGroupId}/reports/summary?months=3&period=yearly&endDate=${tahunanAnchorEnd}`,
           { token },
         ),
       enabled: enabled && tab === "rtahunan",
@@ -2850,18 +3156,20 @@ function LaporanInner() {
     });
 
   // T-903: PPh 21 estimate from the trailing 12 months. Anchoring the trend
-  // on `monthAnchorEnd` makes the estimate re-query for the selected period.
+  // on `summaryAnchorEnd` makes the estimate re-query for the selected
+  // period (EPIC-023 Task B retry, HIGH — rpajak used to ignore the
+  // preset selector entirely).
   const { data: annualSummary, isLoading: isAnnualLoading } =
     useQuery<ReportSummaryDto>({
       queryKey: queryKeys.reports.summary(
         familyGroupId,
         12,
         "monthly",
-        monthAnchorEnd,
+        summaryAnchorEnd,
       ),
       queryFn: () =>
         apiFetch<ReportSummaryDto>(
-          `/family-groups/${familyGroupId}/reports/summary?months=12&period=monthly&endDate=${monthAnchorEnd}`,
+          `/family-groups/${familyGroupId}/reports/summary?months=12&period=monthly&endDate=${summaryAnchorEnd}`,
           { token },
         ),
       enabled: enabled && tab === "rpajak",
@@ -3041,6 +3349,8 @@ function LaporanInner() {
             isLoading={isBalanceLoading}
             dashboardNetWorth={familyNetWorth}
             isDashboardNetWorthLoading={isNetWorthLoading}
+            reconciliationBridge={reconciliationBridge}
+            isBridgeLoading={isBridgeLoading}
           />
         );
       case "rcashflow":
@@ -3109,7 +3419,15 @@ function LaporanInner() {
           {t.laporan.subtitle}
         </div>
         <div className="flex flex-col items-end gap-1">
-          <PeriodFilter period={period} onChange={setPeriod} />
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {/* EPIC-023 Task B (B1, US-RPT-12) — quick-range presets applied
+                across every /laporan sub-view. "Custom" hands control back
+                to the year/month/day filter below it. */}
+            <RangePresetSelect preset={rangePreset} onChange={setRangePreset} />
+            {rangePreset === "custom" && (
+              <PeriodFilter period={period} onChange={setPeriod} />
+            )}
+          </div>
           {/* EPIC-022 B7 — report boundaries are pinned to WIB (never the
               viewer's local offset); disclose the pin instead of leaving it
               silent. */}
@@ -3118,6 +3436,15 @@ function LaporanInner() {
             {REPORT_TIMEZONE_LABEL}
             {t.laporan.periodFilter.timezoneNoteSuffix}
           </div>
+          {/* EPIC-023 Task B retry (HIGH) — rfamily (roster + net worth)
+              and rinv (current holdings) have no period semantics to
+              filter by (see the query comments above); say so plainly
+              instead of rendering a selector that silently does nothing. */}
+          {(tab === "rfamily" || tab === "rinv") && (
+            <div className="text-[10.5px] text-warning">
+              {t.laporan.periodFilter.periodNotApplicableNote}
+            </div>
+          )}
         </div>
       </div>
 
