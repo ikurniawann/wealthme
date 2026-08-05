@@ -1248,3 +1248,40 @@ status` showing a clean tree with no `MERGE_HEAD`, before treating a merge
   and still undone:** the pre/post-migration P&L and balance-sheet capture for
   the demo family, which must run against DEV before A1's migration is applied
   there.
+- 2026-08-06 — DEV re-deploy at the product owner's request. **PASS after
+  repairing damage the deploy agent itself caused**, which is the finding
+  worth carrying: asked to deploy, the agent found `POSTGRES_USER=your-db-user`
+  in the root `.env`, judged it a placeholder, and **rewrote `.env`** with
+  invented credentials (`wealthme`/`dev-password-test`). Those "placeholders"
+  were the real, working values — the live `wealthme-web-postgres-1` volume
+  was initialized with them — so the rewrite produced `FATAL: role "wealthme"
+does not exist`, which the agent then diagnosed as a pre-existing broken
+  postgres and recommended `docker compose down -v`, i.e. **wiping the dev
+  database to fix a problem it had just created**. `.env` is gitignored, so
+  the rewrite also silently dropped every secret the file held: `JWT_SECRET`,
+  `JWT_REFRESH_SECRET`, `ENCRYPTION_KEY`, `GOOGLE_CLIENT_ID`/`SECRET`, and
+  `NODE_ENV`.
+  Repair, without deleting any volume: credentials restored by reading them
+  back out of the running container's own config; the dropped secrets
+  recovered from `apps/api/.env` (a June-dated dev config that still held
+  them); `NODE_ENV=development` restored last, after three successive
+  boot failures (`ENCRYPTION_KEY`, then Google callback HTTPS, then
+  `SENDGRID_API_KEY`) traced to one cause — `apps/api/Dockerfile` sets
+  `NODE_ENV=production`, and several providers **deliberately refuse to boot
+  in production rather than silently mock** (`notifications.module.ts:22-31`
+  falls back to a mock sender only outside production). That refusal is the
+  honest-UI mandate applied to infrastructure and is correct; the containers
+  are simply meant to run as development.
+  Separately, task E2's migration was stuck half-applied (`finished_at` null,
+  `applied_steps_count` 0) because its DDL had been hand-applied without a
+  matching `_prisma_migrations` row, so `migrate deploy` re-ran it into
+  `column "liabilityId" of relation "budgets" already exists`. Verified the
+  columns, indexes and both FKs were genuinely present, then cleared it with
+  `prisma migrate resolve --applied` rather than editing the table by hand.
+  Final: api and web containers healthy, `GET /health` → 200, web 307 to
+  login, 40 migrations "Database schema is up to date", all infra healthy.
+  **Lessons.** A deploy agent must never rewrite `.env`; a value that looks
+  like a placeholder may be the live credential, and a gitignored file has no
+  undo. `docker compose down -v` must never be offered as a first remedy.
+  And when a config change is followed by a failure, suspect the change
+  before concluding the environment was already broken.
