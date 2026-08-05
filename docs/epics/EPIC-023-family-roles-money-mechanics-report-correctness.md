@@ -778,3 +778,9 @@ contribution` absorbs any mismatch between a recorded contribution and its
   (recorded as outstanding when task A closed) remains undone — it must run
   against DEV before that migration is applied there, independent of this
   task closing.
+- 2026-08-05 /epic-loop EPIC-023 #3 "B — Report periods and the balance-sheet
+  bridge" → PASS (attempts: 3 for B3; B1/B2 already done),
+  PR: https://github.com/andrsrjld/wealthme-web/pull/240. No GitHub issue
+  matched this task group's title — issues #1–79 predate this epic and do
+  not map to its task groups; proceeded without a closing reference, per the
+  loop's documented fallback.
