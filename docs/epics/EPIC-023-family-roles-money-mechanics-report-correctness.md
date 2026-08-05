@@ -682,3 +682,89 @@ whose P&L and balance sheet reconcile through the bridge.
   is pre-existing and repo-wide, not specific to this task; fixing the
   tsconfig/ts-jest setup is its own piece of work and was deliberately left
   alone here.
+
+## Paused — group B (reconciliation bridge)
+
+**Not blocked by the retry rule** — 2 of 3 attempts used. Paused because the
+third cannot be verified: this sandbox became memory-exhausted (17.5 GB used /
+3.2 GB free), `scripts/test.sh` and `scripts/qa.sh` are OOM-killed (exit 137)
+when turbo runs packages in parallel, the `packages/contracts` build SIGTRAPs on
+a stale V8 compile cache, and the pre-commit hook itself now core-dumps.
+Spending the last attempt where the gates cannot run is how a wrong result gets
+shipped and believed.
+
+Branch `feat/EPIC-023-task-5-b-report-periods-and-the-balance-sheet-bridge`
+holds the work (commit `b24726d`). Run suites directly —
+`DISABLE_V8_COMPILE_CACHE=1 pnpm jest --runInBand` in `apps/api` / `apps/web` —
+until the environment recovers. Both pass that way: **597 API / 260 web**, lint
+clean in all three packages, `security-check.sh` exit 0.
+
+### Done and verified
+
+- **B1** — `resolvePreset`, WIB-anchored and timezone-independent (39 tests
+  including a non-WIB `TZ` run), end-of-day-inclusive bounds, inverted custom
+  range refused. Wired across the report sub-views; the two genuinely
+  period-agnostic tabs (`rfamily`, `rinv`) say so rather than rendering an inert
+  control.
+- **B2** — the balance sheet honours the range's end date via `NetWorthSnapshot`
+  and labels it, with honest states for "no snapshot at or before this date" and
+  "no snapshots at all". Closes EPIC-022 B11.
+- **A privacy regression, found and closed.** Snapshots are captured with
+  privacy fully open (`computeNetWorthBreakdown(fgId, true)`), so reading them
+  bypassed `accountPrivacyWhere`. A plain `member` saw **1,009,000,000** instead
+  of **10,000,000** — the owner's private account. Now a viewer who may not see
+  private items is refused the snapshot outright rather than shown totals
+  containing hidden money.
+- The fake-zero balance sheet on the no-data path, and the false "Neraca Tidak
+  Seimbang" warning that fired on every historical period.
+
+### Open — and it is a data-model problem, not a coding slip
+
+**B3's bridge cannot attribute a wealth-allocation transfer.** Moving cash into
+a holding is a COA group-3 `TRANSFER` (correctly out of the P&L), and it also
+moves `totalInvestments`/`totalAssets` in the snapshot. Nothing links the
+`Transaction` to the holding it funded, so the code guesses from a hardcoded COA
+code. Two consequences, both reproduced by a reviewer with real tests:
+
+1. **Direction is ignored.** A withdrawal back to cash carries the same group-3
+   category and is *added* to contributions, so the identity breaks by **double**
+   the amount (250,000,000 vs a true 270,000,000). Attempt 2 made this strictly
+   worse than attempt 1.
+2. **The `code === "30002"` discriminator misfiles the seeded chart**, which has
+   ten group-3 codes including `30701 Stocks` and `30702 Crypto`. Buying stock
+   renders "Asset Revaluation −Rp 10 jt" beside "Investment Revaluation +Rp 10
+   jt" — two fabricated figures that *sum correctly*, so nothing signals the
+   error. Worse than a visible imbalance.
+
+**The split into two named revaluations was an orchestration decision, and it
+was wrong.** The epic's own text says "asset & investment revaluation" — one
+term. It was split during the RED phase to defeat a single-residual cheat, and
+that split created a requirement the schema cannot satisfy.
+
+### Recommended fix — simpler than what is there
+
+Collapse to one signed contribution and one combined revaluation:
+
+- `contribution` = signed sum of group-3 `TRANSFER` transactions, using
+  `tx.type` for direction (out of cash = positive, back to cash = negative).
+- `revaluation` = `(Δassets + Δinvestments) − contribution`.
+- identity: `closing = opening + profit + revaluation`, with the contribution
+  shown as its own net-zero line.
+
+Misattribution becomes impossible because nothing is attributed. Keep the
+anti-cheat property by asserting `revaluation` against an independently-known
+market movement and `contribution` against independently-known transfers, rather
+than by splitting buckets.
+
+If per-holding attribution is genuinely wanted later, it needs the same
+treatment E1 gives liabilities and insurance: a link from `Transaction` to the
+holding it funds. That is a schema decision, not a reporting one.
+
+### Also recorded
+
+- `restrictedForViewer: true` discloses one bit — that the family has at least
+  one private account — which a `member` could not previously learn. Judged a
+  reasonable trade against silently showing a generic "no data" banner, but it
+  should be a conscious choice.
+- Missing coverage: owner + private account for `getReconciliationBridge`
+  (present for `getBalanceSheet`).
