@@ -523,7 +523,14 @@ describe("parseExcelBuffer — real .xlsx parsing (D17)", () => {
     await expect(parseExcelBuffer(buffer)).rejects.toThrow(
       ExcelLimitExceededError,
     );
-  }, 30_000);
+    // 90s, not 30s: this builds a real MAX_XLSX_ROWS+1-row workbook and
+    // parses it for real — CI's shared runner measured >4x slower than a
+    // local dev machine for this CPU-bound work (7.3s local, timed out at
+    // 30s on CI). The fixture must stay genuinely oversized (shrinking it
+    // would stop proving the guard catches a real breach — see the epic's
+    // "Closed finding" postmortem on why a declared-size check was
+    // insufficient), so the timeout gets the margin instead.
+  }, 90_000);
 
   it("refuses a workbook exceeding the cell cap", async () => {
     // 100 columns is comfortably under Excel's 16,384-column limit; enough
@@ -540,5 +547,6 @@ describe("parseExcelBuffer — real .xlsx parsing (D17)", () => {
     await expect(parseExcelBuffer(buffer)).rejects.toThrow(
       ExcelLimitExceededError,
     );
-  }, 30_000);
+    // 90s — see the row-cap test above for why this needs more than 30s.
+  }, 90_000);
 });
