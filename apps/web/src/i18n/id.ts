@@ -1523,6 +1523,16 @@ export const id = {
     toastSaveFailed: "Gagal menyimpan data pajak",
     toastStatusUpdated: "✅ Status SPT diperbarui!",
     toastStatusUpdateFailed: "Gagal memperbarui status SPT",
+    // EPIC-023 Task I (I1) — the page used to offer Save to every role and
+    // let the server's 403 come back as a bare "Gagal menyimpan data pajak".
+    // Say up front who may record tax data, and why this session cannot.
+    noWriteAccessNote:
+      "Peran Anda tidak dapat mencatat data pajak — pencatatan dilakukan oleh Pemilik, Pasangan, atau Anggota.",
+    noFamilyGroupNote:
+      "Belum ada keluarga aktif untuk sesi ini, jadi data pajak belum bisa disimpan.",
+    checkingAccessLabel: "Memeriksa akses…",
+    accessCheckFailedNote:
+      "Tidak dapat memverifikasi akses Anda — coba muat ulang halaman.",
   },
   rekening: {
     typeLabels: {

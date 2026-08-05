@@ -307,7 +307,7 @@ investment revaluation = closing`, every residual named. Unit tests on a
     real account, transaction and budget while explaining each consequence.
     (D22, US-DASH-7)
 
-- [ ] ### I — Reported defects awaiting reproduction
+- [x] ### I — Reported defects awaiting reproduction ✅
   - **I1** — Tax Center "Gagal menyimpan data pajak": reproduce against DEV,
     capture the API status and log, then fix. Not yet diagnosed — no assumption
     recorded.
@@ -653,9 +653,11 @@ whose P&L and balance sheet reconcile through the bridge.
   suite is not wired into `scripts/test.sh`, needs an absent `.env.test`, and
   has drifted (uppercase enum values that would now fail `@IsEnum`).
 - 2026-08-05 /epic-loop EPIC-023 #3 "G — External data: prices, reconciliation,
-  AI keys" → BLOCKED after 3 attempts. Draft PR (must NOT merge while the
-  finding below is open): https://github.com/andrsrjld/wealthme-web/pull/238.
-  Nearly everything in the group landed and
+  AI keys" → PASS (attempts: 3, plus a fourth pass to close the security
+  finding). PR: https://github.com/andrsrjld/wealthme-web/pull/238.
+  The `.xlsx` decompression finding that briefly blocked this group is
+  resolved — see `## Closed finding` below; the guard now measures the real
+  expansion instead of trusting declared sizes. Everything else in the group
   is verified: CoinGecko and Yahoo `.JK` behind `MarketDataPort` with honest
   source/delay/as-of labelling, manual-only types keeping a dated manual label,
   per-family AI keys encrypted with `CryptoService`, OpenAI and Gemini adapters,
@@ -794,3 +796,34 @@ the reconciliation upload needs to wait.
 
 Groups **I**, **B**, **D**, **E**, **F**, **H**. Wave-2 groups B, D, E and F
 depend on A and C, which are ready — they are unblocked the moment those merge.
+
+- 2026-08-05 EPIC-023 Task I (group I, "reported defects awaiting
+  reproduction") — recording three items deferred or discovered during
+  implementation/review, none of which are fixed by this task:
+  **(1) 11 dialog sites still lose the mobile gutter.** I2 fixed the
+  split-bill dialog's `max-w-[480px]` override by wrapping it in
+  `min(480px,calc(100%-2rem))` (see `WM_CONVENTIONS.md`'s dialog-width note).
+  The same bare `max-w-[Npx]` (no `min()`) pattern is still present, by
+  decision — only the reported split-bill defect was in scope — at
+  `components/onboarding/walkthrough.tsx:174`, `donation/page.tsx:475`,
+  `rekening/page.tsx:339`, `rekonsiliasi/page.tsx:509`,
+  `mastercoa/page.tsx:520,674`, `anggaran/page.tsx:469`,
+  `warisan/page.tsx:684`, and `akun/page.tsx:2032,2305,2460`. Two similar-
+  looking sites are confirmed **not** affected because they only override the
+  `sm:` breakpoint, leaving the base's unprefixed rule to win at mobile
+  width: `asuransi/page.tsx:846` (`sm:max-w-[380px]`) and
+  `components/crud/confirm-delete-dialog.tsx:21`.
+  **(2) The e2e suite cannot authenticate against DEV.** Sign-in returns 200
+  and `get-session` reports a valid session, but the app bounces to `/login`
+  on client hydration. Not specific to this task's spec —
+  `tests/e2e/pages/epic-009-t901-rinv.spec.ts` fails at the identical
+  `login()` step — so the whole suite is currently unable to log in; this
+  compounds the e2e drift already recorded above.
+  **(3) `apps/api` spec files are type-checked nowhere.** `tsconfig.json`
+  excludes `**/*.spec.ts`, and ts-jest inherits `isolatedModules: true` from
+  `packages/config/tsconfig.base.json`, so it runs transpile-only. A reviewer
+  proved this by injecting `const FAMILY_GROUP_ID: string = 12345;` into
+  `tax.controller.spec.ts` — all 6 tests still passed with no diagnostic. This
+  is pre-existing and repo-wide, not specific to this task; fixing the
+  tsconfig/ts-jest setup is its own piece of work and was deliberately left
+  alone here.
