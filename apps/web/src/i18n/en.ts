@@ -1455,6 +1455,16 @@ export const en = {
     toastSaveFailed: "Failed to save tax data",
     toastStatusUpdated: "✅ SPT status updated!",
     toastStatusUpdateFailed: "Failed to update SPT status",
+    // EPIC-023 Task I (I1) — the page used to offer Save to every role and
+    // let the server's 403 come back as a bare "Failed to save tax data".
+    // Say up front who may record tax data, and why this session cannot.
+    noWriteAccessNote:
+      "Your role cannot record tax data — that is done by the Owner, Spouse, or a Member.",
+    noFamilyGroupNote:
+      "This session has no active family yet, so tax data cannot be saved.",
+    checkingAccessLabel: "Checking access…",
+    accessCheckFailedNote:
+      "Couldn't verify your access — try refreshing the page.",
   },
   rekening: {
     typeLabels: {

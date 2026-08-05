@@ -453,7 +453,7 @@ export default function SplitBillPage() {
           if (!o) resetCreateForm();
         }}
       >
-        <DialogContent className="max-w-[480px] p-6 sm:max-w-[480px]">
+        <DialogContent className="max-w-[min(480px,calc(100%-2rem))] p-6 sm:max-w-[min(480px,calc(100%-2rem))]">
           <DialogTitle className="mb-4 text-[17px] font-extrabold">
             {t.splitbill.createButton}
           </DialogTitle>
@@ -654,7 +654,7 @@ export default function SplitBillPage() {
           if (!o) setSelectedSplit(null);
         }}
       >
-        <DialogContent className="max-w-[480px] p-6 sm:max-w-[480px]">
+        <DialogContent className="max-w-[min(480px,calc(100%-2rem))] p-6 sm:max-w-[min(480px,calc(100%-2rem))]">
           {selectedSplit && (
             <>
               <DialogTitle className="mb-4 text-[17px] font-extrabold">

@@ -1390,6 +1390,22 @@ export type I18nDictionary = {
     toastSaveFailed: string;
     toastStatusUpdated: string;
     toastStatusUpdateFailed: string;
+    /**
+     * EPIC-023 Task I (I1) — shown in place of an enabled Save button when
+     * the caller's role has no `manage TaxRecord` grant, or when the session
+     * has no family group yet. Both cases used to fail server-side and
+     * surface only as `toastSaveFailed`.
+     */
+    noWriteAccessNote: string;
+    noFamilyGroupNote: string;
+    checkingAccessLabel: string;
+    /**
+     * EPIC-023 Task I retry (HIGH — review) — shown when the `/auth/me`
+     * lookup itself fails. Distinct from `noWriteAccessNote` because an
+     * outage is not the same fact as "your role cannot do this" — telling an
+     * owner the wrong thing sends them down a false trail mid-incident.
+     */
+    accessCheckFailedNote: string;
   };
   /** EPIC-018 Task A6 — `/rekening` (bank accounts) page copy. */
   rekening: {

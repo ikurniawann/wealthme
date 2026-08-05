@@ -23,6 +23,7 @@ import { queryKeys } from "@/lib/query-keys";
 import type {
   CreateTaxRecordDto,
   Pph21ResultDto,
+  Role,
   TaxRecordDto,
   SptStatus,
   UpdateTaxRecordDto,
@@ -63,12 +64,96 @@ const SPT_STATUS_CLASS: Record<SptStatus, string> = {
 
 const CURRENT_YEAR = new Date().getFullYear();
 
+// EPIC-023 Task I (I1) — the roles the API grants `manage TaxRecord` to; see
+// `apps/api/src/casl/casl-ability.factory.ts`. `admin_staff` gets `read` only
+// and `dependant`/`operational` get nothing, yet the sidebar offers /tax to
+// every role (`src/lib/nav.ts` is a protected foundation file with no role
+// gating) and Save used to be enabled regardless — so the POST 403'd and the
+// user saw only "Gagal menyimpan data pajak". Reproduced against DEV as
+// admin_staff: GET 200, POST 403.
+//
+// This is a HAND-MAINTAINED mirror of that CASL grant, not an enforced one:
+// `apps/api/src/tax/tax.controller.spec.ts` asserts the per-role POST outcome
+// against the real AbilitiesGuard, but it does not import or reference this
+// constant, so a future change to the grant in casl-ability.factory.ts can
+// pass every gate and still leave this stale. Typing it `Set<Role>` at least
+// makes a typo'd or renamed role a compile error; update this by hand
+// whenever the TaxRecord grant changes server-side.
+const TAX_MANAGE_ROLES = new Set<Role>(["owner", "member", "spouse"]);
+
+type MeResponse = {
+  familyGroupId: string | null;
+  memberships?: { id: string; familyGroupId: string; role: Role }[];
+};
+
+// The API's ForbiddenException/BadRequestException carries a message worth
+// showing; the blind generic toast threw it away and left the next bug report
+// with nothing to go on (which is exactly how I1 arrived). NestJS's
+// ValidationPipe has no custom exceptionFactory (main.ts), so several failed
+// class-validator constraints come back as `message: string[]`, and the API
+// client's ApiError can also carry an empty string — only trust a non-empty
+// string or a non-empty array, and join the array readably.
+function extractApiErrorMessage(err: unknown, fallback: string): string {
+  if (!err || typeof err !== "object" || !("message" in err)) return fallback;
+  const { message } = err;
+  if (Array.isArray(message)) {
+    const joined = message
+      .filter((m): m is string => typeof m === "string" && m.trim() !== "")
+      .join(", ");
+    return joined !== "" ? joined : fallback;
+  }
+  return typeof message === "string" && message.trim() !== ""
+    ? message
+    : fallback;
+}
+
 export default function TaxPage() {
   const { t } = useLocale();
   const { data: session } = useSession();
   const queryClient = useQueryClient();
-  const fgId = session?.familyGroupId ?? undefined;
   const token = session?.accessToken;
+
+  // Resolve the caller's membership for this family group. Shares its query
+  // key with `useSession`'s own /auth/me fallback, so this is one request —
+  // staleTime matches auth-compat.ts's own /auth/me query on the same key
+  // (the shortest staleTime across observers of a key wins; leaving this at
+  // the default 0 would make the shared query refetch more aggressively
+  // app-wide than auth-compat.ts intends).
+  const {
+    data: me,
+    isPending: isMePending,
+    isError: isMeError,
+  } = useQuery<MeResponse>({
+    queryKey: [...queryKeys.auth.me(), token],
+    queryFn: () => apiFetch<MeResponse>("/auth/me", { token }),
+    enabled: !!token,
+    staleTime: 60_000,
+  });
+
+  const fgId = session?.familyGroupId ?? me?.familyGroupId ?? undefined;
+  const role = fgId
+    ? me?.memberships?.find((m) => m.familyGroupId === fgId)?.role
+    : undefined;
+  // Unknown role ⇒ treated as "may not write" until /auth/me answers, rather
+  // than optimistically enabling a Save the server would refuse.
+  const canManageTax = !!role && TAX_MANAGE_ROLES.has(role);
+  // Shared gate for every TaxRecord write on this page (Save + the SPT status
+  // buttons) — this is UX only; the server (AbilitiesGuard) remains the real
+  // enforcement point regardless of what this evaluates to client-side.
+  const canManageTaxRecords = !!fgId && canManageTax;
+  // The one honest explanation shown next to every gated control, in
+  // priority order: still checking, checking failed, no family group, wrong
+  // role. Null exactly when canManageTaxRecords is true, which is what makes
+  // reusing a single `aria-describedby` target for every control correct.
+  const accessNote = isMePending
+    ? t.tax.checkingAccessLabel
+    : isMeError
+      ? t.tax.accessCheckFailedNote
+      : !fgId
+        ? t.tax.noFamilyGroupNote
+        : !canManageTax
+          ? t.tax.noWriteAccessNote
+          : null;
 
   // PPh 21 calculator inputs are local; the tax math itself is computed by
   // the shared BE calculator (/calculators/pph21) so this stays in sync
@@ -115,7 +200,15 @@ export default function TaxPage() {
   const effRate = pph21Result
     ? (pph21Result.effectiveRate * 100).toFixed(1).replace(".", ",") + "%"
     : "0%";
-  const canSaveTaxRecord = hasPph21Result && !isPph21Fetching && !isPph21Error;
+  const canSaveTaxRecord =
+    hasPph21Result &&
+    !isPph21Fetching &&
+    !isPph21Error &&
+    // EPIC-023 Task I (I1) — both of these used to be missing: without a
+    // family group the page posted to `/family-groups/undefined/tax`, and
+    // without the ability check it offered Save to roles the API refuses.
+    // Each produced a bare "Gagal menyimpan data pajak".
+    canManageTaxRecords;
 
   // Fetch tax records
   const { data: taxRecords = [] } = useQuery<TaxRecordDto[]>({
@@ -140,8 +233,8 @@ export default function TaxPage() {
         });
       toast.success(t.tax.toastSaved);
     },
-    onError: () => {
-      toast.error(t.tax.toastSaveFailed);
+    onError: (err) => {
+      toast.error(extractApiErrorMessage(err, t.tax.toastSaveFailed));
     },
   });
 
@@ -160,8 +253,8 @@ export default function TaxPage() {
         });
       toast.success(t.tax.toastStatusUpdated);
     },
-    onError: () => {
-      toast.error(t.tax.toastStatusUpdateFailed);
+    onError: (err) => {
+      toast.error(extractApiErrorMessage(err, t.tax.toastStatusUpdateFailed));
     },
   });
 
@@ -171,7 +264,7 @@ export default function TaxPage() {
     // mid-debounce/mid-refetch can never pair a NEW gross income with an OLD
     // netTax — canSaveTaxRecord already keeps the button disabled while the
     // two could disagree.
-    if (!pph21Result) return;
+    if (!pph21Result || !canSaveTaxRecord) return;
     upsertMutation.mutate({
       taxYear: CURRENT_YEAR,
       grossIncome: String(pph21Result.grossIncome),
@@ -181,6 +274,11 @@ export default function TaxPage() {
   }
 
   function handleUpdateSptStatus(id: string, sptStatus: SptStatus): void {
+    // EPIC-023 Task I retry (HIGH 1) — this PATCH is guarded server-side by
+    // the identical `manage TaxRecord` ability as the POST above; the button
+    // is already disabled for a caller who cannot write, but guard the
+    // handler too rather than rely on the disabled attribute alone.
+    if (!canManageTaxRecords) return;
     updateStatusMutation.mutate({ id, dto: { sptStatus } });
   }
 
@@ -235,7 +333,18 @@ export default function TaxPage() {
                 onClick={() =>
                   handleUpdateSptStatus(prevRecord.id, "sudah_lapor")
                 }
-                className="mt-1 cursor-pointer text-[10.5px] text-primary hover:underline"
+                disabled={!canManageTaxRecords}
+                aria-describedby={
+                  !canManageTaxRecords ? "tax-access-note" : undefined
+                }
+                title={
+                  !canManageTaxRecords ? (accessNote ?? undefined) : undefined
+                }
+                className={`mt-1 text-[10.5px] text-primary ${
+                  canManageTaxRecords
+                    ? "cursor-pointer hover:underline"
+                    : "cursor-not-allowed opacity-50"
+                }`}
               >
                 {t.tax.markReportedButton}
               </button>
@@ -387,6 +496,9 @@ export default function TaxPage() {
         <Button
           onClick={handleSaveTaxRecord}
           disabled={!canSaveTaxRecord || upsertMutation.isPending}
+          aria-describedby={
+            !canManageTaxRecords ? "tax-access-note" : undefined
+          }
           className="mt-3.5 h-auto px-4 py-2.5"
           variant="outline"
         >
@@ -394,6 +506,18 @@ export default function TaxPage() {
             ? t.tax.savingLabel
             : t.tax.saveToTaxRecordButton}
         </Button>
+        {/* EPIC-023 Task I (I1) — say why Save (and the SPT status buttons
+            above, which share this same explanation via aria-describedby)
+            are unavailable, instead of letting the user press them and
+            receive a bare failure toast. */}
+        {accessNote && (
+          <div
+            id="tax-access-note"
+            className="mt-2 text-[11.5px] text-muted-foreground"
+          >
+            {accessNote}
+          </div>
+        )}
       </SectionCard>
 
       {/* Breakdown Tarif Progresif */}
@@ -482,7 +606,20 @@ export default function TaxPage() {
                 {r.sptStatus === "belum_lapor" && (
                   <button
                     onClick={() => handleUpdateSptStatus(r.id, "sudah_lapor")}
-                    className="mt-0.5 cursor-pointer text-[10px] text-primary hover:underline"
+                    disabled={!canManageTaxRecords}
+                    aria-describedby={
+                      !canManageTaxRecords ? "tax-access-note" : undefined
+                    }
+                    title={
+                      !canManageTaxRecords
+                        ? (accessNote ?? undefined)
+                        : undefined
+                    }
+                    className={`mt-0.5 text-[10px] text-primary ${
+                      canManageTaxRecords
+                        ? "cursor-pointer hover:underline"
+                        : "cursor-not-allowed opacity-50"
+                    }`}
                   >
                     {t.tax.markReportedShortButton}
                   </button>
