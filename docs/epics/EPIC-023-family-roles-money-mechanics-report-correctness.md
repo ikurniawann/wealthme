@@ -965,7 +965,8 @@ status` showing a clean tree with no `MERGE_HEAD`, before treating a merge
   in this loop despite being wave-1 — no branch exists for it).
 - 2026-08-05 /epic-loop EPIC-023 "H1 — Assets: recorded value authoritative,
   acquisition date" → PASS (attempts: 2; standard gate, not adversarial tier,
-  per this epic's routing). The bug was in the frontend, not the backend:
+  per this epic's routing), **merged**,
+  PR: https://github.com/andrsrjld/wealthme-web/pull/242. The bug was in the frontend, not the backend:
   `dashboard.service.ts`'s and `reports.service.ts`'s net-worth computations
   already summed `Asset.currentValue` correctly — confirmed untouched by
   this task, with a new regression test pinning that fact. The Aset page's
