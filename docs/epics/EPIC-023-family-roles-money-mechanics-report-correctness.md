@@ -286,7 +286,7 @@ investment revaluation = closing`, every residual named. Unit tests on a
     which posts real income to a chosen account. Token unguessable and revocable.
     (D21, US-SPLIT-5/6)
 
-- [ ] ### G — External data: prices, reconciliation, AI keys
+- [x] ### G — External data: prices, reconciliation, AI keys ✅
   - **G1** — Wire CoinGecko for crypto and Yahoo `.JK` for IDX equities behind
     the existing `MarketDataPort`; label them delayed and unofficial. Mutual
     funds, bonds and gold keep manual entry with a dated manual label. Per-type
@@ -679,13 +679,20 @@ whose P&L and balance sheet reconcile through the bridge.
   discarding `code` — while the test that looked like coverage asserted on the
   thrown exception rather than the wire body.
 
-## Open finding — group G (.xlsx upload)
+## Closed finding — group G (.xlsx upload)
 
-**Scoped to group G's draft PR #238, which must not merge until this is
-closed.** The epic itself continues: groups A and C are merged, and the
-remaining groups (I, B, D, E, F, H) are independent of this finding. Group G's
-prices, AI-key and CSV work is also unaffected and could be split out if the
-`.xlsx` upload needs to wait.
+**RESOLVED.** Kept here in full because it took four attempts and the failed
+approaches are worth not repeating.
+
+The fix: `apps/api/src/reconciliation/zip-bounds.util.ts` now **measures** the
+real expansion instead of trusting declared sizes. Every DEFLATE entry is
+actually inflated and its output bytes counted, under `zlib`'s
+`maxOutputLength` so the check aborts mid-call rather than allocating the
+expansion first — the guard cannot become the attack. It walks **local file
+header signatures forward** and never consults the central directory or EOCD,
+so a forged trailer is irrelevant. Both previously-verified bypasses are now
+permanent, named regression tests: if either stops throwing, the vulnerability
+is back.
 
 ### The finding
 
