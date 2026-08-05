@@ -6,7 +6,10 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { type AllowanceRequestStatus } from "@prisma/client";
+import {
+  type AllowanceRequestKind,
+  type AllowanceRequestStatus,
+} from "@prisma/client";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
@@ -22,6 +25,7 @@ const ALLOWANCE_REQUEST_INCLUDE = {
   requester: { select: { name: true } },
   targetAccount: { select: { name: true } },
   fromAccount: { select: { name: true } },
+  category: { select: { name: true } },
   decidedByUser: { select: { name: true } },
 } as const;
 
@@ -33,6 +37,15 @@ type AllowanceRequestRow = {
   fromAccountId: string | null;
   amount: bigint;
   note: string | null;
+  // EPIC-023 Task D (D3/D9) — `funding` (default, every pre-existing row)
+  // approves into a transfer; `held_expense` approves by replaying the
+  // originally-attempted expense. `categoryId`/`description` are populated
+  // only for `held_expense` (they carry the deferred expense's category and
+  // memo); for `held_expense`, `targetAccountId` is the account the expense
+  // DEBITS. See schema.prisma's AllowanceRequest comment.
+  kind: AllowanceRequestKind;
+  categoryId: string | null;
+  description: string | null;
   status: AllowanceRequestStatus;
   createdAt: Date;
   decidedAt: Date | null;
@@ -40,6 +53,7 @@ type AllowanceRequestRow = {
   requester?: { name: string };
   targetAccount?: { name: string };
   fromAccount?: { name: string } | null;
+  category?: { name: string } | null;
   decidedByUser?: { name: string } | null;
 };
 
@@ -150,6 +164,21 @@ export class AllowanceRequestsService {
   ): Promise<AllowanceRequestResponseDto> {
     const request = await this.findOrThrow(familyGroupId, id);
 
+    // EPIC-023 Task D (D3/D9) — a held_expense approves by REPLAYING the
+    // deferred expense, never a transfer; it carries its own account and
+    // needs no owner-chosen source, so it takes a separate path.
+    if (request.kind === "held_expense") {
+      return this.approveHeldExpense(familyGroupId, id, ownerUserId, request);
+    }
+
+    // funding path (EPIC-019 Task B, unchanged behaviour). `fromAccountId`
+    // is now optional on the DTO (a held_expense never supplies one), so a
+    // funding approval must explicitly require it here.
+    if (!dto.fromAccountId) {
+      throw new BadRequestException(
+        "fromAccountId is required to approve a funding request",
+      );
+    }
     if (dto.fromAccountId === request.targetAccountId) {
       throw new BadRequestException(
         "Source and destination account must differ",
@@ -205,6 +234,77 @@ export class AllowanceRequestsService {
           decidedAt: null,
           decidedByUserId: null,
         },
+      });
+      throw err;
+    }
+
+    const updated = await this.prisma.allowanceRequest.findUniqueOrThrow({
+      where: { id },
+      include: ALLOWANCE_REQUEST_INCLUDE,
+    });
+
+    void this.notifyRequesterOfDecision(familyGroupId, updated, true);
+
+    return this.toDto(updated);
+  }
+
+  /**
+   * EPIC-023 Task D (D3/D9, US-FAM-14) — approve a HELD EXPENSE. The
+   * row-scoped member already attempted this expense; it was held (no money
+   * moved) because it exceeded their per-member threshold. Approving replays
+   * the ORIGINAL expense now — a real debit on the account the expense
+   * targeted, for the captured amount/category/description — the first and
+   * only time the balance moves.
+   *
+   * Same claim-then-execute/compensate-on-failure guard as the funding
+   * approve() above, so a double-approve can never post twice. The replay
+   * calls TransactionsService.create with `actingMember: null` so the
+   * per-member hold gate (which only fires for a row-scoped actingMember)
+   * cannot re-hold this into a second AllowanceRequest.
+   */
+  private async approveHeldExpense(
+    familyGroupId: string,
+    id: string,
+    ownerUserId: string,
+    request: AllowanceRequestRow,
+  ): Promise<AllowanceRequestResponseDto> {
+    const claim = await this.prisma.allowanceRequest.updateMany({
+      where: { id, familyGroupId, status: "pending" },
+      data: {
+        status: "approved",
+        decidedAt: new Date(),
+        decidedByUserId: ownerUserId,
+      },
+    });
+    if (claim.count !== 1) {
+      throw new ConflictException(
+        "This allowance request has already been decided",
+      );
+    }
+
+    try {
+      // Replay the deferred expense — a real debit on the account it
+      // targeted, for the held amount/category/description. actingMember
+      // null: this is an internal, already-authorised replay, so the
+      // row-scope re-gate must not re-hold it.
+      await this.transactionsService.create(
+        familyGroupId,
+        {
+          accountId: request.targetAccountId,
+          amount: Number(request.amount),
+          type: "expense",
+          categoryId: request.categoryId ?? undefined,
+          description: request.description ?? undefined,
+          occurredAt: new Date().toISOString(),
+        },
+        null,
+      );
+    } catch (err) {
+      // Compensate the claim back to pending — no money moved, so it must
+      // not be left stuck "approved"; the owner can retry.
+      await this.prisma.allowanceRequest.update({
+        where: { id },
+        data: { status: "pending", decidedAt: null, decidedByUserId: null },
       });
       throw err;
     }
@@ -322,6 +422,7 @@ export class AllowanceRequestsService {
   private toDto(row: AllowanceRequestRow): AllowanceRequestResponseDto {
     return {
       id: row.id,
+      kind: row.kind,
       familyGroupId: row.familyGroupId,
       requesterUserId: row.requesterUserId,
       requesterName: row.requester?.name ?? "",
@@ -331,6 +432,9 @@ export class AllowanceRequestsService {
       fromAccountName: row.fromAccount?.name ?? null,
       amount: row.amount.toString(),
       note: row.note,
+      categoryId: row.categoryId,
+      categoryName: row.category?.name ?? null,
+      description: row.description,
       status: row.status,
       createdAt: row.createdAt.toISOString(),
       decidedAt: row.decidedAt ? row.decidedAt.toISOString() : null,

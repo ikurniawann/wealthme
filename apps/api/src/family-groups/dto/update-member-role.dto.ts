@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { MemberRelationship, Role } from "@prisma/client";
-import { IsEnum, IsIn, IsOptional } from "class-validator";
+import { IsEnum, IsIn, IsInt, IsOptional, IsPositive } from "class-validator";
 
 // "owner" is intentionally excluded — the UI never offers minting a co-owner
 // through this endpoint, so a forged owner-caller request can't use it to
@@ -34,4 +34,19 @@ export class UpdateMemberRoleDto {
   @IsOptional()
   @IsEnum(MemberRelationship)
   relationship?: MemberRelationship | null;
+
+  // EPIC-023 Task D (D3/D9, US-FAM-14) — per-member large-transaction
+  // threshold, IDR minor units. Omit to leave unchanged; pass `null` to
+  // explicitly clear it (no gate). Only ever gates a row-scoped role
+  // (dependant/operational) — see schema.prisma's Member comment.
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    description:
+      "Per-member large-transaction threshold (IDR minor units). Omit to leave unchanged, null to clear.",
+  })
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  largeTxnThreshold?: number | null;
 }

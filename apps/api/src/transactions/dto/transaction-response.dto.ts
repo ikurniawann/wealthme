@@ -50,6 +50,34 @@ export class TransactionResponseDto {
   createdAt!: string;
 }
 
+// EPIC-023 Task D (D3/D9, US-FAM-14) — the honest "did NOT create a
+// transaction" response for a row-scoped member's over-threshold expense.
+// `held: true` is a literal discriminator so a caller (controller, web
+// dialog) can branch on `"held" in response` instead of guessing from an
+// absent field — see TransactionsService.create.
+export class HeldExpenseResponseDto {
+  @ApiProperty({
+    type: Boolean,
+    enum: [true],
+    description:
+      "Always true — discriminates this shape from TransactionResponseDto",
+  })
+  held!: true;
+
+  @ApiProperty({
+    type: String,
+    description:
+      "The AllowanceRequest (kind = held_expense) created to track this hold",
+  })
+  allowanceRequestId!: string;
+
+  @ApiProperty({
+    type: String,
+    description: "The held amount, as string (BigInt-safe)",
+  })
+  amount!: string;
+}
+
 export class TransactionSummaryDto {
   @ApiProperty({ type: String })
   totalIncome!: string;

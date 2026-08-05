@@ -24,6 +24,7 @@ __export(index_exports, {
   AccountOwnerFilterSchema: () => AccountOwnerFilterSchema,
   AccountTypeSchema: () => AccountTypeSchema,
   AllowanceRequestDtoSchema: () => AllowanceRequestDtoSchema,
+  AllowanceRequestKindSchema: () => AllowanceRequestKindSchema,
   AllowanceRequestStatusSchema: () => AllowanceRequestStatusSchema,
   AllowedCategoryDtoSchema: () => AllowedCategoryDtoSchema,
   ApproveAllowanceRequestInputSchema: () => ApproveAllowanceRequestInputSchema,
@@ -37,6 +38,7 @@ __export(index_exports, {
   DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT: () => DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT,
   DEFAULT_ROLE_BY_RELATIONSHIP: () => DEFAULT_ROLE_BY_RELATIONSHIP,
   GENERIC_COA_CHART: () => GENERIC_COA_CHART,
+  HeldExpenseResponseSchema: () => HeldExpenseResponseSchema,
   LoginInputSchema: () => LoginInputSchema,
   MemberCategoryAllowanceDtoSchema: () => MemberCategoryAllowanceDtoSchema,
   MemberRelationshipSchema: () => MemberRelationshipSchema,
@@ -121,19 +123,24 @@ var AllowanceRequestStatusSchema = import_zod4.z.enum([
   "approved",
   "rejected"
 ]);
+var AllowanceRequestKindSchema = import_zod4.z.enum(["funding", "held_expense"]);
 var CreateAllowanceRequestInputSchema = import_zod4.z.object({
   targetAccountId: import_zod4.z.string().uuid(),
   amount: import_zod4.z.number().int().positive(),
   note: import_zod4.z.string().optional()
 });
 var ApproveAllowanceRequestInputSchema = import_zod4.z.object({
-  fromAccountId: import_zod4.z.string().uuid()
+  // EPIC-023 Task D (D3/D9) — required only to approve a `funding` request;
+  // a `held_expense` request already carries its own account and needs no
+  // choice at approval time.
+  fromAccountId: import_zod4.z.string().uuid().optional()
 });
 var RejectAllowanceRequestInputSchema = import_zod4.z.object({
   reason: import_zod4.z.string().optional()
 });
 var AllowanceRequestDtoSchema = import_zod4.z.object({
   id: import_zod4.z.string(),
+  kind: AllowanceRequestKindSchema,
   familyGroupId: import_zod4.z.string(),
   requesterUserId: import_zod4.z.string(),
   requesterName: import_zod4.z.string(),
@@ -143,11 +150,20 @@ var AllowanceRequestDtoSchema = import_zod4.z.object({
   fromAccountName: import_zod4.z.string().nullable(),
   amount: import_zod4.z.string(),
   note: import_zod4.z.string().nullable(),
+  // EPIC-023 Task D (D3/D9) — held_expense only; always null for funding.
+  categoryId: import_zod4.z.string().nullable(),
+  categoryName: import_zod4.z.string().nullable(),
+  description: import_zod4.z.string().nullable(),
   status: AllowanceRequestStatusSchema,
   createdAt: import_zod4.z.string(),
   decidedAt: import_zod4.z.string().nullable(),
   decidedByUserId: import_zod4.z.string().nullable(),
   decidedByName: import_zod4.z.string().nullable()
+});
+var HeldExpenseResponseSchema = import_zod4.z.object({
+  held: import_zod4.z.literal(true),
+  allowanceRequestId: import_zod4.z.string(),
+  amount: import_zod4.z.string()
 });
 
 // src/members/index.ts
@@ -508,6 +524,7 @@ var MemberCategoryAllowanceDtoSchema = import_zod8.z.object({
   AccountOwnerFilterSchema,
   AccountTypeSchema,
   AllowanceRequestDtoSchema,
+  AllowanceRequestKindSchema,
   AllowanceRequestStatusSchema,
   AllowedCategoryDtoSchema,
   ApproveAllowanceRequestInputSchema,
@@ -521,6 +538,7 @@ var MemberCategoryAllowanceDtoSchema = import_zod8.z.object({
   DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT,
   DEFAULT_ROLE_BY_RELATIONSHIP,
   GENERIC_COA_CHART,
+  HeldExpenseResponseSchema,
   LoginInputSchema,
   MemberCategoryAllowanceDtoSchema,
   MemberRelationshipSchema,

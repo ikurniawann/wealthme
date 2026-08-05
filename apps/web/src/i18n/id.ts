@@ -174,6 +174,11 @@ export const id = {
       noFamilyGroup: "Tidak ada family group aktif",
       savedAddMoreToast: "Disimpan! Tambah lagi...",
       savedToast: "Transaksi berhasil disimpan!",
+      // EPIC-023 Task D (D3/D9, US-FAM-14) — the transaction was NOT
+      // posted: it exceeds the member's per-account threshold and is held
+      // pending the head's approval. Must never read as a success.
+      heldToast:
+        "Pengeluaran melebihi batas — menunggu persetujuan kepala keluarga, belum dicatat.",
       ocrSavedToast: "Transaksi Alfamart Rp 58.000 berhasil disimpan!",
       title: "Tambah Transaksi",
       manualInput: "Input Manual",
@@ -299,7 +304,7 @@ export const id = {
       changePasswordRowName: "Ubah Password",
       changePasswordRowSub: "Klik untuk mengubah password akun",
       pinRowName: "PIN Aplikasi",
-      pinRowSub: "6 digit PIN untuk buka aplikasi — segera hadir",
+      pinRowSub: "6 digit PIN untuk buka aplikasi di perangkat ini",
       authSectionTitle: "Autentikasi",
       biometricLabel: "Sidik Jari / Face ID",
       biometricSub: "Masuk dengan biometrik — segera hadir",
@@ -321,7 +326,6 @@ export const id = {
       toastPasswordMismatch: "Konfirmasi password tidak cocok",
       toastChangeFailed: "Gagal mengubah password",
       toastChangeSuccess: "Password berhasil diubah",
-      toastSetPin: "Fitur PIN aplikasi belum tersedia — segera hadir.",
       toastSessionEnded: "Sesi diakhiri",
       toastSessionEndFailed: "Gagal mengakhiri sesi.",
       toastAuthPrefsSaved: "Preferensi disimpan",
@@ -579,6 +583,24 @@ export const id = {
         "Gagal menyetujui permintaan dana. Coba lagi.",
       allowanceRequestRejected: "Permintaan dana ditolak.",
       allowanceRequestRejectFailed: "Gagal menolak permintaan dana. Coba lagi.",
+      // EPIC-023 Task D (D3/D9, US-FAM-14) — held-expense variant of the
+      // same AllowanceRequest primitive: a row-scoped member's over-
+      // threshold expense, held pending the head's approval.
+      allowanceRequestHeldBadge: "Menunggu Persetujuan",
+      allowanceRequestHeldApproved: "Pengeluaran disetujui dan telah dicatat.",
+      // EPIC-023 Task D (D3/D9, US-FAM-14) — per-member large-transaction
+      // threshold.
+      thresholdButton: "Batas Transaksi Besar",
+      thresholdDialogTitle: "Batas Transaksi Besar",
+      thresholdDialogDesc:
+        "Pengeluaran di atas batas ini akan ditahan menunggu persetujuan Anda sebelum dicatat. Kosongkan untuk tidak membatasi.",
+      thresholdLabel: "Batas Jumlah",
+      thresholdEmptyHint: "Kosongkan untuk tidak membatasi (default)",
+      thresholdSaveButton: "Simpan Batas",
+      thresholdSaving: "Menyimpan...",
+      thresholdSaved: "Batas transaksi berhasil disimpan.",
+      thresholdSaveFailed: "Gagal menyimpan batas transaksi. Coba lagi.",
+      addDependantButton: "Tambah Anak / Operasional",
     },
     addAdmin: {
       dialogTitle: "Tambah Admin / Staf",
@@ -595,6 +617,35 @@ export const id = {
       sendButton: "Kirim Undangan Admin",
       toastInviteCreated: "Undangan dibuat — link disalin ke clipboard.",
       toastInviteFailed: "Gagal membuat undangan. Periksa email dan coba lagi.",
+    },
+    addDependant: {
+      dialogTitle: "Tambah Anak / Operasional",
+      dialogDesc:
+        "Untuk anggota tanpa email sendiri (anak, supir, asisten). Buatkan username dan password awal — mereka wajib menggantinya saat login pertama.",
+      nameLabel: "Nama",
+      namePlaceholder: "Nama lengkap",
+      usernameLabel: "Username",
+      usernamePlaceholder: "cth: adit_kecil",
+      usernameHint: "3-30 karakter, huruf/angka/underscore/titik",
+      passwordLabel: "Password Awal",
+      passwordPlaceholder: "Minimal 8 karakter",
+      passwordHint:
+        "Beri tahu password ini secara langsung — wajib diganti saat login pertama.",
+      showPassword: "Tampilkan password",
+      hidePassword: "Sembunyikan password",
+      roleLabel: "Peran",
+      roleOptions: {
+        dependant: "Anak (Dependant)",
+        operational: "Operasional (supir/asisten)",
+      },
+      relationshipLabel: "Hubungan Keluarga (opsional)",
+      relationshipNoneOption: "— Tidak diisi —",
+      creating: "Membuat...",
+      createButton: "Buat Akun",
+      toastCreated: "Akun berhasil dibuat",
+      toastCreatedDesc:
+        "Beri tahu username dan password awal ini langsung ke anggota terkait.",
+      toastCreateFailed: "Gagal membuat akun. Coba lagi.",
     },
     crud: {
       accountAdded: "Rekening berhasil ditambahkan!",
@@ -2343,5 +2394,60 @@ export const id = {
       creatingExportSuffix: "...",
       toastExportCreateFailed: "Gagal membuat ekspor.",
     },
+  },
+  forcePasswordChange: {
+    title: "Ganti Password Anda",
+    subtitle:
+      "Akun ini dibuat oleh kepala keluarga. Untuk keamanan, ganti password sebelum melanjutkan.",
+    currentPasswordLabel: "Password Saat Ini",
+    newPasswordLabel: "Password Baru",
+    confirmPasswordLabel: "Konfirmasi Password Baru",
+    submitButton: "Ganti Password",
+    submitting: "Menyimpan...",
+    toastSuccess: "Password berhasil diganti.",
+    toastMismatch: "Konfirmasi password tidak cocok.",
+    toastMinLength: "Password baru minimal 8 karakter.",
+    toastFailed: "Gagal mengganti password. Periksa password saat ini.",
+    logoutButton: "Keluar",
+  },
+  deviceUnlock: {
+    promptTitle: "Atur buka cepat?",
+    promptSubtitle:
+      "Gunakan PIN 6 digit untuk membuka aplikasi lebih cepat di perangkat ini. Password kamu tetap tersedia sebagai cadangan.",
+    promptSetPinLabel: "Pilih PIN 6 digit",
+    promptPinPlaceholder: "PIN 6 digit",
+    promptConfirmPinPlaceholder: "Konfirmasi PIN",
+    promptSkipButton: "Nanti saja",
+    promptSubmitButton: "Atur PIN",
+    promptSubmitting: "Menyiapkan...",
+    toastPinLength: "PIN harus tepat 6 digit.",
+    toastPinMismatch: "Konfirmasi PIN tidak cocok.",
+    toastSetupSuccess: "Buka cepat siap digunakan di perangkat ini.",
+    toastSetupFailed:
+      "Gagal mengatur buka cepat. Kamu bisa coba lagi nanti di Pengaturan Akun.",
+    padTitle: "Masukkan PIN kamu",
+    padSubtitle: "Buka WealthMe di perangkat ini",
+    padSubmitButton: "Buka",
+    padSubmitting: "Membuka...",
+    padUsePasswordInstead: "Gunakan password",
+    toastUnlockFailed: "PIN salah. Silakan coba lagi.",
+    toastUnlockLockedPrefix: "Terlalu banyak percobaan. Coba lagi dalam ",
+    toastUnlockLockedSuffix: ", atau gunakan password kamu.",
+    manageSectionTitle: "Perangkat dengan buka cepat",
+    manageSetupButton: "Atur buka cepat di perangkat ini",
+    manageEmptyState: "Belum ada perangkat yang diatur untuk buka cepat.",
+    manageLoading: "Memuat perangkat...",
+    manageError: "Gagal memuat perangkat.",
+    manageHasPinBadge: "PIN aktif",
+    manageNoPinBadge: "Belum ada PIN",
+    manageRevokeLink: "Lupakan",
+    manageRevokeConfirmTitle: "Lupakan perangkat ini?",
+    manageRevokeConfirmBody:
+      "Perangkat ini tidak akan bisa lagi membuka aplikasi dengan PIN. Perangkat perlu password kamu untuk masuk lagi.",
+    manageRevokeConfirmButton: "Lupakan perangkat",
+    manageDeviceFallbackLabel: "Perangkat",
+    toastRevokeSuccess: "Perangkat dilupakan.",
+    toastRevokeFailed: "Gagal melupakan perangkat.",
+    toastRegisterFailed: "Gagal mendaftarkan perangkat ini. Silakan coba lagi.",
   },
 } satisfies I18nDictionary;

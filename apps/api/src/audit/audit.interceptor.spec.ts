@@ -152,6 +152,49 @@ describe("AuditInterceptor", () => {
     });
   });
 
+  // EPIC-023 D2 fix — HIGH (security-reviewer + adversarial-reviewer,
+  // mutation-tested independently) — SENSITIVE_KEYS previously had no entry
+  // for the camelCase `deviceSecret` key, so the raw, one-time device secret
+  // returned by POST /auth/devices was persisted in PLAINTEXT into
+  // AuditLog.after. This exercises the REAL AuditInterceptor against the
+  // ACTUAL response shape `DevicesController#register` returns
+  // (`RegisterDeviceResponseDto` — `{ deviceId, deviceSecret }`), not just
+  // the SENSITIVE_KEYS set in isolation, so a future rename/refactor of the
+  // response DTO can't silently reopen this hole.
+  it("redacts the raw deviceSecret from POST /auth/devices before it reaches AuditLog.after", (done) => {
+    // Arrange — the exact response shape RegisterDeviceResponseDto produces.
+    const rawDeviceSecret =
+      "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f9";
+    const ctx = makeContext(
+      "POST",
+      "/auth/devices",
+      { userId: "user-1", familyGroupId: "fg-1" },
+      {},
+      { label: "iPhone" },
+    );
+    const next = {
+      handle: () => of({ deviceId: "device-1", deviceSecret: rawDeviceSecret }),
+    };
+
+    // Act
+    interceptor.intercept(ctx, next).subscribe({
+      complete: () => {
+        setImmediate(() => {
+          // Assert — the persisted `after` payload must not contain the raw
+          // secret ANYWHERE (string search, not just key-shape assertions),
+          // proving it can't leak via a nested/renamed field either.
+          const call = mockAuditService.log.mock.calls[0][0] as {
+            after: Record<string, unknown>;
+          };
+          expect(JSON.stringify(call.after)).not.toContain(rawDeviceSecret);
+          expect(call.after).not.toHaveProperty("deviceSecret");
+          expect(call.after).toHaveProperty("deviceId", "device-1");
+          done();
+        });
+      },
+    });
+  });
+
   it("logs action '<method>:error' when the handler throws", (done) => {
     // Arrange
     const ctx = makeContext(

@@ -251,14 +251,14 @@ holdingsChange + unexplained = closing`, every residual named. Unit tests
     (D4) — assert it in a test so nobody "fixes" it later.
   - **C4** — Remove the "Tampilkan Saldo ke Anggota" toggle and its strings. (D8)
 
-- [ ] ### D — Onboarding members without email, and PIN unlock
-  - **D1** — Head-created accounts for dependant/operational roles: name +
+- [x] ### D — Onboarding members without email, and PIN unlock ✅
+  - **D1** ✅ — Head-created accounts for dependant/operational roles: name +
     username + initial password, no email; forced password change at first login.
     Requires username authentication in better-auth. (D6, US-FAM-12, US-AUTH-9)
-  - **D2** — Device-bound PIN unlock: password on first login per device, PIN
+  - **D2** ✅ — Device-bound PIN unlock: password on first login per device, PIN
     thereafter, attempt limits and lockout. Never a standalone credential. (D7,
     US-FAM-13)
-  - **D3** — Per-member large-transaction threshold; dependant and operational
+  - **D3** ✅ — Per-member large-transaction threshold; dependant and operational
     spending above it is held for approval through the existing
     `AllowanceRequest` primitive; trusted roles are notified only. (D9, US-FAM-14)
 
@@ -1020,3 +1020,165 @@ status` showing a clean tree with no `MERGE_HEAD`, before treating a merge
   service's null-fallback branch is ever reached) — fails safe, not a
   regression, just an absent capability; no edit-asset UI exists yet to
   need it. Wave 1 (A, C, G, H1, I) is now fully complete and merged.
+- 2026-08-05 /epic-loop EPIC-023 "D1 — Head-created accounts, username auth,
+  forced password change" → PASS (attempts: 2; adversarial-tier, per this
+  epic's routing for credential-touching work). Pre-implementation scoping
+  found the epic's own premise needed correcting: better-auth
+  (`apps/web/src/lib/auth.ts`) is the ONLY live auth system — the NestJS
+  `AuthController`/`AuthService` (JWT, `register`/`login`) predates
+  better-auth's adoption and is reachable but dead in practice (nothing in
+  `apps/web` calls it, confirmed by grep), left untouched. Also found:
+  better-auth has no built-in path to create a user with zero email — even
+  the `admin` plugin's `createUser` requires `email` as mandatory — so D1
+  bypasses better-auth's own creation API entirely with a direct Prisma
+  transaction (`User` + a `providerId: "credential"` `BaAccount` row +
+  `Member`, hashed with the identical argon2 config `auth.ts` uses), which
+  also sidesteps the unwanted new-FamilyGroup auto-creation that
+  `databaseHooks.user.create.after` would otherwise trigger. Synthetic email
+  on the IANA-reserved `.invalid` TLD, `User.mustChangePassword` gates every
+  route through a new global guard until cleared.
+  Six gate agents ran in parallel (security, react, typescript, adversarial,
+  review-qa, plus the standard test/qa scripts run directly). Security,
+  typescript and adversarial PASSed outright — the adversarial pass traced
+  better-auth's REAL `signInUsername` runtime source (not just its `.d.mts`
+  types) to confirm the written credential genuinely authenticates, and
+  mutation-tested the new forced-password-change guard's allowlist logic.
+  React and review-qa FAILed with two real HIGHs: **(1)** the initial
+  password field rendered as `type="text"`, unmasked — fixed with a
+  password/show-toggle matching the pattern already used on the login page,
+  independently found by both the react and security reviewers. **(2)** the
+  literal acceptance criterion — "they are required to set a new password
+  before reaching any page" — did not hold: the guard rendered `children`
+  unconditionally and only redirected reactively from a `useEffect` after
+  the password-status query resolved, so a genuinely-affected account
+  briefly saw the app shell before being redirected. Fixed by gating
+  rendering synchronously in the render body (not an effect) on
+  pending-or-true, reusing `AppShell`'s own existing loading markup so the
+  common case (`mustChangePassword: false`) gets no new per-navigation
+  flash — `staleTime: 30s` keeps that path a no-op after the first check.
+  Mutation-tested by two independent reviewers in the second round: revert
+  the render-gating, confirm the new "children absent" tests fail, restore.
+  A third finding — confirmed independently by three reviewers (react,
+  adversarial, review-qa) — was a spouse-facing "Add Dependant" button that
+  always 403s, since D2 already established spouse holds `read Member`, not
+  `manage`; the frontend gate hadn't been updated to match. Fixed
+  (owner-only), plus a misleading controller comment that claimed spouse
+  shared the ability. review-qa also required, and got, a guard-level test
+  driving the REAL `AbilitiesGuard` against the real controller — this
+  epic's own group-C postmortem had already found that testing a service
+  method directly, bypassing the guard, can hide a genuine 403 gap; that
+  lesson is now applied here too. Final: **api 843/843 (74 suites), web
+  273/273 (26 suites)**, `qa.sh`/`security-check.sh` both exit 0, migration
+  status clean against the real (docker-network, not host-reachable)
+  Postgres instance. **Found and deliberately deferred, not fixed**: the
+  security reviewer independently flagged that better-auth's own
+  `/sign-in/username` and `/sign-in/email` routes (a separate Next.js
+  process from the NestJS API, outside every `ThrottlerGuard` this codebase
+  has) carry no rate limiting — pre-existing on the email path, and this
+  task adds a second, lower-entropy (short human-chosen usernames)
+  credential-guessing vector onto the same unthrottled handler. Configuring
+  better-auth's own `rateLimit` option is a larger, cross-cutting change
+  than this task's stated scope; recorded here so it is not silently lost.
+  D2 (PIN unlock) and D3 (per-member threshold via `AllowanceRequest`) were
+  not attempted — separate rounds on this same branch, next.
+- 2026-08-05 /epic-loop EPIC-023 "D2 — Device-bound PIN unlock" → PASS
+  (attempts: 2; adversarial-tier). A PIN is never a standalone credential:
+  unlock requires BOTH a 32-byte `deviceSecret` (possession, bound to one
+  device at registration, which needs a real password login first) AND the
+  6-digit PIN. On success it mints a real `BaSession` directly via Prisma
+  (better-auth's own API is unreachable from `apps/api`, same precedent as
+  D1) with a CSPRNG token matching better-auth's own shape and 7-day
+  default expiry; the frontend bridge sets the cookie httpOnly server-side.
+  5 failed attempts → 15-minute per-device lockout; the fallback is always
+  a real password login, which the lockout never touches. Device
+  registration is deliberately blocked for a `mustChangePassword` account
+  so it cannot side-door D1's forced change. Five gate agents; adversarial
+  and security both FAILed round 1 with real HIGHs, all mutation-verified
+  fixed round 2: the raw `deviceSecret` leaked plaintext into `AuditLog`
+  because the interceptor's redaction list matched only the exact key
+  `secret`, not `deviceSecret` (added `deviceSecret`/`deviceSecretHash`/
+  `pinHash`); device revocation was a one-click destructive action with no
+  confirmation despite the confirm copy already existing unused (now a real
+  confirm dialog); a non-atomic `failedPinAttempts` increment allowed a
+  lockout race (now Prisma atomic `{increment:1}`, with deterministic
+  call-shape test teeth, not race-dependent); and an unknown `deviceId`
+  skipped `argon2.verify`, making response latency a device-enumeration
+  oracle (now verifies a cached dummy hash so timing converges). **Recovery
+  note**: a review agent's `git checkout` reverted `akun/page.tsx` to HEAD
+  mid-review, wiping the D2 device-management UI from the working tree; it
+  was recovered by validating a scratchpad snapshot's diff against the
+  committed baseline (only the expected D2 additions) and re-applying it as
+  targeted edits, byte-verified identical. Final: **api 875/875, web
+  307/307**, qa/security-check exit 0, migration clean. **Deferred, not
+  fixed**: better-auth's own `/sign-in/*` routes carry no rate limiting (a
+  separate Next.js process outside every `ThrottlerGuard`) — pre-existing,
+  and this adds a second lower-entropy vector; configuring better-auth's
+  `rateLimit` is a cross-cutting change beyond this task's scope. Committed
+  `2286183`.
+- 2026-08-05 /epic-loop EPIC-023 "D3 — Per-member large-transaction
+  threshold, held-expense approval" → PASS (attempts: 1 + fix round;
+  adversarial-tier). `Member.largeTxnThreshold BigInt?` (null = never
+  gated). A row-scoped member's (dependant/operational) `expense` above
+  their threshold (strict `>`, per the AC's "above") is captured as a new
+  `held_expense`-kind `AllowanceRequest` and returned `{held:true}` (HTTP 202) BEFORE any balance mutation — no `Transaction` row, no balance
+  change — spec-asserted end to end. Approving replays the ORIGINAL expense
+  via `TransactionsService.create(..., actingMember: null)` (the null
+  bypasses the row-scope re-gate so it can't re-hold itself), the first and
+  only debit, reusing the existing `updateMany` claim guard against
+  double-approval + compensate-on-failure. Reject moves nothing, ever, and
+  cannot later be approved. The `AllowanceRequest` primitive is genuinely
+  reused (a `kind` discriminator defaulting to `funding`; every existing
+  funding row and its transfer-on-approve behaviour is unchanged). Trusted
+  roles (owner/spouse/admin_staff/member) are never held; the stale
+  hardcoded `5_000_000` notification threshold the epic's Evidence section
+  flagged is now the acting member's own threshold. Honest UI: the
+  transaction dialog shows "held pending approval", never a success toast.
+  Five gate agents plus the standard scripts. Two review rounds; the second
+  ran on the committed base after a review agent's `git checkout` reverted
+  `allowance-requests.service.ts` to HEAD (recovered by reconstructing the
+  approve/held branch from the spec's exact contract + the modified DTOs,
+  then spec-verified 21/21). Findings fixed: `PATCH .../members/:memberId`
+  (D3's threshold control surface) had no `@CheckAbility` — `AbilitiesGuard`
+  fails OPEN on undecorated routes (this epic's own group-C lesson) — added
+  owner-only `manage Member`; missing behavioural coverage for the held-vs-
+  funding approvals panel and the threshold form (9 web tests added, two
+  key behaviours mutation-verified); a missing backend service test for the
+  threshold set/omit/clear-to-null branch (3 tests added, mirroring the
+  `relationship` pattern); label association + a reused i18n loading key;
+  and the transaction dialog now invalidates the allowance-requests query
+  so a freshly-held expense appears in the approvals panel without a
+  refetch. Adversarial (money/permissions, read-only on the committed base)
+  independently confirmed all ten invariants hold and are spec-asserted.
+  Final: **api 892/892 (77 suites), web 316/316 (33 suites)**, qa/
+  security-check exit 0, migration clean. Committed `7f6ea4f`, `1bc3659`,
+  and this round's follow-ups.
+  **Group D (D1 + D2 + D3) is complete.**
+  **Session-wide note, worth carrying beyond this epic:** review sub-agents
+  running `git checkout -- <file>` to "undo" a temporary mutation reverted
+  UNCOMMITTED task work to HEAD and silently destroyed it — this happened
+  twice (D2's `akun/page.tsx`, D3's `allowance-requests.service.ts`), each
+  costing a careful recovery. Committing a task's work BEFORE spawning
+  read-only review agents makes any such revert restore the correct
+  version instead of losing it; adversarial/QA reviews should be briefed
+  read-only and, where possible, run against the committed diff.
+- 2026-08-05 Group D → PR https://github.com/andrsrjld/wealthme-web/pull/244
+  and DEV-deployed via `scripts/deploy-dev.sh` at the product owner's
+  request. **The deploy caught a boot-breaking bug the entire gate suite
+  missed**: `AiAdvisorService`'s constructor used a `type`-only import of
+  `AiAdvisorFactory`, which the TS compiler erases, so NestJS
+  reflect-metadata could not resolve the dependency and the API container
+  crashed on startup ("Nest can't resolve dependencies of
+  AiAdvisorService"). tsc accepts the type import and the unit tests mock
+  the factory, so nothing short of a real container boot surfaces it. It
+  was **pre-existing since group G** (commit `60632b1`) — `development`
+  itself would not boot — not introduced by D. Fixed with a value import +
+  the `consistent-type-imports` eslint-disable the sibling DI imports
+  already carry (`e50cf86`). This is precisely the failure mode the D2/D3
+  log entries warn `eslint --fix` reintroduces on NestJS constructor
+  imports; worth a lasting guard (a boot/smoke check in the test gate, or
+  banning bare `type` imports on `@Injectable` constructor params).
+  After the fix: `deploy-dev.sh` PASS — api + web containers healthy,
+  `GET http://localhost:4000/health` → 200, all infra (postgres/redis/
+  minio/mailhog) healthy. Group D is complete, gated, PR-open, and running
+  on DEV. **Epic NOT set `ready-for-qa`**: wave-2 groups E, F, H2, H3
+  remain; that status is for when every task passes.

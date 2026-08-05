@@ -25,6 +25,17 @@ export class MemberResponseDto {
   @ApiProperty({ type: String })
   email!: string;
 
+  // EPIC-023 Task D (D3/D9, US-FAM-14) — per-member large-transaction
+  // threshold, as string (BigInt-safe). Null = no gate (every pre-existing
+  // member, backward compatible). Only meaningful for a row-scoped role
+  // (dependant/operational) — see schema.prisma's Member comment.
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description: "Per-member large-transaction threshold (IDR minor units)",
+  })
+  largeTxnThreshold!: string | null;
+
   @ApiProperty({ type: String, format: "date-time" })
   createdAt!: string;
 }

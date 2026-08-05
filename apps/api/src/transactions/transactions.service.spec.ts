@@ -25,7 +25,15 @@ function makePrisma() {
     account: { findUnique: jest.fn(), update: jest.fn() },
     category: { findUnique: jest.fn(), findMany: jest.fn() },
     budget: { findFirst: jest.fn() },
-    member: { findFirst: jest.fn() },
+    member: {
+      findFirst: jest.fn(),
+      findUnique: jest.fn().mockResolvedValue(null),
+    },
+    // EPIC-023 Task D (D3/D9) — the hold gate's own primitives: creating a
+    // held_expense AllowanceRequest instead of a Transaction, and looking
+    // up the requester's name for the trusted-role notification.
+    allowanceRequest: { create: jest.fn() },
+    user: { findUnique: jest.fn().mockResolvedValue(null) },
     // EPIC-019 Task C — resolveAllowedCategoryIds() reads this only when an
     // actingMember with role "member" is passed; defaults to an empty
     // allow-list (unrestricted) so every pre-existing test that never passes
@@ -1571,7 +1579,10 @@ function makeFakePrivacyPrisma(
     },
     category: { findUnique: jest.fn(), findMany: jest.fn() },
     budget: { findFirst: jest.fn() },
-    member: { findFirst: jest.fn() },
+    member: {
+      findFirst: jest.fn(),
+      findUnique: jest.fn().mockResolvedValue(null),
+    },
     notification: { findFirst: jest.fn(), create: jest.fn() },
     transaction: {
       findMany: jest.fn(({ where }: { where: TxWhere }) => {
@@ -2141,6 +2152,350 @@ describe("TransactionsService.create — row-scoped roles and createdByUserId (E
     expect(prisma.transaction.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ createdByUserId: null }),
+      }),
+    );
+  });
+});
+
+// EPIC-023 Task D (D3/D9, US-FAM-14) — per-member large-transaction
+// threshold: a row-scoped member's over-threshold EXPENSE is held for the
+// head's approval instead of posting, and NO balance ever changes at hold
+// time. Trusted roles are never held (D9), only notified — see the
+// dedicated notifyTransaction threshold test below.
+describe("TransactionsService.create — large-transaction threshold hold (EPIC-023 Task D, D3/D9)", () => {
+  let service: TransactionsService;
+  let prisma: ReturnType<typeof makePrisma>;
+
+  const CHILD_USER_ID = "user-child";
+  const ACTING_MEMBER_ID = "member-child";
+  const THRESHOLD = 500_000n;
+
+  beforeEach(async () => {
+    prisma = makePrisma();
+    prisma.account.findUnique.mockResolvedValue({
+      id: ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      ownerUserId: CHILD_USER_ID,
+    });
+    prisma.$transaction.mockImplementation(
+      async (fn: Parameters<typeof prisma.$transaction>[0]) =>
+        (fn as (p: typeof prisma) => Promise<unknown>)(prisma),
+    );
+    prisma.transaction.create.mockResolvedValue({
+      id: "tx-new",
+      familyGroupId: FAMILY_GROUP_ID,
+      accountId: ACCOUNT_ID,
+      categoryId: null,
+      amount: 0n,
+      type: "expense",
+      description: null,
+      occurredAt: new Date(),
+      createdAt: new Date(),
+    });
+    prisma.allowanceRequest.create.mockResolvedValue({
+      id: "areq-held-1",
+      amount: 750_000n,
+    });
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        TransactionsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: OCR_PORT, useValue: { extractFromBase64: jest.fn() } },
+        {
+          provide: CATEGORIZATION_PORT,
+          useValue: { suggest: jest.fn().mockResolvedValue(null) },
+        },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { send: jest.fn(), sendEmail: jest.fn() },
+        },
+      ],
+    }).compile();
+    service = module.get<TransactionsService>(TransactionsService);
+  });
+
+  function actingMember(role: Role) {
+    return { id: ACTING_MEMBER_ID, userId: CHILD_USER_ID, role };
+  }
+
+  it("ACCEPTANCE CRITERION — an operational member with a Rp 500.000 threshold recording a Rp 750.000 expense is held, and the balance is unchanged", async () => {
+    prisma.member.findUnique.mockResolvedValue({
+      largeTxnThreshold: THRESHOLD,
+    });
+
+    const result = await service.create(
+      FAMILY_GROUP_ID,
+      {
+        accountId: ACCOUNT_ID,
+        amount: 750_000,
+        type: "expense",
+        occurredAt: new Date().toISOString(),
+      },
+      actingMember(Role.operational),
+    );
+
+    // Held, not posted.
+    expect(result).toEqual({
+      held: true,
+      allowanceRequestId: "areq-held-1",
+      amount: "750000",
+    });
+    // No Transaction row created, no balance-mutating $transaction ever run
+    // — the acceptance criterion, verbatim.
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.transaction.create).not.toHaveBeenCalled();
+    expect(prisma.account.update).not.toHaveBeenCalled();
+    // The held expense is captured as a held_expense AllowanceRequest.
+    expect(prisma.allowanceRequest.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          familyGroupId: FAMILY_GROUP_ID,
+          requesterUserId: CHILD_USER_ID,
+          targetAccountId: ACCOUNT_ID,
+          kind: "held_expense",
+          amount: BigInt(750_000),
+        }),
+      }),
+    );
+  });
+
+  it("a dependant with the same threshold is also held", async () => {
+    prisma.member.findUnique.mockResolvedValue({
+      largeTxnThreshold: THRESHOLD,
+    });
+
+    const result = await service.create(
+      FAMILY_GROUP_ID,
+      {
+        accountId: ACCOUNT_ID,
+        amount: 750_000,
+        type: "expense",
+        occurredAt: new Date().toISOString(),
+      },
+      actingMember(Role.dependant),
+    );
+
+    expect(result).toMatchObject({ held: true });
+    expect(prisma.transaction.create).not.toHaveBeenCalled();
+  });
+
+  it("BOUNDARY — an expense AT the threshold (not above it) posts normally, not held", async () => {
+    prisma.member.findUnique.mockResolvedValue({
+      largeTxnThreshold: THRESHOLD,
+    });
+
+    const result = await service.create(
+      FAMILY_GROUP_ID,
+      {
+        accountId: ACCOUNT_ID,
+        amount: 500_000,
+        type: "expense",
+        occurredAt: new Date().toISOString(),
+      },
+      actingMember(Role.operational),
+    );
+
+    expect(result).not.toHaveProperty("held");
+    expect(prisma.allowanceRequest.create).not.toHaveBeenCalled();
+    expect(prisma.transaction.create).toHaveBeenCalled();
+    expect(prisma.account.update).toHaveBeenCalled();
+  });
+
+  it("BOUNDARY — an expense just below the threshold posts normally", async () => {
+    prisma.member.findUnique.mockResolvedValue({
+      largeTxnThreshold: THRESHOLD,
+    });
+
+    const result = await service.create(
+      FAMILY_GROUP_ID,
+      {
+        accountId: ACCOUNT_ID,
+        amount: 499_999,
+        type: "expense",
+        occurredAt: new Date().toISOString(),
+      },
+      actingMember(Role.operational),
+    );
+
+    expect(result).not.toHaveProperty("held");
+    expect(prisma.allowanceRequest.create).not.toHaveBeenCalled();
+  });
+
+  it("BACKWARD COMPATIBLE — a member with no threshold set (null) is never held, regardless of amount", async () => {
+    prisma.member.findUnique.mockResolvedValue({ largeTxnThreshold: null });
+
+    const result = await service.create(
+      FAMILY_GROUP_ID,
+      {
+        accountId: ACCOUNT_ID,
+        amount: 999_999_999,
+        type: "expense",
+        occurredAt: new Date().toISOString(),
+      },
+      actingMember(Role.operational),
+    );
+
+    expect(result).not.toHaveProperty("held");
+    expect(prisma.allowanceRequest.create).not.toHaveBeenCalled();
+    expect(prisma.transaction.create).toHaveBeenCalled();
+  });
+
+  it("DENIAL — a trusted role (owner) is never held even with a threshold set and an over-threshold expense", async () => {
+    prisma.member.findUnique.mockResolvedValue({
+      largeTxnThreshold: THRESHOLD,
+    });
+    prisma.account.findUnique.mockResolvedValue({
+      id: ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      ownerUserId: null,
+    });
+
+    const result = await service.create(
+      FAMILY_GROUP_ID,
+      {
+        accountId: ACCOUNT_ID,
+        amount: 750_000,
+        type: "expense",
+        occurredAt: new Date().toISOString(),
+      },
+      { id: "member-owner", userId: "user-owner", role: Role.owner },
+    );
+
+    expect(result).not.toHaveProperty("held");
+    expect(prisma.allowanceRequest.create).not.toHaveBeenCalled();
+    expect(prisma.transaction.create).toHaveBeenCalled();
+  });
+
+  it("DENIAL — spouse/admin_staff/member roles are never held either, even over threshold", async () => {
+    prisma.member.findUnique.mockResolvedValue({
+      largeTxnThreshold: THRESHOLD,
+    });
+    prisma.account.findUnique.mockResolvedValue({
+      id: ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      ownerUserId: null,
+    });
+
+    for (const role of [Role.spouse, Role.admin_staff, Role.member]) {
+      prisma.allowanceRequest.create.mockClear();
+      prisma.transaction.create.mockClear();
+
+      const result = await service.create(
+        FAMILY_GROUP_ID,
+        {
+          accountId: ACCOUNT_ID,
+          amount: 750_000,
+          type: "expense",
+          occurredAt: new Date().toISOString(),
+        },
+        { id: "member-x", userId: "user-x", role },
+      );
+
+      expect(result).not.toHaveProperty("held");
+      expect(prisma.allowanceRequest.create).not.toHaveBeenCalled();
+      expect(prisma.transaction.create).toHaveBeenCalled();
+    }
+  });
+
+  it("a row-scoped member's INCOME is never held, only expense is gated", async () => {
+    prisma.member.findUnique.mockResolvedValue({
+      largeTxnThreshold: THRESHOLD,
+    });
+
+    const result = await service.create(
+      FAMILY_GROUP_ID,
+      {
+        accountId: ACCOUNT_ID,
+        amount: 750_000,
+        type: "income",
+        occurredAt: new Date().toISOString(),
+      },
+      actingMember(Role.operational),
+    );
+
+    expect(result).not.toHaveProperty("held");
+    expect(prisma.allowanceRequest.create).not.toHaveBeenCalled();
+  });
+});
+
+// EPIC-023 Task D (D3/D9) — trusted-role "large transaction" notification
+// uses the acting member's own per-member threshold when set, otherwise
+// falls back to the pre-existing fixed cutoff. Never gates/holds anything —
+// only changes WHEN the notification fires/what its title says.
+describe("TransactionsService.notifyTransaction — per-member threshold (EPIC-023 Task D, D9)", () => {
+  let service: TransactionsService;
+  let prisma: ReturnType<typeof makePrisma>;
+
+  beforeEach(async () => {
+    prisma = makePrisma();
+    prisma.account.findUnique.mockResolvedValue({
+      id: ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      ownerUserId: null,
+    });
+    prisma.$transaction.mockImplementation(
+      async (fn: Parameters<typeof prisma.$transaction>[0]) =>
+        (fn as (p: typeof prisma) => Promise<unknown>)(prisma),
+    );
+    prisma.transaction.create.mockResolvedValue({
+      id: "tx-new",
+      familyGroupId: FAMILY_GROUP_ID,
+      accountId: ACCOUNT_ID,
+      categoryId: null,
+      amount: 0n,
+      type: "expense",
+      description: null,
+      occurredAt: new Date(),
+      createdAt: new Date(),
+    });
+    // txnBig preference ON — matches this test's intent of proving the
+    // notification actually fires at the per-member threshold.
+    prisma.notification.findFirst.mockResolvedValue(null);
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        TransactionsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: OCR_PORT, useValue: { extractFromBase64: jest.fn() } },
+        {
+          provide: CATEGORIZATION_PORT,
+          useValue: { suggest: jest.fn().mockResolvedValue(null) },
+        },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { send: jest.fn(), sendEmail: jest.fn() },
+        },
+      ],
+    }).compile();
+    service = module.get<TransactionsService>(TransactionsService);
+  });
+
+  it("uses the trusted role's own threshold to decide 'besar' — an owner with a Rp 100.000 threshold gets a big-transaction title on a Rp 150.000 expense", async () => {
+    prisma.member.findUnique.mockResolvedValue({
+      largeTxnThreshold: 100_000n,
+    });
+
+    await service.create(
+      FAMILY_GROUP_ID,
+      {
+        accountId: ACCOUNT_ID,
+        amount: 150_000,
+        type: "expense",
+        occurredAt: new Date().toISOString(),
+      },
+      { id: "member-owner", userId: "user-owner", role: Role.owner },
+    );
+
+    // Wait a tick for the fire-and-forget notifyTransaction to run.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(prisma.notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          title: expect.stringContaining("besar"),
+        }),
       }),
     );
   });

@@ -381,6 +381,9 @@ export type I18nDictionary = {
       noFamilyGroup: string;
       savedAddMoreToast: string;
       savedToast: string;
+      // EPIC-023 Task D (D3/D9, US-FAM-14) — held pending approval, not a
+      // success.
+      heldToast: string;
       ocrSavedToast: string;
       title: string;
       manualInput: string;
@@ -518,7 +521,6 @@ export type I18nDictionary = {
       toastPasswordMismatch: string;
       toastChangeFailed: string;
       toastChangeSuccess: string;
-      toastSetPin: string;
       toastSessionEnded: string;
       toastSessionEndFailed: string;
       toastAuthPrefsSaved: string;
@@ -716,6 +718,24 @@ export type I18nDictionary = {
       allowanceRequestApproveFailed: string;
       allowanceRequestRejected: string;
       allowanceRequestRejectFailed: string;
+      // EPIC-023 Task D (D3/D9, US-FAM-14) — held-expense variant of the
+      // same AllowanceRequest primitive.
+      allowanceRequestHeldBadge: string;
+      allowanceRequestHeldApproved: string;
+      // EPIC-023 Task D (D3/D9, US-FAM-14) — per-member large-transaction
+      // threshold.
+      thresholdButton: string;
+      thresholdDialogTitle: string;
+      thresholdDialogDesc: string;
+      thresholdLabel: string;
+      thresholdEmptyHint: string;
+      thresholdSaveButton: string;
+      thresholdSaving: string;
+      thresholdSaved: string;
+      thresholdSaveFailed: string;
+      // EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/
+      // operational member (name + username + initial password, no email).
+      addDependantButton: string;
     };
     addAdmin: {
       dialogTitle: string;
@@ -733,6 +753,34 @@ export type I18nDictionary = {
       sendButton: string;
       toastInviteCreated: string;
       toastInviteFailed: string;
+    };
+    // EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/
+    // operational member: no email, username + initial password instead.
+    addDependant: {
+      dialogTitle: string;
+      dialogDesc: string;
+      nameLabel: string;
+      namePlaceholder: string;
+      usernameLabel: string;
+      usernamePlaceholder: string;
+      usernameHint: string;
+      passwordLabel: string;
+      passwordPlaceholder: string;
+      passwordHint: string;
+      showPassword: string;
+      hidePassword: string;
+      roleLabel: string;
+      roleOptions: {
+        dependant: string;
+        operational: string;
+      };
+      relationshipLabel: string;
+      relationshipNoneOption: string;
+      creating: string;
+      createButton: string;
+      toastCreated: string;
+      toastCreatedDesc: string;
+      toastCreateFailed: string;
     };
     crud: {
       accountAdded: string;
@@ -2256,5 +2304,66 @@ export type I18nDictionary = {
       creatingExportSuffix: string;
       toastExportCreateFailed: string;
     };
+  };
+  // EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — forced first-login password
+  // change for a head-created dependant/operational member.
+  forcePasswordChange: {
+    title: string;
+    subtitle: string;
+    currentPasswordLabel: string;
+    newPasswordLabel: string;
+    confirmPasswordLabel: string;
+    submitButton: string;
+    submitting: string;
+    toastSuccess: string;
+    toastMismatch: string;
+    toastMinLength: string;
+    toastFailed: string;
+    logoutButton: string;
+  };
+  // EPIC-023 D2 (US-FAM-13, D7) — device-bound PIN unlock. A PIN alone is
+  // NEVER a standalone credential; it only unlocks a device already bound at
+  // a real password login. See apps/api/src/devices for the two-factor model.
+  deviceUnlock: {
+    // "Set up quick unlock" prompt, offered (not forced) right after a
+    // successful password login.
+    promptTitle: string;
+    promptSubtitle: string;
+    promptSetPinLabel: string;
+    promptPinPlaceholder: string;
+    promptConfirmPinPlaceholder: string;
+    promptSkipButton: string;
+    promptSubmitButton: string;
+    promptSubmitting: string;
+    toastPinLength: string;
+    toastPinMismatch: string;
+    toastSetupSuccess: string;
+    toastSetupFailed: string;
+    // Pre-login PIN pad, shown instead of the password form when this
+    // device has a stored deviceSecret + a PIN already set.
+    padTitle: string;
+    padSubtitle: string;
+    padSubmitButton: string;
+    padSubmitting: string;
+    padUsePasswordInstead: string;
+    toastUnlockFailed: string;
+    toastUnlockLockedPrefix: string;
+    toastUnlockLockedSuffix: string;
+    // Device-management view (akun -> keamanan).
+    manageSectionTitle: string;
+    manageSetupButton: string;
+    manageEmptyState: string;
+    manageLoading: string;
+    manageError: string;
+    manageHasPinBadge: string;
+    manageNoPinBadge: string;
+    manageRevokeLink: string;
+    manageRevokeConfirmTitle: string;
+    manageRevokeConfirmBody: string;
+    manageRevokeConfirmButton: string;
+    manageDeviceFallbackLabel: string;
+    toastRevokeSuccess: string;
+    toastRevokeFailed: string;
+    toastRegisterFailed: string;
   };
 };

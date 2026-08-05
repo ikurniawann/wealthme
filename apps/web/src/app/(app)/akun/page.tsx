@@ -9,12 +9,14 @@ import { useLocale } from "@/hooks/use-locale";
 import { useProfile } from "@/hooks/use-profile";
 import { useGoldPrice } from "@/hooks/use-gold-price";
 import { useAiKeyStatus, type AiProvider } from "@/hooks/use-ai-key";
+import { useDevices, useRevokeDevice } from "@/hooks/use-devices";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, parseRupiah, formatAmountInput } from "@/lib/format";
 import { formatManualDate } from "@/components/consolidated-total-card";
 import { useShell } from "@/components/shell/shell-context";
+import { QuickUnlockPrompt } from "@/components/auth/quick-unlock-prompt";
 import {
   ChevronRight,
   User,
@@ -49,6 +51,9 @@ import {
   Target,
   Check,
   X,
+  Eye,
+  EyeOff,
+  Gauge,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -70,11 +75,13 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 
+import { MemberRelationshipSchema } from "@wealthme/contracts";
 import type {
   AccountDto,
   AllowanceRequestDto,
   CategoryDto,
   MemberCategoryAllowanceDto,
+  MemberRelationship,
   Role,
 } from "@wealthme/contracts";
 
@@ -125,7 +132,8 @@ type FamilyGroupMine = {
   createdAt: string;
 };
 
-type FamilyMember = {
+// Exported for tests only (EPIC-023 D3 ThresholdForm test coverage).
+export type FamilyMember = {
   id: string;
   userId: string;
   familyGroupId: string;
@@ -133,6 +141,9 @@ type FamilyMember = {
   name: string;
   email: string;
   createdAt: string;
+  // EPIC-023 Task D (D3/D9, US-FAM-14) — string (BigInt-safe), null = no
+  // gate. Only ever meaningful for a row-scoped role (dependant/operational).
+  largeTxnThreshold: string | null;
 };
 
 /**
@@ -527,6 +538,23 @@ export function KeamananBody() {
   const [confirmPw, setConfirmPw] = useState("");
   const [pwLoading, setPwLoading] = useState(false);
 
+  // EPIC-023 D2 (US-FAM-13, D7) — device-bound PIN unlock management.
+  const [showQuickUnlockPrompt, setShowQuickUnlockPrompt] = useState(false);
+  const {
+    data: devices,
+    isLoading: devicesLoading,
+    isError: devicesError,
+  } = useDevices();
+  const { mutate: revokeDevice } = useRevokeDevice();
+  // EPIC-023 D2 fix (FIX 2, react-reviewer) — revoking a device permanently
+  // kills its PIN-unlock capability, so it now requires an explicit confirm
+  // step instead of firing on a single click anywhere on the row. Holds the
+  // device pending confirmation, or null when no confirmation is open.
+  const [deviceToRevoke, setDeviceToRevoke] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
+
   async function handleChangePassword() {
     if (newPw.length < 8) {
       toast.error(t.akun.keamanan.toastPasswordMinLength);
@@ -707,7 +735,7 @@ export function KeamananBody() {
           name={t.akun.keamanan.pinRowName}
           sub={t.akun.keamanan.pinRowSub}
           right={CHEVRON}
-          onClick={() => toast(t.akun.keamanan.toastSetPin)}
+          onClick={() => setShowQuickUnlockPrompt(true)}
         />
       </SetSection>
       <SetSection>
@@ -798,6 +826,115 @@ export function KeamananBody() {
             );
           })}
       </SetSection>
+      <SetSection>
+        <SectionTitle>{t.deviceUnlock.manageSectionTitle}</SectionTitle>
+        {devicesLoading && (
+          <div className="py-3 text-[12px] text-muted-foreground">
+            {t.deviceUnlock.manageLoading}
+          </div>
+        )}
+        {devicesError && (
+          <div className="py-3 text-[12px] text-destructive">
+            {t.deviceUnlock.manageError}
+          </div>
+        )}
+        {!devicesLoading && !devicesError && devices?.length === 0 && (
+          <div className="py-3 text-[12px] text-muted-foreground">
+            {t.deviceUnlock.manageEmptyState}
+          </div>
+        )}
+        {!devicesLoading &&
+          !devicesError &&
+          devices?.map((d) => {
+            const dateStr = new Date(d.createdAt).toLocaleDateString(
+              locale === "en" ? "en-US" : "id-ID",
+              { day: "numeric", month: "short", year: "numeric" },
+            );
+            const deviceLabel =
+              d.label ?? t.deviceUnlock.manageDeviceFallbackLabel;
+            return (
+              <SetRow
+                key={d.id}
+                icon={<Hash className="size-4 text-primary" />}
+                iconBg="#EEF2FF"
+                name={deviceLabel}
+                sub={`${dateStr} · ${
+                  d.hasPinSet
+                    ? t.deviceUnlock.manageHasPinBadge
+                    : t.deviceUnlock.manageNoPinBadge
+                }`}
+                right={
+                  // A real <button>, not a <div onClick> — keyboard
+                  // reachable (react-reviewer) — and it no longer fires the
+                  // mutation directly; it only opens the confirmation
+                  // dialog below (react-reviewer/typescript-reviewer/
+                  // review-qa — this is a destructive, permanent action).
+                  <button
+                    type="button"
+                    className="shrink-0 text-[11px] text-destructive"
+                    onClick={() =>
+                      setDeviceToRevoke({ id: d.id, label: deviceLabel })
+                    }
+                  >
+                    {t.deviceUnlock.manageRevokeLink}
+                  </button>
+                }
+              />
+            );
+          })}
+        <button
+          type="button"
+          onClick={() => setShowQuickUnlockPrompt(true)}
+          className="mt-3 w-full rounded-lg border py-2.5 text-[13px] font-semibold text-foreground"
+        >
+          {t.deviceUnlock.manageSetupButton}
+        </button>
+      </SetSection>
+      {session?.userId && (
+        <QuickUnlockPrompt
+          userId={session.userId}
+          open={showQuickUnlockPrompt}
+          onOpenChange={setShowQuickUnlockPrompt}
+        />
+      )}
+      <Dialog
+        open={deviceToRevoke !== null}
+        onOpenChange={(open) => !open && setDeviceToRevoke(null)}
+      >
+        <DialogContent className="max-w-[min(400px,calc(100%-2rem))]">
+          <DialogHeader>
+            <DialogTitle>{t.deviceUnlock.manageRevokeConfirmTitle}</DialogTitle>
+          </DialogHeader>
+          <p className="text-[13px] text-muted-foreground">
+            {t.deviceUnlock.manageRevokeConfirmBody}
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              className="flex-1 rounded-lg border py-2 text-[13px] font-semibold text-foreground"
+              onClick={() => setDeviceToRevoke(null)}
+            >
+              {t.common.cancel}
+            </button>
+            <button
+              type="button"
+              className="flex-1 rounded-lg bg-destructive py-2 text-[13px] font-semibold text-destructive-foreground"
+              onClick={() => {
+                if (!deviceToRevoke) return;
+                const { id } = deviceToRevoke;
+                setDeviceToRevoke(null);
+                revokeDevice(id, {
+                  onSuccess: () =>
+                    toast.success(t.deviceUnlock.toastRevokeSuccess),
+                  onError: () => toast.error(t.deviceUnlock.toastRevokeFailed),
+                });
+              }}
+            >
+              {t.deviceUnlock.manageRevokeConfirmButton}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -1917,6 +2054,7 @@ function memberInitials(name: string): string {
 function FamilyBody({
   onAddAdmin,
   onInviteMember,
+  onAddDependant,
   name,
   email,
   initials,
@@ -1928,6 +2066,7 @@ function FamilyBody({
 }: {
   onAddAdmin: () => void;
   onInviteMember: () => void;
+  onAddDependant: () => void;
   name: string;
   email: string;
   initials: string;
@@ -1949,6 +2088,9 @@ function FamilyBody({
   const isElevated = group?.myRole === "owner" || group?.myRole === "spouse";
   const [categoryLimitMember, setCategoryLimitMember] =
     useState<FamilyMember | null>(null);
+  const [thresholdMember, setThresholdMember] = useState<FamilyMember | null>(
+    null,
+  );
 
   return (
     <>
@@ -2019,6 +2161,23 @@ function FamilyBody({
                     <Target className="size-4" />
                   </button>
                 )}
+                {/* EPIC-023 Task D (D3/D9, US-FAM-14) — only a row-scoped
+                    role (dependant/operational) can be gated by a
+                    threshold; owner-only (NOT isElevated), matching
+                    addDependantButton above — the backend endpoint that
+                    sets it requires "manage Member", which per D2 is
+                    owner-only, never spouse. */}
+                {group?.myRole === "owner" &&
+                  (m.role === "dependant" || m.role === "operational") && (
+                    <button
+                      type="button"
+                      aria-label={`${t.akun.family.thresholdButton} ${m.name}`}
+                      className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      onClick={() => setThresholdMember(m)}
+                    >
+                      <Gauge className="size-4" />
+                    </button>
+                  )}
               </div>
             }
           />
@@ -2034,6 +2193,22 @@ function FamilyBody({
         >
           <UserPlus className="size-4" /> {t.akun.family.inviteButton}
         </button>
+        {/* EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/
+            operational member (no email). FIX 3 (MEDIUM, three-way
+            consensus) — the backend route requires `can("manage", "Member")`,
+            which per casl-ability.factory.ts and D2 ("spouse gets full money
+            CRUD WITHOUT member management") spouse never holds — only
+            `read Member`. Gated owner-only (NOT `isElevated`, which also
+            includes spouse) so a spouse never sees a button that always
+            403s. */}
+        {group?.myRole === "owner" && (
+          <button
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-dashed border-primary bg-card px-4 py-2.5 text-[13.5px] font-semibold text-primary"
+            onClick={onAddDependant}
+          >
+            <UserCog className="size-4" /> {t.akun.family.addDependantButton}
+          </button>
+        )}
       </SetSection>
       <SetSection>
         <div className="mb-2.5 flex items-center justify-between">
@@ -2099,6 +2274,12 @@ function FamilyBody({
         familyGroupId={familyGroupId}
         token={token}
         onClose={() => setCategoryLimitMember(null)}
+      />
+      <ThresholdDialog
+        member={thresholdMember}
+        familyGroupId={familyGroupId}
+        token={token}
+        onClose={() => setThresholdMember(null)}
       />
     </>
   );
@@ -2284,9 +2465,135 @@ function CategoryLimitForm({
   );
 }
 
+/* ──────────── Large-transaction threshold dialog (EPIC-023 Task D, D3/D9) ──────────── */
+
+function ThresholdDialog({
+  member,
+  familyGroupId,
+  token,
+  onClose,
+}: {
+  member: FamilyMember | null;
+  familyGroupId: string | null;
+  token: string | undefined;
+  onClose: () => void;
+}) {
+  const { t } = useLocale();
+
+  return (
+    <Dialog open={!!member} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-[420px] p-6 sm:max-w-[420px]">
+        <DialogHeader>
+          <DialogTitle className="text-[15px] font-bold">
+            {t.akun.family.thresholdDialogTitle}
+            {member ? ` — ${member.name}` : ""}
+          </DialogTitle>
+        </DialogHeader>
+        {member && familyGroupId && (
+          <ThresholdForm
+            key={member.id}
+            member={member}
+            familyGroupId={familyGroupId}
+            token={token}
+            onClose={onClose}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Exported for tests only (EPIC-023 D3 — react-review HIGH: no behavioral
+// coverage existed for the threshold form's prefill/clear-to-null path).
+export function ThresholdForm({
+  member,
+  familyGroupId,
+  token,
+  onClose,
+}: {
+  member: FamilyMember;
+  familyGroupId: string;
+  token: string | undefined;
+  onClose: () => void;
+}) {
+  const { t } = useLocale();
+  const queryClient = useQueryClient();
+  const [amount, setAmount] = useState(
+    member.largeTxnThreshold ? formatAmountInput(member.largeTxnThreshold) : "",
+  );
+  const [isSaving, setIsSaving] = useState(false);
+
+  async function handleSave() {
+    if (!token) return;
+    setIsSaving(true);
+    try {
+      const parsed = parseRupiah(amount);
+      await apiFetch(`/family-groups/${familyGroupId}/members/${member.id}`, {
+        token,
+        method: "PATCH",
+        body: JSON.stringify({
+          role: member.role,
+          largeTxnThreshold: parsed > 0 ? parsed : null,
+        }),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.familyGroups.members(familyGroupId),
+      });
+      toast.success(t.akun.family.thresholdSaved);
+      onClose();
+    } catch {
+      toast.error(t.akun.family.thresholdSaveFailed);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="mb-3 text-[12px] text-muted-foreground">
+        {t.akun.family.thresholdDialogDesc}
+      </div>
+      <label
+        htmlFor="threshold-amount"
+        className="mb-1.5 block text-[12px] font-semibold text-muted-foreground"
+      >
+        {t.akun.family.thresholdLabel}
+      </label>
+      <div className="relative">
+        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
+          Rp
+        </span>
+        <input
+          id="threshold-amount"
+          inputMode="numeric"
+          value={amount}
+          onChange={(e) => setAmount(formatAmountInput(e.target.value))}
+          placeholder="0"
+          className={`${FIELD_CLASS} pl-[38px]`}
+        />
+      </div>
+      <div className="mt-1.5 text-[11px] text-muted-foreground">
+        {t.akun.family.thresholdEmptyHint}
+      </div>
+      <button
+        disabled={isSaving}
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-60"
+        onClick={handleSave}
+      >
+        <Save className="size-4" />{" "}
+        {isSaving
+          ? t.akun.family.thresholdSaving
+          : t.akun.family.thresholdSaveButton}
+      </button>
+    </>
+  );
+}
+
 /* ──────────── Allowance requests panel (EPIC-019 Task B/D) ──────────── */
 
-function AllowanceRequestsPanel({
+// Exported for tests only (EPIC-023 D3 — react-review HIGH: no behavioral
+// coverage existed for the held-expense-vs-funding approval branching).
+export function AllowanceRequestsPanel({
   familyGroupId,
   token,
 }: {
@@ -2339,6 +2646,23 @@ function AllowanceRequestsPanel({
     }
   }
 
+  // EPIC-023 Task D (D3/D9) — a held_expense request already carries its
+  // own account (the one the deferred expense debits); it needs no
+  // fromAccountId choice, so approving it never opens ApproveRequestDialog.
+  async function handleApproveHeld(request: AllowanceRequestDto) {
+    if (!familyGroupId || !token) return;
+    try {
+      await apiFetch(
+        `/family-groups/${familyGroupId}/allowance-requests/${request.id}/approve`,
+        { token, method: "PATCH", body: JSON.stringify({}) },
+      );
+      toast.success(t.akun.family.allowanceRequestHeldApproved);
+      await invalidate();
+    } catch {
+      toast.error(t.akun.family.allowanceRequestApproveFailed);
+    }
+  }
+
   const pending = (requests ?? []).filter((r) => r.status === "pending");
 
   return (
@@ -2351,41 +2675,63 @@ function AllowanceRequestsPanel({
           {t.akun.family.allowanceRequestsEmpty}
         </div>
       )}
-      {pending.map((r) => (
-        <div
-          key={r.id}
-          className="flex items-center gap-3 border-b py-3 last:border-b-0"
-        >
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-[13px] font-bold">
-              {r.requesterName} → {r.targetAccountName}
+      {pending.map((r) => {
+        // EPIC-023 Task D (D3/D9) — the two kinds mean DIFFERENT things:
+        // "approve" a funding request GIVES money; "approve" a held
+        // expense POSTS a spend the member already attempted. Visibly
+        // distinguished, never conflated.
+        const isHeld = r.kind === "held_expense";
+        return (
+          <div
+            key={r.id}
+            className="flex items-center gap-3 border-b py-3 last:border-b-0"
+          >
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[13px] font-bold">
+                {isHeld
+                  ? `${r.requesterName} · ${r.targetAccountName}`
+                  : `${r.requesterName} → ${r.targetAccountName}`}
+              </div>
+              <div className="mt-0.5 text-[12px] text-muted-foreground">
+                {formatRupiah(Number(r.amount))}
+                {isHeld
+                  ? r.description
+                    ? ` · ${r.description}`
+                    : r.categoryName
+                      ? ` · ${r.categoryName}`
+                      : ""
+                  : r.note
+                    ? ` · ${r.note}`
+                    : ""}
+              </div>
             </div>
-            <div className="mt-0.5 text-[12px] text-muted-foreground">
-              {formatRupiah(Number(r.amount))}
-              {r.note ? ` · ${r.note}` : ""}
-            </div>
+            <StatusBadge
+              variant={isHeld ? "danger" : "warning"}
+              className="text-[10px]"
+            >
+              {isHeld
+                ? t.akun.family.allowanceRequestHeldBadge
+                : t.akun.family.allowanceRequestPendingBadge}
+            </StatusBadge>
+            <button
+              type="button"
+              aria-label={t.akun.family.allowanceRequestApproveButton}
+              className="flex size-7 shrink-0 items-center justify-center rounded-md bg-success-soft text-success"
+              onClick={() => (isHeld ? handleApproveHeld(r) : setApproving(r))}
+            >
+              <Check className="size-4" />
+            </button>
+            <button
+              type="button"
+              aria-label={t.akun.family.allowanceRequestRejectButton}
+              className="flex size-7 shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive"
+              onClick={() => handleReject(r)}
+            >
+              <X className="size-4" />
+            </button>
           </div>
-          <StatusBadge variant="warning" className="text-[10px]">
-            {t.akun.family.allowanceRequestPendingBadge}
-          </StatusBadge>
-          <button
-            type="button"
-            aria-label={t.akun.family.allowanceRequestApproveButton}
-            className="flex size-7 shrink-0 items-center justify-center rounded-md bg-success-soft text-success"
-            onClick={() => setApproving(r)}
-          >
-            <Check className="size-4" />
-          </button>
-          <button
-            type="button"
-            aria-label={t.akun.family.allowanceRequestRejectButton}
-            className="flex size-7 shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive"
-            onClick={() => handleReject(r)}
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-      ))}
+        );
+      })}
       <ApproveRequestDialog
         request={approving}
         familyGroupId={familyGroupId}
@@ -2621,6 +2967,209 @@ function AddAdminDialog({
   );
 }
 
+// EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/operational
+// member: name + username + initial password, no email; forced password
+// change at first login (ForcePasswordChangeGuard on the API side).
+function AddDependantMemberDialog({
+  open,
+  onOpenChange,
+  familyGroupId,
+  token,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  familyGroupId: string | null;
+  token: string | undefined;
+}) {
+  const { t } = useLocale();
+  const queryClient = useQueryClient();
+  const nameRef = useRef<HTMLInputElement>(null);
+  const usernameRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const [role, setRole] = useState<"dependant" | "operational">("dependant");
+  const [relationship, setRelationship] = useState<MemberRelationship | "">("");
+  // FIX 2 (HIGH, react-reviewer + security-reviewer) — show/hide toggle so
+  // the head can verify the initial password before handing it over, same
+  // pattern as login/page.tsx, without it being permanently plaintext.
+  const [showPassword, setShowPassword] = useState(false);
+
+  const { mutate: createMember, isPending } = useMutation({
+    mutationFn: (vars: {
+      name: string;
+      username: string;
+      initialPassword: string;
+      role: "dependant" | "operational";
+      relationship?: MemberRelationship;
+    }) =>
+      apiFetch<{ username: string }>(
+        `/family-groups/${familyGroupId}/members/dependant`,
+        {
+          method: "POST",
+          token,
+          body: JSON.stringify(vars),
+        },
+      ),
+    onSuccess: (created) => {
+      onOpenChange(false);
+      // FIX 5 (MEDIUM, react-reviewer) — this dialog is mounted once at the
+      // page level; only the Base UI portal content unmounts on close, so
+      // `role`/`relationship` state (unlike the ref-based inputs, which
+      // reset with the portal) silently persisted across reopens. Reset
+      // alongside closing so the next member starts from the defaults.
+      setRole("dependant");
+      setRelationship("");
+      setShowPassword(false);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.familyGroups.members(familyGroupId ?? ""),
+      });
+      toast.success(t.akun.addDependant.toastCreated, {
+        description: `${t.akun.addDependant.toastCreatedDesc} (${created.username})`,
+        duration: 10000,
+      });
+    },
+    onError: (err) => {
+      toast.error(
+        extractApiErrorMessage(err, t.akun.addDependant.toastCreateFailed),
+      );
+    },
+  });
+
+  function handleCreate() {
+    const name = nameRef.current?.value?.trim() ?? "";
+    const username = usernameRef.current?.value?.trim() ?? "";
+    const initialPassword = passwordRef.current?.value ?? "";
+    if (!name || !username || !initialPassword || !familyGroupId) return;
+    createMember({
+      name,
+      username,
+      initialPassword,
+      role,
+      ...(relationship ? { relationship } : {}),
+    });
+  }
+
+  // FIX 5 follow-up (react-reviewer round 2) — onSuccess resets role/
+  // relationship/showPassword on submit, but the dialog's own close paths
+  // (X, Escape, overlay click) skip that reset entirely, so cancelling
+  // without submitting leaves stale values for the next open. Reset on
+  // every close, not just a successful submit.
+  function handleOpenChange(next: boolean) {
+    if (!next) {
+      setRole("dependant");
+      setRelationship("");
+      setShowPassword(false);
+    }
+    onOpenChange(next);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-[min(480px,calc(100%-2rem))] p-6">
+        <DialogTitle className="mb-1.5 text-[17px] font-extrabold">
+          {t.akun.addDependant.dialogTitle}
+        </DialogTitle>
+        <div className="mb-4 text-[12px] text-muted-foreground">
+          {t.akun.addDependant.dialogDesc}
+        </div>
+        <Field label={t.akun.addDependant.nameLabel}>
+          <input
+            ref={nameRef}
+            className={FIELD_CLASS}
+            placeholder={t.akun.addDependant.namePlaceholder}
+            type="text"
+          />
+        </Field>
+        <Field label={t.akun.addDependant.usernameLabel}>
+          <input
+            ref={usernameRef}
+            className={FIELD_CLASS}
+            placeholder={t.akun.addDependant.usernamePlaceholder}
+            type="text"
+          />
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {t.akun.addDependant.usernameHint}
+          </p>
+        </Field>
+        <Field label={t.akun.addDependant.passwordLabel}>
+          <div className="relative">
+            <input
+              ref={passwordRef}
+              className={`${FIELD_CLASS} pr-10`}
+              placeholder={t.akun.addDependant.passwordPlaceholder}
+              type={showPassword ? "text" : "password"}
+              autoComplete="new-password"
+            />
+            <button
+              type="button"
+              aria-label={
+                showPassword
+                  ? t.akun.addDependant.hidePassword
+                  : t.akun.addDependant.showPassword
+              }
+              aria-pressed={showPassword}
+              onClick={() => setShowPassword((s) => !s)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
+            >
+              {showPassword ? (
+                <EyeOff className="size-3.5" />
+              ) : (
+                <Eye className="size-3.5" />
+              )}
+            </button>
+          </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {t.akun.addDependant.passwordHint}
+          </p>
+        </Field>
+        <Field label={t.akun.addDependant.roleLabel}>
+          <select
+            className={FIELD_CLASS}
+            value={role}
+            onChange={(e) =>
+              setRole(e.target.value as "dependant" | "operational")
+            }
+          >
+            <option value="dependant">
+              {t.akun.addDependant.roleOptions.dependant}
+            </option>
+            <option value="operational">
+              {t.akun.addDependant.roleOptions.operational}
+            </option>
+          </select>
+        </Field>
+        <Field label={t.akun.addDependant.relationshipLabel}>
+          <select
+            className={FIELD_CLASS}
+            value={relationship}
+            onChange={(e) =>
+              setRelationship(e.target.value as MemberRelationship | "")
+            }
+          >
+            <option value="">
+              {t.akun.addDependant.relationshipNoneOption}
+            </option>
+            {MemberRelationshipSchema.options.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <button
+          disabled={isPending || !familyGroupId}
+          className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-60"
+          onClick={handleCreate}
+        >
+          <UserCog className="size-4" />{" "}
+          {isPending
+            ? t.akun.addDependant.creating
+            : t.akun.addDependant.createButton}
+        </button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /* ─────────────────────────── Menu row ─────────────────────────── */
 
 function MenuRow({
@@ -2671,6 +3220,7 @@ export default function AkunPage() {
   const { startTour } = useShell();
   const [subpage, setSubpage] = useState<SubPageId | null>(null);
   const [addAdminOpen, setAddAdminOpen] = useState(false);
+  const [addDependantOpen, setAddDependantOpen] = useState(false);
   const [crud, setCrud] = useState<CrudModalState | null>(null);
 
   const { data: session } = useSession();
@@ -2886,6 +3436,10 @@ export default function AkunPage() {
               setAddAdminOpen(true);
             }}
             onInviteMember={() => setCrud({ entity: "member", mode: "add" })}
+            onAddDependant={() => {
+              closeSheet();
+              setAddDependantOpen(true);
+            }}
           />
         );
     }
@@ -3063,6 +3617,12 @@ export default function AkunPage() {
       <AddAdminDialog
         open={addAdminOpen}
         onOpenChange={setAddAdminOpen}
+        familyGroupId={primaryGroup?.id ?? null}
+        token={token}
+      />
+      <AddDependantMemberDialog
+        open={addDependantOpen}
+        onOpenChange={setAddDependantOpen}
         familyGroupId={primaryGroup?.id ?? null}
         token={token}
       />

@@ -174,6 +174,11 @@ export const en = {
       noFamilyGroup: "No active family group",
       savedAddMoreToast: "Saved! Add another...",
       savedToast: "Transaction saved successfully!",
+      // EPIC-023 Task D (D3/D9, US-FAM-14) — the transaction was NOT
+      // posted: it exceeds the member's per-account threshold and is held
+      // pending the head's approval. Must never read as a success.
+      heldToast:
+        "Expense exceeds the threshold — held pending the head's approval, not recorded yet.",
       ocrSavedToast: "Alfamart transaction Rp 58.000 saved successfully!",
       title: "Add Transaction",
       manualInput: "Manual Input",
@@ -299,7 +304,7 @@ export const en = {
       changePasswordRowName: "Change Password",
       changePasswordRowSub: "Click to change your account password",
       pinRowName: "App PIN",
-      pinRowSub: "6-digit PIN to open the app — coming soon",
+      pinRowSub: "6-digit PIN to open the app on this device",
       authSectionTitle: "Authentication",
       biometricLabel: "Fingerprint / Face ID",
       biometricSub: "Sign in with biometrics — coming soon",
@@ -321,7 +326,6 @@ export const en = {
       toastPasswordMismatch: "Password confirmation doesn't match",
       toastChangeFailed: "Failed to change password",
       toastChangeSuccess: "Password changed successfully",
-      toastSetPin: "App PIN isn't available yet — coming soon.",
       toastSessionEnded: "Session ended",
       toastSessionEndFailed: "Failed to end session.",
       toastAuthPrefsSaved: "Preference saved",
@@ -580,6 +584,24 @@ export const en = {
         "Failed to approve the request. Try again.",
       allowanceRequestRejected: "Funding request rejected.",
       allowanceRequestRejectFailed: "Failed to reject the request. Try again.",
+      // EPIC-023 Task D (D3/D9, US-FAM-14) — held-expense variant of the
+      // same AllowanceRequest primitive: a row-scoped member's over-
+      // threshold expense, held pending the head's approval.
+      allowanceRequestHeldBadge: "Awaiting Approval",
+      allowanceRequestHeldApproved: "Expense approved and recorded.",
+      // EPIC-023 Task D (D3/D9, US-FAM-14) — per-member large-transaction
+      // threshold.
+      thresholdButton: "Large-Transaction Threshold",
+      thresholdDialogTitle: "Large-Transaction Threshold",
+      thresholdDialogDesc:
+        "An expense above this threshold is held pending your approval before it posts. Leave empty for no limit.",
+      thresholdLabel: "Threshold Amount",
+      thresholdEmptyHint: "Leave empty for no limit (default)",
+      thresholdSaveButton: "Save Threshold",
+      thresholdSaving: "Saving...",
+      thresholdSaved: "Threshold saved.",
+      thresholdSaveFailed: "Failed to save the threshold. Try again.",
+      addDependantButton: "Add Child / Operational",
     },
     addAdmin: {
       dialogTitle: "Add Admin / Staff",
@@ -597,6 +619,35 @@ export const en = {
       toastInviteCreated: "Invitation created — link copied to clipboard.",
       toastInviteFailed:
         "Failed to create invitation. Check the email and try again.",
+    },
+    addDependant: {
+      dialogTitle: "Add Child / Operational",
+      dialogDesc:
+        "For a member with no email of their own (a child, driver, or assistant). Set a username and an initial password — they must change it at their first login.",
+      nameLabel: "Name",
+      namePlaceholder: "Full name",
+      usernameLabel: "Username",
+      usernamePlaceholder: "e.g. adit_kecil",
+      usernameHint: "3-30 characters, letters/numbers/underscore/dot",
+      passwordLabel: "Initial Password",
+      passwordPlaceholder: "At least 8 characters",
+      passwordHint:
+        "Hand this password over directly — they must change it at their first login.",
+      showPassword: "Show password",
+      hidePassword: "Hide password",
+      roleLabel: "Role",
+      roleOptions: {
+        dependant: "Child (Dependant)",
+        operational: "Operational (driver/assistant)",
+      },
+      relationshipLabel: "Family Relationship (optional)",
+      relationshipNoneOption: "— Not set —",
+      creating: "Creating...",
+      createButton: "Create Account",
+      toastCreated: "Account created successfully",
+      toastCreatedDesc:
+        "Hand this username and initial password directly to the member.",
+      toastCreateFailed: "Failed to create the account. Try again.",
     },
     crud: {
       accountAdded: "Account added successfully!",
@@ -2345,5 +2396,60 @@ export const en = {
       creatingExportSuffix: "...",
       toastExportCreateFailed: "Failed to create export.",
     },
+  },
+  forcePasswordChange: {
+    title: "Change Your Password",
+    subtitle:
+      "This account was created by the family head. For security, change your password before continuing.",
+    currentPasswordLabel: "Current Password",
+    newPasswordLabel: "New Password",
+    confirmPasswordLabel: "Confirm New Password",
+    submitButton: "Change Password",
+    submitting: "Saving...",
+    toastSuccess: "Password changed successfully.",
+    toastMismatch: "Password confirmation does not match.",
+    toastMinLength: "New password must be at least 8 characters.",
+    toastFailed: "Failed to change password. Check your current password.",
+    logoutButton: "Log Out",
+  },
+  deviceUnlock: {
+    promptTitle: "Set up quick unlock?",
+    promptSubtitle:
+      "Use a 6-digit PIN to open the app faster on this device next time. Your password is always available as a fallback.",
+    promptSetPinLabel: "Choose a 6-digit PIN",
+    promptPinPlaceholder: "6-digit PIN",
+    promptConfirmPinPlaceholder: "Confirm PIN",
+    promptSkipButton: "Not now",
+    promptSubmitButton: "Set up PIN",
+    promptSubmitting: "Setting up...",
+    toastPinLength: "PIN must be exactly 6 digits.",
+    toastPinMismatch: "PIN confirmation does not match.",
+    toastSetupSuccess: "Quick unlock is ready on this device.",
+    toastSetupFailed:
+      "Failed to set up quick unlock. You can try again later in Account settings.",
+    padTitle: "Enter your PIN",
+    padSubtitle: "Unlock WealthMe on this device",
+    padSubmitButton: "Unlock",
+    padSubmitting: "Unlocking...",
+    padUsePasswordInstead: "Use password instead",
+    toastUnlockFailed: "Incorrect PIN. Please try again.",
+    toastUnlockLockedPrefix: "Too many attempts. Try again in ",
+    toastUnlockLockedSuffix: ", or use your password.",
+    manageSectionTitle: "Devices with quick unlock",
+    manageSetupButton: "Set up quick unlock on this device",
+    manageEmptyState: "No devices set up for quick unlock yet.",
+    manageLoading: "Loading devices...",
+    manageError: "Failed to load devices.",
+    manageHasPinBadge: "PIN active",
+    manageNoPinBadge: "No PIN set",
+    manageRevokeLink: "Forget",
+    manageRevokeConfirmTitle: "Forget this device?",
+    manageRevokeConfirmBody:
+      "This device will no longer be able to unlock with a PIN. It will need your password to sign in again.",
+    manageRevokeConfirmButton: "Forget device",
+    manageDeviceFallbackLabel: "Device",
+    toastRevokeSuccess: "Device forgotten.",
+    toastRevokeFailed: "Failed to forget device.",
+    toastRegisterFailed: "Failed to register this device. Please try again.",
   },
 } satisfies I18nDictionary;

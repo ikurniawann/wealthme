@@ -3,7 +3,16 @@ import { Injectable } from "@nestjs/common";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
-import { type AiAdvisorFactory } from "./ai-advisor-factory.service";
+// NestJS DI needs a VALUE import here — a `type`-only import is erased at
+// compile time, so reflect-metadata can't resolve this constructor param
+// and the API fails to boot ("Nest can't resolve dependencies of
+// AiAdvisorService"). eslint's consistent-type-imports would "fix" it back
+// to a type import; disable it, same as PrismaService/AiKeyService below.
+// (Pre-existing since EPIC-023 group G; caught by the group-D DEV deploy —
+// unit tests mock the factory and tsc accepts a type import, so only a real
+// container boot surfaces it.)
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { AiAdvisorFactory } from "./ai-advisor-factory.service";
 import { AiAdvisorNotConfiguredError } from "./ai-advisor-not-configured.error";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AiKeyService } from "./ai-key.service";
