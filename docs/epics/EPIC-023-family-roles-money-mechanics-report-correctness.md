@@ -1160,3 +1160,24 @@ status` showing a clean tree with no `MERGE_HEAD`, before treating a merge
   read-only review agents makes any such revert restore the correct
   version instead of losing it; adversarial/QA reviews should be briefed
   read-only and, where possible, run against the committed diff.
+- 2026-08-05 Group D → PR https://github.com/andrsrjld/wealthme-web/pull/244
+  and DEV-deployed via `scripts/deploy-dev.sh` at the product owner's
+  request. **The deploy caught a boot-breaking bug the entire gate suite
+  missed**: `AiAdvisorService`'s constructor used a `type`-only import of
+  `AiAdvisorFactory`, which the TS compiler erases, so NestJS
+  reflect-metadata could not resolve the dependency and the API container
+  crashed on startup ("Nest can't resolve dependencies of
+  AiAdvisorService"). tsc accepts the type import and the unit tests mock
+  the factory, so nothing short of a real container boot surfaces it. It
+  was **pre-existing since group G** (commit `60632b1`) — `development`
+  itself would not boot — not introduced by D. Fixed with a value import +
+  the `consistent-type-imports` eslint-disable the sibling DI imports
+  already carry (`e50cf86`). This is precisely the failure mode the D2/D3
+  log entries warn `eslint --fix` reintroduces on NestJS constructor
+  imports; worth a lasting guard (a boot/smoke check in the test gate, or
+  banning bare `type` imports on `@Injectable` constructor params).
+  After the fix: `deploy-dev.sh` PASS — api + web containers healthy,
+  `GET http://localhost:4000/health` → 200, all infra (postgres/redis/
+  minio/mailhog) healthy. Group D is complete, gated, PR-open, and running
+  on DEV. **Epic NOT set `ready-for-qa`**: wave-2 groups E, F, H2, H3
+  remain; that status is for when every task passes.
