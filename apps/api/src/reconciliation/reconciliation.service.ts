@@ -123,7 +123,9 @@ export type MatchedTransactionSummaryDto = {
   // account), but the type must still allow it since Transaction.accountId
   // is now nullable.
   accountId: string | null;
-  accountName: string;
+  // EPIC-023 Task E retry (MEDIUM 5) — null (not "") when accountId is
+  // null, symmetric with TransactionDto.accountName.
+  accountName: string | null;
   toAccountId: string | null;
   toAccountName: string | null;
   categoryId: string | null;
@@ -178,7 +180,7 @@ function toMatchedTransactionDto(
   return {
     id: tx.id,
     accountId: tx.accountId,
-    accountName: tx.account?.name ?? "",
+    accountName: tx.account?.name ?? null,
     toAccountId: tx.toAccountId,
     toAccountName: tx.toAccount?.name ?? null,
     categoryId: tx.categoryId,

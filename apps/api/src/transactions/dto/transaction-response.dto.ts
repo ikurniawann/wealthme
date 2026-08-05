@@ -42,8 +42,13 @@ export class TransactionResponseDto {
   @ApiPropertyOptional({ type: String, nullable: true })
   categoryName!: string | null;
 
-  @ApiProperty({ type: String })
-  accountName!: string;
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description:
+      "Source account name. Null for a credit-card purchase (EPIC-023 E3, D12) — it touches no account. Was incorrectly '' before this field's contract went nullable (Group E retry, MEDIUM 5).",
+  })
+  accountName!: string | null;
 
   @ApiPropertyOptional({ type: String, nullable: true })
   toAccountName!: string | null;

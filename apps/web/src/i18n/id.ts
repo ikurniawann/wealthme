@@ -1829,6 +1829,10 @@ export const id = {
     obligationsDueBadge: "Belum Dibayar",
     obligationsPaidBadge: "Sudah Dibayar",
     obligationsPayButton: "Bayar",
+    // EPIC-023 Task E retry (CRITICAL 1) — shown instead of "Bayar" once
+    // `paidThisPeriod` is true; the button is disabled at the same time so
+    // the label never promises an action the control refuses to take.
+    obligationsAlreadyPaidButton: "Sudah Lunas",
     obligationsPayDialogTitle: "Bayar Kewajiban",
     obligationsSourceAccountLabel: "Rekening Sumber",
     obligationsSourceAccountPlaceholder: "Pilih rekening...",

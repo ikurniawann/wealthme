@@ -1827,6 +1827,7 @@ export const en = {
     obligationsDueBadge: "Not Paid",
     obligationsPaidBadge: "Paid",
     obligationsPayButton: "Pay",
+    obligationsAlreadyPaidButton: "Already Paid",
     obligationsPayDialogTitle: "Pay Obligation",
     obligationsSourceAccountLabel: "Source Account",
     obligationsSourceAccountPlaceholder: "Select an account...",

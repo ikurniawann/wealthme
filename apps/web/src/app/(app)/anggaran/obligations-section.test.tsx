@@ -120,6 +120,15 @@ const PAID_INSURANCE: InsuranceDto = {
   updatedAt: "2026-01-01T00:00:00.000Z",
 };
 
+// EPIC-023 Task E retry (LOW 8) — an UNPAID insurance, so its own Pay flow
+// (previously untested entirely) can be exercised end to end.
+const DUE_INSURANCE: InsuranceDto = {
+  ...PAID_INSURANCE,
+  id: "ins-2",
+  name: "Asuransi Kesehatan",
+  paidThisPeriod: false,
+};
+
 const ACCOUNTS = [
   { id: "acc-1", name: "BCA", institution: "BCA" },
   { id: "acc-2", name: "Dompet", institution: null },
@@ -172,7 +181,32 @@ describe("ObligationsSection (EPIC-023 E2)", () => {
       queryClient,
     );
 
-    await waitFor(() => expect(mockApiFetch).toHaveBeenCalled());
+    // LOW 8 fix — the original `toHaveBeenCalled()` (at least once) was
+    // satisfiable by the FIRST of the three queries firing, while the
+    // section is ALSO empty before any of them resolve (obligations
+    // defaults to `[]` while pending). That made the assertion below pass
+    // regardless of whether the fetched data actually arrived. Wait for
+    // all three endpoints (liabilities/insurances/accounts) to have
+    // resolved before asserting on the settled result.
+    await waitFor(() => {
+      expect(mockApiFetch).toHaveBeenCalledWith(
+        `/family-groups/${FAMILY_GROUP_ID}/liabilities`,
+        expect.anything(),
+      );
+      expect(mockApiFetch).toHaveBeenCalledWith(
+        `/family-groups/${FAMILY_GROUP_ID}/insurances`,
+        expect.anything(),
+      );
+      expect(mockApiFetch).toHaveBeenCalledWith(
+        `/family-groups/${FAMILY_GROUP_ID}/accounts`,
+        expect.anything(),
+      );
+    });
+    await waitFor(() =>
+      expect(
+        queryClient.getQueryState(["liabilities", FAMILY_GROUP_ID])?.status,
+      ).toBe("success"),
+    );
     expect(container).toBeEmptyDOMElement();
   });
 
@@ -228,5 +262,154 @@ describe("ObligationsSection (EPIC-023 E2)", () => {
     );
     await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled());
     void dialog;
+  });
+
+  it("MEDIUM 7 — a fractional minimumPayment displays and posts the SAME truncated amount (formatRupiah rounds, the old code posted a separately-truncated value, so a .5+ fraction used to post 1 rupiah more than it displayed)", async () => {
+    const FRACTIONAL_LIABILITY: LiabilityDto = {
+      ...DUE_LIABILITY,
+      id: "liab-frac-1",
+      name: "Cicilan Motor",
+      minimumPayment: "2083000.75",
+    };
+    mockApiFetch.mockImplementation((path: unknown, init?: unknown) => {
+      const method = (init as { method?: string } | undefined)?.method;
+      if (path === `/family-groups/${FAMILY_GROUP_ID}/liabilities`) {
+        return Promise.resolve([FRACTIONAL_LIABILITY]);
+      }
+      if (path === `/family-groups/${FAMILY_GROUP_ID}/insurances`) {
+        return Promise.resolve([]);
+      }
+      if (path === `/family-groups/${FAMILY_GROUP_ID}/accounts`) {
+        return Promise.resolve(ACCOUNTS);
+      }
+      if (
+        path ===
+          `/family-groups/${FAMILY_GROUP_ID}/liabilities/${FRACTIONAL_LIABILITY.id}/pay` &&
+        method === "POST"
+      ) {
+        return Promise.resolve({
+          ...FRACTIONAL_LIABILITY,
+          paidThisPeriod: true,
+        });
+      }
+      return Promise.resolve({});
+    });
+
+    const user = userEvent.setup();
+    renderWithClient(
+      <ObligationsSection familyGroupId={FAMILY_GROUP_ID} token={TOKEN} />,
+      queryClient,
+    );
+
+    await screen.findByText(FRACTIONAL_LIABILITY.name);
+    // The row displays Rp 2.083.000 (truncated), never Rp 2.083.001
+    // (Math.round of the raw fractional value).
+    expect(screen.getByText("Rp 2.083.000")).toBeInTheDocument();
+
+    const row = screen.getByText(FRACTIONAL_LIABILITY.name).closest("div")!
+      .parentElement!.parentElement!;
+    await user.click(within(row).getByText(t.obligationsPayButton));
+
+    await screen.findByText(t.obligationsPayDialogTitle);
+    // The dialog's own amount readout uses the same truncated value (row +
+    // dialog both show it now, so two matches, not one).
+    expect(screen.getAllByText("Rp 2.083.000")).toHaveLength(2);
+
+    const select = screen.getByLabelText(t.obligationsSourceAccountLabel);
+    await user.selectOptions(select, "acc-1");
+    await user.click(screen.getByText(t.obligationsPayConfirmButton));
+
+    await waitFor(() =>
+      expect(mockApiFetch).toHaveBeenCalledWith(
+        `/family-groups/${FAMILY_GROUP_ID}/liabilities/${FRACTIONAL_LIABILITY.id}/pay`,
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            sourceAccountId: "acc-1",
+            amount: "2083000",
+          }),
+        }),
+      ),
+    );
+  });
+
+  it("LOW 8 — paying a due insurance calls the insurance pay endpoint with just the source account (amount defaults server-side to premiumAmount)", async () => {
+    mockApiFetch.mockImplementation((path: unknown, init?: unknown) => {
+      const method = (init as { method?: string } | undefined)?.method;
+
+      if (path === `/family-groups/${FAMILY_GROUP_ID}/liabilities`) {
+        return Promise.resolve([]);
+      }
+      if (path === `/family-groups/${FAMILY_GROUP_ID}/insurances`) {
+        return Promise.resolve([DUE_INSURANCE]);
+      }
+      if (path === `/family-groups/${FAMILY_GROUP_ID}/accounts`) {
+        return Promise.resolve(ACCOUNTS);
+      }
+      if (
+        path ===
+          `/family-groups/${FAMILY_GROUP_ID}/insurances/${DUE_INSURANCE.id}/pay` &&
+        method === "POST"
+      ) {
+        return Promise.resolve({ ...DUE_INSURANCE, paidThisPeriod: true });
+      }
+      return Promise.resolve({});
+    });
+
+    const user = userEvent.setup();
+    renderWithClient(
+      <ObligationsSection familyGroupId={FAMILY_GROUP_ID} token={TOKEN} />,
+      queryClient,
+    );
+
+    await screen.findByText(DUE_INSURANCE.name);
+    const row = screen.getByText(DUE_INSURANCE.name).closest("div")!
+      .parentElement!.parentElement!;
+    await user.click(within(row).getByText(t.obligationsPayButton));
+
+    await screen.findByText(t.obligationsPayDialogTitle);
+    const select = screen.getByLabelText(t.obligationsSourceAccountLabel);
+    await user.selectOptions(select, "acc-2");
+    await user.click(screen.getByText(t.obligationsPayConfirmButton));
+
+    await waitFor(() =>
+      expect(mockApiFetch).toHaveBeenCalledWith(
+        `/family-groups/${FAMILY_GROUP_ID}/insurances/${DUE_INSURANCE.id}/pay`,
+        expect.objectContaining({
+          method: "POST",
+          // No `amount` key — the insurance side defaults to premiumAmount
+          // server-side when it's omitted (unlike the liability path, which
+          // must send an explicit amount for its variable balance).
+          body: JSON.stringify({ sourceAccountId: "acc-2" }),
+        }),
+      ),
+    );
+    await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled());
+  });
+
+  it("CRITICAL 1 — an already-paid obligation's Pay button is disabled and never opens the pay dialog or posts a second payment", async () => {
+    const user = userEvent.setup();
+    renderWithClient(
+      <ObligationsSection familyGroupId={FAMILY_GROUP_ID} token={TOKEN} />,
+      queryClient,
+    );
+
+    await screen.findByText(PAID_INSURANCE.name);
+    const row = screen.getByText(PAID_INSURANCE.name).closest("div")!
+      .parentElement!.parentElement!;
+    const payButton = within(row).getByRole("button", {
+      name: t.obligationsAlreadyPaidButton,
+    });
+
+    expect(payButton).toBeDisabled();
+    await user.click(payButton);
+
+    expect(
+      screen.queryByText(t.obligationsPayDialogTitle),
+    ).not.toBeInTheDocument();
+    expect(mockApiFetch).not.toHaveBeenCalledWith(
+      expect.stringContaining("/pay"),
+      expect.anything(),
+    );
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import {
   Camera,
   Check,
@@ -122,6 +122,26 @@ export function TransactionDialog() {
   const [showItems, setShowItems] = useState(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
+  // EPIC-023 Task E retry (HIGH 3) — reviewed foundation exception, same
+  // basis as the E3/E4 comment above `TAB_KINDS`: this dialog is a
+  // protected shell file, but `Field` (below) rendered a bare `<label>`
+  // with no `htmlFor` and every `<select>` it wrapped had no `id`/
+  // `aria-label` — a screen-reader user could not tell which control a
+  // label described, and the E3 test had to escape-hatch around it via
+  // `.closest("select")` instead of an accessible-name query. `useId()`
+  // gives each field a stable id shared between its `<label htmlFor>` and
+  // its control's own `id`.
+  const uid = useId();
+  const amountFieldId = `${uid}-amount`;
+  const categoryFieldId = `${uid}-category`;
+  const cardFieldId = `${uid}-card`;
+  const sourceAccountFieldId = `${uid}-source-account`;
+  const destAccountFieldId = `${uid}-dest-account`;
+  const adminFeeFieldId = `${uid}-admin-fee`;
+  const accountFieldId = `${uid}-account`;
+  const dateFieldId = `${uid}-date`;
+  const descriptionFieldId = `${uid}-description`;
+
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
   const queryClient = useQueryClient();
@@ -189,6 +209,14 @@ export function TransactionDialog() {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.netWorth.summary(fgId),
       });
+      // EPIC-023 Task E retry (HIGH 2) — a categorized expense row is what
+      // BudgetsService.findAll groups on to compute `spentAmount`, so a new
+      // expense moves budget spend the moment it posts. Missing this
+      // invalidation left /anggaran showing stale spend right after the
+      // action that should have updated it.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.budgets.all(fgId),
+      });
       // EPIC-023 D3 — a row-scoped member's over-threshold expense returns
       // { held } instead of posting; the new held AllowanceRequest must show
       // up in the approvals panel without waiting for a refetch on focus.
@@ -207,7 +235,8 @@ export function TransactionDialog() {
   // EPIC-023 Task E3 (D12) — a card purchase posts through the liability's
   // OWN endpoint, never `POST .../transactions`: it raises the card's debt
   // and never debits any account. Invalidates the same query keys a normal
-  // transaction would EXCEPT accounts (no account balance ever changes).
+  // transaction would EXCEPT accounts (no account balance ever changes) —
+  // see the HIGH 2 comment below for the budgets key this set was missing.
   const purchaseMutation = useMutation({
     mutationFn: (dto: PurchaseLiabilityInput) =>
       apiFetch(`/family-groups/${fgId}/liabilities/${liabilityId}/purchase`, {
@@ -228,6 +257,16 @@ export function TransactionDialog() {
       });
       void queryClient.invalidateQueries({
         queryKey: queryKeys.netWorth.summary(fgId),
+      });
+      // EPIC-023 Task E retry (HIGH 2) — a card purchase writes a real
+      // categorized expense Transaction row (LiabilitiesService.purchase()),
+      // and BudgetsService.findAll groups on exactly that to compute
+      // `spentAmount`. This mutation's own doc comment above claims to
+      // "invalidate the same query keys a normal transaction would" — that
+      // set was missing budgets, which is a real correctness gap, not just
+      // documentation drift.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.budgets.all(fgId),
       });
     },
     onError: (err: { message?: string }) => {
@@ -421,6 +460,17 @@ export function TransactionDialog() {
                   key={i}
                   onClick={() => {
                     setTab(i);
+                    // EPIC-023 Task E retry (MEDIUM 10) — deliberate split,
+                    // not an oversight: only the fields whose MEANING is
+                    // tab-specific are cleared (a category id, an account
+                    // id, a liability id, or an admin fee are only valid
+                    // relative to the tab that produced them, and a stale
+                    // one could silently reference a now-wrong target).
+                    // `amount`/`description`/`date` answer "how much /
+                    // what / when", which stay meaningful across every
+                    // tab, so they're kept as a convenience — switching
+                    // Expense -> Kartu Kredit to record the same purchase
+                    // differently shouldn't force retyping the amount.
                     setCategoryId("");
                     setToAccountId("");
                     setAdminFee("");
@@ -439,12 +489,16 @@ export function TransactionDialog() {
               ))}
             </div>
 
-            <Field label={t.shell.transactionDialog.amountLabel}>
+            <Field
+              label={t.shell.transactionDialog.amountLabel}
+              htmlFor={amountFieldId}
+            >
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
                   Rp
                 </span>
                 <input
+                  id={amountFieldId}
                   inputMode="numeric"
                   value={amount}
                   onChange={(e) => setAmount(formatAmountInput(e.target.value))}
@@ -466,8 +520,12 @@ export function TransactionDialog() {
                 category belongs on the tab where the money is actually
                 spent. */}
             {tabKind !== "transfer" && (
-              <Field label={t.shell.transactionDialog.categoryLabel}>
+              <Field
+                label={t.shell.transactionDialog.categoryLabel}
+                htmlFor={categoryFieldId}
+              >
                 <select
+                  id={categoryFieldId}
                   className={fieldClass}
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
@@ -486,8 +544,12 @@ export function TransactionDialog() {
             )}
 
             {tabKind === "card" ? (
-              <Field label={t.shell.transactionDialog.cardLabel}>
+              <Field
+                label={t.shell.transactionDialog.cardLabel}
+                htmlFor={cardFieldId}
+              >
                 <select
+                  id={cardFieldId}
                   className={fieldClass}
                   value={liabilityId}
                   onChange={(e) => setLiabilityId(e.target.value)}
@@ -504,8 +566,12 @@ export function TransactionDialog() {
               </Field>
             ) : tabKind === "transfer" ? (
               <>
-                <Field label={t.shell.transactionDialog.sourceAccountLabel}>
+                <Field
+                  label={t.shell.transactionDialog.sourceAccountLabel}
+                  htmlFor={sourceAccountFieldId}
+                >
                   <select
+                    id={sourceAccountFieldId}
                     className={fieldClass}
                     value={accountId}
                     onChange={(e) => {
@@ -529,8 +595,12 @@ export function TransactionDialog() {
                   </select>
                 </Field>
 
-                <Field label={t.shell.transactionDialog.destAccountLabel}>
+                <Field
+                  label={t.shell.transactionDialog.destAccountLabel}
+                  htmlFor={destAccountFieldId}
+                >
                   <select
+                    id={destAccountFieldId}
                     className={fieldClass}
                     value={toAccountId}
                     onChange={(e) => setToAccountId(e.target.value)}
@@ -558,12 +628,14 @@ export function TransactionDialog() {
                       </span>
                     </>
                   }
+                  htmlFor={adminFeeFieldId}
                 >
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
                       Rp
                     </span>
                     <input
+                      id={adminFeeFieldId}
                       inputMode="numeric"
                       value={adminFee}
                       onChange={(e) =>
@@ -576,8 +648,12 @@ export function TransactionDialog() {
                 </Field>
               </>
             ) : (
-              <Field label={t.shell.transactionDialog.accountLabel}>
+              <Field
+                label={t.shell.transactionDialog.accountLabel}
+                htmlFor={accountFieldId}
+              >
                 <select
+                  id={accountFieldId}
                   className={fieldClass}
                   value={accountId}
                   onChange={(e) => setAccountId(e.target.value)}
@@ -595,8 +671,12 @@ export function TransactionDialog() {
               </Field>
             )}
 
-            <Field label={t.shell.transactionDialog.dateLabel}>
+            <Field
+              label={t.shell.transactionDialog.dateLabel}
+              htmlFor={dateFieldId}
+            >
               <input
+                id={dateFieldId}
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
@@ -613,8 +693,10 @@ export function TransactionDialog() {
                   </span>
                 </>
               }
+              htmlFor={descriptionFieldId}
             >
               <textarea
+                id={descriptionFieldId}
                 rows={2}
                 placeholder={t.shell.transactionDialog.descriptionPlaceholder}
                 value={description}
@@ -819,16 +901,24 @@ export function TransactionDialog() {
   );
 }
 
+// EPIC-023 Task E retry (HIGH 3) — `htmlFor` is now required so every
+// caller must pair the label with the id it puts on its actual control
+// (see the `uid`-derived field ids above). No more silent bare labels.
 function Field({
   label,
+  htmlFor,
   children,
 }: {
   label: React.ReactNode;
+  htmlFor: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="mb-3.5">
-      <label className="mb-1.5 block text-xs font-semibold text-muted-foreground">
+      <label
+        htmlFor={htmlFor}
+        className="mb-1.5 block text-xs font-semibold text-muted-foreground"
+      >
         {label}
       </label>
       {children}

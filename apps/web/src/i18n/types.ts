@@ -1748,6 +1748,9 @@ export type I18nDictionary = {
     obligationsDueBadge: string;
     obligationsPaidBadge: string;
     obligationsPayButton: string;
+    /** EPIC-023 Task E retry (CRITICAL 1) — shown + disabled instead of
+     * `obligationsPayButton` once `paidThisPeriod` is true. */
+    obligationsAlreadyPaidButton: string;
     obligationsPayDialogTitle: string;
     obligationsSourceAccountLabel: string;
     obligationsSourceAccountPlaceholder: string;

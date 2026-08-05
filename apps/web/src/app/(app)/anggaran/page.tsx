@@ -181,7 +181,12 @@ function toObligations(
       kind: "liability",
       id: l.id,
       name: l.name,
-      amountDue: Number(l.minimumPayment),
+      // EPIC-023 Task E retry (MEDIUM 7) — truncate once, here, so the
+      // amount the row DISPLAYS (`formatRupiah(obligation.amountDue)`) is
+      // byte-identical to the amount the pay mutation POSTS
+      // (`String(Math.trunc(obligation.amountDue))`) instead of the two
+      // computing the truncation independently and drifting apart.
+      amountDue: Math.trunc(Number(l.minimumPayment)),
       paidThisPeriod: l.paidThisPeriod,
     }));
   const fromInsurances: Obligation[] = insurances
@@ -306,12 +311,22 @@ function ObligationRow({
             {formatRupiah(obligation.amountDue)}
           </div>
         </div>
+        {/* EPIC-023 Task E retry (CRITICAL 1) — an already-paid obligation
+            must not accept a second Pay click: the label previously stayed
+            "Bayar" and onClick was fully live regardless of
+            `paidThisPeriod`, so clicking it opened the same confirm dialog
+            and debited the source account a second time for the same
+            period, silently. Honest UI: disable the control and say why
+            instead of letting the copy imply an action it must not take. */}
         <Button
           size="sm"
           variant={obligation.paidThisPeriod ? "outline" : "default"}
+          disabled={obligation.paidThisPeriod}
           onClick={onPay}
         >
-          {t.anggaran.obligationsPayButton}
+          {obligation.paidThisPeriod
+            ? t.anggaran.obligationsAlreadyPaidButton
+            : t.anggaran.obligationsPayButton}
         </Button>
       </div>
     </Rise>
@@ -376,9 +391,13 @@ export function ObligationsSection({
         sourceAccountId: params.sourceAccountId,
       };
       // Liability pay() requires an explicit amount (variable balance); the
-      // insurance side defaults to premiumAmount when omitted.
+      // insurance side defaults to premiumAmount when omitted. `amountDue`
+      // is already truncated in `toObligations` (MEDIUM 7) — posting it
+      // as-is here keeps this value byte-identical to what the row and the
+      // dialog displayed, instead of truncating a second time and risking
+      // the two drifting apart.
       if (params.obligation.kind === "liability") {
-        body.amount = String(Math.trunc(params.obligation.amountDue));
+        body.amount = String(params.obligation.amountDue);
       }
       return apiFetch(path, {
         token,

@@ -37,7 +37,13 @@ export const TransactionDtoSchema = z.object({
   type: TransactionTypeSchema,
   description: z.string().nullable(),
   categoryName: z.string().nullable(),
-  accountName: z.string(),
+  // EPIC-023 Task E retry (MEDIUM 5) — was `z.string()` even though
+  // `accountId` beside it went nullable for a card purchase (E3): a
+  // service-layer `?? ""` laundered the "no account" case into an empty
+  // string, which reads as blank data everywhere the DTO is displayed. Now
+  // consistently `null` — see the service-layer `toDto`/mapper functions
+  // this schema documents.
+  accountName: z.string().nullable(),
   toAccountName: z.string().nullable(),
   occurredAt: z.string(),
   createdAt: z.string(),

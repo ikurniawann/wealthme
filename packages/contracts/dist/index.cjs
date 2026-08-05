@@ -487,7 +487,13 @@ var TransactionDtoSchema = import_zod7.z.object({
   type: TransactionTypeSchema,
   description: import_zod7.z.string().nullable(),
   categoryName: import_zod7.z.string().nullable(),
-  accountName: import_zod7.z.string(),
+  // EPIC-023 Task E retry (MEDIUM 5) — was `z.string()` even though
+  // `accountId` beside it went nullable for a card purchase (E3): a
+  // service-layer `?? ""` laundered the "no account" case into an empty
+  // string, which reads as blank data everywhere the DTO is displayed. Now
+  // consistently `null` — see the service-layer `toDto`/mapper functions
+  // this schema documents.
+  accountName: import_zod7.z.string().nullable(),
   toAccountName: import_zod7.z.string().nullable(),
   occurredAt: import_zod7.z.string(),
   createdAt: import_zod7.z.string()

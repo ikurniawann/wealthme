@@ -17,6 +17,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { id as mockDictionary } from "../../i18n/id";
+import { queryKeys } from "../../lib/query-keys";
 
 jest.mock("../../hooks/use-locale", () => ({
   useLocale: jest.fn(() => ({
@@ -106,13 +107,14 @@ function render(ui: ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return rtlRender(
+  const result = rtlRender(
     <QueryClientProvider client={queryClient}>
       <ShellProvider>
         <OpenOnMount>{ui}</OpenOnMount>
       </ShellProvider>
     </QueryClientProvider>,
   );
+  return { ...result, queryClient };
 }
 
 describe("TransactionDialog — credit-card tab and transfer category removal (EPIC-023 E3/E4)", () => {
@@ -133,13 +135,12 @@ describe("TransactionDialog — credit-card tab and transfer category removal (E
     const amountInput = screen.getByPlaceholderText("0");
     await user.type(amountInput, "150000");
 
-    // Pick the credit card (liability), NOT an account — the `Field`
-    // wrapper doesn't associate its `<label>` via htmlFor/id, so locate the
-    // select by its option content (the liability's name) instead of an
-    // accessible name.
-    const cardOption = await screen.findByText("BCA Kartu Kredit");
-    const cardSelect = cardOption.closest("select");
-    if (!cardSelect) throw new Error("card select not found");
+    // Pick the credit card (liability), NOT an account — `Field` now
+    // associates its `<label>` with the control via htmlFor/id (HIGH 3
+    // fix), so the select has a real accessible name to query by.
+    const cardSelect = await screen.findByRole("combobox", {
+      name: "Kartu Kredit",
+    });
     await user.selectOptions(cardSelect, "liab-card-1");
 
     await user.click(screen.getByRole("button", { name: "Simpan Transaksi" }));
@@ -168,6 +169,55 @@ describe("TransactionDialog — credit-card tab and transfer category removal (E
     );
     expect(hitTransactions).toBe(false);
     expect(hitAccountWrite).toBe(false);
+  });
+
+  it("HIGH 2: a card purchase invalidates the budgets cache (LiabilitiesService.purchase() writes a real categorized expense row that BudgetsService.findAll groups spend on)", async () => {
+    const user = userEvent.setup();
+    const { queryClient } = render(<TransactionDialog />);
+    const invalidateSpy = jest.spyOn(queryClient, "invalidateQueries");
+
+    await user.click(
+      await screen.findByRole("button", { name: /Kartu Kredit/ }),
+    );
+    await user.type(screen.getByPlaceholderText("0"), "150000");
+    const cardSelect = await screen.findByRole("combobox", {
+      name: "Kartu Kredit",
+    });
+    await user.selectOptions(cardSelect, "liab-card-1");
+    await user.click(screen.getByRole("button", { name: "Simpan Transaksi" }));
+
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          queryKey: queryKeys.budgets.all(FAMILY_GROUP_ID),
+        }),
+      );
+    });
+  });
+
+  it("HIGH 2: an ordinary expense also invalidates the budgets cache", async () => {
+    const user = userEvent.setup();
+    const { queryClient } = render(<TransactionDialog />);
+    const invalidateSpy = jest.spyOn(queryClient, "invalidateQueries");
+
+    // Default tab is Income; switch to Expense (2nd tab).
+    await user.click(
+      await screen.findByRole("button", { name: /Pengeluaran/ }),
+    );
+    await user.type(screen.getByPlaceholderText("0"), "50000");
+    const accountSelect = await screen.findByRole("combobox", {
+      name: "Akun",
+    });
+    await user.selectOptions(accountSelect, "acc-1");
+    await user.click(screen.getByRole("button", { name: "Simpan Transaksi" }));
+
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          queryKey: queryKeys.budgets.all(FAMILY_GROUP_ID),
+        }),
+      );
+    });
   });
 
   it("E4: the Transfer tab renders no category field", async () => {

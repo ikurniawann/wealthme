@@ -349,7 +349,13 @@ export class ExportsService {
             t.occurredAt.slice(0, 10),
             t.description ?? "",
             t.categoryName ?? "",
-            t.accountName ?? "",
+            // EPIC-023 Task E retry (MEDIUM 5) — "-" like the PDF export
+            // below (and unlike this CSV row's own `description`/
+            // `categoryName` cells before it — that inconsistency is
+            // pre-existing and out of this fix's scope), not "" — an empty
+            // cell reads as missing data, not as "this purchase has no
+            // account".
+            t.accountName ?? "-",
             t.type,
             String(t.amount),
           ]),

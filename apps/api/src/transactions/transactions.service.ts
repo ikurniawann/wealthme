@@ -1214,7 +1214,11 @@ export class TransactionsService {
       type: tx.type,
       description: tx.description,
       categoryName: tx.category?.name ?? null,
-      accountName: tx.account?.name ?? "",
+      // EPIC-023 Task E retry (MEDIUM 5) — null (not "") for a card
+      // purchase: an empty string laundered "no account" into blank data
+      // wherever a consumer forgot to guard it (contracts' accountName is
+      // now nullable to match).
+      accountName: tx.account?.name ?? null,
       toAccountName: tx.toAccount?.name ?? null,
       occurredAt: tx.occurredAt.toISOString(),
       createdAt: tx.createdAt.toISOString(),

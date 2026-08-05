@@ -33,10 +33,6 @@ type TxnType = "income" | "expense" | "transfer" | "all";
 
 /**
  * Extended filter value: standard TxnType values plus "kartu_kredit".
- * The "kartu_kredit" filter is an accountName heuristic — it matches
- * transactions whose accountName contains "kartu kredit", "kredit", or
- * "credit" (case-insensitive). This is a temporary approach pending a
- * real credit-card account model in the data layer.
  */
 type FilterValue = TxnType | "kartu_kredit";
 
@@ -49,6 +45,11 @@ type MeResponse = {
   familyGroupId: string | null;
 };
 
+// EPIC-023 Task E retry (HIGH 4) — only the fields the "Kartu Kredit"
+// filter needs to tell a credit-card liability apart from any other
+// liability type (KPR, pinjaman pribadi, ...).
+type LiabilityFilterDto = { id: string; type: string };
+
 const FILTER_VALUES: FilterValue[] = [
   "all",
   "income",
@@ -59,13 +60,21 @@ const FILTER_VALUES: FilterValue[] = [
 
 const SORT_VALUES: SortOrder[] = ["newest", "oldest"];
 
-function isCreditCard(tx: TransactionDto): boolean {
-  const name = tx.accountName.toLowerCase();
-  return (
-    name.includes("kartu kredit") ||
-    name.includes("kredit") ||
-    name.includes("credit")
-  );
+/**
+ * EPIC-023 Task E retry (HIGH 4) — the "Kartu Kredit" filter used to
+ * substring-match `tx.accountName`, which is `""` for every real card
+ * purchase (E3's `accountId` is null on those rows), so the filter matched
+ * zero of the very transactions it exists to show. `Transaction.liabilityId`
+ * (E1/E3) plus the liability's own `type` field is the real, unambiguous
+ * signal: a transaction is a "kartu_kredit" row when it is linked to a
+ * liability of that type, whether it's a purchase (raises the card's debt)
+ * or a payment (pays it down).
+ */
+export function isCreditCard(
+  tx: TransactionDto,
+  creditCardLiabilityIds: ReadonlySet<string>,
+): boolean {
+  return !!tx.liabilityId && creditCardLiabilityIds.has(tx.liabilityId);
 }
 
 function formatTime(isoString: string): string {
@@ -145,7 +154,7 @@ export function TxRow({
     ? (tx.description ?? typeLabels.transfer)
     : (tx.description ?? tx.categoryName ?? tx.accountName ?? "—");
   const subtitle = isTransferWithDest
-    ? `${tx.accountName} → ${tx.toAccountName}`
+    ? `${tx.accountName ?? "—"} → ${tx.toAccountName}`
     : (tx.categoryName ?? tx.accountName ?? typeLabels[tx.type] ?? tx.type);
 
   const openDetail = () => setDetailOpen(true);
@@ -288,7 +297,7 @@ export function TransactionDetailDialog({
           />
           <DetailRow
             label={t.transaksi.detailAccountLabel}
-            value={tx.accountName}
+            value={tx.accountName ?? "—"}
           />
           <DetailRow
             label={t.transaksi.detailDateTimeLabel}
@@ -519,6 +528,24 @@ function TransaksiPageInner() {
     ? (filterAccounts?.find((a) => a.id === accountId)?.name ?? "…")
     : null;
 
+  // EPIC-023 Task E retry (HIGH 4) — only fetched when the "Kartu Kredit"
+  // filter is actually selected, mirroring the `filterAccounts` lazy-fetch
+  // pattern above.
+  const { data: filterLiabilities } = useQuery<LiabilityFilterDto[]>({
+    queryKey: ["liabilities", familyGroupId, "txn-filter"],
+    queryFn: () =>
+      apiFetch<LiabilityFilterDto[]>(
+        `/family-groups/${familyGroupId}/liabilities`,
+        { token },
+      ),
+    enabled: !!token && !!familyGroupId && filter === "kartu_kredit",
+  });
+  const creditCardLiabilityIds = new Set(
+    (filterLiabilities ?? [])
+      .filter((l) => l.type === "kartu_kredit")
+      .map((l) => l.id),
+  );
+
   const transactions = data?.data ?? [];
   const summary = data?.summary;
 
@@ -527,7 +554,7 @@ function TransaksiPageInner() {
     filter === "all"
       ? transactions
       : filter === "kartu_kredit"
-        ? transactions.filter(isCreditCard)
+        ? transactions.filter((tx) => isCreditCard(tx, creditCardLiabilityIds))
         : transactions.filter((tx) => tx.type === filter);
 
   // Sort by occurredAt — affects both day-group order and within-day row

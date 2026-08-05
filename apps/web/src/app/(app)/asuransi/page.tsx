@@ -92,26 +92,6 @@ function renewalBadgeVariant(
   return "success";
 }
 
-/**
- * Advance a renewal date by one premium period — monthly +1 month,
- * quarterly +3 months, yearly +1 year. Falls back to today when there's no
- * current renewal date yet. Returns a yyyy-mm-dd string.
- */
-export function nextRenewalDate(
-  current: string | null,
-  period: PremiumPeriod,
-): string {
-  const base = current ? new Date(current) : new Date();
-  const months = period === "monthly" ? 1 : period === "quarterly" ? 3 : 12;
-  const year = base.getUTCFullYear();
-  const month = base.getUTCMonth() + months;
-  const day = base.getUTCDate();
-  // Clamp to the target month's last day so Jan 31 +1mo = Feb 28/29, not Mar 2/3.
-  const daysInTarget = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-  const next = new Date(Date.UTC(year, month, Math.min(day, daysInTarget)));
-  return next.toISOString().slice(0, 10);
-}
-
 function PolicyCardSkeleton() {
   return (
     <div className="animate-pulse rounded-[14px] border bg-card p-[18px]">
