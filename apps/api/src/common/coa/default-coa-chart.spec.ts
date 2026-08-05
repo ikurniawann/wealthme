@@ -40,4 +40,36 @@ describe("defaultCoaCodeForCategory", () => {
       );
     }
   });
+
+  // EPIC-023 Task A1 — groups 4 (Account Receivable) and 5 (Account Payable)
+  // are internal balance-sheet movements (a claim owed to/by the family), not
+  // real revenue/expense: they must be shelved as TRANSFER so reports never
+  // count a loan disbursement as income or a principal repayment as an
+  // expense (decision D23 — fix the chart, not the reports engine).
+  it("classifies every group-4 (Account Receivable) account as TRANSFER, not INCOME", () => {
+    const group4 = GENERIC_COA_CHART.filter((c) => c.groupNum === 4);
+    expect(group4.length).toBeGreaterThan(0);
+    for (const account of group4) {
+      expect(account.direction).toBe("TRANSFER");
+    }
+  });
+
+  it("classifies every group-5 (Account Payable) account as TRANSFER, not EXPENSE", () => {
+    const group5 = GENERIC_COA_CHART.filter((c) => c.groupNum === 5);
+    expect(group5.length).toBeGreaterThan(0);
+    for (const account of group5) {
+      expect(account.direction).toBe("TRANSFER");
+    }
+  });
+
+  // EPIC-023 Task A2 — the interest portion of a liability payment IS a real
+  // expense (unlike the principal, which nets against the group-5 TRANSFER
+  // liability account above).
+  it("has a group-2 loan-interest EXPENSE account at code 20009 (Bunga Pinjaman)", () => {
+    const entry = GENERIC_COA_CHART.find((c) => c.code === "20009");
+    expect(entry).toBeDefined();
+    expect(entry?.name).toBe("Bunga Pinjaman");
+    expect(entry?.groupNum).toBe(2);
+    expect(entry?.direction).toBe("EXPENSE");
+  });
 });

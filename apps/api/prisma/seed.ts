@@ -2374,6 +2374,15 @@ export async function main(): Promise<void> {
       direction: "EXPENSE",
       budgetType: "VARIABLE",
     },
+    // EPIC-023 A1/A2 — the interest portion of a liability payment is a real
+    // expense (unlike the principal, which is a group-5 TRANSFER above).
+    {
+      code: "21304",
+      name: "Loan Interest",
+      groupNum: 2,
+      direction: "EXPENSE",
+      budgetType: "FIXED",
+    },
     // Group 3 — Wealth Allocation
     {
       code: "30101",
@@ -2445,90 +2454,93 @@ export async function main(): Promise<void> {
       direction: "TRANSFER",
       budgetType: "FIXED",
     },
-    // Group 4 — Account Receivable
+    // Group 4 — Account Receivable. TRANSFER, not INCOME: a receivable is a
+    // claim on an asset, not revenue (EPIC-023 D23).
     {
       code: "40101",
       name: "Pending Reimbursement",
       groupNum: 4,
-      direction: "INCOME",
+      direction: "TRANSFER",
       budgetType: "VARIABLE",
     },
     {
       code: "40201",
       name: "Personal Loan (to others)",
       groupNum: 4,
-      direction: "INCOME",
+      direction: "TRANSFER",
       budgetType: "VARIABLE",
     },
     {
       code: "40202",
       name: "Business Receivable",
       groupNum: 4,
-      direction: "INCOME",
+      direction: "TRANSFER",
       budgetType: "VARIABLE",
     },
     {
       code: "40301",
       name: "Refundable Deposit",
       groupNum: 4,
-      direction: "INCOME",
+      direction: "TRANSFER",
       budgetType: "FIXED",
     },
-    // Group 5 — Account Payable
+    // Group 5 — Account Payable. TRANSFER, not EXPENSE: principal repayment
+    // reduces a liability, it does not consume income (EPIC-023 D23). The
+    // interest portion of a payment is its own group-2 expense (code 21304).
     {
       code: "50101",
       name: "Office Snacks",
       groupNum: 5,
-      direction: "EXPENSE",
+      direction: "TRANSFER",
       budgetType: "VARIABLE",
     },
     {
       code: "50102",
       name: "Office Supplies",
       groupNum: 5,
-      direction: "EXPENSE",
+      direction: "TRANSFER",
       budgetType: "VARIABLE",
     },
     {
       code: "50103",
       name: "Office Gadget",
       groupNum: 5,
-      direction: "EXPENSE",
+      direction: "TRANSFER",
       budgetType: "VARIABLE",
     },
     {
       code: "50104",
       name: "Office Subscription",
       groupNum: 5,
-      direction: "EXPENSE",
+      direction: "TRANSFER",
       budgetType: "REIMBURSEMENT",
     },
     {
       code: "50105",
       name: "Office Equipment",
       groupNum: 5,
-      direction: "EXPENSE",
+      direction: "TRANSFER",
       budgetType: "FIXED",
     },
     {
       code: "50201",
       name: "Credit Card Bill",
       groupNum: 5,
-      direction: "EXPENSE",
+      direction: "TRANSFER",
       budgetType: "VARIABLE",
     },
     {
       code: "50301",
       name: "Bank Loan",
       groupNum: 5,
-      direction: "EXPENSE",
+      direction: "TRANSFER",
       budgetType: "FIXED",
     },
     {
       code: "50302",
       name: "Personal Debt",
       groupNum: 5,
-      direction: "EXPENSE",
+      direction: "TRANSFER",
       budgetType: "VARIABLE",
     },
     // Group 6 — Tax

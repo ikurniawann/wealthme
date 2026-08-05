@@ -219,6 +219,15 @@ var GENERIC_COA_CHART = [
     direction: "EXPENSE",
     budgetType: "VARIABLE"
   },
+  // EPIC-023 A1/A2 — the interest portion of a liability payment is a real
+  // expense (unlike the principal, which is a group-5 TRANSFER below).
+  {
+    code: "20009",
+    name: "Bunga Pinjaman",
+    groupNum: 2,
+    direction: "EXPENSE",
+    budgetType: "FIXED"
+  },
   // Group 3 — Wealth Allocation
   {
     code: "30001",
@@ -248,27 +257,30 @@ var GENERIC_COA_CHART = [
     direction: "TRANSFER",
     budgetType: "VARIABLE"
   },
-  // Group 4 — Account Receivable
+  // Group 4 — Account Receivable. TRANSFER, not INCOME: money lent out or a
+  // reimbursement owed is a claim on an asset, not revenue (EPIC-023 D23).
   {
     code: "40001",
     name: "Piutang",
     groupNum: 4,
-    direction: "INCOME",
+    direction: "TRANSFER",
     budgetType: "VARIABLE"
   },
-  // Group 5 — Account Payable
+  // Group 5 — Account Payable. TRANSFER, not EXPENSE: principal repayment
+  // reduces a liability, it does not consume income (EPIC-023 D23). The
+  // interest portion of a payment is its own group-2 expense (code 20009).
   {
     code: "50001",
     name: "Utang",
     groupNum: 5,
-    direction: "EXPENSE",
+    direction: "TRANSFER",
     budgetType: "FIXED"
   },
   {
     code: "50002",
     name: "Cicilan",
     groupNum: 5,
-    direction: "EXPENSE",
+    direction: "TRANSFER",
     budgetType: "FIXED"
   },
   // Group 6 — Tax

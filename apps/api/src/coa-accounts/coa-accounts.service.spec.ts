@@ -142,6 +142,48 @@ describe("CoaAccountsService", () => {
         }),
       ).rejects.toThrow(ConflictException);
     });
+
+    // EPIC-023 review follow-up — group 4/5 (Receivable/Payable) must stay
+    // TRANSFER; accepting INCOME/EXPENSE for them would silently recreate the
+    // COA-shelving bug this epic's migration fixed.
+    it("rejects an EXPENSE direction for a group-5 (Account Payable) account", async () => {
+      await expect(
+        service.create(FAMILY_GROUP_ID, {
+          code: "50001",
+          name: "Utang",
+          groupNum: 5,
+          direction: "EXPENSE",
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.coaAccount.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects an INCOME direction for a group-4 (Account Receivable) account", async () => {
+      await expect(
+        service.create(FAMILY_GROUP_ID, {
+          code: "40001",
+          name: "Piutang",
+          groupNum: 4,
+          direction: "INCOME",
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.coaAccount.create).not.toHaveBeenCalled();
+    });
+
+    it("accepts TRANSFER direction for a group-4/5 account", async () => {
+      prisma.coaAccount.create.mockResolvedValue(
+        buildRow({ code: "50001", groupNum: 5, direction: "TRANSFER" }),
+      );
+
+      const result = await service.create(FAMILY_GROUP_ID, {
+        code: "50001",
+        name: "Utang",
+        groupNum: 5,
+        direction: "TRANSFER",
+      });
+
+      expect(result.direction).toBe("TRANSFER");
+    });
   });
 
   describe("update — EPIC-021 #4 / Decision #11 editable code", () => {
@@ -226,6 +268,34 @@ describe("CoaAccountsService", () => {
         where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
         data: { name: "Renamed" },
       });
+    });
+
+    // EPIC-023 review follow-up — checked against the EFFECTIVE (post-patch)
+    // groupNum/direction so a PATCH touching only one of the two fields is
+    // still caught, not just a combined `{ groupNum, direction }` payload.
+    it("rejects patching an existing group-5 account's direction away from TRANSFER", async () => {
+      prisma.coaAccount.findUnique.mockResolvedValue(
+        buildRow({ groupNum: 5, direction: "TRANSFER", code: "50001" }),
+      );
+
+      await expect(
+        service.update(FAMILY_GROUP_ID, ACCOUNT_ID, { direction: "EXPENSE" }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.coaAccount.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects patching groupNum to 4 while direction stays EXPENSE", async () => {
+      prisma.coaAccount.findUnique.mockResolvedValue(
+        buildRow({ groupNum: 2, direction: "EXPENSE", code: "20001" }),
+      );
+
+      await expect(
+        service.update(FAMILY_GROUP_ID, ACCOUNT_ID, {
+          groupNum: 4,
+          code: "40001",
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.coaAccount.update).not.toHaveBeenCalled();
     });
   });
 });

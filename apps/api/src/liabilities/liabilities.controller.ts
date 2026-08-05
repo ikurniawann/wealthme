@@ -27,6 +27,8 @@ import {
   type LiabilitySummaryResponseDto,
 } from "./dto/liability-response.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { PayLiabilityDto } from "./dto/pay-liability.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateLiabilityDto } from "./dto/update-liability.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { LiabilitiesService } from "./liabilities.service";
@@ -86,6 +88,29 @@ export class LiabilitiesController {
     @Body() dto: UpdateLiabilityDto,
   ): Promise<LiabilityResponseDto> {
     return this.liabilitiesService.update(familyGroupId, id, dto);
+  }
+
+  @Post(":id/pay")
+  @HttpCode(HttpStatus.OK)
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Liability"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "id", type: String })
+  @ApiOperation({
+    summary:
+      "Record a payment against a liability, splitting principal and interest",
+  })
+  @ApiResponse({ status: 200, type: LiabilityResponseDto })
+  @ApiResponse({ status: 404, description: "Liability or account not found" })
+  @ApiResponse({
+    status: 400,
+    description: "Invalid amount or amount exceeds what is owed",
+  })
+  pay(
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("id") id: string,
+    @Body() dto: PayLiabilityDto,
+  ): Promise<LiabilityResponseDto> {
+    return this.liabilitiesService.pay(familyGroupId, id, dto);
   }
 
   @Delete(":id")

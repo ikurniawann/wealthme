@@ -1,5 +1,6 @@
 import { Test, type TestingModule } from "@nestjs/testing";
 
+import { GENERIC_COA_CHART } from "../common/coa/default-coa-chart";
 import { PrismaService } from "../prisma/prisma.service";
 
 import { ReportsService } from "./reports.service";
@@ -561,5 +562,174 @@ describe("ReportsService privacy enforcement", () => {
     expect(summary.totalIncome).toBe(1_000);
     expect(summary.topIncomeCategories).toHaveLength(1);
     expect(summary.topIncomeCategories[0]?.amount).toBe(1_000);
+  });
+
+  // EPIC-023 Task A3 — regression tests proving a group-5 (Account Payable)
+  // principal repayment no longer appears in P&L expenses and a group-4
+  // (Account Receivable) loan disbursement no longer appears as P&L revenue
+  // (acceptance criterion: "Given money lent to a friend and recorded against
+  // a group-4 category / When the P&L for that period is opened / Then the
+  // amount does not appear as revenue").
+  //
+  // The fixtures read their direction from `GENERIC_COA_CHART` — the chart the
+  // app actually provisions for every new family (auth.service.ts:150,
+  // web/src/lib/auth.ts:114) — instead of hardcoding a literal. That is
+  // deliberate: it makes the assertion track the real taxonomy. The tests fail
+  // today because codes 50002/40001 are shelved as EXPENSE/INCOME, and go
+  // green only when A1 moves groups 4 and 5 to TRANSFER. They cannot be
+  // satisfied by special-casing groupNum inside ReportsService, which would
+  // contradict decision D23.
+  const chartDirection = (
+    code: string,
+  ): FakeCategory["coaAccount"]["direction"] => {
+    const entry = GENERIC_COA_CHART.find((c) => c.code === code);
+    if (!entry) {
+      throw new Error(`COA code ${code} is missing from GENERIC_COA_CHART`);
+    }
+    return entry.direction;
+  };
+
+  it("getPnl: a mortgage principal repayment (group-5 Payable category) does not appear in P&L expenses (EPIC-023 A3)", async () => {
+    const now = new Date();
+    const accounts: FakeAccount[] = [
+      {
+        id: "a1",
+        balance: 0n,
+        type: "bank",
+        name: "A",
+        institution: null,
+        isPrivate: false,
+      },
+    ];
+    const categories: FakeCategory[] = [
+      {
+        id: "c-legit-expense",
+        name: "Makan & Minum",
+        color: null,
+        isPrivate: false,
+        coaAccount: { direction: "EXPENSE" },
+      },
+      {
+        id: "c-mortgage-principal",
+        name: "Cicilan Pokok KPR",
+        color: null,
+        isPrivate: false,
+        // "Cicilan" — the group-5 Account Payable shelf a mortgage instalment
+        // lands on. Read from the chart, not hardcoded (see note above).
+        coaAccount: { direction: chartDirection("50002") },
+      },
+    ];
+    const transactions: FakeTransaction[] = [
+      {
+        id: "t-legit-expense",
+        accountId: "a1",
+        categoryId: "c-legit-expense",
+        amount: 500_000n,
+        type: "expense",
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      },
+      {
+        id: "t-mortgage-principal",
+        accountId: "a1",
+        categoryId: "c-mortgage-principal",
+        amount: 3_500_000n,
+        type: "expense",
+        description: "Cicilan KPR — pokok",
+        occurredAt: now,
+        createdAt: now,
+      },
+    ];
+    const p = makeFakePrisma(accounts, categories, transactions);
+    const mod = await Test.createTestingModule({
+      providers: [ReportsService, { provide: PrismaService, useValue: p }],
+    }).compile();
+    const svc = mod.get(ReportsService);
+    const start = new Date(now.getTime() - 86_400_000);
+    const end = new Date(now.getTime() + 86_400_000);
+
+    const pnl = await svc.getPnl(FAMILY_GROUP_ID, start, end, true);
+
+    // Only the legitimate expense should count — the mortgage principal
+    // repayment must not inflate P&L expenses.
+    expect(pnl.expenses).toBe(500_000);
+    expect(
+      pnl.expenseBreakdown.find((b) => b.categoryName === "Cicilan Pokok KPR"),
+    ).toBeUndefined();
+  });
+
+  it("getPnl: a loan disbursement (group-4 Receivable category) does not appear as P&L revenue (EPIC-023 A3)", async () => {
+    const now = new Date();
+    const accounts: FakeAccount[] = [
+      {
+        id: "a1",
+        balance: 0n,
+        type: "bank",
+        name: "A",
+        institution: null,
+        isPrivate: false,
+      },
+    ];
+    const categories: FakeCategory[] = [
+      {
+        id: "c-legit-income",
+        name: "Gaji",
+        color: null,
+        isPrivate: false,
+        coaAccount: { direction: "INCOME" },
+      },
+      {
+        id: "c-loan-out",
+        name: "Pinjaman ke Teman",
+        color: null,
+        isPrivate: false,
+        // "Piutang" — the group-4 Account Receivable shelf money lent out
+        // lands on. Read from the chart, not hardcoded (see note above).
+        coaAccount: { direction: chartDirection("40001") },
+      },
+    ];
+    const transactions: FakeTransaction[] = [
+      {
+        id: "t-legit-income",
+        accountId: "a1",
+        categoryId: "c-legit-income",
+        amount: 25_850_000n,
+        type: "income",
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      },
+      {
+        id: "t-loan-out",
+        accountId: "a1",
+        categoryId: "c-loan-out",
+        amount: 2_000_000n,
+        // Money lent out leaves the giver's cash — recorded as an outflow —
+        // but is mapped to a (mis-seeded) group-4 category. COA
+        // classification, not tx.type, decides P&L direction (EPIC-017), so
+        // it is currently wrongly picked up as revenue.
+        type: "expense",
+        description: "Pinjaman ke Budi",
+        occurredAt: now,
+        createdAt: now,
+      },
+    ];
+    const p = makeFakePrisma(accounts, categories, transactions);
+    const mod = await Test.createTestingModule({
+      providers: [ReportsService, { provide: PrismaService, useValue: p }],
+    }).compile();
+    const svc = mod.get(ReportsService);
+    const start = new Date(now.getTime() - 86_400_000);
+    const end = new Date(now.getTime() + 86_400_000);
+
+    const pnl = await svc.getPnl(FAMILY_GROUP_ID, start, end, true);
+
+    // Only the legitimate income should count — the loan disbursement must
+    // not inflate P&L revenue.
+    expect(pnl.revenue).toBe(25_850_000);
+    expect(
+      pnl.revenueBreakdown.find((b) => b.categoryName === "Pinjaman ke Teman"),
+    ).toBeUndefined();
   });
 });

@@ -1242,6 +1242,11 @@ function PnlSection({
       <div className="text-[15px] font-bold">
         {t.laporan.pnl.titlePrefix} {bulan}
       </div>
+      {/* EPIC-023 A4 — honest disclosure of the accounting basis this report
+          uses, so a family reading "revenue" never assumes accrual timing. */}
+      <div className="text-[11px] text-muted-foreground">
+        {t.laporan.pnl.cashBasisNote}
+      </div>
       <SectionCard>
         <table className="w-full border-collapse text-[13px]">
           <tbody>

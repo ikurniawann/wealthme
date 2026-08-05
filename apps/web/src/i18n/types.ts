@@ -1905,6 +1905,9 @@ export type I18nDictionary = {
     };
     pnl: {
       titlePrefix: string;
+      // EPIC-023 A4 — an honest, plain-language statement of the accounting
+      // basis this report uses (cash, not accrual), shown in the report header.
+      cashBasisNote: string;
       revenueLabel: string;
       totalRevenueLabel: string;
       expensesLabel: string;

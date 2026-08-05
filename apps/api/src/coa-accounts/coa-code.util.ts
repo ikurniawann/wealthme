@@ -1,5 +1,16 @@
 import { BadRequestException, ConflictException } from "@nestjs/common";
 
+import type { CoaDirection } from "@prisma/client";
+
+// EPIC-023 review follow-up — group 4 (Account Receivable) and group 5
+// (Account Payable) are internal balance-sheet movements, never real P&L
+// revenue or expense. Migration 20260805000000_fix_coa_shelves_transfer_and_
+// loan_interest reclassified every existing group-4/5 row to TRANSFER for
+// exactly this reason; without a service-level guard, a later POST/PATCH
+// could set one back to INCOME/EXPENSE and silently reintroduce the same
+// shelving bug for that family, with no migration left to catch it.
+const BALANCE_SHEET_GROUP_NUMS = new Set([4, 5]);
+
 /**
  * EPIC-021 #4 / Open Design Decision #11 — COA codes are 5 digits total: the
  * first digit is always the account's `groupNum` (1-6, taxonomy: 1 Income ·
@@ -53,4 +64,26 @@ export function nextFreeCoaCode(
   throw new ConflictException(
     `No free COA code available for group ${groupNum}`,
   );
+}
+
+/**
+ * EPIC-023 review follow-up — enforce that a group-4 (Account Receivable) or
+ * group-5 (Account Payable) COA account is always `direction: TRANSFER`.
+ * These groups represent internal balance-sheet claims to/from the family,
+ * never real P&L revenue or expense (see `BALANCE_SHEET_GROUP_NUMS` above);
+ * accepting any other direction for them would let a family silently
+ * recreate the exact income/expense mis-shelving this epic's migration
+ * fixed. Called with the EFFECTIVE (post-patch) groupNum/direction so a
+ * PATCH that only touches one of the two fields is still checked against
+ * the resulting combination, not just the field present in that request.
+ */
+export function assertValidCoaDirection(
+  groupNum: number,
+  direction: CoaDirection,
+): void {
+  if (BALANCE_SHEET_GROUP_NUMS.has(groupNum) && direction !== "TRANSFER") {
+    throw new BadRequestException(
+      `Group ${groupNum} COA accounts must use direction TRANSFER (received "${direction}") — they represent internal balance-sheet movements, not P&L revenue or expense`,
+    );
+  }
 }

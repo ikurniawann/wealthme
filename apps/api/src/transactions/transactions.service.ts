@@ -12,6 +12,7 @@ import {
   CATEGORIZATION_PORT,
   type CategorizationPort,
 } from "../categorization/categorization.port";
+import { assertBankNotOverdrawn } from "../common/utils/bank-overdraft.util";
 import { transactionPrivacyWhere } from "../common/utils/privacy.util";
 import {
   ownerNotifPrefs,
@@ -852,40 +853,6 @@ export class TransactionsService {
     );
   }
 
-  /**
-   * EPIC-021 #22 — a `bank`-type account may never be pushed below zero by a
-   * fresh, user-initiated debit. Already-negative bank rows are grandfathered
-   * (never auto-corrected, never blocked from receiving credits) but must
-   * not be allowed to go MORE negative: `balance - debitAmount < 0` rejects
-   * both "this debit would newly cross zero" (balance >= 0 today) and
-   * "this account is already negative, reject further debits" (balance < 0
-   * today, so subtracting any positive amount is always < 0) with the same
-   * single comparison.
-   *
-   * Reads the account fresh via the caller's transactional `prisma` client
-   * so the check sees the live, in-transaction balance. Non-bank types
-   * (`cash`, `ewallet`, `investment`, `property`) are never guarded here —
-   * #21 explicitly allows cash to go negative, and this epic only scopes
-   * the hard floor to bank accounts.
-   */
-  private async assertBankNotOverdrawn(
-    prisma: Parameters<Parameters<PrismaService["$transaction"]>[0]>[0],
-    familyGroupId: string,
-    accountId: string,
-    debitAmount: bigint,
-  ): Promise<void> {
-    const account = await prisma.account.findUnique({
-      where: { id: accountId, familyGroupId },
-      select: { type: true, balance: true, name: true },
-    });
-    if (!account || account.type !== "bank") return;
-    if (account.balance - debitAmount < BigInt(0)) {
-      throw new BadRequestException(
-        `Saldo rekening bank "${account.name}" tidak mencukupi untuk transaksi ini. Rekening bank tidak boleh memiliki saldo minus.`,
-      );
-    }
-  }
-
   private async applyBalanceDelta(
     prisma: Parameters<Parameters<PrismaService["$transaction"]>[0]>[0],
     familyGroupId: string,
@@ -919,7 +886,7 @@ export class TransactionsService {
     // the single tracked account — unchanged, pre-existing behavior.
     const debitAmount = amount * sign;
     if (enforceBankFloor && debitAmount > BigInt(0)) {
-      await this.assertBankNotOverdrawn(
+      await assertBankNotOverdrawn(
         prisma,
         familyGroupId,
         accountId,
@@ -954,7 +921,7 @@ export class TransactionsService {
     const sign = direction === "add" ? BigInt(1) : BigInt(-1);
     const sourceDebit = amount * sign;
     if (enforceBankFloor && sourceDebit > BigInt(0)) {
-      await this.assertBankNotOverdrawn(
+      await assertBankNotOverdrawn(
         prisma,
         familyGroupId,
         accountId,

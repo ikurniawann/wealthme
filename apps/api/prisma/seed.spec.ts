@@ -104,3 +104,79 @@ describe("seed — demo user contract", () => {
     expect(mockUpsert).toHaveBeenCalled();
   });
 });
+
+/**
+ * EPIC-023 Task A1 (RED phase) — the demo seed's richer personalized COA
+ * chart (the local `coaSeeds` array inside `main()`, distinct from
+ * `GENERIC_COA_CHART`) currently mis-points groups 4 (Account Receivable)
+ * and 5 (Account Payable) at `INCOME`/`EXPENSE` instead of `TRANSFER`
+ * (seed.ts:2448-2533). `mockUpsert` is shared across every Prisma model in
+ * this test file's mock (see `makeModel()` above), so every model's
+ * `.upsert(...)` call — including `coaAccount.upsert` — lands in the same
+ * `mockUpsert.mock.calls` array; each CoaAccount create is identified by
+ * having both a `code` and a `direction` field, which no other seeded model
+ * has together.
+ */
+describe("seed — COA taxonomy per group (EPIC-023 Task A1)", () => {
+  interface CoaAccountCreate {
+    code: string;
+    name: string;
+    groupNum: number;
+    direction: "INCOME" | "EXPENSE" | "TRANSFER";
+  }
+
+  function seededCoaAccounts(): CoaAccountCreate[] {
+    return mockUpsert.mock.calls
+      .map(
+        ([arg]: [{ create?: Record<string, unknown> }]) =>
+          arg.create as Record<string, unknown> | undefined,
+      )
+      .filter(
+        (c): c is CoaAccountCreate =>
+          !!c && typeof c.code === "string" && typeof c.direction === "string",
+      );
+  }
+
+  it("classifies every seeded group-4 (Account Receivable) account as TRANSFER, not INCOME", async () => {
+    await main();
+    const group4 = seededCoaAccounts().filter((c) => c.groupNum === 4);
+    expect(group4.length).toBeGreaterThan(0);
+    for (const account of group4) {
+      expect(account.direction).toBe("TRANSFER");
+    }
+  });
+
+  it("classifies every seeded group-5 (Account Payable) account as TRANSFER, not EXPENSE", async () => {
+    await main();
+    const group5 = seededCoaAccounts().filter((c) => c.groupNum === 5);
+    expect(group5.length).toBeGreaterThan(0);
+    for (const account of group5) {
+      expect(account.direction).toBe("TRANSFER");
+    }
+  });
+
+  it("leaves group 1 (Income), group 2 (Expense) and group 3 (Wealth Allocation) unchanged — guards against over-correction", async () => {
+    await main();
+    const all = seededCoaAccounts();
+    const group1 = all.filter((c) => c.groupNum === 1);
+    const group2 = all.filter((c) => c.groupNum === 2);
+    const group3 = all.filter((c) => c.groupNum === 3);
+
+    expect(group1.length).toBeGreaterThan(0);
+    expect(group2.length).toBeGreaterThan(0);
+    expect(group3.length).toBeGreaterThan(0);
+
+    for (const account of group1) expect(account.direction).toBe("INCOME");
+    for (const account of group2) expect(account.direction).toBe("EXPENSE");
+    for (const account of group3) expect(account.direction).toBe("TRANSFER");
+  });
+
+  it("seeds a group-2 'Loan Interest' account at code 21304 with EXPENSE direction", async () => {
+    await main();
+    const account = seededCoaAccounts().find((c) => c.code === "21304");
+    expect(account).toBeDefined();
+    expect(account?.name).toBe("Loan Interest");
+    expect(account?.groupNum).toBe(2);
+    expect(account?.direction).toBe("EXPENSE");
+  });
+});
