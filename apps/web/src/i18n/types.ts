@@ -1110,6 +1110,15 @@ export type I18nDictionary = {
     // appreciation > 0).
     fieldValueChangeRateLabel: string;
     fieldValueChangeRatePlaceholder: string;
+    // EPIC-023 D19/US-ASSET-4: pre-fill helper shown under the rate field —
+    // "Perkiraan default untuk tipe ini: {rate}%" — naming the per-type
+    // default (DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT) as a suggestion, not a
+    // constraint.
+    defaultRateHelperPrefix: string;
+    // EPIC-023 D19/US-ASSET-4: optional acquisition date — the elapsed-time
+    // anchor for currentEstimatedValue instead of createdAt.
+    fieldAcquisitionDateLabel: string;
+    fieldAcquisitionDateHelper: string;
     // EPIC-021 #16: optional physical-asset category from master data
     // (the real Category API — distinct from the hardcoded `fieldCategoryLabel`
     // type selector above).
@@ -1127,8 +1136,14 @@ export type I18nDictionary = {
     emptyPhysical: string;
     emptyDanaRekening: string;
     emptyInvestments: string;
-    // EPIC-021 #17/#18: honest label appended to a compute-on-read estimate.
-    estimatedValueBadge: string;
+    // EPIC-023 D19/US-ASSET-4: recordedValue is the primary bold figure;
+    // this labels the secondary, adoptable projection line — "Proyeksi: {x}".
+    projectionLabel: string;
+    // EPIC-023 D19/US-ASSET-4: adopts currentEstimatedValue as the new
+    // recorded currentValue via PATCH.
+    useThisValueButton: string;
+    toastValueAdopted: string;
+    toastValueAdoptFailed: string;
   };
   /** EPIC-018 Task A5 — `/liabilitas` (debts & credit) page copy. */
   liabilitas: {

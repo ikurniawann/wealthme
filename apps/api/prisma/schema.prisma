@@ -604,6 +604,11 @@ model Asset {
   // appreciation. Compute-on-read (see AssetsService); a snapshot still
   // lands in AssetHistory whenever currentValue itself is edited.
   valueChangeRatePct Decimal?       @db.Decimal(5, 2)
+  // EPIC-023 D19/US-ASSET-4: optional date the asset was acquired, used as
+  // the elapsed-time anchor for computeEstimatedValue's projection instead
+  // of createdAt. Nullable and additive — existing rows keep falling back to
+  // createdAt (AssetsService#toAssetDto), so no backfill is required.
+  acquisitionDate    DateTime?      @db.Date
   // EPIC-021 #16: optional physical-asset category sourced from master data.
   // Reuses the existing Category model (masterdata's only real API) instead
   // of a new table; the hardcoded `type` enum above remains as a fallback

@@ -59,6 +59,7 @@ function makeFakePrisma(
   categories: FakeCategory[],
   transactions: FakeTransaction[],
   investments: FakeInvestment[] = [],
+  assets: { currentValue: bigint }[] = [],
 ) {
   const accountById = new Map(accounts.map((a) => [a.id, a]));
   const categoryById = new Map(categories.map((c) => [c.id, c]));
@@ -83,7 +84,10 @@ function makeFakePrisma(
         },
       ),
     },
-    asset: { findMany: jest.fn(() => Promise.resolve([])) },
+    // EPIC-023 D19/US-ASSET-4 — the service selects only { currentValue: true
+    // }, never valueChangeRatePct or an acquisition/created date, so the fake
+    // deliberately exposes nothing else an accidental regression could read.
+    asset: { findMany: jest.fn(() => Promise.resolve(assets)) },
     investment: { findMany: jest.fn(() => Promise.resolve(investments)) },
     liability: { findMany: jest.fn(() => Promise.resolve([])) },
     netWorthSnapshot: {
@@ -512,5 +516,45 @@ describe("DashboardService investment valuation (EPIC-QA-sweep #2)", () => {
     const netWorth = await service.getNetWorth(FAMILY_GROUP_ID, true);
 
     expect(netWorth.investmentsTotal).toBe("10000"); // 5 * 2,000 fallback
+  });
+});
+
+// EPIC-023 D19/US-ASSET-4 — the acceptance criterion this task exists to
+// prove: net worth must use Asset.currentValue (the recorded, authoritative
+// figure), never the compute-on-read projection. The fixture below sets a
+// large positive rate and a decade-old acquisition date so that, if this
+// call site ever regressed to reading the projection, the asserted total
+// would be far above the value below and this test would fail loudly.
+describe("DashboardService net worth — recorded value is authoritative (EPIC-023 D19)", () => {
+  it("getNetWorth sums Asset.currentValue, not the inflated compute-on-read projection", async () => {
+    const recordedValue = 1_000_000_000n; // Rp 1,000,000,000 recorded
+    const assets = [
+      {
+        currentValue: recordedValue,
+        // Present on the fixture to prove the service never reads them —
+        // if it did, a +80%/yr rate over 10 years would inflate the total
+        // far beyond recordedValue.
+        valueChangeRatePct: new Decimal("80"),
+        acquisitionDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 365 * 10),
+      },
+    ];
+    const prisma = makeFakePrisma([], [], [], [], assets);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        DashboardService,
+        { provide: PrismaService, useValue: prisma },
+      ],
+    }).compile();
+    const service = module.get<DashboardService>(DashboardService);
+
+    const netWorth = await service.getNetWorth(FAMILY_GROUP_ID, true);
+
+    expect(netWorth.assetsTotal).toBe(recordedValue.toString());
+    // Pins the call site itself: it must only ever ask Prisma for
+    // currentValue, so a future edit can't silently start reading the rate
+    // or an acquisition/created date back into this computation.
+    expect(prisma.asset.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ select: { currentValue: true } }),
+    );
   });
 });

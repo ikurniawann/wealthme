@@ -106,6 +106,34 @@ describe("computeEstimatedValue (pro-rata math)", () => {
   });
 });
 
+// EPIC-023 D19/US-ASSET-4: a real golden-value test — the expected value is
+// hand-computed below from the formula, independent of ever calling
+// computeEstimatedValue, so it cannot silently pass by reading back the
+// function's own output.
+describe("computeEstimatedValue — acquisitionDate golden value (EPIC-023 D19)", () => {
+  it("2,000,000 at +15%/yr over exactly 3 years (from acquisitionDate) → 2,900,000", () => {
+    const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
+    const NOW = new Date("2026-01-01T00:00:00.000Z");
+    // `since` is constructed to be exactly 3 × MS_PER_YEAR before `now`, so
+    // yearsElapsed inside the function is exactly 3 — no calendar slack.
+    const acquisitionDate = new Date(NOW.getTime() - 3 * MS_PER_YEAR);
+
+    // Hand computation (matches computeEstimatedValue's documented formula,
+    // computed here independently of the function under test):
+    //   yearsElapsed = 3                          (exact, by construction)
+    //   multiplier   = 1 + (15 / 100) * 3 = 1.45
+    //   estimated    = round(2,000,000 × 1.45)    = 2,900,000
+    const result = computeEstimatedValue(
+      2_000_000n,
+      new Decimal("15"),
+      acquisitionDate,
+      NOW,
+    );
+
+    expect(result).toBe(2_900_000n);
+  });
+});
+
 describe("AssetsService", () => {
   let service: AssetsService;
   let prisma: ReturnType<typeof makePrisma>;
@@ -310,6 +338,7 @@ describe("AssetsService", () => {
           notes: null,
           valueChangeRatePct: new Decimal("-10"),
           categoryId: CATEGORY_ID,
+          acquisitionDate: null,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
@@ -320,6 +349,294 @@ describe("AssetsService", () => {
       expect(result?.valueChangeRatePct).toBe("-10");
       expect(result?.categoryId).toBe(CATEGORY_ID);
       expect(result?.currentEstimatedValue).toBeDefined();
+    });
+  });
+
+  // EPIC-023 D19/US-ASSET-4: computeEstimatedValue's `since` argument must
+  // come from acquisitionDate when present, and fall back to createdAt only
+  // when acquisitionDate is null (legacy assets that predate the field).
+  // Real elapsed-time-since-now is used inside toAssetDto (no injectable
+  // clock), so these assert on the DIRECTION of the drift rather than an
+  // exact figure: a large rate over a decade-old date measurably moves the
+  // estimate away from currentValue; a millisecond-old date does not.
+  describe("toAssetDto — acquisitionDate anchors the projection, createdAt is the legacy fallback", () => {
+    const TEN_YEARS_AGO = new Date(Date.now() - 1000 * 60 * 60 * 24 * 365 * 10);
+
+    it("uses acquisitionDate as the elapsed-time anchor when set, ignoring a recent createdAt", async () => {
+      prisma.asset.findMany.mockResolvedValue([
+        {
+          id: ASSET_ID,
+          familyGroupId: FAMILY_GROUP_ID,
+          name: "Rumah",
+          type: "properti",
+          currentValue: 1_000_000_000n,
+          currency: "IDR",
+          notes: null,
+          valueChangeRatePct: new Decimal("50"),
+          categoryId: null,
+          acquisitionDate: TEN_YEARS_AGO,
+          createdAt: new Date(), // recent — must NOT be what drives the estimate
+          updatedAt: new Date(),
+        },
+      ]);
+
+      const [result] = await service.findAll(FAMILY_GROUP_ID);
+
+      expect(Number(result?.currentEstimatedValue)).toBeGreaterThan(
+        1_000_000_000,
+      );
+    });
+
+    it("falls back to createdAt when acquisitionDate is null (legacy assets keep working)", async () => {
+      prisma.asset.findMany.mockResolvedValue([
+        {
+          id: ASSET_ID,
+          familyGroupId: FAMILY_GROUP_ID,
+          name: "Rumah Lama",
+          type: "properti",
+          currentValue: 1_000_000_000n,
+          currency: "IDR",
+          notes: null,
+          valueChangeRatePct: new Decimal("50"),
+          categoryId: null,
+          acquisitionDate: null,
+          createdAt: TEN_YEARS_AGO,
+          updatedAt: new Date(),
+        },
+      ]);
+
+      const [result] = await service.findAll(FAMILY_GROUP_ID);
+
+      expect(Number(result?.currentEstimatedValue)).toBeGreaterThan(
+        1_000_000_000,
+      );
+    });
+
+    it("stays at currentValue when acquisitionDate is set to right now, regardless of an old createdAt", async () => {
+      prisma.asset.findMany.mockResolvedValue([
+        {
+          id: ASSET_ID,
+          familyGroupId: FAMILY_GROUP_ID,
+          name: "Rumah Baru Dibeli",
+          type: "properti",
+          currentValue: 1_000_000_000n,
+          currency: "IDR",
+          notes: null,
+          valueChangeRatePct: new Decimal("50"),
+          categoryId: null,
+          acquisitionDate: new Date(),
+          createdAt: TEN_YEARS_AGO,
+          updatedAt: new Date(),
+        },
+      ]);
+
+      const [result] = await service.findAll(FAMILY_GROUP_ID);
+
+      expect(result?.currentEstimatedValue).toBe("1000000000");
+    });
+  });
+
+  describe("create/update — acquisitionDate", () => {
+    it("create persists and returns the acquisitionDate", async () => {
+      const acquisitionDate = "2020-06-15";
+      prisma.asset.create.mockResolvedValue({
+        id: ASSET_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        name: "Rumah",
+        type: "properti",
+        currentValue: 1_000_000_000n,
+        currency: "IDR",
+        notes: null,
+        valueChangeRatePct: null,
+        categoryId: null,
+        acquisitionDate: new Date(acquisitionDate),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const result = await service.create(FAMILY_GROUP_ID, {
+        name: "Rumah",
+        type: "properti",
+        currentValue: "1000000000",
+        acquisitionDate,
+      });
+
+      expect(prisma.asset.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            acquisitionDate: new Date(acquisitionDate),
+          }),
+        }),
+      );
+      expect(result.acquisitionDate).toBe(
+        new Date(acquisitionDate).toISOString(),
+      );
+    });
+
+    it("create omits acquisitionDate → persisted as null", async () => {
+      prisma.asset.create.mockResolvedValue({
+        id: ASSET_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        name: "Rumah",
+        type: "properti",
+        currentValue: 1_000_000_000n,
+        currency: "IDR",
+        notes: null,
+        valueChangeRatePct: null,
+        categoryId: null,
+        acquisitionDate: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const result = await service.create(FAMILY_GROUP_ID, {
+        name: "Rumah",
+        type: "properti",
+        currentValue: "1000000000",
+      });
+
+      expect(prisma.asset.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ acquisitionDate: null }),
+        }),
+      );
+      expect(result.acquisitionDate).toBeNull();
+    });
+
+    it("update persists and returns a new acquisitionDate", async () => {
+      const existingAsset = {
+        id: ASSET_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        name: "Rumah",
+        type: "properti",
+        currentValue: 1_000_000_000n,
+        currency: "IDR",
+        notes: null,
+        valueChangeRatePct: null,
+        categoryId: null,
+        acquisitionDate: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      prisma.asset.findUnique.mockResolvedValue(existingAsset);
+      const newDate = "2019-03-01";
+      prisma.asset.update.mockResolvedValue({
+        ...existingAsset,
+        acquisitionDate: new Date(newDate),
+      });
+
+      const result = await service.update(FAMILY_GROUP_ID, ASSET_ID, {
+        acquisitionDate: newDate,
+      });
+
+      expect(prisma.asset.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            acquisitionDate: new Date(newDate),
+          }),
+        }),
+      );
+      expect(result.acquisitionDate).toBe(new Date(newDate).toISOString());
+    });
+
+    it("rejects an invalid acquisitionDate string on create", async () => {
+      await expect(
+        service.create(FAMILY_GROUP_ID, {
+          name: "Rumah",
+          type: "properti",
+          currentValue: "1000000000",
+          acquisitionDate: "not-a-date",
+        }),
+      ).rejects.toThrow();
+      expect(prisma.asset.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects a future acquisitionDate on create", async () => {
+      const fiveYearsFromNow = new Date(
+        Date.now() + 1000 * 60 * 60 * 24 * 365 * 5,
+      )
+        .toISOString()
+        .slice(0, 10);
+
+      await expect(
+        service.create(FAMILY_GROUP_ID, {
+          name: "Rumah",
+          type: "properti",
+          currentValue: "1000000000",
+          acquisitionDate: fiveYearsFromNow,
+        }),
+      ).rejects.toThrow();
+      expect(prisma.asset.create).not.toHaveBeenCalled();
+    });
+
+    // EPIC-023 Task H1 review (HIGH fix 1): reproduces the WIB off-by-one
+    // this fix closes. Fake "now" = 2026-08-04T18:00:00.000Z, which is WIB
+    // (UTC+7) 2026-08-05T01:00:00 — 01:00 local time in Jakarta. The OLD
+    // code compared `new Date("2026-08-05").getTime() > Date.now()`: the
+    // UTC-midnight parse of "2026-08-05" (2026-08-05T00:00:00.000Z) is
+    // LATER than this fake "now", so it wrongly rejected WIB "today" as
+    // being in the future. Follows billing-cycle.processor.spec.ts's
+    // jest.useFakeTimers()/setSystemTime pattern for faking Date.now(),
+    // since this service has no injectable clock.
+    describe("create — acquisitionDate WIB 'today' boundary", () => {
+      afterEach(() => {
+        jest.useRealTimers();
+      });
+
+      it("accepts WIB 'today' during the early-morning window where it is still UTC 'yesterday evening'", async () => {
+        jest
+          .useFakeTimers()
+          .setSystemTime(new Date("2026-08-04T18:00:00.000Z"));
+
+        prisma.asset.create.mockResolvedValue({
+          id: ASSET_ID,
+          familyGroupId: FAMILY_GROUP_ID,
+          name: "Rumah",
+          type: "properti",
+          currentValue: 1_000_000_000n,
+          currency: "IDR",
+          notes: null,
+          valueChangeRatePct: null,
+          categoryId: null,
+          acquisitionDate: new Date("2026-08-05"),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        await expect(
+          service.create(FAMILY_GROUP_ID, {
+            name: "Rumah",
+            type: "properti",
+            currentValue: "1000000000",
+            acquisitionDate: "2026-08-05",
+          }),
+        ).resolves.toBeDefined();
+        expect(prisma.asset.create).toHaveBeenCalled();
+      });
+    });
+
+    it("rejects an invalid acquisitionDate string on update", async () => {
+      prisma.asset.findUnique.mockResolvedValue({
+        id: ASSET_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        name: "Rumah",
+        type: "properti",
+        currentValue: 1_000_000_000n,
+        currency: "IDR",
+        notes: null,
+        valueChangeRatePct: null,
+        categoryId: null,
+        acquisitionDate: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await expect(
+        service.update(FAMILY_GROUP_ID, ASSET_ID, {
+          acquisitionDate: "not-a-date",
+        }),
+      ).rejects.toThrow();
+      expect(prisma.asset.update).not.toHaveBeenCalled();
     });
   });
 });
