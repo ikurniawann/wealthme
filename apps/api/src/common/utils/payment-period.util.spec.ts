@@ -11,53 +11,74 @@ import { currentPaymentPeriodBounds } from "./payment-period.util";
 // importantly, that a payment near the START of a yearly/quarterly period
 // still falls inside the SAME window near its END — the exact scenario the
 // old hardcoded-month window got wrong.
+// These assertions MUST NOT use the local-time `new Date(y, m, d)`
+// constructor. Doing so silently makes the expectation follow the machine's
+// own clock — which is Asia/Jakarta here and UTC on CI — so the suite passed
+// locally and failed on CI by exactly the 7 hours this util exists to handle.
+// That is the very timezone-dependence H7 removed from the implementation,
+// reintroduced in its test. `wib()` names an absolute instant instead, so the
+// expected value is the same wherever the suite runs.
+const wib = (
+  year: number,
+  monthIndex: number,
+  day: number,
+  hours = 0,
+  minutes = 0,
+  seconds = 0,
+  ms = 0,
+): Date =>
+  new Date(
+    Date.UTC(year, monthIndex, day, hours, minutes, seconds, ms) -
+      7 * 60 * 60 * 1000,
+  );
+
 describe("currentPaymentPeriodBounds", () => {
   it("monthly: bounds span the first to the last day of the current calendar month", () => {
-    const now = new Date(2026, 5, 15); // June 15, 2026
+    const now = wib(2026, 5, 15, 12); // June 15, 2026, midday WIB
     const { periodStart, periodEnd } = currentPaymentPeriodBounds(
       "monthly",
       now,
     );
-    expect(periodStart).toEqual(new Date(2026, 5, 1));
-    expect(periodEnd).toEqual(new Date(2026, 5, 30, 23, 59, 59, 999));
+    expect(periodStart).toEqual(wib(2026, 5, 1));
+    expect(periodEnd).toEqual(wib(2026, 5, 30, 23, 59, 59, 999));
   });
 
   it("quarterly: bounds span the current calendar quarter (Q2 = Apr-Jun)", () => {
-    const now = new Date(2026, 4, 20); // May 20, 2026 -> Q2
+    const now = wib(2026, 4, 20, 12); // May 20, 2026 -> Q2
     const { periodStart, periodEnd } = currentPaymentPeriodBounds(
       "quarterly",
       now,
     );
-    expect(periodStart).toEqual(new Date(2026, 3, 1)); // April 1
-    expect(periodEnd).toEqual(new Date(2026, 5, 30, 23, 59, 59, 999)); // June 30
+    expect(periodStart).toEqual(wib(2026, 3, 1)); // April 1
+    expect(periodEnd).toEqual(wib(2026, 5, 30, 23, 59, 59, 999)); // June 30
   });
 
   it("yearly: bounds span the entire calendar year", () => {
-    const now = new Date(2026, 5, 15);
+    const now = wib(2026, 5, 15, 12);
     const { periodStart, periodEnd } = currentPaymentPeriodBounds(
       "yearly",
       now,
     );
-    expect(periodStart).toEqual(new Date(2026, 0, 1));
-    expect(periodEnd).toEqual(new Date(2026, 11, 31, 23, 59, 59, 999));
+    expect(periodStart).toEqual(wib(2026, 0, 1));
+    expect(periodEnd).toEqual(wib(2026, 11, 31, 23, 59, 59, 999));
   });
 
   // The regression this whole util exists to fix — pinned explicitly.
   it("yearly: a payment made in January still falls inside the SAME window checked from February onward", () => {
-    const paidAt = new Date(2026, 0, 10); // January 10
+    const paidAt = wib(2026, 0, 10, 12); // January 10
     const checkedFromFebruary = currentPaymentPeriodBounds(
       "yearly",
-      new Date(2026, 1, 1),
+      wib(2026, 1, 1, 12),
     );
     expect(paidAt >= checkedFromFebruary.periodStart).toBe(true);
     expect(paidAt <= checkedFromFebruary.periodEnd).toBe(true);
   });
 
   it("quarterly: a payment made in the first month of a quarter still falls inside the SAME window checked from the quarter's last month", () => {
-    const paidAt = new Date(2026, 3, 2); // April 2 (Q2 start)
+    const paidAt = wib(2026, 3, 2, 12); // April 2 (Q2 start)
     const checkedFromJune = currentPaymentPeriodBounds(
       "quarterly",
-      new Date(2026, 5, 25),
+      wib(2026, 5, 25, 12),
     );
     expect(paidAt >= checkedFromJune.periodStart).toBe(true);
     expect(paidAt <= checkedFromJune.periodEnd).toBe(true);
