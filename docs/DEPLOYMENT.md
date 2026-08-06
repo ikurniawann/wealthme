@@ -82,7 +82,75 @@ fallback is almost certainly wrong for the shared dev server's public origin,
 so treat that warning as a blocker before relying on a freshly-pushed image.
 
 Changing these variables does not retroactively fix an already-pushed image;
-re-run the workflow (or push a new commit to `development`) afterward.
+re-run the workflow (or push a new commit to `development`) afterward. A
+value that is baked in but doesn't match how the domain is actually routed
+(see the next section) fails the same way a wrong value does — same-origin
+requests reaching a 404 — and looks identical from the browser's side, so
+change both together, never one without the other.
+
+## Path-based API routing via nginx (`/api/*`)
+
+The dev server's public domain sits behind a **token-based Cloudflare
+Tunnel** — its ingress (which hostname routes to which local port) is
+managed entirely from the Cloudflare Zero Trust dashboard, not a local config
+file this repo can edit. That matters because it rules out the obvious fix
+for wanting one domain to serve both the app and a path-prefixed API
+(`wealthme.demo-wit.id/api/*` → the api container): a Cloudflare-side path
+rule needs dashboard access this repo's automation does not have.
+
+`deploy/nginx/default.conf` + the `nginx` service in `docker-compose.yml`
+solve this without needing that access at all. `nginx` sits between the
+tunnel and `web`/`api`, entirely inside this stack's own docker network (not
+published on a host port — the tunnel container is already a member of the
+same network, confirmed via `docker network inspect`, so it reaches `nginx`
+by service name exactly like it already reaches `web`/`api` today). Path
+routing becomes nginx's job, fully in-repo:
+
+- `/api/*` → `api:4000`, with the `/api` prefix **stripped** by
+  `proxy_pass http://api:4000/;`'s trailing slash — the api container's own
+  routes stay unprefixed (`/health`, `/family-groups/...`), so this needed
+  **no NestJS code change** (no `app.setGlobalPrefix`).
+- everything else → `web:3000`, unchanged from today.
+
+Verified end-to-end against the real containers before this was written:
+`GET /` → 307 (the app's normal redirect-to-login), `GET /api/health` → the
+real NestJS health response, `GET /api/<nonexistent>` → NestJS's own 404
+JSON (`{"statusCode":404,...,"message":"Cannot GET /<nonexistent>"}` — note
+the message shows the path _after_ stripping), proving the request reached
+the real api container rather than falling through to `web`'s catch-all.
+
+**One manual step remains, and only a human with Cloudflare Zero Trust
+dashboard access can do it**: repoint the existing `wealthme.demo-wit.id`
+Public Hostname's target service from `http://web:3000` to `http://nginx:80`.
+`wealthme-api.demo-wit.id` (if it exists as a separate hostname) needs no
+change — it can keep pointing directly at `api:4000` unaffected, or be
+retired later once `/api/*` routing is confirmed working end-to-end from a
+real browser.
+
+**Do this in order, not in parallel** — the app went down once already this
+way (the `NEXT_PUBLIC_API_URL` build-time value and the tunnel's actual
+routing must agree, or every browser-side API call 404s and login can
+complete but never reaches past it):
+
+1. Deploy this change first (`nginx` up and healthy) — the `/api/*` path
+   isn't reachable from outside until the tunnel is repointed, but nothing
+   about deploying `nginx` itself changes today's working setup.
+2. Repoint the Cloudflare Public Hostname (the manual step above).
+3. Verify from a real browser (or `curl https://wealthme.demo-wit.id/api/health`
+   from off this host) that `/api/health` now returns the real NestJS
+   response, **before** touching the build-time URL.
+4. Only then: `gh variable set NEXT_PUBLIC_API_URL --body "https://wealthme.demo-wit.id/api"`,
+   re-run the image-build workflow, redeploy.
+
+A note on the healthcheck, since it looked like a proxy bug and wasn't one:
+`docker-compose.yml`'s `nginx` healthcheck uses `http://127.0.0.1/...`, not
+`http://localhost/...`. This network assigns IPv4-only addresses (no IPv6 on
+`wealthme_net`), and `nginx:alpine`'s own IPv6-auto-listen entrypoint script
+can't inject a `listen [::]:80` line into the mounted, read-only config file
+— so nginx binds IPv4 only, while busybox `wget` resolves `localhost` to
+`::1` first per `/etc/hosts` and gets a real connection-refused against a
+socket nginx never opened. Proven live on this host, not theoretical: the
+identical check failed with `localhost` and succeeded with `127.0.0.1`.
 
 ## Rolling back
 
