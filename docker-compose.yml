@@ -5,11 +5,24 @@
 # server. Keep all host-port bindings in docker-compose.override.yml so this
 # base file is portable to any environment.
 #
-# Usage (local, with override):
+# Usage (local, with override, building from source):
 #   docker compose up -d --build
 #
-# Usage (dev server, without local override):
-#   docker compose -f docker-compose.yml up -d --build
+# Usage (dev server, prebuilt images from GHCR — the default deploy path,
+# see scripts/deploy-dev.sh and docs/DEPLOYMENT.md):
+#   docker compose -f docker-compose.yml pull
+#   docker compose -f docker-compose.yml up -d --wait
+#
+# `api`, `migrate`, and `web` each carry BOTH `image:` and `build:`. Compose
+# uses whichever is already present locally when you run plain `up`/`pull`;
+# `--build` (or `docker compose build`) forces a local build under the SAME
+# image name instead. This is what lets one file serve two operators: CI
+# builds and pushes to ghcr.io/andrsrjld/wealthme-web-{api,web} on every push
+# to `development` (see .github/workflows/ci.yml), and the dev server just
+# pulls that image — no local `pnpm install`/`next build`/`apt-get` ever runs
+# there. `DEPLOY_IMAGE_TAG` (default `dev`, a moving tag CI updates on every
+# green build) pins which tag to pull; set it to a `sha-<short>` tag to roll
+# back to a specific commit without touching this file.
 #
 # All services read shared secrets from the root .env via `env_file`.
 # Host-vs-container URLs are overridden per-service under `environment:` so
@@ -100,6 +113,7 @@ services:
   # The seed uses upsert, so re-running `docker compose up` is safe (idempotent).
 
   migrate:
+    image: ghcr.io/andrsrjld/wealthme-web-api:${DEPLOY_IMAGE_TAG:-dev}
     build:
       context: .
       dockerfile: ./apps/api/Dockerfile
@@ -130,6 +144,7 @@ services:
   # ── Application services ────────────────────────────────────────────────────
 
   api:
+    image: ghcr.io/andrsrjld/wealthme-web-api:${DEPLOY_IMAGE_TAG:-dev}
     build:
       context: .
       dockerfile: ./apps/api/Dockerfile
@@ -172,6 +187,7 @@ services:
       start_period: 30s
 
   web:
+    image: ghcr.io/andrsrjld/wealthme-web-web:${DEPLOY_IMAGE_TAG:-dev}
     build:
       context: .
       dockerfile: ./apps/web/Dockerfile

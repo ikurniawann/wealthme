@@ -48,3 +48,85 @@ jobs:
 
       - name: Lint, Build & Test
         run: pnpm turbo run lint build test --cache-dir=.turbo
+
+  # ── Build & push DEV deploy images ──────────────────────────────────────────
+  # Runs only after `ci` passes, only on a real push to `development` (never on
+  # a PR, never on `main`) — a red build never gets an image. Pushes to GHCR so
+  # the shared dev server (see scripts/deploy-dev.sh) can `docker compose pull`
+  # instead of building locally. This exists because that server's own local
+  # Docker builds became unreliable — `apt-get`/`pnpm install`/`next build`
+  # failing with randomly-corrupted decompression on different packages each
+  # run, a hardware-level (RAM) symptom, not something a retry or a code change
+  # fixes. Moving the build onto GitHub's runners sidesteps it entirely.
+  build-and-push-images:
+    name: Build & push DEV images
+    needs: ci
+    if: github.ref == 'refs/heads/development' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lowercase repository path for GHCR
+        id: repo
+        run: echo "path=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Public, browser-visible URLs baked into the web bundle at build time —
+      # not secrets. Set once via repository Settings → Secrets and variables →
+      # Actions → Variables (or `gh variable set NEXT_PUBLIC_API_URL --body
+      # '<real dev server URL>'`), matching the dev server's actual public
+      # origin. Unset, this falls back to the same localhost default
+      # docker-compose.yml already uses for local builds — safe, but almost
+      # certainly wrong for the shared dev server, so the workflow says so
+      # loudly in the build log rather than silently baking in a guess.
+      - name: Resolve public build args
+        id: build-args
+        run: |
+          API_URL="${{ vars.NEXT_PUBLIC_API_URL }}"
+          APP_URL="${{ vars.NEXT_PUBLIC_APP_URL }}"
+          if [ -z "$API_URL" ] || [ -z "$APP_URL" ]; then
+            echo "::warning::NEXT_PUBLIC_API_URL / NEXT_PUBLIC_APP_URL repo variables are not set — falling back to localhost. The web image being pushed will NOT work correctly on the shared dev server's public origin until these are set (Settings → Secrets and variables → Actions → Variables) and this workflow re-run."
+          fi
+          echo "api_url=${API_URL:-http://localhost:4000}" >> "$GITHUB_OUTPUT"
+          echo "app_url=${APP_URL:-http://localhost:3000}" >> "$GITHUB_OUTPUT"
+
+      - name: Build & push api image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/api/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ steps.repo.outputs.path }}-api:dev
+            ghcr.io/${{ steps.repo.outputs.path }}-api:sha-${{ github.sha }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Build & push web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/web/Dockerfile
+          push: true
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ steps.build-args.outputs.api_url }}
+            NEXT_PUBLIC_APP_URL=${{ steps.build-args.outputs.app_url }}
+          tags: |
+            ghcr.io/${{ steps.repo.outputs.path }}-web:dev
+            ghcr.io/${{ steps.repo.outputs.path }}-web:sha-${{ github.sha }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
