@@ -1369,3 +1369,41 @@ does not exist`, which the agent then diagnosed as a pre-existing broken
   compile cache and corepack's `pnpm.cjs`.
   **Still outstanding from task A1, untouched by this task:** the pre/post
   migration P&L and balance-sheet capture for the demo family.
+- 2026-08-06 — Group F's PR #246 went `CONFLICTING` the moment group E merged;
+  resolved by **merging** `development` into F (rebase would have needed a
+  force-push, which the guardrails forbid). Three files collided, all of them
+  predicted when E landed. Final: **api 1057/1057 (87 suites), web 348/348 (40
+  suites)**, `qa.sh` and `security-check.sh` exit 0; PR back to `MERGEABLE`.
+  **(1) Both branches independently extracted the same Serializable retry
+  helper** — E from `LiabilitiesService.pay()`, F for split-bill confirmation.
+  F's is a strict superset (exports the transaction-client type, takes an
+  optional attempt count defaulting to 3), so E's two-argument call sites work
+  unchanged and the duplicated `TxClient` the E TypeScript review flagged as a
+  LOW disappears. Taking the superset resolved the conflict and a review
+  finding at once.
+  **(2) `insurances.service.ts` was the real conflict, and both intents had to
+  survive**: E made a policy report whether its premium is paid for its own
+  `premiumPeriod`, F made a linked beneficiary's name and relationship resolve
+  live from `Member`. The list path now batches both lookups in one
+  `Promise.all` rather than per row. The subtle part: E moved row creation into
+  a transactional `runCreate`, so F's live-linking — which used to sit in
+  `create()` — had to be re-applied where the response DTO is now actually
+  built, not where the conflict marker was. A marker-local resolution would
+  have compiled, passed every test, and silently dropped D14's live link on the
+  create path.
+  **(3) The `schema.prisma` conflict was two-thirds cosmetic**: one real hunk
+  (F's `religion` column) and two pure alignment hunks, because E's longer
+  field names widened the column padding. Resolved by taking E's alignment and
+  running `prisma format`/`validate`.
+  **(4) The lesson worth carrying: git merged `packages/contracts/dist`
+  textually, with no conflict, into a bundle matching neither branch.** It is
+  committed build output, so git treats it as source. Rebuilding from `src`
+  immediately rewrote all four files. Nothing would have caught this by eye —
+  it is minified output — and a stale/wrong `dist` fails as an unreadable
+  SIGTRAP in the Next type-checker, not a type error. **On any merge touching
+  contracts, rebuild `dist` from `src` regardless of whether git reported a
+  conflict.**
+  Recorded but deliberately not changed during the merge: `create()`,
+  `update()` and `pay()` all return `paidThisPeriod: false` by default, because
+  that is exactly what E does on `development` — a conflict resolution is the
+  wrong place to introduce behaviour neither branch had.
