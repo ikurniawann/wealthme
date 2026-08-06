@@ -403,6 +403,9 @@ export const id = {
       toastReligionFailed: "Gagal menyimpan agama keluarga",
       religionUnconfirmedPlaceholder: "Pilih agama keluarga",
       religionUnconfirmedLabel: "Belum dipilih",
+      religionLoadingLabel: "Memuat pengaturan agama keluarga...",
+      religionErrorLabel:
+        "Gagal memuat pengaturan agama keluarga. Coba muat ulang halaman.",
       aiKeySectionTitle: "API Key AI Advisor",
       aiKeyHint:
         "Sambungkan API key Anda sendiri (Claude, OpenAI, atau Gemini) agar AI Advisor bisa digunakan. Key disimpan terenkripsi dan tidak pernah ditampilkan kembali.",

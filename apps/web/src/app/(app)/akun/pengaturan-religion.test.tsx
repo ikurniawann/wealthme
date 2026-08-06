@@ -9,6 +9,14 @@
  * MEDIUM 9 — "not yet chosen" is now representable (`religion === null`),
  * distinct from all three real choices, with its own honest UI: a disabled
  * placeholder in the owner's picker, and its own label for a non-owner.
+ *
+ * MEDIUM 3 (EPIC-023 Group F final fix round) — `religion === null` is ALSO
+ * what a pending fetch returns (see `useFamilyReligion`'s own doc comment:
+ * callers MUST check `isLoading`/`isError` before treating `null` as "the
+ * family chose none"). Without a loading gate, a non-owner briefly saw
+ * "Belum dipilih" for a family that HAS chosen, and the owner's picker
+ * briefly showed the disabled placeholder before flipping to the real
+ * value.
  */
 
 import type { ReactElement, ReactNode } from "react";
@@ -148,5 +156,67 @@ describe("PengaturanBody — family religion setting (EPIC-023 Group F)", () => 
     expect(
       screen.queryByRole("combobox", { name: /agama keluarga/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("MEDIUM 3: a pending fetch shows a neutral loading state, never 'Belum dipilih' or the disabled placeholder select", () => {
+    mockUseFamilyReligion.mockReturnValue({
+      religion: null,
+      isOwner: false,
+      isLoading: true,
+      isError: false,
+      updateReligion: mockUpdateReligion,
+      isUpdating: false,
+    });
+
+    render(<PengaturanBody />);
+
+    expect(
+      screen.getByText("Memuat pengaturan agama keluarga..."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Belum dipilih")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: /agama keluarga/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("MEDIUM 3: a pending fetch for the OWNER also shows the loading state, not the disabled placeholder select", () => {
+    mockUseFamilyReligion.mockReturnValue({
+      religion: null,
+      isOwner: true,
+      isLoading: true,
+      isError: false,
+      updateReligion: mockUpdateReligion,
+      isUpdating: false,
+    });
+
+    render(<PengaturanBody />);
+
+    expect(
+      screen.getByText("Memuat pengaturan agama keluarga..."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: /agama keluarga/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("MEDIUM 3: a permanent fetch failure shows an honest error, not any calculator state", () => {
+    mockUseFamilyReligion.mockReturnValue({
+      religion: null,
+      isOwner: false,
+      isLoading: false,
+      isError: true,
+      updateReligion: mockUpdateReligion,
+      isUpdating: false,
+    });
+
+    render(<PengaturanBody />);
+
+    // `role="alert"` gives it name-from-author only per the ARIA spec (no
+    // computed name from its own text content), so this asserts the role
+    // and the visible message separately rather than via `{ name }`.
+    expect(
+      screen.getByText(/gagal memuat pengaturan agama keluarga/i),
+    ).toHaveAttribute("role", "alert");
+    expect(screen.queryByText("Belum dipilih")).not.toBeInTheDocument();
   });
 });

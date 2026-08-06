@@ -6,7 +6,10 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 
-import { runSerializableWithRetry } from "../common/utils/serializable-retry.util";
+import {
+  runSerializableWithRetry,
+  type TxClient,
+} from "../common/utils/serializable-retry.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -422,24 +425,72 @@ export class SplitBillsService {
    * so deleting a bill with only pending/claimed participants orphans
    * nothing and stays allowed. The owner can still `revoke()` the links on
    * a paid bill if they want recipients locked out.
+   *
+   * EPIC-023 Group F final fix round (HIGH 1) — the guard used to be a
+   * plain read-then-act with no transaction, isolation, or lock: it read
+   * every participant as pending/claimed, then deleted. A concurrent
+   * `confirmParticipant()` could commit (atomically, at Serializable
+   * isolation) in the gap between that read and this `delete()`, whose
+   * cascade (`SplitParticipant.splitBill onDelete: Cascade`) would then
+   * destroy the just-paid participant while the posted `Transaction` and
+   * credited balance survive, disconnected from any bill — exactly the
+   * defect this guard exists to prevent. The check and the delete now run
+   * inside the SAME Serializable transaction as `confirmParticipant`
+   * (via `runSerializableWithRetry`), so the two commit atomically against
+   * each other: whichever one commits first is the state the other reads.
+   *
+   * EPIC-023 Group F final fix round (MEDIUM 2) — `settlementTransactionId`
+   * is an unenforced FK (same convention as `Donation.transactionId`): the
+   * posted `Transaction` is an ordinary row, fully visible and deletable
+   * from the normal transactions surface, which knows nothing about split
+   * bills. If it was deleted out-of-band, the participant's "paid" status
+   * is stale — refusing forever would leave the bill permanently stuck
+   * with no path forward, telling the user income was posted when it no
+   * longer exists. So a "paid" participant only still blocks deletion
+   * while its settlementTransactionId resolves to a REAL, still-existing
+   * Transaction in this family group.
    */
   async remove(familyGroupId: string, id: string): Promise<void> {
-    const existing = await this.prisma.splitBill.findUnique({
-      where: { id, familyGroupId },
-      include: PARTICIPANT_INCLUDE,
-    });
-    if (!existing) throw new NotFoundException("Split bill not found");
+    await runSerializableWithRetry(this.prisma, async (tx) => {
+      const existing = await tx.splitBill.findUnique({
+        where: { id, familyGroupId },
+        include: PARTICIPANT_INCLUDE,
+      });
+      if (!existing) throw new NotFoundException("Split bill not found");
 
-    const hasPaidParticipant = existing.participants.some(
-      (p) => p.status === "paid",
-    );
-    if (hasPaidParticipant) {
+      await this.assertNoLivePaidSettlement(
+        tx,
+        familyGroupId,
+        existing.participants as ParticipantRow[],
+      );
+
+      await tx.splitBill.delete({ where: { id, familyGroupId } });
+    });
+  }
+
+  /**
+   * See the (MEDIUM 2) comment on `remove()` above for the full rationale.
+   */
+  private async assertNoLivePaidSettlement(
+    tx: TxClient,
+    familyGroupId: string,
+    participants: ParticipantRow[],
+  ): Promise<void> {
+    const settlementIds = participants
+      .filter((p) => p.status === "paid")
+      .map((p) => p.settlementTransactionId)
+      .filter((tid): tid is string => tid !== null);
+    if (settlementIds.length === 0) return;
+
+    const liveTransaction = await tx.transaction.findFirst({
+      where: { id: { in: settlementIds }, familyGroupId },
+      select: { id: true },
+    });
+    if (liveTransaction) {
       throw new ConflictException(
         "Split bill ini sudah punya peserta yang lunas (transaksi nyata sudah tercatat) dan tidak bisa dihapus. Gunakan 'Cabut Link' untuk menghentikan tagihan ini.",
       );
     }
-
-    await this.prisma.splitBill.delete({ where: { id, familyGroupId } });
   }
 
   /**

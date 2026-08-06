@@ -405,6 +405,9 @@ export const en = {
       toastReligionFailed: "Failed to save family religion",
       religionUnconfirmedPlaceholder: "Choose family religion",
       religionUnconfirmedLabel: "Not yet chosen",
+      religionLoadingLabel: "Loading family religion setting...",
+      religionErrorLabel:
+        "Failed to load the family religion setting. Try reloading the page.",
       aiKeySectionTitle: "AI Advisor API Key",
       aiKeyHint:
         "Connect your own API key (Claude, OpenAI, or Gemini) so the AI Advisor can be used. The key is stored encrypted and never shown again.",

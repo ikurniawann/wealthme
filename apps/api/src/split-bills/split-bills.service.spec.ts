@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
+import { Prisma } from "@prisma/client";
 
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -38,6 +39,7 @@ function makePrisma() {
     },
     transaction: {
       create: jest.fn(),
+      findFirst: jest.fn(),
     },
     $transaction: jest.fn(),
   };
@@ -450,16 +452,52 @@ describe("SplitBillsService", () => {
   });
 
   describe("remove", () => {
-    it("refuses to delete a bill with a paid participant — the linked Transaction would be orphaned", async () => {
+    it("refuses to delete a bill with a paid participant whose settlement Transaction still exists", async () => {
+      const paidParticipant = {
+        ...PARTICIPANT,
+        status: "paid",
+        settlementTransactionId: "txn-1",
+      };
       prisma.splitBill.findUnique.mockResolvedValue({
         ...BILL,
-        participants: [{ ...PARTICIPANT, status: "paid" }],
+        participants: [paidParticipant],
       });
+      // The linked Transaction is still live — the guard must refuse.
+      prisma.transaction.findFirst.mockResolvedValue({ id: "txn-1" });
 
       await expect(service.remove(FAMILY_GROUP_ID, BILL.id)).rejects.toThrow(
         ConflictException,
       );
+      expect(prisma.transaction.findFirst).toHaveBeenCalledWith({
+        where: { id: { in: ["txn-1"] }, familyGroupId: FAMILY_GROUP_ID },
+        select: { id: true },
+      });
       expect(prisma.splitBill.delete).not.toHaveBeenCalled();
+    });
+
+    // MEDIUM 2 (EPIC-023 Group F final fix round) — a settlement Transaction
+    // deleted out-of-band (via the normal transactions surface, which knows
+    // nothing about split bills) must not leave the bill permanently
+    // undeletable. The participant's "paid" status is stale once its own
+    // linked Transaction no longer exists.
+    it("allows deleting a bill whose paid participant's settlement Transaction was deleted out-of-band", async () => {
+      const paidParticipant = {
+        ...PARTICIPANT,
+        status: "paid",
+        settlementTransactionId: "txn-deleted",
+      };
+      prisma.splitBill.findUnique.mockResolvedValue({
+        ...BILL,
+        participants: [paidParticipant],
+      });
+      // The Transaction no longer exists — nothing real left to protect.
+      prisma.transaction.findFirst.mockResolvedValue(null);
+
+      await service.remove(FAMILY_GROUP_ID, BILL.id);
+
+      expect(prisma.splitBill.delete).toHaveBeenCalledWith({
+        where: { id: BILL.id, familyGroupId: FAMILY_GROUP_ID },
+      });
     });
 
     it("deletes a bill whose participants are only pending/claimed — no money has moved", async () => {
@@ -476,6 +514,8 @@ describe("SplitBillsService", () => {
       expect(prisma.splitBill.delete).toHaveBeenCalledWith({
         where: { id: BILL.id, familyGroupId: FAMILY_GROUP_ID },
       });
+      // No paid participant to check — the settlement lookup is skipped.
+      expect(prisma.transaction.findFirst).not.toHaveBeenCalled();
     });
 
     it("throws NotFoundException for a bill outside this family group", async () => {
@@ -484,6 +524,32 @@ describe("SplitBillsService", () => {
       await expect(
         service.remove(FAMILY_GROUP_ID, "other-bill"),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    // HIGH 1 (EPIC-023 Group F final fix round) — the paid-participant guard
+    // and the delete must commit atomically against a concurrent
+    // `confirmParticipant()`, which posts income at Serializable isolation.
+    // Deterministic call-shape assertion (not timing-dependent): the guard's
+    // read and the delete must be issued through the SAME `$transaction`
+    // call, at Serializable isolation — exactly the shape `confirmParticipant`
+    // already uses via `runSerializableWithRetry`.
+    it("runs the paid-participant guard and the delete inside one Serializable transaction", async () => {
+      prisma.splitBill.findUnique.mockResolvedValue({
+        ...BILL,
+        participants: [{ ...PARTICIPANT, status: "pending" }],
+      });
+
+      await service.remove(FAMILY_GROUP_ID, BILL.id);
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      });
+      // findUnique and delete both ran against the transactional client
+      // handed to the callback (the mock hands back the same `prisma`
+      // object), never as a bare read-then-act outside any transaction.
+      expect(prisma.splitBill.findUnique).toHaveBeenCalledTimes(1);
+      expect(prisma.splitBill.delete).toHaveBeenCalledTimes(1);
     });
   });
 });

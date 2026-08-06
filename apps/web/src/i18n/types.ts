@@ -595,6 +595,14 @@ export type I18nDictionary = {
       religionUnconfirmedPlaceholder: string;
       religionUnconfirmedLabel: string;
       /**
+       * EPIC-023 Group F final fix round (MEDIUM 3) — a pending fetch must
+       * render its OWN neutral state, never the "not yet chosen" copy above:
+       * both `isLoading` and `religion === null` resolve to a `null`
+       * `currentReligion`, so the two states must not look the same.
+       */
+      religionLoadingLabel: string;
+      religionErrorLabel: string;
+      /**
        * EPIC-023 G3 (D16) — bring-your-own AI provider key. Owner/spouse
        * manage it; every other role sees a read-only status (see
        * casl-ability.factory.ts's AiKey subject).

@@ -1223,9 +1223,17 @@ export function PengaturanBody() {
   // bound directly to `currentReligion` (no separate local input state) so
   // it always reflects the REAL fetched value — same regression class the
   // theme/language pickers were fixed for (pengaturan-body.test.tsx).
+  // EPIC-023 Group F final fix round (MEDIUM 3) — `useFamilyReligion`'s own
+  // doc comment says callers MUST check `isLoading`/`isError` before
+  // treating `null` as "family chose none" (donation/page.tsx already does
+  // this). Without the gate below, a non-owner briefly sees "Belum dipilih"
+  // for a family that HAS chosen, and the owner's <select> briefly shows
+  // the disabled placeholder before flipping to the real fetched value.
   const {
     religion: currentReligion,
     isOwner: isReligionOwner,
+    isLoading: isReligionLoading,
+    isError: isReligionError,
     updateReligion,
     isUpdating: isReligionUpdating,
   } = useFamilyReligion();
@@ -1546,7 +1554,19 @@ export function PengaturanBody() {
         <div className="mb-2.5 text-[12px] text-muted-foreground">
           {t.akun.pengaturan.religionHint}
         </div>
-        {isReligionOwner ? (
+        {isReligionLoading ? (
+          // EPIC-023 Group F final fix round (MEDIUM 3) — a neutral loading
+          // state, never "Belum dipilih": while the query is in flight,
+          // `currentReligion` is `null` exactly like an honestly-unconfirmed
+          // family, and the two must not look the same to the viewer.
+          <div className="text-[13px] text-muted-foreground">
+            {t.akun.pengaturan.religionLoadingLabel}
+          </div>
+        ) : isReligionError ? (
+          <div role="alert" className="text-[13px] text-destructive">
+            {t.akun.pengaturan.religionErrorLabel}
+          </div>
+        ) : isReligionOwner ? (
           <Field label={t.akun.pengaturan.religionLabel}>
             <select
               className={FIELD_CLASS}
