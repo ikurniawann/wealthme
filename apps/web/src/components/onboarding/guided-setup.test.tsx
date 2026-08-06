@@ -175,8 +175,14 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
     });
   });
 
+  // Drives all three steps end to end, so it is by far the longest test here.
+  // `userEvent`'s default per-keystroke delay is pure harness overhead (it is
+  // disabled for every setup in this file), and GitHub's shared runner is
+  // several times slower than a dev machine — this exceeded jest's default
+  // 5s ceiling on CI while passing locally. The timeout is headroom for that
+  // gap; it does not relax a single assertion.
   it("creates a real account, budget, and transaction — and shows the consequence of each", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const onClose = jest.fn();
     const { queryClient } = render(<GuidedSetup open onClose={onClose} />);
     const invalidateSpy = jest.spyOn(queryClient, "invalidateQueries");
@@ -271,11 +277,11 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
     expect(onClose).toHaveBeenCalled();
     expect(isOnboarded(USER_ID)).toBe(true);
     expect(getSetupProgress(USER_ID)).toBeNull();
-  });
+  }, 30_000);
 
   it("lets a step be skipped when the family already has one, instead of creating a duplicate", async () => {
     accountsStore = [{ id: "acc-existing", name: "Rekening Lama" }];
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<GuidedSetup open onClose={jest.fn()} />);
 
     await screen.findByText("Kamu sudah punya rekening tercatat.");
@@ -292,7 +298,7 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
   });
 
   it("resumes from the exact step it left off after being closed mid-way", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const onClose = jest.fn();
     const { unmount } = render(<GuidedSetup open onClose={onClose} />);
 
@@ -323,7 +329,7 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
 
   it("shows an error and stays on the step when the create call fails", async () => {
     failAccountCreate = true;
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<GuidedSetup open onClose={jest.fn()} />);
 
     await screen.findByText("Tambahkan rekening pertamamu");
@@ -367,7 +373,7 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
       },
     ];
     heldTransaction = true;
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<GuidedSetup open onClose={jest.fn()} />);
 
     await screen.findByText("Kamu sudah punya rekening tercatat.");
@@ -406,7 +412,7 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
   });
 
   it("clicking a done-step nav button closes the wizard before navigating (MEDIUM 9)", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const onClose = jest.fn();
     render(<GuidedSetup open onClose={onClose} />);
 
@@ -446,7 +452,7 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
   });
 
   it("tells the user what was already created before closing via Skip Setup (MEDIUM 8)", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<GuidedSetup open onClose={jest.fn()} />);
 
     await screen.findByText("Tambahkan rekening pertamamu");
@@ -474,7 +480,7 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
       accountId: "acc-deleted-by-another-member",
       accountName: "Rekening Yang Sudah Dihapus",
     });
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<GuidedSetup open onClose={jest.fn()} />);
 
     // The saved progress pointed at "budget", but that account is gone
@@ -497,7 +503,7 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
   });
 
   it("restores focus to whatever opened it once it closes (HIGH 6)", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     function Wrapper() {
       const [open, setOpen] = useState(false);
       return (
