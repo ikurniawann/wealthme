@@ -235,7 +235,10 @@ function BerandaPage() {
         : tx.type === "expense"
           ? "bg-red-100 text-red-600"
           : "bg-violet-100 text-violet-600",
-    name: tx.description ?? tx.accountName,
+    // EPIC-023 Task E retry (MEDIUM 5) — `accountName` is null for a card
+    // purchase (E3); without this fallback a description-less card
+    // purchase rendered a blank-named row here.
+    name: tx.description ?? tx.accountName ?? "—",
     cat:
       tx.categoryName ??
       (tx.type === "income"

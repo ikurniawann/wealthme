@@ -66,4 +66,33 @@ describe("CreateTransactionDto validation", () => {
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === "toAccountId")).toBe(true);
   });
+
+  // EPIC-023 group E retry (CRITICAL 1.4 / C2) — `liabilityId`/`insuranceId`
+  // were REMOVED from this DTO: they used to let ANY caller (any `member`,
+  // via a plain `POST /transactions`) link an arbitrary expense to someone
+  // else's liability/insurance id just by guessing it, flipping that
+  // obligation's `paidThisPeriod` to "paid" without a real payment — a
+  // forgeable double-payment bypass. Only `LiabilitiesService.pay()`/
+  // `purchase()` and `InsurancesService.pay()` may set these fields, writing
+  // directly via Prisma inside their own transaction, never from client
+  // input. These tests assert the field stays UNRECOGNIZED by validation —
+  // a class-validator decorator reappearing here would silently reopen the
+  // forgery bypass even if nothing else changed.
+  it("ignores a client-supplied liabilityId — no validator decorates it, so it never surfaces as a validation error regardless of shape", async () => {
+    const dto = plainToInstance(CreateTransactionDto, {
+      ...BASE,
+      liabilityId: "not-a-uuid",
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === "liabilityId")).toBe(false);
+  });
+
+  it("ignores a client-supplied insuranceId — no validator decorates it, so it never surfaces as a validation error regardless of shape", async () => {
+    const dto = plainToInstance(CreateTransactionDto, {
+      ...BASE,
+      insuranceId: "not-a-uuid",
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === "insuranceId")).toBe(false);
+  });
 });

@@ -1,0 +1,23 @@
+-- EPIC-023 group E retry round 3b (HIGH 10) — comment-only correction, no
+-- schema change. Migration files are treated as an immutable, already-
+-- applied record (Prisma checksums migration.sql content), so the
+-- misleading comment in
+-- 20260806100000_epic023_e_retry_dedicated_premium_coa_and_own_category is
+-- corrected HERE instead of being rewritten in place.
+--
+-- That earlier migration's comment claimed pre-existing SHARED budget lines
+-- "remain functionally as before until the obligation that seeded them is
+-- next updated or paid." That is not true: once ANY sibling liability that
+-- used to share that line is next updated/paid, `LiabilitiesService`
+-- self-heals it its OWN category and OWN budget line sized to ITS OWN
+-- `minimumPayment` — but the OLD shared line is left completely untouched,
+-- at its OLD (multi-liability) `limitAmount`. The two lines together now
+-- double-count that liability's contribution, permanently, with nothing
+-- reverting it. `LiabilitiesService.warnIfPriorSharedBudgetLine`
+-- (introduced this round) detects this at the moment of the self-heal and
+-- surfaces it loudly (a `Logger.warn` plus a persisted `Notification`) —
+-- it deliberately does NOT attempt to auto-subtract the liability's
+-- guessed former share from the old line, because that share was never
+-- recorded per-liability and cannot be safely reconstructed from the data
+-- available. A family that hits this must review and correct the old
+-- shared budget line manually.

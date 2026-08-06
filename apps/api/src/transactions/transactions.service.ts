@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -19,10 +20,6 @@ import {
   transactionPrivacyWhere,
 } from "../common/utils/privacy.util";
 import {
-  ownerNotifPrefs,
-  resolveNotifPrefs,
-} from "../notifications/notification-prefs";
-import {
   NOTIFICATION_SENDER_PORT,
   type NotificationSenderPort,
 } from "../notifications/notification-sender.port";
@@ -30,6 +27,11 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 
 import { OCR_PORT, type OcrPort, type OcrResult } from "./ocr/ocr.port";
+import {
+  checkBudgetAlert,
+  checkCashFlowAlert,
+  notifyTransaction,
+} from "./transaction-alerts.util";
 
 import type { CreateTransactionDto } from "./dto/create-transaction.dto";
 import type { ListTransactionsQueryDto } from "./dto/list-transactions-query.dto";
@@ -56,15 +58,6 @@ export type ActingMember = { id: string; userId: string; role: Role } | null;
 // top-up). Kept in Indonesian to match the rest of user-facing transaction
 // copy generated server-side (see WM_CONVENTIONS.md fidelity note).
 const ADMIN_FEE_DESCRIPTION = "Biaya admin top-up";
-
-function escapeHtml(raw: string): string {
-  return raw
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#x27;");
-}
 
 @Injectable()
 export class TransactionsService {
@@ -379,12 +372,18 @@ export class TransactionsService {
     });
 
     if (resolvedCategoryId && dto.type === "expense") {
-      void this.checkBudgetAlert(familyGroupId, resolvedCategoryId);
+      void checkBudgetAlert(
+        this.prisma,
+        this.notificationSender,
+        familyGroupId,
+        resolvedCategoryId,
+      );
     }
     if (dto.type === "expense") {
-      void this.checkCashFlowAlert(familyGroupId);
+      void checkCashFlowAlert(this.prisma, familyGroupId);
     }
-    void this.notifyTransaction(
+    void notifyTransaction(
+      this.prisma,
       familyGroupId,
       dto.type,
       BigInt(dto.amount),
@@ -481,184 +480,6 @@ export class TransactionsService {
     return member?.largeTxnThreshold ?? null;
   }
 
-  private async checkBudgetAlert(
-    familyGroupId: string,
-    categoryId: string,
-  ): Promise<void> {
-    try {
-      const budget = await this.prisma.budget.findFirst({
-        where: { familyGroupId, categoryId },
-        select: { id: true, limitAmount: true },
-      });
-      if (!budget || budget.limitAmount <= BigInt(0)) return;
-
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-      const agg = await this.prisma.transaction.aggregate({
-        where: {
-          familyGroupId,
-          categoryId,
-          type: "expense",
-          occurredAt: { gte: monthStart, lt: nextMonthStart },
-        },
-        _sum: { amount: true },
-      });
-
-      // The new transaction is already committed when this runs, so the
-      // aggregate includes it — no manual addition needed.
-      const spent = agg._sum.amount ?? BigInt(0);
-      const usagePct = Number((spent * BigInt(100)) / budget.limitAmount);
-      if (usagePct < 80) return;
-
-      const [owner, category] = await Promise.all([
-        this.prisma.member.findFirst({
-          where: { familyGroupId, role: "owner" },
-          include: {
-            user: {
-              select: { email: true, name: true, notificationPrefs: true },
-            },
-          },
-        }),
-        this.prisma.category.findUnique({
-          where: { id: categoryId, familyGroupId },
-          select: { name: true },
-        }),
-      ]);
-      if (!owner) return;
-      if (!resolveNotifPrefs(owner.user.notificationPrefs).budget80) return;
-
-      const safeName = escapeHtml(category?.name ?? "kategori ini");
-      const subject =
-        usagePct >= 100
-          ? `Anggaran ${safeName} terlampaui!`
-          : `Anggaran ${safeName} sudah ${usagePct}%`;
-      const htmlBody = `<p>Halo ${escapeHtml(owner.user.name)},</p>
-<p>Pengeluaran untuk <strong>${safeName}</strong> bulan ini telah mencapai <strong>${usagePct}%</strong> dari anggaran.</p>
-<p>Segera tinjau anggaran Anda di WealthMe.</p>`;
-
-      await Promise.all([
-        this.notificationSender.sendEmail(
-          owner.user.email,
-          owner.user.name,
-          subject,
-          htmlBody,
-        ),
-        this.prisma.notification.create({
-          data: {
-            familyGroupId,
-            title: subject,
-            body: `Pengeluaran ${safeName} sudah ${usagePct}% dari anggaran bulan ini.`,
-            icon: "💸",
-          },
-        }),
-      ]);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Budget alert skipped: ${msg}`);
-    }
-  }
-
-  private async checkCashFlowAlert(familyGroupId: string): Promise<void> {
-    try {
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-      const [incomeAgg, expenseAgg] = await Promise.all([
-        this.prisma.transaction.aggregate({
-          where: {
-            familyGroupId,
-            type: "income",
-            occurredAt: { gte: monthStart, lt: nextMonthStart },
-          },
-          _sum: { amount: true },
-        }),
-        this.prisma.transaction.aggregate({
-          where: {
-            familyGroupId,
-            type: "expense",
-            occurredAt: { gte: monthStart, lt: nextMonthStart },
-          },
-          _sum: { amount: true },
-        }),
-      ]);
-
-      const income = incomeAgg._sum.amount ?? BigInt(0);
-      const expense = expenseAgg._sum.amount ?? BigInt(0);
-
-      if (income <= BigInt(0)) return;
-
-      const usagePct = Number((expense * BigInt(100)) / income);
-      if (usagePct < 80) return;
-
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const existing = await this.prisma.notification.findFirst({
-        where: { familyGroupId, icon: "⚠️", createdAt: { gte: today } },
-      });
-      if (existing) return;
-
-      const title =
-        usagePct >= 100
-          ? "Pengeluaran Melebihi Pemasukan!"
-          : `Pengeluaran Bulan Ini Sudah ${usagePct}%`;
-      const body =
-        usagePct >= 100
-          ? `Pengeluaran bulan ini sudah ${usagePct}% dari total pemasukan. Kurangi pengeluaran segera.`
-          : `Pengeluaran bulan ini sudah ${usagePct}% dari total pemasukan. Pantau pengeluaranmu.`;
-
-      await this.prisma.notification.create({
-        data: { familyGroupId, title, body, icon: "⚠️" },
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Cash flow alert skipped: ${msg}`);
-    }
-  }
-
-  private async notifyTransaction(
-    familyGroupId: string,
-    type: string,
-    amount: bigint,
-    tx: { category: { name: string } | null; account: { name: string } | null },
-    // EPIC-023 Task D (D3/D9) — the acting member's own largeTxnThreshold,
-    // when set. Trusted roles are never held (only row-scoped roles are —
-    // see create()'s gate above), so a threshold here only ever narrows
-    // WHEN this member's "large transaction" notification fires; it never
-    // blocks anything. Defaults to the pre-existing fixed cutoff when the
-    // member has no threshold set (the normal case for every pre-existing
-    // member).
-    bigThreshold: bigint = BigInt(5_000_000),
-  ): Promise<void> {
-    try {
-      // Only income/expense produce a feed notification; transfers stay silent.
-      const isIncome = type === "income";
-      const isExpense = type === "expense";
-      if (!isIncome && !isExpense) return;
-
-      const prefs = await ownerNotifPrefs(this.prisma, familyGroupId);
-      const isBig = amount >= bigThreshold;
-      const wantByType = isIncome ? prefs.txnIn : prefs.txnOut;
-      // txnBig is an additive alert for large amounts of either direction.
-      if (!wantByType && !(isBig && prefs.txnBig)) return;
-
-      const label = isIncome ? "Transaksi masuk" : "Transaksi keluar";
-      const catName = tx.category?.name ?? "Tanpa kategori";
-      await this.prisma.notification.create({
-        data: {
-          familyGroupId,
-          title: isBig ? `${label} besar` : label,
-          body: `${label} Rp ${amount.toString()} — ${catName}`,
-          icon: isIncome ? "📥" : "📤",
-        },
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Transaction notification skipped: ${msg}`);
-    }
-  }
-
   async update(
     familyGroupId: string,
     id: string,
@@ -675,6 +496,7 @@ export class TransactionsService {
       where: { id, familyGroupId, ...transactionPrivacyWhere(canSeePrivate) },
     });
     if (!existing) throw new NotFoundException("Transaction not found");
+    this.assertNotObligationLinked(existing);
 
     if (dto.accountId) {
       const acct = await this.prisma.account.findUnique({
@@ -767,7 +589,10 @@ export class TransactionsService {
       if (amountChanged || typeChanged || accountChanged || toAccountChanged) {
         // Revert whatever effect the existing row currently has — a real
         // two-sided transfer reverses both legs, everything else reverses
-        // its single account delta.
+        // its single account delta. EPIC-023 E3 (D12) — a credit-card
+        // purchase (`existing.accountId === null`) never touched an account
+        // in the first place, so there is nothing to revert; skip both the
+        // transfer and single-account branches for it.
         //
         // EPIC-021 #22 — neither the revert call below nor the reapply call
         // further down passes `enforceBankFloor`, so both stay unguarded by
@@ -776,7 +601,7 @@ export class TransactionsService {
         // on a bank account that has since been spent down below the
         // original credit — reversal integrity beats the overdraft
         // invariant here. Only create()'s fresh debits are guarded.
-        if (existing.toAccountId) {
+        if (existing.toAccountId && existing.accountId) {
           await this.applyTransferBalanceDelta(
             prisma,
             familyGroupId,
@@ -785,7 +610,7 @@ export class TransactionsService {
             existing.amount,
             "revert",
           );
-        } else {
+        } else if (existing.accountId) {
           await this.applyBalanceDelta(
             prisma,
             familyGroupId,
@@ -799,7 +624,11 @@ export class TransactionsService {
         const newAmount =
           dto.amount !== undefined ? BigInt(dto.amount) : existing.amount;
 
-        if (newToAccountId) {
+        // EPIC-023 E3 (D12) — a null `effectiveAccountId` only happens for a
+        // liability-linked, accountless row whose PATCH also leaves
+        // accountId unset; there is nothing to (re)apply a balance delta
+        // against, so both branches below are skipped for it too.
+        if (newToAccountId && effectiveAccountId) {
           await this.applyTransferBalanceDelta(
             prisma,
             familyGroupId,
@@ -808,7 +637,7 @@ export class TransactionsService {
             newAmount,
             "add",
           );
-        } else {
+        } else if (effectiveAccountId) {
           await this.applyBalanceDelta(
             prisma,
             familyGroupId,
@@ -861,6 +690,7 @@ export class TransactionsService {
       where: { id, familyGroupId, ...transactionPrivacyWhere(canSeePrivate) },
     });
     if (!existing) throw new NotFoundException("Transaction not found");
+    this.assertNotObligationLinked(existing);
 
     await this.prisma.$transaction(async (prisma) => {
       // Mirrors create()/update() — a real two-sided transfer must reverse
@@ -872,7 +702,9 @@ export class TransactionsService {
       // false): deleting a transaction must always be possible, even if the
       // bank account it touches has since been spent below the original
       // credit. See applyBalanceDelta's doc for the full rationale.
-      if (existing.toAccountId) {
+      // EPIC-023 E3 (D12) — a credit-card purchase (`accountId === null`)
+      // never touched an account; nothing to revert for it.
+      if (existing.toAccountId && existing.accountId) {
         await this.applyTransferBalanceDelta(
           prisma,
           familyGroupId,
@@ -881,7 +713,7 @@ export class TransactionsService {
           existing.amount,
           "revert",
         );
-      } else {
+      } else if (existing.accountId) {
         await this.applyBalanceDelta(
           prisma,
           familyGroupId,
@@ -996,6 +828,52 @@ export class TransactionsService {
         to: query.to ?? null,
       },
     };
+  }
+
+  /**
+   * C4 (group E retry round 4) — `LiabilitiesService.pay()`/`.purchase()`
+   * and `InsurancesService.pay()` all mutate `Liability
+   * .remainingBalance`/`totalDebt` or `Insurance.renewalDate` in lockstep
+   * with creating the linked `Transaction` row (`liabilityId`/
+   * `insuranceId` set, E1). `update()`/`remove()` here only ever reversed
+   * the ACCOUNT balance delta — never the obligation state — so editing or
+   * deleting one of these rows silently desynced the ledger from the debt/
+   * coverage it recorded:
+   *   - Deleting a mistaken card purchase refunds nothing (it never
+   *     touched an account) but leaves the card's `remainingBalance`/
+   *     `totalDebt` permanently inflated, with no ledger evidence left to
+   *     even notice.
+   *   - Deleting a liability payment refunds the cash but leaves
+   *     `remainingBalance` reduced — a REAL debt is now understated, and
+   *     paying again double-reduces it for the one real outflow.
+   *   - Deleting a premium payment refunds the cash AND leaves
+   *     `renewalDate` advanced — free coverage.
+   *
+   * REFUSE, not silently reverse: correctly reversing `pay()`'s principal/
+   * interest split, `purchase()`'s balance increment, or an insurance's
+   * `renewalDate` advance requires re-deriving exactly what that ONE
+   * payment changed — safe only if the obligation has not moved since
+   * (another payment, a manual PATCH), which this method cannot verify
+   * without re-implementing `pay()`'s entire invariant surface in reverse.
+   * The honest correction path that already exists and needs no new
+   * mechanism: adjust the Liability's `remainingBalance`/`totalDebt` (or
+   * the Insurance's `renewalDate`) directly via its own `PATCH`, THEN
+   * edit/delete this ledger row once the obligation is back in sync.
+   */
+  private assertNotObligationLinked(tx: {
+    liabilityId?: string | null;
+    insuranceId?: string | null;
+  }): void {
+    if (tx.liabilityId) {
+      throw new ConflictException(
+        "Transaksi ini terkait pembayaran/pembelian liabilitas — tidak dapat diedit atau dihapus di sini. Sesuaikan saldo liabilitas terkait terlebih dahulu (PATCH liabilitas), lalu koreksi transaksi ini.",
+      );
+    }
+    if (tx.insuranceId) {
+      throw new ConflictException(
+        "Transaksi ini terkait pembayaran premi asuransi — tidak dapat diedit atau dihapus di sini. Sesuaikan tanggal jatuh tempo polis terkait terlebih dahulu (PATCH asuransi), lalu koreksi transaksi ini.",
+      );
+    }
   }
 
   /**
@@ -1145,16 +1023,28 @@ export class TransactionsService {
   private toDto(tx: {
     id: string;
     familyGroupId: string;
-    accountId: string;
+    // EPIC-023 E3 (D12) — null for a credit-card purchase (LiabilitiesService
+    // .purchase()), which touches no account. Every transaction created
+    // through THIS service's own create() still requires a non-null
+    // accountId (CreateTransactionDto), unchanged.
+    accountId: string | null;
     toAccountId?: string | null;
     categoryId: string | null;
+    // EPIC-023 E1/E3 — surfaced on the response DTO so the web transaction
+    // list can identify a card purchase (liabilityId set, accountId null)
+    // instead of relying on an accountName text heuristic.
+    liabilityId?: string | null;
+    // EPIC-023 E1 / group E retry (MEDIUM 6) — symmetric with liabilityId
+    // above; was accepted on create() and persisted, but never surfaced
+    // back on the response DTO until now.
+    insuranceId?: string | null;
     amount: bigint;
     type: TransactionType;
     description: string | null;
     occurredAt: Date;
     createdAt: Date;
     category?: { name: string } | null;
-    account?: { name: string };
+    account?: { name: string } | null;
     toAccount?: { name: string } | null;
   }): TransactionResponseDto {
     return {
@@ -1163,11 +1053,17 @@ export class TransactionsService {
       accountId: tx.accountId,
       toAccountId: tx.toAccountId ?? null,
       categoryId: tx.categoryId,
+      liabilityId: tx.liabilityId ?? null,
+      insuranceId: tx.insuranceId ?? null,
       amount: tx.amount.toString(),
       type: tx.type,
       description: tx.description,
       categoryName: tx.category?.name ?? null,
-      accountName: tx.account?.name ?? "",
+      // EPIC-023 Task E retry (MEDIUM 5) — null (not "") for a card
+      // purchase: an empty string laundered "no account" into blank data
+      // wherever a consumer forgot to guard it (contracts' accountName is
+      // now nullable to match).
+      accountName: tx.account?.name ?? null,
       toAccountName: tx.toAccount?.name ?? null,
       occurredAt: tx.occurredAt.toISOString(),
       createdAt: tx.createdAt.toISOString(),

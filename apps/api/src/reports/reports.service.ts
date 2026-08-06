@@ -358,7 +358,8 @@ export class ReportsService {
         occurredAt: tx.occurredAt.toISOString(),
         description: tx.description ?? null,
         categoryName: tx.category?.name ?? null,
-        accountName: tx.account.name,
+        // EPIC-023 E3 (D12) — a credit-card purchase has no account.
+        accountName: tx.account?.name ?? null,
         type: tx.type as "income" | "expense" | "transfer",
         amount,
       };

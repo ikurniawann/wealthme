@@ -97,26 +97,6 @@ function renewalBadgeVariant(
   return "success";
 }
 
-/**
- * Advance a renewal date by one premium period — monthly +1 month,
- * quarterly +3 months, yearly +1 year. Falls back to today when there's no
- * current renewal date yet. Returns a yyyy-mm-dd string.
- */
-export function nextRenewalDate(
-  current: string | null,
-  period: PremiumPeriod,
-): string {
-  const base = current ? new Date(current) : new Date();
-  const months = period === "monthly" ? 1 : period === "quarterly" ? 3 : 12;
-  const year = base.getUTCFullYear();
-  const month = base.getUTCMonth() + months;
-  const day = base.getUTCDate();
-  // Clamp to the target month's last day so Jan 31 +1mo = Feb 28/29, not Mar 2/3.
-  const daysInTarget = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-  const next = new Date(Date.UTC(year, month, Math.min(day, daysInTarget)));
-  return next.toISOString().slice(0, 10);
-}
-
 function PolicyCardSkeleton() {
   return (
     <div className="animate-pulse rounded-[14px] border bg-card p-[18px]">
@@ -255,7 +235,13 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
             </div>
           )}
         </div>
-        <CardSideActions onEdit={onEdit} onPay={onPay} onDelete={onDelete} />
+        <CardSideActions
+          onEdit={onEdit}
+          onPay={onPay}
+          onDelete={onDelete}
+          payDisabled={item.paidThisPeriod}
+          payDisabledLabel={t.asuransi.payAlreadyPaidTooltip}
+        />
       </div>
     </Card>
   );
@@ -873,18 +859,32 @@ function InsuranceModal({
   );
 }
 
+// EPIC-023 E2 — mirrors `transaction-dialog.tsx`'s local `AccountDto` shape;
+// only the fields the source-account picker needs.
+type AccountDto = { id: string; name: string; institution: string | null };
+
 /**
- * "Bayar" confirm dialog (EPIC-016 Task H) — records a real renewal by
- * advancing `renewalDate` by one premium period via PATCH. No payment
- * ledger/gateway exists, so the copy only claims what actually happens.
+ * "Bayar" confirm dialog (EPIC-016 Task H, EPIC-023 E2) — records a REAL
+ * premium payment: debits the chosen source account, posts a linked
+ * transaction, and advances `renewalDate` by one premium period, via
+ * `POST .../insurances/:id/pay` (`InsurancesService.pay()`). Previously this
+ * dialog only PATCHed `renewalDate` and moved no money — that docblock is
+ * now stale and has been corrected along with the behavior (Honest UI
+ * mandate: a control must do what it says).
  */
 function PayInsuranceDialog({
   item,
+  accounts,
+  sourceAccountId,
+  onSourceAccountChange,
   isPending,
   onClose,
   onConfirm,
 }: {
   item: InsuranceDto | null;
+  accounts: AccountDto[];
+  sourceAccountId: string;
+  onSourceAccountChange: (id: string) => void;
   isPending: boolean;
   onClose: () => void;
   onConfirm: () => void;
@@ -912,6 +912,30 @@ function PayInsuranceDialog({
                 </span>
               </div>
             </div>
+            <div>
+              <label
+                htmlFor="pay-insurance-source-account"
+                className="mb-1.5 block text-[12.5px] font-semibold"
+              >
+                {t.asuransi.paySourceAccountLabel}
+              </label>
+              <select
+                id="pay-insurance-source-account"
+                value={sourceAccountId}
+                onChange={(e) => onSourceAccountChange(e.target.value)}
+                className={FIELD_CLASS}
+              >
+                <option value="">
+                  {t.asuransi.paySourceAccountPlaceholder}
+                </option>
+                {accounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                    {a.institution ? ` (${a.institution})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
             <p className="text-muted-foreground">
               {t.asuransi.payConfirmPrefix}
               {item.name}
@@ -923,7 +947,11 @@ function PayInsuranceDialog({
           <Button variant="outline" className="flex-1" onClick={onClose}>
             {t.common.cancel}
           </Button>
-          <Button className="flex-1" disabled={isPending} onClick={onConfirm}>
+          <Button
+            className="flex-1"
+            disabled={isPending || !sourceAccountId}
+            onClick={onConfirm}
+          >
             {isPending ? t.asuransi.payProcessing : t.asuransi.payConfirmButton}
           </Button>
         </div>
@@ -943,6 +971,17 @@ export default function AsuransiPage() {
   const [editingItem, setEditingItem] = useState<InsuranceDto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<InsuranceDto | null>(null);
   const [payTarget, setPayTarget] = useState<InsuranceDto | null>(null);
+  const [paySourceAccountId, setPaySourceAccountId] = useState("");
+
+  // EPIC-023 E2 — source-account picker for the real premium payment.
+  const { data: accounts = [] } = useQuery<AccountDto[]>({
+    queryKey: queryKeys.accounts.all(familyGroupId ?? ""),
+    queryFn: () =>
+      apiFetch<AccountDto[]>(`/family-groups/${familyGroupId}/accounts`, {
+        token,
+      }),
+    enabled: Boolean(familyGroupId) && Boolean(token),
+  });
 
   // EPIC-021 Group D (#14) — family members for the beneficiary's optional
   // "link to a family-group member" picker. EPIC-023 F1 (D14) — `isError`
@@ -962,28 +1001,56 @@ export default function AsuransiPage() {
     retry: false,
   });
 
+  // EPIC-023 E2 — calls the REAL pay endpoint (`InsurancesService.pay()`):
+  // debits `paySourceAccountId`, posts a linked transaction, and advances
+  // `renewalDate` — replaces the old renewalDate-only PATCH.
   const payMutation = useMutation({
-    mutationFn: (item: InsuranceDto) => {
-      const renewalDate = nextRenewalDate(item.renewalDate, item.premiumPeriod);
-      return apiFetch(`/family-groups/${familyGroupId}/insurances/${item.id}`, {
-        token,
-        method: "PATCH",
-        body: JSON.stringify({ renewalDate }),
-      }).then(() => renewalDate);
-    },
-    onSuccess: (renewalDate) => {
+    mutationFn: (params: { item: InsuranceDto; sourceAccountId: string }) =>
+      apiFetch<InsuranceDto>(
+        `/family-groups/${familyGroupId}/insurances/${params.item.id}/pay`,
+        {
+          token,
+          method: "POST",
+          body: JSON.stringify({ sourceAccountId: params.sourceAccountId }),
+        },
+      ),
+    onSuccess: (updated) => {
+      const fgId = familyGroupId ?? "";
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.insurances.all(familyGroupId ?? ""),
+        queryKey: queryKeys.insurances.all(fgId),
       });
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.insurances.summary(familyGroupId ?? ""),
+        queryKey: queryKeys.insurances.summary(fgId),
+      });
+      // Mirrors transaction-dialog.tsx's invalidation set — paying moves
+      // money, changes account balances, and touches budgets/reports/net
+      // worth the same way a normal transaction does.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.budgets.all(fgId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.accounts.all(fgId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.dashboard.summary(fgId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.netWorth.summary(fgId),
+      });
+      void queryClient.invalidateQueries({ queryKey: ["reports", fgId] });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.transactions.all(fgId),
       });
       setPayTarget(null);
+      setPaySourceAccountId("");
       toast.success(
-        `${t.asuransi.toastRenewalRecordedPrefix}${formatLocaleDate(renewalDate, locale)}`,
+        updated.renewalDate
+          ? `${t.asuransi.toastRenewalRecordedPrefix}${formatLocaleDate(updated.renewalDate, locale)}`
+          : t.asuransi.toastPaySuccessNoRenewal,
       );
     },
-    onError: () => toast.error(t.asuransi.toastRenewalFailed),
+    onError: (err: { message?: string }) =>
+      toast.error(err.message ?? t.asuransi.toastRenewalFailed),
   });
 
   const deleteMutation = useMutation({
@@ -1131,10 +1198,21 @@ export default function AsuransiPage() {
       />
       <PayInsuranceDialog
         item={payTarget}
+        accounts={accounts}
+        sourceAccountId={paySourceAccountId}
+        onSourceAccountChange={setPaySourceAccountId}
         isPending={payMutation.isPending}
-        onClose={() => setPayTarget(null)}
+        onClose={() => {
+          setPayTarget(null);
+          setPaySourceAccountId("");
+        }}
         onConfirm={() => {
-          if (payTarget) payMutation.mutate(payTarget);
+          if (payTarget && paySourceAccountId) {
+            payMutation.mutate({
+              item: payTarget,
+              sourceAccountId: paySourceAccountId,
+            });
+          }
         }}
       />
     </div>

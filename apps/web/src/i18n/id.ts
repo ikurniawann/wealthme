@@ -171,6 +171,10 @@ export const id = {
       retryFallback: "Coba lagi",
       invalidAmount: "Jumlah tidak valid",
       selectAccountFirst: "Pilih akun terlebih dahulu",
+      // EPIC-023 Task E3 (D12) — the card tab's own account-equivalent
+      // validation message: it picks a credit card (liability), not an
+      // account.
+      selectCardFirst: "Pilih kartu kredit terlebih dahulu",
       noFamilyGroup: "Tidak ada family group aktif",
       savedAddMoreToast: "Disimpan! Tambah lagi...",
       savedToast: "Transaksi berhasil disimpan!",
@@ -200,6 +204,10 @@ export const id = {
       descriptionPlaceholder: "Tulis deskripsi...",
       categoryPlaceholder: "Pilih kategori...",
       accountPlaceholder: "Pilih akun...",
+      // EPIC-023 Task E3 (D12) — the card tab's own picker labels: a credit
+      // card, sourced from liabilities, never from accounts.
+      cardLabel: "Kartu Kredit",
+      cardPlaceholder: "Pilih kartu kredit...",
       saving: "Menyimpan...",
       saveTransaction: "Simpan Transaksi",
       saveAndAddMore: "Simpan & Tambah Lagi",
@@ -873,15 +881,18 @@ export const id = {
     fieldNotesPlaceholder: "Catatan tambahan...",
     saving: "Menyimpan...",
     saveButton: "Simpan Asuransi",
-    payDialogTitle: "Perpanjang Premi",
-    payConfirmPrefix: "Tandai premi ",
+    payDialogTitle: "Bayar Premi",
+    payConfirmPrefix: "Bayar premi ",
     payConfirmSuffix:
-      " sudah dibayar? Jatuh tempo berikutnya akan otomatis dihitung dari periode premi saat ini.",
+      " sekarang? Rekening sumber akan didebet dan jatuh tempo berikutnya otomatis dihitung dari periode premi saat ini.",
     payProcessing: "Memproses...",
-    payConfirmButton: "Ya, Sudah Dibayar",
-    toastRenewalRecordedPrefix:
-      "Perpanjangan dicatat — jatuh tempo berikutnya ",
-    toastRenewalFailed: "Gagal mencatat perpanjangan. Coba lagi.",
+    payConfirmButton: "Ya, Bayar Sekarang",
+    paySourceAccountLabel: "Rekening Sumber",
+    paySourceAccountPlaceholder: "Pilih rekening...",
+    payAlreadyPaidTooltip: "Sudah dibayar periode ini",
+    toastRenewalRecordedPrefix: "Premi dibayar — jatuh tempo berikutnya ",
+    toastPaySuccessNoRenewal: "Premi berhasil dibayar.",
+    toastRenewalFailed: "Gagal membayar premi. Coba lagi.",
     beneficiariesSectionTitle: "Ahli Waris Asuransi",
     beneficiariesLabel: "Ahli Waris",
     beneficiaryNameLabel: "Nama",
@@ -1868,6 +1879,21 @@ export const id = {
     toastNoFamilyGroup: "Silakan bergabung ke Family Group terlebih dahulu",
     errorCategoryNotFoundAfterConflict:
       "Kategori tidak ditemukan setelah konflik",
+    obligationsSectionTitle: "Kewajiban Periode Ini",
+    obligationsDueBadge: "Belum Dibayar",
+    obligationsPaidBadge: "Sudah Dibayar",
+    obligationsPayButton: "Bayar",
+    // EPIC-023 Task E retry (CRITICAL 1) — shown instead of "Bayar" once
+    // `paidThisPeriod` is true; the button is disabled at the same time so
+    // the label never promises an action the control refuses to take.
+    obligationsAlreadyPaidButton: "Sudah Lunas",
+    obligationsPayDialogTitle: "Bayar Kewajiban",
+    obligationsSourceAccountLabel: "Rekening Sumber",
+    obligationsSourceAccountPlaceholder: "Pilih rekening...",
+    obligationsPayProcessing: "Memproses...",
+    obligationsPayConfirmButton: "Bayar Sekarang",
+    obligationsToastPaySuccess: "Kewajiban berhasil dibayar.",
+    obligationsToastPayFailed: "Gagal membayar kewajiban. Coba lagi.",
   },
   transaksi: {
     typeLabels: {
@@ -1921,6 +1947,12 @@ export const id = {
     detailCreatedAtLabel: "Dibuat Pada",
     detailEditButton: "Edit",
     detailDeleteButton: "Hapus",
+    // EPIC-023 group E retry round 4 (C4) — an obligation-linked
+    // transaction (liability payment/purchase or insurance premium)
+    // cannot be edited/deleted here; the server now refuses it because
+    // doing so would desync the debt/coverage it recorded.
+    obligationLockedTooltip:
+      "Transaksi ini terkait pembayaran liabilitas/asuransi — sesuaikan liabilitas/asuransi terkait untuk mengoreksi",
   },
   splitbill: {
     headerDesc: "Patungan jadi gampang — kamu nalangin, mereka bayar balik",

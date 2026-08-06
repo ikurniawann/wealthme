@@ -55,17 +55,27 @@ export function accountOwnerWhere(
 
 /**
  * `where` fragment for a flat (non-nested) Transaction query: excludes
- * transactions tied to a private account or a private category. `categoryId`
- * is nullable — a null-category transaction is never excluded on that basis.
- * No-op when the viewer may see private items.
+ * transactions tied to a private account or a private category. Both
+ * `accountId` (EPIC-023 E3 — a credit-card purchase has `accountId: null`)
+ * and `categoryId` are nullable — a null relation is never excluded on that
+ * basis, mirroring the nullable-`categoryId` half below. No-op when the
+ * viewer may see private items.
+ *
+ * CRITICAL fix (EPIC-023 group E retry) — Prisma's `{ account: { isPrivate:
+ * false } }` on a nullable to-one relation REQUIRES the relation to exist,
+ * so it silently excluded every `accountId: null` row (every card purchase)
+ * for a restricted viewer. That is why this must be an `OR` branch exactly
+ * like the `categoryId` one, not a separate top-level AND-ed condition.
  */
 export function transactionPrivacyWhere(
   canSeePrivate: boolean,
 ): Prisma.TransactionWhereInput {
   if (canSeePrivate) return {};
   return {
-    account: { isPrivate: false },
-    OR: [{ categoryId: null }, { category: { isPrivate: false } }],
+    AND: [
+      { OR: [{ accountId: null }, { account: { isPrivate: false } }] },
+      { OR: [{ categoryId: null }, { category: { isPrivate: false } }] },
+    ],
   };
 }
 

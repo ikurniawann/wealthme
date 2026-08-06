@@ -4,6 +4,7 @@ import {
   UnprocessableEntityException,
 } from "@nestjs/common";
 
+import { effectiveBudgetType } from "../common/utils/effective-budget-type.util";
 import { categoryPrivacyWhere } from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
@@ -18,6 +19,12 @@ type BudgetWithCategory = {
   categoryId: string;
   period: string;
   limitAmount: bigint;
+  // EPIC-023 group E retry round 3 (MEDIUM 12 / CRITICAL 5) — used to tell
+  // apart a liability's own principal category (whose spend is posted as
+  // `type: "transfer"`, E1) from every other budget's category (`toDto`
+  // falls back to `category.coaAccount.budgetType` when this is null).
+  liabilityId: string | null;
+  budgetType: CoaBudgetType | null;
   category: {
     name: string;
     icon: string | null;
@@ -67,25 +74,65 @@ export class BudgetsService {
       59,
     );
 
-    const spending = await this.prisma.transaction.groupBy({
-      by: ["categoryId"],
-      where: {
-        familyGroupId,
-        type: "expense",
-        occurredAt: { gte: monthStart, lte: monthEnd },
-        categoryId: { in: budgets.map((b) => b.categoryId) },
-        // EPIC-022 A6 — belt-and-suspenders: `budgets` above is already
-        // privacy-filtered, so `categoryId: { in: ... } ` already excludes
-        // private categories' spend; this repeats the same filter directly
-        // on the spend query so it stays correct even if the `in` list
-        // above is ever computed differently.
-        category: categoryPrivacyWhere(canSeePrivate),
-      },
-      _sum: { amount: true },
-    });
+    // EPIC-023 group E retry round 4 (C5) — a liability's OWN principal
+    // budget line (`Budget.liabilityId` set, HIGH 4/E2) posts its spend as
+    // `type: "transfer"` (E1 — a principal payment moves cash into paying
+    // down debt, not a P&L expense), so grouping on `type: "expense"` alone
+    // left `spentAmount` at 0 forever for every such line, however many
+    // payments were made. Split into two disjoint queries: ordinary/
+    // insurance-premium categories still require `type: "expense"` exactly
+    // as before (insurance premiums post as "expense", unaffected); a
+    // liability's own category — EXCLUSIVE to that one liability since the
+    // HIGH 4 redesign, never shared — is instead summed by `type:
+    // "transfer"`, the only type `LiabilitiesService.pay()` ever posts
+    // against it. Neither bucket can leak into the other's total.
+    const ordinaryCategoryIds = budgets
+      .filter((b) => !b.liabilityId)
+      .map((b) => b.categoryId);
+    const liabilityCategoryIds = budgets
+      .filter((b) => b.liabilityId)
+      .map((b) => b.categoryId);
+
+    const [expenseSpending, transferSpending] = await Promise.all([
+      ordinaryCategoryIds.length > 0
+        ? this.prisma.transaction.groupBy({
+            by: ["categoryId"],
+            where: {
+              familyGroupId,
+              type: "expense",
+              occurredAt: { gte: monthStart, lte: monthEnd },
+              categoryId: { in: ordinaryCategoryIds },
+              // EPIC-022 A6 — belt-and-suspenders: `budgets` above is
+              // already privacy-filtered, so `categoryId: { in: ... }`
+              // already excludes private categories' spend; this repeats
+              // the same filter directly on the spend query so it stays
+              // correct even if the `in` list above is ever computed
+              // differently.
+              category: categoryPrivacyWhere(canSeePrivate),
+            },
+            _sum: { amount: true },
+          })
+        : Promise.resolve([]),
+      liabilityCategoryIds.length > 0
+        ? this.prisma.transaction.groupBy({
+            by: ["categoryId"],
+            where: {
+              familyGroupId,
+              type: "transfer",
+              occurredAt: { gte: monthStart, lte: monthEnd },
+              categoryId: { in: liabilityCategoryIds },
+              category: categoryPrivacyWhere(canSeePrivate),
+            },
+            _sum: { amount: true },
+          })
+        : Promise.resolve([]),
+    ]);
 
     const spendingMap = new Map(
-      spending.map((s) => [s.categoryId, Number(s._sum.amount ?? 0)]),
+      [...expenseSpending, ...transferSpending].map((s) => [
+        s.categoryId,
+        Number(s._sum.amount ?? 0),
+      ]),
     );
 
     return budgets.map((b) =>
@@ -215,7 +262,17 @@ export class BudgetsService {
       usagePercent: usagePct,
       isOverBudget: spent > limit,
       isNearLimit: usagePct >= 80 && spent <= limit,
-      budgetType: budget.category.coaAccount.budgetType,
+      // C2 (group E retry round 4) — `toDto` used to read ONLY
+      // `category.coaAccount.budgetType`, never `budget.budgetType` (the
+      // per-Budget-row column `syncPrincipalBudgetLine`/
+      // `syncPremiumBudgetLine` actually WRITE, MEDIUM 12's own migration).
+      // A liability/insurance's own line's CoaAccount is the shared group-5
+      // TRANSFER account, whose `budgetType` is null — so this always read
+      // null for a real obligation line, dropping it out of `/anggaran`'s
+      // FIXED section. `budget.budgetType` now wins when set; the CoaAccount
+      // fallback stays for every other (non-obligation) budget row, which
+      // never has its own `budgetType` set.
+      budgetType: effectiveBudgetType(budget),
     };
   }
 }

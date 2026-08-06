@@ -23,14 +23,27 @@ export type CreateTransactionInput = z.infer<
 export const TransactionDtoSchema = z.object({
   id: z.string().uuid(),
   familyGroupId: z.string().uuid(),
-  accountId: z.string().uuid(),
+  // EPIC-023 E3 (D12) — null for a credit-card purchase (it touches no
+  // account); see liabilityId instead.
+  accountId: z.string().uuid().nullable(),
   toAccountId: z.string().uuid().nullable(),
   categoryId: z.string().uuid().nullable(),
+  // EPIC-023 E1/E3 — set for a liability payment or a credit-card purchase.
+  liabilityId: z.string().uuid().nullable(),
+  // EPIC-023 E1 / group E retry (MEDIUM 6) — set for an insurance premium
+  // payment, symmetric with liabilityId above.
+  insuranceId: z.string().uuid().nullable(),
   amount: z.string(),
   type: TransactionTypeSchema,
   description: z.string().nullable(),
   categoryName: z.string().nullable(),
-  accountName: z.string(),
+  // EPIC-023 Task E retry (MEDIUM 5) — was `z.string()` even though
+  // `accountId` beside it went nullable for a card purchase (E3): a
+  // service-layer `?? ""` laundered the "no account" case into an empty
+  // string, which reads as blank data everywhere the DTO is displayed. Now
+  // consistently `null` — see the service-layer `toDto`/mapper functions
+  // this schema documents.
+  accountName: z.string().nullable(),
   toAccountName: z.string().nullable(),
   occurredAt: z.string(),
   createdAt: z.string(),

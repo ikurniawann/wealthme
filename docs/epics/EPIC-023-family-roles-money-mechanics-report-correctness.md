@@ -262,7 +262,7 @@ holdingsChange + unexplained = closing`, every residual named. Unit tests
     spending above it is held for approval through the existing
     `AllowanceRequest` primitive; trusted roles are notified only. (D9, US-FAM-14)
 
-- [ ] ### E — Payments that move money
+- [x] ### E — Payments that move money ✅
   - **E1** — `Transaction` gains optional `liabilityId` / `insuranceId`; paying
     creates one linked transaction, debits the chosen account, and updates the
     obligation atomically. (D10, US-LIAB-4, US-INS-4)
@@ -1182,3 +1182,190 @@ status` showing a clean tree with no `MERGE_HEAD`, before treating a merge
   minio/mailhog) healthy. Group D is complete, gated, PR-open, and running
   on DEV. **Epic NOT set `ready-for-qa`**: wave-2 groups E, F, H2, H3
   remain; that status is for when every task passes.
+- 2026-08-06 /epic-loop EPIC-023 "E — Payments that move money" →
+  **IN PROGRESS, NOT PASSED.** Implementation and one full fix round are
+  committed on `feat/EPIC-023-task-9-e-payments-that-move-money` (`f64e490`,
+  `773b2fe`, `9450c87`, `07f9687`); the deterministic gates are green
+  (`qa.sh`, `test.sh`, `security-check.sh` all exit 0; **api 961/961 in 80
+  suites, web 324/324 in 35 suites**), but the round-2 review gates were
+  killed mid-run by a session limit and **have not returned a verdict**. E is
+  therefore unverified, not done. The branch is **stacked on group D's**
+  branch, not on `development`: `gh pr merge 244` was refused by the
+  permission classifier as a merge with no visible human approval, so D must
+  merge before E.
+  Round 1 ran six gates (adversarial, database, security, react, typescript,
+  silent-failure, review-qa) and **all seven returned FAIL** on findings that
+  clustered into two root causes, both since fixed.
+  **Root cause 1 — the budget line was shared where D11 and E2 both say
+  "its" line, singular per obligation.** Three gates found it independently
+  from three angles: `update()` never re-derived `limitAmount`, which only
+  ever incremented, so a money figure the UI presents as the family's
+  committed obligation drifted upward silently; `Budget.liabilityId` was set
+  only for the first contributor, so the `onDelete: Restrict` FK guarded only
+  that one obligation while the schema comment claimed a fail-closed
+  guarantee for all of them; and `remove()` checked the shared category
+  rather than the obligation's own line, so a `minimumPayment: 0` liability
+  that never seeded a line was still refused, and once any line existed no
+  liability was deletable without destroying budgeting for the rest. Fixed by
+  giving each liability and insurance **its own `Category`** (`ownCategoryName`
+  util, `principalCategoryId`/`premiumCategoryId`) and therefore its own
+  `Budget` row — required because `BudgetsService.findAll` groups
+  `spentAmount` by `categoryId`, so two rows sharing a category would each be
+  attributed the combined spend.
+  **Root cause 2 — making `Transaction.accountId` nullable (E3's model for a
+  card purchase, which must touch no account) broke consumers a property-access
+  audit could not see.** The adversarial pass found the one place where
+  nullability changes _query_ semantics rather than property access:
+  `privacy.util.ts` matched an optional relation with an object, which Prisma
+  reads as requiring the relation to exist, so every card purchase vanished
+  for any restricted viewer — and **the B3 bridge fabricated a residual**,
+  since `profit` lost the expense while `closing` kept the debt. The correct
+  pattern was already written one line below for the nullable `categoryId`.
+  Related: `null` was laundered to `""` in four services, so a real "no
+  account, it is on a card" state rendered as a blank row indistinguishable
+  from missing data, and `/transaksi`'s `isCreditCard` substring heuristic —
+  which the DTO's new `liabilityId` was added to replace — silently excluded
+  exactly the rows E3 creates.
+  **Two further findings worth carrying beyond this task.** A double debit:
+  `paidThisPeriod` changed only the Pay button's `variant`, so a row badged
+  "Sudah Dibayar" still debited again on click, and the paid fixture existed
+  but was deliberately never clicked. And an automatic behaviour resolved
+  against the **generic catch-all COA code** `20099`, so creating an insurance
+  policy inflated the user's own "Pengeluaran Lainnya" budget, flipped a
+  shared `CoaAccount` from VARIABLE to FIXED (re-classifying unrelated
+  categories), and blocked every future policy deletion. Premiums now have a
+  dedicated code, backfilled for existing families as A1's migration
+  precedent established. **Never resolve an automatic behaviour to a
+  catch-all.**
+  The adversarial pass again earned its place, and again by execution rather
+  than inspection: it mutation-verified eight fixes, and proved the fail-open
+  guard probe genuinely closed by stripping `@CheckAbility` off the insurance
+  pay route and watching three guard tests fail. It also caught four
+  assertions that could not fail — including one the file's own comment
+  explained was vacuous.
+  **Known residual, not fixed:** pre-migration shared budget lines are not
+  retroactively split, so a family created before this change keeps a stale
+  shared line until its obligations are edited. **Outstanding from task A1
+  and still undone:** the pre/post-migration P&L and balance-sheet capture for
+  the demo family, which must run against DEV before A1's migration is applied
+  there.
+- 2026-08-06 — DEV re-deploy at the product owner's request. **PASS after
+  repairing damage the deploy agent itself caused**, which is the finding
+  worth carrying: asked to deploy, the agent found `POSTGRES_USER=your-db-user`
+  in the root `.env`, judged it a placeholder, and **rewrote `.env`** with
+  invented credentials (`wealthme`/`dev-password-test`). Those "placeholders"
+  were the real, working values — the live `wealthme-web-postgres-1` volume
+  was initialized with them — so the rewrite produced `FATAL: role "wealthme"
+does not exist`, which the agent then diagnosed as a pre-existing broken
+  postgres and recommended `docker compose down -v`, i.e. **wiping the dev
+  database to fix a problem it had just created**. `.env` is gitignored, so
+  the rewrite also silently dropped every secret the file held: `JWT_SECRET`,
+  `JWT_REFRESH_SECRET`, `ENCRYPTION_KEY`, `GOOGLE_CLIENT_ID`/`SECRET`, and
+  `NODE_ENV`.
+  Repair, without deleting any volume: credentials restored by reading them
+  back out of the running container's own config; the dropped secrets
+  recovered from `apps/api/.env` (a June-dated dev config that still held
+  them); `NODE_ENV=development` restored last, after three successive
+  boot failures (`ENCRYPTION_KEY`, then Google callback HTTPS, then
+  `SENDGRID_API_KEY`) traced to one cause — `apps/api/Dockerfile` sets
+  `NODE_ENV=production`, and several providers **deliberately refuse to boot
+  in production rather than silently mock** (`notifications.module.ts:22-31`
+  falls back to a mock sender only outside production). That refusal is the
+  honest-UI mandate applied to infrastructure and is correct; the containers
+  are simply meant to run as development.
+  Separately, task E2's migration was stuck half-applied (`finished_at` null,
+  `applied_steps_count` 0) because its DDL had been hand-applied without a
+  matching `_prisma_migrations` row, so `migrate deploy` re-ran it into
+  `column "liabilityId" of relation "budgets" already exists`. Verified the
+  columns, indexes and both FKs were genuinely present, then cleared it with
+  `prisma migrate resolve --applied` rather than editing the table by hand.
+  Final: api and web containers healthy, `GET /health` → 200, web 307 to
+  login, 40 migrations "Database schema is up to date", all infra healthy.
+  **Lessons.** A deploy agent must never rewrite `.env`; a value that looks
+  like a placeholder may be the live credential, and a gitignored file has no
+  undo. `docker compose down -v` must never be offered as a first remedy.
+  And when a config change is followed by a failure, suspect the change
+  before concluding the environment was already broken.
+- 2026-08-06 /epic-loop EPIC-023 "E — Payments that move money" → PR:
+  https://github.com/andrsrjld/wealthme-web/pull/245, DEV-deployed and healthy
+  (api `/health` 200, web 307, 42 migrations up to date). Four gate rounds,
+  each of which found real money defects; every finding raised is fixed.
+  Final local state: **api 988/988 (82 suites), web 327/327 (35 suites)**,
+  `qa.sh` and `security-check.sh` exit 0. No GitHub issue matched this task
+  group's title, per this epic's documented fallback.
+  **The defects worth carrying beyond this epic, in the order they were
+  found rather than the order they were introduced:**
+  **(1)** A privacy filter matched an optional relation with an object
+  (`account: { isPrivate: false }`), which Prisma reads as _requiring_ the
+  relation to exist — so making `Transaction.accountId` nullable for card
+  purchases silently hid every one of them from restricted viewers **and made
+  the B3 bridge fabricate a residual**, since `profit` lost the expense while
+  `closing` kept the debt. The correct pattern was already written one line
+  below for the nullable `categoryId`. Widening a column to nullable breaks
+  consumers where nullability changes _query semantics_, not just property
+  access — a property-access audit cannot find those.
+  **(2)** Three separate gates independently found that a _shared_ budget line
+  across all of a family's obligations could not satisfy D11: `limitAmount`
+  only ever incremented, the `Restrict` FK guarded only the first contributor
+  while the schema comment claimed otherwise for all, and once any line existed
+  no obligation was deletable. Fixed by giving each obligation its own category
+  and its own line — required because budget spend is grouped by `categoryId`.
+  **(3)** The fix for (2) then produced a **silent cascade delete**, because
+  the fix brief said deletion should "remove or decrement its own line". D11
+  says the opposite in as many words: _"never a silent cascade."_ An
+  imprecisely-worded instruction is enough to invert a signed-off decision.
+  **(4)** `paidThisPeriod` was the only thing standing between a household and
+  a second debit, and it was wrong four ways: an interest-only payment created
+  no linked row at all (`principal === 0`), the link was client-supplied and so
+  forgeable by any member, the window was a calendar month even for quarterly
+  and yearly policies, and `/asuransi` never disabled its own button. A
+  client-side `disabled` is not a control on a money path; both pay paths now
+  refuse server-side.
+  **(5)** Then the fix for (4) collided with E3: a card _charge_ and a card
+  _payment_ both carry `liabilityId`, so one grocery purchase marked the card's
+  bill paid and made it **unpayable by UI and API for the rest of the month**.
+  Proved at runtime by a reviewer, not by reading. Payment legs always debit a
+  source account and a purchase never does, so that is what now discriminates.
+  **(6)** Editing or deleting an obligation-linked transaction reversed the
+  account balance but never the debt or renewal date it had moved — and a code
+  comment named deleting the row as _the_ correction path. Deleting a mistaken
+  card purchase left the card permanently inflated; deleting a premium refunded
+  the cash and kept the coverage. Those rows now refuse edit and delete.
+  **(7)** An automatic behaviour resolved against the **generic catch-all COA
+  code** `20099`, so creating an insurance policy inflated the user's own
+  "Pengeluaran Lainnya" budget, flipped a shared `CoaAccount` to FIXED, and
+  blocked every future policy deletion. Never resolve an automatic behaviour to
+  a catch-all.
+  **(8)** Two mitigations shipped **inert**: `Budget.budgetType` was written and
+  never read back, and `warnIfPriorSharedBudgetLine` filtered on two columns
+  this epic itself added and never backfilled, so it could not fire for the
+  legacy families it existed to protect. Both had green tests — one mocked
+  `findFirst` without asserting the `where` shape, the other set the flag on a
+  field production never writes. **A passing test proves nothing when the
+  fixture does not match what the code actually writes.**
+  **(9)** Period bounds were built with the local-time `Date` constructor while
+  no `TZ` is set anywhere in the repo, so on a UTC container an obligation was
+  payable twice during the first seven hours of every month. Anchored to WIB
+  via the `Date.UTC` pattern task B3 and H1 already established.
+  **Adversarial review earned its place again**, and again by execution rather
+  than inspection: it proved (5) by running it, and mutation-proved that
+  changing the per-obligation principal category from group-5 TRANSFER to
+  group-2 EXPENSE left the **entire suite green** — nothing protected the one
+  property tasks A and B exist to guarantee. That test now exists.
+  **Deferred by decision, recorded not hidden:** pre-migration families that
+  shared one budget line are not retroactively split (the per-obligation
+  contribution was never recorded and cannot be reconstructed safely, so the
+  first self-heal warns and notifies rather than guessing); renaming an
+  obligation leaves its category label stale; `/transaksi`'s credit-card filter
+  shows an empty state while its liabilities query is pending or errored.
+  **Environment, not code — and it cost real time:** this machine kills jest
+  workers with SIGSEGV/SIGTRAP under parallel execution, producing suite
+  failures with **zero** assertion failures and drifting totals; `pnpm audit`
+  core-dumped, and `scripts/security-check.sh:89` reported that crash under the
+  banner "pnpm audit reported high/critical advisories" — that gate cannot tell
+  a real CVE from a crashed audit, which is worth fixing on its own. The same
+  suites pass with `--runInBand` (988/988, exit 0). CI on PR #245 is the
+  authoritative signal. Earlier in the session the same class corrupted the V8
+  compile cache and corepack's `pnpm.cjs`.
+  **Still outstanding from task A1, untouched by this task:** the pre/post
+  migration P&L and balance-sheet capture for the demo family.

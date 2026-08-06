@@ -44,6 +44,9 @@ export interface InsuranceDto {
   notes: string | null;
   currency: string;
   beneficiaries: InsuranceBeneficiaryDto[];
+  // EPIC-023 E2 — true when a payment transaction linked to this policy
+  // landed within the current calendar-month period.
+  paidThisPeriod: boolean;
   createdAt: string;
   updatedAt: string;
 }

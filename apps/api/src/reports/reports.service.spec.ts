@@ -41,7 +41,11 @@ interface FakeCategory {
 
 interface FakeTransaction {
   id: string;
-  accountId: string;
+  // EPIC-023 E3 (D12) / group E retry CRITICAL 1 — nullable: a credit-card
+  // purchase has `accountId: null`. Made nullable here (not just `string`)
+  // so a fixture can express that shape and exercise the
+  // `transactionPrivacyWhere` fix below.
+  accountId: string | null;
   categoryId: string | null;
   amount: bigint;
   type: "income" | "expense" | "transfer";
@@ -59,9 +63,16 @@ interface FakeTransaction {
   toAccountId: string | null;
 }
 
-interface TxWhere {
+interface TxWhereClause {
   account?: { isPrivate: boolean };
-  OR?: unknown;
+  accountId?: null;
+  categoryId?: null;
+  category?: { isPrivate: boolean };
+  OR?: TxWhereClause[];
+  AND?: TxWhereClause[];
+}
+
+interface TxWhere extends TxWhereClause {
   occurredAt?: { gte?: Date; lte?: Date };
 }
 
@@ -135,6 +146,31 @@ function makeFakePrisma(
   const accountById = new Map(accounts.map((a) => [a.id, a]));
   const categoryById = new Map(categories.map((c) => [c.id, c]));
 
+  // Generic recursive evaluator for the AND/OR-nested privacy clauses
+  // `transactionPrivacyWhere` (privacy.util.ts) can produce — mirrors that
+  // file's own spec helper. Deliberately generic (not hardcoded to one
+  // shape) so this fake proves the CRITICAL fix (EPIC-023 group E retry) by
+  // actually evaluating the real function's output against fixtures that
+  // include a card purchase (`accountId: null`), rather than special-casing
+  // the old flat `{ account, OR }` shape.
+  function evalClause(clause: TxWhereClause, t: FakeTransaction): boolean {
+    return Object.entries(clause).every(([key, value]) => {
+      if (key === "AND")
+        return (value as TxWhereClause[]).every((c) => evalClause(c, t));
+      if (key === "OR")
+        return (value as TxWhereClause[]).some((c) => evalClause(c, t));
+      if (key === "accountId") return t.accountId === null;
+      if (key === "account")
+        return t.accountId !== null && !accountById.get(t.accountId)?.isPrivate;
+      if (key === "categoryId") return t.categoryId === null;
+      if (key === "category")
+        return (
+          t.categoryId !== null && !categoryById.get(t.categoryId)?.isPrivate
+        );
+      return true;
+    });
+  }
+
   function filterTx(rows: FakeTransaction[], where: TxWhere) {
     let out = rows;
     if (where.occurredAt?.gte) {
@@ -145,15 +181,7 @@ function makeFakePrisma(
       const lte = where.occurredAt.lte;
       out = out.filter((t) => t.occurredAt.getTime() <= lte.getTime());
     }
-    if (where.account?.isPrivate === false) {
-      out = out.filter((t) => !accountById.get(t.accountId)?.isPrivate);
-    }
-    if (where.OR) {
-      out = out.filter(
-        (t) =>
-          t.categoryId === null || !categoryById.get(t.categoryId)?.isPrivate,
-      );
-    }
+    out = out.filter((t) => evalClause(where, t));
     return out;
   }
 
@@ -169,7 +197,10 @@ function makeFakePrisma(
             coaAccount: cat.coaAccount,
           }
         : null,
-      account: { name: accountById.get(t.accountId)?.name ?? "" },
+      account:
+        t.accountId !== null
+          ? { name: accountById.get(t.accountId)?.name ?? "" }
+          : null,
     };
   }
 
@@ -809,6 +840,84 @@ describe("ReportsService privacy enforcement", () => {
     ).toBeUndefined();
   });
 
+  // EPIC-023 E1 — LiabilitiesService.pay() now posts the principal leg as
+  // `type: "transfer"` (previously "expense", the deferred half of A3's
+  // fix — see liabilities.service.ts's runPayment doc comment). This proves
+  // the P&L exclusion above does NOT regress: `txCoaDirection` reads the
+  // category's own COA direction first and only falls back to `tx.type`
+  // when a transaction has no category at all, so a group-5 (Account
+  // Payable) category still excludes the row from expenses regardless of
+  // which `type` posted it.
+  it("getPnl: a mortgage principal repayment posted as type=transfer (EPIC-023 E1) still does not appear in P&L expenses", async () => {
+    const now = new Date();
+    const accounts: FakeAccount[] = [
+      {
+        id: "a1",
+        balance: 0n,
+        type: "bank",
+        name: "A",
+        institution: null,
+        isPrivate: false,
+      },
+    ];
+    const categories: FakeCategory[] = [
+      {
+        id: "c-legit-expense",
+        name: "Makan & Minum",
+        color: null,
+        isPrivate: false,
+        coaAccount: { direction: "EXPENSE" },
+      },
+      {
+        id: "c-mortgage-principal",
+        name: "Cicilan Pokok KPR",
+        color: null,
+        isPrivate: false,
+        coaAccount: { direction: chartDirection("50002") },
+      },
+    ];
+    const transactions: FakeTransaction[] = [
+      {
+        id: "t-legit-expense",
+        accountId: "a1",
+        categoryId: "c-legit-expense",
+        amount: 500_000n,
+        type: "expense",
+        toAccountId: null,
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      },
+      {
+        id: "t-mortgage-principal",
+        accountId: "a1",
+        categoryId: "c-mortgage-principal",
+        amount: 3_500_000n,
+        // The only difference from the A3 test above: type is now
+        // "transfer" (E1), not "expense".
+        type: "transfer",
+        toAccountId: null,
+        description: "Cicilan KPR — pokok",
+        occurredAt: now,
+        createdAt: now,
+      },
+    ];
+    const p = makeFakePrisma(accounts, categories, transactions);
+    const mod = await Test.createTestingModule({
+      providers: [ReportsService, { provide: PrismaService, useValue: p }],
+    }).compile();
+    const svc = mod.get(ReportsService);
+    const start = new Date(now.getTime() - 86_400_000);
+    const end = new Date(now.getTime() + 86_400_000);
+
+    const pnl = await svc.getPnl(FAMILY_GROUP_ID, start, end, true);
+
+    expect(pnl.expenses).toBe(500_000);
+    expect(
+      pnl.expenseBreakdown.find((b) => b.categoryName === "Cicilan Pokok KPR"),
+    ).toBeUndefined();
+  });
+
   it("getPnl: a loan disbursement (group-4 Receivable category) does not appear as P&L revenue (EPIC-023 A3)", async () => {
     const now = new Date();
     const accounts: FakeAccount[] = [
@@ -1260,6 +1369,87 @@ describe("ReportsService privacy enforcement", () => {
       expect(bridge.holdingsChange).toBe(21_000_000);
       expect(bridge.profit).not.toBe(bridge.contribution);
       expect(bridge.contribution).not.toBe(bridge.holdingsChange);
+      expect(bridge.unexplained).toBe(0);
+    });
+
+    // EPIC-023 group E retry (CRITICAL 1) — a credit-card purchase
+    // (LiabilitiesService.purchase(), E3) has accountId: null. The bug:
+    // `transactionPrivacyWhere`'s old `{ account: { isPrivate: false } }`
+    // clause required the account RELATION to exist, so it silently
+    // excluded every accountId: null row for a restricted (canSeePrivate:
+    // false) viewer — even though nothing here is actually private (no
+    // private accounts or categories exist in this fixture at all).
+    // `profit` then lost the 5,000,000 expense while `closing` (read from
+    // the snapshot, computed independently of transaction-level filtering)
+    // still carried the debt — fabricating a 5,000,000 `unexplained`
+    // residual out of nothing for a `member` viewer.
+    it("a credit-card purchase (accountId: null) does not fabricate an `unexplained` residual for a restricted viewer (CRITICAL 1)", async () => {
+      const categories: FakeCategory[] = [
+        {
+          id: "c-card",
+          name: "Belanja Kartu",
+          color: null,
+          isPrivate: false,
+          coaAccount: { direction: "EXPENSE" },
+        },
+      ];
+      const transactions: FakeTransaction[] = [
+        {
+          id: "t-card-purchase",
+          accountId: null,
+          categoryId: "c-card",
+          amount: 5_000_000n,
+          type: "expense",
+          toAccountId: null,
+          description: "Belanja kartu kredit",
+          occurredAt: new Date("2026-08-10T00:00:00.000Z"),
+          createdAt: new Date("2026-08-10T00:00:00.000Z"),
+        },
+      ];
+      const snapshots: FakeSnapshot[] = [
+        makeSnapshot("2026-07-31T02:00:00.000Z", {
+          cash: 100_000_000n,
+          investments: 0n,
+          assets: 0n,
+          liabilities: 0n,
+        }), // netWorth 100,000,000
+        // The card debt raised totalLiabilities by 5,000,000 — cash/assets/
+        // investments untouched (LiabilitiesService.purchase() never debits
+        // an account). netWorth drops by exactly the purchase amount.
+        makeSnapshot("2026-08-31T00:00:00.000Z", {
+          cash: 100_000_000n,
+          investments: 0n,
+          assets: 0n,
+          liabilities: 5_000_000n,
+        }), // netWorth 95,000,000
+      ];
+      const prisma = makeFakePrisma(
+        accounts,
+        categories,
+        transactions,
+        snapshots,
+      );
+      const mod: TestingModule = await Test.createTestingModule({
+        providers: [
+          ReportsService,
+          { provide: PrismaService, useValue: prisma },
+        ],
+      }).compile();
+      const svc = mod.get(ReportsService);
+
+      const bridge = await svc.getReconciliationBridge(
+        FAMILY_GROUP_ID,
+        START,
+        END,
+        false, // member — canSeePrivate: false, but nothing is actually private
+      );
+
+      expect(bridge.opening).toBe(100_000_000);
+      expect(bridge.closing).toBe(95_000_000);
+      // The card purchase must be visible to `profit`: expenses 5,000,000.
+      expect(bridge.profit).toBe(-5_000_000);
+      expect(bridge.contribution).toBe(0);
+      expect(bridge.holdingsChange).toBe(0);
       expect(bridge.unexplained).toBe(0);
     });
 

@@ -27,6 +27,8 @@ import {
   type InsuranceSummaryResponseDto,
 } from "./dto/insurance-response.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { PayInsuranceDto } from "./dto/pay-insurance.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateInsuranceDto } from "./dto/update-insurance.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { InsurancesService } from "./insurances.service";
@@ -86,6 +88,26 @@ export class InsurancesController {
     @Body() dto: UpdateInsuranceDto,
   ): Promise<InsuranceResponseDto> {
     return this.insurancesService.update(familyGroupId, id, dto);
+  }
+
+  @Post(":id/pay")
+  @HttpCode(HttpStatus.OK)
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Insurance"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "id", type: String })
+  @ApiOperation({
+    summary:
+      "Record a premium payment against an insurance policy, linking one transaction and advancing renewalDate",
+  })
+  @ApiResponse({ status: 200, type: InsuranceResponseDto })
+  @ApiResponse({ status: 404, description: "Insurance or account not found" })
+  @ApiResponse({ status: 400, description: "Invalid amount" })
+  pay(
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("id") id: string,
+    @Body() dto: PayInsuranceDto,
+  ): Promise<InsuranceResponseDto> {
+    return this.insurancesService.pay(familyGroupId, id, dto);
   }
 
   @Delete(":id")

@@ -24,6 +24,8 @@ import type {
   BudgetPeriod,
   BudgetType,
   CreateBudgetDto,
+  LiabilityDto,
+  InsuranceDto,
 } from "@wealthme/contracts";
 
 type TypeBreakdownRow = {
@@ -143,6 +145,341 @@ function BudgetSkeleton() {
         </div>
       ))}
     </div>
+  );
+}
+
+// EPIC-023 E2 — mirrors transaction-dialog.tsx's local `AccountDto` shape.
+type AccountDto = { id: string; name: string; institution: string | null };
+
+type Obligation = {
+  kind: "liability" | "insurance";
+  id: string;
+  name: string;
+  amountDue: number;
+  paidThisPeriod: boolean;
+};
+
+/**
+ * EPIC-023 E2 (D11, US-LIAB-3) — "this period's obligations" is built by
+ * listing active liabilities/insurances directly (NOT derived from the
+ * `Budget` rows themselves): every liability in a family shares ONE FIXED
+ * budget line per category (`LiabilitiesService.create()`'s doc comment),
+ * so a single Budget row cannot unambiguously identify "which liability" for
+ * a per-item Pay action. The underlying obligation lists (already tenant-
+ * scoped, already carrying `paidThisPeriod` from EPIC-023 E2's backend
+ * change) give an unambiguous 1:1 Pay target per row instead.
+ */
+function toObligations(
+  liabilities: LiabilityDto[],
+  insurances: InsuranceDto[],
+): Obligation[] {
+  const fromLiabilities: Obligation[] = liabilities
+    .filter(
+      (l) => Number(l.minimumPayment) > 0 && Number(l.remainingBalance) > 0,
+    )
+    .map((l) => ({
+      kind: "liability",
+      id: l.id,
+      name: l.name,
+      // EPIC-023 Task E retry (MEDIUM 7) — truncate once, here, so the
+      // amount the row DISPLAYS (`formatRupiah(obligation.amountDue)`) is
+      // byte-identical to the amount the pay mutation POSTS
+      // (`String(Math.trunc(obligation.amountDue))`) instead of the two
+      // computing the truncation independently and drifting apart.
+      amountDue: Math.trunc(Number(l.minimumPayment)),
+      paidThisPeriod: l.paidThisPeriod,
+    }));
+  const fromInsurances: Obligation[] = insurances
+    .filter((i) => i.status === "aktif" && Number(i.premiumAmount) > 0)
+    .map((i) => ({
+      kind: "insurance",
+      id: i.id,
+      name: i.name,
+      amountDue: Number(i.premiumAmount),
+      paidThisPeriod: i.paidThisPeriod,
+    }));
+  return [...fromLiabilities, ...fromInsurances];
+}
+
+function PayObligationDialog({
+  obligation,
+  accounts,
+  sourceAccountId,
+  onSourceAccountChange,
+  isPending,
+  onClose,
+  onConfirm,
+}: {
+  obligation: Obligation | null;
+  accounts: AccountDto[];
+  sourceAccountId: string;
+  onSourceAccountChange: (id: string) => void;
+  isPending: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const { t } = useLocale();
+  return (
+    <Dialog
+      open={obligation !== null}
+      onOpenChange={(open) => !open && onClose()}
+    >
+      <DialogContent className="sm:max-w-[380px]">
+        <DialogTitle className="text-[17px] font-extrabold">
+          {t.anggaran.obligationsPayDialogTitle}
+        </DialogTitle>
+        {obligation && (
+          <div className="space-y-3 text-[13px]">
+            <div className="rounded-lg bg-muted p-3.5">
+              <div className="text-[11px] text-muted-foreground">
+                {obligation.name}
+              </div>
+              <div className="text-[18px] font-black">
+                {formatRupiah(obligation.amountDue)}
+              </div>
+            </div>
+            <div>
+              <label
+                htmlFor="obligation-source-account"
+                className="mb-1.5 block text-[12.5px] font-semibold"
+              >
+                {t.anggaran.obligationsSourceAccountLabel}
+              </label>
+              <select
+                id="obligation-source-account"
+                value={sourceAccountId}
+                onChange={(e) => onSourceAccountChange(e.target.value)}
+                className={FIELD_CLASS}
+              >
+                <option value="">
+                  {t.anggaran.obligationsSourceAccountPlaceholder}
+                </option>
+                {accounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                    {a.institution ? ` (${a.institution})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+        <div className="flex gap-2.5 pt-2">
+          <Button variant="outline" className="flex-1" onClick={onClose}>
+            {t.common.cancel}
+          </Button>
+          <Button
+            className="flex-1"
+            disabled={isPending || !sourceAccountId}
+            onClick={onConfirm}
+          >
+            {isPending
+              ? t.anggaran.obligationsPayProcessing
+              : t.anggaran.obligationsPayConfirmButton}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ObligationRow({
+  obligation,
+  index,
+  onPay,
+}: {
+  obligation: Obligation;
+  index: number;
+  onPay: () => void;
+}) {
+  const { t } = useLocale();
+  return (
+    <Rise index={index}>
+      <div className="flex items-center gap-2.5 rounded-[12px] border bg-card p-3.5">
+        <div className="flex-1">
+          <div className="flex items-center gap-1.5 text-[13.5px] font-semibold">
+            <span>{obligation.name}</span>
+            <StatusBadge
+              variant={obligation.paidThisPeriod ? "success" : "gray"}
+            >
+              {obligation.paidThisPeriod
+                ? t.anggaran.obligationsPaidBadge
+                : t.anggaran.obligationsDueBadge}
+            </StatusBadge>
+          </div>
+          <div className="text-[11.5px] text-muted-foreground">
+            {formatRupiah(obligation.amountDue)}
+          </div>
+        </div>
+        {/* EPIC-023 Task E retry (CRITICAL 1) — an already-paid obligation
+            must not accept a second Pay click: the label previously stayed
+            "Bayar" and onClick was fully live regardless of
+            `paidThisPeriod`, so clicking it opened the same confirm dialog
+            and debited the source account a second time for the same
+            period, silently. Honest UI: disable the control and say why
+            instead of letting the copy imply an action it must not take. */}
+        <Button
+          size="sm"
+          variant={obligation.paidThisPeriod ? "outline" : "default"}
+          disabled={obligation.paidThisPeriod}
+          onClick={onPay}
+        >
+          {obligation.paidThisPeriod
+            ? t.anggaran.obligationsAlreadyPaidButton
+            : t.anggaran.obligationsPayButton}
+        </Button>
+      </div>
+    </Rise>
+  );
+}
+
+/**
+ * EPIC-023 E2 (D11, US-LIAB-3) — "this period's obligations" list with a
+ * Pay action + source-account picker, calling the REAL liability/insurance
+ * pay endpoints. Section is hidden entirely when there are no obligations
+ * (Honest UI — no empty promise of a feature with nothing to show).
+ */
+export function ObligationsSection({
+  familyGroupId,
+  token,
+}: {
+  familyGroupId: string;
+  token: string | undefined;
+}) {
+  const { t } = useLocale();
+  const queryClient = useQueryClient();
+  const [target, setTarget] = useState<Obligation | null>(null);
+  const [sourceAccountId, setSourceAccountId] = useState("");
+
+  const { data: liabilities = [] } = useQuery<LiabilityDto[]>({
+    queryKey: queryKeys.liabilities.all(familyGroupId),
+    queryFn: () =>
+      apiFetch<LiabilityDto[]>(`/family-groups/${familyGroupId}/liabilities`, {
+        token,
+      }),
+    enabled: !!token && !!familyGroupId,
+  });
+
+  const { data: insurances = [] } = useQuery<InsuranceDto[]>({
+    queryKey: queryKeys.insurances.all(familyGroupId),
+    queryFn: () =>
+      apiFetch<InsuranceDto[]>(`/family-groups/${familyGroupId}/insurances`, {
+        token,
+      }),
+    enabled: !!token && !!familyGroupId,
+  });
+
+  const { data: accounts = [] } = useQuery<AccountDto[]>({
+    queryKey: queryKeys.accounts.all(familyGroupId),
+    queryFn: () =>
+      apiFetch<AccountDto[]>(`/family-groups/${familyGroupId}/accounts`, {
+        token,
+      }),
+    enabled: !!token && !!familyGroupId,
+  });
+
+  const payMutation = useMutation({
+    mutationFn: (params: {
+      obligation: Obligation;
+      sourceAccountId: string;
+    }) => {
+      const path =
+        params.obligation.kind === "liability"
+          ? `/family-groups/${familyGroupId}/liabilities/${params.obligation.id}/pay`
+          : `/family-groups/${familyGroupId}/insurances/${params.obligation.id}/pay`;
+      const body: { sourceAccountId: string; amount?: string } = {
+        sourceAccountId: params.sourceAccountId,
+      };
+      // Liability pay() requires an explicit amount (variable balance); the
+      // insurance side defaults to premiumAmount when omitted. `amountDue`
+      // is already truncated in `toObligations` (MEDIUM 7) — posting it
+      // as-is here keeps this value byte-identical to what the row and the
+      // dialog displayed, instead of truncating a second time and risking
+      // the two drifting apart.
+      if (params.obligation.kind === "liability") {
+        body.amount = String(params.obligation.amountDue);
+      }
+      return apiFetch(path, {
+        token,
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+    },
+    onSuccess: () => {
+      // Paying moves money — invalidate every view it can change, mirroring
+      // transaction-dialog.tsx's invalidation set.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.budgets.all(familyGroupId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.accounts.all(familyGroupId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.liabilities.all(familyGroupId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.liabilities.summary(familyGroupId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.insurances.all(familyGroupId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.insurances.summary(familyGroupId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.transactions.all(familyGroupId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.dashboard.summary(familyGroupId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.netWorth.summary(familyGroupId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["reports", familyGroupId],
+      });
+      setTarget(null);
+      setSourceAccountId("");
+      toast.success(t.anggaran.obligationsToastPaySuccess);
+    },
+    onError: (err: { message?: string }) => {
+      toast.error(err.message ?? t.anggaran.obligationsToastPayFailed);
+    },
+  });
+
+  const obligations = toObligations(liabilities, insurances);
+  if (obligations.length === 0) return null;
+
+  return (
+    <SectionCard
+      title={t.anggaran.obligationsSectionTitle}
+      bodyClassName="-mt-1 space-y-3"
+    >
+      {obligations.map((o, i) => (
+        <ObligationRow
+          key={`${o.kind}-${o.id}`}
+          obligation={o}
+          index={i}
+          onPay={() => setTarget(o)}
+        />
+      ))}
+      <PayObligationDialog
+        obligation={target}
+        accounts={accounts}
+        sourceAccountId={sourceAccountId}
+        onSourceAccountChange={setSourceAccountId}
+        isPending={payMutation.isPending}
+        onClose={() => {
+          setTarget(null);
+          setSourceAccountId("");
+        }}
+        onConfirm={() => {
+          if (target && sourceAccountId) {
+            payMutation.mutate({ obligation: target, sourceAccountId });
+          }
+        }}
+      />
+    </SectionCard>
   );
 }
 
@@ -361,6 +698,10 @@ export default function AnggaranPage() {
           </div>
         </Rise>
       </div>
+
+      {familyGroupId && (
+        <ObligationsSection familyGroupId={familyGroupId} token={token} />
+      )}
 
       <SectionCard
         title={t.anggaran.categoryBreakdownTitle}
