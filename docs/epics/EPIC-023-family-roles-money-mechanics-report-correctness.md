@@ -275,7 +275,7 @@ holdingsChange + unexplained = closing`, every residual named. Unit tests
     duplicated `TAB_TYPES` entry. (D12, US-LIAB-5)
   - **E4** — Remove the category field from the Transfer tab. (D13, US-TXN-8)
 
-- [ ] ### F — Beneficiaries, religion, split bill
+- [x] ### F — Beneficiaries, religion, split bill ✅
   - **F1** — Beneficiary and heir pickers read from `Member`, with name and
     relationship live-linked; free text remains for non-members. (D14, US-INS-5)
   - **F2** — Family religion setting driving zakat / perpuluhan / neither, each
@@ -298,7 +298,7 @@ holdingsChange + unexplained = closing`, every residual named. Unit tests
     adapters beside the existing Claude one; advisor disabled with instructions
     when no key is set, never a mock answer. (D16, US-AI-5)
 
-- [ ] ### H — Assets, Master COA, onboarding
+- [x] ### H — Assets, Master COA, onboarding ✅
   - **H1** ✅ — Recorded asset value is authoritative for net worth; projection
     shown beside it and adoptable; default rates per asset type; add an
     acquisition-date field. (D19, US-ASSET-4)
@@ -1369,3 +1369,73 @@ does not exist`, which the agent then diagnosed as a pre-existing broken
   compile cache and corepack's `pnpm.cjs`.
   **Still outstanding from task A1, untouched by this task:** the pre/post
   migration P&L and balance-sheet capture for the demo family.
+- 2026-08-06 /epic-loop EPIC-023 "F — Beneficiaries, religion, split bill" →
+  PR: https://github.com/andrsrjld/wealthme-web/pull/246. Four gates; security
+  and QA PASSed, react and silent-failure FAILed twice and were fixed. Final:
+  **api 961/961 (82 suites), web 337/337 (38 suites)**, `qa.sh` and
+  `security-check.sh` exit 0. No GitHub issue matched the task group's title.
+  **F3 removes the bill-wide `SplitBill.shareToken`** in favour of
+  per-participant tokens, because one token cannot distinguish recipients —
+  which is exactly why the old public endpoint returned the family group id,
+  the secret itself, and _every_ participant's details to anyone holding the
+  link. Links already shared with real people now 404 with a translated,
+  actionable message; the migration backfills per-participant tokens with
+  `gen_random_uuid()` before dropping the old column.
+  **The defect classes worth carrying forward:**
+  **(1)** Settling a participant moved no money at all while the button said
+  it did. A claim is now a claim, stated plainly, and only the owner's
+  confirmation posts income — idempotent under Serializable, with the credited
+  account re-resolved server-side so a caller cannot redirect it.
+  **(2)** The confirmation affordances were backwards: revoking a link (no
+  money) asked for confirmation, while confirming a payment (irreversible, no
+  un-confirm endpoint) fired on a single click.
+  **(3)** The delete guard added to protect posted income was **read-then-act,
+  not atomic** — a confirmation landing between the check and the delete was
+  cascaded away while the income it posted survived orphaned, which is the
+  precise defect the guard was written to prevent. Fixed by committing the
+  check and the delete together.
+  **(4)** A settlement transaction deleted from the ordinary transactions page
+  left its participant `paid` forever with nothing able to move it, so the
+  bill became permanently undeletable behind a message naming a transaction
+  that no longer existed.
+  **(5)** Two honesty failures of the same shape: a payout account the owner
+  later deleted told recipients the owner had never set one, and a beneficiary
+  whose linked member had left the family kept claiming to be live-linked
+  while serving a frozen copy of their name.
+  **(6)** F2's religion default asserted a faith on every existing family's
+  behalf — three gates raised it independently. "Not yet chosen" is now its
+  own state; the app asks rather than assuming, and a failed request no longer
+  leaves a zakat calculator standing in for a faith nobody picked. The
+  backfill collapses "explicitly chose islam in the hours since F2 shipped"
+  into "never answered" — accepted because that window is this session, but
+  recorded as a real if narrow discarded choice.
+  Perpuluhan is genuinely its own arithmetic (flat 10% of income, no nisab, no
+  haul), which is the substance of US-DON-6 — not zakat relabelled.
+- 2026-08-06 /epic-loop EPIC-023 "H — Assets, Master COA, onboarding" →
+  PR: https://github.com/andrsrjld/wealthme-web/pull/247 (H2 + H3; H1 shipped
+  earlier). QA PASSed; react and a11y FAILed and were fixed. Final: **web
+  339/339 (36 suites), api 988/988 (82 suites)**, `qa.sh` and
+  `security-check.sh` exit 0.
+  **Both failing gates found the same thing from different angles: the feature
+  demonstrated its payoff to nobody but a sighted user with a fresh page.**
+  The wizard wrote real rows but never invalidated any react-query cache, and
+  the dashboard underneath is already mounted with `staleTime: 60s` — so a new
+  user who watched net worth appear inside the dialog closed it onto a
+  dashboard still showing zero. Meanwhile focus was dropped at that same
+  moment: submitting disabled the focused button, and the consequence panel
+  that replaced the form did not change the `step` the focus effect watched,
+  so a keyboard user landed on `<body>` exactly when the thing the wizard
+  exists to show arrived — with nothing announced. D22's "watch net worth
+  appear" was true only inside one panel, for one kind of user.
+  Also: a held over-threshold expense is an `AllowanceRequest`, not a
+  `Transaction`, so the done screen's CTA sent users to a page it can never
+  appear on — the honest handling of D3/D9 undone by the link beneath it.
+  Plus an `aria-label` announcing a different action than the button showed
+  (voice control could not match it), 2.3:1 contrast on the one figure the
+  account step exists to display, no focus restoration on close, a resumed
+  setup trusting ids of rows another member may have deleted, and the dialog
+  losing its mobile gutter to the same `tailwind-merge` trap this epic already
+  fixed once in I2.
+  The button tour and all 11 `data-tour` targets are removed with a 1:1
+  accounting; Playwright specs that located elements by those attributes now
+  use accessible names.
