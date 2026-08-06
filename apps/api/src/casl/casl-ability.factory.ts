@@ -54,6 +54,10 @@ export class CaslAbilityFactory {
         can("manage", "Category");
         can("manage", "CoaAccount");
         can("manage", "Donation");
+        // EPIC-023 F2 (D20) — the family religion setting (zakat vs.
+        // perpuluhan vs. neither) is owner-writable, matching the gold-price
+        // precedent (owner-only write, every member can read — below).
+        can("manage", "FamilyGroup");
         can("manage", "Goal");
         can("manage", "Inheritance");
         can("manage", "Insurance");
@@ -92,6 +96,10 @@ export class CaslAbilityFactory {
         can("read", "Category");
         can("read", "CoaAccount");
         can("manage", "Donation");
+        // EPIC-023 F2 (D20) — every member may read the family religion
+        // setting (the donation page needs it to pick zakat/perpuluhan/
+        // neither); only the owner may change it (see "manage" above).
+        can("read", "FamilyGroup");
         can("manage", "Goal");
         can("manage", "Inheritance");
         can("manage", "Insurance");
@@ -140,6 +148,7 @@ export class CaslAbilityFactory {
         can("read", "Category");
         can("read", "CoaAccount");
         can("read", "Donation");
+        can("read", "FamilyGroup");
         can("read", "Goal");
         can("read", "Inheritance");
         can("read", "Insurance");
@@ -178,6 +187,11 @@ export class CaslAbilityFactory {
         can("manage", "Category");
         can("manage", "CoaAccount");
         can("manage", "Donation");
+        // EPIC-023 F2 (D20) — read-only, same as Member above: a spouse is
+        // a full financial co-owner but the family religion setting stays
+        // owner-writable (D2's "one accountable head" pattern, mirrored
+        // here the same way it already is for the Member subject).
+        can("read", "FamilyGroup");
         can("manage", "Goal");
         can("manage", "Inheritance");
         can("manage", "Insurance");
@@ -207,6 +221,9 @@ export class CaslAbilityFactory {
         can("read", "Account");
         can("create", "AllowanceRequest");
         can("read", "AllowanceRequest");
+        // EPIC-023 F2 (D20) — harmless descriptive setting (no money, no
+        // PII); read-only for every role, same grant every other role gets.
+        can("read", "FamilyGroup");
         can("read", "Inheritance");
         can("create", "Transaction");
         can("read", "Transaction");
@@ -220,6 +237,8 @@ export class CaslAbilityFactory {
         can("read", "Account");
         can("create", "AllowanceRequest");
         can("read", "AllowanceRequest");
+        // EPIC-023 F2 (D20) — same read-only grant every other role gets.
+        can("read", "FamilyGroup");
         can("create", "Transaction");
         can("read", "Transaction");
         break;

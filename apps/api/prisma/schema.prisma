@@ -140,7 +140,29 @@ enum DonationType {
   infaq
   sedekah
   wakaf
+  // EPIC-023 F2 (D20, US-DON-6/7) — the obligatory Christian contribution
+  // (persepuluhan/tithe, collected by a recognised church body). PP 60/2010
+  // widens tax-deductible "sumbangan keagamaan" beyond zakat to any
+  // OBLIGATORY religious contribution for a recognised religion, which is
+  // why excluding this type from `TAX_DEDUCTIBLE_DONATION_TYPES` was wrong.
+  // A voluntary Christian offering still has no dedicated type and stays
+  // recorded as `lainnya` (never deductible) — see donations.service.ts.
+  persepuluhan
   lainnya
+}
+
+// EPIC-023 F2 (D20, US-DON-6/7) — a family-level setting, not a per-user
+// one: the donation page (and its calculator) reflects the FAMILY's
+// religion, matching `FamilyGroup.goldPricePerGram`'s precedent for a
+// family-wide manual setting. `islam` is the default for every
+// PRE-EXISTING family (see `FamilyGroup.religion` below) so this feature
+// never changes what an existing family already saw (the donation page
+// showed the zakat calculator unconditionally before this enum existed) —
+// an owner can correct it immediately via PATCH .../religion.
+enum FamilyReligion {
+  islam
+  kristen
+  none
 }
 
 enum SptStatus {
@@ -362,6 +384,14 @@ model FamilyGroup {
   // labeled "diinput manual, per <date>" using goldPriceUpdatedAt.
   goldPricePerGram   BigInt?
   goldPriceUpdatedAt DateTime?
+  // EPIC-023 F2 (D20, US-DON-6/7) — family religion setting driving which
+  // donation calculator (zakat vs. perpuluhan vs. neither) the donation
+  // page shows, and widening tax-deductibility per PP 60/2010 beyond zakat
+  // to obligatory religious contributions of other recognised religions.
+  // Default `islam` preserves every pre-existing family's current
+  // behavior/numbers (the donation page always showed the zakat
+  // calculator before this setting existed) — see the enum comment above.
+  religion           FamilyReligion     @default(islam)
   // EPIC-023 G2 (D17) — per-bank saved column-mapping templates, so a
   // returning statement imports without remapping columns each time.
   reconciliationTemplates ReconciliationTemplate[]

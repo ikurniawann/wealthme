@@ -52,6 +52,7 @@ function makePrisma() {
     },
     member: {
       findFirst: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
     },
     $transaction: jest.fn(async (fn: (tx: unknown) => unknown) => fn(prismaTx)),
   };
@@ -394,6 +395,75 @@ describe("InsurancesService", () => {
         }),
       ).rejects.toThrow(BadRequestException);
       expect(prisma.insurance.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // EPIC-023 F1 (D14, US-INS-5) — a beneficiary linked to a family member
+  // resolves its displayed name/relationship from the member's CURRENT
+  // record, not the copy stored on the beneficiary row. Fails against
+  // pre-F1 code, which always echoed the stored name/relationship.
+  describe("live-linked beneficiaries (F1)", () => {
+    it("findAll() resolves name/relationship from the CURRENT member record, overriding the stored copy", async () => {
+      // Arrange — stored row still says "Anak 1" / "Anak" (stale), but the
+      // member's live name/relationship have since changed.
+      prisma.insurance.findMany.mockResolvedValue([
+        {
+          ...BASE_ROW,
+          beneficiaries: [
+            {
+              id: "ben-1",
+              insuranceId: INSURANCE_ID,
+              name: "Anak 1 (stale)",
+              relationship: "Anak (stale)",
+              sharePercent: { toString: () => "60.00" },
+              memberUserId: "user-5",
+              createdAt: new Date("2024-01-01T00:00:00.000Z"),
+            },
+          ],
+        },
+      ]);
+      prisma.member.findMany.mockResolvedValue([
+        { userId: "user-5", relationship: "anak", user: { name: "Budi Baru" } },
+      ]);
+
+      // Act
+      const [item] = await service.findAll(FAMILY_GROUP_ID);
+
+      // Assert
+      expect(item!.beneficiaries[0]!.name).toBe("Budi Baru");
+      expect(item!.beneficiaries[0]!.relationship).toBe("anak");
+      expect(prisma.member.findMany).toHaveBeenCalledWith({
+        where: { familyGroupId: FAMILY_GROUP_ID, userId: { in: ["user-5"] } },
+        include: { user: { select: { name: true } } },
+      });
+    });
+
+    it("findAll() keeps the free-text name/relationship for a non-member beneficiary", async () => {
+      // Arrange
+      prisma.insurance.findMany.mockResolvedValue([
+        {
+          ...BASE_ROW,
+          beneficiaries: [
+            {
+              id: "ben-1",
+              insuranceId: INSURANCE_ID,
+              name: "Bibi Jauh",
+              relationship: "Kerabat",
+              sharePercent: { toString: () => "40.00" },
+              memberUserId: null,
+              createdAt: new Date("2024-01-01T00:00:00.000Z"),
+            },
+          ],
+        },
+      ]);
+
+      // Act
+      const [item] = await service.findAll(FAMILY_GROUP_ID);
+
+      // Assert — no member lookup query at all for an unlinked beneficiary.
+      expect(item!.beneficiaries[0]!.name).toBe("Bibi Jauh");
+      expect(item!.beneficiaries[0]!.relationship).toBe("Kerabat");
+      expect(prisma.member.findMany).not.toHaveBeenCalled();
     });
   });
 

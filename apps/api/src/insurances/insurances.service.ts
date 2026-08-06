@@ -51,21 +51,42 @@ function daysUntil(date: Date): number {
   return Math.ceil((date.getTime() - Date.now()) / 86_400_000);
 }
 
+// EPIC-023 F1 (D14, US-INS-5) — live-link resolution. `Member.relationship`
+// is an 8-value enum (kinship) while `InsuranceBeneficiary.relationship` is
+// free text (also serving non-members) — reconciled by NOT changing the
+// column's type: a member's enum value ("istri", "anak", ...) is already a
+// valid free-text string, so the SAME column can hold either. What makes a
+// linked beneficiary "live" is this map, built fresh on every read from the
+// CURRENT Member/User rows — never from what was typed/copied at write
+// time. A beneficiary's stored `name`/`relationship` remain the source of
+// truth only while `memberUserId` is null (a non-member); the moment it is
+// set, this lookup overrides them, so a later name or relationship change
+// on the member is reflected without ever touching the beneficiary row.
+type MemberLookup = ReadonlyMap<
+  string,
+  { name: string; relationship: string | null }
+>;
+
 function toBeneficiaryDto(
   row: BeneficiaryRow,
+  lookup: MemberLookup,
 ): InsuranceBeneficiaryResponseDto {
+  const linked = row.memberUserId ? lookup.get(row.memberUserId) : undefined;
   return {
     id: row.id,
     insuranceId: row.insuranceId,
-    name: row.name,
-    relationship: row.relationship,
+    name: linked?.name ?? row.name,
+    relationship: linked?.relationship ?? row.relationship,
     sharePercent: row.sharePercent.toString(),
     memberUserId: row.memberUserId,
     createdAt: row.createdAt.toISOString(),
   };
 }
 
-function toInsuranceDto(row: InsuranceRow): InsuranceResponseDto {
+function toInsuranceDto(
+  row: InsuranceRow,
+  lookup: MemberLookup = new Map(),
+): InsuranceResponseDto {
   return {
     id: row.id,
     familyGroupId: row.familyGroupId,
@@ -82,7 +103,9 @@ function toInsuranceDto(row: InsuranceRow): InsuranceResponseDto {
     daysUntilRenewal: row.renewalDate ? daysUntil(row.renewalDate) : null,
     notes: row.notes,
     currency: row.currency,
-    beneficiaries: (row.beneficiaries ?? []).map(toBeneficiaryDto),
+    beneficiaries: (row.beneficiaries ?? []).map((b) =>
+      toBeneficiaryDto(b, lookup),
+    ),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -138,13 +161,44 @@ export class InsurancesService {
     }
   }
 
+  // EPIC-023 F1 (D14) — batch-resolve the CURRENT name/relationship for
+  // every linked `memberUserId` across a set of beneficiary rows, so the
+  // response always reflects the member's live record (see `MemberLookup`
+  // above). One query regardless of how many beneficiaries/policies are
+  // being serialized.
+  private async resolveMemberLookup(
+    familyGroupId: string,
+    memberUserIds: readonly (string | null)[],
+  ): Promise<MemberLookup> {
+    const ids = Array.from(
+      new Set(memberUserIds.filter((id): id is string => !!id)),
+    );
+    if (ids.length === 0) return new Map();
+
+    const members = await this.prisma.member.findMany({
+      where: { familyGroupId, userId: { in: ids } },
+      include: { user: { select: { name: true } } },
+    });
+
+    return new Map(
+      members.map((m) => [
+        m.userId,
+        { name: m.user.name, relationship: m.relationship },
+      ]),
+    );
+  }
+
   async findAll(familyGroupId: string): Promise<InsuranceResponseDto[]> {
     const rows = await this.prisma.insurance.findMany({
       where: { familyGroupId },
       include: { beneficiaries: true },
       orderBy: { createdAt: "asc" },
     });
-    return rows.map(toInsuranceDto);
+    const lookup = await this.resolveMemberLookup(
+      familyGroupId,
+      rows.flatMap((r) => r.beneficiaries.map((b) => b.memberUserId)),
+    );
+    return rows.map((row) => toInsuranceDto(row, lookup));
   }
 
   async getSummary(
@@ -209,7 +263,11 @@ export class InsurancesService {
       insurance.renewalDate,
     );
 
-    return toInsuranceDto(insurance);
+    const lookup = await this.resolveMemberLookup(
+      familyGroupId,
+      insurance.beneficiaries.map((b) => b.memberUserId),
+    );
+    return toInsuranceDto(insurance, lookup);
   }
 
   async update(
@@ -287,7 +345,11 @@ export class InsurancesService {
       updated.renewalDate,
     );
 
-    return toInsuranceDto(updated);
+    const lookup = await this.resolveMemberLookup(
+      familyGroupId,
+      updated.beneficiaries.map((b) => b.memberUserId),
+    );
+    return toInsuranceDto(updated, lookup);
   }
 
   async remove(familyGroupId: string, id: string): Promise<void> {

@@ -35,22 +35,30 @@ const DONATION_TYPE_LABEL: Record<string, string> = {
   infaq: "Infaq",
   sedekah: "Sedekah",
   wakaf: "Wakaf",
+  // EPIC-023 F2 (D20, US-DON-6/7) — the obligatory Christian contribution.
+  persepuluhan: "Persembahan Persepuluhan",
   lainnya: "Donasi",
 };
 
 /**
- * EPIC-022 Group E (E5) — only zakat paid to an approved amil (BAZNAS/LAZ)
- * legally qualifies as an income-tax-deductible religious donation in
- * Indonesia (PP 60/2010). `infaq`/`sedekah`/`wakaf`/`lainnya` are voluntary
- * giving, not "zakat atau sumbangan keagamaan yang sifatnya wajib" — they
- * must never feed `TaxService`'s deductible total. This is a type check,
- * not an institution registry: the UI still asks for BAZNAS/LAZ as the
- * recipient, but the server never trusts `isTaxDeductible` on a type that
- * cannot legally carry it.
+ * EPIC-022 Group E (E5) / EPIC-023 F2 (D20, US-DON-6/7) — PP 60/2010 makes
+ * "zakat atau sumbangan keagamaan yang sifatnya wajib" tax-deductible for
+ * adherents of a recognised religion — NOT just zakat. `zakat_maal`/
+ * `zakat_fitrah` (paid to an approved amil, BAZNAS/LAZ) covers the Muslim
+ * obligation; `persepuluhan` (paid to a recognised church body) covers the
+ * equivalent Christian one. EPIC-022 E5 originally read PP 60/2010 as
+ * zakat-only, which incorrectly excluded Christian users — this widens the
+ * set to the law's actual "obligatory" scope while still excluding
+ * `infaq`/`sedekah`/`wakaf`/`lainnya`: those are voluntary giving, not an
+ * obligation, and must never feed `TaxService`'s deductible total. This is
+ * a type check, not an institution registry: the UI still asks for the
+ * recipient institution, but the server never trusts `isTaxDeductible` on a
+ * type that cannot legally carry it.
  */
 const TAX_DEDUCTIBLE_DONATION_TYPES: ReadonlySet<DonationType> = new Set([
   DonationType.zakat_maal,
   DonationType.zakat_fitrah,
+  DonationType.persepuluhan,
 ]);
 
 function assertDeductibleTypeAllowed(
@@ -59,7 +67,7 @@ function assertDeductibleTypeAllowed(
 ): void {
   if (isTaxDeductible && !TAX_DEDUCTIBLE_DONATION_TYPES.has(type)) {
     throw new BadRequestException(
-      "Hanya Zakat Maal / Zakat Fitrah yang dapat ditandai sebagai pengurang pajak.",
+      "Hanya Zakat Maal / Zakat Fitrah / Persembahan Persepuluhan yang dapat ditandai sebagai pengurang pajak.",
     );
   }
 }

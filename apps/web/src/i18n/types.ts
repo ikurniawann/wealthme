@@ -226,6 +226,8 @@ type DonationTypeId =
   | "infaq"
   | "sedekah"
   | "wakaf"
+  // EPIC-023 F2 (D20, US-DON-6/7) — the obligatory Christian contribution.
+  | "persepuluhan"
   | "lainnya";
 
 /** EPIC-018 Task A6 — `/anggaran` COA budget-type ids (mirrors `BudgetType`
@@ -571,6 +573,19 @@ export type I18nDictionary = {
       toastGoldPriceFailed: string;
       toastGoldPriceInvalid: string;
       /**
+       * EPIC-023 F2 (D20, US-DON-6/7) — family religion setting (zakat vs.
+       * perpuluhan vs. neither), same owner-writable/member-readable shape
+       * as the gold price block above.
+       */
+      religionSectionTitle: string;
+      religionHint: string;
+      religionOptions: Record<"islam" | "kristen" | "none", string>;
+      religionLabel: string;
+      religionSaveButton: string;
+      religionOwnerOnlyNote: string;
+      toastReligionUpdated: string;
+      toastReligionFailed: string;
+      /**
        * EPIC-023 G3 (D16) — bring-your-own AI provider key. Owner/spouse
        * manage it; every other role sees a read-only status (see
        * casl-ability.factory.ts's AiKey subject).
@@ -869,6 +884,10 @@ export type I18nDictionary = {
     allocationUnallocatedSuffix: string;
     allocationFullyAllocated: string;
     validationSharePercentExceeded: string;
+    /** EPIC-023 F1 (D14) — honest-UI note shown instead of a silently empty
+     * picker when the member list failed to load (e.g. a dependant/
+     * operational role has no "read Member" ability). */
+    beneficiaryMemberPickerUnavailable: string;
   };
   /**
    * EPIC-018 Task A4 — `/kalkulator` page copy (7 sub-tools). Detail rows
@@ -1584,6 +1603,9 @@ export type I18nDictionary = {
     typeLabels: Record<DonationTypeId, string>;
     jenisOptionLabels: Record<DonationTypeId, string>;
     groupIslam: string;
+    /** EPIC-023 F2 (D20, US-DON-6/7) — groups the obligatory Christian
+     * contribution in the "Jenis" dropdown, alongside `groupIslam`. */
+    groupKristen: string;
     groupUmum: string;
     heroTitle: string;
     transactionsSuffix: string;
@@ -1643,6 +1665,24 @@ export type I18nDictionary = {
     toastSaved: string;
     toastSaveFailed: string;
     toastInvalidAmount: string;
+    /**
+     * EPIC-023 F2 (D20, US-DON-6/7) — the donation page shows the
+     * calculator matching the family's religion setting (zakat when
+     * `islam`, perpuluhan when `kristen`, neither when `none`). Perpuluhan
+     * has its OWN arithmetic (10% of income) — not zakat relabelled.
+     */
+    perpuluhanCalculatorTitle: string;
+    perpuluhanCalculatorSubtitle: string;
+    fieldIncomeLabel: string;
+    perpuluhanDueLabel: string;
+    perpuluhanCalculatingMsg: string;
+    perpuluhanCalcErrorMsg: string;
+    payPerpuluhanNowButton: string;
+    /** Shown instead of any calculator when the family's religion setting
+     * is `none` — honest UI: no calculator is fabricated for a faith the
+     * family hasn't set. */
+    religionCalculatorNoneTitle: string;
+    religionCalculatorNoneDesc: string;
   };
   /**
    * EPIC-018 Task A6 — `/warisan` (inheritance assets) page copy.
@@ -1687,6 +1727,23 @@ export type I18nDictionary = {
     toastSessionNotReady: string;
     toastNameRequired: string;
     toastInvalidValue: string;
+    /** EPIC-023 F1 (D14, US-INS-5) — heir editor copy (previously entirely
+     * hardcoded Indonesian, mirroring asuransi's beneficiary editor keys). */
+    heirsSectionTitle: string;
+    heirNamePlaceholder: string;
+    removeHeirAriaLabel: string;
+    heirRelationshipPlaceholder: string;
+    heirSharePercentPlaceholder: string;
+    heirMemberAriaLabel: string;
+    heirMemberNoneOption: string;
+    addHeirButton: string;
+    heirAllocationAllocatedSuffix: string;
+    heirAllocationUnallocatedSuffix: string;
+    heirAllocationFullyAllocated: string;
+    /** Honest-UI note shown instead of a silently empty picker when the
+     * member list failed to load (e.g. a dependant/operational role has no
+     * "read Member" ability). */
+    heirMemberPickerUnavailable: string;
   };
   /** EPIC-018 Task A6 — `/anggaran` (budgets) page copy. */
   anggaran: {

@@ -4,6 +4,11 @@ export type DonationType =
   | "infaq"
   | "sedekah"
   | "wakaf"
+  // EPIC-023 F2 (D20, US-DON-6/7) — the obligatory Christian contribution
+  // (persepuluhan/tithe); tax-deductible per PP 60/2010's widening beyond
+  // zakat-only. A voluntary Christian offering has no dedicated type and
+  // stays recorded as "lainnya" (never deductible).
+  | "persepuluhan"
   | "lainnya";
 
 export interface DonationDto {

@@ -390,6 +390,19 @@ export const en = {
       toastGoldPriceUpdated: "✅ Gold price updated",
       toastGoldPriceFailed: "Failed to save gold price",
       toastGoldPriceInvalid: "Enter a valid gold price (greater than 0)",
+      religionSectionTitle: "Family Religion",
+      religionHint:
+        "Determines which donation calculator shows on the Donation page (Zakat for Islam, Tithe for Christian, or none) and which obligatory religious contribution can be marked as tax deductible.",
+      religionOptions: {
+        islam: "Islam (Zakat)",
+        kristen: "Christian (Tithe)",
+        none: "Not set",
+      },
+      religionLabel: "Family Religion",
+      religionSaveButton: "Save Family Religion",
+      religionOwnerOnlyNote: "Only the family owner can change the religion.",
+      toastReligionUpdated: "✅ Family religion updated",
+      toastReligionFailed: "Failed to save family religion",
       aiKeySectionTitle: "AI Advisor API Key",
       aiKeyHint:
         "Connect your own API key (Claude, OpenAI, or Gemini) so the AI Advisor can be used. The key is stored encrypted and never shown again.",
@@ -879,6 +892,8 @@ export const en = {
     allocationFullyAllocated: "Fully allocated (100%)",
     validationSharePercentExceeded:
       "Total beneficiary share cannot exceed 100%",
+    beneficiaryMemberPickerUnavailable:
+      "The family member list isn't available for your role — enter the name manually.",
   },
   kalkulator: {
     tabs: {
@@ -1648,6 +1663,7 @@ export const en = {
       infaq: "Charity / Infaq",
       sedekah: "Charity",
       wakaf: "Waqf",
+      persepuluhan: "Tithe Offering",
       lainnya: "Other",
     },
     jenisOptionLabels: {
@@ -1656,9 +1672,11 @@ export const en = {
       infaq: "Charity / Infaq",
       wakaf: "Waqf",
       sedekah: "Charity",
+      persepuluhan: "Tithe Offering",
       lainnya: "Other / Social Donation",
     },
     groupIslam: "🕌 Islamic",
+    groupKristen: "✝️ Christian",
     groupUmum: "❤️ General",
     heroTitle: "Total Donations & Zakat",
     transactionsSuffix: " transactions",
@@ -1706,14 +1724,24 @@ export const en = {
     accountHint:
       "Select an account so your net worth decreases when the donation is recorded.",
     taxDeductibleCheckboxLabel:
-      "Income tax deduction (zakat to an official institution)",
+      "Income tax deduction (obligatory religious contribution to an official institution)",
     taxDeductibleIneligibleNote:
-      "Only Zakat Maal / Zakat Fitrah can be tax deductible.",
+      "Only Zakat Maal / Zakat Fitrah / Tithe Offering can be tax deductible.",
     savingLabel: "Saving...",
     saveRecordButton: "Save Record",
     toastSaved: "✅ Donation recorded successfully!",
     toastSaveFailed: "Failed to save donation",
     toastInvalidAmount: "Invalid donation amount",
+    perpuluhanCalculatorTitle: "✝️ Tithe Calculator",
+    perpuluhanCalculatorSubtitle: "Tithe is 10% of income",
+    fieldIncomeLabel: "Income (Rp)",
+    perpuluhanDueLabel: "Tithe (10%)",
+    perpuluhanCalculatingMsg: "Calculating...",
+    perpuluhanCalcErrorMsg: "Failed to calculate the tithe. Try again.",
+    payPerpuluhanNowButton: "Pay Tithe Now",
+    religionCalculatorNoneTitle: "Religious donation calculator is off",
+    religionCalculatorNoneDesc:
+      "Set the family religion in Account Settings to enable the Zakat or Tithe calculator.",
   },
   warisan: {
     heroTitle: "Total Inheritance Value",
@@ -1757,6 +1785,19 @@ export const en = {
     toastSessionNotReady: "Session not ready yet. Please try again shortly.",
     toastNameRequired: "Asset name is required.",
     toastInvalidValue: "Invalid estimated value.",
+    heirsSectionTitle: "Heirs",
+    heirNamePlaceholder: "e.g. Siti Arsandi",
+    removeHeirAriaLabel: "Remove heir",
+    heirRelationshipPlaceholder: "e.g. Child, Spouse",
+    heirSharePercentPlaceholder: "Percentage (%)",
+    heirMemberAriaLabel: "Link to Family Member",
+    heirMemberNoneOption: "Not linked",
+    addHeirButton: "+ Add Heir",
+    heirAllocationAllocatedSuffix: "% allocated",
+    heirAllocationUnallocatedSuffix: "% unallocated",
+    heirAllocationFullyAllocated: "Fully allocated (100%)",
+    heirMemberPickerUnavailable:
+      "The family member list isn't available for your role — enter the name manually.",
   },
   anggaran: {
     budgetTypeLabels: {

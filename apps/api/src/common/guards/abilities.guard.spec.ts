@@ -397,4 +397,59 @@ describe("AbilitiesGuard against REAL controllers (closes the fixture-only seam)
       );
     });
   });
+
+  // EPIC-023 F2 (D20) — these are NEW routes, added explicitly decorated
+  // (unlike the pre-existing getGoldPrice/updateGoldPrice on this same
+  // controller, which carry no `@CheckAbility` at all and only pass today
+  // because AbilitiesGuard fails OPEN). This proves the REAL guard enforces
+  // "read FamilyGroup"/"manage FamilyGroup" on the REAL controller methods,
+  // not just that the DTO/service layer behaves — the exact seam a
+  // dropped or never-added `@CheckAbility` would otherwise slip through.
+  describe("FamilyGroupsController.getReligion / updateReligion (F2)", () => {
+    const controller = new FamilyGroupsController({} as never);
+    const owner = {
+      id: "member-owner",
+      userId: "user-owner",
+      role: Role.owner,
+    };
+    const spouse = {
+      id: "member-spouse",
+      userId: "user-spouse",
+      role: Role.spouse,
+    };
+
+    function ctxFor(
+      handler: "getReligion" | "updateReligion",
+      m: { id: string; userId: string; role: Role } | null,
+    ) {
+      return buildRealContext(FamilyGroupsController, controller, handler, m);
+    }
+
+    it("PERMISSION — every role can read the religion setting (harmless descriptive setting)", () => {
+      for (const m of [owner, spouse, member, dependant, operational]) {
+        expect(guard.canActivate(ctxFor("getReligion", m))).toBe(true);
+      }
+    });
+
+    it("PERMISSION — owner can update the religion setting", () => {
+      expect(guard.canActivate(ctxFor("updateReligion", owner))).toBe(true);
+    });
+
+    it("DENIAL — every non-owner role is refused updateReligion", () => {
+      for (const m of [spouse, member, dependant, operational]) {
+        expect(() => guard.canActivate(ctxFor("updateReligion", m))).toThrow(
+          ForbiddenException,
+        );
+      }
+    });
+
+    it("DENIAL — an unauthenticated request (no tenantContext) is refused both routes", () => {
+      expect(() => guard.canActivate(ctxFor("getReligion", null))).toThrow(
+        ForbiddenException,
+      );
+      expect(() => guard.canActivate(ctxFor("updateReligion", null))).toThrow(
+        ForbiddenException,
+      );
+    });
+  });
 });

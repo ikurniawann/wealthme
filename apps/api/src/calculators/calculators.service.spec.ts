@@ -162,6 +162,48 @@ describe("CalculatorsService", () => {
   });
 
   // ──────────────────────────────────────────────────────────────
+  // Perpuluhan (EPIC-023 F2, D20, US-DON-6/7) — flat 10% of income, no
+  // nisab/haul gate. Its own arithmetic, not zakat relabelled.
+  // ──────────────────────────────────────────────────────────────
+
+  describe("calculatePerpuluhan()", () => {
+    it("returns exactly 10% of income", () => {
+      // Arrange
+      const dto = { income: 10_000_000 };
+
+      // Act
+      const result = service.calculatePerpuluhan(dto);
+
+      // Assert
+      expect(result.income).toBe(10_000_000);
+      expect(result.tithe).toBe(1_000_000);
+    });
+
+    it("clamps a negative income to zero instead of returning a negative tithe", () => {
+      // Arrange
+      const dto = { income: -5_000_000 };
+
+      // Act
+      const result = service.calculatePerpuluhan(dto);
+
+      // Assert
+      expect(result.income).toBe(0);
+      expect(result.tithe).toBe(0);
+    });
+
+    it("has no nisab/haul concept — the result shape carries only income and tithe", () => {
+      // Arrange
+      const dto = { income: 8_000_000 };
+
+      // Act
+      const result = service.calculatePerpuluhan(dto);
+
+      // Assert
+      expect(Object.keys(result).sort()).toEqual(["income", "tithe"]);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────
   // PPh 21 — PTKP TK/0 = Rp 54.000.000, biaya jabatan 5% capped at
   // Rp 6.000.000, progressive brackets per UU HPP 2021.
   // ──────────────────────────────────────────────────────────────

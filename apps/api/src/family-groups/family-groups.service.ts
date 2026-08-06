@@ -28,9 +28,11 @@ import type { CreateFamilyGroupDto } from "./dto/create-family-group.dto";
 import type { CreateInvitationDto } from "./dto/create-invitation.dto";
 import type { DependantMemberResponseDto } from "./dto/dependant-member-response.dto";
 import type { FamilyGroupResponseDto } from "./dto/family-group-response.dto";
+import type { FamilyReligionResponseDto } from "./dto/family-religion-response.dto";
 import type { GoldPriceResponseDto } from "./dto/gold-price-response.dto";
 import type { InvitationResponseDto } from "./dto/invitation-response.dto";
 import type { MemberResponseDto } from "./dto/member-response.dto";
+import type { UpdateFamilyReligionDto } from "./dto/update-family-religion.dto";
 import type { UpdateGoldPriceDto } from "./dto/update-gold-price.dto";
 import type { UpdateMemberRoleDto } from "./dto/update-member-role.dto";
 
@@ -582,6 +584,51 @@ export class FamilyGroupsService {
       pricePerGram: group.goldPricePerGram?.toString() ?? null,
       updatedAt: group.goldPriceUpdatedAt?.toISOString() ?? null,
     };
+  }
+
+  /**
+   * EPIC-023 F2 (D20, US-DON-6/7) — read the family's religion setting
+   * (zakat / perpuluhan / neither). Any member may read it (the donation
+   * page needs it to pick which calculator to show); only the owner may
+   * change it (see `updateReligion`) — mirrors `getGoldPrice`/
+   * `updateGoldPrice`'s owner-writable/member-readable shape.
+   */
+  async getReligion(
+    familyGroupId: string,
+    requesterId: string,
+  ): Promise<FamilyReligionResponseDto> {
+    await this.assertMember(familyGroupId, requesterId);
+
+    const group = await this.prisma.familyGroup.findUnique({
+      where: { id: familyGroupId },
+      select: { religion: true },
+    });
+    if (!group) throw new NotFoundException("Family group not found");
+
+    return { religion: group.religion };
+  }
+
+  /**
+   * EPIC-023 F2 (D20, US-DON-6/7) — owner-only: set/replace the family's
+   * religion setting. This never rewrites existing `Donation` rows or their
+   * `isTaxDeductible` flag — changing the setting only changes which
+   * calculator the donation page shows and which NEW donations may be
+   * marked deductible going forward (see donations.service.ts).
+   */
+  async updateReligion(
+    familyGroupId: string,
+    requesterId: string,
+    dto: UpdateFamilyReligionDto,
+  ): Promise<FamilyReligionResponseDto> {
+    await this.assertOwner(familyGroupId, requesterId);
+
+    const group = await this.prisma.familyGroup.update({
+      where: { id: familyGroupId },
+      data: { religion: dto.religion },
+      select: { religion: true },
+    });
+
+    return { religion: group.religion };
   }
 
   private async assertMember(

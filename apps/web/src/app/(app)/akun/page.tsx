@@ -8,6 +8,10 @@ import { authClient } from "@/lib/auth-client";
 import { useLocale } from "@/hooks/use-locale";
 import { useProfile } from "@/hooks/use-profile";
 import { useGoldPrice } from "@/hooks/use-gold-price";
+import {
+  useFamilyReligion,
+  type FamilyReligion,
+} from "@/hooks/use-family-religion";
 import { useAiKeyStatus, type AiProvider } from "@/hooks/use-ai-key";
 import { useDevices, useRevokeDevice } from "@/hooks/use-devices";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1176,6 +1180,19 @@ export function PengaturanBody() {
     isUpdating: isGoldPriceUpdating,
   } = useGoldPrice();
   const [goldPriceInput, setGoldPriceInput] = useState("");
+  // EPIC-023 F2 (D20, US-DON-6/7) — family religion setting (owner-only
+  // write; the API also enforces this — see
+  // FamilyGroupsService.updateReligion). Drives which donation calculator
+  // (zakat / perpuluhan / neither) the /donation page shows. The select is
+  // bound directly to `currentReligion` (no separate local input state) so
+  // it always reflects the REAL fetched value — same regression class the
+  // theme/language pickers were fixed for (pengaturan-body.test.tsx).
+  const {
+    religion: currentReligion,
+    isOwner: isReligionOwner,
+    updateReligion,
+    isUpdating: isReligionUpdating,
+  } = useFamilyReligion();
   // EPIC-023 G3 (D16) — bring-your-own AI provider key. `canManage` mirrors
   // isGoldPriceOwner's role check but allows owner OR spouse (see
   // casl-ability.factory.ts's AiKey subject — the API is the real
@@ -1487,6 +1504,43 @@ export function PengaturanBody() {
             ))}
           </select>
         </Field>
+      </SetSection>
+      <SetSection>
+        <SectionTitle>{t.akun.pengaturan.religionSectionTitle}</SectionTitle>
+        <div className="mb-2.5 text-[12px] text-muted-foreground">
+          {t.akun.pengaturan.religionHint}
+        </div>
+        {isReligionOwner ? (
+          <Field label={t.akun.pengaturan.religionLabel}>
+            <select
+              className={FIELD_CLASS}
+              value={currentReligion}
+              disabled={isReligionUpdating}
+              onChange={(e) => {
+                const religion = e.target.value as FamilyReligion;
+                updateReligion(religion, {
+                  onSuccess: () =>
+                    toast.success(t.akun.pengaturan.toastReligionUpdated),
+                  onError: () =>
+                    toast.error(t.akun.pengaturan.toastReligionFailed),
+                });
+              }}
+            >
+              {(["islam", "kristen", "none"] as const).map((r) => (
+                <option key={r} value={r}>
+                  {t.akun.pengaturan.religionOptions[r]}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : (
+          <div className="text-[13px] font-semibold text-foreground">
+            {t.akun.pengaturan.religionOptions[currentReligion]}
+            <div className="mt-1 text-[12px] font-normal text-muted-foreground">
+              {t.akun.pengaturan.religionOwnerOnlyNote}
+            </div>
+          </div>
+        )}
       </SetSection>
       <SetSection>
         <SectionTitle>{t.akun.pengaturan.dataSectionTitle}</SectionTitle>

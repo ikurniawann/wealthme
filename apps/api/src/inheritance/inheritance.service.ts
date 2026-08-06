@@ -40,19 +40,37 @@ type AssetRow = {
   heirs: HeirRow[];
 };
 
-function toHeirDto(row: HeirRow): InheritanceHeirResponseDto {
+// EPIC-023 F1 (D14, US-INS-5) — live-link resolution, same reconciliation
+// and mechanism as InsurancesService (Decision #9: heirs and beneficiaries
+// share one shape/rule). See that file's `MemberLookup` comment for the
+// full reasoning: a linked heir's `name`/`relationship` are resolved fresh
+// from the CURRENT Member/User rows on every read, never from the copy
+// stored on the heir row.
+type MemberLookup = ReadonlyMap<
+  string,
+  { name: string; relationship: string | null }
+>;
+
+function toHeirDto(
+  row: HeirRow,
+  lookup: MemberLookup,
+): InheritanceHeirResponseDto {
+  const linked = row.memberUserId ? lookup.get(row.memberUserId) : undefined;
   return {
     id: row.id,
     inheritanceAssetId: row.inheritanceAssetId,
-    name: row.name,
-    relationship: row.relationship,
+    name: linked?.name ?? row.name,
+    relationship: linked?.relationship ?? row.relationship,
     sharePercent: row.sharePercent.toString(),
     memberUserId: row.memberUserId,
     createdAt: row.createdAt.toISOString(),
   };
 }
 
-function toAssetDto(row: AssetRow): InheritanceAssetResponseDto {
+function toAssetDto(
+  row: AssetRow,
+  lookup: MemberLookup = new Map(),
+): InheritanceAssetResponseDto {
   return {
     id: row.id,
     familyGroupId: row.familyGroupId,
@@ -64,7 +82,7 @@ function toAssetDto(row: AssetRow): InheritanceAssetResponseDto {
     visibility: row.visibility,
     documentUrl: row.documentUrl,
     assetId: row.assetId,
-    heirs: row.heirs.map(toHeirDto),
+    heirs: row.heirs.map((h) => toHeirDto(h, lookup)),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -127,6 +145,31 @@ export class InheritanceService {
     }
   }
 
+  // EPIC-023 F1 (D14) — batch-resolve the CURRENT name/relationship for
+  // every linked `memberUserId` across a set of heir rows. Mirrors
+  // InsurancesService.resolveMemberLookup.
+  private async resolveMemberLookup(
+    familyGroupId: string,
+    memberUserIds: readonly (string | null)[],
+  ): Promise<MemberLookup> {
+    const ids = Array.from(
+      new Set(memberUserIds.filter((id): id is string => !!id)),
+    );
+    if (ids.length === 0) return new Map();
+
+    const members = await this.prisma.member.findMany({
+      where: { familyGroupId, userId: { in: ids } },
+      include: { user: { select: { name: true } } },
+    });
+
+    return new Map(
+      members.map((m) => [
+        m.userId,
+        { name: m.user.name, relationship: m.relationship },
+      ]),
+    );
+  }
+
   async create(
     familyGroupId: string,
     dto: CreateInheritanceAssetDto,
@@ -167,7 +210,11 @@ export class InheritanceService {
       return created;
     });
 
-    return toAssetDto(asset);
+    const lookup = await this.resolveMemberLookup(
+      familyGroupId,
+      asset.heirs.map((h) => h.memberUserId),
+    );
+    return toAssetDto(asset, lookup);
   }
 
   async findAll(familyGroupId: string): Promise<InheritanceAssetResponseDto[]> {
@@ -176,7 +223,11 @@ export class InheritanceService {
       include: { heirs: true },
       orderBy: { createdAt: "asc" },
     });
-    return rows.map(toAssetDto);
+    const lookup = await this.resolveMemberLookup(
+      familyGroupId,
+      rows.flatMap((r) => r.heirs.map((h) => h.memberUserId)),
+    );
+    return rows.map((row) => toAssetDto(row, lookup));
   }
 
   async findOne(
@@ -190,7 +241,11 @@ export class InheritanceService {
     if (!row) {
       throw new NotFoundException("Inheritance asset not found");
     }
-    return toAssetDto(row);
+    const lookup = await this.resolveMemberLookup(
+      familyGroupId,
+      row.heirs.map((h) => h.memberUserId),
+    );
+    return toAssetDto(row, lookup);
   }
 
   async update(
@@ -252,7 +307,11 @@ export class InheritanceService {
       });
     });
 
-    return toAssetDto(updated);
+    const lookup = await this.resolveMemberLookup(
+      familyGroupId,
+      updated.heirs.map((h) => h.memberUserId),
+    );
+    return toAssetDto(updated, lookup);
   }
 
   async remove(familyGroupId: string, id: string): Promise<void> {
@@ -281,6 +340,10 @@ export class InheritanceService {
       data: { documentUrl: url },
       include: { heirs: true },
     });
-    return toAssetDto(updated);
+    const lookup = await this.resolveMemberLookup(
+      familyGroupId,
+      updated.heirs.map((h) => h.memberUserId),
+    );
+    return toAssetDto(updated, lookup);
   }
 }

@@ -13,6 +13,7 @@ import { StatusBadge } from "@/components/wm";
 import { CardSideActions, ConfirmDeleteDialog } from "@/components/crud";
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
+import type { ApiError } from "@/lib/api-client";
 import { apiFetch } from "@/lib/api-client";
 import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
@@ -24,16 +25,20 @@ import type {
   InsuranceSummaryDto,
   InsuranceType,
   InsuranceStatus,
+  MemberRelationship,
   PremiumPeriod,
   UpdateInsuranceDto,
 } from "@wealthme/contracts";
 
 // EPIC-021 Group D (#14) — mirrors the `FamilyMember` shape used on /akun for
-// the optional "link a beneficiary to a family member" picker.
+// the optional "link a beneficiary to a family member" picker. EPIC-023 F1
+// (D14) added `relationship` so selecting a member can live-fill it too —
+// the API's response DTO already carries it (member-response.dto.ts).
 type FamilyMember = {
   id: string;
   userId: string;
   name: string;
+  relationship: MemberRelationship | null;
 };
 
 const INSURANCE_TYPE_ICON: Record<string, string> = {
@@ -290,6 +295,12 @@ interface BeneficiaryEditorProps {
   rows: BeneficiaryFormRow[];
   onChange: (rows: BeneficiaryFormRow[]) => void;
   familyMembers: FamilyMember[];
+  // EPIC-023 F1 (D14) — true when the members list failed to load (e.g. a
+  // dependant/operational role has no "read Member" ability). Honest UI: a
+  // silently-empty picker looks identical to "this family has no members",
+  // so this note tells the user WHY the picker is unavailable instead of
+  // just hiding it.
+  membersUnavailable?: boolean;
 }
 
 /** Shared allocation-bar + row editor, mirroring warisan's heir editor UX. */
@@ -297,6 +308,7 @@ function BeneficiaryEditor({
   rows,
   onChange,
   familyMembers,
+  membersUnavailable,
 }: BeneficiaryEditorProps) {
   const { t } = useLocale();
   const allocated = Math.min(100, totalAllocated(rows));
@@ -312,72 +324,109 @@ function BeneficiaryEditor({
         {t.asuransi.beneficiariesSectionTitle}
       </label>
       <div className="space-y-2.5">
-        {rows.map((row) => (
-          <div
-            key={row.id}
-            className="space-y-2 rounded-md border bg-background p-3"
-          >
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={row.name}
-                onChange={(e) => updateRow(row.id, { name: e.target.value })}
-                placeholder={t.asuransi.beneficiaryNamePlaceholder}
-                className={FIELD_CLASS}
-              />
-              <button
-                type="button"
-                aria-label={t.asuransi.removeBeneficiaryAriaLabel}
-                onClick={() => onChange(rows.filter((r) => r.id !== row.id))}
-                className="flex size-8 shrink-0 items-center justify-center rounded-full hover:bg-muted"
-              >
-                <X className="size-3.5" />
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="text"
-                value={row.relationship}
-                onChange={(e) =>
-                  updateRow(row.id, { relationship: e.target.value })
-                }
-                placeholder={t.asuransi.beneficiaryRelationshipPlaceholder}
-                className={FIELD_CLASS}
-              />
-              <input
-                type="number"
-                min={0}
-                max={100}
-                step="0.01"
-                value={row.sharePercent}
-                onChange={(e) =>
-                  updateRow(row.id, { sharePercent: e.target.value })
-                }
-                placeholder={t.asuransi.beneficiarySharePercentLabel}
-                className={FIELD_CLASS}
-              />
-            </div>
-            {familyMembers.length > 0 && (
-              <select
-                value={row.memberUserId}
-                onChange={(e) =>
-                  updateRow(row.id, { memberUserId: e.target.value })
-                }
-                className={FIELD_CLASS}
-                aria-label={t.asuransi.beneficiaryMemberLabel}
-              >
-                <option value="">
-                  {t.asuransi.beneficiaryMemberNoneOption}
-                </option>
-                {familyMembers.map((m) => (
-                  <option key={m.userId} value={m.userId}>
-                    {m.name}
+        {rows.map((row) => {
+          // EPIC-023 F1 (D14) — once linked, name/relationship are
+          // resolved from the member's CURRENT record (not the row's own
+          // free-text fields) so the editor never shows a value that would
+          // be overwritten the moment the API re-resolves it on the next
+          // read (see insurances.service.ts's `MemberLookup`).
+          const linkedMember = row.memberUserId
+            ? familyMembers.find((m) => m.userId === row.memberUserId)
+            : undefined;
+          return (
+            <div
+              key={row.id}
+              className="space-y-2 rounded-md border bg-background p-3"
+            >
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={linkedMember ? linkedMember.name : row.name}
+                  disabled={!!linkedMember}
+                  onChange={(e) => updateRow(row.id, { name: e.target.value })}
+                  placeholder={t.asuransi.beneficiaryNamePlaceholder}
+                  className={`${FIELD_CLASS} disabled:cursor-not-allowed disabled:opacity-60`}
+                />
+                <button
+                  type="button"
+                  aria-label={t.asuransi.removeBeneficiaryAriaLabel}
+                  onClick={() => onChange(rows.filter((r) => r.id !== row.id))}
+                  className="flex size-8 shrink-0 items-center justify-center rounded-full hover:bg-muted"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  value={
+                    linkedMember
+                      ? (linkedMember.relationship ?? "")
+                      : row.relationship
+                  }
+                  disabled={!!linkedMember}
+                  onChange={(e) =>
+                    updateRow(row.id, { relationship: e.target.value })
+                  }
+                  placeholder={t.asuransi.beneficiaryRelationshipPlaceholder}
+                  className={`${FIELD_CLASS} disabled:cursor-not-allowed disabled:opacity-60`}
+                />
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  value={row.sharePercent}
+                  onChange={(e) =>
+                    updateRow(row.id, { sharePercent: e.target.value })
+                  }
+                  placeholder={t.asuransi.beneficiarySharePercentLabel}
+                  className={FIELD_CLASS}
+                />
+              </div>
+              {familyMembers.length > 0 ? (
+                <select
+                  value={row.memberUserId}
+                  onChange={(e) => {
+                    const memberUserId = e.target.value;
+                    const picked = familyMembers.find(
+                      (m) => m.userId === memberUserId,
+                    );
+                    // Live-fill on selection; the API re-resolves from the
+                    // CURRENT member record on every subsequent read
+                    // regardless of what is stored here (see comment above).
+                    updateRow(row.id, {
+                      memberUserId,
+                      ...(picked
+                        ? {
+                            name: picked.name,
+                            relationship: picked.relationship ?? "",
+                          }
+                        : {}),
+                    });
+                  }}
+                  className={FIELD_CLASS}
+                  aria-label={t.asuransi.beneficiaryMemberLabel}
+                >
+                  <option value="">
+                    {t.asuransi.beneficiaryMemberNoneOption}
                   </option>
-                ))}
-              </select>
-            )}
-          </div>
-        ))}
+                  {familyMembers.map((m) => (
+                    <option key={m.userId} value={m.userId}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                membersUnavailable && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {t.asuransi.beneficiaryMemberPickerUnavailable}
+                  </p>
+                )
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <button
@@ -412,6 +461,7 @@ interface InsuranceModalProps {
   token: string | undefined;
   editing: InsuranceDto | null;
   familyMembers: FamilyMember[];
+  membersUnavailable?: boolean;
   onClose: () => void;
 }
 
@@ -425,6 +475,7 @@ function InsuranceModal({
   token,
   editing,
   familyMembers,
+  membersUnavailable,
   onClose,
 }: InsuranceModalProps) {
   const { t } = useLocale();
@@ -806,6 +857,7 @@ function InsuranceModal({
             rows={beneficiaries}
             onChange={setBeneficiaries}
             familyMembers={familyMembers}
+            membersUnavailable={membersUnavailable}
           />
 
           <Button
@@ -893,14 +945,21 @@ export default function AsuransiPage() {
   const [payTarget, setPayTarget] = useState<InsuranceDto | null>(null);
 
   // EPIC-021 Group D (#14) — family members for the beneficiary's optional
-  // "link to a family-group member" picker.
-  const { data: familyMembers = [] } = useQuery<FamilyMember[]>({
+  // "link to a family-group member" picker. EPIC-023 F1 (D14) — `isError`
+  // drives the honest-UI note in BeneficiaryEditor for roles (dependant/
+  // operational) that hold no "read Member" ability, instead of a
+  // silently-empty picker indistinguishable from "no members exist".
+  const { data: familyMembers = [], isError: isFamilyMembersError } = useQuery<
+    FamilyMember[],
+    ApiError
+  >({
     queryKey: [...queryKeys.familyGroups.members(familyGroupId ?? ""), token],
     queryFn: () =>
       apiFetch<FamilyMember[]>(`/family-groups/${familyGroupId}/members`, {
         token,
       }),
     enabled: Boolean(familyGroupId) && Boolean(token),
+    retry: false,
   });
 
   const payMutation = useMutation({
@@ -1047,6 +1106,7 @@ export default function AsuransiPage() {
           token={token}
           editing={null}
           familyMembers={familyMembers}
+          membersUnavailable={isFamilyMembersError}
           onClose={() => setShowModal(false)}
         />
       )}
@@ -1057,6 +1117,7 @@ export default function AsuransiPage() {
           token={token}
           editing={editingItem}
           familyMembers={familyMembers}
+          membersUnavailable={isFamilyMembersError}
           onClose={() => setEditingItem(null)}
         />
       )}

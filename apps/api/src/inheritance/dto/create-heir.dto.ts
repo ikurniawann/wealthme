@@ -4,6 +4,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -29,9 +30,12 @@ export class CreateHeirDto {
   sharePercent!: number;
 
   // Decision #9 — optional link to a family-group member (User.id) alongside
-  // the free-text name/relationship above.
+  // the free-text name/relationship above. EPIC-023 F1 (D14) — `User.id` is
+  // always a uuid (`@default(uuid())`); validating the shape here rejects
+  // garbage before it ever reaches the tenant-scope lookup in
+  // InheritanceService.
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUUID()
   memberUserId?: string;
 }
