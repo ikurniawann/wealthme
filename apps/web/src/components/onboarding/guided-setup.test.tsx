@@ -156,6 +156,16 @@ function render(ui: ReactElement, queryClient = createTestQueryClient()) {
   return { queryClient, ...rtlRender(ui, { wrapper: Providers }) };
 }
 
+// Several tests here drive all three wizard steps end to end to reach the
+// done screen, so they are long by nature. `userEvent`'s default per-keystroke
+// delay is pure harness overhead and is disabled at every setup below, which
+// is what actually made them fast (the happy path went from timing out to
+// ~0.7s). This ceiling is headroom for GitHub's shared runner, which is
+// several times slower than a dev machine — it relaxes no assertion, and it
+// is set for the file so a newly-added multi-step test does not rediscover
+// the same 5s default one CI run at a time.
+jest.setTimeout(30_000);
+
 describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -175,12 +185,6 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
     });
   });
 
-  // Drives all three steps end to end, so it is by far the longest test here.
-  // `userEvent`'s default per-keystroke delay is pure harness overhead (it is
-  // disabled for every setup in this file), and GitHub's shared runner is
-  // several times slower than a dev machine — this exceeded jest's default
-  // 5s ceiling on CI while passing locally. The timeout is headroom for that
-  // gap; it does not relax a single assertion.
   it("creates a real account, budget, and transaction — and shows the consequence of each", async () => {
     const user = userEvent.setup({ delay: null });
     const onClose = jest.fn();
@@ -277,7 +281,7 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
     expect(onClose).toHaveBeenCalled();
     expect(isOnboarded(USER_ID)).toBe(true);
     expect(getSetupProgress(USER_ID)).toBeNull();
-  }, 30_000);
+  });
 
   it("lets a step be skipped when the family already has one, instead of creating a duplicate", async () => {
     accountsStore = [{ id: "acc-existing", name: "Rekening Lama" }];
