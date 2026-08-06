@@ -6,7 +6,7 @@
  * exists, and never pretend a failed write succeeded.
  */
 
-import type { ReactElement, ReactNode } from "react";
+import { useState, type ReactElement, type ReactNode } from "react";
 import { render as rtlRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -19,9 +19,10 @@ jest.mock("../../lib/auth-client", () => ({
   },
 }));
 
+const mockRouterPush = jest.fn();
 jest.mock("next/navigation", () => ({
   useRouter: () => ({
-    push: jest.fn(),
+    push: (...args: unknown[]) => mockRouterPush(...args),
     replace: jest.fn(),
     back: jest.fn(),
     forward: jest.fn(),
@@ -138,19 +139,21 @@ jest.mock("../../lib/api-client", () => ({
 
 import { GuidedSetup } from "./guided-setup";
 import { isOnboarded } from "./use-onboarded";
-import { getSetupProgress } from "./setup-progress";
+import { getSetupProgress, setSetupProgress } from "./setup-progress";
 
-function Providers({ children }: { children: ReactNode }) {
-  const queryClient = new QueryClient({
+function createTestQueryClient(): QueryClient {
+  return new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
 }
 
-function render(ui: ReactElement) {
-  return rtlRender(ui, { wrapper: Providers });
+function render(ui: ReactElement, queryClient = createTestQueryClient()) {
+  function Providers({ children }: { children: ReactNode }) {
+    return (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+  }
+  return { queryClient, ...rtlRender(ui, { wrapper: Providers }) };
 }
 
 describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
@@ -175,7 +178,8 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
   it("creates a real account, budget, and transaction — and shows the consequence of each", async () => {
     const user = userEvent.setup();
     const onClose = jest.fn();
-    render(<GuidedSetup open onClose={onClose} />);
+    const { queryClient } = render(<GuidedSetup open onClose={onClose} />);
+    const invalidateSpy = jest.spyOn(queryClient, "invalidateQueries");
 
     // Step 1 — account.
     await screen.findByText("Tambahkan rekening pertamamu");
@@ -188,12 +192,31 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
     );
 
     // Consequence — net worth appears (before/after).
-    await screen.findByText("Lihat — kekayaan bersihmu langsung muncul");
+    const accountConsequenceHeading = await screen.findByText(
+      "Lihat — kekayaan bersihmu langsung muncul",
+    );
     expect(screen.getByText(/Sebelum: Rp 0/)).toBeInTheDocument();
     expect(screen.getByText(/Sesudah: Rp 5\.000\.000/)).toBeInTheDocument();
     expect(mockApiFetch).toHaveBeenCalledWith(
       `/family-groups/${FAMILY_GROUP_ID}/accounts`,
       expect.objectContaining({ method: "POST" }),
+    );
+    // CRITICAL 2 — focus must move to the consequence heading the instant
+    // it appears, not stay on the now-disabled submit button (which blurs
+    // to <body>). The `step` value does NOT change for this transition, so
+    // this only passes if the focus effect also depends on the consequence
+    // state.
+    await waitFor(() => expect(accountConsequenceHeading).toHaveFocus());
+    // CRITICAL 1 — the pages underneath (Rekening, Beranda) are cached
+    // TanStack Query reads; without invalidation they'd still show the
+    // stale pre-wizard data after this dialog closes.
+    expect(invalidateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ["accounts", FAMILY_GROUP_ID] }),
+    );
+    expect(invalidateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: ["netWorth", FAMILY_GROUP_ID],
+      }),
     );
     await user.click(screen.getByRole("button", { name: "Lanjut" }));
 
@@ -203,10 +226,16 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
     await user.type(screen.getByLabelText("Batas Bulanan"), "2000000");
     await user.click(screen.getByRole("button", { name: "Buat Anggaran" }));
 
-    await screen.findByText("Anggaran siap — 0% terpakai");
+    const budgetConsequenceHeading = await screen.findByText(
+      "Anggaran siap — 0% terpakai",
+    );
     expect(mockApiFetch).toHaveBeenCalledWith(
       `/family-groups/${FAMILY_GROUP_ID}/budgets`,
       expect.objectContaining({ method: "POST" }),
+    );
+    await waitFor(() => expect(budgetConsequenceHeading).toHaveFocus());
+    expect(invalidateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ["budgets", FAMILY_GROUP_ID] }),
     );
     await user.click(screen.getByRole("button", { name: "Lanjut" }));
 
@@ -218,12 +247,20 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
     );
 
     // Consequence — net worth moves AND the budget usage rises together.
-    await screen.findByText("Lihat — dua hal berubah sekaligus");
+    const txConsequenceHeading = await screen.findByText(
+      "Lihat — dua hal berubah sekaligus",
+    );
     expect(screen.getByText(/Rp 4\.700\.000/)).toBeInTheDocument();
     expect(screen.getByText(/30%/)).toBeInTheDocument();
     expect(mockApiFetch).toHaveBeenCalledWith(
       `/family-groups/${FAMILY_GROUP_ID}/transactions`,
       expect.objectContaining({ method: "POST" }),
+    );
+    await waitFor(() => expect(txConsequenceHeading).toHaveFocus());
+    expect(invalidateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: ["transactions", FAMILY_GROUP_ID],
+      }),
     );
     await user.click(screen.getByRole("button", { name: "Lanjut" }));
 
@@ -357,5 +394,128 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
     expect(
       screen.getByText(/Pengeluaran terakhir melewati batas keluargamu/),
     ).toBeInTheDocument();
+    // HIGH 3 — a held expense becomes an AllowanceRequest, not a
+    // Transaction; /transaksi has no query for it at all, so the CTA that
+    // would send the user there must not be offered for this outcome.
+    expect(
+      screen.queryByRole("button", { name: "Lihat Transaksi" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Lihat Rekening" }),
+    ).toBeInTheDocument();
+  });
+
+  it("clicking a done-step nav button closes the wizard before navigating (MEDIUM 9)", async () => {
+    const user = userEvent.setup();
+    const onClose = jest.fn();
+    render(<GuidedSetup open onClose={onClose} />);
+
+    await screen.findByText("Tambahkan rekening pertamamu");
+    await user.type(screen.getByLabelText("Nama Rekening"), "BCA Tabungan");
+    await user.type(screen.getByLabelText("Saldo Saat Ini"), "5000000");
+    await user.click(
+      screen.getByRole("button", {
+        name: "Tambah Rekening & Lihat Kekayaan Bersih",
+      }),
+    );
+    await screen.findByText("Lihat — kekayaan bersihmu langsung muncul");
+    await user.click(screen.getByRole("button", { name: "Lanjut" }));
+
+    await screen.findByText("Buat anggaran pertamamu");
+    await user.type(screen.getByLabelText("Nama Kategori"), "Makan & Minum");
+    await user.type(screen.getByLabelText("Batas Bulanan"), "2000000");
+    await user.click(screen.getByRole("button", { name: "Buat Anggaran" }));
+    await screen.findByText("Anggaran siap — 0% terpakai");
+    await user.click(screen.getByRole("button", { name: "Lanjut" }));
+
+    await screen.findByText("Catat pengeluaran pertamamu");
+    await user.type(screen.getByLabelText("Jumlah"), "150000");
+    await user.click(
+      screen.getByRole("button", { name: "Catat & Lihat Perubahannya" }),
+    );
+    await screen.findByText("Lihat — dua hal berubah sekaligus");
+    await user.click(screen.getByRole("button", { name: "Lanjut" }));
+
+    await screen.findByText("Setup pertamamu selesai 🎉");
+    await user.click(screen.getByRole("button", { name: "Lihat Rekening" }));
+
+    // Previously this only navigated — the dialog stayed open and blocked
+    // the very page the button just routed to.
+    expect(onClose).toHaveBeenCalled();
+    expect(mockRouterPush).toHaveBeenCalledWith("/rekening");
+  });
+
+  it("tells the user what was already created before closing via Skip Setup (MEDIUM 8)", async () => {
+    const user = userEvent.setup();
+    render(<GuidedSetup open onClose={jest.fn()} />);
+
+    await screen.findByText("Tambahkan rekening pertamamu");
+    await user.type(screen.getByLabelText("Nama Rekening"), "BCA Tabungan");
+    await user.type(screen.getByLabelText("Saldo Saat Ini"), "5000000");
+    await user.click(
+      screen.getByRole("button", {
+        name: "Tambah Rekening & Lihat Kekayaan Bersih",
+      }),
+    );
+    await screen.findByText("Lihat — kekayaan bersihmu langsung muncul");
+
+    await user.click(screen.getByRole("button", { name: "Lewati Setup" }));
+
+    // The account is real and already created — closing without saying so
+    // would be the only chance the user ever gets to hear it was kept.
+    expect(mockToastSuccess).toHaveBeenCalledWith(
+      "Yang sudah kamu buat tetap tersimpan: Rekening",
+    );
+  });
+
+  it("restarts from the account step when a resumed accountId no longer exists (MEDIUM 7)", async () => {
+    setSetupProgress(USER_ID, {
+      step: "budget",
+      accountId: "acc-deleted-by-another-member",
+      accountName: "Rekening Yang Sudah Dihapus",
+    });
+    const user = userEvent.setup();
+    render(<GuidedSetup open onClose={jest.fn()} />);
+
+    // The saved progress pointed at "budget", but that account is gone
+    // from `accountsStore` (empty in this test) — resuming there would
+    // make the eventual POST fail server-side forever.
+    await screen.findByText("Tambahkan rekening pertamamu");
+    expect(
+      screen.queryByText("Buat anggaran pertamamu"),
+    ).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Nama Rekening"), "BCA Tabungan");
+    await user.type(screen.getByLabelText("Saldo Saat Ini"), "5000000");
+    await user.click(
+      screen.getByRole("button", {
+        name: "Tambah Rekening & Lihat Kekayaan Bersih",
+      }),
+    );
+    // Creating fresh works — the dangling id didn't get reused.
+    await screen.findByText("Lihat — kekayaan bersihmu langsung muncul");
+  });
+
+  it("restores focus to whatever opened it once it closes (HIGH 6)", async () => {
+    const user = userEvent.setup();
+    function Wrapper() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>
+            Mulai Tur
+          </button>
+          <GuidedSetup open={open} onClose={() => setOpen(false)} />
+        </>
+      );
+    }
+    render(<Wrapper />);
+
+    const openerButton = screen.getByRole("button", { name: "Mulai Tur" });
+    await user.click(openerButton);
+    await screen.findByText("Tambahkan rekening pertamamu");
+
+    await user.click(screen.getByRole("button", { name: "Lewati Setup" }));
+    await waitFor(() => expect(openerButton).toHaveFocus());
   });
 });

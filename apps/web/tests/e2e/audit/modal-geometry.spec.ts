@@ -137,7 +137,11 @@ const SCENARIOS: ModalScenario[] = [
   {
     label: "asuransi — Tambah Asuransi (BeneficiaryEditor)",
     route: "/asuransi",
-    openTrigger: (page) => page.locator('[data-tour="add-asuransi"]'),
+    // EPIC-023 Task H fix round (MEDIUM 15) — `data-tour` markers were dead
+    // attributes left over from the removed button-spotlight tour; select
+    // by the button's own accessible name instead.
+    openTrigger: (page) =>
+      page.getByRole("button", { name: "Tambah", exact: true }),
     // InsuranceModal's role="dialog" element is the fixed inset-0 backdrop;
     // the actual bounded/scrollable card is its first child.
     content: (dialog) => dialog.locator("> div").first(),

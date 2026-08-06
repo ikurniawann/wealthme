@@ -337,4 +337,20 @@ describe("MasterCoaPage — plain-language guide (EPIC-023 H2)", () => {
       screen.getByText(/kamu pinjamkan Rp 500\.000 ke teman/),
     ).toBeInTheDocument();
   });
+
+  it("exposes real heading elements so a screen reader can navigate by heading (EPIC-023 Task H fix round, MEDIUM 13)", async () => {
+    // Arrange — SectionCard's own `title` div (components/wm, protected)
+    // has no heading semantics; the guide passes a real <h2>/<h3> INTO it
+    // instead of editing the protected component.
+    mockCoaRoutes([buildAccount()]);
+    render(<MasterCoaPage />);
+    await screen.findByText("Belanja");
+
+    expect(
+      screen.getByRole("heading", { name: "Apa itu Master COA?" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "6 grup, dan artinya untuk uangmu" }),
+    ).toBeInTheDocument();
+  });
 });

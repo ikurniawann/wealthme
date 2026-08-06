@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { Wallet, ClipboardList, Receipt, PartyPopper } from "lucide-react";
 import { toast } from "sonner";
 import type { AccountDto, BudgetDto, BudgetPeriod } from "@wealthme/contracts";
@@ -10,6 +11,7 @@ import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { queryKeys } from "@/lib/query-keys";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { setOnboarded } from "./use-onboarded";
 import {
@@ -73,6 +75,39 @@ async function fetchNetWorth(
   return summary.netWorth;
 }
 
+// EPIC-023 Task H fix round (CRITICAL 1) — this wizard writes real rows
+// through the real endpoints, but the pages underneath (Beranda, Rekening,
+// Anggaran, Transaksi) are TanStack Query consumers with a 60s staleTime
+// (AppQueryClientProvider). Without invalidating their caches, a user who
+// closes the wizard inside that window sees the SAME stale zero they
+// started with — the wizard's entire premise ("watch it appear") would be
+// false on the real screens. Mirrors the broad invalidation set already
+// used by components/shell/transaction-dialog.tsx and
+// app/(app)/anggaran/page.tsx's obligation-pay mutation.
+function invalidateOnboardingQueries(
+  queryClient: QueryClient,
+  familyGroupId: string,
+): void {
+  void queryClient.invalidateQueries({
+    queryKey: queryKeys.accounts.all(familyGroupId),
+  });
+  void queryClient.invalidateQueries({
+    queryKey: queryKeys.categories.all(familyGroupId),
+  });
+  void queryClient.invalidateQueries({
+    queryKey: queryKeys.budgets.all(familyGroupId),
+  });
+  void queryClient.invalidateQueries({
+    queryKey: queryKeys.transactions.all(familyGroupId),
+  });
+  void queryClient.invalidateQueries({
+    queryKey: queryKeys.dashboard.summary(familyGroupId),
+  });
+  void queryClient.invalidateQueries({
+    queryKey: queryKeys.netWorth.summary(familyGroupId),
+  });
+}
+
 export function GuidedSetup({
   open,
   onClose,
@@ -82,12 +117,14 @@ export function GuidedSetup({
 }) {
   const { t } = useLocale();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: session } = useSession();
   const userId = session?.userId ?? "";
   const familyGroupId = session?.familyGroupId ?? "";
   const token = session?.accessToken;
   const tr = t.onboarding;
   const uid = useId();
+  const stepIndicatorId = `${uid}-step-indicator`;
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   const [step, setStep] = useState<SetupStep>("account");
@@ -134,14 +171,78 @@ export function GuidedSetup({
   // opens — resumable (D22): a user who abandons mid-way picks back up
   // exactly where they left off, and never sees a duplicate-creation prompt
   // for something they (or another member) already set up meanwhile.
+  //
+  // EPIC-023 Task H fix round (MEDIUM 7) — the saved accountId/budgetId are
+  // cross-checked against what the family group actually has BEFORE being
+  // restored into state: another member may have deleted the row between
+  // sessions. A dangling id would resume the wizard on a step whose final
+  // POST fails server-side forever. If the account itself is gone, restart
+  // from "account" (nothing downstream is trustworthy). If only the budget
+  // is gone, keep the still-valid account and drop back to "budget".
   useEffect(() => {
     if (!open || !userId || !familyGroupId || !token) return;
+    let cancelled = false;
     const saved = getSetupProgress(userId);
-    /* eslint-disable react-hooks/set-state-in-effect -- restoring saved
-       progress when the dialog (re)opens, not synchronizing on every
-       render; same basis as the precedent in walkthrough.tsx's
-       isOnboarded() check. */
-    if (saved && saved.step !== "done") {
+
+    void Promise.all([
+      apiFetch<AccountDto[]>(`/family-groups/${familyGroupId}/accounts`, {
+        token,
+      }).catch(() => [] as AccountDto[]),
+      apiFetch<BudgetDto[]>(`/family-groups/${familyGroupId}/budgets`, {
+        token,
+      }).catch(() => [] as BudgetDto[]),
+    ]).then(([accounts, budgets]) => {
+      if (cancelled) return;
+      // Restoring saved progress once the accounts/budgets fetch resolves —
+      // an async `.then()` callback, not a synchronous effect body, so
+      // react-hooks/set-state-in-effect does not apply here.
+      setExistingAccounts(accounts.map((r) => ({ id: r.id, name: r.name })));
+      setExistingBudgets(
+        budgets.map((r) => ({
+          id: r.id,
+          categoryId: r.categoryId,
+          categoryName: r.categoryName,
+          limitAmount: r.limitAmount,
+        })),
+      );
+
+      if (!saved || saved.step === "done") {
+        setStep("account");
+        return;
+      }
+
+      const accountStillExists =
+        !saved.accountId || accounts.some((a) => a.id === saved.accountId);
+      if (!accountStillExists) {
+        clearSetupProgress(userId);
+        setStep("account");
+        setAccountId("");
+        setAccountName("");
+        setCategoryId("");
+        setCategoryName("");
+        setBudgetId("");
+        setLimitAmount(0);
+        return;
+      }
+
+      const budgetStillExists =
+        !saved.budgetId || budgets.some((b) => b.id === saved.budgetId);
+      if (saved.step !== "account" && !budgetStillExists) {
+        setSetupProgress(userId, {
+          step: "budget",
+          accountId: saved.accountId,
+          accountName: saved.accountName,
+        });
+        setStep("budget");
+        setAccountId(saved.accountId ?? "");
+        setAccountName(saved.accountName ?? "");
+        setCategoryId("");
+        setCategoryName("");
+        setBudgetId("");
+        setLimitAmount(0);
+        return;
+      }
+
       setStep(saved.step);
       setAccountId(saved.accountId ?? "");
       setAccountName(saved.accountName ?? "");
@@ -149,38 +250,7 @@ export function GuidedSetup({
       setCategoryName(saved.categoryName ?? "");
       setBudgetId(saved.budgetId ?? "");
       setLimitAmount(saved.limitAmount ?? 0);
-    } else {
-      setStep("account");
-    }
-    /* eslint-enable react-hooks/set-state-in-effect */
-    let cancelled = false;
-    void apiFetch<AccountDto[]>(`/family-groups/${familyGroupId}/accounts`, {
-      token,
-    })
-      .then((rows) => {
-        if (!cancelled)
-          setExistingAccounts(rows.map((r) => ({ id: r.id, name: r.name })));
-      })
-      .catch(() => {
-        if (!cancelled) setExistingAccounts([]);
-      });
-    void apiFetch<BudgetDto[]>(`/family-groups/${familyGroupId}/budgets`, {
-      token,
-    })
-      .then((rows) => {
-        if (!cancelled)
-          setExistingBudgets(
-            rows.map((r) => ({
-              id: r.id,
-              categoryId: r.categoryId,
-              categoryName: r.categoryName,
-              limitAmount: r.limitAmount,
-            })),
-          );
-      })
-      .catch(() => {
-        if (!cancelled) setExistingBudgets([]);
-      });
+    });
     return () => {
       cancelled = true;
     };
@@ -189,13 +259,48 @@ export function GuidedSetup({
   // Move focus onto the new step's heading so keyboard/screen-reader users
   // land on the fresh content instead of a stale target — label/focus
   // association has been a repeat HIGH across this epic (H1, E, F).
+  //
+  // EPIC-023 Task H fix round (CRITICAL 2) — the account/budget/transaction
+  // "consequence" panels swap in WITHOUT a `step` change (accountConsequence
+  // / budgetCreated / txConsequence / txHeld flip while `step` stays put),
+  // so this effect must also re-run on those flags or focus never moves off
+  // the (now-disabled, blurred-to-body) submit button at the exact moment
+  // the payoff appears.
   useEffect(() => {
     if (open) headingRef.current?.focus();
-  }, [open, step]);
+  }, [open, step, accountConsequence, budgetCreated, txConsequence, txHeld]);
+
+  // EPIC-023 Task H fix round (HIGH 6) — restore focus to whatever was
+  // focused before this dialog opened, same precedent as the activeElement
+  // capture/restore in app/(app)/asuransi/page.tsx's modal. Effect keyed on
+  // `open` (not mount) because Walkthrough renders <GuidedSetup> once for
+  // its whole lifetime and only toggles the `open` prop — a mount-only
+  // effect would capture the wrong moment. When the opener button lived in
+  // an already-unmounted dialog (the welcome/resume prompt), the browser
+  // has nothing meaningful to hand back and focus falls through to
+  // <body> — no worse than today, but every case where the opener is still
+  // in the DOM (e.g. Akun's "Mulai Tur" button) is now handled correctly.
+  useEffect(() => {
+    if (!open) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    return () => {
+      previouslyFocused?.focus?.();
+    };
+  }, [open]);
 
   if (!open) return null;
 
+  // EPIC-023 Task H fix round (MEDIUM 8) — if the user already created a
+  // real account or budget before skipping, say so before closing: this is
+  // the only moment that tells them their rows were kept, since
+  // clearSetupProgress() means the "resume?" prompt will never fire again.
   function skipAll() {
+    const kept: string[] = [];
+    if (accountId) kept.push(tr.stepLabels.account);
+    if (budgetId) kept.push(tr.stepLabels.budget);
+    if (kept.length > 0) {
+      toast.success(tr.skipAllKeptPrefix + kept.join(", "));
+    }
     setOnboarded(userId);
     clearSetupProgress(userId);
     onClose();
@@ -205,6 +310,15 @@ export function GuidedSetup({
     setOnboarded(userId);
     clearSetupProgress(userId);
     onClose();
+  }
+
+  // EPIC-023 Task H fix round (MEDIUM 9) — the done step's "View X" buttons
+  // navigate but never called onClose(); since GuidedSetup lives inside the
+  // persistent AppShell, the route changed underneath a dialog that stayed
+  // open, blocking the very page meant to prove the write was real.
+  function finishAndGoTo(path: string) {
+    finish();
+    router.push(path);
   }
 
   async function handleCreateAccount() {
@@ -236,6 +350,7 @@ export function GuidedSetup({
         accountId: account.id,
         accountName: account.name,
       });
+      invalidateOnboardingQueries(queryClient, familyGroupId);
       toast.success(tr.account.toastCreated);
     } catch {
       toast.error(tr.account.toastFailed);
@@ -313,6 +428,7 @@ export function GuidedSetup({
         budgetId: budget.id,
         limitAmount: limitNum,
       });
+      invalidateOnboardingQueries(queryClient, familyGroupId);
       toast.success(tr.budget.toastCreated);
     } catch {
       toast.error(tr.budget.toastFailed);
@@ -378,6 +494,12 @@ export function GuidedSetup({
           budgetId,
           limitAmount,
         });
+        // A held expense creates a real AllowanceRequest, not a Transaction
+        // (transactions.service.ts) — invalidate that list too so it shows
+        // up on /rekening the moment this wizard closes (see HIGH 3).
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.allowanceRequests.all(familyGroupId),
+        });
         setStep("done");
         return;
       }
@@ -401,6 +523,7 @@ export function GuidedSetup({
         budgetId,
         limitAmount,
       });
+      invalidateOnboardingQueries(queryClient, familyGroupId);
       toast.success(tr.transaction.toastCreated);
     } catch {
       toast.error(tr.transaction.toastFailed);
@@ -413,6 +536,7 @@ export function GuidedSetup({
 
   function renderAccountStep() {
     const nameId = `${uid}-account-name`;
+    const nameHintId = `${uid}-account-name-hint`;
     const balanceId = `${uid}-account-balance`;
     if (accountConsequence) {
       return (
@@ -420,16 +544,28 @@ export function GuidedSetup({
           <h3
             ref={headingRef}
             tabIndex={-1}
+            aria-describedby={stepIndicatorId}
             className="text-[15px] font-extrabold outline-none"
           >
             {tr.account.consequenceTitle}
           </h3>
-          <div className="mt-3 rounded-lg border bg-success-soft/60 p-3.5 text-[13px]">
+          <div
+            role="status"
+            aria-live="polite"
+            className="mt-3 rounded-lg border bg-success-soft/60 p-3.5 text-[13px]"
+          >
             <div className="text-muted-foreground">
               {tr.account.consequenceBefore}
               {formatRupiah(accountConsequence.before)}
             </div>
-            <div className="mt-1 text-[17px] font-extrabold text-success">
+            {/* EPIC-023 Task H fix round (HIGH 5) — `text-success` on
+                `bg-success-soft/60` computed to ~2.3:1, under the 4.5:1 AA
+                minimum for this text. `text-emerald-700 dark:text-emerald-300`
+                is the pairing this codebase already uses for readable text
+                on the same soft background (transaction-dialog.tsx,
+                rekonsiliasi/page.tsx) — reused here rather than inventing a
+                new colour. */}
+            <div className="mt-1 text-[17px] font-extrabold text-emerald-700 dark:text-emerald-300">
               {tr.account.consequenceAfter}
               {formatRupiah(accountConsequence.after)}
             </div>
@@ -450,6 +586,7 @@ export function GuidedSetup({
         <h3
           ref={headingRef}
           tabIndex={-1}
+          aria-describedby={stepIndicatorId}
           className="text-[15px] font-extrabold outline-none"
         >
           {tr.account.title}
@@ -477,7 +614,19 @@ export function GuidedSetup({
               onChange={(e) => setAccountNameField(e.target.value)}
               placeholder={tr.account.namePlaceholder}
               className={fieldClass}
+              aria-describedby={nameHintId}
             />
+            {/* EPIC-023 Task H fix round (MEDIUM 12) — the submit button
+                below is disabled while this field is empty, and disabled
+                controls drop out of the tab order; the reason has to be
+                discoverable from the field a keyboard/AT user CAN still
+                reach, not from the unreachable button. */}
+            <p
+              id={nameHintId}
+              className="mt-1 text-[11px] text-muted-foreground"
+            >
+              {tr.account.nameRequiredHint}
+            </p>
           </Field>
           <Field label={tr.account.balanceLabel} htmlFor={balanceId}>
             <div className="relative">
@@ -512,17 +661,23 @@ export function GuidedSetup({
   function renderBudgetStep() {
     const nameId = `${uid}-budget-name`;
     const limitId = `${uid}-budget-limit`;
+    const budgetHintId = `${uid}-budget-required-hint`;
     if (budgetCreated) {
       return (
         <div>
           <h3
             ref={headingRef}
             tabIndex={-1}
+            aria-describedby={stepIndicatorId}
             className="text-[15px] font-extrabold outline-none"
           >
             {tr.budget.consequenceTitle}
           </h3>
-          <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted-foreground">
+          <p
+            role="status"
+            aria-live="polite"
+            className="mt-1.5 text-[12.5px] leading-relaxed text-muted-foreground"
+          >
             {tr.budget.consequenceBody}
           </p>
           <button
@@ -541,6 +696,7 @@ export function GuidedSetup({
         <h3
           ref={headingRef}
           tabIndex={-1}
+          aria-describedby={stepIndicatorId}
           className="text-[15px] font-extrabold outline-none"
         >
           {tr.budget.title}
@@ -568,6 +724,7 @@ export function GuidedSetup({
               onChange={(e) => setCategoryNameField(e.target.value)}
               placeholder={tr.budget.namePlaceholder}
               className={fieldClass}
+              aria-describedby={budgetHintId}
             />
           </Field>
           <Field label={tr.budget.limitLabel} htmlFor={limitId}>
@@ -584,9 +741,16 @@ export function GuidedSetup({
                 }
                 placeholder="0"
                 className={cn(fieldClass, "pl-9")}
+                aria-describedby={budgetHintId}
               />
             </div>
           </Field>
+          {/* EPIC-023 Task H fix round (MEDIUM 12) — see the account step's
+              equivalent hint comment: the submit button becomes unreachable
+              once disabled, so the reason lives on the fields instead. */}
+          <p id={budgetHintId} className="text-[11px] text-muted-foreground">
+            {tr.budget.requiredHint}
+          </p>
         </div>
         <button
           type="button"
@@ -602,6 +766,7 @@ export function GuidedSetup({
 
   function renderTransactionStep() {
     const amountId = `${uid}-tx-amount`;
+    const amountHintId = `${uid}-tx-amount-hint`;
     const descId = `${uid}-tx-description`;
     if (txConsequence) {
       return (
@@ -609,11 +774,16 @@ export function GuidedSetup({
           <h3
             ref={headingRef}
             tabIndex={-1}
+            aria-describedby={stepIndicatorId}
             className="text-[15px] font-extrabold outline-none"
           >
             {tr.transaction.consequenceTitle}
           </h3>
-          <div className="mt-3 space-y-2 rounded-lg border bg-warning-soft/60 p-3.5 text-[13px]">
+          <div
+            role="status"
+            aria-live="polite"
+            className="mt-3 space-y-2 rounded-lg border bg-warning-soft/60 p-3.5 text-[13px]"
+          >
             <div className="font-bold">
               {tr.transaction.consequenceNetWorthPrefix}
               {formatRupiah(txConsequence.netWorthAfter)}
@@ -639,6 +809,7 @@ export function GuidedSetup({
         <h3
           ref={headingRef}
           tabIndex={-1}
+          aria-describedby={stepIndicatorId}
           className="text-[15px] font-extrabold outline-none"
         >
           {tr.transaction.title}
@@ -661,8 +832,17 @@ export function GuidedSetup({
                 }
                 placeholder="0"
                 className={cn(fieldClass, "pl-9")}
+                aria-describedby={amountHintId}
               />
             </div>
+            {/* EPIC-023 Task H fix round (MEDIUM 12) — same reasoning as the
+                account/budget hints above. */}
+            <p
+              id={amountHintId}
+              className="mt-1 text-[11px] text-muted-foreground"
+            >
+              {tr.transaction.amountRequiredHint}
+            </p>
           </Field>
           <Field label={tr.transaction.descriptionLabel} htmlFor={descId}>
             <input
@@ -677,7 +857,11 @@ export function GuidedSetup({
         <button
           type="button"
           onClick={handleCreateTransaction}
-          disabled={isSaving || !amountField}
+          // EPIC-023 Task H fix round (LOW 16) — typing "0" left this
+          // enabled while handleCreateTransaction silently no-ops on
+          // amountNum <= 0; the account/budget steps already disable on the
+          // equivalent falsy case, this now matches them.
+          disabled={isSaving || !amountField || parseRupiah(amountField) <= 0}
           className="mt-4 w-full rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong disabled:opacity-60"
         >
           {isSaving ? tr.transaction.submitting : tr.transaction.submitButton}
@@ -696,31 +880,44 @@ export function GuidedSetup({
         >
           {tr.done.title}
         </h3>
-        <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted-foreground">
+        <p
+          role="status"
+          aria-live="polite"
+          className="mt-1.5 text-[12.5px] leading-relaxed text-muted-foreground"
+        >
           {txHeld ? tr.done.bodyHeld : tr.done.body}
         </p>
         <div className="mt-4 grid grid-cols-1 gap-2">
           <button
             type="button"
-            onClick={() => router.push("/rekening")}
+            onClick={() => finishAndGoTo("/rekening")}
             className="rounded-md border py-2.5 text-[12.5px] font-semibold transition-colors hover:bg-accent"
           >
             {tr.done.viewAccountsButton}
           </button>
           <button
             type="button"
-            onClick={() => router.push("/anggaran")}
+            onClick={() => finishAndGoTo("/anggaran")}
             className="rounded-md border py-2.5 text-[12.5px] font-semibold transition-colors hover:bg-accent"
           >
             {tr.done.viewBudgetsButton}
           </button>
-          <button
-            type="button"
-            onClick={() => router.push("/transaksi")}
-            className="rounded-md border py-2.5 text-[12.5px] font-semibold transition-colors hover:bg-accent"
-          >
-            {tr.done.viewTransactionsButton}
-          </button>
+          {/* EPIC-023 Task H fix round (HIGH 3) — a held over-threshold
+              expense is captured as an AllowanceRequest, never a
+              Transaction (transactions.service.ts), and /transaksi has no
+              allowance-request query at all — the item can never appear
+              there. Only offer this button for the honest (non-held)
+              outcome; the held outcome already points at /rekening above,
+              where the pending request actually shows. */}
+          {!txHeld && (
+            <button
+              type="button"
+              onClick={() => finishAndGoTo("/transaksi")}
+              className="rounded-md border py-2.5 text-[12.5px] font-semibold transition-colors hover:bg-accent"
+            >
+              {tr.done.viewTransactionsButton}
+            </button>
+          )}
         </div>
         <button
           type="button"
@@ -748,21 +945,32 @@ export function GuidedSetup({
         if (!next) onClose();
       }}
     >
-      <DialogContent className="max-h-[90dvh] w-full max-w-[440px] gap-0 overflow-y-auto p-0 sm:max-w-[440px]">
+      {/* EPIC-023 Task H fix round (MEDIUM 14) — a bare `max-w-[440px]`
+          lets tailwind-merge fully replace the dialog base's
+          `max-w-[calc(100%-2rem)]` side gutter (this epic already fixed
+          exactly this once, I2); `min(440px,calc(100%-2rem))` keeps the
+          gutter on narrow screens while preserving the intended width
+          above ~504px. */}
+      <DialogContent className="max-h-[90dvh] w-full max-w-[min(440px,calc(100%-2rem))] gap-0 overflow-y-auto p-0 sm:max-w-[min(440px,calc(100%-2rem))]">
         <div className="p-6">
           <div className="mb-4 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-md bg-accent text-primary">
-                <StepIcon className="size-4" />
+                <StepIcon aria-hidden="true" className="size-4" />
               </div>
               <DialogTitle className="text-[15px] font-extrabold">
                 {tr.dialogTitle}
               </DialogTitle>
             </div>
+            {/* EPIC-023 Task H fix round (HIGH 4) — `aria-label` previously
+                overrode the visible "Lewati Setup" text with "Tutup setup",
+                an accessible name sharing no words with what's on screen
+                (WCAG 2.5.3) and describing a different action (close vs.
+                skip). The visible text is already an accurate, sufficient
+                accessible name — no override needed. */}
             <button
               type="button"
               onClick={skipAll}
-              aria-label={tr.closeAriaLabel}
               className="text-[12px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
             >
               {tr.skipSetupButton}
@@ -770,7 +978,14 @@ export function GuidedSetup({
           </div>
 
           {step !== "done" && (
-            <div className="mb-4 flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+            // EPIC-023 Task H fix round (LOW 16) — `tabIndex={-1}` focus on
+            // the step heading doesn't carry this sibling's text with it;
+            // `aria-describedby` on each heading (above) folds "Langkah X
+            // dari Y · <label>" into what's announced when focus lands.
+            <div
+              id={stepIndicatorId}
+              className="mb-4 flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground"
+            >
               <span>
                 {tr.stepIndicatorPrefix}
                 {stepIndex}

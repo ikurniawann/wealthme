@@ -24,12 +24,59 @@ export type SetupProgress = {
 
 const SETUP_PROGRESS_KEY_PREFIX = "wealthme_setup_progress_";
 
+const VALID_STEPS: readonly SetupStep[] = [
+  "account",
+  "budget",
+  "transaction",
+  "done",
+];
+
+function isSetupStep(value: unknown): value is SetupStep {
+  return (
+    typeof value === "string" &&
+    (VALID_STEPS as readonly string[]).includes(value)
+  );
+}
+
+// EPIC-023 Task H fix round (MEDIUM 10) — `JSON.parse(raw) as SetupProgress`
+// was a bare cast: a `step` outside the union (corrupt storage, an older
+// build's shape, manual tampering) passed the `!== "done"` check in
+// guided-setup.tsx and matched no render branch, producing a dialog with a
+// header and a blank body. Validate every field's runtime type and fall
+// back to the first step ("account") instead of trusting the cast.
 export function getSetupProgress(userId: string): SetupProgress | null {
   if (!userId || typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(SETUP_PROGRESS_KEY_PREFIX + userId);
     if (!raw) return null;
-    return JSON.parse(raw) as SetupProgress;
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    const candidate = parsed as Record<string, unknown>;
+    return {
+      step: isSetupStep(candidate.step) ? candidate.step : "account",
+      accountId:
+        typeof candidate.accountId === "string"
+          ? candidate.accountId
+          : undefined,
+      accountName:
+        typeof candidate.accountName === "string"
+          ? candidate.accountName
+          : undefined,
+      categoryId:
+        typeof candidate.categoryId === "string"
+          ? candidate.categoryId
+          : undefined,
+      categoryName:
+        typeof candidate.categoryName === "string"
+          ? candidate.categoryName
+          : undefined,
+      budgetId:
+        typeof candidate.budgetId === "string" ? candidate.budgetId : undefined,
+      limitAmount:
+        typeof candidate.limitAmount === "number"
+          ? candidate.limitAmount
+          : undefined,
+    };
   } catch {
     return null;
   }

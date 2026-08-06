@@ -88,13 +88,24 @@ function extractApiErrorMessage(err: unknown, fallback: string): string {
 function MasterCoaGuide({ t }: { t: ReturnType<typeof useLocale>["t"] }) {
   const guide = t.mastercoa.guide;
   return (
-    <SectionCard title={guide.introTitle} bodyClassName="space-y-4">
+    // EPIC-023 Task H fix round (MEDIUM 13) — SectionCard's `title` renders
+    // a plain `<div>` (components/wm/index.tsx, protected — not modified),
+    // and this explicitly plain-language explainer otherwise has no
+    // heading element at all, so a screen-reader user navigating by
+    // heading finds nothing (WCAG 1.3.1, 2.4.6). SectionCard's `title` prop
+    // is typed `React.ReactNode`, so passing a real `<h2>`/`<h3>` INTO it
+    // (rather than editing SectionCard) gives real heading semantics
+    // without widening the protected-file exception.
+    <SectionCard title={<h2>{guide.introTitle}</h2>} bodyClassName="space-y-4">
       <p className="text-[13px] leading-relaxed text-muted-foreground">
         {guide.introBody}
       </p>
 
       <div className="flex gap-2.5 rounded-lg border border-warning/40 bg-warning-soft/60 p-3.5">
-        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
+        <AlertTriangle
+          aria-hidden="true"
+          className="mt-0.5 size-4 shrink-0 text-warning"
+        />
         <div>
           <div className="text-[12.5px] font-bold text-foreground">
             {guide.riskTitle}
@@ -106,7 +117,7 @@ function MasterCoaGuide({ t }: { t: ReturnType<typeof useLocale>["t"] }) {
       </div>
 
       <div>
-        <div className="mb-2 text-[12.5px] font-bold">{guide.groupsTitle}</div>
+        <h3 className="mb-2 text-[12.5px] font-bold">{guide.groupsTitle}</h3>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {GROUP_NUMS.map((groupNum) => {
             const group = guide.groups[groupNum];

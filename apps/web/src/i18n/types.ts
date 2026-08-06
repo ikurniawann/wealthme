@@ -2447,8 +2447,12 @@ export type I18nDictionary = {
     skipSetupButton: string;
     backButton: string;
     continueButton: string;
-    closeAriaLabel: string;
     netWorthLabel: string;
+    /** MEDIUM 8 — shown before closing via "Lewati Setup" when at least one
+     * real row (account/budget) already exists, so the user knows what's
+     * kept even though the resumable "continue setup?" prompt won't fire
+     * again after this. */
+    skipAllKeptPrefix: string;
     stepLabels: {
       account: string;
       budget: string;
@@ -2460,6 +2464,9 @@ export type I18nDictionary = {
       body: string;
       nameLabel: string;
       namePlaceholder: string;
+      /** MEDIUM 12 — associated via aria-describedby on the name input,
+       * since the submit button it explains is unreachable once disabled. */
+      nameRequiredHint: string;
       balanceLabel: string;
       submitButton: string;
       submitting: string;
@@ -2477,7 +2484,8 @@ export type I18nDictionary = {
       nameLabel: string;
       namePlaceholder: string;
       limitLabel: string;
-      periodLabel: string;
+      /** MEDIUM 12 — associated via aria-describedby on both fields. */
+      requiredHint: string;
       submitButton: string;
       submitting: string;
       alreadyHaveNotice: string;
@@ -2491,6 +2499,8 @@ export type I18nDictionary = {
       title: string;
       body: string;
       amountLabel: string;
+      /** MEDIUM 12 — associated via aria-describedby on the amount input. */
+      amountRequiredHint: string;
       descriptionLabel: string;
       descriptionPlaceholder: string;
       submitButton: string;

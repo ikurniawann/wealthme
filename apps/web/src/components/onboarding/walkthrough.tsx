@@ -83,9 +83,16 @@ export function Walkthrough() {
             </div>
 
             <div className="mt-5 flex items-center justify-center gap-1 rounded-lg border bg-secondary p-1">
+              {/* EPIC-023 Task H fix round (MEDIUM 11) — the ID/EN buttons
+                  previously differed only by background/shadow styling, no
+                  ARIA state, so the selected language wasn't programmatically
+                  exposed (WCAG 4.1.2) and was distinguished by colour alone
+                  (WCAG 1.4.1). `aria-pressed` gives AT users the same toggle
+                  state sighted users already see. */}
               <button
                 type="button"
                 onClick={() => setLocale("id")}
+                aria-pressed={locale === "id"}
                 className={cn(
                   "flex-1 rounded-md py-1.5 text-[12.5px] font-semibold transition-colors",
                   locale === "id"
@@ -102,6 +109,7 @@ export function Walkthrough() {
               <button
                 type="button"
                 onClick={() => setLocale("en")}
+                aria-pressed={locale === "en"}
                 className={cn(
                   "flex-1 rounded-md py-1.5 text-[12.5px] font-semibold transition-colors",
                   locale === "en"

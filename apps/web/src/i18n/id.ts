@@ -2557,8 +2557,8 @@ export const id = {
     skipSetupButton: "Lewati Setup",
     backButton: "Kembali",
     continueButton: "Lanjut",
-    closeAriaLabel: "Tutup setup",
     netWorthLabel: "Kekayaan Bersih",
+    skipAllKeptPrefix: "Yang sudah kamu buat tetap tersimpan: ",
     stepLabels: {
       account: "Rekening",
       budget: "Anggaran",
@@ -2570,6 +2570,7 @@ export const id = {
       body: "Setiap rekening (bank, tunai, atau e-wallet) yang kamu tambahkan langsung dihitung ke kekayaan bersihmu. Ini rekening SUNGGUHAN — akan muncul di halaman Rekening milikmu.",
       nameLabel: "Nama Rekening",
       namePlaceholder: "cth: BCA Tabungan",
+      nameRequiredHint: "Nama rekening wajib diisi untuk melanjutkan.",
       balanceLabel: "Saldo Saat Ini",
       submitButton: "Tambah Rekening & Lihat Kekayaan Bersih",
       submitting: "Menyimpan...",
@@ -2587,7 +2588,8 @@ export const id = {
       nameLabel: "Nama Kategori",
       namePlaceholder: "cth: Makan & Minum",
       limitLabel: "Batas Bulanan",
-      periodLabel: "Periode",
+      requiredHint:
+        "Nama kategori dan batas bulanan wajib diisi untuk melanjutkan.",
       submitButton: "Buat Anggaran",
       submitting: "Menyimpan...",
       alreadyHaveNotice: "Kamu sudah punya anggaran tercatat.",
@@ -2602,6 +2604,8 @@ export const id = {
       title: "Catat pengeluaran pertamamu",
       body: "Catat satu pengeluaran nyata dari rekening yang baru kamu buat, di kategori anggaran yang baru kamu buat. Ini transaksi SUNGGUHAN — akan muncul di halaman Transaksi milikmu.",
       amountLabel: "Jumlah",
+      amountRequiredHint:
+        "Jumlah wajib diisi dan lebih dari Rp 0 untuk melanjutkan.",
       descriptionLabel: "Catatan (opsional)",
       descriptionPlaceholder: "cth: Makan siang",
       submitButton: "Catat & Lihat Perubahannya",
@@ -2620,7 +2624,7 @@ export const id = {
       title: "Setup pertamamu selesai 🎉",
       body: "Kamu baru saja membuat rekening, anggaran, dan transaksi SUNGGUHAN — bukan simulasi. Semuanya sudah bisa kamu lihat, edit, atau hapus di halaman masing-masing.",
       bodyHeld:
-        "Kamu sudah membuat rekening dan anggaran SUNGGUHAN. Pengeluaran terakhir melewati batas keluargamu dan menunggu persetujuan — jadi belum tercatat sebagai transaksi, tapi kamu bisa memantau statusnya di halaman Transaksi.",
+        "Kamu sudah membuat rekening dan anggaran SUNGGUHAN. Pengeluaran terakhir melewati batas keluargamu dan menunggu persetujuan — jadi belum tercatat sebagai transaksi, tapi kamu bisa memantau statusnya di halaman Rekening.",
       viewAccountsButton: "Lihat Rekening",
       viewBudgetsButton: "Lihat Anggaran",
       viewTransactionsButton: "Lihat Transaksi",
