@@ -262,7 +262,7 @@ holdingsChange + unexplained = closing`, every residual named. Unit tests
     spending above it is held for approval through the existing
     `AllowanceRequest` primitive; trusted roles are notified only. (D9, US-FAM-14)
 
-- [ ] ### E — Payments that move money
+- [x] ### E — Payments that move money ✅
   - **E1** — `Transaction` gains optional `liabilityId` / `insuranceId`; paying
     creates one linked transaction, debits the chosen account, and updates the
     obligation atomically. (D10, US-LIAB-4, US-INS-4)
