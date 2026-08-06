@@ -12,6 +12,14 @@
     "test": {
       "dependsOn": ["^build"]
     },
+    "@wealthme/api#test": {
+      // api's own `build` script re-runs `prisma generate` (writes
+      // node_modules/.prisma/client). Without this edge turbo has no
+      // ordering between api:build and api:test, so the scheduler can run
+      // jest concurrently with that regenerate and hit the client mid-write
+      // — "Cannot find module '.prisma/client/default'" on every api spec.
+      "dependsOn": ["^build", "@wealthme/api#build"]
+    },
     "dev": {
       "cache": false,
       "persistent": true
