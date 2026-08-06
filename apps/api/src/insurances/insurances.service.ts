@@ -72,13 +72,21 @@ function toBeneficiaryDto(
   lookup: MemberLookup,
 ): InsuranceBeneficiaryResponseDto {
   const linked = row.memberUserId ? lookup.get(row.memberUserId) : undefined;
+  // EPIC-023 Group F fix round (MEDIUM 8) — a `memberUserId` that no longer
+  // resolves (the linked member was removed from the family) is an
+  // ORPHANED link, not a live one: null it out so a consumer can tell "live
+  // link, name/relationship are current" apart from "the link broke, this
+  // is a frozen last-known copy". Falling back to the stored `name`/
+  // `relationship` already happens below; without this, `memberUserId`
+  // would keep claiming a link that no longer exists.
+  const isOrphaned = row.memberUserId !== null && !linked;
   return {
     id: row.id,
     insuranceId: row.insuranceId,
     name: linked?.name ?? row.name,
     relationship: linked?.relationship ?? row.relationship,
     sharePercent: row.sharePercent.toString(),
-    memberUserId: row.memberUserId,
+    memberUserId: isOrphaned ? null : row.memberUserId,
     createdAt: row.createdAt.toISOString(),
   };
 }

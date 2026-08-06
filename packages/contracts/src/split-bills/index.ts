@@ -61,6 +61,15 @@ export interface SplitBillPayoutDto {
   accountInstitution: string | null;
   accountMaskedNumber: string | null;
   instructions: string | null;
+  // EPIC-023 Group F fix round (HIGH 5) — true once the owner has ever
+  // nominated a payout account for this bill (`SplitBill.payoutAccountId`
+  // is set), independent of whether that account can still be resolved.
+  // Lets the recipient's page tell "the owner never configured payment
+  // details" (`configured: false`) apart from "it WAS configured but the
+  // account is currently unavailable" (`configured: true`, `accountName:
+  // null`) — deleting the payout account must not read to a recipient as
+  // if the owner never set it up.
+  configured: boolean;
 }
 
 // EPIC-023 F3 (D21) — the PUBLIC, unauthenticated view of exactly ONE

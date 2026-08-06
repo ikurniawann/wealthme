@@ -586,6 +586,15 @@ export type I18nDictionary = {
       toastReligionUpdated: string;
       toastReligionFailed: string;
       /**
+       * EPIC-023 Group F fix round (MEDIUM 9) — the fourth, honest state:
+       * "not yet chosen". Shown as a disabled placeholder option in the
+       * owner's select (never a persisted, selectable value — the write
+       * DTO stays the three real choices) and as the display label for a
+       * non-owner viewing an unconfirmed family.
+       */
+      religionUnconfirmedPlaceholder: string;
+      religionUnconfirmedLabel: string;
+      /**
        * EPIC-023 G3 (D16) — bring-your-own AI provider key. Owner/spouse
        * manage it; every other role sees a read-only status (see
        * casl-ability.factory.ts's AiKey subject).
@@ -1683,6 +1692,17 @@ export type I18nDictionary = {
      * family hasn't set. */
     religionCalculatorNoneTitle: string;
     religionCalculatorNoneDesc: string;
+    /**
+     * EPIC-023 Group F fix round (HIGH 4 / MEDIUM 9) — loading/error states
+     * for the religion setting itself (previously silently fell through to
+     * the zakat calculator on both), and the prompt shown when a family has
+     * never chosen (`religion === null`), distinct from `none` (an actual
+     * choice to show neither calculator).
+     */
+    religionLoadingMsg: string;
+    religionErrorMsg: string;
+    religionCalculatorUnconfirmedTitle: string;
+    religionCalculatorUnconfirmedDesc: string;
   };
   /**
    * EPIC-018 Task A6 — `/warisan` (inheritance assets) page copy.
@@ -1905,6 +1925,22 @@ export type I18nDictionary = {
     revokedNotice: string;
     participantLinkLabel: string;
     /**
+     * EPIC-023 Group F fix round (HIGH 1) — revoking a link (cosmetic) and
+     * confirming a payment (irreversible, posts real income) now share the
+     * same real confirmation dialog (`ConfirmDeleteDialog`) instead of one
+     * being a native `window.confirm` and the other firing on a single
+     * click. `confirmPaymentTitlePrefix` is concatenated with the
+     * participant's name in the page (dynamic, not template-interpolated).
+     */
+    revokeConfirmTitle: string;
+    revokeConfirmButton: string;
+    confirmPaymentTitlePrefix: string;
+    confirmPaymentBody: string;
+    confirmPaymentButton: string;
+    /** EPIC-023 Group F fix round (MEDIUM 10) — the per-row copy-link
+     * button's disabled/`title` hint once the bill's links are revoked. */
+    copyDisabledRevokedTitle: string;
+    /**
      * EPIC-023 F3 (D21) — `/split/[shareToken]` public page copy (that page
      * previously had NO i18n at all — every string was hardcoded
      * Indonesian). Each recipient's own link now identifies a single
@@ -1922,6 +1958,13 @@ export type I18nDictionary = {
     publicStatusPaidLabel: string;
     publicPayoutTitle: string;
     publicPayoutMissing: string;
+    /**
+     * EPIC-023 Group F fix round (HIGH 5) — a deleted payout account must
+     * not read to the recipient as "the owner never set this up"
+     * (`publicPayoutMissing`). Shown when `payout.configured` is true but
+     * `accountName`/`instructions` still can't display anything.
+     */
+    publicPayoutUnavailable: string;
     publicPayoutInstructionsLabel: string;
     publicClaimButton: string;
     publicClaimDisclaimer: string;
@@ -1931,6 +1974,13 @@ export type I18nDictionary = {
     publicToastClaimFailedDefault: string;
     publicFooterPrefix: string;
     publicFooterSuffix: string;
+    /**
+     * EPIC-023 Group F fix round (LOW 11) — a network/DNS failure must not
+     * read as "link not found" (`isGoneError` only recognizes a real 410;
+     * everything else previously fell into the 404 branch).
+     */
+    publicNetworkErrorTitle: string;
+    publicNetworkErrorDesc: string;
   };
   /**
    * EPIC-018 Task A6 — `/rekonsiliasi` (bank reconciliation wizard) page

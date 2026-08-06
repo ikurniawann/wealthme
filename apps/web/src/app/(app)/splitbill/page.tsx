@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { SectionCard, ProgressBar, StatusBadge } from "@/components/wm";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteDialog } from "@/components/crud";
 import { useLocale } from "@/hooks/use-locale";
 import { formatAmountInput, parseRupiah, formatRupiah } from "@/lib/format";
 import { apiFetch } from "@/lib/api-client";
@@ -64,6 +65,17 @@ export default function SplitBillPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedSplit, setSelectedSplit] = useState<SplitBillDto | null>(null);
+  // EPIC-023 Group F fix round (HIGH 1) — revoking a link is cosmetic (no
+  // money moves), but confirming a payment posts irreversible real income
+  // with no un-confirm endpoint. Both now go through the SAME real
+  // confirmation dialog (ConfirmDeleteDialog) instead of one being a
+  // native `window.confirm` and the other firing on a single click.
+  const [revokeTarget, setRevokeTarget] = useState<SplitBillDto | null>(null);
+  const [confirmTarget, setConfirmTarget] = useState<{
+    splitId: string;
+    participantId: string;
+    participantName: string;
+  } | null>(null);
 
   // Create modal state
   const [title, setTitle] = useState("");
@@ -224,6 +236,19 @@ export default function SplitBillPage() {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.accounts.all(familyGroupId ?? ""),
       });
+      // EPIC-023 Group F fix round (HIGH 2) — a real income Transaction was
+      // posted; the dashboard summary and net worth (and the transaction
+      // list itself) must reflect it too, same as donation/page.tsx's
+      // identical create mutation does for the same class of side effect.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.dashboard.summary(familyGroupId ?? ""),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.netWorth.summary(familyGroupId ?? ""),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.transactions.all(familyGroupId ?? ""),
+      });
       // Update selectedSplit optimistically so the detail modal reflects the change
       setSelectedSplit((prev) => {
         if (!prev || prev.id !== splitId) return prev;
@@ -271,8 +296,7 @@ export default function SplitBillPage() {
   });
 
   function handleRevoke(split: SplitBillDto) {
-    if (!window.confirm(t.splitbill.revokeConfirmMessage)) return;
-    revokeMutation.mutate(split.id);
+    setRevokeTarget(split);
   }
 
   function handleCreate() {
@@ -560,10 +584,14 @@ export default function SplitBillPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-[12.5px] font-semibold">
+              <label
+                htmlFor="splitbill-payout-account"
+                className="mb-1.5 block text-[12.5px] font-semibold"
+              >
                 {t.splitbill.fieldPayoutAccountLabel}
               </label>
               <select
+                id="splitbill-payout-account"
                 value={payoutAccountId}
                 onChange={(e) => setPayoutAccountId(e.target.value)}
                 className={FIELD_CLASS}
@@ -580,10 +608,14 @@ export default function SplitBillPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-[12.5px] font-semibold">
+              <label
+                htmlFor="splitbill-payout-instructions"
+                className="mb-1.5 block text-[12.5px] font-semibold"
+              >
                 {t.splitbill.fieldPayoutInstructionsLabel}
               </label>
               <input
+                id="splitbill-payout-instructions"
                 type="text"
                 value={payoutInstructions}
                 onChange={(e) => setPayoutInstructions(e.target.value)}
@@ -833,9 +865,10 @@ export default function SplitBillPage() {
                     ) : (
                       <button
                         onClick={() =>
-                          confirmMutation.mutate({
+                          setConfirmTarget({
                             splitId: selectedSplit.id,
                             participantId: p.id,
+                            participantName: p.name,
                           })
                         }
                         disabled={confirmMutation.isPending}
@@ -846,8 +879,14 @@ export default function SplitBillPage() {
                     )}
                     <button
                       onClick={() => handleShareLink(p)}
+                      disabled={Boolean(selectedSplit.revokedAt)}
                       aria-label={`${t.splitbill.participantLinkLabel}${p.name}`}
-                      className="shrink-0 cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
+                      title={
+                        selectedSplit.revokedAt
+                          ? t.splitbill.copyDisabledRevokedTitle
+                          : undefined
+                      }
+                      className="shrink-0 cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <Link2 className="size-3.5" />
                     </button>
@@ -858,6 +897,38 @@ export default function SplitBillPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* EPIC-023 Group F fix round (HIGH 1) — revoke is cosmetic (no money
+          moves) but was already gated behind window.confirm; confirming a
+          payment is irreversible (real income, no un-confirm endpoint) and
+          previously fired on a single click. Both now share the SAME real
+          confirmation dialog. */}
+      <ConfirmDeleteDialog
+        label={revokeTarget ? revokeTarget.title : null}
+        title={t.splitbill.revokeConfirmTitle}
+        body={t.splitbill.revokeConfirmMessage}
+        confirmLabel={t.splitbill.revokeConfirmButton}
+        onClose={() => setRevokeTarget(null)}
+        onConfirm={() => {
+          if (revokeTarget) revokeMutation.mutate(revokeTarget.id);
+        }}
+      />
+      <ConfirmDeleteDialog
+        label={confirmTarget ? confirmTarget.participantName : null}
+        title={`${t.splitbill.confirmPaymentTitlePrefix}${confirmTarget?.participantName ?? ""}?`}
+        body={t.splitbill.confirmPaymentBody}
+        confirmLabel={t.splitbill.confirmPaymentButton}
+        confirmVariant="default"
+        onClose={() => setConfirmTarget(null)}
+        onConfirm={() => {
+          if (confirmTarget) {
+            confirmMutation.mutate({
+              splitId: confirmTarget.splitId,
+              participantId: confirmTarget.participantId,
+            });
+          }
+        }}
+      />
     </div>
   );
 }

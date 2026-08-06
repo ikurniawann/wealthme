@@ -160,6 +160,13 @@ describe("InheritanceService", () => {
         userId: "user-5",
         familyGroupId: FAMILY_GROUP_ID,
       });
+      // EPIC-023 Group F fix round (MEDIUM 8) — resolveMemberLookup's own
+      // query (member.findMany) must ALSO resolve this member for the
+      // link to read as live; in production it does (the same member
+      // `assertMemberInFamilyGroup` above just confirmed exists).
+      prisma.member.findMany.mockResolvedValue([
+        { userId: "user-5", relationship: "anak", user: { name: "Anak 1" } },
+      ]);
       prisma.inheritanceAsset.create.mockResolvedValue({
         ...BASE_ROW,
         heirs: [
@@ -431,6 +438,34 @@ describe("InheritanceService", () => {
       expect(result.heirs[0]!.name).toBe("Bibi Jauh");
       expect(result.heirs[0]!.relationship).toBe("Kerabat");
       expect(prisma.member.findMany).not.toHaveBeenCalled();
+    });
+
+    // EPIC-023 Group F fix round (MEDIUM 8) — a heir whose linked member
+    // was removed from the family must not keep reading as a live link:
+    // `memberUserId` is nulled out, and the last-known copy is shown.
+    it("findOne() nulls memberUserId when the linked member no longer resolves (orphaned link)", async () => {
+      prisma.inheritanceAsset.findUnique.mockResolvedValue({
+        ...BASE_ROW,
+        heirs: [
+          {
+            id: "heir-1",
+            inheritanceAssetId: ASSET_ID,
+            name: "Anak 1 (last known)",
+            relationship: "Anak (last known)",
+            sharePercent: { toString: () => "60.00" },
+            memberUserId: "user-removed",
+            createdAt: new Date("2024-01-01T00:00:00.000Z"),
+          },
+        ],
+      });
+      // The member was removed — resolveMemberLookup's query finds nothing.
+      prisma.member.findMany.mockResolvedValue([]);
+
+      const result = await service.findOne(FAMILY_GROUP_ID, ASSET_ID);
+
+      expect(result.heirs[0]!.memberUserId).toBeNull();
+      expect(result.heirs[0]!.name).toBe("Anak 1 (last known)");
+      expect(result.heirs[0]!.relationship).toBe("Anak (last known)");
     });
   });
 });

@@ -1083,6 +1083,7 @@ interface SplitBillPayoutDto {
     accountInstitution: string | null;
     accountMaskedNumber: string | null;
     instructions: string | null;
+    configured: boolean;
 }
 interface PublicSplitParticipantDto {
     billTitle: string;

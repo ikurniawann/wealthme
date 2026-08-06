@@ -395,10 +395,14 @@ model FamilyGroup {
   // donation calculator (zakat vs. perpuluhan vs. neither) the donation
   // page shows, and widening tax-deductibility per PP 60/2010 beyond zakat
   // to obligatory religious contributions of other recognised religions.
-  // Default `islam` preserves every pre-existing family's current
-  // behavior/numbers (the donation page always showed the zakat
-  // calculator before this setting existed) — see the enum comment above.
-  religion                FamilyReligion           @default(islam)
+  // EPIC-023 Group F fix round (MEDIUM 9) — nullable, no default: F2's
+  // original `@default(islam)` asserted a faith on every pre-existing
+  // family with no way to tell "explicitly chosen" from "never touched".
+  // `null` is now its own honest state ("not yet chosen" — see
+  // useFamilyReligion.ts / DonationPage), distinct from the three real
+  // choices in the enum. See migration 20260806170000 for how existing
+  // families are treated.
+  religion                FamilyReligion?
   // EPIC-023 G2 (D17) — per-bank saved column-mapping templates, so a
   // returning statement imports without remapping columns each time.
   reconciliationTemplates ReconciliationTemplate[]

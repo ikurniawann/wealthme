@@ -38,12 +38,33 @@ function isGoneError(err: unknown): boolean {
   );
 }
 
+// EPIC-023 Group F fix round (LOW 11) — `apiFetch` only attaches `status` to
+// errors it constructs from an HTTP response; a network/DNS failure throws
+// a bare `TypeError` with no `status` at all. Without this check, an
+// offline user saw the exact same "link not found" copy as someone who
+// mistyped the URL, with no hint that retrying might actually work.
+function isNetworkError(err: unknown): boolean {
+  return !(typeof err === "object" && err !== null && "status" in err);
+}
+
 export default function SplitBillSharePage({
   params,
 }: {
   params: Promise<{ shareToken: string }>;
 }) {
+  // EPIC-023 Group F fix round (HIGH 6) — the actual view is a separate,
+  // plain-props component (`SplitShareView`) specifically so it's testable
+  // without `use()`'s Promise-based Suspense, which this app's Jest/jsdom
+  // setup cannot resolve (a component test rendering this page directly
+  // hangs on the "loading" fallback indefinitely — verified with a minimal
+  // repro; a pre-existing test-environment limitation, not a bug in this
+  // component). Production behavior is unchanged: Next's router still
+  // resolves `params` the same way.
   const { shareToken } = use(params);
+  return <SplitShareView shareToken={shareToken} />;
+}
+
+export function SplitShareView({ shareToken }: { shareToken: string }) {
   const { t } = useLocale();
   const queryClient = useQueryClient();
 
@@ -80,6 +101,8 @@ export default function SplitBillSharePage({
   });
 
   const revoked = isError && isGoneError(error);
+  const networkError = isError && !revoked && isNetworkError(error);
+  const notFound = isError && !revoked && !networkError;
   const amount = participant ? toAmount(participant.amountOwed) : 0;
 
   const statusLabel: Record<ParticipantStatus, string> = {
@@ -105,14 +128,17 @@ export default function SplitBillSharePage({
           </div>
         )}
 
-        {isError && !revoked && (
+        {notFound && (
           <div className="py-6 text-center">
-            <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-accent text-[26px]">
+            <div
+              aria-hidden="true"
+              className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-accent text-[26px]"
+            >
               🔗
             </div>
-            <div className="text-[17px] font-extrabold">
+            <h1 className="text-[17px] font-extrabold">
               {t.splitbill.publicNotFoundTitle}
-            </div>
+            </h1>
             <div className="mt-2 text-[13px] text-muted-foreground">
               {t.splitbill.publicNotFoundDesc}
             </div>
@@ -121,14 +147,34 @@ export default function SplitBillSharePage({
 
         {revoked && (
           <div className="py-6 text-center">
-            <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-destructive/10 text-[26px]">
+            <div
+              aria-hidden="true"
+              className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-destructive/10 text-[26px]"
+            >
               🚫
             </div>
-            <div className="text-[17px] font-extrabold">
+            <h1 className="text-[17px] font-extrabold">
               {t.splitbill.publicRevokedTitle}
-            </div>
+            </h1>
             <div className="mt-2 text-[13px] text-muted-foreground">
               {t.splitbill.publicRevokedDesc}
+            </div>
+          </div>
+        )}
+
+        {networkError && (
+          <div className="py-6 text-center">
+            <div
+              aria-hidden="true"
+              className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-destructive/10 text-[26px]"
+            >
+              📡
+            </div>
+            <h1 className="text-[17px] font-extrabold">
+              {t.splitbill.publicNetworkErrorTitle}
+            </h1>
+            <div className="mt-2 text-[13px] text-muted-foreground">
+              {t.splitbill.publicNetworkErrorDesc}
             </div>
           </div>
         )}
@@ -138,9 +184,9 @@ export default function SplitBillSharePage({
             <div className="mb-1 text-center text-[12px] font-semibold text-primary">
               {t.splitbill.publicEyebrow}
             </div>
-            <div className="mb-4 text-center text-[19px] font-extrabold">
+            <h1 className="mb-4 text-center text-[19px] font-extrabold">
               {participant.billTitle}
-            </div>
+            </h1>
 
             <div className="mb-4 rounded-[14px] bg-accent p-[18px] text-center">
               <div className="text-[11px] text-muted-foreground">
@@ -179,11 +225,20 @@ export default function SplitBillSharePage({
                 </div>
               ) : null}
               {!participant.payout.accountName &&
-                !participant.payout.instructions && (
+                !participant.payout.instructions &&
+                (participant.payout.configured ? (
+                  // EPIC-023 Group F fix round (HIGH 5) — the owner DID
+                  // nominate a payout account (e.g. it was later deleted),
+                  // so this is NOT "never configured" — telling the
+                  // recipient it was never set up would be false.
+                  <div className="text-muted-foreground">
+                    {t.splitbill.publicPayoutUnavailable}
+                  </div>
+                ) : (
                   <div className="text-muted-foreground">
                     {t.splitbill.publicPayoutMissing}
                   </div>
-                )}
+                ))}
             </div>
 
             {participant.status === "pending" && (

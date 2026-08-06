@@ -172,6 +172,7 @@ describe("SplitBillsService", () => {
           accountInstitution: ACCOUNT.institution,
           accountMaskedNumber: ACCOUNT.maskedNumber,
           instructions: null,
+          configured: true,
         },
       });
       expect(result).not.toHaveProperty("familyGroupId");
@@ -179,6 +180,40 @@ describe("SplitBillsService", () => {
       expect(result).not.toHaveProperty("participants");
       expect(JSON.stringify(result)).not.toContain(FAMILY_GROUP_ID);
       expect(JSON.stringify(result)).not.toContain(BILL.id);
+    });
+
+    // EPIC-023 Group F fix round (HIGH 5) — a deleted payout account must
+    // not read to the recipient as "the owner never configured payment
+    // details": `configured` stays true (the bill DOES nominate an
+    // account) even when that account can no longer be resolved.
+    it("reports `configured: true` when the payout account is set but no longer resolvable", async () => {
+      prisma.splitParticipant.findUnique.mockResolvedValue({
+        ...PARTICIPANT,
+        splitBill: BILL,
+      });
+      prisma.account.findUnique.mockResolvedValue(null);
+
+      const result = await service.getPublicParticipant(PARTICIPANT.shareToken);
+
+      expect(result.payout).toEqual({
+        accountName: null,
+        accountInstitution: null,
+        accountMaskedNumber: null,
+        instructions: null,
+        configured: true,
+      });
+    });
+
+    it("reports `configured: false` when the owner never nominated a payout account", async () => {
+      prisma.splitParticipant.findUnique.mockResolvedValue({
+        ...PARTICIPANT,
+        splitBill: { ...BILL, payoutAccountId: null },
+      });
+
+      const result = await service.getPublicParticipant(PARTICIPANT.shareToken);
+
+      expect(result.payout.configured).toBe(false);
+      expect(prisma.account.findUnique).not.toHaveBeenCalled();
     });
 
     it("throws NotFoundException for an unknown token", async () => {
@@ -410,6 +445,44 @@ describe("SplitBillsService", () => {
 
       await expect(
         service.revoke(FAMILY_GROUP_ID, "other-bill"),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe("remove", () => {
+    it("refuses to delete a bill with a paid participant — the linked Transaction would be orphaned", async () => {
+      prisma.splitBill.findUnique.mockResolvedValue({
+        ...BILL,
+        participants: [{ ...PARTICIPANT, status: "paid" }],
+      });
+
+      await expect(service.remove(FAMILY_GROUP_ID, BILL.id)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(prisma.splitBill.delete).not.toHaveBeenCalled();
+    });
+
+    it("deletes a bill whose participants are only pending/claimed — no money has moved", async () => {
+      prisma.splitBill.findUnique.mockResolvedValue({
+        ...BILL,
+        participants: [
+          { ...PARTICIPANT, status: "pending" },
+          { ...PARTICIPANT, id: "participant-2", status: "claimed" },
+        ],
+      });
+
+      await service.remove(FAMILY_GROUP_ID, BILL.id);
+
+      expect(prisma.splitBill.delete).toHaveBeenCalledWith({
+        where: { id: BILL.id, familyGroupId: FAMILY_GROUP_ID },
+      });
+    });
+
+    it("throws NotFoundException for a bill outside this family group", async () => {
+      prisma.splitBill.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.remove(FAMILY_GROUP_ID, "other-bill"),
       ).rejects.toThrow(NotFoundException);
     });
   });

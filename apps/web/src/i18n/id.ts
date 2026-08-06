@@ -401,6 +401,8 @@ export const id = {
         "Hanya pemilik keluarga (owner) yang dapat mengubah agama keluarga.",
       toastReligionUpdated: "✅ Agama keluarga diperbarui",
       toastReligionFailed: "Gagal menyimpan agama keluarga",
+      religionUnconfirmedPlaceholder: "Pilih agama keluarga",
+      religionUnconfirmedLabel: "Belum dipilih",
       aiKeySectionTitle: "API Key AI Advisor",
       aiKeyHint:
         "Sambungkan API key Anda sendiri (Claude, OpenAI, atau Gemini) agar AI Advisor bisa digunakan. Key disimpan terenkripsi dan tidak pernah ditampilkan kembali.",
@@ -1746,6 +1748,12 @@ export const id = {
     religionCalculatorNoneTitle: "Kalkulator donasi keagamaan tidak aktif",
     religionCalculatorNoneDesc:
       "Atur agama keluarga di Pengaturan Akun untuk mengaktifkan kalkulator Zakat atau Persepuluhan.",
+    religionLoadingMsg: "Memuat pengaturan agama keluarga...",
+    religionErrorMsg:
+      "Gagal memuat pengaturan agama keluarga. Coba muat ulang halaman.",
+    religionCalculatorUnconfirmedTitle: "Agama keluarga belum dipilih",
+    religionCalculatorUnconfirmedDesc:
+      "Pilih agama keluarga di Pengaturan Akun untuk mengaktifkan kalkulator Zakat atau Persepuluhan yang sesuai.",
   },
   warisan: {
     heroTitle: "Total Nilai Warisan",
@@ -1977,6 +1985,13 @@ export const id = {
     revokedNotice:
       "Link untuk tagihan ini sudah dicabut. Peserta tidak bisa lagi membuka link mereka.",
     participantLinkLabel: "Link untuk ",
+    revokeConfirmTitle: "Cabut Semua Link?",
+    revokeConfirmButton: "Ya, Cabut Link",
+    confirmPaymentTitlePrefix: "Konfirmasi Pembayaran ",
+    confirmPaymentBody:
+      "Ini akan mencatat pemasukan nyata dan menambah saldo rekening tujuan. Setelah dikonfirmasi, tidak ada cara untuk membatalkannya.",
+    confirmPaymentButton: "Ya, Konfirmasi",
+    copyDisabledRevokedTitle: "Link ini sudah dicabut dan tidak bisa disalin",
     publicEyebrow: "Split Bill",
     publicLoading: "Memuat tagihan…",
     publicNotFoundTitle: "Link tidak ditemukan",
@@ -1991,6 +2006,8 @@ export const id = {
     publicStatusPaidLabel: "Lunas (Dikonfirmasi)",
     publicPayoutTitle: "Cara Bayar",
     publicPayoutMissing: "Info pembayaran belum diatur oleh pemilik tagihan.",
+    publicPayoutUnavailable:
+      "Info pembayaran sudah diatur oleh pemilik tagihan, tapi sedang tidak tersedia. Hubungi langsung pemilik tagihan sebelum transfer.",
     publicPayoutInstructionsLabel: "Instruksi",
     publicClaimButton: "Saya Sudah Transfer",
     publicClaimDisclaimer:
@@ -2003,6 +2020,9 @@ export const id = {
     publicToastClaimFailedDefault: "Gagal mengirim klaim",
     publicFooterPrefix: "Dibuat dengan",
     publicFooterSuffix: "— Personal Wealth OS",
+    publicNetworkErrorTitle: "Gagal memuat",
+    publicNetworkErrorDesc:
+      "Terjadi masalah koneksi saat memuat tagihan ini. Periksa koneksi internet kamu dan coba lagi.",
   },
   rekonsiliasi: {
     steps: {

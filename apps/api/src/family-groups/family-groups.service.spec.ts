@@ -340,6 +340,19 @@ describe("FamilyGroupsService religion", () => {
         service.getReligion(FAMILY_GROUP_ID, MEMBER_USER_ID),
       ).rejects.toThrow(NotFoundException);
     });
+
+    // EPIC-023 Group F fix round (MEDIUM 9) — `null` is the honest
+    // "not yet chosen" state (see the migration backfilling every
+    // pre-existing family off the fabricated `islam` default), not an
+    // error — the response passes it straight through.
+    it("returns null for a family that has not yet chosen a religion", async () => {
+      prisma.member.findUnique.mockResolvedValue({ role: "member" });
+      prisma.familyGroup.findUnique.mockResolvedValue({ religion: null });
+
+      const result = await service.getReligion(FAMILY_GROUP_ID, MEMBER_USER_ID);
+
+      expect(result).toEqual({ religion: null });
+    });
   });
 
   describe("updateReligion", () => {

@@ -14,8 +14,11 @@ import { useSession } from "@/lib/auth-compat";
 
 export type FamilyReligion = "islam" | "kristen" | "none";
 
+// EPIC-023 Group F fix round (MEDIUM 9) — `religion` is nullable at the API
+// now: `null` means "the family has never chosen" (an honest state,
+// distinct from all three real choices), not a loading placeholder.
 export type FamilyReligionDto = {
-  religion: FamilyReligion;
+  religion: FamilyReligion | null;
 };
 
 type FamilyGroupMine = { id: string; myRole: string };
@@ -66,10 +69,14 @@ export function useFamilyReligion() {
   });
 
   return {
-    // "islam" is the server-side default for every pre-existing family
-    // (see the FamilyGroup.religion migration comment) — this local
-    // fallback only covers the brief window before the query resolves.
-    religion: data?.religion ?? "islam",
+    // EPIC-023 Group F fix round (HIGH 4 / MEDIUM 9) — no fallback to a
+    // real religion here. `undefined` (still loading) and `null` (fetched,
+    // family has never chosen) both resolve to `null` — callers MUST check
+    // `isLoading`/`isError` themselves before treating `null` as "family
+    // chose none": collapsing a permanent fetch failure into any real
+    // religion previously showed the wrong calculator indefinitely with no
+    // signal (see DonationPage).
+    religion: data?.religion ?? null,
     isOwner: Boolean(isOwner),
     isLoading,
     isError,

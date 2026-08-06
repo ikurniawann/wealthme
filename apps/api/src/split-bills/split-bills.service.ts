@@ -94,7 +94,10 @@ function toSplitBillDto(row: SplitBillRow): SplitBillResponseDto {
  */
 function toPublicParticipantDto(
   participant: ParticipantRow,
-  bill: Pick<SplitBillRow, "title" | "currency" | "payoutInstructions">,
+  bill: Pick<
+    SplitBillRow,
+    "title" | "currency" | "payoutInstructions" | "payoutAccountId"
+  >,
   account: PayoutAccount,
 ): PublicSplitParticipantResponseDto {
   return {
@@ -110,6 +113,13 @@ function toPublicParticipantDto(
       accountInstitution: account?.institution ?? null,
       accountMaskedNumber: account?.maskedNumber ?? null,
       instructions: bill.payoutInstructions,
+      // EPIC-023 Group F fix round (HIGH 5) — the owner DID nominate an
+      // account (bill.payoutAccountId is set), even if `resolvePayoutAccount`
+      // above couldn't resolve it (e.g. the account was later deleted). The
+      // recipient's page uses this to show "payment info is currently
+      // unavailable" rather than the more alarming (and false) "the owner
+      // never set this up".
+      configured: bill.payoutAccountId !== null,
     },
   };
 }
@@ -393,11 +403,42 @@ export class SplitBillsService {
     });
   }
 
+  /**
+   * EPIC-023 Group F fix round (MEDIUM 7) — before F3, settling a bill
+   * never posted a `Transaction`, so deleting one was always safe. Now
+   * `confirmParticipant` posts real income and credits an account, and the
+   * schema cascade (`SplitParticipant.splitBill onDelete: Cascade`) would
+   * delete the participant row — including `settlementTransactionId`, the
+   * only pointer back to that `Transaction` — leaving the posted income
+   * and the credited balance permanently disconnected from any bill.
+   *
+   * Chose REFUSE over reverse (unlike `DonationsService.remove`, which
+   * reverses its own linked transaction): a split bill can have several
+   * independently-paid participants, each with its OWN transaction/account
+   * credit, so a correct reversal would need to walk and undo every one —
+   * more moving parts for a case that's rare in practice (you settled up,
+   * why delete it?). Refusing is simpler and never risks a wrong balance.
+   * Scoped to "paid" specifically (not "claimed") — a claim posts no money,
+   * so deleting a bill with only pending/claimed participants orphans
+   * nothing and stays allowed. The owner can still `revoke()` the links on
+   * a paid bill if they want recipients locked out.
+   */
   async remove(familyGroupId: string, id: string): Promise<void> {
     const existing = await this.prisma.splitBill.findUnique({
       where: { id, familyGroupId },
+      include: PARTICIPANT_INCLUDE,
     });
     if (!existing) throw new NotFoundException("Split bill not found");
+
+    const hasPaidParticipant = existing.participants.some(
+      (p) => p.status === "paid",
+    );
+    if (hasPaidParticipant) {
+      throw new ConflictException(
+        "Split bill ini sudah punya peserta yang lunas (transaksi nyata sudah tercatat) dan tidak bisa dihapus. Gunakan 'Cabut Link' untuk menghentikan tagihan ini.",
+      );
+    }
+
     await this.prisma.splitBill.delete({ where: { id, familyGroupId } });
   }
 

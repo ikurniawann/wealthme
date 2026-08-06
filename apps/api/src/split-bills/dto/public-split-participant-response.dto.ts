@@ -11,6 +11,12 @@ export class SplitBillPayoutResponseDto {
   @ApiPropertyOptional() accountInstitution!: string | null;
   @ApiPropertyOptional() accountMaskedNumber!: string | null;
   @ApiPropertyOptional() instructions!: string | null;
+  // EPIC-023 Group F fix round (HIGH 5) — true once the owner has ever
+  // nominated a payout account for this bill, independent of whether that
+  // account can still be resolved (e.g. it was later deleted). Distinguishes
+  // "never configured" from "configured but currently unavailable" — see
+  // SplitBillsService.toPublicParticipantDto.
+  @ApiProperty() configured!: boolean;
 }
 
 /**

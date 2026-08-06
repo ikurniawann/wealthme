@@ -403,6 +403,8 @@ export const en = {
       religionOwnerOnlyNote: "Only the family owner can change the religion.",
       toastReligionUpdated: "✅ Family religion updated",
       toastReligionFailed: "Failed to save family religion",
+      religionUnconfirmedPlaceholder: "Choose family religion",
+      religionUnconfirmedLabel: "Not yet chosen",
       aiKeySectionTitle: "AI Advisor API Key",
       aiKeyHint:
         "Connect your own API key (Claude, OpenAI, or Gemini) so the AI Advisor can be used. The key is stored encrypted and never shown again.",
@@ -1742,6 +1744,12 @@ export const en = {
     religionCalculatorNoneTitle: "Religious donation calculator is off",
     religionCalculatorNoneDesc:
       "Set the family religion in Account Settings to enable the Zakat or Tithe calculator.",
+    religionLoadingMsg: "Loading family religion setting...",
+    religionErrorMsg:
+      "Failed to load the family religion setting. Try reloading the page.",
+    religionCalculatorUnconfirmedTitle: "Family religion not yet chosen",
+    religionCalculatorUnconfirmedDesc:
+      "Choose the family religion in Account Settings to enable the matching Zakat or Tithe calculator.",
   },
   warisan: {
     heroTitle: "Total Inheritance Value",
@@ -1973,6 +1981,14 @@ export const en = {
     revokedNotice:
       "The links for this bill have been revoked. Participants can no longer open their link.",
     participantLinkLabel: "Link for ",
+    revokeConfirmTitle: "Revoke All Links?",
+    revokeConfirmButton: "Yes, Revoke",
+    confirmPaymentTitlePrefix: "Confirm Payment for ",
+    confirmPaymentBody:
+      "This records real income and adds to the payout account's balance. Once confirmed, there is no way to undo it.",
+    confirmPaymentButton: "Yes, Confirm",
+    copyDisabledRevokedTitle:
+      "This link is revoked and can no longer be copied",
     publicEyebrow: "Split Bill",
     publicLoading: "Loading bill…",
     publicNotFoundTitle: "Link not found",
@@ -1987,6 +2003,8 @@ export const en = {
     publicStatusPaidLabel: "Paid (Confirmed)",
     publicPayoutTitle: "How to Pay",
     publicPayoutMissing: "The bill owner hasn't set payment info yet.",
+    publicPayoutUnavailable:
+      "The bill owner set up payment info, but it's currently unavailable. Contact the bill owner directly before transferring.",
     publicPayoutInstructionsLabel: "Instructions",
     publicClaimButton: "I Already Transferred",
     publicClaimDisclaimer:
@@ -1997,6 +2015,9 @@ export const en = {
     publicToastClaimFailedDefault: "Failed to send claim",
     publicFooterPrefix: "Made with",
     publicFooterSuffix: "— Personal Wealth OS",
+    publicNetworkErrorTitle: "Couldn't load this",
+    publicNetworkErrorDesc:
+      "There was a connection problem loading this bill. Check your internet connection and try again.",
   },
   rekonsiliasi: {
     steps: {

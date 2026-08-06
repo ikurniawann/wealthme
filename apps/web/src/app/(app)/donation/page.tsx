@@ -142,7 +142,16 @@ export default function DonationPage() {
   // EPIC-023 F2 (D20, US-DON-6/7) — the family religion setting decides
   // which calculator below is shown: zakat (islam), perpuluhan (kristen),
   // or neither (none) — never a generic/fabricated default.
-  const { religion } = useFamilyReligion();
+  // EPIC-023 Group F fix round (HIGH 4) — `religion` is `null` while still
+  // loading AND on a permanent fetch failure; `isReligionLoading`/
+  // `isReligionError` below are what tell those two apart from an honest
+  // "family hasn't chosen yet" — falling through to any one calculator
+  // (zakat included) on error/loading was the bug this fixes.
+  const {
+    religion,
+    isLoading: isReligionLoading,
+    isError: isReligionError,
+  } = useFamilyReligion();
 
   // Zakat Maal calculator — inputs are local, but the actual zakat/nisab
   // math is computed by the shared BE calculator (/calculators/zakat) so
@@ -384,8 +393,43 @@ export default function DonationPage() {
       {/* Kalkulator donasi keagamaan — EPIC-023 F2 (D20, US-DON-6/7): the
           calculator shown matches the family's religion setting; `none`
           shows an honest "not configured" note instead of fabricating a
-          default faith. */}
-      {religion === "islam" && (
+          default faith. EPIC-023 Group F fix round (HIGH 4 / MEDIUM 9) —
+          loading and error states render their OWN honest note instead of
+          falling through to any calculator (zakat included), and a family
+          that has never chosen (`religion === null`) gets an explicit
+          prompt to choose rather than silently showing nothing. */}
+      {isReligionLoading && (
+        <div className="flex items-center gap-3 rounded-[14px] border bg-card p-4">
+          <div className="text-[13px] text-muted-foreground">
+            {t.donation.religionLoadingMsg}
+          </div>
+        </div>
+      )}
+
+      {!isReligionLoading && isReligionError && (
+        <div
+          role="alert"
+          className="rounded-[14px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive"
+        >
+          {t.donation.religionErrorMsg}
+        </div>
+      )}
+
+      {!isReligionLoading && !isReligionError && religion === null && (
+        <div className="flex items-center gap-3 rounded-[14px] border border-primary/20 bg-accent p-4">
+          <div className="text-[24px]">🤲</div>
+          <div className="flex-1">
+            <div className="text-[13px] font-bold text-primary-strong">
+              {t.donation.religionCalculatorUnconfirmedTitle}
+            </div>
+            <div className="mt-0.5 text-xs text-muted-foreground">
+              {t.donation.religionCalculatorUnconfirmedDesc}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!isReligionLoading && !isReligionError && religion === "islam" && (
         <SectionCard title={t.donation.zakatCalculatorTitle}>
           <div className="mb-3.5 text-xs text-muted-foreground">
             {t.donation.zakatCalculatorSubtitle}
@@ -468,7 +512,7 @@ export default function DonationPage() {
 
       {/* Kalkulator Persepuluhan — its own arithmetic (10% of income), not
           zakat relabelled (US-DON-6). */}
-      {religion === "kristen" && (
+      {!isReligionLoading && !isReligionError && religion === "kristen" && (
         <SectionCard title={t.donation.perpuluhanCalculatorTitle}>
           <div className="mb-3.5 text-xs text-muted-foreground">
             {t.donation.perpuluhanCalculatorSubtitle}
@@ -506,7 +550,7 @@ export default function DonationPage() {
         </SectionCard>
       )}
 
-      {religion === "none" && (
+      {!isReligionLoading && !isReligionError && religion === "none" && (
         <div className="flex items-center gap-3 rounded-[14px] border bg-card p-4">
           <div className="text-[24px]">🤲</div>
           <div className="flex-1">
