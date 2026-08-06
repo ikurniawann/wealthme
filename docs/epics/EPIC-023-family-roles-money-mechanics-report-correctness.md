@@ -1285,3 +1285,86 @@ does not exist`, which the agent then diagnosed as a pre-existing broken
   undo. `docker compose down -v` must never be offered as a first remedy.
   And when a config change is followed by a failure, suspect the change
   before concluding the environment was already broken.
+- 2026-08-06 /epic-loop EPIC-023 "E — Payments that move money" → PR:
+  https://github.com/andrsrjld/wealthme-web/pull/245, DEV-deployed and healthy
+  (api `/health` 200, web 307, 42 migrations up to date). Four gate rounds,
+  each of which found real money defects; every finding raised is fixed.
+  Final local state: **api 988/988 (82 suites), web 327/327 (35 suites)**,
+  `qa.sh` and `security-check.sh` exit 0. No GitHub issue matched this task
+  group's title, per this epic's documented fallback.
+  **The defects worth carrying beyond this epic, in the order they were
+  found rather than the order they were introduced:**
+  **(1)** A privacy filter matched an optional relation with an object
+  (`account: { isPrivate: false }`), which Prisma reads as _requiring_ the
+  relation to exist — so making `Transaction.accountId` nullable for card
+  purchases silently hid every one of them from restricted viewers **and made
+  the B3 bridge fabricate a residual**, since `profit` lost the expense while
+  `closing` kept the debt. The correct pattern was already written one line
+  below for the nullable `categoryId`. Widening a column to nullable breaks
+  consumers where nullability changes _query semantics_, not just property
+  access — a property-access audit cannot find those.
+  **(2)** Three separate gates independently found that a _shared_ budget line
+  across all of a family's obligations could not satisfy D11: `limitAmount`
+  only ever incremented, the `Restrict` FK guarded only the first contributor
+  while the schema comment claimed otherwise for all, and once any line existed
+  no obligation was deletable. Fixed by giving each obligation its own category
+  and its own line — required because budget spend is grouped by `categoryId`.
+  **(3)** The fix for (2) then produced a **silent cascade delete**, because
+  the fix brief said deletion should "remove or decrement its own line". D11
+  says the opposite in as many words: _"never a silent cascade."_ An
+  imprecisely-worded instruction is enough to invert a signed-off decision.
+  **(4)** `paidThisPeriod` was the only thing standing between a household and
+  a second debit, and it was wrong four ways: an interest-only payment created
+  no linked row at all (`principal === 0`), the link was client-supplied and so
+  forgeable by any member, the window was a calendar month even for quarterly
+  and yearly policies, and `/asuransi` never disabled its own button. A
+  client-side `disabled` is not a control on a money path; both pay paths now
+  refuse server-side.
+  **(5)** Then the fix for (4) collided with E3: a card _charge_ and a card
+  _payment_ both carry `liabilityId`, so one grocery purchase marked the card's
+  bill paid and made it **unpayable by UI and API for the rest of the month**.
+  Proved at runtime by a reviewer, not by reading. Payment legs always debit a
+  source account and a purchase never does, so that is what now discriminates.
+  **(6)** Editing or deleting an obligation-linked transaction reversed the
+  account balance but never the debt or renewal date it had moved — and a code
+  comment named deleting the row as _the_ correction path. Deleting a mistaken
+  card purchase left the card permanently inflated; deleting a premium refunded
+  the cash and kept the coverage. Those rows now refuse edit and delete.
+  **(7)** An automatic behaviour resolved against the **generic catch-all COA
+  code** `20099`, so creating an insurance policy inflated the user's own
+  "Pengeluaran Lainnya" budget, flipped a shared `CoaAccount` to FIXED, and
+  blocked every future policy deletion. Never resolve an automatic behaviour to
+  a catch-all.
+  **(8)** Two mitigations shipped **inert**: `Budget.budgetType` was written and
+  never read back, and `warnIfPriorSharedBudgetLine` filtered on two columns
+  this epic itself added and never backfilled, so it could not fire for the
+  legacy families it existed to protect. Both had green tests — one mocked
+  `findFirst` without asserting the `where` shape, the other set the flag on a
+  field production never writes. **A passing test proves nothing when the
+  fixture does not match what the code actually writes.**
+  **(9)** Period bounds were built with the local-time `Date` constructor while
+  no `TZ` is set anywhere in the repo, so on a UTC container an obligation was
+  payable twice during the first seven hours of every month. Anchored to WIB
+  via the `Date.UTC` pattern task B3 and H1 already established.
+  **Adversarial review earned its place again**, and again by execution rather
+  than inspection: it proved (5) by running it, and mutation-proved that
+  changing the per-obligation principal category from group-5 TRANSFER to
+  group-2 EXPENSE left the **entire suite green** — nothing protected the one
+  property tasks A and B exist to guarantee. That test now exists.
+  **Deferred by decision, recorded not hidden:** pre-migration families that
+  shared one budget line are not retroactively split (the per-obligation
+  contribution was never recorded and cannot be reconstructed safely, so the
+  first self-heal warns and notifies rather than guessing); renaming an
+  obligation leaves its category label stale; `/transaksi`'s credit-card filter
+  shows an empty state while its liabilities query is pending or errored.
+  **Environment, not code — and it cost real time:** this machine kills jest
+  workers with SIGSEGV/SIGTRAP under parallel execution, producing suite
+  failures with **zero** assertion failures and drifting totals; `pnpm audit`
+  core-dumped, and `scripts/security-check.sh:89` reported that crash under the
+  banner "pnpm audit reported high/critical advisories" — that gate cannot tell
+  a real CVE from a crashed audit, which is worth fixing on its own. The same
+  suites pass with `--runInBand` (988/988, exit 0). CI on PR #245 is the
+  authoritative signal. Earlier in the session the same class corrupted the V8
+  compile cache and corepack's `pnpm.cjs`.
+  **Still outstanding from task A1, untouched by this task:** the pre/post
+  migration P&L and balance-sheet capture for the demo family.
