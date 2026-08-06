@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -495,6 +496,7 @@ export class TransactionsService {
       where: { id, familyGroupId, ...transactionPrivacyWhere(canSeePrivate) },
     });
     if (!existing) throw new NotFoundException("Transaction not found");
+    this.assertNotObligationLinked(existing);
 
     if (dto.accountId) {
       const acct = await this.prisma.account.findUnique({
@@ -688,6 +690,7 @@ export class TransactionsService {
       where: { id, familyGroupId, ...transactionPrivacyWhere(canSeePrivate) },
     });
     if (!existing) throw new NotFoundException("Transaction not found");
+    this.assertNotObligationLinked(existing);
 
     await this.prisma.$transaction(async (prisma) => {
       // Mirrors create()/update() — a real two-sided transfer must reverse
@@ -825,6 +828,52 @@ export class TransactionsService {
         to: query.to ?? null,
       },
     };
+  }
+
+  /**
+   * C4 (group E retry round 4) — `LiabilitiesService.pay()`/`.purchase()`
+   * and `InsurancesService.pay()` all mutate `Liability
+   * .remainingBalance`/`totalDebt` or `Insurance.renewalDate` in lockstep
+   * with creating the linked `Transaction` row (`liabilityId`/
+   * `insuranceId` set, E1). `update()`/`remove()` here only ever reversed
+   * the ACCOUNT balance delta — never the obligation state — so editing or
+   * deleting one of these rows silently desynced the ledger from the debt/
+   * coverage it recorded:
+   *   - Deleting a mistaken card purchase refunds nothing (it never
+   *     touched an account) but leaves the card's `remainingBalance`/
+   *     `totalDebt` permanently inflated, with no ledger evidence left to
+   *     even notice.
+   *   - Deleting a liability payment refunds the cash but leaves
+   *     `remainingBalance` reduced — a REAL debt is now understated, and
+   *     paying again double-reduces it for the one real outflow.
+   *   - Deleting a premium payment refunds the cash AND leaves
+   *     `renewalDate` advanced — free coverage.
+   *
+   * REFUSE, not silently reverse: correctly reversing `pay()`'s principal/
+   * interest split, `purchase()`'s balance increment, or an insurance's
+   * `renewalDate` advance requires re-deriving exactly what that ONE
+   * payment changed — safe only if the obligation has not moved since
+   * (another payment, a manual PATCH), which this method cannot verify
+   * without re-implementing `pay()`'s entire invariant surface in reverse.
+   * The honest correction path that already exists and needs no new
+   * mechanism: adjust the Liability's `remainingBalance`/`totalDebt` (or
+   * the Insurance's `renewalDate`) directly via its own `PATCH`, THEN
+   * edit/delete this ledger row once the obligation is back in sync.
+   */
+  private assertNotObligationLinked(tx: {
+    liabilityId?: string | null;
+    insuranceId?: string | null;
+  }): void {
+    if (tx.liabilityId) {
+      throw new ConflictException(
+        "Transaksi ini terkait pembayaran/pembelian liabilitas — tidak dapat diedit atau dihapus di sini. Sesuaikan saldo liabilitas terkait terlebih dahulu (PATCH liabilitas), lalu koreksi transaksi ini.",
+      );
+    }
+    if (tx.insuranceId) {
+      throw new ConflictException(
+        "Transaksi ini terkait pembayaran premi asuransi — tidak dapat diedit atau dihapus di sini. Sesuaikan tanggal jatuh tempo polis terkait terlebih dahulu (PATCH asuransi), lalu koreksi transaksi ini.",
+      );
+    }
   }
 
   /**

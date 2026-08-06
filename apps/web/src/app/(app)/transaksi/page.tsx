@@ -145,6 +145,12 @@ export function TxRow({
   const amountStr = (isIncome ? "+" : "-") + formatRupiah(amount);
   const txIcon = TX_ICON[tx.type] ?? TX_ICON.expense;
   const typeLabels: Record<string, string> = t.transaksi.typeLabels;
+  // EPIC-023 group E retry round 4 (C4) — the API now REFUSES to edit or
+  // delete an obligation-linked transaction (a liability payment/purchase
+  // or insurance premium): editing/deleting it would desync the debt/
+  // coverage it recorded from the ledger. Honest UI: disable Edit/Hapus
+  // here instead of leaving a live-looking control the server rejects.
+  const isObligationLinked = !!tx.liabilityId || !!tx.insuranceId;
   // EPIC-021 Group B #23 — a real (two-sided) transfer shows its route;
   // legacy one-sided transfer rows (toAccountName null) render exactly as
   // before via the existing fallback chain.
@@ -217,6 +223,8 @@ export function TxRow({
           onEdit={onEditClick}
           onDelete={onDeleteClick}
           className="ml-1"
+          disabled={isObligationLinked}
+          disabledLabel={t.transaksi.obligationLockedTooltip}
         />
       </div>
       <TransactionDetailDialog
@@ -265,6 +273,9 @@ export function TransactionDetailDialog({
   const amountStr = (isIncome ? "+" : "-") + formatRupiah(amount);
   const txIcon = TX_ICON[tx.type] ?? TX_ICON.expense;
   const typeLabel = t.transaksi.typeLabels[tx.type] ?? tx.type;
+  // C4 (group E retry round 4) — mirrors TxRow's own guard: the detail
+  // view's own Edit/Hapus buttons must be honest too.
+  const isObligationLinked = !!tx.liabilityId || !!tx.insuranceId;
 
   return (
     <Dialog
@@ -311,16 +322,33 @@ export function TransactionDetailDialog({
             label={t.transaksi.detailCreatedAtLabel}
             value={formatDetailDateTime(tx.createdAt, locale)}
           />
+          {isObligationLinked && (
+            <p className="pt-2 text-[11.5px] text-muted-foreground">
+              {t.transaksi.obligationLockedTooltip}
+            </p>
+          )}
           <div className="flex gap-2 pt-3">
             <button
               onClick={onEdit}
-              className="flex-1 rounded-md border py-2.5 text-[13px] font-semibold"
+              disabled={isObligationLinked}
+              title={
+                isObligationLinked
+                  ? t.transaksi.obligationLockedTooltip
+                  : undefined
+              }
+              className="flex-1 rounded-md border py-2.5 text-[13px] font-semibold disabled:cursor-not-allowed disabled:opacity-40"
             >
               {t.transaksi.detailEditButton}
             </button>
             <button
               onClick={onDelete}
-              className="flex-1 rounded-md bg-destructive py-2.5 text-[13px] font-semibold text-white"
+              disabled={isObligationLinked}
+              title={
+                isObligationLinked
+                  ? t.transaksi.obligationLockedTooltip
+                  : undefined
+              }
+              className="flex-1 rounded-md bg-destructive py-2.5 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
             >
               {t.transaksi.detailDeleteButton}
             </button>

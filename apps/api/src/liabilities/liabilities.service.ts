@@ -9,6 +9,7 @@ import {
 import { type Role } from "@prisma/client";
 
 import { assertBankNotOverdrawn } from "../common/utils/bank-overdraft.util";
+import { effectiveBudgetType } from "../common/utils/effective-budget-type.util";
 import { ownCategoryName } from "../common/utils/own-category-name.util";
 import { currentPaymentPeriodBounds } from "../common/utils/payment-period.util";
 import { runSerializableWithRetry } from "../common/utils/serializable-retry.util";
@@ -164,6 +165,18 @@ export class LiabilitiesService {
         familyGroupId,
         liabilityId: { in: liabilityIds },
         occurredAt: { gte: periodStart, lte: periodEnd },
+        // C1 (group E retry round 4) — a card PURCHASE (`purchase()`) also
+        // stamps `liabilityId`, with `type: "expense"`, same as the
+        // interest leg of a real PAYMENT (`pay()`'s interest transaction is
+        // also `type: "expense"`) — so `type` alone cannot tell a charge
+        // apart from a payment. `accountId`, however, always can: EVERY
+        // payment leg (principal `transfer` OR interest `expense`) debits
+        // `sourceAccount.id` (non-null), while `purchase()` NEVER sets an
+        // `accountId` at all (D12 — "a credit card stays a liability;
+        // spending raises the card's debt and leaves the bank untouched").
+        // Filtering on `accountId: { not: null }` therefore excludes every
+        // purchase while keeping every real payment leg.
+        accountId: { not: null },
       },
       select: { liabilityId: true },
       distinct: ["liabilityId"],
@@ -502,6 +515,13 @@ export class LiabilitiesService {
         familyGroupId,
         liabilityId,
         occurredAt: { gte: periodStart, lte: periodEnd },
+        // C1 (group E retry round 4) — same `accountId`-based payment-leg
+        // discriminator as `paidThisPeriodIds` above: without it, a card
+        // PURCHASE this period (accountId always null) is indistinguishable
+        // by `type` from a real payment and permanently blocks `pay()` for
+        // that liability's own period, even though nothing has been paid
+        // yet. See `paidThisPeriodIds`'s doc comment for the full reasoning.
+        accountId: { not: null },
       },
       select: { id: true },
     });
@@ -548,9 +568,27 @@ export class LiabilitiesService {
       throw new BadRequestException("amount must be greater than zero");
     }
 
-    return runSerializableWithRetry(this.prisma, (tx) =>
-      this.runPayment(tx, familyGroupId, id, dto, paymentAmount),
+    const { liability, principalCategoryId } = await runSerializableWithRetry(
+      this.prisma,
+      (tx) => this.runPayment(tx, familyGroupId, id, dto, paymentAmount),
     );
+
+    // H5 (group E retry round 4) — `purchase()` already fired this same
+    // alert for every card charge; `pay()` never did, so a FIXED line paid
+    // well past its `limitAmount` showed as over-budget on `/anggaran`
+    // while no 80%/100% notification ever fired for it. Fired once, AFTER
+    // the transaction has committed (never inside the retry loop) — mirrors
+    // `purchase()`'s own fire-and-forget placement exactly.
+    if (principalCategoryId) {
+      void checkBudgetAlert(
+        this.prisma,
+        this.notificationSender,
+        familyGroupId,
+        principalCategoryId,
+      );
+    }
+
+    return liability;
   }
 
   private async runPayment(
@@ -559,7 +597,10 @@ export class LiabilitiesService {
     id: string,
     dto: PayLiabilityDto,
     paymentAmount: bigint,
-  ): Promise<LiabilityResponseDto> {
+  ): Promise<{
+    liability: LiabilityResponseDto;
+    principalCategoryId: string | null;
+  }> {
     const liability = await tx.liability.findUnique({
       where: { id, familyGroupId },
     });
@@ -574,9 +615,15 @@ export class LiabilitiesService {
     // all double-debit the same obligation. Enforced here, inside the SAME
     // Serializable transaction as the balance mutation, so it is race-safe
     // with itself. No override path: a genuine correction (wrong amount,
-    // wrong account) is handled by deleting/editing the mistaken Transaction
-    // row, not by re-running `pay()` — see this task's Automation Log for
-    // the full reasoning.
+    // wrong account) is NOT made by deleting/editing the mistaken
+    // Transaction row — C4 (group E retry round 4) found that path was
+    // never actually safe (deleting a payment refunded the cash but left
+    // `remainingBalance` reduced, permanently understating the debt) and
+    // `TransactionsService.update()`/`.remove()` now REFUSE an obligation-
+    // linked row outright. The real correction path: adjust THIS
+    // liability's `remainingBalance`/`totalDebt` directly via `PATCH
+    // .../liabilities/:id`, then edit/delete the Transaction row once the
+    // liability itself is back in sync.
     await this.assertNotAlreadyPaidThisPeriod(
       tx,
       familyGroupId,
@@ -712,7 +759,7 @@ export class LiabilitiesService {
       });
     }
 
-    return toLiabilityDto(updated);
+    return { liability: toLiabilityDto(updated), principalCategoryId };
   }
 
   /**
@@ -831,15 +878,36 @@ export class LiabilitiesService {
       );
     }
     void checkCashFlowAlert(this.prisma, familyGroupId);
+    // L9 (group E retry round 4) — mirrors `TransactionsService.create()`'s
+    // own `getMemberThreshold` lookup (D3/D9): without it, a card purchase
+    // always used the fixed 5,000,000 fallback `notifyTransaction` defaults
+    // to, ignoring the acting member's OWN large-transaction threshold —
+    // the same honest, per-member cutoff every ordinary expense already
+    // gets. `?? undefined`: a `null` threshold (the normal case) falls
+    // back to `notifyTransaction`'s own default, exactly like
+    // TransactionsService.create() does.
+    const actingMemberThreshold = actingMember
+      ? await this.getMemberThreshold(actingMember.id)
+      : null;
     void notifyTransaction(
       this.prisma,
       familyGroupId,
       "expense",
       amount,
       created,
+      actingMemberThreshold ?? undefined,
     );
 
     return toLiabilityDto(updated);
+  }
+
+  /** Mirrors `TransactionsService.getMemberThreshold` (D3). */
+  private async getMemberThreshold(memberId: string): Promise<bigint | null> {
+    const member = await this.prisma.member.findUnique({
+      where: { id: memberId },
+      select: { largeTxnThreshold: true },
+    });
+    return member?.largeTxnThreshold ?? null;
   }
 
   /**
@@ -913,6 +981,28 @@ export class LiabilitiesService {
    * `resolveOwnPrincipalCategoryId`'s doc comment for the full reasoning.
    * A brand-new liability with no prior "transfer" payment has nothing to
    * warn about and this is a silent no-op for it.
+   *
+   * C3 (group E retry round 4) — this used to be structurally unable to
+   * ever fire, for two independent reasons, both fixed here:
+   *
+   * 1. It matched PRIOR payments only via `liabilityId: liability.id` —
+   *    but `liabilityId` (E1) is a column THIS EPIC added and never
+   *    backfilled onto pre-existing rows. A liability that predates E1 has
+   *    payments with `liabilityId: null` no matter how many times it was
+   *    paid, so this always returned nothing for exactly the families this
+   *    warning exists to protect. `pay()`'s principal-leg description has
+   *    always been `Pembayaran pokok ${liability.name}` — unchanged since
+   *    before `liabilityId` even existed as a column (see git history) —
+   *    so matching on it too finds the prior category without depending on
+   *    a column that was never backfilled.
+   * 2. It filtered `budget.budgetType: "FIXED"` directly — `budgetType`
+   *    (MEDIUM 12) is ALSO never backfilled, so every pre-existing FIXED
+   *    line reads `budgetType: null` here too. `effectiveBudgetType`
+   *    (shared with `BudgetsService.toDto`, C2) falls back to the
+   *    category's CoaAccount `budgetType` instead of filtering it out of
+   *    the query entirely — the exact same resolution `/anggaran` uses to
+   *    decide a line is FIXED, so this warning and the page it warns about
+   *    can never disagree.
    */
   private async warnIfPriorSharedBudgetLine(
     tx: TxClient,
@@ -920,21 +1010,30 @@ export class LiabilitiesService {
     liability: { id: string; name: string },
   ): Promise<void> {
     const priorPayment = await tx.transaction.findFirst({
-      where: { familyGroupId, liabilityId: liability.id, type: "transfer" },
+      where: {
+        familyGroupId,
+        type: "transfer",
+        OR: [
+          { liabilityId: liability.id },
+          { description: `Pembayaran pokok ${liability.name}` },
+        ],
+      },
       select: { categoryId: true },
       orderBy: { occurredAt: "desc" },
     });
     if (!priorPayment?.categoryId) return;
 
     const priorSharedBudget = await tx.budget.findFirst({
-      where: {
-        familyGroupId,
-        categoryId: priorPayment.categoryId,
-        budgetType: "FIXED",
+      where: { familyGroupId, categoryId: priorPayment.categoryId },
+      select: {
+        id: true,
+        limitAmount: true,
+        budgetType: true,
+        category: { select: { coaAccount: { select: { budgetType: true } } } },
       },
-      select: { id: true, limitAmount: true },
     });
     if (!priorSharedBudget) return;
+    if (effectiveBudgetType(priorSharedBudget) !== "FIXED") return;
 
     this.logger.warn(
       `HIGH 10: liability "${liability.name}" (${liability.id}) is being split into its own principal category, but its prior category still carries a FIXED budget line (budget ${priorSharedBudget.id}, limit ${priorSharedBudget.limitAmount.toString()}) that may still include this liability's contribution — the family's total budgeted limit may now be double-counted. This cannot be safely auto-corrected from the data available; review this family's budgets manually.`,

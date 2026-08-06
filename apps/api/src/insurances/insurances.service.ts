@@ -1,12 +1,14 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
 } from "@nestjs/common";
 
 import { assertBankNotOverdrawn } from "../common/utils/bank-overdraft.util";
+import { effectiveBudgetType } from "../common/utils/effective-budget-type.util";
 import { ownCategoryName } from "../common/utils/own-category-name.util";
 import {
   currentPaymentPeriodBounds,
@@ -14,8 +16,14 @@ import {
 } from "../common/utils/payment-period.util";
 import { runSerializableWithRetry } from "../common/utils/serializable-retry.util";
 import { ownerNotifPrefs } from "../notifications/notification-prefs";
+import {
+  NOTIFICATION_SENDER_PORT,
+  type NotificationSenderPort,
+} from "../notifications/notification-sender.port";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
+// H5 (group E retry round 4) — mirrors LiabilitiesService's own import.
+import { checkBudgetAlert } from "../transactions/transaction-alerts.util";
 
 import { nextRenewalDate } from "./next-renewal-date.util";
 
@@ -149,7 +157,14 @@ function validateSharePercent(beneficiaries: { sharePercent: number }[]): void {
 export class InsurancesService {
   private readonly logger = new Logger(InsurancesService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    // H5 (group E retry round 4) — needed for `pay()`'s new
+    // `checkBudgetAlert` call, mirroring `LiabilitiesService`'s own
+    // constructor.
+    @Inject(NOTIFICATION_SENDER_PORT)
+    private readonly notificationSender: NotificationSenderPort,
+  ) {}
 
   // TS review fix #1 — tenant-scoped lookup so a beneficiary's optional
   // memberUserId can never reference a user from another family group.
@@ -555,9 +570,33 @@ export class InsurancesService {
     id: string,
     dto: PayInsuranceDto,
   ): Promise<InsuranceResponseDto> {
-    return runSerializableWithRetry(this.prisma, (tx) =>
-      this.runPay(tx, familyGroupId, id, dto),
+    const { insurance, premiumCategoryId } = await runSerializableWithRetry(
+      this.prisma,
+      (tx) => this.runPay(tx, familyGroupId, id, dto),
     );
+
+    // H5 (group E retry round 4) — mirrors
+    // `LiabilitiesService.pay()`'s own H5 fix: `LiabilitiesService
+    // .purchase()` already fired `checkBudgetAlert` for every card charge,
+    // but NEITHER `pay()` here NOR `LiabilitiesService.pay()` ever called
+    // it, so a FIXED premium line paid past its `limitAmount` showed as
+    // over-budget on `/anggaran` while no 80%/100% notification ever fired.
+    // Fired once, AFTER the transaction has committed.
+    // H5 (group E retry round 4) — mirrors
+    // `LiabilitiesService.pay()`'s own H5 fix: `LiabilitiesService
+    // .purchase()` already fired `checkBudgetAlert` for every card charge,
+    // but NEITHER `pay()` here NOR `LiabilitiesService.pay()` ever called
+    // it, so a FIXED premium line paid past its `limitAmount` showed as
+    // over-budget on `/anggaran` while no 80%/100% notification ever fired.
+    // Fired once, AFTER the transaction has committed.
+    void checkBudgetAlert(
+      this.prisma,
+      this.notificationSender,
+      familyGroupId,
+      premiumCategoryId,
+    );
+
+    return insurance;
   }
 
   private async runPay(
@@ -565,7 +604,10 @@ export class InsurancesService {
     familyGroupId: string,
     id: string,
     dto: PayInsuranceDto,
-  ): Promise<InsuranceResponseDto> {
+  ): Promise<{
+    insurance: InsuranceResponseDto;
+    premiumCategoryId: string;
+  }> {
     const insurance = await tx.insurance.findUnique({
       where: { id, familyGroupId },
     });
@@ -586,6 +628,7 @@ export class InsurancesService {
       id,
       insurance.name,
       insurance.premiumPeriod,
+      insurance.renewalDate,
     );
 
     // Tenant scoping: the source account must belong to the SAME family
@@ -671,17 +714,53 @@ export class InsurancesService {
         : {},
     });
 
-    return toInsuranceDto(updated);
+    return {
+      insurance: toInsuranceDto(updated),
+      premiumCategoryId: categoryId,
+    };
   }
 
-  /** Mirrors `LiabilitiesService.assertNotAlreadyPaidThisPeriod`. */
+  /**
+   * Mirrors `LiabilitiesService.assertNotAlreadyPaidThisPeriod`, EXTENDED
+   * by H8 (group E retry round 4) to anchor to THIS POLICY'S OWN cycle
+   * (`renewalDate`) rather than the calendar for a policy that has one.
+   *
+   * The bug this closes: the old, purely calendar-anchored check compared
+   * only "did a payment land in the CURRENT calendar month/quarter/year" —
+   * a signal that resets at every calendar boundary regardless of what the
+   * obligation's own cycle actually covers. A YEARLY policy paid 20 Dec
+   * 2025 advances `renewalDate` to Dec 2026 — already paid clean through
+   * an entire year — but from 1 Jan 2026 onward the CALENDAR year flips,
+   * so the old check found no payment in "this" (new) calendar year and
+   * `pay()` accepted a SECOND full annual premium 11 months early.
+   *
+   * `renewalDate` already IS the authoritative "paid through" date —
+   * `pay()` only ever advances it forward, never sets it into the past
+   * (see the MEDIUM 13 anchor logic below). So once it is set, "already
+   * paid ahead" is simply "paid ahead of today": `renewalDate > now` means
+   * a payment already covers every day up to it, and a new payment must
+   * wait until it actually falls due.
+   *
+   * This is IN ADDITION TO, never instead of, the pre-H8 calendar-window
+   * check below — that check remains the guard for a DUE (or
+   * never-renewalDate) policy against a same-instant double-click/replay
+   * whose Transaction row exists but whose insurance row hasn't (yet)
+   * reflected the advance this same request is about to make.
+   */
   private async assertNotAlreadyPaidThisPeriod(
     tx: TxClient,
     familyGroupId: string,
     insuranceId: string,
     insuranceName: string,
     premiumPeriod: string,
+    renewalDate: Date | null,
   ): Promise<void> {
+    if (renewalDate && renewalDate > new Date()) {
+      throw new ConflictException(
+        `"${insuranceName}" sudah dibayar periode ini — koreksi transaksi yang ada, jangan bayar dua kali`,
+      );
+    }
+
     const { periodStart, periodEnd } = currentPaymentPeriodBounds(
       premiumPeriod as PaymentPeriod,
     );
@@ -723,6 +802,17 @@ export class InsurancesService {
   ): Promise<string> {
     if (insurance.premiumCategoryId) return insurance.premiumCategoryId;
 
+    // H6 (group E retry round 4) — this policy is about to be split OUT of
+    // whatever category its past premium payments were posted against
+    // (the pre-HIGH-4 shared "resolvePremiumCategoryId" design every real
+    // family's older policies still carry) into its own, brand-new
+    // category — the IDENTICAL double-count risk
+    // `LiabilitiesService.resolveOwnPrincipalCategoryId` warns about, which
+    // this method never mirrored until now. See
+    // `warnIfPriorSharedBudgetLine`'s own doc comment (and C3's fix on the
+    // liability side) for the full reasoning.
+    await this.warnIfPriorSharedBudgetLine(tx, familyGroupId, insurance);
+
     let coaAccount: { id: string; name: string } | null = null;
     for (const code of INSURANCE_PREMIUM_COA_PRIORITY) {
       coaAccount = await tx.coaAccount.findFirst({
@@ -752,6 +842,65 @@ export class InsurancesService {
     });
 
     return category.id;
+  }
+
+  /**
+   * H6 (group E retry round 4) — mirrors
+   * `LiabilitiesService.warnIfPriorSharedBudgetLine` (fixed by C3)
+   * EXACTLY, adapted to insurance's own shape: premium payments post as
+   * `type: "expense"` (not `"transfer"` — a liability's principal leg is
+   * the only obligation type that is a TRANSFER), and `pay()`'s
+   * description has always been `Premi ${insurance.name}` — stable across
+   * the pre-HIGH-4 shared "resolvePremiumCategoryId" design and today's
+   * per-policy one, so it finds the prior category without depending on
+   * `insuranceId` (E1's column, never backfilled onto pre-existing rows)
+   * or `Budget.budgetType` (MEDIUM 12's column, also never backfilled).
+   * `effectiveBudgetType` (shared with `BudgetsService.toDto` and the
+   * liability side) resolves FIXED the same way `/anggaran` does.
+   */
+  private async warnIfPriorSharedBudgetLine(
+    tx: TxClient,
+    familyGroupId: string,
+    insurance: { id: string; name: string },
+  ): Promise<void> {
+    const priorPayment = await tx.transaction.findFirst({
+      where: {
+        familyGroupId,
+        type: "expense",
+        OR: [
+          { insuranceId: insurance.id },
+          { description: `Premi ${insurance.name}` },
+        ],
+      },
+      select: { categoryId: true },
+      orderBy: { occurredAt: "desc" },
+    });
+    if (!priorPayment?.categoryId) return;
+
+    const priorSharedBudget = await tx.budget.findFirst({
+      where: { familyGroupId, categoryId: priorPayment.categoryId },
+      select: {
+        id: true,
+        limitAmount: true,
+        budgetType: true,
+        category: { select: { coaAccount: { select: { budgetType: true } } } },
+      },
+    });
+    if (!priorSharedBudget) return;
+    if (effectiveBudgetType(priorSharedBudget) !== "FIXED") return;
+
+    this.logger.warn(
+      `H6: insurance "${insurance.name}" (${insurance.id}) is being split into its own premium category, but its prior category still carries a FIXED budget line (budget ${priorSharedBudget.id}, limit ${priorSharedBudget.limitAmount.toString()}) that may still include this policy's contribution — the family's total budgeted limit may now be double-counted. This cannot be safely auto-corrected from the data available; review this family's budgets manually.`,
+    );
+
+    await tx.notification.create({
+      data: {
+        familyGroupId,
+        title: "Perhatian: kemungkinan anggaran premi ganda",
+        body: `"${insurance.name}" baru saja mendapat kategori anggaran sendiri, tapi anggaran lama (id ${priorSharedBudget.id}) masih memiliki batas tetap yang mungkin masih menghitung kontribusi premi ini. Silakan tinjau anggaran keluarga Anda.`,
+        icon: "⚠️",
+      },
+    });
   }
 
   private async maybeNotifyRenewal(

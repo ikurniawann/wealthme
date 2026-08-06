@@ -4,10 +4,22 @@ import { Prisma } from "@prisma/client";
 
 import { NOTIFICATION_SENDER_PORT } from "../notifications/notification-sender.port";
 import { PrismaService } from "../prisma/prisma.service";
+// H5 (group E retry round 4) — mocked at the module boundary so `pay()`'s
+// (fire-and-forget) call to `checkBudgetAlert` can be asserted directly,
+// without re-exercising its own internal logic (already covered by the
+// dedicated `transaction-alerts.util.spec.ts`) and without the timing
+// fragility of awaiting a `void`-called async function.
+import * as transactionAlerts from "../transactions/transaction-alerts.util";
 
 import { LiabilitiesService } from "./liabilities.service";
 
 import type { TestingModule } from "@nestjs/testing";
+
+jest.mock("../transactions/transaction-alerts.util", () => ({
+  checkBudgetAlert: jest.fn(),
+  checkCashFlowAlert: jest.fn(),
+  notifyTransaction: jest.fn(),
+}));
 
 /** Mirrors categories.service.spec.ts's helper for constructing Prisma errors. */
 function serializationFailure() {
@@ -43,6 +55,12 @@ function makePrisma() {
     account: {
       findUnique: jest.fn(),
       update: jest.fn(),
+    },
+    // L9 (group E retry round 4) — `purchase()`'s `getMemberThreshold`
+    // looks this up; `undefined` by default (no test sets a return value)
+    // means "no threshold set" unless a test overrides it.
+    member: {
+      findUnique: jest.fn(),
     },
     category: {
       findFirst: jest.fn(),
@@ -111,6 +129,7 @@ describe("LiabilitiesService", () => {
   let prisma: ReturnType<typeof makePrisma>;
 
   beforeEach(async () => {
+    jest.clearAllMocks();
     prisma = makePrisma();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -195,6 +214,29 @@ describe("LiabilitiesService", () => {
       prisma.transaction.findMany.mockResolvedValue([]);
       const [result] = await service.findAll("fg-1");
       expect(result.paidThisPeriod).toBe(false);
+    });
+
+    // C1 (group E retry round 4) — the `/anggaran` "Sudah Dibayar" badge
+    // must never be driven by a card PURCHASE (accountId: null); only a real
+    // payment leg (accountId set) counts.
+    it("queries with the accountId payment-leg filter, so a purchase never counts as 'paid this period'", async () => {
+      prisma.liability.findMany.mockResolvedValue([
+        {
+          ...BASE,
+          id: "lid-1",
+          totalDebt: BigInt(1),
+          remainingBalance: BigInt(1),
+        },
+      ]);
+      prisma.transaction.findMany.mockResolvedValue([]);
+
+      await service.findAll("fg-1");
+
+      expect(prisma.transaction.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ accountId: { not: null } }),
+        }),
+      );
     });
   });
 
@@ -574,6 +616,69 @@ describe("LiabilitiesService", () => {
       expect(prisma.account.update).not.toHaveBeenCalled();
     });
 
+    // C1 (group E retry round 4) — a card PURCHASE (`purchase()`) also
+    // stamps `liabilityId` with `type: "expense"`, the SAME type as a real
+    // payment's interest leg — so `type` alone cannot tell them apart. The
+    // guard must filter on `accountId: { not: null }` instead (a purchase
+    // never sets one; every payment leg always does).
+    it("filters the already-paid guard to payment legs only (accountId set) — never a purchase leg", async () => {
+      prisma.liability.findUnique.mockResolvedValue(LIABILITY);
+      prisma.account.findUnique.mockResolvedValue(ACCOUNT);
+      prisma.category.findFirst.mockResolvedValueOnce({ id: "cat-interest" });
+      prisma.liability.update.mockResolvedValue({
+        ...LIABILITY,
+        remainingBalance: BigInt(96_000_000),
+      });
+
+      await service.pay("fg-1", "lid-1", {
+        sourceAccountId: "acc-1",
+        amount: "5000000",
+      });
+
+      expect(prisma.transaction.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ accountId: { not: null } }),
+        }),
+      );
+    });
+
+    // C1 (group E retry round 4) — the runtime-proved regression: buying
+    // groceries on a card (a purchase, `accountId: null`) must never make
+    // that SAME card's bill unpayable this period. A fake `transaction
+    // .findFirst` that actually HONORS the `accountId: { not: null }` filter
+    // (unlike the plain `mockResolvedValue(null)` stub used elsewhere) is
+    // what makes this test fail without the fix: without it, the guard's
+    // query carries no `accountId` filter at all, so this mock's `else`
+    // branch matches and wrongly returns the purchase row as if it were a
+    // payment, and `pay()` throws a 409 instead of succeeding.
+    it("lets a payment through even when a card purchase already landed this period", async () => {
+      prisma.liability.findUnique.mockResolvedValue(LIABILITY);
+      prisma.account.findUnique.mockResolvedValue(ACCOUNT);
+      prisma.category.findFirst.mockResolvedValueOnce({ id: "cat-interest" });
+      prisma.liability.update.mockResolvedValue({
+        ...LIABILITY,
+        remainingBalance: BigInt(96_000_000),
+      });
+      prisma.transaction.findFirst.mockImplementation(
+        ({ where }: { where: { accountId?: { not: null } } }) => {
+          // A real purchase (accountId: null) is excluded by this filter;
+          // without it, every call falls into the `else` and wrongly
+          // resolves to an existing "payment".
+          if (where.accountId && where.accountId.not === null) {
+            return Promise.resolve(null);
+          }
+          return Promise.resolve({ id: "tx-purchase-this-period" });
+        },
+      );
+
+      const result = await service.pay("fg-1", "lid-1", {
+        sourceAccountId: "acc-1",
+        amount: "5000000",
+      });
+
+      expect(result.remainingBalance).toBe("96000000");
+    });
+
     it("rejects a source account from another family group (tenant scoping)", async () => {
       prisma.liability.findUnique.mockResolvedValue(LIABILITY);
       // `findUnique({ where: { id, familyGroupId } })` returns null for an
@@ -677,6 +782,34 @@ describe("LiabilitiesService", () => {
         }),
       );
       expect(result.remainingBalance).toBe("96000000");
+    });
+
+    // H5 (group E retry round 4) — `purchase()` already fired
+    // `checkBudgetAlert` for every card charge; `pay()` never did, so a
+    // FIXED principal line paid well past its `limitAmount` showed as
+    // over-budget on `/anggaran` while no 80%/100% notification ever fired
+    // for it. Fired once, with THIS liability's own principal categoryId,
+    // AFTER the payment has committed.
+    it("fires checkBudgetAlert for the liability's own principal category after a successful payment", async () => {
+      prisma.liability.findUnique.mockResolvedValue(LIABILITY);
+      prisma.account.findUnique.mockResolvedValue(ACCOUNT);
+      prisma.category.findFirst.mockResolvedValueOnce({ id: "cat-interest" });
+      prisma.liability.update.mockResolvedValue({
+        ...LIABILITY,
+        remainingBalance: BigInt(96_000_000),
+      });
+
+      await service.pay("fg-1", "lid-1", {
+        sourceAccountId: "acc-1",
+        amount: "5000000",
+      });
+
+      expect(transactionAlerts.checkBudgetAlert).toHaveBeenCalledWith(
+        prisma,
+        expect.anything(),
+        "fg-1",
+        "cat-principal",
+      );
     });
 
     // EPIC-023 E1 — the principal leg links liabilityId and is posted as a
@@ -850,7 +983,173 @@ describe("LiabilitiesService", () => {
       prisma.budget.findFirst.mockResolvedValueOnce({
         id: "budget-old-shared",
         limitAmount: BigInt(6_249_000), // e.g. A + B + C from before the split
+        budgetType: "FIXED",
+        category: { coaAccount: { budgetType: null } },
       });
+      prisma.coaAccount.findFirst
+        .mockResolvedValueOnce({
+          id: "coa-5",
+          code: "50001",
+          name: "Utang",
+          groupNum: 5,
+          direction: "TRANSFER",
+        })
+        .mockResolvedValueOnce({
+          id: "coa-interest",
+          code: "20009",
+          name: "Bunga Pinjaman",
+        });
+      prisma.category.create
+        .mockResolvedValueOnce({ id: "cat-new-principal" })
+        .mockResolvedValueOnce({ id: "cat-new-interest" });
+      prisma.liability.update.mockResolvedValue({
+        ...LIABILITY,
+        remainingBalance: BigInt(96_000_000),
+      });
+
+      const warnSpy = jest
+        .spyOn(Logger.prototype, "warn")
+        .mockImplementation(() => undefined);
+
+      await service.pay("fg-1", "lid-1", {
+        sourceAccountId: "acc-1",
+        amount: "5000000",
+      });
+
+      // C3 (group E retry round 4) — assert the WHERE-clause shape itself,
+      // not just that some mocked return value came back: the prior version
+      // of this test mocked `budget.findFirst` to return a canned value
+      // regardless of its `where` clause, which is exactly why the suite
+      // stayed green while the real query (`budgetType: "FIXED"` filtered
+      // at the DB level, on a column nothing backfills) could never match
+      // anything in production.
+      expect(prisma.transaction.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            type: "transfer",
+            OR: expect.arrayContaining([
+              { liabilityId: "lid-1" },
+              { description: "Pembayaran pokok KTA BNI" },
+            ]),
+          }),
+        }),
+      );
+      expect(prisma.budget.findFirst).toHaveBeenCalledWith({
+        where: { familyGroupId: "fg-1", categoryId: "cat-old-shared" },
+        select: {
+          id: true,
+          limitAmount: true,
+          budgetType: true,
+          category: {
+            select: { coaAccount: { select: { budgetType: true } } },
+          },
+        },
+      });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("budget-old-shared"),
+      );
+      expect(prisma.notification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            familyGroupId: "fg-1",
+            icon: "⚠️",
+          }),
+        }),
+      );
+      warnSpy.mockRestore();
+    });
+
+    // C3 (group E retry round 4) — the exact scenario the OLD version could
+    // never catch: a liability that predates EITHER migration this
+    // detection used to depend on. `liabilityId` is null on its prior
+    // payment (E1's column, never backfilled) and `budgetType` is null on
+    // its old budget row (MEDIUM 12's column, also never backfilled) — the
+    // ONLY signals available are the payment's DESCRIPTION text and the
+    // category's (shared) CoaAccount `budgetType`. This test fails without
+    // the fix: the old query's `liabilityId: liability.id` filter finds
+    // nothing (so `priorPayment` is null and the method returns early), and
+    // even if it had found the row, the old `budgetType: "FIXED"` DB filter
+    // would also have excluded it.
+    it("detects the prior shared line via description text and the category's CoaAccount when neither liabilityId nor Budget.budgetType was ever backfilled", async () => {
+      prisma.liability.findUnique.mockResolvedValue({
+        ...LIABILITY,
+        principalCategoryId: null,
+      });
+      prisma.account.findUnique.mockResolvedValue(ACCOUNT);
+      prisma.category.findFirst.mockResolvedValueOnce(null);
+
+      // Real-shaped fakes (unlike the plain `mockResolvedValueOnce` stubs
+      // used elsewhere) — these actually HONOR the query's `where` clause,
+      // exactly like real Postgres would: `liabilityId: null` never matches
+      // `{ liabilityId: "lid-1" }`, and `budgetType: null` never matches
+      // `{ budgetType: "FIXED" }`. This is what makes the test fail against
+      // the OLD query (which filtered on those exact never-backfilled
+      // columns) instead of merely asserting a canned return value.
+      const priorTransferRow = {
+        familyGroupId: "fg-1",
+        type: "transfer",
+        liabilityId: null, // never backfilled onto this pre-E1 row
+        description: "Pembayaran pokok KTA BNI",
+        categoryId: "cat-old-shared",
+      };
+      prisma.transaction.findFirst.mockImplementation(
+        ({
+          where,
+        }: {
+          where: {
+            occurredAt?: unknown;
+            type?: string;
+            liabilityId?: string;
+            description?: string;
+            OR?: { liabilityId?: string; description?: string }[];
+          };
+        }) => {
+          if (where.occurredAt) return Promise.resolve(null); // assertNotAlreadyPaidThisPeriod
+          // A candidate matches only if EVERY field it names equals the
+          // row's — an empty candidate (neither field named) never matches
+          // anything, so `where.OR ?? [where]` behaves like a real WHERE.
+          const candidates = where.OR ?? [where];
+          const matches = candidates.some((c) => {
+            const named = (["liabilityId", "description"] as const).filter(
+              (k) => c[k] !== undefined,
+            );
+            return (
+              named.length > 0 &&
+              named.every((k) => c[k] === priorTransferRow[k])
+            );
+          });
+          return Promise.resolve(matches ? priorTransferRow : null);
+        },
+      );
+
+      const oldSharedBudgetRow = {
+        id: "budget-old-shared",
+        categoryId: "cat-old-shared",
+        limitAmount: BigInt(6_249_000),
+        budgetType: null, // never backfilled
+        category: { coaAccount: { budgetType: "FIXED" } }, // the shared account IS FIXED
+      };
+      prisma.budget.findFirst.mockImplementation(
+        ({
+          where,
+        }: {
+          where: { categoryId?: string; budgetType?: string };
+        }) => {
+          if (where.categoryId !== oldSharedBudgetRow.categoryId) {
+            return Promise.resolve(null);
+          }
+          // A `budgetType` filter in the WHERE clause (the old, broken
+          // query) would exclude this row at the DB level — it is null.
+          if (
+            where.budgetType !== undefined &&
+            where.budgetType !== oldSharedBudgetRow.budgetType
+          ) {
+            return Promise.resolve(null);
+          }
+          return Promise.resolve(oldSharedBudgetRow);
+        },
+      );
       prisma.coaAccount.findFirst
         .mockResolvedValueOnce({
           id: "coa-5",
@@ -883,14 +1182,6 @@ describe("LiabilitiesService", () => {
 
       expect(warnSpy).toHaveBeenCalledWith(
         expect.stringContaining("budget-old-shared"),
-      );
-      expect(prisma.notification.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            familyGroupId: "fg-1",
-            icon: "⚠️",
-          }),
-        }),
       );
       warnSpy.mockRestore();
     });
@@ -1146,6 +1437,43 @@ describe("LiabilitiesService", () => {
             accountId: null,
           }),
         }),
+      );
+    });
+
+    // L9 (group E retry round 4) — `TransactionsService.create()` passes
+    // the acting member's OWN `largeTxnThreshold` (D3/D9) to
+    // `notifyTransaction`; `purchase()` omitted it entirely, so a card
+    // charge always used the fixed 5,000,000 fallback regardless of what
+    // threshold the member actually has set.
+    it("passes the acting member's OWN largeTxnThreshold to notifyTransaction, not the fixed fallback", async () => {
+      prisma.liability.findUnique.mockResolvedValue(CARD);
+      prisma.liability.update.mockResolvedValue(CARD);
+      prisma.transaction.create.mockResolvedValue({
+        category: null,
+        account: null,
+      });
+      prisma.member.findUnique.mockResolvedValue({
+        largeTxnThreshold: BigInt(1_000_000),
+      });
+
+      await service.purchase(
+        "fg-1",
+        "card-1",
+        { amount: "1500000" },
+        { id: "member-1", userId: "user-1", role: "member" as never },
+      );
+
+      expect(prisma.member.findUnique).toHaveBeenCalledWith({
+        where: { id: "member-1" },
+        select: { largeTxnThreshold: true },
+      });
+      expect(transactionAlerts.notifyTransaction).toHaveBeenCalledWith(
+        prisma,
+        "fg-1",
+        "expense",
+        BigInt(1_500_000),
+        expect.anything(),
+        BigInt(1_000_000),
       );
     });
   });

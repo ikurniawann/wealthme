@@ -40,7 +40,7 @@ export async function checkBudgetAlert(
   try {
     const budget = await prisma.budget.findFirst({
       where: { familyGroupId, categoryId },
-      select: { id: true, limitAmount: true },
+      select: { id: true, limitAmount: true, liabilityId: true },
     });
     if (!budget || budget.limitAmount <= BigInt(0)) return;
 
@@ -48,11 +48,21 @@ export async function checkBudgetAlert(
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
+    // H5 (group E retry round 4) — a liability's OWN principal budget line
+    // (`Budget.liabilityId` set, HIGH 4/E2) posts its spend as `type:
+    // "transfer"` (E1 — a principal payment moves cash into paying down
+    // debt, not a P&L expense; `BudgetsService.findAll` sums it the SAME
+    // way, C5). Hardcoding `type: "expense"` here always summed 0 for such
+    // a line, however over-budget it actually was, so it could never raise
+    // an 80%/100% alert — the budget PAGE and the ALERT system disagreed
+    // about what spend counted. An insurance premium line is unaffected —
+    // it always posts as `type: "expense"`, same as every ordinary budget.
+    const spendType = budget.liabilityId ? "transfer" : "expense";
     const agg = await prisma.transaction.aggregate({
       where: {
         familyGroupId,
         categoryId,
-        type: "expense",
+        type: spendType,
         occurredAt: { gte: monthStart, lt: nextMonthStart },
       },
       _sum: { amount: true },

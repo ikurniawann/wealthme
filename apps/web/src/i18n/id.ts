@@ -1894,6 +1894,12 @@ export const id = {
     detailCreatedAtLabel: "Dibuat Pada",
     detailEditButton: "Edit",
     detailDeleteButton: "Hapus",
+    // EPIC-023 group E retry round 4 (C4) — an obligation-linked
+    // transaction (liability payment/purchase or insurance premium)
+    // cannot be edited/deleted here; the server now refuses it because
+    // doing so would desync the debt/coverage it recorded.
+    obligationLockedTooltip:
+      "Transaksi ini terkait pembayaran liabilitas/asuransi — sesuaikan liabilitas/asuransi terkait untuk mengoreksi",
   },
   splitbill: {
     headerDesc: "Patungan jadi gampang — kamu nalangin, mereka bayar balik",

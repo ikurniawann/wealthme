@@ -1329,10 +1329,77 @@ describe("TransactionsService", () => {
       createdAt: now,
     };
 
-    it("update(): changing the amount never touches any account balance", async () => {
+    // C4 (group E retry round 4) — REPLACES the pre-fix assertion that
+    // editing/deleting this row "never touches any account balance" (true,
+    // but incomplete): it never reversed the OBLIGATION either — deleting
+    // this card purchase left `Liability.remainingBalance`/`totalDebt`
+    // permanently inflated, with no ledger evidence left to notice. Both
+    // `update()` and `remove()` now REFUSE an obligation-linked
+    // (`liabilityId`/`insuranceId` set) row outright, pointing at the real
+    // correction path (adjust the Liability/Insurance directly, THEN edit
+    // this row) instead of silently desyncing the ledger from the debt.
+    it("update(): refuses to edit an obligation-linked (liabilityId set) transaction, and never touches the row or any balance", async () => {
       prisma.transaction.findFirst.mockResolvedValue(CARD_TX);
+
+      await expect(
+        service.update(FAMILY_GROUP_ID, "tx-card-1", { amount: 200000 }),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(prisma.transaction.update).not.toHaveBeenCalled();
+      expect(prisma.account.update).not.toHaveBeenCalled();
+    });
+
+    it("remove(): refuses to delete an obligation-linked (liabilityId set) transaction, and never touches the row or any balance", async () => {
+      prisma.transaction.findFirst.mockResolvedValue(CARD_TX);
+
+      await expect(
+        service.remove(FAMILY_GROUP_ID, "tx-card-1"),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(prisma.transaction.delete).not.toHaveBeenCalled();
+      expect(prisma.account.update).not.toHaveBeenCalled();
+    });
+
+    // C4 — an insurance-premium payment (`insuranceId` set) gets the SAME
+    // refusal, even though it DOES touch an account (unlike a card
+    // purchase) — the obligation-desync risk (renewalDate advanced, coverage
+    // now free) is identical.
+    it("update(): refuses to edit an obligation-linked (insuranceId set) transaction", async () => {
+      prisma.transaction.findFirst.mockResolvedValue({
+        ...CARD_TX,
+        accountId: "acc-1",
+        liabilityId: null,
+        insuranceId: "ins-1",
+      });
+
+      await expect(
+        service.update(FAMILY_GROUP_ID, "tx-card-1", { amount: 200000 }),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(prisma.transaction.update).not.toHaveBeenCalled();
+    });
+
+    it("remove(): refuses to delete an obligation-linked (insuranceId set) transaction", async () => {
+      prisma.transaction.findFirst.mockResolvedValue({
+        ...CARD_TX,
+        accountId: "acc-1",
+        liabilityId: null,
+        insuranceId: "ins-1",
+      });
+
+      await expect(
+        service.remove(FAMILY_GROUP_ID, "tx-card-1"),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(prisma.transaction.delete).not.toHaveBeenCalled();
+    });
+
+    it("update(): a PLAIN transaction (neither liabilityId nor insuranceId set) is unaffected", async () => {
+      prisma.transaction.findFirst.mockResolvedValue({
+        ...CARD_TX,
+        accountId: "acc-1",
+        liabilityId: null,
+      });
       prisma.transaction.update.mockResolvedValue({
         ...CARD_TX,
+        accountId: "acc-1",
+        liabilityId: null,
         amount: BigInt(200000),
       });
       prisma.$transaction.mockImplementation(
@@ -1345,22 +1412,6 @@ describe("TransactionsService", () => {
       });
 
       expect(result.amount).toBe("200000");
-      expect(prisma.account.update).not.toHaveBeenCalled();
-    });
-
-    it("remove(): deleting never touches any account balance", async () => {
-      prisma.transaction.findFirst.mockResolvedValue(CARD_TX);
-      prisma.$transaction.mockImplementation(
-        async (fn: Parameters<typeof prisma.$transaction>[0]) =>
-          (fn as (p: typeof prisma) => Promise<unknown>)(prisma),
-      );
-
-      await service.remove(FAMILY_GROUP_ID, "tx-card-1");
-
-      expect(prisma.account.update).not.toHaveBeenCalled();
-      expect(prisma.transaction.delete).toHaveBeenCalledWith({
-        where: { id: "tx-card-1" },
-      });
     });
   });
 

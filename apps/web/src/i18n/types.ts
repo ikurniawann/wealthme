@@ -1805,6 +1805,13 @@ export type I18nDictionary = {
     detailCreatedAtLabel: string;
     detailEditButton: string;
     detailDeleteButton: string;
+    /**
+     * EPIC-023 group E retry round 4 (C4) — an obligation-linked
+     * transaction (liability payment/purchase or insurance premium)
+     * cannot be edited/deleted here; the server refuses it because doing
+     * so would desync the debt/coverage it recorded.
+     */
+    obligationLockedTooltip: string;
   };
   /**
    * EPIC-018 Task A6 — `/splitbill` (split bill) page copy. The seed

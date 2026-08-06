@@ -2,9 +2,20 @@ import { BadRequestException, Logger, NotFoundException } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { Prisma } from "@prisma/client";
 
+import { NOTIFICATION_SENDER_PORT } from "../notifications/notification-sender.port";
 import { PrismaService } from "../prisma/prisma.service";
+// H5 (group E retry round 4) — mocked at the module boundary so `pay()`'s
+// (fire-and-forget) call to `checkBudgetAlert` can be asserted directly —
+// mirrors liabilities.service.spec.ts's own H5 test setup.
+import * as transactionAlerts from "../transactions/transaction-alerts.util";
 
 import { InsurancesService } from "./insurances.service";
+
+jest.mock("../transactions/transaction-alerts.util", () => ({
+  checkBudgetAlert: jest.fn(),
+  checkCashFlowAlert: jest.fn(),
+  notifyTransaction: jest.fn(),
+}));
 
 const FAMILY_GROUP_ID = "fg-1";
 const INSURANCE_ID = "ins-1";
@@ -118,6 +129,7 @@ describe("InsurancesService", () => {
   let prisma: ReturnType<typeof makePrisma>;
 
   beforeEach(async () => {
+    jest.clearAllMocks();
     prisma = makePrisma();
     prisma.transaction.findMany.mockResolvedValue([]);
     // BASE_ROW carries premiumCategoryId: "cat-premium" by default, so every
@@ -133,6 +145,10 @@ describe("InsurancesService", () => {
       providers: [
         InsurancesService,
         { provide: PrismaService, useValue: prisma },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { send: jest.fn(), sendEmail: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -783,18 +799,34 @@ describe("InsurancesService", () => {
   // transaction, debits the source account, and advances renewalDate by one
   // premium period. All inside `pay()`'s one `$transaction`.
   describe("pay", () => {
+    // H8 (group E retry round 4) — `assertNotAlreadyPaidThisPeriod` now
+    // rejects a payment outright when `renewalDate` is already in the
+    // FUTURE relative to "now" (already paid ahead) — so these tests fix
+    // "now" and give `POLICY` a `renewalDate` that is DUE (one day before
+    // "now"), never in the future, unless a test explicitly overrides it
+    // to exercise a specific renewalDate scenario. `NOW` also replaces the
+    // old convention of keeping `renewalDate` arbitrarily far in the
+    // future (2099) purely to dodge the MEDIUM 13 "overdue" anchor branch —
+    // that convention is what H8's fix would otherwise reject outright.
+    const NOW = new Date("2026-06-15T00:00:00.000Z");
+
+    beforeEach(() => {
+      jest.useFakeTimers().setSystemTime(NOW);
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
     const POLICY = {
       ...BASE_ROW,
       premiumAmount: BigInt(1_500_000),
       premiumPeriod: "monthly" as const,
-      // MEDIUM 13 (group E retry round 3) — `runPay` anchors the advance to
-      // `max(renewalDate, now)`, not unconditionally to the stored
-      // `renewalDate`: an OVERDUE policy anchors to today instead of
-      // compounding with `billing-cycle.processor.ts`'s catch-up. Kept far
-      // in the future here so these tests exercise the (more common)
-      // "paying on time" path — advancing from the actual `renewalDate` —
-      // without the anchor silently becoming "now" as the test suite ages.
-      renewalDate: new Date("2099-03-15T00:00:00.000Z"),
+      // One day before `NOW` — DUE, never overdue by more than a day, and
+      // never in the future (H8's new fast-reject only fires on the
+      // latter). MEDIUM 13's anchor (`max(renewalDate, now)`) becomes `now`
+      // here, matching the "paying on time" path these tests exercise.
+      renewalDate: new Date("2026-06-14T00:00:00.000Z"),
     };
     const ACCOUNT = {
       id: "acc-1",
@@ -853,7 +885,7 @@ describe("InsurancesService", () => {
       prisma.account.findUnique.mockResolvedValue(ACCOUNT);
       prisma.insurance.update.mockResolvedValue({
         ...POLICY,
-        renewalDate: new Date("2099-04-15T00:00:00.000Z"),
+        renewalDate: new Date("2026-07-15T00:00:00.000Z"),
       });
 
       const result = await service.pay(FAMILY_GROUP_ID, INSURANCE_ID, {
@@ -876,14 +908,17 @@ describe("InsurancesService", () => {
           }),
         }),
       );
-      // Golden value — same clamped-advance algorithm as
+      // Golden value — MEDIUM 13's anchor is `max(renewalDate, now)`; the
+      // fixture's `renewalDate` (2026-06-14) is one day before `NOW`
+      // (2026-06-15), so the anchor is `NOW` — advancing one month lands on
+      // 2026-07-15, same clamped-advance algorithm as
       // next-renewal-date.util.spec.ts's "advances a mid-month date by one
-      // month" case: 2099-03-15 monthly -> 2099-04-15.
+      // month" case.
       expect(prisma.insurance.update).toHaveBeenCalledWith({
         where: { id: INSURANCE_ID, familyGroupId: FAMILY_GROUP_ID },
-        data: { renewalDate: new Date("2099-04-15T00:00:00.000Z") },
+        data: { renewalDate: new Date("2026-07-15T00:00:00.000Z") },
       });
-      expect(result.renewalDate).toBe("2099-04-15T00:00:00.000Z");
+      expect(result.renewalDate).toBe("2026-07-15T00:00:00.000Z");
     });
 
     it("uses an explicit amount instead of the policy's premiumAmount when provided", async () => {
@@ -900,6 +935,26 @@ describe("InsurancesService", () => {
         where: { id: "acc-1", familyGroupId: FAMILY_GROUP_ID },
         data: { balance: { decrement: BigInt(2_000_000) } },
       });
+    });
+
+    // H5 (group E retry round 4) — mirrors LiabilitiesService.pay()'s own
+    // H5 fix: `pay()` never fired `checkBudgetAlert`, so a FIXED premium
+    // line paid past its `limitAmount` never raised an 80%/100% alert.
+    it("fires checkBudgetAlert for the policy's own premium category after a successful payment", async () => {
+      prisma.insurance.findUnique.mockResolvedValue(POLICY);
+      prisma.account.findUnique.mockResolvedValue(ACCOUNT);
+      prisma.insurance.update.mockResolvedValue(POLICY);
+
+      await service.pay(FAMILY_GROUP_ID, INSURANCE_ID, {
+        sourceAccountId: "acc-1",
+      });
+
+      expect(transactionAlerts.checkBudgetAlert).toHaveBeenCalledWith(
+        prisma,
+        expect.anything(),
+        FAMILY_GROUP_ID,
+        "cat-premium",
+      );
     });
 
     it("leaves renewalDate untouched when the policy has none set", async () => {
@@ -921,6 +976,36 @@ describe("InsurancesService", () => {
         where: { id: INSURANCE_ID, familyGroupId: FAMILY_GROUP_ID },
         data: {},
       });
+    });
+
+    // H8 (group E retry round 4) — the runtime-proved regression: a YEARLY
+    // policy paid 20 Dec 2025 (renewalDate -> Dec 2026) must NOT be payable
+    // again just because a NEW calendar year (or month/quarter) started.
+    // The old, purely calendar-anchored guard reset at every calendar
+    // boundary regardless of the obligation's own paid-through date, so it
+    // accepted a second full annual premium 11 months early. `renewalDate`
+    // already IN THE FUTURE relative to "now" is decisive on its own.
+    it("rejects a second payment when renewalDate is already in the future, even in a NEW calendar month/quarter/year (H8)", async () => {
+      prisma.insurance.findUnique.mockResolvedValue({
+        ...POLICY,
+        premiumPeriod: "yearly" as const,
+        // Paid 20 Dec 2025, advanced to Dec 2026 — almost a full year still
+        // ahead of `NOW` (2026-06-15), which is itself in a DIFFERENT
+        // calendar year than the payment that set this renewalDate.
+        renewalDate: new Date("2026-12-20T00:00:00.000Z"),
+      });
+
+      await expect(
+        service.pay(FAMILY_GROUP_ID, INSURANCE_ID, {
+          sourceAccountId: "acc-1",
+        }),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(prisma.account.findUnique).not.toHaveBeenCalled();
+      expect(prisma.account.update).not.toHaveBeenCalled();
+      expect(prisma.transaction.create).not.toHaveBeenCalled();
+      // Decisive on `renewalDate` alone — never even needs to query for a
+      // same-period Transaction row (the old, broken signal).
+      expect(prisma.transaction.findFirst).not.toHaveBeenCalled();
     });
 
     // MEDIUM 13 (group E retry round 3b) — a monthly policy 3 months
@@ -998,6 +1083,84 @@ describe("InsurancesService", () => {
           data: expect.objectContaining({ categoryId: "cat-new-premium" }),
         }),
       );
+    });
+
+    // H6 (group E retry round 4) — mirrors
+    // `LiabilitiesService.warnIfPriorSharedBudgetLine` (fixed by C3): the
+    // insurance side had NO such warning at all before this fix. Self-
+    // healing this policy's OWN category must warn LOUDLY (log + persisted
+    // Notification) when its PRIOR premium-payment category still carries
+    // a FIXED budget line.
+    it("warns loudly when self-healing finds a prior FIXED budget line still on this policy's old (shared) category", async () => {
+      prisma.insurance.findUnique.mockResolvedValue({
+        ...POLICY,
+        premiumCategoryId: null,
+      });
+      prisma.account.findUnique.mockResolvedValue(ACCOUNT);
+      // First call: assertNotAlreadyPaidThisPeriod — no payment yet this
+      // period. Second call: warnIfPriorSharedBudgetLine — this policy's
+      // last premium payment was posted against the OLD shared category.
+      prisma.transaction.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ categoryId: "cat-old-shared" });
+      prisma.budget.findFirst.mockResolvedValueOnce({
+        id: "budget-old-shared",
+        limitAmount: BigInt(4_500_000),
+        budgetType: "FIXED",
+        category: { coaAccount: { budgetType: null } },
+      });
+      prisma.coaAccount.findFirst.mockResolvedValue({
+        id: "coa-premium",
+        code: "20010",
+        name: "Premi Asuransi",
+      });
+      prisma.category.create.mockResolvedValue({ id: "cat-new-premium" });
+      prisma.insurance.update.mockResolvedValue(POLICY);
+
+      const warnSpy = jest
+        .spyOn(Logger.prototype, "warn")
+        .mockImplementation(() => undefined);
+
+      await service.pay(FAMILY_GROUP_ID, INSURANCE_ID, {
+        sourceAccountId: "acc-1",
+      });
+
+      // Assert the WHERE-clause shape itself — mirrors the liability-side
+      // C3 assertion so this warning can never regress the same way.
+      expect(prisma.transaction.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            type: "expense",
+            OR: expect.arrayContaining([
+              { insuranceId: INSURANCE_ID },
+              { description: "Premi Asuransi Jiwa" },
+            ]),
+          }),
+        }),
+      );
+      expect(prisma.budget.findFirst).toHaveBeenCalledWith({
+        where: { familyGroupId: FAMILY_GROUP_ID, categoryId: "cat-old-shared" },
+        select: {
+          id: true,
+          limitAmount: true,
+          budgetType: true,
+          category: {
+            select: { coaAccount: { select: { budgetType: true } } },
+          },
+        },
+      });
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("budget-old-shared"),
+      );
+      expect(prisma.notification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            familyGroupId: FAMILY_GROUP_ID,
+            icon: "⚠️",
+          }),
+        }),
+      );
+      warnSpy.mockRestore();
     });
 
     // HIGH — EPIC-021 #22's bank-overdraft floor must apply to insurance

@@ -272,6 +272,50 @@ describe("TxRow — read-only transaction detail view (EPIC-020 Task A)", () => 
     ).not.toBeInTheDocument();
   });
 
+  // EPIC-023 group E retry round 4 (C4) — the API now refuses to edit or
+  // delete an obligation-linked transaction (liabilityId/insuranceId set);
+  // the row's Edit/Hapus controls must be honest about that instead of
+  // looking live and failing only on click.
+  it("disables RowActions Edit/Hapus for a liability-linked transaction", async () => {
+    const tx = buildTx({ liabilityId: "liab-1" });
+    render(
+      <TxRow tx={tx} onEditClick={onEditClick} onDeleteClick={onDeleteClick} />,
+    );
+
+    const [editButton] = screen.getAllByRole("button", {
+      name: /liabilitas\/asuransi/i,
+    });
+    expect(editButton).toBeDisabled();
+
+    await userEvent.setup().click(editButton!);
+    expect(onEditClick).not.toHaveBeenCalled();
+  });
+
+  it("disables RowActions Edit/Hapus for an insurance-linked transaction", async () => {
+    const tx = buildTx({ insuranceId: "ins-1" });
+    render(
+      <TxRow tx={tx} onEditClick={onEditClick} onDeleteClick={onDeleteClick} />,
+    );
+
+    const buttons = screen.getAllByRole("button", {
+      name: /liabilitas\/asuransi/i,
+    });
+    expect(buttons).toHaveLength(2); // Edit + Hapus icons
+    for (const button of buttons) {
+      expect(button).toBeDisabled();
+    }
+  });
+
+  it("leaves RowActions Edit/Hapus enabled for an ordinary transaction (neither liabilityId nor insuranceId set)", async () => {
+    const tx = buildTx();
+    render(
+      <TxRow tx={tx} onEditClick={onEditClick} onDeleteClick={onDeleteClick} />,
+    );
+
+    expect(screen.getByRole("button", { name: "Edit" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Hapus" })).toBeEnabled();
+  });
+
   it("renders the exact 'Tanggal & Waktu' text for a fixed occurredAt timestamp", async () => {
     // Arrange — pins formatFullDate/formatTime's output for a fixed ISO
     // input, so a regression in either date-part-slicing helper (e.g. a

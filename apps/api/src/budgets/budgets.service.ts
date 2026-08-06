@@ -4,6 +4,7 @@ import {
   UnprocessableEntityException,
 } from "@nestjs/common";
 
+import { effectiveBudgetType } from "../common/utils/effective-budget-type.util";
 import { categoryPrivacyWhere } from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
@@ -261,7 +262,17 @@ export class BudgetsService {
       usagePercent: usagePct,
       isOverBudget: spent > limit,
       isNearLimit: usagePct >= 80 && spent <= limit,
-      budgetType: budget.category.coaAccount.budgetType,
+      // C2 (group E retry round 4) — `toDto` used to read ONLY
+      // `category.coaAccount.budgetType`, never `budget.budgetType` (the
+      // per-Budget-row column `syncPrincipalBudgetLine`/
+      // `syncPremiumBudgetLine` actually WRITE, MEDIUM 12's own migration).
+      // A liability/insurance's own line's CoaAccount is the shared group-5
+      // TRANSFER account, whose `budgetType` is null — so this always read
+      // null for a real obligation line, dropping it out of `/anggaran`'s
+      // FIXED section. `budget.budgetType` now wins when set; the CoaAccount
+      // fallback stays for every other (non-obligation) budget row, which
+      // never has its own `budgetType` set.
+      budgetType: effectiveBudgetType(budget),
     };
   }
 }

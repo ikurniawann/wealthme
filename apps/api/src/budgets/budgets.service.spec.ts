@@ -21,6 +21,11 @@ interface FakeBudgetRow {
   period: string;
   limitAmount: bigint;
   liabilityId?: string | null;
+  // C2 (group E retry round 4) — production ALWAYS writes this column
+  // (`syncPrincipalBudgetLine`/`syncPremiumBudgetLine` both set
+  // `budgetType: "FIXED"` on the Budget row itself), never only the shared
+  // `category.coaAccount.budgetType` the pre-fix `toDto` read exclusively.
+  budgetType?: "FIXED" | "VARIABLE" | "REIMBURSEMENT" | null;
   category: {
     name: string;
     icon: string | null;
@@ -349,6 +354,54 @@ describe("BudgetsService.findAll spend computation (EPIC-023 group E retry round
     const result = await service.findAll(FAMILY_GROUP_ID, true);
     const publicBudget = result.find((b) => b.id === PUBLIC_BUDGET_ID);
     expect(publicBudget?.spentAmount).toBe(300_000);
+  });
+});
+
+/**
+ * C2 (group E retry round 4) — production writes `Budget.budgetType`
+ * directly (`syncPrincipalBudgetLine`/`syncPremiumBudgetLine`), never only
+ * `category.coaAccount.budgetType` (the shared group-5 TRANSFER account,
+ * which has NO budgetType of its own). This fake `budget.findMany` returns
+ * a row with `budgetType: "FIXED"` set on the BUDGET itself while its
+ * category's CoaAccount carries `budgetType: null` — exactly what a real
+ * obligation line looks like — so the test fails without the fix (the old
+ * `toDto` would read `null` from the CoaAccount and drop this line out of
+ * `/anggaran`'s FIXED section).
+ */
+function makePrismaWithBudgetOwnType() {
+  const rows: FakeBudgetRow[] = [
+    {
+      id: "budget-own-fixed",
+      categoryId: "cat-liability-own",
+      period: "monthly",
+      limitAmount: 2_083_000n,
+      liabilityId: "liab-1",
+      budgetType: "FIXED",
+      category: {
+        name: "Cicilan Pokok KTA BNI",
+        icon: null,
+        isPrivate: false,
+        coaAccount: { budgetType: null }, // shared group-5 TRANSFER account
+      },
+    },
+  ];
+  return {
+    budget: { findMany: jest.fn(() => Promise.resolve(rows)) },
+    transaction: { groupBy: jest.fn(() => Promise.resolve([])) },
+  };
+}
+
+describe("BudgetsService.findAll budgetType resolution (EPIC-023 group E retry round 4, C2)", () => {
+  it("prefers Budget.budgetType over the (null) shared CoaAccount.budgetType", async () => {
+    const prisma = makePrismaWithBudgetOwnType();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [BudgetsService, { provide: PrismaService, useValue: prisma }],
+    }).compile();
+    const service = module.get(BudgetsService);
+
+    const [result] = await service.findAll(FAMILY_GROUP_ID, true);
+
+    expect(result.budgetType).toBe("FIXED");
   });
 });
 
