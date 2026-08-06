@@ -42,6 +42,24 @@ export interface ZakatResultDto {
   nisabSource: "family" | "indicative";
 }
 
+/* ─── Perpuluhan (Tithe) ──────────────────────────────────── */
+
+// EPIC-023 F2 (D20, US-DON-6/7) — its OWN arithmetic (10% of income), not
+// zakat relabelled: US-DON-6 objects specifically to the two being treated
+// as interchangeable. Its own inputs, its own result shape.
+
+export interface PerpuluhanRequestDto {
+  /** Gross income for the period (IDR) */
+  income: number;
+}
+
+export interface PerpuluhanResultDto {
+  /** The income figure the tithe was computed from */
+  income: number;
+  /** Perpuluhan due — 10% of income */
+  tithe: number;
+}
+
 /* ─── PPh 21 ─────────────────────────────────────────────── */
 
 export interface Pph21RequestDto {

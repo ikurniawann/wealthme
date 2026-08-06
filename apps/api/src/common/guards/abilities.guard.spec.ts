@@ -294,13 +294,14 @@ describe("AbilitiesGuard against REAL controllers (closes the fixture-only seam)
       return buildRealContext(SplitBillsController, controller, handler, m);
     }
 
-    it("PERMISSION — member can read (findAll/findOne) and manage (create/remove/settleParticipant)", () => {
+    it("PERMISSION — member can read (findAll/findOne) and manage (create/remove/revoke/confirmParticipant)", () => {
       for (const handler of [
         "findAll",
         "findOne",
         "create",
         "remove",
-        "settleParticipant",
+        "revoke",
+        "confirmParticipant",
       ] as const) {
         expect(guard.canActivate(ctxFor(handler, member))).toBe(true);
       }
@@ -313,12 +314,32 @@ describe("AbilitiesGuard against REAL controllers (closes the fixture-only seam)
           "findOne",
           "create",
           "remove",
-          "settleParticipant",
+          "revoke",
+          "confirmParticipant",
         ] as const) {
           expect(() => guard.canActivate(ctxFor(handler, m))).toThrow(
             ForbiddenException,
           );
         }
+      }
+    });
+
+    // EPIC-023 F3 (D21) — the two PUBLIC routes (getPublicParticipant,
+    // claimParticipant) carry NO `@CheckAbility` by design: they have no
+    // `:familyGroupId` param, so `TenantGuard` never builds a
+    // `tenantContext`, and `AbilitiesGuard` fails OPEN for any handler with
+    // no attached handlers — which is exactly the intended "public, no
+    // authorization check" shape here (the route itself is gated by an
+    // unguessable per-participant token, not by role). Asserted here so a
+    // future accidental `@CheckAbility` addition (which would need a
+    // `tenantContext` these routes never have) fails loudly instead of
+    // silently 403-ing every real recipient.
+    it("PUBLIC — getPublicParticipant/claimParticipant have no @CheckAbility and pass with no tenant context at all", () => {
+      for (const handler of [
+        "getPublicParticipant",
+        "claimParticipant",
+      ] as const) {
+        expect(guard.canActivate(ctxFor(handler, null))).toBe(true);
       }
     });
   });
@@ -393,6 +414,61 @@ describe("AbilitiesGuard against REAL controllers (closes the fixture-only seam)
 
     it("DENIAL — operational is refused", () => {
       expect(() => guard.canActivate(ctxFor(operational))).toThrow(
+        ForbiddenException,
+      );
+    });
+  });
+
+  // EPIC-023 F2 (D20) — these are NEW routes, added explicitly decorated
+  // (unlike the pre-existing getGoldPrice/updateGoldPrice on this same
+  // controller, which carry no `@CheckAbility` at all and only pass today
+  // because AbilitiesGuard fails OPEN). This proves the REAL guard enforces
+  // "read FamilyGroup"/"manage FamilyGroup" on the REAL controller methods,
+  // not just that the DTO/service layer behaves — the exact seam a
+  // dropped or never-added `@CheckAbility` would otherwise slip through.
+  describe("FamilyGroupsController.getReligion / updateReligion (F2)", () => {
+    const controller = new FamilyGroupsController({} as never);
+    const owner = {
+      id: "member-owner",
+      userId: "user-owner",
+      role: Role.owner,
+    };
+    const spouse = {
+      id: "member-spouse",
+      userId: "user-spouse",
+      role: Role.spouse,
+    };
+
+    function ctxFor(
+      handler: "getReligion" | "updateReligion",
+      m: { id: string; userId: string; role: Role } | null,
+    ) {
+      return buildRealContext(FamilyGroupsController, controller, handler, m);
+    }
+
+    it("PERMISSION — every role can read the religion setting (harmless descriptive setting)", () => {
+      for (const m of [owner, spouse, member, dependant, operational]) {
+        expect(guard.canActivate(ctxFor("getReligion", m))).toBe(true);
+      }
+    });
+
+    it("PERMISSION — owner can update the religion setting", () => {
+      expect(guard.canActivate(ctxFor("updateReligion", owner))).toBe(true);
+    });
+
+    it("DENIAL — every non-owner role is refused updateReligion", () => {
+      for (const m of [spouse, member, dependant, operational]) {
+        expect(() => guard.canActivate(ctxFor("updateReligion", m))).toThrow(
+          ForbiddenException,
+        );
+      }
+    });
+
+    it("DENIAL — an unauthenticated request (no tenantContext) is refused both routes", () => {
+      expect(() => guard.canActivate(ctxFor("getReligion", null))).toThrow(
+        ForbiddenException,
+      );
+      expect(() => guard.canActivate(ctxFor("updateReligion", null))).toThrow(
         ForbiddenException,
       );
     });

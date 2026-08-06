@@ -52,6 +52,12 @@ describe("CaslAbilityFactory", () => {
       const ability = factory.createForMember({ role: Role.owner });
       expect(ability.can("manage", "SplitBill")).toBe(true);
     });
+
+    it("can manage FamilyGroup (EPIC-023 F2 — the religion setting is owner-writable)", () => {
+      const ability = factory.createForMember({ role: Role.owner });
+      expect(ability.can("manage", "FamilyGroup")).toBe(true);
+      expect(ability.can("read", "FamilyGroup")).toBe(true);
+    });
   });
 
   describe("member role", () => {
@@ -112,6 +118,12 @@ describe("CaslAbilityFactory", () => {
       const ability = factory.createForMember({ role: Role.member });
       expect(ability.can("manage", "SplitBill")).toBe(true);
     });
+
+    it("can read but not manage FamilyGroup (EPIC-023 F2 — religion setting stays owner-writable)", () => {
+      const ability = factory.createForMember({ role: Role.member });
+      expect(ability.can("read", "FamilyGroup")).toBe(true);
+      expect(ability.can("manage", "FamilyGroup")).toBe(false);
+    });
   });
 
   describe("admin_staff role", () => {
@@ -157,6 +169,12 @@ describe("CaslAbilityFactory", () => {
       expect(ability.can("create", "SplitBill")).toBe(false);
       expect(ability.can("delete", "SplitBill")).toBe(false);
     });
+
+    it("can read but not manage FamilyGroup (EPIC-023 F2)", () => {
+      const ability = factory.createForMember({ role: Role.admin_staff });
+      expect(ability.can("read", "FamilyGroup")).toBe(true);
+      expect(ability.can("manage", "FamilyGroup")).toBe(false);
+    });
   });
 
   // EPIC-023 Task C (D2, US-FAM-10) — a spouse is a full financial co-owner.
@@ -195,6 +213,12 @@ describe("CaslAbilityFactory", () => {
     it("cannot delete a Member — DENIAL", () => {
       const ability = factory.createForMember({ role: Role.spouse });
       expect(ability.can("delete", "Member")).toBe(false);
+    });
+
+    it("can read but not manage FamilyGroup — DENIAL: same 'one accountable head' pattern as Member (EPIC-023 F2)", () => {
+      const ability = factory.createForMember({ role: Role.spouse });
+      expect(ability.can("read", "FamilyGroup")).toBe(true);
+      expect(ability.can("manage", "FamilyGroup")).toBe(false);
     });
   });
 
@@ -239,6 +263,12 @@ describe("CaslAbilityFactory", () => {
       expect(ability.can("read", "AllowanceRequest")).toBe(true);
       expect(ability.can("manage", "AllowanceRequest")).toBe(false);
     });
+
+    it("can read FamilyGroup — harmless descriptive setting, same grant every role gets (EPIC-023 F2)", () => {
+      const ability = factory.createForMember({ role: Role.dependant });
+      expect(ability.can("read", "FamilyGroup")).toBe(true);
+      expect(ability.can("manage", "FamilyGroup")).toBe(false);
+    });
   });
 
   // EPIC-023 Task C (D5, US-FAM-13) — a driver/helper: own account+balance,
@@ -274,6 +304,12 @@ describe("CaslAbilityFactory", () => {
       const ability = factory.createForMember({ role: Role.operational });
       expect(ability.can("read", "SplitBill")).toBe(false);
       expect(ability.can("manage", "SplitBill")).toBe(false);
+    });
+
+    it("can read FamilyGroup — harmless descriptive setting, same grant every role gets (EPIC-023 F2)", () => {
+      const ability = factory.createForMember({ role: Role.operational });
+      expect(ability.can("read", "FamilyGroup")).toBe(true);
+      expect(ability.can("manage", "FamilyGroup")).toBe(false);
     });
   });
 });

@@ -8,12 +8,26 @@ interface ConfirmDeleteDialogProps {
   label: string | null;
   onClose: () => void;
   onConfirm: () => void;
+  // EPIC-023 Group F fix round (HIGH 1) — this dialog is the app's one
+  // real (non-`window.confirm`) confirmation pattern, so irreversible
+  // actions that aren't a deletion (e.g. confirming a split-bill payment,
+  // revoking a share link) reuse it instead of inventing another. All four
+  // are optional and default to the exact original delete copy/behavior —
+  // every pre-existing caller (asuransi/warisan/etc.) is unaffected.
+  title?: string;
+  body?: string;
+  confirmLabel?: string;
+  confirmVariant?: "destructive" | "default";
 }
 
 export function ConfirmDeleteDialog({
   label,
   onClose,
   onConfirm,
+  title,
+  body,
+  confirmLabel,
+  confirmVariant = "destructive",
 }: ConfirmDeleteDialogProps) {
   return (
     <Dialog open={label !== null} onOpenChange={(open) => !open && onClose()}>
@@ -25,24 +39,24 @@ export function ConfirmDeleteDialog({
           ⚠️
         </div>
         <DialogTitle className="text-center text-[17px] font-extrabold">
-          Hapus {label}?
+          {title ?? `Hapus ${label}?`}
         </DialogTitle>
         <p className="text-[13px] text-muted-foreground">
-          {label} yang dihapus tidak bisa dikembalikan.
+          {body ?? `${label} yang dihapus tidak bisa dikembalikan.`}
         </p>
         <div className="flex gap-2.5">
           <Button variant="outline" className="flex-1" onClick={onClose}>
             Batal
           </Button>
           <Button
-            variant="destructive"
+            variant={confirmVariant}
             className="flex-1"
             onClick={() => {
               onClose();
               onConfirm();
             }}
           >
-            Ya, Hapus
+            {confirmLabel ?? "Ya, Hapus"}
           </Button>
         </div>
       </DialogContent>

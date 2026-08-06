@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { HeroCard } from "@/components/wm";
 import { ConfirmDeleteDialog, RowActions } from "@/components/crud";
 import { useLocale } from "@/hooks/use-locale";
+import type { ApiError } from "@/lib/api-client";
 import { apiFetch } from "@/lib/api-client";
 import { formatAmountInput, formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
@@ -23,6 +24,7 @@ import type {
   CreateInheritanceAssetDto,
   InheritanceAssetDto,
   InheritanceVisibility,
+  MemberRelationship,
   UpdateInheritanceAssetDto,
 } from "@wealthme/contracts";
 
@@ -58,11 +60,14 @@ const ASSET_TYPE_BG: Record<string, string> = {
 };
 
 // EPIC-021 Group D (#14) — mirrors the `FamilyMember` shape used on /akun for
-// the optional "link a heir to a family member" picker.
+// the optional "link a heir to a family member" picker. EPIC-023 F1 (D14)
+// added `relationship` so selecting a member can live-fill it too — the
+// API's response DTO already carries it (member-response.dto.ts).
 type FamilyMember = {
   id: string;
   userId: string;
   name: string;
+  relationship: MemberRelationship | null;
 };
 
 // EPIC-021 Group D (#12) — one heir row bound to text inputs; parsed into a
@@ -196,15 +201,30 @@ interface HeirEditorProps {
   rows: HeirFormRow[];
   onChange: (rows: HeirFormRow[]) => void;
   familyMembers: FamilyMember[];
+  // EPIC-023 F1 (D14) — true when the members list failed to load (e.g. a
+  // dependant/operational role has no "read Member" ability). Honest UI: a
+  // silently-empty picker looks identical to "this family has no members",
+  // so this note tells the user WHY the picker is unavailable instead of
+  // just hiding it.
+  membersUnavailable?: boolean;
 }
 
 /**
  * EPIC-021 Group D (#12) — heir editor: free-text name/relationship, an
  * optional link to a family-group member, and an allocation bar showing the
  * unallocated remainder ("x% belum dialokasikan"). Heirs remain optional —
- * an asset can be recorded with zero heirs.
+ * an asset can be recorded with zero heirs. EPIC-023 F1 (D14, US-INS-5) —
+ * fully internationalised (previously entirely hardcoded Indonesian) and
+ * selecting a member now live-fills name/relationship, mirroring
+ * asuransi's BeneficiaryEditor.
  */
-function HeirEditor({ rows, onChange, familyMembers }: HeirEditorProps) {
+function HeirEditor({
+  rows,
+  onChange,
+  familyMembers,
+  membersUnavailable,
+}: HeirEditorProps) {
+  const { t } = useLocale();
   const allocated = Math.min(100, totalAllocated(rows));
   const unallocated = Math.max(0, 100 - totalAllocated(rows));
 
@@ -215,73 +235,110 @@ function HeirEditor({ rows, onChange, familyMembers }: HeirEditorProps) {
   return (
     <div>
       <label className="mb-1.5 block text-[12.5px] font-semibold">
-        Ahli Waris
+        {t.warisan.heirsSectionTitle}
       </label>
       <div className="space-y-2.5">
-        {rows.map((row) => (
-          <div
-            key={row.id}
-            className="space-y-2 rounded-md border bg-background p-3"
-          >
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={row.name}
-                onChange={(e) => updateRow(row.id, { name: e.target.value })}
-                placeholder="cth: Siti Arsandi"
-                className={FIELD_CLASS}
-              />
-              <button
-                type="button"
-                aria-label="Hapus ahli waris"
-                onClick={() => onChange(rows.filter((r) => r.id !== row.id))}
-                className="flex size-8 shrink-0 items-center justify-center rounded-full hover:bg-muted"
-              >
-                <X className="size-3.5" />
-              </button>
+        {rows.map((row) => {
+          // EPIC-023 F1 (D14) — once linked, name/relationship are
+          // resolved from the member's CURRENT record (not the row's own
+          // free-text fields) so the editor never shows a value that would
+          // be overwritten the moment the API re-resolves it on the next
+          // read (see inheritance.service.ts's `MemberLookup`).
+          const linkedMember = row.memberUserId
+            ? familyMembers.find((m) => m.userId === row.memberUserId)
+            : undefined;
+          return (
+            <div
+              key={row.id}
+              className="space-y-2 rounded-md border bg-background p-3"
+            >
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={linkedMember ? linkedMember.name : row.name}
+                  disabled={!!linkedMember}
+                  onChange={(e) => updateRow(row.id, { name: e.target.value })}
+                  placeholder={t.warisan.heirNamePlaceholder}
+                  className={`${FIELD_CLASS} disabled:cursor-not-allowed disabled:opacity-60`}
+                />
+                <button
+                  type="button"
+                  aria-label={t.warisan.removeHeirAriaLabel}
+                  onClick={() => onChange(rows.filter((r) => r.id !== row.id))}
+                  className="flex size-8 shrink-0 items-center justify-center rounded-full hover:bg-muted"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  value={
+                    linkedMember
+                      ? (linkedMember.relationship ?? "")
+                      : row.relationship
+                  }
+                  disabled={!!linkedMember}
+                  onChange={(e) =>
+                    updateRow(row.id, { relationship: e.target.value })
+                  }
+                  placeholder={t.warisan.heirRelationshipPlaceholder}
+                  className={`${FIELD_CLASS} disabled:cursor-not-allowed disabled:opacity-60`}
+                />
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  value={row.sharePercent}
+                  onChange={(e) =>
+                    updateRow(row.id, { sharePercent: e.target.value })
+                  }
+                  placeholder={t.warisan.heirSharePercentPlaceholder}
+                  className={FIELD_CLASS}
+                />
+              </div>
+              {familyMembers.length > 0 ? (
+                <select
+                  value={row.memberUserId}
+                  onChange={(e) => {
+                    const memberUserId = e.target.value;
+                    const picked = familyMembers.find(
+                      (m) => m.userId === memberUserId,
+                    );
+                    // Live-fill on selection; the API re-resolves from the
+                    // CURRENT member record on every subsequent read
+                    // regardless of what is stored here (see comment above).
+                    updateRow(row.id, {
+                      memberUserId,
+                      ...(picked
+                        ? {
+                            name: picked.name,
+                            relationship: picked.relationship ?? "",
+                          }
+                        : {}),
+                    });
+                  }}
+                  className={FIELD_CLASS}
+                  aria-label={t.warisan.heirMemberAriaLabel}
+                >
+                  <option value="">{t.warisan.heirMemberNoneOption}</option>
+                  {familyMembers.map((m) => (
+                    <option key={m.userId} value={m.userId}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                membersUnavailable && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {t.warisan.heirMemberPickerUnavailable}
+                  </p>
+                )
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="text"
-                value={row.relationship}
-                onChange={(e) =>
-                  updateRow(row.id, { relationship: e.target.value })
-                }
-                placeholder="cth: Anak, Pasangan"
-                className={FIELD_CLASS}
-              />
-              <input
-                type="number"
-                min={0}
-                max={100}
-                step="0.01"
-                value={row.sharePercent}
-                onChange={(e) =>
-                  updateRow(row.id, { sharePercent: e.target.value })
-                }
-                placeholder="Persentase (%)"
-                className={FIELD_CLASS}
-              />
-            </div>
-            {familyMembers.length > 0 && (
-              <select
-                value={row.memberUserId}
-                onChange={(e) =>
-                  updateRow(row.id, { memberUserId: e.target.value })
-                }
-                className={FIELD_CLASS}
-                aria-label="Hubungkan ke Anggota Keluarga"
-              >
-                <option value="">Tidak terhubung</option>
-                {familyMembers.map((m) => (
-                  <option key={m.userId} value={m.userId}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <button
@@ -289,7 +346,7 @@ function HeirEditor({ rows, onChange, familyMembers }: HeirEditorProps) {
         onClick={() => onChange([...rows, emptyHeirRow()])}
         className="mt-2 text-[12.5px] font-semibold text-primary"
       >
-        + Tambah Ahli Waris
+        {t.warisan.addHeirButton}
       </button>
 
       {rows.length > 0 && (
@@ -302,8 +359,8 @@ function HeirEditor({ rows, onChange, familyMembers }: HeirEditorProps) {
           </div>
           <div className="mt-1 text-[11.5px] text-muted-foreground">
             {unallocated <= 0
-              ? "Teralokasi penuh (100%)"
-              : `${allocated}% dialokasikan · ${unallocated}% belum dialokasikan`}
+              ? t.warisan.heirAllocationFullyAllocated
+              : `${allocated}${t.warisan.heirAllocationAllocatedSuffix} · ${unallocated}${t.warisan.heirAllocationUnallocatedSuffix}`}
           </div>
         </div>
       )}
@@ -363,8 +420,15 @@ export default function WarisanPage() {
       }),
   });
 
-  // Family members for the heir's optional "link to a family member" picker.
-  const { data: familyMembers = [] } = useQuery<FamilyMember[]>({
+  // Family members for the heir's optional "link to a family member"
+  // picker. EPIC-023 F1 (D14) — `isError` drives the honest-UI note in
+  // HeirEditor for roles (dependant/operational) that hold no "read
+  // Member" ability, instead of a silently-empty picker indistinguishable
+  // from "no members exist".
+  const { data: familyMembers = [], isError: isFamilyMembersError } = useQuery<
+    FamilyMember[],
+    ApiError
+  >({
     queryKey: familyGroupId
       ? [...queryKeys.familyGroups.members(familyGroupId), token]
       : ["family-members", "disabled"],
@@ -373,6 +437,7 @@ export default function WarisanPage() {
       apiFetch<FamilyMember[]>(`/family-groups/${familyGroupId}/members`, {
         token,
       }),
+    retry: false,
   });
 
   const createMutation = useMutation({
@@ -842,6 +907,7 @@ export default function WarisanPage() {
               rows={heirs}
               onChange={setHeirs}
               familyMembers={familyMembers}
+              membersUnavailable={isFamilyMembersError}
             />
 
             <Button

@@ -10,6 +10,10 @@ import {
   KprCalcResultDto,
   RetirementCalcResultDto,
 } from "./dto/investment.dto";
+import {
+  PerpuluhanResultDto,
+  type PerpuluhanRequestDto,
+} from "./dto/perpuluhan.dto";
 import { Pph21ResultDto, type Pph21RequestDto } from "./dto/pph21.dto";
 import { ZakatResultDto, type ZakatRequestDto } from "./dto/zakat.dto";
 
@@ -31,6 +35,14 @@ export class CalculatorsController {
   @ApiResponse({ status: 200, type: ZakatResultDto })
   calculateZakat(@Body() dto: ZakatRequestDto): ZakatResultDto {
     return this.calculatorsService.calculateZakat(dto);
+  }
+
+  @Post("perpuluhan")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Calculate perpuluhan (tithe) — 10% of income" })
+  @ApiResponse({ status: 200, type: PerpuluhanResultDto })
+  calculatePerpuluhan(@Body() dto: PerpuluhanRequestDto): PerpuluhanResultDto {
+    return this.calculatorsService.calculatePerpuluhan(dto);
   }
 
   @Post("pph21")

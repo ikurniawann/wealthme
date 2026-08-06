@@ -16,6 +16,7 @@ import { HeroCard, SectionCard, StatusBadge } from "@/components/wm";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { formatManualDate } from "@/components/consolidated-total-card";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useFamilyReligion } from "@/hooks/use-family-religion";
 import { useGoldPrice } from "@/hooks/use-gold-price";
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
@@ -28,6 +29,7 @@ import type {
   CreateDonationDto,
   DonationDto,
   DonationType,
+  PerpuluhanResultDto,
   ZakatResultDto,
 } from "@wealthme/contracts";
 
@@ -40,6 +42,8 @@ const DONATION_TYPE_ICON: Record<string, string> = {
   infaq: "💝",
   sedekah: "💝",
   wakaf: "🏫",
+  // EPIC-023 F2 (D20, US-DON-6/7) — the obligatory Christian contribution.
+  persepuluhan: "✝️",
   lainnya: "🎗️",
 };
 
@@ -49,28 +53,33 @@ const DONATION_TYPE_BG: Record<string, string> = {
   infaq: "#DBEAFE",
   sedekah: "#DBEAFE",
   wakaf: "#EDE9FE",
+  persepuluhan: "#FEE2E2",
   lainnya: "#FEF9C3",
 };
 
 const JENIS_OPTIONS: {
   value: DonationType;
-  group: "islam" | "umum";
+  group: "islam" | "kristen" | "umum";
 }[] = [
   { value: "zakat_maal", group: "islam" },
   { value: "zakat_fitrah", group: "islam" },
   { value: "infaq", group: "islam" },
   { value: "wakaf", group: "islam" },
+  { value: "persepuluhan", group: "kristen" },
   { value: "sedekah", group: "umum" },
   { value: "lainnya", group: "umum" },
 ];
 
-// EPIC-022 E5 — only zakat paid to an approved amil legally qualifies as an
-// income-tax-deductible religious donation (mirrors the server-side check
-// in `donations.service.ts`, which is the actual enforcement — this is only
-// so the checkbox never invites a state the API would reject).
+// EPIC-022 E5 / EPIC-023 F2 (D20, US-DON-6/7) — PP 60/2010's tax-deductible
+// "sumbangan keagamaan yang sifatnya wajib" covers zakat (Muslim) AND
+// persepuluhan (Christian, paid to a recognised church) — never a
+// voluntary offering. Mirrors the server-side check in
+// `donations.service.ts`, which is the actual enforcement — this only
+// keeps the checkbox from inviting a state the API would reject.
 const TAX_DEDUCTIBLE_DONATION_TYPES: ReadonlySet<DonationType> = new Set([
   "zakat_maal",
   "zakat_fitrah",
+  "persepuluhan",
 ]);
 
 // NOTE: these are the actual `recipient` values persisted on a donation
@@ -129,6 +138,20 @@ export default function DonationPage() {
   const queryClient = useQueryClient();
   const fgId = session?.familyGroupId ?? undefined;
   const token = session?.accessToken;
+
+  // EPIC-023 F2 (D20, US-DON-6/7) — the family religion setting decides
+  // which calculator below is shown: zakat (islam), perpuluhan (kristen),
+  // or neither (none) — never a generic/fabricated default.
+  // EPIC-023 Group F fix round (HIGH 4) — `religion` is `null` while still
+  // loading AND on a permanent fetch failure; `isReligionLoading`/
+  // `isReligionError` below are what tell those two apart from an honest
+  // "family hasn't chosen yet" — falling through to any one calculator
+  // (zakat included) on error/loading was the bug this fixes.
+  const {
+    religion,
+    isLoading: isReligionLoading,
+    isError: isReligionError,
+  } = useFamilyReligion();
 
   // Zakat Maal calculator — inputs are local, but the actual zakat/nisab
   // math is computed by the shared BE calculator (/calculators/zakat) so
@@ -207,6 +230,33 @@ export default function DonationPage() {
       : t.donation.nisabIndicativeNote;
   const canPayZakatNow = hasZakatResult && !isZakatFetching && !isZakatError;
 
+  // Perpuluhan (tithe) calculator — EPIC-023 F2 (D20, US-DON-6/7): its own
+  // arithmetic (10% of income), computed by the shared BE calculator
+  // (/calculators/perpuluhan), not zakat relabelled.
+  const [income, setIncome] = useState("");
+  const debouncedIncome = useDebounce(income, 300);
+  const perpuluhanInput = { income: parseRupiah(debouncedIncome) };
+
+  const {
+    data: perpuluhanResult,
+    isFetching: isPerpuluhanFetching,
+    isError: isPerpuluhanError,
+  } = useQuery<PerpuluhanResultDto>({
+    queryKey: ["calculators", "perpuluhan", perpuluhanInput],
+    queryFn: () =>
+      apiFetch<PerpuluhanResultDto>("/calculators/perpuluhan", {
+        method: "POST",
+        token,
+        body: JSON.stringify(perpuluhanInput),
+      }),
+    enabled: !!token && religion === "kristen",
+    placeholderData: keepPreviousData,
+  });
+  const hasPerpuluhanResult = !!perpuluhanResult;
+  const tithe = perpuluhanResult?.tithe ?? 0;
+  const canPayPerpuluhanNow =
+    hasPerpuluhanResult && !isPerpuluhanFetching && !isPerpuluhanError;
+
   // Donation modal state
   const [open, setOpen] = useState(false);
   const [jenis, setJenis] = useState<DonationType>("zakat_maal");
@@ -268,11 +318,20 @@ export default function DonationPage() {
     },
   });
 
-  function openModal(prefillZakat?: boolean): void {
-    if (prefillZakat) {
+  // EPIC-023 F2 (D20) — `prefill` widened from a boolean (zakat-only) to
+  // which calculator triggered the modal, so "Tunaikan Persepuluhan
+  // Sekarang" prefills its own type/amount/recipient instead of always
+  // assuming zakat.
+  function openModal(prefill?: "zakat" | "perpuluhan"): void {
+    if (prefill === "zakat") {
       setJenis("zakat_maal");
       setJumlah(formatAmountInput(String(zakat)));
       setLembaga("BAZNAS");
+      setIsTaxDeductible(true);
+    } else if (prefill === "perpuluhan") {
+      setJenis("persepuluhan");
+      setJumlah(formatAmountInput(String(tithe)));
+      setLembaga("Gereja / Paroki");
       setIsTaxDeductible(true);
     } else {
       setJumlah("");
@@ -331,85 +390,179 @@ export default function DonationPage() {
         </Button>
       </div>
 
-      {/* Kalkulator Zakat */}
-      <SectionCard title={t.donation.zakatCalculatorTitle}>
-        <div className="mb-3.5 text-xs text-muted-foreground">
-          {t.donation.zakatCalculatorSubtitle}
-        </div>
-        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-          <ZkInput
-            label={t.donation.fieldCashLabel}
-            value={cash}
-            onChange={setCash}
-          />
-          <ZkInput
-            label={t.donation.fieldGoldLabel}
-            value={gold}
-            onChange={setGold}
-          />
-          <ZkInput
-            label={t.donation.fieldInvestLabel}
-            value={invest}
-            onChange={setInvest}
-          />
-          <ZkInput
-            label={t.donation.fieldDebtLabel}
-            value={debt}
-            onChange={setDebt}
-          />
-        </div>
-        <div className="mt-3.5 flex items-center gap-2">
-          <input
-            id="donation-zakat-haul"
-            type="checkbox"
-            checked={haulConfirmed}
-            onChange={(e) => setHaulConfirmed(e.target.checked)}
-            className="size-4 accent-primary"
-          />
-          <label
-            htmlFor="donation-zakat-haul"
-            className="text-[12.5px] text-muted-foreground"
-          >
-            {t.donation.haulCheckboxLabel}
-          </label>
-        </div>
-        <div className="mt-4 rounded-[12px] border border-primary/15 bg-accent p-4 text-center">
-          <div className="text-[11.5px] text-muted-foreground">
-            {t.donation.zakatDueLabel}
+      {/* Kalkulator donasi keagamaan — EPIC-023 F2 (D20, US-DON-6/7): the
+          calculator shown matches the family's religion setting; `none`
+          shows an honest "not configured" note instead of fabricating a
+          default faith. EPIC-023 Group F fix round (HIGH 4 / MEDIUM 9) —
+          loading and error states render their OWN honest note instead of
+          falling through to any calculator (zakat included), and a family
+          that has never chosen (`religion === null`) gets an explicit
+          prompt to choose rather than silently showing nothing. */}
+      {isReligionLoading && (
+        <div className="flex items-center gap-3 rounded-[14px] border bg-card p-4">
+          <div className="text-[13px] text-muted-foreground">
+            {t.donation.religionLoadingMsg}
           </div>
-          {isZakatError ? (
-            <div className="mt-1 text-[13px] font-semibold text-destructive">
-              {t.donation.zakatCalcErrorMsg}
-            </div>
-          ) : !hasZakatResult ? (
-            <div className="mt-1 text-[13px] text-muted-foreground">
-              {t.donation.zakatCalculatingMsg}
-            </div>
-          ) : (
-            <>
-              <div className="mt-1 text-[24px] font-black text-primary">
-                {formatRupiah(zakat)}
-              </div>
-              <div className="mt-1.5 text-xs text-muted-foreground">
-                {nisabMessage}
-              </div>
-              <div className="mt-1 text-[11px] text-muted-foreground/80">
-                {nisabSourceNote}
-              </div>
-            </>
-          )}
         </div>
-        <Button
-          onClick={() => openModal(true)}
-          disabled={!canPayZakatNow}
-          className="mt-3.5 h-auto px-4 py-2.5"
+      )}
+
+      {!isReligionLoading && isReligionError && (
+        <div
+          role="alert"
+          className="rounded-[14px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive"
         >
-          <HandHeart className="size-4" />{" "}
-          {isObligated
-            ? t.donation.payZakatNowButton
-            : t.donation.recordZakatEstimateButton}
-        </Button>
-      </SectionCard>
+          {t.donation.religionErrorMsg}
+        </div>
+      )}
+
+      {!isReligionLoading && !isReligionError && religion === null && (
+        <div className="flex items-center gap-3 rounded-[14px] border border-primary/20 bg-accent p-4">
+          <div className="text-[24px]">🤲</div>
+          <div className="flex-1">
+            <div className="text-[13px] font-bold text-primary-strong">
+              {t.donation.religionCalculatorUnconfirmedTitle}
+            </div>
+            <div className="mt-0.5 text-xs text-muted-foreground">
+              {t.donation.religionCalculatorUnconfirmedDesc}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!isReligionLoading && !isReligionError && religion === "islam" && (
+        <SectionCard title={t.donation.zakatCalculatorTitle}>
+          <div className="mb-3.5 text-xs text-muted-foreground">
+            {t.donation.zakatCalculatorSubtitle}
+          </div>
+          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+            <ZkInput
+              label={t.donation.fieldCashLabel}
+              value={cash}
+              onChange={setCash}
+            />
+            <ZkInput
+              label={t.donation.fieldGoldLabel}
+              value={gold}
+              onChange={setGold}
+            />
+            <ZkInput
+              label={t.donation.fieldInvestLabel}
+              value={invest}
+              onChange={setInvest}
+            />
+            <ZkInput
+              label={t.donation.fieldDebtLabel}
+              value={debt}
+              onChange={setDebt}
+            />
+          </div>
+          <div className="mt-3.5 flex items-center gap-2">
+            <input
+              id="donation-zakat-haul"
+              type="checkbox"
+              checked={haulConfirmed}
+              onChange={(e) => setHaulConfirmed(e.target.checked)}
+              className="size-4 accent-primary"
+            />
+            <label
+              htmlFor="donation-zakat-haul"
+              className="text-[12.5px] text-muted-foreground"
+            >
+              {t.donation.haulCheckboxLabel}
+            </label>
+          </div>
+          <div className="mt-4 rounded-[12px] border border-primary/15 bg-accent p-4 text-center">
+            <div className="text-[11.5px] text-muted-foreground">
+              {t.donation.zakatDueLabel}
+            </div>
+            {isZakatError ? (
+              <div className="mt-1 text-[13px] font-semibold text-destructive">
+                {t.donation.zakatCalcErrorMsg}
+              </div>
+            ) : !hasZakatResult ? (
+              <div className="mt-1 text-[13px] text-muted-foreground">
+                {t.donation.zakatCalculatingMsg}
+              </div>
+            ) : (
+              <>
+                <div className="mt-1 text-[24px] font-black text-primary">
+                  {formatRupiah(zakat)}
+                </div>
+                <div className="mt-1.5 text-xs text-muted-foreground">
+                  {nisabMessage}
+                </div>
+                <div className="mt-1 text-[11px] text-muted-foreground/80">
+                  {nisabSourceNote}
+                </div>
+              </>
+            )}
+          </div>
+          <Button
+            onClick={() => openModal("zakat")}
+            disabled={!canPayZakatNow}
+            className="mt-3.5 h-auto px-4 py-2.5"
+          >
+            <HandHeart className="size-4" />{" "}
+            {isObligated
+              ? t.donation.payZakatNowButton
+              : t.donation.recordZakatEstimateButton}
+          </Button>
+        </SectionCard>
+      )}
+
+      {/* Kalkulator Persepuluhan — its own arithmetic (10% of income), not
+          zakat relabelled (US-DON-6). */}
+      {!isReligionLoading && !isReligionError && religion === "kristen" && (
+        <SectionCard title={t.donation.perpuluhanCalculatorTitle}>
+          <div className="mb-3.5 text-xs text-muted-foreground">
+            {t.donation.perpuluhanCalculatorSubtitle}
+          </div>
+          <ZkInput
+            label={t.donation.fieldIncomeLabel}
+            value={income}
+            onChange={setIncome}
+          />
+          <div className="mt-4 rounded-[12px] border border-primary/15 bg-accent p-4 text-center">
+            <div className="text-[11.5px] text-muted-foreground">
+              {t.donation.perpuluhanDueLabel}
+            </div>
+            {isPerpuluhanError ? (
+              <div className="mt-1 text-[13px] font-semibold text-destructive">
+                {t.donation.perpuluhanCalcErrorMsg}
+              </div>
+            ) : !hasPerpuluhanResult ? (
+              <div className="mt-1 text-[13px] text-muted-foreground">
+                {t.donation.perpuluhanCalculatingMsg}
+              </div>
+            ) : (
+              <div className="mt-1 text-[24px] font-black text-primary">
+                {formatRupiah(tithe)}
+              </div>
+            )}
+          </div>
+          <Button
+            onClick={() => openModal("perpuluhan")}
+            disabled={!canPayPerpuluhanNow}
+            className="mt-3.5 h-auto px-4 py-2.5"
+          >
+            <HandHeart className="size-4" /> {t.donation.payPerpuluhanNowButton}
+          </Button>
+        </SectionCard>
+      )}
+
+      {!isReligionLoading && !isReligionError && religion === "none" && (
+        <div className="flex items-center gap-3 rounded-[14px] border bg-card p-4">
+          <div className="text-[24px]">🤲</div>
+          <div className="flex-1">
+            <div className="text-[13px] font-bold">
+              {t.donation.religionCalculatorNoneTitle}
+            </div>
+            <div className="mt-0.5 text-xs text-muted-foreground">
+              {t.donation.religionCalculatorNoneDesc}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Riwayat Donasi */}
       <SectionCard title={t.donation.historyTitle} bodyClassName="-mt-1">
@@ -499,7 +652,9 @@ export default function DonationPage() {
                   <option key={o.value} value={o.value}>
                     {o.group === "islam"
                       ? t.donation.groupIslam
-                      : t.donation.groupUmum}{" "}
+                      : o.group === "kristen"
+                        ? t.donation.groupKristen
+                        : t.donation.groupUmum}{" "}
                     — {t.donation.jenisOptionLabels[o.value]}
                   </option>
                 ))}

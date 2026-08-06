@@ -42,6 +42,7 @@ function makePrisma() {
     },
     member: {
       findFirst: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
     },
     $transaction: jest.fn(async (fn: (tx: unknown) => unknown) => fn(prismaTx)),
   };
@@ -159,6 +160,13 @@ describe("InheritanceService", () => {
         userId: "user-5",
         familyGroupId: FAMILY_GROUP_ID,
       });
+      // EPIC-023 Group F fix round (MEDIUM 8) — resolveMemberLookup's own
+      // query (member.findMany) must ALSO resolve this member for the
+      // link to read as live; in production it does (the same member
+      // `assertMemberInFamilyGroup` above just confirmed exists).
+      prisma.member.findMany.mockResolvedValue([
+        { userId: "user-5", relationship: "anak", user: { name: "Anak 1" } },
+      ]);
       prisma.inheritanceAsset.create.mockResolvedValue({
         ...BASE_ROW,
         heirs: [
@@ -365,6 +373,99 @@ describe("InheritanceService", () => {
         service.remove(FAMILY_GROUP_ID, "nonexistent-id"),
       ).rejects.toThrow(NotFoundException);
       expect(prisma.inheritanceAsset.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  // EPIC-023 F1 (D14, US-INS-5) — a heir linked to a family member resolves
+  // its displayed name/relationship from the member's CURRENT record, not
+  // the copy stored on the heir row. Fails against pre-F1 code, which
+  // always echoed the stored name/relationship.
+  describe("live-linked heirs (F1)", () => {
+    it("findOne() resolves name/relationship from the CURRENT member record, overriding the stored copy", async () => {
+      // Arrange — stored row still says "Anak 1" / "Anak" (stale), but the
+      // member's live name/relationship have since changed.
+      prisma.inheritanceAsset.findUnique.mockResolvedValue({
+        ...BASE_ROW,
+        heirs: [
+          {
+            id: "heir-1",
+            inheritanceAssetId: ASSET_ID,
+            name: "Anak 1 (stale)",
+            relationship: "Anak (stale)",
+            sharePercent: { toString: () => "60.00" },
+            memberUserId: "user-5",
+            createdAt: new Date("2024-01-01T00:00:00.000Z"),
+          },
+        ],
+      });
+      prisma.member.findMany.mockResolvedValue([
+        { userId: "user-5", relationship: "anak", user: { name: "Budi Baru" } },
+      ]);
+
+      // Act
+      const result = await service.findOne(FAMILY_GROUP_ID, ASSET_ID);
+
+      // Assert
+      expect(result.heirs[0]!.name).toBe("Budi Baru");
+      expect(result.heirs[0]!.relationship).toBe("anak");
+      expect(prisma.member.findMany).toHaveBeenCalledWith({
+        where: { familyGroupId: FAMILY_GROUP_ID, userId: { in: ["user-5"] } },
+        include: { user: { select: { name: true } } },
+      });
+    });
+
+    it("findOne() keeps the free-text name/relationship for a non-member heir", async () => {
+      // Arrange
+      prisma.inheritanceAsset.findUnique.mockResolvedValue({
+        ...BASE_ROW,
+        heirs: [
+          {
+            id: "heir-1",
+            inheritanceAssetId: ASSET_ID,
+            name: "Bibi Jauh",
+            relationship: "Kerabat",
+            sharePercent: { toString: () => "40.00" },
+            memberUserId: null,
+            createdAt: new Date("2024-01-01T00:00:00.000Z"),
+          },
+        ],
+      });
+
+      // Act
+      const result = await service.findOne(FAMILY_GROUP_ID, ASSET_ID);
+
+      // Assert — no member lookup query at all for an unlinked heir.
+      expect(result.heirs[0]!.name).toBe("Bibi Jauh");
+      expect(result.heirs[0]!.relationship).toBe("Kerabat");
+      expect(prisma.member.findMany).not.toHaveBeenCalled();
+    });
+
+    // EPIC-023 Group F fix round (MEDIUM 8) — a heir whose linked member
+    // was removed from the family must not keep reading as a live link:
+    // `memberUserId` is nulled out, and the last-known copy is shown.
+    it("findOne() nulls memberUserId when the linked member no longer resolves (orphaned link)", async () => {
+      prisma.inheritanceAsset.findUnique.mockResolvedValue({
+        ...BASE_ROW,
+        heirs: [
+          {
+            id: "heir-1",
+            inheritanceAssetId: ASSET_ID,
+            name: "Anak 1 (last known)",
+            relationship: "Anak (last known)",
+            sharePercent: { toString: () => "60.00" },
+            memberUserId: "user-removed",
+            createdAt: new Date("2024-01-01T00:00:00.000Z"),
+          },
+        ],
+      });
+      // The member was removed — resolveMemberLookup's query finds nothing.
+      prisma.member.findMany.mockResolvedValue([]);
+
+      const result = await service.findOne(FAMILY_GROUP_ID, ASSET_ID);
+
+      expect(result.heirs[0]!.memberUserId).toBeNull();
+      expect(result.heirs[0]!.name).toBe("Anak 1 (last known)");
+      expect(result.heirs[0]!.relationship).toBe("Anak (last known)");
     });
   });
 });

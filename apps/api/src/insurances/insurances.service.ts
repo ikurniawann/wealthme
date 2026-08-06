@@ -96,22 +96,53 @@ function daysUntil(date: Date): number {
   return Math.ceil((date.getTime() - Date.now()) / 86_400_000);
 }
 
+// EPIC-023 F1 (D14, US-INS-5) — live-link resolution. `Member.relationship`
+// is an 8-value enum (kinship) while `InsuranceBeneficiary.relationship` is
+// free text (also serving non-members) — reconciled by NOT changing the
+// column's type: a member's enum value ("istri", "anak", ...) is already a
+// valid free-text string, so the SAME column can hold either. What makes a
+// linked beneficiary "live" is this map, built fresh on every read from the
+// CURRENT Member/User rows — never from what was typed/copied at write
+// time. A beneficiary's stored `name`/`relationship` remain the source of
+// truth only while `memberUserId` is null (a non-member); the moment it is
+// set, this lookup overrides them, so a later name or relationship change
+// on the member is reflected without ever touching the beneficiary row.
+type MemberLookup = ReadonlyMap<
+  string,
+  { name: string; relationship: string | null }
+>;
+
 function toBeneficiaryDto(
   row: BeneficiaryRow,
+  lookup: MemberLookup,
 ): InsuranceBeneficiaryResponseDto {
+  const linked = row.memberUserId ? lookup.get(row.memberUserId) : undefined;
+  // EPIC-023 Group F fix round (MEDIUM 8) — a `memberUserId` that no longer
+  // resolves (the linked member was removed from the family) is an
+  // ORPHANED link, not a live one: null it out so a consumer can tell "live
+  // link, name/relationship are current" apart from "the link broke, this
+  // is a frozen last-known copy". Falling back to the stored `name`/
+  // `relationship` already happens below; without this, `memberUserId`
+  // would keep claiming a link that no longer exists.
+  const isOrphaned = row.memberUserId !== null && !linked;
   return {
     id: row.id,
     insuranceId: row.insuranceId,
-    name: row.name,
-    relationship: row.relationship,
+    name: linked?.name ?? row.name,
+    relationship: linked?.relationship ?? row.relationship,
     sharePercent: row.sharePercent.toString(),
-    memberUserId: row.memberUserId,
+    memberUserId: isOrphaned ? null : row.memberUserId,
     createdAt: row.createdAt.toISOString(),
   };
 }
 
 function toInsuranceDto(
   row: InsuranceRow,
+  // Group F (F1/D14) — resolves a linked beneficiary's CURRENT name and
+  // relationship from `Member`; group E (E2) — whether this policy's premium
+  // is already paid for its own `premiumPeriod`. Both are per-request and
+  // batched by the caller, so neither is fetched per row here.
+  lookup: MemberLookup = new Map(),
   paidThisPeriod = false,
 ): InsuranceResponseDto {
   return {
@@ -130,7 +161,9 @@ function toInsuranceDto(
     daysUntilRenewal: row.renewalDate ? daysUntil(row.renewalDate) : null,
     notes: row.notes,
     currency: row.currency,
-    beneficiaries: (row.beneficiaries ?? []).map(toBeneficiaryDto),
+    beneficiaries: (row.beneficiaries ?? []).map((b) =>
+      toBeneficiaryDto(b, lookup),
+    ),
     paidThisPeriod,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -196,19 +229,54 @@ export class InsurancesService {
     }
   }
 
+  // EPIC-023 F1 (D14) — batch-resolve the CURRENT name/relationship for
+  // every linked `memberUserId` across a set of beneficiary rows, so the
+  // response always reflects the member's live record (see `MemberLookup`
+  // above). One query regardless of how many beneficiaries/policies are
+  // being serialized.
+  private async resolveMemberLookup(
+    familyGroupId: string,
+    memberUserIds: readonly (string | null)[],
+  ): Promise<MemberLookup> {
+    const ids = Array.from(
+      new Set(memberUserIds.filter((id): id is string => !!id)),
+    );
+    if (ids.length === 0) return new Map();
+
+    const members = await this.prisma.member.findMany({
+      where: { familyGroupId, userId: { in: ids } },
+      include: { user: { select: { name: true } } },
+    });
+
+    return new Map(
+      members.map((m) => [
+        m.userId,
+        { name: m.user.name, relationship: m.relationship },
+      ]),
+    );
+  }
+
   async findAll(familyGroupId: string): Promise<InsuranceResponseDto[]> {
     const rows = await this.prisma.insurance.findMany({
       where: { familyGroupId },
       include: { beneficiaries: true },
       orderBy: { createdAt: "asc" },
     });
+    // Both lookups are batched across the whole page (one query each), not
+    // per row: group F's live-linked beneficiary names and group E's
+    // paid-this-period set.
+    const [lookup, paidSet] = await Promise.all([
+      this.resolveMemberLookup(
+        familyGroupId,
+        rows.flatMap((r) => r.beneficiaries.map((b) => b.memberUserId)),
+      ),
+      this.paidThisPeriodIds(
+        familyGroupId,
+        rows.map((r) => ({ id: r.id, premiumPeriod: r.premiumPeriod })),
+      ),
+    ]);
 
-    const paidSet = await this.paidThisPeriodIds(
-      familyGroupId,
-      rows.map((r) => ({ id: r.id, premiumPeriod: r.premiumPeriod })),
-    );
-
-    return rows.map((r) => toInsuranceDto(r, paidSet.has(r.id)));
+    return rows.map((r) => toInsuranceDto(r, lookup, paidSet.has(r.id)));
   }
 
   /**
@@ -309,7 +377,15 @@ export class InsurancesService {
       insurance.renewalDate,
     );
 
-    return toInsuranceDto(insurance);
+    // Group F (F1/D14) — a beneficiary linked to a family member must come
+    // back with that member's CURRENT name and relationship, not the copy
+    // just written. `create()` was restructured by group E so the row is
+    // built inside `runCreate`; the lookup belongs here, where the DTO is.
+    const lookup = await this.resolveMemberLookup(
+      familyGroupId,
+      (insurance.beneficiaries ?? []).map((b) => b.memberUserId),
+    );
+    return toInsuranceDto(insurance, lookup);
   }
 
   private async runCreate(
@@ -385,7 +461,11 @@ export class InsurancesService {
       updated.renewalDate,
     );
 
-    return toInsuranceDto(updated);
+    const lookup = await this.resolveMemberLookup(
+      familyGroupId,
+      (updated.beneficiaries ?? []).map((b) => b.memberUserId),
+    );
+    return toInsuranceDto(updated, lookup);
   }
 
   /**
