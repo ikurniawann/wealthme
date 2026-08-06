@@ -706,10 +706,7 @@ export default function InvestasiPage() {
       <SectionCard
         title={t.investasi.portfolioSectionTitle}
         action={
-          <CardLink
-            onClick={() => setModalOpen(true)}
-            data-tour="add-investasi"
-          >
+          <CardLink onClick={() => setModalOpen(true)}>
             {t.investasi.addInvestmentLink}
           </CardLink>
         }

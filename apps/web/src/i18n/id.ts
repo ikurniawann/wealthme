@@ -512,9 +512,9 @@ export const id = {
         },
       },
       guideSectionTitle: "Panduan Fitur",
-      tourName: "Mulai Tur Interaktif",
+      tourName: "Mulai Setup Terpandu",
       tourSub:
-        "Tur ~3 menit yang memandu penambahan rekening, aset, investasi, dan fitur utama lainnya",
+        "Setup ~2 menit yang membuat rekening, anggaran, dan transaksi pertamamu — sungguhan, bukan simulasi",
       fullGuideName: "Panduan Fitur Lengkap",
       fullGuideSub: "Semua fitur, dikelompokkan per kategori",
       askAiName: "Tanya AI Advisor",
@@ -1399,6 +1399,62 @@ export const id = {
     toastDeleted: "Akun COA berhasil dihapus",
     toastDeleteFailed: "Gagal menghapus akun COA",
     toastSessionNotReady: "Sesi belum siap. Coba lagi sebentar.",
+    guide: {
+      introTitle: "Apa itu Master COA?",
+      introBody:
+        "Master COA (Chart of Accounts) adalah daftar 'kotak' tempat setiap transaksimu disimpan. Setiap kali kamu mencatat pemasukan, pengeluaran, atau transfer, WealthMe menaruhnya ke salah satu dari 6 grup di bawah — dan grup itulah yang menentukan bagaimana angka itu muncul di laporan laba-rugi dan neracamu.",
+      riskTitle: "⚠️ Risiko kalau salah edit",
+      riskBody:
+        "Master COA adalah dasar dari semua laporanmu. Kalau kamu mengubah grup atau arah (pemasukan/pengeluaran/transfer) akun yang sudah dipakai, transaksi lama yang sudah tercatat ke akun itu ikut berubah artinya — laporan laba-rugi dan neracamu bisa langsung salah tanpa peringatan apa pun. Edit hanya jika kamu benar-benar paham konsekuensinya.",
+      groupsTitle: "6 grup, dan artinya untuk uangmu",
+      groups: {
+        1: {
+          title: "1 · Pemasukan (Income)",
+          meaning:
+            "Uang yang benar-benar menambah kekayaanmu — gaji, bonus, hasil jualan, bunga tabungan. Setiap rupiah di grup ini menaikkan laba di laporan laba-rugimu.",
+          example:
+            'Contoh: gaji Rp 10.000.000 masuk ke rekening BCA-mu dan dicatat sebagai "Gaji" (grup 1). Laporan laba-rugi bulan ini langsung menunjukkan pemasukan Rp 10.000.000 — dan itu juga menambah kekayaan bersihmu di neraca.',
+        },
+        2: {
+          title: "2 · Pengeluaran (Expense)",
+          meaning:
+            "Uang yang benar-benar habis terpakai dan tidak kembali — belanja, makan, listrik, transportasi. Setiap rupiah di grup ini menurunkan laba di laporan laba-rugimu.",
+          example:
+            'Contoh: belanja bulanan Rp 1.500.000 dicatat sebagai "Kebutuhan Rumah Tangga" (grup 2). Laporan laba-rugi mencatatnya sebagai pengeluaran Rp 1.500.000 bulan ini.',
+        },
+        3: {
+          title: "3 · Alokasi Kekayaan (Wealth Allocation)",
+          meaning:
+            "Uang yang berpindah tempat, bukan hilang — menabung, membeli emas atau investasi, memindahkan uang antar rekeningmu sendiri. Uang ini TIDAK muncul sebagai pengeluaran, karena kekayaanmu tidak berkurang, cuma bentuknya berubah.",
+          example:
+            'Contoh: dari gaji Rp 10.000.000 di atas, kalau Rp 2.000.000-nya kamu pindahkan ke rekening tabungan dan dicatat di grup 3 ("Tabungan"), laporan laba-rugi TIDAK mencatatnya sebagai pengeluaran — uang itu masih milikmu, hanya pindah rekening. Bandingkan dengan gaji di grup 1 yang MENAMBAH laba; uang yang pindah ke grup 3 TIDAK MENGURANGINYA.',
+        },
+        4: {
+          title: "4 · Piutang (Account Receivable)",
+          meaning:
+            "Uang yang kamu PINJAMKAN ke orang lain dan akan kembali. Ini bukan pengeluaran — uangmu belum hilang, cuma dipegang orang lain sementara. Karena itu grup ini arahnya TRANSFER, bukan expense.",
+          example:
+            'Contoh yang sering salah dicatat: kamu pinjamkan Rp 500.000 ke teman, dicatat ke grup 4. Laporan laba-rugi TIDAK menganggapnya sebagai pengeluaran Rp 500.000 — kekayaan bersihmu tetap sama, cuma bentuknya berubah dari "uang tunai" jadi "piutang". Begitu temanmu bayar kembali, piutang itu berubah balik jadi uang tunai — juga bukan pemasukan.',
+        },
+        5: {
+          title: "5 · Utang (Account Payable)",
+          meaning:
+            "Uang yang kamu PINJAM dari orang lain atau lembaga (termasuk cicilan/KPR) dan harus kamu bayar kembali. Membayar KEMBALI pokok utang bukan pengeluaran — uang itu memang bukan milikmu sejak awal. Karena itu grup ini juga arahnya TRANSFER.",
+          example:
+            "Contoh yang sering salah dicatat: kamu bayar cicilan KPR Rp 5.000.000 (pokok Rp 4.200.000 + bunga Rp 800.000). Hanya bunga Rp 800.000 yang tercatat sebagai pengeluaran (grup 2) — pokok Rp 4.200.000 dicatat sebagai pengurang utang di grup 5, bukan pengeluaran, karena uang itu memang bukan pemasukanmu waktu dulu kamu pinjam.",
+        },
+        6: {
+          title: "6 · Pajak (Tax)",
+          meaning:
+            "Pajak yang kamu bayar ke negara — PPh, PBB, dan sejenisnya. Ini pengeluaran nyata yang tidak bisa kamu tarik kembali, jadi tetap dicatat sebagai expense.",
+          example:
+            "Contoh: PBB rumah Rp 800.000 dicatat di grup 6. Laporan laba-rugi mencatatnya sebagai pengeluaran Rp 800.000, sama seperti grup 2.",
+        },
+      },
+      transferCalloutTitle: "Kenapa Piutang & Utang bukan expense/income?",
+      transferCalloutBody:
+        "Ini bagian paling sering salah dicatat. Melunasi pokok utang BUKAN pengeluaran — uang itu memang titipan orang lain sejak awal, jadi membayarnya kembali tidak mengurangi labamu, hanya mengurangi utangmu. Sebaliknya, meminjamkan uang BUKAN pengeluaran (uangmu belum hilang) dan menerima kembali pinjaman itu BUKAN pemasukan (uangmu memang sudah milikmu). Kalau grup 4/5 diubah jadi income/expense, laporan laba-rugimu akan menghitung uang pinjaman sebagai untung/rugi yang sebenarnya tidak pernah terjadi.",
+    },
   },
   notifikasi: {
     title: "Notifikasi",
@@ -2481,5 +2537,94 @@ export const id = {
     toastRevokeSuccess: "Perangkat dilupakan.",
     toastRevokeFailed: "Gagal melupakan perangkat.",
     toastRegisterFailed: "Gagal mendaftarkan perangkat ini. Silakan coba lagi.",
+  },
+  onboarding: {
+    welcomeTitle: "Selamat datang di WealthMe 👋",
+    welcomeBody:
+      "Aplikasi keuangan keluarga — catat, rencanakan, dan pantau kekayaanmu dalam satu tempat.",
+    startSetupButton: "Mulai Setup Pertama (~2 menit)",
+    exploreAllButton: "Jelajahi Semua Fitur",
+    skipButton: "Lewati",
+    resumeTitle: "Lanjutkan setup pertamamu?",
+    resumeBody:
+      "Kamu sudah mulai setup sebelumnya tapi belum selesai. Data yang sudah kamu buat tetap tersimpan — lanjutkan dari langkah terakhir, mulai ulang, atau lewati saja.",
+    resumeContinueButton: "Lanjutkan Setup",
+    resumeRestartButton: "Mulai Ulang",
+    resumeSkipButton: "Lewati Saja",
+    dialogTitle: "Setup Pertama",
+    stepIndicatorPrefix: "Langkah ",
+    stepIndicatorMiddle: " dari ",
+    skipSetupButton: "Lewati Setup",
+    backButton: "Kembali",
+    continueButton: "Lanjut",
+    closeAriaLabel: "Tutup setup",
+    netWorthLabel: "Kekayaan Bersih",
+    stepLabels: {
+      account: "Rekening",
+      budget: "Anggaran",
+      transaction: "Transaksi",
+      done: "Selesai",
+    },
+    account: {
+      title: "Tambahkan rekening pertamamu",
+      body: "Setiap rekening (bank, tunai, atau e-wallet) yang kamu tambahkan langsung dihitung ke kekayaan bersihmu. Ini rekening SUNGGUHAN — akan muncul di halaman Rekening milikmu.",
+      nameLabel: "Nama Rekening",
+      namePlaceholder: "cth: BCA Tabungan",
+      balanceLabel: "Saldo Saat Ini",
+      submitButton: "Tambah Rekening & Lihat Kekayaan Bersih",
+      submitting: "Menyimpan...",
+      alreadyHaveNotice: "Kamu sudah punya rekening tercatat.",
+      skipStepButton: "Lewati langkah ini",
+      consequenceTitle: "Lihat — kekayaan bersihmu langsung muncul",
+      consequenceBefore: "Sebelum: ",
+      consequenceAfter: "Sesudah: ",
+      toastCreated: "Rekening berhasil dibuat",
+      toastFailed: "Gagal membuat rekening. Coba lagi.",
+    },
+    budget: {
+      title: "Buat anggaran pertamamu",
+      body: "Anggaran menetapkan batas pengeluaran untuk satu kategori. Ini anggaran SUNGGUHAN — akan muncul di halaman Anggaran milikmu, dan langsung memantau transaksi di kategori yang sama.",
+      nameLabel: "Nama Kategori",
+      namePlaceholder: "cth: Makan & Minum",
+      limitLabel: "Batas Bulanan",
+      periodLabel: "Periode",
+      submitButton: "Buat Anggaran",
+      submitting: "Menyimpan...",
+      alreadyHaveNotice: "Kamu sudah punya anggaran tercatat.",
+      skipStepButton: "Lewati langkah ini",
+      consequenceTitle: "Anggaran siap — 0% terpakai",
+      consequenceBody:
+        "Begitu ada transaksi di kategori ini, angka pemakaiannya akan naik secara otomatis. Lanjut ke langkah berikutnya untuk melihatnya sendiri.",
+      toastCreated: "Anggaran berhasil dibuat",
+      toastFailed: "Gagal membuat anggaran. Coba lagi.",
+    },
+    transaction: {
+      title: "Catat pengeluaran pertamamu",
+      body: "Catat satu pengeluaran nyata dari rekening yang baru kamu buat, di kategori anggaran yang baru kamu buat. Ini transaksi SUNGGUHAN — akan muncul di halaman Transaksi milikmu.",
+      amountLabel: "Jumlah",
+      descriptionLabel: "Catatan (opsional)",
+      descriptionPlaceholder: "cth: Makan siang",
+      submitButton: "Catat & Lihat Perubahannya",
+      submitting: "Menyimpan...",
+      consequenceTitle: "Lihat — dua hal berubah sekaligus",
+      consequenceNetWorthPrefix: "Kekayaan bersihmu turun menjadi ",
+      consequenceBudgetPrefix: "Anggaranmu sekarang terpakai ",
+      consequenceBudgetSuffix: " dari batas",
+      toastCreated: "Transaksi berhasil dicatat",
+      toastHeld:
+        "Pengeluaran ini melewati batas dan menunggu persetujuan — belum tercatat sebagai transaksi.",
+      toastFailed: "Gagal mencatat transaksi. Coba lagi.",
+      noAccountError: "Buat rekening dulu di langkah sebelumnya.",
+    },
+    done: {
+      title: "Setup pertamamu selesai 🎉",
+      body: "Kamu baru saja membuat rekening, anggaran, dan transaksi SUNGGUHAN — bukan simulasi. Semuanya sudah bisa kamu lihat, edit, atau hapus di halaman masing-masing.",
+      bodyHeld:
+        "Kamu sudah membuat rekening dan anggaran SUNGGUHAN. Pengeluaran terakhir melewati batas keluargamu dan menunggu persetujuan — jadi belum tercatat sebagai transaksi, tapi kamu bisa memantau statusnya di halaman Transaksi.",
+      viewAccountsButton: "Lihat Rekening",
+      viewBudgetsButton: "Lihat Anggaran",
+      viewTransactionsButton: "Lihat Transaksi",
+      finishButton: "Selesai",
+    },
   },
 } satisfies I18nDictionary;

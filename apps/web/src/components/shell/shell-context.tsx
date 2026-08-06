@@ -13,12 +13,19 @@ type ShellState = {
   setTxnOpen: (v: boolean) => void;
   searchOpen: boolean;
   setSearchOpen: (v: boolean) => void;
-  /** Onboarding spotlight tour — see components/onboarding/walkthrough.tsx. */
+  /**
+   * EPIC-023 Task H3 (D22) — reviewed foundation exception: this file is
+   * protected per WM_CONVENTIONS.md, but the open/close flag for the
+   * onboarding walkthrough can only live in the cross-page shell context
+   * (the "Mulai Setup Terpandu" trigger on /akun and the sidebar's tour
+   * entry point both need to open it). Was the button-spotlight tour's
+   * `tourStep`/`nextTourStep`/`prevTourStep` — dropped because
+   * `components/onboarding/guided-setup.tsx` (the tour's replacement)
+   * manages its own step/resume state, keyed by real created-row ids, not
+   * a bare step index.
+   */
   tourOpen: boolean;
-  tourStep: number;
   startTour: () => void;
-  nextTourStep: () => void;
-  prevTourStep: () => void;
   endTour: () => void;
 };
 
@@ -28,17 +35,8 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [txnOpen, setTxnOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
-  const [tourStep, setTourStep] = useState(0);
 
-  const startTour = useCallback(() => {
-    setTourStep(0);
-    setTourOpen(true);
-  }, []);
-  const nextTourStep = useCallback(() => setTourStep((s) => s + 1), []);
-  const prevTourStep = useCallback(
-    () => setTourStep((s) => Math.max(0, s - 1)),
-    [],
-  );
+  const startTour = useCallback(() => setTourOpen(true), []);
   const endTour = useCallback(() => setTourOpen(false), []);
 
   const value = useMemo(
@@ -48,22 +46,10 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       searchOpen,
       setSearchOpen,
       tourOpen,
-      tourStep,
       startTour,
-      nextTourStep,
-      prevTourStep,
       endTour,
     }),
-    [
-      txnOpen,
-      searchOpen,
-      tourOpen,
-      tourStep,
-      startTour,
-      nextTourStep,
-      prevTourStep,
-      endTour,
-    ],
+    [txnOpen, searchOpen, tourOpen, startTour, endTour],
   );
 
   return (

@@ -672,7 +672,6 @@ export default function LiabilitasPage() {
           onClick={() => setShowAddModal(true)}
           disabled={!familyGroupId || !token}
           className="h-auto px-[14px] py-2"
-          data-tour="add-liabilitas"
         >
           <Plus className="size-4" /> {t.liabilitas.addButton}
         </Button>

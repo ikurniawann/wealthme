@@ -645,7 +645,6 @@ export default function AnggaranPage() {
           onClick={() => setOpen(true)}
           disabled={!familyGroupId}
           className="h-auto px-[18px] py-2.5"
-          data-tour="add-anggaran"
         >
           <Plus className="size-4" /> {t.anggaran.addCategoryButton}
         </Button>

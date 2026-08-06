@@ -1,0 +1,361 @@
+/**
+ * EPIC-023 Task H3 (D22, US-DASH-7) — behavioral coverage for the guided
+ * first setup that replaces the old button tour: it must create REAL rows
+ * through the real endpoints, show the consequence of each write, resume
+ * after being abandoned mid-way, let a step be skipped when the row already
+ * exists, and never pretend a failed write succeeded.
+ */
+
+import type { ReactElement, ReactNode } from "react";
+import { render as rtlRender, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const mockUseSessionAuth = jest.fn();
+jest.mock("../../lib/auth-client", () => ({
+  authClient: {
+    useSession: (...args: unknown[]) => mockUseSessionAuth(...args),
+    signOut: jest.fn(),
+  },
+}));
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    forward: jest.fn(),
+    refresh: jest.fn(),
+    prefetch: jest.fn(),
+  }),
+}));
+
+const mockToastSuccess = jest.fn();
+const mockToastError = jest.fn();
+const mockToastWarning = jest.fn();
+jest.mock("sonner", () => ({
+  toast: Object.assign(jest.fn(), {
+    success: (...args: unknown[]) => mockToastSuccess(...args),
+    error: (...args: unknown[]) => mockToastError(...args),
+    warning: (...args: unknown[]) => mockToastWarning(...args),
+  }),
+}));
+
+const FAMILY_GROUP_ID = "fg-1";
+const TOKEN = "test-token";
+const USER_ID = "user-1";
+
+type BudgetFixture = {
+  id: string;
+  categoryId: string;
+  categoryName: string;
+  limitAmount: number;
+  spentAmount: number;
+  remainingAmount: number;
+  usagePercent: number;
+  isOverBudget: boolean;
+  isNearLimit: boolean;
+  budgetType: null;
+  period: string;
+};
+
+let accountsStore: { id: string; name: string }[] = [];
+let budgetsStore: BudgetFixture[] = [];
+let netWorthQueue: number[] = [];
+let heldTransaction = false;
+let failAccountCreate = false;
+
+function nextNetWorth(): number {
+  return netWorthQueue.length > 1
+    ? (netWorthQueue.shift() as number)
+    : (netWorthQueue[0] ?? 0);
+}
+
+const mockApiFetch = jest.fn(
+  (url: string, options?: { method?: string; body?: string }) => {
+    const method = options?.method ?? "GET";
+
+    if (url.endsWith("/dashboard/summary")) {
+      return Promise.resolve({ netWorth: nextNetWorth() });
+    }
+    if (url.endsWith("/accounts") && method === "GET") {
+      return Promise.resolve(accountsStore);
+    }
+    if (url.endsWith("/accounts") && method === "POST") {
+      if (failAccountCreate) {
+        return Promise.reject({ status: 500, message: "boom" });
+      }
+      const body = JSON.parse(options?.body as string) as { name: string };
+      const acc = { id: "acc-new", name: body.name };
+      accountsStore = [...accountsStore, acc];
+      return Promise.resolve(acc);
+    }
+    if (url.endsWith("/budgets") && method === "GET") {
+      return Promise.resolve(budgetsStore);
+    }
+    if (url.endsWith("/budgets") && method === "POST") {
+      const body = JSON.parse(options?.body as string) as {
+        categoryId: string;
+        limitAmount: number;
+        period: string;
+      };
+      const budget: BudgetFixture = {
+        id: "budget-new",
+        categoryId: body.categoryId,
+        categoryName: "Makan & Minum",
+        limitAmount: body.limitAmount,
+        spentAmount: 0,
+        remainingAmount: body.limitAmount,
+        usagePercent: 0,
+        isOverBudget: false,
+        isNearLimit: false,
+        budgetType: null,
+        period: body.period,
+      };
+      budgetsStore = [...budgetsStore, budget];
+      return Promise.resolve(budget);
+    }
+    if (url.endsWith("/categories") && method === "POST") {
+      return Promise.resolve({ id: "cat-new" });
+    }
+    if (url.endsWith("/transactions") && method === "POST") {
+      if (heldTransaction) {
+        return Promise.resolve({ held: true });
+      }
+      budgetsStore = budgetsStore.map((b) => ({
+        ...b,
+        spentAmount: 150_000,
+        usagePercent: 30,
+      }));
+      return Promise.resolve({ id: "tx-new" });
+    }
+    return Promise.resolve({});
+  },
+);
+jest.mock("../../lib/api-client", () => ({
+  apiFetch: (...args: Parameters<typeof mockApiFetch>) => mockApiFetch(...args),
+}));
+
+import { GuidedSetup } from "./guided-setup";
+import { isOnboarded } from "./use-onboarded";
+import { getSetupProgress } from "./setup-progress";
+
+function Providers({ children }: { children: ReactNode }) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
+
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: Providers });
+}
+
+describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    localStorage.clear();
+    accountsStore = [];
+    budgetsStore = [];
+    heldTransaction = false;
+    failAccountCreate = false;
+    netWorthQueue = [0, 5_000_000, 4_700_000];
+
+    mockUseSessionAuth.mockReturnValue({
+      data: {
+        session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
+        user: { id: USER_ID, name: "Test User", email: "user@example.com" },
+      },
+      isPending: false,
+    });
+  });
+
+  it("creates a real account, budget, and transaction — and shows the consequence of each", async () => {
+    const user = userEvent.setup();
+    const onClose = jest.fn();
+    render(<GuidedSetup open onClose={onClose} />);
+
+    // Step 1 — account.
+    await screen.findByText("Tambahkan rekening pertamamu");
+    await user.type(screen.getByLabelText("Nama Rekening"), "BCA Tabungan");
+    await user.type(screen.getByLabelText("Saldo Saat Ini"), "5000000");
+    await user.click(
+      screen.getByRole("button", {
+        name: "Tambah Rekening & Lihat Kekayaan Bersih",
+      }),
+    );
+
+    // Consequence — net worth appears (before/after).
+    await screen.findByText("Lihat — kekayaan bersihmu langsung muncul");
+    expect(screen.getByText(/Sebelum: Rp 0/)).toBeInTheDocument();
+    expect(screen.getByText(/Sesudah: Rp 5\.000\.000/)).toBeInTheDocument();
+    expect(mockApiFetch).toHaveBeenCalledWith(
+      `/family-groups/${FAMILY_GROUP_ID}/accounts`,
+      expect.objectContaining({ method: "POST" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Lanjut" }));
+
+    // Step 2 — budget.
+    await screen.findByText("Buat anggaran pertamamu");
+    await user.type(screen.getByLabelText("Nama Kategori"), "Makan & Minum");
+    await user.type(screen.getByLabelText("Batas Bulanan"), "2000000");
+    await user.click(screen.getByRole("button", { name: "Buat Anggaran" }));
+
+    await screen.findByText("Anggaran siap — 0% terpakai");
+    expect(mockApiFetch).toHaveBeenCalledWith(
+      `/family-groups/${FAMILY_GROUP_ID}/budgets`,
+      expect.objectContaining({ method: "POST" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Lanjut" }));
+
+    // Step 3 — transaction.
+    await screen.findByText("Catat pengeluaran pertamamu");
+    await user.type(screen.getByLabelText("Jumlah"), "150000");
+    await user.click(
+      screen.getByRole("button", { name: "Catat & Lihat Perubahannya" }),
+    );
+
+    // Consequence — net worth moves AND the budget usage rises together.
+    await screen.findByText("Lihat — dua hal berubah sekaligus");
+    expect(screen.getByText(/Rp 4\.700\.000/)).toBeInTheDocument();
+    expect(screen.getByText(/30%/)).toBeInTheDocument();
+    expect(mockApiFetch).toHaveBeenCalledWith(
+      `/family-groups/${FAMILY_GROUP_ID}/transactions`,
+      expect.objectContaining({ method: "POST" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Lanjut" }));
+
+    // Step 4 — done. Finishing marks onboarded and clears resumable state.
+    await screen.findByText("Setup pertamamu selesai 🎉");
+    await user.click(screen.getByRole("button", { name: "Selesai" }));
+
+    expect(onClose).toHaveBeenCalled();
+    expect(isOnboarded(USER_ID)).toBe(true);
+    expect(getSetupProgress(USER_ID)).toBeNull();
+  });
+
+  it("lets a step be skipped when the family already has one, instead of creating a duplicate", async () => {
+    accountsStore = [{ id: "acc-existing", name: "Rekening Lama" }];
+    const user = userEvent.setup();
+    render(<GuidedSetup open onClose={jest.fn()} />);
+
+    await screen.findByText("Kamu sudah punya rekening tercatat.");
+    await user.click(
+      screen.getByRole("button", { name: "Lewati langkah ini" }),
+    );
+
+    // Advances straight to the budget step — no POST to /accounts happened.
+    await screen.findByText("Buat anggaran pertamamu");
+    const wroteAccount = mockApiFetch.mock.calls.some(
+      ([url, opts]) => url.endsWith("/accounts") && opts?.method === "POST",
+    );
+    expect(wroteAccount).toBe(false);
+  });
+
+  it("resumes from the exact step it left off after being closed mid-way", async () => {
+    const user = userEvent.setup();
+    const onClose = jest.fn();
+    const { unmount } = render(<GuidedSetup open onClose={onClose} />);
+
+    await screen.findByText("Tambahkan rekening pertamamu");
+    await user.type(screen.getByLabelText("Nama Rekening"), "BCA Tabungan");
+    await user.type(screen.getByLabelText("Saldo Saat Ini"), "5000000");
+    await user.click(
+      screen.getByRole("button", {
+        name: "Tambah Rekening & Lihat Kekayaan Bersih",
+      }),
+    );
+    await screen.findByText("Lihat — kekayaan bersihmu langsung muncul");
+
+    // Abandon mid-way: close without finishing. Progress must be saved and
+    // the user must NOT be marked onboarded (they can still be re-prompted).
+    onClose();
+    unmount();
+    expect(isOnboarded(USER_ID)).toBe(false);
+    expect(getSetupProgress(USER_ID)?.step).toBe("budget");
+
+    // Re-open: resumes directly at the budget step, not back at account.
+    render(<GuidedSetup open onClose={jest.fn()} />);
+    await screen.findByText("Buat anggaran pertamamu");
+    expect(
+      screen.queryByText("Tambahkan rekening pertamamu"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows an error and stays on the step when the create call fails", async () => {
+    failAccountCreate = true;
+    const user = userEvent.setup();
+    render(<GuidedSetup open onClose={jest.fn()} />);
+
+    await screen.findByText("Tambahkan rekening pertamamu");
+    await user.type(screen.getByLabelText("Nama Rekening"), "BCA Tabungan");
+    await user.type(screen.getByLabelText("Saldo Saat Ini"), "5000000");
+    await user.click(
+      screen.getByRole("button", {
+        name: "Tambah Rekening & Lihat Kekayaan Bersih",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith(
+        "Gagal membuat rekening. Coba lagi.",
+      ),
+    );
+    // Still on the account step's form — no consequence panel, no advance.
+    expect(
+      screen.getByRole("button", {
+        name: "Tambah Rekening & Lihat Kekayaan Bersih",
+      }),
+    ).toBeInTheDocument();
+    expect(getSetupProgress(USER_ID)).toBeNull();
+  });
+
+  it("honestly reports a held (over-threshold) expense instead of claiming a transaction was created", async () => {
+    accountsStore = [{ id: "acc-existing", name: "Rekening Lama" }];
+    budgetsStore = [
+      {
+        id: "budget-existing",
+        categoryId: "cat-existing",
+        categoryName: "Makan & Minum",
+        limitAmount: 1_000_000,
+        spentAmount: 0,
+        remainingAmount: 1_000_000,
+        usagePercent: 0,
+        isOverBudget: false,
+        isNearLimit: false,
+        budgetType: null,
+        period: "monthly",
+      },
+    ];
+    heldTransaction = true;
+    const user = userEvent.setup();
+    render(<GuidedSetup open onClose={jest.fn()} />);
+
+    await screen.findByText("Kamu sudah punya rekening tercatat.");
+    await user.click(
+      screen.getByRole("button", { name: "Lewati langkah ini" }),
+    );
+    await screen.findByText("Kamu sudah punya anggaran tercatat.");
+    await user.click(
+      screen.getByRole("button", { name: "Lewati langkah ini" }),
+    );
+
+    await screen.findByText("Catat pengeluaran pertamamu");
+    await user.type(screen.getByLabelText("Jumlah"), "9000000");
+    await user.click(
+      screen.getByRole("button", { name: "Catat & Lihat Perubahannya" }),
+    );
+
+    await waitFor(() =>
+      expect(mockToastWarning).toHaveBeenCalledWith(
+        "Pengeluaran ini melewati batas dan menunggu persetujuan — belum tercatat sebagai transaksi.",
+      ),
+    );
+    await screen.findByText("Setup pertamamu selesai 🎉");
+    expect(
+      screen.getByText(/Pengeluaran terakhir melewati batas keluargamu/),
+    ).toBeInTheDocument();
+  });
+});

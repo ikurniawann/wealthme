@@ -23,6 +23,7 @@ import {
   TrendingDown,
   TrendingUp,
   ArrowLeftRight,
+  AlertTriangle,
 } from "lucide-react";
 
 type CoaDirection = "INCOME" | "EXPENSE" | "TRANSFER";
@@ -76,6 +77,67 @@ function extractApiErrorMessage(err: unknown, fallback: string): string {
   return err && typeof err === "object" && "message" in err
     ? String((err as { message: unknown }).message)
     : fallback;
+}
+
+/**
+ * EPIC-023 Task H2 (D18) — plain-language explainer + worked examples for
+ * the 6 COA groups, always visible above the account list (D18: "Master
+ * COA stays visible and is rewritten in plain language"). The risk of
+ * editing it incorrectly is stated explicitly, not buried in a tooltip.
+ */
+function MasterCoaGuide({ t }: { t: ReturnType<typeof useLocale>["t"] }) {
+  const guide = t.mastercoa.guide;
+  return (
+    <SectionCard title={guide.introTitle} bodyClassName="space-y-4">
+      <p className="text-[13px] leading-relaxed text-muted-foreground">
+        {guide.introBody}
+      </p>
+
+      <div className="flex gap-2.5 rounded-lg border border-warning/40 bg-warning-soft/60 p-3.5">
+        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
+        <div>
+          <div className="text-[12.5px] font-bold text-foreground">
+            {guide.riskTitle}
+          </div>
+          <p className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
+            {guide.riskBody}
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-2 text-[12.5px] font-bold">{guide.groupsTitle}</div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {GROUP_NUMS.map((groupNum) => {
+            const group = guide.groups[groupNum];
+            return (
+              <div
+                key={groupNum}
+                className="rounded-lg border bg-background p-3.5"
+              >
+                <div className="text-[13px] font-bold">{group.title}</div>
+                <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+                  {group.meaning}
+                </p>
+                <p className="mt-2 rounded-md bg-secondary p-2 text-[11.5px] leading-relaxed text-foreground">
+                  {group.example}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-primary/30 bg-accent p-3.5">
+        <div className="text-[12.5px] font-bold text-primary-strong">
+          {guide.transferCalloutTitle}
+        </div>
+        <p className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
+          {guide.transferCalloutBody}
+        </p>
+      </div>
+    </SectionCard>
+  );
 }
 
 export default function MasterCoaPage() {
@@ -358,6 +420,8 @@ export default function MasterCoaPage() {
         </Rise>
       </div>
 
+      <MasterCoaGuide t={t} />
+
       {/* Main table card */}
       <SectionCard
         title={t.mastercoa.listTitle}
@@ -365,7 +429,6 @@ export default function MasterCoaPage() {
           <button
             onClick={openAdd}
             disabled={!familyGroupId}
-            data-tour="add-mastercoa"
             className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
           >
             <Plus className="size-3.5" /> {t.mastercoa.addAccountButton}

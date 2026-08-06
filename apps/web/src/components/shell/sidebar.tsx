@@ -67,10 +67,16 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         <div className="text-base font-extrabold">
           Wealth<span className="text-primary">Me</span>
         </div>
+        {/* EPIC-023 Task H3 (D22) — reviewed foundation exception: this file
+            is protected per WM_CONVENTIONS.md, but its `data-tour` markers
+            (here and on the nav Link below) were only ever DOM anchors for
+            the old button-spotlight tour, which components/onboarding
+            replaces with a guided setup that writes through real endpoints
+            instead of clicking into real pages — nothing queries these
+            selectors anymore, so they're dead attributes, not live markup. */}
         <button
           onClick={() => setTxnOpen(true)}
           title={t.shell.addTransactionTooltip}
-          data-tour="add-transaction"
           className="ml-auto flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-primary text-white shadow-[0_2px_8px_rgba(79,70,229,0.35)] transition-transform hover:scale-105"
         >
           <Plus className="size-[14px]" />
@@ -148,7 +154,6 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                   key={item.id}
                   href={item.href}
                   onClick={onNavigate}
-                  data-tour={`nav-${item.id}`}
                   className={cn(
                     "mx-2 my-px flex items-center gap-2.5 rounded-md px-3.5 py-[9px] text-[13px] font-medium transition-colors",
                     isActive
