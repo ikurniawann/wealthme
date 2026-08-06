@@ -7,29 +7,52 @@ interface RowActionsProps {
   onEdit: () => void;
   onDelete: () => void;
   className?: string;
+  /**
+   * EPIC-023 group E retry round 4 (C4) — an obligation-linked transaction
+   * (a liability payment/purchase or insurance premium) is now REFUSED by
+   * the API when edited/deleted (editing/deleting it desyncs the debt/
+   * coverage it recorded). Honest UI: disable both controls and swap their
+   * label instead of leaving a live-looking Edit/Hapus pair the server will
+   * now (also) reject — mirrors `CardSideActions`' own `payDisabled`
+   * pattern.
+   */
+  disabled?: boolean;
+  disabledLabel?: string;
 }
 
 /** Compact edit/delete icon pair used at the end of list rows and table cells. */
-export function RowActions({ onEdit, onDelete, className }: RowActionsProps) {
+export function RowActions({
+  onEdit,
+  onDelete,
+  className,
+  disabled = false,
+  disabledLabel,
+}: RowActionsProps) {
   const handle = (fn: () => void) => (e: MouseEvent) => {
     e.stopPropagation();
     fn();
   };
+  const editLabel = disabled && disabledLabel ? disabledLabel : "Edit";
+  const deleteLabel = disabled && disabledLabel ? disabledLabel : "Hapus";
   return (
     <div className={`flex shrink-0 gap-[5px] ${className ?? ""}`}>
       <button
         type="button"
-        aria-label="Edit"
+        aria-label={editLabel}
+        title={editLabel}
         onClick={handle(onEdit)}
-        className="flex size-7 items-center justify-center rounded-[7px] bg-accent text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+        disabled={disabled}
+        className="flex size-7 items-center justify-center rounded-[7px] bg-accent text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-accent disabled:hover:text-primary"
       >
         <Pencil className="size-3" />
       </button>
       <button
         type="button"
-        aria-label="Hapus"
+        aria-label={deleteLabel}
+        title={deleteLabel}
         onClick={handle(onDelete)}
-        className="flex size-7 items-center justify-center rounded-[7px] bg-destructive/10 text-destructive transition-colors hover:bg-destructive hover:text-white"
+        disabled={disabled}
+        className="flex size-7 items-center justify-center rounded-[7px] bg-destructive/10 text-destructive transition-colors hover:bg-destructive hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-destructive/10 disabled:hover:text-destructive"
       >
         <Trash2 className="size-3" />
       </button>
@@ -42,6 +65,17 @@ interface CardSideActionsProps {
   onDelete: () => void;
   /** Optional "bayar" action (liabilitas/asuransi cards). */
   onPay?: () => void;
+  /**
+   * EPIC-023 group E retry round 4 (C3) — the `/asuransi` page rendered NO
+   * disabled state at all, even though the object it renders already
+   * carries `paidThisPeriod`: a user who paid via `/anggaran` (which DOES
+   * disable) could still open `/asuransi` and click Bayar again for a
+   * second debit. Honest UI: when the obligation is already paid this
+   * period, disable the button and swap its tooltip instead of leaving a
+   * live-looking "Bayar" control that the server will now (also) reject.
+   */
+  payDisabled?: boolean;
+  payDisabledLabel?: string;
 }
 
 /** Vertical action column on the right edge of liability/insurance cards. */
@@ -49,6 +83,8 @@ export function CardSideActions({
   onEdit,
   onDelete,
   onPay,
+  payDisabled = false,
+  payDisabledLabel,
 }: CardSideActionsProps) {
   return (
     <div className="flex shrink-0 flex-col justify-center gap-1.5 border-l pl-2.5">
@@ -64,10 +100,13 @@ export function CardSideActions({
       {onPay && (
         <button
           type="button"
-          aria-label="Bayar"
-          title="Bayar"
+          aria-label={
+            payDisabled && payDisabledLabel ? payDisabledLabel : "Bayar"
+          }
+          title={payDisabled && payDisabledLabel ? payDisabledLabel : "Bayar"}
           onClick={onPay}
-          className="flex size-[34px] items-center justify-center rounded-[9px] bg-success/10 text-success transition-colors hover:bg-success hover:text-white"
+          disabled={payDisabled}
+          className="flex size-[34px] items-center justify-center rounded-[9px] bg-success/10 text-success transition-colors hover:bg-success hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-success/10 disabled:hover:text-success"
         >
           <Banknote className="size-3.5" />
         </button>

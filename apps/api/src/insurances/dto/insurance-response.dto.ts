@@ -28,6 +28,11 @@ export class InsuranceResponseDto {
   @ApiProperty() currency!: string;
   @ApiProperty({ type: [InsuranceBeneficiaryResponseDto] })
   beneficiaries!: InsuranceBeneficiaryResponseDto[];
+  @ApiProperty({
+    description:
+      "EPIC-023 E2 — true when a payment transaction linked to this policy landed within the current calendar-month period",
+  })
+  paidThisPeriod!: boolean;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
 }

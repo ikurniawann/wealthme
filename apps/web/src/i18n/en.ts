@@ -171,6 +171,10 @@ export const en = {
       retryFallback: "Try again",
       invalidAmount: "Invalid amount",
       selectAccountFirst: "Select an account first",
+      // EPIC-023 Task E3 (D12) — the card tab's own account-equivalent
+      // validation message: it picks a credit card (liability), not an
+      // account.
+      selectCardFirst: "Select a credit card first",
       noFamilyGroup: "No active family group",
       savedAddMoreToast: "Saved! Add another...",
       savedToast: "Transaction saved successfully!",
@@ -200,6 +204,10 @@ export const en = {
       descriptionPlaceholder: "Write a description...",
       categoryPlaceholder: "Select a category...",
       accountPlaceholder: "Select an account...",
+      // EPIC-023 Task E3 (D12) — the card tab's own picker labels: a credit
+      // card, sourced from liabilities, never from accounts.
+      cardLabel: "Credit Card",
+      cardPlaceholder: "Select a credit card...",
       saving: "Saving...",
       saveTransaction: "Save Transaction",
       saveAndAddMore: "Save & Add Another",
@@ -855,14 +863,18 @@ export const en = {
     fieldNotesPlaceholder: "Additional notes...",
     saving: "Saving...",
     saveButton: "Save Insurance",
-    payDialogTitle: "Renew Premium",
-    payConfirmPrefix: "Mark the premium for ",
+    payDialogTitle: "Pay Premium",
+    payConfirmPrefix: "Pay the premium for ",
     payConfirmSuffix:
-      " as paid? The next due date will be calculated automatically from the current premium period.",
+      " now? The source account will be debited and the next due date will be calculated automatically from the current premium period.",
     payProcessing: "Processing...",
-    payConfirmButton: "Yes, Already Paid",
-    toastRenewalRecordedPrefix: "Renewal recorded — next due date ",
-    toastRenewalFailed: "Failed to record renewal. Try again.",
+    payConfirmButton: "Yes, Pay Now",
+    paySourceAccountLabel: "Source Account",
+    paySourceAccountPlaceholder: "Select an account...",
+    payAlreadyPaidTooltip: "Already paid this period",
+    toastRenewalRecordedPrefix: "Premium paid — next due date ",
+    toastPaySuccessNoRenewal: "Premium paid successfully.",
+    toastRenewalFailed: "Failed to pay premium. Try again.",
     beneficiariesSectionTitle: "Insurance Beneficiaries",
     beneficiariesLabel: "Beneficiaries",
     beneficiaryNameLabel: "Name",
@@ -1812,6 +1824,18 @@ export const en = {
     toastAmountInvalid: "Budget must be greater than Rp 0",
     toastNoFamilyGroup: "Please join a Family Group first",
     errorCategoryNotFoundAfterConflict: "Category not found after conflict",
+    obligationsSectionTitle: "This Period's Obligations",
+    obligationsDueBadge: "Not Paid",
+    obligationsPaidBadge: "Paid",
+    obligationsPayButton: "Pay",
+    obligationsAlreadyPaidButton: "Already Paid",
+    obligationsPayDialogTitle: "Pay Obligation",
+    obligationsSourceAccountLabel: "Source Account",
+    obligationsSourceAccountPlaceholder: "Select an account...",
+    obligationsPayProcessing: "Processing...",
+    obligationsPayConfirmButton: "Pay Now",
+    obligationsToastPaySuccess: "Obligation paid successfully.",
+    obligationsToastPayFailed: "Failed to pay obligation. Try again.",
   },
   transaksi: {
     typeLabels: {
@@ -1865,6 +1889,12 @@ export const en = {
     detailCreatedAtLabel: "Created At",
     detailEditButton: "Edit",
     detailDeleteButton: "Delete",
+    // EPIC-023 group E retry round 4 (C4) — an obligation-linked
+    // transaction (liability payment/purchase or insurance premium)
+    // cannot be edited/deleted here; the server now refuses it because
+    // doing so would desync the debt/coverage it recorded.
+    obligationLockedTooltip:
+      "This transaction settles a liability/insurance payment — adjust the related liability/insurance to correct it",
   },
   splitbill: {
     headerDesc: "Splitting bills made easy — you cover it, they pay you back",

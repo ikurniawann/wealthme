@@ -276,6 +276,20 @@ var GENERIC_COA_CHART = [
     direction: "EXPENSE",
     budgetType: "FIXED"
   },
+  // EPIC-023 group E retry (HIGH 3) — a dedicated insurance-premium expense
+  // account. `InsurancesService` used to reuse "20099" (the generic
+  // catch-all `defaultCoaCodeForCategory` falls back to for ANY unmatched
+  // expense category), which meant creating a policy silently hijacked
+  // whatever user-made category/budget already lived on that shared
+  // catch-all bucket. Never reuse a catch-all code for automatic behavior —
+  // same precedent as "20009" above (A1/A2).
+  {
+    code: "20010",
+    name: "Premi Asuransi",
+    groupNum: 2,
+    direction: "EXPENSE",
+    budgetType: "FIXED"
+  },
   // Group 3 — Wealth Allocation
   {
     code: "30001",
@@ -401,14 +415,27 @@ var CreateTransactionInputSchema = z7.object({
 var TransactionDtoSchema = z7.object({
   id: z7.string().uuid(),
   familyGroupId: z7.string().uuid(),
-  accountId: z7.string().uuid(),
+  // EPIC-023 E3 (D12) — null for a credit-card purchase (it touches no
+  // account); see liabilityId instead.
+  accountId: z7.string().uuid().nullable(),
   toAccountId: z7.string().uuid().nullable(),
   categoryId: z7.string().uuid().nullable(),
+  // EPIC-023 E1/E3 — set for a liability payment or a credit-card purchase.
+  liabilityId: z7.string().uuid().nullable(),
+  // EPIC-023 E1 / group E retry (MEDIUM 6) — set for an insurance premium
+  // payment, symmetric with liabilityId above.
+  insuranceId: z7.string().uuid().nullable(),
   amount: z7.string(),
   type: TransactionTypeSchema,
   description: z7.string().nullable(),
   categoryName: z7.string().nullable(),
-  accountName: z7.string(),
+  // EPIC-023 Task E retry (MEDIUM 5) — was `z.string()` even though
+  // `accountId` beside it went nullable for a card purchase (E3): a
+  // service-layer `?? ""` laundered the "no account" case into an empty
+  // string, which reads as blank data everywhere the DTO is displayed. Now
+  // consistently `null` — see the service-layer `toDto`/mapper functions
+  // this schema documents.
+  accountName: z7.string().nullable(),
   toAccountName: z7.string().nullable(),
   occurredAt: z7.string(),
   createdAt: z7.string()

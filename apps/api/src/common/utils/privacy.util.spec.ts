@@ -14,7 +14,57 @@ import {
   isRowScopedRole,
   restrictedAccountWhere,
   restrictedTransactionWhere,
+  transactionPrivacyWhere,
 } from "./privacy.util";
+
+/**
+ * General recursive evaluator for the small subset of Prisma `where` shapes
+ * `transactionPrivacyWhere`/`restrictedTransactionWhere` can produce
+ * (nested `AND`/`OR` combined with `accountId`/`account.isPrivate` and
+ * `categoryId`/`category.isPrivate` leaf conditions). Deliberately generic
+ * (not hardcoded to the NEW `AND`-of-`OR` shape) so this can evaluate the
+ * OLD, buggy top-level `{ account: {...}, OR: [...] }` shape too — that is
+ * what lets the CRITICAL regression test below assert on BEHAVIOR (does
+ * this row match?) instead of only on object shape. The reviewer finding
+ * was specifically that the existing specs mock `prisma.transaction.
+ * findMany` directly and so cannot catch a `where`-construction bug at all.
+ */
+type Row = {
+  accountId: string | null;
+  account: { isPrivate: boolean } | null;
+  categoryId: string | null;
+  category: { isPrivate: boolean } | null;
+};
+
+function evalClause(clause: Record<string, unknown>, row: Row): boolean {
+  const keys = Object.keys(clause);
+  if (keys.length === 0) return true;
+  return keys.every((key) => {
+    const value = clause[key];
+    if (key === "AND") {
+      return (value as Record<string, unknown>[]).every((c) =>
+        evalClause(c, row),
+      );
+    }
+    if (key === "OR") {
+      return (value as Record<string, unknown>[]).some((c) =>
+        evalClause(c, row),
+      );
+    }
+    if (key === "accountId") return row.accountId === null;
+    if (key === "account") return row.account?.isPrivate === false;
+    if (key === "categoryId") return row.categoryId === null;
+    if (key === "category") return row.category?.isPrivate === false;
+    throw new Error(`evalClause: unhandled key "${key}"`);
+  });
+}
+
+function matchesRow(
+  where: ReturnType<typeof transactionPrivacyWhere>,
+  row: Row,
+): boolean {
+  return evalClause(where as Record<string, unknown>, row);
+}
 
 describe("canSeePrivateItems", () => {
   it("PERMISSION — owner, admin_staff, and spouse (D2 financial co-owner, EPIC-023 Task C retry) see private items", () => {
@@ -72,6 +122,66 @@ describe("restrictedAccountWhere", () => {
     expect(restrictedAccountWhere(Role.dependant, undefined)).toEqual({
       ownerUserId: "",
     });
+  });
+});
+
+describe("transactionPrivacyWhere", () => {
+  it("is a no-op when the viewer may see private items", () => {
+    expect(transactionPrivacyWhere(true)).toEqual({});
+  });
+
+  // CRITICAL regression (EPIC-023 group E retry, FIX 1) — a card purchase
+  // (EPIC-023 E3) has accountId: null. Prisma's `{ account: { isPrivate:
+  // false } }` on a nullable to-one relation REQUIRES the relation to
+  // exist, so a naive AND of that condition with the categoryId OR would
+  // silently exclude every card purchase for a restricted viewer. This
+  // must be its own OR branch, exactly like the categoryId half.
+  it("admits an accountId: null row (credit-card purchase) for a restricted viewer", () => {
+    const where = transactionPrivacyWhere(false);
+    expect(
+      matchesRow(where, {
+        accountId: null,
+        account: null,
+        categoryId: "cat-1",
+        category: { isPrivate: false },
+      }),
+    ).toBe(true);
+  });
+
+  it("still excludes a transaction on a private account", () => {
+    const where = transactionPrivacyWhere(false);
+    expect(
+      matchesRow(where, {
+        accountId: "acc-1",
+        account: { isPrivate: true },
+        categoryId: null,
+        category: null,
+      }),
+    ).toBe(false);
+  });
+
+  it("still excludes a transaction on a private category", () => {
+    const where = transactionPrivacyWhere(false);
+    expect(
+      matchesRow(where, {
+        accountId: "acc-1",
+        account: { isPrivate: false },
+        categoryId: "cat-1",
+        category: { isPrivate: true },
+      }),
+    ).toBe(false);
+  });
+
+  it("admits a transaction on a public account with no category", () => {
+    const where = transactionPrivacyWhere(false);
+    expect(
+      matchesRow(where, {
+        accountId: "acc-1",
+        account: { isPrivate: false },
+        categoryId: null,
+        category: null,
+      }),
+    ).toBe(true);
   });
 });
 

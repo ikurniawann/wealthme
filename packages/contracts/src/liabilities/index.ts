@@ -18,6 +18,9 @@ export interface LiabilityDto {
   dueDate: string | null;
   autoAdvanceDueDate: boolean;
   paymentRatio: number;
+  // EPIC-023 E2 — true when a payment transaction linked to this liability
+  // landed within the current calendar-month period.
+  paidThisPeriod: boolean;
   notes: string | null;
   currency: string;
   createdAt: string;

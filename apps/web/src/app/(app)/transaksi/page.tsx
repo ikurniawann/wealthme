@@ -33,10 +33,6 @@ type TxnType = "income" | "expense" | "transfer" | "all";
 
 /**
  * Extended filter value: standard TxnType values plus "kartu_kredit".
- * The "kartu_kredit" filter is an accountName heuristic — it matches
- * transactions whose accountName contains "kartu kredit", "kredit", or
- * "credit" (case-insensitive). This is a temporary approach pending a
- * real credit-card account model in the data layer.
  */
 type FilterValue = TxnType | "kartu_kredit";
 
@@ -49,6 +45,11 @@ type MeResponse = {
   familyGroupId: string | null;
 };
 
+// EPIC-023 Task E retry (HIGH 4) — only the fields the "Kartu Kredit"
+// filter needs to tell a credit-card liability apart from any other
+// liability type (KPR, pinjaman pribadi, ...).
+type LiabilityFilterDto = { id: string; type: string };
+
 const FILTER_VALUES: FilterValue[] = [
   "all",
   "income",
@@ -59,13 +60,21 @@ const FILTER_VALUES: FilterValue[] = [
 
 const SORT_VALUES: SortOrder[] = ["newest", "oldest"];
 
-function isCreditCard(tx: TransactionDto): boolean {
-  const name = tx.accountName.toLowerCase();
-  return (
-    name.includes("kartu kredit") ||
-    name.includes("kredit") ||
-    name.includes("credit")
-  );
+/**
+ * EPIC-023 Task E retry (HIGH 4) — the "Kartu Kredit" filter used to
+ * substring-match `tx.accountName`, which is `""` for every real card
+ * purchase (E3's `accountId` is null on those rows), so the filter matched
+ * zero of the very transactions it exists to show. `Transaction.liabilityId`
+ * (E1/E3) plus the liability's own `type` field is the real, unambiguous
+ * signal: a transaction is a "kartu_kredit" row when it is linked to a
+ * liability of that type, whether it's a purchase (raises the card's debt)
+ * or a payment (pays it down).
+ */
+export function isCreditCard(
+  tx: TransactionDto,
+  creditCardLiabilityIds: ReadonlySet<string>,
+): boolean {
+  return !!tx.liabilityId && creditCardLiabilityIds.has(tx.liabilityId);
 }
 
 function formatTime(isoString: string): string {
@@ -136,6 +145,12 @@ export function TxRow({
   const amountStr = (isIncome ? "+" : "-") + formatRupiah(amount);
   const txIcon = TX_ICON[tx.type] ?? TX_ICON.expense;
   const typeLabels: Record<string, string> = t.transaksi.typeLabels;
+  // EPIC-023 group E retry round 4 (C4) — the API now REFUSES to edit or
+  // delete an obligation-linked transaction (a liability payment/purchase
+  // or insurance premium): editing/deleting it would desync the debt/
+  // coverage it recorded from the ledger. Honest UI: disable Edit/Hapus
+  // here instead of leaving a live-looking control the server rejects.
+  const isObligationLinked = !!tx.liabilityId || !!tx.insuranceId;
   // EPIC-021 Group B #23 — a real (two-sided) transfer shows its route;
   // legacy one-sided transfer rows (toAccountName null) render exactly as
   // before via the existing fallback chain.
@@ -145,7 +160,7 @@ export function TxRow({
     ? (tx.description ?? typeLabels.transfer)
     : (tx.description ?? tx.categoryName ?? tx.accountName ?? "—");
   const subtitle = isTransferWithDest
-    ? `${tx.accountName} → ${tx.toAccountName}`
+    ? `${tx.accountName ?? "—"} → ${tx.toAccountName}`
     : (tx.categoryName ?? tx.accountName ?? typeLabels[tx.type] ?? tx.type);
 
   const openDetail = () => setDetailOpen(true);
@@ -208,6 +223,8 @@ export function TxRow({
           onEdit={onEditClick}
           onDelete={onDeleteClick}
           className="ml-1"
+          disabled={isObligationLinked}
+          disabledLabel={t.transaksi.obligationLockedTooltip}
         />
       </div>
       <TransactionDetailDialog
@@ -256,6 +273,9 @@ export function TransactionDetailDialog({
   const amountStr = (isIncome ? "+" : "-") + formatRupiah(amount);
   const txIcon = TX_ICON[tx.type] ?? TX_ICON.expense;
   const typeLabel = t.transaksi.typeLabels[tx.type] ?? tx.type;
+  // C4 (group E retry round 4) — mirrors TxRow's own guard: the detail
+  // view's own Edit/Hapus buttons must be honest too.
+  const isObligationLinked = !!tx.liabilityId || !!tx.insuranceId;
 
   return (
     <Dialog
@@ -288,7 +308,7 @@ export function TransactionDetailDialog({
           />
           <DetailRow
             label={t.transaksi.detailAccountLabel}
-            value={tx.accountName}
+            value={tx.accountName ?? "—"}
           />
           <DetailRow
             label={t.transaksi.detailDateTimeLabel}
@@ -302,16 +322,33 @@ export function TransactionDetailDialog({
             label={t.transaksi.detailCreatedAtLabel}
             value={formatDetailDateTime(tx.createdAt, locale)}
           />
+          {isObligationLinked && (
+            <p className="pt-2 text-[11.5px] text-muted-foreground">
+              {t.transaksi.obligationLockedTooltip}
+            </p>
+          )}
           <div className="flex gap-2 pt-3">
             <button
               onClick={onEdit}
-              className="flex-1 rounded-md border py-2.5 text-[13px] font-semibold"
+              disabled={isObligationLinked}
+              title={
+                isObligationLinked
+                  ? t.transaksi.obligationLockedTooltip
+                  : undefined
+              }
+              className="flex-1 rounded-md border py-2.5 text-[13px] font-semibold disabled:cursor-not-allowed disabled:opacity-40"
             >
               {t.transaksi.detailEditButton}
             </button>
             <button
               onClick={onDelete}
-              className="flex-1 rounded-md bg-destructive py-2.5 text-[13px] font-semibold text-white"
+              disabled={isObligationLinked}
+              title={
+                isObligationLinked
+                  ? t.transaksi.obligationLockedTooltip
+                  : undefined
+              }
+              className="flex-1 rounded-md bg-destructive py-2.5 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
             >
               {t.transaksi.detailDeleteButton}
             </button>
@@ -519,6 +556,24 @@ function TransaksiPageInner() {
     ? (filterAccounts?.find((a) => a.id === accountId)?.name ?? "…")
     : null;
 
+  // EPIC-023 Task E retry (HIGH 4) — only fetched when the "Kartu Kredit"
+  // filter is actually selected, mirroring the `filterAccounts` lazy-fetch
+  // pattern above.
+  const { data: filterLiabilities } = useQuery<LiabilityFilterDto[]>({
+    queryKey: ["liabilities", familyGroupId, "txn-filter"],
+    queryFn: () =>
+      apiFetch<LiabilityFilterDto[]>(
+        `/family-groups/${familyGroupId}/liabilities`,
+        { token },
+      ),
+    enabled: !!token && !!familyGroupId && filter === "kartu_kredit",
+  });
+  const creditCardLiabilityIds = new Set(
+    (filterLiabilities ?? [])
+      .filter((l) => l.type === "kartu_kredit")
+      .map((l) => l.id),
+  );
+
   const transactions = data?.data ?? [];
   const summary = data?.summary;
 
@@ -527,7 +582,7 @@ function TransaksiPageInner() {
     filter === "all"
       ? transactions
       : filter === "kartu_kredit"
-        ? transactions.filter(isCreditCard)
+        ? transactions.filter((tx) => isCreditCard(tx, creditCardLiabilityIds))
         : transactions.filter((tx) => tx.type === filter);
 
   // Sort by occurredAt — affects both day-group order and within-day row

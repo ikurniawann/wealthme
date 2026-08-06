@@ -39,6 +39,9 @@ function makePrisma() {
     // allow-list (unrestricted) so every pre-existing test that never passes
     // actingMember keeps working unmodified.
     memberCategoryAllowance: { findMany: jest.fn().mockResolvedValue([]) },
+    // EPIC-023 E1 — tenant-scoped lookups for the optional obligation links.
+    liability: { findUnique: jest.fn() },
+    insurance: { findUnique: jest.fn() },
     notification: { findFirst: jest.fn(), create: jest.fn() },
     transaction: {
       create: jest.fn(),
@@ -191,6 +194,181 @@ describe("TransactionsService", () => {
 
       expect(result.type).toBe("income");
       expect(result.amount).toBe("5000000");
+    });
+
+    // EPIC-023 group E retry (CRITICAL 1.4 / C2) — `liabilityId`/
+    // `insuranceId` used to be accepted straight from client input on
+    // `CreateTransactionDto` and written onto the created row unscoped —
+    // a forgeable double-payment bypass (any member could POST a Rp 1
+    // expense carrying `liabilityId = <someone else's KPR id>` and flip
+    // that obligation's `paidThisPeriod` to "paid" without a real payment).
+    // Both fields were REMOVED from the DTO; `create()` never reads them —
+    // only `LiabilitiesService.pay()`/`purchase()` and
+    // `InsurancesService.pay()` may set them, writing directly via Prisma
+    // inside their own transaction. These tests assert `create()` ignores
+    // the fields entirely (no lookup, no persistence) even if a caller
+    // manages to smuggle them onto the plain object passed in (defense in
+    // depth beyond the global `ValidationPipe({ whitelist: true })` that
+    // already strips them at the HTTP boundary).
+    describe("liabilityId / insuranceId are not settable via create() (EPIC-023 group E retry, C2)", () => {
+      const LIABILITY_ID = "liab-test-uuid";
+      const INSURANCE_ID = "ins-test-uuid";
+
+      beforeEach(() => {
+        prisma.account.findUnique.mockResolvedValue(mockAccount);
+      });
+
+      it("never looks up a smuggled liabilityId, and never writes it onto the created transaction", async () => {
+        const now = new Date("2026-06-15T10:00:00.000Z");
+        const createdTx = {
+          id: "tx-no-link",
+          familyGroupId: FAMILY_GROUP_ID,
+          accountId: ACCOUNT_ID,
+          categoryId: null,
+          amount: BigInt(1_000_000),
+          type: "transfer" as const,
+          description: null,
+          occurredAt: now,
+          createdAt: now,
+        };
+        let capturedData: Record<string, unknown> | undefined;
+        prisma.$transaction.mockImplementation(
+          async (fn: Parameters<typeof prisma.$transaction>[0]) => {
+            const innerPrisma = {
+              ...prisma,
+              transaction: {
+                ...prisma.transaction,
+                create: jest.fn().mockImplementation(({ data }) => {
+                  capturedData = data;
+                  return Promise.resolve(createdTx);
+                }),
+              },
+            };
+            return (fn as (p: typeof innerPrisma) => Promise<unknown>)(
+              innerPrisma,
+            );
+          },
+        );
+
+        await service.create(FAMILY_GROUP_ID, {
+          accountId: ACCOUNT_ID,
+          amount: 1_000_000,
+          type: "transfer",
+          occurredAt: now.toISOString(),
+          // Cast: `liabilityId` is intentionally absent from
+          // `CreateTransactionDto`'s type — this simulates a caller that
+          // smuggles it past TypeScript (e.g. a raw HTTP body).
+          ...({ liabilityId: LIABILITY_ID } as Record<string, unknown>),
+        });
+
+        expect(prisma.liability.findUnique).not.toHaveBeenCalled();
+        expect(capturedData?.liabilityId).toBeUndefined();
+      });
+
+      it("never looks up a smuggled insuranceId, and never writes it onto the created transaction", async () => {
+        const now = new Date("2026-06-15T10:00:00.000Z");
+        const createdTx = {
+          id: "tx-no-link",
+          familyGroupId: FAMILY_GROUP_ID,
+          accountId: ACCOUNT_ID,
+          categoryId: null,
+          amount: BigInt(500_000),
+          type: "expense" as const,
+          description: null,
+          occurredAt: now,
+          createdAt: now,
+        };
+        let capturedData: Record<string, unknown> | undefined;
+        prisma.$transaction.mockImplementation(
+          async (fn: Parameters<typeof prisma.$transaction>[0]) => {
+            const innerPrisma = {
+              ...prisma,
+              transaction: {
+                ...prisma.transaction,
+                create: jest.fn().mockImplementation(({ data }) => {
+                  capturedData = data;
+                  return Promise.resolve(createdTx);
+                }),
+              },
+            };
+            return (fn as (p: typeof innerPrisma) => Promise<unknown>)(
+              innerPrisma,
+            );
+          },
+        );
+
+        const result = await service.create(FAMILY_GROUP_ID, {
+          accountId: ACCOUNT_ID,
+          amount: 500_000,
+          type: "expense",
+          occurredAt: now.toISOString(),
+          ...({ insuranceId: INSURANCE_ID } as Record<string, unknown>),
+        });
+
+        expect(prisma.insurance.findUnique).not.toHaveBeenCalled();
+        expect(capturedData?.insuranceId).toBeUndefined();
+        expect(result).not.toHaveProperty("held");
+        if (!("held" in result)) {
+          expect(result.insuranceId).toBeNull();
+        }
+      });
+    });
+
+    // EPIC-023 Task E4 (D13) trap regression — E4 removes the category
+    // PICKER from the manual Transfer tab (frontend-only); it must NEVER
+    // become a backend rule that a `type: "transfer"` transaction cannot
+    // carry a categoryId. Wealth-allocation (COA group 3) transfers
+    // legitimately carry a category, and reports.service.ts's
+    // txCoaDirection/wealthAllocationCashEffect read the CATEGORY's COA
+    // direction first (falling back to tx.type only when uncategorized) —
+    // see reports.service.spec.ts's extensive group-3 transfer coverage.
+    // Stripping categories server-side would silently break that bridge.
+    it("accepts a transfer WITH a categoryId — create() never rejects a category on a transfer type (EPIC-023 E4 trap)", async () => {
+      const now = new Date("2026-06-15T10:00:00.000Z");
+      const GROUP3_CATEGORY_ID = "cat-wealth-alloc";
+      prisma.account.findUnique.mockResolvedValue(mockAccount);
+      prisma.category.findUnique.mockResolvedValue({
+        id: GROUP3_CATEGORY_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+      });
+      const createdTx = {
+        id: "tx-transfer-with-category",
+        familyGroupId: FAMILY_GROUP_ID,
+        accountId: ACCOUNT_ID,
+        categoryId: GROUP3_CATEGORY_ID,
+        amount: BigInt(1_000_000),
+        type: "transfer" as const,
+        description: null,
+        occurredAt: now,
+        createdAt: now,
+      };
+      prisma.$transaction.mockImplementation(
+        async (fn: Parameters<typeof prisma.$transaction>[0]) => {
+          const innerPrisma = {
+            ...prisma,
+            transaction: {
+              ...prisma.transaction,
+              create: jest.fn().mockResolvedValue(createdTx),
+            },
+          };
+          return (fn as (p: typeof innerPrisma) => Promise<unknown>)(
+            innerPrisma,
+          );
+        },
+      );
+
+      const result = await service.create(FAMILY_GROUP_ID, {
+        accountId: ACCOUNT_ID,
+        amount: 1_000_000,
+        type: "transfer",
+        categoryId: GROUP3_CATEGORY_ID,
+        occurredAt: now.toISOString(),
+      });
+
+      expect(result).toMatchObject({
+        type: "transfer",
+        categoryId: GROUP3_CATEGORY_ID,
+      });
     });
   });
 
@@ -1128,6 +1306,115 @@ describe("TransactionsService", () => {
     });
   });
 
+  // EPIC-023 Task E3 (D12) — a credit-card purchase (LiabilitiesService
+  // .purchase()) creates a Transaction with `accountId: null`. If such a
+  // row is ever edited/deleted through the generic update()/remove() paths,
+  // there is NO account to revert or reapply a balance delta against — the
+  // guards added for the accountId-nullable schema change must skip both
+  // branches cleanly instead of crashing on `account.update({ where: { id:
+  // null } })`.
+  describe("update()/remove() on a null-accountId (credit-card) transaction (EPIC-023 E3)", () => {
+    const now = new Date("2026-06-15T10:00:00.000Z");
+    const CARD_TX = {
+      id: "tx-card-1",
+      familyGroupId: FAMILY_GROUP_ID,
+      accountId: null,
+      toAccountId: null,
+      categoryId: null,
+      liabilityId: "card-1",
+      amount: BigInt(150000),
+      type: "expense" as const,
+      description: null,
+      occurredAt: now,
+      createdAt: now,
+    };
+
+    // C4 (group E retry round 4) — REPLACES the pre-fix assertion that
+    // editing/deleting this row "never touches any account balance" (true,
+    // but incomplete): it never reversed the OBLIGATION either — deleting
+    // this card purchase left `Liability.remainingBalance`/`totalDebt`
+    // permanently inflated, with no ledger evidence left to notice. Both
+    // `update()` and `remove()` now REFUSE an obligation-linked
+    // (`liabilityId`/`insuranceId` set) row outright, pointing at the real
+    // correction path (adjust the Liability/Insurance directly, THEN edit
+    // this row) instead of silently desyncing the ledger from the debt.
+    it("update(): refuses to edit an obligation-linked (liabilityId set) transaction, and never touches the row or any balance", async () => {
+      prisma.transaction.findFirst.mockResolvedValue(CARD_TX);
+
+      await expect(
+        service.update(FAMILY_GROUP_ID, "tx-card-1", { amount: 200000 }),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(prisma.transaction.update).not.toHaveBeenCalled();
+      expect(prisma.account.update).not.toHaveBeenCalled();
+    });
+
+    it("remove(): refuses to delete an obligation-linked (liabilityId set) transaction, and never touches the row or any balance", async () => {
+      prisma.transaction.findFirst.mockResolvedValue(CARD_TX);
+
+      await expect(
+        service.remove(FAMILY_GROUP_ID, "tx-card-1"),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(prisma.transaction.delete).not.toHaveBeenCalled();
+      expect(prisma.account.update).not.toHaveBeenCalled();
+    });
+
+    // C4 — an insurance-premium payment (`insuranceId` set) gets the SAME
+    // refusal, even though it DOES touch an account (unlike a card
+    // purchase) — the obligation-desync risk (renewalDate advanced, coverage
+    // now free) is identical.
+    it("update(): refuses to edit an obligation-linked (insuranceId set) transaction", async () => {
+      prisma.transaction.findFirst.mockResolvedValue({
+        ...CARD_TX,
+        accountId: "acc-1",
+        liabilityId: null,
+        insuranceId: "ins-1",
+      });
+
+      await expect(
+        service.update(FAMILY_GROUP_ID, "tx-card-1", { amount: 200000 }),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(prisma.transaction.update).not.toHaveBeenCalled();
+    });
+
+    it("remove(): refuses to delete an obligation-linked (insuranceId set) transaction", async () => {
+      prisma.transaction.findFirst.mockResolvedValue({
+        ...CARD_TX,
+        accountId: "acc-1",
+        liabilityId: null,
+        insuranceId: "ins-1",
+      });
+
+      await expect(
+        service.remove(FAMILY_GROUP_ID, "tx-card-1"),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(prisma.transaction.delete).not.toHaveBeenCalled();
+    });
+
+    it("update(): a PLAIN transaction (neither liabilityId nor insuranceId set) is unaffected", async () => {
+      prisma.transaction.findFirst.mockResolvedValue({
+        ...CARD_TX,
+        accountId: "acc-1",
+        liabilityId: null,
+      });
+      prisma.transaction.update.mockResolvedValue({
+        ...CARD_TX,
+        accountId: "acc-1",
+        liabilityId: null,
+        amount: BigInt(200000),
+      });
+      prisma.$transaction.mockImplementation(
+        async (fn: Parameters<typeof prisma.$transaction>[0]) =>
+          (fn as (p: typeof prisma) => Promise<unknown>)(prisma),
+      );
+
+      const result = await service.update(FAMILY_GROUP_ID, "tx-card-1", {
+        amount: 200000,
+      });
+
+      expect(result.amount).toBe("200000");
+    });
+  });
+
   describe("update() category allow-list enforcement (EPIC-019 Task C)", () => {
     const now = new Date("2026-06-15T10:00:00.000Z");
     const ALLOWED_CATEGORY_ID = "cat-belanja";
@@ -1472,7 +1759,9 @@ interface FakeCategory {
 interface FakeTx {
   id: string;
   familyGroupId: string;
-  accountId: string;
+  // EPIC-023 group E retry (CRITICAL 1) — nullable, mirroring
+  // Transaction.accountId (a credit-card purchase has accountId: null).
+  accountId: string | null;
   categoryId: string | null;
   amount: bigint;
   type: "income" | "expense" | "transfer";
@@ -1489,19 +1778,19 @@ interface FakeTx {
 }
 
 interface TxWhereFragment {
+  accountId?: null;
   account?: { isPrivate?: boolean; ownerUserId?: string };
-  OR?: unknown[];
+  categoryId?: null;
+  category?: { isPrivate?: boolean };
+  createdByUserId?: string;
+  toAccount?: { ownerUserId?: string };
+  OR?: TxWhereFragment[];
+  AND?: TxWhereFragment[];
 }
 
 interface TxWhere extends TxWhereFragment {
   id?: string;
   type?: string;
-  // EPIC-023 Task C — `findAll`/`getSummary`/`findOne` now combine their
-  // privacy and row-scoping fragments via a shared `AND` array (see
-  // transactions.service.ts#buildWhere) instead of flat top-level keys;
-  // `update()`/`remove()`'s existing-row lookup still spreads flat (never
-  // row-scoped — see the class-level note on why). This fake handles both.
-  AND?: TxWhereFragment[];
 }
 
 /**
@@ -1509,7 +1798,11 @@ interface TxWhere extends TxWhereFragment {
  * account/category `isPrivate` filter TransactionsService builds via
  * `transactionPrivacyWhere`, plus the row-scoping fragment
  * `restrictedTransactionWhere` may contribute, so these tests exercise real
- * filtering behavior rather than just call shapes.
+ * filtering behavior rather than just call shapes. Generic recursive
+ * AND/OR evaluator (EPIC-023 group E retry, CRITICAL 1) — NOT hardcoded to
+ * one fragment shape, so it proves the real `transactionPrivacyWhere` fix
+ * (nested `AND` of `OR`s, `accountId: null` admitted) against fixtures that
+ * include a credit-card purchase (`accountId: null`).
  */
 function makeFakePrivacyPrisma(
   accounts: FakeAccount[],
@@ -1519,42 +1812,48 @@ function makeFakePrivacyPrisma(
   const accountById = new Map(accounts.map((a) => [a.id, a]));
   const categoryById = new Map(categories.map((c) => [c.id, c]));
 
-  function applyFragment(rows: FakeTx[], frag: TxWhereFragment): FakeTx[] {
-    let out = rows;
-    if (frag.account?.isPrivate === false) {
-      out = out.filter((t) => !accountById.get(t.accountId)?.isPrivate);
-    }
-    if (frag.OR) {
-      const or = frag.OR as Array<{
-        categoryId?: null;
-        category?: { isPrivate: boolean };
-        account?: { ownerUserId?: string };
-        createdByUserId?: string;
-        // EPIC-023 Task C retry — the incoming-transfer leg of
-        // `restrictedTransactionWhere`.
-        toAccount?: { ownerUserId?: string };
-      }>;
-      const isCategoryPrivacyShape = or.some(
-        (item) => "categoryId" in item || "category" in item,
-      );
-      out = isCategoryPrivacyShape
-        ? out.filter((t) => {
-            if (t.categoryId === null) return true;
-            return !categoryById.get(t.categoryId)?.isPrivate;
-          })
-        : out.filter((t) =>
-            or.some(
-              (item) =>
-                item.account?.ownerUserId ===
-                  accountById.get(t.accountId)?.ownerUserId ||
-                item.createdByUserId === t.createdByUserId ||
-                (t.toAccountId != null &&
-                  item.toAccount?.ownerUserId ===
-                    accountById.get(t.toAccountId)?.ownerUserId),
-            ),
-          );
-    }
-    return out;
+  function evalClause(clause: TxWhereFragment, t: FakeTx): boolean {
+    return Object.entries(clause).every(([key, value]) => {
+      switch (key) {
+        case "AND":
+          return (value as TxWhereFragment[]).every((c) => evalClause(c, t));
+        case "OR":
+          return (value as TxWhereFragment[]).some((c) => evalClause(c, t));
+        case "accountId":
+          return t.accountId === null;
+        case "account": {
+          const acc = t.accountId ? accountById.get(t.accountId) : undefined;
+          const cond = value as { isPrivate?: boolean; ownerUserId?: string };
+          if (!acc) return false;
+          if (cond.isPrivate !== undefined && acc.isPrivate !== cond.isPrivate)
+            return false;
+          if (
+            cond.ownerUserId !== undefined &&
+            acc.ownerUserId !== cond.ownerUserId
+          )
+            return false;
+          return true;
+        }
+        case "categoryId":
+          return t.categoryId === null;
+        case "category": {
+          const cat = t.categoryId ? categoryById.get(t.categoryId) : undefined;
+          const cond = value as { isPrivate?: boolean };
+          return !!cat && cat.isPrivate === cond.isPrivate;
+        }
+        case "createdByUserId":
+          return t.createdByUserId === value;
+        case "toAccount": {
+          const acc = t.toAccountId
+            ? accountById.get(t.toAccountId)
+            : undefined;
+          const cond = value as { ownerUserId?: string };
+          return !!acc && acc.ownerUserId === cond.ownerUserId;
+        }
+        default:
+          return true;
+      }
+    });
   }
 
   function filterTx(where: TxWhere): FakeTx[] {
@@ -1565,10 +1864,7 @@ function makeFakePrivacyPrisma(
     if (where.type) {
       rows = rows.filter((t) => t.type === where.type);
     }
-    const fragments: TxWhereFragment[] = where.AND ?? [where];
-    for (const frag of fragments) {
-      rows = applyFragment(rows, frag);
-    }
+    rows = rows.filter((t) => evalClause(where, t));
     return rows;
   }
 

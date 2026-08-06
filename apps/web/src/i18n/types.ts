@@ -378,6 +378,9 @@ export type I18nDictionary = {
       retryFallback: string;
       invalidAmount: string;
       selectAccountFirst: string;
+      // EPIC-023 Task E3 (D12) — the card tab's own account-equivalent
+      // validation message.
+      selectCardFirst: string;
       noFamilyGroup: string;
       savedAddMoreToast: string;
       savedToast: string;
@@ -406,6 +409,9 @@ export type I18nDictionary = {
       descriptionPlaceholder: string;
       categoryPlaceholder: string;
       accountPlaceholder: string;
+      // EPIC-023 Task E3 (D12) — the card tab's own picker labels.
+      cardLabel: string;
+      cardPlaceholder: string;
       saving: string;
       saveTransaction: string;
       saveAndAddMore: string;
@@ -850,7 +856,16 @@ export type I18nDictionary = {
     payConfirmSuffix: string;
     payProcessing: string;
     payConfirmButton: string;
+    /** EPIC-023 E2 — source-account picker for the real premium payment. */
+    paySourceAccountLabel: string;
+    paySourceAccountPlaceholder: string;
+    /**
+     * EPIC-023 group E retry round 4 (C3) — aria-label/title on the
+     * `/asuransi` card's Bayar icon button when `paidThisPeriod` is true.
+     */
+    payAlreadyPaidTooltip: string;
     toastRenewalRecordedPrefix: string;
+    toastPaySuccessNoRenewal: string;
     toastRenewalFailed: string;
     /** EPIC-021 Group D (#14) — policy beneficiaries, mirroring warisan's
      * heir editor UX (allocation bar + optional family-member link). */
@@ -1733,6 +1748,21 @@ export type I18nDictionary = {
     toastAmountInvalid: string;
     toastNoFamilyGroup: string;
     errorCategoryNotFoundAfterConflict: string;
+    /** EPIC-023 E2 — "this period's obligations" Pay list (D11, US-LIAB-3). */
+    obligationsSectionTitle: string;
+    obligationsDueBadge: string;
+    obligationsPaidBadge: string;
+    obligationsPayButton: string;
+    /** EPIC-023 Task E retry (CRITICAL 1) — shown + disabled instead of
+     * `obligationsPayButton` once `paidThisPeriod` is true. */
+    obligationsAlreadyPaidButton: string;
+    obligationsPayDialogTitle: string;
+    obligationsSourceAccountLabel: string;
+    obligationsSourceAccountPlaceholder: string;
+    obligationsPayProcessing: string;
+    obligationsPayConfirmButton: string;
+    obligationsToastPaySuccess: string;
+    obligationsToastPayFailed: string;
   };
   /** EPIC-018 Task A6 — `/transaksi` (transactions list) page copy. */
   transaksi: {
@@ -1775,6 +1805,13 @@ export type I18nDictionary = {
     detailCreatedAtLabel: string;
     detailEditButton: string;
     detailDeleteButton: string;
+    /**
+     * EPIC-023 group E retry round 4 (C4) — an obligation-linked
+     * transaction (liability payment/purchase or insurance premium)
+     * cannot be edited/deleted here; the server refuses it because doing
+     * so would desync the debt/coverage it recorded.
+     */
+    obligationLockedTooltip: string;
   };
   /**
    * EPIC-018 Task A6 — `/splitbill` (split bill) page copy. The seed

@@ -8,8 +8,13 @@ export class TransactionResponseDto {
   @ApiProperty({ type: String })
   familyGroupId!: string;
 
-  @ApiProperty({ type: String })
-  accountId!: string;
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description:
+      "Source account UUID. Null for a credit-card purchase (EPIC-023 E3, D12) — it touches no account; see liabilityId instead.",
+  })
+  accountId!: string | null;
 
   @ApiPropertyOptional({
     type: String,
@@ -37,11 +42,32 @@ export class TransactionResponseDto {
   @ApiPropertyOptional({ type: String, nullable: true })
   categoryName!: string | null;
 
-  @ApiProperty({ type: String })
-  accountName!: string;
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description:
+      "Source account name. Null for a credit-card purchase (EPIC-023 E3, D12) — it touches no account. Was incorrectly '' before this field's contract went nullable (Group E retry, MEDIUM 5).",
+  })
+  accountName!: string | null;
 
   @ApiPropertyOptional({ type: String, nullable: true })
   toAccountName!: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description:
+      "Liability UUID this transaction is linked to (EPIC-023 E1/E3) — set for a payment or a credit-card purchase, null otherwise.",
+  })
+  liabilityId!: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description:
+      "Insurance policy UUID this transaction is linked to (EPIC-023 E1) — set for a premium payment, null otherwise.",
+  })
+  insuranceId!: string | null;
 
   @ApiProperty({ type: String, format: "date-time" })
   occurredAt!: string;

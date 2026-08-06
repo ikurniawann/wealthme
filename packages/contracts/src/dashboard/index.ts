@@ -61,7 +61,10 @@ export interface DashboardSummaryDto {
     amount: number;
     type: "income" | "expense" | "transfer";
     categoryName: string | null;
-    accountName: string;
+    // EPIC-023 Task E retry (MEDIUM 5) — null for a card purchase (no
+    // account touched); was laundered to "" before, see transactions'
+    // TransactionDto.accountName for the matching fix.
+    accountName: string | null;
     occurredAt: string;
   }[];
 }

@@ -68,8 +68,16 @@ const MAX_SKIPPED_ROWS_RENDERED = 50;
  */
 type MatchedTransactionSummaryDto = {
   id: string;
-  accountId: string;
-  accountName: string;
+  // EPIC-023 Task E retry (MEDIUM 6) — widened to match the API's real
+  // return type (`reconciliation.service.ts`'s `MatchedTransactionSummaryDto`
+  // has `accountId: string | null` since Transaction.accountId went
+  // nullable for a card purchase, E3). Nothing dereferenced it as
+  // non-nullable before this fix, but the type itself was a lie that would
+  // have type-checked a future null read as safe.
+  accountId: string | null;
+  // MEDIUM 5 — null (not "") for a card purchase; symmetric with the
+  // server-side fix.
+  accountName: string | null;
   toAccountId: string | null;
   toAccountName: string | null;
   categoryId: string | null;
@@ -350,7 +358,7 @@ export function EntryDetailDialog({
                 />
                 <DetailRow
                   label={t.rekonsiliasi.detailTxAccountLabel}
-                  value={tx.accountName}
+                  value={tx.accountName ?? "—"}
                 />
                 {tx.toAccountName && (
                   <DetailRow

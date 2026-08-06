@@ -66,7 +66,8 @@ export interface DetailTransactionItem {
   occurredAt: string;
   description: string | null;
   categoryName: string | null;
-  accountName: string;
+  // EPIC-023 E3 (D12) — null for a credit-card purchase (no account touched).
+  accountName: string | null;
   type: "income" | "expense" | "transfer";
   amount: number;
 }

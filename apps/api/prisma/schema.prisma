@@ -329,39 +329,39 @@ model Verification {
 }
 
 model FamilyGroup {
-  id                 String             @id @default(uuid())
-  name               String
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  members            Member[]
-  accounts           Account[]
-  categories         Category[]
-  transactions       Transaction[]
-  budgets            Budget[]
-  goals              Goal[]
-  notifications      Notification[]
-  assets             Asset[]
-  investments        Investment[]
-  liabilities        Liability[]
-  insurances         Insurance[]
-  invitations        Invitation[]
-  splitBills         SplitBill[]
-  inheritanceAssets  InheritanceAsset[]
-  donations          Donation[]
-  taxRecords         TaxRecord[]
-  bankSyncs          BankSync[]
-  netWorthSnapshots  NetWorthSnapshot[]
-  coaAccounts        CoaAccount[]
+  id                      String                   @id @default(uuid())
+  name                    String
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  members                 Member[]
+  accounts                Account[]
+  categories              Category[]
+  transactions            Transaction[]
+  budgets                 Budget[]
+  goals                   Goal[]
+  notifications           Notification[]
+  assets                  Asset[]
+  investments             Investment[]
+  liabilities             Liability[]
+  insurances              Insurance[]
+  invitations             Invitation[]
+  splitBills              SplitBill[]
+  inheritanceAssets       InheritanceAsset[]
+  donations               Donation[]
+  taxRecords              TaxRecord[]
+  bankSyncs               BankSync[]
+  netWorthSnapshots       NetWorthSnapshot[]
+  coaAccounts             CoaAccount[]
   // EPIC-019 Task B — member-request -> owner-approve funding requests.
-  allowanceRequests  AllowanceRequest[]
+  allowanceRequests       AllowanceRequest[]
   // EPIC-021 Group F (#6) — user-maintained gold price per gram (IDR),
   // manually entered by the family owner via PATCH .../gold-price. No live
   // gold price feed exists or may be fabricated (Open Design Decision #6),
   // so this is nullable: the consolidated total shows an honest "set your
   // gold price" prompt until an owner sets one, and every display of it is
   // labeled "diinput manual, per <date>" using goldPriceUpdatedAt.
-  goldPricePerGram   BigInt?
-  goldPriceUpdatedAt DateTime?
+  goldPricePerGram        BigInt?
+  goldPriceUpdatedAt      DateTime?
   // EPIC-023 G2 (D17) — per-bank saved column-mapping templates, so a
   // returning statement imports without remapping columns each time.
   reconciliationTemplates ReconciliationTemplate[]
@@ -490,33 +490,40 @@ model Account {
 }
 
 model Category {
-  id               String                    @id @default(uuid())
-  familyGroupId    String
-  name             String
-  kind             CategoryKind
-  color            String?
-  icon             String?
+  id                             String                    @id @default(uuid())
+  familyGroupId                  String
+  name                           String
+  kind                           CategoryKind
+  color                          String?
+  icon                           String?
   // Owner-set flag: hides this category (and its transactions transitively)
   // from `member` viewers in shared family views. Owner/admin_staff always see it.
-  isPrivate        Boolean                   @default(false)
+  isPrivate                      Boolean                   @default(false)
   // Mandatory COA link (EPIC-017 Decision #2). Every category maps to a
   // CoaAccount in the SAME family group; reports classify transitively via
   // Transaction → Category → CoaAccount (direction + groupNum). Restrict so a
   // COA account in use by a category cannot be deleted out from under it.
-  coaAccountId     String
-  createdAt        DateTime                  @default(now())
-  familyGroup      FamilyGroup               @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
-  coaAccount       CoaAccount                @relation(fields: [coaAccountId], references: [id], onDelete: Restrict)
-  transactions     Transaction[]
-  budgets          Budget[]
+  coaAccountId                   String
+  createdAt                      DateTime                  @default(now())
+  familyGroup                    FamilyGroup               @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  coaAccount                     CoaAccount                @relation(fields: [coaAccountId], references: [id], onDelete: Restrict)
+  transactions                   Transaction[]
+  budgets                        Budget[]
   // EPIC-019 Task C — members whose allow-list includes this category.
-  memberAllowances MemberCategoryAllowance[]
+  memberAllowances               MemberCategoryAllowance[]
   // EPIC-021 #16: physical-asset "master data" category. Reuses this model
   // (the only master-data entity with a real API) instead of a new table.
-  assets           Asset[]
+  assets                         Asset[]
   // EPIC-023 Task D (D3/D9) — a held_expense AllowanceRequest's captured
   // category (null for a funding request).
-  allowanceRequests AllowanceRequest[]
+  allowanceRequests              AllowanceRequest[]
+  // EPIC-023 group E retry (HIGH 4) — back-relations for the per-obligation
+  // principal/premium category (see Liability.principalCategoryId /
+  // Insurance.premiumCategoryId). Always 0-or-1 in practice (each is this
+  // category's OWN obligation), plural only because Prisma relation fields
+  // on the "one" side of a 1-n are always lists.
+  liabilitiesAsPrincipalCategory Liability[]               @relation("LiabilityPrincipalCategory")
+  insurancesAsPremiumCategory    Insurance[]               @relation("InsurancePremiumCategory")
 
   @@unique([familyGroupId, name, kind])
   @@index([familyGroupId])
@@ -527,7 +534,13 @@ model Category {
 model Transaction {
   id              String          @id @default(uuid())
   familyGroupId   String
-  accountId       String
+  // EPIC-023 E3 (D12, US-LIAB-5) — nullable so a credit-card purchase can
+  // touch NO bank/cash account at all: it debits nothing here and instead
+  // raises `Liability.remainingBalance`/`totalDebt` via `liabilityId` below
+  // (see LiabilitiesService.purchase()). Every other transaction (income/
+  // expense/transfer created through TransactionsService.create()) keeps a
+  // required, non-null accountId — unchanged.
+  accountId       String?
   // Nullable destination account (EPIC-021 Group B / EPIC-019 Decision #1 —
   // single row + nullable toAccountId, NOT paired debit/credit legs). Only
   // meaningful when type = transfer; null on income/expense and on legacy
@@ -551,17 +564,31 @@ model Transaction {
   // leaving the family (or the app) must never cascade-delete transaction
   // history; the row just loses its "recorded by" attribution.
   createdByUserId String?
+  // EPIC-023 E1 — links a payment transaction back to the obligation it
+  // settles (D10, US-LIAB-4, US-INS-4): one ledger, one truth, instead of a
+  // description string being the only trace of which liability/insurance a
+  // transaction paid down. Both nullable — only payment-generated rows set
+  // one of these; a normal income/expense/transfer leaves both null.
+  // onDelete: SetNull so deleting the Liability/Insurance never cascades
+  // into deleting transaction history, mirroring `category`/`createdBy`
+  // above.
+  liabilityId     String?
+  insuranceId     String?
   familyGroup     FamilyGroup     @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
-  account         Account         @relation("TransactionSourceAccount", fields: [accountId], references: [id], onDelete: Cascade)
+  account         Account?        @relation("TransactionSourceAccount", fields: [accountId], references: [id], onDelete: Cascade)
   toAccount       Account?        @relation("TransactionDestinationAccount", fields: [toAccountId], references: [id], onDelete: Restrict)
   category        Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   createdBy       User?           @relation("TransactionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  liability       Liability?      @relation(fields: [liabilityId], references: [id], onDelete: SetNull)
+  insurance       Insurance?      @relation(fields: [insuranceId], references: [id], onDelete: SetNull)
 
   @@index([familyGroupId, occurredAt])
   @@index([accountId])
   @@index([toAccountId])
   @@index([categoryId])
   @@index([createdByUserId])
+  @@index([liabilityId])
+  @@index([insuranceId])
   @@map("transactions")
 }
 
@@ -646,11 +673,37 @@ model Budget {
   limitAmount   BigInt
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+  // EPIC-023 E2 (D11) / group E retry (HIGH 4) — set on the FIXED budget
+  // line auto-created when a Liability/Insurance is added; a normal
+  // user-made budget leaves both null. Since EPIC-023 group E retry, EVERY
+  // liability/insurance gets its OWN Category (Liability.
+  // principalCategoryId / Insurance.premiumCategoryId), so this Budget row
+  // is EXCLUSIVE to the one obligation that seeded it — never shared with
+  // a sibling obligation the way it used to be (a family's liabilities/
+  // insurances no longer collapse onto one shared category+budget line).
+  // `remove()` deletes this row when the obligation it belongs to is
+  // deleted (see `LiabilitiesService`/`InsurancesService`); onDelete:
+  // Restrict on the FK below is defence-in-depth for a bug in that
+  // ordering, not the primary mechanism.
+  liabilityId   String?
+  insuranceId   String?
+  // EPIC-023 group E retry round 3 (MEDIUM 12) — set directly by
+  // `LiabilitiesService`/`InsurancesService` when they auto-create this
+  // obligation's own budget line, instead of the old `markCategoryFixed`
+  // which mutated the category's SHARED `CoaAccount.budgetType` and
+  // silently reclassified every OTHER category on that account too. Null
+  // for a normal user-made budget — `BudgetsService.toDto` falls back to
+  // `category.coaAccount.budgetType` in that case.
+  budgetType    CoaBudgetType?
   familyGroup   FamilyGroup  @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
   category      Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  liability     Liability?   @relation(fields: [liabilityId], references: [id], onDelete: Restrict)
+  insurance     Insurance?   @relation(fields: [insuranceId], references: [id], onDelete: Restrict)
 
   @@unique([familyGroupId, categoryId, period])
   @@index([familyGroupId])
+  @@index([liabilityId])
+  @@index([insuranceId])
   @@map("budgets")
 }
 
@@ -815,48 +868,80 @@ model AuditLog {
 }
 
 model Liability {
-  id                 String        @id @default(uuid())
-  familyGroupId      String
-  name               String
-  institution        String?
-  type               LiabilityType
-  totalDebt          BigInt
-  remainingBalance   BigInt
-  minimumPayment     BigInt        @default(0)
-  interestRate       Decimal       @default(0) @db.Decimal(5, 2)
-  dueDate            DateTime?
-  autoAdvanceDueDate Boolean       @default(false)
-  notes              String?
-  currency           String        @default("IDR")
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-  familyGroup        FamilyGroup   @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  id                  String        @id @default(uuid())
+  familyGroupId       String
+  name                String
+  institution         String?
+  type                LiabilityType
+  totalDebt           BigInt
+  remainingBalance    BigInt
+  minimumPayment      BigInt        @default(0)
+  interestRate        Decimal       @default(0) @db.Decimal(5, 2)
+  dueDate             DateTime?
+  autoAdvanceDueDate  Boolean       @default(false)
+  notes               String?
+  currency            String        @default("IDR")
+  // EPIC-023 group E retry (HIGH 4) — this liability's OWN principal
+  // Category, self-healed (created) the first time it needs a budget line
+  // or a payment. Every liability gets its own category (instead of every
+  // liability in a family sharing ONE category) so `Budget.liabilityId` is
+  // exclusive per obligation — see `Budget`'s doc comment. Nullable: a
+  // liability with minimumPayment: 0 that has never been paid has no
+  // category yet. onDelete: SetNull — a Category deleted through the
+  // Categories API (unusual, but not blocked by this FK) must not cascade
+  // into deleting the Liability itself.
+  principalCategoryId String?
+  principalCategory   Category?     @relation("LiabilityPrincipalCategory", fields: [principalCategoryId], references: [id], onDelete: SetNull)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  familyGroup         FamilyGroup   @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  // EPIC-023 E1 — the payment transactions posted against this liability
+  // (see Transaction.liabilityId above).
+  transactions        Transaction[]
+  // EPIC-023 E2 — the FIXED budget line auto-created for this liability
+  // (see Budget.liabilityId above). Restrict-guarded: deleting a liability
+  // while a budget line still references it is refused in the app layer.
+  budgets             Budget[]
 
   @@index([familyGroupId])
+  @@index([principalCategoryId])
   @@map("liabilities")
 }
 
 model Insurance {
-  id             String                 @id @default(uuid())
-  familyGroupId  String
-  name           String                 @db.VarChar(150)
-  provider       String?                @db.VarChar(150)
-  type           InsuranceType
-  status         InsuranceStatus        @default(aktif)
-  coverageAmount BigInt?
-  premiumAmount  BigInt
-  premiumPeriod  PremiumPeriod          @default(monthly)
-  renewalDate    DateTime?
-  autoRenewDate  Boolean                @default(false)
-  policyNumber   String?                @db.VarChar(100)
-  notes          String?                @db.VarChar(500)
-  currency       String                 @default("IDR") @db.VarChar(3)
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
-  familyGroup    FamilyGroup            @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
-  beneficiaries  InsuranceBeneficiary[]
+  id                String                 @id @default(uuid())
+  familyGroupId     String
+  name              String                 @db.VarChar(150)
+  provider          String?                @db.VarChar(150)
+  type              InsuranceType
+  status            InsuranceStatus        @default(aktif)
+  coverageAmount    BigInt?
+  premiumAmount     BigInt
+  premiumPeriod     PremiumPeriod          @default(monthly)
+  renewalDate       DateTime?
+  autoRenewDate     Boolean                @default(false)
+  policyNumber      String?                @db.VarChar(100)
+  notes             String?                @db.VarChar(500)
+  currency          String                 @default("IDR") @db.VarChar(3)
+  // EPIC-023 group E retry (HIGH 4) — this policy's OWN premium Category,
+  // mirroring Liability.principalCategoryId above (see that field's doc
+  // comment for the full reasoning).
+  premiumCategoryId String?
+  premiumCategory   Category?              @relation("InsurancePremiumCategory", fields: [premiumCategoryId], references: [id], onDelete: SetNull)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  familyGroup       FamilyGroup            @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  beneficiaries     InsuranceBeneficiary[]
+  // EPIC-023 E1 — the premium payment transactions posted against this
+  // policy (see Transaction.insuranceId above).
+  transactions      Transaction[]
+  // EPIC-023 E2 — the FIXED budget line auto-created for this policy (see
+  // Budget.insuranceId above). Restrict-guarded: deleting a policy while a
+  // budget line still references it is refused in the app layer.
+  budgets           Budget[]
 
   @@index([familyGroupId])
+  @@index([premiumCategoryId])
   @@map("insurances")
 }
 

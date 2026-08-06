@@ -9,12 +9,23 @@ const PUBLIC_BUDGET_ID = "budget-public";
 const PRIVATE_BUDGET_ID = "budget-private";
 const PUBLIC_CATEGORY_ID = "cat-public";
 const PRIVATE_CATEGORY_ID = "cat-private";
+// EPIC-023 group E retry round 4 (C5) — a liability's own FIXED principal
+// budget line: `liabilityId` set, spend posted as `type: "transfer"`.
+const LIABILITY_BUDGET_ID = "budget-liability";
+const LIABILITY_CATEGORY_ID = "cat-liability-own";
+const LIABILITY_ID = "liab-1";
 
 interface FakeBudgetRow {
   id: string;
   categoryId: string;
   period: string;
   limitAmount: bigint;
+  liabilityId?: string | null;
+  // C2 (group E retry round 4) — production ALWAYS writes this column
+  // (`syncPrincipalBudgetLine`/`syncPremiumBudgetLine` both set
+  // `budgetType: "FIXED"` on the Budget row itself), never only the shared
+  // `category.coaAccount.budgetType` the pre-fix `toDto` read exclusively.
+  budgetType?: "FIXED" | "VARIABLE" | "REIMBURSEMENT" | null;
   category: {
     name: string;
     icon: string | null;
@@ -222,6 +233,175 @@ describe("BudgetsService.findAll privacy enforcement (EPIC-022 A6)", () => {
       where: { category?: { isPrivate?: boolean } };
     };
     expect(call.where.category).toEqual({});
+  });
+});
+
+/**
+ * EPIC-023 group E retry round 4 (C5) — a liability's own budget line
+ * (`Budget.liabilityId` set, HIGH 4/E2) posts its spend as `type:
+ * "transfer"` (E1), not `type: "expense"`. `findAll` used to group spend on
+ * `type: "expense"` only, so this line's `spentAmount` stayed 0 forever
+ * however many payments were made, and its progress bar (`/anggaran`) never
+ * filled. This fake `transaction.groupBy` actually filters by `type` and
+ * `categoryId` (unlike the plain `[]`-returning stub above) so the test
+ * fails without the fix: it exercises the REAL split-by-type behavior the
+ * service must implement, not just "some query ran".
+ */
+function makePrismaWithTransactions() {
+  const budgetRows: FakeBudgetRow[] = [
+    {
+      id: PUBLIC_BUDGET_ID,
+      categoryId: PUBLIC_CATEGORY_ID,
+      period: "monthly",
+      limitAmount: 1_000_000n,
+      liabilityId: null,
+      category: {
+        name: "Belanja",
+        icon: "🛒",
+        isPrivate: false,
+        coaAccount: { budgetType: null },
+      },
+    },
+    {
+      id: LIABILITY_BUDGET_ID,
+      categoryId: LIABILITY_CATEGORY_ID,
+      period: "monthly",
+      limitAmount: 5_000_000n,
+      liabilityId: LIABILITY_ID,
+      category: {
+        name: "Cicilan Pokok KPR",
+        icon: null,
+        isPrivate: false,
+        coaAccount: { budgetType: "FIXED" },
+      },
+    },
+  ];
+
+  // Simulates the real ledger: an ordinary expense on the public category,
+  // and a liability principal payment (type "transfer") on the liability's
+  // OWN category — exactly what `LiabilitiesService.pay()` posts.
+  const transactionRows = [
+    {
+      categoryId: PUBLIC_CATEGORY_ID,
+      type: "expense",
+      amount: 300_000n,
+      familyGroupId: FAMILY_GROUP_ID,
+    },
+    {
+      categoryId: LIABILITY_CATEGORY_ID,
+      type: "transfer",
+      amount: 5_000_000n,
+      familyGroupId: FAMILY_GROUP_ID,
+    },
+  ];
+
+  return {
+    budget: {
+      findMany: jest.fn(() => Promise.resolve(budgetRows)),
+    },
+    transaction: {
+      groupBy: jest.fn(
+        ({
+          where,
+        }: {
+          where: { type: string; categoryId: { in: string[] } };
+        }) => {
+          const matching = transactionRows.filter(
+            (t) =>
+              t.type === where.type &&
+              where.categoryId.in.includes(t.categoryId),
+          );
+          const byCategory = new Map<string, bigint>();
+          for (const t of matching) {
+            byCategory.set(
+              t.categoryId,
+              (byCategory.get(t.categoryId) ?? 0n) + t.amount,
+            );
+          }
+          return Promise.resolve(
+            [...byCategory.entries()].map(([categoryId, sum]) => ({
+              categoryId,
+              _sum: { amount: sum },
+            })),
+          );
+        },
+      ),
+    },
+  };
+}
+
+describe("BudgetsService.findAll spend computation (EPIC-023 group E retry round 4, C5)", () => {
+  let service: BudgetsService;
+  let prisma: ReturnType<typeof makePrismaWithTransactions>;
+
+  beforeEach(async () => {
+    prisma = makePrismaWithTransactions();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [BudgetsService, { provide: PrismaService, useValue: prisma }],
+    }).compile();
+    service = module.get(BudgetsService);
+  });
+
+  it("counts a liability's transfer-type principal payments toward ITS OWN budget line's spentAmount", async () => {
+    const result = await service.findAll(FAMILY_GROUP_ID, true);
+    const liabilityBudget = result.find((b) => b.id === LIABILITY_BUDGET_ID);
+    expect(liabilityBudget?.spentAmount).toBe(5_000_000);
+    expect(liabilityBudget?.isOverBudget).toBe(false);
+    expect(liabilityBudget?.usagePercent).toBe(100);
+  });
+
+  it("still counts an ordinary category's expense-type spend correctly", async () => {
+    const result = await service.findAll(FAMILY_GROUP_ID, true);
+    const publicBudget = result.find((b) => b.id === PUBLIC_BUDGET_ID);
+    expect(publicBudget?.spentAmount).toBe(300_000);
+  });
+});
+
+/**
+ * C2 (group E retry round 4) — production writes `Budget.budgetType`
+ * directly (`syncPrincipalBudgetLine`/`syncPremiumBudgetLine`), never only
+ * `category.coaAccount.budgetType` (the shared group-5 TRANSFER account,
+ * which has NO budgetType of its own). This fake `budget.findMany` returns
+ * a row with `budgetType: "FIXED"` set on the BUDGET itself while its
+ * category's CoaAccount carries `budgetType: null` — exactly what a real
+ * obligation line looks like — so the test fails without the fix (the old
+ * `toDto` would read `null` from the CoaAccount and drop this line out of
+ * `/anggaran`'s FIXED section).
+ */
+function makePrismaWithBudgetOwnType() {
+  const rows: FakeBudgetRow[] = [
+    {
+      id: "budget-own-fixed",
+      categoryId: "cat-liability-own",
+      period: "monthly",
+      limitAmount: 2_083_000n,
+      liabilityId: "liab-1",
+      budgetType: "FIXED",
+      category: {
+        name: "Cicilan Pokok KTA BNI",
+        icon: null,
+        isPrivate: false,
+        coaAccount: { budgetType: null }, // shared group-5 TRANSFER account
+      },
+    },
+  ];
+  return {
+    budget: { findMany: jest.fn(() => Promise.resolve(rows)) },
+    transaction: { groupBy: jest.fn(() => Promise.resolve([])) },
+  };
+}
+
+describe("BudgetsService.findAll budgetType resolution (EPIC-023 group E retry round 4, C2)", () => {
+  it("prefers Budget.budgetType over the (null) shared CoaAccount.budgetType", async () => {
+    const prisma = makePrismaWithBudgetOwnType();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [BudgetsService, { provide: PrismaService, useValue: prisma }],
+    }).compile();
+    const service = module.get(BudgetsService);
+
+    const [result] = await service.findAll(FAMILY_GROUP_ID, true);
+
+    expect(result.budgetType).toBe("FIXED");
   });
 });
 
