@@ -4,6 +4,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -30,8 +31,11 @@ export class CreateInsuranceBeneficiaryDto {
   @Max(100)
   sharePercent!: number;
 
+  // EPIC-023 F1 (D14) — `User.id` is always a uuid (`@default(uuid())`);
+  // validating the shape here rejects garbage before it ever reaches the
+  // tenant-scope lookup in InsurancesService.
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUUID()
   memberUserId?: string;
 }

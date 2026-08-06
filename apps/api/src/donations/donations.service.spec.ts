@@ -170,6 +170,47 @@ describe("DonationsService", () => {
         }),
       ).rejects.toThrow(BadRequestException);
     });
+
+    // EPIC-023 F2 (D20, US-DON-6/7) — PP 60/2010 widens deductibility to
+    // ANY obligatory religious contribution, not just zakat; `persepuluhan`
+    // is the Christian equivalent and must now be accepted. Fails against
+    // pre-F2 code, which only allowed zakat_maal/zakat_fitrah.
+    it("allows creating a persepuluhan donation marked as tax deductible (PP 60/2010 widening)", async () => {
+      prisma.tx.donation.create.mockResolvedValue({
+        ...BASE_DONATION,
+        type: "persepuluhan",
+        isTaxDeductible: true,
+        accountId: null,
+        transactionId: null,
+      });
+
+      await service.create(FAMILY_GROUP_ID, {
+        type: "persepuluhan" as never,
+        recipient: "Gereja / Paroki",
+        amount: "100000",
+        donatedAt: "2026-07-01T00:00:00.000Z",
+        isTaxDeductible: true,
+      });
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    });
+
+    // EPIC-023 F2 (D20) — the widening is scoped to OBLIGATORY contributions
+    // only; a voluntary offering (still recorded as `lainnya`, since there
+    // is no dedicated "voluntary Christian offering" type) must still be
+    // rejected — this is the negative counterpart to the test above.
+    it("still rejects a voluntary donation type (lainnya) marked as tax deductible", async () => {
+      await expect(
+        service.create(FAMILY_GROUP_ID, {
+          type: "lainnya" as never,
+          recipient: "Yayasan Sosial",
+          amount: "100000",
+          donatedAt: "2026-07-01T00:00:00.000Z",
+          isTaxDeductible: true,
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
   });
 
   // ──────────────────────────────────────────────────────────────

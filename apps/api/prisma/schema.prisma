@@ -123,8 +123,15 @@ enum SplitStatus {
   settled
 }
 
+// EPIC-023 F3 (D21) — "claimed" is the "saya sudah transfer" state: the
+// recipient says they sent the money but NO income has posted yet (Honest
+// UI mandate — a claim is a claim, not a payment). Only the owner's
+// confirm action (SplitBillsService.confirmParticipant) can move a
+// participant into "paid", and that is the ONLY transition that ever posts
+// a real Transaction / touches Account.balance.
 enum ParticipantStatus {
   pending
+  claimed
   paid
 }
 
@@ -140,7 +147,29 @@ enum DonationType {
   infaq
   sedekah
   wakaf
+  // EPIC-023 F2 (D20, US-DON-6/7) — the obligatory Christian contribution
+  // (persepuluhan/tithe, collected by a recognised church body). PP 60/2010
+  // widens tax-deductible "sumbangan keagamaan" beyond zakat to any
+  // OBLIGATORY religious contribution for a recognised religion, which is
+  // why excluding this type from `TAX_DEDUCTIBLE_DONATION_TYPES` was wrong.
+  // A voluntary Christian offering still has no dedicated type and stays
+  // recorded as `lainnya` (never deductible) — see donations.service.ts.
+  persepuluhan
   lainnya
+}
+
+// EPIC-023 F2 (D20, US-DON-6/7) — a family-level setting, not a per-user
+// one: the donation page (and its calculator) reflects the FAMILY's
+// religion, matching `FamilyGroup.goldPricePerGram`'s precedent for a
+// family-wide manual setting. `islam` is the default for every
+// PRE-EXISTING family (see `FamilyGroup.religion` below) so this feature
+// never changes what an existing family already saw (the donation page
+// showed the zakat calculator unconditionally before this enum existed) —
+// an owner can correct it immediately via PATCH .../religion.
+enum FamilyReligion {
+  islam
+  kristen
+  none
 }
 
 enum SptStatus {
@@ -362,6 +391,18 @@ model FamilyGroup {
   // labeled "diinput manual, per <date>" using goldPriceUpdatedAt.
   goldPricePerGram        BigInt?
   goldPriceUpdatedAt      DateTime?
+  // EPIC-023 F2 (D20, US-DON-6/7) — family religion setting driving which
+  // donation calculator (zakat vs. perpuluhan vs. neither) the donation
+  // page shows, and widening tax-deductibility per PP 60/2010 beyond zakat
+  // to obligatory religious contributions of other recognised religions.
+  // EPIC-023 Group F fix round (MEDIUM 9) — nullable, no default: F2's
+  // original `@default(islam)` asserted a faith on every pre-existing
+  // family with no way to tell "explicitly chosen" from "never touched".
+  // `null` is now its own honest state ("not yet chosen" — see
+  // useFamilyReligion.ts / DonationPage), distinct from the three real
+  // choices in the enum. See migration 20260806170000 for how existing
+  // families are treated.
+  religion                FamilyReligion?
   // EPIC-023 G2 (D17) — per-bank saved column-mapping templates, so a
   // returning statement imports without remapping columns each time.
   reconciliationTemplates ReconciliationTemplate[]
@@ -666,13 +707,13 @@ model MemberCategoryAllowance {
 }
 
 model Budget {
-  id            String       @id @default(uuid())
+  id            String         @id @default(uuid())
   familyGroupId String
   categoryId    String
   period        BudgetPeriod
   limitAmount   BigInt
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   // EPIC-023 E2 (D11) / group E retry (HIGH 4) — set on the FIXED budget
   // line auto-created when a Liability/Insurance is added; a normal
   // user-made budget leaves both null. Since EPIC-023 group E retry, EVERY
@@ -695,10 +736,10 @@ model Budget {
   // for a normal user-made budget — `BudgetsService.toDto` falls back to
   // `category.coaAccount.budgetType` in that case.
   budgetType    CoaBudgetType?
-  familyGroup   FamilyGroup  @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
-  category      Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  liability     Liability?   @relation(fields: [liabilityId], references: [id], onDelete: Restrict)
-  insurance     Insurance?   @relation(fields: [insuranceId], references: [id], onDelete: Restrict)
+  familyGroup   FamilyGroup    @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  category      Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  liability     Liability?     @relation(fields: [liabilityId], references: [id], onDelete: Restrict)
+  insurance     Insurance?     @relation(fields: [insuranceId], references: [id], onDelete: Restrict)
 
   @@unique([familyGroupId, categoryId, period])
   @@index([familyGroupId])
@@ -965,33 +1006,69 @@ model InsuranceBeneficiary {
 }
 
 model SplitBill {
-  id            String             @id @default(uuid())
-  familyGroupId String
-  title         String             @db.VarChar(200)
-  totalAmount   BigInt
-  currency      String             @default("IDR") @db.VarChar(3)
-  shareToken    String             @unique @default(uuid())
-  status        SplitStatus        @default(open)
-  notes         String?
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-  familyGroup   FamilyGroup        @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
-  participants  SplitParticipant[]
+  id                 String             @id @default(uuid())
+  familyGroupId      String
+  title              String             @db.VarChar(200)
+  totalAmount        BigInt
+  currency           String             @default("IDR") @db.VarChar(3)
+  status             SplitStatus        @default(open)
+  notes              String?
+  // EPIC-023 F3 (D21) — the account the owner nominates to receive
+  // transfers for this bill: rendered on every recipient's own share link
+  // ("how to pay") AND credited for real once the owner confirms a
+  // participant's claim (SplitBillsService.confirmParticipant). Unenforced
+  // FK — same convention as `Donation.accountId` elsewhere in this schema
+  // (no Prisma relation, validated against the same familyGroupId in the
+  // service layer) — nullable so it never blocks pre-F3 rows; NEW bills
+  // are required to set one at the DTO layer (CreateSplitBillDto).
+  payoutAccountId    String?
+  // Free-text fallback shown alongside the account's own name/institution/
+  // maskedNumber — e.g. an e-wallet number that isn't modeled as an
+  // Account row in this app.
+  payoutInstructions String?            @db.VarChar(300)
+  // "Revocable" (D21): the owner can kill every participant's share link
+  // for this bill at once without deleting the bill itself. Both public
+  // endpoints check this and answer with an honest 410 Gone, never a bare
+  // 404 that could be confused with "this token never existed".
+  revokedAt          DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  familyGroup        FamilyGroup        @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  participants       SplitParticipant[]
 
   @@index([familyGroupId])
-  @@index([shareToken])
   @@map("split_bills")
 }
 
 model SplitParticipant {
-  id          String            @id @default(uuid())
-  splitBillId String
-  name        String            @db.VarChar(100)
-  amountOwed  BigInt
-  status      ParticipantStatus @default(pending)
-  paidAt      DateTime?
-  createdAt   DateTime          @default(now())
-  splitBill   SplitBill         @relation(fields: [splitBillId], references: [id], onDelete: Cascade)
+  id                      String            @id @default(uuid())
+  splitBillId             String
+  name                    String            @db.VarChar(100)
+  amountOwed              BigInt
+  status                  ParticipantStatus @default(pending)
+  // EPIC-023 F3 (D21) — this participant's OWN unguessable link identifier,
+  // replacing the old bill-wide `SplitBill.shareToken` (dropped in the same
+  // migration). A bill-wide token cannot distinguish which recipient is
+  // asking, so the public share page and its API (getPublicParticipant /
+  // claimParticipant) key off THIS token and only ever return this one
+  // participant's own share — never `familyGroupId`, never the siblings'
+  // names/amounts. `@default(uuid())` — same CSPRNG-backed generator
+  // (Node's `crypto.randomUUID()` under Prisma's `uuid()`) already used for
+  // every other unguessable token in this schema (Invitation.token,
+  // Device secrets); 122 bits of randomness is adequate here, so this does
+  // NOT need a bespoke generator.
+  shareToken              String            @unique @default(uuid())
+  // Set when the recipient taps "saya sudah transfer" (claimParticipant).
+  // Moves NO money — see the ParticipantStatus comment.
+  claimedAt               DateTime?
+  paidAt                  DateTime?
+  // Unenforced FK (same convention as Donation.transactionId) to the real
+  // Transaction that confirmParticipant() posted, once it exists. Lets a
+  // second confirm() call on an already-"paid" participant recognize the
+  // no-op case without re-deriving it from anything but this row.
+  settlementTransactionId String?           @unique
+  createdAt               DateTime          @default(now())
+  splitBill               SplitBill         @relation(fields: [splitBillId], references: [id], onDelete: Cascade)
 
   @@index([splitBillId])
   @@map("split_participants")

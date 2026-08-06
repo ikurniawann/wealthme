@@ -16,15 +16,17 @@ import {
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
+import { Throttle } from "@nestjs/throttler";
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { Public } from "../common/decorators/public.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { CreateSplitBillDto } from "./dto/create-split-bill.dto";
+import { ConfirmParticipantDto } from "./dto/confirm-participant.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { SettleParticipantDto } from "./dto/settle-participant.dto";
+import { CreateSplitBillDto } from "./dto/create-split-bill.dto";
+import { PublicSplitParticipantResponseDto } from "./dto/public-split-participant-response.dto";
 import {
   SplitBillResponseDto,
   SplitParticipantResponseDto,
@@ -100,41 +102,99 @@ export class SplitBillsController {
     return this.splitBillsService.remove(familyGroupId, id);
   }
 
+  // EPIC-023 F3 (D21) — "revocable": kills every participant's public
+  // share link for this bill at once. Owner/spouse/member only (same
+  // "manage" grant as every other write on this subject).
+  @Patch("family-groups/:familyGroupId/split-bills/:id/revoke")
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "SplitBill"))
+  @ApiBearerAuth()
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "id", type: String })
+  @ApiOperation({
+    summary: "Revoke every participant's share link for this bill",
+  })
+  @ApiResponse({ status: 200, type: SplitBillResponseDto })
+  @ApiResponse({ status: 404, description: "Split bill not found" })
+  revoke(
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("id") id: string,
+  ): Promise<SplitBillResponseDto> {
+    return this.splitBillsService.revoke(familyGroupId, id);
+  }
+
+  // EPIC-023 F3 (D21) — renamed from "settle": this now posts a REAL
+  // Transaction crediting the bill's payout account (see
+  // SplitBillsService.confirmParticipant), not just a status flip. "The
+  // owner confirms, and only then does it become real income."
   @Patch(
-    "family-groups/:familyGroupId/split-bills/:id/participants/:participantId/settle",
+    "family-groups/:familyGroupId/split-bills/:id/participants/:participantId/confirm",
   )
   @CheckAbility((ab: AppAbility) => ab.can("manage", "SplitBill"))
   @ApiBearerAuth()
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiParam({ name: "id", type: String })
   @ApiParam({ name: "participantId", type: String })
-  @ApiOperation({ summary: "Mark a participant as paid" })
+  @ApiOperation({
+    summary:
+      "Confirm a participant paid: posts real income to the bill's payout account",
+  })
   @ApiResponse({ status: 200, type: SplitParticipantResponseDto })
   @ApiResponse({
     status: 404,
     description: "Split bill or participant not found",
   })
-  settleParticipant(
+  confirmParticipant(
     @Param("familyGroupId") familyGroupId: string,
     @Param("id") splitId: string,
     @Param("participantId") participantId: string,
-    @Body() _dto: SettleParticipantDto,
+    @Body() dto: ConfirmParticipantDto,
   ): Promise<SplitParticipantResponseDto> {
-    return this.splitBillsService.settleParticipant(
+    return this.splitBillsService.confirmParticipant(
       familyGroupId,
       splitId,
       participantId,
+      dto,
     );
   }
 
-  @Get("split-bills/share/:token")
+  // EPIC-023 F3 (D21) — PUBLIC, unauthenticated: identified by THIS
+  // participant's own `shareToken`, never the family group, never a
+  // bill-wide secret, never another participant's data — see
+  // SplitBillsService.getPublicParticipant. No `:familyGroupId` param, so
+  // TenantGuard passes it through untouched and AbilitiesGuard's fail-open
+  // (no `@CheckAbility` handlers) is exactly the intended "public" shape.
+  // Throttled tighter than the global default (100/min) since a share
+  // token is the only access control this route has — a wide-open budget
+  // would make token-guessing/enumeration cheap to attempt.
+  @Get("split-bills/participant/:token")
   @Public()
-  @ApiOperation({ summary: "Get split bill by share token (public)" })
-  @ApiResponse({ status: 200, type: SplitBillResponseDto })
-  @ApiResponse({ status: 404, description: "Split bill not found" })
-  getByShareToken(
+  @Throttle({ default: { ttl: 60000, limit: 30 } })
+  @ApiOperation({ summary: "Get one participant's own share (public)" })
+  @ApiResponse({ status: 200, type: PublicSplitParticipantResponseDto })
+  @ApiResponse({ status: 404, description: "Link not found" })
+  @ApiResponse({ status: 410, description: "Link has been revoked" })
+  getPublicParticipant(
     @Param("token") token: string,
-  ): Promise<SplitBillResponseDto> {
-    return this.splitBillsService.getByShareToken(token);
+  ): Promise<PublicSplitParticipantResponseDto> {
+    return this.splitBillsService.getPublicParticipant(token);
+  }
+
+  // EPIC-023 F3 (D21) — PUBLIC, unauthenticated: the "saya sudah transfer"
+  // claim. Moves NO money — see SplitBillsService.claimParticipant.
+  // Throttled tighter still: this is a write, not just a read.
+  @Patch("split-bills/participant/:token/claim")
+  @Public()
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @ApiOperation({
+    summary: "Claim 'I already transferred' (public, posts no money)",
+  })
+  @ApiResponse({ status: 200, type: PublicSplitParticipantResponseDto })
+  @ApiResponse({ status: 404, description: "Link not found" })
+  @ApiResponse({ status: 409, description: "Already confirmed paid" })
+  @ApiResponse({ status: 410, description: "Link has been revoked" })
+  claimParticipant(
+    @Param("token") token: string,
+  ): Promise<PublicSplitParticipantResponseDto> {
+    return this.splitBillsService.claimParticipant(token);
   }
 }

@@ -292,6 +292,100 @@ describe("FamilyGroupsService gold price", () => {
   });
 });
 
+// EPIC-023 F2 (D20, US-DON-6/7) — family religion setting, same
+// owner-writable/member-readable shape as gold price above.
+describe("FamilyGroupsService religion", () => {
+  let service: FamilyGroupsService;
+  let prisma: ReturnType<typeof makePrisma>;
+
+  beforeEach(async () => {
+    prisma = makePrisma();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        FamilyGroupsService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { sendEmail: jest.fn() },
+        },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+      ],
+    }).compile();
+    service = module.get(FamilyGroupsService);
+  });
+
+  describe("getReligion", () => {
+    it("throws ForbiddenException when the requester is not a member", async () => {
+      prisma.member.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.getReligion(FAMILY_GROUP_ID, REQUESTER_ID),
+      ).rejects.toThrow("Not a member of this family group");
+    });
+
+    it("returns the family's religion setting", async () => {
+      prisma.member.findUnique.mockResolvedValue({ role: "member" });
+      prisma.familyGroup.findUnique.mockResolvedValue({ religion: "kristen" });
+
+      const result = await service.getReligion(FAMILY_GROUP_ID, MEMBER_USER_ID);
+
+      expect(result).toEqual({ religion: "kristen" });
+    });
+
+    it("throws NotFoundException when the family group does not exist", async () => {
+      prisma.member.findUnique.mockResolvedValue({ role: "member" });
+      prisma.familyGroup.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.getReligion(FAMILY_GROUP_ID, MEMBER_USER_ID),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    // EPIC-023 Group F fix round (MEDIUM 9) — `null` is the honest
+    // "not yet chosen" state (see the migration backfilling every
+    // pre-existing family off the fabricated `islam` default), not an
+    // error — the response passes it straight through.
+    it("returns null for a family that has not yet chosen a religion", async () => {
+      prisma.member.findUnique.mockResolvedValue({ role: "member" });
+      prisma.familyGroup.findUnique.mockResolvedValue({ religion: null });
+
+      const result = await service.getReligion(FAMILY_GROUP_ID, MEMBER_USER_ID);
+
+      expect(result).toEqual({ religion: null });
+    });
+  });
+
+  describe("updateReligion", () => {
+    it("throws ForbiddenException when the requester is not an owner", async () => {
+      prisma.member.findUnique.mockResolvedValue({ role: "member" });
+
+      await expect(
+        service.updateReligion(FAMILY_GROUP_ID, MEMBER_USER_ID, {
+          religion: "kristen",
+        }),
+      ).rejects.toThrow("Only owners can perform this action");
+      expect(prisma.familyGroup.update).not.toHaveBeenCalled();
+    });
+
+    it("owner: persists the new religion setting", async () => {
+      prisma.member.findUnique.mockResolvedValue({ role: "owner" });
+      prisma.familyGroup.update.mockResolvedValue({ religion: "kristen" });
+
+      const result = await service.updateReligion(FAMILY_GROUP_ID, OWNER_ID, {
+        religion: "kristen",
+      });
+
+      expect(prisma.familyGroup.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: FAMILY_GROUP_ID },
+          data: { religion: "kristen" },
+        }),
+      );
+      expect(result).toEqual({ religion: "kristen" });
+    });
+  });
+});
+
 // EPIC-023 Task C (D1, US-FAM-8/9) — two axes: relationship is descriptive,
 // role carries permission. The owner may set/clear either independently and
 // pair ANY relationship with ANY role — kinship never constrains authority.

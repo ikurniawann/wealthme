@@ -12,6 +12,8 @@ import type {
   InvestmentCalcResultDto,
   KprCalcRequestDto,
   KprCalcResultDto,
+  PerpuluhanRequestDto,
+  PerpuluhanResultDto,
   Pph21RequestDto,
   Pph21ResultDto,
   RetirementCalcRequestDto,
@@ -19,6 +21,12 @@ import type {
   ZakatRequestDto,
   ZakatResultDto,
 } from "@wealthme/contracts";
+
+// EPIC-023 F2 (D20, US-DON-6/7) — perpuluhan (tithe): 10% of income, flat.
+// No nisab/haul concept — that machinery is specific to zakat's own rules
+// and must not leak into this calculator (US-DON-6's objection to treating
+// the two as interchangeable applies to the arithmetic AND the shape).
+const PERPULUHAN_RATE = 0.1;
 
 /**
  * Indicative fallback nisab gold price (Rp/g) — used ONLY when the family
@@ -60,6 +68,14 @@ export class CalculatorsService {
     const zakat = meetsNisab ? zakatable * 0.025 : 0;
 
     return { zakatable, nisab, zakat, meetsNisab, isObligated, nisabSource };
+  }
+
+  // EPIC-023 F2 (D20, US-DON-6/7) — perpuluhan's own arithmetic: 10% of
+  // income, nothing more. Deliberately has no nisab/haul gate.
+  calculatePerpuluhan(dto: PerpuluhanRequestDto): PerpuluhanResultDto {
+    const income = Math.max(0, dto.income);
+    const tithe = income * PERPULUHAN_RATE;
+    return { income, tithe };
   }
 
   calculatePph21(dto: Pph21RequestDto): Pph21ResultDto {

@@ -33,9 +33,12 @@ import { CreateFamilyGroupDto } from "./dto/create-family-group.dto";
 import { CreateInvitationDto } from "./dto/create-invitation.dto";
 import { DependantMemberResponseDto } from "./dto/dependant-member-response.dto";
 import { FamilyGroupResponseDto } from "./dto/family-group-response.dto";
+import { FamilyReligionResponseDto } from "./dto/family-religion-response.dto";
 import { GoldPriceResponseDto } from "./dto/gold-price-response.dto";
 import { InvitationResponseDto } from "./dto/invitation-response.dto";
 import { MemberResponseDto } from "./dto/member-response.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { UpdateFamilyReligionDto } from "./dto/update-family-religion.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateGoldPriceDto } from "./dto/update-gold-price.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -101,6 +104,24 @@ export class FamilyGroupsController {
     return this.familyGroupsService.getGoldPrice(familyGroupId, req.user.sub);
   }
 
+  // EPIC-023 F2 (D20) — unlike getGoldPrice/updateGoldPrice above (a known,
+  // pre-existing gap — AbilitiesGuard fails OPEN on an undecorated route),
+  // this NEW route is explicitly decorated so it never depends on that gap.
+  @Get(":familyGroupId/religion")
+  @CheckAbility((ab: AppAbility) => ab.can("read", "FamilyGroup"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiOperation({
+    summary:
+      "Get the family's religion setting (drives which donation calculator — zakat/perpuluhan/neither — is shown)",
+  })
+  @ApiResponse({ status: 200, type: FamilyReligionResponseDto })
+  getReligion(
+    @Param("familyGroupId") familyGroupId: string,
+    @Request() req: AuthRequest,
+  ): Promise<FamilyReligionResponseDto> {
+    return this.familyGroupsService.getReligion(familyGroupId, req.user.sub);
+  }
+
   // EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head creates a dependant/
   // operational member directly (name + username + initial password, no
   // email). Gated on the "manage Member" ability, which per D2 ("a spouse
@@ -152,6 +173,28 @@ export class FamilyGroupsController {
     @Body() dto: UpdateGoldPriceDto,
   ): Promise<GoldPriceResponseDto> {
     return this.familyGroupsService.updateGoldPrice(
+      familyGroupId,
+      req.user.sub,
+      dto,
+    );
+  }
+
+  // EPIC-023 F2 (D20) — explicitly decorated for the same reason getReligion
+  // above is: this is a NEW route and must not rely on AbilitiesGuard's
+  // fail-open default the way the (pre-existing) gold-price routes do.
+  @Patch(":familyGroupId/religion")
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "FamilyGroup"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiOperation({
+    summary: "Set the family's religion setting (owner only)",
+  })
+  @ApiResponse({ status: 200, type: FamilyReligionResponseDto })
+  updateReligion(
+    @Request() req: AuthRequest,
+    @Param("familyGroupId") familyGroupId: string,
+    @Body() dto: UpdateFamilyReligionDto,
+  ): Promise<FamilyReligionResponseDto> {
+    return this.familyGroupsService.updateReligion(
       familyGroupId,
       req.user.sub,
       dto,

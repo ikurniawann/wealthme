@@ -226,6 +226,8 @@ type DonationTypeId =
   | "infaq"
   | "sedekah"
   | "wakaf"
+  // EPIC-023 F2 (D20, US-DON-6/7) — the obligatory Christian contribution.
+  | "persepuluhan"
   | "lainnya";
 
 /** EPIC-018 Task A6 — `/anggaran` COA budget-type ids (mirrors `BudgetType`
@@ -577,6 +579,36 @@ export type I18nDictionary = {
       toastGoldPriceFailed: string;
       toastGoldPriceInvalid: string;
       /**
+       * EPIC-023 F2 (D20, US-DON-6/7) — family religion setting (zakat vs.
+       * perpuluhan vs. neither), same owner-writable/member-readable shape
+       * as the gold price block above.
+       */
+      religionSectionTitle: string;
+      religionHint: string;
+      religionOptions: Record<"islam" | "kristen" | "none", string>;
+      religionLabel: string;
+      religionSaveButton: string;
+      religionOwnerOnlyNote: string;
+      toastReligionUpdated: string;
+      toastReligionFailed: string;
+      /**
+       * EPIC-023 Group F fix round (MEDIUM 9) — the fourth, honest state:
+       * "not yet chosen". Shown as a disabled placeholder option in the
+       * owner's select (never a persisted, selectable value — the write
+       * DTO stays the three real choices) and as the display label for a
+       * non-owner viewing an unconfirmed family.
+       */
+      religionUnconfirmedPlaceholder: string;
+      religionUnconfirmedLabel: string;
+      /**
+       * EPIC-023 Group F final fix round (MEDIUM 3) — a pending fetch must
+       * render its OWN neutral state, never the "not yet chosen" copy above:
+       * both `isLoading` and `religion === null` resolve to a `null`
+       * `currentReligion`, so the two states must not look the same.
+       */
+      religionLoadingLabel: string;
+      religionErrorLabel: string;
+      /**
        * EPIC-023 G3 (D16) — bring-your-own AI provider key. Owner/spouse
        * manage it; every other role sees a read-only status (see
        * casl-ability.factory.ts's AiKey subject).
@@ -884,6 +916,10 @@ export type I18nDictionary = {
     allocationUnallocatedSuffix: string;
     allocationFullyAllocated: string;
     validationSharePercentExceeded: string;
+    /** EPIC-023 F1 (D14) — honest-UI note shown instead of a silently empty
+     * picker when the member list failed to load (e.g. a dependant/
+     * operational role has no "read Member" ability). */
+    beneficiaryMemberPickerUnavailable: string;
   };
   /**
    * EPIC-018 Task A4 — `/kalkulator` page copy (7 sub-tools). Detail rows
@@ -1619,6 +1655,9 @@ export type I18nDictionary = {
     typeLabels: Record<DonationTypeId, string>;
     jenisOptionLabels: Record<DonationTypeId, string>;
     groupIslam: string;
+    /** EPIC-023 F2 (D20, US-DON-6/7) — groups the obligatory Christian
+     * contribution in the "Jenis" dropdown, alongside `groupIslam`. */
+    groupKristen: string;
     groupUmum: string;
     heroTitle: string;
     transactionsSuffix: string;
@@ -1678,6 +1717,35 @@ export type I18nDictionary = {
     toastSaved: string;
     toastSaveFailed: string;
     toastInvalidAmount: string;
+    /**
+     * EPIC-023 F2 (D20, US-DON-6/7) — the donation page shows the
+     * calculator matching the family's religion setting (zakat when
+     * `islam`, perpuluhan when `kristen`, neither when `none`). Perpuluhan
+     * has its OWN arithmetic (10% of income) — not zakat relabelled.
+     */
+    perpuluhanCalculatorTitle: string;
+    perpuluhanCalculatorSubtitle: string;
+    fieldIncomeLabel: string;
+    perpuluhanDueLabel: string;
+    perpuluhanCalculatingMsg: string;
+    perpuluhanCalcErrorMsg: string;
+    payPerpuluhanNowButton: string;
+    /** Shown instead of any calculator when the family's religion setting
+     * is `none` — honest UI: no calculator is fabricated for a faith the
+     * family hasn't set. */
+    religionCalculatorNoneTitle: string;
+    religionCalculatorNoneDesc: string;
+    /**
+     * EPIC-023 Group F fix round (HIGH 4 / MEDIUM 9) — loading/error states
+     * for the religion setting itself (previously silently fell through to
+     * the zakat calculator on both), and the prompt shown when a family has
+     * never chosen (`religion === null`), distinct from `none` (an actual
+     * choice to show neither calculator).
+     */
+    religionLoadingMsg: string;
+    religionErrorMsg: string;
+    religionCalculatorUnconfirmedTitle: string;
+    religionCalculatorUnconfirmedDesc: string;
   };
   /**
    * EPIC-018 Task A6 — `/warisan` (inheritance assets) page copy.
@@ -1722,6 +1790,23 @@ export type I18nDictionary = {
     toastSessionNotReady: string;
     toastNameRequired: string;
     toastInvalidValue: string;
+    /** EPIC-023 F1 (D14, US-INS-5) — heir editor copy (previously entirely
+     * hardcoded Indonesian, mirroring asuransi's beneficiary editor keys). */
+    heirsSectionTitle: string;
+    heirNamePlaceholder: string;
+    removeHeirAriaLabel: string;
+    heirRelationshipPlaceholder: string;
+    heirSharePercentPlaceholder: string;
+    heirMemberAriaLabel: string;
+    heirMemberNoneOption: string;
+    addHeirButton: string;
+    heirAllocationAllocatedSuffix: string;
+    heirAllocationUnallocatedSuffix: string;
+    heirAllocationFullyAllocated: string;
+    /** Honest-UI note shown instead of a silently empty picker when the
+     * member list failed to load (e.g. a dependant/operational role has no
+     * "read Member" ability). */
+    heirMemberPickerUnavailable: string;
   };
   /** EPIC-018 Task A6 — `/anggaran` (budgets) page copy. */
   anggaran: {
@@ -1886,6 +1971,81 @@ export type I18nDictionary = {
     toastTotalRequired: string;
     toastMinParticipants: string;
     toastLinkCopied: string;
+    /**
+     * EPIC-023 F3 (D21, US-SPLIT-5/6) — the owner-side additions: nominate
+     * a payout account/instructions on create, see each participant's own
+     * claimed/paid state + copy THEIR link (not one bill-wide link), and
+     * revoke every link for a bill at once.
+     */
+    fieldPayoutAccountLabel: string;
+    fieldPayoutAccountPlaceholder: string;
+    fieldPayoutInstructionsLabel: string;
+    fieldPayoutInstructionsPlaceholder: string;
+    toastPayoutAccountRequired: string;
+    claimedBadge: string;
+    revokeButton: string;
+    revokeConfirmMessage: string;
+    toastRevoked: string;
+    toastRevokeFailedDefault: string;
+    revokedNotice: string;
+    participantLinkLabel: string;
+    /**
+     * EPIC-023 Group F fix round (HIGH 1) — revoking a link (cosmetic) and
+     * confirming a payment (irreversible, posts real income) now share the
+     * same real confirmation dialog (`ConfirmDeleteDialog`) instead of one
+     * being a native `window.confirm` and the other firing on a single
+     * click. `confirmPaymentTitlePrefix` is concatenated with the
+     * participant's name in the page (dynamic, not template-interpolated).
+     */
+    revokeConfirmTitle: string;
+    revokeConfirmButton: string;
+    confirmPaymentTitlePrefix: string;
+    confirmPaymentBody: string;
+    confirmPaymentButton: string;
+    /** EPIC-023 Group F fix round (MEDIUM 10) — the per-row copy-link
+     * button's disabled/`title` hint once the bill's links are revoked. */
+    copyDisabledRevokedTitle: string;
+    /**
+     * EPIC-023 F3 (D21) — `/split/[shareToken]` public page copy (that page
+     * previously had NO i18n at all — every string was hardcoded
+     * Indonesian). Each recipient's own link now identifies a single
+     * `SplitParticipant`, not the whole bill.
+     */
+    publicEyebrow: string;
+    publicLoading: string;
+    publicNotFoundTitle: string;
+    publicNotFoundDesc: string;
+    publicRevokedTitle: string;
+    publicRevokedDesc: string;
+    publicYourShareLabel: string;
+    publicStatusPendingLabel: string;
+    publicStatusClaimedLabel: string;
+    publicStatusPaidLabel: string;
+    publicPayoutTitle: string;
+    publicPayoutMissing: string;
+    /**
+     * EPIC-023 Group F fix round (HIGH 5) — a deleted payout account must
+     * not read to the recipient as "the owner never set this up"
+     * (`publicPayoutMissing`). Shown when `payout.configured` is true but
+     * `accountName`/`instructions` still can't display anything.
+     */
+    publicPayoutUnavailable: string;
+    publicPayoutInstructionsLabel: string;
+    publicClaimButton: string;
+    publicClaimDisclaimer: string;
+    publicClaimedNotice: string;
+    publicPaidNotice: string;
+    publicToastClaimed: string;
+    publicToastClaimFailedDefault: string;
+    publicFooterPrefix: string;
+    publicFooterSuffix: string;
+    /**
+     * EPIC-023 Group F fix round (LOW 11) — a network/DNS failure must not
+     * read as "link not found" (`isGoneError` only recognizes a real 410;
+     * everything else previously fell into the 404 branch).
+     */
+    publicNetworkErrorTitle: string;
+    publicNetworkErrorDesc: string;
   };
   /**
    * EPIC-018 Task A6 — `/rekonsiliasi` (bank reconciliation wizard) page

@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  cloneElement,
+  isValidElement,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useSession } from "@/lib/auth-compat";
@@ -8,6 +15,10 @@ import { authClient } from "@/lib/auth-client";
 import { useLocale } from "@/hooks/use-locale";
 import { useProfile } from "@/hooks/use-profile";
 import { useGoldPrice } from "@/hooks/use-gold-price";
+import {
+  useFamilyReligion,
+  type FamilyReligion,
+} from "@/hooks/use-family-religion";
 import { useAiKeyStatus, type AiProvider } from "@/hooks/use-ai-key";
 import { useDevices, useRevokeDevice } from "@/hooks/use-devices";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -162,6 +173,19 @@ function extractApiErrorMessage(err: unknown, fallback: string): string {
 const FIELD_CLASS =
   "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
 
+// EPIC-023 Group F fix round (HIGH 3) — every consumer's `<label>` rendered
+// with no `htmlFor`, so screen readers/click-to-focus never associated the
+// label with its control (repeat finding — task H1 and group E both hit
+// this class of bug elsewhere). Fixed once here so all ~24 call sites
+// benefit: when the direct child is a single labelable control
+// (input/select/textarea) with no `id` of its own, this generates one via
+// `useId()` and wires both ends. A handful of consumers wrap their control
+// in an extra `<div>` (e.g. an input+button row) — `isLabelableElement`
+// intentionally leaves those exactly as they were (no `htmlFor`, no
+// regression) rather than guessing which nested element is the real
+// control.
+const LABELABLE_TAGS = new Set(["input", "select", "textarea"]);
+
 function Field({
   label,
   children,
@@ -169,12 +193,28 @@ function Field({
   label: string;
   children: React.ReactNode;
 }) {
+  const generatedId = useId();
+  const isLabelableElement =
+    isValidElement(children) &&
+    typeof children.type === "string" &&
+    LABELABLE_TAGS.has(children.type);
+  const childId = isLabelableElement
+    ? ((children.props as { id?: string }).id ?? generatedId)
+    : undefined;
+  const content =
+    isLabelableElement && isValidElement<{ id?: string }>(children)
+      ? cloneElement(children, { id: childId })
+      : children;
+
   return (
     <div className="mb-3.5">
-      <label className="mb-1.5 block text-[12.5px] font-semibold text-muted-foreground">
+      <label
+        htmlFor={childId}
+        className="mb-1.5 block text-[12.5px] font-semibold text-muted-foreground"
+      >
         {label}
       </label>
-      {children}
+      {content}
     </div>
   );
 }
@@ -1176,6 +1216,27 @@ export function PengaturanBody() {
     isUpdating: isGoldPriceUpdating,
   } = useGoldPrice();
   const [goldPriceInput, setGoldPriceInput] = useState("");
+  // EPIC-023 F2 (D20, US-DON-6/7) — family religion setting (owner-only
+  // write; the API also enforces this — see
+  // FamilyGroupsService.updateReligion). Drives which donation calculator
+  // (zakat / perpuluhan / neither) the /donation page shows. The select is
+  // bound directly to `currentReligion` (no separate local input state) so
+  // it always reflects the REAL fetched value — same regression class the
+  // theme/language pickers were fixed for (pengaturan-body.test.tsx).
+  // EPIC-023 Group F final fix round (MEDIUM 3) — `useFamilyReligion`'s own
+  // doc comment says callers MUST check `isLoading`/`isError` before
+  // treating `null` as "family chose none" (donation/page.tsx already does
+  // this). Without the gate below, a non-owner briefly sees "Belum dipilih"
+  // for a family that HAS chosen, and the owner's <select> briefly shows
+  // the disabled placeholder before flipping to the real fetched value.
+  const {
+    religion: currentReligion,
+    isOwner: isReligionOwner,
+    isLoading: isReligionLoading,
+    isError: isReligionError,
+    updateReligion,
+    isUpdating: isReligionUpdating,
+  } = useFamilyReligion();
   // EPIC-023 G3 (D16) — bring-your-own AI provider key. `canManage` mirrors
   // isGoldPriceOwner's role check but allows owner OR spouse (see
   // casl-ability.factory.ts's AiKey subject — the API is the real
@@ -1487,6 +1548,67 @@ export function PengaturanBody() {
             ))}
           </select>
         </Field>
+      </SetSection>
+      <SetSection>
+        <SectionTitle>{t.akun.pengaturan.religionSectionTitle}</SectionTitle>
+        <div className="mb-2.5 text-[12px] text-muted-foreground">
+          {t.akun.pengaturan.religionHint}
+        </div>
+        {isReligionLoading ? (
+          // EPIC-023 Group F final fix round (MEDIUM 3) — a neutral loading
+          // state, never "Belum dipilih": while the query is in flight,
+          // `currentReligion` is `null` exactly like an honestly-unconfirmed
+          // family, and the two must not look the same to the viewer.
+          <div className="text-[13px] text-muted-foreground">
+            {t.akun.pengaturan.religionLoadingLabel}
+          </div>
+        ) : isReligionError ? (
+          <div role="alert" className="text-[13px] text-destructive">
+            {t.akun.pengaturan.religionErrorLabel}
+          </div>
+        ) : isReligionOwner ? (
+          <Field label={t.akun.pengaturan.religionLabel}>
+            <select
+              className={FIELD_CLASS}
+              // EPIC-023 Group F fix round (MEDIUM 9) — `currentReligion`
+              // is `null` for a family that has never chosen. The empty
+              // string only ever selects the disabled placeholder below —
+              // the write DTO (`updateReligion`) still only ever receives
+              // one of the three real choices.
+              value={currentReligion ?? ""}
+              disabled={isReligionUpdating}
+              onChange={(e) => {
+                const religion = e.target.value as FamilyReligion;
+                updateReligion(religion, {
+                  onSuccess: () =>
+                    toast.success(t.akun.pengaturan.toastReligionUpdated),
+                  onError: () =>
+                    toast.error(t.akun.pengaturan.toastReligionFailed),
+                });
+              }}
+            >
+              {currentReligion === null && (
+                <option value="" disabled>
+                  {t.akun.pengaturan.religionUnconfirmedPlaceholder}
+                </option>
+              )}
+              {(["islam", "kristen", "none"] as const).map((r) => (
+                <option key={r} value={r}>
+                  {t.akun.pengaturan.religionOptions[r]}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : (
+          <div className="text-[13px] font-semibold text-foreground">
+            {currentReligion === null
+              ? t.akun.pengaturan.religionUnconfirmedLabel
+              : t.akun.pengaturan.religionOptions[currentReligion]}
+            <div className="mt-1 text-[12px] font-normal text-muted-foreground">
+              {t.akun.pengaturan.religionOwnerOnlyNote}
+            </div>
+          </div>
+        )}
       </SetSection>
       <SetSection>
         <SectionTitle>{t.akun.pengaturan.dataSectionTitle}</SectionTitle>

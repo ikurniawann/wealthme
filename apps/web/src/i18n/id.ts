@@ -395,6 +395,25 @@ export const id = {
       toastGoldPriceUpdated: "✅ Harga emas diperbarui",
       toastGoldPriceFailed: "Gagal menyimpan harga emas",
       toastGoldPriceInvalid: "Masukkan harga emas yang valid (lebih dari 0)",
+      religionSectionTitle: "Agama Keluarga",
+      religionHint:
+        "Menentukan kalkulator donasi yang ditampilkan di halaman Donasi (Zakat untuk Islam, Persepuluhan untuk Kristen, atau tidak ada) dan jenis kontribusi keagamaan wajib yang dapat menjadi pengurang pajak.",
+      religionOptions: {
+        islam: "Islam (Zakat)",
+        kristen: "Kristen (Persepuluhan)",
+        none: "Tidak diatur",
+      },
+      religionLabel: "Agama Keluarga",
+      religionSaveButton: "Simpan Agama Keluarga",
+      religionOwnerOnlyNote:
+        "Hanya pemilik keluarga (owner) yang dapat mengubah agama keluarga.",
+      toastReligionUpdated: "✅ Agama keluarga diperbarui",
+      toastReligionFailed: "Gagal menyimpan agama keluarga",
+      religionUnconfirmedPlaceholder: "Pilih agama keluarga",
+      religionUnconfirmedLabel: "Belum dipilih",
+      religionLoadingLabel: "Memuat pengaturan agama keluarga...",
+      religionErrorLabel:
+        "Gagal memuat pengaturan agama keluarga. Coba muat ulang halaman.",
       aiKeySectionTitle: "API Key AI Advisor",
       aiKeyHint:
         "Sambungkan API key Anda sendiri (Claude, OpenAI, atau Gemini) agar AI Advisor bisa digunakan. Key disimpan terenkripsi dan tidak pernah ditampilkan kembali.",
@@ -890,6 +909,8 @@ export const id = {
     allocationFullyAllocated: "Teralokasi penuh (100%)",
     validationSharePercentExceeded:
       "Total persentase ahli waris tidak boleh lebih dari 100%",
+    beneficiaryMemberPickerUnavailable:
+      "Daftar anggota keluarga tidak tersedia untuk peran Anda — isi nama secara manual.",
   },
   kalkulator: {
     tabs: {
@@ -1718,6 +1739,7 @@ export const id = {
       infaq: "Sedekah / Infak",
       sedekah: "Sedekah",
       wakaf: "Wakaf",
+      persepuluhan: "Persembahan Persepuluhan",
       lainnya: "Lainnya",
     },
     jenisOptionLabels: {
@@ -1726,9 +1748,11 @@ export const id = {
       infaq: "Sedekah / Infak",
       wakaf: "Wakaf",
       sedekah: "Sedekah",
+      persepuluhan: "Persembahan Persepuluhan",
       lainnya: "Lainnya / Donasi Sosial",
     },
     groupIslam: "🕌 Islam",
+    groupKristen: "✝️ Kristen",
     groupUmum: "❤️ Umum",
     heroTitle: "Total Donasi & Zakat",
     transactionsSuffix: " transaksi",
@@ -1776,14 +1800,30 @@ export const id = {
     accountHint:
       "Pilih rekening agar total kekayaan bersih ikut berkurang saat donasi dicatat.",
     taxDeductibleCheckboxLabel:
-      "Pengurang pajak penghasilan (zakat ke lembaga resmi)",
+      "Pengurang pajak penghasilan (kontribusi keagamaan wajib ke lembaga resmi)",
     taxDeductibleIneligibleNote:
-      "Hanya Zakat Maal / Zakat Fitrah yang dapat menjadi pengurang pajak.",
+      "Hanya Zakat Maal / Zakat Fitrah / Persembahan Persepuluhan yang dapat menjadi pengurang pajak.",
     savingLabel: "Menyimpan...",
     saveRecordButton: "Simpan Catatan",
     toastSaved: "✅ Donasi berhasil dicatat!",
     toastSaveFailed: "Gagal menyimpan donasi",
     toastInvalidAmount: "Jumlah donasi tidak valid",
+    perpuluhanCalculatorTitle: "✝️ Kalkulator Persepuluhan",
+    perpuluhanCalculatorSubtitle: "Persepuluhan 10% dari penghasilan",
+    fieldIncomeLabel: "Penghasilan (Rp)",
+    perpuluhanDueLabel: "Persepuluhan (10%)",
+    perpuluhanCalculatingMsg: "Menghitung...",
+    perpuluhanCalcErrorMsg: "Gagal menghitung persepuluhan. Coba lagi.",
+    payPerpuluhanNowButton: "Tunaikan Persepuluhan Sekarang",
+    religionCalculatorNoneTitle: "Kalkulator donasi keagamaan tidak aktif",
+    religionCalculatorNoneDesc:
+      "Atur agama keluarga di Pengaturan Akun untuk mengaktifkan kalkulator Zakat atau Persepuluhan.",
+    religionLoadingMsg: "Memuat pengaturan agama keluarga...",
+    religionErrorMsg:
+      "Gagal memuat pengaturan agama keluarga. Coba muat ulang halaman.",
+    religionCalculatorUnconfirmedTitle: "Agama keluarga belum dipilih",
+    religionCalculatorUnconfirmedDesc:
+      "Pilih agama keluarga di Pengaturan Akun untuk mengaktifkan kalkulator Zakat atau Persepuluhan yang sesuai.",
   },
   warisan: {
     heroTitle: "Total Nilai Warisan",
@@ -1826,6 +1866,19 @@ export const id = {
     toastSessionNotReady: "Sesi belum siap. Coba lagi sebentar.",
     toastNameRequired: "Nama aset wajib diisi.",
     toastInvalidValue: "Nilai estimasi tidak valid.",
+    heirsSectionTitle: "Ahli Waris",
+    heirNamePlaceholder: "cth: Siti Arsandi",
+    removeHeirAriaLabel: "Hapus ahli waris",
+    heirRelationshipPlaceholder: "cth: Anak, Pasangan",
+    heirSharePercentPlaceholder: "Persentase (%)",
+    heirMemberAriaLabel: "Hubungkan ke Anggota Keluarga",
+    heirMemberNoneOption: "Tidak terhubung",
+    addHeirButton: "+ Tambah Ahli Waris",
+    heirAllocationAllocatedSuffix: "% dialokasikan",
+    heirAllocationUnallocatedSuffix: "% belum dialokasikan",
+    heirAllocationFullyAllocated: "Teralokasi penuh (100%)",
+    heirMemberPickerUnavailable:
+      "Daftar anggota keluarga tidak tersedia untuk peran Anda — isi nama secara manual.",
   },
   anggaran: {
     budgetTypeLabels: {
@@ -1995,17 +2048,72 @@ export const id = {
     detailParticipantsSuffix: " peserta",
     statusPaymentTitle: "Status Pembayaran",
     paidBadge: "Lunas",
-    markPaidButton: "Tandai Lunas",
+    // EPIC-023 F3 (D21) — this button now posts a REAL Transaction crediting
+    // the bill's payout account (Honest UI: copy must say so, not just
+    // "mark as paid" like the old no-op status flip).
+    markPaidButton: "Konfirmasi & Catat Pemasukan",
     copyButton: "Salin",
     defaultParticipantName: "Peserta",
     toastCreated: "Split Bill dibuat!",
     toastCreateFailedDefault: "Gagal membuat split bill",
-    toastSettled: "Peserta ditandai lunas",
-    toastSettleFailedDefault: "Gagal menandai lunas",
+    toastSettled: "Pembayaran dikonfirmasi & dicatat sebagai pemasukan",
+    toastSettleFailedDefault: "Gagal mengonfirmasi pembayaran",
     toastTitleRequired: "Judul acara wajib diisi",
     toastTotalRequired: "Total tagihan wajib diisi",
     toastMinParticipants: "Minimal 2 peserta",
     toastLinkCopied: "Link disalin!",
+    fieldPayoutAccountLabel: "Rekening Tujuan Pembayaran",
+    fieldPayoutAccountPlaceholder: "Pilih rekening tujuan",
+    fieldPayoutInstructionsLabel: "Instruksi Pembayaran (opsional)",
+    fieldPayoutInstructionsPlaceholder: "cth: GoPay 0812-xxx-xxx a.n. Budi",
+    toastPayoutAccountRequired: "Pilih rekening tujuan pembayaran",
+    claimedBadge: "Klaim Terkirim",
+    revokeButton: "Cabut Semua Link",
+    revokeConfirmMessage:
+      "Yakin mau mencabut SEMUA link split bill ini? Link yang sudah dibagikan tidak akan bisa diakses lagi.",
+    toastRevoked: "Semua link split bill ini dicabut",
+    toastRevokeFailedDefault: "Gagal mencabut link",
+    revokedNotice:
+      "Link untuk tagihan ini sudah dicabut. Peserta tidak bisa lagi membuka link mereka.",
+    participantLinkLabel: "Link untuk ",
+    revokeConfirmTitle: "Cabut Semua Link?",
+    revokeConfirmButton: "Ya, Cabut Link",
+    confirmPaymentTitlePrefix: "Konfirmasi Pembayaran ",
+    confirmPaymentBody:
+      "Ini akan mencatat pemasukan nyata dan menambah saldo rekening tujuan. Setelah dikonfirmasi, tidak ada cara untuk membatalkannya.",
+    confirmPaymentButton: "Ya, Konfirmasi",
+    copyDisabledRevokedTitle: "Link ini sudah dicabut dan tidak bisa disalin",
+    publicEyebrow: "Split Bill",
+    publicLoading: "Memuat tagihan…",
+    publicNotFoundTitle: "Link tidak ditemukan",
+    publicNotFoundDesc:
+      "Link split bill ini salah atau tidak ditemukan. Minta link baru dari yang membuat tagihan.",
+    publicRevokedTitle: "Link sudah dicabut",
+    publicRevokedDesc:
+      "Pemilik tagihan sudah mencabut link ini. Minta link baru dari yang membuat tagihan.",
+    publicYourShareLabel: "Bagian Kamu",
+    publicStatusPendingLabel: "Belum Bayar",
+    publicStatusClaimedLabel: "Menunggu Konfirmasi",
+    publicStatusPaidLabel: "Lunas (Dikonfirmasi)",
+    publicPayoutTitle: "Cara Bayar",
+    publicPayoutMissing: "Info pembayaran belum diatur oleh pemilik tagihan.",
+    publicPayoutUnavailable:
+      "Info pembayaran sudah diatur oleh pemilik tagihan, tapi sedang tidak tersedia. Hubungi langsung pemilik tagihan sebelum transfer.",
+    publicPayoutInstructionsLabel: "Instruksi",
+    publicClaimButton: "Saya Sudah Transfer",
+    publicClaimDisclaimer:
+      "Ini hanya klaim, bukan konfirmasi pembayaran. Pemilik tagihan akan memeriksa & mengonfirmasi secara manual.",
+    publicClaimedNotice:
+      "Klaim terkirim. Menunggu pemilik tagihan mengonfirmasi.",
+    publicPaidNotice:
+      "Pemilik tagihan sudah mengonfirmasi pembayaran ini sebagai lunas.",
+    publicToastClaimed: "Klaim terkirim!",
+    publicToastClaimFailedDefault: "Gagal mengirim klaim",
+    publicFooterPrefix: "Dibuat dengan",
+    publicFooterSuffix: "— Personal Wealth OS",
+    publicNetworkErrorTitle: "Gagal memuat",
+    publicNetworkErrorDesc:
+      "Terjadi masalah koneksi saat memuat tagihan ini. Periksa koneksi internet kamu dan coba lagi.",
   },
   rekonsiliasi: {
     steps: {
