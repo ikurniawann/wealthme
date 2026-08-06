@@ -1,32 +1,41 @@
 "use client";
 
-// EPIC-021 Group H, item #8 — public split-bill share page.
-//
-// "Buat & Bagikan Link" on /splitbill copies `/split/<shareToken>`, but that
-// route never existed (404) — the audit's Open Design Decision #2 resolved
-// the client's "split bill picture error" report as this missing page, not
-// an actual image bug (the feature has no images at all; avatars are CSS
-// initials). This is a standalone public route (no auth, no (app) shell),
-// mirroring /join/[token] — it hits the @Public() share endpoint directly.
+// EPIC-023 F3 (D21, US-SPLIT-5/6) — replaces the bill-wide public share page
+// (EPIC-021 Group H, #8/#10). A single `SplitBill.shareToken` could not
+// distinguish which recipient was asking, so it returned the WHOLE bill
+// (familyGroupId + every participant's name/amount) through one link. This
+// page now keys off a `SplitParticipant`'s OWN `shareToken` and renders
+// ONLY that participant's own share, its payment destination, and lets
+// them file a "saya sudah transfer" claim — which moves NO money (Honest
+// UI mandate). Only the owner's confirmation (on the authenticated
+// `/splitbill` page) ever posts real income. Standalone public route (no
+// auth, no (app) shell), mirroring /join/[token].
 
 import { use } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { StatusBadge } from "@/components/wm";
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah } from "@/lib/format";
+import { useLocale } from "@/hooks/use-locale";
 
-import type { SplitBillDto } from "@wealthme/contracts";
-
-const AVATAR_GRADIENTS = [
-  "linear-gradient(135deg,#10B981,#06B6D4)",
-  "linear-gradient(135deg,#F59E0B,#FBBF24)",
-  "linear-gradient(135deg,#6366F1,#8B5CF6)",
-  "linear-gradient(135deg,#EC4899,#F43F5E)",
-];
+import type {
+  ParticipantStatus,
+  PublicSplitParticipantDto,
+} from "@wealthme/contracts";
 
 /** Split-bill amounts round-trip through the API as decimal strings (BigInt-backed). */
 function toAmount(value: string): number {
   return Number(BigInt(value));
+}
+
+function isGoneError(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "status" in err &&
+    (err as { status?: number }).status === 410
+  );
 }
 
 export default function SplitBillSharePage({
@@ -35,103 +44,181 @@ export default function SplitBillSharePage({
   params: Promise<{ shareToken: string }>;
 }) {
   const { shareToken } = use(params);
+  const { t } = useLocale();
+  const queryClient = useQueryClient();
 
   const {
-    data: split,
+    data: participant,
     isLoading,
     isError,
-  } = useQuery<SplitBillDto>({
-    queryKey: ["split-bill-share", shareToken],
-    queryFn: () => apiFetch<SplitBillDto>(`/split-bills/share/${shareToken}`),
+    error,
+  } = useQuery<PublicSplitParticipantDto>({
+    queryKey: ["split-bill-participant-share", shareToken],
+    queryFn: () =>
+      apiFetch<PublicSplitParticipantDto>(
+        `/split-bills/participant/${shareToken}`,
+      ),
     retry: false,
   });
 
-  const total = split ? toAmount(split.totalAmount) : 0;
-  const paidCount =
-    split?.participants.filter((p) => p.status === "paid").length ?? 0;
+  const claimMutation = useMutation({
+    mutationFn: () =>
+      apiFetch<PublicSplitParticipantDto>(
+        `/split-bills/participant/${shareToken}/claim`,
+        { method: "PATCH", body: JSON.stringify({}) },
+      ),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(
+        ["split-bill-participant-share", shareToken],
+        updated,
+      );
+      toast.success(t.splitbill.publicToastClaimed);
+    },
+    onError: (err: { message?: string }) => {
+      toast.error(err.message ?? t.splitbill.publicToastClaimFailedDefault);
+    },
+  });
+
+  const revoked = isError && isGoneError(error);
+  const amount = participant ? toAmount(participant.amountOwed) : 0;
+
+  const statusLabel: Record<ParticipantStatus, string> = {
+    pending: t.splitbill.publicStatusPendingLabel,
+    claimed: t.splitbill.publicStatusClaimedLabel,
+    paid: t.splitbill.publicStatusPaidLabel,
+  };
+  const statusVariant: Record<
+    ParticipantStatus,
+    "warning" | "info" | "success"
+  > = {
+    pending: "warning",
+    claimed: "info",
+    paid: "success",
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-[440px] rounded-2xl border bg-card p-6 shadow-sm sm:p-8">
         {isLoading && (
           <div className="py-10 text-center text-[13px] text-muted-foreground">
-            Memuat tagihan…
+            {t.splitbill.publicLoading}
           </div>
         )}
 
-        {isError && (
+        {isError && !revoked && (
           <div className="py-6 text-center">
             <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-accent text-[26px]">
               🔗
             </div>
             <div className="text-[17px] font-extrabold">
-              Link tidak ditemukan
+              {t.splitbill.publicNotFoundTitle}
             </div>
             <div className="mt-2 text-[13px] text-muted-foreground">
-              Link split bill ini sudah kedaluwarsa, salah, atau tidak
-              ditemukan. Minta link baru dari yang membuat tagihan.
+              {t.splitbill.publicNotFoundDesc}
             </div>
           </div>
         )}
 
-        {split && (
+        {revoked && (
+          <div className="py-6 text-center">
+            <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-destructive/10 text-[26px]">
+              🚫
+            </div>
+            <div className="text-[17px] font-extrabold">
+              {t.splitbill.publicRevokedTitle}
+            </div>
+            <div className="mt-2 text-[13px] text-muted-foreground">
+              {t.splitbill.publicRevokedDesc}
+            </div>
+          </div>
+        )}
+
+        {participant && (
           <>
             <div className="mb-1 text-center text-[12px] font-semibold text-primary">
-              Split Bill
+              {t.splitbill.publicEyebrow}
             </div>
             <div className="mb-4 text-center text-[19px] font-extrabold">
-              {split.title}
+              {participant.billTitle}
             </div>
 
-            <div className="mb-5 rounded-[14px] bg-accent p-[18px] text-center">
+            <div className="mb-4 rounded-[14px] bg-accent p-[18px] text-center">
               <div className="text-[11px] text-muted-foreground">
-                Total Tagihan
+                {t.splitbill.publicYourShareLabel} —{" "}
+                {participant.participantName}
               </div>
               <div className="text-[26px] font-black text-primary">
-                {formatRupiah(total)}
+                {formatRupiah(amount)}
               </div>
-              <div className="mt-0.5 text-[12px] text-muted-foreground">
-                {paidCount} dari {split.participants.length} sudah bayar
+              <div className="mt-1.5 flex justify-center">
+                <StatusBadge variant={statusVariant[participant.status]}>
+                  {statusLabel[participant.status]}
+                </StatusBadge>
               </div>
             </div>
 
             <div className="mb-2 text-[12px] font-bold text-muted-foreground">
-              Rincian per Orang
+              {t.splitbill.publicPayoutTitle}
             </div>
-            <div className="space-y-0">
-              {split.participants.map((p, i) => (
-                <div
-                  key={p.id}
-                  className="flex items-center gap-3 border-b py-2.5 last:border-b-0"
-                >
-                  <div
-                    className="flex size-9 shrink-0 items-center justify-center rounded-full text-[13px] font-bold text-white"
-                    style={{
-                      background: AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length],
-                    }}
-                  >
-                    {p.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-[13px] font-semibold">{p.name}</div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {formatRupiah(toAmount(p.amountOwed))}
-                    </div>
-                  </div>
-                  {p.status === "paid" ? (
-                    <StatusBadge variant="success">Lunas</StatusBadge>
-                  ) : (
-                    <StatusBadge variant="warning">Belum Bayar</StatusBadge>
-                  )}
+            <div className="mb-4 rounded-[10px] border bg-background p-3.5 text-[13px]">
+              {participant.payout.accountName ? (
+                <div className="font-semibold">
+                  {participant.payout.accountName}
+                  {participant.payout.accountInstitution
+                    ? ` · ${participant.payout.accountInstitution}`
+                    : ""}
+                  {participant.payout.accountMaskedNumber
+                    ? ` · ${participant.payout.accountMaskedNumber}`
+                    : ""}
                 </div>
-              ))}
+              ) : null}
+              {participant.payout.instructions ? (
+                <div className="mt-1 text-muted-foreground">
+                  {t.splitbill.publicPayoutInstructionsLabel}:{" "}
+                  {participant.payout.instructions}
+                </div>
+              ) : null}
+              {!participant.payout.accountName &&
+                !participant.payout.instructions && (
+                  <div className="text-muted-foreground">
+                    {t.splitbill.publicPayoutMissing}
+                  </div>
+                )}
             </div>
+
+            {participant.status === "pending" && (
+              <div className="space-y-2">
+                <button
+                  onClick={() => claimMutation.mutate()}
+                  disabled={claimMutation.isPending}
+                  className="w-full cursor-pointer rounded-md bg-primary px-4 py-2.5 text-[13px] font-semibold text-primary-foreground transition-colors disabled:opacity-50"
+                >
+                  {t.splitbill.publicClaimButton}
+                </button>
+                <div className="text-center text-[11px] text-muted-foreground">
+                  {t.splitbill.publicClaimDisclaimer}
+                </div>
+              </div>
+            )}
+
+            {participant.status === "claimed" && (
+              <div className="rounded-[10px] bg-accent px-3.5 py-3 text-center text-[12.5px] text-primary-strong">
+                {t.splitbill.publicClaimedNotice}
+              </div>
+            )}
+
+            {participant.status === "paid" && (
+              <div className="rounded-[10px] bg-success-soft px-3.5 py-3 text-center text-[12.5px] text-success">
+                {t.splitbill.publicPaidNotice}
+              </div>
+            )}
           </>
         )}
 
         <div className="mt-6 border-t pt-4 text-center text-[11px] text-muted-foreground">
-          Dibuat dengan <span className="font-bold text-primary">WealthMe</span>{" "}
-          — Personal Wealth OS
+          {t.splitbill.publicFooterPrefix}{" "}
+          <span className="font-bold text-primary">WealthMe</span>{" "}
+          {t.splitbill.publicFooterSuffix}
         </div>
       </div>
     </div>

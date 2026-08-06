@@ -1886,6 +1886,51 @@ export type I18nDictionary = {
     toastTotalRequired: string;
     toastMinParticipants: string;
     toastLinkCopied: string;
+    /**
+     * EPIC-023 F3 (D21, US-SPLIT-5/6) — the owner-side additions: nominate
+     * a payout account/instructions on create, see each participant's own
+     * claimed/paid state + copy THEIR link (not one bill-wide link), and
+     * revoke every link for a bill at once.
+     */
+    fieldPayoutAccountLabel: string;
+    fieldPayoutAccountPlaceholder: string;
+    fieldPayoutInstructionsLabel: string;
+    fieldPayoutInstructionsPlaceholder: string;
+    toastPayoutAccountRequired: string;
+    claimedBadge: string;
+    revokeButton: string;
+    revokeConfirmMessage: string;
+    toastRevoked: string;
+    toastRevokeFailedDefault: string;
+    revokedNotice: string;
+    participantLinkLabel: string;
+    /**
+     * EPIC-023 F3 (D21) — `/split/[shareToken]` public page copy (that page
+     * previously had NO i18n at all — every string was hardcoded
+     * Indonesian). Each recipient's own link now identifies a single
+     * `SplitParticipant`, not the whole bill.
+     */
+    publicEyebrow: string;
+    publicLoading: string;
+    publicNotFoundTitle: string;
+    publicNotFoundDesc: string;
+    publicRevokedTitle: string;
+    publicRevokedDesc: string;
+    publicYourShareLabel: string;
+    publicStatusPendingLabel: string;
+    publicStatusClaimedLabel: string;
+    publicStatusPaidLabel: string;
+    publicPayoutTitle: string;
+    publicPayoutMissing: string;
+    publicPayoutInstructionsLabel: string;
+    publicClaimButton: string;
+    publicClaimDisclaimer: string;
+    publicClaimedNotice: string;
+    publicPaidNotice: string;
+    publicToastClaimed: string;
+    publicToastClaimFailedDefault: string;
+    publicFooterPrefix: string;
+    publicFooterSuffix: string;
   };
   /**
    * EPIC-018 Task A6 — `/rekonsiliasi` (bank reconciliation wizard) page

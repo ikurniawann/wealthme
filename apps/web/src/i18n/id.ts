@@ -1949,17 +1949,60 @@ export const id = {
     detailParticipantsSuffix: " peserta",
     statusPaymentTitle: "Status Pembayaran",
     paidBadge: "Lunas",
-    markPaidButton: "Tandai Lunas",
+    // EPIC-023 F3 (D21) — this button now posts a REAL Transaction crediting
+    // the bill's payout account (Honest UI: copy must say so, not just
+    // "mark as paid" like the old no-op status flip).
+    markPaidButton: "Konfirmasi & Catat Pemasukan",
     copyButton: "Salin",
     defaultParticipantName: "Peserta",
     toastCreated: "Split Bill dibuat!",
     toastCreateFailedDefault: "Gagal membuat split bill",
-    toastSettled: "Peserta ditandai lunas",
-    toastSettleFailedDefault: "Gagal menandai lunas",
+    toastSettled: "Pembayaran dikonfirmasi & dicatat sebagai pemasukan",
+    toastSettleFailedDefault: "Gagal mengonfirmasi pembayaran",
     toastTitleRequired: "Judul acara wajib diisi",
     toastTotalRequired: "Total tagihan wajib diisi",
     toastMinParticipants: "Minimal 2 peserta",
     toastLinkCopied: "Link disalin!",
+    fieldPayoutAccountLabel: "Rekening Tujuan Pembayaran",
+    fieldPayoutAccountPlaceholder: "Pilih rekening tujuan",
+    fieldPayoutInstructionsLabel: "Instruksi Pembayaran (opsional)",
+    fieldPayoutInstructionsPlaceholder: "cth: GoPay 0812-xxx-xxx a.n. Budi",
+    toastPayoutAccountRequired: "Pilih rekening tujuan pembayaran",
+    claimedBadge: "Klaim Terkirim",
+    revokeButton: "Cabut Semua Link",
+    revokeConfirmMessage:
+      "Yakin mau mencabut SEMUA link split bill ini? Link yang sudah dibagikan tidak akan bisa diakses lagi.",
+    toastRevoked: "Semua link split bill ini dicabut",
+    toastRevokeFailedDefault: "Gagal mencabut link",
+    revokedNotice:
+      "Link untuk tagihan ini sudah dicabut. Peserta tidak bisa lagi membuka link mereka.",
+    participantLinkLabel: "Link untuk ",
+    publicEyebrow: "Split Bill",
+    publicLoading: "Memuat tagihan…",
+    publicNotFoundTitle: "Link tidak ditemukan",
+    publicNotFoundDesc:
+      "Link split bill ini salah atau tidak ditemukan. Minta link baru dari yang membuat tagihan.",
+    publicRevokedTitle: "Link sudah dicabut",
+    publicRevokedDesc:
+      "Pemilik tagihan sudah mencabut link ini. Minta link baru dari yang membuat tagihan.",
+    publicYourShareLabel: "Bagian Kamu",
+    publicStatusPendingLabel: "Belum Bayar",
+    publicStatusClaimedLabel: "Menunggu Konfirmasi",
+    publicStatusPaidLabel: "Lunas (Dikonfirmasi)",
+    publicPayoutTitle: "Cara Bayar",
+    publicPayoutMissing: "Info pembayaran belum diatur oleh pemilik tagihan.",
+    publicPayoutInstructionsLabel: "Instruksi",
+    publicClaimButton: "Saya Sudah Transfer",
+    publicClaimDisclaimer:
+      "Ini hanya klaim, bukan konfirmasi pembayaran. Pemilik tagihan akan memeriksa & mengonfirmasi secara manual.",
+    publicClaimedNotice:
+      "Klaim terkirim. Menunggu pemilik tagihan mengonfirmasi.",
+    publicPaidNotice:
+      "Pemilik tagihan sudah mengonfirmasi pembayaran ini sebagai lunas.",
+    publicToastClaimed: "Klaim terkirim!",
+    publicToastClaimFailedDefault: "Gagal mengirim klaim",
+    publicFooterPrefix: "Dibuat dengan",
+    publicFooterSuffix: "— Personal Wealth OS",
   },
   rekonsiliasi: {
     steps: {

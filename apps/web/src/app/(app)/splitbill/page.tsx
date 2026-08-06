@@ -20,6 +20,7 @@ import {
 } from "./split-math";
 
 import type {
+  AccountDto,
   SplitBillDto,
   CreateSplitBillDto,
   SplitParticipantDto,
@@ -78,6 +79,11 @@ export default function SplitBillPage() {
     makeParticipant("Citra"),
   ]);
   const [customAmounts, setCustomAmounts] = useState<CustomAmounts>({});
+  // EPIC-023 F3 (D21) — the account/instructions the owner nominates for
+  // recipients to pay into; rendered on every participant's own share link
+  // and credited for real once the owner confirms their claim.
+  const [payoutAccountId, setPayoutAccountId] = useState("");
+  const [payoutInstructions, setPayoutInstructions] = useState("");
 
   const totalNum = parseRupiah(total);
   const participantIds = useMemo(
@@ -137,7 +143,23 @@ export default function SplitBillPage() {
       makeParticipant("Citra"),
     ]);
     setCustomAmounts({});
+    setPayoutAccountId("");
+    setPayoutInstructions("");
   }
+
+  // Accounts — the owner picks one as this bill's payout destination
+  // (EPIC-023 F3 / D21), same pattern as /donation's optional source
+  // account picker.
+  const { data: accounts = [] } = useQuery<AccountDto[]>({
+    queryKey: familyGroupId
+      ? queryKeys.accounts.all(familyGroupId)
+      : ["accounts-disabled"],
+    queryFn: () =>
+      apiFetch<AccountDto[]>(`/family-groups/${familyGroupId}/accounts`, {
+        token,
+      }),
+    enabled: Boolean(familyGroupId) && Boolean(token),
+  });
 
   // List query
   const {
@@ -178,8 +200,10 @@ export default function SplitBillPage() {
     },
   });
 
-  // Settle participant mutation
-  const settleMutation = useMutation({
+  // EPIC-023 F3 (D21) — "confirm" (renamed from "settle"): posts a REAL
+  // Transaction crediting the bill's payout account, not just a status
+  // flip. "The owner confirms, and only then does it become real income."
+  const confirmMutation = useMutation({
     mutationFn: ({
       splitId,
       participantId,
@@ -188,12 +212,17 @@ export default function SplitBillPage() {
       participantId: string;
     }) =>
       apiFetch<SplitParticipantDto>(
-        `/family-groups/${familyGroupId}/split-bills/${splitId}/participants/${participantId}/settle`,
+        `/family-groups/${familyGroupId}/split-bills/${splitId}/participants/${participantId}/confirm`,
         { method: "PATCH", token, body: JSON.stringify({}) },
       ),
     onSuccess: (updated, { splitId }) => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.splitBills.list(familyGroupId ?? ""),
+      });
+      // Confirming posts a real income Transaction, so every account
+      // balance view elsewhere must see the credited payout account too.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.accounts.all(familyGroupId ?? ""),
       });
       // Update selectedSplit optimistically so the detail modal reflects the change
       setSelectedSplit((prev) => {
@@ -202,7 +231,12 @@ export default function SplitBillPage() {
           ...prev,
           participants: prev.participants.map((p) =>
             p.id === updated.id
-              ? { ...p, status: updated.status, paidAt: updated.paidAt }
+              ? {
+                  ...p,
+                  status: updated.status,
+                  claimedAt: updated.claimedAt,
+                  paidAt: updated.paidAt,
+                }
               : p,
           ),
         };
@@ -213,6 +247,33 @@ export default function SplitBillPage() {
       toast.error(err.message ?? t.splitbill.toastSettleFailedDefault);
     },
   });
+
+  // EPIC-023 F3 (D21) — "revocable": kills every participant's share link
+  // for this bill at once.
+  const revokeMutation = useMutation({
+    mutationFn: (splitId: string) =>
+      apiFetch<SplitBillDto>(
+        `/family-groups/${familyGroupId}/split-bills/${splitId}/revoke`,
+        { method: "PATCH", token, body: JSON.stringify({}) },
+      ),
+    onSuccess: (updated) => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.splitBills.list(familyGroupId ?? ""),
+      });
+      setSelectedSplit((prev) =>
+        prev && prev.id === updated.id ? updated : prev,
+      );
+      toast.success(t.splitbill.toastRevoked);
+    },
+    onError: (err: { message?: string }) => {
+      toast.error(err.message ?? t.splitbill.toastRevokeFailedDefault);
+    },
+  });
+
+  function handleRevoke(split: SplitBillDto) {
+    if (!window.confirm(t.splitbill.revokeConfirmMessage)) return;
+    revokeMutation.mutate(split.id);
+  }
 
   function handleCreate() {
     const trimmedTitle = title.trim();
@@ -226,6 +287,10 @@ export default function SplitBillPage() {
     }
     if (participants.length < 2) {
       toast.warning(t.splitbill.toastMinParticipants);
+      return;
+    }
+    if (!payoutAccountId) {
+      toast.warning(t.splitbill.toastPayoutAccountRequired);
       return;
     }
     if (
@@ -259,12 +324,17 @@ export default function SplitBillPage() {
     createMutation.mutate({
       title: trimmedTitle,
       totalAmount: totalNum,
+      payoutAccountId,
+      payoutInstructions: payoutInstructions.trim() || undefined,
       participants: participantDtos,
     });
   }
 
-  function handleShareLink(split: SplitBillDto) {
-    const url = `${window.location.origin}/split/${split.shareToken}`;
+  // EPIC-023 F3 (D21) — each participant now has their OWN share link (a
+  // bill-wide token cannot distinguish which recipient is asking), so this
+  // copies ONE participant's link, not the whole bill's.
+  function handleShareLink(participant: SplitParticipantDto) {
+    const url = `${window.location.origin}/split/${participant.shareToken}`;
     void navigator.clipboard.writeText(url).then(() => {
       toast.success(t.splitbill.toastLinkCopied);
     });
@@ -491,6 +561,39 @@ export default function SplitBillPage() {
 
             <div>
               <label className="mb-1.5 block text-[12.5px] font-semibold">
+                {t.splitbill.fieldPayoutAccountLabel}
+              </label>
+              <select
+                value={payoutAccountId}
+                onChange={(e) => setPayoutAccountId(e.target.value)}
+                className={FIELD_CLASS}
+              >
+                <option value="">
+                  {t.splitbill.fieldPayoutAccountPlaceholder}
+                </option>
+                {accounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-[12.5px] font-semibold">
+                {t.splitbill.fieldPayoutInstructionsLabel}
+              </label>
+              <input
+                type="text"
+                value={payoutInstructions}
+                onChange={(e) => setPayoutInstructions(e.target.value)}
+                placeholder={t.splitbill.fieldPayoutInstructionsPlaceholder}
+                className={FIELD_CLASS}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-[12.5px] font-semibold">
                 {t.splitbill.fieldMethodLabel}
               </label>
               <div className="flex gap-2">
@@ -657,9 +760,26 @@ export default function SplitBillPage() {
         <DialogContent className="max-w-[min(480px,calc(100%-2rem))] p-6 sm:max-w-[min(480px,calc(100%-2rem))]">
           {selectedSplit && (
             <>
-              <DialogTitle className="mb-4 text-[17px] font-extrabold">
-                {selectedSplit.title}
-              </DialogTitle>
+              <div className="mb-4 flex items-start justify-between gap-2">
+                <DialogTitle className="text-[17px] font-extrabold">
+                  {selectedSplit.title}
+                </DialogTitle>
+                {!selectedSplit.revokedAt && (
+                  <button
+                    onClick={() => handleRevoke(selectedSplit)}
+                    disabled={revokeMutation.isPending}
+                    className="shrink-0 cursor-pointer rounded-md border border-destructive/30 px-2.5 py-1 text-[11px] font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+                  >
+                    {t.splitbill.revokeButton}
+                  </button>
+                )}
+              </div>
+
+              {selectedSplit.revokedAt && (
+                <div className="mb-4 rounded-[10px] bg-destructive/10 px-3.5 py-2.5 text-[12px] text-destructive">
+                  {t.splitbill.revokedNotice}
+                </div>
+              )}
 
               <div className="mb-4 rounded-[14px] bg-accent p-[18px] text-center">
                 <div className="text-[11px] text-muted-foreground">
@@ -701,6 +821,11 @@ export default function SplitBillPage() {
                         {formatRupiah(Number(BigInt(p.amountOwed)))}
                       </div>
                     </div>
+                    {p.status === "claimed" && (
+                      <StatusBadge variant="warning">
+                        {t.splitbill.claimedBadge}
+                      </StatusBadge>
+                    )}
                     {p.status === "paid" ? (
                       <StatusBadge variant="success">
                         {t.splitbill.paidBadge}
@@ -708,34 +833,26 @@ export default function SplitBillPage() {
                     ) : (
                       <button
                         onClick={() =>
-                          settleMutation.mutate({
+                          confirmMutation.mutate({
                             splitId: selectedSplit.id,
                             participantId: p.id,
                           })
                         }
-                        disabled={settleMutation.isPending}
+                        disabled={confirmMutation.isPending}
                         className="shrink-0 cursor-pointer rounded-md border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-success hover:text-success disabled:opacity-50"
                       >
                         {t.splitbill.markPaidButton}
                       </button>
                     )}
+                    <button
+                      onClick={() => handleShareLink(p)}
+                      aria-label={`${t.splitbill.participantLinkLabel}${p.name}`}
+                      className="shrink-0 cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
+                    >
+                      <Link2 className="size-3.5" />
+                    </button>
                   </div>
                 ))}
-              </div>
-
-              <div className="my-4 flex items-center gap-2.5 rounded-[10px] border border-dashed bg-background px-3.5 py-3">
-                <Link2 className="size-4 shrink-0 text-primary" />
-                <span className="mono flex-1 overflow-hidden text-[12px] text-ellipsis whitespace-nowrap text-muted-foreground">
-                  {typeof window !== "undefined"
-                    ? `${window.location.origin}/split/${selectedSplit.shareToken}`
-                    : `/split/${selectedSplit.shareToken}`}
-                </span>
-                <button
-                  onClick={() => handleShareLink(selectedSplit)}
-                  className="shrink-0 cursor-pointer rounded-md bg-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground"
-                >
-                  {t.splitbill.copyButton}
-                </button>
               </div>
             </>
           )}

@@ -6,6 +6,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   Min,
   MinLength,
@@ -31,6 +32,26 @@ export class CreateSplitBillDto {
   @IsString()
   @MaxLength(500)
   notes?: string;
+
+  // EPIC-023 F3 (D21) — the account (in the SAME family group, checked in
+  // SplitBillsService.create) that receives transfers for this bill: shown
+  // to every recipient via their own share link ("how to pay"), and
+  // credited for real once the owner confirms a participant's claim.
+  @ApiProperty({
+    description: "Account that receives transfers for this split bill",
+  })
+  @IsString()
+  @IsUUID()
+  payoutAccountId!: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Free-text payment instructions shown alongside the account (e.g. an e-wallet number)",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  payoutInstructions?: string;
 
   @ApiProperty({ type: [CreateParticipantDto] })
   @IsArray()

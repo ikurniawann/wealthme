@@ -294,13 +294,14 @@ describe("AbilitiesGuard against REAL controllers (closes the fixture-only seam)
       return buildRealContext(SplitBillsController, controller, handler, m);
     }
 
-    it("PERMISSION — member can read (findAll/findOne) and manage (create/remove/settleParticipant)", () => {
+    it("PERMISSION — member can read (findAll/findOne) and manage (create/remove/revoke/confirmParticipant)", () => {
       for (const handler of [
         "findAll",
         "findOne",
         "create",
         "remove",
-        "settleParticipant",
+        "revoke",
+        "confirmParticipant",
       ] as const) {
         expect(guard.canActivate(ctxFor(handler, member))).toBe(true);
       }
@@ -313,12 +314,32 @@ describe("AbilitiesGuard against REAL controllers (closes the fixture-only seam)
           "findOne",
           "create",
           "remove",
-          "settleParticipant",
+          "revoke",
+          "confirmParticipant",
         ] as const) {
           expect(() => guard.canActivate(ctxFor(handler, m))).toThrow(
             ForbiddenException,
           );
         }
+      }
+    });
+
+    // EPIC-023 F3 (D21) — the two PUBLIC routes (getPublicParticipant,
+    // claimParticipant) carry NO `@CheckAbility` by design: they have no
+    // `:familyGroupId` param, so `TenantGuard` never builds a
+    // `tenantContext`, and `AbilitiesGuard` fails OPEN for any handler with
+    // no attached handlers — which is exactly the intended "public, no
+    // authorization check" shape here (the route itself is gated by an
+    // unguessable per-participant token, not by role). Asserted here so a
+    // future accidental `@CheckAbility` addition (which would need a
+    // `tenantContext` these routes never have) fails loudly instead of
+    // silently 403-ing every real recipient.
+    it("PUBLIC — getPublicParticipant/claimParticipant have no @CheckAbility and pass with no tenant context at all", () => {
+      for (const handler of [
+        "getPublicParticipant",
+        "claimParticipant",
+      ] as const) {
+        expect(guard.canActivate(ctxFor(handler, null))).toBe(true);
       }
     });
   });
