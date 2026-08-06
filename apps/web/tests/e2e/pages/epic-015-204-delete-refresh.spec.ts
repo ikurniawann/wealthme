@@ -26,7 +26,12 @@ test("investasi and rekening deletes refresh without a reload", async ({
 
   await page.goto("/investasi");
   await page.waitForTimeout(1000);
-  await page.locator('[data-tour="add-investasi"]').click();
+  // EPIC-023 Task H fix round (MEDIUM 15) — `data-tour` markers were dead
+  // attributes left over from the removed button-spotlight tour; select by
+  // the button's own accessible name instead.
+  await page
+    .getByRole("button", { name: "+ Tambah Investasi", exact: true })
+    .click();
   await page.getByRole("dialog").waitFor({ state: "visible", timeout: 5000 });
   await page.locator("#ticker").fill("TLKM");
   await page.locator("#name").fill("Telkom Indonesia");
@@ -48,7 +53,7 @@ test("investasi and rekening deletes refresh without a reload", async ({
 
   await page.goto("/rekening");
   await page.waitForTimeout(1000);
-  await page.locator('[data-tour="add-rekening"]').click();
+  await page.getByRole("button", { name: "Tambah", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog.locator("input").first().fill("Rekening 204 Test");
   await dialog.getByRole("button", { name: /simpan/i }).click();

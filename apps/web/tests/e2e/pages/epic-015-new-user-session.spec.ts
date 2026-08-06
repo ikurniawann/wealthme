@@ -23,7 +23,13 @@ test("new-user journey: session resolves, adds work, no demo data leaks", async 
   await page.getByText("Lewati").click();
 
   await page.goto("/rekening");
-  const addRekening = page.locator('[data-tour="add-rekening"]');
+  // EPIC-023 Task H fix round (MEDIUM 15) — `data-tour` markers were dead
+  // attributes left over from the removed button-spotlight tour; select by
+  // the button's own accessible name instead.
+  const addRekening = page.getByRole("button", {
+    name: "Tambah",
+    exact: true,
+  });
   await expect(addRekening).toBeEnabled({ timeout: 10000 });
   await addRekening.click();
   const dialog = page.getByRole("dialog");
@@ -36,7 +42,10 @@ test("new-user journey: session resolves, adds work, no demo data leaks", async 
 
   await page.goto("/investasi");
   await page.waitForTimeout(1500);
-  const addInvestasi = page.locator('[data-tour="add-investasi"]');
+  const addInvestasi = page.getByRole("button", {
+    name: "+ Tambah Investasi",
+    exact: true,
+  });
   await addInvestasi.click();
   await expect(page.getByRole("dialog")).toBeVisible({ timeout: 5000 });
   await page.keyboard.press("Escape");

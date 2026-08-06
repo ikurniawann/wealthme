@@ -273,3 +273,84 @@ describe("MasterCoaPage — COA code auto-gen + editable (EPIC-021 #4)", () => {
     );
   });
 });
+
+// EPIC-023 Task H2 (D18) — the plain-language guide + worked examples that
+// now sit above the account list, and the honest risk statement it carries.
+describe("MasterCoaPage — plain-language guide (EPIC-023 H2)", () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    queryClient.clear();
+
+    mockUseSessionAuth.mockReturnValue({
+      data: {
+        session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
+        user: { id: "user-1", name: "Test User", email: "user@example.com" },
+      },
+      isPending: false,
+    });
+  });
+
+  it("states the risk of editing the COA incorrectly, and explains why groups 4/5 are transfers", async () => {
+    // Arrange
+    mockCoaRoutes([buildAccount()]);
+    render(<MasterCoaPage />);
+    await screen.findByText("Belanja");
+
+    // Assert — the risk (D18) is stated plainly, not buried.
+    expect(screen.getByText("⚠️ Risiko kalau salah edit")).toBeInTheDocument();
+    expect(
+      screen.getByText(/laporan laba-rugi dan neracamu bisa langsung salah/),
+    ).toBeInTheDocument();
+
+    // Assert — the single most counter-intuitive point (D23: 4/5 are
+    // TRANSFER, not expense/income) is taught explicitly with a worked
+    // example, not just a label.
+    expect(
+      screen.getByText("Kenapa Piutang & Utang bukan expense/income?"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Melunasi pokok utang BUKAN pengeluaran/),
+    ).toBeInTheDocument();
+  });
+
+  it("gives every one of the 6 groups a worked example with concrete numbers", async () => {
+    // Arrange
+    mockCoaRoutes([buildAccount()]);
+    render(<MasterCoaPage />);
+    await screen.findByText("Belanja");
+
+    // Assert — each group has its own plain-language title and example.
+    expect(screen.getByText("1 · Pemasukan (Income)")).toBeInTheDocument();
+    expect(screen.getByText("2 · Pengeluaran (Expense)")).toBeInTheDocument();
+    expect(
+      screen.getByText("3 · Alokasi Kekayaan (Wealth Allocation)"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("4 · Piutang (Account Receivable)"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("5 · Utang (Account Payable)")).toBeInTheDocument();
+    expect(screen.getByText("6 · Pajak (Tax)")).toBeInTheDocument();
+    expect(
+      screen.getByText(/gaji Rp 10\.000\.000 masuk ke rekening BCA-mu/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/kamu pinjamkan Rp 500\.000 ke teman/),
+    ).toBeInTheDocument();
+  });
+
+  it("exposes real heading elements so a screen reader can navigate by heading (EPIC-023 Task H fix round, MEDIUM 13)", async () => {
+    // Arrange — SectionCard's own `title` div (components/wm, protected)
+    // has no heading semantics; the guide passes a real <h2>/<h3> INTO it
+    // instead of editing the protected component.
+    mockCoaRoutes([buildAccount()]);
+    render(<MasterCoaPage />);
+    await screen.findByText("Belanja");
+
+    expect(
+      screen.getByRole("heading", { name: "Apa itu Master COA?" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "6 grup, dan artinya untuk uangmu" }),
+    ).toBeInTheDocument();
+  });
+});

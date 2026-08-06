@@ -1126,7 +1126,6 @@ export default function AsuransiPage() {
           onClick={() => setShowModal(true)}
           disabled={!familyGroupId}
           className="h-auto px-4 py-[9px]"
-          data-tour="add-asuransi"
         >
           <Plus className="size-4" /> {t.common.add}
         </Button>

@@ -680,7 +680,7 @@ export default function RekeningPage() {
             )}
           </div>
         </div>
-        <Button type="button" onClick={openAdd} data-tour="add-rekening">
+        <Button type="button" onClick={openAdd}>
           <Plus className="size-4" /> {t.rekening.addButton}
         </Button>
       </div>

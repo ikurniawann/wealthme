@@ -927,7 +927,6 @@ export default function AsetPage() {
             onClick={() => setShowAddModal(true)}
             className="h-auto px-[14px] py-2"
             disabled={!familyGroupId || !token}
-            data-tour="add-aset"
           >
             <Plus className="size-4" /> {t.aset.addAssetButton}
           </Button>

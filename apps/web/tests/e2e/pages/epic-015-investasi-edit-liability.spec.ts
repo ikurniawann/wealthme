@@ -26,7 +26,12 @@ test("investasi edit/delete works, liabilitas comma interest rate works", async 
 
   await page.goto("/investasi");
   await page.waitForTimeout(1000);
-  await page.locator('[data-tour="add-investasi"]').click();
+  // EPIC-023 Task H fix round (MEDIUM 15) — `data-tour` markers were dead
+  // attributes left over from the removed button-spotlight tour; select by
+  // the button's own accessible name instead.
+  await page
+    .getByRole("button", { name: "+ Tambah Investasi", exact: true })
+    .click();
   await page.getByRole("dialog").waitFor({ state: "visible", timeout: 5000 });
   await page.locator("#ticker").fill("BBRI");
   await page.locator("#name").fill("Bank Rakyat Indonesia");

@@ -1386,6 +1386,26 @@ export type I18nDictionary = {
     toastDeleted: string;
     toastDeleteFailed: string;
     toastSessionNotReady: string;
+    /**
+     * EPIC-023 Task H2 (D18) — plain-language explainer + worked examples,
+     * always visible above the account list. `groups` intentionally repeats
+     * the group number in `title` (badges/tabs above stay short via
+     * `groupLabels`; this is the long-form explanation, not a second label
+     * for the same UI slot).
+     */
+    guide: {
+      introTitle: string;
+      introBody: string;
+      riskTitle: string;
+      riskBody: string;
+      groupsTitle: string;
+      groups: Record<
+        MasterCoaGroupNum,
+        { title: string; meaning: string; example: string }
+      >;
+      transferCalloutTitle: string;
+      transferCalloutBody: string;
+    };
   };
   /** EPIC-018 Task A6 — `/notifikasi` (notifications) page copy. Notification
    * `title`/`body`/`icon` come from the API (real user-facing content set at
@@ -2562,5 +2582,109 @@ export type I18nDictionary = {
     toastRevokeSuccess: string;
     toastRevokeFailed: string;
     toastRegisterFailed: string;
+  };
+  /**
+   * EPIC-023 Task H3 (D22, US-DASH-7) — the guided first-setup that replaces
+   * the old button tour (`components/onboarding/tour-steps.ts`, removed):
+   * it creates a REAL account, budget, and transaction through the same
+   * endpoints the real pages use, and shows the consequence (net worth
+   * appearing/moving, budget usage rising) after each real write.
+   */
+  onboarding: {
+    welcomeTitle: string;
+    welcomeBody: string;
+    startSetupButton: string;
+    exploreAllButton: string;
+    skipButton: string;
+    resumeTitle: string;
+    resumeBody: string;
+    resumeContinueButton: string;
+    resumeRestartButton: string;
+    resumeSkipButton: string;
+    dialogTitle: string;
+    stepIndicatorPrefix: string;
+    stepIndicatorMiddle: string;
+    skipSetupButton: string;
+    backButton: string;
+    continueButton: string;
+    netWorthLabel: string;
+    /** MEDIUM 8 — shown before closing via "Lewati Setup" when at least one
+     * real row (account/budget) already exists, so the user knows what's
+     * kept even though the resumable "continue setup?" prompt won't fire
+     * again after this. */
+    skipAllKeptPrefix: string;
+    stepLabels: {
+      account: string;
+      budget: string;
+      transaction: string;
+      done: string;
+    };
+    account: {
+      title: string;
+      body: string;
+      nameLabel: string;
+      namePlaceholder: string;
+      /** MEDIUM 12 — associated via aria-describedby on the name input,
+       * since the submit button it explains is unreachable once disabled. */
+      nameRequiredHint: string;
+      balanceLabel: string;
+      submitButton: string;
+      submitting: string;
+      alreadyHaveNotice: string;
+      skipStepButton: string;
+      consequenceTitle: string;
+      consequenceBefore: string;
+      consequenceAfter: string;
+      toastCreated: string;
+      toastFailed: string;
+    };
+    budget: {
+      title: string;
+      body: string;
+      nameLabel: string;
+      namePlaceholder: string;
+      limitLabel: string;
+      /** MEDIUM 12 — associated via aria-describedby on both fields. */
+      requiredHint: string;
+      submitButton: string;
+      submitting: string;
+      alreadyHaveNotice: string;
+      skipStepButton: string;
+      consequenceTitle: string;
+      consequenceBody: string;
+      toastCreated: string;
+      toastFailed: string;
+    };
+    transaction: {
+      title: string;
+      body: string;
+      amountLabel: string;
+      /** MEDIUM 12 — associated via aria-describedby on the amount input. */
+      amountRequiredHint: string;
+      descriptionLabel: string;
+      descriptionPlaceholder: string;
+      submitButton: string;
+      submitting: string;
+      consequenceTitle: string;
+      consequenceNetWorthPrefix: string;
+      consequenceBudgetPrefix: string;
+      consequenceBudgetSuffix: string;
+      toastCreated: string;
+      toastHeld: string;
+      toastFailed: string;
+      noAccountError: string;
+    };
+    done: {
+      title: string;
+      body: string;
+      /** Shown instead of `body` when the transaction step's expense was
+       * held for approval (D3/D9) instead of posted — the done screen must
+       * not claim a transaction was created when it honestly wasn't. */
+      bodyHeld: string;
+      viewAccountsButton: string;
+      viewBudgetsButton: string;
+      viewTransactionsButton: string;
+      finishButton: string;
+    };
   };
 };

@@ -533,9 +533,9 @@ export const en = {
         },
       },
       guideSectionTitle: "Feature Guide",
-      tourName: "Start Interactive Tour",
+      tourName: "Start Guided Setup",
       tourSub:
-        "A ~3-minute tour that walks you through adding accounts, assets, investments, and other key features",
+        "A ~2-minute setup that creates your first account, budget, and transaction — real ones, not a simulation",
       fullGuideName: "Complete Feature Guide",
       fullGuideSub: "Every feature, grouped by category",
       askAiName: "Ask AI Advisor",
@@ -1418,6 +1418,62 @@ export const en = {
     toastDeleted: "COA account deleted successfully",
     toastDeleteFailed: "Failed to delete COA account",
     toastSessionNotReady: "Session not ready yet. Please try again shortly.",
+    guide: {
+      introTitle: "What is the Master COA?",
+      introBody:
+        'The Master COA (Chart of Accounts) is the list of "boxes" every transaction gets filed into. Every time you record income, an expense, or a transfer, WealthMe puts it into one of the 6 groups below — and that group decides how the number shows up in your profit & loss and balance sheet.',
+      riskTitle: "⚠️ The risk of editing this wrong",
+      riskBody:
+        "The Master COA is the foundation every report rests on. If you change the group or direction (income/expense/transfer) of an account that's already in use, every past transaction filed under it changes meaning too — your profit & loss and balance sheet can go wrong instantly, with no warning. Only edit this if you genuinely understand the consequence.",
+      groupsTitle: "6 groups, and what they mean for your money",
+      groups: {
+        1: {
+          title: "1 · Income",
+          meaning:
+            "Money that genuinely grows your wealth — salary, bonuses, sales proceeds, savings interest. Every rupiah in this group raises the profit on your P&L.",
+          example:
+            'Example: a Rp 10,000,000 salary lands in your BCA account and is recorded as "Salary" (group 1). This month\'s P&L immediately shows Rp 10,000,000 of income — and it also raises your net worth on the balance sheet.',
+        },
+        2: {
+          title: "2 · Expense",
+          meaning:
+            "Money that's genuinely spent and gone — groceries, food, electricity, transport. Every rupiah in this group lowers the profit on your P&L.",
+          example:
+            'Example: a Rp 1,500,000 monthly grocery run is recorded as "Household Needs" (group 2). The P&L records it as a Rp 1,500,000 expense this month.',
+        },
+        3: {
+          title: "3 · Wealth Allocation",
+          meaning:
+            "Money that moves, not money that's gone — saving, buying gold or investments, moving money between your own accounts. This money does NOT show up as an expense, because your wealth hasn't shrunk — only its shape changed.",
+          example:
+            'Example: from the same Rp 10,000,000 salary above, if you move Rp 2,000,000 of it into a savings account and record it in group 3 ("Savings"), the P&L does NOT record it as an expense — the money is still yours, it just changed accounts. Compare with the salary in group 1, which DID raise profit; money moved into group 3 does NOT lower it.',
+        },
+        4: {
+          title: "4 · Receivable",
+          meaning:
+            "Money you LEND to someone else and expect back. That's not an expense — your money isn't gone, someone else is just holding it for now. That's why this group's direction is TRANSFER, not expense.",
+          example:
+            'A commonly mis-recorded example: you lend a friend Rp 500,000, recorded in group 4. The P&L does NOT treat it as a Rp 500,000 expense — your net worth stays the same, it just changed shape from "cash" to "receivable". Once your friend repays it, the receivable turns back into cash — also not income.',
+        },
+        5: {
+          title: "5 · Payable",
+          meaning:
+            "Money you BORROW from someone or an institution (including installments/mortgages) and owe back. Repaying the PRINCIPAL is not an expense — that money was never yours to begin with. That's why this group is also TRANSFER.",
+          example:
+            "A commonly mis-recorded example: you pay a Rp 5,000,000 mortgage installment (Rp 4,200,000 principal + Rp 800,000 interest). Only the Rp 800,000 interest is recorded as an expense (group 2) — the Rp 4,200,000 principal reduces the liability in group 5, not an expense, because that money was never your income when you borrowed it.",
+        },
+        6: {
+          title: "6 · Tax",
+          meaning:
+            "Tax you pay to the government — income tax, property tax, and the like. This is a real expense you can never get back, so it stays an expense.",
+          example:
+            "Example: a Rp 800,000 property tax bill is recorded in group 6. The P&L records it as a Rp 800,000 expense, same as group 2.",
+        },
+      },
+      transferCalloutTitle: "Why aren't Receivable & Payable income/expense?",
+      transferCalloutBody:
+        "This is the single most commonly mis-recorded thing. Repaying loan principal is NOT an expense — that money was someone else's all along, so paying it back doesn't lower your profit, only your debt. Likewise, lending money out is NOT an expense (your money isn't gone) and getting a loan repayment back is NOT income (it was already yours). If groups 4/5 were ever changed to income/expense, your P&L would count borrowed money as a profit or loss that never actually happened.",
+    },
   },
   notifikasi: {
     title: "Notifications",
@@ -2587,5 +2643,97 @@ export const en = {
     toastRevokeSuccess: "Device forgotten.",
     toastRevokeFailed: "Failed to forget device.",
     toastRegisterFailed: "Failed to register this device. Please try again.",
+  },
+  onboarding: {
+    welcomeTitle: "Welcome to WealthMe 👋",
+    welcomeBody:
+      "Your family's finance app — record, plan, and track your wealth in one place.",
+    startSetupButton: "Start First Setup (~2 min)",
+    exploreAllButton: "Explore All Features",
+    skipButton: "Skip",
+    resumeTitle: "Continue your first setup?",
+    resumeBody:
+      "You started setup before but didn't finish. Anything you already created is still saved — continue from your last step, start over, or just skip it.",
+    resumeContinueButton: "Continue Setup",
+    resumeRestartButton: "Start Over",
+    resumeSkipButton: "Just Skip",
+    dialogTitle: "First Setup",
+    stepIndicatorPrefix: "Step ",
+    stepIndicatorMiddle: " of ",
+    skipSetupButton: "Skip Setup",
+    backButton: "Back",
+    continueButton: "Continue",
+    netWorthLabel: "Net Worth",
+    skipAllKeptPrefix: "What you already created is still saved: ",
+    stepLabels: {
+      account: "Account",
+      budget: "Budget",
+      transaction: "Transaction",
+      done: "Done",
+    },
+    account: {
+      title: "Add your first account",
+      body: "Every account (bank, cash, or e-wallet) you add is counted into your net worth immediately. This is a REAL account — it will show up on your own Accounts page.",
+      nameLabel: "Account Name",
+      namePlaceholder: "e.g. BCA Savings",
+      nameRequiredHint: "Account name is required to continue.",
+      balanceLabel: "Current Balance",
+      submitButton: "Add Account & See Net Worth",
+      submitting: "Saving...",
+      alreadyHaveNotice: "You already have an account on record.",
+      skipStepButton: "Skip this step",
+      consequenceTitle: "Watch — your net worth just appeared",
+      consequenceBefore: "Before: ",
+      consequenceAfter: "After: ",
+      toastCreated: "Account created",
+      toastFailed: "Couldn't create the account. Try again.",
+    },
+    budget: {
+      title: "Create your first budget",
+      body: "A budget sets a spending limit for one category. This is a REAL budget — it will show up on your own Budget page, and will start tracking transactions in the same category right away.",
+      nameLabel: "Category Name",
+      namePlaceholder: "e.g. Food & Drink",
+      limitLabel: "Monthly Limit",
+      requiredHint: "Category name and monthly limit are required to continue.",
+      submitButton: "Create Budget",
+      submitting: "Saving...",
+      alreadyHaveNotice: "You already have a budget on record.",
+      skipStepButton: "Skip this step",
+      consequenceTitle: "Budget ready — 0% used",
+      consequenceBody:
+        "As soon as a transaction lands in this category, the usage number rises automatically. Continue to the next step to watch it happen.",
+      toastCreated: "Budget created",
+      toastFailed: "Couldn't create the budget. Try again.",
+    },
+    transaction: {
+      title: "Record your first expense",
+      body: "Record one real expense from the account you just created, in the budget category you just created. This is a REAL transaction — it will show up on your own Transactions page.",
+      amountLabel: "Amount",
+      amountRequiredHint:
+        "Amount is required and must be more than Rp 0 to continue.",
+      descriptionLabel: "Note (optional)",
+      descriptionPlaceholder: "e.g. Lunch",
+      submitButton: "Record & See What Changes",
+      submitting: "Saving...",
+      consequenceTitle: "Watch — two things change at once",
+      consequenceNetWorthPrefix: "Your net worth dropped to ",
+      consequenceBudgetPrefix: "Your budget is now ",
+      consequenceBudgetSuffix: " of the limit used",
+      toastCreated: "Transaction recorded",
+      toastHeld:
+        "This expense is over the threshold and is waiting for approval — it wasn't posted as a transaction yet.",
+      toastFailed: "Couldn't record the transaction. Try again.",
+      noAccountError: "Create an account in the previous step first.",
+    },
+    done: {
+      title: "Your first setup is done 🎉",
+      body: "You just created a REAL account, budget, and transaction — not a simulation. All of them are already visible, editable, and deletable on their own pages.",
+      bodyHeld:
+        "You created a REAL account and budget. Your last expense was over your family's threshold and is waiting for approval — so it wasn't posted as a transaction yet, but you can watch its status on your Accounts page.",
+      viewAccountsButton: "View Accounts",
+      viewBudgetsButton: "View Budgets",
+      viewTransactionsButton: "View Transactions",
+      finishButton: "Finish",
+    },
   },
 } satisfies I18nDictionary;
