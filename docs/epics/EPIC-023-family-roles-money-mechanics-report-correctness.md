@@ -1477,3 +1477,22 @@ does not exist`, which the agent then diagnosed as a pre-existing broken
   `update()` and `pay()` all return `paidThisPeriod: false` by default, because
   that is exactly what E does on `development` — a conflict resolution is the
   wrong place to introduce behaviour neither branch had.
+- 2026-08-06 — Group H's PR #247 went `CONFLICTING` the moment F merged; same
+  remedy as F (merge `development` in; rebase would need a force-push). Final:
+  **api 1057/1057 (87 suites), web 360/360 (41 suites)**, CI green, PR back to
+  `CLEAN`.
+  **Git flagged one file and it was the least important one** — the epic's own
+  Automation Log, where both branches had appended entries. Unioned.
+  **The file that mattered was the one git merged silently**: F added its
+  religion setting to `akun/page.tsx` while H repaired the shared `Field`
+  helper in the same file. Verified by hand rather than trusted: they compose —
+  F's religion `<select>` is wrapped in `Field`, so it inherits the label
+  association H added, and F's loading/error gating survives intact. A textual
+  auto-merge being clean says nothing about whether two changes to one file
+  still mean what each author intended.
+  **`packages/contracts/dist` was auto-merged into content not matching `src`
+  for the SECOND merge running** — git reported no conflict both times, and
+  rebuilding rewrote files both times. Treat a clean git report on committed
+  build output as meaningless: always rebuild from `src`. A wrong `dist`
+  surfaces as an unreadable SIGTRAP in the Next type-checker, never as a type
+  error, so nothing downstream would have caught it.
