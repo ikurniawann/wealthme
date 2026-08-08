@@ -1,0 +1,833 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rekonsiliasi · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+  </head>
+  <body>
+    <main class="page">
+      <!-- Page lead -->
+      <section class="page-lead">
+        <div class="page-lead__text">
+          <div class="section-title">Rekonsiliasi Bank</div>
+          <div class="page-lead__sub">
+            Unggah mutasi rekening, cocokkan otomatis dengan transaksi yang sudah kamu catat, lalu simpan hasilnya.
+          </div>
+        </div>
+        <div class="row" style="gap: 8px">
+          <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-template')">
+            <i data-lucide="table-properties" style="width: 15px; height: 15px"></i> Kelola Template
+          </button>
+          <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-upload')">
+            <i data-lucide="upload" style="width: 15px; height: 15px"></i> Upload Mutasi
+          </button>
+        </div>
+      </section>
+
+      <!-- Stepper -->
+      <section class="auto-grid auto-grid--metrics">
+        <article class="card stat" style="border-color: color-mix(in oklab, var(--primary) 45%, var(--border))">
+          <div class="row" style="gap: 9px">
+            <span class="stat__icon" style="background: var(--primary); color: var(--primary-foreground)">1</span>
+            <span class="badge badge--info">Selesai</span>
+          </div>
+          <div>
+            <div class="stat__label">Upload</div>
+            <div class="t-sm t-bold">Upload dokumen</div>
+          </div>
+        </article>
+        <article class="card stat" style="border-color: color-mix(in oklab, var(--primary) 45%, var(--border))">
+          <div class="row" style="gap: 9px">
+            <span class="stat__icon" style="background: var(--primary); color: var(--primary-foreground)">2</span>
+            <span class="badge badge--info">Selesai</span>
+          </div>
+          <div>
+            <div class="stat__label">Pindai</div>
+            <div class="t-sm t-bold">Pemetaan kolom &amp; pembacaan baris</div>
+          </div>
+        </article>
+        <article class="card stat" style="border-color: var(--primary); box-shadow: var(--shadow-pop)">
+          <div class="row" style="gap: 9px">
+            <span class="stat__icon" style="background: var(--primary); color: var(--primary-foreground)">3</span>
+            <span class="badge badge--warning">Sedang berjalan</span>
+          </div>
+          <div>
+            <div class="stat__label">Cocokkan</div>
+            <div class="t-sm t-bold">Samakan transaksi</div>
+          </div>
+        </article>
+        <article class="card stat">
+          <div class="row" style="gap: 9px">
+            <span class="stat__icon" style="background: var(--secondary); color: var(--muted-foreground)">4</span>
+            <span class="badge badge--gray">Menunggu</span>
+          </div>
+          <div>
+            <div class="stat__label">Selesai</div>
+            <div class="t-sm t-bold">Simpan hasil</div>
+          </div>
+        </article>
+      </section>
+
+      <!-- Upload + supported formats -->
+      <section class="grid grid--sidebar">
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">Upload Rekening Koran / Rekon Bank</h2>
+            <span class="card__action t-xs t-muted">Maksimal 20 MB per file</span>
+          </div>
+          <div class="card__body">
+            <div
+              id="dropzone"
+              style="
+                display: grid;
+                place-items: center;
+                gap: 8px;
+                padding: 30px 20px;
+                text-align: center;
+                border: 2px dashed color-mix(in oklab, var(--primary) 40%, var(--border));
+                border-radius: 13px;
+                background: color-mix(in oklab, var(--accent) 45%, transparent);
+              "
+            >
+              <i data-lucide="cloud-upload" style="width: 34px; height: 34px; color: var(--primary)"></i>
+              <div class="t-md t-bold">Seret &amp; lepas file di sini</div>
+              <div class="t-xs t-muted">atau</div>
+              <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-upload')">Pilih File</button>
+              <div class="t-xs t-muted mono" style="margin-top: 4px">CSV · XLSX</div>
+            </div>
+
+            <div class="notice notice--info" style="margin-top: 12px">
+              <i data-lucide="file-spreadsheet" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+              <span>
+                <strong>Format yang didukung: CSV dan Excel (.xlsx).</strong> Kolom minimal yang dibutuhkan: tanggal,
+                keterangan, dan jumlah (atau pasangan debit/kredit).
+              </span>
+            </div>
+
+            <div class="notice notice--danger" style="margin-top: 8px">
+              <i data-lucide="file-x" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+              <span>
+                <strong>PDF ditolak — ini disengaja.</strong> Statement PDF tidak bisa diproses secara otomatis: tata
+                letaknya berbeda tiap bank dan angka hasil bacaan sering meleset tanpa ketahuan. Ekspor mutasi rekening
+                sebagai CSV dari aplikasi atau situs bank Anda, lalu unggah file CSV tersebut. Format
+                <span class="mono">.xls</span> (Excel 97–2003) juga tidak didukung — simpan ulang sebagai
+                <span class="mono">.xlsx</span>.
+              </span>
+            </div>
+          </div>
+        </article>
+
+        <div class="stack" style="gap: 14px">
+          <article class="card">
+            <div class="card__header">
+              <h2 class="card__title">Bank yang Didukung</h2>
+              <button class="card-link card__action" onclick="WM.toast('Menampilkan 24 bank lainnya','info')">
+                Lihat semua
+              </button>
+            </div>
+            <div class="card__body">
+              <div class="row row--wrap" style="gap: 6px">
+                <span class="badge badge--info">BCA</span>
+                <span class="badge badge--info">Mandiri</span>
+                <span class="badge badge--info">BNI</span>
+                <span class="badge badge--info">BRI</span>
+                <span class="badge badge--gray">CIMB Niaga</span>
+                <span class="badge badge--gray">Permata</span>
+                <span class="badge badge--gray">••• Lainnya</span>
+              </div>
+              <p class="hint">
+                Pilih bank saat mengunggah untuk menerapkan template pemetaan kolom tersimpan, atau biarkan kosong untuk
+                deteksi otomatis.
+              </p>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card__header">
+              <h2 class="card__title">Tips Rekonsiliasi</h2>
+            </div>
+            <div class="card__body stack" style="gap: 7px">
+              <div class="row" style="align-items: flex-start; gap: 8px">
+                <i data-lucide="check" style="width: 15px; height: 15px; color: var(--success); margin-top: 2px"></i>
+                <span class="t-sm">Pastikan periode tanggal pada dokumen sesuai</span>
+              </div>
+              <div class="row" style="align-items: flex-start; gap: 8px">
+                <i data-lucide="check" style="width: 15px; height: 15px; color: var(--success); margin-top: 2px"></i>
+                <span class="t-sm">Hapus halaman yang tidak berisi transaksi</span>
+              </div>
+              <div class="row" style="align-items: flex-start; gap: 8px">
+                <i data-lucide="check" style="width: 15px; height: 15px; color: var(--success); margin-top: 2px"></i>
+                <span class="t-sm">Gunakan file asli tanpa edit agar hasil lebih akurat</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Column mapping step -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Pemetaan Kolom — BCA Tahapan ···9010</h2>
+          <div class="card__action row" style="gap: 8px">
+            <span class="badge badge--success">Template tersimpan</span>
+            <button class="card-link" onclick="WM.openDialog('dlg-template')">Kelola Template</button>
+          </div>
+        </div>
+        <div class="card__body">
+          <p class="t-sm t-muted" style="margin: 0 0 12px">
+            Cocokkan nama kolom di file bank dengan kolom WealthMe. Simpan sekali sebagai template, dan setiap unggahan
+            berikutnya dari bank yang sama otomatis memakainya.
+          </p>
+
+          <div class="grid grid--4 grid--stack-sm">
+            <label class="field">
+              <span class="label">Tanggal</span>
+              <select class="select">
+                <option selected>Tanggal Transaksi</option>
+                <option>Posting Date</option>
+                <option>Tgl</option>
+              </select>
+              <span class="hint mono">contoh: 03/08/2026</span>
+            </label>
+            <label class="field">
+              <span class="label">Deskripsi</span>
+              <select class="select">
+                <option selected>Keterangan</option>
+                <option>Remark</option>
+                <option>Uraian</option>
+              </select>
+              <span class="hint">contoh: TRSF E-BANKING CR</span>
+            </label>
+            <label class="field">
+              <span class="label">Debit (keluar)</span>
+              <select class="select">
+                <option selected>Mutasi DB</option>
+                <option>Debit</option>
+                <option>— tidak ada —</option>
+              </select>
+              <span class="hint mono">875.000,00</span>
+            </label>
+            <label class="field">
+              <span class="label">Kredit (masuk)</span>
+              <select class="select">
+                <option selected>Mutasi CR</option>
+                <option>Kredit</option>
+                <option>— tidak ada —</option>
+              </select>
+              <span class="hint mono">42.500.000,00</span>
+            </label>
+          </div>
+
+          <div class="row row--wrap" style="margin-top: 14px; gap: 10px">
+            <label class="row" style="gap: 8px">
+              <span class="switch" role="switch" aria-checked="true" tabindex="0"></span>
+              <span class="t-sm">Simpan pemetaan ini sebagai template <strong>BCA Giro</strong></span>
+            </label>
+            <span class="spacer"></span>
+            <button class="btn btn--outline btn--sm" onclick="WM.toast('Pemetaan diuji pada 5 baris pertama','info')">
+              Uji 5 baris
+            </button>
+            <button
+              class="btn btn--primary btn--sm"
+              onclick="WM.toast('✅ Template pemetaan kolom disimpan','success')"
+            >
+              Simpan Template
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Summary -->
+      <section class="recon-summary-grid">
+        <div class="grid grid--3">
+          <article class="card stat">
+            <div class="stat__icon" style="background: var(--success-soft); color: var(--success)">✅</div>
+            <div>
+              <div class="stat__label">Cocok</div>
+              <div class="stat__value mono">128</div>
+            </div>
+            <div class="stat__delta t-success">Rp 214.870.000 tercocokkan</div>
+          </article>
+          <article class="card stat">
+            <div class="stat__icon" style="background: var(--warning-soft); color: var(--warning)">⚠️</div>
+            <div>
+              <div class="stat__label">Perlu Review</div>
+              <div class="stat__value mono">14</div>
+            </div>
+            <div class="stat__delta t-warning">Tersarankan, menunggu konfirmasi</div>
+          </article>
+          <article class="card stat">
+            <div
+              class="stat__icon"
+              style="background: color-mix(in oklab, var(--destructive) 14%, transparent); color: var(--destructive)"
+            >
+              ❌
+            </div>
+            <div>
+              <div class="stat__label">Tidak Cocok</div>
+              <div class="stat__value mono">9</div>
+            </div>
+            <div class="stat__delta t-danger">Belum ada transaksi padanan</div>
+          </article>
+        </div>
+
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">Komposisi Hasil</h2>
+            <span class="card__action badge badge--gray mono">151 baris</span>
+          </div>
+          <div class="card__body">
+            <div class="recon-composition">
+              <div class="recon-composition__headline">
+                <span class="t-xs t-muted">Cocok otomatis</span>
+                <strong class="mono">84,8%</strong>
+              </div>
+              <div
+                class="recon-composition__bar"
+                role="img"
+                aria-label="128 baris cocok, 14 perlu review, dan 9 tidak cocok dari total 151 baris"
+              >
+                <span class="recon-composition__segment recon-composition__segment--match" style="width: 84.8%"></span>
+                <span class="recon-composition__segment recon-composition__segment--review" style="width: 9.3%"></span>
+                <span class="recon-composition__segment recon-composition__segment--miss" style="width: 5.9%"></span>
+              </div>
+              <div class="recon-composition__legend">
+                <div class="recon-composition__item">
+                  <span class="recon-composition__dot" style="background: var(--success)"></span>
+                  <span>Cocok</span>
+                  <strong class="mono">128</strong>
+                </div>
+                <div class="recon-composition__item">
+                  <span class="recon-composition__dot" style="background: var(--warning)"></span>
+                  <span>Perlu review</span>
+                  <strong class="mono">14</strong>
+                </div>
+                <div class="recon-composition__item">
+                  <span class="recon-composition__dot" style="background: var(--destructive)"></span>
+                  <span>Tidak cocok</span>
+                  <strong class="mono">9</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- Match table -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Hasil Pencocokan</h2>
+          <div class="card__action row" style="gap: 8px">
+            <div class="tabs" style="padding-bottom: 0">
+              <button class="tab" aria-selected="true">Semua</button>
+              <button class="tab" aria-selected="false">Perlu Review</button>
+              <button class="tab" aria-selected="false">Tidak Cocok</button>
+            </div>
+          </div>
+        </div>
+        <div class="card__body" style="padding-top: 8px">
+          <div class="table-wrap">
+            <table class="table" style="min-width: 860px">
+              <thead>
+                <tr>
+                  <th>Tanggal</th>
+                  <th>Rekening Koran</th>
+                  <th>Jumlah</th>
+                  <th>Transaksi WealthMe</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="mono t-sm">05/08/2026</td>
+                  <td>
+                    <div class="t-sm t-bold">TRSF E-BANKING CR PT SUMBER ARTA</div>
+                    <div class="t-xs t-muted mono">REF 8829104 · BCA ···9010</div>
+                  </td>
+                  <td class="mono t-success t-bold">+Rp 42.500.000</td>
+                  <td>
+                    <div class="t-sm">Gaji Agustus</div>
+                    <div class="t-xs t-muted">Mandiri ···5586 · Gaji · 5 Agu</div>
+                  </td>
+                  <td><span class="badge badge--success">Cocok</span></td>
+                  <td>
+                    <button class="btn btn--ghost btn--sm" onclick="WM.toast('Entri sudah tercocokkan','info')">
+                      Detail
+                    </button>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td class="mono t-sm">05/08/2026</td>
+                  <td>
+                    <div class="t-sm t-bold">DB TRSF GOPAY TOPUP + BIAYA</div>
+                    <div class="t-xs t-muted mono">REF 8829330 · BCA ···9010</div>
+                  </td>
+                  <td class="mono t-danger t-bold">−Rp 1.001.500</td>
+                  <td>
+                    <div class="t-sm t-muted">Top up GoPay — Rp 1.000.000</div>
+                    <div class="t-xs t-warning">Selisih Rp 1.500 (biaya admin)</div>
+                  </td>
+                  <td><span class="badge badge--warning">Tersarankan</span></td>
+                  <td>
+                    <div class="row" style="gap: 6px">
+                      <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-split')">Pecah</button>
+                      <button class="btn btn--ghost btn--sm" onclick="WM.toast('Entri diabaikan','info')">
+                        Abaikan
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td class="mono t-sm">04/08/2026</td>
+                  <td>
+                    <div class="t-sm t-bold">DB KARTU DEBIT SUPERINDO ANTASARI</div>
+                    <div class="t-xs t-muted mono">REF 8828771 · BCA ···9010</div>
+                  </td>
+                  <td class="mono t-danger t-bold">−Rp 875.000</td>
+                  <td>
+                    <div class="t-sm t-muted">Belanja mingguan — Superindo</div>
+                    <div class="t-xs t-muted">Beda tanggal 1 hari (3 Agu)</div>
+                  </td>
+                  <td><span class="badge badge--warning">Tersarankan</span></td>
+                  <td>
+                    <div class="row" style="gap: 6px">
+                      <button
+                        class="btn btn--primary btn--sm"
+                        onclick="WM.toast('Entri berhasil dikonfirmasi!','success')"
+                      >
+                        Cocokkan
+                      </button>
+                      <button class="btn btn--ghost btn--sm" onclick="WM.toast('Entri diabaikan','info')">
+                        Abaikan
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td class="mono t-sm">03/08/2026</td>
+                  <td>
+                    <div class="t-sm t-bold">DB ANGSURAN KPR 0038291</div>
+                    <div class="t-xs t-muted mono">REF 8827004 · BCA ···9010</div>
+                  </td>
+                  <td class="mono t-danger t-bold">−Rp 5.000.000</td>
+                  <td>
+                    <div class="t-sm">Cicilan KPR — pokok + bunga</div>
+                    <div class="t-xs t-muted">BCA Tahapan ···9010 · Cicilan · 3 Agu</div>
+                  </td>
+                  <td><span class="badge badge--success">Cocok</span></td>
+                  <td>
+                    <button class="btn btn--ghost btn--sm" onclick="WM.openDialog('dlg-split')">Pecah</button>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td class="mono t-sm">02/08/2026</td>
+                  <td>
+                    <div class="t-sm t-bold">DB BIAYA ADMIN BULANAN</div>
+                    <div class="t-xs t-muted mono">REF 8826110 · BCA ···9010</div>
+                  </td>
+                  <td class="mono t-danger t-bold">−Rp 15.000</td>
+                  <td><span class="t-sm t-muted">Belum ada transaksi yang cocok.</span></td>
+                  <td><span class="badge badge--danger">Tidak Ditemukan</span></td>
+                  <td>
+                    <div class="row" style="gap: 6px">
+                      <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-transaksi')">
+                        Buat Transaksi
+                      </button>
+                      <button class="btn btn--ghost btn--sm" onclick="WM.toast('Entri diabaikan','info')">
+                        Abaikan
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td class="mono t-sm">01/08/2026</td>
+                  <td>
+                    <div class="t-sm t-bold">CR BUNGA TABUNGAN JULI</div>
+                    <div class="t-xs t-muted mono">REF 8825002 · BCA ···9010</div>
+                  </td>
+                  <td class="mono t-success t-bold">+Rp 128.400</td>
+                  <td><span class="t-sm t-muted">Belum ada transaksi yang cocok.</span></td>
+                  <td><span class="badge badge--danger">Tidak Ditemukan</span></td>
+                  <td>
+                    <div class="row" style="gap: 6px">
+                      <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-transaksi')">
+                        Buat Transaksi
+                      </button>
+                      <button class="btn btn--ghost btn--sm" onclick="WM.toast('Entri diabaikan','info')">
+                        Abaikan
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="row row--wrap" style="margin-top: 14px; gap: 8px">
+            <span class="t-xs t-muted">Menampilkan 6 dari 151 baris · 14 masih perlu keputusanmu</span>
+            <span class="spacer"></span>
+            <button class="btn btn--outline btn--sm">Kembali</button>
+            <button
+              class="btn btn--primary btn--sm"
+              onclick="WM.toast('Hasil rekonsiliasi tersimpan','success')"
+            >
+              Simpan Hasil Rekonsiliasi
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Recent documents -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Dokumen Terbaru</h2>
+          <button class="card-link card__action" onclick="WM.toast('Membuka riwayat rekonsiliasi','info')">
+            Lihat Riwayat
+          </button>
+        </div>
+        <div class="card__body" style="padding-top: 4px">
+          <div class="list-row">
+            <span class="list-row__icon">📄</span>
+            <span class="list-row__body">
+              <span class="list-row__title">bca-tahapan-agustus-2026.csv</span>
+              <span class="list-row__sub">Diupload 7 Agu 09:12 · 151 transaksi</span>
+            </span>
+            <span class="badge badge--success">Terunggah</span>
+          </div>
+          <div class="list-row">
+            <span class="list-row__icon">📄</span>
+            <span class="list-row__body">
+              <span class="list-row__title">mandiri-juli-2026.xlsx</span>
+              <span class="list-row__sub">Diupload 3 Agu 20:40 · 96 transaksi</span>
+            </span>
+            <span class="badge badge--success">Terunggah</span>
+          </div>
+          <div class="list-row">
+            <span class="list-row__icon">🚫</span>
+            <span class="list-row__body">
+              <span class="list-row__title">e-statement-bca-juli.pdf</span>
+              <span class="list-row__sub">Ditolak 3 Agu 20:36 · PDF tidak bisa diproses otomatis</span>
+            </span>
+            <span class="badge badge--danger">Ditolak</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Dialog: upload -->
+    <div
+      class="dialog-backdrop"
+      id="dlg-upload"
+      data-open="false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dlg-upload-title"
+    >
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-upload-title">Upload Mutasi Rekening</h2>
+        <p class="dialog__desc">Unggah file CSV atau Excel (.xlsx) dari bank Anda — maksimal 20 MB.</p>
+        <div class="dialog__body">
+          <label class="field">
+            <span class="label">Bank</span>
+            <select class="select" id="upload-bank">
+              <option>BCA — template "BCA Giro" tersimpan</option>
+              <option>Mandiri — template "Mandiri Tabungan" tersimpan</option>
+              <option>BNI — belum ada template</option>
+              <option>Deteksi otomatis (tanpa template)</option>
+            </select>
+            <span class="hint">Template pemetaan kolom untuk bank ini akan diterapkan otomatis.</span>
+          </label>
+
+          <label class="field">
+            <span class="label">Rekening tujuan</span>
+            <select class="select">
+              <option>BCA Tahapan ···9010</option>
+              <option>Mandiri ···5586</option>
+              <option>BNI Taplus ···3311</option>
+            </select>
+          </label>
+
+          <div class="field">
+            <span class="label">File mutasi</span>
+            <label class="notice" style="cursor: pointer; align-items: center">
+              <i data-lucide="paperclip" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+              <span>
+                Pilih file <span class="mono">.csv</span> atau <span class="mono">.xlsx</span>
+                <input type="file" accept=".csv,.xlsx" hidden />
+              </span>
+            </label>
+            <span class="hint mono">bca-tahapan-agustus-2026.csv · 184 KB</span>
+          </div>
+
+          <div class="notice notice--danger" style="margin-top: 12px">
+            <i data-lucide="file-x" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>
+              <strong>PDF tidak diterima.</strong> Statement PDF tidak bisa diproses secara otomatis — ekspor mutasi
+              rekening sebagai CSV dari aplikasi/situs bank Anda, lalu unggah file CSV tersebut.
+            </span>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-upload')">Batal</button>
+          <button
+            class="btn btn--primary"
+            onclick="WM.closeDialog('dlg-upload');WM.toast('File berhasil diunggah!','success')"
+          >
+            Upload &amp; Pindai
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog: split entry -->
+    <div
+      class="dialog-backdrop"
+      id="dlg-split"
+      data-open="false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dlg-split-title"
+    >
+      <div class="dialog dialog--wide">
+        <h2 class="dialog__title" id="dlg-split-title">Pecah Entri Rekonsiliasi</h2>
+        <p class="dialog__desc">
+          Pisahkan jumlah pada baris ini menjadi transfer pokok (misal top up e-wallet) dan biaya admin sebagai
+          transaksi terpisah.
+        </p>
+        <div class="dialog__body">
+          <div class="notice" style="margin-bottom: 14px">
+            <i data-lucide="receipt-text" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>
+              <strong>DB TRSF GOPAY TOPUP + BIAYA</strong> · 5 Agu 2026 ·
+              <span class="mono">Rp 1.001.500</span>
+            </span>
+          </div>
+
+          <div class="field-row">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Akun Sumber (Bank)</span>
+              <select class="select">
+                <option>BCA Tahapan ···9010</option>
+                <option>Mandiri ···5586</option>
+              </select>
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Akun Tujuan (E-Wallet)</span>
+              <select class="select">
+                <option>GoPay</option>
+                <option>OVO</option>
+                <option>DANA</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Jumlah Pokok</span>
+              <input class="input mono" value="1.000.000" inputmode="numeric" />
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Biaya Admin</span>
+              <input class="input mono" value="1.500" inputmode="numeric" />
+            </label>
+          </div>
+
+          <label class="field">
+            <span class="label">Catatan / Referensi <span class="t-muted" style="font-weight: 500">(opsional)</span></span>
+            <input class="input" placeholder="cth. Top up GoPay" />
+          </label>
+
+          <div class="row row--between" style="margin-top: 14px">
+            <span class="t-sm t-muted">Total Pokok + Biaya Admin</span>
+            <span class="t-sm t-bold mono">Rp 1.001.500</span>
+          </div>
+          <div class="row row--between" style="margin-top: 4px">
+            <span class="t-sm t-muted">Jumlah Entri</span>
+            <span class="t-sm t-bold mono">Rp 1.001.500</span>
+          </div>
+          <div class="notice notice--info" style="margin-top: 10px">
+            <i data-lucide="check-check" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>Jumlah sudah seimbang — pembagian bisa disimpan.</span>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-split')">Batal</button>
+          <button
+            class="btn btn--primary"
+            onclick="WM.closeDialog('dlg-split');WM.toast('Entri berhasil dipecah dan dicocokkan!','success')"
+          >
+            Simpan Pembagian
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog: column mapping template manager -->
+    <div
+      class="dialog-backdrop"
+      id="dlg-template"
+      data-open="false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dlg-template-title"
+    >
+      <div class="dialog dialog--wide">
+        <h2 class="dialog__title" id="dlg-template-title">Template Pemetaan Kolom</h2>
+        <p class="dialog__desc">
+          Simpan nama kolom tanggal/keterangan/jumlah bank Anda sekali, dan setiap unggahan berikutnya dari bank yang
+          sama akan otomatis memakainya.
+        </p>
+        <div class="dialog__body">
+          <div class="table-wrap" style="margin-bottom: 16px">
+            <table class="table" style="min-width: 520px">
+              <thead>
+                <tr>
+                  <th>Bank</th>
+                  <th>Nama Template</th>
+                  <th>Kolom</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="t-sm t-bold">BCA</td>
+                  <td class="t-sm">BCA Giro</td>
+                  <td class="t-xs t-muted mono">Tanggal · Keterangan · Mutasi DB/CR</td>
+                  <td>
+                    <button class="btn btn--ghost btn--sm" onclick="WM.toast('Template dihapus','info')">Hapus</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="t-sm t-bold">Mandiri</td>
+                  <td class="t-sm">Mandiri Tabungan</td>
+                  <td class="t-xs t-muted mono">Tgl · Uraian · Debit/Kredit</td>
+                  <td>
+                    <button class="btn btn--ghost btn--sm" onclick="WM.toast('Template dihapus','info')">Hapus</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="field-row">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Bank</span>
+              <select class="select">
+                <option>BNI</option>
+                <option>BRI</option>
+                <option>CIMB Niaga</option>
+                <option>Permata</option>
+              </select>
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Nama Template</span>
+              <input class="input" placeholder="contoh: BCA Giro" />
+            </label>
+          </div>
+
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Kolom Tanggal</span>
+              <input class="input" placeholder="cth: Tanggal" />
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Kolom Keterangan</span>
+              <input class="input" placeholder="cth: Keterangan" />
+            </label>
+          </div>
+
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Kolom Debit</span>
+              <input class="input" placeholder="cth: Mutasi DB" />
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Kolom Kredit</span>
+              <input class="input" placeholder="cth: Mutasi CR" />
+            </label>
+          </div>
+
+          <label class="field">
+            <span class="label">Format Tanggal</span>
+            <select class="select">
+              <option>Otomatis / ISO (YYYY-MM-DD)</option>
+              <option>DD/MM/YYYY</option>
+              <option>DD-MMM-YY</option>
+            </select>
+          </label>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-template')">Tutup</button>
+          <button
+            class="btn btn--primary"
+            onclick="WM.closeDialog('dlg-template');WM.toast('✅ Template pemetaan kolom disimpan','success')"
+          >
+            Simpan Template
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script>
+      WM.shell({ active: "rekonsiliasi" });
+
+      // The mapping switch is a real toggle so the prototype can be clicked through.
+      document.querySelectorAll(".switch").forEach((sw) => {
+        const flip = () => sw.setAttribute("aria-checked", sw.getAttribute("aria-checked") === "true" ? "false" : "true");
+        sw.addEventListener("click", flip);
+        sw.addEventListener("keydown", (e) => {
+          if (e.key === " " || e.key === "Enter") {
+            e.preventDefault();
+            flip();
+          }
+        });
+      });
+
+      // Dropzone: CSV/XLSX accepted, PDF explicitly refused with the reason.
+      const dz = document.getElementById("dropzone");
+      const stop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      };
+      ["dragenter", "dragover"].forEach((ev) =>
+        dz.addEventListener(ev, (e) => {
+          stop(e);
+          dz.style.background = "color-mix(in oklab, var(--accent) 85%, transparent)";
+        })
+      );
+      ["dragleave", "drop"].forEach((ev) =>
+        dz.addEventListener(ev, (e) => {
+          stop(e);
+          dz.style.background = "color-mix(in oklab, var(--accent) 45%, transparent)";
+        })
+      );
+      dz.addEventListener("drop", (e) => {
+        const name = e.dataTransfer?.files?.[0]?.name ?? "";
+        if (/\.pdf$/i.test(name)) {
+          WM.toast("PDF ditolak — ekspor mutasi sebagai CSV dari aplikasi bank Anda", "error");
+        } else if (/\.xls$/i.test(name)) {
+          WM.toast("Format .xls lama tidak didukung — simpan ulang sebagai .xlsx", "error");
+        } else if (name) {
+          WM.toast("File berhasil diunggah!", "success");
+        }
+      });
+    </script>
+  </body>
+</html>

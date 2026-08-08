@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pajak · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+  </head>
+  <body>
+    <main class="page">
+      <!-- Hero: estimasi pajak terutang + pemilih tahun -->
+      <section class="hero gradient-wealth">
+        <div class="row row--wrap row--between" style="position: relative; z-index: 1; gap: 16px">
+          <div style="flex: 1; min-width: 240px">
+            <div class="hero__label">Estimasi Pajak Terutang <span id="tx-hero-year">2026</span></div>
+            <div class="hero__value mono" id="tx-hero-value">Rp 150.100.000</div>
+            <div class="t-xs" style="margin-top: 8px; opacity: 0.85">PPh 21 · Status: WP Orang Pribadi</div>
+          </div>
+          <div class="stack" style="gap: 8px; align-items: flex-end">
+            <div class="t-xs" style="opacity: 0.85">Tahun Pajak</div>
+            <div class="segmented" style="background: rgb(255 255 255 / 0.18)">
+              <button class="segmented__item" data-value="2026" aria-selected="true" style="color: #fff">2026</button>
+              <button class="segmented__item" data-value="2025" aria-selected="false" style="color: #fff">2025</button>
+              <button class="segmented__item" data-value="2024" aria-selected="false" style="color: #fff">2024</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Status SPT -->
+      <section class="auto-grid auto-grid--metrics">
+        <article class="card">
+          <div class="card__body">
+            <div class="t-xs t-muted">Status SPT Tahunan 2025</div>
+            <div class="t-lg t-black t-success" style="margin-top: 4px">Sudah Lapor</div>
+            <div class="t-xs t-muted" style="margin-top: 2px">Dilaporkan 18 Mar 2026 · BPE 0812-3345-9021</div>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card__body">
+            <div class="t-xs t-muted">SPT 2026</div>
+            <div class="t-lg t-black t-warning" style="margin-top: 4px">Belum Lapor</div>
+            <div class="t-xs t-muted" style="margin-top: 2px">Deadline 31 Mar 2027</div>
+            <button class="btn btn--outline btn--sm" style="margin-top: 10px" onclick="WM.toast('Ditandai sudah lapor','success')">
+              Tandai Sudah Lapor
+            </button>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card__body">
+            <div class="t-xs t-muted">Perpuluhan Pengurang Pajak</div>
+            <div class="t-lg t-black t-primary mono" style="margin-top: 4px">Rp 19.500.000</div>
+            <div class="t-xs t-muted" style="margin-top: 2px">dari donasi tercatat · 4 transaksi</div>
+          </div>
+        </article>
+      </section>
+
+      <!-- Kalkulator PPh 21 -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">🧮 Kalkulator PPh 21 (Pribadi)</h2>
+          <a class="card-link card__action" href="kalkulator.html">Kalkulator Lain</a>
+        </div>
+        <div class="card__body">
+          <div class="t-xs t-muted" style="margin-bottom: 14px">
+            Hitung estimasi pajak penghasilan berdasarkan tarif progresif UU HPP.
+          </div>
+
+          <div class="grid grid--2">
+            <div class="field">
+              <label class="label" for="tx-year">Tahun Pajak</label>
+              <select class="select" id="tx-year">
+                <option value="2026" selected>2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label class="label" for="tx-gross">Penghasilan Bruto/Tahun (Rp)</label>
+              <input
+                class="input mono"
+                id="tx-gross"
+                type="text"
+                inputmode="numeric"
+                autocomplete="off"
+                value="780.000.000"
+              />
+              <div class="hint">
+                Diketik dengan titik ribuan agar mudah dibaca — titik dihapus otomatis sebelum dikirim
+                (<span class="mono">780.000.000</span> → <span class="mono">"780000000"</span>), sehingga penyimpanan tidak
+                lagi ditolak dengan <em>"grossIncome must be a numeric string"</em>.
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="label" for="tx-ptkp">Status PTKP</label>
+              <select class="select" id="tx-ptkp">
+                <option value="54000000">TK/0 (Tidak Kawin, 0 tanggungan)</option>
+                <option value="58500000">K/0 (Kawin, 0 anak)</option>
+                <option value="63000000">K/1 (Kawin, 1 anak)</option>
+                <option value="67500000" selected>K/2 (Kawin, 2 anak)</option>
+                <option value="72000000">K/3 (Kawin, 3 anak)</option>
+              </select>
+              <div class="hint">PTKP terpilih: <span class="mono" id="tx-ptkp-value">Rp 67.500.000</span></div>
+            </div>
+
+            <div class="field">
+              <label class="label" for="tx-jabatan">Biaya Jabatan (otomatis)</label>
+              <input class="input mono" id="tx-jabatan" type="text" value="6.000.000" disabled />
+              <div class="hint">5% dari bruto, maksimal Rp 6.000.000/tahun.</div>
+            </div>
+
+            <div class="field" style="grid-column: 1 / -1">
+              <label class="label" for="tx-perpuluhan">Perpuluhan (pengurang)</label>
+              <input
+                class="input mono"
+                id="tx-perpuluhan"
+                type="text"
+                inputmode="numeric"
+                autocomplete="off"
+                value="19.500.000"
+              />
+              <div class="hint">
+                Hanya persembahan perpuluhan ke lembaga resmi yang boleh menjadi pengurang (PP 60/2010). Ambil otomatis
+                dari <a class="card-link" href="donation.html">Donasi</a>.
+              </div>
+            </div>
+          </div>
+
+          <div class="notice notice--info" style="margin-top: 14px">
+            <i data-lucide="info" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>
+              Yang dikirim ke server:
+              <span class="mono" id="tx-payload">{ grossIncome: "780000000", ptkp: "67500000", perpuluhanPaid: "19500000" }</span>
+              — angka murni tanpa titik.
+            </span>
+          </div>
+
+          <!-- Hasil hitung live -->
+          <div
+            style="
+              margin-top: 16px;
+              border-radius: 12px;
+              border: 1px solid color-mix(in oklab, var(--primary) 20%, transparent);
+              background: var(--accent);
+              padding: 18px;
+              text-align: center;
+            "
+          >
+            <div class="t-xs t-muted">Estimasi PPh 21 Terutang/Tahun</div>
+            <div class="t-2xl t-black t-primary mono" style="margin-top: 4px" id="tx-result">Rp 150.100.000</div>
+            <div class="t-xs t-muted" style="margin-top: 6px">
+              PKP: <strong class="t-primary mono" id="tx-pkp">Rp 687.000.000</strong> · Efektif
+              <strong id="tx-eff">19,2%</strong>
+            </div>
+          </div>
+
+          <div class="row row--wrap" style="margin-top: 14px; gap: 10px">
+            <button class="btn btn--primary" onclick="WM.openDialog('dlg-simpan-pajak')">
+              💾 Simpan ke Catatan Pajak
+            </button>
+            <button class="btn btn--outline" onclick="WM.toast('Perhitungan direset','info')">Reset</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Breakdown tarif progresif -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Rincian Tarif Progresif (UU HPP)</h2>
+        </div>
+        <div class="card__body">
+          <div class="table-wrap">
+            <table class="table table--num" id="tx-brackets">
+              <thead>
+                <tr>
+                  <th>Lapisan PKP</th>
+                  <th>Tarif</th>
+                  <th>Dasar Kena Tarif</th>
+                  <th>Pajak</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr data-b="0">
+                  <td>0 – 60 jt</td>
+                  <td>5%</td>
+                  <td class="mono" data-base>Rp 60.000.000</td>
+                  <td class="mono" data-tax>Rp 3.000.000</td>
+                </tr>
+                <tr data-b="1">
+                  <td>60 – 250 jt</td>
+                  <td>15%</td>
+                  <td class="mono" data-base>Rp 190.000.000</td>
+                  <td class="mono" data-tax>Rp 28.500.000</td>
+                </tr>
+                <tr data-b="2">
+                  <td>250 – 500 jt</td>
+                  <td>25%</td>
+                  <td class="mono" data-base>Rp 250.000.000</td>
+                  <td class="mono" data-tax>Rp 62.500.000</td>
+                </tr>
+                <tr data-b="3">
+                  <td>500 jt – 5 M</td>
+                  <td>30%</td>
+                  <td class="mono" data-base>Rp 187.000.000</td>
+                  <td class="mono" data-tax>Rp 56.100.000</td>
+                </tr>
+                <tr data-b="4">
+                  <td>&gt; 5 M</td>
+                  <td>35%</td>
+                  <td class="mono" data-base>Rp 0</td>
+                  <td class="mono" data-tax>Rp 0</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="hint" style="margin-top: 10px">
+            Jumlah kolom Pajak selalu sama dengan headline di atas — lapisan 30% (500 jt – 5 M) ikut ditampilkan.
+          </div>
+        </div>
+      </section>
+
+      <!-- Riwayat catatan pajak -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Riwayat Catatan Pajak</h2>
+        </div>
+        <div class="card__body" style="padding-top: 4px">
+          <div class="list-row">
+            <span class="list-row__icon">🧾</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Pajak 2025</span>
+              <span class="list-row__sub">Bruto: Rp 712.000.000 · Perpuluhan: Rp 17.800.000</span>
+            </span>
+            <span class="list-row__amount">
+              <span class="badge badge--success">Sudah Lapor</span>
+            </span>
+          </div>
+          <div class="list-row">
+            <span class="list-row__icon">🧾</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Pajak 2024</span>
+              <span class="list-row__sub">Bruto: Rp 654.500.000 · Perpuluhan: Rp 16.300.000</span>
+            </span>
+            <span class="list-row__amount">
+              <span class="badge badge--success">Sudah Lapor</span>
+            </span>
+          </div>
+          <div class="list-row">
+            <span class="list-row__icon">🧾</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Pajak 2023</span>
+              <span class="list-row__sub">Bruto: Rp 588.000.000 · Perpuluhan: Rp 14.700.000</span>
+            </span>
+            <span class="list-row__amount">
+              <span class="badge badge--danger">Terlambat</span>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Dokumen pajak -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Dokumen Pajak</h2>
+          <button class="card-link card__action" onclick="WM.toast('Upload dokumen belum tersedia — fitur ini segera hadir.','info')">
+            + Upload
+          </button>
+        </div>
+        <div class="card__body">
+          <div class="empty">
+            <div class="empty__icon">📄</div>
+            <div class="t-sm t-bold">Belum ada dokumen</div>
+            <div class="t-xs t-muted">Fitur upload &amp; daftar dokumen pajak segera hadir.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Aksi -->
+      <section class="row row--wrap" style="gap: 10px">
+        <a class="btn btn--primary" style="flex: 1; min-width: 180px" href="https://djponline.pajak.go.id" target="_blank" rel="noopener noreferrer">
+          <i data-lucide="send" style="width: 16px; height: 16px"></i> Lapor SPT Tahunan
+        </a>
+        <button class="btn btn--outline" style="flex: 1; min-width: 180px" onclick="WM.toast('Unduh ringkasan belum tersedia — fitur ini segera hadir.','info')">
+          <i data-lucide="file-text" style="width: 16px; height: 16px"></i> Unduh Ringkasan
+        </button>
+      </section>
+
+      <!-- Dialog simpan -->
+      <div class="dialog-backdrop" id="dlg-simpan-pajak" data-open="false">
+        <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-simpan-pajak-title">
+          <h2 class="dialog__title" id="dlg-simpan-pajak-title">Simpan ke Catatan Pajak</h2>
+          <p class="dialog__desc">
+            Catatan pajak tahun <span id="dlg-year">2026</span> akan dibuat/diperbarui dengan angka di bawah ini.
+          </p>
+          <div class="dialog__body">
+            <div class="table-wrap">
+              <table class="table table--num" style="min-width: 0">
+                <tbody>
+                  <tr>
+                    <td>Penghasilan bruto</td>
+                    <td class="mono" id="dlg-gross">Rp 780.000.000</td>
+                  </tr>
+                  <tr>
+                    <td>PTKP</td>
+                    <td class="mono" id="dlg-ptkp">Rp 67.500.000</td>
+                  </tr>
+                  <tr>
+                    <td>Perpuluhan pengurang</td>
+                    <td class="mono" id="dlg-perpuluhan">Rp 19.500.000</td>
+                  </tr>
+                  <tr>
+                    <td><strong>PPh 21 terutang</strong></td>
+                    <td class="mono t-bold t-primary" id="dlg-tax">Rp 150.100.000</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="notice notice--info" style="margin-top: 12px">
+              <i data-lucide="shield-check" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+              <span>Nilai dikirim sebagai string angka murni — titik ribuan hanya untuk tampilan.</span>
+            </div>
+          </div>
+          <div class="dialog__footer">
+            <button class="btn btn--outline" onclick="WM.closeDialog('dlg-simpan-pajak')">Batal</button>
+            <button
+              class="btn btn--primary"
+              onclick="WM.closeDialog('dlg-simpan-pajak');WM.toast('✅ Data pajak berhasil disimpan!','success')"
+            >
+              Simpan
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script src="../assets/charts.js"></script>
+    <script>
+      WM.shell({ active: "tax" });
+
+      /* ── Dot-formatted currency input ──────────────────────────────────
+         EPIC-024 item 8: the field DISPLAYS "780.000.000" while every
+         calculation and the saved payload use the raw digits "780000000".
+         Saving a dotted value is what produced
+         `grossIncome must be a numeric string`. */
+      const digitsOf = (s) => String(s).replace(/\D/g, "");
+      const parseRupiah = (s) => Number(digitsOf(s) || 0);
+      const withDots = (n) => Number(n).toLocaleString("id-ID");
+      const rp = (n) => "Rp " + withDots(Math.round(n));
+
+      function attachDotFormatting(el) {
+        el.addEventListener("input", () => {
+          const raw = digitsOf(el.value);
+          el.value = raw === "" ? "" : withDots(Number(raw));
+          recompute();
+        });
+      }
+
+      /* UU HPP progressive brackets — [upperBound, rate] */
+      const BRACKETS = [
+        [60000000, 0.05],
+        [250000000, 0.15],
+        [500000000, 0.25],
+        [5000000000, 0.3],
+        [Infinity, 0.35],
+      ];
+
+      const $ = (sel) => document.querySelector(sel);
+
+      function recompute() {
+        const gross = parseRupiah($("#tx-gross").value);
+        const perpuluhan = parseRupiah($("#tx-perpuluhan").value);
+        const ptkp = Number($("#tx-ptkp").value);
+
+        const jabatan = Math.min(gross * 0.05, 6000000);
+        const pkpRaw = gross - jabatan - perpuluhan - ptkp;
+        const pkp = Math.max(0, Math.floor(pkpRaw / 1000) * 1000);
+
+        let lower = 0;
+        let total = 0;
+        const rows = [];
+        for (const [upper, rate] of BRACKETS) {
+          const base = Math.max(0, Math.min(pkp, upper) - lower);
+          const tax = base * rate;
+          rows.push({ base, tax });
+          total += tax;
+          lower = upper;
+        }
+        total = Math.round(total);
+
+        $("#tx-jabatan").value = withDots(Math.round(jabatan));
+        $("#tx-ptkp-value").textContent = rp(ptkp);
+        $("#tx-result").textContent = rp(total);
+        $("#tx-hero-value").textContent = rp(total);
+        $("#tx-pkp").textContent = rp(pkp);
+        $("#tx-eff").textContent =
+          (gross > 0 ? ((total / gross) * 100).toFixed(1) : "0,0").replace(".", ",") + "%";
+
+        document.querySelectorAll("#tx-brackets tbody tr").forEach((tr, i) => {
+          tr.querySelector("[data-base]").textContent = rp(rows[i].base);
+          tr.querySelector("[data-tax]").textContent = rp(Math.round(rows[i].tax));
+          tr.style.opacity = rows[i].tax > 0 ? "1" : "0.45";
+        });
+
+        // The honest payload: raw numeric strings, never the dotted display.
+        $("#tx-payload").textContent =
+          '{ grossIncome: "' + gross + '", ptkp: "' + ptkp + '", perpuluhanPaid: "' + perpuluhan + '" }';
+
+        $("#dlg-gross").textContent = rp(gross);
+        $("#dlg-ptkp").textContent = rp(ptkp);
+        $("#dlg-perpuluhan").textContent = rp(perpuluhan);
+        $("#dlg-tax").textContent = rp(total);
+      }
+
+      attachDotFormatting($("#tx-gross"));
+      attachDotFormatting($("#tx-perpuluhan"));
+      $("#tx-ptkp").addEventListener("change", recompute);
+      $("#tx-year").addEventListener("change", (e) => {
+        $("#tx-hero-year").textContent = e.target.value;
+        $("#dlg-year").textContent = e.target.value;
+      });
+      document.addEventListener("wm:tab", (e) => {
+        if (!/^\d{4}$/.test(e.detail.value)) return;
+        $("#tx-hero-year").textContent = e.detail.value;
+        $("#dlg-year").textContent = e.detail.value;
+        $("#tx-year").value = e.detail.value;
+      });
+
+      recompute();
+      if (window.lucide) window.lucide.createIcons();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Panduan · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="page-lead">
+        <div class="page-lead__text">
+          <div class="section-title">📖 Panduan Fitur WealthMe</div>
+          <div class="page-lead__sub">
+            Semua fitur, dikelompokkan berdasarkan alur pemakaian — jelajahi sesuai kebutuhanmu.
+          </div>
+        </div>
+        <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-kontak')">
+          <i data-lucide="life-buoy" style="width: 15px; height: 15px"></i> Hubungi Kami
+        </button>
+      </section>
+
+      <!-- Search + area filter -->
+      <section class="card">
+        <div class="card__body">
+          <label class="field" style="margin: 0">
+            <span class="label">Cari topik</span>
+            <input
+              class="input"
+              id="pd-search"
+              type="search"
+              placeholder="cth. anggaran, rekonsiliasi, ganti peran, ekspor PDF…"
+              aria-label="Cari topik panduan"
+            />
+          </label>
+          <div class="tabs" id="pd-areas" style="margin-top: 12px">
+            <button class="tab" aria-selected="true" data-area="all">Semua</button>
+            <button class="tab" aria-selected="false" data-area="memulai">Memulai</button>
+            <button class="tab" aria-selected="false" data-area="transaksi">Transaksi</button>
+            <button class="tab" aria-selected="false" data-area="anggaran">Anggaran</button>
+            <button class="tab" aria-selected="false" data-area="laporan">Laporan</button>
+            <button class="tab" aria-selected="false" data-area="keluarga">Keluarga &amp; Peran</button>
+            <button class="tab" aria-selected="false" data-area="keamanan">Keamanan</button>
+          </div>
+          <div class="t-xs t-muted" id="pd-count" style="margin-top: 10px">Menampilkan 25 dari 25 topik</div>
+        </div>
+      </section>
+
+      <!-- Topic groups -->
+      <section class="stack" id="pd-groups" style="gap: 16px">
+        <!-- Memulai -->
+        <article class="card" data-group="memulai">
+          <div class="card__header">
+            <h2 class="card__title">1 · Memulai</h2>
+            <span class="card__action t-xs t-muted">Kenali dashboard utamamu</span>
+          </div>
+          <div class="card__body grid grid--3 grid--stack-sm">
+            <a class="topic" href="beranda.html" data-topic="beranda dashboard kekayaan bersih arus kas">
+              <span class="topic__icon" style="background: var(--accent); color: var(--primary)">
+                <i data-lucide="house"></i>
+              </span>
+              <span class="topic__title">Beranda</span>
+              <span class="topic__desc">
+                Buka setiap hari untuk memantau kekayaan bersih, tren bulanan, arus kas, dan aktivitas terbaru dalam satu
+                layar.
+              </span>
+            </a>
+            <a class="topic" href="ringkasan.html" data-topic="ringkasan komposisi aset statistik">
+              <span class="topic__icon" style="background: var(--brand-purple-soft); color: var(--brand-purple)">
+                <i data-lucide="chart-pie"></i>
+              </span>
+              <span class="topic__title">Ringkasan</span>
+              <span class="topic__desc">
+                Butuh versi ringkas? Halaman ini menampilkan komposisi aset dan statistik kunci tanpa detail beranda.
+              </span>
+            </a>
+            <a class="topic" href="rekening.html" data-topic="rekening bank saldo tambah bank account">
+              <span class="topic__icon" style="background: var(--accent); color: #1d4ed8">
+                <i data-lucide="landmark"></i>
+              </span>
+              <span class="topic__title">Bank &amp; Account</span>
+              <span class="topic__desc">
+                Klik "Tambah" untuk mendaftarkan rekening bank pertamamu — saldonya otomatis masuk ke kekayaan bersih.
+              </span>
+            </a>
+            <a class="topic" href="dana.html" data-topic="cash e-wallet gopay ovo dana tunai">
+              <span class="topic__icon" style="background: var(--success-soft); color: var(--success)">
+                <i data-lucide="wallet"></i>
+              </span>
+              <span class="topic__title">Cash &amp; E-Wallet</span>
+              <span class="topic__desc">
+                Tambahkan saldo kas tunai atau e-wallet (GoPay, OVO, DANA) yang belum tercatat di rekening bank.
+              </span>
+            </a>
+            <a class="topic" href="masterdata.html" data-topic="master data kategori referensi bank setup">
+              <span class="topic__icon" style="background: var(--secondary); color: var(--muted-foreground)">
+                <i data-lucide="database"></i>
+              </span>
+              <span class="topic__title">Setup Master Data</span>
+              <span class="topic__desc">
+                Sesuaikan kategori transaksi dan daftar referensi (bank, e-wallet, jenis investasi) — semuanya bisa kamu
+                tambah dan hapus sendiri.
+              </span>
+            </a>
+          </div>
+        </article>
+
+        <!-- Transaksi -->
+        <article class="card" data-group="transaksi">
+          <div class="card__header">
+            <h2 class="card__title">2 · Transaksi</h2>
+            <span class="card__action t-xs t-muted">Yang paling sering kamu pakai</span>
+          </div>
+          <div class="card__body grid grid--3 grid--stack-sm">
+            <button class="topic" data-topic="tambah transaksi tombol plus" onclick="WM.openDialog('dlg-transaksi')">
+              <span class="topic__icon" style="background: var(--accent); color: var(--primary)">
+                <i data-lucide="plus"></i>
+              </span>
+              <span class="topic__title">Tombol "+" Tambah Transaksi</span>
+              <span class="topic__desc">
+                Klik ikon "+" di topbar dari halaman mana pun untuk mencatat pemasukan, pengeluaran, atau transfer dalam
+                hitungan detik.
+              </span>
+            </button>
+            <a class="topic" href="transaksi.html" data-topic="transaksi riwayat filter tanggal kategori edit hapus">
+              <span class="topic__icon" style="background: var(--accent); color: var(--primary)">
+                <i data-lucide="arrow-up-down"></i>
+              </span>
+              <span class="topic__title">Transaksi</span>
+              <span class="topic__desc">
+                Gunakan filter tanggal/kategori untuk menelusuri riwayat, atau ketuk satu baris untuk mengubah maupun
+                menghapusnya.
+              </span>
+            </a>
+            <a class="topic" href="quickinput.html" data-topic="quick input cepat popup formulir">
+              <span class="topic__icon" style="background: var(--warning-soft); color: #d97706">
+                <i data-lucide="zap"></i>
+              </span>
+              <span class="topic__title">Quick Input</span>
+              <span class="topic__desc">
+                Pilih jenis data (transaksi, investasi, aset, dll), lalu langsung isi formulirnya tanpa pindah halaman.
+              </span>
+            </a>
+            <button class="topic" data-topic="pencarian search ctrl k cmd" onclick="WM.openDialog('dlg-search')">
+              <span class="topic__icon" style="background: var(--secondary); color: var(--muted-foreground)">
+                <i data-lucide="search"></i>
+              </span>
+              <span class="topic__title">Pencarian (Ctrl/Cmd+K)</span>
+              <span class="topic__desc">
+                Tekan Ctrl/Cmd+K kapan saja untuk melompat ke halaman atau mencari transaksi, rekening, dan kategori.
+              </span>
+            </button>
+            <a class="topic" href="rekonsiliasi.html" data-topic="rekonsiliasi bank csv mutasi cocokkan">
+              <span class="topic__icon" style="background: var(--accent); color: #0284c7">
+                <i data-lucide="git-compare"></i>
+              </span>
+              <span class="topic__title">Rekonsiliasi Bank</span>
+              <span class="topic__desc">
+                Unggah file mutasi bank (CSV atau XLSX) — WealthMe mencocokkannya otomatis dengan transaksi yang sudah
+                kamu catat.
+              </span>
+            </a>
+            <a class="topic" href="splitbill.html" data-topic="split bill patungan tagihan bersama">
+              <span class="topic__icon" style="background: var(--warning-soft); color: #d97706">
+                <i data-lucide="receipt"></i>
+              </span>
+              <span class="topic__title">Split Bill</span>
+              <span class="topic__desc">
+                Buat tagihan bersama, tambahkan peserta, lalu lacak siapa yang sudah dan belum membayar bagiannya.
+              </span>
+            </a>
+          </div>
+        </article>
+
+        <!-- Anggaran -->
+        <article class="card" data-group="anggaran">
+          <div class="card__header">
+            <h2 class="card__title">3 · Anggaran</h2>
+            <span class="card__action t-xs t-muted">Beri arah pada uangmu</span>
+          </div>
+          <div class="card__body grid grid--3 grid--stack-sm">
+            <a class="topic" href="anggaran.html" data-topic="anggaran budget batas bulanan kategori peringatan">
+              <span class="topic__icon" style="background: var(--accent); color: var(--primary)">
+                <i data-lucide="clipboard-list"></i>
+              </span>
+              <span class="topic__title">Anggaran</span>
+              <span class="topic__desc">
+                Klik "Tambah Kategori", tentukan batas bulanan per kategori — WealthMe otomatis memperingatkanmu saat
+                mendekati batas.
+              </span>
+            </a>
+            <a class="topic" href="tujuan.html" data-topic="tujuan goal target dana darurat auto debit">
+              <span class="topic__icon" style="background: var(--accent); color: #0e7490">
+                <i data-lucide="target"></i>
+              </span>
+              <span class="topic__title">Tujuan Keuangan</span>
+              <span class="topic__desc">
+                Buat target (misal dana darurat), atur nominal &amp; tenggat, lalu aktifkan auto-debit bulanan agar
+                progressnya naik sendiri.
+              </span>
+            </a>
+            <a class="topic" href="kalkulator.html" data-topic="kalkulator perpuluhan pph kredit pensiun simulasi">
+              <span class="topic__icon" style="background: var(--success-soft); color: var(--success)">
+                <i data-lucide="calculator"></i>
+              </span>
+              <span class="topic__title">Kalkulator</span>
+              <span class="topic__desc">
+                Pilih kalkulator yang kamu butuhkan (perpuluhan, PPh 21, kredit, pensiun), isi angkanya, hasilnya langsung
+                muncul.
+              </span>
+            </a>
+          </div>
+        </article>
+
+        <!-- Laporan -->
+        <article class="card" data-group="laporan">
+          <div class="card__header">
+            <h2 class="card__title">4 · Laporan</h2>
+            <span class="card__action t-xs t-muted">Ambil manfaat dari data yang sudah dicatat</span>
+          </div>
+          <div class="card__body grid grid--3 grid--stack-sm">
+            <a class="topic" href="laporan.html" data-topic="laporan laba rugi neraca arus kas ekspor pdf">
+              <span class="topic__icon" style="background: var(--accent); color: var(--primary)">
+                <i data-lucide="chart-line"></i>
+              </span>
+              <span class="topic__title">Laporan</span>
+              <span class="topic__desc">
+                Pilih jenis laporan (laba-rugi, neraca, arus kas, performa investasi) dan rentang tanggal untuk analisis
+                mendalam.
+              </span>
+            </a>
+            <a class="topic" href="tax.html" data-topic="pajak pph 21 spt tahunan progresif">
+              <span class="topic__icon" style="background: var(--success-soft); color: var(--success)">
+                <i data-lucide="file-text"></i>
+              </span>
+              <span class="topic__title">Tax Center</span>
+              <span class="topic__desc">
+                Isi penghasilan bulananmu untuk menghitung PPh 21 progresif, lalu tandai status pelaporan SPT tahunanmu.
+              </span>
+            </a>
+            <a class="topic" href="mastercoa.html" data-topic="master coa chart of accounts akuntansi grup">
+              <span class="topic__icon" style="background: var(--accent); color: #1d4ed8">
+                <i data-lucide="book-open"></i>
+              </span>
+              <span class="topic__title">Master COA</span>
+              <span class="topic__desc">
+                Untuk kebutuhan akuntansi lanjutan: kelola struktur akun (COA) yang dipakai laporan laba-rugi &amp;
+                neraca.
+              </span>
+            </a>
+            <a class="topic" href="ai.html" data-topic="ai advisor saran analisa api key">
+              <span class="topic__icon" style="background: var(--secondary); color: var(--muted-foreground)">
+                <i data-lucide="bot"></i>
+              </span>
+              <span class="topic__title">AI Advisor</span>
+              <span class="topic__desc">
+                Ketik pertanyaan seputar keuanganmu — AI menganalisis data transaksimu dan memberi saran konkret. Perlu
+                API key sendiri.
+              </span>
+            </a>
+          </div>
+        </article>
+
+        <!-- Keluarga & Peran -->
+        <article class="card" data-group="keluarga">
+          <div class="card__header">
+            <h2 class="card__title">5 · Keluarga &amp; Peran</h2>
+            <span class="card__action t-xs t-muted">Kelola keuangan bersama</span>
+          </div>
+          <div class="card__body grid grid--3 grid--stack-sm">
+            <a class="topic" href="akun.html" data-topic="akun keluarga anggota peran master co-master undang">
+              <span class="topic__icon" style="background: var(--accent); color: var(--primary)">
+                <i data-lucide="users"></i>
+              </span>
+              <span class="topic__title">Akun &amp; Keluarga</span>
+              <span class="topic__desc">
+                Undang pasangan, anak, atau asisten rumah tangga, lalu tentukan perannya: master, co-master, anggota,
+                atau hanya lihat.
+              </span>
+            </a>
+            <a class="topic" href="persetujuan.html" data-topic="persetujuan permintaan dana approval anak">
+              <span class="topic__icon" style="background: var(--warning-soft); color: var(--warning)">
+                <i data-lucide="check-check"></i>
+              </span>
+              <span class="topic__title">Persetujuan</span>
+              <span class="topic__desc">
+                Permintaan dana dari anggota keluarga masuk ke sini — setujui atau tolak, lengkap dengan catatan.
+              </span>
+            </a>
+            <a class="topic" href="donation.html" data-topic="donasi perpuluhan infaq sedekah wakaf lembaga">
+              <span class="topic__icon" style="background: var(--success-soft); color: var(--success)">
+                <i data-lucide="heart-handshake"></i>
+              </span>
+              <span class="topic__title">Donasi</span>
+              <span class="topic__desc">
+                Hitung perpuluhan dari penghasilanmu, lalu catat infaq, sedekah, atau wakaf yang sudah kamu keluarkan.
+              </span>
+            </a>
+            <a class="topic" href="warisan.html" data-topic="warisan ahli waris pembagian aset">
+              <span class="topic__icon" style="background: var(--brand-purple-soft); color: var(--brand-purple)">
+                <i data-lucide="scroll"></i>
+              </span>
+              <span class="topic__title">Warisan</span>
+              <span class="topic__desc">
+                Catat daftar aset dan ahli waris untuk merencanakan pembagian warisan keluarga.
+              </span>
+            </a>
+          </div>
+        </article>
+
+        <!-- Keamanan -->
+        <article class="card" data-group="keamanan">
+          <div class="card__header">
+            <h2 class="card__title">6 · Keamanan</h2>
+            <span class="card__action t-xs t-muted">Lindungi data keluargamu</span>
+          </div>
+          <div class="card__body grid grid--3 grid--stack-sm">
+            <a class="topic" href="akun.html" data-topic="kata sandi password ganti keamanan">
+              <span class="topic__icon" style="background: var(--accent); color: var(--primary)">
+                <i data-lucide="key-round"></i>
+              </span>
+              <span class="topic__title">Kata Sandi &amp; Login</span>
+              <span class="topic__desc">
+                Ganti kata sandi, lihat perangkat yang sedang login, dan keluarkan sesi yang tidak kamu kenali.
+              </span>
+            </a>
+            <a class="topic" href="masterdata.html" data-topic="kategori privat privasi sembunyikan transaksi">
+              <span class="topic__icon" style="background: var(--brand-purple-soft); color: var(--brand-purple)">
+                <i data-lucide="eye-off"></i>
+              </span>
+              <span class="topic__title">Kategori Privat</span>
+              <span class="topic__desc">
+                Tandai kategori sebagai privat — transaksinya hanya terlihat olehmu dan tidak dikirim ke AI Advisor.
+              </span>
+            </a>
+            <a class="topic" href="ai.html" data-topic="api key enkripsi ai penyedia">
+              <span class="topic__icon" style="background: var(--secondary); color: var(--muted-foreground)">
+                <i data-lucide="shield-check"></i>
+              </span>
+              <span class="topic__title">API Key AI</span>
+              <span class="topic__desc">
+                Key AI disimpan terenkripsi di server dan hanya bisa diatur oleh owner atau pasangan.
+              </span>
+            </a>
+          </div>
+        </article>
+      </section>
+
+      <!-- FAQ -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Pertanyaan yang Sering Diajukan</h2>
+        </div>
+        <div class="card__body stack" style="gap: 8px">
+          <details class="faq">
+            <summary class="faq__q">Kenapa statement PDF dari bank saya ditolak?</summary>
+            <div class="faq__a">
+              Tata letak PDF berbeda di tiap bank, dan angka hasil pembacaan otomatis sering meleset tanpa ketahuan —
+              itu risiko yang lebih besar daripada repot sedikit. Ekspor mutasi rekening sebagai CSV dari aplikasi atau
+              situs bank Anda, lalu unggah file CSV tersebut di halaman
+              <a class="t-primary t-bold" href="rekonsiliasi.html">Rekonsiliasi</a>.
+            </div>
+          </details>
+
+          <details class="faq">
+            <summary class="faq__q">Apakah daftar bank dan jenis investasi bisa saya tambah sendiri?</summary>
+            <div class="faq__a">
+              Bisa. Semua daftar referensi di
+              <a class="t-primary t-bold" href="masterdata.html">Master Data</a> punya tombol "+ Tambah" dan bisa dihapus
+              — termasuk item bawaan yang tidak dipakai keluargamu. Tidak ada daftar yang terkunci.
+            </div>
+          </details>
+
+          <details class="faq">
+            <summary class="faq__q">Kenapa cicilan KPR saya tidak seluruhnya masuk pengeluaran?</summary>
+            <div class="faq__a">
+              Karena hanya bagian bunganya yang benar-benar pengeluaran. Pokok cicilan mengurangi utangmu, bukan labamu —
+              uang itu memang bukan pemasukanmu waktu dulu kamu pinjam. Penjelasan lengkapnya ada di
+              <a class="t-primary t-bold" href="mastercoa.html">Master COA</a>, grup 5 (Utang).
+            </div>
+          </details>
+
+          <details class="faq">
+            <summary class="faq__q">Kenapa AI Advisor saya tidak bisa menjawab?</summary>
+            <div class="faq__a">
+              AI Advisor memakai API key milikmu sendiri (Claude, OpenAI, atau Gemini). Selama key belum disambungkan,
+              fitur ini sengaja dinonaktifkan dan tidak menampilkan jawaban apa pun — lebih baik kosong daripada saran
+              yang dikarang. Owner atau pasangan bisa mengaturnya di
+              <a class="t-primary t-bold" href="ai.html">AI Advisor → Atur API Key</a>.
+            </div>
+          </details>
+
+          <details class="faq">
+            <summary class="faq__q">Siapa saja yang bisa melihat transaksi saya?</summary>
+            <div class="faq__a">
+              Master dan co-master melihat seluruh rekening dan transaksi keluarga. Anggota biasa hanya melihat miliknya
+              sendiri. Kategori yang kamu tandai <strong>privat</strong> tidak terlihat oleh siapa pun selain kamu, dan
+              tidak ikut dikirim ke AI Advisor.
+            </div>
+          </details>
+
+          <details class="faq">
+            <summary class="faq__q">Bagaimana cara mengubah peran anggota keluarga?</summary>
+            <div class="faq__a">
+              Buka <a class="t-primary t-bold" href="akun.html">Akun &amp; Keluarga</a>, pilih anggotanya, lalu ubah
+              perannya. Hanya master yang bisa mengangkat atau menurunkan co-master. Perubahan peran tercatat di log
+              aktivitas keluarga.
+            </div>
+          </details>
+
+          <details class="faq">
+            <summary class="faq__q">Apakah data saya diekspor kalau saya berhenti pakai WealthMe?</summary>
+            <div class="faq__a">
+              Ya. Semua transaksi, rekening, dan laporan bisa diekspor sebagai CSV atau PDF dari halaman
+              <a class="t-primary t-bold" href="laporan.html">Laporan</a> kapan saja, tanpa perlu menghubungi kami.
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <!-- Contact support -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Masih Butuh Bantuan?</h2>
+          <button class="card-link card__action" onclick="WM.openDialog('dlg-kontak')">Hubungi Kami</button>
+        </div>
+        <div class="card__body grid grid--3 grid--stack-sm">
+          <a class="topic" href="mailto:dukungan@wealthme.id?subject=Bantuan%20WealthMe">
+            <span class="topic__icon" style="background: var(--accent); color: var(--primary)">
+              <i data-lucide="mail"></i>
+            </span>
+            <span class="topic__title">Email</span>
+            <span class="topic__desc mono">dukungan@wealthme.id</span>
+            <span class="topic__desc">Dibalas dalam 1×24 jam kerja.</span>
+          </a>
+          <a class="topic" href="https://wa.me/6281200001234?text=Halo%20WealthMe%2C%20saya%20butuh%20bantuan">
+            <span class="topic__icon" style="background: var(--success-soft); color: var(--success)">
+              <i data-lucide="message-circle"></i>
+            </span>
+            <span class="topic__title">WhatsApp</span>
+            <span class="topic__desc mono">+62 812 0000 1234</span>
+            <span class="topic__desc">Senin–Jumat, 09.00–17.00 WIB.</span>
+          </a>
+          <a class="topic" href="tel:+62215550199">
+            <span class="topic__icon" style="background: var(--warning-soft); color: #d97706">
+              <i data-lucide="phone"></i>
+            </span>
+            <span class="topic__title">Telepon</span>
+            <span class="topic__desc mono">(021) 555-0199</span>
+            <span class="topic__desc">Untuk kendala mendesak terkait akun.</span>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <!-- Dialog: contact support -->
+    <div
+      class="dialog-backdrop"
+      id="dlg-kontak"
+      data-open="false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dlg-kontak-title"
+    >
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-kontak-title">Hubungi Kami</h2>
+        <p class="dialog__desc">Ceritakan kendalamu — kami balas ke email akunmu dalam 1×24 jam kerja.</p>
+        <div class="dialog__body">
+          <label class="field">
+            <span class="label">Topik</span>
+            <select class="select">
+              <option>Kendala teknis / error</option>
+              <option>Pertanyaan cara pakai</option>
+              <option>Data tidak sesuai</option>
+              <option>Akun &amp; keamanan</option>
+              <option>Saran fitur</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span class="label">Halaman terkait</span>
+            <select class="select">
+              <option>Rekonsiliasi</option>
+              <option>Transaksi</option>
+              <option>Laporan</option>
+              <option>Master Data</option>
+              <option>AI Advisor</option>
+              <option>Lainnya</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span class="label">Ceritakan kendalamu</span>
+            <textarea class="textarea" placeholder="Sebutkan langkah yang kamu lakukan dan apa yang terjadi…"></textarea>
+          </label>
+
+          <div class="field">
+            <span class="label">Lampiran <span class="t-muted" style="font-weight: 500">(opsional)</span></span>
+            <label class="notice" style="cursor: pointer; align-items: center">
+              <i data-lucide="paperclip" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+              <span>Unggah tangkapan layar — maks 5 MB<input type="file" hidden /></span>
+            </label>
+          </div>
+
+          <div class="notice notice--info" style="margin-top: 12px">
+            <i data-lucide="shield-check" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>
+              Kami tidak pernah meminta kata sandi atau OTP-mu. Balasan hanya dikirim ke
+              <span class="mono">irfan@arsandi.id</span>.
+            </span>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-kontak')">Batal</button>
+          <button
+            class="btn btn--primary"
+            onclick="WM.closeDialog('dlg-kontak');WM.toast('Pesan terkirim — kami balas ke email akunmu','success')"
+          >
+            Kirim Pesan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      /* Page-local: guide topic tile and FAQ disclosure. Both are page-specific
+         shapes with no shared equivalent; they reuse the card tokens. */
+      .topic {
+        display: block;
+        padding: 13px;
+        text-align: left;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--background);
+        cursor: pointer;
+        transition: border-color 0.14s ease, background 0.14s ease;
+      }
+      .topic:hover {
+        border-color: var(--primary);
+        background: var(--card);
+      }
+      .topic__icon {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        margin-bottom: 9px;
+        border-radius: 10px;
+      }
+      .topic__icon svg {
+        width: 17px;
+        height: 17px;
+      }
+      .topic__title {
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .topic__desc {
+        display: block;
+        margin-top: 3px;
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--muted-foreground);
+      }
+
+      .faq {
+        border: 1px solid var(--border);
+        border-radius: 11px;
+        background: var(--background);
+      }
+      .faq[open] {
+        border-color: color-mix(in oklab, var(--primary) 40%, var(--border));
+      }
+      .faq__q {
+        padding: 12px 14px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        list-style: none;
+      }
+      .faq__q::-webkit-details-marker {
+        display: none;
+      }
+      .faq__q::after {
+        content: "+";
+        float: right;
+        font-size: 16px;
+        color: var(--muted-foreground);
+      }
+      .faq[open] .faq__q::after {
+        content: "−";
+      }
+      .faq__a {
+        padding: 0 14px 14px;
+        font-size: 12.5px;
+        line-height: 1.6;
+        color: var(--muted-foreground);
+      }
+    </style>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script src="../assets/charts.js"></script>
+    <script>
+      WM.shell({ active: "panduan" });
+
+      // Search + area filter run for real, so the prototype can be clicked through.
+      const search = document.getElementById("pd-search");
+      const groups = [...document.querySelectorAll("#pd-groups [data-group]")];
+      const count = document.getElementById("pd-count");
+      let area = "all";
+
+      const apply = () => {
+        const q = search.value.trim().toLowerCase();
+        let shown = 0;
+        groups.forEach((group) => {
+          const inArea = area === "all" || group.dataset.group === area;
+          let visibleInGroup = 0;
+          group.querySelectorAll("[data-topic]").forEach((topic) => {
+            const hit = !q || `${topic.dataset.topic} ${topic.textContent}`.toLowerCase().includes(q);
+            const show = inArea && hit;
+            topic.style.display = show ? "" : "none";
+            if (show) visibleInGroup++;
+          });
+          group.style.display = visibleInGroup ? "" : "none";
+          shown += visibleInGroup;
+        });
+        const total = document.querySelectorAll("#pd-groups [data-topic]").length;
+        count.textContent = shown
+          ? `Menampilkan ${shown} dari ${total} topik`
+          : `Tidak ada topik yang cocok — coba kata kunci lain atau hubungi kami.`;
+      };
+
+      search.addEventListener("input", apply);
+      document.getElementById("pd-areas").addEventListener("click", (e) => {
+        const tab = e.target.closest(".tab");
+        if (!tab) return;
+        area = tab.dataset.area;
+        apply();
+      });
+
+      apply();
+    </script>
+  </body>
+</html>

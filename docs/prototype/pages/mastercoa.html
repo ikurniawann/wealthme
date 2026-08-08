@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Master COA · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="page-lead">
+        <div class="page-lead__text">
+          <div class="section-title">📚 Master COA</div>
+          <div class="page-lead__sub">
+            Struktur akun yang dipakai laporan laba-rugi &amp; neraca. Untuk kebutuhan akuntansi lanjutan — opsional.
+          </div>
+        </div>
+        <div class="row" style="gap: 8px">
+          <a class="btn btn--outline btn--sm" href="masterdata.html">
+            <i data-lucide="database" style="width: 15px; height: 15px"></i> Master Data
+          </a>
+          <button class="btn btn--primary btn--sm" onclick="WMCoa.openAdd()">
+            <i data-lucide="plus" style="width: 15px; height: 15px"></i> Tambah Akun
+          </button>
+        </div>
+      </section>
+
+      <!-- Plain-language explainer -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Apa itu Master COA?</h2>
+        </div>
+        <div class="card__body stack" style="gap: 16px">
+          <p class="t-md t-muted" style="margin: 0; line-height: 1.6">
+            Master COA (Chart of Accounts) adalah daftar "kotak" tempat setiap transaksimu disimpan. Setiap kali kamu
+            mencatat pemasukan, pengeluaran, atau transfer, WealthMe menaruhnya ke salah satu dari 6 grup di bawah — dan
+            grup itulah yang menentukan bagaimana angka itu muncul di laporan laba-rugi dan neracamu.
+          </p>
+
+          <div class="notice notice--warning">
+            <i data-lucide="triangle-alert" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>
+              <strong>⚠️ Risiko kalau salah edit.</strong> Master COA adalah dasar dari semua laporanmu. Kalau kamu
+              mengubah grup atau arah (pemasukan/pengeluaran/transfer) akun yang sudah dipakai, transaksi lama yang sudah
+              tercatat ke akun itu ikut berubah artinya — laporan laba-rugi dan neracamu bisa langsung salah tanpa
+              peringatan apa pun. Edit hanya jika kamu benar-benar paham konsekuensinya.
+            </span>
+          </div>
+
+          <div>
+            <h3 class="t-sm t-bold" style="margin-bottom: 10px">6 grup, dan artinya untuk uangmu</h3>
+            <div class="grid grid--2 grid--stack-sm">
+              <div style="border: 1px solid var(--border); border-radius: 11px; padding: 14px; background: var(--background)">
+                <div class="t-md t-bold">1 · Pemasukan (Income)</div>
+                <p class="t-sm t-muted" style="margin: 5px 0 0; line-height: 1.55">
+                  Uang yang benar-benar menambah kekayaanmu — gaji, bonus, hasil jualan, bunga tabungan. Setiap rupiah di
+                  grup ini menaikkan laba di laporan laba-rugimu.
+                </p>
+                <p class="t-xs" style="margin: 9px 0 0; padding: 8px; border-radius: 8px; background: var(--secondary); line-height: 1.55">
+                  Contoh: gaji <span class="mono">Rp 10.000.000</span> masuk ke rekening BCA-mu dan dicatat sebagai
+                  "Gaji" (grup 1). Laporan laba-rugi bulan ini langsung menunjukkan pemasukan
+                  <span class="mono">Rp 10.000.000</span> — dan itu juga menambah kekayaan bersihmu di neraca.
+                </p>
+              </div>
+
+              <div style="border: 1px solid var(--border); border-radius: 11px; padding: 14px; background: var(--background)">
+                <div class="t-md t-bold">2 · Pengeluaran (Expense)</div>
+                <p class="t-sm t-muted" style="margin: 5px 0 0; line-height: 1.55">
+                  Uang yang benar-benar habis terpakai dan tidak kembali — belanja, makan, listrik, transportasi. Setiap
+                  rupiah di grup ini menurunkan laba di laporan laba-rugimu.
+                </p>
+                <p class="t-xs" style="margin: 9px 0 0; padding: 8px; border-radius: 8px; background: var(--secondary); line-height: 1.55">
+                  Contoh: belanja bulanan <span class="mono">Rp 1.500.000</span> dicatat sebagai "Kebutuhan Rumah Tangga"
+                  (grup 2). Laporan laba-rugi mencatatnya sebagai pengeluaran
+                  <span class="mono">Rp 1.500.000</span> bulan ini.
+                </p>
+              </div>
+
+              <div style="border: 1px solid var(--border); border-radius: 11px; padding: 14px; background: var(--background)">
+                <div class="t-md t-bold">3 · Alokasi Kekayaan (Wealth Allocation)</div>
+                <p class="t-sm t-muted" style="margin: 5px 0 0; line-height: 1.55">
+                  Uang yang berpindah tempat, bukan hilang — menabung, membeli emas atau investasi, memindahkan uang
+                  antar rekeningmu sendiri. Uang ini TIDAK muncul sebagai pengeluaran, karena kekayaanmu tidak berkurang,
+                  cuma bentuknya berubah.
+                </p>
+                <p class="t-xs" style="margin: 9px 0 0; padding: 8px; border-radius: 8px; background: var(--secondary); line-height: 1.55">
+                  Contoh: dari gaji <span class="mono">Rp 10.000.000</span> di atas, kalau
+                  <span class="mono">Rp 2.000.000</span>-nya kamu pindahkan ke rekening tabungan dan dicatat di grup 3
+                  ("Tabungan"), laporan laba-rugi TIDAK mencatatnya sebagai pengeluaran — uang itu masih milikmu, hanya
+                  pindah rekening.
+                </p>
+              </div>
+
+              <div style="border: 1px solid var(--border); border-radius: 11px; padding: 14px; background: var(--background)">
+                <div class="t-md t-bold">4 · Piutang (Account Receivable)</div>
+                <p class="t-sm t-muted" style="margin: 5px 0 0; line-height: 1.55">
+                  Uang yang kamu PINJAMKAN ke orang lain dan akan kembali. Ini bukan pengeluaran — uangmu belum hilang,
+                  cuma dipegang orang lain sementara. Karena itu grup ini arahnya TRANSFER, bukan expense.
+                </p>
+                <p class="t-xs" style="margin: 9px 0 0; padding: 8px; border-radius: 8px; background: var(--secondary); line-height: 1.55">
+                  Contoh yang sering salah dicatat: kamu pinjamkan <span class="mono">Rp 500.000</span> ke teman, dicatat
+                  ke grup 4. Kekayaan bersihmu tetap sama, cuma bentuknya berubah dari "uang tunai" jadi "piutang".
+                </p>
+              </div>
+
+              <div style="border: 1px solid var(--border); border-radius: 11px; padding: 14px; background: var(--background)">
+                <div class="t-md t-bold">5 · Utang (Account Payable)</div>
+                <p class="t-sm t-muted" style="margin: 5px 0 0; line-height: 1.55">
+                  Uang yang kamu PINJAM dari orang lain atau lembaga (termasuk cicilan/KPR) dan harus kamu bayar kembali.
+                  Membayar KEMBALI pokok utang bukan pengeluaran — uang itu memang bukan milikmu sejak awal. Karena itu
+                  grup ini juga arahnya TRANSFER.
+                </p>
+                <p class="t-xs" style="margin: 9px 0 0; padding: 8px; border-radius: 8px; background: var(--secondary); line-height: 1.55">
+                  Contoh: cicilan KPR <span class="mono">Rp 5.000.000</span> (pokok
+                  <span class="mono">Rp 4.200.000</span> + bunga <span class="mono">Rp 800.000</span>). Hanya bunga yang
+                  tercatat sebagai pengeluaran (grup 2); pokoknya pengurang utang di grup 5.
+                </p>
+              </div>
+
+              <div style="border: 1px solid var(--border); border-radius: 11px; padding: 14px; background: var(--background)">
+                <div class="t-md t-bold">6 · Pajak (Tax)</div>
+                <p class="t-sm t-muted" style="margin: 5px 0 0; line-height: 1.55">
+                  Pajak yang kamu bayar ke negara — PPh, PBB, dan sejenisnya. Ini pengeluaran nyata yang tidak bisa kamu
+                  tarik kembali, jadi tetap dicatat sebagai expense.
+                </p>
+                <p class="t-xs" style="margin: 9px 0 0; padding: 8px; border-radius: 8px; background: var(--secondary); line-height: 1.55">
+                  Contoh: PBB rumah <span class="mono">Rp 800.000</span> dicatat di grup 6. Laporan laba-rugi mencatatnya
+                  sebagai pengeluaran <span class="mono">Rp 800.000</span>, sama seperti grup 2.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="notice notice--info">
+            <i data-lucide="lightbulb" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>
+              <strong>Kenapa Piutang &amp; Utang bukan expense/income?</strong> Ini bagian paling sering salah dicatat.
+              Melunasi pokok utang BUKAN pengeluaran — uang itu memang titipan orang lain sejak awal. Sebaliknya,
+              meminjamkan uang BUKAN pengeluaran dan menerima kembali pinjaman itu BUKAN pemasukan. Kalau grup 4/5 diubah
+              jadi income/expense, laporan laba-rugimu akan menghitung uang pinjaman sebagai untung/rugi yang sebenarnya
+              tidak pernah terjadi.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Stats -->
+      <section class="auto-grid auto-grid--metrics">
+        <article class="card stat">
+          <div class="stat__icon" style="background: var(--accent); color: var(--primary)">📚</div>
+          <div>
+            <div class="stat__label">Total Akun</div>
+            <div class="stat__value mono">42</div>
+          </div>
+          <div class="stat__delta t-muted">6 grup</div>
+        </article>
+        <article class="card stat">
+          <div class="stat__icon" style="background: var(--success-soft); color: var(--success)">🏷️</div>
+          <div>
+            <div class="stat__label">Kategori Terhubung</div>
+            <div class="stat__value mono">18</div>
+          </div>
+          <div class="stat__delta t-muted">dari 18 kategori aplikasi</div>
+        </article>
+        <article class="card stat">
+          <div class="stat__icon" style="background: var(--warning-soft); color: var(--warning)">📄</div>
+          <div>
+            <div class="stat__label">Akun COA Kosong</div>
+            <div class="stat__value mono">24</div>
+          </div>
+          <div class="stat__delta t-muted">akun COA tanpa kategori</div>
+        </article>
+      </section>
+
+      <!-- Account tree -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Daftar Akun COA</h2>
+          <div class="card__action tabs" style="padding-bottom: 0">
+            <button class="tab" aria-selected="true">Semua</button>
+            <button class="tab" aria-selected="false">1 Pendapatan</button>
+            <button class="tab" aria-selected="false">2 Beban</button>
+            <button class="tab" aria-selected="false">3 Alokasi</button>
+            <button class="tab" aria-selected="false">4 Piutang</button>
+            <button class="tab" aria-selected="false">5 Utang</button>
+            <button class="tab" aria-selected="false">6 Pajak</button>
+          </div>
+        </div>
+        <div class="card__body" style="padding-top: 8px">
+          <div class="table-wrap">
+            <table class="table" style="min-width: 780px">
+              <thead>
+                <tr>
+                  <th>Kode</th>
+                  <th>Nama Akun</th>
+                  <th>Grup</th>
+                  <th>Arah</th>
+                  <th>Budget Type</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Group 1 -->
+                <tr style="background: var(--secondary)">
+                  <td class="mono t-bold">1</td>
+                  <td colspan="5" class="t-sm t-bold">Pendapatan (Income) · 6 akun</td>
+                </tr>
+                <tr>
+                  <td class="mono">10101</td>
+                  <td style="padding-left: 28px">Gaji &amp; Tunjangan</td>
+                  <td><span class="badge badge--gray">1 Income</span></td>
+                  <td><span class="badge badge--success">↓ INCOME</span></td>
+                  <td><span class="badge badge--info">FIXED</span></td>
+                  <td>
+                    <div class="row" style="gap: 4px">
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Edit Gaji &amp; Tunjangan"
+                              onclick="WMCoa.openEdit('10101','Gaji & Tunjangan',1,'INCOME','FIXED')">
+                        <i data-lucide="pencil" style="width: 14px; height: 14px"></i>
+                      </button>
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus Gaji &amp; Tunjangan"
+                              onclick="WM.openDialog('dlg-coa-delete')">
+                        <i data-lucide="trash-2" style="width: 14px; height: 14px"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="mono">10102</td>
+                  <td style="padding-left: 28px">Bonus &amp; THR</td>
+                  <td><span class="badge badge--gray">1 Income</span></td>
+                  <td><span class="badge badge--success">↓ INCOME</span></td>
+                  <td><span class="badge badge--purple">VARIABLE</span></td>
+                  <td>
+                    <div class="row" style="gap: 4px">
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Edit Bonus &amp; THR"
+                              onclick="WMCoa.openEdit('10102','Bonus & THR',1,'INCOME','VARIABLE')">
+                        <i data-lucide="pencil" style="width: 14px; height: 14px"></i>
+                      </button>
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus Bonus &amp; THR"
+                              onclick="WM.openDialog('dlg-coa-delete')">
+                        <i data-lucide="trash-2" style="width: 14px; height: 14px"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="mono">10203</td>
+                  <td style="padding-left: 28px">Bunga Tabungan &amp; Deposito</td>
+                  <td><span class="badge badge--gray">1 Income</span></td>
+                  <td><span class="badge badge--success">↓ INCOME</span></td>
+                  <td><span class="badge badge--purple">VARIABLE</span></td>
+                  <td>
+                    <div class="row" style="gap: 4px">
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Edit Bunga Tabungan"
+                              onclick="WMCoa.openEdit('10203','Bunga Tabungan & Deposito',1,'INCOME','VARIABLE')">
+                        <i data-lucide="pencil" style="width: 14px; height: 14px"></i>
+                      </button>
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus Bunga Tabungan"
+                              onclick="WM.openDialog('dlg-coa-delete')">
+                        <i data-lucide="trash-2" style="width: 14px; height: 14px"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Group 2 -->
+                <tr style="background: var(--secondary)">
+                  <td class="mono t-bold">2</td>
+                  <td colspan="5" class="t-sm t-bold">Beban (Expense) · 17 akun</td>
+                </tr>
+                <tr>
+                  <td class="mono">20101</td>
+                  <td style="padding-left: 28px">Kebutuhan Rumah Tangga</td>
+                  <td><span class="badge badge--gray">2 Expense</span></td>
+                  <td><span class="badge badge--danger">↑ EXPENSE</span></td>
+                  <td><span class="badge badge--purple">VARIABLE</span></td>
+                  <td>
+                    <div class="row" style="gap: 4px">
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Edit Kebutuhan Rumah Tangga"
+                              onclick="WMCoa.openEdit('20101','Kebutuhan Rumah Tangga',2,'EXPENSE','VARIABLE')">
+                        <i data-lucide="pencil" style="width: 14px; height: 14px"></i>
+                      </button>
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus Kebutuhan Rumah Tangga"
+                              onclick="WM.openDialog('dlg-coa-delete')">
+                        <i data-lucide="trash-2" style="width: 14px; height: 14px"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="mono">20204</td>
+                  <td style="padding-left: 28px">Transportasi &amp; BBM</td>
+                  <td><span class="badge badge--gray">2 Expense</span></td>
+                  <td><span class="badge badge--danger">↑ EXPENSE</span></td>
+                  <td><span class="badge badge--purple">VARIABLE</span></td>
+                  <td>
+                    <div class="row" style="gap: 4px">
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Edit Transportasi"
+                              onclick="WMCoa.openEdit('20204','Transportasi & BBM',2,'EXPENSE','VARIABLE')">
+                        <i data-lucide="pencil" style="width: 14px; height: 14px"></i>
+                      </button>
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus Transportasi"
+                              onclick="WM.openDialog('dlg-coa-delete')">
+                        <i data-lucide="trash-2" style="width: 14px; height: 14px"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="mono">20301</td>
+                  <td style="padding-left: 28px">Bunga Pinjaman &amp; KPR</td>
+                  <td><span class="badge badge--gray">2 Expense</span></td>
+                  <td><span class="badge badge--danger">↑ EXPENSE</span></td>
+                  <td><span class="badge badge--info">FIXED</span></td>
+                  <td>
+                    <div class="row" style="gap: 4px">
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Edit Bunga Pinjaman"
+                              onclick="WMCoa.openEdit('20301','Bunga Pinjaman & KPR',2,'EXPENSE','FIXED')">
+                        <i data-lucide="pencil" style="width: 14px; height: 14px"></i>
+                      </button>
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus Bunga Pinjaman"
+                              onclick="WM.openDialog('dlg-coa-delete')">
+                        <i data-lucide="trash-2" style="width: 14px; height: 14px"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="mono">20408</td>
+                  <td style="padding-left: 28px">Kesehatan &amp; Obat</td>
+                  <td><span class="badge badge--gray">2 Expense</span></td>
+                  <td><span class="badge badge--danger">↑ EXPENSE</span></td>
+                  <td><span class="badge badge--warning">REIMBURSEMENT</span></td>
+                  <td>
+                    <div class="row" style="gap: 4px">
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Edit Kesehatan"
+                              onclick="WMCoa.openEdit('20408','Kesehatan & Obat',2,'EXPENSE','REIMBURSEMENT')">
+                        <i data-lucide="pencil" style="width: 14px; height: 14px"></i>
+                      </button>
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus Kesehatan"
+                              onclick="WM.openDialog('dlg-coa-delete')">
+                        <i data-lucide="trash-2" style="width: 14px; height: 14px"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Group 3 -->
+                <tr style="background: var(--secondary)">
+                  <td class="mono t-bold">3</td>
+                  <td colspan="5" class="t-sm t-bold">Alokasi Kekayaan (Wealth Allocation) · 8 akun</td>
+                </tr>
+                <tr>
+                  <td class="mono">30101</td>
+                  <td style="padding-left: 28px">Tabungan &amp; Dana Darurat</td>
+                  <td><span class="badge badge--gray">3 Alokasi</span></td>
+                  <td><span class="badge badge--purple">↔ TRANSFER</span></td>
+                  <td><span class="t-muted">—</span></td>
+                  <td>
+                    <div class="row" style="gap: 4px">
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Edit Tabungan"
+                              onclick="WMCoa.openEdit('30101','Tabungan & Dana Darurat',3,'TRANSFER','')">
+                        <i data-lucide="pencil" style="width: 14px; height: 14px"></i>
+                      </button>
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus Tabungan"
+                              onclick="WM.openDialog('dlg-coa-delete')">
+                        <i data-lucide="trash-2" style="width: 14px; height: 14px"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="mono">30204</td>
+                  <td style="padding-left: 28px">Pembelian Investasi</td>
+                  <td><span class="badge badge--gray">3 Alokasi</span></td>
+                  <td><span class="badge badge--purple">↔ TRANSFER</span></td>
+                  <td><span class="t-muted">—</span></td>
+                  <td>
+                    <div class="row" style="gap: 4px">
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Edit Pembelian Investasi"
+                              onclick="WMCoa.openEdit('30204','Pembelian Investasi',3,'TRANSFER','')">
+                        <i data-lucide="pencil" style="width: 14px; height: 14px"></i>
+                      </button>
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus Pembelian Investasi"
+                              onclick="WM.openDialog('dlg-coa-delete')">
+                        <i data-lucide="trash-2" style="width: 14px; height: 14px"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Group 4 -->
+                <tr style="background: var(--secondary)">
+                  <td class="mono t-bold">4</td>
+                  <td colspan="5" class="t-sm t-bold">Piutang (Account Receivable) · 4 akun</td>
+                </tr>
+                <tr>
+                  <td class="mono">40101</td>
+                  <td style="padding-left: 28px">Piutang Keluarga &amp; Teman</td>
+                  <td><span class="badge badge--gray">4 Piutang</span></td>
+                  <td><span class="badge badge--purple">↔ TRANSFER</span></td>
+                  <td><span class="t-muted">—</span></td>
+                  <td>
+                    <div class="row" style="gap: 4px">
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Edit Piutang Keluarga"
+                              onclick="WMCoa.openEdit('40101','Piutang Keluarga & Teman',4,'TRANSFER','')">
+                        <i data-lucide="pencil" style="width: 14px; height: 14px"></i>
+                      </button>
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus Piutang Keluarga"
+                              onclick="WM.openDialog('dlg-coa-delete')">
+                        <i data-lucide="trash-2" style="width: 14px; height: 14px"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Group 5 -->
+                <tr style="background: var(--secondary)">
+                  <td class="mono t-bold">5</td>
+                  <td colspan="5" class="t-sm t-bold">Utang (Account Payable) · 5 akun</td>
+                </tr>
+                <tr>
+                  <td class="mono">50102</td>
+                  <td style="padding-left: 28px">Pokok KPR</td>
+                  <td><span class="badge badge--gray">5 Utang</span></td>
+                  <td><span class="badge badge--purple">↔ TRANSFER</span></td>
+                  <td><span class="t-muted">—</span></td>
+                  <td>
+                    <div class="row" style="gap: 4px">
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Edit Pokok KPR"
+                              onclick="WMCoa.openEdit('50102','Pokok KPR',5,'TRANSFER','')">
+                        <i data-lucide="pencil" style="width: 14px; height: 14px"></i>
+                      </button>
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus Pokok KPR"
+                              onclick="WM.openDialog('dlg-coa-delete')">
+                        <i data-lucide="trash-2" style="width: 14px; height: 14px"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="mono">50203</td>
+                  <td style="padding-left: 28px">Tagihan Kartu Kredit</td>
+                  <td><span class="badge badge--gray">5 Utang</span></td>
+                  <td><span class="badge badge--purple">↔ TRANSFER</span></td>
+                  <td><span class="t-muted">—</span></td>
+                  <td>
+                    <div class="row" style="gap: 4px">
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Edit Tagihan Kartu Kredit"
+                              onclick="WMCoa.openEdit('50203','Tagihan Kartu Kredit',5,'TRANSFER','')">
+                        <i data-lucide="pencil" style="width: 14px; height: 14px"></i>
+                      </button>
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus Tagihan Kartu Kredit"
+                              onclick="WM.openDialog('dlg-coa-delete')">
+                        <i data-lucide="trash-2" style="width: 14px; height: 14px"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Group 6 -->
+                <tr style="background: var(--secondary)">
+                  <td class="mono t-bold">6</td>
+                  <td colspan="5" class="t-sm t-bold">Pajak (Tax) · 2 akun</td>
+                </tr>
+                <tr>
+                  <td class="mono">60101</td>
+                  <td style="padding-left: 28px">PPh 21 Terutang</td>
+                  <td><span class="badge badge--gray">6 Pajak</span></td>
+                  <td><span class="badge badge--danger">↑ EXPENSE</span></td>
+                  <td><span class="badge badge--info">FIXED</span></td>
+                  <td>
+                    <div class="row" style="gap: 4px">
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Edit PPh 21"
+                              onclick="WMCoa.openEdit('60101','PPh 21 Terutang',6,'EXPENSE','FIXED')">
+                        <i data-lucide="pencil" style="width: 14px; height: 14px"></i>
+                      </button>
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus PPh 21"
+                              onclick="WM.openDialog('dlg-coa-delete')">
+                        <i data-lucide="trash-2" style="width: 14px; height: 14px"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="mono">60202</td>
+                  <td style="padding-left: 28px">PBB &amp; Pajak Kendaraan</td>
+                  <td><span class="badge badge--gray">6 Pajak</span></td>
+                  <td><span class="badge badge--danger">↑ EXPENSE</span></td>
+                  <td><span class="badge badge--purple">VARIABLE</span></td>
+                  <td>
+                    <div class="row" style="gap: 4px">
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Edit PBB"
+                              onclick="WMCoa.openEdit('60202','PBB & Pajak Kendaraan',6,'EXPENSE','VARIABLE')">
+                        <i data-lucide="pencil" style="width: 14px; height: 14px"></i>
+                      </button>
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus PBB"
+                              onclick="WM.openDialog('dlg-coa-delete')">
+                        <i data-lucide="trash-2" style="width: 14px; height: 14px"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Dialog: add / edit COA account -->
+    <div
+      class="dialog-backdrop"
+      id="dlg-coa"
+      data-open="false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dlg-coa-title"
+    >
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-coa-title">Tambah Akun COA</h2>
+        <p class="dialog__desc">
+          Kode dibuat otomatis dari grup yang dipilih, tapi masih bisa kamu ubah sendiri selama digit pertamanya sesuai.
+        </p>
+        <div class="dialog__body">
+          <label class="field">
+            <span class="label">Grup (1–6) *</span>
+            <select class="select" id="coa-group">
+              <option value="1">1 · Pendapatan (Income)</option>
+              <option value="2">2 · Beban (Expense)</option>
+              <option value="3">3 · Alokasi Kekayaan</option>
+              <option value="4">4 · Piutang</option>
+              <option value="5">5 · Utang</option>
+              <option value="6">6 · Pajak</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span class="label">Kode Akun</span>
+            <input class="input mono" id="coa-code" placeholder="Otomatis jika dikosongkan" />
+            <span class="hint" id="coa-code-hint">Dibuat otomatis: <span class="mono">10104</span> — bisa diubah.</span>
+            <span class="error-text" id="coa-code-error" style="display: none"></span>
+          </label>
+
+          <label class="field">
+            <span class="label">Nama Akun *</span>
+            <input class="input" id="coa-name" placeholder="cth: Household Needs" />
+          </label>
+
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Arah Transaksi *</span>
+              <select class="select" id="coa-direction">
+                <option value="INCOME">↓ Pemasukan (INCOME)</option>
+                <option value="EXPENSE">↑ Pengeluaran (EXPENSE)</option>
+                <option value="TRANSFER">↔ Mutasi (TRANSFER)</option>
+              </select>
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Budget Type</span>
+              <select class="select" id="coa-budget">
+                <option value="">—</option>
+                <option value="FIXED">Fixed</option>
+                <option value="VARIABLE">Variable</option>
+                <option value="REIMBURSEMENT">Reimbursement</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="field">
+            <span class="label">Kode Induk <span class="t-muted" style="font-weight: 500">(opsional)</span></span>
+            <input class="input mono" placeholder="cth: 201" />
+          </label>
+
+          <div class="notice notice--warning" style="margin-top: 14px">
+            <i data-lucide="triangle-alert" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>
+              Mengubah grup atau arah akun yang sudah dipakai akan mengubah arti transaksi lama — laporan laba-rugi dan
+              neraca ikut berubah.
+            </span>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-coa')">Batal</button>
+          <button class="btn btn--primary" id="coa-save" onclick="WMCoa.save()">Simpan</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog: delete confirmation -->
+    <div
+      class="dialog-backdrop"
+      id="dlg-coa-delete"
+      data-open="false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dlg-coa-delete-title"
+    >
+      <div class="dialog dialog--sm">
+        <h2 class="dialog__title" id="dlg-coa-delete-title">Hapus Akun COA?</h2>
+        <p class="dialog__desc">Tindakan ini tidak dapat dibatalkan.</p>
+        <div class="dialog__body">
+          <div class="notice notice--danger">
+            <i data-lucide="triangle-alert" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>
+              Transaksi lama yang memakai akun ini akan kehilangan klasifikasinya di laporan laba-rugi dan neraca.
+            </span>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-coa-delete')">Batal</button>
+          <button
+            class="btn btn--destructive"
+            onclick="WM.closeDialog('dlg-coa-delete');WM.toast('Akun COA berhasil dihapus','success')"
+          >
+            Hapus
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script src="../assets/charts.js"></script>
+    <script>
+      WM.shell({ active: "mastercoa" });
+
+      const WMCoa = (() => {
+        const $ = (id) => document.getElementById(id);
+        // Next free code per group in the seeded chart — the generated suggestion.
+        const NEXT = { 1: "10104", 2: "20501", 3: "30301", 4: "40102", 5: "50301", 6: "60203" };
+        const DEFAULT_DIR = { 1: "INCOME", 2: "EXPENSE", 3: "TRANSFER", 4: "TRANSFER", 5: "TRANSFER", 6: "EXPENSE" };
+        let touchedCode = false;
+
+        // The code is auto-generated but stays editable: typing marks it as
+        // user-owned so switching group no longer overwrites the entry.
+        const suggest = () => {
+          const g = $("coa-group").value;
+          $("coa-code-hint").innerHTML = `Dibuat otomatis: <span class="mono">${NEXT[g]}</span> — bisa diubah.`;
+          if (!touchedCode) $("coa-code").value = NEXT[g];
+          $("coa-direction").value = DEFAULT_DIR[g];
+          validate();
+        };
+
+        const validate = () => {
+          const g = $("coa-group").value;
+          const code = $("coa-code").value.trim();
+          const err = $("coa-code-error");
+          const ok = code === "" || code.startsWith(g);
+          err.style.display = ok ? "none" : "";
+          err.textContent = ok ? "" : `Digit pertama kode harus ${g} agar cocok dengan grup yang dipilih.`;
+          $("coa-save").disabled = !ok;
+          return ok;
+        };
+
+        $("coa-group").addEventListener("change", suggest);
+        $("coa-code").addEventListener("input", () => {
+          touchedCode = true;
+          validate();
+        });
+
+        const openAdd = () => {
+          touchedCode = false;
+          $("dlg-coa-title").textContent = "Tambah Akun COA";
+          $("coa-group").value = "1";
+          $("coa-name").value = "";
+          $("coa-budget").value = "";
+          suggest();
+          WM.openDialog("dlg-coa");
+        };
+
+        const openEdit = (code, name, group, direction, budget) => {
+          touchedCode = true;
+          $("dlg-coa-title").textContent = "Edit Akun COA";
+          $("coa-group").value = String(group);
+          $("coa-code").value = code;
+          $("coa-name").value = name;
+          $("coa-direction").value = direction;
+          $("coa-budget").value = budget;
+          $("coa-code-hint").innerHTML = `Dibuat otomatis: <span class="mono">${NEXT[group]}</span> — bisa diubah.`;
+          validate();
+          WM.openDialog("dlg-coa");
+        };
+
+        const save = () => {
+          if (!validate()) return;
+          if (!$("coa-name").value.trim()) {
+            WM.toast("Nama akun wajib diisi", "error");
+            return;
+          }
+          WM.closeDialog("dlg-coa");
+          WM.toast("Akun COA berhasil disimpan", "success");
+        };
+
+        suggest();
+        return { openAdd, openEdit, save };
+      })();
+      window.WMCoa = WMCoa;
+    </script>
+  </body>
+</html>

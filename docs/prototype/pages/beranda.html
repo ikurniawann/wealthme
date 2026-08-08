@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Beranda · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="bento-dashboard" aria-label="Ringkasan keuangan">
+        <section class="hero gradient-wealth bento-hero" aria-labelledby="net-worth-heading">
+          <div class="bento-hero__top">
+            <div>
+              <div class="hero__label" id="net-worth-heading">Total Kekayaan Bersih</div>
+              <div class="hero__value mono">Rp 1.256.780.000</div>
+              <div class="row" style="gap: 8px; margin-top: 10px">
+                <span class="badge" style="background: rgb(255 255 255 / 0.2); color: #fff"><i data-lucide="trending-up" style="width: 13px"></i> 4,8% bulan ini</span>
+                <span class="t-xs" style="opacity: .85">vs Rp 1.199.140.000 di Juli</span>
+              </div>
+            </div>
+          </div>
+          <div class="bento-hero__footer">
+            <div class="bento-hero__metric"><span class="bento-hero__metric-label">Aset</span><span class="bento-hero__metric-value mono">Rp 1,65 M</span></div>
+            <div class="bento-hero__metric"><span class="bento-hero__metric-label">Liabilitas</span><span class="bento-hero__metric-value mono">Rp 388,4 jt</span></div>
+            <div class="bento-hero__metric"><span class="bento-hero__metric-label">Arus kas bulan ini</span><span class="bento-hero__metric-value mono">+Rp 16,1 jt</span></div>
+          </div>
+        </section>
+
+        <article class="card bento-snapshot">
+          <div class="card__header"><h2 class="card__title">Komposisi Kekayaan</h2><a class="card-link card__action" href="ringkasan.html">Lihat ringkasan</a></div>
+          <div class="card__body">
+            <div class="snapshot-row"><span class="snapshot-row__icon"><i data-lucide="droplets" aria-hidden="true"></i></span><span class="snapshot-row__body"><span class="snapshot-row__label">Aset Likuid · 21,7%</span><span class="snapshot-row__value mono">Rp 357,7 jt</span></span><span class="badge badge--success">Siap dipakai</span></div>
+            <div class="snapshot-row"><span class="snapshot-row__icon" style="color: var(--brand-purple)"><i data-lucide="landmark" aria-hidden="true"></i></span><span class="snapshot-row__body"><span class="snapshot-row__label">Aset Non-Likuid · 78,3%</span><span class="snapshot-row__value mono">Rp 1,29 M</span></span><span class="badge badge--purple">Tumbuh</span></div>
+            <a class="notice notice--warning" href="liabilitas.html"><i data-lucide="calendar-clock" aria-hidden="true" style="width: 16px; flex: 0 0 auto"></i><span>Cicilan KTA Mandiri jatuh tempo <strong>12 Agustus</strong>.</span></a>
+          </div>
+        </article>
+
+        <article class="card stat bento-stat">
+          <div class="stat__icon" style="background: var(--success-soft); color: var(--success)"><i data-lucide="wallet-cards" aria-hidden="true"></i></div>
+          <div><div class="stat__label">Cash &amp; E-Wallet</div><div class="stat__value mono">Rp 45,2 jt</div></div>
+          <div class="stat__delta t-success">Naik 2,4% dari Juli</div>
+        </article>
+        <article class="card stat bento-stat">
+          <div class="stat__icon" style="background: var(--accent); color: var(--accent-foreground)"><i data-lucide="building-2" aria-hidden="true"></i></div>
+          <div><div class="stat__label">Bank &amp; Account</div><div class="stat__value mono">Rp 312,5 jt</div></div>
+          <div class="stat__delta t-success">Naik 1,1% dari Juli</div>
+        </article>
+        <article class="card stat bento-stat">
+          <div class="stat__icon" style="background: var(--brand-purple-soft); color: var(--brand-purple)"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i></div>
+          <div><div class="stat__label">Investasi</div><div class="stat__value mono">Rp 486,9 jt</div></div>
+          <div class="stat__delta t-success">Naik 6,2% · harga live</div>
+        </article>
+        <article class="card stat bento-stat">
+          <div class="stat__icon" style="background: color-mix(in oklab, var(--destructive) 14%, transparent); color: var(--destructive)"><i data-lucide="receipt-text" aria-hidden="true"></i></div>
+          <div><div class="stat__label">Liabilitas</div><div class="stat__value mono">Rp 388,4 jt</div></div>
+          <div class="stat__delta t-danger">Turun 0,9% · cicilan Agustus</div>
+        </article>
+        <article class="card bento-chart">
+          <div class="card__header">
+            <h2 class="card__title">Arus Kas 6 Bulan</h2>
+            <div class="card__action">
+              <div class="segmented">
+                <button class="segmented__item" aria-selected="true">6 Bln</button>
+                <button class="segmented__item" aria-selected="false">12 Bln</button>
+              </div>
+            </div>
+          </div>
+          <div class="card__body"><div id="c-cashflow" class="chart"></div></div>
+        </article>
+
+        <article class="card bento-allocation">
+          <div class="card__header">
+            <h2 class="card__title">Alokasi Kekayaan</h2>
+            <a class="card-link card__action" href="ringkasan.html">Detail</a>
+          </div>
+          <div class="card__body"><div id="c-alloc" class="chart"></div></div>
+        </article>
+        <article class="card bento-transactions">
+          <div class="card__header">
+            <h2 class="card__title">Transaksi Terakhir</h2>
+            <a class="card-link card__action" href="transaksi.html">Lihat Semua</a>
+          </div>
+          <div class="card__body" style="padding-top: 4px">
+            <div class="list-row">
+              <span class="list-row__icon"><i data-lucide="shopping-basket" aria-hidden="true"></i></span>
+              <span class="list-row__body">
+                <span class="list-row__title">Belanja mingguan — Superindo</span>
+                <span class="list-row__sub">BCA Tahapan ···9010 · Belanja Harian · 6 Agu</span>
+              </span>
+              <span class="list-row__amount t-danger mono">−Rp 875.000</span>
+            </div>
+            <div class="list-row">
+              <span class="list-row__icon"><i data-lucide="briefcase-business" aria-hidden="true"></i></span>
+              <span class="list-row__body">
+                <span class="list-row__title">Gaji Agustus</span>
+                <span class="list-row__sub">Mandiri ···5586 · Gaji · 5 Agu</span>
+              </span>
+              <span class="list-row__amount t-success mono">+Rp 42.500.000</span>
+            </div>
+            <div class="list-row">
+              <span class="list-row__icon"><i data-lucide="fuel" aria-hidden="true"></i></span>
+              <span class="list-row__body">
+                <span class="list-row__title">Bensin — Pertamina Antasari</span>
+                <span class="list-row__sub">GoPay · Transportasi · 5 Agu · oleh Pak Dedi (supir)</span>
+              </span>
+              <span class="list-row__amount t-danger mono">−Rp 300.000</span>
+            </div>
+            <div class="list-row">
+              <span class="list-row__icon"><i data-lucide="house" aria-hidden="true"></i></span>
+              <span class="list-row__body">
+                <span class="list-row__title">Cicilan KPR — pokok + bunga</span>
+                <span class="list-row__sub">BCA Tahapan ···9010 · Cicilan · 3 Agu</span>
+              </span>
+              <span class="list-row__amount t-danger mono">−Rp 5.000.000</span>
+            </div>
+            <div class="list-row">
+              <span class="list-row__icon"><i data-lucide="smartphone" aria-hidden="true"></i></span>
+              <span class="list-row__body">
+                <span class="list-row__title">Top up GoPay</span>
+                <span class="list-row__sub">Transfer · BCA → GoPay · 2 Agu</span>
+              </span>
+              <span class="list-row__amount t-muted mono">Rp 1.000.000</span>
+            </div>
+          </div>
+        </article>
+
+        <div class="bento-side">
+          <article class="card">
+            <div class="card__header">
+              <h2 class="card__title">Anggaran Agustus</h2>
+              <a class="card-link card__action" href="anggaran.html">Atur</a>
+            </div>
+            <div class="card__body stack" style="gap: 14px">
+              <div>
+                <div class="row row--between">
+                  <span class="t-sm t-bold">Belanja Harian</span>
+                  <span class="t-xs t-muted mono">6,2 / 8 jt</span>
+                </div>
+                <div class="progress" style="margin-top: 6px">
+                  <div class="progress__bar" style="width: 78%; background: var(--success)"></div>
+                </div>
+              </div>
+              <div>
+                <div class="row row--between">
+                  <span class="t-sm t-bold">Transportasi</span>
+                  <span class="t-xs t-muted mono">2,8 / 3 jt</span>
+                </div>
+                <div class="progress" style="margin-top: 6px">
+                  <div class="progress__bar" style="width: 93%; background: var(--warning)"></div>
+                </div>
+              </div>
+              <div>
+                <div class="row row--between">
+                  <span class="t-sm t-bold">Makan &amp; Minum</span>
+                  <span class="t-xs t-muted mono">4,6 / 4 jt</span>
+                </div>
+                <div class="progress" style="margin-top: 6px">
+                  <div class="progress__bar" style="width: 100%; background: var(--destructive)"></div>
+                </div>
+                <div class="t-xs t-danger" style="margin-top: 5px">Lewat anggaran Rp 600.000</div>
+              </div>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card__header">
+              <h2 class="card__title">Perlu Perhatian</h2>
+            </div>
+            <div class="card__body stack" style="gap: 8px">
+              <a class="notice notice--warning" href="persetujuan.html">
+                <i data-lucide="check-check" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+                <span><strong>2 permintaan dana</strong> menunggu persetujuan kamu.</span>
+              </a>
+              <a class="notice notice--info" href="liabilitas.html">
+                <i data-lucide="calendar-clock" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+                <span>Cicilan <strong>KTA Mandiri</strong> jatuh tempo 12 Agustus.</span>
+              </a>
+              <a class="notice" href="asuransi.html">
+                <i data-lucide="shield-check" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+                <span>Premi <strong>Asuransi Jiwa Prudential</strong> jatuh tempo 20 Agustus.</span>
+              </a>
+            </div>
+          </article>
+        </div>
+        <section class="card bento-goals">
+        <div class="card__header">
+          <h2 class="card__title">Tujuan Keuangan</h2>
+          <a class="card-link card__action" href="tujuan.html">Lihat Semua</a>
+        </div>
+        <div class="card__body bento-goal-list">
+          <div class="bento-goal">
+            <div class="row" style="gap: 8px">
+              <span class="bento-goal__icon"><i data-lucide="palmtree" aria-hidden="true"></i></span>
+              <div style="flex: 1; min-width: 0">
+                <div class="t-sm t-bold">Liburan Jepang</div>
+                <div class="t-xs t-muted mono">Rp 48 jt / Rp 80 jt</div>
+              </div>
+            </div>
+            <div class="progress" style="margin-top: 9px">
+              <div class="progress__bar" style="width: 60%"></div>
+            </div>
+          </div>
+          <div class="bento-goal">
+            <div class="row" style="gap: 8px">
+              <span class="bento-goal__icon"><i data-lucide="graduation-cap" aria-hidden="true"></i></span>
+              <div style="flex: 1; min-width: 0">
+                <div class="t-sm t-bold">Dana Pendidikan Aisyah</div>
+                <div class="t-xs t-muted mono">Rp 132 jt / Rp 400 jt</div>
+              </div>
+            </div>
+            <div class="progress" style="margin-top: 9px">
+              <div class="progress__bar" style="width: 33%; background: var(--brand-purple)"></div>
+            </div>
+          </div>
+          <div class="bento-goal">
+            <div class="row" style="gap: 8px">
+              <span class="bento-goal__icon"><i data-lucide="car-front" aria-hidden="true"></i></span>
+              <div style="flex: 1; min-width: 0">
+                <div class="t-sm t-bold">Ganti Mobil</div>
+                <div class="t-xs t-muted mono">Rp 210 jt / Rp 250 jt</div>
+              </div>
+            </div>
+            <div class="progress" style="margin-top: 9px">
+              <div class="progress__bar" style="width: 84%; background: var(--success)"></div>
+            </div>
+          </div>
+        </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script src="../assets/charts.js"></script>
+    <script>
+      WM.shell({ active: "beranda" });
+
+      const months = ["Mar", "Apr", "Mei", "Jun", "Jul", "Agu"];
+
+      WMCharts.cashflow(
+        "#c-cashflow",
+        months,
+        [41200000, 42500000, 44100000, 42500000, 46800000, 42500000],
+        [28400000, 31900000, 27600000, 33200000, 29800000, 26450000]
+      );
+      WMCharts.donut(
+        "#c-alloc",
+        ["Investasi", "Bank & Account", "Aset Fisik", "Cash & E-Wallet"],
+        [486900000, 312500000, 800600000, 45200000],
+        "Kekayaan"
+      );
+    </script>
+  </body>
+</html>

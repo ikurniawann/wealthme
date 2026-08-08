@@ -29,6 +29,7 @@ ringkasan: [`../BACKLOG.md`](../BACKLOG.md) · arsitektur: [`../WealthMe_Backend
 | [EPIC-021](EPIC-021-client-revisions-230720236.md)                      | Phase 4 | Client Revision Punch-List (30 items)              | P1        | done        |
 | [EPIC-022](EPIC-022-ui-api-conformance-finance-correctness.md)          | Phase 4 | UI↔API Conformance & Financial Correctness Pass    | P0        | on-progress |
 | [EPIC-023](EPIC-023-family-roles-money-mechanics-report-correctness.md) | Phase 4 | Family Roles, Money Mechanics & Report Correctness | P0        | backlog     |
+| [EPIC-024](EPIC-024-client-revisions-aug2026.md)                        | Phase 4 | Client Revision Punch-List (revisi.txt Aug 2026)   | P0        | backlog     |
 
 ## Archived (done + human QA signed off)
 

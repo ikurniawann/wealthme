@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Masuk · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+    <style>
+      .auth {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px 16px;
+      }
+      .auth__card {
+        width: min(420px, 100%);
+      }
+      .auth__brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        justify-content: center;
+        margin-bottom: 18px;
+      }
+      .pinpad {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+      .pinpad .btn {
+        font-size: 18px;
+        font-weight: 700;
+        padding: 14px 0;
+      }
+      .pin-dots {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        margin: 14px 0 4px;
+      }
+      .pin-dot {
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        border: 1.5px solid var(--border);
+        background: transparent;
+      }
+      .pin-dot[data-filled="true"] {
+        background: var(--primary);
+        border-color: var(--primary);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="auth">
+      <div class="auth__card stack" style="gap: 14px">
+        <div class="auth__brand">
+          <div class="sidebar__logo gradient-wealth" style="width: 34px; height: 34px">W</div>
+          <div class="sidebar__name" style="font-size: 18px">WealthMe</div>
+        </div>
+
+        <!-- ═══════════ Buka Cepat — perangkat tepercaya (PIN) ═══════════ -->
+        <div class="card">
+          <div class="card__header">
+            <h1 class="card__title">Buka Cepat</h1>
+            <span class="badge badge--info card__action">Perangkat dikenali</span>
+          </div>
+          <div class="card__body">
+            <div class="t-xs t-muted">
+              Masuk sebagai <strong>Budi Santoso</strong> · Chrome di MacBook Pro · terakhir dipakai 6 Agu 2026
+            </div>
+
+            <div class="pin-dots" aria-hidden="true" id="pin-dots">
+              <span class="pin-dot" data-filled="false"></span>
+              <span class="pin-dot" data-filled="false"></span>
+              <span class="pin-dot" data-filled="false"></span>
+              <span class="pin-dot" data-filled="false"></span>
+              <span class="pin-dot" data-filled="false"></span>
+              <span class="pin-dot" data-filled="false"></span>
+            </div>
+            <div class="t-xs t-muted" style="text-align: center; margin-bottom: 12px">Masukkan PIN 6 digit kamu</div>
+
+            <div class="pinpad">
+              <button class="btn btn--outline" onclick="pinPush('1')">1</button>
+              <button class="btn btn--outline" onclick="pinPush('2')">2</button>
+              <button class="btn btn--outline" onclick="pinPush('3')">3</button>
+              <button class="btn btn--outline" onclick="pinPush('4')">4</button>
+              <button class="btn btn--outline" onclick="pinPush('5')">5</button>
+              <button class="btn btn--outline" onclick="pinPush('6')">6</button>
+              <button class="btn btn--outline" onclick="pinPush('7')">7</button>
+              <button class="btn btn--outline" onclick="pinPush('8')">8</button>
+              <button class="btn btn--outline" onclick="pinPush('9')">9</button>
+              <button class="btn btn--ghost" onclick="pinClear()" aria-label="Bersihkan">C</button>
+              <button class="btn btn--outline" onclick="pinPush('0')">0</button>
+              <button class="btn btn--ghost" onclick="pinBack()" aria-label="Hapus satu digit">⌫</button>
+            </div>
+
+            <!-- Dua kegagalan yang BERBEDA (EPIC-024 item 3 & 10):
+                 PIN salah ≠ server/route bermasalah. -->
+            <p class="error-text" id="pin-error" style="display: none; margin-top: 12px"></p>
+            <div class="notice notice--danger" id="pin-server-error" style="display: none; margin-top: 12px">
+              <i data-lucide="server-off" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+              <span>
+                <strong>Gagal menghubungi server.</strong> Permintaan buka cepat tidak sampai
+                (<span class="mono">404 /api/auth/device-unlock</span>). PIN kamu kemungkinan besar benar — coba lagi,
+                atau masuk dengan password.
+              </span>
+            </div>
+
+            <div class="row row--wrap" style="margin-top: 12px; gap: 8px">
+              <button class="btn btn--ghost btn--sm" onclick="simulateServerFailure()">
+                Simulasikan gangguan server
+              </button>
+              <div class="spacer"></div>
+              <span class="t-xs t-muted">Percobaan tersisa: <span class="mono" id="pin-tries">5</span></span>
+            </div>
+
+            <button class="btn btn--outline btn--block" style="margin-top: 12px" onclick="usePassword()">
+              Gunakan password
+            </button>
+          </div>
+        </div>
+
+        <!-- ═══════════════════ Form password ═══════════════════ -->
+        <div class="card" id="pwd-card">
+          <div class="card__body">
+            <h2 class="t-lg t-black" style="text-align: center">Selamat Datang Kembali 👋</h2>
+            <p class="t-xs t-muted" style="text-align: center; margin-top: 4px; margin-bottom: 16px">
+              Masuk ke Personal Wealth OS kamu
+            </p>
+
+            <div class="segmented" style="width: 100%; margin-bottom: 14px">
+              <button class="segmented__item" style="flex: 1" aria-selected="true" data-value="email">Email</button>
+              <button class="segmented__item" style="flex: 1" aria-selected="false" data-value="username">
+                Username
+              </button>
+            </div>
+
+            <div class="field">
+              <label class="label" for="lg-email">Email</label>
+              <input class="input" id="lg-email" type="email" value="budi.santoso@wealthme.id" autocomplete="email" />
+              <div class="hint">
+                Anggota bertipe <em>tanggungan</em>/<em>operasional</em> tidak punya email — mereka masuk lewat tab
+                Username.
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="label" for="lg-pass">Password</label>
+              <input class="input" id="lg-pass" type="password" value="••••••••••" autocomplete="current-password" />
+            </div>
+
+            <div class="row row--between" style="margin-top: 14px">
+              <label class="row" style="gap: 8px; cursor: pointer">
+                <input type="checkbox" checked style="accent-color: var(--primary); width: 15px; height: 15px" />
+                <span class="t-sm">Ingat saya</span>
+              </label>
+              <a class="card-link t-sm" href="lupa-password.html">Lupa password?</a>
+            </div>
+
+            <button
+              class="btn btn--primary btn--block"
+              style="margin-top: 16px"
+              onclick="WM.toast('Berhasil masuk — mengalihkan ke Beranda…','success')"
+            >
+              <i data-lucide="log-in" style="width: 16px; height: 16px"></i> Masuk
+            </button>
+
+            <div class="row" style="margin: 16px 0 12px; gap: 10px; align-items: center">
+              <span style="flex: 1; height: 1px; background: var(--border)"></span>
+              <span class="t-xs t-muted">atau masuk dengan</span>
+              <span style="flex: 1; height: 1px; background: var(--border)"></span>
+            </div>
+            <button class="btn btn--outline btn--block" onclick="WM.toast('Mengalihkan ke Google…','info')">
+              Google
+            </button>
+
+            <div class="t-xs t-muted" style="text-align: center; margin-top: 16px">
+              Belum punya akun? <a class="card-link" href="register.html">Daftar Sekarang</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="t-xs t-muted" style="text-align: center">
+          Undangan keluarga sudah tidak dipakai — akun anggota dibuat langsung oleh kepala keluarga.
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script>
+      const CORRECT_PIN = "204815";
+      let pin = "";
+      let tries = 5;
+
+      const $ = (s) => document.querySelector(s);
+
+      function renderDots() {
+        document.querySelectorAll("#pin-dots .pin-dot").forEach((d, i) => {
+          d.dataset.filled = String(i < pin.length);
+        });
+      }
+      function hideErrors() {
+        $("#pin-error").style.display = "none";
+        $("#pin-server-error").style.display = "none";
+      }
+      function pinPush(d) {
+        if (pin.length >= 6) return;
+        hideErrors();
+        pin += d;
+        renderDots();
+        if (pin.length === 6) setTimeout(submitPin, 160);
+      }
+      function pinBack() {
+        pin = pin.slice(0, -1);
+        renderDots();
+      }
+      function pinClear() {
+        pin = "";
+        hideErrors();
+        renderDots();
+      }
+
+      function submitPin() {
+        if (pin === CORRECT_PIN) {
+          WM.toast("Berhasil dibuka — mengalihkan ke Beranda…", "success");
+          pinClear();
+          return;
+        }
+        // Kegagalan #1 — PIN memang salah.
+        tries = Math.max(0, tries - 1);
+        $("#pin-tries").textContent = tries;
+        const el = $("#pin-error");
+        el.textContent =
+          tries > 0
+            ? "PIN salah. Silakan coba lagi."
+            : "Terlalu banyak percobaan. Coba lagi dalam 5m 00s, atau gunakan password kamu.";
+        el.style.display = "block";
+        $("#pin-server-error").style.display = "none";
+        pin = "";
+        renderDots();
+      }
+
+      function simulateServerFailure() {
+        // Kegagalan #2 — bukan PIN salah. Pesannya harus BEDA, karena inilah
+        // yang selama ini tertukar (EPIC-024 item 3 & 10).
+        pin = "";
+        renderDots();
+        $("#pin-error").style.display = "none";
+        $("#pin-server-error").style.display = "flex";
+        WM.toast("Gagal menghubungi server buka cepat — bukan PIN yang salah.", "error");
+      }
+
+      function usePassword() {
+        $("#pwd-card").scrollIntoView({ behavior: "smooth", block: "center" });
+        $("#lg-pass").focus();
+      }
+
+      // Segmented Email/Username bekerja sungguhan pada halaman standalone ini
+      // (WM.shell tidak dipanggil, jadi listener global-nya tidak terpasang).
+      document.querySelectorAll(".segmented__item").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document
+            .querySelectorAll(".segmented__item")
+            .forEach((b) => b.setAttribute("aria-selected", "false"));
+          btn.setAttribute("aria-selected", "true");
+          const isEmail = btn.dataset.value === "email";
+          const label = document.querySelector('label[for="lg-email"]');
+          label.textContent = isEmail ? "Email" : "Username";
+          $("#lg-email").type = isEmail ? "email" : "text";
+          $("#lg-email").value = isEmail ? "budi.santoso@wealthme.id" : "aisyah.s";
+        });
+      });
+
+      renderDots();
+      lucide.createIcons();
+    </script>
+  </body>
+</html>

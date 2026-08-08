@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Asuransi · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+  </head>
+  <body>
+    <main class="page">
+      <!-- Lead -->
+      <section class="page-lead">
+        <div class="page-lead__text">
+          <h1 class="section-title">Asuransi</h1>
+          <p class="page-lead__sub">4 Polis Aktif · Total premi: Rp 4.180.000 /bln · Total pertanggungan Rp 3.150.000.000</p>
+        </div>
+        <div class="row">
+          <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-asuransi-bayar')">
+            <i data-lucide="banknote" style="width: 15px; height: 15px"></i> Bayar Premi
+          </button>
+          <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-asuransi-form')">
+            <i data-lucide="plus" style="width: 15px; height: 15px"></i> Tambah
+          </button>
+        </div>
+      </section>
+
+      <!-- Summary -->
+      <section class="grid grid--sidebar equal-grid">
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">Premi 6 Bulan Terakhir</h2>
+          </div>
+          <div class="card__body"><div id="c-asr-premi" class="chart"></div></div>
+        </article>
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">Uang Pertanggungan per Jenis</h2>
+          </div>
+          <div class="card__body"><div id="c-asr-cover" class="chart"></div></div>
+        </article>
+      </section>
+
+      <div class="notice notice--warning">
+        <i data-lucide="calendar-clock" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+        <span>Premi <strong>Asuransi Jiwa Prudential</strong> jatuh tempo 20 Agustus 2026 — 13 hari lagi.</span>
+      </div>
+
+      <!-- Policies -->
+      <section class="auto-grid auto-grid--wide auto-grid--actions-bottom">
+        <article class="card">
+          <div class="card__body stack" style="gap: 12px">
+            <div class="row">
+              <span class="list-row__icon" style="background: var(--accent); color: var(--accent-foreground)">🛡️</span>
+              <span style="flex: 1; min-width: 0">
+                <span class="t-md t-black" style="display: block">Prudential PRUlink Generasi</span>
+                <span class="t-xs t-muted">Prudential · Asuransi Jiwa</span>
+              </span>
+              <span class="badge badge--success">Aktif</span>
+            </div>
+            <div class="grid grid--2" style="gap: 12px">
+              <div>
+                <div class="t-xs t-muted">Uang Pertanggungan</div>
+                <div class="t-md t-black mono">Rp 2.000.000.000</div>
+              </div>
+              <div>
+                <div class="t-xs t-muted">Premi</div>
+                <div class="t-md t-black mono">Rp 2.150.000 <span class="t-xs t-muted">/bln</span></div>
+              </div>
+              <div>
+                <div class="t-xs t-muted">Jatuh Tempo</div>
+                <div class="t-sm t-bold">20 Agu 2026 <span class="badge badge--warning">13 hari</span></div>
+              </div>
+              <div>
+                <div class="t-xs t-muted">No. Polis</div>
+                <div class="t-sm t-bold mono">POL-88214703</div>
+              </div>
+            </div>
+            <div class="row row--wrap" style="gap: 8px">
+              <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-asuransi-bayar')">Bayar Premi</button>
+              <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-asuransi-form')">
+                <i data-lucide="pencil" style="width: 14px; height: 14px"></i> Edit
+              </button>
+              <button class="btn btn--ghost btn--sm t-danger" onclick="WM.openDialog('dlg-asuransi-hapus')">
+                <i data-lucide="trash-2" style="width: 14px; height: 14px"></i> Hapus
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card__body stack" style="gap: 12px">
+            <div class="row">
+              <span class="list-row__icon" style="background: var(--success-soft); color: var(--success)">🏥</span>
+              <span style="flex: 1; min-width: 0">
+                <span class="t-md t-black" style="display: block">Allianz SmartHealth Maxi</span>
+                <span class="t-xs t-muted">Allianz · Asuransi Kesehatan</span>
+              </span>
+              <span class="badge badge--success">Aktif</span>
+            </div>
+            <div class="grid grid--2" style="gap: 12px">
+              <div>
+                <div class="t-xs t-muted">Uang Pertanggungan</div>
+                <div class="t-md t-black mono">Rp 750.000.000</div>
+              </div>
+              <div>
+                <div class="t-xs t-muted">Premi</div>
+                <div class="t-md t-black mono">Rp 1.280.000 <span class="t-xs t-muted">/bln</span></div>
+              </div>
+              <div>
+                <div class="t-xs t-muted">Jatuh Tempo</div>
+                <div class="t-sm t-bold">1 Sep 2026 <span class="badge badge--success">25 hari</span></div>
+              </div>
+              <div>
+                <div class="t-xs t-muted">No. Polis</div>
+                <div class="t-sm t-bold mono">POL-44029157</div>
+              </div>
+            </div>
+            <div class="row row--wrap" style="gap: 8px">
+              <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-asuransi-bayar')">Bayar Premi</button>
+              <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-asuransi-form')">
+                <i data-lucide="pencil" style="width: 14px; height: 14px"></i> Edit
+              </button>
+              <button class="btn btn--ghost btn--sm t-danger" onclick="WM.openDialog('dlg-asuransi-hapus')">
+                <i data-lucide="trash-2" style="width: 14px; height: 14px"></i> Hapus
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card__body stack" style="gap: 12px">
+            <div class="row">
+              <span class="list-row__icon" style="background: var(--warning-soft); color: var(--warning)">🚙</span>
+              <span style="flex: 1; min-width: 0">
+                <span class="t-md t-black" style="display: block">ACA Otomate All Risk</span>
+                <span class="t-xs t-muted">ACA Asuransi · Asuransi Kendaraan</span>
+              </span>
+              <span class="badge badge--success">Aktif</span>
+            </div>
+            <div class="grid grid--2" style="gap: 12px">
+              <div>
+                <div class="t-xs t-muted">Uang Pertanggungan</div>
+                <div class="t-md t-black mono">Rp 210.000.000</div>
+              </div>
+              <div>
+                <div class="t-xs t-muted">Premi</div>
+                <div class="t-md t-black mono">Rp 5.250.000 <span class="t-xs t-muted">/thn</span></div>
+              </div>
+              <div>
+                <div class="t-xs t-muted">Jatuh Tempo</div>
+                <div class="t-sm t-bold">4 Jan 2027 <span class="badge badge--gray">150 hari</span></div>
+              </div>
+              <div>
+                <div class="t-xs t-muted">No. Polis</div>
+                <div class="t-sm t-bold mono">POL-19730845</div>
+              </div>
+            </div>
+            <div class="row row--wrap" style="gap: 8px">
+              <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-asuransi-bayar')">Bayar Premi</button>
+              <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-asuransi-form')">
+                <i data-lucide="pencil" style="width: 14px; height: 14px"></i> Edit
+              </button>
+              <button class="btn btn--ghost btn--sm t-danger" onclick="WM.openDialog('dlg-asuransi-hapus')">
+                <i data-lucide="trash-2" style="width: 14px; height: 14px"></i> Hapus
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card__body stack" style="gap: 12px">
+            <div class="row">
+              <span class="list-row__icon" style="background: var(--brand-purple-soft); color: var(--brand-purple)">🎓</span>
+              <span style="flex: 1; min-width: 0">
+                <span class="t-md t-black" style="display: block">AXA Mandiri Pendidikan Aisyah</span>
+                <span class="t-xs t-muted">AXA Mandiri · Asuransi Pendidikan</span>
+              </span>
+              <span class="badge badge--success">Aktif</span>
+            </div>
+            <div class="grid grid--2" style="gap: 12px">
+              <div>
+                <div class="t-xs t-muted">Uang Pertanggungan</div>
+                <div class="t-md t-black mono">Rp 190.000.000</div>
+              </div>
+              <div>
+                <div class="t-xs t-muted">Premi</div>
+                <div class="t-md t-black mono">Rp 2.250.000 <span class="t-xs t-muted">/3 bln</span></div>
+              </div>
+              <div>
+                <div class="t-xs t-muted">Jatuh Tempo</div>
+                <div class="t-sm t-bold">15 Agu 2026 <span class="badge badge--warning">8 hari</span></div>
+              </div>
+              <div>
+                <div class="t-xs t-muted">No. Polis</div>
+                <div class="t-sm t-bold mono">POL-60771223</div>
+              </div>
+            </div>
+            <div class="row row--wrap" style="gap: 8px">
+              <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-asuransi-bayar')">Bayar Premi</button>
+              <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-asuransi-form')">
+                <i data-lucide="pencil" style="width: 14px; height: 14px"></i> Edit
+              </button>
+              <button class="btn btn--ghost btn--sm t-danger" onclick="WM.openDialog('dlg-asuransi-hapus')">
+                <i data-lucide="trash-2" style="width: 14px; height: 14px"></i> Hapus
+              </button>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- Beneficiaries -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Ahli Waris Asuransi</h2>
+          <button class="card-link card__action" onclick="WM.openDialog('dlg-asuransi-ahliwaris')">+ Tambah Ahli Waris</button>
+        </div>
+        <div class="card__body stack" style="gap: 12px">
+          <div class="notice notice--info">
+            <i data-lucide="pie-chart" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span><strong>Teralokasi penuh (100%)</strong> untuk Prudential PRUlink Generasi.</span>
+          </div>
+
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Nama</th>
+                  <th>Hubungan</th>
+                  <th>Anggota Keluarga</th>
+                  <th>Persentase</th>
+                  <th>Estimasi Manfaat</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <span class="row" style="gap: 8px">
+                      <span class="avatar">SA</span>
+                      <span class="t-sm t-bold">Siti Arsandi</span>
+                    </span>
+                  </td>
+                  <td class="t-sm">Pasangan</td>
+                  <td><span class="badge badge--info">Siti Arsandi (Co-Master)</span></td>
+                  <td>
+                    <span class="row" style="gap: 8px">
+                      <span class="mono t-bold">50%</span>
+                      <span class="progress" style="width: 90px">
+                        <span class="progress__bar" style="display: block; width: 50%"></span>
+                      </span>
+                    </span>
+                  </td>
+                  <td class="mono">Rp 1.000.000.000</td>
+                  <td>
+                    <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus ahli waris Siti Arsandi" onclick="WM.openDialog('dlg-asuransi-hapus')">
+                      <i data-lucide="trash-2" style="width: 15px; height: 15px"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <span class="row" style="gap: 8px">
+                      <span class="avatar">AA</span>
+                      <span class="t-sm t-bold">Aisyah Arsandi</span>
+                    </span>
+                  </td>
+                  <td class="t-sm">Anak</td>
+                  <td><span class="badge badge--info">Aisyah Arsandi (Anggota)</span></td>
+                  <td>
+                    <span class="row" style="gap: 8px">
+                      <span class="mono t-bold">30%</span>
+                      <span class="progress" style="width: 90px">
+                        <span class="progress__bar" style="display: block; width: 30%; background: var(--brand-purple)"></span>
+                      </span>
+                    </span>
+                  </td>
+                  <td class="mono">Rp 600.000.000</td>
+                  <td>
+                    <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus ahli waris Aisyah Arsandi" onclick="WM.openDialog('dlg-asuransi-hapus')">
+                      <i data-lucide="trash-2" style="width: 15px; height: 15px"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <span class="row" style="gap: 8px">
+                      <span class="avatar">BA</span>
+                      <span class="t-sm t-bold">Bagas Arsandi</span>
+                    </span>
+                  </td>
+                  <td class="t-sm">Anak</td>
+                  <td><span class="badge badge--info">Bagas Arsandi (Anggota)</span></td>
+                  <td>
+                    <span class="row" style="gap: 8px">
+                      <span class="mono t-bold">20%</span>
+                      <span class="progress" style="width: 90px">
+                        <span class="progress__bar" style="display: block; width: 20%; background: var(--success)"></span>
+                      </span>
+                    </span>
+                  </td>
+                  <td class="mono">Rp 400.000.000</td>
+                  <td>
+                    <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus ahli waris Bagas Arsandi" onclick="WM.openDialog('dlg-asuransi-hapus')">
+                      <i data-lucide="trash-2" style="width: 15px; height: 15px"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Dialog: bayar premi -->
+    <div class="dialog-backdrop" id="dlg-asuransi-bayar" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-asuransi-bayar-title">
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-asuransi-bayar-title">Bayar Premi</h2>
+        <p class="dialog__desc">
+          Bayar premi Prudential PRUlink Generasi sekarang? Rekening sumber akan didebet dan jatuh tempo berikutnya
+          otomatis dihitung dari periode premi saat ini.
+        </p>
+        <div class="dialog__body">
+          <label class="field">
+            <span class="label">Polis</span>
+            <select class="select">
+              <option selected>Prudential PRUlink Generasi — Rp 2.150.000 /bln</option>
+              <option>Allianz SmartHealth Maxi — Rp 1.280.000 /bln</option>
+              <option>ACA Otomate All Risk — Rp 5.250.000 /thn</option>
+              <option>AXA Mandiri Pendidikan Aisyah — Rp 2.250.000 /3 bln</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="label">Jumlah Premi (Rp)</span>
+            <input class="input mono" value="2.150.000" />
+          </label>
+          <label class="field">
+            <span class="label">Rekening Sumber</span>
+            <select class="select">
+              <option value="">Pilih rekening...</option>
+              <option selected>BCA Tahapan ···9010 — Rp 128.400.000</option>
+              <option>Mandiri Payroll ···5586 — Rp 85.900.000</option>
+              <option>CIMB Niaga Xtra ···3327 — Rp 62.800.000</option>
+              <option>GoPay — Rp 12.400.000</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="label">Tanggal Bayar</span>
+            <input class="input" type="date" value="2026-08-07" />
+          </label>
+          <div class="notice notice--info" style="margin-top: 14px">
+            <i data-lucide="calendar-check" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>Jatuh tempo berikutnya menjadi <strong>20 September 2026</strong> (periode bulanan).</span>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-asuransi-bayar')">Batal</button>
+          <button
+            class="btn btn--primary"
+            onclick="WM.closeDialog('dlg-asuransi-bayar');WM.toast('Premi dibayar — jatuh tempo berikutnya 20 September 2026','success')"
+          >
+            Ya, Bayar Sekarang
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog: tambah/edit asuransi -->
+    <div class="dialog-backdrop" id="dlg-asuransi-form" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-asuransi-form-title">
+      <div class="dialog dialog--wide">
+        <h2 class="dialog__title" id="dlg-asuransi-form-title">Tambah Asuransi</h2>
+        <p class="dialog__desc">Premi dan jatuh tempo dipakai untuk pengingat dan proyeksi arus kas.</p>
+        <div class="dialog__body">
+          <div class="field-row">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Nama Asuransi *</span>
+              <input class="input" placeholder="cth: Asuransi Jiwa Keluarga" />
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Perusahaan</span>
+              <input class="input" placeholder="cth: Prudential, AXA, Allianz" />
+            </label>
+          </div>
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Jenis *</span>
+              <select class="select">
+                <option>Asuransi Jiwa</option>
+                <option>Asuransi Kesehatan</option>
+                <option>Asuransi Kendaraan</option>
+                <option>Asuransi Properti</option>
+                <option>Asuransi Pendidikan</option>
+                <option>Lainnya</option>
+              </select>
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Status</span>
+              <select class="select">
+                <option>Aktif</option>
+                <option>Tidak Aktif</option>
+                <option>Kadaluarsa</option>
+              </select>
+            </label>
+          </div>
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Premi (Rp) *</span>
+              <input class="input mono" placeholder="0" />
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Periode Premi</span>
+              <select class="select">
+                <option>Bulanan</option>
+                <option>3 Bulanan</option>
+                <option>Tahunan</option>
+              </select>
+            </label>
+          </div>
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Uang Pertanggungan (Rp)</span>
+              <input class="input mono" placeholder="0" />
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Tanggal Jatuh Tempo</span>
+              <input class="input" type="date" value="2026-08-20" />
+            </label>
+          </div>
+          <label class="field">
+            <span class="label">No. Polis</span>
+            <input class="input mono" placeholder="cth: POL-12345678" />
+          </label>
+          <div class="row" style="margin-top: 12px">
+            <span class="switch" role="switch" aria-checked="true" tabindex="0" aria-label="Perpanjang otomatis"></span>
+            <span class="t-sm">Perpanjang otomatis setiap periode premi setelah lewat jatuh tempo</span>
+          </div>
+          <label class="field">
+            <span class="label">Catatan</span>
+            <textarea class="textarea" placeholder="Catatan tambahan..."></textarea>
+          </label>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-asuransi-form')">Batal</button>
+          <button
+            class="btn btn--primary"
+            onclick="WM.closeDialog('dlg-asuransi-form');WM.toast('Asuransi berhasil ditambahkan','success')"
+          >
+            Simpan Asuransi
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog: tambah ahli waris -->
+    <div class="dialog-backdrop" id="dlg-asuransi-ahliwaris" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-asuransi-ahliwaris-title">
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-asuransi-ahliwaris-title">Tambah Ahli Waris</h2>
+        <p class="dialog__desc">Total persentase ahli waris tidak boleh lebih dari 100%. Saat ini 100% sudah dialokasikan.</p>
+        <div class="dialog__body">
+          <label class="field">
+            <span class="label">Polis</span>
+            <select class="select">
+              <option selected>Prudential PRUlink Generasi</option>
+              <option>Allianz SmartHealth Maxi</option>
+              <option>AXA Mandiri Pendidikan Aisyah</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="label">Hubungkan ke Anggota Keluarga</span>
+            <select class="select">
+              <option>Tidak terhubung</option>
+              <option>Siti Arsandi (Co-Master)</option>
+              <option>Aisyah Arsandi (Anggota)</option>
+              <option selected>Bagas Arsandi (Anggota)</option>
+              <option>Nenek Sumarni (Anggota)</option>
+            </select>
+          </label>
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Nama</span>
+              <input class="input" placeholder="cth: Siti Arsandi" value="Bagas Arsandi" />
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Hubungan</span>
+              <input class="input" placeholder="cth: Anak, Pasangan" value="Anak" />
+            </label>
+          </div>
+          <label class="field">
+            <span class="label">Persentase (%)</span>
+            <input class="input mono" placeholder="0" value="20" />
+            <span class="error-text">Total persentase ahli waris tidak boleh lebih dari 100%</span>
+          </label>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-asuransi-ahliwaris')">Batal</button>
+          <button
+            class="btn btn--primary"
+            onclick="WM.closeDialog('dlg-asuransi-ahliwaris');WM.toast('Ahli waris berhasil disimpan','success')"
+          >
+            Simpan Ahli Waris
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog: hapus -->
+    <div class="dialog-backdrop" id="dlg-asuransi-hapus" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-asuransi-hapus-title">
+      <div class="dialog dialog--sm">
+        <h2 class="dialog__title" id="dlg-asuransi-hapus-title">Hapus data ini?</h2>
+        <p class="dialog__desc">Data polis / ahli waris akan dihapus permanen. Riwayat pembayaran premi tetap tersimpan di Transaksi.</p>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-asuransi-hapus')">Batal</button>
+          <button
+            class="btn btn--destructive"
+            onclick="WM.closeDialog('dlg-asuransi-hapus');WM.toast('Asuransi dihapus','success')"
+          >
+            Ya, Hapus
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script src="../assets/charts.js"></script>
+    <script>
+      WM.shell({ active: "asuransi" });
+
+      WMCharts.trend(
+        "#c-asr-premi",
+        ["Mar", "Apr", "Mei", "Jun", "Jul", "Agu"],
+        [{ name: "Premi Dibayar", data: [3430000, 3430000, 5680000, 3430000, 4180000, 4180000] }],
+        { height: 250 }
+      );
+      WMCharts.donut(
+        "#c-asr-cover",
+        ["Jiwa", "Kesehatan", "Kendaraan", "Pendidikan"],
+        [2000000000, 750000000, 210000000, 190000000],
+        "Pertanggungan"
+      );
+    </script>
+  </body>
+</html>

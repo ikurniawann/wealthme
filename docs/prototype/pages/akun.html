@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Akun &amp; Keluarga · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+  </head>
+  <body>
+    <main class="page">
+      <!-- Profil hero -->
+      <section class="hero gradient-profile">
+        <div class="row row--wrap" style="position: relative; z-index: 1; gap: 14px">
+          <span class="avatar avatar--lg" style="background: rgb(255 255 255 / 0.2); color: #fff">IA</span>
+          <div style="flex: 1; min-width: 200px">
+            <div class="row" style="gap: 8px">
+              <span class="t-xl t-black">Irfan Arsandi</span>
+              <span class="badge" style="background: rgb(255 255 255 / 0.22); color: #fff">Master</span>
+            </div>
+            <div class="t-sm" style="opacity: 0.85; margin-top: 2px">irfan.arsandi@gmail.com</div>
+            <div class="t-xs" style="opacity: 0.75; margin-top: 4px">Member sejak Januari 2024</div>
+          </div>
+          <button class="btn btn--outline btn--sm" style="background: rgb(255 255 255 / 0.16); border-color: rgb(255 255 255 / 0.3); color: #fff" onclick="WM.openDialog('dlg-edit-profil')">
+            <i data-lucide="pencil" style="width: 14px; height: 14px"></i> Edit Profil
+          </button>
+        </div>
+      </section>
+
+      <!-- Ringkasan akun + family group -->
+      <section class="grid grid--2 grid--stack-sm">
+        <article class="card">
+          <div class="card__header"><h2 class="card__title">Profil Saya</h2></div>
+          <div class="card__body stack" style="gap: 0">
+            <div class="list-row">
+              <div class="list-row__icon">👤</div>
+              <div class="list-row__body">
+                <div class="list-row__title">Nama Lengkap</div>
+                <div class="list-row__sub">Irfan Arsandi</div>
+              </div>
+            </div>
+            <div class="list-row">
+              <div class="list-row__icon">✉️</div>
+              <div class="list-row__body">
+                <div class="list-row__title">Email</div>
+                <div class="list-row__sub">irfan.arsandi@gmail.com</div>
+              </div>
+            </div>
+            <div class="list-row">
+              <div class="list-row__icon">📱</div>
+              <div class="list-row__body">
+                <div class="list-row__title">No. Telepon</div>
+                <div class="list-row__sub">+62 812 8877 4410</div>
+              </div>
+            </div>
+            <div class="list-row">
+              <div class="list-row__icon">💼</div>
+              <div class="list-row__body">
+                <div class="list-row__title">Pekerjaan</div>
+                <div class="list-row__sub">Direktur · Penghasilan <span class="mono">Rp 78.000.000</span>/bln</div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card__header"><h2 class="card__title">👨‍👩‍👧‍👦 Group Family</h2></div>
+          <div class="card__body">
+            <div class="row" style="gap: 12px">
+              <span class="avatar avatar--lg gradient-wealth" style="color: #fff">AF</span>
+              <div style="flex: 1; min-width: 0">
+                <div class="t-lg t-black">Arsandi Family</div>
+                <div class="t-xs t-muted">4 anggota · Master</div>
+              </div>
+            </div>
+            <div class="grid grid--2" style="gap: 10px; margin-top: 14px">
+              <div class="card" style="box-shadow: none; padding: 10px 12px">
+                <div class="t-xs t-muted">Kekayaan Keluarga</div>
+                <div class="t-md t-black mono">Rp 1.256.780.000</div>
+              </div>
+              <div class="card" style="box-shadow: none; padding: 10px 12px">
+                <div class="t-xs t-muted">Rekening Terhubung</div>
+                <div class="t-md t-black mono">9 rekening</div>
+              </div>
+            </div>
+            <div class="notice notice--info" style="margin-top: 12px">
+              <i data-lucide="info" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+              <span>Master dan Co-Master melihat seluruh rekening keluarga. Anak &amp; operasional hanya melihat rekening yang ditugaskan padanya.</span>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- Anggota Keluarga (EPIC-024 item 2 · 4 · 18) -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Anggota Keluarga (4)</h2>
+          <div class="card__action">
+            <!-- EPIC-024 item 18: SATU tombol saja. Tidak ada "Undang Anggota",
+                 tidak ada invite-link — semua anggota dibuat langsung. -->
+            <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-tambah-anggota')">
+              <i data-lucide="user-plus" style="width: 15px; height: 15px"></i> Tambah Anggota
+            </button>
+          </div>
+        </div>
+        <div class="card__body">
+          <div class="notice notice--info" style="margin-bottom: 12px">
+            <i data-lucide="user-check" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>
+              Semua anggota — istri, anak, supir, sekretaris — dibuatkan langsung oleh Master lewat
+              <strong>Tambah Anggota</strong>: nama, username, dan password awal. Tidak ada undangan email
+              maupun link undangan lagi.
+            </span>
+          </div>
+
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Anggota</th>
+                  <th>Peran</th>
+                  <th>Hubungan</th>
+                  <th>Rekening Ditugaskan</th>
+                  <th style="text-align: right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <div class="row" style="gap: 10px">
+                      <span class="avatar gradient-wealth" style="color: #fff">IA</span>
+                      <div>
+                        <div class="t-md t-bold">Irfan Arsandi</div>
+                        <div class="t-xs t-muted">irfan.arsandi@gmail.com</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="badge badge--info">Master</span></td>
+                  <td class="t-sm t-muted">Kepala keluarga</td>
+                  <td class="t-sm t-muted">Semua rekening</td>
+                  <td style="text-align: right"><span class="badge badge--gray">Kamu</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="row" style="gap: 10px">
+                      <span class="avatar gradient-profile" style="color: #fff">SA</span>
+                      <div>
+                        <div class="t-md t-bold">Siti Arsandi</div>
+                        <div class="t-xs t-muted">siti_arsandi</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="badge badge--purple">Co-Master</span></td>
+                  <td class="t-sm t-muted">Istri</td>
+                  <td class="t-sm t-muted">Semua rekening</td>
+                  <td style="text-align: right">
+                    <div class="row" style="gap: 6px; justify-content: flex-end">
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Edit Siti Arsandi" onclick="WM.openDialog('dlg-edit-anggota')">
+                        <i data-lucide="pencil" style="width: 15px; height: 15px"></i>
+                      </button>
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus Siti Arsandi" onclick="WM.openDialog('dlg-hapus-anggota')">
+                        <i data-lucide="trash-2" style="width: 15px; height: 15px"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="row" style="gap: 10px">
+                      <span class="avatar gradient-emerald" style="color: #fff">AI</span>
+                      <div>
+                        <div class="t-md t-bold">Aisyah Arsandi</div>
+                        <div class="t-xs t-muted">aisyah_kecil</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="badge badge--warning">Anak</span></td>
+                  <td class="t-sm t-muted">Anak · tanggungan</td>
+                  <td class="t-sm t-muted">Kartu Aisyah ···4471</td>
+                  <td style="text-align: right">
+                    <div class="row" style="gap: 6px; justify-content: flex-end">
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Edit Aisyah Arsandi" onclick="WM.openDialog('dlg-edit-anggota')">
+                        <i data-lucide="pencil" style="width: 15px; height: 15px"></i>
+                      </button>
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus Aisyah Arsandi" onclick="WM.openDialog('dlg-hapus-anggota')">
+                        <i data-lucide="trash-2" style="width: 15px; height: 15px"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="row" style="gap: 10px">
+                      <span class="avatar gradient-ai" style="color: #fff">PD</span>
+                      <div>
+                        <div class="t-md t-bold">Pak Dedi</div>
+                        <div class="t-xs t-muted">dedi_supir</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="badge badge--gray">Operasional</span></td>
+                  <td class="t-sm t-muted">Supir</td>
+                  <td class="t-sm t-muted">Kas Operasional ···0021</td>
+                  <td style="text-align: right">
+                    <div class="row" style="gap: 6px; justify-content: flex-end">
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Edit Pak Dedi" onclick="WM.openDialog('dlg-edit-anggota')">
+                        <i data-lucide="pencil" style="width: 15px; height: 15px"></i>
+                      </button>
+                      <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus Pak Dedi" onclick="WM.openDialog('dlg-hapus-anggota')">
+                        <i data-lucide="trash-2" style="width: 15px; height: 15px"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="notice" style="margin-top: 12px">
+            <i data-lucide="shield" style="width: 16px; height: 16px; flex-shrink: 0; color: var(--primary)"></i>
+            <span>
+              Persetujuan permintaan dana kini punya halamannya sendiri —
+              <a href="persetujuan.html" class="t-primary t-bold">buka halaman Persetujuan</a>.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Keamanan -->
+      <section class="card">
+        <div class="card__header"><h2 class="card__title">Keamanan &amp; Password</h2></div>
+        <div class="card__body">
+          <div class="section-title" style="font-size: 14px; margin-bottom: 6px">Password &amp; PIN</div>
+          <div class="list-row">
+            <div class="list-row__icon">🔑</div>
+            <div class="list-row__body">
+              <div class="list-row__title">Ubah Password</div>
+              <div class="list-row__sub">Terakhir diubah 3 bulan lalu</div>
+            </div>
+            <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-ubah-password')">Ubah</button>
+          </div>
+          <div class="list-row">
+            <div class="list-row__icon">🔢</div>
+            <div class="list-row__body">
+              <div class="list-row__title">PIN Aplikasi (Buka Cepat)</div>
+              <div class="list-row__sub">6 digit PIN untuk buka aplikasi di perangkat ini</div>
+            </div>
+            <span class="badge badge--success">PIN aktif</span>
+          </div>
+
+          <div class="section-title" style="font-size: 14px; margin: 16px 0 6px">Perangkat dengan buka cepat</div>
+          <div class="list-row">
+            <div class="list-row__icon">📱</div>
+            <div class="list-row__body">
+              <div class="list-row__title">iPhone 15 Pro · Safari</div>
+              <div class="list-row__sub">Aktif sejak 2 Agu 2026 · Jakarta</div>
+            </div>
+            <span class="badge badge--info">Ini perangkatmu</span>
+            <button class="btn btn--ghost btn--sm" onclick="WM.openDialog('dlg-lupakan-perangkat')">Lupakan</button>
+          </div>
+          <div class="list-row">
+            <div class="list-row__icon">💻</div>
+            <div class="list-row__body">
+              <div class="list-row__title">MacBook Pro · Chrome</div>
+              <div class="list-row__sub">Aktif sejak 28 Jul 2026 · Jakarta</div>
+            </div>
+            <span class="badge badge--success">PIN aktif</span>
+            <button class="btn btn--ghost btn--sm" onclick="WM.openDialog('dlg-lupakan-perangkat')">Lupakan</button>
+          </div>
+          <div class="list-row">
+            <div class="list-row__icon">📟</div>
+            <div class="list-row__body">
+              <div class="list-row__title">iPad Air · Safari</div>
+              <div class="list-row__sub">Aktif sejak 11 Jul 2026 · Bandung</div>
+            </div>
+            <span class="badge badge--gray">Belum ada PIN</span>
+            <button class="btn btn--ghost btn--sm" onclick="WM.openDialog('dlg-lupakan-perangkat')">Lupakan</button>
+          </div>
+          <button class="btn btn--outline btn--block" style="margin-top: 10px" onclick="WM.toast('Buka cepat diatur di perangkat ini', 'success')">
+            <i data-lucide="smartphone" style="width: 15px; height: 15px"></i> Atur buka cepat di perangkat ini
+          </button>
+
+          <div class="section-title" style="font-size: 14px; margin: 18px 0 6px">Autentikasi</div>
+          <div class="list-row">
+            <div class="list-row__body">
+              <div class="list-row__title">Autentikasi Dua Faktor (2FA)</div>
+              <div class="list-row__sub">Kode sekali pakai tiap login dari perangkat baru</div>
+            </div>
+            <button class="switch" role="switch" aria-checked="true" aria-label="Autentikasi dua faktor"></button>
+          </div>
+          <div class="list-row">
+            <div class="list-row__body">
+              <div class="list-row__title">Konfirmasi Transaksi Besar</div>
+              <div class="list-row__sub">Minta autentikasi untuk transaksi &gt;<span class="mono">Rp 5.000.000</span></div>
+            </div>
+            <button class="switch" role="switch" aria-checked="true" aria-label="Konfirmasi transaksi besar"></button>
+          </div>
+          <div class="list-row">
+            <div class="list-row__body">
+              <div class="list-row__title">Notifikasi Login Baru</div>
+              <div class="list-row__sub">Alert jika ada login dari perangkat baru</div>
+            </div>
+            <button class="switch" role="switch" aria-checked="false" aria-label="Notifikasi login baru"></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Preferensi -->
+      <section class="card">
+        <div class="card__header"><h2 class="card__title">Pengaturan Umum</h2></div>
+        <div class="card__body">
+          <div class="field-row">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Bahasa</span>
+              <select class="select">
+                <option>Bahasa Indonesia</option>
+                <option>English</option>
+              </select>
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Tema</span>
+              <select class="select">
+                <option>☀️ Terang (Light)</option>
+                <option>🌙 Gelap (Dark)</option>
+                <option selected>🖥️ Ikuti Sistem</option>
+              </select>
+            </label>
+          </div>
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Mata Uang</span>
+              <select class="select">
+                <option selected>IDR — Rupiah Indonesia</option>
+                <option>USD — US Dollar</option>
+                <option>SGD — Singapore Dollar</option>
+                <option>EUR — Euro</option>
+              </select>
+              <span class="hint">Mata uang default untuk tampilan semua angka</span>
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Agama Keluarga</span>
+              <select class="select">
+                <option selected>Islam</option>
+                <option>Kristen (Persepuluhan)</option>
+                <option>Tidak diatur</option>
+              </select>
+              <span class="hint">Menentukan kalkulator donasi di halaman Donasi. Hanya Master yang bisa mengubah.</span>
+            </label>
+          </div>
+          <div class="row row--wrap" style="margin-top: 16px; gap: 8px">
+            <button class="btn btn--primary" onclick="WM.toast('✅ Pengaturan disimpan', 'success')">Simpan Pengaturan</button>
+            <div class="spacer"></div>
+            <button class="btn btn--destructive" onclick="WM.toast('Keluar dari akun', 'info')">
+              <i data-lucide="log-out" style="width: 15px; height: 15px"></i> Keluar dari Akun
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ── Dialog: Tambah Anggota (satu-satunya jalur, EPIC-024 item 4 + 18) ── -->
+    <div class="dialog-backdrop" id="dlg-tambah-anggota" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-tambah-anggota-title">
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-tambah-anggota-title">Tambah Anggota Keluarga</h2>
+        <p class="dialog__desc">
+          Semua anggota dibuatkan langsung oleh Master — istri, anak, maupun operasional. Buatkan username dan
+          password awal; mereka wajib menggantinya saat login pertama.
+        </p>
+        <div class="dialog__body">
+          <label class="field">
+            <span class="label">Hubungan</span>
+            <select class="select" id="anggota-hubungan">
+              <option value="istri">Istri (Co-Master)</option>
+              <option value="anak" selected>Anak</option>
+              <option value="ortu">Orang tua</option>
+              <option value="supir">Supir</option>
+              <option value="sekretaris">Sekretaris</option>
+              <option value="bendahara">Bendahara</option>
+            </select>
+          </label>
+
+          <div class="notice notice--warning" id="note-comaster" style="margin-top: 10px; display: none">
+            <i data-lucide="crown" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>
+              <strong>Co-Master</strong> — istri mendapat kewenangan yang sama persis dengan Master: melihat dan
+              mengubah seluruh rekening, anggaran, aset, dan menyetujui permintaan dana.
+              <strong>Hanya boleh ada satu istri (Co-Master) per keluarga.</strong>
+            </span>
+          </div>
+
+          <label class="field">
+            <span class="label">Nama</span>
+            <input class="input" placeholder="Nama lengkap" />
+          </label>
+          <label class="field">
+            <span class="label">Username</span>
+            <input class="input" placeholder="cth: siti_arsandi" />
+            <span class="hint">3-30 karakter, huruf/angka/underscore/titik</span>
+          </label>
+          <label class="field">
+            <span class="label">Password Awal</span>
+            <input class="input" type="password" value="RahasiaAwal123" autocomplete="new-password" />
+            <span class="hint">Beri tahu password ini secara langsung — wajib diganti saat login pertama.</span>
+          </label>
+          <label class="field">
+            <span class="label">Peran</span>
+            <select class="select" id="anggota-peran">
+              <option value="spouse">Co-Master (setara Master)</option>
+              <option value="dependant" selected>Anak (Dependant)</option>
+              <option value="member">Anggota</option>
+              <option value="operational">Operasional (supir/asisten)</option>
+              <option value="admin_staff">Admin / Staf</option>
+            </select>
+            <span class="hint">Terisi otomatis dari Hubungan — masih bisa diubah manual.</span>
+          </label>
+          <label class="field">
+            <span class="label">Rekening yang ditugaskan <span class="t-muted" style="font-weight: 500">(opsional)</span></span>
+            <select class="select">
+              <option>— Belum ditugaskan —</option>
+              <option>Kartu Aisyah ···4471</option>
+              <option>Kas Operasional ···0021</option>
+              <option>BCA Tahapan ···9010</option>
+            </select>
+          </label>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-tambah-anggota')">Batal</button>
+          <button class="btn btn--primary" onclick="WM.closeDialog('dlg-tambah-anggota');WM.toast('Akun anggota berhasil dibuat','success')">Buat Akun</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Dialog: Edit Anggota ── -->
+    <div class="dialog-backdrop" id="dlg-edit-anggota" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-edit-anggota-title">
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-edit-anggota-title">Edit Anggota</h2>
+        <p class="dialog__desc">Ubah peran, hubungan, batas transaksi, dan rekening yang ditugaskan.</p>
+        <div class="dialog__body">
+          <label class="field">
+            <span class="label">Nama</span>
+            <input class="input" value="Aisyah Arsandi" />
+          </label>
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Hubungan</span>
+              <select class="select">
+                <option>Istri (Co-Master)</option>
+                <option selected>Anak</option>
+                <option>Orang tua</option>
+                <option>Supir</option>
+                <option>Sekretaris</option>
+                <option>Bendahara</option>
+              </select>
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Peran</span>
+              <select class="select">
+                <option>Co-Master (setara Master)</option>
+                <option selected>Anak (Dependant)</option>
+                <option>Anggota</option>
+                <option>Operasional (supir/asisten)</option>
+              </select>
+            </label>
+          </div>
+          <label class="field">
+            <span class="label">Rekening yang ditugaskan</span>
+            <select class="select">
+              <option selected>Kartu Aisyah ···4471</option>
+              <option>Kas Operasional ···0021</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="label">Batas Transaksi Besar</span>
+            <input class="input mono" value="1.000.000" inputmode="numeric" />
+            <span class="hint">Pengeluaran di atas batas ini ditahan menunggu persetujuan Master. Kosongkan untuk tidak membatasi.</span>
+          </label>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-edit-anggota')">Batal</button>
+          <button class="btn btn--primary" onclick="WM.closeDialog('dlg-edit-anggota');WM.toast('Perubahan anggota disimpan','success')">Simpan</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Dialog: Hapus Anggota (konfirmasi) ── -->
+    <div class="dialog-backdrop" id="dlg-hapus-anggota" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-hapus-anggota-title">
+      <div class="dialog dialog--sm">
+        <h2 class="dialog__title" id="dlg-hapus-anggota-title">Hapus anggota ini?</h2>
+        <p class="dialog__desc">
+          Akun anggota tidak bisa lagi masuk ke WealthMe. Transaksi yang sudah pernah dicatatnya tetap tersimpan
+          dan tidak ikut terhapus.
+        </p>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-hapus-anggota')">Batal</button>
+          <button class="btn btn--destructive" onclick="WM.closeDialog('dlg-hapus-anggota');WM.toast('Anggota dihapus','success')">Ya, Hapus</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Dialog: Ubah Password ── -->
+    <div class="dialog-backdrop" id="dlg-ubah-password" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-ubah-password-title">
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-ubah-password-title">Ubah Password</h2>
+        <div class="dialog__body">
+          <label class="field">
+            <span class="label">Password Saat Ini</span>
+            <input class="input" type="password" placeholder="••••••••" />
+          </label>
+          <label class="field">
+            <span class="label">Password Baru</span>
+            <input class="input" type="password" placeholder="Min. 8 karakter" />
+          </label>
+          <label class="field">
+            <span class="label">Konfirmasi Password Baru</span>
+            <input class="input" type="password" placeholder="Ulangi password baru" />
+          </label>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-ubah-password')">Batal</button>
+          <button class="btn btn--primary" onclick="WM.closeDialog('dlg-ubah-password');WM.toast('Password berhasil diubah','success')">Simpan</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Dialog: Lupakan Perangkat ── -->
+    <div class="dialog-backdrop" id="dlg-lupakan-perangkat" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-lupakan-perangkat-title">
+      <div class="dialog dialog--sm">
+        <h2 class="dialog__title" id="dlg-lupakan-perangkat-title">Lupakan perangkat ini?</h2>
+        <p class="dialog__desc">
+          Perangkat ini tidak akan bisa lagi membuka aplikasi dengan PIN. Perangkat perlu password kamu untuk
+          masuk lagi.
+        </p>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-lupakan-perangkat')">Batal</button>
+          <button class="btn btn--destructive" onclick="WM.closeDialog('dlg-lupakan-perangkat');WM.toast('Perangkat dilupakan','success')">Lupakan perangkat</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Dialog: Edit Profil ── -->
+    <div class="dialog-backdrop" id="dlg-edit-profil" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-edit-profil-title">
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-edit-profil-title">Profil Saya</h2>
+        <div class="dialog__body">
+          <label class="field">
+            <span class="label">Nama Lengkap</span>
+            <input class="input" value="Irfan Arsandi" />
+          </label>
+          <label class="field">
+            <span class="label">Email</span>
+            <input class="input" type="email" value="irfan.arsandi@gmail.com" />
+          </label>
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">No. Telepon</span>
+              <input class="input mono" value="+62 812 8877 4410" />
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Tanggal Lahir</span>
+              <input class="input" type="date" value="1982-03-14" />
+            </label>
+          </div>
+          <label class="field">
+            <span class="label">Penghasilan Bulanan</span>
+            <input class="input mono" value="78.000.000" inputmode="numeric" />
+          </label>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-edit-profil')">Batal</button>
+          <button class="btn btn--primary" onclick="WM.closeDialog('dlg-edit-profil');WM.toast('Profil berhasil disimpan','success')">Simpan Perubahan</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script src="../assets/charts.js"></script>
+    <script>
+      WM.shell({ active: "akun" });
+
+      // Hubungan → Peran autofill + the "istri = Co-Master, one per family" note.
+      const ROLE_FOR = {
+        istri: "spouse",
+        anak: "dependant",
+        ortu: "member",
+        supir: "operational",
+        sekretaris: "admin_staff",
+        bendahara: "admin_staff",
+      };
+      const hubungan = document.getElementById("anggota-hubungan");
+      const peran = document.getElementById("anggota-peran");
+      const note = document.getElementById("note-comaster");
+      hubungan.addEventListener("change", () => {
+        peran.value = ROLE_FOR[hubungan.value] ?? "member";
+        note.style.display = hubungan.value === "istri" ? "flex" : "none";
+      });
+
+      // Switches toggle for real so the prototype can be clicked through.
+      document.querySelectorAll(".switch").forEach((s) =>
+        s.addEventListener("click", () =>
+          s.setAttribute("aria-checked", s.getAttribute("aria-checked") === "true" ? "false" : "true")
+        )
+      );
+
+      if (window.lucide) window.lucide.createIcons();
+    </script>
+  </body>
+</html>

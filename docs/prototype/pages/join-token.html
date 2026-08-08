@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Undangan Keluarga · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+    <style>
+      .auth {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px 16px;
+      }
+      .auth__card {
+        width: min(440px, 100%);
+      }
+      .auth__brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        justify-content: center;
+        margin-bottom: 18px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="auth">
+      <div class="auth__card">
+        <div class="auth__brand">
+          <div class="sidebar__logo gradient-wealth" style="width: 34px; height: 34px">W</div>
+          <div class="sidebar__name" style="font-size: 18px">WealthMe</div>
+        </div>
+
+        <div class="card">
+          <div class="card__body">
+            <div class="empty" style="padding-bottom: 8px">
+              <div class="empty__icon">👨‍👩‍👧‍👦</div>
+              <div class="t-lg t-black">Undangan keluarga sudah tidak dipakai</div>
+              <div class="t-sm t-muted">
+                Link undangan seperti ini tidak lagi berlaku. Kepala keluarga sekarang membuat akun anggota secara
+                langsung — tidak ada lagi email undangan yang harus diterima.
+              </div>
+            </div>
+
+            <!-- EPIC-024 — alur undangan disembunyikan; halaman ini hanya
+                 state warisan supaya link lama tidak berujung ke error mentah. -->
+            <div class="notice notice--warning">
+              <i data-lucide="triangle-alert" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+              <span>
+                <strong>Halaman lawas.</strong> Token
+                <span class="mono">inv_8f2c…a91d</span> dibuat dengan alur undangan yang sudah dihentikan sejak Agustus
+                2026. Menerimanya tidak akan menambahkanmu ke keluarga mana pun.
+              </span>
+            </div>
+
+            <div class="card" style="margin-top: 14px; box-shadow: none">
+              <div class="card__body">
+                <div class="t-sm t-bold">Cara bergabung sekarang</div>
+                <div class="stack" style="gap: 10px; margin-top: 10px">
+                  <div class="row" style="gap: 10px; align-items: flex-start">
+                    <span class="badge badge--gray mono">1</span>
+                    <span class="t-xs t-muted">
+                      Minta kepala keluarga membuka <strong>Akun &amp; Keluarga → Anggota → Tambah Anggota</strong>.
+                    </span>
+                  </div>
+                  <div class="row" style="gap: 10px; align-items: flex-start">
+                    <span class="badge badge--gray mono">2</span>
+                    <span class="t-xs t-muted">
+                      Kepala keluarga memilih peran dan membuat akunmu, lalu memberikan
+                      <strong>username</strong> dan <strong>password awal</strong>.
+                    </span>
+                  </div>
+                  <div class="row" style="gap: 10px; align-items: flex-start">
+                    <span class="badge badge--gray mono">3</span>
+                    <span class="t-xs t-muted">
+                      Masuk dengan data itu — WealthMe langsung memintamu
+                      <a class="card-link" href="ubah-password-wajib.html">mengganti password</a> sebelum melanjutkan.
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <a class="btn btn--primary btn--block" style="margin-top: 16px" href="login.html">
+              <i data-lucide="log-in" style="width: 16px; height: 16px"></i> Kembali ke Halaman Masuk
+            </a>
+            <a class="btn btn--outline btn--block" style="margin-top: 10px" href="register.html">
+              Daftar akun baru (kepala keluarga)
+            </a>
+          </div>
+        </div>
+
+        <div class="t-xs t-muted" style="text-align: center; margin-top: 14px">
+          Punya pertanyaan? Hubungi kepala keluargamu — dialah yang mengelola daftar anggota.
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script>
+      lucide.createIcons();
+    </script>
+  </body>
+</html>

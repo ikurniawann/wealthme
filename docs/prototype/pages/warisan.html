@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Warisan · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero gradient-emerald">
+        <div class="row row--wrap" style="position: relative; z-index: 1">
+          <div style="flex: 1; min-width: 220px">
+            <div class="hero__label">Total Nilai Warisan</div>
+            <div class="hero__value mono">Rp 1.038.500.000</div>
+            <div class="row" style="gap: 8px; margin-top: 10px">
+              <span class="badge" style="background: rgb(255 255 255 / 0.2); color: #fff">4 aset terdaftar</span>
+              <span class="t-xs" style="opacity: 0.85">· 3 ahli waris</span>
+            </div>
+          </div>
+          <button class="btn btn--outline" style="background: rgb(255 255 255 / 0.16); border-color: rgb(255 255 255 / 0.3); color: #fff" onclick="WM.openDialog('dlg-aset-warisan')">
+            <i data-lucide="plus" style="width: 15px; height: 15px"></i> Tambah Aset Warisan
+          </button>
+        </div>
+      </section>
+
+      <section class="grid grid--sidebar dashboard-columns--equal">
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">Aset Warisan</h2>
+            <div class="card__action"><span class="t-xs t-muted">Terlihat oleh seluruh ahli waris</span></div>
+          </div>
+          <div class="card__body stack" style="gap: 12px">
+            <article class="card" style="box-shadow: none; padding: 14px">
+              <div class="row row--wrap" style="gap: 10px">
+                <span class="list-row__icon" style="background: #fef9c3">🏠</span>
+                <div style="flex: 1; min-width: 170px">
+                  <div class="row" style="gap: 8px">
+                    <span class="t-md t-bold">Rumah Utama — Pondok Indah</span>
+                    <span class="badge badge--gray">Aset / Properti</span>
+                  </div>
+                  <div class="t-xs t-muted">SHM No. 1234 · terhubung ke Aset “Rumah Pondok Indah”</div>
+                </div>
+                <div style="text-align: right">
+                  <div class="t-lg t-black mono">Rp 720.000.000</div>
+                  <div class="t-xs t-muted">Nilai estimasi</div>
+                </div>
+              </div>
+              <div class="row row--wrap" style="gap: 6px; margin-top: 10px">
+                <span class="badge badge--purple">Siti Arsandi · Istri · 50%</span>
+                <span class="badge badge--info">Aisyah Arsandi · Anak · 50%</span>
+                <div class="spacer"></div>
+                <button class="btn btn--ghost btn--icon btn--sm" aria-label="Edit Rumah Utama" onclick="WM.openDialog('dlg-aset-warisan')">
+                  <i data-lucide="pencil" style="width: 15px; height: 15px"></i>
+                </button>
+                <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus Rumah Utama" onclick="WM.openDialog('dlg-hapus-warisan')">
+                  <i data-lucide="trash-2" style="width: 15px; height: 15px"></i>
+                </button>
+              </div>
+              <div class="progress" style="margin-top: 10px">
+                <div class="progress__bar" style="width: 100%; background: var(--success)"></div>
+              </div>
+              <div class="t-xs t-success" style="margin-top: 5px">Teralokasi penuh (100%)</div>
+            </article>
+
+            <article class="card" style="box-shadow: none; padding: 14px">
+              <div class="row row--wrap" style="gap: 10px">
+                <span class="list-row__icon" style="background: #dcfce7">💵</span>
+                <div style="flex: 1; min-width: 170px">
+                  <div class="row" style="gap: 8px">
+                    <span class="t-md t-bold">Deposito BCA 12 Bulan</span>
+                    <span class="badge badge--gray">Cash / Tunai</span>
+                  </div>
+                  <div class="t-xs t-muted">Bilyet ···7781 · terhubung ke Bank &amp; Account “BCA Deposito”</div>
+                </div>
+                <div style="text-align: right">
+                  <div class="t-lg t-black mono">Rp 185.000.000</div>
+                  <div class="t-xs t-muted">Nilai estimasi</div>
+                </div>
+              </div>
+              <div class="row row--wrap" style="gap: 6px; margin-top: 10px">
+                <span class="badge badge--purple">Siti Arsandi · Istri · 40%</span>
+                <span class="badge badge--info">Aisyah Arsandi · Anak · 35%</span>
+                <div class="spacer"></div>
+                <button class="btn btn--ghost btn--icon btn--sm" aria-label="Edit Deposito BCA" onclick="WM.openDialog('dlg-aset-warisan')">
+                  <i data-lucide="pencil" style="width: 15px; height: 15px"></i>
+                </button>
+                <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus Deposito BCA" onclick="WM.openDialog('dlg-hapus-warisan')">
+                  <i data-lucide="trash-2" style="width: 15px; height: 15px"></i>
+                </button>
+              </div>
+              <div class="progress" style="margin-top: 10px">
+                <div class="progress__bar" style="width: 75%; background: var(--warning)"></div>
+              </div>
+              <div class="t-xs t-warning" style="margin-top: 5px">25% belum dialokasikan</div>
+            </article>
+
+            <article class="card" style="box-shadow: none; padding: 14px">
+              <div class="row row--wrap" style="gap: 10px">
+                <span class="list-row__icon" style="background: #ede9fe">📈</span>
+                <div style="flex: 1; min-width: 170px">
+                  <div class="row" style="gap: 8px">
+                    <span class="t-md t-bold">Portofolio Saham BBCA &amp; TLKM</span>
+                    <span class="badge badge--gray">Saham</span>
+                  </div>
+                  <div class="t-xs t-muted">RDN Mandiri Sekuritas · terhubung ke Investasi</div>
+                </div>
+                <div style="text-align: right">
+                  <div class="t-lg t-black mono">Rp 96.500.000</div>
+                  <div class="t-xs t-muted">Nilai estimasi</div>
+                </div>
+              </div>
+              <div class="row row--wrap" style="gap: 6px; margin-top: 10px">
+                <span class="badge badge--info">Aisyah Arsandi · Anak · 100%</span>
+                <div class="spacer"></div>
+                <button class="btn btn--ghost btn--icon btn--sm" aria-label="Edit Portofolio Saham" onclick="WM.openDialog('dlg-aset-warisan')">
+                  <i data-lucide="pencil" style="width: 15px; height: 15px"></i>
+                </button>
+                <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus Portofolio Saham" onclick="WM.openDialog('dlg-hapus-warisan')">
+                  <i data-lucide="trash-2" style="width: 15px; height: 15px"></i>
+                </button>
+              </div>
+              <div class="progress" style="margin-top: 10px">
+                <div class="progress__bar" style="width: 100%; background: var(--success)"></div>
+              </div>
+              <div class="t-xs t-success" style="margin-top: 5px">Teralokasi penuh (100%)</div>
+            </article>
+
+            <article class="card" style="box-shadow: none; padding: 14px">
+              <div class="row row--wrap" style="gap: 10px">
+                <span class="list-row__icon" style="background: #dbeafe">📜</span>
+                <div style="flex: 1; min-width: 170px">
+                  <div class="row" style="gap: 8px">
+                    <span class="t-md t-bold">Polis Asuransi Jiwa Prudential</span>
+                    <span class="badge badge--gray">Surat Berharga</span>
+                  </div>
+                  <div class="t-xs t-muted">Polis No. PRU-88120 · terhubung ke Asuransi</div>
+                </div>
+                <div style="text-align: right">
+                  <div class="t-lg t-black mono">Rp 37.000.000</div>
+                  <div class="t-xs t-muted">Nilai estimasi</div>
+                </div>
+              </div>
+              <div class="row row--wrap" style="gap: 6px; margin-top: 10px">
+                <span class="badge badge--purple">Siti Arsandi · Istri · 100%</span>
+                <div class="spacer"></div>
+                <button class="btn btn--ghost btn--icon btn--sm" aria-label="Edit Polis Asuransi" onclick="WM.openDialog('dlg-aset-warisan')">
+                  <i data-lucide="pencil" style="width: 15px; height: 15px"></i>
+                </button>
+                <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus Polis Asuransi" onclick="WM.openDialog('dlg-hapus-warisan')">
+                  <i data-lucide="trash-2" style="width: 15px; height: 15px"></i>
+                </button>
+              </div>
+              <div class="progress" style="margin-top: 10px">
+                <div class="progress__bar" style="width: 100%; background: var(--success)"></div>
+              </div>
+              <div class="t-xs t-success" style="margin-top: 5px">Teralokasi penuh (100%)</div>
+            </article>
+          </div>
+        </article>
+
+        <div class="stack" style="gap: 14px">
+        <article class="card">
+            <div class="card__header"><h2 class="card__title">Alokasi Ahli Waris</h2></div>
+            <div class="card__body">
+              <div id="c-heirs" class="chart"></div>
+              <div class="stack" style="gap: 0; margin-top: 6px">
+                <div class="list-row">
+                  <span class="avatar gradient-profile" style="color: #fff">SA</span>
+                  <div class="list-row__body">
+                    <div class="list-row__title">Siti Arsandi</div>
+                    <div class="list-row__sub">Istri · Co-Master</div>
+                  </div>
+                  <span class="list-row__amount mono">Rp 471.000.000</span>
+                </div>
+                <div class="list-row">
+                  <span class="avatar gradient-emerald" style="color: #fff">AI</span>
+                  <div class="list-row__body">
+                    <div class="list-row__title">Aisyah Arsandi</div>
+                    <div class="list-row__sub">Anak · tanggungan</div>
+                  </div>
+                  <span class="list-row__amount mono">Rp 521.250.000</span>
+                </div>
+                <div class="list-row">
+                  <span class="avatar" style="background: var(--secondary); color: var(--muted-foreground)">?</span>
+                  <div class="list-row__body">
+                    <div class="list-row__title">Belum dialokasikan</div>
+                    <div class="list-row__sub">Sisa dari Deposito BCA</div>
+                  </div>
+                  <span class="list-row__amount mono t-warning">Rp 46.250.000</span>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card__header"><h2 class="card__title">Catatan Warisan Aman &amp; Transparan</h2></div>
+            <div class="card__body">
+              <div class="notice notice--info">
+                <i data-lucide="shield-check" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+                <span>
+                  Seluruh ahli waris dapat melihat daftar ini kapan saja. Tambahkan dokumen pendukung
+                  (sertifikat, BPKB, polis) agar lebih lengkap.
+                </span>
+              </div>
+              <button class="btn btn--outline btn--block" style="margin-top: 10px" onclick="WM.toast('Upload dokumen belum tersedia — fitur ini segera hadir.','info')">
+                <i data-lucide="upload" style="width: 15px; height: 15px"></i> Upload Dokumen (Segera Hadir)
+              </button>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <!-- ── Dialog: Tambah / Edit Aset Warisan (EPIC-024 item 15) ── -->
+    <div class="dialog-backdrop" id="dlg-aset-warisan" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-aset-warisan-title">
+      <div class="dialog dialog--wide">
+        <h2 class="dialog__title" id="dlg-aset-warisan-title">Edit Aset Warisan</h2>
+        <p class="dialog__desc">Hubungkan ke aset yang sudah tercatat, lalu tentukan pembagian ahli waris.</p>
+        <div class="dialog__body">
+          <label class="field">
+            <span class="label">Aset</span>
+            <select class="select">
+              <option selected>Rumah Pondok Indah — Aset / Properti</option>
+              <option>BCA Deposito 12 Bulan — Cash / Tunai</option>
+              <option>Portofolio RDN Mandiri Sekuritas — Saham</option>
+              <option>Polis Prudential PRU-88120 — Surat Berharga</option>
+              <option>— Tidak dihubungkan (catat manual) —</option>
+            </select>
+            <span class="hint">Nilai estimasi terisi otomatis dari aset terhubung, tetap bisa kamu ubah.</span>
+          </label>
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Nilai Estimasi</span>
+              <input class="input mono" value="720.000.000" inputmode="numeric" />
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Kategori</span>
+              <select class="select">
+                <option selected>Aset / Properti</option>
+                <option>Cash / Tunai</option>
+                <option>Surat Berharga</option>
+                <option>Saham</option>
+                <option>Lainnya</option>
+              </select>
+            </label>
+          </div>
+          <label class="field">
+            <span class="label">Catatan / Keterangan</span>
+            <textarea class="textarea" placeholder="cth: SHM No. 1234, BPKB, Sertifikat...">SHM No. 1234 a.n. Irfan Arsandi, luas 480 m²</textarea>
+          </label>
+          <div class="field">
+            <div class="row row--between">
+              <span class="label" style="margin: 0">Terlihat oleh ahli waris</span>
+              <button class="switch" role="switch" aria-checked="true" aria-label="Terlihat oleh ahli waris"></button>
+            </div>
+            <span class="hint">Ahli waris dapat melihat aset ini di halaman Warisan mereka.</span>
+          </div>
+
+          <div class="section-title" style="font-size: 14px; margin: 18px 0 8px">Ahli Waris</div>
+
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Nama</th>
+                  <th>Hubungan <span class="t-danger">*</span></th>
+                  <th>Bagian (%)</th>
+                  <th style="text-align: right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <select class="select">
+                      <option selected>Siti Arsandi (anggota keluarga)</option>
+                      <option>Aisyah Arsandi (anggota keluarga)</option>
+                      <option>— Isi manual —</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input class="input" value="Istri" required aria-required="true" />
+                  </td>
+                  <td><input class="input mono heir-share" type="number" min="0" max="100" value="50" /></td>
+                  <td style="text-align: right">
+                    <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus ahli waris Siti Arsandi">
+                      <i data-lucide="x" style="width: 15px; height: 15px"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <select class="select">
+                      <option>Siti Arsandi (anggota keluarga)</option>
+                      <option selected>Aisyah Arsandi (anggota keluarga)</option>
+                      <option>— Isi manual —</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input class="input" value="Anak" required aria-required="true" />
+                  </td>
+                  <td><input class="input mono heir-share" type="number" min="0" max="100" value="35" /></td>
+                  <td style="text-align: right">
+                    <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus ahli waris Aisyah Arsandi">
+                      <i data-lucide="x" style="width: 15px; height: 15px"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <input class="input" value="Hendra Arsandi" placeholder="cth: Siti Arsandi" />
+                  </td>
+                  <td>
+                    <!-- EPIC-024 item 15 — hubungan KOSONG inilah yang membuat
+                         penyimpanan gagal di aplikasi asli ("Failed to update
+                         inheritance asset"). Divalidasi di form, bukan di server. -->
+                    <input class="input" value="" placeholder="cth: Anak, Pasangan" required aria-required="true" aria-invalid="true" style="border-color: var(--destructive)" />
+                    <span class="error-text">Hubungan wajib diisi</span>
+                  </td>
+                  <td><input class="input mono heir-share" type="number" min="0" max="100" value="15" /></td>
+                  <td style="text-align: right">
+                    <button class="btn btn--ghost btn--icon btn--sm" aria-label="Hapus ahli waris Hendra Arsandi">
+                      <i data-lucide="x" style="width: 15px; height: 15px"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <button class="btn btn--outline btn--block" style="margin-top: 10px" onclick="WM.toast('Baris ahli waris ditambahkan','info')">
+            <i data-lucide="plus" style="width: 15px; height: 15px"></i> Tambah Ahli Waris
+          </button>
+
+          <div class="notice" id="alokasi-box" style="margin-top: 12px">
+            <i data-lucide="pie-chart" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span id="alokasi-text"><strong class="mono">100</strong>% dialokasikan · <strong class="mono">0</strong>% belum dialokasikan</span>
+          </div>
+          <div class="progress" style="margin-top: 8px">
+            <div class="progress__bar" id="alokasi-bar" style="width: 100%; background: var(--success)"></div>
+          </div>
+
+          <div class="notice notice--danger" id="simpan-error" style="margin-top: 12px; display: none">
+            <i data-lucide="circle-alert" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>Hubungan wajib diisi untuk setiap ahli waris sebelum aset warisan dapat disimpan.</span>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-aset-warisan')">Batal</button>
+          <button class="btn btn--primary" onclick="simpanWarisan()">Simpan Aset Warisan</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Dialog: Hapus Aset Warisan ── -->
+    <div class="dialog-backdrop" id="dlg-hapus-warisan" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-hapus-warisan-title">
+      <div class="dialog dialog--sm">
+        <h2 class="dialog__title" id="dlg-hapus-warisan-title">Hapus aset warisan ini?</h2>
+        <p class="dialog__desc">
+          Catatan warisan beserta pembagian ahli warisnya akan dihapus. Aset aslinya di halaman Aset tidak ikut
+          terhapus.
+        </p>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-hapus-warisan')">Batal</button>
+          <button class="btn btn--destructive" onclick="WM.closeDialog('dlg-hapus-warisan');WM.toast('Aset warisan dihapus.','success')">Ya, Hapus</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script src="../assets/charts.js"></script>
+    <script>
+      WM.shell({ active: "warisan" });
+
+      WMCharts.donut(
+        "#c-heirs",
+        ["Siti Arsandi (Istri)", "Aisyah Arsandi (Anak)", "Belum dialokasikan"],
+        [471000000, 521250000, 46250000],
+        "Warisan"
+      );
+
+      // Running total ahli waris — harus mencapai 100%.
+      const shares = () => [...document.querySelectorAll(".heir-share")];
+      function recalc() {
+        const total = shares().reduce((s, i) => s + (Number(i.value) || 0), 0);
+        const sisa = Math.max(0, 100 - total);
+        document.getElementById("alokasi-text").innerHTML =
+          `<strong class="mono">${total}</strong>% dialokasikan · <strong class="mono">${sisa}</strong>% belum dialokasikan`;
+        const bar = document.getElementById("alokasi-bar");
+        bar.style.width = Math.min(100, total) + "%";
+        bar.style.background = total === 100 ? "var(--success)" : "var(--warning)";
+      }
+      shares().forEach((i) => i.addEventListener("input", recalc));
+      recalc();
+
+      function simpanWarisan() {
+        const kosong = [...document.querySelectorAll('#dlg-aset-warisan input[aria-required="true"]')].some(
+          (i) => !i.value.trim()
+        );
+        if (kosong) {
+          document.getElementById("simpan-error").style.display = "flex";
+          WM.toast("Hubungan ahli waris wajib diisi.", "error");
+          return;
+        }
+        WM.closeDialog("dlg-aset-warisan");
+        WM.toast("Aset warisan diperbarui!", "success");
+      }
+
+      document.querySelectorAll(".switch").forEach((s) =>
+        s.addEventListener("click", () =>
+          s.setAttribute("aria-checked", s.getAttribute("aria-checked") === "true" ? "false" : "true")
+        )
+      );
+
+      if (window.lucide) window.lucide.createIcons();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Liabilitas · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+  </head>
+  <body>
+    <main class="page">
+      <!-- Summary -->
+      <section class="auto-grid auto-grid--metrics">
+        <article
+          class="card"
+          style="background: color-mix(in oklab, var(--destructive) 11%, transparent); border-color: color-mix(in oklab, var(--destructive) 30%, transparent)"
+        >
+          <div class="card__body">
+            <div class="t-xs t-danger">Total Liabilitas</div>
+            <div class="t-2xl t-black mono t-danger">Rp 388.400.000</div>
+            <div class="t-xs t-danger">Sisa tagihan aktif · 4 liabilitas</div>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card__body">
+            <div class="t-xs t-muted">Rasio Utang terhadap Aset</div>
+            <div class="t-2xl t-black t-warning">23,6%</div>
+            <div class="t-xs t-warning t-bold">Aman</div>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card__body">
+            <div class="t-xs t-muted">Cicilan Bulan Ini</div>
+            <div class="t-2xl t-black mono">Rp 9.150.000</div>
+            <div class="t-xs t-muted">Jatuh tempo terdekat 12 Agustus</div>
+          </div>
+        </article>
+      </section>
+
+      <section class="row row--wrap">
+        <div class="tabs" role="tablist" aria-label="Filter jenis liabilitas">
+          <button class="tab" role="tab" aria-selected="true">Semua</button>
+          <button class="tab" role="tab" aria-selected="false">Kartu Kredit</button>
+          <button class="tab" role="tab" aria-selected="false">KPR</button>
+          <button class="tab" role="tab" aria-selected="false">Kredit Kendaraan</button>
+          <button class="tab" role="tab" aria-selected="false">Pinjaman Pribadi</button>
+        </div>
+        <span class="spacer"></span>
+        <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-lia-edit')">
+          <i data-lucide="plus" style="width: 15px; height: 15px"></i> Tambah Liabilitas
+        </button>
+      </section>
+
+      <!-- KPR -->
+      <section class="card">
+        <div class="card__body stack" style="gap: 14px">
+          <div class="row row--wrap">
+            <span class="list-row__icon" style="background: var(--accent); color: var(--accent-foreground)">🏠</span>
+            <span style="flex: 1; min-width: 160px">
+              <span class="t-md t-black" style="display: block">KPR Rumah Bintaro</span>
+              <span class="t-xs t-muted">BTN · KPR</span>
+            </span>
+            <span class="badge badge--success">Jatuh Tempo 25 Agu</span>
+          </div>
+
+          <div class="grid grid--4">
+            <div>
+              <div class="t-xs t-muted">Sisa Pokok</div>
+              <div class="t-sm t-black mono">Rp 296.800.000</div>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Total Pinjaman</div>
+              <div class="t-sm t-black mono">Rp 620.000.000</div>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Cicilan/Bulan</div>
+              <div class="t-sm t-black mono">Rp 5.000.000</div>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Bunga/Tahun</div>
+              <div class="t-sm t-black mono">8,25%</div>
+            </div>
+          </div>
+
+          <div>
+            <div class="row row--between">
+              <span class="t-xs t-bold">Progres Pelunasan</span>
+              <span class="t-sm t-bold t-success">52%</span>
+            </div>
+            <div class="progress" style="margin-top: 6px">
+              <div class="progress__bar" style="width: 52%; background: var(--success)"></div>
+            </div>
+          </div>
+
+          <div class="row row--wrap" style="gap: 8px">
+            <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-lia-detail')">
+              <i data-lucide="file-text" style="width: 14px; height: 14px"></i> Detail
+            </button>
+            <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-lia-edit')">
+              <i data-lucide="pencil" style="width: 14px; height: 14px"></i> Edit
+            </button>
+            <button class="btn btn--ghost btn--sm t-danger" onclick="WM.openDialog('dlg-lia-hapus')">
+              <i data-lucide="trash-2" style="width: 14px; height: 14px"></i> Hapus
+            </button>
+            <span class="spacer"></span>
+            <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-lia-bayar')">
+              <i data-lucide="banknote" style="width: 14px; height: 14px"></i> Bayar
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Kartu Kredit -->
+      <section class="card">
+        <div class="card__body stack" style="gap: 14px">
+          <div class="row row--wrap">
+            <span
+              class="list-row__icon"
+              style="background: color-mix(in oklab, var(--destructive) 14%, transparent); color: var(--destructive)"
+            >
+              💳
+            </span>
+            <span style="flex: 1; min-width: 160px">
+              <span class="t-md t-black" style="display: block">Kartu Kredit BCA Visa Platinum</span>
+              <span class="t-xs t-muted">BCA · Kartu Kredit</span>
+            </span>
+            <span class="badge badge--warning">Jatuh Tempo 12 Agu</span>
+          </div>
+
+          <div class="grid grid--4">
+            <div>
+              <div class="t-xs t-muted">Tagihan Berjalan</div>
+              <div class="t-sm t-black mono">Rp 8.400.000</div>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Limit Kredit</div>
+              <div class="t-sm t-black mono">Rp 30.000.000</div>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Minimum Bayar</div>
+              <div class="t-sm t-black mono">Rp 840.000</div>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Bunga/Bulan</div>
+              <div class="t-sm t-black mono">2,25%</div>
+            </div>
+          </div>
+
+          <div>
+            <div class="row row--between">
+              <span class="t-xs t-bold">Penggunaan Limit</span>
+              <span class="t-sm t-bold t-warning">28%</span>
+            </div>
+            <div class="progress" style="margin-top: 6px">
+              <div class="progress__bar" style="width: 28%; background: var(--warning)"></div>
+            </div>
+          </div>
+
+          <div class="row row--wrap" style="gap: 8px">
+            <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-lia-detail')">
+              <i data-lucide="file-text" style="width: 14px; height: 14px"></i> Detail
+            </button>
+            <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-lia-edit')">
+              <i data-lucide="pencil" style="width: 14px; height: 14px"></i> Edit
+            </button>
+            <button class="btn btn--ghost btn--sm t-danger" onclick="WM.openDialog('dlg-lia-hapus')">
+              <i data-lucide="trash-2" style="width: 14px; height: 14px"></i> Hapus
+            </button>
+            <span class="spacer"></span>
+            <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-lia-bayar')">
+              <i data-lucide="banknote" style="width: 14px; height: 14px"></i> Bayar
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Kredit Kendaraan -->
+      <section class="card">
+        <div class="card__body stack" style="gap: 14px">
+          <div class="row row--wrap">
+            <span class="list-row__icon" style="background: var(--warning-soft); color: var(--warning)">🚗</span>
+            <span style="flex: 1; min-width: 160px">
+              <span class="t-md t-black" style="display: block">Kredit Innova Zenix</span>
+              <span class="t-xs t-muted">BCA Finance · Kredit Kendaraan</span>
+            </span>
+            <span class="badge badge--success">Jatuh Tempo 28 Agu</span>
+          </div>
+
+          <div class="grid grid--4">
+            <div>
+              <div class="t-xs t-muted">Sisa Pokok</div>
+              <div class="t-sm t-black mono">Rp 68.200.000</div>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Total Pinjaman</div>
+              <div class="t-sm t-black mono">Rp 180.000.000</div>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Cicilan/Bulan</div>
+              <div class="t-sm t-black mono">Rp 3.310.000</div>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Bunga/Tahun</div>
+              <div class="t-sm t-black mono">6,90%</div>
+            </div>
+          </div>
+
+          <div>
+            <div class="row row--between">
+              <span class="t-xs t-bold">Progres Pelunasan</span>
+              <span class="t-sm t-bold t-success">62%</span>
+            </div>
+            <div class="progress" style="margin-top: 6px">
+              <div class="progress__bar" style="width: 62%; background: var(--success)"></div>
+            </div>
+          </div>
+
+          <div class="row row--wrap" style="gap: 8px">
+            <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-lia-detail')">
+              <i data-lucide="file-text" style="width: 14px; height: 14px"></i> Detail
+            </button>
+            <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-lia-edit')">
+              <i data-lucide="pencil" style="width: 14px; height: 14px"></i> Edit
+            </button>
+            <button class="btn btn--ghost btn--sm t-danger" onclick="WM.openDialog('dlg-lia-hapus')">
+              <i data-lucide="trash-2" style="width: 14px; height: 14px"></i> Hapus
+            </button>
+            <span class="spacer"></span>
+            <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-lia-bayar')">
+              <i data-lucide="banknote" style="width: 14px; height: 14px"></i> Bayar
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Pinjaman Pribadi -->
+      <section class="card">
+        <div class="card__body stack" style="gap: 14px">
+          <div class="row row--wrap">
+            <span class="list-row__icon" style="background: var(--brand-purple-soft); color: var(--brand-purple)">🧾</span>
+            <span style="flex: 1; min-width: 160px">
+              <span class="t-md t-black" style="display: block">KTA Mandiri</span>
+              <span class="t-xs t-muted">Mandiri · Pinjaman Pribadi</span>
+            </span>
+            <span class="badge badge--danger">Sudah Jatuh Tempo</span>
+          </div>
+
+          <div class="grid grid--4">
+            <div>
+              <div class="t-xs t-muted">Sisa Pokok</div>
+              <div class="t-sm t-black mono">Rp 15.000.000</div>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Total Pinjaman</div>
+              <div class="t-sm t-black mono">Rp 50.000.000</div>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Cicilan/Bulan</div>
+              <div class="t-sm t-black mono">Rp 1.680.000</div>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Bunga/Tahun</div>
+              <div class="t-sm t-black mono">11,50%</div>
+            </div>
+          </div>
+
+          <div>
+            <div class="row row--between">
+              <span class="t-xs t-bold">Progres Pelunasan</span>
+              <span class="t-sm t-bold t-success">70%</span>
+            </div>
+            <div class="progress" style="margin-top: 6px">
+              <div class="progress__bar" style="width: 70%; background: var(--success)"></div>
+            </div>
+          </div>
+
+          <div class="notice notice--danger">
+            <i data-lucide="triangle-alert" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>Cicilan 5 Agustus belum dibayar. Denda keterlambatan <strong class="mono">Rp 84.000</strong> berjalan.</span>
+          </div>
+
+          <div class="row row--wrap" style="gap: 8px">
+            <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-lia-detail')">
+              <i data-lucide="file-text" style="width: 14px; height: 14px"></i> Detail
+            </button>
+            <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-lia-edit')">
+              <i data-lucide="pencil" style="width: 14px; height: 14px"></i> Edit
+            </button>
+            <button class="btn btn--ghost btn--sm t-danger" onclick="WM.openDialog('dlg-lia-hapus')">
+              <i data-lucide="trash-2" style="width: 14px; height: 14px"></i> Hapus
+            </button>
+            <span class="spacer"></span>
+            <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-lia-bayar')">
+              <i data-lucide="banknote" style="width: 14px; height: 14px"></i> Bayar
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Payoff projection -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Proyeksi Sisa Utang 6 Bulan</h2>
+        </div>
+        <div class="card__body"><div id="c-lia-trend" class="chart"></div></div>
+      </section>
+    </main>
+
+    <!-- (a) Dialog Detail -->
+    <div class="dialog-backdrop" id="dlg-lia-detail" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-lia-detail-title">
+      <div class="dialog dialog--wide">
+        <h2 class="dialog__title" id="dlg-lia-detail-title">KPR Rumah Bintaro</h2>
+        <p class="dialog__desc">BTN · KPR · akad 12 Maret 2021 · tenor 180 bulan</p>
+        <div class="dialog__body stack" style="gap: 14px">
+          <div class="grid grid--4">
+            <div>
+              <div class="t-xs t-muted">Sisa Pokok</div>
+              <div class="t-sm t-black mono">Rp 296.800.000</div>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Total Pinjaman</div>
+              <div class="t-sm t-black mono">Rp 620.000.000</div>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Cicilan/Bulan</div>
+              <div class="t-sm t-black mono">Rp 5.000.000</div>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Bunga/Tahun</div>
+              <div class="t-sm t-black mono">8,25%</div>
+            </div>
+          </div>
+
+          <div class="grid grid--3">
+            <div>
+              <div class="t-xs t-muted">Jatuh Tempo Berikutnya</div>
+              <div class="t-sm t-bold">25 Agustus 2026</div>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Sisa Tenor</div>
+              <div class="t-sm t-bold">86 bulan</div>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Rekening Autodebet</div>
+              <div class="t-sm t-bold">BCA Tahapan ···9010</div>
+            </div>
+          </div>
+
+          <div>
+            <div class="section-title t-md" style="margin-bottom: 8px">Jadwal Amortisasi (6 angsuran berikutnya)</div>
+            <div class="table-wrap">
+              <table class="table table--num">
+                <thead>
+                  <tr>
+                    <th>Ke-</th>
+                    <th>Tanggal</th>
+                    <th>Pokok</th>
+                    <th>Bunga</th>
+                    <th>Sisa Pokok</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="mono">95</td>
+                    <td>25 Agu 2026</td>
+                    <td class="mono">Rp 2.960.000</td>
+                    <td class="mono">Rp 2.040.000</td>
+                    <td class="mono">Rp 293.840.000</td>
+                  </tr>
+                  <tr>
+                    <td class="mono">96</td>
+                    <td>25 Sep 2026</td>
+                    <td class="mono">Rp 2.980.000</td>
+                    <td class="mono">Rp 2.020.000</td>
+                    <td class="mono">Rp 290.860.000</td>
+                  </tr>
+                  <tr>
+                    <td class="mono">97</td>
+                    <td>25 Okt 2026</td>
+                    <td class="mono">Rp 3.001.000</td>
+                    <td class="mono">Rp 1.999.000</td>
+                    <td class="mono">Rp 287.859.000</td>
+                  </tr>
+                  <tr>
+                    <td class="mono">98</td>
+                    <td>25 Nov 2026</td>
+                    <td class="mono">Rp 3.021.000</td>
+                    <td class="mono">Rp 1.979.000</td>
+                    <td class="mono">Rp 284.838.000</td>
+                  </tr>
+                  <tr>
+                    <td class="mono">99</td>
+                    <td>25 Des 2026</td>
+                    <td class="mono">Rp 3.042.000</td>
+                    <td class="mono">Rp 1.958.000</td>
+                    <td class="mono">Rp 281.796.000</td>
+                  </tr>
+                  <tr>
+                    <td class="mono">100</td>
+                    <td>25 Jan 2027</td>
+                    <td class="mono">Rp 3.063.000</td>
+                    <td class="mono">Rp 1.937.000</td>
+                    <td class="mono">Rp 278.733.000</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="notice">
+            <i data-lucide="sticky-note" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>Catatan: KPR subsidi bunga tetap 3 tahun pertama, floating setelahnya.</span>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-lia-detail')">Tutup</button>
+          <button class="btn btn--primary" onclick="WM.closeDialog('dlg-lia-detail');WM.openDialog('dlg-lia-bayar')">
+            Bayar Cicilan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- (b) Dialog Edit -->
+    <div class="dialog-backdrop" id="dlg-lia-edit" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-lia-edit-title">
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-lia-edit-title">Edit Liabilitas</h2>
+        <p class="dialog__desc">Perubahan langsung memengaruhi rasio utang terhadap aset dan proyeksi pelunasan.</p>
+        <div class="dialog__body">
+          <div class="field-row">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Nama</span>
+              <input class="input" placeholder="cth. Kartu Kredit BCA" value="KPR Rumah Bintaro" />
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Institusi (opsional)</span>
+              <input class="input" placeholder="cth. BCA" value="BTN" />
+            </label>
+          </div>
+          <label class="field">
+            <span class="label">Jenis</span>
+            <select class="select">
+              <option>Kartu Kredit</option>
+              <option>Pinjaman Pribadi</option>
+              <option selected>KPR</option>
+              <option>Kredit Kendaraan</option>
+              <option>Lainnya</option>
+            </select>
+          </label>
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Total Utang / Limit (Rp)</span>
+              <input class="input mono" placeholder="30.000.000" value="620.000.000" />
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Sisa Tagihan (Rp)</span>
+              <input class="input mono" placeholder="8.000.000" value="296.800.000" />
+            </label>
+          </div>
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Min. Bayar / Cicilan (Rp)</span>
+              <input class="input mono" placeholder="800.000" value="5.000.000" />
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Bunga % (opsional)</span>
+              <input class="input mono" placeholder="2.25" value="8.25" />
+            </label>
+          </div>
+          <label class="field">
+            <span class="label">Tanggal Jatuh Tempo (opsional)</span>
+            <input class="input" type="date" value="2026-08-25" />
+          </label>
+          <div class="row" style="margin-top: 12px">
+            <span class="switch" role="switch" aria-checked="true" tabindex="0" aria-label="Majukan otomatis jatuh tempo"></span>
+            <span class="t-sm">Majukan otomatis ke bulan berikutnya setelah lewat jatuh tempo</span>
+          </div>
+          <label class="field">
+            <span class="label">Catatan (opsional)</span>
+            <input class="input" placeholder="cth. Visa Platinum · jatuh tempo tgl 15" value="Subsidi bunga 3 tahun pertama" />
+          </label>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-lia-edit')">Batal</button>
+          <button
+            class="btn btn--primary"
+            onclick="WM.closeDialog('dlg-lia-edit');WM.toast('Liabilitas berhasil disimpan','success')"
+          >
+            Simpan Liabilitas
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- (c) Dialog Hapus -->
+    <div class="dialog-backdrop" id="dlg-lia-hapus" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-lia-hapus-title">
+      <div class="dialog dialog--sm">
+        <h2 class="dialog__title" id="dlg-lia-hapus-title">Hapus liabilitas ini?</h2>
+        <p class="dialog__desc">
+          “KPR Rumah Bintaro” akan dihapus beserta jadwal cicilannya. Riwayat pembayaran yang sudah tercatat di
+          transaksi tetap tersimpan. Tindakan ini tidak bisa dibatalkan.
+        </p>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-lia-hapus')">Batal</button>
+          <button
+            class="btn btn--destructive"
+            onclick="WM.closeDialog('dlg-lia-hapus');WM.toast('Liabilitas berhasil dihapus.','success')"
+          >
+            Ya, Hapus
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- (d) Dialog Bayar -->
+    <div class="dialog-backdrop" id="dlg-lia-bayar" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-lia-bayar-title">
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-lia-bayar-title">Bayar Cicilan</h2>
+        <p class="dialog__desc">KPR Rumah Bintaro · BTN · jatuh tempo 25 Agustus 2026</p>
+        <div class="dialog__body">
+          <div class="field">
+            <span class="label">Jenis Pembayaran</span>
+            <div class="segmented" role="tablist">
+              <button class="segmented__item" role="tab" aria-selected="true" onclick="setBayar(5000000)">Cicilan penuh</button>
+              <button class="segmented__item" role="tab" aria-selected="false" onclick="setBayar(840000)">Minimum</button>
+              <button class="segmented__item" role="tab" aria-selected="false" onclick="setBayar(10000000)">Pelunasan sebagian</button>
+            </div>
+          </div>
+
+          <label class="field">
+            <span class="label">Jumlah Bayar (Rp)</span>
+            <input class="input mono" id="inp-bayar" value="5.000.000" oninput="hitungSplit()" />
+          </label>
+
+          <label class="field">
+            <span class="label">Rekening Sumber</span>
+            <select class="select">
+              <option selected>BCA Tahapan ···9010 — Rp 128.400.000</option>
+              <option>Mandiri Payroll ···5586 — Rp 85.900.000</option>
+              <option>CIMB Niaga Xtra ···3327 — Rp 62.800.000</option>
+              <option>Kas Rumah Tangga — Rp 5.600.000</option>
+            </select>
+            <span class="hint">Saldo rekening akan didebet dan tercatat otomatis di Transaksi.</span>
+          </label>
+
+          <label class="field">
+            <span class="label">Tanggal Bayar</span>
+            <input class="input" type="date" value="2026-08-07" />
+          </label>
+
+          <!-- Pratinjau pemecahan pokok / bunga -->
+          <div class="notice notice--info" style="margin-top: 14px">
+            <i data-lucide="split" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>
+              Pemecahan otomatis:
+              <strong>Pokok <span class="mono" id="out-pokok">Rp 3.500.000</span></strong> ·
+              <strong>Bunga <span class="mono" id="out-bunga">Rp 1.500.000</span></strong>
+              <br />
+              <span class="t-xs">Sisa pokok setelah bayar: <span class="mono" id="out-sisa">Rp 293.300.000</span></span>
+            </span>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-lia-bayar')">Batal</button>
+          <button
+            class="btn btn--primary"
+            onclick="WM.closeDialog('dlg-lia-bayar');WM.toast('Pembayaran tercatat — jatuh tempo berikutnya 25 September 2026','success')"
+          >
+            Bayar Sekarang
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script src="../assets/charts.js"></script>
+    <script>
+      WM.shell({ active: "liabilitas" });
+
+      const SISA_POKOK = 296800000;
+      const BUNGA_BULANAN = 296800000 * (0.0825 / 12); // ≈ Rp 2.040.500
+
+      // EPIC-024 #34 — pratinjau pemecahan pokok/bunga di dialog Bayar.
+      function hitungSplit() {
+        const raw = document.getElementById("inp-bayar").value.replace(/\D/g, "");
+        const bayar = Number(raw) || 0;
+        const bunga = Math.min(bayar, Math.round(BUNGA_BULANAN));
+        const pokok = Math.max(0, bayar - bunga);
+        document.getElementById("out-pokok").textContent = WM.formatRupiah(pokok);
+        document.getElementById("out-bunga").textContent = WM.formatRupiah(bunga);
+        document.getElementById("out-sisa").textContent = WM.formatRupiah(Math.max(0, SISA_POKOK - pokok));
+      }
+
+      function setBayar(nilai) {
+        document.getElementById("inp-bayar").value = WM.formatNumber(nilai);
+        hitungSplit();
+      }
+
+      hitungSplit();
+
+      WMCharts.trend(
+        "#c-lia-trend",
+        ["Agu", "Sep", "Okt", "Nov", "Des", "Jan"],
+        [{ name: "Sisa Utang", data: [388400000, 379100000, 369900000, 360800000, 351800000, 342900000] }],
+        { height: 250 }
+      );
+    </script>
+  </body>
+</html>

@@ -1,0 +1,864 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Investasi · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+  </head>
+  <body>
+    <main class="page">
+      <!-- Page lead -->
+      <section class="page-lead">
+        <div class="page-lead__text">
+          <h1 class="section-title" style="margin: 0">Portofolio Investasi</h1>
+          <p class="page-lead__sub">
+            Saham &amp; kripto dihargai otomatis dari pasar. Jenis lain kamu isi harganya sendiri, lengkap dengan tanggal
+            penilaian.
+          </p>
+        </div>
+        <div class="row" style="gap: 8px">
+          <button class="btn btn--outline btn--sm" onclick="WM.toast('Harga diperbarui dari Yahoo Finance & CoinGecko','success')">
+            <i data-lucide="refresh-cw" style="width: 15px; height: 15px"></i>
+            Perbarui Harga
+          </button>
+          <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-catat')">
+            <i data-lucide="plus" style="width: 15px; height: 15px"></i>
+            Catat Investasi
+          </button>
+        </div>
+      </section>
+
+      <!-- Portfolio summary -->
+      <section class="auto-grid auto-grid--metrics">
+        <article class="card" style="padding: 18px">
+          <div class="row" style="gap: 9px">
+            <span class="stat__icon" style="background: var(--brand-purple-soft); color: var(--brand-purple)">📈</span>
+            <span class="stat__label">Total Nilai Portofolio</span>
+          </div>
+          <div class="stat__value mono t-primary" style="margin-top: 8px">Rp 697.567.000</div>
+          <div class="t-xs t-muted" style="margin-top: 4px">Modal ditanam <span class="mono">Rp 650.010.000</span></div>
+        </article>
+
+        <article class="card" style="padding: 18px">
+          <div class="stat__label">Untung / Rugi Total</div>
+          <div class="stat__value mono t-success" style="margin-top: 8px">+Rp 47.557.000</div>
+          <div class="row row--wrap" style="gap: 6px; margin-top: 6px">
+            <span class="badge badge--success mono">▲ 7,32%</span>
+            <span class="t-xs t-muted">= untung ÷ modal (Rp 47.557.000 ÷ Rp 650.010.000)</span>
+          </div>
+        </article>
+
+        <article class="card" style="padding: 18px">
+          <div class="stat__label">Perubahan Hari Ini</div>
+          <div class="stat__value mono t-success" style="margin-top: 8px">+Rp 1.842.000</div>
+          <div class="row row--wrap" style="gap: 6px; margin-top: 6px">
+            <span class="badge badge--success mono">▲ 0,26%</span>
+            <span class="t-xs t-muted">hanya dari 4 posisi berharga live</span>
+          </div>
+        </article>
+      </section>
+
+      <!-- Pricing-source explainer (EPIC-024 #6/#7) -->
+      <section class="notice notice--info">
+        <i data-lucide="info" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+        <span>
+          <strong>Dua sumber harga.</strong> <strong>Saham IDX</strong> diambil dari Yahoo Finance (kode <span class="mono">.JK</span>,
+          mis. <span class="mono">BBCA.JK</span>) dan <strong>kripto</strong> dari CoinGecko — keduanya <em>delayed</em> ±15 menit,
+          bukan real-time. Reksa dana, obligasi, emas, dan deposito <strong>tidak punya feed otomatis</strong>: nilainya kamu isi manual
+          dan selalu ditampilkan bersama tanggal penilaiannya. Terakhir sinkron
+          <span class="mono">7 Agu 2026 09:42</span>.
+        </span>
+      </section>
+
+      <!-- Type filter tabs (Deposito is NEW) -->
+      <section>
+        <div class="tabs hide-scrollbar" id="tabs-jenis">
+          <button class="tab" data-value="semua" aria-selected="true">Semua</button>
+          <button class="tab" data-value="saham" aria-selected="false">Saham</button>
+          <button class="tab" data-value="kripto" aria-selected="false">Kripto</button>
+          <button class="tab" data-value="reksa" aria-selected="false">Reksa Dana</button>
+          <button class="tab" data-value="obligasi" aria-selected="false">Obligasi</button>
+          <button class="tab" data-value="emas" aria-selected="false">Emas</button>
+          <button class="tab" data-value="deposito" aria-selected="false">
+            Deposito <span class="badge badge--purple" style="margin-left: 5px">Baru</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Holdings -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Kepemilikan</h2>
+          <span class="card__action t-xs t-muted" id="holding-count">8 posisi</span>
+        </div>
+        <div class="card__body" style="padding-top: 0">
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th style="min-width: 230px">Instrumen</th>
+                  <th>Jenis</th>
+                  <th>Jumlah</th>
+                  <th>Harga / Sumber</th>
+                  <th style="text-align: right">Modal</th>
+                  <th style="text-align: right">Nilai Sekarang</th>
+                  <th style="text-align: right">Untung / Rugi</th>
+                  <th style="text-align: right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="holding-rows">
+                <tr data-type="saham">
+                  <td>
+                    <div class="t-sm t-bold">BBCA · Bank Central Asia</div>
+                    <div class="t-xs t-muted mono">BBCA.JK · beli 12 Jan 2024</div>
+                  </td>
+                  <td><span class="badge badge--info">Saham</span></td>
+                  <td class="mono t-xs">20 lot<br /><span class="t-muted">2.000 lembar</span></td>
+                  <td>
+                    <div class="mono t-xs">Rp 10.475 / lembar</div>
+                    <div class="row" style="gap: 5px; margin-top: 3px">
+                      <span class="badge badge--success">Live · delayed</span>
+                      <span class="t-xs t-muted">Yahoo Finance</span>
+                    </div>
+                  </td>
+                  <td class="mono t-xs" style="text-align: right">Rp 18.300.000</td>
+                  <td class="mono t-sm t-bold" style="text-align: right">Rp 20.950.000</td>
+                  <td class="mono t-sm t-success" style="text-align: right">+Rp 2.650.000<br /><span class="t-xs">+14,48%</span></td>
+                  <td style="text-align: right">
+                    <button class="btn btn--ghost btn--sm" onclick="showDetail('BBCA')">Detail</button>
+                  </td>
+                </tr>
+
+                <tr data-type="saham">
+                  <td>
+                    <div class="t-sm t-bold">TLKM · Telkom Indonesia</div>
+                    <div class="t-xs t-muted mono">TLKM.JK · beli 3 Mar 2024</div>
+                  </td>
+                  <td><span class="badge badge--info">Saham</span></td>
+                  <td class="mono t-xs">50 lot<br /><span class="t-muted">5.000 lembar</span></td>
+                  <td>
+                    <div class="mono t-xs">Rp 3.010 / lembar</div>
+                    <div class="row" style="gap: 5px; margin-top: 3px">
+                      <span class="badge badge--success">Live · delayed</span>
+                      <span class="t-xs t-muted">Yahoo Finance</span>
+                    </div>
+                  </td>
+                  <td class="mono t-xs" style="text-align: right">Rp 18.600.000</td>
+                  <td class="mono t-sm t-bold" style="text-align: right">Rp 15.050.000</td>
+                  <td class="mono t-sm t-danger" style="text-align: right">−Rp 3.550.000<br /><span class="t-xs">−19,09%</span></td>
+                  <td style="text-align: right">
+                    <button class="btn btn--ghost btn--sm" onclick="showDetail('TLKM')">Detail</button>
+                  </td>
+                </tr>
+
+                <tr data-type="kripto">
+                  <td>
+                    <div class="t-sm t-bold">BTC · Bitcoin</div>
+                    <div class="t-xs t-muted mono">bitcoin · beli 8 Sep 2024</div>
+                  </td>
+                  <td><span class="badge badge--warning">Kripto</span></td>
+                  <td class="mono t-xs">0,015 BTC</td>
+                  <td>
+                    <div class="mono t-xs">Rp 1.752.000.000 / koin</div>
+                    <div class="row" style="gap: 5px; margin-top: 3px">
+                      <span class="badge badge--success">Live · delayed</span>
+                      <span class="t-xs t-muted">CoinGecko</span>
+                    </div>
+                  </td>
+                  <td class="mono t-xs" style="text-align: right">Rp 22.200.000</td>
+                  <td class="mono t-sm t-bold" style="text-align: right">Rp 26.280.000</td>
+                  <td class="mono t-sm t-success" style="text-align: right">+Rp 4.080.000<br /><span class="t-xs">+18,38%</span></td>
+                  <td style="text-align: right">
+                    <button class="btn btn--ghost btn--sm" onclick="showDetail('BTC')">Detail</button>
+                  </td>
+                </tr>
+
+                <tr data-type="kripto">
+                  <td>
+                    <div class="t-sm t-bold">ETH · Ethereum</div>
+                    <div class="t-xs t-muted mono">ethereum · beli 8 Sep 2024</div>
+                  </td>
+                  <td><span class="badge badge--warning">Kripto</span></td>
+                  <td class="mono t-xs">0,84 ETH</td>
+                  <td>
+                    <div class="mono t-xs">Rp 55.900.000 / koin</div>
+                    <div class="row" style="gap: 5px; margin-top: 3px">
+                      <span class="badge badge--success">Live · delayed</span>
+                      <span class="t-xs t-muted">CoinGecko</span>
+                    </div>
+                  </td>
+                  <td class="mono t-xs" style="text-align: right">Rp 40.740.000</td>
+                  <td class="mono t-sm t-bold" style="text-align: right">Rp 46.956.000</td>
+                  <td class="mono t-sm t-success" style="text-align: right">+Rp 6.216.000<br /><span class="t-xs">+15,26%</span></td>
+                  <td style="text-align: right">
+                    <button class="btn btn--ghost btn--sm" onclick="showDetail('ETH')">Detail</button>
+                  </td>
+                </tr>
+
+                <tr data-type="reksa">
+                  <td>
+                    <div class="t-sm t-bold">Sucorinvest Equity Fund</div>
+                    <div class="t-xs t-muted mono">Reksa dana saham · beli 20 Mei 2024</div>
+                  </td>
+                  <td><span class="badge badge--purple">Reksa Dana</span></td>
+                  <td class="mono t-xs">12.000 unit</td>
+                  <td>
+                    <div class="mono t-xs">NAB Rp 2.688 / unit</div>
+                    <div class="row" style="gap: 5px; margin-top: 3px">
+                      <span class="badge badge--gray">Harga manual · 5 Agu 2026</span>
+                    </div>
+                  </td>
+                  <td class="mono t-xs" style="text-align: right">Rp 28.920.000</td>
+                  <td class="mono t-sm t-bold" style="text-align: right">Rp 32.256.000</td>
+                  <td class="mono t-sm t-success" style="text-align: right">+Rp 3.336.000<br /><span class="t-xs">+11,53%</span></td>
+                  <td style="text-align: right">
+                    <button class="btn btn--ghost btn--sm" onclick="showDetail('SUCOR')">Detail</button>
+                  </td>
+                </tr>
+
+                <tr data-type="obligasi">
+                  <td>
+                    <div class="t-sm t-bold">ORI025 · Obligasi Ritel Negara</div>
+                    <div class="t-xs t-muted mono">Kupon 6,25%/tahun · beli 1 Feb 2025</div>
+                  </td>
+                  <td><span class="badge badge--success">Obligasi</span></td>
+                  <td class="mono t-xs">Nominal Rp 100.000.000</td>
+                  <td>
+                    <div class="mono t-xs">Harga 103,45%</div>
+                    <div class="row" style="gap: 5px; margin-top: 3px">
+                      <span class="badge badge--gray">Harga manual · 5 Agu 2026</span>
+                    </div>
+                  </td>
+                  <td class="mono t-xs" style="text-align: right">Rp 100.000.000</td>
+                  <td class="mono t-sm t-bold" style="text-align: right">Rp 103.450.000</td>
+                  <td class="mono t-sm t-success" style="text-align: right">+Rp 3.450.000<br /><span class="t-xs">+3,45%</span></td>
+                  <td style="text-align: right">
+                    <button class="btn btn--ghost btn--sm" onclick="showDetail('ORI025')">Detail</button>
+                  </td>
+                </tr>
+
+                <tr data-type="emas">
+                  <td>
+                    <div class="t-sm t-bold">Emas Antam LM</div>
+                    <div class="t-xs t-muted mono">Sertifikat 10 × 25 gram · beli 14 Jul 2023</div>
+                  </td>
+                  <td><span class="badge badge--warning">Emas</span></td>
+                  <td class="mono t-xs">250 gram</td>
+                  <td>
+                    <div class="mono t-xs">Rp 1.402.000 / gram</div>
+                    <div class="row" style="gap: 5px; margin-top: 3px">
+                      <span class="badge badge--gray">Harga manual · 5 Agu 2026</span>
+                    </div>
+                  </td>
+                  <td class="mono t-xs" style="text-align: right">Rp 321.250.000</td>
+                  <td class="mono t-sm t-bold" style="text-align: right">Rp 350.500.000</td>
+                  <td class="mono t-sm t-success" style="text-align: right">+Rp 29.250.000<br /><span class="t-xs">+9,11%</span></td>
+                  <td style="text-align: right">
+                    <button class="btn btn--ghost btn--sm" onclick="showDetail('EMAS')">Detail</button>
+                  </td>
+                </tr>
+
+                <tr data-type="deposito">
+                  <td>
+                    <div class="t-sm t-bold">Deposito Berjangka BCA</div>
+                    <div class="t-xs t-muted mono">Mulai 5 Feb 2026 · jatuh tempo 5 Feb 2027</div>
+                  </td>
+                  <td><span class="badge badge--purple">Deposito</span></td>
+                  <td class="mono t-xs">Nominal Rp 100.000.000</td>
+                  <td>
+                    <div class="mono t-xs">Bunga 4,25% / tahun</div>
+                    <div class="row" style="gap: 5px; margin-top: 3px">
+                      <span class="badge badge--gray">Nilai dihitung · bunga berjalan</span>
+                    </div>
+                  </td>
+                  <td class="mono t-xs" style="text-align: right">Rp 100.000.000</td>
+                  <td class="mono t-sm t-bold" style="text-align: right">Rp 102.125.000</td>
+                  <td class="mono t-sm t-success" style="text-align: right">+Rp 2.125.000<br /><span class="t-xs">+2,13%</span></td>
+                  <td style="text-align: right">
+                    <button class="btn btn--ghost btn--sm" onclick="showDetail('DEPO')">Detail</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="empty" id="holding-empty" style="display: none">
+            <div class="empty__icon">📭</div>
+            <div class="t-sm t-bold">Belum ada posisi untuk jenis ini</div>
+            <div class="t-xs t-muted" style="margin-top: 4px">Catat pembelian pertamamu supaya nilainya ikut terhitung.</div>
+            <button class="btn btn--primary btn--sm" style="margin-top: 12px" onclick="WM.openDialog('dlg-catat')">
+              Catat Investasi
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Allocation + performance -->
+      <section class="grid grid--sidebar">
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">Nilai Portofolio 6 Bulan</h2>
+            <div class="card__action">
+              <div class="segmented">
+                <button class="segmented__item" aria-selected="true">6 Bln</button>
+                <button class="segmented__item" aria-selected="false">12 Bln</button>
+              </div>
+            </div>
+          </div>
+          <div class="card__body"><div id="c-inv-trend" class="chart"></div></div>
+        </article>
+
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">Alokasi per Jenis</h2>
+          </div>
+          <div class="card__body"><div id="c-inv-alloc" class="chart"></div></div>
+        </article>
+      </section>
+    </main>
+
+    <!-- ══════════════ Dialog: Catat Investasi (type-aware) ══════════════ -->
+    <div class="dialog-backdrop" id="dlg-catat" data-open="false">
+      <div class="dialog dialog--wide investment-dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-catat-title">
+        <div class="investment-dialog__header">
+          <h2 class="dialog__title" id="dlg-catat-title">Catat Investasi</h2>
+          <p class="dialog__desc">
+            Isi jenis dulu — kolom di bawah menyesuaikan. Saham dihitung per lot, kripto per koin, deposito per bunga berjalan.
+          </p>
+        </div>
+
+        <div class="dialog__body investment-form">
+          <section class="investment-form__section" aria-labelledby="investment-identity-title">
+            <div class="investment-form__section-heading">
+              <div>
+                <h3 class="investment-form__section-title" id="investment-identity-title">Informasi instrumen</h3>
+                <p class="investment-form__section-desc">Pilih jenis dan identitas investasi yang akan dicatat.</p>
+              </div>
+            </div>
+
+            <div class="investment-form__grid">
+              <div class="field">
+                <label class="label" for="f-jenis">Jenis Investasi</label>
+                <select class="select" id="f-jenis">
+                  <option value="saham" selected>Saham</option>
+                  <option value="kripto">Kripto</option>
+                  <option value="reksa">Reksa Dana</option>
+                  <option value="obligasi">Obligasi</option>
+                  <option value="emas">Emas</option>
+                  <option value="deposito">Deposito</option>
+                  <option value="lainnya">Lainnya</option>
+                </select>
+                <div class="hint" id="h-jenis">Saham IDX: harga otomatis dari Yahoo Finance.</div>
+              </div>
+
+              <div class="field">
+                <label class="label" for="f-tglbeli">Tanggal Beli</label>
+                <input class="input" type="date" id="f-tglbeli" value="2026-08-05" />
+                <div class="hint">Wajib — dipakai untuk menghitung lama kepemilikan dan laporan pajak.</div>
+              </div>
+            </div>
+
+            <div class="investment-form__grid">
+              <div class="field">
+                <label class="label" for="f-nama">Nama Instrumen</label>
+                <input class="input" id="f-nama" placeholder="Bank Central Asia" />
+                <div class="hint">Nama lengkap yang akan tampil di daftar kepemilikan.</div>
+              </div>
+              <div class="field">
+                <label class="label" for="f-kode">Kode / Ticker</label>
+                <input class="input mono" id="f-kode" placeholder="BBCA" />
+                <div class="hint" id="h-kode">Cukup <span class="mono">BBCA</span> — akhiran <span class="mono">.JK</span> ditambahkan otomatis.</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ── SAHAM: Lot | Lembar ── -->
+          <section class="investment-form__section" data-type-group="saham" aria-labelledby="investment-stock-title">
+            <div class="investment-form__section-heading">
+              <div>
+                <h3 class="investment-form__section-title" id="investment-stock-title">Jumlah & harga beli</h3>
+                <p class="investment-form__section-desc">Masukkan posisi awal saham dalam lot atau lembar.</p>
+              </div>
+              <div class="field investment-form__unit">
+                <span class="label">Satuan Jumlah</span>
+                <div class="segmented" id="seg-satuan">
+                  <button type="button" class="segmented__item" data-unit="lot" aria-selected="true">Lot</button>
+                  <button type="button" class="segmented__item" data-unit="lembar" aria-selected="false">Lembar</button>
+                </div>
+              </div>
+            </div>
+            <div class="investment-form__grid">
+              <div class="field">
+                <label class="label" for="f-saham-qty"><span id="lbl-saham-qty">Jumlah (lot)</span></label>
+                <input class="input mono" type="number" id="f-saham-qty" value="10" min="0" step="1" />
+                <div class="hint" id="h-lot">10 lot = 1.000 lembar</div>
+              </div>
+              <div class="field">
+                <label class="label" for="f-saham-harga">Harga Beli per Lembar</label>
+                <input class="input mono" type="number" id="f-saham-harga" value="9150" min="0" step="1" />
+                <div class="hint">1 lot = 100 lembar (aturan IDX).</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ── KRIPTO: Jumlah Koin (desimal) ── -->
+          <section class="investment-form__section" data-type-group="kripto" style="display: none">
+            <h3 class="investment-form__section-title">Jumlah & harga beli</h3>
+            <div class="investment-form__grid">
+              <div class="field">
+                <label class="label" for="f-kripto-qty">Jumlah Koin</label>
+                <input class="input mono" type="number" id="f-kripto-qty" value="0.015" min="0" step="0.00000001" />
+                <div class="hint">Boleh pecahan sampai 8 angka di belakang koma, mis. <span class="mono">0,015</span> BTC.</div>
+              </div>
+              <div class="field">
+                <label class="label" for="f-kripto-harga">Harga Beli per Koin (Rp)</label>
+                <input class="input mono" type="number" id="f-kripto-harga" value="1480000000" min="0" step="1" />
+                <div class="hint">Harga terkini diambil otomatis dari CoinGecko.</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ── REKSA DANA ── -->
+          <section class="investment-form__section" data-type-group="reksa" style="display: none">
+            <h3 class="investment-form__section-title">Jumlah & nilai pembelian</h3>
+            <div class="investment-form__grid">
+              <div class="field">
+                <label class="label" for="f-reksa-qty">Jumlah Unit Penyertaan</label>
+                <input class="input mono" type="number" id="f-reksa-qty" value="12000" min="0" step="0.0001" />
+              </div>
+              <div class="field">
+                <label class="label" for="f-reksa-nab">NAB Beli per Unit (Rp)</label>
+                <input class="input mono" type="number" id="f-reksa-nab" value="2410" min="0" step="1" />
+              </div>
+            </div>
+          </section>
+
+          <!-- ── OBLIGASI ── -->
+          <section class="investment-form__section" data-type-group="obligasi" style="display: none">
+            <h3 class="investment-form__section-title">Nilai & kupon obligasi</h3>
+            <div class="investment-form__grid">
+              <div class="field">
+                <label class="label" for="f-obl-nominal">Nominal (Rp)</label>
+                <input class="input mono" type="number" id="f-obl-nominal" value="100000000" min="0" step="1000000" />
+              </div>
+              <div class="field">
+                <label class="label" for="f-obl-kupon">Kupon (% / tahun)</label>
+                <input class="input mono" type="number" id="f-obl-kupon" value="6.25" min="0" step="0.01" />
+              </div>
+            </div>
+          </section>
+
+          <!-- ── EMAS ── -->
+          <section class="investment-form__section" data-type-group="emas" style="display: none">
+            <h3 class="investment-form__section-title">Berat & harga pembelian</h3>
+            <div class="investment-form__grid">
+              <div class="field">
+                <label class="label" for="f-emas-gram">Berat (gram)</label>
+                <input class="input mono" type="number" id="f-emas-gram" value="250" min="0" step="0.01" />
+              </div>
+              <div class="field">
+                <label class="label" for="f-emas-harga">Harga Beli per Gram (Rp)</label>
+                <input class="input mono" type="number" id="f-emas-harga" value="1285000" min="0" step="1000" />
+              </div>
+            </div>
+          </section>
+
+          <!-- ── DEPOSITO (NEW) ── -->
+          <section class="investment-form__section" data-type-group="deposito" style="display: none">
+            <h3 class="investment-form__section-title">Pokok, bunga & periode</h3>
+            <div class="investment-form__grid">
+              <div class="field">
+                <label class="label" for="f-depo-nominal">Nominal Pokok (Rp)</label>
+                <input class="input mono" type="number" id="f-depo-nominal" value="100000000" min="0" step="1000000" />
+              </div>
+              <div class="field">
+                <label class="label" for="f-depo-bunga">Bunga (% / tahun)</label>
+                <input class="input mono" type="number" id="f-depo-bunga" value="5" min="0" step="0.05" />
+              </div>
+              <div class="field">
+                <label class="label" for="f-depo-mulai">Tanggal Mulai</label>
+                <input class="input" type="date" id="f-depo-mulai" value="2026-02-05" />
+              </div>
+              <div class="field">
+                <label class="label" for="f-depo-tempo">Tanggal Jatuh Tempo</label>
+                <input class="input" type="date" id="f-depo-tempo" value="2027-02-05" />
+              </div>
+            </div>
+            <div class="notice notice--info">
+              <i data-lucide="calculator" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+              <span id="h-depo">Nilai saat ini <strong class="mono">Rp 102.500.000</strong> (bunga berjalan)</span>
+            </div>
+          </section>
+
+          <!-- ── LAINNYA ── -->
+          <section class="investment-form__section" data-type-group="lainnya" style="display: none">
+            <h3 class="investment-form__section-title">Jumlah & nilai pembelian</h3>
+            <div class="investment-form__grid">
+              <div class="field">
+                <label class="label" for="f-lain-qty">Jumlah Unit</label>
+                <input class="input mono" type="number" id="f-lain-qty" value="1" min="0" step="0.0001" />
+              </div>
+              <div class="field">
+                <label class="label" for="f-lain-harga">Harga Beli per Unit (Rp)</label>
+                <input class="input mono" type="number" id="f-lain-harga" value="0" min="0" step="1" />
+              </div>
+            </div>
+          </section>
+
+          <!-- ── Manual valuation block: hidden for saham & kripto ── -->
+          <section class="investment-form__section" id="blok-manual" style="display: none">
+            <div class="notice notice--warning">
+              <i data-lucide="pencil-line" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+              <span>Jenis ini <strong>tidak punya harga otomatis</strong>. Isi nilai terkini sendiri, dan tanggalnya akan tampil di daftar.</span>
+            </div>
+            <div class="investment-form__grid">
+              <div class="field">
+                <label class="label" for="f-nilai-sekarang">Nilai Sekarang (Rp)</label>
+                <input class="input mono" type="number" id="f-nilai-sekarang" value="0" min="0" step="1000" />
+                <div class="hint">Boleh dikosongkan kalau harga terbaru belum diketahui.</div>
+              </div>
+              <div class="field">
+                <label class="label" for="f-nilai-tanggal">Tanggal Penilaian</label>
+                <input class="input" type="date" id="f-nilai-tanggal" value="2026-08-05" />
+                <div class="hint">Tampil sebagai <span class="badge badge--gray">Harga manual · 5 Agu 2026</span></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="investment-form__section investment-form__section--note">
+            <div class="field">
+              <label class="label" for="f-catatan">Catatan <span class="investment-form__optional">Opsional</span></label>
+              <textarea class="textarea" id="f-catatan" placeholder="Mis. dibeli lewat sekuritas Mirae, rekening RDN BCA"></textarea>
+            </div>
+          </section>
+        </div>
+
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-catat')">Batal</button>
+          <button
+            class="btn btn--primary"
+            onclick="WM.closeDialog('dlg-catat');WM.toast('Investasi tersimpan','success')"
+          >
+            Simpan Investasi
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════ Dialog: Detail kepemilikan ══════════════ -->
+    <div class="dialog-backdrop" id="dlg-detail" data-open="false">
+      <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-detail-title">
+        <h2 class="dialog__title" id="dlg-detail-title">BBCA · Bank Central Asia</h2>
+        <p class="dialog__desc" id="dlg-detail-sub">Saham IDX · harga delayed dari Yahoo Finance</p>
+        <div class="dialog__body">
+          <div class="card" style="padding: 14px">
+            <div class="row row--between">
+              <span class="t-xs t-muted">Nilai sekarang</span>
+              <span class="badge badge--success mono" id="dlg-detail-pct">+14,48%</span>
+            </div>
+            <div class="stat__value mono" id="dlg-detail-value" style="margin-top: 4px">Rp 20.950.000</div>
+            <div id="c-detail-spark" class="chart" style="margin-top: 6px"></div>
+            <div class="t-xs t-muted">Harga penutupan 12 bulan terakhir</div>
+          </div>
+
+          <div class="table-wrap" style="margin-top: 14px">
+            <table class="table">
+              <tbody>
+                <tr>
+                  <td class="t-xs t-muted">Jumlah</td>
+                  <td class="mono t-sm" style="text-align: right" id="dlg-detail-qty">20 lot (2.000 lembar)</td>
+                </tr>
+                <tr>
+                  <td class="t-xs t-muted">Harga beli rata-rata</td>
+                  <td class="mono t-sm" style="text-align: right" id="dlg-detail-avg">Rp 9.150 / lembar</td>
+                </tr>
+                <tr>
+                  <td class="t-xs t-muted">Harga terkini</td>
+                  <td class="mono t-sm" style="text-align: right" id="dlg-detail-now">Rp 10.475 / lembar</td>
+                </tr>
+                <tr>
+                  <td class="t-xs t-muted">Tanggal beli</td>
+                  <td class="mono t-sm" style="text-align: right" id="dlg-detail-date">12 Jan 2024</td>
+                </tr>
+                <tr>
+                  <td class="t-xs t-muted">Sumber harga</td>
+                  <td class="t-sm" style="text-align: right" id="dlg-detail-src">Yahoo Finance · 7 Agu 2026 09:42</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-detail')">Tutup</button>
+          <button class="btn btn--primary" onclick="WM.closeDialog('dlg-detail');WM.openDialog('dlg-catat')">Tambah Posisi</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script src="../assets/charts.js"></script>
+    <script>
+      WM.shell({ active: "investasi" });
+
+      /* ── Charts ─────────────────────────────────────────────── */
+      WMCharts.trend(
+        "#c-inv-trend",
+        ["Mar", "Apr", "Mei", "Jun", "Jul", "Agu"],
+        [{ name: "Nilai portofolio", data: [612400000, 628900000, 641200000, 668300000, 684100000, 697567000] }],
+        { height: 264 }
+      );
+
+      WMCharts.donut(
+        "#c-inv-alloc",
+        ["Emas", "Obligasi", "Deposito", "Kripto", "Saham", "Reksa Dana"],
+        [350500000, 103450000, 102125000, 73236000, 36000000, 32256000],
+        "Portofolio"
+      );
+
+      /* ── Type filter tabs ───────────────────────────────────── */
+      const rows = () => Array.from(document.querySelectorAll("#holding-rows tr"));
+      document.addEventListener("wm:tab", (e) => {
+        if (e.detail.group?.id !== "tabs-jenis") return;
+        const want = e.detail.value;
+        let shown = 0;
+        rows().forEach((tr) => {
+          const match = want === "semua" || tr.dataset.type === want;
+          tr.style.display = match ? "" : "none";
+          if (match) shown += 1;
+        });
+        document.getElementById("holding-count").textContent = shown + " posisi";
+        document.getElementById("holding-empty").style.display = shown === 0 ? "" : "none";
+      });
+
+      /* ── Type-aware "Catat Investasi" dialog ────────────────── */
+      const MANUAL_TYPES = ["reksa", "obligasi", "emas", "deposito", "lainnya"];
+      const KODE_HINTS = {
+        saham: 'Cukup <span class="mono">BBCA</span> — akhiran <span class="mono">.JK</span> ditambahkan otomatis.',
+        kripto: 'Pakai id CoinGecko, mis. <span class="mono">bitcoin</span> atau <span class="mono">ethereum</span>.',
+        reksa: "Kode produk dari manajer investasi (opsional).",
+        obligasi: 'Seri obligasi, mis. <span class="mono">ORI025</span>.',
+        emas: "Nomor sertifikat atau kode batangan (opsional).",
+        deposito: "Nomor bilyet deposito (opsional).",
+        lainnya: "Kode bebas (opsional).",
+      };
+      const JENIS_HINTS = {
+        saham: "Saham IDX: harga otomatis dari Yahoo Finance.",
+        kripto: "Kripto: harga otomatis dari CoinGecko.",
+        reksa: "Reksa dana: NAB diisi manual beserta tanggalnya.",
+        obligasi: "Obligasi: harga pasar diisi manual beserta tanggalnya.",
+        emas: "Emas: harga per gram diisi manual beserta tanggalnya.",
+        deposito: "Deposito: nilai dihitung dari pokok + bunga berjalan.",
+        lainnya: "Jenis lain: nilai terkini diisi manual.",
+      };
+
+      const jenisEl = document.getElementById("f-jenis");
+
+      function applyJenis() {
+        const jenis = jenisEl.value;
+        document.querySelectorAll("[data-type-group]").forEach((el) => {
+          el.style.display = el.dataset.typeGroup === jenis ? "" : "none";
+        });
+        document.getElementById("blok-manual").style.display = MANUAL_TYPES.includes(jenis) ? "" : "none";
+        document.getElementById("h-kode").innerHTML = KODE_HINTS[jenis];
+        document.getElementById("h-jenis").textContent = JENIS_HINTS[jenis];
+        if (jenis === "deposito") hitungDeposito();
+        if (window.lucide) lucide.createIcons();
+      }
+      jenisEl.addEventListener("change", applyJenis);
+
+      /* Lot ↔ Lembar toggle for saham */
+      const qtyEl = document.getElementById("f-saham-qty");
+      let satuan = "lot";
+
+      function updateLotHint() {
+        const n = Number(qtyEl.value) || 0;
+        const lot = satuan === "lot" ? n : n / 100;
+        const lembar = satuan === "lot" ? n * 100 : n;
+        document.getElementById("lbl-saham-qty").textContent =
+          satuan === "lot" ? "Jumlah (lot)" : "Jumlah (lembar)";
+        document.getElementById("h-lot").textContent =
+          WM.formatNumber(lot) + " lot = " + WM.formatNumber(lembar) + " lembar";
+      }
+      qtyEl.addEventListener("input", updateLotHint);
+      document.querySelectorAll("#seg-satuan .segmented__item").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          satuan = btn.dataset.unit;
+          updateLotHint();
+        });
+      });
+
+      /* Deposito accrued-interest hint */
+      function hitungDeposito() {
+        const pokok = Number(document.getElementById("f-depo-nominal").value) || 0;
+        const bunga = Number(document.getElementById("f-depo-bunga").value) || 0;
+        const mulai = new Date(document.getElementById("f-depo-mulai").value);
+        const tempo = new Date(document.getElementById("f-depo-tempo").value);
+        const hariIni = new Date("2026-08-05");
+        const akhir = hariIni < tempo ? hariIni : tempo;
+        const hari = Math.max(0, (akhir - mulai) / 86400000);
+        const nilai = pokok + (pokok * (bunga / 100) * hari) / 365;
+        document.getElementById("h-depo").innerHTML =
+          'Nilai saat ini <strong class="mono">' +
+          WM.formatRupiah(nilai) +
+          "</strong> (bunga berjalan, " +
+          WM.formatNumber(Math.round(hari)) +
+          " hari)";
+      }
+      ["f-depo-nominal", "f-depo-bunga", "f-depo-mulai", "f-depo-tempo"].forEach((id) =>
+        document.getElementById(id).addEventListener("input", hitungDeposito)
+      );
+
+      applyJenis();
+      updateLotHint();
+
+      /* ── Holding detail dialog ──────────────────────────────── */
+      const DETAIL = {
+        BBCA: {
+          title: "BBCA · Bank Central Asia",
+          sub: "Saham IDX · harga delayed dari Yahoo Finance",
+          value: "Rp 20.950.000",
+          pct: "+14,48%",
+          up: true,
+          qty: "20 lot (2.000 lembar)",
+          avg: "Rp 9.150 / lembar",
+          now: "Rp 10.475 / lembar",
+          date: "12 Jan 2024",
+          src: "Yahoo Finance · 7 Agu 2026 09:42",
+          spark: [9150, 9320, 9410, 9280, 9600, 9880, 10020, 9940, 10180, 10310, 10390, 10475],
+        },
+        TLKM: {
+          title: "TLKM · Telkom Indonesia",
+          sub: "Saham IDX · harga delayed dari Yahoo Finance",
+          value: "Rp 15.050.000",
+          pct: "−19,09%",
+          up: false,
+          qty: "50 lot (5.000 lembar)",
+          avg: "Rp 3.720 / lembar",
+          now: "Rp 3.010 / lembar",
+          date: "3 Mar 2024",
+          src: "Yahoo Finance · 7 Agu 2026 09:42",
+          spark: [3720, 3640, 3510, 3380, 3290, 3210, 3160, 3080, 3120, 3060, 3020, 3010],
+        },
+        BTC: {
+          title: "BTC · Bitcoin",
+          sub: "Kripto · harga delayed dari CoinGecko",
+          value: "Rp 26.280.000",
+          pct: "+18,38%",
+          up: true,
+          qty: "0,015 BTC",
+          avg: "Rp 1.480.000.000 / koin",
+          now: "Rp 1.752.000.000 / koin",
+          date: "8 Sep 2024",
+          src: "CoinGecko · 7 Agu 2026 09:42",
+          spark: [1480, 1392, 1510, 1604, 1558, 1671, 1720, 1682, 1745, 1798, 1733, 1752],
+        },
+        ETH: {
+          title: "ETH · Ethereum",
+          sub: "Kripto · harga delayed dari CoinGecko",
+          value: "Rp 46.956.000",
+          pct: "+15,26%",
+          up: true,
+          qty: "0,84 ETH",
+          avg: "Rp 48.500.000 / koin",
+          now: "Rp 55.900.000 / koin",
+          date: "8 Sep 2024",
+          src: "CoinGecko · 7 Agu 2026 09:42",
+          spark: [48.5, 46.2, 49.8, 52.1, 50.4, 53.7, 54.9, 53.2, 55.1, 56.8, 54.6, 55.9],
+        },
+        SUCOR: {
+          title: "Sucorinvest Equity Fund",
+          sub: "Reksa dana saham · NAB diisi manual",
+          value: "Rp 32.256.000",
+          pct: "+11,53%",
+          up: true,
+          qty: "12.000 unit",
+          avg: "Rp 2.410 / unit",
+          now: "Rp 2.688 / unit",
+          date: "20 Mei 2024",
+          src: "Harga manual · 5 Agu 2026",
+          spark: [2410, 2455, 2402, 2488, 2531, 2496, 2570, 2612, 2588, 2649, 2670, 2688],
+        },
+        ORI025: {
+          title: "ORI025 · Obligasi Ritel Negara",
+          sub: "Obligasi · harga pasar diisi manual",
+          value: "Rp 103.450.000",
+          pct: "+3,45%",
+          up: true,
+          qty: "Nominal Rp 100.000.000",
+          avg: "Harga beli 100,00%",
+          now: "Harga pasar 103,45%",
+          date: "1 Feb 2025",
+          src: "Harga manual · 5 Agu 2026",
+          spark: [100, 100.4, 100.9, 101.3, 101.1, 101.8, 102.2, 102.6, 102.4, 103.0, 103.2, 103.45],
+        },
+        EMAS: {
+          title: "Emas Antam LM",
+          sub: "Emas fisik · harga per gram diisi manual",
+          value: "Rp 350.500.000",
+          pct: "+9,11%",
+          up: true,
+          qty: "250 gram",
+          avg: "Rp 1.285.000 / gram",
+          now: "Rp 1.402.000 / gram",
+          date: "14 Jul 2023",
+          src: "Harga manual · 5 Agu 2026",
+          spark: [1285, 1298, 1312, 1305, 1334, 1351, 1342, 1370, 1388, 1379, 1395, 1402],
+        },
+        DEPO: {
+          title: "Deposito Berjangka BCA",
+          sub: "Deposito · nilai dihitung dari bunga berjalan",
+          value: "Rp 102.125.000",
+          pct: "+2,13%",
+          up: true,
+          qty: "Nominal Rp 100.000.000",
+          avg: "Bunga 4,25% / tahun",
+          now: "Jatuh tempo 5 Feb 2027",
+          date: "5 Feb 2026",
+          src: "Dihitung otomatis · 181 hari berjalan",
+          spark: [100, 100.35, 100.71, 101.06, 101.41, 101.77, 102.125],
+        },
+      };
+
+      let detailChart = null;
+
+      function showDetail(key) {
+        const d = DETAIL[key];
+        if (!d) return;
+        document.getElementById("dlg-detail-title").textContent = d.title;
+        document.getElementById("dlg-detail-sub").textContent = d.sub;
+        document.getElementById("dlg-detail-value").textContent = d.value;
+        document.getElementById("dlg-detail-qty").textContent = d.qty;
+        document.getElementById("dlg-detail-avg").textContent = d.avg;
+        document.getElementById("dlg-detail-now").textContent = d.now;
+        document.getElementById("dlg-detail-date").textContent = d.date;
+        document.getElementById("dlg-detail-src").textContent = d.src;
+        const pct = document.getElementById("dlg-detail-pct");
+        pct.textContent = d.pct;
+        pct.className = "badge mono " + (d.up ? "badge--success" : "badge--danger");
+
+        if (detailChart) {
+          detailChart.destroy();
+          detailChart = null;
+        }
+        document.getElementById("c-detail-spark").innerHTML = "";
+        detailChart = WMCharts.sparkline(
+          "#c-detail-spark",
+          d.spark,
+          WMCharts.cssVar(d.up ? "--success" : "--destructive")
+        );
+        WM.openDialog("dlg-detail");
+      }
+      window.showDetail = showDetail;
+    </script>
+  </body>
+</html>

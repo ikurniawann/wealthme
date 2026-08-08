@@ -1,0 +1,26 @@
+1. rekening master masuk ke akun istri. tapi pas bikin transaksi, pilihanya cuma "akun utama". harusnya bisa pilih banyak rekening kaya master.
+2. tambahkan anak/operasional tapi ada hubungan keluarga istri
+3. login pakai pin error
+4. istri harusnya ditambahkan master user, bukan di undang (seperti tambah akun anak/operasional) tapi dengan menu yang 1:1 dengan master
+5. approve permintaan dana error. mending approval dibuatkan menu page baru
+6. di menu investasi, buat saham : itu bisa langsung muncul persen valid atau tidak?
+7. di menu investasi, buat kripto : gimana cara input kripto? kok form nya sama kaya saham? dan harusnya coin dong bukan lot. lalu saat input kripto kenapa tiba tiba -99.99%? lalu angka yang di input itu angka existing atau angka saat beli? tambahin juga "catat investasi" untuk mencatat inestasi yang sudah ada
+8. pajak : input otomatis di parsing titik, saat disimpan error grossIncome must be a numeric string
+9. split bill : pop up splitbill masih tidak responsif. masih harus di geser/scroll horizontal
+10. setup pin setelah login error : Gagal mengatur buka cepat. Kamu bisa coba lagi nanti di Pengaturan Akun.
+11. ketika setelah register, seharusnya tidak muncul rekening akun utama. karena harus ditambahkan sendiri oleh user
+12. liablitas tidak bisa di edit/lihat detail
+13. donasi & zakat calculator tidak berfungsi
+14. di page asset, ada button gembok fungsinya apa
+15. update warisan error : Failed to update inheritance asset.
+16. url split bill memangnya yang buka harus register dulu? harusnya nggak kan? trus ini setting dapat dari mana? "Split bill ini belum punya rekening tujuan pembayaran — atur dulu sebelum konfirmasi."
+17. setup master data selain kategori error "Daftar referensi ini bawaan sistem — penambahan belum didukung."
+18. fitur iam roles invite link undang anggota hapus saja. anggota keluarga ditambahkan sama seperti anak/operasional. tapi kalau istri satu banding satu dengan suami
+29. tunai -> cash & e-wallet
+30. rekening -> bank & account
+31. tambahin investasi deposito
+32. penurunan aset bisa fixed rupiah
+33. di semua deskripsi transaksi ditambhakn fitur upload file/foto
+34. item didalam liablitas tidak ada detail - edit - hapus - bayar
+35. tambah fitur didalam laporan - ringkasan bedasarkan COA
+36. revamp seluruh frontend UI/UX banyak yang tidak rapih tidak konsisten. ini bagaimana cara efektifnya? apa kamu bisa "search" plugin atau skill yang relevan untuk frontend ui/ux khususnya dashboard? saya ingin mengikuti standard production yang sudah ada saja daripada enhance UI/UX sekarang. lalu buatkan saya prototype htmlnya terlebih dahulu sebelum implementasi.

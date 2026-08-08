@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ringkasan · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+  </head>
+  <body>
+    <main class="page">
+      <!-- Lead -->
+      <section class="page-lead">
+        <div class="page-lead__text">
+          <h1 class="section-title">Ringkasan Kekayaan</h1>
+          <div class="page-lead__sub">Arsandi Family · per 7 Agustus 2026</div>
+        </div>
+        <div class="row row--wrap">
+          <div class="segmented">
+            <button class="segmented__item" aria-selected="false">6 Bln</button>
+            <button class="segmented__item" aria-selected="true">12 Bln</button>
+            <button class="segmented__item" aria-selected="false">Semua</button>
+          </div>
+          <button id="btn-summary-privacy" class="btn btn--outline btn--sm" type="button" aria-pressed="false" onclick="toggleSummaryPrivacy()">
+            <i data-lucide="eye-off" style="width: 14px; height: 14px"></i> Sembunyikan nominal
+          </button>
+          <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-export')">
+            <i data-lucide="download" style="width: 14px; height: 14px"></i> Ekspor
+          </button>
+        </div>
+      </section>
+
+      <!-- Hero + top stats -->
+      <section class="bento-grid">
+        <article class="hero gradient-wealth bento-span-5">
+          <div style="position: relative; z-index: 1">
+            <div class="hero__label">Total Kekayaan Bersih</div>
+            <div class="hero__value mono private" style="font-size: 24px">Rp 1.256.780.000</div>
+            <div class="t-xs" style="margin-top: 8px; color: #a7f3d0">▲ Rp 34.560.000 bulan ini</div>
+          </div>
+        </article>
+        <article class="card stat bento-span-2">
+          <div>
+            <div class="stat__label">Total Aset</div>
+            <div class="stat__value mono t-success private">Rp 1.645.200.000</div>
+          </div>
+          <div class="stat__delta t-muted">4 jenis akun</div>
+        </article>
+        <article class="card stat bento-span-2">
+          <div>
+            <div class="stat__label">Total Liabilitas</div>
+            <div class="stat__value mono t-muted private">Rp 388.420.000</div>
+          </div>
+          <div class="stat__delta t-muted">Kewajiban · 4 pos</div>
+        </article>
+        <article class="card stat bento-span-3">
+          <div>
+            <div class="stat__label">Savings Rate</div>
+            <div class="stat__value t-primary">32%</div>
+          </div>
+          <div class="stat__delta t-success private">Pengeluaran Rp 30.980.000</div>
+        </article>
+      </section>
+
+      <!-- Trend + allocation -->
+      <section class="bento-grid">
+        <article class="card bento-span-8">
+          <div class="card__header">
+            <h2 class="card__title">Tren Kekayaan Bersih (12 Bulan)</h2>
+            <span class="card__action badge badge--success">↑ 20,6% YoY</span>
+          </div>
+          <div class="card__body">
+            <div id="c-networth" class="chart"></div>
+            <div class="row row--between" style="margin-top: 2px">
+              <span class="t-xs t-muted">12 bulan lalu</span>
+              <span class="t-xs t-muted">Sekarang</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="card bento-span-4">
+          <div class="card__header">
+            <h2 class="card__title">Komposisi Aset</h2>
+            <a class="card-link card__action" href="aset.html">Detail</a>
+          </div>
+          <div class="card__body">
+            <div id="c-alloc" class="chart"></div>
+            <div class="stack" style="gap: 10px; margin-top: 8px">
+              <div>
+                <div class="row row--between">
+                  <span class="t-xs t-bold">Aset Fisik</span>
+                  <span class="t-xs t-muted mono private">Rp 800,6 jt · 49%</span>
+                </div>
+                <div class="progress" style="height: 6px; margin-top: 5px">
+                  <div class="progress__bar" style="width: 49%; background: var(--warning)"></div>
+                </div>
+              </div>
+              <div>
+                <div class="row row--between">
+                  <span class="t-xs t-bold">Investasi</span>
+                  <span class="t-xs t-muted mono private">Rp 486,9 jt · 30%</span>
+                </div>
+                <div class="progress" style="height: 6px; margin-top: 5px">
+                  <div class="progress__bar" style="width: 30%; background: var(--primary)"></div>
+                </div>
+              </div>
+              <div>
+                <div class="row row--between">
+                  <span class="t-xs t-bold">Bank &amp; Account</span>
+                  <span class="t-xs t-muted mono private">Rp 312,5 jt · 19%</span>
+                </div>
+                <div class="progress" style="height: 6px; margin-top: 5px">
+                  <div class="progress__bar" style="width: 19%; background: var(--brand-cyan)"></div>
+                </div>
+              </div>
+              <div>
+                <div class="row row--between">
+                  <span class="t-xs t-bold">Cash &amp; E-Wallet</span>
+                  <span class="t-xs t-muted mono private">Rp 45,2 jt · 3%</span>
+                </div>
+                <div class="progress" style="height: 6px; margin-top: 5px">
+                  <div class="progress__bar" style="width: 3%; background: var(--success)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- Assets vs liabilities breakdown -->
+      <section class="card bento-full">
+        <div class="card__header">
+          <h2 class="card__title">Rincian Aset vs Liabilitas</h2>
+          <button class="card-link card__action" onclick="WM.openDialog('dlg-export')">Ekspor</button>
+        </div>
+        <div class="card__body" style="padding: 6px 0 0">
+          <div class="table-wrap">
+            <table class="table table--num">
+              <thead>
+                <tr>
+                  <th style="width: 42%">Pos</th>
+                  <th style="width: 130px">Jenis</th>
+                  <th style="width: 90px">Porsi</th>
+                  <th>Nilai</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="t-bold">🏡 Rumah Tinggal — Bintaro</td>
+                  <td><span class="badge badge--success">Aset Fisik</span></td>
+                  <td class="t-xs t-muted mono">40,1%</td>
+                  <td class="mono t-bold t-success">Rp 660.000.000</td>
+                </tr>
+                <tr>
+                  <td class="t-bold">📈 Portofolio Saham &amp; Reksa Dana</td>
+                  <td><span class="badge badge--info">Investasi</span></td>
+                  <td class="t-xs t-muted mono">29,6%</td>
+                  <td class="mono t-bold t-success">Rp 486.900.000</td>
+                </tr>
+                <tr>
+                  <td class="t-bold">🏦 Bank &amp; Account (3 rekening)</td>
+                  <td><span class="badge badge--info">Bank</span></td>
+                  <td class="t-xs t-muted mono">19,0%</td>
+                  <td class="mono t-bold t-success">Rp 312.500.000</td>
+                </tr>
+                <tr>
+                  <td class="t-bold">🚗 Kendaraan (2 unit)</td>
+                  <td><span class="badge badge--success">Aset Fisik</span></td>
+                  <td class="t-xs t-muted mono">8,6%</td>
+                  <td class="mono t-bold t-success">Rp 140.600.000</td>
+                </tr>
+                <tr>
+                  <td class="t-bold">💵 Cash &amp; E-Wallet</td>
+                  <td><span class="badge badge--success">Kas</span></td>
+                  <td class="t-xs t-muted mono">2,7%</td>
+                  <td class="mono t-bold t-success">Rp 45.200.000</td>
+                </tr>
+                <tr style="background: color-mix(in oklab, var(--secondary) 55%, transparent)">
+                  <td class="t-bold">Total Aset</td>
+                  <td></td>
+                  <td class="t-xs t-muted mono">100%</td>
+                  <td class="mono t-black t-success">Rp 1.645.200.000</td>
+                </tr>
+
+                <tr>
+                  <td class="t-bold">🏠 KPR BTN — sisa pokok</td>
+                  <td><span class="badge badge--danger">Liabilitas</span></td>
+                  <td class="t-xs t-muted mono">69,1%</td>
+                  <td class="mono t-bold t-danger">Rp 268.400.000</td>
+                </tr>
+                <tr>
+                  <td class="t-bold">🏦 KTA Mandiri</td>
+                  <td><span class="badge badge--danger">Liabilitas</span></td>
+                  <td class="t-xs t-muted mono">19,2%</td>
+                  <td class="mono t-bold t-danger">Rp 74.500.000</td>
+                </tr>
+                <tr>
+                  <td class="t-bold">🚙 Cicilan Mobil — Toyota Innova</td>
+                  <td><span class="badge badge--danger">Liabilitas</span></td>
+                  <td class="t-xs t-muted mono">7,0%</td>
+                  <td class="mono t-bold t-danger">Rp 27.000.000</td>
+                </tr>
+                <tr>
+                  <td class="t-bold">💳 Kartu Kredit BCA ···4471</td>
+                  <td><span class="badge badge--danger">Liabilitas</span></td>
+                  <td class="t-xs t-muted mono">4,8%</td>
+                  <td class="mono t-bold t-danger">Rp 18.520.000</td>
+                </tr>
+                <tr style="background: color-mix(in oklab, var(--secondary) 55%, transparent)">
+                  <td class="t-bold">Total Liabilitas</td>
+                  <td></td>
+                  <td class="t-xs t-muted mono">100%</td>
+                  <td class="mono t-black t-danger">Rp 388.420.000</td>
+                </tr>
+                <tr>
+                  <td class="t-black">Kekayaan Bersih</td>
+                  <td colspan="2" class="t-xs t-muted">Total Aset − Total Liabilitas</td>
+                  <td class="mono t-black t-primary" style="font-size: 15px">Rp 1.256.780.000</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Cash flow + top expenses + health score -->
+      <section class="grid grid--3 equal-grid">
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">Cash Flow Agustus 2026</h2>
+          </div>
+          <div class="card__body stack" style="gap: 12px">
+            <div>
+              <div class="t-xs t-muted">Pemasukan</div>
+              <div class="t-xl t-black t-success mono">Rp 45.740.000</div>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Pengeluaran</div>
+              <div class="t-xl t-black t-danger mono">Rp 30.980.000</div>
+            </div>
+            <div style="padding-top: 12px; border-top: 1px solid var(--border)">
+              <div class="t-xs t-muted">Surplus</div>
+              <div class="t-xl t-black t-success mono">Rp 14.760.000</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card" style="grid-column: span 1">
+          <div class="card__header">
+            <h2 class="card__title">Top Pengeluaran</h2>
+            <a class="card-link card__action" href="laporan.html">Laporan</a>
+          </div>
+          <div class="card__body"><div id="c-topexp" class="chart"></div></div>
+        </article>
+
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">Health Score</h2>
+          </div>
+          <div class="card__body">
+            <div id="c-health" class="chart"></div>
+            <div class="t-xs t-muted" style="text-align: center">Financial Health Score</div>
+            <div class="row" style="justify-content: center; margin-top: 8px">
+              <span class="badge badge--success">Sehat</span>
+            </div>
+            <div class="notice notice--info" style="margin-top: 12px">
+              <i data-lucide="sparkles" style="width: 15px; height: 15px; flex-shrink: 0"></i>
+              <span>Rasio utang terhadap aset <strong class="mono">23,6%</strong> — masih dalam batas aman.</span>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <!-- ── Export dialog ── -->
+    <div class="dialog-backdrop" id="dlg-export" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-export-title">
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-export-title">Ekspor Ringkasan</h2>
+        <p class="dialog__desc">Unduh ringkasan kekayaan bersih beserta rincian aset dan liabilitas.</p>
+        <div class="dialog__body">
+          <div class="field">
+            <span class="label">Format</span>
+            <div class="segmented">
+              <button class="segmented__item" aria-selected="true">PDF</button>
+              <button class="segmented__item" aria-selected="false">Excel</button>
+              <button class="segmented__item" aria-selected="false">CSV</button>
+            </div>
+          </div>
+
+          <div class="field field-row">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Dari Periode</span>
+              <select class="select">
+                <option>September 2025</option>
+                <option selected>Januari 2026</option>
+                <option>Juli 2026</option>
+              </select>
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Sampai Periode</span>
+              <select class="select">
+                <option selected>Agustus 2026</option>
+                <option>Juli 2026</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="field row row--between">
+            <span>
+              <span class="label" style="margin-bottom: 2px">Sertakan grafik</span>
+              <span class="hint" style="margin-top: 0">Tren kekayaan bersih dan komposisi aset.</span>
+            </span>
+            <span class="switch" role="switch" aria-checked="true" tabindex="0" aria-label="Sertakan grafik"></span>
+          </div>
+
+          <div class="field row row--between">
+            <span>
+              <span class="label" style="margin-bottom: 2px">Sembunyikan nominal</span>
+              <span class="hint" style="margin-top: 0">Ganti angka dengan persentase saja.</span>
+            </span>
+            <span class="switch" role="switch" aria-checked="false" tabindex="0" aria-label="Sembunyikan nominal"></span>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-export')">Batal</button>
+          <button class="btn btn--primary" onclick="WM.closeDialog('dlg-export');WM.toast('Ringkasan PDF sedang disiapkan…','success')">
+            <i data-lucide="download" style="width: 14px; height: 14px"></i> Unduh
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script src="../assets/charts.js"></script>
+    <script>
+      WM.shell({ active: "ringkasan" });
+
+      function toggleSummaryPrivacy() {
+        const btn = document.getElementById("btn-summary-privacy");
+        const hidden = document.body.classList.toggle("is-private");
+        btn.setAttribute("aria-pressed", String(hidden));
+        btn.innerHTML = `<i data-lucide="${hidden ? "eye" : "eye-off"}" style="width:14px;height:14px"></i> ${hidden ? "Tampilkan nominal" : "Sembunyikan nominal"}`;
+        window.lucide?.createIcons();
+        WM.toast(hidden ? "Nominal disembunyikan" : "Nominal ditampilkan", "info");
+      }
+
+      const months = [
+        "Sep 25",
+        "Okt 25",
+        "Nov 25",
+        "Des 25",
+        "Jan 26",
+        "Feb 26",
+        "Mar 26",
+        "Apr 26",
+        "Mei 26",
+        "Jun 26",
+        "Jul 26",
+        "Agu 26",
+      ];
+
+      WMCharts.trend(
+        "#c-networth",
+        months,
+        [
+          {
+            name: "Kekayaan Bersih",
+            data: [
+              1042000000, 1061000000, 1078000000, 1104000000, 1096000000, 1121000000, 1148000000,
+              1172000000, 1163000000, 1199140000, 1222220000, 1256780000,
+            ],
+          },
+        ],
+        { height: 280 }
+      );
+
+      WMCharts.donut(
+        "#c-alloc",
+        ["Aset Fisik", "Investasi", "Bank & Account", "Cash & E-Wallet"],
+        [800600000, 486900000, 312500000, 45200000],
+        "Total Aset"
+      );
+
+      WMCharts.hbar(
+        "#c-topexp",
+        ["Cicilan & Utilitas", "Transportasi", "Pendidikan", "Belanja Harian", "Hiburan & Hobi"],
+        [6150000, 2860000, 2750000, 2480000, 1720000],
+        WMCharts.cssVar("--destructive")
+      );
+
+      WMCharts.radial("#c-health", 78, "Skor", 176);
+    </script>
+  </body>
+</html>
