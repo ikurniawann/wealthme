@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IAM Roles · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="page-lead">
+        <div class="page-lead__text">
+          <div class="row" style="gap: 8px">
+            <h1 class="section-title">IAM Roles</h1>
+            <span class="badge badge--purple">
+              <i data-lucide="crown" style="width: 13px; height: 13px"></i> Master only
+            </span>
+          </div>
+          <div class="page-lead__sub">
+            Atur siapa yang boleh melihat, mencatat, menyetujui, dan mengelola data keluarga. Role berlaku untuk
+            modul, rekening, dan limit transaksi.
+          </div>
+        </div>
+        <div class="row row--wrap" style="gap: 8px">
+          <a class="btn btn--outline btn--sm" href="akses-saya.html">
+            <i data-lucide="eye" style="width: 15px; height: 15px"></i> Preview Anak / Staff
+          </a>
+          <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-role')">
+            <i data-lucide="plus" style="width: 15px; height: 15px"></i> Buat Role
+          </button>
+        </div>
+      </section>
+
+      <section class="hero gradient-profile">
+        <div class="row row--wrap" style="gap: 18px">
+          <div style="flex: 1; min-width: 260px">
+            <div class="hero__label">Access Control Arsandi Family</div>
+            <div class="hero__value">4 role aktif · 9 rekening</div>
+            <div class="t-sm" style="opacity: 0.84; max-width: 680px">
+              Master dan Co-Master tetap punya akses penuh. Anak dan staff hanya melihat data yang ditugaskan, dengan
+              permintaan akses tercatat sebagai approval.
+            </div>
+          </div>
+          <div class="grid grid--3" style="gap: 8px; min-width: min(100%, 430px)">
+            <div class="card" style="box-shadow: none; padding: 10px 12px; background: rgb(255 255 255 / 0.13); border-color: rgb(255 255 255 / 0.18)">
+              <div class="t-xs" style="opacity: 0.74">Anggota</div>
+              <div class="t-lg t-black mono">5</div>
+            </div>
+            <div class="card" style="box-shadow: none; padding: 10px 12px; background: rgb(255 255 255 / 0.13); border-color: rgb(255 255 255 / 0.18)">
+              <div class="t-xs" style="opacity: 0.74">Request akses</div>
+              <div class="t-lg t-black mono">2</div>
+            </div>
+            <div class="card" style="box-shadow: none; padding: 10px 12px; background: rgb(255 255 255 / 0.13); border-color: rgb(255 255 255 / 0.18)">
+              <div class="t-xs" style="opacity: 0.74">Audit 7 hari</div>
+              <div class="t-lg t-black mono">38</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="auto-grid auto-grid--master">
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">Master</h2>
+            <span class="badge badge--info">Full control</span>
+          </div>
+          <div class="card__body stack">
+            <div class="t-xl t-black">Irfan Arsandi</div>
+            <div class="t-sm t-muted">Semua modul, semua rekening, persetujuan, IAM, dan export data.</div>
+            <div class="notice notice--info">
+              <i data-lucide="shield-check" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+              <span>Akses master tidak bisa dibatasi dari halaman ini.</span>
+            </div>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">Co-Master</h2>
+            <span class="badge badge--purple">Setara master</span>
+          </div>
+          <div class="card__body stack">
+            <div class="t-xl t-black">Siti Arsandi</div>
+            <div class="t-sm t-muted">Akses penuh operasional keluarga, kecuali transfer ownership master.</div>
+            <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-assign')">
+              <i data-lucide="settings-2" style="width: 15px; height: 15px"></i> Kelola akses
+            </button>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">Anak</h2>
+            <span class="badge badge--warning">Restricted</span>
+          </div>
+          <div class="card__body stack">
+            <div class="t-xl t-black">Aisyah Arsandi</div>
+            <div class="t-sm t-muted">Lihat rekening sendiri, ajukan dana, unggah bukti, tanpa akses aset keluarga.</div>
+            <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-assign')">
+              <i data-lucide="wallet-cards" style="width: 15px; height: 15px"></i> Assign rekening
+            </button>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">Staff Operasional</h2>
+            <span class="badge badge--gray">Task based</span>
+          </div>
+          <div class="card__body stack">
+            <div class="t-xl t-black">Pak Dedi</div>
+            <div class="t-sm t-muted">Catat biaya operasional, lihat kas yang ditugaskan, perlu approval di atas limit.</div>
+            <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-assign')">
+              <i data-lucide="lock" style="width: 15px; height: 15px"></i> Ubah limit
+            </button>
+          </div>
+        </article>
+      </section>
+
+      <section class="grid grid--sidebar grid--stack-sm">
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">Role Permission Matrix</h2>
+            <button class="btn btn--outline btn--sm card__action" onclick="WM.toast('Template role disalin', 'success')">
+              <i data-lucide="copy" style="width: 14px; height: 14px"></i> Salin Template
+            </button>
+          </div>
+          <div class="card__body">
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Modul</th>
+                    <th>Master</th>
+                    <th>Co-Master</th>
+                    <th>Anak</th>
+                    <th>Staff</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="t-bold">Kekayaan keluarga</td>
+                    <td><span class="badge badge--success">Kelola</span></td>
+                    <td><span class="badge badge--success">Kelola</span></td>
+                    <td><span class="badge badge--gray">Tidak ada</span></td>
+                    <td><span class="badge badge--gray">Tidak ada</span></td>
+                  </tr>
+                  <tr>
+                    <td class="t-bold">Rekening ditugaskan</td>
+                    <td><span class="badge badge--success">Semua</span></td>
+                    <td><span class="badge badge--success">Semua</span></td>
+                    <td><span class="badge badge--info">Lihat</span></td>
+                    <td><span class="badge badge--info">Catat</span></td>
+                  </tr>
+                  <tr>
+                    <td class="t-bold">Transaksi</td>
+                    <td><span class="badge badge--success">Kelola</span></td>
+                    <td><span class="badge badge--success">Kelola</span></td>
+                    <td><span class="badge badge--warning">Ajukan</span></td>
+                    <td><span class="badge badge--warning">Limit</span></td>
+                  </tr>
+                  <tr>
+                    <td class="t-bold">Approval dana</td>
+                    <td><span class="badge badge--success">Approve</span></td>
+                    <td><span class="badge badge--success">Approve</span></td>
+                    <td><span class="badge badge--gray">Tidak ada</span></td>
+                    <td><span class="badge badge--gray">Tidak ada</span></td>
+                  </tr>
+                  <tr>
+                    <td class="t-bold">IAM & data master</td>
+                    <td><span class="badge badge--success">Kelola</span></td>
+                    <td><span class="badge badge--info">Lihat</span></td>
+                    <td><span class="badge badge--gray">Tidak ada</span></td>
+                    <td><span class="badge badge--gray">Tidak ada</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </article>
+
+        <aside class="stack" style="gap: 14px">
+          <article class="card">
+            <div class="card__header"><h2 class="card__title">Request Akses</h2></div>
+            <div class="card__body stack">
+              <div class="list-row">
+                <div class="list-row__icon"><i data-lucide="user-round-plus" style="width: 16px; height: 16px"></i></div>
+                <div class="list-row__body">
+                  <div class="list-row__title">Pak Dedi minta akses upload struk</div>
+                  <div class="list-row__sub">Kas Operasional · 8 menit lalu</div>
+                </div>
+                <span class="badge badge--warning">Review</span>
+              </div>
+              <div class="list-row">
+                <div class="list-row__icon"><i data-lucide="wallet" style="width: 16px; height: 16px"></i></div>
+                <div class="list-row__body">
+                  <div class="list-row__title">Aisyah minta limit dinaikkan</div>
+                  <div class="list-row__sub">Rp 1.000.000 → Rp 1.750.000</div>
+                </div>
+                <span class="badge badge--warning">Review</span>
+              </div>
+            </div>
+          </article>
+          <article class="card">
+            <div class="card__header"><h2 class="card__title">Security Defaults</h2></div>
+            <div class="card__body stack">
+              <div class="notice notice--info">
+                <i data-lucide="info" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+                <span>Semua role non-master wajib ganti password saat login pertama dan tidak bisa export data.</span>
+              </div>
+              <label class="field" style="margin-top: 0">
+                <span class="label">Limit transaksi staff</span>
+                <input class="input mono" value="750.000" inputmode="numeric" />
+              </label>
+              <label class="field">
+                <span class="label">Limit transaksi anak</span>
+                <input class="input mono" value="1.000.000" inputmode="numeric" />
+              </label>
+            </div>
+          </article>
+        </aside>
+      </section>
+
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Anggota & Akses Aktif</h2>
+          <button class="btn btn--primary btn--sm card__action" onclick="WM.openDialog('dlg-assign')">
+            <i data-lucide="settings-2" style="width: 15px; height: 15px"></i> Assign Akses
+          </button>
+        </div>
+        <div class="card__body">
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Anggota</th>
+                  <th>Role</th>
+                  <th>Scope Rekening</th>
+                  <th>Limit</th>
+                  <th>Login Terakhir</th>
+                  <th style="text-align: right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><div class="t-bold">Irfan Arsandi</div><div class="t-xs t-muted">irfan.arsandi@gmail.com</div></td>
+                  <td><span class="badge badge--info">Master</span></td>
+                  <td>Semua rekening</td>
+                  <td class="mono">Tanpa limit</td>
+                  <td>Hari ini · 09:12</td>
+                  <td style="text-align: right"><span class="badge badge--gray">Kamu</span></td>
+                </tr>
+                <tr>
+                  <td><div class="t-bold">Siti Arsandi</div><div class="t-xs t-muted">siti_arsandi</div></td>
+                  <td><span class="badge badge--purple">Co-Master</span></td>
+                  <td>Semua rekening</td>
+                  <td class="mono">Tanpa limit</td>
+                  <td>Kemarin · 20:31</td>
+                  <td style="text-align: right"><button class="btn btn--ghost btn--sm" onclick="WM.openDialog('dlg-assign')">Ubah</button></td>
+                </tr>
+                <tr>
+                  <td><div class="t-bold">Aisyah Arsandi</div><div class="t-xs t-muted">aisyah_kecil</div></td>
+                  <td><span class="badge badge--warning">Anak</span></td>
+                  <td>Kartu Aisyah ···4471</td>
+                  <td class="mono">Rp 1.000.000</td>
+                  <td>6 Agu 2026 · 18:02</td>
+                  <td style="text-align: right"><button class="btn btn--ghost btn--sm" onclick="WM.openDialog('dlg-assign')">Ubah</button></td>
+                </tr>
+                <tr>
+                  <td><div class="t-bold">Pak Dedi</div><div class="t-xs t-muted">dedi_supir</div></td>
+                  <td><span class="badge badge--gray">Staff</span></td>
+                  <td>Kas Operasional ···0021</td>
+                  <td class="mono">Rp 750.000</td>
+                  <td>Hari ini · 07:44</td>
+                  <td style="text-align: right"><button class="btn btn--ghost btn--sm" onclick="WM.openDialog('dlg-assign')">Ubah</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="dialog-backdrop" id="dlg-role" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-role-title">
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-role-title">Buat Custom Role</h2>
+        <p class="dialog__desc">Role custom cocok untuk sekretaris, bendahara, atau admin rumah tangga.</p>
+        <div class="dialog__body">
+          <label class="field">
+            <span class="label">Nama Role</span>
+            <input class="input" value="Admin Rumah Tangga" />
+          </label>
+          <div class="grid grid--2 grid--stack-sm" style="gap: 10px; margin-top: 12px">
+            <label class="notice" style="cursor: pointer; margin: 0"><input type="checkbox" checked /> Catat transaksi</label>
+            <label class="notice" style="cursor: pointer; margin: 0"><input type="checkbox" checked /> Upload bukti</label>
+            <label class="notice" style="cursor: pointer; margin: 0"><input type="checkbox" /> Lihat laporan</label>
+            <label class="notice" style="cursor: pointer; margin: 0"><input type="checkbox" /> Export data</label>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-role')">Batal</button>
+          <button class="btn btn--primary" onclick="WM.closeDialog('dlg-role');WM.toast('Role custom dibuat', 'success')">Simpan Role</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="dialog-backdrop" id="dlg-assign" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-assign-title">
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-assign-title">Assign Role & Scope</h2>
+        <p class="dialog__desc">Pilih anggota, role, rekening yang boleh diakses, dan batas transaksi.</p>
+        <div class="dialog__body">
+          <div class="field-row">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Anggota</span>
+              <select class="select">
+                <option>Aisyah Arsandi</option>
+                <option>Pak Dedi</option>
+                <option>Siti Arsandi</option>
+              </select>
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Role</span>
+              <select class="select">
+                <option>Anak</option>
+                <option>Staff Operasional</option>
+                <option>Co-Master</option>
+              </select>
+            </label>
+          </div>
+          <label class="field">
+            <span class="label">Scope rekening</span>
+            <select class="select">
+              <option>Kartu Aisyah ···4471</option>
+              <option>Kas Operasional ···0021</option>
+              <option>Semua rekening</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="label">Limit transaksi tanpa approval</span>
+            <input class="input mono" value="1.000.000" inputmode="numeric" />
+          </label>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-assign')">Batal</button>
+          <button class="btn btn--primary" onclick="WM.closeDialog('dlg-assign');WM.toast('Akses anggota diperbarui', 'success')">Simpan Akses</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script src="../assets/charts.js"></script>
+    <script>
+      WM.shell({ active: "iam" });
+      if (window.lucide) window.lucide.createIcons();
+    </script>
+  </body>
+</html>

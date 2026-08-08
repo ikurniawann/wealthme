@@ -11,7 +11,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="../assets/tokens.css" />
-    <link rel="stylesheet" href="../assets/app.css" />
+    <link rel="stylesheet" href="../assets/app.css?v=tab-arrows" />
     <style>
       /*
        * Page-local only: the COA matrix is a 13-column × 31-row grid with a
@@ -24,14 +24,20 @@
         min-width: 100%;
         border-collapse: separate;
         border-spacing: 0;
-        font-size: 11px;
+        font-size: 11.5px;
+        line-height: 1.35;
       }
       .coa-matrix th,
       .coa-matrix td {
         border-bottom: 1px solid var(--border);
-        padding: 3px 9px;
+        border-right: 1px solid color-mix(in oklab, var(--border) 72%, transparent);
+        padding: 5px 10px;
         white-space: nowrap;
         vertical-align: top;
+      }
+      .coa-matrix th:last-child,
+      .coa-matrix td:last-child {
+        border-right: 0;
       }
       .coa-matrix thead th {
         position: sticky;
@@ -62,12 +68,14 @@
         text-align: center;
       }
       .coa-cell {
-        min-width: 96px;
+        min-width: 106px;
         text-align: right;
         color: var(--foreground);
+        font-variant-numeric: tabular-nums;
       }
       .coa-cell--filled {
         cursor: pointer;
+        background: color-mix(in oklab, var(--primary) 4%, transparent);
       }
       .coa-cell--filled:hover {
         background: var(--accent);
@@ -75,6 +83,96 @@
       .coa-amt {
         display: block;
         line-height: 1.55;
+        font-weight: 500;
+        color: color-mix(in oklab, var(--foreground) 88%, var(--muted-foreground));
+      }
+      .coa-table-wrap {
+        max-height: 620px;
+      }
+      .dialog--fullscreen .coa-matrix {
+        font-size: 12px;
+      }
+      .dialog--fullscreen .coa-matrix th,
+      .dialog--fullscreen .coa-matrix td {
+        padding: 6px 12px;
+      }
+      .investment-report {
+        display: grid;
+        grid-template-columns: minmax(320px, 0.95fr) minmax(360px, 1.05fr);
+        gap: 18px;
+        align-items: center;
+      }
+      .investment-report__chart {
+        display: grid;
+        gap: 8px;
+        min-width: 0;
+      }
+      .investment-report__chart .chart {
+        min-height: 260px;
+      }
+      .investment-report__side {
+        display: grid;
+        gap: 14px;
+        min-width: 0;
+      }
+      .investment-report__metrics {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .investment-metric {
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: color-mix(in oklab, var(--secondary) 55%, transparent);
+      }
+      .investment-metric__value {
+        margin-top: 5px;
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .investment-allocation {
+        display: grid;
+        gap: 9px;
+      }
+      .investment-allocation__row {
+        display: grid;
+        grid-template-columns: minmax(98px, 1fr) minmax(150px, 1.2fr) auto;
+        gap: 10px;
+        align-items: center;
+        font-size: 12.5px;
+      }
+      .investment-allocation__label {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
+        font-weight: 600;
+      }
+      .investment-allocation__dot {
+        width: 9px;
+        height: 9px;
+        flex: 0 0 auto;
+        border-radius: 999px;
+      }
+      .investment-allocation__bar {
+        height: 7px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: var(--secondary);
+      }
+      .investment-allocation__fill {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+      }
+      @media (max-width: 900px) {
+        .investment-report {
+          grid-template-columns: 1fr;
+        }
+        .investment-report__metrics {
+          grid-template-columns: 1fr;
+        }
       }
       .coa-matrix tbody tr:nth-child(even) .coa-date,
       .coa-matrix tbody tr:nth-child(even) td {
@@ -86,6 +184,7 @@
         bottom: 0;
         background: var(--card);
         border-top: 2px solid var(--border);
+        border-right-color: color-mix(in oklab, var(--border) 82%, transparent);
         font-weight: 700;
         text-align: right;
       }
@@ -128,7 +227,11 @@
       </section>
 
       <!-- Date-range control -->
-      <section class="card">
+      <section class="card report-filter-card">
+        <div class="card__header">
+          <h2 class="card__title">Filter Laporan</h2>
+          <span class="card__action t-xs t-muted">Berlaku untuk semua tab</span>
+        </div>
         <div class="card__body" style="padding-top: 16px">
           <div class="bento-filter">
             <div class="field" style="min-width: 210px">
@@ -162,8 +265,11 @@
       </section>
 
       <!-- Report tabs -->
-      <section>
-        <div class="tabs hide-scrollbar" id="tabs-laporan">
+      <section class="tab-strip" aria-label="Navigasi laporan">
+        <button class="tab-strip__arrow tab-strip__arrow--left" type="button" onclick="scrollReportTabs(-1)" aria-label="Geser tab ke kiri">
+          <i data-lucide="chevron-left" style="width: 16px; height: 16px"></i>
+        </button>
+        <div class="tabs hide-scrollbar" id="tabs-laporan" tabindex="0">
           <button class="tab" data-value="rsum" aria-selected="true">Ringkasan</button>
           <button class="tab" data-value="rharian" aria-selected="false">Harian</button>
           <button class="tab" data-value="rbulanan" aria-selected="false">Bulanan</button>
@@ -184,6 +290,9 @@
             Ringkasan COA <span class="badge badge--purple" style="margin-left: 5px">Baru</span>
           </button>
         </div>
+        <button class="tab-strip__arrow tab-strip__arrow--right" type="button" onclick="scrollReportTabs(1)" aria-label="Geser tab ke kanan">
+          <i data-lucide="chevron-right" style="width: 16px; height: 16px"></i>
+        </button>
       </section>
 
       <!-- ═════════════════ PANEL: Ringkasan (default) ═════════════════ -->
@@ -375,12 +484,18 @@
         </article>
 
         <article class="card">
-          <div class="card__header">
-            <h2 class="card__title" id="coa-title">5-2001 · Belanja — 2026</h2>
-            <span class="card__action t-xs t-muted">Geser ke kanan untuk bulan berikutnya →</span>
+          <div class="card__header row--between">
+            <div class="row" style="gap: 10px; min-width: 0">
+              <h2 class="card__title" id="coa-title">5-2001 · Belanja — 2026</h2>
+              <span class="card__action t-xs t-muted">Geser ke kanan untuk bulan berikutnya →</span>
+            </div>
+            <button class="btn btn--outline btn--sm" onclick="openCoaFullscreen()" aria-label="Perbesar tabel COA">
+              <i data-lucide="maximize-2" style="width: 15px; height: 15px"></i>
+              Perbesar
+            </button>
           </div>
           <div class="card__body" style="padding-top: 0">
-            <div class="table-wrap" style="max-height: 620px">
+            <div class="table-wrap coa-table-wrap" id="coa-table-source">
               <table class="coa-matrix" id="coa-matrix">
                 <thead></thead>
                 <tbody></tbody>
@@ -633,11 +748,65 @@
             <h2 class="card__title">Laporan Investasi</h2>
             <a class="card-link card__action" href="investasi.html">Buka Portofolio</a>
           </div>
-          <div class="card__body">
-            <p class="t-sm t-muted" style="margin: 0 0 10px">
-              Alokasi portofolio per jenis. Saham &amp; kripto berharga live, sisanya manual.
-            </p>
-            <div id="c-rinv" class="chart"></div>
+          <div class="card__body investment-report">
+            <div class="investment-report__chart">
+              <p class="t-sm t-muted" style="margin: 0">
+                Alokasi portofolio per jenis. Saham &amp; kripto berharga live, sisanya manual.
+              </p>
+              <div id="c-rinv" class="chart"></div>
+            </div>
+            <div class="investment-report__side">
+              <div class="investment-report__metrics">
+                <div class="investment-metric">
+                  <div class="t-xs t-muted">Total Portofolio</div>
+                  <div class="investment-metric__value mono">Rp 697,6 jt</div>
+                </div>
+                <div class="investment-metric">
+                  <div class="t-xs t-muted">Return YTD</div>
+                  <div class="investment-metric__value mono t-success">+7,32%</div>
+                </div>
+                <div class="investment-metric">
+                  <div class="t-xs t-muted">Harga Live</div>
+                  <div class="investment-metric__value mono">15,7%</div>
+                </div>
+              </div>
+              <div class="investment-allocation" aria-label="Rincian alokasi investasi">
+                <div class="investment-allocation__row">
+                  <span class="investment-allocation__label"><span class="investment-allocation__dot" style="background: #0f766e"></span>Emas</span>
+                  <span class="investment-allocation__bar"><span class="investment-allocation__fill" style="width: 50.2%; background: #0f766e"></span></span>
+                  <span class="mono t-muted">Rp 350,5 jt</span>
+                </div>
+                <div class="investment-allocation__row">
+                  <span class="investment-allocation__label"><span class="investment-allocation__dot" style="background: #10a37f"></span>Obligasi</span>
+                  <span class="investment-allocation__bar"><span class="investment-allocation__fill" style="width: 14.8%; background: #10a37f"></span></span>
+                  <span class="mono t-muted">Rp 103,5 jt</span>
+                </div>
+                <div class="investment-allocation__row">
+                  <span class="investment-allocation__label"><span class="investment-allocation__dot" style="background: #d99a21"></span>Deposito</span>
+                  <span class="investment-allocation__bar"><span class="investment-allocation__fill" style="width: 14.6%; background: #d99a21"></span></span>
+                  <span class="mono t-muted">Rp 102,1 jt</span>
+                </div>
+                <div class="investment-allocation__row">
+                  <span class="investment-allocation__label"><span class="investment-allocation__dot" style="background: #2cb6a6"></span>Kripto</span>
+                  <span class="investment-allocation__bar"><span class="investment-allocation__fill" style="width: 10.5%; background: #2cb6a6"></span></span>
+                  <span class="mono t-muted">Rp 73,2 jt</span>
+                </div>
+                <div class="investment-allocation__row">
+                  <span class="investment-allocation__label"><span class="investment-allocation__dot" style="background: #064e63"></span>Saham</span>
+                  <span class="investment-allocation__bar"><span class="investment-allocation__fill" style="width: 5.2%; background: #064e63"></span></span>
+                  <span class="mono t-muted">Rp 36,0 jt</span>
+                </div>
+                <div class="investment-allocation__row">
+                  <span class="investment-allocation__label"><span class="investment-allocation__dot" style="background: #33c5a3"></span>Reksa Dana</span>
+                  <span class="investment-allocation__bar"><span class="investment-allocation__fill" style="width: 4.6%; background: #33c5a3"></span></span>
+                  <span class="mono t-muted">Rp 32,3 jt</span>
+                </div>
+              </div>
+              <div class="notice notice--info" style="margin: 0">
+                <i data-lucide="info" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+                <span>Emas masih dominan 50,2%. Rebalancing berikutnya fokus menambah instrumen likuid.</span>
+              </div>
+            </div>
           </div>
         </article>
       </section>
@@ -726,19 +895,33 @@
       </div>
     </div>
 
+    <!-- ══════════════ Dialog: tabel COA fullscreen ══════════════ -->
+    <div class="dialog-backdrop" id="dlg-coa-fullscreen" data-open="false">
+      <div class="dialog dialog--fullscreen" role="dialog" aria-modal="true" aria-labelledby="dlg-coa-fullscreen-title">
+        <div class="row row--between" style="gap: 12px">
+          <div>
+            <h2 class="dialog__title" id="dlg-coa-fullscreen-title">Ringkasan COA per Hari</h2>
+            <p class="dialog__desc" id="dlg-coa-fullscreen-sub">Tabel besar dengan tanggal tetap dan total bulanan.</p>
+          </div>
+          <button class="btn btn--ghost btn--icon btn--sm" onclick="WM.closeDialog('dlg-coa-fullscreen')" aria-label="Tutup">
+            <i data-lucide="x" style="width: 17px; height: 17px"></i>
+          </button>
+        </div>
+        <div class="dialog__body">
+          <div class="hint" style="margin-bottom: 10px">
+            Gunakan scroll horizontal dan vertikal untuk membaca seluruh bulan. Klik angka untuk melihat rincian transaksi.
+          </div>
+          <div id="coa-fullscreen-table"></div>
+        </div>
+      </div>
+    </div>
+
     <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
-    <script src="../assets/shell.js"></script>
+    <script src="../assets/shell.js?v=tab-click-fix"></script>
     <script src="../assets/charts.js"></script>
     <script>
       WM.shell({ active: "laporan" });
-
-      // Keep the explanation with the page title, while the period controls
-      // remain a compact, right-aligned working area below it.
-      document.querySelector(".page-lead").insertAdjacentElement(
-        "afterend",
-        document.querySelector(".notice--info"),
-      );
 
       const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
       const MONTHS_LONG = [
@@ -776,6 +959,14 @@
       });
 
       /* ══════════ Tab panels + lazy chart mounting ══════════ */
+      function scrollReportTabs(direction) {
+        const tabs = document.getElementById("tabs-laporan");
+        if (!tabs) return;
+        const amount = Math.max(280, Math.round(tabs.clientWidth * 0.72));
+        tabs.scrollBy({ left: direction * amount, behavior: "smooth" });
+      }
+      window.scrollReportTabs = scrollReportTabs;
+
       const LAZY_CHARTS = {
         rharian: () =>
           WMCharts.trend(
@@ -1021,10 +1212,29 @@
         document.getElementById("coa-meta").textContent =
           `${WM.formatNumber(txCount)} transaksi · rata-rata ${WM.formatRupiah(grandTotal / 12)} / bulan`;
         document.getElementById("coa-title").textContent = `${currentCode} · ${acc.label} — ${currentYear}`;
+        syncCoaFullscreen();
       }
 
       document.getElementById("f-coa").addEventListener("change", renderMatrix);
       document.getElementById("f-coa-tahun").addEventListener("change", renderMatrix);
+
+      function syncCoaFullscreen() {
+        const source = document.getElementById("coa-table-source");
+        const target = document.getElementById("coa-fullscreen-table");
+        if (!source || !target) return;
+        target.innerHTML = source.outerHTML
+          .replace('id="coa-table-source"', 'id="coa-table-fullscreen"')
+          .replace('id="coa-matrix"', 'id="coa-matrix-fullscreen"');
+        document.getElementById("dlg-coa-fullscreen-title").textContent = document.getElementById("coa-title").textContent;
+        document.getElementById("dlg-coa-fullscreen-sub").textContent =
+          `${document.getElementById("coa-total").textContent} · ${document.getElementById("coa-meta").textContent}`;
+      }
+
+      function openCoaFullscreen() {
+        syncCoaFullscreen();
+        WM.openDialog("dlg-coa-fullscreen");
+        if (window.lucide) lucide.createIcons();
+      }
 
       /* Cell → transaction-detail dialog */
       document.getElementById("coa-matrix").addEventListener("click", (e) => {
@@ -1057,6 +1267,13 @@
           amounts.reduce((a, b) => a + b, 0)
         );
         WM.openDialog("dlg-coa-detail");
+      });
+
+      document.getElementById("coa-fullscreen-table").addEventListener("click", (e) => {
+        const cell = e.target.closest(".coa-cell--filled");
+        if (!cell) return;
+        WM.closeDialog("dlg-coa-fullscreen");
+        document.querySelector(`#coa-matrix [data-cell="${cell.dataset.cell}"]`)?.click();
       });
 
       /* Pre-render the matrix so it is ready (and testable) before the tab is

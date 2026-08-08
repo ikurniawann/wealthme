@@ -1,0 +1,128 @@
+[
+  {
+    "id": "beranda",
+    "status": "captured",
+    "overflow": 0,
+    "mobileNav": true,
+    "topbarAddVisible": false,
+    "fabVisible": true,
+    "height": 3795
+  },
+  {
+    "id": "ringkasan",
+    "status": "captured",
+    "overflow": 0,
+    "mobileNav": true,
+    "topbarAddVisible": false,
+    "fabVisible": true,
+    "height": 3536
+  },
+  {
+    "id": "transaksi",
+    "status": "captured",
+    "overflow": 0,
+    "mobileNav": true,
+    "topbarAddVisible": false,
+    "fabVisible": false,
+    "height": 5475
+  },
+  {
+    "id": "anggaran",
+    "status": "captured",
+    "overflow": 0,
+    "mobileNav": true,
+    "topbarAddVisible": false,
+    "fabVisible": true,
+    "height": 3406
+  },
+  {
+    "id": "laporan",
+    "status": "captured",
+    "overflow": 0,
+    "mobileNav": true,
+    "topbarAddVisible": false,
+    "fabVisible": true,
+    "height": 2647
+  },
+  {
+    "id": "tujuan",
+    "status": "captured",
+    "overflow": 0,
+    "mobileNav": true,
+    "topbarAddVisible": false,
+    "fabVisible": true,
+    "height": 2964
+  },
+  {
+    "id": "rekening",
+    "status": "captured",
+    "overflow": 0,
+    "mobileNav": true,
+    "topbarAddVisible": false,
+    "fabVisible": true,
+    "height": 3069
+  },
+  {
+    "id": "investasi",
+    "status": "captured",
+    "overflow": 0,
+    "mobileNav": true,
+    "topbarAddVisible": false,
+    "fabVisible": true,
+    "height": 2534
+  },
+  {
+    "id": "aset",
+    "status": "captured",
+    "overflow": 0,
+    "mobileNav": true,
+    "topbarAddVisible": false,
+    "fabVisible": true,
+    "height": 3392
+  },
+  {
+    "id": "liabilitas",
+    "status": "captured",
+    "overflow": 0,
+    "mobileNav": true,
+    "topbarAddVisible": false,
+    "fabVisible": true,
+    "height": 2875
+  },
+  {
+    "id": "ai",
+    "status": "captured",
+    "overflow": 0,
+    "mobileNav": true,
+    "topbarAddVisible": false,
+    "fabVisible": true,
+    "height": 2197
+  },
+  {
+    "id": "kalkulator",
+    "status": "captured",
+    "overflow": 0,
+    "mobileNav": true,
+    "topbarAddVisible": false,
+    "fabVisible": true,
+    "height": 5178
+  },
+  {
+    "id": "notifikasi",
+    "status": "captured",
+    "overflow": 0,
+    "mobileNav": true,
+    "topbarAddVisible": false,
+    "fabVisible": true,
+    "height": 2017
+  },
+  {
+    "id": "akun",
+    "status": "captured",
+    "overflow": 0,
+    "mobileNav": true,
+    "topbarAddVisible": false,
+    "fabVisible": true,
+    "height": 3178
+  }
+]

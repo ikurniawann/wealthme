@@ -25,7 +25,7 @@ const WMCharts = (() => {
 
   const registry = [];
 
-  // Animations off for reduced-motion users and for ?static=1, which is how
+  // Keep charts deterministic in dense financial cards.
   // screenshots of this prototype are captured — an animating chart caught
   // mid-flight looks like wrong data.
   // The portable build renders every page inside an `iframe[srcdoc]`. In that
@@ -33,11 +33,8 @@ const WMCharts = (() => {
   // position (outside the clipping rect), so the card looks empty even though
   // the SVG canvas exists. Keep the standalone deterministic and immediately
   // readable; normal prototype pages can still use the short entrance motion.
-  const isStandaloneFrame = location.protocol === "about:";
-  const animate =
-    !isStandaloneFrame &&
-    !window.matchMedia("(prefers-reduced-motion: reduce)").matches &&
-    !new URLSearchParams(location.search).has("static");
+  const animate = false;
+  // Intentionally false for every prototype page; stability beats motion here.
 
   const base = () => ({
     chart: {
@@ -47,8 +44,8 @@ const WMCharts = (() => {
       zoom: { enabled: false },
       animations: {
         enabled: animate,
-        speed: 350,
         animateGradually: { enabled: false },
+        dynamicAnimation: { enabled: false },
       },
       background: "transparent",
     },

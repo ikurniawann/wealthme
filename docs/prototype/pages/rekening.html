@@ -28,10 +28,34 @@
         </div>
       </section>
 
+      <section class="value-strip" aria-label="Ringkasan kendali rekening">
+        <div class="value-pill">
+          <span class="value-pill__icon"><i data-lucide="scan-line" style="width: 16px; height: 16px"></i></span>
+          <span class="value-pill__body">
+            <span class="value-pill__label">Satu pandangan</span>
+            <span class="value-pill__value">5 rekening, 3 pemilik, 1 saldo keluarga</span>
+          </span>
+        </div>
+        <div class="value-pill">
+          <span class="value-pill__icon"><i data-lucide="bell-ring" style="width: 16px; height: 16px"></i></span>
+          <span class="value-pill__body">
+            <span class="value-pill__label">Alert pintar</span>
+            <span class="value-pill__value">2 rekening perlu rekonsiliasi</span>
+          </span>
+        </div>
+        <div class="value-pill">
+          <span class="value-pill__icon"><i data-lucide="lock-keyhole" style="width: 16px; height: 16px"></i></span>
+          <span class="value-pill__body">
+            <span class="value-pill__label">Privasi</span>
+            <span class="value-pill__value">Saldo pribadi tetap tersegmentasi</span>
+          </span>
+        </div>
+      </section>
+
       <!-- Totals -->
       <section class="auto-grid auto-grid--metrics">
         <article class="card stat">
-          <div class="stat__icon" style="background: var(--accent); color: var(--accent-foreground)">🏦</div>
+          <div class="stat__icon" style="background: var(--accent); color: var(--accent-foreground)"><i data-lucide="landmark" style="width: 17px; height: 17px"></i></div>
           <div>
             <div class="stat__label">Saldo Bank</div>
             <div class="stat__value mono">Rp 312.500.000</div>
@@ -39,7 +63,7 @@
           <div class="stat__delta t-success">↑ 1,1% dari bulan lalu</div>
         </article>
         <article class="card stat">
-          <div class="stat__icon" style="background: var(--brand-purple-soft); color: var(--brand-purple)">👥</div>
+          <div class="stat__icon" style="background: var(--brand-purple-soft); color: var(--brand-purple)"><i data-lucide="users" style="width: 17px; height: 17px"></i></div>
           <div>
             <div class="stat__label">Rekening Bersama</div>
             <div class="stat__value mono">Rp 214.300.000</div>
@@ -47,7 +71,7 @@
           <div class="stat__delta t-muted">2 rekening keluarga</div>
         </article>
         <article class="card stat">
-          <div class="stat__icon" style="background: var(--success-soft); color: var(--success)">👤</div>
+          <div class="stat__icon" style="background: var(--success-soft); color: var(--success)"><i data-lucide="user" style="width: 17px; height: 17px"></i></div>
           <div>
             <div class="stat__label">Milik Anggota</div>
             <div class="stat__value mono">Rp 98.200.000</div>
@@ -60,8 +84,8 @@
       <section class="row row--wrap">
         <div class="tabs" role="tablist" aria-label="Filter kepemilikan">
           <button class="tab" role="tab" aria-selected="true">Semua</button>
-          <button class="tab" role="tab" aria-selected="false">👤 Milik saya</button>
-          <button class="tab" role="tab" aria-selected="false">👥 Bersama</button>
+          <button class="tab" role="tab" aria-selected="false"><i data-lucide="user" style="width: 13px; height: 13px; vertical-align: -2px"></i> Milik saya</button>
+          <button class="tab" role="tab" aria-selected="false"><i data-lucide="users" style="width: 13px; height: 13px; vertical-align: -2px"></i> Bersama</button>
         </div>
         <span class="spacer"></span>
         <span class="t-xs t-muted">Saldo bank tidak boleh minus — kekurangan dana dicatat sebagai liabilitas.</span>
@@ -87,7 +111,7 @@
               <div class="t-2xl t-black mono">Rp 128.400.000</div>
               <div class="row row--wrap" style="gap: 6px; margin-top: 6px">
                 <span class="t-xs t-muted">Tabungan</span>
-                <span class="badge badge--purple">👥 Bersama</span>
+                <span class="badge badge--purple"><i data-lucide="users" style="width: 12px; height: 12px"></i> Bersama</span>
               </div>
             </div>
             <div class="row" style="gap: 8px">
@@ -122,7 +146,7 @@
               <div class="t-2xl t-black mono">Rp 85.900.000</div>
               <div class="row row--wrap" style="gap: 6px; margin-top: 6px">
                 <span class="t-xs t-muted">Tabungan</span>
-                <span class="badge badge--info">👤 Milik Saya</span>
+                <span class="badge badge--info"><i data-lucide="user" style="width: 12px; height: 12px"></i> Milik Saya</span>
               </div>
             </div>
             <div class="row" style="gap: 8px">
@@ -148,7 +172,7 @@
                 <span class="mono t-xs t-muted">···3327</span>
               </span>
               <span class="badge badge--success">Aktif</span>
-              <span class="badge badge--purple">🔒 Privat</span>
+              <span class="badge badge--purple"><i data-lucide="lock" style="width: 12px; height: 12px"></i> Privat</span>
               <button class="btn btn--ghost btn--icon btn--sm" aria-label="Opsi rekening CIMB Niaga Xtra" onclick="WM.openDialog('dlg-rekening-form')">
                 <i data-lucide="ellipsis-vertical" style="width: 16px; height: 16px"></i>
               </button>
@@ -226,7 +250,7 @@
               <div class="t-2xl t-black mono">Rp 26.000.000</div>
               <div class="row row--wrap" style="gap: 6px; margin-top: 6px">
                 <span class="t-xs t-muted">Tabungan</span>
-                <span class="badge badge--purple">👥 Bersama</span>
+                <span class="badge badge--purple"><i data-lucide="users" style="width: 12px; height: 12px"></i> Bersama</span>
               </div>
             </div>
             <div class="row" style="gap: 8px">
@@ -321,7 +345,7 @@
           </label>
           <div class="row" style="margin-top: 12px">
             <span class="switch" role="switch" aria-checked="false" tabindex="0" aria-label="Tandai rekening privat"></span>
-            <span class="t-sm">Tandai sebagai rekening privat (🔒 hanya pemilik yang melihat saldo)</span>
+              <span class="t-sm">Tandai sebagai rekening privat (hanya pemilik yang melihat saldo)</span>
           </div>
         </div>
         <div class="dialog__footer">

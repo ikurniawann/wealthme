@@ -18,9 +18,11 @@
       <!-- Banner -->
       <section class="hero gradient-ai">
         <div class="row row--wrap" style="position: relative; z-index: 1">
-          <div style="font-size: 38px; line-height: 1">🤖</div>
+            <div class="assistant-mark" style="width: 46px; height: 46px; background: rgb(255 255 255 / 0.16); color: #fff; border-color: rgb(255 255 255 / 0.22)">
+              <i data-lucide="bot" style="width: 22px; height: 22px"></i>
+            </div>
           <div style="flex: 1; min-width: 220px">
-            <div class="t-lg t-black">WealthMe AI Advisor</div>
+            <h1 class="t-lg t-black">WealthMe AI Advisor</h1>
             <div class="t-sm" style="opacity: 0.8; margin-top: 3px">
               Analisa keuangan personal berdasarkan data nyata, memakai API key Anda sendiri.
             </div>
@@ -77,21 +79,21 @@
           <div class="stack" style="margin-top: 14px; gap: 8px">
             <div class="t-sm t-bold">Langkah pengaturan</div>
             <div class="list-row">
-              <span class="list-row__icon">1️⃣</span>
+              <span class="list-row__icon"><i data-lucide="key-round" style="width: 16px; height: 16px"></i></span>
               <span class="list-row__body">
                 <span class="list-row__title">Buat API key di penyedia pilihanmu</span>
                 <span class="list-row__sub">console.anthropic.com · platform.openai.com · aistudio.google.com</span>
               </span>
             </div>
             <div class="list-row">
-              <span class="list-row__icon">2️⃣</span>
+              <span class="list-row__icon"><i data-lucide="sliders-horizontal" style="width: 16px; height: 16px"></i></span>
               <span class="list-row__body">
                 <span class="list-row__title">Tempel key di Akun → Pengaturan → AI Advisor</span>
                 <span class="list-row__sub">Key disimpan terenkripsi di server dan tidak pernah dikirim ke pihak lain</span>
               </span>
             </div>
             <div class="list-row">
-              <span class="list-row__icon">3️⃣</span>
+              <span class="list-row__icon"><i data-lucide="message-square-text" style="width: 16px; height: 16px"></i></span>
               <span class="list-row__body">
                 <span class="list-row__title">Biaya pemakaian ditagih langsung oleh penyedia</span>
                 <span class="list-row__sub">WealthMe tidak menambah biaya apa pun di atasnya</span>
@@ -106,23 +108,39 @@
         <div class="bento-span-8 stack" style="gap: 14px">
           <!-- Suggestion chips -->
           <div>
-            <div class="t-sm t-bold t-muted" style="margin-bottom: 8px">💡 Pertanyaan Populer</div>
-            <div class="tabs hide-scrollbar" style="gap: 7px; padding-bottom: 6px" aria-label="Pertanyaan populer">
-              <button class="tab" onclick="WM.toast('Menganalisa data Agustus…','info')">
-                📊 Analisa keuangan bulan ini
+            <div class="prompt-label"><i data-lucide="sparkles" style="width: 15px; height: 15px"></i> Pertanyaan Populer</div>
+            <div class="tab-strip ai-prompt-strip" aria-label="Navigasi pertanyaan populer">
+              <button class="tab-strip__arrow tab-strip__arrow--left" type="button" onclick="scrollAiPrompts(-1)" aria-label="Geser pertanyaan ke kiri">
+                <i data-lucide="chevron-left" style="width: 16px; height: 16px"></i>
               </button>
-              <button class="tab" onclick="WM.toast('Menghitung skenario DP Rumah…','info')">
-                🎯 Cara capai target DP Rumah lebih cepat
-              </button>
-              <button class="tab" onclick="WM.toast('Menyusun rekomendasi portofolio…','info')">
-                📈 Rekomendasi portofolio investasi
-              </button>
-              <button class="tab" onclick="WM.toast('Mencari pos pengeluaran terbesar…','info')">
-                💡 Tips hemat pengeluaran
-              </button>
-              <button class="tab" onclick="WM.toast('Mengecek rasio utang…','info')">💳 Utang kartu kredit aman?</button>
-              <button class="tab" onclick="WM.toast('Memproyeksikan 5 tahun ke depan…','info')">
-                📅 Proyeksi kekayaan 5 tahun
+              <div class="tabs hide-scrollbar" id="tabs-ai-prompts" style="gap: 7px; padding-bottom: 6px" tabindex="0" aria-label="Pertanyaan populer">
+                <button class="tab" onclick="WM.toast('Menganalisa data Agustus…','info')">
+                  <i data-lucide="chart-no-axes-combined" style="width: 13px; height: 13px; vertical-align: -2px"></i>
+                  Analisa keuangan bulan ini
+                </button>
+                <button class="tab" onclick="WM.toast('Menghitung skenario DP Rumah…','info')">
+                  <i data-lucide="target" style="width: 13px; height: 13px; vertical-align: -2px"></i>
+                  Cara capai target DP Rumah lebih cepat
+                </button>
+                <button class="tab" onclick="WM.toast('Menyusun rekomendasi portofolio…','info')">
+                  <i data-lucide="trending-up" style="width: 13px; height: 13px; vertical-align: -2px"></i>
+                  Rekomendasi portofolio investasi
+                </button>
+                <button class="tab" onclick="WM.toast('Mencari pos pengeluaran terbesar…','info')">
+                  <i data-lucide="lightbulb" style="width: 13px; height: 13px; vertical-align: -2px"></i>
+                  Tips hemat pengeluaran
+                </button>
+                <button class="tab" onclick="WM.toast('Mengecek rasio utang…','info')">
+                  <i data-lucide="credit-card" style="width: 13px; height: 13px; vertical-align: -2px"></i>
+                  Utang kartu kredit aman?
+                </button>
+                <button class="tab" onclick="WM.toast('Memproyeksikan 5 tahun ke depan…','info')">
+                  <i data-lucide="calendar-days" style="width: 13px; height: 13px; vertical-align: -2px"></i>
+                  Proyeksi kekayaan 5 tahun
+                </button>
+              </div>
+              <button class="tab-strip__arrow tab-strip__arrow--right" type="button" onclick="scrollAiPrompts(1)" aria-label="Geser pertanyaan ke kanan">
+                <i data-lucide="chevron-right" style="width: 16px; height: 16px"></i>
               </button>
             </div>
           </div>
@@ -138,7 +156,7 @@
             <div class="card__body hide-scrollbar" style="max-height: 460px; overflow-y: auto">
               <!-- assistant -->
               <div class="row" style="align-items: flex-start; gap: 10px; margin-bottom: 16px">
-                <span class="list-row__icon" style="background: var(--accent)">🤖</span>
+                <span class="assistant-mark"><i data-lucide="bot" style="width: 17px; height: 17px"></i></span>
                 <div
                   style="
                     max-width: 78%;
@@ -148,7 +166,7 @@
                   "
                 >
                   <div class="t-md">
-                    Halo! 👋 Saya WealthMe AI Advisor. Tanyakan apa saja tentang keuangan keluargamu.
+                    Halo, saya WealthMe AI Advisor. Tanyakan apa saja tentang keuangan keluargamu.
                   </div>
                 </div>
               </div>
@@ -170,7 +188,7 @@
 
               <!-- assistant -->
               <div class="row" style="align-items: flex-start; gap: 10px; margin-bottom: 16px">
-                <span class="list-row__icon" style="background: var(--accent)">🤖</span>
+                <span class="assistant-mark"><i data-lucide="bot" style="width: 17px; height: 17px"></i></span>
                 <div style="max-width: 78%">
                   <div style="padding: 10px 14px; border-radius: 16px 16px 16px 4px; background: var(--secondary)">
                     <div class="t-md">
@@ -218,7 +236,7 @@
 
               <!-- assistant, truncated -->
               <div class="row" style="align-items: flex-start; gap: 10px">
-                <span class="list-row__icon" style="background: var(--accent)">🤖</span>
+                <span class="assistant-mark"><i data-lucide="bot" style="width: 17px; height: 17px"></i></span>
                 <div style="max-width: 78%">
                   <div style="padding: 10px 14px; border-radius: 16px 16px 16px 4px; background: var(--secondary)">
                     <div class="t-md">
@@ -270,7 +288,7 @@
             </div>
             <div class="card__body" style="padding-top: 4px">
               <div class="list-row">
-                <span class="list-row__icon">💵</span>
+                <span class="list-row__icon"><i data-lucide="wallet-cards" style="width: 16px; height: 16px"></i></span>
                 <span class="list-row__body">
                   <span class="list-row__title">Saldo &amp; rekening</span>
                   <span class="list-row__sub">7 rekening &amp; e-wallet</span>
@@ -278,7 +296,7 @@
                 <span class="badge badge--success">Ya</span>
               </div>
               <div class="list-row">
-                <span class="list-row__icon">↕️</span>
+                <span class="list-row__icon"><i data-lucide="arrow-up-down" style="width: 16px; height: 16px"></i></span>
                 <span class="list-row__body">
                   <span class="list-row__title">Transaksi 12 bulan terakhir</span>
                   <span class="list-row__sub mono">1.842 baris</span>
@@ -286,7 +304,7 @@
                 <span class="badge badge--success">Ya</span>
               </div>
               <div class="list-row">
-                <span class="list-row__icon">📋</span>
+                <span class="list-row__icon"><i data-lucide="clipboard-list" style="width: 16px; height: 16px"></i></span>
                 <span class="list-row__body">
                   <span class="list-row__title">Anggaran &amp; tujuan</span>
                   <span class="list-row__sub">8 kategori · 3 tujuan</span>
@@ -294,7 +312,7 @@
                 <span class="badge badge--success">Ya</span>
               </div>
               <div class="list-row">
-                <span class="list-row__icon">📈</span>
+                <span class="list-row__icon"><i data-lucide="trending-up" style="width: 16px; height: 16px"></i></span>
                 <span class="list-row__body">
                   <span class="list-row__title">Portofolio investasi</span>
                   <span class="list-row__sub">12 posisi</span>
@@ -302,7 +320,7 @@
                 <span class="badge badge--success">Ya</span>
               </div>
               <div class="list-row">
-                <span class="list-row__icon">🔒</span>
+                <span class="list-row__icon"><i data-lucide="lock" style="width: 16px; height: 16px"></i></span>
                 <span class="list-row__body">
                   <span class="list-row__title">Kategori privat</span>
                   <span class="list-row__sub">Disembunyikan dari konteks AI</span>
@@ -310,7 +328,7 @@
                 <span class="badge badge--gray">Tidak</span>
               </div>
               <div class="list-row">
-                <span class="list-row__icon">🪪</span>
+                <span class="list-row__icon"><i data-lucide="id-card" style="width: 16px; height: 16px"></i></span>
                 <span class="list-row__body">
                   <span class="list-row__title">Nomor rekening &amp; identitas</span>
                   <span class="list-row__sub">Tidak pernah dikirim ke penyedia AI</span>
@@ -440,6 +458,14 @@
     <script src="../assets/charts.js"></script>
     <script>
       WM.shell({ active: "ai" });
+
+      function scrollAiPrompts(direction) {
+        const tabs = document.getElementById("tabs-ai-prompts");
+        if (!tabs) return;
+        const amount = Math.max(240, Math.round(tabs.clientWidth * 0.72));
+        tabs.scrollBy({ left: direction * amount, behavior: "smooth" });
+      }
+      window.scrollAiPrompts = scrollAiPrompts;
 
       // Both key states are real, clickable states — the not-configured one is
       // genuinely disabled rather than showing a fabricated answer.

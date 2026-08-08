@@ -163,6 +163,12 @@ const WM = (() => {
           label: "Master Data",
         },
         {
+          id: "iam",
+          href: "iam.html",
+          icon: "shield-check",
+          label: "IAM Roles",
+        },
+        {
           id: "panduan",
           href: "panduan.html",
           icon: "circle-help",
@@ -194,7 +200,7 @@ const WM = (() => {
       const hit = section.items.find((i) => i.id === id);
       if (hit) return hit.label;
     }
-    return { akun: "Akun & Keluarga" }[id] ?? "WealthMe";
+    return { akun: "Akun & Keluarga", akses: "Akses Saya" }[id] ?? "WealthMe";
   };
 
   /* ── Formatting (mirrors @/lib/format) ── */
@@ -404,7 +410,7 @@ const WM = (() => {
       <button class="topbar__menu-btn" type="button" onclick="WM.openSheet()" aria-label="Buka menu navigasi" aria-controls="wm-sheet" aria-expanded="false">
         <i data-lucide="menu" style="width:19px;height:19px"></i>
       </button>
-      <h1 class="topbar__title">${title}</h1>
+      <div class="topbar__title" aria-hidden="true">${title}</div>
       <div class="topbar__spacer"></div>
       <button class="topbar__search" onclick="WM.openDialog('dlg-search')" aria-label="Cari">
         <i data-lucide="search" style="width:15px;height:15px"></i>
@@ -420,6 +426,13 @@ const WM = (() => {
     </header>`;
 
   const mobileNavHtml = (active) => `
+    ${
+      active !== "transaksi"
+        ? `<button class="mobile-fab" type="button" onclick="WM.openDialog('dlg-transaksi')" aria-label="Tambah transaksi">
+            <i data-lucide="plus" style="width:20px;height:20px"></i>
+          </button>`
+        : ""
+    }
     <nav class="mobile-nav" aria-label="Navigasi mobile">
       ${MOBILE.map(
         (
@@ -429,6 +442,82 @@ const WM = (() => {
         </a>`,
       ).join("")}
     </nav>`;
+
+  const ICON_GLYPHS = {
+    "1️⃣": "key-round",
+    "2️⃣": "sliders-horizontal",
+    "3️⃣": "message-square-text",
+    "✅": "check",
+    "❌": "x",
+    "⚠️": "triangle-alert",
+    "🚫": "ban",
+    "🔒": "lock",
+    "🔑": "key-round",
+    "🔢": "hash",
+    "👤": "user",
+    "👥": "users",
+    "👨‍👩‍👧‍👦": "users",
+    "✉️": "mail",
+    "📱": "smartphone",
+    "💻": "monitor",
+    "📟": "badge",
+    "🏦": "landmark",
+    "👛": "wallet",
+    "💵": "wallet-cards",
+    "💰": "wallet-cards",
+    "💳": "credit-card",
+    "🧾": "receipt-text",
+    "📄": "file-text",
+    "📚": "book-open",
+    "🏷️": "tag",
+    "🛒": "shopping-basket",
+    "🍽️": "utensils",
+    "☕": "coffee",
+    "⛽": "fuel",
+    "💼": "briefcase-business",
+    "🎁": "gift",
+    "🏥": "hospital",
+    "🎓": "graduation-cap",
+    "🏠": "house",
+    "🏡": "house",
+    "🏢": "building-2",
+    "🚗": "car",
+    "🚙": "car-front",
+    "📈": "trending-up",
+    "📊": "chart-no-axes-combined",
+    "📋": "clipboard-list",
+    "🤖": "bot",
+    "🛡️": "shield-check",
+    "🤲": "heart-handshake",
+    "💝": "heart-handshake",
+    "🙏": "heart-handshake",
+    "🎬": "clapperboard",
+    "🎯": "target",
+    "🏝️": "palmtree",
+    "🕋": "landmark",
+    "💍": "gem",
+    "🥇": "medal",
+    "🪙": "coins",
+    "🧺": "shopping-basket",
+    "⚡": "zap",
+  };
+
+  const enhanceIconGlyphs = () => {
+    document
+      .querySelectorAll(".list-row__icon, .stat__icon, .empty__icon")
+      .forEach((el) => {
+        if (el.querySelector("svg, i")) return;
+        const glyph = el.textContent.trim();
+        const icon = ICON_GLYPHS[glyph];
+        if (!icon) return;
+        el.textContent = "";
+        el.setAttribute("aria-hidden", "true");
+        el.insertAdjacentHTML(
+          "afterbegin",
+          `<i data-lucide="${icon}" style="width:16px;height:16px"></i>`,
+        );
+      });
+  };
 
   /* Global dialogs every page gets: quick transaction + command search.
      These are the two the real app mounts in the shell, not per page. */
@@ -602,11 +691,17 @@ const WM = (() => {
     document.title = `${title} · WealthMe`;
 
     const page = document.querySelector(".page");
+    page.id = "main-content";
+    page.setAttribute("tabindex", "-1");
     const app = document.createElement("div");
-    app.className = "app";
+    app.className = `app app--${active}`;
     app.innerHTML = `${sidebarHtml(active)}<div class="main">${topbarHtml(title)}</div>`;
     app.querySelector(".main").appendChild(page);
     document.body.prepend(app);
+    document.body.insertAdjacentHTML(
+      "afterbegin",
+      '<a class="skip-link" href="#main-content">Lewati navigasi</a>',
+    );
 
     document.body.insertAdjacentHTML(
       "beforeend",
@@ -657,6 +752,7 @@ const WM = (() => {
       );
     });
 
+    enhanceIconGlyphs();
     if (window.lucide) window.lucide.createIcons();
   };
 

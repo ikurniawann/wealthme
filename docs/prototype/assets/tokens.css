@@ -20,53 +20,53 @@
      light teal #65C3B5, gold #D9A441). --primary stays the darker teal in
      both themes rather than brightening on dark mode — the mid teal
      (#2CA8A0) drops white-text contrast to ~2.9:1, below the 4.5:1 minimum. */
-  --primary: #167a6d;
+  --primary: #126f64;
   --primary-foreground: #ffffff;
-  --primary-soft: #e3f4f1;
+  --primary-soft: #ddf3ef;
   --primary-strong: #0a3a52;
 
-  --background: color-mix(in oklab, #f8f9fc 96%, var(--primary));
-  --foreground: #0f172a;
-  --card: #ffffff;
-  --card-foreground: #0f172a;
-  --popover: #ffffff;
-  --popover-foreground: #0f172a;
+  --background: #f6f8f6;
+  --foreground: #10202a;
+  --card: #fffefb;
+  --card-foreground: #10202a;
+  --popover: #fffefb;
+  --popover-foreground: #10202a;
 
-  --secondary: color-mix(in oklab, #f1f5f9 94%, var(--primary));
-  --secondary-foreground: #0f172a;
-  --muted: color-mix(in oklab, #f1f5f9 94%, var(--primary));
-  --muted-foreground: #64748b;
-  --accent: #e3f4f1;
-  --accent-foreground: #167a6d;
+  --secondary: #edf3f0;
+  --secondary-foreground: #10202a;
+  --muted: #eef3f1;
+  --muted-foreground: #607279;
+  --accent: #ddf3ef;
+  --accent-foreground: #0f655c;
 
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
 
-  --success: #10b981;
+  --success: #0f9f73;
   --success-foreground: #ffffff;
   --success-soft: #dcfce7;
-  --warning: #f59e0b;
+  --warning: #b7791f;
   --warning-foreground: #ffffff;
   --warning-soft: #fef9c3;
-  --brand-purple: #d9a441;
-  --brand-purple-soft: #fbf1df;
+  --brand-purple: #c98f24;
+  --brand-purple-soft: #f8edd8;
   --brand-cyan: #2ca8a0;
   --brand-orange: #f97316;
 
-  --border: color-mix(in oklab, #e2e8f0 92%, var(--primary));
-  --input: color-mix(in oklab, #e2e8f0 92%, var(--primary));
-  --ring: #167a6d;
+  --border: #dbe5e1;
+  --input: #dbe5e1;
+  --ring: #126f64;
 
-  --chart-1: #167a6d;
-  --chart-2: #10b981;
-  --chart-3: #d9a441;
+  --chart-1: #126f64;
+  --chart-2: #0f9f73;
+  --chart-3: #c98f24;
   --chart-4: #2ca8a0;
   --chart-5: #0a3a52;
 
   /* Prototype-only: elevation + layout constants the app expresses in Tailwind */
   --shadow-card:
-    0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06);
-  --shadow-pop: 0 10px 30px -10px rgb(15 23 42 / 0.25);
+    0 1px 2px 0 rgb(16 32 42 / 0.05), 0 8px 24px -20px rgb(10 58 82 / 0.36);
+  --shadow-pop: 0 18px 42px -18px rgb(10 58 82 / 0.35);
   --sidebar-w: 248px;
   --topbar-h: 60px;
 }
@@ -74,51 +74,51 @@
 .dark {
   color-scheme: dark;
 
-  --primary: #167a6d;
-  --primary-foreground: #ffffff;
-  --primary-soft: #0f2e38;
-  --primary-strong: #0a3a52;
+  --primary: #5fb7ad;
+  --primary-foreground: #03231f;
+  --primary-soft: #182a2d;
+  --primary-strong: #8fd8cf;
 
-  --background: color-mix(in oklab, #0f172a 92%, var(--primary));
-  --foreground: #f1f5f9;
-  --card: color-mix(in oklab, #1e293b 91%, var(--primary));
-  --card-foreground: #f1f5f9;
-  --popover: color-mix(in oklab, #1e293b 91%, var(--primary));
-  --popover-foreground: #f1f5f9;
+  --background: #0b0f14;
+  --foreground: #eef3f5;
+  --card: #121820;
+  --card-foreground: #eef3f5;
+  --popover: #151c25;
+  --popover-foreground: #eef3f5;
 
-  --secondary: color-mix(in oklab, #263348 88%, var(--primary));
-  --secondary-foreground: #f1f5f9;
-  --muted: color-mix(in oklab, #263348 88%, var(--primary));
-  --muted-foreground: #94a3b8;
-  --accent: #0f2e38;
-  --accent-foreground: #65c3b5;
+  --secondary: #1a222c;
+  --secondary-foreground: #eef3f5;
+  --muted: #171f28;
+  --muted-foreground: #a7b2bc;
+  --accent: #1a272d;
+  --accent-foreground: #91d8cf;
 
   --destructive: #f87171;
   --destructive-foreground: #ffffff;
 
-  --success: #34d399;
+  --success: #6ad39f;
   --success-foreground: #052e1b;
-  --success-soft: #064e3b;
-  --warning: #fbbf24;
-  --warning-foreground: #422006;
-  --warning-soft: #422006;
-  --brand-purple: #d9a441;
-  --brand-purple-soft: #4a3a12;
-  --brand-cyan: #65c3b5;
+  --success-soft: #173526;
+  --warning: #e8b85a;
+  --warning-foreground: #2a1a03;
+  --warning-soft: #4a3514;
+  --brand-purple: #e8b85a;
+  --brand-purple-soft: #3a2e17;
+  --brand-cyan: #5fb7ad;
   --brand-orange: #fb923c;
 
-  --border: color-mix(in oklab, #334155 84%, var(--primary));
-  --input: color-mix(in oklab, #334155 84%, var(--primary));
-  --ring: #167a6d;
+  --border: #283440;
+  --input: #303d4a;
+  --ring: #5fb7ad;
 
-  --chart-1: #65c3b5;
-  --chart-2: #34d399;
+  --chart-1: #5fb7ad;
+  --chart-2: #6ad39f;
   --chart-3: #d9a441;
   --chart-4: #2ca8a0;
   --chart-5: #8fb8d9;
 
-  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.3), 0 1px 3px 0 rgb(0 0 0 / 0.25);
-  --shadow-pop: 0 10px 30px -10px rgb(0 0 0 / 0.6);
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.36), 0 14px 32px -26px rgb(0 0 0 / 0.8);
+  --shadow-pop: 0 22px 52px -20px rgb(0 0 0 / 0.78);
 }
 
 /* Gradients used by hero cards (production: .gradient-* utilities) */

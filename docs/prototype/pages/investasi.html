@@ -101,7 +101,7 @@
         </div>
         <div class="card__body" style="padding-top: 0">
           <div class="table-wrap">
-            <table class="table">
+            <table class="table table--investments">
               <thead>
                 <tr>
                   <th style="min-width: 230px">Instrumen</th>
@@ -302,8 +302,8 @@
       </section>
 
       <!-- Allocation + performance -->
-      <section class="grid grid--sidebar">
-        <article class="card">
+      <section class="grid grid--sidebar investment-overview-grid">
+        <article class="card investment-overview-card investment-overview-card--trend">
           <div class="card__header">
             <h2 class="card__title">Nilai Portofolio 6 Bulan</h2>
             <div class="card__action">
@@ -316,7 +316,7 @@
           <div class="card__body"><div id="c-inv-trend" class="chart"></div></div>
         </article>
 
-        <article class="card">
+        <article class="card investment-overview-card investment-overview-card--alloc">
           <div class="card__header">
             <h2 class="card__title">Alokasi per Jenis</h2>
           </div>
@@ -555,7 +555,7 @@
 
     <!-- ══════════════ Dialog: Detail kepemilikan ══════════════ -->
     <div class="dialog-backdrop" id="dlg-detail" data-open="false">
-      <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-detail-title">
+      <div class="dialog investment-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-detail-title">
         <h2 class="dialog__title" id="dlg-detail-title">BBCA · Bank Central Asia</h2>
         <p class="dialog__desc" id="dlg-detail-sub">Saham IDX · harga delayed dari Yahoo Finance</p>
         <div class="dialog__body">
@@ -569,32 +569,28 @@
             <div class="t-xs t-muted">Harga penutupan 12 bulan terakhir</div>
           </div>
 
-          <div class="table-wrap" style="margin-top: 14px">
-            <table class="table">
-              <tbody>
-                <tr>
-                  <td class="t-xs t-muted">Jumlah</td>
-                  <td class="mono t-sm" style="text-align: right" id="dlg-detail-qty">20 lot (2.000 lembar)</td>
-                </tr>
-                <tr>
-                  <td class="t-xs t-muted">Harga beli rata-rata</td>
-                  <td class="mono t-sm" style="text-align: right" id="dlg-detail-avg">Rp 9.150 / lembar</td>
-                </tr>
-                <tr>
-                  <td class="t-xs t-muted">Harga terkini</td>
-                  <td class="mono t-sm" style="text-align: right" id="dlg-detail-now">Rp 10.475 / lembar</td>
-                </tr>
-                <tr>
-                  <td class="t-xs t-muted">Tanggal beli</td>
-                  <td class="mono t-sm" style="text-align: right" id="dlg-detail-date">12 Jan 2024</td>
-                </tr>
-                <tr>
-                  <td class="t-xs t-muted">Sumber harga</td>
-                  <td class="t-sm" style="text-align: right" id="dlg-detail-src">Yahoo Finance · 7 Agu 2026 09:42</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <dl class="investment-detail-list" aria-label="Detail posisi investasi">
+            <div class="investment-detail-list__row">
+              <dt>Jumlah</dt>
+              <dd class="mono" id="dlg-detail-qty">20 lot (2.000 lembar)</dd>
+            </div>
+            <div class="investment-detail-list__row">
+              <dt>Harga beli rata-rata</dt>
+              <dd class="mono" id="dlg-detail-avg">Rp 9.150 / lembar</dd>
+            </div>
+            <div class="investment-detail-list__row">
+              <dt>Harga terkini</dt>
+              <dd class="mono" id="dlg-detail-now">Rp 10.475 / lembar</dd>
+            </div>
+            <div class="investment-detail-list__row">
+              <dt>Tanggal beli</dt>
+              <dd class="mono" id="dlg-detail-date">12 Jan 2024</dd>
+            </div>
+            <div class="investment-detail-list__row">
+              <dt>Sumber harga</dt>
+              <dd id="dlg-detail-src">Yahoo Finance · 7 Agu 2026 09:42</dd>
+            </div>
+          </dl>
         </div>
         <div class="dialog__footer">
           <button class="btn btn--outline" onclick="WM.closeDialog('dlg-detail')">Tutup</button>

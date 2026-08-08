@@ -40,6 +40,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# python runtime cache
+__pycache__/
+*.py[cod]
+
 # turbo build cache
 .turbo/
 

@@ -93,6 +93,11 @@ const collectIconNames = (...sources) => {
       names.add(match[1]);
     for (const match of source.matchAll(/\bicon:\s*["']([a-z0-9-]+)["']/gi))
       names.add(match[1]);
+    const glyphMap = source.match(/const ICON_GLYPHS = \{([\s\S]+?)\n  \};/);
+    if (glyphMap) {
+      for (const match of glyphMap[1].matchAll(/:\s*["']([a-z0-9-]+)["']/gi))
+        names.add(match[1]);
+    }
   }
 
   return [...names].sort();

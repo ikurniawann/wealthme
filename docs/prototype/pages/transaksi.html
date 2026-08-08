@@ -40,8 +40,32 @@
         </div>
       </section>
 
+      <section class="value-strip" aria-label="Ringkasan nilai transaksi">
+        <div class="value-pill">
+          <span class="value-pill__icon"><i data-lucide="sparkles" style="width: 16px; height: 16px"></i></span>
+          <span class="value-pill__body">
+            <span class="value-pill__label">Otomatis rapi</span>
+            <span class="value-pill__value">89% transaksi sudah terkategori</span>
+          </span>
+        </div>
+        <div class="value-pill">
+          <span class="value-pill__icon"><i data-lucide="users" style="width: 16px; height: 16px"></i></span>
+          <span class="value-pill__body">
+            <span class="value-pill__label">Keluarga</span>
+            <span class="value-pill__value">3 anggota aktif mencatat</span>
+          </span>
+        </div>
+        <div class="value-pill">
+          <span class="value-pill__icon"><i data-lucide="shield-check" style="width: 16px; height: 16px"></i></span>
+          <span class="value-pill__body">
+            <span class="value-pill__label">Kontrol</span>
+            <span class="value-pill__value">7 transaksi besar sudah diverifikasi</span>
+          </span>
+        </div>
+      </section>
+
       <!-- Filter bar -->
-      <section class="card">
+      <section class="card transaction-filter-section">
         <div class="card__header">
           <h2 class="card__title">
             <i data-lucide="filter" style="width: 13px; height: 13px; vertical-align: -2px"></i> Filter
@@ -84,7 +108,7 @@
             </label>
           </div>
 
-          <div class="row row--wrap" style="margin-top: 14px; align-items: center">
+          <div class="row row--wrap transaction-filter-type-row" style="margin-top: 14px; align-items: center">
             <div class="tabs hide-scrollbar" style="flex: 1; min-width: 240px">
               <button class="tab" aria-selected="true">Semua</button>
               <button class="tab" aria-selected="false">Masuk</button>
@@ -92,7 +116,7 @@
               <button class="tab" aria-selected="false">Transfer</button>
               <button class="tab" aria-selected="false">Kartu Kredit</button>
             </div>
-            <label class="row" style="gap: 7px">
+            <label class="row transaction-filter-sort" style="gap: 7px">
               <span class="t-xs t-muted">Urutkan:</span>
               <select class="select" style="width: auto; padding-top: 6px; padding-bottom: 6px" aria-label="Urutan transaksi">
                 <option>Terbaru</option>
@@ -142,14 +166,14 @@
       </section>
 
       <!-- Transaction table -->
-      <section class="card">
+      <section class="card transaction-table-section">
         <div class="card__header">
           <h2 class="card__title">Daftar Transaksi</h2>
-          <span class="card__action t-xs t-muted">Klik baris untuk melihat detail</span>
+          <span class="card__action t-xs t-muted">Klik baris untuk detail; opsi lanjutan muncul saat hover/focus</span>
         </div>
         <div class="card__body" style="padding: 6px 0 0">
           <div class="table-wrap">
-            <table class="table">
+            <table class="table table--transactions">
               <thead>
                 <tr>
                   <th style="width: 108px">Tanggal</th>
@@ -157,7 +181,7 @@
                   <th style="width: 150px">Kategori</th>
                   <th style="width: 176px">Akun</th>
                   <th style="width: 150px; text-align: right">Jumlah</th>
-                  <th style="width: 84px; text-align: right">Aksi</th>
+                  <th style="width: 48px; text-align: right">Opsi</th>
                 </tr>
               </thead>
               <tbody>
@@ -172,7 +196,7 @@
                     </div>
                     <div class="t-xs t-muted">oleh Siti Arsandi</div>
                   </td>
-                  <td><span class="badge badge--gray">🛒 Belanja Harian</span></td>
+                  <td><span class="badge badge--gray category-chip"><span class="category-chip__icon"><i data-lucide="shopping-basket" style="width: 12px; height: 12px"></i></span> Belanja Harian</span></td>
                   <td class="t-sm t-muted">BCA Tahapan ···9010</td>
                   <td class="mono t-bold t-danger" style="text-align: right">−Rp 875.000</td>
                   <td style="text-align: right; white-space: nowrap">
@@ -191,7 +215,7 @@
                     <div class="t-bold">Kopi &amp; meeting klien — Kopi Kenangan</div>
                     <div class="t-xs t-muted">oleh Irfan Arsandi</div>
                   </td>
-                  <td><span class="badge badge--gray">☕ Makan &amp; Minum</span></td>
+                  <td><span class="badge badge--gray category-chip"><span class="category-chip__icon"><i data-lucide="coffee" style="width: 12px; height: 12px"></i></span> Makan &amp; Minum</span></td>
                   <td class="t-sm t-muted">GoPay</td>
                   <td class="mono t-bold t-danger" style="text-align: right">−Rp 128.000</td>
                   <td style="text-align: right; white-space: nowrap">
@@ -215,7 +239,7 @@
                     </div>
                     <div class="t-xs t-muted">oleh Irfan Arsandi</div>
                   </td>
-                  <td><span class="badge badge--gray">💼 Gaji</span></td>
+                  <td><span class="badge badge--gray category-chip"><span class="category-chip__icon"><i data-lucide="briefcase-business" style="width: 12px; height: 12px"></i></span> Gaji</span></td>
                   <td class="t-sm t-muted">Mandiri ···5586</td>
                   <td class="mono t-bold t-success" style="text-align: right">+Rp 42.500.000</td>
                   <td style="text-align: right; white-space: nowrap">
@@ -234,7 +258,7 @@
                     <div class="t-bold">Bensin — Pertamina Antasari</div>
                     <div class="t-xs t-muted">oleh Pak Dedi (supir)</div>
                   </td>
-                  <td><span class="badge badge--gray">⛽ Transportasi</span></td>
+                  <td><span class="badge badge--gray category-chip"><span class="category-chip__icon"><i data-lucide="fuel" style="width: 12px; height: 12px"></i></span> Transportasi</span></td>
                   <td class="t-sm t-muted">GoPay</td>
                   <td class="mono t-bold t-danger" style="text-align: right">−Rp 300.000</td>
                   <td style="text-align: right; white-space: nowrap">
@@ -258,7 +282,7 @@
                     </div>
                     <div class="t-xs t-muted">oleh Siti Arsandi</div>
                   </td>
-                  <td><span class="badge badge--gray">🎓 Pendidikan</span></td>
+                  <td><span class="badge badge--gray category-chip"><span class="category-chip__icon"><i data-lucide="graduation-cap" style="width: 12px; height: 12px"></i></span> Pendidikan</span></td>
                   <td class="t-sm t-muted">BCA Tahapan ···9010</td>
                   <td class="mono t-bold t-danger" style="text-align: right">−Rp 2.750.000</td>
                   <td style="text-align: right; white-space: nowrap">
@@ -283,7 +307,7 @@
                     </div>
                     <div class="t-xs t-muted">Terkait liabilitas KPR BTN</div>
                   </td>
-                  <td><span class="badge badge--gray">🏠 Cicilan</span></td>
+                  <td><span class="badge badge--gray category-chip"><span class="category-chip__icon"><i data-lucide="house" style="width: 12px; height: 12px"></i></span> Cicilan</span></td>
                   <td class="t-sm t-muted">BCA Tahapan ···9010</td>
                   <td class="mono t-bold t-danger" style="text-align: right">−Rp 5.000.000</td>
                   <td style="text-align: right; white-space: nowrap">
@@ -317,7 +341,7 @@
                     </div>
                     <div class="t-xs t-muted">oleh Irfan Arsandi</div>
                   </td>
-                  <td><span class="badge badge--gray">💡 Utilitas</span></td>
+                  <td><span class="badge badge--gray category-chip"><span class="category-chip__icon"><i data-lucide="lightbulb" style="width: 12px; height: 12px"></i></span> Utilitas</span></td>
                   <td class="t-sm t-muted">BCA Tahapan ···9010</td>
                   <td class="mono t-bold t-danger" style="text-align: right">−Rp 1.150.000</td>
                   <td style="text-align: right; white-space: nowrap">
@@ -360,7 +384,7 @@
                     </div>
                     <div class="t-xs t-muted">oleh Siti Arsandi</div>
                   </td>
-                  <td><span class="badge badge--gray">🛒 Belanja Harian</span></td>
+                  <td><span class="badge badge--gray category-chip"><span class="category-chip__icon"><i data-lucide="shopping-basket" style="width: 12px; height: 12px"></i></span> Belanja Harian</span></td>
                   <td class="t-sm t-muted">Kartu Kredit BCA ···4471</td>
                   <td class="mono t-bold t-danger" style="text-align: right">−Rp 1.845.000</td>
                   <td style="text-align: right; white-space: nowrap">
@@ -379,7 +403,7 @@
                     <div class="t-bold">Dividen BBCA — 4.000 lembar</div>
                     <div class="t-xs t-muted">oleh Irfan Arsandi</div>
                   </td>
-                  <td><span class="badge badge--gray">📈 Investasi</span></td>
+                  <td><span class="badge badge--gray category-chip"><span class="category-chip__icon"><i data-lucide="chart-no-axes-combined" style="width: 12px; height: 12px"></i></span> Investasi</span></td>
                   <td class="t-sm t-muted">Mandiri ···5586</td>
                   <td class="mono t-bold t-success" style="text-align: right">+Rp 3.240.000</td>
                   <td style="text-align: right; white-space: nowrap">
