@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quick Input · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="page-lead">
+        <div class="page-lead__text">
+          <div class="section-title">⚡ Quick Input</div>
+          <div class="page-lead__sub">Pilih jenis data yang ingin kamu input — langsung isi via popup.</div>
+        </div>
+        <span class="badge badge--gray mono">12 entri hari ini</span>
+      </section>
+
+      <!-- Quick cards -->
+      <section class="auto-grid auto-grid--compact">
+        <button class="card qi" onclick="WM.openDialog('dlg-transaksi')">
+          <span class="qi__icon" style="background: var(--accent); color: var(--primary)">
+            <i data-lucide="arrow-up-down"></i>
+          </span>
+          <span class="qi__name">Transaksi</span>
+          <span class="qi__desc">Pemasukan / pengeluaran</span>
+        </button>
+
+        <button class="card qi" onclick="WM.openDialog('dlg-qi-investasi')">
+          <span class="qi__icon" style="background: var(--success-soft); color: var(--success)">
+            <i data-lucide="chart-column"></i>
+          </span>
+          <span class="qi__name">Investasi</span>
+          <span class="qi__desc">Saham, reksa dana, emas</span>
+        </button>
+
+        <button class="card qi" onclick="WM.openDialog('dlg-qi-rekening')">
+          <span class="qi__icon" style="background: var(--accent); color: #1d4ed8">
+            <i data-lucide="landmark"></i>
+          </span>
+          <span class="qi__name">Rekening</span>
+          <span class="qi__desc">Tambah rekening bank</span>
+        </button>
+
+        <button class="card qi" onclick="WM.openDialog('dlg-qi-ewallet')">
+          <span class="qi__icon" style="background: var(--success-soft); color: var(--success)">
+            <i data-lucide="wallet"></i>
+          </span>
+          <span class="qi__name">E-Wallet</span>
+          <span class="qi__desc">GoPay, OVO, DANA</span>
+        </button>
+
+        <button class="card qi" onclick="WM.openDialog('dlg-qi-aset')">
+          <span class="qi__icon" style="background: var(--warning-soft); color: #a16207">
+            <i data-lucide="briefcase"></i>
+          </span>
+          <span class="qi__name">Aset</span>
+          <span class="qi__desc">Properti, kendaraan</span>
+        </button>
+
+        <button class="card qi" onclick="WM.openDialog('dlg-qi-liabilitas')">
+          <span
+            class="qi__icon"
+            style="background: color-mix(in oklab, var(--destructive) 14%, transparent); color: var(--destructive)"
+          >
+            <i data-lucide="receipt-text"></i>
+          </span>
+          <span class="qi__name">Liabilitas</span>
+          <span class="qi__desc">Utang &amp; cicilan</span>
+        </button>
+
+        <button class="card qi" onclick="WM.openDialog('dlg-qi-asuransi')">
+          <span class="qi__icon" style="background: var(--brand-purple-soft); color: var(--brand-purple)">
+            <i data-lucide="shield-check"></i>
+          </span>
+          <span class="qi__name">Asuransi</span>
+          <span class="qi__desc">Tambah polis</span>
+        </button>
+
+        <button class="card qi" onclick="WM.openDialog('dlg-qi-tujuan')">
+          <span class="qi__icon" style="background: var(--accent); color: #0e7490">
+            <i data-lucide="target"></i>
+          </span>
+          <span class="qi__name">Tujuan</span>
+          <span class="qi__desc">Goal keuangan baru</span>
+        </button>
+
+        <button class="card qi" onclick="WM.openDialog('dlg-qi-donasi')">
+          <span class="qi__icon" style="background: var(--success-soft); color: var(--success)">
+            <i data-lucide="heart-handshake"></i>
+          </span>
+          <span class="qi__name">Donasi</span>
+          <span class="qi__desc">Perpuluhan &amp; sumbangan</span>
+        </button>
+
+        <a class="card qi" href="anggaran.html">
+          <span class="qi__icon" style="background: var(--accent); color: var(--primary)">
+            <i data-lucide="clipboard-list"></i>
+          </span>
+          <span class="qi__name">Anggaran</span>
+          <span class="qi__desc">Kategori budget</span>
+        </a>
+
+        <a class="card qi" href="warisan.html">
+          <span class="qi__icon" style="background: var(--brand-purple-soft); color: var(--brand-purple)">
+            <i data-lucide="scroll"></i>
+          </span>
+          <span class="qi__name">Aset Warisan</span>
+          <span class="qi__desc">Catat warisan</span>
+        </a>
+
+        <a class="card qi" href="splitbill.html">
+          <span class="qi__icon" style="background: var(--warning-soft); color: #d97706">
+            <i data-lucide="receipt"></i>
+          </span>
+          <span class="qi__name">Split Bill</span>
+          <span class="qi__desc">Patungan grup</span>
+        </a>
+      </section>
+
+      <!-- Recent entries -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Entri Terakhir</h2>
+          <a class="card-link card__action" href="transaksi.html">Lihat Semua</a>
+        </div>
+        <div class="card__body" style="padding-top: 4px">
+          <div class="list-row">
+            <span class="list-row__icon">📈</span>
+            <span class="list-row__body">
+              <span class="list-row__title">BBCA — 4 lot @ Rp 9.850</span>
+              <span class="list-row__sub">Investasi · Saham · 7 Agu 10:22 · oleh Irfan</span>
+            </span>
+            <span class="list-row__amount mono">Rp 3.940.000</span>
+          </div>
+          <div class="list-row">
+            <span class="list-row__icon">🛒</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Belanja mingguan — Superindo</span>
+              <span class="list-row__sub">Transaksi · Belanja Harian · 6 Agu 18:04</span>
+            </span>
+            <span class="list-row__amount t-danger mono">−Rp 875.000</span>
+          </div>
+          <div class="list-row">
+            <span class="list-row__icon">🤲</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Perpuluhan Agustus — Gereja / Paroki</span>
+              <span class="list-row__sub">Donasi · 6 Agu 09:15</span>
+            </span>
+            <span class="list-row__amount t-danger mono">−Rp 4.680.000</span>
+          </div>
+          <div class="list-row">
+            <span class="list-row__icon">🏠</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Rumah Bintaro Sektor 9</span>
+              <span class="list-row__sub">Aset · Properti · 5 Agu 14:40</span>
+            </span>
+            <span class="list-row__amount mono">Rp 2.400.000.000</span>
+          </div>
+          <div class="list-row">
+            <span class="list-row__icon">🛡️</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Asuransi Jiwa Prudential</span>
+              <span class="list-row__sub">Asuransi · Jiwa · 4 Agu 21:08</span>
+            </span>
+            <span class="list-row__amount mono">Rp 1.850.000 / bln</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Dialog: Investasi (the fixed one — quantity + unit price, NOT a lone "Modal Awal") -->
+    <div
+      class="dialog-backdrop"
+      id="dlg-qi-investasi"
+      data-open="false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dlg-qi-investasi-title"
+    >
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-qi-investasi-title">Tambah Investasi</h2>
+        <p class="dialog__desc">Catat pembelian instrumen investasi beserta jumlah unit dan harga belinya.</p>
+        <div class="dialog__body">
+          <div class="field-row">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Jenis</span>
+              <select class="select" id="inv-jenis">
+                <option>Saham</option>
+                <option>Reksa Dana</option>
+                <option>Obligasi</option>
+                <option>Emas</option>
+                <option>Crypto</option>
+              </select>
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Kode / Nama</span>
+              <input class="input" id="inv-ticker" value="BBCA" placeholder="cth. BBCA" />
+            </label>
+          </div>
+
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Jumlah <span class="t-muted" style="font-weight: 500" id="inv-unit">(lot)</span></span>
+              <input class="input mono" id="inv-qty" value="4" inputmode="decimal" />
+              <span class="hint" id="inv-qty-hint">1 lot = 100 lembar → 400 lembar</span>
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Harga Beli per unit</span>
+              <input class="input mono" id="inv-price" value="9.850" inputmode="numeric" />
+              <span class="hint">Harga per lembar saat dibeli</span>
+            </label>
+          </div>
+
+          <label class="field">
+            <span class="label">Tanggal Beli</span>
+            <input class="input" type="date" value="2026-08-07" />
+          </label>
+
+          <div class="notice notice--info" style="margin-top: 14px">
+            <i data-lucide="calculator" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>
+              Modal awal dihitung otomatis: <strong class="mono" id="inv-total">Rp 3.940.000</strong>
+              <span class="t-muted"> (jumlah × harga beli per unit)</span>
+            </span>
+          </div>
+
+          <div class="notice notice--warning" style="margin-top: 8px">
+            <i data-lucide="triangle-alert" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>
+              Jumlah unit wajib diisi. Sebelumnya form ini hanya meminta "Modal Awal" lalu menyimpan jumlah = 1, sehingga
+              harga rata-rata dan untung/rugi posisi ini selalu salah.
+            </span>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-qi-investasi')">Batal</button>
+          <button
+            class="btn btn--primary"
+            onclick="WM.closeDialog('dlg-qi-investasi');WM.toast('Berhasil disimpan!','success')"
+          >
+            Simpan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog: Rekening -->
+    <div
+      class="dialog-backdrop"
+      id="dlg-qi-rekening"
+      data-open="false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dlg-qi-rekening-title"
+    >
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-qi-rekening-title">Tambah Rekening</h2>
+        <p class="dialog__desc">Saldonya otomatis masuk ke kekayaan bersih keluarga.</p>
+        <div class="dialog__body">
+          <div class="field-row">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Bank</span>
+              <select class="select">
+                <option>BCA</option>
+                <option>Mandiri</option>
+                <option>BNI</option>
+                <option>BRI</option>
+                <option>CIMB Niaga</option>
+              </select>
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Jenis</span>
+              <select class="select">
+                <option>Tahapan</option>
+                <option>Giro</option>
+                <option>Deposito</option>
+              </select>
+            </label>
+          </div>
+          <label class="field">
+            <span class="label">Nama Rekening</span>
+            <input class="input" placeholder="cth. BCA Tahapan Operasional" />
+          </label>
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">4 Digit Terakhir</span>
+              <input class="input mono" placeholder="9010" inputmode="numeric" />
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Saldo Awal</span>
+              <input class="input mono" value="0" inputmode="numeric" />
+            </label>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-qi-rekening')">Batal</button>
+          <button
+            class="btn btn--primary"
+            onclick="WM.closeDialog('dlg-qi-rekening');WM.toast('Berhasil disimpan!','success')"
+          >
+            Simpan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog: E-Wallet -->
+    <div
+      class="dialog-backdrop"
+      id="dlg-qi-ewallet"
+      data-open="false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dlg-qi-ewallet-title"
+    >
+      <div class="dialog dialog--sm">
+        <h2 class="dialog__title" id="dlg-qi-ewallet-title">Tambah E-Wallet</h2>
+        <p class="dialog__desc">GoPay, OVO, DANA, LinkAja, ShopeePay.</p>
+        <div class="dialog__body">
+          <label class="field">
+            <span class="label">Penyedia</span>
+            <select class="select">
+              <option>GoPay</option>
+              <option>OVO</option>
+              <option>DANA</option>
+              <option>LinkAja</option>
+              <option>ShopeePay</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="label">Nomor HP Terdaftar</span>
+            <input class="input mono" placeholder="0812········" inputmode="tel" />
+          </label>
+          <label class="field">
+            <span class="label">Saldo Awal</span>
+            <input class="input mono" value="0" inputmode="numeric" />
+          </label>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-qi-ewallet')">Batal</button>
+          <button
+            class="btn btn--primary"
+            onclick="WM.closeDialog('dlg-qi-ewallet');WM.toast('Berhasil disimpan!','success')"
+          >
+            Simpan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog: Aset -->
+    <div
+      class="dialog-backdrop"
+      id="dlg-qi-aset"
+      data-open="false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dlg-qi-aset-title"
+    >
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-qi-aset-title">Tambah Aset</h2>
+        <p class="dialog__desc">Properti, kendaraan, elektronik, atau perhiasan beserta estimasi nilai saat ini.</p>
+        <div class="dialog__body">
+          <div class="field-row">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Kategori</span>
+              <select class="select">
+                <option>Properti</option>
+                <option>Kendaraan</option>
+                <option>Elektronik</option>
+                <option>Perhiasan</option>
+                <option>Lainnya</option>
+              </select>
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Nilai Saat Ini</span>
+              <input class="input mono" value="2.400.000.000" inputmode="numeric" />
+            </label>
+          </div>
+          <label class="field">
+            <span class="label">Nama Aset</span>
+            <input class="input" placeholder="cth. Rumah Bintaro Sektor 9" />
+          </label>
+          <label class="field">
+            <span class="label">Catatan <span class="t-muted" style="font-weight: 500">(opsional)</span></span>
+            <textarea class="textarea" placeholder="cth. SHM 02931 a.n. Irfan Arsandi"></textarea>
+          </label>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-qi-aset')">Batal</button>
+          <button
+            class="btn btn--primary"
+            onclick="WM.closeDialog('dlg-qi-aset');WM.toast('Berhasil disimpan!','success')"
+          >
+            Simpan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog: Liabilitas -->
+    <div
+      class="dialog-backdrop"
+      id="dlg-qi-liabilitas"
+      data-open="false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dlg-qi-liabilitas-title"
+    >
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-qi-liabilitas-title">Tambah Liabilitas</h2>
+        <p class="dialog__desc">Kekayaan bersihmu otomatis dikurangi sisa utang.</p>
+        <div class="dialog__body">
+          <div class="field-row">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Jenis</span>
+              <select class="select">
+                <option>KPR</option>
+                <option>Kartu Kredit</option>
+                <option>KTA</option>
+                <option>Cicilan Kendaraan</option>
+                <option>Pinjaman Lain</option>
+              </select>
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Total Utang</span>
+              <input class="input mono" value="388.400.000" inputmode="numeric" />
+            </label>
+          </div>
+          <label class="field">
+            <span class="label">Nama</span>
+            <input class="input" placeholder="cth. KPR BCA Bintaro" />
+          </label>
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Cicilan per Bulan</span>
+              <input class="input mono" value="5.000.000" inputmode="numeric" />
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Jatuh Tempo</span>
+              <input class="input" type="date" value="2026-08-12" />
+            </label>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-qi-liabilitas')">Batal</button>
+          <button
+            class="btn btn--primary"
+            onclick="WM.closeDialog('dlg-qi-liabilitas');WM.toast('Berhasil disimpan!','success')"
+          >
+            Simpan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog: Asuransi -->
+    <div
+      class="dialog-backdrop"
+      id="dlg-qi-asuransi"
+      data-open="false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dlg-qi-asuransi-title"
+    >
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-qi-asuransi-title">Tambah Polis Asuransi</h2>
+        <p class="dialog__desc">Simpan premi, uang pertanggungan, dan tanggal perpanjangan.</p>
+        <div class="dialog__body">
+          <div class="field-row">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Jenis</span>
+              <select class="select">
+                <option>Jiwa</option>
+                <option>Kesehatan</option>
+                <option>Kendaraan</option>
+                <option>Properti</option>
+                <option>Pendidikan</option>
+              </select>
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Premi per Bulan</span>
+              <input class="input mono" value="1.850.000" inputmode="numeric" />
+            </label>
+          </div>
+          <label class="field">
+            <span class="label">Nama Polis</span>
+            <input class="input" placeholder="cth. Asuransi Jiwa Prudential" />
+          </label>
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Uang Pertanggungan</span>
+              <input class="input mono" value="2.000.000.000" inputmode="numeric" />
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Jatuh Tempo Premi</span>
+              <input class="input" type="date" value="2026-08-20" />
+            </label>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-qi-asuransi')">Batal</button>
+          <button
+            class="btn btn--primary"
+            onclick="WM.closeDialog('dlg-qi-asuransi');WM.toast('Berhasil disimpan!','success')"
+          >
+            Simpan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog: Tujuan -->
+    <div
+      class="dialog-backdrop"
+      id="dlg-qi-tujuan"
+      data-open="false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dlg-qi-tujuan-title"
+    >
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-qi-tujuan-title">Tujuan Keuangan Baru</h2>
+        <p class="dialog__desc">Tentukan nominal &amp; tenggat, lalu aktifkan auto-debit bulanan.</p>
+        <div class="dialog__body">
+          <label class="field">
+            <span class="label">Nama Tujuan</span>
+            <input class="input" placeholder="cth. DP Rumah Kedua" />
+          </label>
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Target Nominal</span>
+              <input class="input mono" value="250.000.000" inputmode="numeric" />
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Tenggat</span>
+              <input class="input" type="date" value="2029-03-01" />
+            </label>
+          </div>
+          <label class="field">
+            <span class="label">Alokasi Bulanan</span>
+            <input class="input mono" value="5.000.000" inputmode="numeric" />
+            <span class="hint">Dengan alokasi ini, target tercapai sekitar Maret 2029.</span>
+          </label>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-qi-tujuan')">Batal</button>
+          <button
+            class="btn btn--primary"
+            onclick="WM.closeDialog('dlg-qi-tujuan');WM.toast('Berhasil disimpan!','success')"
+          >
+            Simpan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog: Donasi -->
+    <div
+      class="dialog-backdrop"
+      id="dlg-qi-donasi"
+      data-open="false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dlg-qi-donasi-title"
+    >
+      <div class="dialog dialog--sm">
+        <h2 class="dialog__title" id="dlg-qi-donasi-title">Catat Donasi</h2>
+        <p class="dialog__desc">Perpuluhan, infaq, sedekah, atau wakaf yang sudah dikeluarkan.</p>
+        <div class="dialog__body">
+          <label class="field">
+            <span class="label">Jenis</span>
+            <select class="select">
+              <option>Perpuluhan</option>
+              <option>Infaq / Sedekah</option>
+              <option>Wakaf</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="label">Lembaga</span>
+            <select class="select">
+              <option>BAZNAS</option>
+              <option>Dompet Dhuafa</option>
+              <option>Gereja / Paroki</option>
+              <option>Pura / Vihara</option>
+            </select>
+          </label>
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Jumlah</span>
+              <input class="input mono" value="12.400.000" inputmode="numeric" />
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Tanggal</span>
+              <input class="input" type="date" value="2026-08-06" />
+            </label>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-qi-donasi')">Batal</button>
+          <button
+            class="btn btn--primary"
+            onclick="WM.closeDialog('dlg-qi-donasi');WM.toast('Berhasil disimpan!','success')"
+          >
+            Simpan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      /* Page-local: the quick-entry tile. No shared class covers a full-card
+         button with a centred icon stack, and this is the page's whole point. */
+      .qi {
+        display: block;
+        padding: 18px;
+        text-align: center;
+        border: 1px solid var(--border);
+        cursor: pointer;
+        transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      }
+      .qi:hover {
+        transform: translateY(-3px);
+        border-color: var(--primary);
+        box-shadow: 0 8px 24px color-mix(in oklab, var(--primary) 18%, transparent);
+      }
+      .qi__icon {
+        display: grid;
+        place-items: center;
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 12px;
+        border-radius: 14px;
+      }
+      .qi__icon svg {
+        width: 21px;
+        height: 21px;
+      }
+      .qi__name {
+        display: block;
+        font-size: 13.5px;
+        font-weight: 700;
+      }
+      .qi__desc {
+        display: block;
+        margin-top: 3px;
+        font-size: 11px;
+        line-height: 1.4;
+        color: var(--muted-foreground);
+      }
+    </style>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script src="../assets/charts.js"></script>
+    <script>
+      WM.shell({ active: "quickinput" });
+
+      // Investasi dialog: modal awal is DERIVED from jumlah × harga per unit,
+      // so the quantity can never silently default to 1.
+      const jenis = document.getElementById("inv-jenis");
+      const qty = document.getElementById("inv-qty");
+      const price = document.getElementById("inv-price");
+      const unitLabel = document.getElementById("inv-unit");
+      const qtyHint = document.getElementById("inv-qty-hint");
+      const total = document.getElementById("inv-total");
+
+      const UNITS = {
+        Saham: { unit: "(lot)", hint: (n) => `1 lot = 100 lembar → ${WM.formatNumber(n * 100)} lembar`, mult: 100 },
+        "Reksa Dana": { unit: "(unit)", hint: () => "Jumlah unit penyertaan", mult: 1 },
+        Obligasi: { unit: "(lembar)", hint: () => "Nilai nominal per lembar", mult: 1 },
+        Emas: { unit: "(gram)", hint: () => "Harga per gram saat dibeli", mult: 1 },
+        Crypto: { unit: "(koin)", hint: () => "Boleh pecahan, cth. 0,025", mult: 1 },
+      };
+
+      const num = (el) => Number(String(el.value).replace(/\./g, "").replace(",", ".")) || 0;
+
+      const recalc = () => {
+        const cfg = UNITS[jenis.value] ?? UNITS["Reksa Dana"];
+        const q = num(qty);
+        unitLabel.textContent = cfg.unit;
+        qtyHint.textContent = cfg.hint(q);
+        total.textContent = WM.formatRupiah(q * cfg.mult * num(price));
+      };
+
+      [jenis, qty, price].forEach((el) => el.addEventListener("input", recalc));
+      jenis.addEventListener("change", recalc);
+      recalc();
+    </script>
+  </body>
+</html>

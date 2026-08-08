@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Anggaran · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+  </head>
+  <body>
+    <main class="page">
+      <!-- Lead + period selector -->
+      <section class="page-lead">
+        <div class="page-lead__text">
+          <h1 class="section-title">Anggaran Agustus 2026</h1>
+          <div class="page-lead__sub">Total budget: <span class="mono">Rp 32.000.000</span> · 8 kategori aktif</div>
+        </div>
+        <div class="row row--wrap">
+          <div class="row" style="gap: 4px">
+            <button class="btn btn--outline btn--icon btn--sm" aria-label="Periode sebelumnya" onclick="WM.toast('Menampilkan Juli 2026','info')">
+              <i data-lucide="chevron-left" style="width: 15px; height: 15px"></i>
+            </button>
+            <select class="select" style="width: auto; padding-top: 6px; padding-bottom: 6px" aria-label="Pilih periode anggaran">
+              <option selected>Agustus 2026</option>
+              <option>Juli 2026</option>
+              <option>Juni 2026</option>
+              <option>Mei 2026</option>
+            </select>
+            <button class="btn btn--outline btn--icon btn--sm" aria-label="Periode berikutnya" onclick="WM.toast('Periode berikutnya belum dimulai','info')">
+              <i data-lucide="chevron-right" style="width: 15px; height: 15px"></i>
+            </button>
+          </div>
+          <div class="segmented">
+            <button class="segmented__item" aria-selected="true">Bulanan</button>
+            <button class="segmented__item" aria-selected="false">Mingguan</button>
+            <button class="segmented__item" aria-selected="false">Tahunan</button>
+          </div>
+          <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-budget')">
+            <i data-lucide="plus" style="width: 14px; height: 14px"></i> Tambah Kategori
+          </button>
+        </div>
+      </section>
+
+      <!-- Planned vs actual hero + summary -->
+      <section class="budget-summary-grid">
+        <article class="hero gradient-emerald">
+          <div class="row row--wrap" style="position: relative; z-index: 1; gap: 20px">
+            <div style="flex: 1; min-width: 200px">
+              <div class="hero__label">Budget Tersisa</div>
+              <div class="hero__value mono">Rp 13.100.000</div>
+              <div class="row" style="gap: 8px; margin-top: 10px">
+                <span class="badge" style="background: rgb(255 255 255 / 0.2); color: #fff">41% dari budget</span>
+                <span class="t-xs" style="opacity: 0.85">24 Hari tersisa dari 31 hari</span>
+              </div>
+              <div class="progress" style="margin-top: 14px; background: rgb(255 255 255 / 0.25)">
+                <div class="progress__bar" style="width: 59%; background: #ffffff"></div>
+              </div>
+              <div class="row row--between" style="margin-top: 7px">
+                <span class="t-xs mono" style="opacity: 0.9">Terpakai Rp 18.900.000</span>
+                <span class="t-xs mono" style="opacity: 0.9">Rencana Rp 32.000.000</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card budget-summary-card">
+          <div class="budget-mini-stat">
+            <div class="stat__icon" style="background: color-mix(in oklab, var(--destructive) 14%, transparent); color: var(--destructive)">
+              <i data-lucide="trending-down" style="width: 17px; height: 17px"></i>
+            </div>
+            <div>
+              <div class="stat__label">Total Terpakai</div>
+              <div class="stat__value mono t-danger">Rp 18.900.000</div>
+              <div class="stat__delta t-muted">59% dari budget</div>
+            </div>
+          </div>
+          <div class="budget-mini-stat">
+            <div class="stat__icon" style="background: var(--warning-soft); color: var(--warning)">
+              <i data-lucide="calendar" style="width: 17px; height: 17px"></i>
+            </div>
+            <div>
+              <div class="stat__label">Hari Tersisa</div>
+              <div class="stat__value">24 Hari</div>
+              <div class="stat__delta t-muted">Rata-rata aman <span class="mono">Rp 545.000</span>/hari</div>
+            </div>
+          </div>
+        </article>
+
+      <!-- Over-budget alert -->
+      <section class="notice notice--warning budget-summary-alert">
+        <i data-lucide="triangle-alert" style="width: 18px; height: 18px; flex-shrink: 0"></i>
+        <div style="flex: 1">
+          <div class="t-sm t-bold">Hiburan &amp; Hobi melebihi budget 15%!</div>
+          <div class="t-xs">Pengeluaran bulan ini melebihi batas anggaran yang ditetapkan.</div>
+        </div>
+        <button class="card-link" onclick="WM.toast('Membuka tips hemat','info')">Tips Hemat →</button>
+      </section>
+      </section>
+
+      <!-- Kewajiban Bulan Ini (EPIC-023 E2) -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Kewajiban Bulan Ini</h2>
+          <span class="card__action t-xs t-muted">3 dari 5 belum dibayar · <span class="mono">Rp 5.945.000</span></span>
+        </div>
+        <div class="card__body stack" style="gap: 10px">
+          <div class="list-row">
+            <span class="list-row__icon">🏠</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Cicilan KPR BTN <span class="badge badge--success">Sudah Dibayar</span></span>
+              <span class="list-row__sub mono">Rp 5.000.000 · dibayar 3 Agu 2026</span>
+            </span>
+            <button class="btn btn--outline btn--sm" disabled>Sudah Lunas</button>
+          </div>
+
+          <div class="list-row">
+            <span class="list-row__icon">🏦</span>
+            <span class="list-row__body">
+              <span class="list-row__title">KTA Mandiri <span class="badge badge--gray">Belum Dibayar</span></span>
+              <span class="list-row__sub mono">Rp 2.850.000 · jatuh tempo 12 Agu 2026</span>
+            </span>
+            <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-pay')">Bayar</button>
+          </div>
+
+          <div class="list-row">
+            <span class="list-row__icon">💳</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Kartu Kredit BCA ···4471 <span class="badge badge--gray">Belum Dibayar</span></span>
+              <span class="list-row__sub mono">Rp 1.845.000 · jatuh tempo 18 Agu 2026</span>
+            </span>
+            <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-pay')">Bayar</button>
+          </div>
+
+          <div class="list-row">
+            <span class="list-row__icon">🛡️</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Premi Asuransi Jiwa Prudential <span class="badge badge--gray">Belum Dibayar</span></span>
+              <span class="list-row__sub mono">Rp 1.250.000 · jatuh tempo 20 Agu 2026</span>
+            </span>
+            <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-pay')">Bayar</button>
+          </div>
+
+          <div class="list-row">
+            <span class="list-row__icon">🏥</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Premi Asuransi Kesehatan Allianz <span class="badge badge--success">Sudah Dibayar</span></span>
+              <span class="list-row__sub mono">Rp 780.000 · dibayar 1 Agu 2026</span>
+            </span>
+            <button class="btn btn--outline btn--sm" disabled>Sudah Lunas</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Per-category budget cards -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Rincian Anggaran per Kategori</h2>
+          <button class="card-link card__action" onclick="WM.openDialog('dlg-budget')">Tambah</button>
+        </div>
+        <div class="card__body grid grid--2">
+          <!-- Over budget -->
+          <article class="card" style="box-shadow: none; border-color: color-mix(in oklab, var(--destructive) 40%, transparent)">
+            <div class="card__body">
+              <div class="row" style="gap: 10px">
+                <span class="list-row__icon" style="background: var(--accent)">🎬</span>
+                <span style="flex: 1; min-width: 0">
+                  <span class="row" style="gap: 6px">
+                    <span class="t-sm t-bold">Hiburan &amp; Hobi</span>
+                    <span class="badge badge--gray">Variabel</span>
+                  </span>
+                  <span class="t-xs t-muted mono">Rp 1.720.000 dari Rp 1.500.000</span>
+                </span>
+                <span class="t-sm t-black t-danger">115% ⚠️</span>
+              </div>
+              <div class="progress" style="margin-top: 10px">
+                <div class="progress__bar" style="width: 100%; background: var(--destructive)"></div>
+              </div>
+              <div class="t-xs t-danger" style="margin-top: 6px">Lewat anggaran <span class="mono">Rp 220.000</span></div>
+            </div>
+          </article>
+
+          <article class="card" style="box-shadow: none">
+            <div class="card__body">
+              <div class="row" style="gap: 10px">
+                <span class="list-row__icon" style="background: var(--accent)">⛽</span>
+                <span style="flex: 1; min-width: 0">
+                  <span class="row" style="gap: 6px">
+                    <span class="t-sm t-bold">Transportasi</span>
+                    <span class="badge badge--gray">Variabel</span>
+                  </span>
+                  <span class="t-xs t-muted mono">Rp 2.860.000 dari Rp 3.000.000</span>
+                </span>
+                <span class="t-sm t-black t-warning">95%</span>
+              </div>
+              <div class="progress" style="margin-top: 10px">
+                <div class="progress__bar" style="width: 95%; background: var(--warning)"></div>
+              </div>
+              <div class="t-xs t-muted" style="margin-top: 6px">Sisa <span class="mono">Rp 140.000</span> untuk 24 hari</div>
+            </div>
+          </article>
+
+          <article class="card" style="box-shadow: none">
+            <div class="card__body">
+              <div class="row" style="gap: 10px">
+                <span class="list-row__icon" style="background: var(--accent)">🏠</span>
+                <span style="flex: 1; min-width: 0">
+                  <span class="row" style="gap: 6px">
+                    <span class="t-sm t-bold">Cicilan &amp; Utilitas</span>
+                    <span class="badge badge--gray">Tetap</span>
+                  </span>
+                  <span class="t-xs t-muted mono">Rp 6.150.000 dari Rp 8.000.000</span>
+                </span>
+                <span class="t-sm t-black t-success">77%</span>
+              </div>
+              <div class="progress" style="margin-top: 10px">
+                <div class="progress__bar" style="width: 77%; background: var(--success)"></div>
+              </div>
+              <div class="t-xs t-muted" style="margin-top: 6px">Sisa <span class="mono">Rp 1.850.000</span></div>
+            </div>
+          </article>
+
+          <article class="card" style="box-shadow: none">
+            <div class="card__body">
+              <div class="row" style="gap: 10px">
+                <span class="list-row__icon" style="background: var(--accent)">🎓</span>
+                <span style="flex: 1; min-width: 0">
+                  <span class="row" style="gap: 6px">
+                    <span class="t-sm t-bold">Pendidikan Anak</span>
+                    <span class="badge badge--gray">Tetap</span>
+                  </span>
+                  <span class="t-xs t-muted mono">Rp 2.750.000 dari Rp 5.000.000</span>
+                </span>
+                <span class="t-sm t-black t-success">55%</span>
+              </div>
+              <div class="progress" style="margin-top: 10px">
+                <div class="progress__bar" style="width: 55%; background: var(--success)"></div>
+              </div>
+              <div class="t-xs t-muted" style="margin-top: 6px">SPP Aisyah sudah dibayar</div>
+            </div>
+          </article>
+
+          <article class="card" style="box-shadow: none">
+            <div class="card__body">
+              <div class="row" style="gap: 10px">
+                <span class="list-row__icon" style="background: var(--accent)">🛒</span>
+                <span style="flex: 1; min-width: 0">
+                  <span class="row" style="gap: 6px">
+                    <span class="t-sm t-bold">Belanja Harian</span>
+                    <span class="badge badge--gray">Variabel</span>
+                  </span>
+                  <span class="t-xs t-muted mono">Rp 2.480.000 dari Rp 8.000.000</span>
+                </span>
+                <span class="t-sm t-black t-success">31%</span>
+              </div>
+              <div class="progress" style="margin-top: 10px">
+                <div class="progress__bar" style="width: 31%; background: var(--success)"></div>
+              </div>
+              <div class="t-xs t-muted" style="margin-top: 6px">Sisa <span class="mono">Rp 5.520.000</span></div>
+            </div>
+          </article>
+
+          <article class="card" style="box-shadow: none">
+            <div class="card__body">
+              <div class="row" style="gap: 10px">
+                <span class="list-row__icon" style="background: var(--accent)">🍽️</span>
+                <span style="flex: 1; min-width: 0">
+                  <span class="row" style="gap: 6px">
+                    <span class="t-sm t-bold">Makan &amp; Minum</span>
+                    <span class="badge badge--gray">Variabel</span>
+                  </span>
+                  <span class="t-xs t-muted mono">Rp 1.640.000 dari Rp 4.000.000</span>
+                </span>
+                <span class="t-sm t-black t-success">41%</span>
+              </div>
+              <div class="progress" style="margin-top: 10px">
+                <div class="progress__bar" style="width: 41%; background: var(--success)"></div>
+              </div>
+              <div class="t-xs t-muted" style="margin-top: 6px">Sisa <span class="mono">Rp 2.360.000</span></div>
+            </div>
+          </article>
+
+          <article class="card" style="box-shadow: none">
+            <div class="card__body">
+              <div class="row" style="gap: 10px">
+                <span class="list-row__icon" style="background: var(--accent)">🙏</span>
+                <span style="flex: 1; min-width: 0">
+                  <span class="row" style="gap: 6px">
+                    <span class="t-sm t-bold">Perpuluhan</span>
+                    <span class="badge badge--gray">Tetap</span>
+                  </span>
+                  <span class="t-xs t-muted mono">Rp 850.000 dari Rp 1.500.000</span>
+                </span>
+                <span class="t-sm t-black t-success">57%</span>
+              </div>
+              <div class="progress" style="margin-top: 10px">
+                <div class="progress__bar" style="width: 57%; background: var(--success)"></div>
+              </div>
+              <div class="t-xs t-muted" style="margin-top: 6px">Sisa <span class="mono">Rp 650.000</span></div>
+            </div>
+          </article>
+
+          <article class="card" style="box-shadow: none">
+            <div class="card__body">
+              <div class="row" style="gap: 10px">
+                <span class="list-row__icon" style="background: var(--accent)">🏥</span>
+                <span style="flex: 1; min-width: 0">
+                  <span class="row" style="gap: 6px">
+                    <span class="t-sm t-bold">Kesehatan</span>
+                    <span class="badge badge--gray">Reimbursement</span>
+                  </span>
+                  <span class="t-xs t-muted mono">Rp 450.000 dari Rp 1.000.000</span>
+                </span>
+                <span class="t-sm t-black t-success">45%</span>
+              </div>
+              <div class="progress" style="margin-top: 10px">
+                <div class="progress__bar" style="width: 45%; background: var(--success)"></div>
+              </div>
+              <div class="t-xs t-muted" style="margin-top: 6px">Sisa <span class="mono">Rp 550.000</span></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Type breakdown + spend chart -->
+      <section class="grid grid--sidebar">
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">Terpakai per Kategori</h2>
+          </div>
+          <div class="card__body"><div id="c-budget-bar" class="chart"></div></div>
+        </article>
+
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">Rincian per Tipe Anggaran</h2>
+          </div>
+          <div class="card__body stack" style="gap: 14px">
+            <div>
+              <div class="row" style="gap: 8px">
+                <span class="badge badge--gray">Tetap</span>
+                <span class="t-xs t-muted">3 kategori</span>
+                <span class="spacer"></span>
+                <span class="t-sm t-bold t-success">65%</span>
+              </div>
+              <div class="t-xs t-muted mono" style="margin-top: 5px">Rp 9.750.000 dari Rp 14.500.000</div>
+              <div class="progress" style="margin-top: 6px">
+                <div class="progress__bar" style="width: 65%; background: var(--success)"></div>
+              </div>
+            </div>
+            <div>
+              <div class="row" style="gap: 8px">
+                <span class="badge badge--gray">Variabel</span>
+                <span class="t-xs t-muted">4 kategori</span>
+                <span class="spacer"></span>
+                <span class="t-sm t-bold t-warning">51%</span>
+              </div>
+              <div class="t-xs t-muted mono" style="margin-top: 5px">Rp 8.700.000 dari Rp 16.500.000</div>
+              <div class="progress" style="margin-top: 6px">
+                <div class="progress__bar" style="width: 51%; background: var(--warning)"></div>
+              </div>
+            </div>
+            <div>
+              <div class="row" style="gap: 8px">
+                <span class="badge badge--gray">Reimbursement</span>
+                <span class="t-xs t-muted">1 kategori</span>
+                <span class="spacer"></span>
+                <span class="t-sm t-bold t-success">45%</span>
+              </div>
+              <div class="t-xs t-muted mono" style="margin-top: 5px">Rp 450.000 dari Rp 1.000.000</div>
+              <div class="progress" style="margin-top: 6px">
+                <div class="progress__bar" style="width: 45%; background: var(--success)"></div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <!-- ── Add / edit budget dialog ── -->
+    <div class="dialog-backdrop" id="dlg-budget" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-budget-title">
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-budget-title">Tambah Kategori Anggaran</h2>
+        <p class="dialog__desc">Batas belanja per periode untuk satu kategori pengeluaran.</p>
+        <div class="dialog__body">
+          <label class="field">
+            <span class="label">Nama Kategori</span>
+            <input class="input" placeholder="cth: Pendidikan Anak, Hobi, Donasi..." />
+          </label>
+
+          <div class="field">
+            <span class="label">Ikon</span>
+            <div class="row row--wrap" style="gap: 8px">
+              <button class="btn btn--outline btn--icon" style="border-color: var(--primary); background: var(--accent)" aria-pressed="true" aria-label="Ikon 🎓">🎓</button>
+              <button class="btn btn--outline btn--icon" aria-pressed="false" aria-label="Ikon 🎨">🎨</button>
+              <button class="btn btn--outline btn--icon" aria-pressed="false" aria-label="Ikon 🎁">🎁</button>
+              <button class="btn btn--outline btn--icon" aria-pressed="false" aria-label="Ikon 🐶">🐶</button>
+              <button class="btn btn--outline btn--icon" aria-pressed="false" aria-label="Ikon 👶">👶</button>
+              <button class="btn btn--outline btn--icon" aria-pressed="false" aria-label="Ikon 📚">📚</button>
+              <button class="btn btn--outline btn--icon" aria-pressed="false" aria-label="Ikon 💪">💪</button>
+              <button class="btn btn--outline btn--icon" aria-pressed="false" aria-label="Ikon 🙏">🙏</button>
+            </div>
+          </div>
+
+          <div class="field field-row">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Budget per Bulan (Rp)</span>
+              <input class="input mono" placeholder="0" inputmode="numeric" value="2.500.000" />
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Periode</span>
+              <select class="select">
+                <option selected>Bulanan</option>
+                <option>Mingguan</option>
+                <option>Tahunan</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="field">
+            <span class="label">Tipe Anggaran</span>
+            <select class="select">
+              <option>Tetap</option>
+              <option selected>Variabel</option>
+              <option>Reimbursement</option>
+              <option>Lainnya</option>
+            </select>
+            <span class="hint">Tipe menentukan pengelompokan di "Rincian per Tipe Anggaran".</span>
+          </label>
+
+          <div class="field row row--between">
+            <span>
+              <span class="label" style="margin-bottom: 2px">Peringatan 80%</span>
+              <span class="hint" style="margin-top: 0">Kirim notifikasi saat pemakaian mendekati batas.</span>
+            </span>
+            <span class="switch" role="switch" aria-checked="true" tabindex="0" aria-label="Peringatan 80%"></span>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-budget')">Batal</button>
+          <button class="btn btn--primary" onclick="WM.closeDialog('dlg-budget');WM.toast('Anggaran &quot;Hobi&quot; ditambahkan','success')">
+            <i data-lucide="save" style="width: 14px; height: 14px"></i> Simpan Kategori
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Pay obligation dialog ── -->
+    <div class="dialog-backdrop" id="dlg-pay" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-pay-title">
+      <div class="dialog dialog--sm">
+        <h2 class="dialog__title" id="dlg-pay-title">Bayar Kewajiban</h2>
+        <p class="dialog__desc">Pembayaran akan mencatat transaksi dan mengurangi saldo rekening sumber.</p>
+        <div class="dialog__body">
+          <div class="notice">
+            <div style="flex: 1">
+              <div class="t-xs t-muted">KTA Mandiri</div>
+              <div class="t-xl t-black mono">Rp 2.850.000</div>
+              <div class="t-xs t-muted">Jatuh tempo 12 Agustus 2026</div>
+            </div>
+          </div>
+          <label class="field">
+            <span class="label">Rekening Sumber</span>
+            <select class="select">
+              <option value="">Pilih rekening...</option>
+              <option selected>BCA Tahapan ···9010 (BCA)</option>
+              <option>Mandiri ···5586 (Mandiri)</option>
+              <option>GoPay</option>
+            </select>
+          </label>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-pay')">Batal</button>
+          <button class="btn btn--primary" onclick="WM.closeDialog('dlg-pay');WM.toast('Kewajiban berhasil dibayar.','success')">
+            Bayar Sekarang
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script src="../assets/charts.js"></script>
+    <script>
+      WM.shell({ active: "anggaran" });
+
+      WMCharts.hbar(
+        "#c-budget-bar",
+        [
+          "Cicilan & Utilitas",
+          "Transportasi",
+          "Pendidikan Anak",
+          "Belanja Harian",
+          "Hiburan & Hobi",
+          "Makan & Minum",
+          "Perpuluhan",
+          "Kesehatan",
+        ],
+        [6150000, 2860000, 2750000, 2480000, 1720000, 1640000, 850000, 450000]
+      );
+    </script>
+  </body>
+</html>

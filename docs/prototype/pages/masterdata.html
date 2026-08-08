@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Master Data · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+    <style>
+      /* Page-local only: an emoji icon-picker for the Kategori dialog — a
+         one-off replacement for a bare text input that expected the user to
+         type/paste a raw emoji. Promote to app.css if a second page needs it. */
+      .icon-picker {
+        position: relative;
+      }
+      .icon-picker__trigger {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        height: 36px;
+        padding: 0 10px;
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        background: var(--background);
+        font-size: 16px;
+        cursor: pointer;
+      }
+      .icon-picker__trigger:hover {
+        background: var(--secondary);
+      }
+      .icon-picker__pop {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        z-index: 65;
+        display: none;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 4px;
+        width: 220px;
+        padding: 10px;
+        background: var(--popover);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-pop);
+      }
+      .icon-picker__pop[data-open="true"] {
+        display: grid;
+      }
+      .icon-picker__opt {
+        display: grid;
+        place-items: center;
+        aspect-ratio: 1;
+        border: 0;
+        border-radius: 8px;
+        background: none;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      .icon-picker__opt:hover {
+        background: var(--secondary);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="page-lead">
+        <div class="page-lead__text">
+          <div class="section-title">🗄️ Setup Master Data</div>
+          <div class="page-lead__sub">
+            Kelola data referensi yang dipakai di seluruh aplikasi. Semua daftar di halaman ini bisa kamu tambah dan
+            hapus sendiri.
+          </div>
+        </div>
+        <div class="row" style="gap: 8px">
+          <a class="btn btn--outline btn--sm" href="mastercoa.html">
+            <i data-lucide="book-open" style="width: 15px; height: 15px"></i> Master COA
+          </a>
+        </div>
+      </section>
+
+      <div class="notice notice--info">
+        <i data-lucide="pencil-line" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+        <span>
+          <strong>Semua daftar di halaman ini bisa diubah.</strong> Item bertanda
+          <span class="badge badge--gray">bawaan</span> adalah isian awal dari WealthMe — tetap bisa kamu hapus atau
+          ganti kalau tidak dipakai keluargamu. Perubahan langsung tersimpan ke server dan berlaku untuk seluruh anggota
+          keluarga.
+        </span>
+      </div>
+
+      <section class="auto-grid auto-grid--master" id="md-grid">
+        <!-- Kategori — the one that already works, plus its COA link -->
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">🏷️ Kategori</h2>
+            <div class="card__action row" style="gap: 10px">
+              <a class="card-link" href="mastercoa.html">Master COA</a>
+              <button class="card-link" onclick="MD.openAdd('kategori')">+ Tambah</button>
+            </div>
+          </div>
+          <div class="card__body">
+            <div class="row row--wrap" style="gap: 6px" data-list="kategori">
+              <span class="chip">
+                <span>🛒 Belanja Harian</span>
+                <span class="badge badge--info">Keluar</span>
+                <span class="t-xs t-muted mono">20101</span>
+                <button class="chip__x" aria-label="Hapus Belanja Harian" onclick="MD.remove(this)">×</button>
+              </span>
+              <span class="chip">
+                <span>🍽️ Makan &amp; Minum</span>
+                <span class="badge badge--info">Keluar</span>
+                <span class="t-xs t-muted mono">20102</span>
+                <button class="chip__x" aria-label="Hapus Makan &amp; Minum" onclick="MD.remove(this)">×</button>
+              </span>
+              <span class="chip">
+                <span>⛽ Transportasi</span>
+                <span class="badge badge--info">Keluar</span>
+                <span class="t-xs t-muted mono">20204</span>
+                <button class="chip__x" aria-label="Hapus Transportasi" onclick="MD.remove(this)">×</button>
+              </span>
+              <span class="chip">
+                <span>💼 Gaji</span>
+                <span class="badge badge--success">Masuk</span>
+                <span class="t-xs t-muted mono">10101</span>
+                <button class="chip__x" aria-label="Hapus Gaji" onclick="MD.remove(this)">×</button>
+              </span>
+              <span class="chip">
+                <span>🎁 Bonus &amp; THR</span>
+                <span class="badge badge--success">Masuk</span>
+                <span class="t-xs t-muted mono">10102</span>
+                <button class="chip__x" aria-label="Hapus Bonus &amp; THR" onclick="MD.remove(this)">×</button>
+              </span>
+              <span class="chip">
+                <span>🏥 Kesehatan</span>
+                <span class="badge badge--info">Keluar</span>
+                <span class="t-xs t-muted mono">20408</span>
+                <span class="badge badge--purple">🔒 Privat</span>
+                <button class="chip__x" aria-label="Hapus Kesehatan" onclick="MD.remove(this)">×</button>
+              </span>
+            </div>
+            <p class="hint">Kode di samping tiap kategori adalah akun COA tempat transaksinya tercatat di laporan.</p>
+          </div>
+        </article>
+
+        <!-- Bank -->
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">🏦 Bank</h2>
+            <button class="card-link card__action" onclick="MD.openAdd('bank')">+ Tambah</button>
+          </div>
+          <div class="card__body">
+            <div class="row row--wrap" style="gap: 6px" data-list="bank">
+              <span class="chip"
+                >BCA <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus BCA" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Mandiri <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Mandiri" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >BNI <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus BNI" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >BRI <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus BRI" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >CIMB Niaga <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus CIMB Niaga" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Permata <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Permata" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Bank Jago
+                <button class="chip__x" aria-label="Hapus Bank Jago" onclick="MD.remove(this)">×</button></span
+              >
+            </div>
+          </div>
+        </article>
+
+        <!-- E-Wallet -->
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">💳 E-Wallet</h2>
+            <button class="card-link card__action" onclick="MD.openAdd('ewallet')">+ Tambah</button>
+          </div>
+          <div class="card__body">
+            <div class="row row--wrap" style="gap: 6px" data-list="ewallet">
+              <span class="chip"
+                >GoPay <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus GoPay" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >OVO <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus OVO" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >DANA <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus DANA" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >LinkAja <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus LinkAja" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >ShopeePay <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus ShopeePay" onclick="MD.remove(this)">×</button></span
+              >
+            </div>
+          </div>
+        </article>
+
+        <!-- Jenis Transaksi -->
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">↕️ Jenis Transaksi</h2>
+            <button class="card-link card__action" onclick="MD.openAdd('jenis transaksi')">+ Tambah</button>
+          </div>
+          <div class="card__body">
+            <div class="row row--wrap" style="gap: 6px" data-list="jenis transaksi">
+              <span class="chip"
+                >Pemasukan <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Pemasukan" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Pengeluaran <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Pengeluaran" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Transfer <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Transfer" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Kartu Kredit <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Kartu Kredit" onclick="MD.remove(this)">×</button></span
+              >
+            </div>
+          </div>
+        </article>
+
+        <!-- Jenis Investasi -->
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">📈 Jenis Investasi</h2>
+            <button class="card-link card__action" onclick="MD.openAdd('jenis investasi')">+ Tambah</button>
+          </div>
+          <div class="card__body">
+            <div class="row row--wrap" style="gap: 6px" data-list="jenis investasi">
+              <span class="chip"
+                >Saham <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Saham" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Reksa Dana <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Reksa Dana" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Obligasi <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Obligasi" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Emas <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Emas" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Crypto <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Crypto" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >SBN Ritel
+                <button class="chip__x" aria-label="Hapus SBN Ritel" onclick="MD.remove(this)">×</button></span
+              >
+            </div>
+          </div>
+        </article>
+
+        <!-- Lembaga Donasi -->
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">🤲 Lembaga Donasi</h2>
+            <button class="card-link card__action" onclick="MD.openAdd('lembaga donasi')">+ Tambah</button>
+          </div>
+          <div class="card__body">
+            <div class="row row--wrap" style="gap: 6px" data-list="lembaga donasi">
+              <span class="chip"
+                >BAZNAS <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus BAZNAS" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Dompet Dhuafa <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Dompet Dhuafa" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Gereja / Paroki <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Gereja / Paroki" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Pura / Vihara <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Pura / Vihara" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Masjid Al-Ikhlas Bintaro
+                <button class="chip__x" aria-label="Hapus Masjid Al-Ikhlas Bintaro" onclick="MD.remove(this)">
+                  ×
+                </button></span
+              >
+            </div>
+          </div>
+        </article>
+
+        <!-- Kategori Aset -->
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">🏠 Kategori Aset</h2>
+            <button class="card-link card__action" onclick="MD.openAdd('kategori aset')">+ Tambah</button>
+          </div>
+          <div class="card__body">
+            <div class="row row--wrap" style="gap: 6px" data-list="kategori aset">
+              <span class="chip"
+                >Properti <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Properti" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Kendaraan <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Kendaraan" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Elektronik <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Elektronik" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Perhiasan <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Perhiasan" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Koleksi &amp; Seni
+                <button class="chip__x" aria-label="Hapus Koleksi &amp; Seni" onclick="MD.remove(this)">
+                  ×
+                </button></span
+              >
+            </div>
+          </div>
+        </article>
+
+        <!-- Jenis Asuransi -->
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">🛡️ Jenis Asuransi</h2>
+            <button class="card-link card__action" onclick="MD.openAdd('jenis asuransi')">+ Tambah</button>
+          </div>
+          <div class="card__body">
+            <div class="row row--wrap" style="gap: 6px" data-list="jenis asuransi">
+              <span class="chip"
+                >Jiwa <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Jiwa" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Kesehatan <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Kesehatan" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Kendaraan <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Kendaraan" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Properti <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Properti" onclick="MD.remove(this)">×</button></span
+              >
+              <span class="chip"
+                >Pendidikan <span class="badge badge--gray">bawaan</span>
+                <button class="chip__x" aria-label="Hapus Pendidikan" onclick="MD.remove(this)">×</button></span
+              >
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <div class="notice">
+        <i data-lucide="users" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+        <span>
+          <strong>Kategori</strong> tersimpan ke server dan dipakai di transaksi &amp; laporan. Daftar referensi lain
+          (bank, e-wallet, jenis transaksi, jenis investasi, lembaga donasi, kategori aset, jenis asuransi) juga
+          tersimpan per keluarga — bukan bawaan sistem yang terkunci. Menghapus item yang masih dipakai transaksi akan
+          ditolak dengan pesan yang menyebutkan datanya.
+        </span>
+      </div>
+    </main>
+
+    <!-- Dialog: add reference item -->
+    <div
+      class="dialog-backdrop"
+      id="dlg-md-add"
+      data-open="false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dlg-md-add-title"
+    >
+      <div class="dialog dialog--sm">
+        <h2 class="dialog__title" id="dlg-md-add-title">Tambah Data Referensi</h2>
+        <p class="dialog__desc" id="dlg-md-add-desc">Item baru langsung tersedia di seluruh formulir aplikasi.</p>
+        <div class="dialog__body">
+          <label class="field">
+            <span class="label">Nama</span>
+            <input class="input" id="md-add-name" placeholder="cth. Bank Jago" />
+            <span class="error-text" id="md-add-error" style="display: none">Nama wajib diisi.</span>
+          </label>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-md-add')">Batal</button>
+          <button class="btn btn--primary" onclick="MD.submit()">Tambah</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog: add category (has kind, icon, COA, privacy) -->
+    <div
+      class="dialog-backdrop"
+      id="dlg-md-kategori"
+      data-open="false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dlg-md-kategori-title"
+    >
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-md-kategori-title">Tambah Kategori</h2>
+        <p class="dialog__desc">Kategori dipakai bersama oleh transaksi, anggaran, dan laporan.</p>
+        <div class="dialog__body">
+          <div class="field-row">
+            <div class="field" style="margin-top: 0">
+              <span class="label">Ikon</span>
+              <div class="icon-picker">
+                <button type="button" class="icon-picker__trigger" onclick="MD.toggleIconPicker()">
+                  <span id="md-cat-icon-preview">🏷️</span>
+                  <span class="t-xs t-muted">Ganti ikon</span>
+                </button>
+                <input type="hidden" id="md-cat-icon" value="🏷️" />
+                <div class="icon-picker__pop" id="md-icon-pop" data-open="false">
+                  <button type="button" class="icon-picker__opt" onclick="MD.pickIcon('🏷️')" aria-label="Label">🏷️</button>
+                  <button type="button" class="icon-picker__opt" onclick="MD.pickIcon('🛒')" aria-label="Belanja">🛒</button>
+                  <button type="button" class="icon-picker__opt" onclick="MD.pickIcon('🍽️')" aria-label="Makan">🍽️</button>
+                  <button type="button" class="icon-picker__opt" onclick="MD.pickIcon('⛽')" aria-label="Transportasi">⛽</button>
+                  <button type="button" class="icon-picker__opt" onclick="MD.pickIcon('🏠')" aria-label="Rumah">🏠</button>
+                  <button type="button" class="icon-picker__opt" onclick="MD.pickIcon('🏥')" aria-label="Kesehatan">🏥</button>
+                  <button type="button" class="icon-picker__opt" onclick="MD.pickIcon('🎓')" aria-label="Pendidikan">🎓</button>
+                  <button type="button" class="icon-picker__opt" onclick="MD.pickIcon('👶')" aria-label="Anak">👶</button>
+                  <button type="button" class="icon-picker__opt" onclick="MD.pickIcon('🐾')" aria-label="Hewan">🐾</button>
+                  <button type="button" class="icon-picker__opt" onclick="MD.pickIcon('🎬')" aria-label="Hiburan">🎬</button>
+                  <button type="button" class="icon-picker__opt" onclick="MD.pickIcon('✈️')" aria-label="Perjalanan">✈️</button>
+                  <button type="button" class="icon-picker__opt" onclick="MD.pickIcon('💼')" aria-label="Gaji/Kerja">💼</button>
+                  <button type="button" class="icon-picker__opt" onclick="MD.pickIcon('🎁')" aria-label="Bonus/Hadiah">🎁</button>
+                  <button type="button" class="icon-picker__opt" onclick="MD.pickIcon('📱')" aria-label="Utilitas">📱</button>
+                  <button type="button" class="icon-picker__opt" onclick="MD.pickIcon('💳')" aria-label="Cicilan">💳</button>
+                  <button type="button" class="icon-picker__opt" onclick="MD.pickIcon('💡')" aria-label="Investasi">💡</button>
+                  <button type="button" class="icon-picker__opt" onclick="MD.pickIcon('📚')" aria-label="Buku">📚</button>
+                  <button type="button" class="icon-picker__opt" onclick="MD.pickIcon('🛍️')" aria-label="Belanja lain">🛍️</button>
+                  <button type="button" class="icon-picker__opt" onclick="MD.pickIcon('🧾')" aria-label="Tagihan">🧾</button>
+                </div>
+              </div>
+            </div>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Tipe</span>
+              <select class="select" id="md-cat-kind">
+                <option>Pengeluaran</option>
+                <option>Pemasukan</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="field">
+            <span class="label">Nama Kategori</span>
+            <input class="input" id="md-cat-name" placeholder="cth. Pendidikan Anak" />
+          </label>
+
+          <label class="field">
+            <span class="label">Akun COA</span>
+            <select class="select" id="md-cat-coa">
+              <option value="">Otomatis (sesuai tipe)</option>
+              <option value="20101">20101 — Kebutuhan Rumah Tangga</option>
+              <option value="20204">20204 — Transportasi &amp; BBM</option>
+              <option value="20408">20408 — Kesehatan &amp; Obat</option>
+              <option value="10101">10101 — Gaji &amp; Tunjangan</option>
+              <option value="10102">10102 — Bonus &amp; THR</option>
+            </select>
+            <span class="hint">Menentukan di baris mana kategori ini muncul pada laporan laba-rugi.</span>
+          </label>
+
+          <label class="row" style="margin-top: 14px; gap: 9px">
+            <span class="switch" id="md-cat-private" role="switch" aria-checked="false" tabindex="0"></span>
+            <span>
+              <span class="t-sm t-bold">Kategori privat</span>
+              <span class="t-xs t-muted" style="display: block">
+                Transaksinya hanya terlihat olehmu dan tidak dikirim ke AI Advisor.
+              </span>
+            </span>
+          </label>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-md-kategori')">Batal</button>
+          <button class="btn btn--primary" onclick="MD.submitKategori()">Tambah</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog: delete confirmation -->
+    <div
+      class="dialog-backdrop"
+      id="dlg-md-delete"
+      data-open="false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dlg-md-delete-title"
+    >
+      <div class="dialog dialog--sm">
+        <h2 class="dialog__title" id="dlg-md-delete-title">Hapus item ini?</h2>
+        <p class="dialog__desc" id="dlg-md-delete-desc">Item akan hilang dari seluruh formulir aplikasi.</p>
+        <div class="dialog__body">
+          <div class="notice">
+            <i data-lucide="info" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>
+              Transaksi lama yang sudah memakai item ini tetap tersimpan — hanya pilihannya yang tidak lagi muncul untuk
+              entri baru.
+            </span>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-md-delete')">Batal</button>
+          <button class="btn btn--destructive" onclick="MD.confirmRemove()">Hapus</button>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      /* Page-local: the reference-list pill. Close cousin of .badge but it is a
+         data row with its own delete affordance, not a status label. */
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        background: var(--background);
+        font-size: 12.5px;
+        font-weight: 600;
+      }
+      .chip__x {
+        display: grid;
+        place-items: center;
+        width: 17px;
+        height: 17px;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+        background: none;
+        color: var(--muted-foreground);
+        font-size: 15px;
+        line-height: 1;
+        cursor: pointer;
+        transition: background 0.14s ease, color 0.14s ease;
+      }
+      .chip__x:hover {
+        background: var(--destructive);
+        color: #fff;
+      }
+    </style>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script src="../assets/charts.js"></script>
+    <script>
+      WM.shell({ active: "masterdata" });
+
+      const MD = (() => {
+        let listKey = null;
+        let pending = null;
+
+        const listEl = () => document.querySelector(`[data-list="${listKey}"]`);
+
+        const chip = (label) => {
+          const el = document.createElement("span");
+          el.className = "chip";
+          el.innerHTML = `${label} <button class="chip__x" aria-label="Hapus ${label}" onclick="MD.remove(this)">×</button>`;
+          return el;
+        };
+
+        const openAdd = (key) => {
+          listKey = key;
+          if (key === "kategori") {
+            document.getElementById("md-cat-name").value = "";
+            document.getElementById("md-cat-icon").value = "🏷️";
+            document.getElementById("md-cat-icon-preview").textContent = "🏷️";
+            document.getElementById("md-icon-pop").dataset.open = "false";
+            WM.openDialog("dlg-md-kategori");
+            return;
+          }
+          document.getElementById("dlg-md-add-title").textContent = `Tambah ${key}`;
+          document.getElementById("dlg-md-add-desc").textContent =
+            `Item baru langsung tersedia di seluruh formulir yang memakai daftar ${key}.`;
+          document.getElementById("md-add-name").value = "";
+          document.getElementById("md-add-error").style.display = "none";
+          WM.openDialog("dlg-md-add");
+        };
+
+        const submit = () => {
+          const input = document.getElementById("md-add-name");
+          const name = input.value.trim();
+          if (!name) {
+            document.getElementById("md-add-error").style.display = "";
+            return;
+          }
+          listEl().appendChild(chip(name));
+          WM.closeDialog("dlg-md-add");
+          WM.toast(`${name} ditambahkan`, "success");
+        };
+
+        const submitKategori = () => {
+          const name = document.getElementById("md-cat-name").value.trim();
+          if (!name) {
+            WM.toast("Nama kategori wajib diisi", "error");
+            return;
+          }
+          const icon = document.getElementById("md-cat-icon").value || "🏷️";
+          const kind = document.getElementById("md-cat-kind").value;
+          const coaSel = document.getElementById("md-cat-coa");
+          const coa = coaSel.value || (kind === "Pemasukan" ? "10199" : "20199");
+          const isPrivate = document.getElementById("md-cat-private").getAttribute("aria-checked") === "true";
+
+          const el = document.createElement("span");
+          el.className = "chip";
+          el.innerHTML =
+            `<span>${icon} ${name}</span>` +
+            `<span class="badge badge--${kind === "Pemasukan" ? "success" : "info"}">${kind === "Pemasukan" ? "Masuk" : "Keluar"}</span>` +
+            `<span class="t-xs t-muted mono">${coa}</span>` +
+            (isPrivate ? `<span class="badge badge--purple">🔒 Privat</span>` : "") +
+            `<button class="chip__x" aria-label="Hapus ${name}" onclick="MD.remove(this)">×</button>`;
+          document.querySelector('[data-list="kategori"]').appendChild(el);
+          WM.closeDialog("dlg-md-kategori");
+          WM.toast("Kategori ditambahkan", "success");
+        };
+
+        const remove = (btn) => {
+          pending = btn.closest(".chip");
+          const label = pending.textContent.replace(/[×\s]+$/, "").trim();
+          document.getElementById("dlg-md-delete-title").textContent = `Hapus "${label}"?`;
+          WM.openDialog("dlg-md-delete");
+        };
+
+        const confirmRemove = () => {
+          if (pending) {
+            const label = pending.textContent.replace(/[×\s]+$/, "").trim();
+            pending.remove();
+            pending = null;
+            WM.toast(`🗑️ ${label} dihapus.`, "info");
+          }
+          WM.closeDialog("dlg-md-delete");
+        };
+
+        const toggleIconPicker = () => {
+          const pop = document.getElementById("md-icon-pop");
+          pop.dataset.open = pop.dataset.open === "true" ? "false" : "true";
+        };
+
+        const pickIcon = (icon) => {
+          document.getElementById("md-cat-icon").value = icon;
+          document.getElementById("md-cat-icon-preview").textContent = icon;
+          document.getElementById("md-icon-pop").dataset.open = "false";
+        };
+
+        return { openAdd, submit, submitKategori, remove, confirmRemove, toggleIconPicker, pickIcon };
+      })();
+      window.MD = MD;
+
+      document.addEventListener("click", (e) => {
+        if (!e.target.closest(".icon-picker")) {
+          document.getElementById("md-icon-pop").dataset.open = "false";
+        }
+      });
+
+      // Privacy switch is a real toggle.
+      const sw = document.getElementById("md-cat-private");
+      const flip = () => sw.setAttribute("aria-checked", sw.getAttribute("aria-checked") === "true" ? "false" : "true");
+      sw.addEventListener("click", flip);
+      sw.addEventListener("keydown", (e) => {
+        if (e.key === " " || e.key === "Enter") {
+          e.preventDefault();
+          flip();
+        }
+      });
+    </script>
+  </body>
+</html>

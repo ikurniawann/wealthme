@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Notifikasi · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+  </head>
+  <body>
+    <main class="page">
+      <!-- Lead -->
+      <section class="page-lead">
+        <div class="page-lead__text">
+          <h1 class="section-title">
+            Notifikasi <span class="badge badge--danger" style="vertical-align: 3px">5 Baru</span>
+          </h1>
+          <div class="page-lead__sub">Aktivitas keluarga Arsandi, pengingat jatuh tempo, dan permintaan persetujuan.</div>
+        </div>
+        <div class="row row--wrap">
+          <button class="btn btn--ghost btn--sm" onclick="WM.openDialog('dlg-notif-settings')">
+            <i data-lucide="settings" style="width: 14px; height: 14px"></i> Pengaturan
+          </button>
+          <button class="btn btn--outline btn--sm" onclick="WM.toast('Semua notifikasi ditandai dibaca','success')">
+            <i data-lucide="check-check" style="width: 14px; height: 14px"></i> Tandai semua dibaca
+          </button>
+        </div>
+      </section>
+
+      <!-- Filter -->
+      <section class="row row--wrap">
+        <div class="segmented hide-scrollbar" id="notif-filter" style="max-width: 100%; overflow-x: auto">
+          <button class="segmented__item" data-filter="semua" aria-selected="true">Semua</button>
+          <button class="segmented__item" data-filter="baru" aria-selected="false">Belum dibaca</button>
+          <button class="segmented__item" data-filter="transaksi" aria-selected="false">Transaksi</button>
+          <button class="segmented__item" data-filter="anggaran" aria-selected="false">Anggaran</button>
+          <button class="segmented__item" data-filter="persetujuan" aria-selected="false">Persetujuan</button>
+        </div>
+        <span class="spacer"></span>
+        <span class="t-xs t-muted">14 notifikasi · 30 hari terakhir</span>
+      </section>
+
+      <!-- Hari ini -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Hari Ini</h2>
+          <span class="card__action badge badge--danger">3 belum dibaca</span>
+        </div>
+        <div class="card__body" style="padding-top: 4px">
+          <div class="list-row" style="cursor: pointer" onclick="WM.openDialog('dlg-notif')">
+            <span class="list-row__icon" style="background: var(--accent); color: var(--accent-foreground)">
+              <i data-lucide="check-check" style="width: 17px; height: 17px"></i>
+            </span>
+            <span class="list-row__body">
+              <span class="list-row__title">Permintaan dana menunggu persetujuan</span>
+              <span class="list-row__sub">Aisyah meminta Rp 350.000 untuk "Buku pelajaran semester baru".</span>
+              <span class="t-xs t-muted mono" style="display: block; margin-top: 3px">12 menit lalu</span>
+            </span>
+            <span class="badge badge--success">Baru</span>
+          </div>
+
+          <div class="list-row" style="cursor: pointer" onclick="WM.openDialog('dlg-notif')">
+            <span class="list-row__icon" style="background: color-mix(in oklab, var(--destructive) 14%, transparent); color: var(--destructive)">
+              <i data-lucide="triangle-alert" style="width: 17px; height: 17px"></i>
+            </span>
+            <span class="list-row__body">
+              <span class="list-row__title">Anggaran Hiburan &amp; Hobi terlampaui</span>
+              <span class="list-row__sub">Terpakai Rp 1.720.000 dari batas Rp 1.500.000 (115%).</span>
+              <span class="t-xs t-muted mono" style="display: block; margin-top: 3px">2 jam lalu</span>
+            </span>
+            <span class="badge badge--success">Baru</span>
+          </div>
+
+          <div class="list-row" style="cursor: pointer" onclick="WM.openDialog('dlg-notif')">
+            <span class="list-row__icon" style="background: var(--success-soft); color: var(--success)">
+              <i data-lucide="arrow-down-left" style="width: 17px; height: 17px"></i>
+            </span>
+            <span class="list-row__body">
+              <span class="list-row__title">Transaksi baru dicatat</span>
+              <span class="list-row__sub">Siti Arsandi mencatat "Belanja mingguan — Superindo" Rp 875.000.</span>
+              <span class="t-xs t-muted mono" style="display: block; margin-top: 3px">5 jam lalu</span>
+            </span>
+            <span class="badge badge--success">Baru</span>
+          </div>
+
+          <div class="list-row" style="cursor: pointer; opacity: 0.6" onclick="WM.openDialog('dlg-notif')">
+            <span class="list-row__icon">💼</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Gaji Agustus masuk</span>
+              <span class="list-row__sub">Rp 42.500.000 masuk ke Mandiri ···5586.</span>
+              <span class="t-xs t-muted mono" style="display: block; margin-top: 3px">9 jam lalu</span>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Minggu ini -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Minggu Ini</h2>
+          <span class="card__action badge badge--danger">2 belum dibaca</span>
+        </div>
+        <div class="card__body" style="padding-top: 4px">
+          <div class="list-row" style="cursor: pointer" onclick="WM.openDialog('dlg-notif')">
+            <span class="list-row__icon" style="background: var(--warning-soft); color: var(--warning)">
+              <i data-lucide="calendar-clock" style="width: 17px; height: 17px"></i>
+            </span>
+            <span class="list-row__body">
+              <span class="list-row__title">Cicilan KTA Mandiri jatuh tempo 12 Agustus</span>
+              <span class="list-row__sub">Rp 2.850.000 belum dibayar. Bayar dari halaman Anggaran.</span>
+              <span class="t-xs t-muted mono" style="display: block; margin-top: 3px">Kemarin</span>
+            </span>
+            <span class="badge badge--success">Baru</span>
+          </div>
+
+          <div class="list-row" style="cursor: pointer" onclick="WM.openDialog('dlg-notif')">
+            <span class="list-row__icon" style="background: var(--brand-purple-soft); color: var(--brand-purple)">
+              <i data-lucide="target" style="width: 17px; height: 17px"></i>
+            </span>
+            <span class="list-row__body">
+              <span class="list-row__title">Tujuan "Ganti Mobil Keluarga" hampir tercapai</span>
+              <span class="list-row__sub">84% terkumpul — sisa Rp 40.000.000 menuju target Desember 2026.</span>
+              <span class="t-xs t-muted mono" style="display: block; margin-top: 3px">2 hari lalu</span>
+            </span>
+            <span class="badge badge--success">Baru</span>
+          </div>
+
+          <div class="list-row" style="cursor: pointer; opacity: 0.6" onclick="WM.openDialog('dlg-notif')">
+            <span class="list-row__icon">🛡️</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Premi Asuransi Kesehatan Allianz dibayar</span>
+              <span class="list-row__sub">Rp 780.000 didebit dari BCA Tahapan ···9010.</span>
+              <span class="t-xs t-muted mono" style="display: block; margin-top: 3px">4 hari lalu</span>
+            </span>
+          </div>
+
+          <div class="list-row" style="cursor: pointer; opacity: 0.6" onclick="WM.openDialog('dlg-notif')">
+            <span class="list-row__icon">🏠</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Cicilan KPR BTN berhasil dibayar</span>
+              <span class="list-row__sub">Rp 5.000.000 · sisa pokok Rp 268.400.000.</span>
+              <span class="t-xs t-muted mono" style="display: block; margin-top: 3px">5 hari lalu</span>
+            </span>
+          </div>
+
+          <div class="list-row" style="cursor: pointer; opacity: 0.6" onclick="WM.openDialog('dlg-notif')">
+            <span class="list-row__icon">📈</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Dividen BBCA diterima</span>
+              <span class="list-row__sub">Rp 3.240.000 dari 4.000 lembar BBCA.</span>
+              <span class="t-xs t-muted mono" style="display: block; margin-top: 3px">6 hari lalu</span>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Lebih lama -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Lebih Lama</h2>
+          <button class="card-link card__action" onclick="WM.toast('Memuat notifikasi lama…','info')">Muat lebih banyak</button>
+        </div>
+        <div class="card__body" style="padding-top: 4px">
+          <div class="list-row" style="cursor: pointer; opacity: 0.6" onclick="WM.openDialog('dlg-notif')">
+            <span class="list-row__icon">👥</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Pak Dedi ditambahkan ke Arsandi Family</span>
+              <span class="list-row__sub">Akses terbatas: hanya mencatat transaksi transportasi.</span>
+              <span class="t-xs t-muted mono" style="display: block; margin-top: 3px">28 Juli 2026</span>
+            </span>
+          </div>
+
+          <div class="list-row" style="cursor: pointer; opacity: 0.6" onclick="WM.openDialog('dlg-notif')">
+            <span class="list-row__icon">📊</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Laporan bulanan Juli 2026 siap</span>
+              <span class="list-row__sub">Savings rate 29% · surplus Rp 13.180.000.</span>
+              <span class="t-xs t-muted mono" style="display: block; margin-top: 3px">1 Agustus 2026</span>
+            </span>
+          </div>
+
+          <div class="list-row" style="cursor: pointer; opacity: 0.6" onclick="WM.openDialog('dlg-notif')">
+            <span class="list-row__icon">🧾</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Rekonsiliasi BCA Tahapan selesai</span>
+              <span class="list-row__sub">37 transaksi cocok, 0 selisih.</span>
+              <span class="t-xs t-muted mono" style="display: block; margin-top: 3px">24 Juli 2026</span>
+            </span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ── Notification detail dialog ── -->
+    <div class="dialog-backdrop" id="dlg-notif" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-notif-title">
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-notif-title">Permintaan dana menunggu persetujuan</h2>
+        <p class="dialog__desc">Diterima 12 menit lalu · kategori Persetujuan</p>
+        <div class="dialog__body">
+          <div class="row" style="gap: 12px; margin-bottom: 14px">
+            <span class="avatar avatar--lg">AI</span>
+            <span>
+              <span class="list-row__title" style="font-size: 14px">Aisyah Arsandi</span>
+              <span class="list-row__sub">Anggota keluarga · akses terbatas</span>
+            </span>
+            <span class="spacer"></span>
+            <span class="t-xl t-black mono">Rp 350.000</span>
+          </div>
+
+          <div class="notice">
+            <i data-lucide="message-square" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>"Buku pelajaran semester baru — Gramedia Grand Indonesia."</span>
+          </div>
+
+          <div class="table-wrap" style="margin-top: 12px">
+            <table class="table" style="min-width: 0">
+              <tbody>
+                <tr>
+                  <td class="t-xs t-muted">Kategori anggaran</td>
+                  <td class="t-sm t-bold" style="text-align: right">🎓 Pendidikan Anak</td>
+                </tr>
+                <tr>
+                  <td class="t-xs t-muted">Sisa anggaran kategori</td>
+                  <td class="t-sm t-bold mono t-success" style="text-align: right">Rp 2.250.000</td>
+                </tr>
+                <tr>
+                  <td class="t-xs t-muted">Rekening sumber</td>
+                  <td class="t-sm t-bold" style="text-align: right">BCA Tahapan ···9010</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-notif');WM.toast('Permintaan ditolak','error')">Tolak</button>
+          <button class="btn btn--primary" onclick="WM.closeDialog('dlg-notif');WM.toast('Permintaan dana disetujui','success')">
+            Setujui
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Notification settings dialog ── -->
+    <div class="dialog-backdrop" id="dlg-notif-settings" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-notif-settings-title">
+      <div class="dialog dialog--sm">
+        <h2 class="dialog__title" id="dlg-notif-settings-title">Pengaturan Notifikasi</h2>
+        <p class="dialog__desc">Pilih kejadian yang ingin kamu terima.</p>
+        <div class="dialog__body stack" style="gap: 14px">
+          <div class="row row--between">
+            <span>
+              <span class="t-sm t-bold">Transaksi baru</span>
+              <span class="hint" style="display: block; margin-top: 0">Setiap anggota keluarga mencatat transaksi.</span>
+            </span>
+            <span class="switch" role="switch" aria-checked="true" tabindex="0" aria-label="Notifikasi transaksi baru"></span>
+          </div>
+          <div class="row row--between">
+            <span>
+              <span class="t-sm t-bold">Peringatan anggaran</span>
+              <span class="hint" style="display: block; margin-top: 0">Saat pemakaian mencapai 80% dan 100%.</span>
+            </span>
+            <span class="switch" role="switch" aria-checked="true" tabindex="0" aria-label="Peringatan anggaran"></span>
+          </div>
+          <div class="row row--between">
+            <span>
+              <span class="t-sm t-bold">Jatuh tempo kewajiban</span>
+              <span class="hint" style="display: block; margin-top: 0">Cicilan dan premi asuransi, H-3.</span>
+            </span>
+            <span class="switch" role="switch" aria-checked="true" tabindex="0" aria-label="Jatuh tempo kewajiban"></span>
+          </div>
+          <div class="row row--between">
+            <span>
+              <span class="t-sm t-bold">Ringkasan mingguan</span>
+              <span class="hint" style="display: block; margin-top: 0">Dikirim setiap Senin pagi.</span>
+            </span>
+            <span class="switch" role="switch" aria-checked="false" tabindex="0" aria-label="Ringkasan mingguan"></span>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-notif-settings')">Batal</button>
+          <button class="btn btn--primary" onclick="WM.closeDialog('dlg-notif-settings');WM.toast('Pengaturan notifikasi disimpan','success')">
+            Simpan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script src="../assets/charts.js"></script>
+    <script>
+      WM.shell({ active: "notifikasi" });
+      document.querySelectorAll("#notif-filter [data-filter]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const filter = button.dataset.filter;
+          document.querySelectorAll("#notif-filter button").forEach((item) => item.setAttribute("aria-selected", String(item === button)));
+          document.querySelectorAll(".list-row").forEach((row) => {
+            const text = row.textContent.toLowerCase();
+            const show = filter === "semua" ||
+              (filter === "baru" && text.includes("baru")) ||
+              (filter === "transaksi" && /transaksi|gaji|dividen/.test(text)) ||
+              (filter === "anggaran" && /anggaran|jatuh tempo|cicilan/.test(text)) ||
+              (filter === "persetujuan" && /persetujuan|permintaan dana/.test(text));
+            row.hidden = !show;
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

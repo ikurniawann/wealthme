@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kalkulator · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="page-lead">
+        <div class="page-lead__text">
+          <h1 class="section-title" style="margin: 0">Kalkulator Keuangan</h1>
+          <p class="page-lead__sub">
+            Semua kolom rupiah otomatis pakai titik ribuan — <span class="mono">100.000.000</span> tetap terbaca sebagai
+            seratus juta saat disimpan.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <div class="tabs hide-scrollbar" id="tabs-kalk">
+          <button class="tab" data-value="perpuluhan" aria-selected="true">Perpuluhan</button>
+          <button class="tab" data-value="pph21" aria-selected="false">PPh21</button>
+          <button class="tab" data-value="investasi" aria-selected="false">Investasi</button>
+          <button class="tab" data-value="kpr" aria-selected="false">KPR</button>
+          <button class="tab" data-value="pensiun" aria-selected="false">Pensiun</button>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════ PERPULUHAN ═══════════════════════ -->
+      <section class="calc-panel grid grid--sidebar" data-panel="perpuluhan">
+        <article class="card">
+          <div class="card__header"><h2 class="card__title">Perpuluhan</h2></div>
+          <div class="card__body">
+            <div class="notice">
+              <i data-lucide="hand-heart" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+              <span>
+                Perpuluhan dihitung <strong>10% dari penghasilan</strong>. Kamu tinggal pilih perhitungan dari nilai
+                bruto atau neto sesuai kebiasaan keluarga.
+              </span>
+            </div>
+
+            <div class="field" style="margin-top: 16px">
+              <span class="label">Dasar Perhitungan</span>
+              <div class="segmented" id="seg-perpuluhan" style="max-width: 280px">
+                <button type="button" class="segmented__item" data-basis="bruto" aria-selected="true">Bruto</button>
+                <button type="button" class="segmented__item" data-basis="neto" aria-selected="false">Neto</button>
+              </div>
+            </div>
+
+            <div class="grid grid--2" style="margin-top: 14px">
+              <div class="field">
+                <label class="label" for="p-gaji">Penghasilan Bulanan</label>
+                <input class="input mono" data-rupiah id="p-gaji" value="42.500.000" inputmode="numeric" />
+              </div>
+              <div class="field">
+                <label class="label" for="p-lain">Penghasilan Lain per Bulan</label>
+                <input class="input mono" data-rupiah id="p-lain" value="4.300.000" inputmode="numeric" />
+              </div>
+              <div class="field">
+                <label class="label" for="p-potongan">Potongan Wajib per Bulan</label>
+                <input class="input mono" data-rupiah id="p-potongan" value="6.950.000" inputmode="numeric" />
+                <div class="hint">Pajak &amp; BPJS. Hanya dipakai kalau dasar = neto.</div>
+              </div>
+              <div class="field">
+                <label class="label" for="p-persen">Persentase</label>
+                <input class="input mono" type="number" id="p-persen" value="10" min="0" max="100" step="0.5" />
+              </div>
+            </div>
+
+            <button class="btn btn--primary btn--block" style="margin-top: 18px" onclick="hitungPerpuluhan()">
+              Hitung Perpuluhan
+            </button>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card__header"><h2 class="card__title">Hasil</h2></div>
+          <div class="card__body">
+            <div class="t-xs t-muted">Perpuluhan per bulan</div>
+            <div class="t-2xl mono t-black t-primary" id="p-bulan">Rp 0</div>
+            <div class="t-sm t-muted" id="p-basis-note" style="margin-top: 6px">Dihitung dari penghasilan bruto.</div>
+            <div class="table-wrap" style="margin-top: 16px">
+              <table class="table table--num">
+                <tbody>
+                  <tr><td class="t-xs t-muted">Dasar perhitungan</td><td class="mono t-sm" style="text-align: right" id="p-dasar">—</td></tr>
+                  <tr><td class="t-xs t-muted">Per tahun</td><td class="mono t-sm t-bold" style="text-align: right" id="p-tahun">—</td></tr>
+                  <tr><td class="t-xs t-muted">Sudah disalurkan tahun ini</td><td class="mono t-sm" style="text-align: right">Rp 18.400.000</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- ═══════════════════════ PPh21 ═══════════════════════ -->
+      <section class="calc-panel grid grid--sidebar" data-panel="pph21" hidden>
+        <article class="card">
+          <div class="card__header">
+            <h2 class="card__title">PPh 21 Tahunan</h2>
+            <button class="card-link card__action" onclick="WM.openDialog('dlg-pph')">Rincian lapisan tarif</button>
+          </div>
+          <div class="card__body">
+            <div class="notice notice--info">
+              <i data-lucide="keyboard" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+              <span>
+                Ketik angkanya saja — titik ribuan muncul sendiri. Nilai yang tersimpan tetap angka murni, jadi
+                <span class="mono">100.000.000</span> tidak lagi ditolak saat disimpan.
+              </span>
+            </div>
+
+            <div class="grid grid--2" style="margin-top: 16px">
+              <div class="field">
+                <label class="label" for="t-bruto">Penghasilan Bruto Setahun</label>
+                <input class="input mono" data-rupiah id="t-bruto" value="100.000.000" inputmode="numeric" />
+                <div class="hint" id="t-bruto-hint">Terbaca sebagai <span class="mono">100.000.000</span></div>
+              </div>
+              <div class="field">
+                <label class="label" for="t-ptkp">Status PTKP</label>
+                <select class="select" id="t-ptkp">
+                  <option value="54000000" selected>TK/0 — Tidak kawin, tanpa tanggungan</option>
+                  <option value="58500000">K/0 — Kawin, tanpa tanggungan</option>
+                  <option value="63000000">K/1 — Kawin, 1 tanggungan</option>
+                  <option value="67500000">K/2 — Kawin, 2 tanggungan</option>
+                  <option value="72000000">K/3 — Kawin, 3 tanggungan</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="label" for="t-tunjangan">Tunjangan &amp; Bonus Setahun</label>
+                <input class="input mono" data-rupiah id="t-tunjangan" value="0" inputmode="numeric" />
+              </div>
+              <div class="field">
+                <label class="label" for="t-iuran">Iuran Pensiun / JHT Setahun</label>
+                <input class="input mono" data-rupiah id="t-iuran" value="0" inputmode="numeric" />
+                <div class="hint">Pengurang penghasilan neto.</div>
+              </div>
+            </div>
+
+            <button class="btn btn--primary btn--block" style="margin-top: 18px" onclick="hitungPph()">
+              Hitung PPh 21
+            </button>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card__header"><h2 class="card__title">Hasil</h2></div>
+          <div class="card__body">
+            <div class="t-xs t-muted">PPh 21 terutang setahun</div>
+            <div class="t-2xl mono t-black t-primary" id="t-pph">Rp 0</div>
+            <div class="t-sm t-muted" id="t-efektif" style="margin-top: 6px">Tarif efektif 0,00%</div>
+            <div class="table-wrap" style="margin-top: 16px">
+              <table class="table table--num">
+                <tbody>
+                  <tr><td class="t-xs t-muted">Bruto + tunjangan</td><td class="mono t-sm" style="text-align: right" id="t-total-bruto">—</td></tr>
+                  <tr><td class="t-xs t-muted">Biaya jabatan (5%, maks Rp 6 jt)</td><td class="mono t-sm" style="text-align: right" id="t-bijab">—</td></tr>
+                  <tr><td class="t-xs t-muted">Iuran pensiun</td><td class="mono t-sm" style="text-align: right" id="t-iuran-out">—</td></tr>
+                  <tr><td class="t-xs t-muted">PTKP</td><td class="mono t-sm" style="text-align: right" id="t-ptkp-out">—</td></tr>
+                  <tr><td class="t-xs t-muted">Penghasilan Kena Pajak</td><td class="mono t-sm t-bold" style="text-align: right" id="t-pkp">—</td></tr>
+                  <tr><td class="t-xs t-muted">PPh per bulan</td><td class="mono t-sm" style="text-align: right" id="t-bulanan">—</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- ═══════════════════════ INVESTASI ═══════════════════════ -->
+      <section class="calc-panel grid grid--sidebar" data-panel="investasi" hidden>
+        <article class="card">
+          <div class="card__header"><h2 class="card__title">Proyeksi Investasi</h2></div>
+          <div class="card__body">
+            <div class="grid grid--2">
+              <div class="field">
+                <label class="label" for="i-awal">Modal Awal</label>
+                <input class="input mono" data-rupiah id="i-awal" value="50.000.000" inputmode="numeric" />
+              </div>
+              <div class="field">
+                <label class="label" for="i-rutin">Setoran Rutin per Bulan</label>
+                <input class="input mono" data-rupiah id="i-rutin" value="5.000.000" inputmode="numeric" />
+              </div>
+              <div class="field">
+                <label class="label" for="i-tahun">Jangka Waktu (tahun)</label>
+                <input class="input mono" type="number" id="i-tahun" value="10" min="1" max="50" step="1" />
+              </div>
+              <div class="field">
+                <label class="label" for="i-return">Imbal Hasil (% / tahun)</label>
+                <input class="input mono" type="number" id="i-return" value="10" min="0" max="40" step="0.5" />
+                <div class="hint">Asumsi, bukan janji. Pasar bisa turun.</div>
+              </div>
+            </div>
+            <button class="btn btn--primary btn--block" style="margin-top: 18px" onclick="hitungInvestasi()">
+              Hitung Proyeksi
+            </button>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card__header"><h2 class="card__title">Hasil</h2></div>
+          <div class="card__body">
+            <div class="t-xs t-muted">Nilai akhir proyeksi</div>
+            <div class="t-2xl mono t-black t-primary" id="i-akhir">Rp 0</div>
+            <div class="t-sm t-success" id="i-cuan" style="margin-top: 6px">—</div>
+            <div id="c-inv-proj" class="chart" style="margin-top: 8px"></div>
+            <div class="table-wrap" style="margin-top: 8px">
+              <table class="table table--num">
+                <tbody>
+                  <tr><td class="t-xs t-muted">Total setoran</td><td class="mono t-sm" style="text-align: right" id="i-setoran">—</td></tr>
+                  <tr><td class="t-xs t-muted">Hasil pengembangan</td><td class="mono t-sm t-success" style="text-align: right" id="i-bunga">—</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- ═══════════════════════ KPR ═══════════════════════ -->
+      <section class="calc-panel grid grid--sidebar" data-panel="kpr" hidden>
+        <article class="card">
+          <div class="card__header"><h2 class="card__title">Simulasi KPR</h2></div>
+          <div class="card__body">
+            <div class="grid grid--2">
+              <div class="field">
+                <label class="label" for="k-harga">Harga Properti</label>
+                <input class="input mono" data-rupiah id="k-harga" value="1.500.000.000" inputmode="numeric" />
+              </div>
+              <div class="field">
+                <label class="label" for="k-dp">Uang Muka (DP)</label>
+                <input class="input mono" data-rupiah id="k-dp" value="300.000.000" inputmode="numeric" />
+                <div class="hint" id="k-dp-pct">20,0% dari harga properti</div>
+              </div>
+              <div class="field">
+                <label class="label" for="k-bunga">Bunga (% / tahun)</label>
+                <input class="input mono" type="number" id="k-bunga" value="9.5" min="0" max="30" step="0.05" />
+              </div>
+              <div class="field">
+                <label class="label" for="k-tenor">Tenor (tahun)</label>
+                <input class="input mono" type="number" id="k-tenor" value="15" min="1" max="30" step="1" />
+              </div>
+            </div>
+            <button class="btn btn--primary btn--block" style="margin-top: 18px" onclick="hitungKpr()">
+              Hitung Cicilan
+            </button>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card__header"><h2 class="card__title">Hasil</h2></div>
+          <div class="card__body">
+            <div class="t-xs t-muted">Cicilan per bulan (anuitas)</div>
+            <div class="t-2xl mono t-black t-primary" id="k-cicilan">Rp 0</div>
+            <div class="t-sm t-muted" id="k-note" style="margin-top: 6px">—</div>
+            <div class="table-wrap" style="margin-top: 16px">
+              <table class="table table--num">
+                <tbody>
+                  <tr><td class="t-xs t-muted">Pokok pinjaman</td><td class="mono t-sm t-bold" style="text-align: right" id="k-pokok">—</td></tr>
+                  <tr><td class="t-xs t-muted">Total bunga</td><td class="mono t-sm t-danger" style="text-align: right" id="k-bunga-total">—</td></tr>
+                  <tr><td class="t-xs t-muted">Total dibayar</td><td class="mono t-sm" style="text-align: right" id="k-total">—</td></tr>
+                  <tr><td class="t-xs t-muted">Jumlah angsuran</td><td class="mono t-sm" style="text-align: right" id="k-n">—</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="notice notice--warning" style="margin-top: 14px">
+              <i data-lucide="triangle-alert" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+              <span id="k-warn">Cicilan sebaiknya di bawah 30% penghasilan bulanan.</span>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- ═══════════════════════ PENSIUN ═══════════════════════ -->
+      <section class="calc-panel grid grid--sidebar" data-panel="pensiun" hidden>
+        <article class="card">
+          <div class="card__header"><h2 class="card__title">Dana Pensiun</h2></div>
+          <div class="card__body">
+            <div class="grid grid--2">
+              <div class="field">
+                <label class="label" for="s-usia">Usia Sekarang</label>
+                <input class="input mono" type="number" id="s-usia" value="35" min="18" max="70" step="1" />
+              </div>
+              <div class="field">
+                <label class="label" for="s-pensiun">Usia Pensiun</label>
+                <input class="input mono" type="number" id="s-pensiun" value="55" min="40" max="75" step="1" />
+              </div>
+              <div class="field">
+                <label class="label" for="s-belanja">Pengeluaran Bulanan Sekarang</label>
+                <input class="input mono" data-rupiah id="s-belanja" value="15.000.000" inputmode="numeric" />
+              </div>
+              <div class="field">
+                <label class="label" for="s-dana">Dana Pensiun yang Sudah Ada</label>
+                <input class="input mono" data-rupiah id="s-dana" value="120.000.000" inputmode="numeric" />
+              </div>
+              <div class="field">
+                <label class="label" for="s-inflasi">Inflasi (% / tahun)</label>
+                <input class="input mono" type="number" id="s-inflasi" value="4" min="0" max="20" step="0.5" />
+              </div>
+              <div class="field">
+                <label class="label" for="s-return">Imbal Hasil (% / tahun)</label>
+                <input class="input mono" type="number" id="s-return" value="8" min="0" max="30" step="0.5" />
+              </div>
+            </div>
+            <button class="btn btn--primary btn--block" style="margin-top: 18px" onclick="hitungPensiun()">
+              Hitung Kebutuhan Pensiun
+            </button>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card__header"><h2 class="card__title">Hasil</h2></div>
+          <div class="card__body">
+            <div class="t-xs t-muted">Dana pensiun yang perlu terkumpul</div>
+            <div class="t-2xl mono t-black t-primary" id="s-target">Rp 0</div>
+            <div class="t-sm t-muted" id="s-note" style="margin-top: 6px">—</div>
+            <div class="table-wrap" style="margin-top: 16px">
+              <table class="table table--num">
+                <tbody>
+                  <tr><td class="t-xs t-muted">Sisa waktu menabung</td><td class="mono t-sm" style="text-align: right" id="s-sisa">—</td></tr>
+                  <tr><td class="t-xs t-muted">Pengeluaran bulanan saat pensiun</td><td class="mono t-sm" style="text-align: right" id="s-belanja-nanti">—</td></tr>
+                  <tr><td class="t-xs t-muted">Proyeksi dana yang sudah ada</td><td class="mono t-sm" style="text-align: right" id="s-dana-nanti">—</td></tr>
+                  <tr><td class="t-xs t-muted">Kekurangan</td><td class="mono t-sm t-danger t-bold" style="text-align: right" id="s-kurang">—</td></tr>
+                  <tr><td class="t-xs t-muted">Perlu menabung per bulan</td><td class="mono t-sm t-bold" style="text-align: right" id="s-nabung">—</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="margin-top: 12px"><div id="c-pensiun" class="chart"></div></div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <!-- ══════════════ Dialog: rincian lapisan tarif PPh21 ══════════════ -->
+    <div class="dialog-backdrop" id="dlg-pph" data-open="false">
+      <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-pph-title">
+        <h2 class="dialog__title" id="dlg-pph-title">Rincian Lapisan Tarif PPh 21</h2>
+        <p class="dialog__desc">Tarif progresif UU HPP — setiap lapisan dikenakan terpisah, bukan satu tarif rata.</p>
+        <div class="dialog__body">
+          <div class="table-wrap">
+            <table class="table table--num">
+              <thead>
+                <tr><th>Lapisan PKP</th><th>Tarif</th><th style="text-align: right">Kena Pajak</th><th style="text-align: right">Pajak</th></tr>
+              </thead>
+              <tbody id="dlg-pph-rows"></tbody>
+            </table>
+          </div>
+          <div class="row row--between" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border)">
+            <span class="t-sm t-bold">Total PPh 21</span>
+            <span class="mono t-md t-bold" id="dlg-pph-total">Rp 0</span>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-pph')">Tutup</button>
+          <button class="btn btn--primary" onclick="WM.closeDialog('dlg-pph');WM.toast('Perhitungan disimpan','success')">
+            Simpan Perhitungan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script src="../assets/charts.js"></script>
+    <script>
+      WM.shell({ active: "kalkulator" });
+
+      /* ══════════════════════════════════════════════════════════════════
+       * Dotted rupiah inputs (EPIC-024 #8)
+       *
+       * The bug this fixes: the field displayed "100.000.000" but handed the
+       * dotted string straight to the API, which rejected it. Here the dots
+       * are strictly presentation — every calculation reads through
+       * parseRupiah(), which strips them back to a plain Number.
+       * ══════════════════════════════════════════════════════════════════ */
+      const parseRupiah = (v) => Number(String(v).replace(/[^\d]/g, "")) || 0;
+      const formatDotted = (v) => {
+        const digits = String(v).replace(/[^\d]/g, "").replace(/^0+(?=\d)/, "");
+        return digits ? Number(digits).toLocaleString("id-ID") : "0";
+      };
+
+      document.querySelectorAll("input[data-rupiah]").forEach((el) => {
+        el.addEventListener("input", () => {
+          const atEnd = el.selectionStart === el.value.length;
+          el.value = formatDotted(el.value);
+          if (atEnd) el.setSelectionRange(el.value.length, el.value.length);
+          if (el.id === "t-bruto") {
+            document.getElementById("t-bruto-hint").innerHTML =
+              'Terbaca sebagai <span class="mono">' + WM.formatNumber(parseRupiah(el.value)) + "</span>";
+          }
+          if (el.id === "k-harga" || el.id === "k-dp") updateDpPct();
+        });
+      });
+
+      const num = (id) => Number(document.getElementById(id).value) || 0;
+      const rp = (id) => parseRupiah(document.getElementById(id).value);
+      const set = (id, text) => (document.getElementById(id).textContent = text);
+
+      /* ══════════ Tab panels ══════════ */
+      const CHART_HOOKS = { investasi: () => hitungInvestasi(), pensiun: () => hitungPensiun() };
+      const primed = {};
+      document.addEventListener("wm:tab", (e) => {
+        if (e.detail.group?.id !== "tabs-kalk") return;
+        const id = e.detail.value;
+        document.querySelectorAll(".calc-panel").forEach((p) => {
+          p.hidden = p.dataset.panel !== id;
+        });
+        if (CHART_HOOKS[id] && !primed[id]) {
+          primed[id] = true;
+          requestAnimationFrame(CHART_HOOKS[id]);
+        }
+        if (window.lucide) lucide.createIcons();
+      });
+
+      /* ══════════════════════ PERPULUHAN ══════════════════════ */
+      let basisPerpuluhan = "bruto";
+      document.querySelectorAll("#seg-perpuluhan .segmented__item").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          basisPerpuluhan = btn.dataset.basis;
+          hitungPerpuluhan();
+        });
+      });
+
+      function hitungPerpuluhan() {
+        const kotor = rp("p-gaji") + rp("p-lain");
+        const dasar = basisPerpuluhan === "neto" ? Math.max(0, kotor - rp("p-potongan")) : kotor;
+        const persen = num("p-persen");
+        const bulan = (dasar * persen) / 100;
+        set("p-bulan", WM.formatRupiah(bulan));
+        set("p-dasar", WM.formatRupiah(dasar));
+        set("p-tahun", WM.formatRupiah(bulan * 12));
+        set(
+          "p-basis-note",
+          basisPerpuluhan === "neto"
+            ? persen + "% dari penghasilan neto (setelah potongan wajib)."
+            : persen + "% dari penghasilan bruto."
+        );
+      }
+
+      /* ══════════════════════ PPh 21 ══════════════════════ */
+      const BRACKETS = [
+        { upto: 60000000, rate: 0.05, label: "0 – 60 jt" },
+        { upto: 250000000, rate: 0.15, label: "60 – 250 jt" },
+        { upto: 500000000, rate: 0.25, label: "250 – 500 jt" },
+        { upto: 5000000000, rate: 0.3, label: "500 jt – 5 M" },
+        { upto: Infinity, rate: 0.35, label: "> 5 M" },
+      ];
+
+      function hitungPph() {
+        const bruto = rp("t-bruto") + rp("t-tunjangan");
+        const bijab = Math.min(bruto * 0.05, 6000000);
+        const iuran = rp("t-iuran");
+        const ptkp = Number(document.getElementById("t-ptkp").value);
+        const pkpRaw = bruto - bijab - iuran - ptkp;
+        const pkp = Math.max(0, Math.floor(pkpRaw / 1000) * 1000);
+
+        let sisa = pkp;
+        let bawah = 0;
+        let total = 0;
+        const rows = [];
+        for (const b of BRACKETS) {
+          const lebar = b.upto - bawah;
+          const kena = Math.max(0, Math.min(sisa, lebar));
+          const pajak = kena * b.rate;
+          total += pajak;
+          rows.push(
+            `<tr><td class="t-sm">${b.label}</td><td class="mono t-xs">${(b.rate * 100).toFixed(0)}%</td>` +
+              `<td class="mono t-sm" style="text-align:right">${kena ? WM.formatRupiah(kena) : "—"}</td>` +
+              `<td class="mono t-sm" style="text-align:right">${pajak ? WM.formatRupiah(pajak) : "—"}</td></tr>`
+          );
+          sisa -= kena;
+          bawah = b.upto;
+          if (sisa <= 0) break;
+        }
+
+        set("t-total-bruto", WM.formatRupiah(bruto));
+        set("t-bijab", "−" + WM.formatRupiah(bijab));
+        set("t-iuran-out", "−" + WM.formatRupiah(iuran));
+        set("t-ptkp-out", "−" + WM.formatRupiah(ptkp));
+        set("t-pkp", WM.formatRupiah(pkp));
+        set("t-pph", WM.formatRupiah(total));
+        set("t-bulanan", WM.formatRupiah(total / 12));
+        set("t-efektif", "Tarif efektif " + (bruto ? ((total / bruto) * 100).toFixed(2) : "0,00") + "% dari bruto");
+        document.getElementById("dlg-pph-rows").innerHTML = rows.join("");
+        set("dlg-pph-total", WM.formatRupiah(total));
+      }
+
+      /* ══════════════════════ INVESTASI ══════════════════════ */
+      let chartInv = null;
+
+      function hitungInvestasi() {
+        const awal = rp("i-awal");
+        const rutin = rp("i-rutin");
+        const tahun = Math.max(1, num("i-tahun"));
+        const i = num("i-return") / 100 / 12;
+        const seri = [];
+        let nilai = awal;
+        seri.push(Math.round(nilai));
+        for (let m = 1; m <= tahun * 12; m += 1) {
+          nilai = nilai * (1 + i) + rutin;
+          if (m % 12 === 0) seri.push(Math.round(nilai));
+        }
+        const setoran = awal + rutin * tahun * 12;
+        set("i-akhir", WM.formatRupiah(nilai));
+        set("i-setoran", WM.formatRupiah(setoran));
+        set("i-bunga", "+" + WM.formatRupiah(nilai - setoran));
+        set(
+          "i-cuan",
+          "Tumbuh " + (((nilai - setoran) / setoran) * 100).toFixed(1) + "% di atas total setoran"
+        );
+
+        const kategori = Array.from({ length: seri.length }, (_, k) => "Th " + k);
+        if (chartInv) chartInv.destroy();
+        document.getElementById("c-inv-proj").innerHTML = "";
+        chartInv = WMCharts.trend("#c-inv-proj", kategori, [{ name: "Nilai portofolio", data: seri }], { height: 190 });
+      }
+
+      /* ══════════════════════ KPR ══════════════════════ */
+      function updateDpPct() {
+        const harga = rp("k-harga");
+        const dp = rp("k-dp");
+        set("k-dp-pct", harga ? ((dp / harga) * 100).toFixed(1).replace(".", ",") + "% dari harga properti" : "—");
+      }
+
+      function hitungKpr() {
+        const pokok = Math.max(0, rp("k-harga") - rp("k-dp"));
+        const i = num("k-bunga") / 100 / 12;
+        const n = Math.max(1, num("k-tenor")) * 12;
+        const cicilan = i === 0 ? pokok / n : (pokok * i) / (1 - Math.pow(1 + i, -n));
+        const total = cicilan * n;
+
+        set("k-cicilan", WM.formatRupiah(cicilan));
+        set("k-pokok", WM.formatRupiah(pokok));
+        set("k-bunga-total", WM.formatRupiah(total - pokok));
+        set("k-total", WM.formatRupiah(total));
+        set("k-n", WM.formatNumber(n) + " bulan");
+        set("k-note", "Bunga " + num("k-bunga") + "% efektif, tenor " + num("k-tenor") + " tahun.");
+        set(
+          "k-warn",
+          "Dengan aturan 30%, penghasilan bulanan minimal " + WM.formatRupiah(cicilan / 0.3) + " agar cicilan ini aman."
+        );
+        updateDpPct();
+      }
+
+      /* ══════════════════════ PENSIUN ══════════════════════ */
+      let chartPensiun = null;
+
+      function hitungPensiun() {
+        const usia = num("s-usia");
+        const pensiun = Math.max(usia + 1, num("s-pensiun"));
+        const sisaTahun = pensiun - usia;
+        const inflasi = num("s-inflasi") / 100;
+        const imbal = num("s-return") / 100;
+        const belanjaSekarang = rp("s-belanja");
+        const danaAda = rp("s-dana");
+
+        const belanjaNanti = belanjaSekarang * Math.pow(1 + inflasi, sisaTahun);
+        // Aturan 4%: dana pensiun = 25 × pengeluaran setahun saat pensiun.
+        const target = belanjaNanti * 12 * 25;
+        const danaNanti = danaAda * Math.pow(1 + imbal, sisaTahun);
+        const kurang = Math.max(0, target - danaNanti);
+
+        const i = imbal / 12;
+        const n = sisaTahun * 12;
+        const nabung = kurang === 0 ? 0 : (kurang * i) / (Math.pow(1 + i, n) - 1);
+
+        set("s-target", WM.formatRupiah(target));
+        set("s-sisa", WM.formatNumber(sisaTahun) + " tahun (" + WM.formatNumber(n) + " bulan)");
+        set("s-belanja-nanti", WM.formatRupiah(belanjaNanti));
+        set("s-dana-nanti", WM.formatRupiah(danaNanti));
+        set("s-kurang", WM.formatRupiah(kurang));
+        set("s-nabung", WM.formatRupiah(nabung));
+        set(
+          "s-note",
+          "Pakai aturan 4% — dana pensiun setara 25× pengeluaran setahun saat pensiun (" + pensiun + " tahun)."
+        );
+
+        const kategori = [];
+        const data = [];
+        let saldo = danaAda;
+        for (let y = 0; y <= sisaTahun; y += 1) {
+          kategori.push(String(usia + y));
+          data.push(Math.round(saldo));
+          saldo = saldo * (1 + imbal) + nabung * 12;
+        }
+        if (chartPensiun) chartPensiun.destroy();
+        document.getElementById("c-pensiun").innerHTML = "";
+        chartPensiun = WMCharts.trend("#c-pensiun", kategori, [{ name: "Dana terkumpul", data }], { height: 190 });
+      }
+
+      /* Prime every result card so no panel opens blank. */
+      hitungPerpuluhan();
+      hitungPph();
+      hitungKpr();
+
+      /* Deep link: ?tab=kpr opens that calculator directly. */
+      const wantCalc = new URLSearchParams(location.search).get("tab");
+      if (wantCalc && document.querySelector(`.calc-panel[data-panel="${wantCalc}"]`)) {
+        document.querySelectorAll("#tabs-kalk .tab").forEach((t) => {
+          t.setAttribute("aria-selected", String(t.dataset.value === wantCalc));
+        });
+        document.querySelectorAll(".calc-panel").forEach((p) => {
+          p.hidden = p.dataset.panel !== wantCalc;
+        });
+        if (CHART_HOOKS[wantCalc] && !primed[wantCalc]) {
+          primed[wantCalc] = true;
+          requestAnimationFrame(CHART_HOOKS[wantCalc]);
+        }
+      }
+    </script>
+  </body>
+</html>

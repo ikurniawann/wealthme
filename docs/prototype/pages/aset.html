@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Aset · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+  </head>
+  <body>
+    <main class="page">
+      <!-- Tabs -->
+      <section class="tabs hide-scrollbar" id="tabs-aset" role="tablist" aria-label="Filter kategori aset">
+        <button class="tab" role="tab" data-value="all" aria-selected="true">Semua</button>
+        <button class="tab" role="tab" data-value="cash" aria-selected="false">Cash &amp; E-Wallet</button>
+        <button class="tab" role="tab" data-value="bank" aria-selected="false">Bank &amp; Account</button>
+        <button class="tab" role="tab" data-value="investasi" aria-selected="false">Investasi</button>
+        <button class="tab" role="tab" data-value="fisik" aria-selected="false">Fisik</button>
+      </section>
+
+      <!-- Total banner -->
+      <section
+        class="card row row--wrap row--between"
+        style="padding: 16px 18px; background: var(--accent); border-color: color-mix(in oklab, var(--primary) 26%, transparent)"
+      >
+        <div>
+          <div class="t-xs t-muted">Total Aset</div>
+          <div class="t-2xl t-black mono private" style="color: var(--primary-strong)">Rp 1.645.200.000</div>
+          <div class="t-xs t-muted" style="margin-top: 2px">Kas &amp; bank + investasi + aset fisik · per 6 Agustus 2026</div>
+        </div>
+        <div class="row">
+          <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-aset-form')">
+            <i data-lucide="plus" style="width: 15px; height: 15px"></i> Tambah Aset
+          </button>
+          <!-- EPIC-024 #14: padlock mati diganti toggle privasi yang benar-benar bekerja. -->
+          <button
+            id="btn-privacy"
+            class="btn btn--outline btn--icon btn--sm"
+            type="button"
+            aria-pressed="false"
+            aria-label="Sembunyikan nilai aset"
+            onclick="togglePrivacy()"
+          >
+            <i data-lucide="eye" style="width: 16px; height: 16px"></i>
+          </button>
+        </div>
+      </section>
+
+      <!-- Breakdown stats -->
+      <section class="bento-metrics">
+        <article class="card stat">
+          <div class="stat__icon" style="background: var(--success-soft); color: var(--success)">💵</div>
+          <div>
+            <div class="stat__label">Cash &amp; E-Wallet</div>
+            <div class="stat__value mono private">Rp 45.200.000</div>
+          </div>
+          <div class="stat__delta t-success">↑ 2,4% dari bulan lalu</div>
+        </article>
+        <article class="card stat">
+          <div class="stat__icon" style="background: var(--accent); color: var(--accent-foreground)">🏦</div>
+          <div>
+            <div class="stat__label">Bank &amp; Account</div>
+            <div class="stat__value mono private">Rp 312.500.000</div>
+          </div>
+          <div class="stat__delta t-success">↑ 1,1% dari bulan lalu</div>
+        </article>
+        <article class="card stat">
+          <div class="stat__icon" style="background: var(--brand-purple-soft); color: var(--brand-purple)">📈</div>
+          <div>
+            <div class="stat__label">Investasi</div>
+            <div class="stat__value mono private">Rp 486.900.000</div>
+          </div>
+          <div class="stat__delta t-success">↑ 6,2% · harga live</div>
+        </article>
+        <article class="card stat">
+          <div class="stat__icon" style="background: var(--warning-soft); color: var(--warning)">🏠</div>
+          <div>
+            <div class="stat__label">Aset Fisik</div>
+            <div class="stat__value mono private">Rp 800.600.000</div>
+          </div>
+          <div class="stat__delta t-muted">Nilai tercatat · proyeksi terpisah</div>
+        </article>
+      </section>
+
+      <!-- Allocation -->
+      <section class="bento-grid">
+        <article class="card bento-span-8">
+          <div class="card__header">
+            <h2 class="card__title">Pertumbuhan Aset 6 Bulan</h2>
+          </div>
+          <div class="card__body"><div id="c-aset-trend" class="chart"></div></div>
+        </article>
+        <article class="card bento-span-4">
+          <div class="card__header">
+            <h2 class="card__title">Alokasi Aset</h2>
+          </div>
+          <div class="card__body"><div id="c-aset-alloc" class="chart"></div></div>
+        </article>
+      </section>
+
+      <!-- Semua Akun -->
+      <section class="card" data-aset-group="cash bank">
+        <div class="card__header">
+          <h2 class="card__title">Semua Akun</h2>
+          <span class="card__action t-sm t-black mono private">Rp 357.700.000</span>
+        </div>
+        <div class="card__body" style="padding-top: 4px">
+          <div class="list-row">
+            <span class="list-row__icon">🏦</span>
+            <span class="list-row__body">
+              <span class="list-row__title">BCA Tahapan</span>
+              <span class="list-row__sub">Bank · ···9010 · Bersama</span>
+            </span>
+            <span class="list-row__amount mono private">Rp 128.400.000</span>
+          </div>
+          <div class="list-row">
+            <span class="list-row__icon">🏦</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Mandiri Payroll</span>
+              <span class="list-row__sub">Bank · ···5586 · Milik Saya</span>
+            </span>
+            <span class="list-row__amount mono private">Rp 85.900.000</span>
+          </div>
+          <div class="list-row">
+            <span class="list-row__icon">🏦</span>
+            <span class="list-row__body">
+              <span class="list-row__title">CIMB Niaga Xtra</span>
+              <span class="list-row__sub">Bank · ···3327 · Siti Arsandi</span>
+            </span>
+            <span class="list-row__amount mono private">Rp 62.800.000</span>
+          </div>
+          <div class="list-row">
+            <span class="list-row__icon">💳</span>
+            <span class="list-row__body">
+              <span class="list-row__title">GoPay</span>
+              <span class="list-row__sub">E-Wallet · 0812···4471</span>
+            </span>
+            <span class="list-row__amount mono private">Rp 12.400.000</span>
+          </div>
+          <div class="list-row">
+            <span class="list-row__icon">👛</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Kas Rumah Tangga</span>
+              <span class="list-row__sub">Tunai · dipegang Siti Arsandi</span>
+            </span>
+            <span class="list-row__amount mono private">Rp 5.600.000</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Investasi -->
+      <section class="card" data-aset-group="investasi">
+        <div class="card__header">
+          <h2 class="card__title">Investasi</h2>
+          <span class="card__action t-sm t-black mono private">Rp 486.900.000</span>
+        </div>
+        <div class="card__body" style="padding-top: 4px">
+          <div class="list-row">
+            <span class="list-row__icon">📈</span>
+            <span class="list-row__body">
+              <span class="list-row__title">BBCA — Bank Central Asia</span>
+              <span class="list-row__sub">Saham · 42 lot</span>
+            </span>
+            <span class="list-row__amount mono private">Rp 178.500.000</span>
+          </div>
+          <div class="list-row">
+            <span class="list-row__icon">🧺</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Sucorinvest Sharia Equity</span>
+              <span class="list-row__sub">Reksa Dana · 84.220 unit</span>
+            </span>
+            <span class="list-row__amount mono private">Rp 132.400.000</span>
+          </div>
+          <div class="list-row">
+            <span class="list-row__icon">🥇</span>
+            <span class="list-row__body">
+              <span class="list-row__title">Emas Antam</span>
+              <span class="list-row__sub">Emas · 120 gram</span>
+            </span>
+            <span class="list-row__amount mono private">Rp 118.800.000</span>
+          </div>
+          <div class="list-row">
+            <span class="list-row__icon">🪙</span>
+            <span class="list-row__body">
+              <span class="list-row__title">ORI025</span>
+              <span class="list-row__sub">Obligasi · jatuh tempo Feb 2028</span>
+            </span>
+            <span class="list-row__amount mono private">Rp 57.200.000</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Aset Fisik -->
+      <section class="card" data-aset-group="fisik">
+        <div class="card__header">
+          <h2 class="card__title">Aset Fisik</h2>
+          <span class="card__action t-sm t-black mono private">Rp 800.600.000</span>
+        </div>
+        <div class="card__body grid grid--3">
+          <article class="card" style="box-shadow: none">
+            <div class="card__body stack" style="gap: 10px">
+              <div class="row">
+                <span class="list-row__icon">🏢</span>
+                <span style="flex: 1; min-width: 0">
+                  <span class="t-sm t-bold" style="display: block">Apartemen Kelapa Gading</span>
+                  <span class="t-xs t-muted">Properti · diperoleh 12 Mar 2021</span>
+                </span>
+              </div>
+              <div class="grid grid--2" style="gap: 10px">
+                <div>
+                  <div class="t-xs t-muted">Nilai Tercatat</div>
+                  <div class="t-md t-black mono private">Rp 520.000.000</div>
+                </div>
+                <div>
+                  <div class="t-xs t-muted">Proyeksi</div>
+                  <div class="t-md t-black mono t-success private">Rp 612.400.000</div>
+                </div>
+              </div>
+              <div class="row row--between">
+                <span class="badge badge--success">+5% / tahun</span>
+                <button class="card-link" onclick="WM.openDialog('dlg-aset-form')">Gunakan nilai ini</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="card" style="box-shadow: none">
+            <div class="card__body stack" style="gap: 10px">
+              <div class="row">
+                <span class="list-row__icon">🚗</span>
+                <span style="flex: 1; min-width: 0">
+                  <span class="t-sm t-bold" style="display: block">Toyota Innova Zenix</span>
+                  <span class="t-xs t-muted">Kendaraan · diperoleh 4 Jan 2024</span>
+                </span>
+              </div>
+              <div class="grid grid--2" style="gap: 10px">
+                <div>
+                  <div class="t-xs t-muted">Nilai Tercatat</div>
+                  <div class="t-md t-black mono private">Rp 210.000.000</div>
+                </div>
+                <div>
+                  <div class="t-xs t-muted">Proyeksi</div>
+                  <div class="t-md t-black mono t-danger private">Rp 173.500.000</div>
+                </div>
+              </div>
+              <div class="row row--between">
+                <span class="badge badge--danger">−9% / tahun</span>
+                <button class="card-link" onclick="WM.openDialog('dlg-aset-form')">Gunakan nilai ini</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="card" style="box-shadow: none">
+            <div class="card__body stack" style="gap: 10px">
+              <div class="row">
+                <span class="list-row__icon">💍</span>
+                <span style="flex: 1; min-width: 0">
+                  <span class="t-sm t-bold" style="display: block">Perhiasan Keluarga</span>
+                  <span class="t-xs t-muted">Perhiasan · diperoleh 20 Jun 2019</span>
+                </span>
+              </div>
+              <div class="grid grid--2" style="gap: 10px">
+                <div>
+                  <div class="t-xs t-muted">Nilai Tercatat</div>
+                  <div class="t-md t-black mono private">Rp 70.600.000</div>
+                </div>
+                <div>
+                  <div class="t-xs t-muted">Proyeksi</div>
+                  <div class="t-md t-black mono t-success private">Rp 84.100.000</div>
+                </div>
+              </div>
+              <div class="row row--between">
+                <span class="badge badge--success">+Rp 2.500.000 / tahun</span>
+                <button class="card-link" onclick="WM.openDialog('dlg-aset-form')">Gunakan nilai ini</button>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <!-- Dialog: tambah aset fisik -->
+    <div class="dialog-backdrop" id="dlg-aset-form" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-aset-form-title">
+      <div class="dialog dialog--wide">
+        <h2 class="dialog__title" id="dlg-aset-form-title">Tambah Aset Fisik</h2>
+        <p class="dialog__desc">Nilai tercatat dipakai untuk kekayaan bersih; proyeksi dihitung dari mode perubahan nilai di bawah.</p>
+        <div class="dialog__body">
+          <div class="field-row">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Nama Aset</span>
+              <input class="input" placeholder="cth. Apartemen Kelapa Gading" />
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Kategori</span>
+              <select class="select">
+                <option>Properti</option>
+                <option>Kendaraan</option>
+                <option>Elektronik</option>
+                <option>Perhiasan</option>
+                <option>Lainnya</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Nilai Aset (Rp)</span>
+              <input class="input mono" placeholder="cth. 200.000.000" />
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Tanggal Perolehan (opsional)</span>
+              <input class="input" type="date" value="2021-03-12" />
+              <span class="hint">Proyeksi nilai dihitung mulai dari tanggal ini.</span>
+            </label>
+          </div>
+
+          <!-- EPIC-024 #32: mode perubahan nilai — persen atau rupiah tetap. -->
+          <div class="field">
+            <span class="label">Mode Perubahan Nilai</span>
+            <div class="segmented" role="tablist">
+              <button class="segmented__item" role="tab" aria-selected="true" onclick="setModeAset('pct')">% per tahun</button>
+              <button class="segmented__item" role="tab" aria-selected="false" onclick="setModeAset('rp')">Rp tetap per tahun</button>
+            </div>
+          </div>
+
+          <label class="field" id="fld-aset-pct">
+            <span class="label">Perubahan Nilai per Tahun (%)</span>
+            <input class="input mono" placeholder="cth. -5 untuk penyusutan, 5 untuk apresiasi" value="5" />
+            <span class="hint">Perkiraan default untuk tipe ini: +5% per tahun (Properti).</span>
+          </label>
+
+          <label class="field" id="fld-aset-rp" style="display: none">
+            <span class="label">Perubahan Nilai per Tahun (Rp)</span>
+            <input class="input mono" placeholder="cth. -15.000.000 untuk penyusutan" value="2.500.000" />
+            <span class="hint">Nilai rupiah tetap ditambahkan/dikurangi setiap tahun sejak tanggal perolehan.</span>
+          </label>
+
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Kategori Master Data (opsional)</span>
+              <select class="select">
+                <option>Tidak ada kategori</option>
+                <option>Properti Investasi</option>
+                <option>Kendaraan Operasional</option>
+                <option>Logam Mulia</option>
+              </select>
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Catatan (opsional)</span>
+              <input class="input" placeholder="cth. Lantai 5 unit B" />
+            </label>
+          </div>
+
+          <div class="notice notice--info" style="margin-top: 14px">
+            <i data-lucide="calculator" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>
+              Proyeksi 5 tahun: <strong class="mono">Rp 663.800.000</strong> — dihitung dari nilai tercatat, mode
+              perubahan, dan tanggal perolehan.
+            </span>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-aset-form')">Batal</button>
+          <button
+            class="btn btn--primary"
+            onclick="WM.closeDialog('dlg-aset-form');WM.toast('Aset berhasil ditambahkan','success')"
+          >
+            Simpan Aset
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script src="../assets/charts.js"></script>
+    <script>
+      WM.shell({ active: "aset" });
+
+      document.addEventListener("wm:tab", (event) => {
+        if (event.detail.group?.id !== "tabs-aset") return;
+        const value = event.detail.value;
+        document.querySelectorAll("[data-aset-group]").forEach((section) => {
+          section.hidden = value !== "all" && !section.dataset.asetGroup.split(" ").includes(value);
+        });
+        const labels = { all: "Semua aset", cash: "Cash & E-Wallet", bank: "Bank & Account", investasi: "Investasi", fisik: "Aset fisik" };
+        WM.toast(`Filter ${labels[value]} diterapkan`, "success");
+      });
+
+      // EPIC-024 #14 — tombol gembok yang mati diganti toggle privasi nyata:
+      // memburamkan setiap elemen .private dan menukar ikon eye / eye-off.
+      function togglePrivacy() {
+        const btn = document.getElementById("btn-privacy");
+        const on = document.body.classList.toggle("is-private");
+        btn.setAttribute("aria-pressed", String(on));
+        btn.setAttribute("aria-label", on ? "Tampilkan nilai aset" : "Sembunyikan nilai aset");
+        btn.innerHTML = `<i data-lucide="${on ? "eye-off" : "eye"}" style="width:16px;height:16px"></i>`;
+        window.lucide?.createIcons();
+        WM.toast(on ? "Nilai aset disembunyikan" : "Nilai aset ditampilkan", "info");
+      }
+
+      // EPIC-024 #32 — tukar input sesuai mode perubahan nilai.
+      function setModeAset(mode) {
+        document.getElementById("fld-aset-pct").style.display = mode === "pct" ? "block" : "none";
+        document.getElementById("fld-aset-rp").style.display = mode === "rp" ? "block" : "none";
+      }
+
+      WMCharts.trend(
+        "#c-aset-trend",
+        ["Mar", "Apr", "Mei", "Jun", "Jul", "Agu"],
+        [{ name: "Total Aset", data: [1482000000, 1518400000, 1552900000, 1586200000, 1614700000, 1645200000] }],
+        { height: 250 }
+      );
+      WMCharts.donut(
+        "#c-aset-alloc",
+        ["Aset Fisik", "Investasi", "Bank & Account", "Cash & E-Wallet"],
+        [800600000, 486900000, 312500000, 45200000],
+        "Total Aset"
+      );
+    </script>
+  </body>
+</html>

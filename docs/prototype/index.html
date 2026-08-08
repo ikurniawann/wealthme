@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Prototype UI/UX · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/tokens.css" />
+    <link rel="stylesheet" href="assets/app.css" />
+    <style>
+      .wrap {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 32px 20px 64px;
+      }
+      .wrap > * + * {
+        margin-top: 22px;
+      }
+      .page-card {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-radius: 11px;
+        background: var(--card);
+        transition: border-color 0.14s ease, transform 0.14s ease;
+      }
+      .page-card:hover {
+        border-color: var(--primary);
+        transform: translateY(-1px);
+      }
+      .page-card__icon {
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        background: var(--accent);
+        color: var(--accent-foreground);
+        flex-shrink: 0;
+      }
+      .swatch {
+        height: 52px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="row row--wrap" style="gap: 14px">
+        <div class="sidebar__logo gradient-wealth" style="width: 44px; height: 44px; font-size: 18px">W</div>
+        <div style="flex: 1; min-width: 240px">
+          <h1 style="font-size: 24px">Prototype UI/UX WealthMe</h1>
+          <p class="t-sm t-muted" style="margin: 4px 0 0">
+            EPIC-024 Task N · shadcn design language + ApexCharts · untuk direview sebelum implementasi
+          </p>
+        </div>
+        <button class="btn btn--outline" onclick="WM.toggleTheme()">
+          <i data-lucide="sun-moon" style="width: 16px; height: 16px"></i> Ganti tema
+        </button>
+      </header>
+
+      <div class="notice notice--info">
+        <i data-lucide="info" style="width: 17px; height: 17px; flex-shrink: 0"></i>
+        <span>
+          Ini prototype statis — tidak terhubung ke API dan tidak mengubah aplikasi. Semua angka contoh.
+          Tombol, tab, dialog, dan pergantian tema berfungsi supaya bisa diklik seperti aplikasi asli.
+          Tambahkan <code class="mono">?static=1</code> pada URL untuk mematikan animasi grafik (berguna saat
+          mengambil screenshot).
+        </span>
+      </div>
+
+      <!-- ── Halaman aplikasi ── -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Halaman Aplikasi</h2>
+          <span class="badge badge--gray card__action">25 halaman</span>
+        </div>
+        <div class="card__body">
+          <h3 class="t-xs t-muted t-bold" style="letter-spacing: 0.07em; margin-bottom: 9px">UTAMA</h3>
+          <div class="grid grid--3" style="gap: 10px">
+            <a class="page-card" href="pages/beranda.html"
+              ><span class="page-card__icon"><i data-lucide="house" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Beranda</span
+                ><span class="t-xs t-muted">Dashboard utama</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/ringkasan.html"
+              ><span class="page-card__icon"><i data-lucide="chart-pie" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Ringkasan</span
+                ><span class="t-xs t-muted">Kekayaan bersih</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/transaksi.html"
+              ><span class="page-card__icon"><i data-lucide="arrow-up-down" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Transaksi</span
+                ><span class="t-xs t-muted">+ lampiran foto</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/anggaran.html"
+              ><span class="page-card__icon"><i data-lucide="clipboard-list" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Anggaran</span
+                ><span class="t-xs t-muted">Budget &amp; kewajiban</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/laporan.html"
+              ><span class="page-card__icon"><i data-lucide="chart-line" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Laporan</span
+                ><span class="t-xs t-muted">17 tab + matriks COA</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/tujuan.html"
+              ><span class="page-card__icon"><i data-lucide="target" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Tujuan</span
+                ><span class="t-xs t-muted">Target keuangan</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/persetujuan.html"
+              ><span class="page-card__icon" style="background: var(--warning-soft); color: var(--warning)"
+                ><i data-lucide="check-check" style="width: 16px"></i
+              ></span>
+              <span
+                ><span class="t-md t-bold" style="display: block"
+                  >Persetujuan <span class="badge badge--purple">Baru</span></span
+                ><span class="t-xs t-muted">Permintaan dana</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/notifikasi.html"
+              ><span class="page-card__icon"><i data-lucide="bell" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Notifikasi</span
+                ><span class="t-xs t-muted">Pemberitahuan</span></span
+              ></a
+            >
+          </div>
+
+          <h3 class="t-xs t-muted t-bold" style="letter-spacing: 0.07em; margin: 20px 0 9px">KEUANGAN</h3>
+          <div class="grid grid--3" style="gap: 10px">
+            <a class="page-card" href="pages/dana.html"
+              ><span class="page-card__icon"><i data-lucide="wallet" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Cash &amp; E-Wallet</span
+                ><span class="t-xs t-muted">dulu "Tunai"</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/rekening.html"
+              ><span class="page-card__icon"><i data-lucide="landmark" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Bank &amp; Account</span
+                ><span class="t-xs t-muted">dulu "Rekening"</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/investasi.html"
+              ><span class="page-card__icon"><i data-lucide="chart-column" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Investasi</span
+                ><span class="t-xs t-muted">lot/lembar, koin, deposito</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/aset.html"
+              ><span class="page-card__icon"><i data-lucide="briefcase" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Aset</span
+                ><span class="t-xs t-muted">privasi + penyusutan Rp</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/liabilitas.html"
+              ><span class="page-card__icon"><i data-lucide="receipt-text" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Liabilitas</span
+                ><span class="t-xs t-muted">detail·edit·hapus·bayar</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/asuransi.html"
+              ><span class="page-card__icon"><i data-lucide="shield-check" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Asuransi</span
+                ><span class="t-xs t-muted">polis &amp; premi</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/warisan.html"
+              ><span class="page-card__icon"><i data-lucide="scroll" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Warisan</span
+                ><span class="t-xs t-muted">ahli waris + %</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/donation.html"
+              ><span class="page-card__icon"><i data-lucide="heart-handshake" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Donasi</span
+                ><span class="t-xs t-muted">perpuluhan + donasi</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/tax.html"
+              ><span class="page-card__icon"><i data-lucide="file-text" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Pajak</span
+                ><span class="t-xs t-muted">PPh21</span></span
+              ></a
+            >
+          </div>
+
+          <h3 class="t-xs t-muted t-bold" style="letter-spacing: 0.07em; margin: 20px 0 9px">ALAT</h3>
+          <div class="grid grid--3" style="gap: 10px">
+            <a class="page-card" href="pages/splitbill.html"
+              ><span class="page-card__icon"><i data-lucide="receipt" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Split Bill</span
+                ><span class="t-xs t-muted">responsif di HP</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/rekonsiliasi.html"
+              ><span class="page-card__icon"><i data-lucide="git-compare" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Rekonsiliasi</span
+                ><span class="t-xs t-muted">impor rekening koran</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/ai.html"
+              ><span class="page-card__icon"><i data-lucide="bot" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">AI Advisor</span
+                ><span class="t-xs t-muted">bawa API key sendiri</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/kalkulator.html"
+              ><span class="page-card__icon"><i data-lucide="calculator" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Kalkulator</span
+                ><span class="t-xs t-muted">perpuluhan, PPh21, KPR…</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/quickinput.html"
+              ><span class="page-card__icon"><i data-lucide="zap" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Quick Input</span
+                ><span class="t-xs t-muted">entri cepat</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/mastercoa.html"
+              ><span class="page-card__icon"><i data-lucide="book-open" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Master COA</span
+                ><span class="t-xs t-muted">bagan akun</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/masterdata.html"
+              ><span class="page-card__icon"><i data-lucide="database" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Master Data</span
+                ><span class="t-xs t-muted">referensi bisa ditambah</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/panduan.html"
+              ><span class="page-card__icon"><i data-lucide="circle-help" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Panduan</span
+                ><span class="t-xs t-muted">bantuan &amp; FAQ</span></span
+              ></a
+            >
+            <a class="page-card" href="pages/akun.html"
+              ><span class="page-card__icon"><i data-lucide="user" style="width: 16px"></i></span>
+              <span
+                ><span class="t-md t-bold" style="display: block">Akun &amp; Keluarga</span
+                ><span class="t-xs t-muted">istri = co-master</span></span
+              ></a
+            >
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Halaman publik / auth ── -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Halaman Publik &amp; Autentikasi</h2>
+          <span class="badge badge--gray card__action">7 halaman</span>
+        </div>
+        <div class="card__body grid grid--3" style="gap: 10px">
+          <a class="page-card" href="pages/login.html"
+            ><span class="page-card__icon"><i data-lucide="log-in" style="width: 16px"></i></span>
+            <span
+              ><span class="t-md t-bold" style="display: block">Login</span
+              ><span class="t-xs t-muted">+ buka cepat PIN</span></span
+            ></a
+          >
+          <a class="page-card" href="pages/register.html"
+            ><span class="page-card__icon"><i data-lucide="user-plus" style="width: 16px"></i></span>
+            <span
+              ><span class="t-md t-bold" style="display: block">Register</span
+              ><span class="t-xs t-muted">tanpa rekening otomatis</span></span
+            ></a
+          >
+          <a class="page-card" href="pages/lupa-password.html"
+            ><span class="page-card__icon"><i data-lucide="key-round" style="width: 16px"></i></span>
+            <span
+              ><span class="t-md t-bold" style="display: block">Lupa Password</span
+              ><span class="t-xs t-muted">kirim tautan</span></span
+            ></a
+          >
+          <a class="page-card" href="pages/reset-password.html"
+            ><span class="page-card__icon"><i data-lucide="lock-keyhole" style="width: 16px"></i></span>
+            <span
+              ><span class="t-md t-bold" style="display: block">Reset Password</span
+              ><span class="t-xs t-muted">password baru</span></span
+            ></a
+          >
+          <a class="page-card" href="pages/ubah-password-wajib.html"
+            ><span class="page-card__icon"><i data-lucide="shield-alert" style="width: 16px"></i></span>
+            <span
+              ><span class="t-md t-bold" style="display: block">Ubah Password Wajib</span
+              ><span class="t-xs t-muted">login pertama anggota</span></span
+            ></a
+          >
+          <a class="page-card" href="pages/split-public.html"
+            ><span class="page-card__icon" style="background: var(--success-soft); color: var(--success)"
+              ><i data-lucide="link" style="width: 16px"></i
+            ></span>
+            <span
+              ><span class="t-md t-bold" style="display: block">Split Bill Publik</span
+              ><span class="t-xs t-muted">tanpa perlu login</span></span
+            ></a
+          >
+          <a class="page-card" href="pages/join-token.html"
+            ><span class="page-card__icon"><i data-lucide="mail-x" style="width: 16px"></i></span>
+            <span
+              ><span class="t-md t-bold" style="display: block">Join Undangan</span
+              ><span class="t-xs t-muted">tidak dipakai lagi</span></span
+            ></a
+          >
+        </div>
+      </section>
+
+      <!-- ── Design system ── -->
+      <section class="card">
+        <div class="card__header"><h2 class="card__title">Design System</h2></div>
+        <div class="card__body stack" style="gap: 20px">
+          <div>
+            <h3 class="t-sm t-bold" style="margin-bottom: 9px">Warna</h3>
+            <div class="grid grid--5" style="gap: 10px">
+              <div>
+                <div class="swatch" style="background: var(--primary)"></div>
+                <div class="t-xs t-muted" style="margin-top: 5px">primary</div>
+              </div>
+              <div>
+                <div class="swatch" style="background: var(--success)"></div>
+                <div class="t-xs t-muted" style="margin-top: 5px">success</div>
+              </div>
+              <div>
+                <div class="swatch" style="background: var(--destructive)"></div>
+                <div class="t-xs t-muted" style="margin-top: 5px">destructive</div>
+              </div>
+              <div>
+                <div class="swatch" style="background: var(--warning)"></div>
+                <div class="t-xs t-muted" style="margin-top: 5px">warning</div>
+              </div>
+              <div>
+                <div class="swatch" style="background: var(--brand-purple)"></div>
+                <div class="t-xs t-muted" style="margin-top: 5px">purple</div>
+              </div>
+            </div>
+            <p class="hint">
+              Token identik dengan <code class="mono">apps/web/src/app/globals.css</code> — prototype ini
+              memakai standar produksi yang sudah ada, bukan palet baru.
+            </p>
+          </div>
+
+          <div>
+            <h3 class="t-sm t-bold" style="margin-bottom: 9px">Tipografi</h3>
+            <div class="stack" style="gap: 4px">
+              <div style="font-size: 26px; font-weight: 800; letter-spacing: -0.02em">Sora 800 · Judul</div>
+              <div class="t-lg t-bold">Sora 700 · Subjudul</div>
+              <div class="t-md">Sora 400 · Teks isi 13,5px</div>
+              <div class="mono t-md">DM Mono · Rp 1.256.780.000</div>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="t-sm t-bold" style="margin-bottom: 9px">Komponen</h3>
+            <div class="row row--wrap" style="gap: 8px; margin-bottom: 12px">
+              <button class="btn btn--primary">Primary</button>
+              <button class="btn btn--outline">Outline</button>
+              <button class="btn btn--ghost">Ghost</button>
+              <button class="btn btn--destructive">Destructive</button>
+              <button class="btn btn--outline btn--sm">Small</button>
+            </div>
+            <div class="row row--wrap" style="gap: 6px; margin-bottom: 12px">
+              <span class="badge badge--success">Lunas</span>
+              <span class="badge badge--danger">Terlambat</span>
+              <span class="badge badge--warning">Jatuh tempo</span>
+              <span class="badge badge--info">Info</span>
+              <span class="badge badge--purple">Baru</span>
+              <span class="badge badge--gray">Draft</span>
+            </div>
+            <div class="row row--wrap" style="gap: 12px; align-items: flex-start">
+              <div class="segmented">
+                <button class="segmented__item" aria-selected="true">Lot</button>
+                <button class="segmented__item" aria-selected="false">Lembar</button>
+              </div>
+              <button
+                class="switch"
+                role="switch"
+                aria-checked="true"
+                aria-label="Contoh switch"
+                onclick="this.setAttribute('aria-checked', this.getAttribute('aria-checked')==='true'?'false':'true')"
+              ></button>
+              <button class="btn btn--outline btn--sm" onclick="WM.toast('Contoh notifikasi','success')">
+                Coba toast
+              </button>
+              <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-demo')">Coba dialog</button>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="t-sm t-bold" style="margin-bottom: 9px">Grafik (ApexCharts)</h3>
+            <div class="grid grid--3">
+              <div class="card">
+                <div class="card__body"><div id="c-demo-bar" class="chart"></div></div>
+              </div>
+              <div class="card">
+                <div class="card__body"><div id="c-demo-area" class="chart"></div></div>
+              </div>
+              <div class="card">
+                <div class="card__body"><div id="c-demo-donut" class="chart"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <p class="t-xs t-muted" style="text-align: center">
+        WealthMe · EPIC-024 Task N · prototype untuk direview — implementasi menyusul setelah disetujui.
+      </p>
+    </div>
+
+    <div
+      class="dialog-backdrop"
+      id="dlg-demo"
+      data-open="false"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dlg-demo-title"
+    >
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-demo-title">Contoh Dialog</h2>
+        <p class="dialog__desc">Lebar aman di layar HP, tutup dengan Esc atau klik latar.</p>
+        <div class="dialog__body">
+          <label class="field">
+            <span class="label">Nama</span>
+            <input class="input" placeholder="cth. Rekening BCA" />
+          </label>
+          <label class="field">
+            <span class="label">Jumlah</span>
+            <input class="input mono" value="1.500.000" />
+            <span class="hint">Diformat otomatis dengan titik.</span>
+          </label>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-demo')">Batal</button>
+          <button class="btn btn--primary" onclick="WM.closeDialog('dlg-demo');WM.toast('Tersimpan','success')">
+            Simpan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+    <script src="assets/shell.js"></script>
+    <script src="assets/charts.js"></script>
+    <script>
+      // Index page has no app shell — apply the saved theme and wire the basics.
+      document.documentElement.classList.toggle("dark", WM.currentTheme() === "dark");
+      lucide.createIcons();
+
+      document.addEventListener("click", (e) => {
+        if (e.target.classList?.contains("dialog-backdrop")) WM.closeDialog(e.target.id);
+        const seg = e.target.closest(".segmented__item, .tab");
+        if (seg) {
+          seg
+            .closest(".segmented, .tabs")
+            ?.querySelectorAll(".segmented__item, .tab")
+            .forEach((n) => n.setAttribute("aria-selected", "false"));
+          seg.setAttribute("aria-selected", "true");
+        }
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") WM.closeDialog();
+      });
+
+      WMCharts.cashflow(
+        "#c-demo-bar",
+        ["Mei", "Jun", "Jul", "Agu"],
+        [44100000, 42500000, 46800000, 42500000],
+        [27600000, 33200000, 29800000, 26450000]
+      );
+      WMCharts.trend(
+        "#c-demo-area",
+        ["Mei", "Jun", "Jul", "Agu"],
+        [{ name: "Kekayaan", data: [1151000000, 1180000000, 1199000000, 1256000000] }],
+        { height: 210 }
+      );
+      WMCharts.donut(
+        "#c-demo-donut",
+        ["Investasi", "Bank", "Aset", "Cash"],
+        [486900000, 312500000, 800600000, 45200000],
+        "Total"
+      );
+    </script>
+  </body>
+</html>

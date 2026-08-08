@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bank &amp; Account · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+  </head>
+  <body>
+    <main class="page">
+      <!-- Lead -->
+      <section class="page-lead">
+        <div class="page-lead__text">
+          <h1 class="section-title">Bank &amp; Account</h1>
+          <p class="page-lead__sub">5 Rekening Terhubung · Total: Rp 312.500.000 · ≈ USD 19.280</p>
+        </div>
+        <div class="row">
+          <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-minta-dana')">
+            <i data-lucide="hand-coins" style="width: 15px; height: 15px"></i> Minta Dana
+          </button>
+          <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-rekening-form')">
+            <i data-lucide="plus" style="width: 15px; height: 15px"></i> Tambah
+          </button>
+        </div>
+      </section>
+
+      <!-- Totals -->
+      <section class="auto-grid auto-grid--metrics">
+        <article class="card stat">
+          <div class="stat__icon" style="background: var(--accent); color: var(--accent-foreground)">🏦</div>
+          <div>
+            <div class="stat__label">Saldo Bank</div>
+            <div class="stat__value mono">Rp 312.500.000</div>
+          </div>
+          <div class="stat__delta t-success">↑ 1,1% dari bulan lalu</div>
+        </article>
+        <article class="card stat">
+          <div class="stat__icon" style="background: var(--brand-purple-soft); color: var(--brand-purple)">👥</div>
+          <div>
+            <div class="stat__label">Rekening Bersama</div>
+            <div class="stat__value mono">Rp 214.300.000</div>
+          </div>
+          <div class="stat__delta t-muted">2 rekening keluarga</div>
+        </article>
+        <article class="card stat">
+          <div class="stat__icon" style="background: var(--success-soft); color: var(--success)">👤</div>
+          <div>
+            <div class="stat__label">Milik Anggota</div>
+            <div class="stat__value mono">Rp 98.200.000</div>
+          </div>
+          <div class="stat__delta t-muted">3 rekening per-anggota</div>
+        </article>
+      </section>
+
+      <!-- Owner filter -->
+      <section class="row row--wrap">
+        <div class="tabs" role="tablist" aria-label="Filter kepemilikan">
+          <button class="tab" role="tab" aria-selected="true">Semua</button>
+          <button class="tab" role="tab" aria-selected="false">👤 Milik saya</button>
+          <button class="tab" role="tab" aria-selected="false">👥 Bersama</button>
+        </div>
+        <span class="spacer"></span>
+        <span class="t-xs t-muted">Saldo bank tidak boleh minus — kekurangan dana dicatat sebagai liabilitas.</span>
+      </section>
+
+      <!-- Account cards -->
+      <section class="auto-grid auto-grid--cards auto-grid--actions-bottom">
+        <article class="card">
+          <div class="card__body stack" style="gap: 14px">
+            <div class="row">
+              <span class="avatar" style="background: #0066AE; color: #fff; width: 46px; height: 46px; border-radius: 10px">BCA</span>
+              <span style="flex: 1; min-width: 0">
+                <span class="t-md t-black" style="display: block">BCA Tahapan</span>
+                <span class="mono t-xs t-muted">···9010</span>
+              </span>
+              <span class="badge badge--success">Aktif</span>
+              <button class="btn btn--ghost btn--icon btn--sm" aria-label="Opsi rekening BCA Tahapan" onclick="WM.openDialog('dlg-rekening-form')">
+                <i data-lucide="ellipsis-vertical" style="width: 16px; height: 16px"></i>
+              </button>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Saldo</div>
+              <div class="t-2xl t-black mono">Rp 128.400.000</div>
+              <div class="row row--wrap" style="gap: 6px; margin-top: 6px">
+                <span class="t-xs t-muted">Tabungan</span>
+                <span class="badge badge--purple">👥 Bersama</span>
+              </div>
+            </div>
+            <div class="row" style="gap: 8px">
+              <a class="btn btn--outline btn--sm btn--block" href="transaksi.html">
+                <i data-lucide="list" style="width: 14px; height: 14px"></i> Mutasi
+              </a>
+              <button class="btn btn--ghost btn--sm btn--icon" aria-label="Edit BCA Tahapan" onclick="WM.openDialog('dlg-rekening-form')">
+                <i data-lucide="pencil" style="width: 15px; height: 15px"></i>
+              </button>
+              <button class="btn btn--ghost btn--sm btn--icon" aria-label="Hapus BCA Tahapan" onclick="WM.openDialog('dlg-rekening-hapus')">
+                <i data-lucide="trash-2" style="width: 15px; height: 15px"></i>
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card__body stack" style="gap: 14px">
+            <div class="row">
+              <span class="avatar" style="background: #003D79; color: #fff; width: 46px; height: 46px; border-radius: 10px">MDR</span>
+              <span style="flex: 1; min-width: 0">
+                <span class="t-md t-black" style="display: block">Mandiri Payroll</span>
+                <span class="mono t-xs t-muted">···5586</span>
+              </span>
+              <span class="badge badge--success">Aktif</span>
+              <button class="btn btn--ghost btn--icon btn--sm" aria-label="Opsi rekening Mandiri Payroll" onclick="WM.openDialog('dlg-rekening-form')">
+                <i data-lucide="ellipsis-vertical" style="width: 16px; height: 16px"></i>
+              </button>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Saldo</div>
+              <div class="t-2xl t-black mono">Rp 85.900.000</div>
+              <div class="row row--wrap" style="gap: 6px; margin-top: 6px">
+                <span class="t-xs t-muted">Tabungan</span>
+                <span class="badge badge--info">👤 Milik Saya</span>
+              </div>
+            </div>
+            <div class="row" style="gap: 8px">
+              <a class="btn btn--outline btn--sm btn--block" href="transaksi.html">
+                <i data-lucide="list" style="width: 14px; height: 14px"></i> Mutasi
+              </a>
+              <button class="btn btn--ghost btn--sm btn--icon" aria-label="Edit Mandiri Payroll" onclick="WM.openDialog('dlg-rekening-form')">
+                <i data-lucide="pencil" style="width: 15px; height: 15px"></i>
+              </button>
+              <button class="btn btn--ghost btn--sm btn--icon" aria-label="Hapus Mandiri Payroll" onclick="WM.openDialog('dlg-rekening-hapus')">
+                <i data-lucide="trash-2" style="width: 15px; height: 15px"></i>
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card__body stack" style="gap: 14px">
+            <div class="row">
+              <span class="avatar" style="background: #7A1F2B; color: #fff; width: 46px; height: 46px; border-radius: 10px">CIMB</span>
+              <span style="flex: 1; min-width: 0">
+                <span class="t-md t-black" style="display: block">CIMB Niaga Xtra</span>
+                <span class="mono t-xs t-muted">···3327</span>
+              </span>
+              <span class="badge badge--success">Aktif</span>
+              <span class="badge badge--purple">🔒 Privat</span>
+              <button class="btn btn--ghost btn--icon btn--sm" aria-label="Opsi rekening CIMB Niaga Xtra" onclick="WM.openDialog('dlg-rekening-form')">
+                <i data-lucide="ellipsis-vertical" style="width: 16px; height: 16px"></i>
+              </button>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Saldo</div>
+              <div class="t-2xl t-black mono">Rp 62.800.000</div>
+              <div class="row row--wrap" style="gap: 6px; margin-top: 6px">
+                <span class="t-xs t-muted">Tabungan</span>
+                <span class="badge badge--gray">Milik: Siti Arsandi (Co-Master)</span>
+              </div>
+            </div>
+            <div class="row" style="gap: 8px">
+              <a class="btn btn--outline btn--sm btn--block" href="transaksi.html">
+                <i data-lucide="list" style="width: 14px; height: 14px"></i> Mutasi
+              </a>
+              <button class="btn btn--ghost btn--sm btn--icon" aria-label="Edit CIMB Niaga Xtra" onclick="WM.openDialog('dlg-rekening-form')">
+                <i data-lucide="pencil" style="width: 15px; height: 15px"></i>
+              </button>
+              <button class="btn btn--ghost btn--sm btn--icon" aria-label="Hapus CIMB Niaga Xtra" onclick="WM.openDialog('dlg-rekening-hapus')">
+                <i data-lucide="trash-2" style="width: 15px; height: 15px"></i>
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card__body stack" style="gap: 14px">
+            <div class="row">
+              <span class="avatar" style="background: #00B0CA; color: #fff; width: 46px; height: 46px; border-radius: 10px">JEN</span>
+              <span style="flex: 1; min-width: 0">
+                <span class="t-md t-black" style="display: block">Jenius Aisyah</span>
+                <span class="mono t-xs t-muted">···7742</span>
+              </span>
+              <span class="badge badge--success">Aktif</span>
+              <button class="btn btn--ghost btn--icon btn--sm" aria-label="Opsi rekening Jenius Aisyah" onclick="WM.openDialog('dlg-rekening-form')">
+                <i data-lucide="ellipsis-vertical" style="width: 16px; height: 16px"></i>
+              </button>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Saldo</div>
+              <div class="t-2xl t-black mono">Rp 9.400.000</div>
+              <div class="row row--wrap" style="gap: 6px; margin-top: 6px">
+                <span class="t-xs t-muted">Tabungan</span>
+                <span class="badge badge--gray">Milik: Aisyah Arsandi (Anggota)</span>
+              </div>
+            </div>
+            <div class="row" style="gap: 8px">
+              <a class="btn btn--outline btn--sm btn--block" href="transaksi.html">
+                <i data-lucide="list" style="width: 14px; height: 14px"></i> Mutasi
+              </a>
+              <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-minta-dana')">Minta Dana</button>
+              <button class="btn btn--ghost btn--sm btn--icon" aria-label="Hapus Jenius Aisyah" onclick="WM.openDialog('dlg-rekening-hapus')">
+                <i data-lucide="trash-2" style="width: 15px; height: 15px"></i>
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card__body stack" style="gap: 14px">
+            <div class="row">
+              <span class="avatar" style="background: #00529C; color: #fff; width: 46px; height: 46px; border-radius: 10px">BTN</span>
+              <span style="flex: 1; min-width: 0">
+                <span class="t-md t-black" style="display: block">BTN Dana Pendidikan</span>
+                <span class="mono t-xs t-muted">···1188</span>
+              </span>
+              <span class="badge badge--success">Aktif</span>
+              <button class="btn btn--ghost btn--icon btn--sm" aria-label="Opsi rekening BTN Dana Pendidikan" onclick="WM.openDialog('dlg-rekening-form')">
+                <i data-lucide="ellipsis-vertical" style="width: 16px; height: 16px"></i>
+              </button>
+            </div>
+            <div>
+              <div class="t-xs t-muted">Saldo</div>
+              <div class="t-2xl t-black mono">Rp 26.000.000</div>
+              <div class="row row--wrap" style="gap: 6px; margin-top: 6px">
+                <span class="t-xs t-muted">Tabungan</span>
+                <span class="badge badge--purple">👥 Bersama</span>
+              </div>
+            </div>
+            <div class="row" style="gap: 8px">
+              <a class="btn btn--outline btn--sm btn--block" href="transaksi.html">
+                <i data-lucide="list" style="width: 14px; height: 14px"></i> Mutasi
+              </a>
+              <button class="btn btn--ghost btn--sm btn--icon" aria-label="Edit BTN Dana Pendidikan" onclick="WM.openDialog('dlg-rekening-form')">
+                <i data-lucide="pencil" style="width: 15px; height: 15px"></i>
+              </button>
+              <button class="btn btn--ghost btn--sm btn--icon" aria-label="Hapus BTN Dana Pendidikan" onclick="WM.openDialog('dlg-rekening-hapus')">
+                <i data-lucide="trash-2" style="width: 15px; height: 15px"></i>
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card__body">
+            <div class="empty">
+              <span class="empty__icon"><i data-lucide="landmark" style="width: 30px; height: 30px"></i></span>
+              <div class="t-sm t-bold">Tambah rekening baru</div>
+              <div class="t-xs t-muted">Hubungkan rekening bank dan tetapkan pemiliknya.</div>
+              <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-rekening-form')">
+                <i data-lucide="plus" style="width: 15px; height: 15px"></i> Tambah Rekening
+              </button>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- Balance trend -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Tren Saldo Bank 6 Bulan</h2>
+          <div class="card__action">
+            <div class="segmented">
+              <button class="segmented__item" aria-selected="true">6 Bln</button>
+              <button class="segmented__item" aria-selected="false">12 Bln</button>
+            </div>
+          </div>
+        </div>
+        <div class="card__body"><div id="c-rek-trend" class="chart"></div></div>
+      </section>
+    </main>
+
+    <!-- Dialog: tambah rekening -->
+    <div class="dialog-backdrop" id="dlg-rekening-form" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-rekening-form-title">
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-rekening-form-title">Tambah Rekening</h2>
+        <p class="dialog__desc">Tetapkan pemilik agar saldo tampil di filter “Milik saya” dan alur Minta Dana.</p>
+        <div class="dialog__body">
+          <label class="field">
+            <span class="label">Nama Rekening</span>
+            <input class="input" placeholder="cth. BCA Tahapan" />
+          </label>
+          <div class="field-row" style="margin-top: 12px">
+            <label class="field" style="margin-top: 0">
+              <span class="label">Bank</span>
+              <select class="select">
+                <option>BCA</option>
+                <option>Mandiri</option>
+                <option>BNI</option>
+                <option>BRI</option>
+                <option>CIMB Niaga</option>
+                <option>Permata</option>
+                <option>Danamon</option>
+                <option>BTN</option>
+                <option>Jenius / BTPN</option>
+              </select>
+            </label>
+            <label class="field" style="margin-top: 0">
+              <span class="label">Nomor Rekening</span>
+              <input class="input mono" placeholder="1234567890" />
+              <span class="hint">Ditampilkan tersamar, cth. ···9010.</span>
+            </label>
+          </div>
+          <label class="field">
+            <span class="label">Saldo Awal (Rp)</span>
+            <input class="input mono" placeholder="0" />
+            <span class="hint">Saldo bank tidak boleh minus.</span>
+          </label>
+          <label class="field">
+            <span class="label">Pemilik</span>
+            <select class="select">
+              <option>Keluarga (bersama)</option>
+              <option>Irfan Arsandi (Master)</option>
+              <option selected>Siti Arsandi (Co-Master)</option>
+              <option>Aisyah Arsandi (Anggota)</option>
+              <option>Bagas Arsandi (Anggota)</option>
+            </select>
+            <span class="hint">Rekening milik anggota hanya bisa diubah oleh pemilik dan Master.</span>
+          </label>
+          <div class="row" style="margin-top: 12px">
+            <span class="switch" role="switch" aria-checked="false" tabindex="0" aria-label="Tandai rekening privat"></span>
+            <span class="t-sm">Tandai sebagai rekening privat (🔒 hanya pemilik yang melihat saldo)</span>
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-rekening-form')">Batal</button>
+          <button
+            class="btn btn--primary"
+            onclick="WM.closeDialog('dlg-rekening-form');WM.toast('Rekening berhasil ditambahkan!','success')"
+          >
+            Simpan Rekening
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog: minta dana -->
+    <div class="dialog-backdrop" id="dlg-minta-dana" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-minta-dana-title">
+      <div class="dialog dialog--sm">
+        <h2 class="dialog__title" id="dlg-minta-dana-title">Minta Dana</h2>
+        <p class="dialog__desc">Permintaan dikirim ke pemilik family untuk disetujui sebelum dana dipindahkan.</p>
+        <div class="dialog__body">
+          <label class="field">
+            <span class="label">Rekening Tujuan</span>
+            <select class="select">
+              <option selected>Jenius Aisyah ···7742</option>
+              <option>BCA Tahapan ···9010</option>
+              <option>Mandiri Payroll ···5586</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="label">Jumlah</span>
+            <input class="input mono" placeholder="0" value="1.500.000" />
+          </label>
+          <label class="field">
+            <span class="label">Catatan (opsional)</span>
+            <input class="input" placeholder="cth: uang jajan bulan ini" />
+          </label>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-minta-dana')">Batal</button>
+          <button
+            class="btn btn--primary"
+            onclick="WM.closeDialog('dlg-minta-dana');WM.toast('Permintaan dana terkirim. Menunggu persetujuan pemilik family.','success')"
+          >
+            Kirim Permintaan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog: hapus -->
+    <div class="dialog-backdrop" id="dlg-rekening-hapus" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-rekening-hapus-title">
+      <div class="dialog dialog--sm">
+        <h2 class="dialog__title" id="dlg-rekening-hapus-title">Hapus rekening ini?</h2>
+        <p class="dialog__desc">Mutasi lama tetap tersimpan, tetapi rekening tidak lagi dihitung dalam total kekayaan.</p>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-rekening-hapus')">Batal</button>
+          <button
+            class="btn btn--destructive"
+            onclick="WM.closeDialog('dlg-rekening-hapus');WM.toast('Rekening berhasil dihapus.','success')"
+          >
+            Ya, Hapus
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script src="../assets/charts.js"></script>
+    <script>
+      WM.shell({ active: "rekening" });
+
+      WMCharts.trend(
+        "#c-rek-trend",
+        ["Mar", "Apr", "Mei", "Jun", "Jul", "Agu"],
+        [
+          { name: "Bersama", data: [186000000, 194500000, 201200000, 205800000, 210400000, 214300000] },
+          { name: "Milik Anggota", data: [78400000, 82100000, 86900000, 91300000, 95600000, 98200000] },
+        ],
+        { height: 260 }
+      );
+    </script>
+  </body>
+</html>

@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Persetujuan · WealthMe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../assets/tokens.css" />
+    <link rel="stylesheet" href="../assets/app.css" />
+  </head>
+  <body>
+    <main class="page">
+      <!-- EPIC-024 item 5 — approval dipindah dari panel di dalam /akun
+           menjadi halaman sendiri, hanya untuk Master & Co-Master. -->
+      <section class="page-lead">
+        <div class="page-lead__text">
+          <div class="row" style="gap: 8px">
+            <h2 class="section-title">Persetujuan</h2>
+            <span class="badge badge--danger">2 menunggu</span>
+          </div>
+          <div class="page-lead__sub">
+            Permintaan dana dan pengeluaran tertahan dari anggota keluarga. Hanya Master &amp; Co-Master yang
+            dapat menyetujui atau menolak.
+          </div>
+        </div>
+        <span class="badge badge--purple">
+          <i data-lucide="crown" style="width: 13px; height: 13px"></i> Master · Irfan Arsandi
+        </span>
+      </section>
+
+      <section class="auto-grid auto-grid--metrics">
+        <article class="card stat">
+          <div class="stat__icon" style="background: var(--warning-soft); color: var(--warning)">⏳</div>
+          <div>
+            <div class="stat__label">Menunggu Persetujuan</div>
+            <div class="stat__value mono">2</div>
+            <div class="stat__delta t-muted">Total <span class="mono">Rp 3.850.000</span></div>
+          </div>
+        </article>
+        <article class="card stat">
+          <div class="stat__icon" style="background: var(--success-soft); color: var(--success)">✅</div>
+          <div>
+            <div class="stat__label">Disetujui Bulan Ini</div>
+            <div class="stat__value mono">7</div>
+            <div class="stat__delta t-success">Rp 11.420.000 dicairkan</div>
+          </div>
+        </article>
+        <article class="card stat">
+          <div class="stat__icon" style="background: color-mix(in oklab, var(--destructive) 14%, transparent); color: var(--destructive)">🚫</div>
+          <div>
+            <div class="stat__label">Ditolak Bulan Ini</div>
+            <div class="stat__value mono">2</div>
+            <div class="stat__delta t-muted">Rp 1.900.000 tidak dicairkan</div>
+          </div>
+        </article>
+      </section>
+
+      <div class="tabs" role="tablist" aria-label="Filter persetujuan">
+        <button class="tab" role="tab" aria-selected="true" onclick="showPanel('pending')">Pending (2)</button>
+        <button class="tab" role="tab" aria-selected="false" onclick="showPanel('riwayat')">Riwayat</button>
+      </div>
+
+      <!-- ─────────────── Pending ─────────────── -->
+      <section id="panel-pending" class="stack" style="gap: 14px">
+        <article class="card">
+          <div class="card__body">
+            <div class="row row--wrap" style="gap: 12px">
+              <span class="avatar gradient-emerald" style="color: #fff">AI</span>
+              <div style="flex: 1; min-width: 180px">
+                <div class="row" style="gap: 8px">
+                  <span class="t-md t-bold">Aisyah Arsandi</span>
+                  <span class="badge badge--warning">Menunggu</span>
+                </div>
+                <div class="t-xs t-muted">Anak · tanggungan · diajukan 6 Agu 2026, 19:42</div>
+              </div>
+              <div style="text-align: right">
+                <div class="t-xl t-black mono">Rp 1.500.000</div>
+                <div class="t-xs t-muted">Permintaan dana</div>
+              </div>
+            </div>
+
+            <div class="grid grid--2 grid--stack-sm" style="margin-top: 12px; gap: 10px">
+              <div class="card" style="box-shadow: none; padding: 10px 12px">
+                <div class="t-xs t-muted">Keperluan</div>
+                <div class="t-md t-bold">Uang buku &amp; seragam semester ganjil</div>
+              </div>
+              <div class="card" style="box-shadow: none; padding: 10px 12px">
+                <div class="t-xs t-muted">Rekening tujuan</div>
+                <div class="t-md t-bold">Kartu Aisyah ···4471</div>
+              </div>
+            </div>
+
+            <div class="row row--wrap" style="margin-top: 12px; gap: 8px">
+              <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-setujui')">
+                <i data-lucide="check" style="width: 15px; height: 15px"></i> Setujui
+              </button>
+              <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-tolak')">
+                <i data-lucide="x" style="width: 15px; height: 15px"></i> Tolak
+              </button>
+              <div class="spacer"></div>
+              <span class="t-xs t-muted">Menyetujui akan mentransfer dana sungguhan antar rekening.</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card__body">
+            <div class="row row--wrap" style="gap: 12px">
+              <span class="avatar gradient-ai" style="color: #fff">PD</span>
+              <div style="flex: 1; min-width: 180px">
+                <div class="row" style="gap: 8px">
+                  <span class="t-md t-bold">Pak Dedi</span>
+                  <span class="badge badge--danger">Menunggu Persetujuan</span>
+                </div>
+                <div class="t-xs t-muted">Operasional · supir · diajukan 6 Agu 2026, 08:15</div>
+              </div>
+              <div style="text-align: right">
+                <div class="t-xl t-black mono">Rp 2.350.000</div>
+                <div class="t-xs t-muted">Pengeluaran tertahan</div>
+              </div>
+            </div>
+
+            <div class="grid grid--2 grid--stack-sm" style="margin-top: 12px; gap: 10px">
+              <div class="card" style="box-shadow: none; padding: 10px 12px">
+                <div class="t-xs t-muted">Keperluan</div>
+                <div class="t-md t-bold">Servis besar Fortuner + ganti ban</div>
+              </div>
+              <div class="card" style="box-shadow: none; padding: 10px 12px">
+                <div class="t-xs t-muted">Rekening tujuan</div>
+                <div class="t-md t-bold">Kas Operasional ···0021</div>
+              </div>
+            </div>
+
+            <div class="notice notice--warning" style="margin-top: 12px">
+              <i data-lucide="triangle-alert" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+              <span>
+                Melebihi batas transaksi besar Pak Dedi (<span class="mono">Rp 1.000.000</span>). Pengeluaran ini
+                ditahan dan belum dicatat sampai kamu menyetujuinya.
+              </span>
+            </div>
+
+            <div class="row row--wrap" style="margin-top: 12px; gap: 8px">
+              <button class="btn btn--primary btn--sm" onclick="WM.openDialog('dlg-setujui')">
+                <i data-lucide="check" style="width: 15px; height: 15px"></i> Setujui
+              </button>
+              <button class="btn btn--outline btn--sm" onclick="WM.openDialog('dlg-tolak')">
+                <i data-lucide="x" style="width: 15px; height: 15px"></i> Tolak
+              </button>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- ─────────────── Riwayat ─────────────── -->
+      <section id="panel-riwayat" class="card" style="display: none">
+        <div class="card__header">
+          <h2 class="card__title">Riwayat Keputusan</h2>
+          <div class="card__action"><button class="card-link">Unduh CSV</button></div>
+        </div>
+        <div class="card__body">
+          <div class="table-wrap">
+            <table class="table table--num">
+              <thead>
+                <tr>
+                  <th>Pemohon</th>
+                  <th>Keperluan</th>
+                  <th>Rekening</th>
+                  <th>Status</th>
+                  <th>Diputuskan oleh</th>
+                  <th>Tanggal</th>
+                  <th>Jumlah</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Aisyah Arsandi</td>
+                  <td>SPP bulan Agustus</td>
+                  <td>Kartu Aisyah ···4471</td>
+                  <td><span class="badge badge--success">Disetujui</span></td>
+                  <td>Siti Arsandi <span class="t-xs t-muted">(Co-Master)</span></td>
+                  <td class="t-sm t-muted">4 Agu 2026</td>
+                  <td class="mono t-bold">Rp 2.750.000</td>
+                </tr>
+                <tr>
+                  <td>Pak Dedi</td>
+                  <td>Bensin &amp; tol mingguan</td>
+                  <td>Kas Operasional ···0021</td>
+                  <td><span class="badge badge--success">Disetujui</span></td>
+                  <td>Irfan Arsandi <span class="t-xs t-muted">(Master)</span></td>
+                  <td class="t-sm t-muted">3 Agu 2026</td>
+                  <td class="mono t-bold">Rp 1.200.000</td>
+                </tr>
+                <tr>
+                  <td>Aisyah Arsandi</td>
+                  <td>Konser musik akhir pekan</td>
+                  <td>Kartu Aisyah ···4471</td>
+                  <td><span class="badge badge--danger">Ditolak</span></td>
+                  <td>Irfan Arsandi <span class="t-xs t-muted">(Master)</span></td>
+                  <td class="t-sm t-muted">1 Agu 2026</td>
+                  <td class="mono t-bold">Rp 1.400.000</td>
+                </tr>
+                <tr>
+                  <td>Pak Dedi</td>
+                  <td>Ganti oli mesin</td>
+                  <td>Kas Operasional ···0021</td>
+                  <td><span class="badge badge--success">Disetujui</span></td>
+                  <td>Siti Arsandi <span class="t-xs t-muted">(Co-Master)</span></td>
+                  <td class="t-sm t-muted">28 Jul 2026</td>
+                  <td class="mono t-bold">Rp 680.000</td>
+                </tr>
+                <tr>
+                  <td>Aisyah Arsandi</td>
+                  <td>Tambahan uang jajan</td>
+                  <td>Kartu Aisyah ···4471</td>
+                  <td><span class="badge badge--danger">Ditolak</span></td>
+                  <td>Siti Arsandi <span class="t-xs t-muted">(Co-Master)</span></td>
+                  <td class="t-sm t-muted">24 Jul 2026</td>
+                  <td class="mono t-bold">Rp 500.000</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ── Dialog: Setujui (sumber dana + pesan error asli dari server) ── -->
+    <div class="dialog-backdrop" id="dlg-setujui" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-setujui-title">
+      <div class="dialog">
+        <h2 class="dialog__title" id="dlg-setujui-title">Setujui Permintaan Dana</h2>
+        <p class="dialog__desc">
+          Aisyah Arsandi — <span class="mono t-bold">Rp 1.500.000</span> → Kartu Aisyah ···4471
+        </p>
+        <div class="dialog__body">
+          <label class="field">
+            <span class="label">Sumber Dana</span>
+            <select class="select" id="setujui-sumber">
+              <option value="utama">Akun Utama ···0001 — Rp 940.000</option>
+              <option value="bca">BCA Tahapan ···9010 — Rp 128.400.000</option>
+              <option value="mandiri">Mandiri Payroll ···5586 — Rp 62.150.000</option>
+              <option value="kas">Kas Tunai — Rp 4.300.000</option>
+            </select>
+            <span class="hint">Dana ditransfer sungguhan dari rekening ini ke rekening tujuan.</span>
+          </label>
+
+          <!-- EPIC-024 item 5 — INI inti perbaikannya: pesan error asli dari
+               server ditampilkan apa adanya di dalam dialog, bukan ditelan
+               jadi toast generik "Gagal menyetujui permintaan dana." -->
+          <div class="notice notice--danger" id="setujui-error" style="margin-top: 12px">
+            <i data-lucide="circle-alert" style="width: 16px; height: 16px; flex-shrink: 0"></i>
+            <span>
+              Saldo rekening bank "Akun Utama" tidak mencukupi untuk transaksi ini. Rekening bank tidak boleh
+              memiliki saldo minus.
+            </span>
+          </div>
+          <div class="hint">
+            Contoh kasus nyata: saldo <span class="mono">Rp 940.000</span> tidak cukup untuk
+            <span class="mono">Rp 1.500.000</span>. Pilih rekening lain sebagai sumber dana.
+          </div>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-setujui')">Batal</button>
+          <button class="btn btn--primary" id="setujui-submit" onclick="submitSetujui()">Setujui &amp; Transfer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Dialog: Tolak ── -->
+    <div class="dialog-backdrop" id="dlg-tolak" data-open="false" role="dialog" aria-modal="true" aria-labelledby="dlg-tolak-title">
+      <div class="dialog dialog--sm">
+        <h2 class="dialog__title" id="dlg-tolak-title">Tolak Permintaan?</h2>
+        <p class="dialog__desc">
+          Pemohon akan menerima notifikasi beserta alasan penolakan. Tidak ada dana yang berpindah.
+        </p>
+        <div class="dialog__body">
+          <label class="field">
+            <span class="label">Alasan Penolakan</span>
+            <textarea class="textarea" placeholder="cth: Sudah dianggarkan lewat SPP bulan ini, ajukan lagi bulan depan."></textarea>
+            <span class="hint">Wajib diisi agar pemohon paham alasannya.</span>
+          </label>
+        </div>
+        <div class="dialog__footer">
+          <button class="btn btn--outline" onclick="WM.closeDialog('dlg-tolak')">Batal</button>
+          <button class="btn btn--destructive" onclick="WM.closeDialog('dlg-tolak');WM.toast('Permintaan dana ditolak.','success')">Tolak Permintaan</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+    <script src="../assets/shell.js"></script>
+    <script src="../assets/charts.js"></script>
+    <script>
+      WM.shell({ active: "persetujuan" });
+
+      function showPanel(which) {
+        document.getElementById("panel-pending").style.display = which === "pending" ? "" : "none";
+        document.getElementById("panel-riwayat").style.display = which === "riwayat" ? "" : "none";
+      }
+
+      // The error notice is real: it only clears once a source account with
+      // enough balance is picked — exactly the behaviour the fix asks for.
+      const sumber = document.getElementById("setujui-sumber");
+      const errorBox = document.getElementById("setujui-error");
+      sumber.addEventListener("change", () => {
+        errorBox.style.display = sumber.value === "utama" ? "flex" : "none";
+      });
+
+      function submitSetujui() {
+        if (sumber.value === "utama") {
+          errorBox.style.display = "flex";
+          WM.toast('Saldo rekening bank "Akun Utama" tidak mencukupi untuk transaksi ini.', "error");
+          return;
+        }
+        WM.closeDialog("dlg-setujui");
+        WM.toast("Permintaan dana disetujui — dana telah ditransfer.", "success");
+      }
+
+      if (window.lucide) window.lucide.createIcons();
+    </script>
+  </body>
+</html>
