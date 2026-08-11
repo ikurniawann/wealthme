@@ -100,7 +100,9 @@ export const en = {
       liabilitas: "Liabilities",
       asuransi: "Insurance",
       warisan: "Inheritance",
-      donation: "Donation & Zakat",
+      // EPIC-024 Group I (I1, D12, US-DON-8) — renamed from "Donation &
+      // Zakat": the page covers all faiths' donations, not just zakat.
+      donation: "Donation",
       tax: "Tax Center",
       splitbill: "Split Bill",
       rekonsiliasi: "Bank Reconciliation",
@@ -149,7 +151,8 @@ export const en = {
       splitbill: "Split Bill",
       rekonsiliasi: "Bank Reconciliation",
       warisan: "Inheritance",
-      donation: "Donation & Zakat",
+      // EPIC-024 Group I (I1, D12, US-DON-8) — see nav.items.donation.
+      donation: "Donation",
       tax: "Tax Center",
       quickinput: "Quick Input",
       mastercoa: "Master COA",
@@ -956,8 +959,11 @@ export const en = {
       detailNisabPrefix: "· Nisab:",
       estimateNote:
         "This estimate applies once ownership has reached a full year (haul). Check the box above to confirm the obligation.",
+      // EPIC-024 Group I (I1, D12, US-DON-8) — see id.ts for why this note
+      // exists: it ties the headline "Rp 0" figure to its cause instead of
+      // leaving a first-time visitor with an unexplained zero.
       belowNisabPrefix: "Zakatable assets haven't reached the nisab (",
-      belowNisabSuffix: ").",
+      belowNisabSuffix: "), so no zakat is due yet — the amount shown is Rp 0.",
       nisabSourceFamilyPrefix: "Nisab from your family's gold price: Rp ",
       nisabSourceFamilyMidfix: "/gram (",
       nisabSourceFamilySuffix: ")",

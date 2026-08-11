@@ -16,7 +16,10 @@ import { HeroCard, SectionCard, StatusBadge } from "@/components/wm";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { formatManualDate } from "@/components/consolidated-total-card";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useFamilyReligion } from "@/hooks/use-family-religion";
+import {
+  useFamilyReligion,
+  type FamilyReligion,
+} from "@/hooks/use-family-religion";
 import { useGoldPrice } from "@/hooks/use-gold-price";
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
@@ -151,7 +154,18 @@ export default function DonationPage() {
     religion,
     isLoading: isReligionLoading,
     isError: isReligionError,
+    isOwner: isReligionOwner,
+    updateReligion,
+    isUpdating: isReligionUpdating,
   } = useFamilyReligion();
+
+  // EPIC-024 Group I (I1, D12, US-DON-8) — inline "choose family religion"
+  // prompt lives on this page now instead of only in Akun settings, so a
+  // family that has never chosen sees the calculator appear immediately
+  // after saving instead of having to navigate to Akun and back.
+  const [pendingReligion, setPendingReligion] = useState<FamilyReligion | "">(
+    "",
+  );
 
   // Zakat Maal calculator — inputs are local, but the actual zakat/nisab
   // math is computed by the shared BE calculator (/calculators/zakat) so
@@ -416,16 +430,59 @@ export default function DonationPage() {
       )}
 
       {!isReligionLoading && !isReligionError && religion === null && (
-        <div className="flex items-center gap-3 rounded-[14px] border border-primary/20 bg-accent p-4">
-          <div className="text-[24px]">🤲</div>
-          <div className="flex-1">
-            <div className="text-[13px] font-bold text-primary-strong">
-              {t.donation.religionCalculatorUnconfirmedTitle}
-            </div>
-            <div className="mt-0.5 text-xs text-muted-foreground">
-              {t.donation.religionCalculatorUnconfirmedDesc}
+        <div className="rounded-[14px] border border-primary/20 bg-accent p-4">
+          <div className="flex items-center gap-3">
+            <div className="text-[24px]">🤲</div>
+            <div className="flex-1">
+              <div className="text-[13px] font-bold text-primary-strong">
+                {t.donation.religionCalculatorUnconfirmedTitle}
+              </div>
+              <div className="mt-0.5 text-xs text-muted-foreground">
+                {t.donation.religionCalculatorUnconfirmedDesc}
+              </div>
             </div>
           </div>
+          {isReligionOwner ? (
+            <div className="mt-3.5 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <select
+                aria-label={t.akun.pengaturan.religionLabel}
+                className={`${FIELD_CLASS} sm:max-w-[240px]`}
+                value={pendingReligion}
+                disabled={isReligionUpdating}
+                onChange={(e) =>
+                  setPendingReligion(e.target.value as FamilyReligion)
+                }
+              >
+                <option value="" disabled>
+                  {t.akun.pengaturan.religionUnconfirmedPlaceholder}
+                </option>
+                {(["islam", "kristen", "none"] as const).map((r) => (
+                  <option key={r} value={r}>
+                    {t.akun.pengaturan.religionOptions[r]}
+                  </option>
+                ))}
+              </select>
+              <Button
+                onClick={() => {
+                  if (!pendingReligion) return;
+                  updateReligion(pendingReligion, {
+                    onSuccess: () =>
+                      toast.success(t.akun.pengaturan.toastReligionUpdated),
+                    onError: () =>
+                      toast.error(t.akun.pengaturan.toastReligionFailed),
+                  });
+                }}
+                disabled={!pendingReligion || isReligionUpdating}
+                className="h-auto shrink-0 px-4 py-2.5"
+              >
+                {t.akun.pengaturan.religionSaveButton}
+              </Button>
+            </div>
+          ) : (
+            <div className="mt-3 text-xs text-muted-foreground">
+              {t.akun.pengaturan.religionOwnerOnlyNote}
+            </div>
+          )}
         </div>
       )}
 

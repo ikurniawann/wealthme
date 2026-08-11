@@ -100,7 +100,9 @@ export const id = {
       liabilitas: "Liabilitas",
       asuransi: "Asuransi",
       warisan: "Warisan",
-      donation: "Donasi & Zakat",
+      // EPIC-024 Group I (I1, D12, US-DON-8) — renamed from "Donasi &
+      // Zakat": the page covers all faiths' donations, not just zakat.
+      donation: "Donasi",
       tax: "Tax Center",
       splitbill: "Split Bill",
       rekonsiliasi: "Rekonsiliasi Bank",
@@ -149,7 +151,8 @@ export const id = {
       splitbill: "Split Bill",
       rekonsiliasi: "Rekonsiliasi Bank",
       warisan: "Warisan",
-      donation: "Donasi & Zakat",
+      // EPIC-024 Group I (I1, D12, US-DON-8) — see nav.items.donation.
+      donation: "Donasi",
       tax: "Tax Center",
       quickinput: "Quick Input",
       mastercoa: "Master COA",
@@ -956,8 +959,14 @@ export const id = {
       detailNisabPrefix: "· Nisab:",
       estimateNote:
         "Estimasi ini berlaku bila kepemilikan sudah genap 1 tahun (haul). Centang kotak di atas untuk konfirmasi kewajiban.",
+      // EPIC-024 Group I (I1, D12, US-DON-8) — spells out WHY the headline
+      // figure is Rp 0 instead of leaving the number unexplained: the
+      // page's own prefilled defaults (Rp 50 jt + Rp 30 jt) sit below the
+      // default nisab (~Rp 93,5 jt), so a first-time visitor sees "Rp 0"
+      // with no obvious reason unless this note ties the two together.
       belowNisabPrefix: "Harta zakatable belum mencapai nisab (",
-      belowNisabSuffix: ").",
+      belowNisabSuffix:
+        "), sehingga belum ada kewajiban zakat saat ini — nilainya Rp 0.",
       nisabSourceFamilyPrefix: "Nisab dari harga emas keluarga: Rp ",
       nisabSourceFamilyMidfix: "/gram (",
       nisabSourceFamilySuffix: ")",

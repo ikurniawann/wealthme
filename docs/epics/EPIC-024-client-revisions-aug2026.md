@@ -348,9 +348,9 @@ One task group = one branch = one PR to `development`. Execution order is in
     heirs lacking it); surface the server's message via
     `extractApiErrorMessage`. (US-WAR-1, US-AUTH-11)
 
-- [ ] ### I — Donasi: religion prompt inline + rename menu (item 13)
-  - **I1** — When `religion === null`, render an inline "Pilih agama keluarga"
-    prompt (dropdown + save) on the donasi page; calculator appears
+- [x] ### I — Donasi: religion prompt inline + rename menu (item 13) ✅
+  - **I1** — [x] When `religion === null`, render an inline "Pilih agama
+    keluarga" prompt (dropdown + save) on the donasi page; calculator appears
     immediately after. Rename menu/title to "Donasi" (both locales). Clarify
     the below-nisab Rp 0 answer on `/kalkulator`. (D12, US-DON-8)
 
@@ -766,3 +766,7 @@ the N1 prototype has an approval recorded in the Automation Log.
   error surfacing" → PASS (attempts: 2; attempt 1 failed for missing inline
   field-level error + unlocalized array-message leak risk + missing tests,
   fixed in attempt 2). PR: https://github.com/andrsrjld/wealthme-web/pull/258
+- 2026-08-11 /epic-loop EPIC-024 #I "Donasi: religion prompt inline + rename
+  menu" → PASS (attempts: 2; attempt 1 failed for missing accessible label on
+  the religion select + missing test coverage, fixed in attempt 2). PR:
+  https://github.com/andrsrjld/wealthme-web/pull/259
