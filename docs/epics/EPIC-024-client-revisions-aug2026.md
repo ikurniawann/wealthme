@@ -1,6 +1,6 @@
 # EPIC-024: Client Revision Punch-List (docs/revisi.txt, Aug 2026)
 
-status: backlog
+status: on-progress
 environment: dev
 retries: 0
 phase: 4
