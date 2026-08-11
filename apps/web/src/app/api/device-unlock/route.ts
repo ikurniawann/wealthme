@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
+import { getServerEnv } from "@/lib/env";
+
 export const runtime = "nodejs";
 
 // EPIC-023 D2 (US-FAM-13, D7) — device-bound PIN unlock, client side.
@@ -21,7 +23,6 @@ export const runtime = "nodejs";
 // auth pathway: it installs the identical cookie shape, using a token that
 // `BetterAuthGuard`'s own `baSession.findUnique({ where: { token } })`
 // lookup already validates for every other authenticated request.
-const API_URL = process.env.API_URL ?? "http://localhost:4000";
 const SEVEN_DAYS_SECONDS = 60 * 60 * 24 * 7;
 
 function sessionCookieName(): string {
@@ -67,8 +68,26 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
+  let apiUrl: string;
+  try {
+    apiUrl = getServerEnv().API_URL;
+  } catch (error) {
+    // Misconfigured deployment (API_URL missing/invalid) — surface a clear
+    // "server error" the client can distinguish from an actually wrong PIN,
+    // instead of crashing or silently hitting the wrong host.
+    return NextResponse.json(
+      {
+        message:
+          error instanceof Error
+            ? error.message
+            : "Server misconfiguration: API_URL is not set",
+      },
+      { status: 500 },
+    );
+  }
+
   const apiRes = await fetch(
-    `${API_URL}/auth/devices/${encodeURIComponent(deviceId)}/unlock`,
+    `${apiUrl}/auth/devices/${encodeURIComponent(deviceId)}/unlock`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },

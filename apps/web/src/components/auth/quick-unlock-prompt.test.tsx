@@ -41,6 +41,12 @@ jest.mock("../../hooks/use-locale", () => ({
         toastPinMismatch: "Konfirmasi PIN tidak cocok.",
         toastSetupSuccess: "Buka cepat siap digunakan di perangkat ini.",
         toastSetupFailed: "Gagal mengatur buka cepat.",
+        toastSetupSessionExpired:
+          "Sesi kamu berakhir. Silakan login ulang lalu coba atur buka cepat lagi.",
+        toastSetupServiceUnavailable:
+          "Layanan buka cepat sedang bermasalah di server. Coba lagi nanti atau hubungi admin.",
+        toastSetupNetworkError:
+          "Tidak dapat terhubung ke server. Periksa koneksi internet kamu.",
       },
     },
   }),
@@ -130,5 +136,53 @@ describe("QuickUnlockPrompt (EPIC-023 D2)", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(mockRegisterDevice).not.toHaveBeenCalled();
     expect(mockSetDevicePin).not.toHaveBeenCalled();
+  });
+
+  it("EPIC-024 B2 — shows a session-expired toast (not the generic failure) on a 401/403 ApiError", async () => {
+    const user = userEvent.setup();
+    mockRegisterDevice.mockRejectedValue({
+      status: 401,
+      message: "Unauthorized",
+    });
+
+    render(<QuickUnlockPrompt userId="user-1" open onOpenChange={jest.fn()} />);
+
+    await user.type(screen.getByLabelText(/Pilih PIN 6 digit/), "482913");
+    await user.type(screen.getByPlaceholderText("Konfirmasi PIN"), "482913");
+    await user.click(screen.getByRole("button", { name: "Atur PIN" }));
+
+    expect(mockToastError).toHaveBeenCalledWith(
+      "Sesi kamu berakhir. Silakan login ulang lalu coba atur buka cepat lagi.",
+    );
+  });
+
+  it("EPIC-024 B2 — shows a service-unavailable toast (not the generic failure) on a 404 ApiError, e.g. the nginx allowlist bug", async () => {
+    const user = userEvent.setup();
+    mockRegisterDevice.mockRejectedValue({ status: 404, message: "Not Found" });
+
+    render(<QuickUnlockPrompt userId="user-1" open onOpenChange={jest.fn()} />);
+
+    await user.type(screen.getByLabelText(/Pilih PIN 6 digit/), "482913");
+    await user.type(screen.getByPlaceholderText("Konfirmasi PIN"), "482913");
+    await user.click(screen.getByRole("button", { name: "Atur PIN" }));
+
+    expect(mockToastError).toHaveBeenCalledWith(
+      "Layanan buka cepat sedang bermasalah di server. Coba lagi nanti atau hubungi admin.",
+    );
+  });
+
+  it("EPIC-024 B2 — shows a network-error toast (not the generic failure) when the mutation throws a plain network error", async () => {
+    const user = userEvent.setup();
+    mockRegisterDevice.mockRejectedValue(new TypeError("Failed to fetch"));
+
+    render(<QuickUnlockPrompt userId="user-1" open onOpenChange={jest.fn()} />);
+
+    await user.type(screen.getByLabelText(/Pilih PIN 6 digit/), "482913");
+    await user.type(screen.getByPlaceholderText("Konfirmasi PIN"), "482913");
+    await user.click(screen.getByRole("button", { name: "Atur PIN" }));
+
+    expect(mockToastError).toHaveBeenCalledWith(
+      "Tidak dapat terhubung ke server. Periksa koneksi internet kamu.",
+    );
   });
 });

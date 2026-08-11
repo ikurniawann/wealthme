@@ -278,14 +278,15 @@ One task group = one branch = one PR to `development`. Execution order is in
     Lot/Lembar, Catat Investasi) and `docs/adr/0001-istri-as-second-owner.md`.
 
 - [ ] ### B — PIN/buka cepat nginx routes + error surfacing (items 3, 10)
-  - **B1** — Add `devices(?:/.*)?` to the nginx auth-route allowlist regex
+  - **B1** — [x] Add `devices(?:/.*)?` to the nginx auth-route allowlist regex
     (`deploy/nginx/default.conf:54`) and a dedicated location proxying
     `/api/device-unlock` to web:3000 (it is a Next BFF route, not NestJS).
-  - **B2** — Error surfacing: `quick-unlock-prompt.tsx:64` and
+  - **B2** — [x] Error surfacing: `quick-unlock-prompt.tsx:64` and
     `device-unlock-pad.tsx` distinguish 401/403/404/network from "PIN salah".
     Validate `API_URL` in `apps/web/src/lib/env.ts`. (US-AUTH-10/11)
-  - **B3** — Deploy smoke on DEV: register device, set PIN, log out, PIN
-    unlock — **must** be verified through nginx, the bug lives there.
+  - **B3** — [ ] Deploy smoke on DEV: register device, set PIN, log out, PIN
+    unlock — **must** be verified through nginx, the bug lives there. (pending
+    epic-wide DEV deploy after all groups land)
 
 - [ ] ### C — Investasi: live prices, lot/lembar, koin, deposito, tanggal beli, quickinput fix (items 6, 7, 31)
   - **C1** — `USE_REAL_MARKET_DATA=true` across `.env*` + `deploy/.env.example`;
@@ -748,3 +749,6 @@ the N1 prototype has an approval recorded in the Automation Log.
   same session to map every prototype page's depicted features against
   current `apps/web`/`apps/api` state, ahead of a future session starting
   Groups A–M/N3.
+- 2026-08-11 /epic-loop EPIC-024 #B "PIN/buka cepat nginx routes + error
+  surfacing" → PASS (attempts: 1). B1/B2 landed; B3 (DEV nginx smoke) pending
+  epic-wide deploy. PR: https://github.com/andrsrjld/wealthme-web/pull/255
