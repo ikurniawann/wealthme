@@ -151,6 +151,29 @@ describe("AuthService", () => {
         }),
       ).rejects.toThrow(ConflictException);
     });
+
+    // EPIC-024 A6 (D5, US-REK-1) — "Akun Utama" auto-create removed: a new
+    // user starts with zero accounts and adds their own.
+    it("never creates an 'Akun Utama' account (or any account) during registration", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockPrisma.user.create.mockResolvedValue({
+        id: "user-1",
+        email: "user@example.com",
+        name: "Jane Doe",
+      });
+      mockJwt.sign
+        .mockReturnValueOnce("access-token")
+        .mockReturnValueOnce("refresh-token");
+      mockRedis.set.mockResolvedValue(undefined);
+
+      await service.register({
+        email: "user@example.com",
+        password: "strongPass123",
+        name: "Jane Doe",
+      });
+
+      expect(mockPrisma.account.create).not.toHaveBeenCalled();
+    });
   });
 
   describe("login()", () => {
@@ -280,6 +303,9 @@ describe("AuthService", () => {
           avatarInitials: true,
           createdAt: true,
           memberships: {
+            // EPIC-024 A3 (Evidence #1) — "oldest membership wins",
+            // unified with auth.ts (web) and family-groups.service.ts.
+            orderBy: { createdAt: "asc" },
             select: {
               id: true,
               familyGroupId: true,
@@ -288,6 +314,34 @@ describe("AuthService", () => {
           },
         },
       });
+    });
+
+    // EPIC-024 A3 (Evidence #1) — before this fix, `memberships[0]` here had
+    // NO orderBy at all: a third, independent way (besides auth.ts's
+    // `desc` and family-groups.service.ts's `asc`) of deciding "the active
+    // family group", which is exactly the bug that stranded a wife with two
+    // memberships on the wrong one. This proves the OLDEST membership wins
+    // even when Prisma/the mock returns them newest-first.
+    it("resolves familyGroupId to the OLDEST membership, matching auth.ts and family-groups.service.ts#findMine", async () => {
+      const profile = {
+        id: "user-1",
+        email: "wife@example.com",
+        name: "Sari",
+        avatarInitials: "S",
+        createdAt: new Date("2024-01-01"),
+        // Ordered oldest-first here (as the real `orderBy: asc` query
+        // would return them) — the OLD "own family" group came first
+        // (self-registration), THEN she was added to the husband's group.
+        memberships: [
+          { id: "m-own", familyGroupId: "fg-own-empty", role: "owner" },
+          { id: "m-husband", familyGroupId: "fg-husband", role: "owner" },
+        ],
+      };
+      mockPrisma.user.findUniqueOrThrow.mockResolvedValue(profile);
+
+      const result = await service.getMe("user-1");
+
+      expect(result.familyGroupId).toBe("fg-own-empty");
     });
 
     it("returns empty memberships array when user has no memberships", async () => {

@@ -30,12 +30,15 @@ export type Role = z.infer<typeof RoleSchema>;
 
 /**
  * Relationship -> default role. Pre-fills the role picker when a head adds a
- * member by kinship; the result stays fully editable — the API accepts any
- * (relationship, role) pair the head chooses. This mapping only supplies the
- * default, it is never enforced as a constraint (D1).
+ * member by kinship; the result stays fully editable for every relationship
+ * EXCEPT `istri` — the API accepts any (relationship, role) pair for the
+ * others, but `istri` is now enforced server-side as `role: owner` and
+ * capped at one per family group (EPIC-024 A1, D1: "istri = co-master
+ * penuh"). This supersedes EPIC-023 D2/D6's `spouse` role for wives — the
+ * `spouse` role/invite flow remains in code for non-wife cases only.
  */
 export const DEFAULT_ROLE_BY_RELATIONSHIP: Record<MemberRelationship, Role> = {
-  istri: "spouse",
+  istri: "owner",
   anak: "dependant",
   kakek: "member",
   nenek: "member",

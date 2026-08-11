@@ -11,6 +11,7 @@ import { NAV_SECTIONS, type BadgeVariant } from "@/lib/nav";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
+import { useMyRole } from "@/hooks/use-my-role";
 import { useShell } from "./shell-context";
 
 const BADGE_CLASS: Record<BadgeVariant, string> = {
@@ -41,6 +42,8 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId;
   const token = session?.accessToken;
+  // EPIC-024 A5 (D6) — gates the "Persetujuan" nav item to owner/co-master.
+  const { isOwner } = useMyRole();
 
   const { data: unreadData } = useQuery<{ count: number }>({
     queryKey: queryKeys.notifications.unreadCount(familyGroupId ?? ""),
@@ -92,88 +95,93 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                 {t.shell.navSectionHeaders[section.headerKey]}
               </div>
             )}
-            {section.items.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
+            {section.items
+              .filter((item) => !item.ownerOnly || isOwner)
+              .map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href;
 
-              if (item.children) {
-                const parentActive = pathname === item.href;
-                return (
-                  <div key={item.id}>
-                    <button
-                      onClick={() => setReportOpen((o) => !o)}
-                      className={cn(
-                        "mx-2 my-px flex w-[calc(100%-1rem)] items-center gap-2.5 rounded-md px-3.5 py-[9px] text-[13px] font-medium transition-colors",
-                        parentActive
-                          ? "bg-accent font-semibold text-primary"
-                          : "text-muted-foreground hover:bg-secondary hover:text-foreground",
-                      )}
-                    >
-                      <Icon className="size-[18px] shrink-0" />
-                      {t.shell.navSections[item.id]}
-                      <ChevronDown
+                if (item.children) {
+                  const parentActive = pathname === item.href;
+                  return (
+                    <div key={item.id}>
+                      <button
+                        onClick={() => setReportOpen((o) => !o)}
                         className={cn(
-                          "ml-auto size-3 text-muted-foreground transition-transform",
-                          reportOpen && "rotate-180",
+                          "mx-2 my-px flex w-[calc(100%-1rem)] items-center gap-2.5 rounded-md px-3.5 py-[9px] text-[13px] font-medium transition-colors",
+                          parentActive
+                            ? "bg-accent font-semibold text-primary"
+                            : "text-muted-foreground hover:bg-secondary hover:text-foreground",
                         )}
-                      />
-                    </button>
-                    <div
-                      className={cn(
-                        "overflow-hidden transition-[max-height] duration-300",
-                        reportOpen ? "max-h-[600px]" : "max-h-0",
-                      )}
-                    >
-                      {item.children.map((tab) => {
-                        const tabActive =
-                          pathname === "/laporan" && activeTab === tab.id;
-                        return (
-                          <Link
-                            key={tab.id}
-                            href={`/laporan?tab=${tab.id}`}
-                            onClick={onNavigate}
-                            className={cn(
-                              "relative mx-2 my-px block rounded-md py-2 pr-4 pl-[42px] text-[12.5px] transition-colors",
-                              "before:absolute before:left-[26px] before:top-1/2 before:size-[5px] before:-translate-y-1/2 before:rounded-full before:bg-border",
-                              tabActive
-                                ? "bg-accent font-semibold text-primary before:bg-primary"
-                                : "text-muted-foreground hover:bg-secondary hover:text-foreground",
-                            )}
-                          >
-                            {t.shell.reportTabs[tab.id]}
-                          </Link>
-                        );
-                      })}
+                      >
+                        <Icon className="size-[18px] shrink-0" />
+                        {t.shell.navSections[item.id]}
+                        <ChevronDown
+                          className={cn(
+                            "ml-auto size-3 text-muted-foreground transition-transform",
+                            reportOpen && "rotate-180",
+                          )}
+                        />
+                      </button>
+                      <div
+                        className={cn(
+                          "overflow-hidden transition-[max-height] duration-300",
+                          reportOpen ? "max-h-[600px]" : "max-h-0",
+                        )}
+                      >
+                        {item.children.map((tab) => {
+                          const tabActive =
+                            pathname === "/laporan" && activeTab === tab.id;
+                          return (
+                            <Link
+                              key={tab.id}
+                              href={`/laporan?tab=${tab.id}`}
+                              onClick={onNavigate}
+                              className={cn(
+                                "relative mx-2 my-px block rounded-md py-2 pr-4 pl-[42px] text-[12.5px] transition-colors",
+                                "before:absolute before:left-[26px] before:top-1/2 before:size-[5px] before:-translate-y-1/2 before:rounded-full before:bg-border",
+                                tabActive
+                                  ? "bg-accent font-semibold text-primary before:bg-primary"
+                                  : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                              )}
+                            >
+                              {t.shell.reportTabs[tab.id]}
+                            </Link>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                );
-              }
+                  );
+                }
 
-              return (
-                <Link
-                  key={item.id}
-                  href={item.href}
-                  onClick={onNavigate}
-                  className={cn(
-                    "mx-2 my-px flex items-center gap-2.5 rounded-md px-3.5 py-[9px] text-[13px] font-medium transition-colors",
-                    isActive
-                      ? "bg-accent font-semibold text-primary"
-                      : "text-muted-foreground hover:bg-secondary hover:text-foreground",
-                  )}
-                >
-                  <Icon className="size-[18px] shrink-0" />
-                  {t.shell.navSections[item.id]}
-                  {item.id === "notifikasi" && unreadCount > 0 ? (
-                    <NavBadge text={String(unreadCount)} variant="danger" />
-                  ) : (
-                    item.badge &&
-                    item.badgeVariant && (
-                      <NavBadge text={item.badge} variant={item.badgeVariant} />
-                    )
-                  )}
-                </Link>
-              );
-            })}
+                return (
+                  <Link
+                    key={item.id}
+                    href={item.href}
+                    onClick={onNavigate}
+                    className={cn(
+                      "mx-2 my-px flex items-center gap-2.5 rounded-md px-3.5 py-[9px] text-[13px] font-medium transition-colors",
+                      isActive
+                        ? "bg-accent font-semibold text-primary"
+                        : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                    )}
+                  >
+                    <Icon className="size-[18px] shrink-0" />
+                    {t.shell.navSections[item.id]}
+                    {item.id === "notifikasi" && unreadCount > 0 ? (
+                      <NavBadge text={String(unreadCount)} variant="danger" />
+                    ) : (
+                      item.badge &&
+                      item.badgeVariant && (
+                        <NavBadge
+                          text={item.badge}
+                          variant={item.badgeVariant}
+                        />
+                      )
+                    )}
+                  </Link>
+                );
+              })}
           </div>
         ))}
       </nav>

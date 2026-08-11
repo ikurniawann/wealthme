@@ -12,7 +12,7 @@ import {
 } from "@nestjs/common";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ConfigService } from "@nestjs/config";
-import { Prisma, Role } from "@prisma/client";
+import { MemberRelationship, Prisma, Role } from "@prisma/client";
 import * as argon2 from "argon2";
 
 import {
@@ -87,6 +87,10 @@ export class FamilyGroupsService {
   ) {}
 
   async findMine(userId: string): Promise<FamilyGroupResponseDto[]> {
+    // EPIC-024 A3 (Evidence #1) — `createdAt: "asc"` (oldest membership
+    // first) is the canonical rule; `apps/web/src/lib/auth.ts` and
+    // `apps/api/src/auth/auth.service.ts` were unified to match this same
+    // ordering rather than the reverse.
     const memberships = await this.prisma.member.findMany({
       where: { userId },
       include: {
@@ -167,28 +171,67 @@ export class FamilyGroupsService {
     });
     if (!member) throw new NotFoundException("Member not found");
 
-    const updated = await this.prisma.member.update({
-      where: { id: memberId },
-      data: {
-        role: dto.role,
-        // EPIC-023 Task C (D1) — `relationship` is optional on this DTO:
-        // `undefined` leaves it unchanged, `null` explicitly clears it,
-        // any enum value sets/replaces it. Kinship is not authority — this
-        // never constrains which `role` above may be paired with it.
-        ...(dto.relationship !== undefined && {
-          relationship: dto.relationship,
-        }),
-        // EPIC-023 Task D (D3/D9) — same undefined/null/value contract as
-        // relationship above: undefined leaves it unchanged, null clears
-        // the gate, a number sets/replaces it.
-        ...(dto.largeTxnThreshold !== undefined && {
-          largeTxnThreshold:
-            dto.largeTxnThreshold === null
-              ? null
-              : BigInt(dto.largeTxnThreshold),
-        }),
-      },
-      include: { user: { select: { name: true, email: true } } },
+    // EPIC-024 A1/review-fix (D1) — this endpoint can also set
+    // `relationship: istri` on an EXISTING member (unlike
+    // `createDependantMember`, `role: owner` is already excluded from
+    // `ASSIGNABLE_ROLES`, so this path can't mint a second co-master via
+    // `role` — but it CAN still produce a second `relationship: istri`
+    // row, which violates the same max-1-istri invariant). Guard it with
+    // the identical lock-then-recheck pattern used in
+    // `createDependantMember`, only when the target member does not
+    // already carry `relationship: istri` (re-saving the current istri's
+    // own row must stay a no-op, not a false conflict against herself).
+    const isSettingNewIstri =
+      dto.relationship === MemberRelationship.istri &&
+      member.relationship !== MemberRelationship.istri;
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      if (isSettingNewIstri) {
+        // NOTE: raw SQL table name is "family_groups", the `@@map`'d
+        // Postgres table for the `FamilyGroup` model (schema.prisma) — not
+        // the Prisma model name itself.
+        await tx.$queryRaw`SELECT id FROM "family_groups" WHERE id = ${familyGroupId} FOR UPDATE`;
+        const existingIstri = await tx.member.findFirst({
+          where: {
+            familyGroupId,
+            relationship: MemberRelationship.istri,
+            id: { not: memberId },
+          },
+          select: { id: true },
+        });
+        if (existingIstri) {
+          throw new ConflictException(
+            withCode(
+              "Keluarga ini sudah memiliki istri (co-master)",
+              "MAX_ONE_ISTRI",
+            ),
+          );
+        }
+      }
+
+      return tx.member.update({
+        where: { id: memberId },
+        data: {
+          role: dto.role,
+          // EPIC-023 Task C (D1) — `relationship` is optional on this DTO:
+          // `undefined` leaves it unchanged, `null` explicitly clears it,
+          // any enum value sets/replaces it. Kinship is not authority — this
+          // never constrains which `role` above may be paired with it.
+          ...(dto.relationship !== undefined && {
+            relationship: dto.relationship,
+          }),
+          // EPIC-023 Task D (D3/D9) — same undefined/null/value contract as
+          // relationship above: undefined leaves it unchanged, null clears
+          // the gate, a number sets/replaces it.
+          ...(dto.largeTxnThreshold !== undefined && {
+            largeTxnThreshold:
+              dto.largeTxnThreshold === null
+                ? null
+                : BigInt(dto.largeTxnThreshold),
+          }),
+        },
+        include: { user: { select: { name: true, email: true } } },
+      });
     });
 
     return {
@@ -437,10 +480,21 @@ export class FamilyGroupsService {
     familyGroupId: string,
     dto: CreateDependantMemberDto,
   ): Promise<DependantMemberResponseDto> {
-    if (dto.role !== Role.dependant && dto.role !== Role.operational) {
+    // EPIC-024 A1 (D1) — "istri = co-master penuh": the ONLY case this
+    // endpoint accepts `role: owner` is paired with `relationship: istri`.
+    // Every other relationship/role combination still goes through the
+    // dependant/operational path unchanged.
+    const isIstriOwner =
+      dto.role === Role.owner && dto.relationship === MemberRelationship.istri;
+
+    if (
+      dto.role !== Role.dependant &&
+      dto.role !== Role.operational &&
+      !isIstriOwner
+    ) {
       throw new BadRequestException(
         withCode(
-          "role must be 'dependant' or 'operational' for this endpoint",
+          "role must be 'dependant' or 'operational' for this endpoint (or 'owner' when relationship is 'istri')",
           "INVALID_ROLE_FOR_DEPENDANT_CREATION",
         ),
       );
@@ -462,6 +516,42 @@ export class FamilyGroupsService {
 
     try {
       const member = await this.prisma.$transaction(async (tx) => {
+        // EPIC-024 A1 (D1) — max 1 istri (co-master) per family group,
+        // enforced race-safely under concurrent requests. There is no
+        // existing istri row to key a `SELECT ... FOR UPDATE` on for the
+        // FIRST istri (the invariant is about ABSENCE, not presence of a
+        // specific row) — a naive `count() -> create()` has a TOCTOU gap:
+        // two simultaneous requests can both read count=0 and both insert.
+        // Locking the FamilyGroup row itself closes that gap: any two
+        // concurrent istri-creation transactions for the SAME family group
+        // serialize on this lock (Postgres blocks the second `FOR UPDATE`
+        // until the first transaction commits or rolls back), so the
+        // recheck below always sees the first transaction's write once it
+        // proceeds. Only taken on the istri path — every other
+        // dependant/operational creation is unaffected and keeps its
+        // existing (lock-free) throughput.
+        if (isIstriOwner) {
+          // NOTE: raw SQL table name is "family_groups", the `@@map`'d
+          // Postgres table for the `FamilyGroup` model (schema.prisma) —
+          // not the Prisma model name itself.
+          await tx.$queryRaw`SELECT id FROM "family_groups" WHERE id = ${familyGroupId} FOR UPDATE`;
+          const existingIstri = await tx.member.findFirst({
+            where: {
+              familyGroupId,
+              relationship: MemberRelationship.istri,
+            },
+            select: { id: true },
+          });
+          if (existingIstri) {
+            throw new ConflictException(
+              withCode(
+                "Keluarga ini sudah memiliki istri (co-master)",
+                "MAX_ONE_ISTRI",
+              ),
+            );
+          }
+        }
+
         const existingUsername = await tx.user.findUnique({
           where: { username: normalizedUsername },
           select: { id: true },

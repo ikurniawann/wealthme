@@ -140,14 +140,11 @@ export const auth = betterAuth({
               }),
             });
 
-            await tx.account.create({
-              data: {
-                familyGroupId: fg.id,
-                name: "Akun Utama",
-                type: "bank",
-                balance: BigInt(0),
-              },
-            });
+            // EPIC-024 A6 (D5, US-REK-1) — "Akun Utama" auto-create at
+            // registration REMOVED: a new user starts with zero accounts
+            // and adds their own, so their ledger contains only accounts
+            // that exist in real life. Existing "Akun Utama" rows from
+            // before this change are left untouched (no migration).
           });
         },
       },
@@ -155,13 +152,20 @@ export const auth = betterAuth({
     session: {
       create: {
         before: async (session) => {
-          // Most-recent membership wins so a freshly accepted invitation
-          // becomes the active group on the next sign-in.
-          // ponytail: newest-first heuristic; add a group switcher when
-          // multi-group users need manual control.
+          // EPIC-024 A3 (Evidence #1) — unified to `createdAt: asc` (OLDEST
+          // membership wins), matching family-groups.service.ts#findMine and
+          // auth.service.ts#getMe/getProfileDetail/updateProfile. Was
+          // `desc` (newest-first): a wife who registered herself (own
+          // auto-created group) and was later added as a member/co-master
+          // to her husband's group had TWO memberships, and this "most
+          // recent wins" heuristic landed every session on her OWN
+          // near-empty group instead of the shared family's. A user's
+          // FIRST family group — normally created at their own
+          // registration — is the stable, deterministic "home" group; a
+          // later invite/add should never silently switch it.
           const member = await prisma.member.findFirst({
             where: { userId: session.userId },
-            orderBy: { createdAt: "desc" },
+            orderBy: { createdAt: "asc" },
             select: { familyGroupId: true },
           });
           return {

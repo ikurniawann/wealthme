@@ -88,7 +88,15 @@ const PROFILE_DETAIL_SELECT = {
   currency: true,
   notificationPrefs: true,
   createdAt: true,
+  // EPIC-024 A3 (Evidence #1) — `createdAt: "asc"` so `memberships[0]` below
+  // is always the OLDEST membership, matching auth.ts (web) and
+  // family-groups.service.ts#findMine. This select previously had NO
+  // orderBy, so `memberships[0]` returned whatever order Postgres/Prisma
+  // happened to return rows in (not guaranteed stable) — a third,
+  // independent way of picking "the active group" from the two already
+  // documented in the Evidence section.
   memberships: {
+    orderBy: { createdAt: "asc" },
     select: {
       id: true,
       familyGroupId: true,
@@ -175,14 +183,11 @@ export class AuthService {
         }),
       });
 
-      await tx.account.create({
-        data: {
-          familyGroupId: fg.id,
-          name: "Akun Utama",
-          type: "bank",
-          balance: 0n,
-        },
-      });
+      // EPIC-024 A6 (D5, US-REK-1) — "Akun Utama" auto-create at
+      // registration REMOVED: a new user starts with zero accounts and
+      // adds their own, so their ledger contains only accounts that exist
+      // in real life. Existing "Akun Utama" rows from before this change
+      // are left untouched (no migration).
 
       return created;
     });
@@ -223,7 +228,12 @@ export class AuthService {
         name: true,
         avatarInitials: true,
         createdAt: true,
+        // EPIC-024 A3 (Evidence #1) — same "oldest membership wins" fix as
+        // PROFILE_DETAIL_SELECT above; getMe() keeps its own separate
+        // select (minimal fields) but must resolve familyGroupId the same
+        // deterministic way.
         memberships: {
+          orderBy: { createdAt: "asc" },
           select: {
             id: true,
             familyGroupId: true,

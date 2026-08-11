@@ -104,6 +104,7 @@ export const en = {
       // Zakat": the page covers all faiths' donations, not just zakat.
       donation: "Donation",
       tax: "Tax Center",
+      persetujuan: "Approvals",
       splitbill: "Split Bill",
       rekonsiliasi: "Bank Reconciliation",
       ai: "AI Advisor",
@@ -154,6 +155,7 @@ export const en = {
       // EPIC-024 Group I (I1, D12, US-DON-8) — see nav.items.donation.
       donation: "Donation",
       tax: "Tax Center",
+      persetujuan: "Approvals",
       quickinput: "Quick Input",
       mastercoa: "Master COA",
       masterdata: "Master Data Setup",
@@ -578,11 +580,9 @@ export const en = {
     family: {
       membersSectionTitle: "Members",
       youBadge: "You",
-      inviteButton: "Invite Member",
       adminSectionTitle: "Admin / Staff",
       adminCanInput: "Can enter transactions",
       adminBadge: "Admin",
-      addAdminButton: "Add Admin / Staff",
       adminInfoNote:
         "Admins (secretary, driver, household assistant, personal aide) can record transactions on behalf of the family, but can't change group settings or view members' personal balances.",
       groupSettingsSectionTitle: "Group Settings",
@@ -632,23 +632,6 @@ export const en = {
       thresholdSaveFailed: "Failed to save the threshold. Try again.",
       addDependantButton: "Add Child / Operational",
     },
-    addAdmin: {
-      dialogTitle: "Add Admin / Staff",
-      dialogDesc:
-        "Admins can record transactions on behalf of the family (suitable for a secretary, driver, household assistant, or personal aide).",
-      emailPlaceholder: "admin email",
-      roleLabel: "Role",
-      roleOptions: {
-        member: "Member",
-        adminStaff: "Admin / Staff",
-        spouse: "Spouse",
-      },
-      sending: "Sending...",
-      sendButton: "Send Admin Invitation",
-      toastInviteCreated: "Invitation created — link copied to clipboard.",
-      toastInviteFailed:
-        "Failed to create invitation. Check the email and try again.",
-    },
     addDependant: {
       dialogTitle: "Add Child / Operational",
       dialogDesc:
@@ -668,7 +651,10 @@ export const en = {
       roleOptions: {
         dependant: "Child (Dependant)",
         operational: "Operational (driver/assistant)",
+        istriCoMaster: "Wife (Co-Master)",
       },
+      istriCoMasterHint:
+        'The wife becomes a second owner (co-master) with the exact same menu and powers as the husband — not a member/dependant. Family Relationship auto-locks to "istri". Maximum 1 wife per family.',
       relationshipLabel: "Family Relationship (optional)",
       relationshipNoneOption: "— Not set —",
       creating: "Creating...",
@@ -685,6 +671,18 @@ export const en = {
       profileSaved: "Profile saved successfully",
       profileSaveFailed: "Failed to save profile",
     },
+  },
+  persetujuan: {
+    pageDesc:
+      "Approve or reject family funding requests in one place, separate from account settings.",
+    tabPending: "Pending",
+    tabRiwayat: "History",
+    riwayatEmpty: "No decided requests yet.",
+    riwayatDecidedByLabel: "Decided by",
+    riwayatStatusApproved: "Approved",
+    riwayatStatusRejected: "Rejected",
+    notOwnerNotice:
+      "This page is for the family's owner/co-master only. You don't have access.",
   },
   panduan: {
     pageTitle: "📖 WealthMe Feature Guide",

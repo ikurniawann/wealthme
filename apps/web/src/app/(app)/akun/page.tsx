@@ -57,11 +57,8 @@ import {
   Calendar,
   FileText,
   Scale,
-  UserPlus,
   UserCog,
   Target,
-  Check,
-  X,
   Eye,
   EyeOff,
   Gauge,
@@ -89,7 +86,6 @@ import {
 import { MemberRelationshipSchema } from "@wealthme/contracts";
 import type {
   AccountDto,
-  AllowanceRequestDto,
   CategoryDto,
   MemberCategoryAllowanceDto,
   MemberRelationship,
@@ -2174,8 +2170,6 @@ function memberInitials(name: string): string {
 }
 
 function FamilyBody({
-  onAddAdmin,
-  onInviteMember,
   onAddDependant,
   name,
   email,
@@ -2186,8 +2180,6 @@ function FamilyBody({
   familyGroupId,
   token,
 }: {
-  onAddAdmin: () => void;
-  onInviteMember: () => void;
   onAddDependant: () => void;
   name: string;
   email: string;
@@ -2309,12 +2301,11 @@ function FamilyBody({
             {name} · {email}
           </div>
         )}
-        <button
-          className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-[13.5px] font-semibold text-primary"
-          onClick={onInviteMember}
-        >
-          <UserPlus className="size-4" /> {t.akun.family.inviteButton}
-        </button>
+        {/* EPIC-024 A2 (D2, item 18) — "Undang Anggota" (email invite-link)
+            removed; family members are added directly (see
+            addDependantButton below, which now also covers istri as a
+            second owner per A1). Backend invitation endpoints are
+            untouched. */}
         {/* EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/
             operational member (no email). FIX 3 (MEDIUM, three-way
             consensus) — the backend route requires `can("manage", "Member")`,
@@ -2358,12 +2349,9 @@ function FamilyBody({
             sub={`Admin · ${m.email}`}
           />
         ))}
-        <button
-          className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-dashed border-primary bg-card px-4 py-2.5 text-[13.5px] font-semibold text-primary"
-          onClick={onAddAdmin}
-        >
-          <UserCog className="size-4" /> {t.akun.family.addAdminButton}
-        </button>
+        {/* EPIC-024 A2 (D2, item 18) — "Tambah Admin/Staf" (email
+            invite-link) removed. Existing admin_staff members stay visible
+            above; backend invitation endpoints are untouched. */}
         <div className="mt-2 flex gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
           <Info className="mt-0.5 size-3 shrink-0 text-primary" />
           <span>{t.akun.family.adminInfoNote}</span>
@@ -2384,13 +2372,9 @@ function FamilyBody({
           ]}
         />
       </SetSection>
-      {/* EPIC-019 Task B/D — pending funding requests, owner + spouse
-          (EPIC-023 Task C retry — `isElevated` mirrors the server's
-          `canSeeAll` bucket so a spouse can actually reach the panel it was
-          made to approve requests from). */}
-      {isElevated && (
-        <AllowanceRequestsPanel familyGroupId={familyGroupId} token={token} />
-      )}
+      {/* EPIC-024 A5 (D6, US-FAM-19) — the pending-funding-requests panel
+          moved to the dedicated /persetujuan page (owner-only nav item),
+          replacing this settings-panel location. */}
       <CategoryLimitDialog
         member={categoryLimitMember}
         familyGroupId={familyGroupId}
@@ -2711,383 +2695,11 @@ export function ThresholdForm({
   );
 }
 
-/* ──────────── Allowance requests panel (EPIC-019 Task B/D) ──────────── */
-
-// Exported for tests only (EPIC-023 D3 — react-review HIGH: no behavioral
-// coverage existed for the held-expense-vs-funding approval branching).
-export function AllowanceRequestsPanel({
-  familyGroupId,
-  token,
-}: {
-  familyGroupId: string | null;
-  token: string | undefined;
-}) {
-  const { t } = useLocale();
-  const queryClient = useQueryClient();
-  const [approving, setApproving] = useState<AllowanceRequestDto | null>(null);
-
-  const { data: requests } = useQuery<AllowanceRequestDto[]>({
-    queryKey: queryKeys.allowanceRequests.all(familyGroupId ?? ""),
-    queryFn: () =>
-      apiFetch<AllowanceRequestDto[]>(
-        `/family-groups/${familyGroupId}/allowance-requests`,
-        { token },
-      ),
-    enabled: !!token && !!familyGroupId,
-  });
-
-  async function invalidate() {
-    if (!familyGroupId) return;
-    // Approval moves real money (EPIC-021 Group B transfer primitive), so
-    // accounts (balances) and transactions (the new transfer row) must be
-    // refetched alongside the request list itself — not just the requests.
-    await Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.allowanceRequests.all(familyGroupId),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.accounts.all(familyGroupId),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.transactions.all(familyGroupId),
-      }),
-    ]);
-  }
-
-  async function handleReject(request: AllowanceRequestDto) {
-    if (!familyGroupId || !token) return;
-    try {
-      await apiFetch(
-        `/family-groups/${familyGroupId}/allowance-requests/${request.id}/reject`,
-        { token, method: "PATCH", body: JSON.stringify({}) },
-      );
-      toast.success(t.akun.family.allowanceRequestRejected);
-      await invalidate();
-    } catch {
-      toast.error(t.akun.family.allowanceRequestRejectFailed);
-    }
-  }
-
-  // EPIC-023 Task D (D3/D9) — a held_expense request already carries its
-  // own account (the one the deferred expense debits); it needs no
-  // fromAccountId choice, so approving it never opens ApproveRequestDialog.
-  async function handleApproveHeld(request: AllowanceRequestDto) {
-    if (!familyGroupId || !token) return;
-    try {
-      await apiFetch(
-        `/family-groups/${familyGroupId}/allowance-requests/${request.id}/approve`,
-        { token, method: "PATCH", body: JSON.stringify({}) },
-      );
-      toast.success(t.akun.family.allowanceRequestHeldApproved);
-      await invalidate();
-    } catch {
-      toast.error(t.akun.family.allowanceRequestApproveFailed);
-    }
-  }
-
-  const pending = (requests ?? []).filter((r) => r.status === "pending");
-
-  return (
-    <SetSection>
-      <SectionTitle>
-        {t.akun.family.allowanceRequestsSectionTitle} ({pending.length})
-      </SectionTitle>
-      {pending.length === 0 && (
-        <div className="py-3 text-[12px] text-muted-foreground">
-          {t.akun.family.allowanceRequestsEmpty}
-        </div>
-      )}
-      {pending.map((r) => {
-        // EPIC-023 Task D (D3/D9) — the two kinds mean DIFFERENT things:
-        // "approve" a funding request GIVES money; "approve" a held
-        // expense POSTS a spend the member already attempted. Visibly
-        // distinguished, never conflated.
-        const isHeld = r.kind === "held_expense";
-        return (
-          <div
-            key={r.id}
-            className="flex items-center gap-3 border-b py-3 last:border-b-0"
-          >
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[13px] font-bold">
-                {isHeld
-                  ? `${r.requesterName} · ${r.targetAccountName}`
-                  : `${r.requesterName} → ${r.targetAccountName}`}
-              </div>
-              <div className="mt-0.5 text-[12px] text-muted-foreground">
-                {formatRupiah(Number(r.amount))}
-                {isHeld
-                  ? r.description
-                    ? ` · ${r.description}`
-                    : r.categoryName
-                      ? ` · ${r.categoryName}`
-                      : ""
-                  : r.note
-                    ? ` · ${r.note}`
-                    : ""}
-              </div>
-            </div>
-            <StatusBadge
-              variant={isHeld ? "danger" : "warning"}
-              className="text-[10px]"
-            >
-              {isHeld
-                ? t.akun.family.allowanceRequestHeldBadge
-                : t.akun.family.allowanceRequestPendingBadge}
-            </StatusBadge>
-            <button
-              type="button"
-              aria-label={t.akun.family.allowanceRequestApproveButton}
-              className="flex size-7 shrink-0 items-center justify-center rounded-md bg-success-soft text-success"
-              onClick={() => (isHeld ? handleApproveHeld(r) : setApproving(r))}
-            >
-              <Check className="size-4" />
-            </button>
-            <button
-              type="button"
-              aria-label={t.akun.family.allowanceRequestRejectButton}
-              className="flex size-7 shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive"
-              onClick={() => handleReject(r)}
-            >
-              <X className="size-4" />
-            </button>
-          </div>
-        );
-      })}
-      <ApproveRequestDialog
-        request={approving}
-        familyGroupId={familyGroupId}
-        token={token}
-        onClose={() => setApproving(null)}
-        onApproved={invalidate}
-      />
-    </SetSection>
-  );
-}
-
-function ApproveRequestDialog({
-  request,
-  familyGroupId,
-  token,
-  onClose,
-  onApproved,
-}: {
-  request: AllowanceRequestDto | null;
-  familyGroupId: string | null;
-  token: string | undefined;
-  onClose: () => void;
-  onApproved: () => Promise<void>;
-}) {
-  const { t } = useLocale();
-
-  const { data: accounts } = useQuery<AccountDto[]>({
-    queryKey: queryKeys.accounts.all(familyGroupId ?? ""),
-    queryFn: () =>
-      apiFetch<AccountDto[]>(`/family-groups/${familyGroupId}/accounts`, {
-        token,
-      }),
-    enabled: !!token && !!familyGroupId && !!request,
-  });
-
-  return (
-    <Dialog open={!!request} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[420px] p-6 sm:max-w-[420px]">
-        <DialogHeader>
-          <DialogTitle className="text-[15px] font-bold">
-            {t.akun.family.allowanceRequestApproveDialogTitle}
-          </DialogTitle>
-        </DialogHeader>
-        {/* Keyed by request id (not an effect) so the source-account
-            selection resets whenever a different request is being approved. */}
-        {request && familyGroupId && (
-          <ApproveRequestForm
-            key={request.id}
-            request={request}
-            familyGroupId={familyGroupId}
-            token={token}
-            eligibleAccounts={(accounts ?? []).filter(
-              (a) => a.id !== request.targetAccountId,
-            )}
-            onClose={onClose}
-            onApproved={onApproved}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function ApproveRequestForm({
-  request,
-  familyGroupId,
-  token,
-  eligibleAccounts,
-  onClose,
-  onApproved,
-}: {
-  request: AllowanceRequestDto;
-  familyGroupId: string;
-  token: string | undefined;
-  eligibleAccounts: AccountDto[];
-  onClose: () => void;
-  onApproved: () => Promise<void>;
-}) {
-  const { t } = useLocale();
-  const [fromAccountId, setFromAccountId] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-
-  async function handleApprove() {
-    if (!token || !fromAccountId) return;
-    setIsSaving(true);
-    try {
-      await apiFetch(
-        `/family-groups/${familyGroupId}/allowance-requests/${request.id}/approve`,
-        { token, method: "PATCH", body: JSON.stringify({ fromAccountId }) },
-      );
-      toast.success(t.akun.family.allowanceRequestApproved);
-      await onApproved();
-      onClose();
-    } catch {
-      toast.error(t.akun.family.allowanceRequestApproveFailed);
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  return (
-    <>
-      <div className="mb-3 text-[12px] text-muted-foreground">
-        {request.requesterName} — {formatRupiah(Number(request.amount))} →{" "}
-        {request.targetAccountName}
-      </div>
-      <label className="mb-1.5 block text-[12px] font-semibold text-muted-foreground">
-        {t.akun.family.allowanceRequestSourceAccountLabel}
-      </label>
-      <select
-        className={FIELD_CLASS}
-        value={fromAccountId}
-        onChange={(e) => setFromAccountId(e.target.value)}
-      >
-        <option value="">—</option>
-        {eligibleAccounts.map((a) => (
-          <option key={a.id} value={a.id}>
-            {a.name} ({formatRupiah(Number(a.balance))})
-          </option>
-        ))}
-      </select>
-      <button
-        disabled={isSaving || !fromAccountId}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-60"
-        onClick={handleApprove}
-      >
-        <Check className="size-4" />{" "}
-        {isSaving ? "..." : t.akun.family.allowanceRequestApproveButton}
-      </button>
-    </>
-  );
-}
-
-/* ─────────────────────────── Add Admin modal ─────────────────────────── */
-
-function AddAdminDialog({
-  open,
-  onOpenChange,
-  familyGroupId,
-  token,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  familyGroupId: string | null;
-  token: string | undefined;
-}) {
-  const { t } = useLocale();
-  const emailRef = useRef<HTMLInputElement>(null);
-  // Real role picker (EPIC-016 Task D). EPIC-023 Task C retry — the
-  // invitation endpoint (CreateInvitationDto) now accepts 3 roles besides
-  // "owner": "member", "admin_staff", and "spouse" (D2/D6 — a spouse is
-  // invited by email like everyone else, not auto-derived from kinship).
-  const [role, setRole] = useState<"member" | "admin_staff" | "spouse">(
-    "admin_staff",
-  );
-
-  const { mutate: sendInvite, isPending } = useMutation({
-    mutationFn: (vars: {
-      email: string;
-      role: "member" | "admin_staff" | "spouse";
-    }) =>
-      apiFetch<{ token: string }>(
-        `/family-groups/${familyGroupId}/invitations`,
-        {
-          method: "POST",
-          token,
-          body: JSON.stringify(vars),
-        },
-      ),
-    onSuccess: (invitation) => {
-      onOpenChange(false);
-      // No invitation email exists yet — hand the join link to the owner.
-      const link = `${window.location.origin}/join/${invitation.token}`;
-      void navigator.clipboard.writeText(link).catch(() => {});
-      toast.success(t.akun.addAdmin.toastInviteCreated, {
-        description: link,
-        duration: 10000,
-      });
-    },
-    onError: () => {
-      toast.error(t.akun.addAdmin.toastInviteFailed);
-    },
-  });
-
-  function handleSend() {
-    const email = emailRef.current?.value?.trim() ?? "";
-    if (!email || !familyGroupId) return;
-    sendInvite({ email, role });
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[480px] p-6 sm:max-w-[480px]">
-        <DialogTitle className="mb-1.5 text-[17px] font-extrabold">
-          {t.akun.addAdmin.dialogTitle}
-        </DialogTitle>
-        <div className="mb-4 text-[12px] text-muted-foreground">
-          {t.akun.addAdmin.dialogDesc}
-        </div>
-        <Field label={t.akun.profil.emailLabel}>
-          <input
-            ref={emailRef}
-            className={FIELD_CLASS}
-            placeholder={t.akun.addAdmin.emailPlaceholder}
-            type="email"
-          />
-        </Field>
-        <Field label={t.akun.addAdmin.roleLabel}>
-          <select
-            className={FIELD_CLASS}
-            value={role}
-            onChange={(e) =>
-              setRole(e.target.value as "member" | "admin_staff" | "spouse")
-            }
-          >
-            <option value="admin_staff">
-              {t.akun.addAdmin.roleOptions.adminStaff}
-            </option>
-            <option value="member">{t.akun.addAdmin.roleOptions.member}</option>
-            <option value="spouse">{t.akun.addAdmin.roleOptions.spouse}</option>
-          </select>
-        </Field>
-        <button
-          disabled={isPending || !familyGroupId}
-          className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-60"
-          onClick={handleSend}
-        >
-          <UserCog className="size-4" />{" "}
-          {isPending ? t.akun.addAdmin.sending : t.akun.addAdmin.sendButton}
-        </button>
-      </DialogContent>
-    </Dialog>
-  );
-}
+// EPIC-024 A2 (D2, item 18) — `AddAdminDialog` (email invite-link UI)
+// removed. Backend invitation endpoints stay untouched
+// (`FamilyGroupsService#createInvitation`); members are now added directly
+// via `AddDependantMemberDialog` below (istri as a second owner per A1,
+// dependant/operational unchanged).
 
 // EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/operational
 // member: name + username + initial password, no email; forced password
@@ -3108,8 +2720,16 @@ function AddDependantMemberDialog({
   const nameRef = useRef<HTMLInputElement>(null);
   const usernameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
-  const [role, setRole] = useState<"dependant" | "operational">("dependant");
+  // EPIC-024 A1 (D1) — "owner" is reachable ONLY through this dialog's
+  // "Istri (Co-Master)" option (below), which forces `relationship: istri`
+  // in lockstep — the API independently re-enforces that pairing
+  // (FamilyGroupsService#createDependantMember), so this is UX
+  // convenience, not the only guard.
+  const [role, setRole] = useState<"dependant" | "operational" | "owner">(
+    "dependant",
+  );
   const [relationship, setRelationship] = useState<MemberRelationship | "">("");
+  const isIstriCoMaster = role === "owner";
   // FIX 2 (HIGH, react-reviewer + security-reviewer) — show/hide toggle so
   // the head can verify the initial password before handing it over, same
   // pattern as login/page.tsx, without it being permanently plaintext.
@@ -3120,7 +2740,7 @@ function AddDependantMemberDialog({
       name: string;
       username: string;
       initialPassword: string;
-      role: "dependant" | "operational";
+      role: "dependant" | "operational" | "owner";
       relationship?: MemberRelationship;
     }) =>
       apiFetch<{ username: string }>(
@@ -3161,12 +2781,17 @@ function AddDependantMemberDialog({
     const username = usernameRef.current?.value?.trim() ?? "";
     const initialPassword = passwordRef.current?.value ?? "";
     if (!name || !username || !initialPassword || !familyGroupId) return;
+    // EPIC-024 A1 — the istri co-master path always sends
+    // relationship: "istri" regardless of what the (disabled) relationship
+    // picker shows, so the role/relationship pairing the API requires is
+    // never accidentally desynced from the UI's own lockstep behaviour.
+    const effectiveRelationship = isIstriCoMaster ? "istri" : relationship;
     createMember({
       name,
       username,
       initialPassword,
       role,
-      ...(relationship ? { relationship } : {}),
+      ...(effectiveRelationship ? { relationship: effectiveRelationship } : {}),
     });
   }
 
@@ -3247,9 +2872,18 @@ function AddDependantMemberDialog({
           <select
             className={FIELD_CLASS}
             value={role}
-            onChange={(e) =>
-              setRole(e.target.value as "dependant" | "operational")
-            }
+            onChange={(e) => {
+              const next = e.target.value as
+                | "dependant"
+                | "operational"
+                | "owner";
+              setRole(next);
+              // EPIC-024 A1 — selecting "Istri (Co-Master)" locks the
+              // relationship picker below to "istri" (the API rejects any
+              // other pairing with role owner); switching away clears it
+              // back to editable.
+              setRelationship(next === "owner" ? "istri" : "");
+            }}
           >
             <option value="dependant">
               {t.akun.addDependant.roleOptions.dependant}
@@ -3257,12 +2891,21 @@ function AddDependantMemberDialog({
             <option value="operational">
               {t.akun.addDependant.roleOptions.operational}
             </option>
+            <option value="owner">
+              {t.akun.addDependant.roleOptions.istriCoMaster}
+            </option>
           </select>
         </Field>
+        {isIstriCoMaster && (
+          <p className="-mt-2 mb-4 text-[11px] text-muted-foreground">
+            {t.akun.addDependant.istriCoMasterHint}
+          </p>
+        )}
         <Field label={t.akun.addDependant.relationshipLabel}>
           <select
             className={FIELD_CLASS}
             value={relationship}
+            disabled={isIstriCoMaster}
             onChange={(e) =>
               setRelationship(e.target.value as MemberRelationship | "")
             }
@@ -3341,7 +2984,6 @@ export default function AkunPage() {
   const queryClient = useQueryClient();
   const { startTour } = useShell();
   const [subpage, setSubpage] = useState<SubPageId | null>(null);
-  const [addAdminOpen, setAddAdminOpen] = useState(false);
   const [addDependantOpen, setAddDependantOpen] = useState(false);
   const [crud, setCrud] = useState<CrudModalState | null>(null);
 
@@ -3460,33 +3102,11 @@ export default function AkunPage() {
             ? t.akun.crud.accountAdded
             : t.akun.crud.ewalletAdded,
         );
-      } else if (entity === "member") {
-        // EPIC-022 A1 — the role select only ever offers "member" /
-        // "admin_staff" (see crud-config.ts), so this is a real, wired-up
-        // choice now, not the previous hardcoded "member".
-        // EPIC-023 Task C retry (MEDIUM six-reviewer finding) — the select
-        // now also offers "spouse" (crud-config.ts); this coercion must
-        // widen to match or a spouse invite silently downgrades to
-        // "member" — a control that lies about what it does.
-        const role: "admin_staff" | "spouse" | "member" =
-          values.role === "admin_staff" || values.role === "spouse"
-            ? values.role
-            : "member";
-        const invitation = await apiFetch<{ token: string }>(
-          `/family-groups/${familyGroupId}/invitations`,
-          {
-            token,
-            method: "POST",
-            body: JSON.stringify({ email: values.email, role }),
-          },
-        );
-        const link = `${window.location.origin}/join/${invitation.token}`;
-        await navigator.clipboard.writeText(link).catch(() => {});
-        toast.success(t.akun.addAdmin.toastInviteCreated, {
-          description: link,
-          duration: 10000,
-        });
       }
+      // EPIC-024 A2 (D2, item 18) — the `entity === "member"` invite-link
+      // branch was removed here; family members are now added directly
+      // (AddDependantMemberDialog). Backend invitation endpoints are
+      // untouched, just no longer reachable from this form.
     } catch (err) {
       // EPIC-022 A1 — surface the server's real validation message (e.g.
       // "email must be an email", a duplicate-invitation 409) instead of the
@@ -3553,11 +3173,6 @@ export default function AkunPage() {
             myUserId={myUserId}
             familyGroupId={familyGroupId}
             token={token}
-            onAddAdmin={() => {
-              closeSheet();
-              setAddAdminOpen(true);
-            }}
-            onInviteMember={() => setCrud({ entity: "member", mode: "add" })}
             onAddDependant={() => {
               closeSheet();
               setAddDependantOpen(true);
@@ -3736,40 +3351,19 @@ export default function AkunPage() {
         </SheetContent>
       </Sheet>
 
-      <AddAdminDialog
-        open={addAdminOpen}
-        onOpenChange={setAddAdminOpen}
-        familyGroupId={primaryGroup?.id ?? null}
-        token={token}
-      />
       <AddDependantMemberDialog
         open={addDependantOpen}
         onOpenChange={setAddDependantOpen}
         familyGroupId={primaryGroup?.id ?? null}
         token={token}
       />
+      {/* EPIC-024 A2 (D2, item 18) — `AddAdminDialog` and the "member" CRUD
+          entity (email invite-link UI) were removed; `CrudModal` here is
+          now only ever opened for "rekening"/"ewallet" (koneksi tab). */}
       <CrudModal
         state={crud}
         onClose={() => setCrud(null)}
         onSubmit={handleCrudSubmit}
-        // EPIC-022 A1 — the "member" entity's `role` field (crud-config.ts)
-        // uses raw enum values ("member"/"admin_staff"/"spouse") as its
-        // static options so the form stays valid even without this
-        // override; here we swap in the same translated labels already
-        // used by the "Tambah Admin/Staf" dialog instead of duplicating the
-        // copy. EPIC-023 Task C retry — "spouse" added, matching
-        // `AddAdminDialog`'s options and `handleCrudSubmit`'s widened
-        // coercion above.
-        dynamicOptions={{
-          role: [
-            { value: "member", label: t.akun.addAdmin.roleOptions.member },
-            {
-              value: "admin_staff",
-              label: t.akun.addAdmin.roleOptions.adminStaff,
-            },
-            { value: "spouse", label: t.akun.addAdmin.roleOptions.spouse },
-          ],
-        }}
       />
     </div>
   );

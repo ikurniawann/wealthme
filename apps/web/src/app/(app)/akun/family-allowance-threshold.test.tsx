@@ -1,24 +1,17 @@
 /**
- * EPIC-023 Task D3 — behavioral coverage for the two family-panel pieces
- * react-review flagged as HIGH with zero test coverage:
+ * EPIC-023 Task D3 — behavioral coverage for `ThresholdForm`: prefills from
+ * `member.largeTxnThreshold`, PATCHes a positive integer, and PATCHes
+ * `null` when the field is cleared.
  *
- * 1. `AllowanceRequestsPanel` — a `held_expense` request approves directly
- *    (no source-account dialog); a `funding` request must go through
- *    `ApproveRequestDialog` to pick a `fromAccountId` first.
- * 2. `ThresholdForm` — prefills from `member.largeTxnThreshold`, PATCHes a
- *    positive integer, and PATCHes `null` when the field is cleared.
+ * EPIC-024 A5 — the `AllowanceRequestsPanel` coverage that used to live in
+ * this file moved to `apps/web/src/app/(app)/persetujuan/allowance-requests-panel.test.tsx`
+ * alongside the component itself (relocated to the new /persetujuan page).
  */
 
 import type { ReactElement, ReactNode } from "react";
-import {
-  render as rtlRender,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { render as rtlRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { AllowanceRequestDto } from "@wealthme/contracts";
 
 import { id as mockAkunDictionary } from "../../../i18n/id";
 
@@ -65,11 +58,7 @@ jest.mock("../../../lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => mockApiFetch(...args),
 }));
 
-import {
-  AllowanceRequestsPanel,
-  ThresholdForm,
-  type FamilyMember,
-} from "./page";
+import { ThresholdForm, type FamilyMember } from "./page";
 
 const FAMILY_GROUP_ID = "fg-1";
 const TOKEN = "test-token";
@@ -93,235 +82,6 @@ function renderWithClient(ui: ReactElement, queryClient: QueryClient) {
 }
 
 const t = mockAkunDictionary.akun.family;
-
-/* ─────────────── AllowanceRequestsPanel — held vs funding ─────────────── */
-
-describe("AllowanceRequestsPanel — held-expense vs funding approval branching (EPIC-023 D3)", () => {
-  const FUNDING_REQUEST: AllowanceRequestDto = {
-    id: "req-funding-1",
-    kind: "funding",
-    familyGroupId: FAMILY_GROUP_ID,
-    requesterUserId: "user-adi",
-    requesterName: "Adi",
-    targetAccountId: "acc-adi",
-    targetAccountName: "Tabungan Adi",
-    fromAccountId: null,
-    fromAccountName: null,
-    amount: "500000",
-    note: "Untuk sekolah",
-    categoryId: null,
-    categoryName: null,
-    description: null,
-    status: "pending",
-    createdAt: "2026-01-01T00:00:00.000Z",
-    decidedAt: null,
-    decidedByUserId: null,
-    decidedByName: null,
-  };
-
-  const HELD_REQUEST: AllowanceRequestDto = {
-    id: "req-held-1",
-    kind: "held_expense",
-    familyGroupId: FAMILY_GROUP_ID,
-    requesterUserId: "user-sinta",
-    requesterName: "Sinta",
-    targetAccountId: "acc-sinta",
-    targetAccountName: "Dompet Sinta",
-    fromAccountId: null,
-    fromAccountName: null,
-    amount: "750000",
-    note: null,
-    categoryId: "cat-belanja",
-    categoryName: "Belanja",
-    description: "Beli sepatu",
-    status: "pending",
-    createdAt: "2026-01-02T00:00:00.000Z",
-    decidedAt: null,
-    decidedByUserId: null,
-    decidedByName: null,
-  };
-
-  const ACCOUNTS = [
-    { id: "acc-main", name: "Rekening Utama", balance: "10000000" },
-  ];
-
-  let queryClient: QueryClient;
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    queryClient = makeQueryClient();
-
-    mockApiFetch.mockImplementation((path: unknown, init?: unknown) => {
-      const method = (init as { method?: string } | undefined)?.method;
-
-      if (path === `/family-groups/${FAMILY_GROUP_ID}/allowance-requests`) {
-        return Promise.resolve([FUNDING_REQUEST, HELD_REQUEST]);
-      }
-      if (path === `/family-groups/${FAMILY_GROUP_ID}/accounts`) {
-        return Promise.resolve(ACCOUNTS);
-      }
-      if (
-        typeof path === "string" &&
-        path.endsWith(`/${HELD_REQUEST.id}/approve`) &&
-        method === "PATCH"
-      ) {
-        return Promise.resolve({});
-      }
-      if (
-        typeof path === "string" &&
-        path.endsWith(`/${FUNDING_REQUEST.id}/approve`) &&
-        method === "PATCH"
-      ) {
-        return Promise.resolve({});
-      }
-      if (
-        typeof path === "string" &&
-        path.endsWith(`/${HELD_REQUEST.id}/reject`) &&
-        method === "PATCH"
-      ) {
-        return Promise.resolve({});
-      }
-      return Promise.resolve({});
-    });
-  });
-
-  function findRow(requesterName: string) {
-    return screen
-      .getByText(new RegExp(requesterName))
-      .closest(".border-b") as HTMLElement;
-  }
-
-  it("renders the held row with the danger/held badge and the funding row with the pending badge", async () => {
-    renderWithClient(
-      <AllowanceRequestsPanel familyGroupId={FAMILY_GROUP_ID} token={TOKEN} />,
-      queryClient,
-    );
-
-    await screen.findByText(`Adi → Tabungan Adi`);
-    expect(screen.getByText(`Sinta · Dompet Sinta`)).toBeInTheDocument();
-
-    expect(screen.getByText(t.allowanceRequestHeldBadge)).toBeInTheDocument();
-    expect(
-      screen.getByText(t.allowanceRequestPendingBadge),
-    ).toBeInTheDocument();
-  });
-
-  it("clicking approve on the held row calls the approve endpoint directly and never opens the source-account dialog", async () => {
-    const user = userEvent.setup();
-    renderWithClient(
-      <AllowanceRequestsPanel familyGroupId={FAMILY_GROUP_ID} token={TOKEN} />,
-      queryClient,
-    );
-
-    await screen.findByText(`Sinta · Dompet Sinta`);
-    const heldRow = findRow("Sinta");
-    const approveButton = within(heldRow).getByLabelText(
-      t.allowanceRequestApproveButton,
-    );
-
-    await user.click(approveButton);
-
-    await waitFor(() => {
-      expect(mockApiFetch).toHaveBeenCalledWith(
-        `/family-groups/${FAMILY_GROUP_ID}/allowance-requests/${HELD_REQUEST.id}/approve`,
-        expect.objectContaining({ method: "PATCH", body: JSON.stringify({}) }),
-      );
-    });
-
-    // The dialog that asks for a source account must never appear for a
-    // held-expense approval — it already carries its own account.
-    expect(
-      screen.queryByText(t.allowanceRequestApproveDialogTitle),
-    ).not.toBeInTheDocument();
-    expect(mockToastSuccess).toHaveBeenCalledWith(
-      t.allowanceRequestHeldApproved,
-    );
-  });
-
-  it("clicking approve on the funding row opens the source-account dialog and does NOT call approve immediately", async () => {
-    const user = userEvent.setup();
-    renderWithClient(
-      <AllowanceRequestsPanel familyGroupId={FAMILY_GROUP_ID} token={TOKEN} />,
-      queryClient,
-    );
-
-    await screen.findByText(`Adi → Tabungan Adi`);
-    const fundingRow = findRow("Adi");
-    const approveButton = within(fundingRow).getByLabelText(
-      t.allowanceRequestApproveButton,
-    );
-
-    await user.click(approveButton);
-
-    expect(
-      await screen.findByText(t.allowanceRequestApproveDialogTitle),
-    ).toBeInTheDocument();
-
-    // Merely opening the dialog must not have approved anything yet.
-    expect(mockApiFetch).not.toHaveBeenCalledWith(
-      expect.stringContaining(`/${FUNDING_REQUEST.id}/approve`),
-      expect.anything(),
-    );
-  });
-
-  it("choosing a source account and confirming approves the funding request with that fromAccountId", async () => {
-    const user = userEvent.setup();
-    renderWithClient(
-      <AllowanceRequestsPanel familyGroupId={FAMILY_GROUP_ID} token={TOKEN} />,
-      queryClient,
-    );
-
-    await screen.findByText(`Adi → Tabungan Adi`);
-    const fundingRow = findRow("Adi");
-    await user.click(
-      within(fundingRow).getByLabelText(t.allowanceRequestApproveButton),
-    );
-
-    await screen.findByText(t.allowanceRequestApproveDialogTitle);
-    const select = await screen.findByDisplayValue("—");
-    await user.selectOptions(select, "acc-main");
-    await user.click(
-      screen.getByRole("button", { name: t.allowanceRequestApproveButton }),
-    );
-
-    await waitFor(() => {
-      expect(mockApiFetch).toHaveBeenCalledWith(
-        `/family-groups/${FAMILY_GROUP_ID}/allowance-requests/${FUNDING_REQUEST.id}/approve`,
-        expect.objectContaining({
-          method: "PATCH",
-          body: JSON.stringify({ fromAccountId: "acc-main" }),
-        }),
-      );
-    });
-  });
-
-  it("clicking reject on the held row calls the reject endpoint and never posts a transaction", async () => {
-    const user = userEvent.setup();
-    renderWithClient(
-      <AllowanceRequestsPanel familyGroupId={FAMILY_GROUP_ID} token={TOKEN} />,
-      queryClient,
-    );
-
-    await screen.findByText(`Sinta · Dompet Sinta`);
-    const heldRow = findRow("Sinta");
-    await user.click(
-      within(heldRow).getByLabelText(t.allowanceRequestRejectButton),
-    );
-
-    await waitFor(() => {
-      expect(mockApiFetch).toHaveBeenCalledWith(
-        `/family-groups/${FAMILY_GROUP_ID}/allowance-requests/${HELD_REQUEST.id}/reject`,
-        expect.objectContaining({ method: "PATCH", body: JSON.stringify({}) }),
-      );
-    });
-
-    expect(mockApiFetch).not.toHaveBeenCalledWith(
-      expect.stringContaining("/transactions"),
-      expect.anything(),
-    );
-    expect(mockToastSuccess).toHaveBeenCalledWith(t.allowanceRequestRejected);
-  });
-});
 
 /* ─────────────────────── ThresholdForm ─────────────────────── */
 

@@ -64,7 +64,6 @@ export type CrudEntity =
   | "liabilitas"
   | "asuransi"
   | "tujuan"
-  | "member"
   | "mdbank"
   | "mdtxntype"
   | "mdkategori"
@@ -306,45 +305,12 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
       },
     ],
   },
-  member: {
-    title: "Anggota Family",
-    // EPIC-022 A1 — the invitation endpoint (`CreateInvitationDto`) only
-    // ever accepted `email` + `role`; it never had `nama`/`hubungan` fields
-    // to send them to, so those two were collected and silently dropped
-    // (whitelist: true, no forbidNonWhitelisted). Decision: remove them
-    // rather than grow the API to match — the join flow captures the
-    // member's own name once they accept the invite. The "Email / No. HP"
-    // field is now email-only (it always POSTed to an `@IsEmail` DTO, so a
-    // phone number here always 400'd), and "Peran" offers the roles the DTO
-    // actually accepts instead of a "Co-Owner" option that isn't a real role
-    // and was never wired up (submission hardcoded "member" regardless of
-    // this field).
-    // EPIC-023 Task C retry (MEDIUM six-reviewer finding) — `spouse` added:
-    // `AddAdminDialog` (akun/page.tsx) already offers it, and both dialogs
-    // invite into the same `CreateInvitationDto`, so this picker was one
-    // invite path behind. The call site widens its role coercion to match
-    // (akun/page.tsx's `handleCrudSubmit`) — do not add `spouse` here
-    // without widening that coercion, or a spouse invite silently
-    // downgrades to "member".
-    fields: [
-      {
-        key: "email",
-        label: "Email",
-        type: "email",
-        placeholder: "nama@email.com",
-      },
-      {
-        // Static options double as a safe fallback value/label; the call
-        // site (akun/page.tsx) overrides the label via `dynamicOptions` so
-        // this stays in sync with the translated "Tambah Admin/Staf" role
-        // labels instead of duplicating them here.
-        key: "role",
-        label: "Peran",
-        type: "select",
-        options: ["member", "admin_staff", "spouse"],
-      },
-    ],
-  },
+  // EPIC-024 A2 (D2, item 18) — the "member" entity (email invite-link UI)
+  // was removed here. Backend invitation endpoints (`CreateInvitationDto`,
+  // `POST /family-groups/:id/invitations`) are UNTOUCHED — the invite
+  // feature is hidden in the UI only. Family members are now added
+  // directly (dependant/operational via `AddDependantMemberDialog`, istri
+  // as a second owner via the same dialog per A1).
   mdbank: {
     title: "Bank",
     fields: [

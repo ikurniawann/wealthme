@@ -187,7 +187,7 @@ var RoleSchema = import_zod5.z.enum([
   "operational"
 ]);
 var DEFAULT_ROLE_BY_RELATIONSHIP = {
-  istri: "spouse",
+  istri: "owner",
   anak: "dependant",
   kakek: "member",
   nenek: "member",

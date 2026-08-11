@@ -6,6 +6,7 @@ import {
   Bot,
   Briefcase,
   Calculator,
+  CheckCheck,
   ClipboardList,
   Database,
   FileText,
@@ -78,6 +79,8 @@ export const NAV_ITEM_IDS = [
   "warisan",
   "donation",
   "tax",
+  // EPIC-024 A5 (D6, US-FAM-19) — owner/co-master only, see `ownerOnly`.
+  "persetujuan",
   "splitbill",
   "rekonsiliasi",
   "ai",
@@ -101,6 +104,10 @@ export type NavItem = {
   badge?: string;
   badgeVariant?: BadgeVariant;
   children?: ReportTab[];
+  // EPIC-024 A5 (D6) — hidden from the sidebar for any role except
+  // `owner` (the co-master istri holds `role: owner` too per A1, so this
+  // single check covers "owner/co-master only" with no separate case).
+  ownerOnly?: boolean;
 };
 
 export type NavSection = { headerKey?: NavSectionHeaderKey; items: NavItem[] };
@@ -151,6 +158,14 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: FileText,
         badge: "New",
         badgeVariant: "new-success",
+      },
+      {
+        id: "persetujuan",
+        href: "/persetujuan",
+        icon: CheckCheck,
+        badge: "New",
+        badgeVariant: "new-purple",
+        ownerOnly: true,
       },
     ],
   },
@@ -212,6 +227,7 @@ export const PAGE_TITLE_IDS = [
   "warisan",
   "donation",
   "tax",
+  "persetujuan",
   "quickinput",
   "mastercoa",
   "masterdata",

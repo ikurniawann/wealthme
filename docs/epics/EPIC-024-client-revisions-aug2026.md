@@ -241,8 +241,8 @@ All decided by the product owner; do not reopen without new information.
 One task group = one branch = one PR to `development`. Execution order is in
 `## Agent Routing` below.
 
-- [ ] ### A — Family & Roles: istri co-master, group resolution, Persetujuan page, stop Akun Utama (items 1, 2, 4, 5, 11, 18)
-  - **A1** — Istri as second owner: `DEFAULT_ROLE_BY_RELATIONSHIP.istri` →
+- [x] ### A — Family & Roles: istri co-master, group resolution, Persetujuan page, stop Akun Utama (items 1, 2, 4, 5, 11, 18) ✅
+  - **A1** — [x] Istri as second owner: `DEFAULT_ROLE_BY_RELATIONSHIP.istri` →
     `owner` (`packages/contracts/src/members/index.ts`); extend
     `createDependantMember` (`family-groups.service.ts:436`) to accept
     `role: owner` **only when** `relationship === "istri"`, enforcing max-1
@@ -251,31 +251,37 @@ One task group = one branch = one PR to `development`. Execution order is in
     `AddDependantMemberDialog` (`akun/page.tsx:3092`). The created user gets
     **no family group of her own** (existing better-auth-bypass pattern).
     (D1, D3, US-FAM-15/16/17)
-  - **A2** — Hide invite UI: remove `AddAdminModal` rendering and the
+  - **A2** — [x] Hide invite UI: remove `AddAdminModal` rendering and the
     `entity === "member"` crud path (`akun/page.tsx:2995-3090, 3463-3487`,
     `crud-config.ts:342-344`). Backend invitation endpoints untouched. (D2)
-  - **A3** — Unify active-family-group resolution to ONE deterministic rule
-    (`createdAt asc` = oldest) across `apps/web/src/lib/auth.ts:158`,
+  - **A3** — [x] Unify active-family-group resolution to ONE deterministic
+    rule (`createdAt asc` = oldest) across `apps/web/src/lib/auth.ts:158`,
     `apps/api/src/auth/auth.service.ts:237`,
-    `apps/api/src/family-groups/family-groups.service.ts:96`. Migration/script
-    for the existing DEV wife: role → `owner` in the husband's group; her empty
-    auto-created group is left. (Evidence #1, US-FAM-18)
-  - **A4** — Verify picker behaviour per role (no code expected beyond
+    `apps/api/src/family-groups/family-groups.service.ts:96`. **Migration
+    file staged (NOT applied) at
+    `docs/migrations/epic-024-a3-istri-owner-backfill.sql`** — deliberately
+    kept OUT of `apps/api/prisma/migrations/` so `prisma migrate deploy` in
+    `scripts/deploy-dev.sh` cannot pick it up automatically (a code-review
+    round caught the original placement as a real auto-apply risk, not just a
+    comment-only gate). **Requires explicit owner announcement before a human
+    manually stages and runs it** — it promotes the existing DEV wife's role
+    → `owner` in the husband's group; her empty auto-created group is left.
+    (Evidence #1, US-FAM-18)
+  - **A4** — [x] Verify picker behaviour per role (no code expected beyond
     A1+A3): master/co-master see all family accounts, dependant/operational
-    only assigned ones. E2E asserts both the allow and the deny. (D4)
-  - **A5** — New `/persetujuan` page (owner-only nav item): Pending tab
-    (approve/reject with source-account picker) + Riwayat tab; move/reuse
+    only assigned ones. Explicit allow+deny test added. (D4)
+  - **A5** — [x] New `/persetujuan` page (owner-only nav item): Pending tab
+    (approve/reject with source-account picker) + Riwayat tab; moved
     `AllowanceRequestsPanel`/`ApproveRequestForm` from `akun/page.tsx:2716-2955`.
-    Replace every bare `catch { toast.error(generic) }` in the approve path
+    Every bare `catch { toast.error(generic) }` in the approve path replaced
     with `extractApiErrorMessage`. (D6, US-FAM-19, US-AUTH-11)
-  - **A6** — Stop auto-creating "Akun Utama": remove the account-create block
-    from `apps/web/src/lib/auth.ts:143-150` AND
-    `apps/api/src/auth/auth.service.ts:178-185`; verify empty-state of
-    rekening/transaksi pages at 0 accounts. Existing rows untouched. (D5,
-    US-REK-1)
-  - **A7** — Domain docs: create `CONTEXT-MAP.md` + `CONTEXT.md` (glossary:
-    Master/Co-Master, Anggota, Rekening, Akun Utama, Permintaan Dana,
-    Lot/Lembar, Catat Investasi) and `docs/adr/0001-istri-as-second-owner.md`.
+  - **A6** — [x] Stop auto-creating "Akun Utama": removed the account-create
+    block from `apps/web/src/lib/auth.ts:143-150` AND
+    `apps/api/src/auth/auth.service.ts:178-185`; empty-state of
+    rekening/transaksi pages at 0 accounts verified. Existing rows untouched.
+    (D5, US-REK-1)
+  - **A7** — [x] Domain docs: `CONTEXT-MAP.md` + `apps/web/CONTEXT.md`
+    (glossary) and `docs/adr/0001-istri-as-second-owner.md` created.
 
 - [ ] ### B — PIN/buka cepat nginx routes + error surfacing (items 3, 10)
   - **B1** — [x] Add `devices(?:/.*)?` to the nginx auth-route allowlist regex
@@ -776,3 +782,15 @@ the N1 prototype has an approval recorded in the Automation Log.
   exactly as written" — no locale qualification — and re-verdicted PASS on
   clarification). **Wave 1 complete** (B, E, F, H, I, K). PR:
   https://github.com/andrsrjld/wealthme-web/pull/260
+- 2026-08-11 /epic-loop EPIC-024 #A "Family & Roles: istri co-master, group
+  resolution, Persetujuan page, stop Akun Utama" → PASS (attempts: 2; **adversarial
+  review + database-reviewer both independently caught the same CRITICAL**: the
+  A3 backfill migration would have auto-applied via `prisma migrate deploy` in
+  `scripts/deploy-dev.sh` despite a "not automatic" comment — moved to
+  `docs/migrations/` outside the migrations directory so it is a real gate, not
+  a comment. Also HIGH: `updateMemberRole` could bypass the max-1-istri
+  invariant — same `FOR UPDATE` lock pattern added there too. Both fixed and
+  re-verified in attempt 2. **Wave 2 complete.** ⚠️ **A3's migration is
+  file-only, NOT applied — requires an explicit owner announcement before a
+  human manually stages and runs it against DEV; it alters a real family's
+  access.** PR: https://github.com/andrsrjld/wealthme-web/pull/261

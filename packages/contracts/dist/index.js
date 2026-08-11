@@ -129,7 +129,7 @@ var RoleSchema = z5.enum([
   "operational"
 ]);
 var DEFAULT_ROLE_BY_RELATIONSHIP = {
-  istri: "spouse",
+  istri: "owner",
   anak: "dependant",
   kakek: "member",
   nenek: "member",

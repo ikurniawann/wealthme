@@ -821,6 +821,40 @@ describe("AccountsService row-scoped roles (dependant/operational)", () => {
       [DRIVER_ACCOUNT_ID, SHARED_ACCOUNT_ID, OTHER_MEMBER_ACCOUNT_ID].sort(),
     );
   });
+
+  // EPIC-024 A4 (D4) — explicit allow+deny pair for the exact scenario the
+  // epic calls out: an istri co-master (relationship `istri`, role
+  // `owner` per A1) must see EVERY family account in the same request a
+  // dependant is DENIED all but their own. `relationship` carries no
+  // permission of its own (Member.role is the only axis CASL/row-scoping
+  // reads — see privacy.util.ts's `isRowScopedRole`), so passing
+  // `Role.owner` here is exactly what an istri co-master's request looks
+  // like; there is no separate "istri" branch to test because none exists.
+  it("ALLOW: an istri co-master (role owner) sees every family account — DENY: a dependant in the same family group sees only their own, same fixture", async () => {
+    const ownerResult = await service.findAll(
+      FAMILY_GROUP_ID,
+      true,
+      undefined,
+      "user-istri-co-master",
+      Role.owner,
+    );
+    expect(ownerResult.map((a) => a.id).sort()).toEqual(
+      [DRIVER_ACCOUNT_ID, SHARED_ACCOUNT_ID, OTHER_MEMBER_ACCOUNT_ID].sort(),
+    );
+
+    const dependantResult = await service.findAll(
+      FAMILY_GROUP_ID,
+      true,
+      undefined,
+      DRIVER_USER_ID,
+      Role.operational,
+    );
+    expect(dependantResult.map((a) => a.id)).toEqual([DRIVER_ACCOUNT_ID]);
+    expect(dependantResult.map((a) => a.id)).not.toContain(SHARED_ACCOUNT_ID);
+    expect(dependantResult.map((a) => a.id)).not.toContain(
+      OTHER_MEMBER_ACCOUNT_ID,
+    );
+  });
 });
 
 /**

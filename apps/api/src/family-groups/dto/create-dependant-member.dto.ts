@@ -58,7 +58,9 @@ export class CreateDependantMemberDto {
 
   @ApiProperty({
     enum: Role,
-    description: "Must be 'dependant' or 'operational' (enforced server-side)",
+    description:
+      "Must be 'dependant' or 'operational' — OR 'owner' when relationship is 'istri' " +
+      "(EPIC-024 A1, D1: istri = co-master, max 1 per family group). Enforced server-side.",
   })
   @IsEnum(Role)
   role!: Role;

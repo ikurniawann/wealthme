@@ -5,7 +5,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Test, type TestingModule } from "@nestjs/testing";
-import { Prisma, Role } from "@prisma/client";
+import { MemberRelationship, Prisma, Role } from "@prisma/client";
 import * as argon2 from "argon2";
 
 import { NOTIFICATION_SENDER_PORT } from "../notifications/notification-sender.port";
@@ -19,7 +19,7 @@ const REQUESTER_ID = "user-owner";
 const MEMBER_USER_ID = "user-member";
 
 function makePrisma() {
-  return {
+  const prisma = {
     member: {
       findUnique: jest.fn(),
       findFirst: jest.fn(),
@@ -35,10 +35,19 @@ function makePrisma() {
       findUnique: jest.fn(),
       update: jest.fn(),
     },
-    $transaction: jest.fn(async (ops: Array<Promise<unknown>>) =>
-      Promise.all(ops),
+    $queryRaw: jest.fn().mockResolvedValue(undefined),
+    // Supports BOTH call shapes used across this service: the array form
+    // (`$transaction([...])` -> Promise.all) AND the interactive callback
+    // form (`$transaction(async (tx) => ...)` -> invoke with this same
+    // mock object standing in for `tx`, since every mocked model method
+    // lives directly on `prisma` here).
+    $transaction: jest.fn(
+      async (
+        arg: Array<Promise<unknown>> | ((tx: unknown) => Promise<unknown>),
+      ) => (typeof arg === "function" ? arg(prisma) : Promise.all(arg)),
     ),
   };
+  return prisma;
 }
 
 describe("FamilyGroupsService.removeMember", () => {
@@ -108,6 +117,76 @@ describe("FamilyGroupsService.removeMember", () => {
       data: { ownerUserId: null },
     });
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+});
+
+// EPIC-024 A3 (Evidence #1) — this is the reference implementation the
+// other two group-resolution paths (apps/web/src/lib/auth.ts's session
+// hook, apps/api/src/auth/auth.service.ts's getMe/getProfileDetail/
+// updateProfile) were unified to match: `createdAt: "asc"` (oldest
+// membership first).
+describe("FamilyGroupsService.findMine (EPIC-024 A3)", () => {
+  let service: FamilyGroupsService;
+  let prisma: ReturnType<typeof makePrisma> & {
+    member: ReturnType<typeof makePrisma>["member"] & { findMany: jest.Mock };
+  };
+
+  beforeEach(async () => {
+    prisma = {
+      ...makePrisma(),
+      member: { ...makePrisma().member, findMany: jest.fn() },
+    };
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        FamilyGroupsService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { sendEmail: jest.fn() },
+        },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+      ],
+    }).compile();
+    service = module.get(FamilyGroupsService);
+  });
+
+  it("queries with orderBy createdAt asc — the deterministic 'oldest wins' rule", async () => {
+    prisma.member.findMany.mockResolvedValue([]);
+    await service.findMine("user-1");
+
+    expect(prisma.member.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: { createdAt: "asc" } }),
+    );
+  });
+
+  it("a user with two memberships resolves the OLDEST group first — same fixture auth.service.ts's getMe() must agree with", async () => {
+    // Simulates the reported bug's exact fixture: a wife's own
+    // auto-created group (created first, at her own registration) plus a
+    // later membership in her husband's group (added/invited afterward).
+    prisma.member.findMany.mockResolvedValue([
+      {
+        familyGroup: {
+          id: "fg-own-empty",
+          name: "Sari's Family",
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          _count: { members: 1 },
+        },
+        role: "owner",
+      },
+      {
+        familyGroup: {
+          id: "fg-husband",
+          name: "Budi's Family",
+          createdAt: new Date("2026-02-01T00:00:00.000Z"),
+          _count: { members: 3 },
+        },
+        role: "owner",
+      },
+    ]);
+
+    const result = await service.findMine("user-wife");
+
+    expect(result[0]?.id).toBe("fg-own-empty");
   });
 });
 
@@ -468,6 +547,130 @@ describe("FamilyGroupsService.updateMemberRole — relationship (EPIC-023 Task C
   });
 });
 
+// Review-fix (database-reviewer + adversarial-reviewer, EPIC-024 Group A) —
+// `createDependantMember` enforces max-1-istri per family group, but
+// `updateMemberRole` could bypass it by re-labeling an EXISTING member's
+// `relationship` to "istri" with no lock and no check at all. `role: owner`
+// is already excluded from `ASSIGNABLE_ROLES` so this path cannot mint a
+// second co-master via role, but it could still produce two
+// `relationship: istri` rows in the same family group. These tests prove
+// the same lock-then-recheck guard now also covers this path.
+describe("FamilyGroupsService.updateMemberRole — max-1-istri guard (review-fix)", () => {
+  let service: FamilyGroupsService;
+  let prisma: ReturnType<typeof makePrisma>;
+
+  beforeEach(async () => {
+    prisma = makePrisma();
+    prisma.member.findUnique.mockResolvedValue({ role: Role.owner });
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        FamilyGroupsService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { sendEmail: jest.fn() },
+        },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+      ],
+    }).compile();
+    service = module.get(FamilyGroupsService);
+  });
+
+  it("refuses to set relationship: istri on a member when the family group already has a DIFFERENT istri", async () => {
+    prisma.member.findFirst
+      .mockResolvedValueOnce({
+        id: MEMBER_ID,
+        role: Role.member,
+        relationship: null,
+        userId: MEMBER_USER_ID,
+      })
+      // The recheck (excluding the target member itself) finds the
+      // family's existing co-master.
+      .mockResolvedValueOnce({ id: "existing-istri-member" });
+
+    try {
+      await service.updateMemberRole(FAMILY_GROUP_ID, MEMBER_ID, REQUESTER_ID, {
+        role: Role.spouse,
+        relationship: MemberRelationship.istri,
+      });
+      throw new Error("expected updateMemberRole to reject");
+    } catch (err) {
+      expect(err).toBeInstanceOf(ConflictException);
+      expect((err as ConflictException).getResponse()).toEqual(
+        expect.objectContaining({ code: "MAX_ONE_ISTRI" }),
+      );
+    }
+    expect(prisma.member.update).not.toHaveBeenCalled();
+    // Locks the family group row before the recheck, same as
+    // createDependantMember's istri path.
+    expect(prisma.$queryRaw).toHaveBeenCalled();
+  });
+
+  it("allows setting relationship: istri when no other member currently has it", async () => {
+    prisma.member.findFirst
+      .mockResolvedValueOnce({
+        id: MEMBER_ID,
+        role: Role.member,
+        relationship: null,
+        userId: MEMBER_USER_ID,
+      })
+      .mockResolvedValueOnce(null); // recheck: no existing istri elsewhere
+
+    prisma.member.update.mockResolvedValue({
+      id: MEMBER_ID,
+      userId: MEMBER_USER_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      role: Role.spouse,
+      relationship: "istri",
+      user: { name: "Sari", email: "sari@example.com" },
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+
+    const result = await service.updateMemberRole(
+      FAMILY_GROUP_ID,
+      MEMBER_ID,
+      REQUESTER_ID,
+      { role: Role.spouse, relationship: MemberRelationship.istri },
+    );
+
+    expect(result.relationship).toBe("istri");
+    expect(prisma.member.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: MEMBER_ID },
+        data: { role: Role.spouse, relationship: "istri" },
+      }),
+    );
+  });
+
+  it("does not run the istri max-1 recheck when the target member ALREADY has relationship: istri (no false self-conflict)", async () => {
+    prisma.member.findFirst.mockResolvedValueOnce({
+      id: MEMBER_ID,
+      role: Role.owner,
+      relationship: "istri",
+      userId: MEMBER_USER_ID,
+    });
+    prisma.member.update.mockResolvedValue({
+      id: MEMBER_ID,
+      userId: MEMBER_USER_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      role: Role.owner,
+      relationship: "istri",
+      user: { name: "Sari", email: "sari@example.com" },
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+
+    await service.updateMemberRole(FAMILY_GROUP_ID, MEMBER_ID, REQUESTER_ID, {
+      role: Role.owner,
+      relationship: MemberRelationship.istri,
+    });
+
+    // Only the initial existence lookup — never a second `findFirst` recheck.
+    expect(prisma.member.findFirst).toHaveBeenCalledTimes(1);
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
+  });
+});
+
 describe("FamilyGroupsService.acceptInvitation — relationship carried through (EPIC-023 Task C)", () => {
   let service: FamilyGroupsService;
   let prisma: ReturnType<typeof makePrisma>;
@@ -643,7 +846,8 @@ describe("FamilyGroupsService.createDependantMember (EPIC-023 D1)", () => {
   let tx: {
     user: { findUnique: jest.Mock; create: jest.Mock };
     baAccount: { create: jest.Mock };
-    member: { create: jest.Mock };
+    member: { create: jest.Mock; findFirst: jest.Mock };
+    $queryRaw: jest.Mock;
   };
   let prisma: { $transaction: jest.Mock };
 
@@ -661,7 +865,11 @@ describe("FamilyGroupsService.createDependantMember (EPIC-023 D1)", () => {
         create: jest.fn(),
       },
       baAccount: { create: jest.fn() },
-      member: { create: jest.fn() },
+      member: {
+        create: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      $queryRaw: jest.fn().mockResolvedValue(undefined),
     };
     prisma = {
       $transaction: jest.fn(async (fn: (tx: unknown) => unknown) => fn(tx)),
@@ -912,4 +1120,179 @@ describe("FamilyGroupsService.createDependantMember (EPIC-023 D1)", () => {
       false,
     );
   }, 15000);
+});
+
+// EPIC-024 A1 (D1) — istri = co-master: role owner is ONLY accepted paired
+// with relationship istri, never gets her own family group, and a second
+// istri in the same group is refused — including under a concurrent race.
+describe("FamilyGroupsService.createDependantMember — istri as second owner (EPIC-024 A1)", () => {
+  let service: FamilyGroupsService;
+  let tx: {
+    user: { findUnique: jest.Mock; create: jest.Mock };
+    baAccount: { create: jest.Mock };
+    member: { create: jest.Mock; findFirst: jest.Mock };
+    $queryRaw: jest.Mock;
+  };
+  let prisma: { $transaction: jest.Mock };
+
+  const ISTRI_DTO = {
+    name: "Sari Wijaya",
+    username: "sari_w",
+    initialPassword: "changeMe123",
+    role: Role.owner,
+    relationship: MemberRelationship.istri,
+  } as const;
+
+  beforeEach(async () => {
+    tx = {
+      user: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn(),
+      },
+      baAccount: { create: jest.fn() },
+      member: {
+        create: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      $queryRaw: jest.fn().mockResolvedValue(undefined),
+    };
+    prisma = {
+      $transaction: jest.fn(async (fn: (tx: unknown) => unknown) => fn(tx)),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        FamilyGroupsService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { sendEmail: jest.fn() },
+        },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+      ],
+    }).compile();
+    service = module.get(FamilyGroupsService);
+  });
+
+  function mockCreatedRows(userId = "user-istri") {
+    tx.user.create.mockImplementation(
+      async (args: { data: Record<string, unknown> }) => ({
+        id: userId,
+        ...args.data,
+      }),
+    );
+    tx.baAccount.create.mockImplementation(
+      async (args: { data: Record<string, unknown> }) => ({
+        id: "ba-istri",
+        ...args.data,
+      }),
+    );
+    tx.member.create.mockImplementation(
+      async (args: { data: Record<string, unknown> }) => ({
+        id: "member-istri",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        ...args.data,
+      }),
+    );
+    return userId;
+  }
+
+  it("rejects role owner when relationship is NOT istri", async () => {
+    await expect(
+      service.createDependantMember(FAMILY_GROUP_ID, {
+        ...ISTRI_DTO,
+        relationship: MemberRelationship.anak,
+      }),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        code: "INVALID_ROLE_FOR_DEPENDANT_CREATION",
+      }),
+    });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("accepts role owner paired with relationship istri: creates a Member row in the SAME family group, no new FamilyGroup", async () => {
+    const userId = mockCreatedRows();
+
+    const result = await service.createDependantMember(
+      FAMILY_GROUP_ID,
+      ISTRI_DTO,
+    );
+
+    // Locks the family group row first (race guard) before the istri recheck.
+    expect(tx.$queryRaw).toHaveBeenCalled();
+    expect(tx.member.findFirst).toHaveBeenCalledWith({
+      where: { familyGroupId: FAMILY_GROUP_ID, relationship: "istri" },
+      select: { id: true },
+    });
+    // The Member row is created directly on the CALLER's familyGroupId —
+    // this service never calls familyGroup.create, so no second family
+    // group can exist for her.
+    expect(tx.member.create).toHaveBeenCalledWith({
+      data: {
+        userId,
+        familyGroupId: FAMILY_GROUP_ID,
+        role: Role.owner,
+        relationship: MemberRelationship.istri,
+      },
+    });
+    expect(result.role).toBe(Role.owner);
+    expect(result.relationship).toBe(MemberRelationship.istri);
+  });
+
+  it("refuses a second istri in a family group that already has one", async () => {
+    tx.member.findFirst.mockResolvedValue({ id: "existing-istri-member" });
+
+    await expect(
+      service.createDependantMember(FAMILY_GROUP_ID, ISTRI_DTO),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ code: "MAX_ONE_ISTRI" }),
+    });
+    expect(tx.member.create).not.toHaveBeenCalled();
+    expect(tx.user.create).not.toHaveBeenCalled();
+  });
+
+  // Adversarial-review target: a naive `count() -> create()` check would
+  // read count=0 on BOTH concurrent requests before either writes, letting
+  // two istri rows through. This test proves the SECOND call sees the
+  // FIRST call's row — i.e. the check is not evaluated against stale state
+  // — by having `findFirst` return the just-created row on its second
+  // invocation, exactly as it would once the first transaction's `FOR
+  // UPDATE` lock releases and the second transaction's recheck runs.
+  it("a second concurrent istri request is refused once the first transaction's write is visible (race-safe recheck, not a stale read)", async () => {
+    let callCount = 0;
+    tx.member.findFirst.mockImplementation(async () => {
+      callCount += 1;
+      // First call (request A's recheck): no istri yet.
+      // Second call (request B's recheck, AFTER A committed under the
+      // FamilyGroup row lock): sees A's row.
+      return callCount === 1 ? null : { id: "member-istri-from-request-a" };
+    });
+    mockCreatedRows();
+
+    await service.createDependantMember(FAMILY_GROUP_ID, ISTRI_DTO);
+    await expect(
+      service.createDependantMember(FAMILY_GROUP_ID, {
+        ...ISTRI_DTO,
+        username: "sari_w_2",
+      }),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ code: "MAX_ONE_ISTRI" }),
+    });
+
+    expect(tx.member.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not run the istri max-1 check for a plain dependant/operational creation (no unnecessary lock)", async () => {
+    mockCreatedRows();
+    await service.createDependantMember(FAMILY_GROUP_ID, {
+      name: "Adit",
+      username: "adit_dep",
+      initialPassword: "changeMe123",
+      role: Role.dependant,
+    });
+
+    expect(tx.$queryRaw).not.toHaveBeenCalled();
+    expect(tx.member.findFirst).not.toHaveBeenCalled();
+  });
 });

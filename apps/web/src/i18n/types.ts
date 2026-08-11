@@ -727,11 +727,11 @@ export type I18nDictionary = {
     family: {
       membersSectionTitle: string;
       youBadge: string;
-      inviteButton: string;
+      // EPIC-024 A2 (D2, item 18) — inviteButton/addAdminButton (email
+      // invite-link UI) removed; family members are added directly.
       adminSectionTitle: string;
       adminCanInput: string;
       adminBadge: string;
-      addAdminButton: string;
       adminInfoNote: string;
       groupSettingsSectionTitle: string;
       memberTxnNotifLabel: string;
@@ -775,23 +775,6 @@ export type I18nDictionary = {
       // operational member (name + username + initial password, no email).
       addDependantButton: string;
     };
-    addAdmin: {
-      dialogTitle: string;
-      dialogDesc: string;
-      emailPlaceholder: string;
-      roleLabel: string;
-      roleOptions: {
-        member: string;
-        adminStaff: string;
-        // EPIC-023 Task C retry — the invitation endpoint has accepted
-        // "spouse" since D2/D6, but the picker only ever offered 2 roles.
-        spouse: string;
-      };
-      sending: string;
-      sendButton: string;
-      toastInviteCreated: string;
-      toastInviteFailed: string;
-    };
     // EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/
     // operational member: no email, username + initial password instead.
     addDependant: {
@@ -811,7 +794,13 @@ export type I18nDictionary = {
       roleOptions: {
         dependant: string;
         operational: string;
+        // EPIC-024 A1 (D1) — istri = co-master: role owner is reachable
+        // ONLY through this option, which locks the relationship picker
+        // to "istri" below.
+        istriCoMaster: string;
       };
+      // EPIC-024 A1 — shown when "Istri (Co-Master)" is selected.
+      istriCoMasterHint: string;
       relationshipLabel: string;
       relationshipNoneOption: string;
       creating: string;
@@ -827,6 +816,22 @@ export type I18nDictionary = {
       profileSaved: string;
       profileSaveFailed: string;
     };
+  };
+  /**
+   * EPIC-024 A5 (D6, US-FAM-19) — `/persetujuan` page copy. Reuses the
+   * `akun.family.allowanceRequest*` keys above for the shared
+   * approve/reject strings (moved here, not duplicated); this section only
+   * adds what's new to the dedicated page (tabs, history, owner gate).
+   */
+  persetujuan: {
+    pageDesc: string;
+    tabPending: string;
+    tabRiwayat: string;
+    riwayatEmpty: string;
+    riwayatDecidedByLabel: string;
+    riwayatStatusApproved: string;
+    riwayatStatusRejected: string;
+    notOwnerNotice: string;
   };
   /**
    * EPIC-018 Task A2 — `/panduan` page copy. `JOURNEYS` in the page keeps

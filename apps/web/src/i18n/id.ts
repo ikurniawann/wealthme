@@ -104,6 +104,7 @@ export const id = {
       // Zakat": the page covers all faiths' donations, not just zakat.
       donation: "Donasi",
       tax: "Tax Center",
+      persetujuan: "Persetujuan",
       splitbill: "Split Bill",
       rekonsiliasi: "Rekonsiliasi Bank",
       ai: "AI Advisor",
@@ -154,6 +155,7 @@ export const id = {
       // EPIC-024 Group I (I1, D12, US-DON-8) — see nav.items.donation.
       donation: "Donasi",
       tax: "Tax Center",
+      persetujuan: "Persetujuan",
       quickinput: "Quick Input",
       mastercoa: "Master COA",
       masterdata: "Setup Master Data",
@@ -576,11 +578,9 @@ export const id = {
     family: {
       membersSectionTitle: "Anggota",
       youBadge: "Kamu",
-      inviteButton: "Undang Anggota",
       adminSectionTitle: "Admin / Staf",
       adminCanInput: "Bisa input transaksi",
       adminBadge: "Admin",
-      addAdminButton: "Tambah Admin / Staf",
       adminInfoNote:
         "Admin (sekretaris, supir, ART, asisten) bisa mencatat transaksi atas nama family, tapi tidak bisa mengubah pengaturan group atau melihat saldo pribadi anggota.",
       groupSettingsSectionTitle: "Pengaturan Group",
@@ -632,22 +632,6 @@ export const id = {
       thresholdSaveFailed: "Gagal menyimpan batas transaksi. Coba lagi.",
       addDependantButton: "Tambah Anak / Operasional",
     },
-    addAdmin: {
-      dialogTitle: "Tambah Admin / Staf",
-      dialogDesc:
-        "Admin bisa mencatat transaksi atas nama family (cocok untuk sekretaris, supir, ART, atau asisten).",
-      emailPlaceholder: "email admin",
-      roleLabel: "Peran",
-      roleOptions: {
-        member: "Anggota",
-        adminStaff: "Admin / Staf",
-        spouse: "Pasangan",
-      },
-      sending: "Mengirim...",
-      sendButton: "Kirim Undangan Admin",
-      toastInviteCreated: "Undangan dibuat — link disalin ke clipboard.",
-      toastInviteFailed: "Gagal membuat undangan. Periksa email dan coba lagi.",
-    },
     addDependant: {
       dialogTitle: "Tambah Anak / Operasional",
       dialogDesc:
@@ -667,7 +651,10 @@ export const id = {
       roleOptions: {
         dependant: "Anak (Dependant)",
         operational: "Operasional (supir/asisten)",
+        istriCoMaster: "Istri (Co-Master)",
       },
+      istriCoMasterHint:
+        'Istri menjadi pemilik kedua (co-master) dengan menu dan hak yang sama persis dengan suami — bukan anggota/dependant. Hubungan Keluarga otomatis terkunci ke "istri". Maksimal 1 istri per keluarga.',
       relationshipLabel: "Hubungan Keluarga (opsional)",
       relationshipNoneOption: "— Tidak diisi —",
       creating: "Membuat...",
@@ -684,6 +671,18 @@ export const id = {
       profileSaved: "Profil berhasil disimpan",
       profileSaveFailed: "Gagal menyimpan profil",
     },
+  },
+  persetujuan: {
+    pageDesc:
+      "Setujui atau tolak permintaan dana keluarga di satu tempat, terpisah dari pengaturan akun.",
+    tabPending: "Menunggu",
+    tabRiwayat: "Riwayat",
+    riwayatEmpty: "Belum ada permintaan yang diputuskan.",
+    riwayatDecidedByLabel: "Diputuskan oleh",
+    riwayatStatusApproved: "Disetujui",
+    riwayatStatusRejected: "Ditolak",
+    notOwnerNotice:
+      "Halaman ini hanya untuk master/co-master keluarga. Kamu tidak memiliki akses.",
   },
   panduan: {
     pageTitle: "📖 Panduan Fitur WealthMe",
