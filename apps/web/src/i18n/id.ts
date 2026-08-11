@@ -2621,6 +2621,12 @@ export const id = {
     toastSetupSuccess: "Buka cepat siap digunakan di perangkat ini.",
     toastSetupFailed:
       "Gagal mengatur buka cepat. Kamu bisa coba lagi nanti di Pengaturan Akun.",
+    toastSetupSessionExpired:
+      "Sesi kamu berakhir. Silakan login ulang lalu coba atur buka cepat lagi.",
+    toastSetupServiceUnavailable:
+      "Layanan buka cepat sedang bermasalah di server. Coba lagi nanti atau hubungi admin.",
+    toastSetupNetworkError:
+      "Tidak dapat terhubung ke server. Periksa koneksi internet kamu.",
     padTitle: "Masukkan PIN kamu",
     padSubtitle: "Buka WealthMe di perangkat ini",
     padSubmitButton: "Buka",
@@ -2629,6 +2635,10 @@ export const id = {
     toastUnlockFailed: "PIN salah. Silakan coba lagi.",
     toastUnlockLockedPrefix: "Terlalu banyak percobaan. Coba lagi dalam ",
     toastUnlockLockedSuffix: ", atau gunakan password kamu.",
+    toastUnlockServiceUnavailable:
+      "Buka cepat sedang bermasalah di server, bukan PIN kamu. Gunakan password untuk sementara.",
+    toastUnlockNetworkError:
+      "Tidak dapat terhubung ke server. Periksa koneksi internet kamu lalu coba lagi.",
     manageSectionTitle: "Perangkat dengan buka cepat",
     manageSetupButton: "Atur buka cepat di perangkat ini",
     manageEmptyState: "Belum ada perangkat yang diatur untuk buka cepat.",

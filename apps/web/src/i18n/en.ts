@@ -2619,6 +2619,12 @@ export const en = {
     toastSetupSuccess: "Quick unlock is ready on this device.",
     toastSetupFailed:
       "Failed to set up quick unlock. You can try again later in Account settings.",
+    toastSetupSessionExpired:
+      "Your session expired. Please sign in again and retry setting up quick unlock.",
+    toastSetupServiceUnavailable:
+      "Quick unlock is having server trouble right now. Try again later or contact an admin.",
+    toastSetupNetworkError:
+      "Could not reach the server. Check your internet connection.",
     padTitle: "Enter your PIN",
     padSubtitle: "Unlock WealthMe on this device",
     padSubmitButton: "Unlock",
@@ -2627,6 +2633,10 @@ export const en = {
     toastUnlockFailed: "Incorrect PIN. Please try again.",
     toastUnlockLockedPrefix: "Too many attempts. Try again in ",
     toastUnlockLockedSuffix: ", or use your password.",
+    toastUnlockServiceUnavailable:
+      "Quick unlock is having server trouble — this is not your PIN. Use your password for now.",
+    toastUnlockNetworkError:
+      "Could not reach the server. Check your internet connection and try again.",
     manageSectionTitle: "Devices with quick unlock",
     manageSetupButton: "Set up quick unlock on this device",
     manageEmptyState: "No devices set up for quick unlock yet.",

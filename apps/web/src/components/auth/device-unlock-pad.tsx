@@ -73,16 +73,28 @@ export function DeviceUnlockPad({
               body.remainingMs,
             )}${t.deviceUnlock.toastUnlockLockedSuffix}`,
           );
-        } else {
+        } else if (res.status === 401) {
+          // apps/api/src/devices/devices.service.ts only throws 401 for an
+          // actually-wrong PIN/secret — this is the ONE status that means
+          // "PIN salah".
           toast.error(t.deviceUnlock.toastUnlockFailed);
+        } else {
+          // EPIC-024 B2 (root cause) — every other failure (404 when the
+          // nginx allowlist doesn't route /api/device-unlock, 5xx, or an
+          // unexpected status) is a routing/server problem, NOT a wrong PIN.
+          // Showing "PIN salah" here is exactly the bug this task fixes.
+          toast.error(t.deviceUnlock.toastUnlockServiceUnavailable);
         }
         return;
       }
 
       onUnlocked();
     } catch {
+      // `fetch` itself threw (offline, DNS failure, connection refused) —
+      // never reached a response at all, so this is definitely not a wrong
+      // PIN either.
       setPin("");
-      toast.error(t.deviceUnlock.toastUnlockFailed);
+      toast.error(t.deviceUnlock.toastUnlockNetworkError);
     } finally {
       setLoading(false);
     }

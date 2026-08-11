@@ -1,13 +1,19 @@
 /**
  * EPIC-023 D2 (US-FAM-13, D7) — DeviceUnlockPad wiring tests.
+ * EPIC-024 B2 — extended to assert routing/server failures are never shown
+ * to the user as "PIN salah".
  *
  * Verifies that:
  * 1. Submitting a 6-digit PIN calls the /api/device-unlock route handler
  *    (never the NestJS endpoint directly — that endpoint cannot set an
  *    httpOnly cookie from client-side JS).
- * 2. A generic failure shows the generic "incorrect PIN" toast.
+ * 2. A real 401 (wrong PIN) shows the "incorrect PIN" toast.
  * 3. A lockout failure (DEVICE_LOCKED) shows the remaining-time message.
- * 4. "Use password instead" is always present and calls onUsePassword —
+ * 4. A 404 (e.g. the nginx allowlist bug this task fixes) shows a
+ *    service-unavailable toast, NOT "PIN salah".
+ * 5. A network failure (fetch throws) shows a network-error toast, NOT
+ *    "PIN salah".
+ * 6. "Use password instead" is always present and calls onUsePassword —
  *    the user is never trapped on the pad.
  */
 import { render, screen, waitFor } from "@testing-library/react";
@@ -36,6 +42,10 @@ jest.mock("../../hooks/use-locale", () => ({
         toastUnlockFailed: "PIN salah. Silakan coba lagi.",
         toastUnlockLockedPrefix: "Terlalu banyak percobaan. Coba lagi dalam ",
         toastUnlockLockedSuffix: ", atau gunakan password kamu.",
+        toastUnlockServiceUnavailable:
+          "Buka cepat sedang bermasalah di server, bukan PIN kamu. Gunakan password untuk sementara.",
+        toastUnlockNetworkError:
+          "Tidak dapat terhubung ke server. Periksa koneksi internet kamu lalu coba lagi.",
       },
     },
   }),
@@ -84,7 +94,7 @@ describe("DeviceUnlockPad (EPIC-023 D2)", () => {
     );
   });
 
-  it("shows the generic incorrect-PIN toast on a plain failure", async () => {
+  it("shows the incorrect-PIN toast on a real 401", async () => {
     const user = userEvent.setup();
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: false,
@@ -107,6 +117,60 @@ describe("DeviceUnlockPad (EPIC-023 D2)", () => {
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith(
         "PIN salah. Silakan coba lagi.",
+      ),
+    );
+    expect(onUnlocked).not.toHaveBeenCalled();
+  });
+
+  it("EPIC-024 B2 — shows a service-unavailable toast (NOT 'PIN salah') on a 404, e.g. the nginx allowlist bug", async () => {
+    const user = userEvent.setup();
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: () => Promise.resolve({}),
+    });
+    const onUnlocked = jest.fn();
+
+    render(
+      <DeviceUnlockPad
+        device={DEVICE}
+        onUnlocked={onUnlocked}
+        onUsePassword={jest.fn()}
+      />,
+    );
+
+    await user.type(screen.getByLabelText("Masukkan PIN kamu"), "482913");
+    await user.click(screen.getByRole("button", { name: "Buka" }));
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith(
+        "Buka cepat sedang bermasalah di server, bukan PIN kamu. Gunakan password untuk sementara.",
+      ),
+    );
+    expect(onUnlocked).not.toHaveBeenCalled();
+  });
+
+  it("EPIC-024 B2 — shows a network-error toast (NOT 'PIN salah') when fetch itself throws", async () => {
+    const user = userEvent.setup();
+    (global.fetch as jest.Mock).mockRejectedValue(
+      new TypeError("Failed to fetch"),
+    );
+    const onUnlocked = jest.fn();
+
+    render(
+      <DeviceUnlockPad
+        device={DEVICE}
+        onUnlocked={onUnlocked}
+        onUsePassword={jest.fn()}
+      />,
+    );
+
+    await user.type(screen.getByLabelText("Masukkan PIN kamu"), "482913");
+    await user.click(screen.getByRole("button", { name: "Buka" }));
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith(
+        "Tidak dapat terhubung ke server. Periksa koneksi internet kamu lalu coba lagi.",
       ),
     );
     expect(onUnlocked).not.toHaveBeenCalled();

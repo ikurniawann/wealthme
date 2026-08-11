@@ -2556,6 +2556,13 @@ export type I18nDictionary = {
     toastPinMismatch: string;
     toastSetupSuccess: string;
     toastSetupFailed: string;
+    // EPIC-024 B2 — setup failures distinguished by cause: an expired/invalid
+    // session (401/403) vs. the request never reaching the server at all
+    // (routing/404/5xx, e.g. the nginx allowlist bug) vs. no connectivity.
+    // `toastSetupFailed` remains the catch-all for anything else.
+    toastSetupSessionExpired: string;
+    toastSetupServiceUnavailable: string;
+    toastSetupNetworkError: string;
     // Pre-login PIN pad, shown instead of the password form when this
     // device has a stored deviceSecret + a PIN already set.
     padTitle: string;
@@ -2566,6 +2573,13 @@ export type I18nDictionary = {
     toastUnlockFailed: string;
     toastUnlockLockedPrefix: string;
     toastUnlockLockedSuffix: string;
+    // EPIC-024 B2 — same split as above: a real 401 IS "PIN salah"
+    // (toastUnlockFailed), but a routing/server failure (404/5xx — e.g. the
+    // nginx bug where /api/device-unlock 404'd against apps/api) must never
+    // be shown to the user as "wrong PIN", and neither should the device
+    // simply being offline.
+    toastUnlockServiceUnavailable: string;
+    toastUnlockNetworkError: string;
     // Device-management view (akun -> keamanan).
     manageSectionTitle: string;
     manageSetupButton: string;

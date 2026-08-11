@@ -32,8 +32,9 @@ function makeRequest(body: unknown): Request {
   });
 }
 
-describe("POST /api/device-unlock (EPIC-023 D2)", () => {
+describe("POST /api/device-unlock (EPIC-023 D2, EPIC-024 B2)", () => {
   const originalEnv = process.env.NODE_ENV;
+  const originalApiUrl = process.env.API_URL;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -42,11 +43,24 @@ describe("POST /api/device-unlock (EPIC-023 D2)", () => {
       value: "test",
       configurable: true,
     });
+    // EPIC-024 B2 — getServerEnv() (apps/web/src/lib/env.ts) now validates
+    // API_URL is a real URL before this route forwards to it, instead of
+    // silently falling back to http://localhost:4000. Set it explicitly so
+    // the existing "happy path" tests below keep exercising the fetch/cookie
+    // logic instead of the new misconfiguration branch (covered separately).
+    Object.defineProperty(process.env, "API_URL", {
+      value: "http://api-test:4000",
+      configurable: true,
+    });
   });
 
   afterAll(() => {
     Object.defineProperty(process.env, "NODE_ENV", {
       value: originalEnv,
+      configurable: true,
+    });
+    Object.defineProperty(process.env, "API_URL", {
+      value: originalApiUrl,
       configurable: true,
     });
   });
@@ -160,5 +174,26 @@ describe("POST /api/device-unlock (EPIC-023 D2)", () => {
     const res = await POST(req);
     expect(res.status).toBe(400);
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 with a clear message and makes no network call when API_URL is not configured (EPIC-024 B2)", async () => {
+    Object.defineProperty(process.env, "API_URL", {
+      value: "",
+      configurable: true,
+    });
+
+    const res = await POST(
+      makeRequest({
+        deviceId: "device-1",
+        deviceSecret: "the-secret",
+        pin: "482913",
+      }),
+    );
+
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as { message?: string };
+    expect(body.message).toMatch(/API_URL/);
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(mockCookieSet).not.toHaveBeenCalled();
   });
 });
