@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { InvestmentType } from "@prisma/client";
 import {
+  IsDateString,
   IsEnum,
   IsNotEmpty,
   IsNumberString,
@@ -61,4 +62,21 @@ export class CreateInvestmentDto {
     message: "interestRatePct must be a decimal string, e.g. '6.50'",
   })
   interestRatePct?: string;
+
+  @ApiPropertyOptional({
+    example: "2026-01-01",
+    description: "EPIC-024 C2/C3 (D7) — tanggal beli, ISO 8601 date string.",
+  })
+  @IsOptional()
+  @IsDateString()
+  purchasedAt?: string;
+
+  @ApiPropertyOptional({
+    example: "2027-01-01",
+    description:
+      "EPIC-024 C2/C3 (D10) — deposito's jatuh tempo, ISO 8601 date string. Meaningless for any other type but not rejected — mirrors interestRatePct's leniency.",
+  })
+  @IsOptional()
+  @IsDateString()
+  maturityDate?: string;
 }

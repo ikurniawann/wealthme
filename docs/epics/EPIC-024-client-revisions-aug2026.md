@@ -294,24 +294,32 @@ One task group = one branch = one PR to `development`. Execution order is in
     unlock — **must** be verified through nginx, the bug lives there. (pending
     epic-wide DEV deploy after all groups land)
 
-- [ ] ### C — Investasi: live prices, lot/lembar, koin, deposito, tanggal beli, quickinput fix (items 6, 7, 31)
-  - **C1** — `USE_REAL_MARKET_DATA=true` across `.env*` + `deploy/.env.example`;
-    widen `TICKER_TO_COINGECKO_ID`; unknown ticker → manual-price fallback with
-    a "harga manual" badge (must not throw); migration purges
-    `InvestmentPrice` rows with `source: "mock"`. (D8, US-INV-8/9)
-  - **C2** — Schema: `Investment.purchasedAt DateTime?`,
-    `maturityDate DateTime?`; enum + `deposito`. Additive migration. (D7, D10)
-  - **C3** — Form per type (`investasi/page.tsx` AddInvestmentModal): saham
-    quantity toggle **Lot/Lembar** (store canonical lembar, ×100); kripto
-    "Jumlah Koin" decimal; deposito nominal + bunga %/thn
-    (`INTEREST_BEARING_TYPES` += deposito) + jatuh tempo, valued by simple
-    interest; "Tanggal Beli" date picker for all types; manual "nilai
-    sekarang" only for non-live types; CTA "Catat Investasi". (D7, D9, D10,
-    US-INV-10/11/12)
-  - **C4** — Fix quick-input path (`crud-config.ts:173`,
-    `quickinput/page.tsx:222-235`): stop hardcoding `quantity: "1"`, stop
-    discarding "Nilai Sekarang" — align with the main form or route to it.
-    (Evidence #5)
+- [x] ### C — Investasi: live prices, lot/lembar, koin, deposito, tanggal beli, quickinput fix (items 6, 7, 31) ✅
+  - **C1** — [x] `USE_REAL_MARKET_DATA=true` across `.env*` +
+    `deploy/.env.example`; widened `TICKER_TO_COINGECKO_ID`; unknown ticker →
+    manual-price fallback with `automatedPriceUnmapped` badge (never throws);
+    mock-price purge staged file-only at
+    `docs/migrations/epic-024-c1-purge-mock-investment-prices.sql` (outside
+    `apps/api/prisma/migrations/`, same non-auto-apply convention as A3).
+    (D8, US-INV-8/9)
+  - **C2** — [x] Schema: `Investment.purchasedAt DateTime?`,
+    `maturityDate DateTime?`; enum + `deposito`. Additive migration file
+    staged (not applied) at
+    `apps/api/prisma/migrations/20260807090000_epic024_c2_deposito_purchase_maturity_dates/`.
+    (D7, D10)
+  - **C3** — [x] Form per type (`investasi/page.tsx` AddInvestmentModal):
+    saham quantity toggle **Lot/Lembar** — exact BigInt-scaled decimal
+    arithmetic (`quantity-conversion.ts`), not float, after review caught
+    float-drift risk on odd-lot values; kripto "Jumlah Koin" decimal;
+    deposito nominal + bunga %/thn (`INTEREST_BEARING_TYPES` += deposito) +
+    jatuh tempo, valued by simple interest (golden value Rp 100jt @5%/thn
+    2026-01-01→2026-07-01 = Rp 102,5jt, test-first); "Tanggal Beli" date
+    picker for all types; manual "nilai sekarang" only for non-live types;
+    CTA "Catat Investasi". (D7, D9, D10, US-INV-10/11/12)
+  - **C4** — [x] Fixed quick-input path (`crud-config.ts:173`,
+    `quickinput/page.tsx:222-235`): stopped hardcoding `quantity: "1"` and
+    discarding "Nilai Sekarang" — now routes to the real `/investasi` form
+    instead of the broken generic CRUD path. (Evidence #5)
 
 - [ ] ### D — Aset: privacy eye toggle + penyusutan Rp tetap (items 14, 32)
   - **D1** — Replace the inert gembok (`aset/page.tsx:932-939`) with an
@@ -794,3 +802,13 @@ the N1 prototype has an approval recorded in the Automation Log.
   file-only, NOT applied — requires an explicit owner announcement before a
   human manually stages and runs it against DEV; it alters a real family's
   access.** PR: https://github.com/andrsrjld/wealthme-web/pull/261
+- 2026-08-12 /epic-loop EPIC-024 #C "Investasi: live prices, lot/lembar,
+  koin, deposito, tanggal beli, quickinput fix" → PASS (attempts: 2; three
+  independent reviewers — react-reviewer, review-qa-agent, adversarial —
+  converged on the same HIGH: `convertQuantityDisplay` used float
+  parseFloat/String round-tripping, drifting non-multiple-of-100 lembar
+  values (e.g. 7 lembar → 7.000000000000001) on toggle; rewritten as exact
+  BigInt-scaled decimal arithmetic with 11 new tests). Deposito golden value
+  and unmapped-ticker-never-throws both test-first, both adversarially
+  confirmed correct on the first pass. Two migrations staged file-only, not
+  applied. PR: https://github.com/andrsrjld/wealthme-web/pull/262

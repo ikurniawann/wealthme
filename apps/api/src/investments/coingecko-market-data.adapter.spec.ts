@@ -3,6 +3,7 @@ import { ExternalRequestTimeoutError } from "../common/utils/external-fetch.util
 import {
   CoinGeckoMarketDataAdapter,
   toCoinGeckoId,
+  UnmappedTickerError,
 } from "./coingecko-market-data.adapter";
 
 describe("toCoinGeckoId", () => {
@@ -58,6 +59,31 @@ describe("CoinGeckoMarketDataAdapter.getPrice", () => {
       adapter.getPrice("NOT_A_REAL_COIN", "kripto"),
     ).rejects.toThrow();
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  // EPIC-024 C1 (D8) — an unmapped ticker must be DISTINGUISHABLE from a
+  // transient failure (timeout, bad HTTP status, bad shape) so
+  // InvestmentsService can treat it as a permanent "fall back to manual
+  // pricing" state instead of a retryable error. This adapter call alone
+  // must never throw out of the process — it's caught one layer up in
+  // InvestmentsService.findAll (see investments.service.spec.ts).
+  it("throws UnmappedTickerError specifically (not a generic Error) for an unmapped ticker", async () => {
+    global.fetch = jest.fn();
+
+    await expect(
+      adapter.getPrice("NOT_A_REAL_COIN", "kripto"),
+    ).rejects.toBeInstanceOf(UnmappedTickerError);
+  });
+
+  it("does NOT throw UnmappedTickerError for a mapped ticker that fails for another reason", async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(new Response("", { status: 503 }));
+
+    const err = await adapter
+      .getPrice("BTC", "kripto")
+      .catch((e: unknown) => e);
+    expect(err).not.toBeInstanceOf(UnmappedTickerError);
   });
 
   it("throws when the HTTP response is not ok", async () => {

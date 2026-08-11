@@ -792,7 +792,7 @@ interface UpdateAssetDto {
     acquisitionDate?: string;
 }
 
-type InvestmentType = "saham" | "reksa_dana" | "obligasi" | "emas" | "kripto" | "lainnya";
+type InvestmentType = "saham" | "reksa_dana" | "obligasi" | "emas" | "kripto" | "lainnya" | "deposito";
 interface InvestmentDto {
     id: string;
     familyGroupId: string;
@@ -812,8 +812,11 @@ interface InvestmentDto {
     latestPriceAsOf: string | null;
     latestPriceDelayed: boolean | null;
     priceRefreshFailed: boolean;
+    automatedPriceUnmapped: boolean;
     interestRatePct: string | null;
     projectedAnnualYield: string | null;
+    purchasedAt: string | null;
+    maturityDate: string | null;
     createdAt: string;
     updatedAt: string;
 }

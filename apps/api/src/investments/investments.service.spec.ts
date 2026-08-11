@@ -3,6 +3,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 
 import { PrismaService } from "../prisma/prisma.service";
 
+import { UnmappedTickerError } from "./coingecko-market-data.adapter";
 import { InvestmentsService } from "./investments.service";
 import { MARKET_DATA_PORT } from "./market-data.port";
 
@@ -529,6 +530,225 @@ describe("InvestmentsService P&L", () => {
       const [result] = await service.findAll("fg-1");
 
       expect(result?.priceRefreshFailed).toBe(false);
+    });
+
+    // EPIC-024 C1 (D8) — "unknown ticker → manual-price fallback ... must
+    // not throw". This is the money assertion: findAll must resolve
+    // (never reject) for a kripto holding whose ticker has no CoinGecko
+    // mapping, and must label it distinctly from a transient failure.
+    it("does NOT throw for a kripto ticker with no CoinGecko mapping — falls back to manual-price labelling", async () => {
+      mockMarketData.getPrice.mockRejectedValue(
+        new UnmappedTickerError("NOTACOIN"),
+      );
+      mockPrisma.investment.findMany.mockResolvedValue([
+        {
+          id: "inv-unmapped",
+          familyGroupId: "fg-1",
+          ticker: "NOTACOIN",
+          name: "Some Obscure Altcoin",
+          type: "kripto",
+          quantity: new Decimal("100"),
+          costBasisPerUnit: new Decimal("500"),
+          currency: "IDR",
+          notes: null,
+          interestRatePct: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          prices: [],
+        },
+      ]);
+
+      // The key behavioural assertion: this must resolve, not reject.
+      await expect(service.findAll("fg-1")).resolves.toHaveLength(1);
+
+      const [result] = await service.findAll("fg-1");
+      expect(result?.automatedPriceUnmapped).toBe(true);
+      // Distinct from a transient failure — must NOT also flip
+      // priceRefreshFailed, which would mislabel a permanent state as a
+      // retryable one and mislead the "refresh failed" UI badge.
+      expect(result?.priceRefreshFailed).toBe(false);
+      expect(result?.currentPrice).toBeNull();
+      expect(mockPrisma.investmentPrice.create).not.toHaveBeenCalled();
+    });
+
+    it("sets automatedPriceUnmapped:false for a transient (non-mapping) failure", async () => {
+      mockMarketData.getPrice.mockRejectedValue(new Error("network down"));
+      mockPrisma.investment.findMany.mockResolvedValue([
+        {
+          id: "inv-btc",
+          familyGroupId: "fg-1",
+          ticker: "BTC",
+          name: "Bitcoin",
+          type: "kripto",
+          quantity: new Decimal("0.01"),
+          costBasisPerUnit: new Decimal("900000000"),
+          currency: "IDR",
+          notes: null,
+          interestRatePct: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          prices: [],
+        },
+      ]);
+
+      const [result] = await service.findAll("fg-1");
+
+      expect(result?.automatedPriceUnmapped).toBe(false);
+      expect(result?.priceRefreshFailed).toBe(true);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────
+  // EPIC-024 C3 (D10) — deposito: nominal, bunga %/thn, simple interest,
+  // pro-rata + post-maturity. Test-first with hand-computed golden values
+  // (Definition of Done requirement for money math).
+  // ──────────────────────────────────────────────────────────────
+
+  describe("findAll() — deposito simple-interest valuation", () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it("GOLDEN VALUE: Rp 100.000.000 at 5%/thn started 2026-01-01, viewed 2026-07-01 → Rp 102.500.000 (pro-rata, exactly half a year)", async () => {
+      // Arrange — hand computation: months elapsed = 6 (Jan 1 → Jul 1);
+      // interest = 100_000_000 × 0.05 × 6/12 = 2_500_000;
+      // value = 100_000_000 + 2_500_000 = 102_500_000.
+      jest.useFakeTimers().setSystemTime(new Date("2026-07-01T00:00:00.000Z"));
+      mockPrisma.investment.findMany.mockResolvedValue([
+        {
+          id: "inv-deposito",
+          familyGroupId: "fg-1",
+          ticker: "DEPO-BCA",
+          name: "Deposito BCA",
+          type: "deposito",
+          quantity: new Decimal("1"),
+          costBasisPerUnit: new Decimal("100000000"),
+          currency: "IDR",
+          notes: null,
+          interestRatePct: new Decimal("5"),
+          purchasedAt: new Date("2026-01-01T00:00:00.000Z"),
+          maturityDate: null,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          prices: [],
+        },
+      ]);
+
+      const [result] = await service.findAll("fg-1");
+
+      expect(result?.currentValue).toBe("102500000");
+      expect(result?.returnRp).toBe("2500000");
+      expect(mockMarketData.getPrice).not.toHaveBeenCalled();
+      expect(mockPrisma.investmentPrice.create).not.toHaveBeenCalled();
+    });
+
+    it("caps accrual at maturityDate — a matured deposito does not keep earning simple interest indefinitely", async () => {
+      // Arrange — purchasedAt 2026-01-01, maturityDate 2026-04-01 (3 months
+      // of accrual), VIEWED 2026-07-01 (6 months elapsed, but capped at 3):
+      // interest = 100_000_000 × 0.05 × 3/12 = 1_250_000 → 101_250_000.
+      jest.useFakeTimers().setSystemTime(new Date("2026-07-01T00:00:00.000Z"));
+      mockPrisma.investment.findMany.mockResolvedValue([
+        {
+          id: "inv-deposito-matured",
+          familyGroupId: "fg-1",
+          ticker: "DEPO-BCA",
+          name: "Deposito BCA",
+          type: "deposito",
+          quantity: new Decimal("1"),
+          costBasisPerUnit: new Decimal("100000000"),
+          currency: "IDR",
+          notes: null,
+          interestRatePct: new Decimal("5"),
+          purchasedAt: new Date("2026-01-01T00:00:00.000Z"),
+          maturityDate: new Date("2026-04-01T00:00:00.000Z"),
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          prices: [],
+        },
+      ]);
+
+      const [result] = await service.findAll("fg-1");
+
+      expect(result?.currentValue).toBe("101250000");
+    });
+
+    it("returns the nominal unchanged when interestRatePct is not set", async () => {
+      mockPrisma.investment.findMany.mockResolvedValue([
+        {
+          id: "inv-deposito-norate",
+          familyGroupId: "fg-1",
+          ticker: "DEPO-BCA",
+          name: "Deposito BCA",
+          type: "deposito",
+          quantity: new Decimal("1"),
+          costBasisPerUnit: new Decimal("50000000"),
+          currency: "IDR",
+          notes: null,
+          interestRatePct: null,
+          purchasedAt: new Date("2026-01-01T00:00:00.000Z"),
+          maturityDate: null,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          prices: [],
+        },
+      ]);
+
+      const [result] = await service.findAll("fg-1");
+
+      expect(result?.currentValue).toBe("50000000");
+      expect(result?.returnRp).toBe("0");
+    });
+
+    it("returns the nominal unchanged when purchasedAt is not set (no accrual start point)", async () => {
+      mockPrisma.investment.findMany.mockResolvedValue([
+        {
+          id: "inv-deposito-nodate",
+          familyGroupId: "fg-1",
+          ticker: "DEPO-BCA",
+          name: "Deposito BCA",
+          type: "deposito",
+          quantity: new Decimal("1"),
+          costBasisPerUnit: new Decimal("50000000"),
+          currency: "IDR",
+          notes: null,
+          interestRatePct: new Decimal("5"),
+          purchasedAt: null,
+          maturityDate: null,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          prices: [],
+        },
+      ]);
+
+      const [result] = await service.findAll("fg-1");
+
+      expect(result?.currentValue).toBe("50000000");
+    });
+
+    it("never calls MarketDataPort.getPrice for deposito — it has no market feed, automated or manual", async () => {
+      mockPrisma.investment.findMany.mockResolvedValue([
+        {
+          id: "inv-deposito",
+          familyGroupId: "fg-1",
+          ticker: "DEPO-BCA",
+          name: "Deposito BCA",
+          type: "deposito",
+          quantity: new Decimal("1"),
+          costBasisPerUnit: new Decimal("100000000"),
+          currency: "IDR",
+          notes: null,
+          interestRatePct: new Decimal("5"),
+          purchasedAt: new Date("2026-01-01T00:00:00.000Z"),
+          maturityDate: null,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          prices: [],
+        },
+      ]);
+
+      await service.findAll("fg-1");
+
+      expect(mockMarketData.getPrice).not.toHaveBeenCalled();
     });
   });
 

@@ -4,7 +4,10 @@ export type InvestmentType =
   | "obligasi"
   | "emas"
   | "kripto"
-  | "lainnya";
+  | "lainnya"
+  // EPIC-024 C2 (D10) — nominal, bunga %/thn (simple interest), tanggal
+  // mulai + jatuh tempo. Manual-priced (never reaches MarketDataPort).
+  | "deposito";
 
 export interface InvestmentDto {
   id: string;
@@ -36,12 +39,28 @@ export interface InvestmentDto {
   // shown below is a RETAINED (stale) one, not a fresh tick. Always false
   // for manual prices and for a price that didn't need refreshing yet.
   priceRefreshFailed: boolean;
+  // EPIC-024 C1 (D8) — true only for an automated-price type (saham/kripto)
+  // whose ticker has NO route to a live feed (e.g. no CoinGecko id
+  // mapping). Distinct from `priceRefreshFailed`: that flag means "a live
+  // feed exists but this attempt failed" (transient, worth retrying);
+  // this one means "no live feed will ever exist for this ticker" — the UI
+  // shows a permanent "harga manual" fallback badge instead of a
+  // refresh-failed warning, and the edit form accepts a manual price for
+  // it even though the instrument type is normally automated-only.
+  automatedPriceUnmapped: boolean;
   // Annual interest rate (%) for interest-bearing instruments (obligasi,
   // deposito). Null when not applicable/not set.
   interestRatePct: string | null;
   // Simple projected annual yield = currentValue × interestRatePct / 100.
   // Null when either currentValue or interestRatePct is unavailable.
   projectedAnnualYield: string | null;
+  // EPIC-024 C2/C3 (D7) — "tanggal beli", recorded for every instrument
+  // type so a holding's history starts from the truth (US-INV-10). Null on
+  // rows created before this column existed.
+  purchasedAt: string | null;
+  // EPIC-024 C2/C3 (D10) — deposito's jatuh tempo; null for every other
+  // type and for a deposito that hasn't had one set yet.
+  maturityDate: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -1,0 +1,56 @@
+-- EPIC-024 C1 (D8, Evidence — "USE_REAL_MARKET_DATA=false in every env
+-- file") — corrective data cleanup, NOT a schema change. NOT to be applied
+-- automatically by this task.
+--
+-- STAGING LOCATION — READ BEFORE USE
+-- This file deliberately lives OUTSIDE `apps/api/prisma/migrations/` (under
+-- `docs/migrations/`, matching the pattern established by
+-- `epic-024-a3-istri-owner-backfill.sql`) so `prisma migrate deploy` — run
+-- unconditionally by `scripts/deploy-dev.sh` and any CI/CD migrate step —
+-- NEVER picks it up. A comment alone is not a gate; only living outside the
+-- migrations directory is. To actually apply this purge, a human must,
+-- AFTER live prices are confirmed working (USE_REAL_MARKET_DATA=true
+-- deployed and at least one real quote observed):
+--   1. Create a new timestamped folder:
+--      apps/api/prisma/migrations/<YYYYMMDDHHMMSS>_epic024_c1_purge_mock_prices/
+--   2. Copy this file's SQL body into `migration.sql` inside that folder.
+--   3. Run `prisma migrate deploy` (or `prisma migrate resolve` as
+--      appropriate for the target environment), with a DB backup confirmed
+--      first (this DELETEs rows — recoverable only from backup/WAL).
+-- Do not move or copy this file back into `apps/api/prisma/migrations/` as
+-- part of any automated task/loop.
+--
+-- Why: before this epic, `USE_REAL_MARKET_DATA=false` in every env file
+-- meant `MockMarketDataAdapter` hashed each ticker into a deterministic
+-- Rp 500–100.000 price and `InvestmentsService.findAll` PERSISTED that mock
+-- price as a real `InvestmentPrice` row (`source: "mock"`). Any real
+-- holding with a cost basis above ~100k (virtually all real crypto and most
+-- IDX stocks) shows a near-total fabricated loss until those rows are
+-- purged and replaced by a genuine CoinGecko/Yahoo quote on the next
+-- `findAll()` (or a manual price, for the manual-only types that never
+-- should have had a "mock" row at all — see the WHERE clause below, which
+-- purges any `source = 'mock'` row regardless of instrument type).
+--
+-- Deliberately NARROW and SAFE:
+--  * Only touches rows where `source = 'mock'` — a manually-entered price
+--    (`source = 'manual'`) or a real automated one (`yahoo-finance`,
+--    `coingecko`) is NEVER touched by this statement. This is the
+--    adversarial-review hunt called out in this epic's Agent Routing
+--    section ("mock-price purge deleting real manual prices") — the WHERE
+--    clause makes that structurally impossible, not just unlikely.
+--  * Deletes the InvestmentPrice ROW only — never the parent `investments`
+--    row (the holding itself, its quantity, and its cost basis are
+--    untouched). A holding left with zero remaining price rows shows the
+--    same honest "harga belum tersedia" / re-fetch-on-next-view UI state
+--    already handled by `InvestmentsService.findAll` for a brand-new
+--    holding — it will simply get a fresh, real price on the next request
+--    for saham/kripto, or prompt for a manual price otherwise.
+--  * Idempotent: re-running finds zero `source = 'mock'` rows left and is a
+--    no-op (DELETE with a WHERE clause that matches nothing changes
+--    nothing).
+--  * Reversible only from a point-in-time backup/WAL, same caveat as any
+--    DELETE — called out explicitly rather than silently assumed safe.
+-- NOTE: raw table name is "investment_prices" — the `@@map`'d Postgres
+-- table for the `InvestmentPrice` Prisma model, not the Prisma model name.
+DELETE FROM "investment_prices"
+WHERE "source" = 'mock';

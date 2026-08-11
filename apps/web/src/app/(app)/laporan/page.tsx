@@ -1929,6 +1929,8 @@ const INV_TYPE_COLORS: Record<InvestmentType, string> = {
   emas: "var(--warning)",
   kripto: "#F97316",
   lainnya: "#8B5CF6",
+  // EPIC-024 C2/C3 (D10).
+  deposito: "#0F766E",
 };
 
 function InvSection({

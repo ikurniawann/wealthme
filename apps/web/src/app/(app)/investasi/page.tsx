@@ -30,9 +30,14 @@ import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah } from "@/lib/format";
+import {
+  canonicalizeSahamQuantity,
+  convertQuantityDisplay,
+} from "./quantity-conversion";
 
 import type { Locale } from "@/i18n";
 import type { InvestmentDto, InvestmentSummaryDto } from "@wealthme/contracts";
+import type { QuantityUnit } from "./quantity-conversion";
 
 const TYPE_BADGE_VARIANT: Record<
   string,
@@ -44,6 +49,8 @@ const TYPE_BADGE_VARIANT: Record<
   emas: "warning",
   kripto: "info",
   lainnya: "gray",
+  // EPIC-024 C2/C3 (D10).
+  deposito: "success",
 };
 
 const TYPE_LOGO_BG: Record<string, string> = {
@@ -53,6 +60,7 @@ const TYPE_LOGO_BG: Record<string, string> = {
   emas: "#D97706",
   kripto: "#F97316",
   lainnya: "#6B7280",
+  deposito: "#0F766E",
 };
 
 const INVESTMENT_TYPES = [
@@ -62,6 +70,8 @@ const INVESTMENT_TYPES = [
   "emas",
   "kripto",
   "lainnya",
+  // EPIC-024 C2/C3 (D10) — new investment type.
+  "deposito",
 ] as const;
 
 type InvestmentType = (typeof INVESTMENT_TYPES)[number];
@@ -71,10 +81,12 @@ type InvestmentType = (typeof INVESTMENT_TYPES)[number];
 const FILTER_TAB_IDS = ["semua", ...INVESTMENT_TYPES] as const;
 type FilterTabId = (typeof FILTER_TAB_IDS)[number];
 
-// EPIC-021 #20: only obligasi is an interest-bearing type in the current
-// InvestmentType enum (deposito has no dedicated type yet) — show the
-// interest-rate field only for it.
-const INTEREST_BEARING_TYPES: readonly InvestmentType[] = ["obligasi"];
+// EPIC-021 #20 + EPIC-024 C3 (D10): obligasi AND deposito are the
+// interest-bearing types — both get the annual-rate field.
+const INTEREST_BEARING_TYPES: readonly InvestmentType[] = [
+  "obligasi",
+  "deposito",
+];
 
 // EPIC-023 G1 (D15) — "automate what can be automated, label the rest".
 // Only saham (Yahoo .JK) and kripto (CoinGecko) ever get an automated
@@ -85,25 +97,51 @@ function isManualPriceType(type: InvestmentType): boolean {
   return !AUTOMATED_PRICE_TYPES.includes(type);
 }
 
+// EPIC-024 C1 (D8) — "computed-interest" (deposito's live simple-interest
+// value) joins the honest-labelling map alongside the automated feeds and
+// manual entry.
 const PRICE_SOURCE_LABEL_KEYS = {
   "yahoo-finance": "yahooFinance",
   coingecko: "coinGecko",
   manual: "manual",
   mock: "mock",
+  "computed-interest": "computedInterest",
 } as const;
 
 interface AddInvestmentForm {
   ticker: string;
   name: string;
   type: InvestmentType;
+  // For saham this is the DISPLAY value in `quantityUnit` — converted to
+  // canonical lembar only at submit time (EPIC-024 C3, D9). For every
+  // other type it is the plain stored quantity (coin count for kripto,
+  // ignored/locked "1" for deposito).
   quantity: string;
+  // EPIC-024 C3 (D9) — saham Lot/Lembar toggle. Defaults to "lembar" when
+  // editing an existing holding (its stored `quantity` IS canonical
+  // lembar already — showing it as lembar with NO conversion is what
+  // keeps a re-save idempotent by construction: nothing is multiplied
+  // unless the user explicitly toggles the unit).
+  quantityUnit: QuantityUnit;
   costBasisPerUnit: string;
   interestRatePct: string;
+  // EPIC-024 C3 (D7) — "tanggal beli", every type.
+  purchasedAt: string;
+  // EPIC-024 C3 (D10) — deposito only.
+  maturityDate: string;
   // EPIC-023 G1 (D15) — manual price entry, only rendered/used for manual
   // price types. Optional: a holding can be recorded before its first
   // manual price is known (matches the family gold price's "unset" state).
   manualPrice: string;
   manualPriceDate: string;
+}
+
+/** yyyy-mm-dd for a native `<input type="date">`, or "" when absent. */
+function toDateInputValue(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0, 10);
 }
 
 function toLogoText(ticker: string): string {
@@ -181,9 +219,14 @@ function AddInvestmentModal({
           ticker: editing.ticker,
           name: editing.name,
           type: editing.type as InvestmentType,
+          // Stored quantity is ALWAYS canonical lembar — display it as
+          // lembar with zero conversion (idempotency by construction).
           quantity: editing.quantity,
+          quantityUnit: "lembar",
           costBasisPerUnit: editing.costBasisPerUnit,
           interestRatePct: editing.interestRatePct ?? "",
+          purchasedAt: toDateInputValue(editing.purchasedAt),
+          maturityDate: toDateInputValue(editing.maturityDate),
           manualPrice: "",
           manualPriceDate: "",
         }
@@ -192,19 +235,42 @@ function AddInvestmentModal({
           name: "",
           type: "saham",
           quantity: "",
+          // New saham entries default to "lot" — the unit a broker
+          // statement typically shows first (US-INV-12).
+          quantityUnit: "lot",
           costBasisPerUnit: "",
           interestRatePct: "",
+          purchasedAt: "",
+          maturityDate: "",
           manualPrice: "",
           manualPriceDate: "",
         },
   );
-  const isManual = isManualPriceType(form.type);
+  // EPIC-024 C1 (D8) — an automated-type holding whose ticker has no live
+  // route (UnmappedTickerError) accepts a manual price on edit even though
+  // its instrument type is normally automated-only.
+  const isAutomatedUnmapped = editing?.automatedPriceUnmapped ?? false;
+  const isDeposito = form.type === "deposito";
+  const isManual =
+    (isManualPriceType(form.type) && !isDeposito) || isAutomatedUnmapped;
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function handleQuantityUnitChange(nextUnit: QuantityUnit) {
+    setForm((prev) => ({
+      ...prev,
+      quantityUnit: nextUnit,
+      quantity: convertQuantityDisplay(
+        prev.quantity,
+        prev.quantityUnit,
+        nextUnit,
+      ),
+    }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -214,15 +280,37 @@ function AddInvestmentModal({
       const path = editing
         ? `/family-groups/${familyGroupId}/investments/${editing.id}`
         : `/family-groups/${familyGroupId}/investments`;
+      // EPIC-024 C3 (D9) — canonicalize to lembar ONLY here, from whatever
+      // is currently displayed + selected. Delegates to the exact
+      // BigInt-scaled conversion in `quantity-conversion.ts` so this stays
+      // idempotent AND drift-free for odd-lot values (review fix — HIGH).
+      let canonicalQuantity = form.quantity;
+      if (form.type === "saham") {
+        canonicalQuantity = canonicalizeSahamQuantity(
+          form.quantity || "0",
+          form.quantityUnit,
+        );
+      } else if (isDeposito) {
+        // Deposito nominal is the total (costBasisPerUnit); quantity is
+        // fixed at 1, never user-entered.
+        canonicalQuantity = "1";
+      }
+
       const body: Record<string, string> = {
         ticker: form.ticker,
         name: form.name,
         type: form.type,
-        quantity: form.quantity,
+        quantity: canonicalQuantity,
         costBasisPerUnit: form.costBasisPerUnit,
       };
       if (form.interestRatePct.trim()) {
         body["interestRatePct"] = form.interestRatePct.trim();
+      }
+      if (form.purchasedAt.trim()) {
+        body["purchasedAt"] = new Date(form.purchasedAt.trim()).toISOString();
+      }
+      if (isDeposito && form.maturityDate.trim()) {
+        body["maturityDate"] = new Date(form.maturityDate.trim()).toISOString();
       }
       // EPIC-023 Task G retry (HIGH five-reviewer finding) — the holding
       // save and the optional manual-price save are two INDEPENDENT
@@ -359,32 +447,78 @@ function AddInvestmentModal({
               ))}
             </select>
           </div>
-          <div className="space-y-1">
-            <label
-              className="text-[12px] text-muted-foreground"
-              htmlFor="quantity"
-            >
-              {t.investasi.fieldQuantityLabel}
-            </label>
-            <input
-              id="quantity"
-              name="quantity"
-              type="number"
-              required
-              min="0"
-              step="any"
-              value={form.quantity}
-              onChange={handleChange}
-              placeholder={t.investasi.fieldQuantityPlaceholder}
-              className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
+          {/* EPIC-024 C3 (D9) — saham gets a Lot/Lembar toggle (canonical
+              lembar, ×100, converted only at submit — see
+              handleQuantityUnitChange); kripto is coin decimals; deposito
+              has no quantity input at all (fixed at 1, nominal lives in
+              costBasisPerUnit below). */}
+          {!isDeposito && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label
+                  className="text-[12px] text-muted-foreground"
+                  htmlFor="quantity"
+                >
+                  {form.type === "kripto"
+                    ? t.investasi.fieldQuantityKriptoLabel
+                    : t.investasi.fieldQuantityLabel}
+                </label>
+                {form.type === "saham" && (
+                  <div
+                    className="flex overflow-hidden rounded-md border text-[11px]"
+                    role="group"
+                    aria-label={t.investasi.fieldQuantityUnitLabel}
+                  >
+                    {(["lot", "lembar"] as const).map((unit) => (
+                      <button
+                        key={unit}
+                        type="button"
+                        aria-pressed={form.quantityUnit === unit}
+                        onClick={() => handleQuantityUnitChange(unit)}
+                        className={`px-2.5 py-1 font-semibold transition-colors ${
+                          form.quantityUnit === unit
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-background text-muted-foreground hover:bg-accent"
+                        }`}
+                      >
+                        {unit === "lot"
+                          ? t.investasi.unitLot
+                          : t.investasi.unitLembar}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <input
+                id="quantity"
+                name="quantity"
+                type="number"
+                required
+                min="0"
+                step="any"
+                value={form.quantity}
+                onChange={handleChange}
+                placeholder={
+                  form.type === "kripto"
+                    ? t.investasi.fieldQuantityKriptoPlaceholder
+                    : form.type === "saham" && form.quantityUnit === "lot"
+                      ? t.investasi.fieldQuantityLotPlaceholder
+                      : form.type === "saham"
+                        ? t.investasi.fieldQuantityLembarPlaceholder
+                        : t.investasi.fieldQuantityPlaceholder
+                }
+                className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          )}
           <div className="space-y-1">
             <label
               className="text-[12px] text-muted-foreground"
               htmlFor="costBasisPerUnit"
             >
-              {t.investasi.fieldCostBasisLabel}
+              {isDeposito
+                ? t.investasi.fieldDepositoNominalLabel
+                : t.investasi.fieldCostBasisLabel}
             </label>
             <input
               id="costBasisPerUnit"
@@ -395,7 +529,28 @@ function AddInvestmentModal({
               step="any"
               value={form.costBasisPerUnit}
               onChange={handleChange}
-              placeholder={t.investasi.fieldCostBasisPlaceholder}
+              placeholder={
+                isDeposito
+                  ? t.investasi.fieldDepositoNominalPlaceholder
+                  : t.investasi.fieldCostBasisPlaceholder
+              }
+              className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          {/* EPIC-024 C3 (D7) — "tanggal beli", every instrument type. */}
+          <div className="space-y-1">
+            <label
+              className="text-[12px] text-muted-foreground"
+              htmlFor="purchasedAt"
+            >
+              {t.investasi.fieldPurchaseDateLabel}
+            </label>
+            <input
+              id="purchasedAt"
+              name="purchasedAt"
+              type="date"
+              value={form.purchasedAt}
+              onChange={handleChange}
               className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
@@ -421,13 +576,40 @@ function AddInvestmentModal({
               />
             </div>
           )}
+          {/* EPIC-024 C3 (D10) — deposito's jatuh tempo. */}
+          {isDeposito && (
+            <div className="space-y-1">
+              <label
+                className="text-[12px] text-muted-foreground"
+                htmlFor="maturityDate"
+              >
+                {t.investasi.fieldMaturityDateLabel}
+              </label>
+              <input
+                id="maturityDate"
+                name="maturityDate"
+                type="date"
+                value={form.maturityDate}
+                onChange={handleChange}
+                className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          )}
           {/* EPIC-023 G1 (D15) — per-type pricing: manual types get a dated
               manual-price field; automated types (saham/kripto) get an
-              honest note instead, since the price comes from Yahoo/CoinGecko. */}
-          {isManual ? (
+              honest note instead, since the price comes from Yahoo/CoinGecko.
+              EPIC-024 C3 (D10) — deposito gets neither: its value is
+              computed from bunga %/thn, never entered. */}
+          {isDeposito ? (
+            <div className="rounded-md border border-dashed p-3 text-[11.5px] text-muted-foreground">
+              {t.investasi.depositoValuationNote}
+            </div>
+          ) : isManual ? (
             <div className="space-y-2 rounded-md border border-dashed p-3">
               <div className="text-[11.5px] text-muted-foreground">
-                {t.investasi.manualPriceNote}
+                {isAutomatedUnmapped
+                  ? t.investasi.automatedUnmappedNote
+                  : t.investasi.manualPriceNote}
               </div>
               <div className="space-y-1">
                 <label
@@ -802,7 +984,17 @@ export default function InvestasiPage() {
                             {toLogoText(h.ticker)}
                           </div>
                           <div>
-                            <div className="font-semibold">{h.name}</div>
+                            <div className="flex items-center gap-1.5 font-semibold">
+                              {h.name}
+                              {/* EPIC-024 C1 (D8) — permanent "no automated
+                                  route for this ticker" state; distinct
+                                  from a transient refresh failure. */}
+                              {h.automatedPriceUnmapped && (
+                                <StatusBadge variant="warning">
+                                  {t.investasi.automatedUnmappedBadge}
+                                </StatusBadge>
+                              )}
+                            </div>
                             <div className="text-[11px] text-muted-foreground">
                               {h.ticker}
                             </div>
@@ -870,9 +1062,11 @@ export default function InvestasiPage() {
                                 every manual price states its entry date. */}
                             {h.currentPrice === null ? (
                               <div className="col-span-2 text-muted-foreground">
-                                {isManualPriceType(h.type as InvestmentType)
-                                  ? t.investasi.detailNoManualPrice
-                                  : t.investasi.detailPriceUnavailable}
+                                {h.automatedPriceUnmapped
+                                  ? t.investasi.automatedUnmappedNote
+                                  : isManualPriceType(h.type as InvestmentType)
+                                    ? t.investasi.detailNoManualPrice
+                                    : t.investasi.detailPriceUnavailable}
                               </div>
                             ) : h.latestPriceSource === "manual" ? (
                               <div className="col-span-2">

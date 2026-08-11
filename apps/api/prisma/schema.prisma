@@ -87,6 +87,9 @@ enum InvestmentType {
   emas
   kripto
   lainnya
+  // EPIC-024 C2 (D10) — nominal, bunga %/thn, tanggal mulai + jatuh tempo,
+  // valued by simple interest. Manual-priced (never reaches MarketDataPort).
+  deposito
 }
 
 enum LiabilityType {
@@ -860,6 +863,12 @@ model Investment {
   // deposito). Optional — only meaningful for those types. Used to derive a
   // simple projected-annual-yield display (currentValue × rate).
   interestRatePct  Decimal?          @db.Decimal(5, 2)
+  // EPIC-024 C2 (D7, D10) — "tanggal beli" for every type; deposito's
+  // "jatuh tempo". Both nullable/additive: existing rows keep working, the
+  // simple-interest valuation (investasi/page.tsx) treats a missing
+  // purchasedAt as "not yet dated" rather than guessing a date.
+  purchasedAt      DateTime?
+  maturityDate     DateTime?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   familyGroup      FamilyGroup       @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)

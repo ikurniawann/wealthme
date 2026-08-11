@@ -1119,6 +1119,8 @@ export const id = {
       emas: "Emas",
       kripto: "Kripto",
       lainnya: "Lainnya",
+      // EPIC-024 C2/C3 (D10).
+      deposito: "Deposito",
     },
     errorLoad: "Gagal memuat data investasi. Silakan refresh halaman.",
     toastUpdated: "Investasi berhasil diperbarui",
@@ -1134,7 +1136,9 @@ export const id = {
     toastDeleted: "Investasi berhasil dihapus.",
     toastDeleteFailed: "Gagal menghapus investasi. Coba lagi.",
     modalTitleEdit: "Edit Investasi",
-    modalTitleAdd: "Tambah Investasi",
+    // EPIC-024 C3 (D7) — CTA renamed "Catat Investasi": it records existing
+    // holdings (buy price, quantity, purchase date), not a buy transaction.
+    modalTitleAdd: "Catat Investasi",
     fieldTickerLabel: "Ticker",
     fieldTickerPlaceholder: "contoh: BBCA",
     fieldNameLabel: "Nama",
@@ -1146,6 +1150,25 @@ export const id = {
     fieldCostBasisPlaceholder: "contoh: 9500",
     fieldInterestRateLabel: "Suku Bunga Tahunan (%) — untuk Obligasi/Deposito",
     fieldInterestRatePlaceholder: "contoh: 6.5",
+    // EPIC-024 C3 (D9) — saham Lot/Lembar toggle. Canonical storage stays
+    // lembar; 1 lot = 100 lembar (see toLembar/quantityToDisplay in
+    // investasi/page.tsx).
+    fieldQuantityUnitLabel: "Satuan",
+    unitLot: "Lot",
+    unitLembar: "Lembar",
+    fieldQuantityLotPlaceholder: "contoh: 10 (1 lot = 100 lembar)",
+    fieldQuantityLembarPlaceholder: "contoh: 1000",
+    // EPIC-024 C3 (D9) — kripto is coin decimals, never lot/unit.
+    fieldQuantityKriptoLabel: "Jumlah Koin",
+    fieldQuantityKriptoPlaceholder: "contoh: 0.015",
+    // EPIC-024 C3 (D10) — deposito nominal (stored as quantity=1 ×
+    // costBasisPerUnit=nominal) + jatuh tempo. Bunga reuses
+    // fieldInterestRateLabel above.
+    fieldDepositoNominalLabel: "Nominal Deposito (Rp)",
+    fieldDepositoNominalPlaceholder: "contoh: 100000000",
+    fieldMaturityDateLabel: "Tanggal Jatuh Tempo",
+    // EPIC-024 C3 (D7) — "tanggal beli (new date picker)" for every type.
+    fieldPurchaseDateLabel: "Tanggal Beli",
     saving: "Menyimpan...",
     saveButton: "Simpan",
     totalValueLabel: "Total Nilai Investasi",
@@ -1153,7 +1176,7 @@ export const id = {
     todayReturnLabel: "Return Hari Ini",
     vsYesterdaySuffix: "dari kemarin",
     portfolioSectionTitle: "Portofolio",
-    addInvestmentLink: "+ Tambah Investasi",
+    addInvestmentLink: "+ Catat Investasi",
     filterAllLabel: "Semua",
     tableName: "Nama",
     tableType: "Jenis",
@@ -1163,7 +1186,7 @@ export const id = {
     tablePercent: "%",
     tableAction: "Aksi",
     emptyState: "Belum ada investasi.",
-    emptyStateCta: "Tambah sekarang",
+    emptyStateCta: "Catat sekarang",
     detailToggleShow: "Lihat Detail",
     detailToggleHide: "Sembunyikan Detail",
     detailLatestPriceLabel: "Harga Terakhir",
@@ -1178,12 +1201,16 @@ export const id = {
       coinGecko: "CoinGecko",
       manual: "Input Manual",
       mock: "Simulasi",
+      computedInterest: "Bunga Sederhana (Dihitung)",
     },
     detailDelayedLabel: "Tertunda & tidak resmi",
     detailRefreshFailedLabel: "Refresh gagal — menampilkan harga terakhir",
     detailManualLabelPrefix: "Diinput manual, per ",
     detailNoManualPrice: "Belum ada harga manual — edit untuk menambahkan.",
     detailPriceUnavailable: "Harga belum tersedia.",
+    automatedUnmappedBadge: "Harga Manual",
+    automatedUnmappedNote:
+      "Ticker ini belum didukung feed harga otomatis — masukkan harga secara manual.",
     fieldManualPriceLabel: "Harga Saat Ini (Rp, opsional)",
     fieldManualPricePlaceholder: "contoh: 15250",
     fieldManualPriceDateLabel: "Per Tanggal",
@@ -1192,6 +1219,8 @@ export const id = {
     autoPriceNoteSaham:
       "Harga diperbarui otomatis dari Yahoo Finance (.JK) — tertunda & tidak resmi.",
     autoPriceNoteKripto: "Harga diperbarui otomatis dari CoinGecko.",
+    depositoValuationNote:
+      "Nilai deposito dihitung otomatis dari nominal + bunga tahunan (bunga sederhana, pro-rata) — tidak perlu diinput manual.",
   },
   aset: {
     tabs: {
@@ -1222,6 +1251,7 @@ export const id = {
       emas: "Emas",
       kripto: "Kripto",
       lainnya: "Lainnya",
+      deposito: "Deposito",
     },
     totalAssetsLabel: "Total Aset",
     addAssetButton: "Tambah Aset",
@@ -2519,6 +2549,7 @@ export const id = {
         emas: "🥇 Emas",
         kripto: "₿ Kripto",
         lainnya: "💼 Lainnya",
+        deposito: "🏦 Deposito",
       },
       emptyInvestment: "Belum ada investasi.",
       addNowLink: "Tambah sekarang",

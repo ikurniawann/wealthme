@@ -1115,6 +1115,8 @@ export const en = {
       emas: "Gold",
       kripto: "Crypto",
       lainnya: "Other",
+      // EPIC-024 C2/C3 (D10).
+      deposito: "Time Deposit",
     },
     errorLoad: "Failed to load investment data. Please refresh the page.",
     toastUpdated: "Investment updated successfully",
@@ -1129,7 +1131,10 @@ export const en = {
     toastDeleted: "Investment deleted successfully.",
     toastDeleteFailed: "Failed to delete investment. Try again.",
     modalTitleEdit: "Edit Investment",
-    modalTitleAdd: "Add Investment",
+    // EPIC-024 C3 (D7) — CTA renamed "Catat Investasi" (Record Investment):
+    // it records an existing holding (buy price, quantity, purchase date),
+    // not a buy transaction.
+    modalTitleAdd: "Record Investment",
     fieldTickerLabel: "Ticker",
     fieldTickerPlaceholder: "e.g. BBCA",
     fieldNameLabel: "Name",
@@ -1141,6 +1146,25 @@ export const en = {
     fieldCostBasisPlaceholder: "e.g. 9500",
     fieldInterestRateLabel: "Annual Interest Rate (%) — for Bonds/Deposits",
     fieldInterestRatePlaceholder: "e.g. 6.5",
+    // EPIC-024 C3 (D9) — saham Lot/Lembar toggle. Canonical storage stays
+    // lembar; 1 lot = 100 lembar (see toLembar/quantityToDisplay in
+    // investasi/page.tsx).
+    fieldQuantityUnitLabel: "Unit",
+    unitLot: "Lot",
+    unitLembar: "Lembar (shares)",
+    fieldQuantityLotPlaceholder: "e.g. 10 (1 lot = 100 lembar)",
+    fieldQuantityLembarPlaceholder: "e.g. 1000",
+    // EPIC-024 C3 (D9) — kripto is coin decimals, never lot/unit.
+    fieldQuantityKriptoLabel: "Coin Amount",
+    fieldQuantityKriptoPlaceholder: "e.g. 0.015",
+    // EPIC-024 C3 (D10) — deposito nominal (stored as quantity=1 ×
+    // costBasisPerUnit=nominal) + maturity date. Interest reuses
+    // fieldInterestRateLabel above.
+    fieldDepositoNominalLabel: "Deposit Nominal (Rp)",
+    fieldDepositoNominalPlaceholder: "e.g. 100000000",
+    fieldMaturityDateLabel: "Maturity Date",
+    // EPIC-024 C3 (D7) — "purchase date (new date picker)" for every type.
+    fieldPurchaseDateLabel: "Purchase Date",
     saving: "Saving...",
     saveButton: "Save",
     totalValueLabel: "Total Investment Value",
@@ -1148,7 +1172,7 @@ export const en = {
     todayReturnLabel: "Today's Return",
     vsYesterdaySuffix: "from yesterday",
     portfolioSectionTitle: "Portfolio",
-    addInvestmentLink: "+ Add Investment",
+    addInvestmentLink: "+ Record Investment",
     filterAllLabel: "All",
     tableName: "Name",
     tableType: "Type",
@@ -1158,7 +1182,7 @@ export const en = {
     tablePercent: "%",
     tableAction: "Action",
     emptyState: "No investments yet.",
-    emptyStateCta: "Add now",
+    emptyStateCta: "Record now",
     detailToggleShow: "View Detail",
     detailToggleHide: "Hide Detail",
     detailLatestPriceLabel: "Latest Price",
@@ -1173,12 +1197,16 @@ export const en = {
       coinGecko: "CoinGecko",
       manual: "Manual Entry",
       mock: "Simulated",
+      computedInterest: "Simple Interest (Computed)",
     },
     detailDelayedLabel: "Delayed & unofficial",
     detailRefreshFailedLabel: "Refresh failed — showing last known price",
     detailManualLabelPrefix: "Manually entered, as of ",
     detailNoManualPrice: "No manual price yet — edit to add one.",
     detailPriceUnavailable: "Price not available yet.",
+    automatedUnmappedBadge: "Manual Price",
+    automatedUnmappedNote:
+      "No automated price feed supports this ticker yet — enter the price manually.",
     fieldManualPriceLabel: "Current Price (Rp, optional)",
     fieldManualPricePlaceholder: "e.g. 15250",
     fieldManualPriceDateLabel: "As Of Date",
@@ -1187,6 +1215,8 @@ export const en = {
     autoPriceNoteSaham:
       "Price updates automatically from Yahoo Finance (.JK) — delayed & unofficial.",
     autoPriceNoteKripto: "Price updates automatically from CoinGecko.",
+    depositoValuationNote:
+      "Deposit value is computed automatically from the nominal + annual interest rate (simple interest, pro-rata) — no manual entry needed.",
   },
   aset: {
     tabs: {
@@ -1217,6 +1247,7 @@ export const en = {
       emas: "Gold",
       kripto: "Crypto",
       lainnya: "Other",
+      deposito: "Time Deposit",
     },
     totalAssetsLabel: "Total Assets",
     addAssetButton: "Add Asset",
@@ -2512,6 +2543,7 @@ export const en = {
         emas: "🥇 Gold",
         kripto: "₿ Crypto",
         lainnya: "💼 Other",
+        deposito: "🏦 Time Deposit",
       },
       emptyInvestment: "No investments yet.",
       addNowLink: "Add now",

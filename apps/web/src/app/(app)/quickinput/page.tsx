@@ -68,13 +68,21 @@ const QUICK_CARDS: QuickCard[] = [
     iconColor: "var(--primary)",
     action: "txn",
   },
+  // EPIC-024 C4 (Evidence #5) — the generic CrudModal's "investasi" field set
+  // (nama/ticker/jenis/modal/nilai, no quantity) cannot express the real
+  // create-investment contract: it used to hardcode `quantity: "1"` and fold
+  // "Nilai Sekarang" into `costBasisPerUnit`, silently recording a
+  // whole-portfolio number as a per-unit price. Rather than hand-roll a
+  // second type-aware investment form here, route straight to the real one
+  // (`/investasi`'s AddInvestmentModal — lot/lembar, koin, deposito, tanggal
+  // beli all live there and only there).
   {
     id: "investasi",
     icon: BarChart3,
     iconBg: "#DCFCE7",
     iconColor: "var(--success)",
-    action: "crud",
-    entity: "investasi",
+    action: "navigate",
+    href: "/investasi",
   },
   {
     id: "rekening",
@@ -160,13 +168,6 @@ const QUICK_CARDS: QuickCard[] = [
 
 // CrudModal form values → real API request per entity. Amount values arrive
 // dot-formatted ("1.500.000") — parseRupiah normalizes them.
-const INVESTMENT_TYPE: Record<string, string> = {
-  Saham: "saham",
-  "Reksa Dana": "reksa_dana",
-  Obligasi: "obligasi",
-  Emas: "emas",
-  Crypto: "kripto",
-};
 const ASSET_TYPE: Record<string, string> = {
   Properti: "properti",
   Kendaraan: "kendaraan",
@@ -221,20 +222,10 @@ function buildRequest(
           balance: parseRupiah(v.saldo ?? "0"),
         },
       };
-    case "investasi":
-      return {
-        path: "investments",
-        queryKey: "investments",
-        body: {
-          ticker: (v.ticker || v.nama || "INV")
-            .toUpperCase()
-            .replace(/[^A-Z0-9._-]/g, ""),
-          name: v.nama,
-          type: INVESTMENT_TYPE[v.jenis ?? ""] ?? "lainnya",
-          quantity: "1",
-          costBasisPerUnit: String(parseRupiah(v.modal ?? v.nilai ?? "0")),
-        },
-      };
+    // "investasi" intentionally has no case here — EPIC-024 C4 routes that
+    // quick-input card straight to `/investasi`'s real, type-aware form
+    // instead of building a request from the generic CRUD engine's fields
+    // (see the QUICK_CARDS entry above).
     case "aset":
       return {
         path: "assets",

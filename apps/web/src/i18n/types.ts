@@ -131,7 +131,10 @@ type InvestasiTypeId =
   | "obligasi"
   | "emas"
   | "kripto"
-  | "lainnya";
+  | "lainnya"
+  // EPIC-024 C2/C3 (D10) — new investment type: nominal, bunga %/thn, jatuh
+  // tempo, valued by simple interest.
+  | "deposito";
 
 /** EPIC-018 Task A5 — `/aset` physical-asset type ids. */
 type AsetTypeId =
@@ -1134,6 +1137,23 @@ export type I18nDictionary = {
     // EPIC-021 #20: optional interest rate, shown for interest-bearing types.
     fieldInterestRateLabel: string;
     fieldInterestRatePlaceholder: string;
+    // EPIC-024 C3 (D7, D9, D10) — per-type form fields.
+    // Saham: Lot/Lembar quantity toggle (canonical storage stays lembar).
+    fieldQuantityUnitLabel: string;
+    unitLot: string;
+    unitLembar: string;
+    fieldQuantityLotPlaceholder: string;
+    fieldQuantityLembarPlaceholder: string;
+    // Kripto: decimal coin count, not lot/unit.
+    fieldQuantityKriptoLabel: string;
+    fieldQuantityKriptoPlaceholder: string;
+    // Deposito: nominal (reuses fieldCostBasisLabel's input, relabelled) +
+    // jatuh tempo. Bunga %/thn reuses fieldInterestRateLabel.
+    fieldDepositoNominalLabel: string;
+    fieldDepositoNominalPlaceholder: string;
+    fieldMaturityDateLabel: string;
+    // "Tanggal Beli" — every instrument type, not just deposito.
+    fieldPurchaseDateLabel: string;
     saving: string;
     saveButton: string;
     totalValueLabel: string;
@@ -1177,7 +1197,9 @@ export type I18nDictionary = {
      * the family gold price — consolidated-total-card.tsx).
      */
     sourceLabels: Record<
-      "yahooFinance" | "coinGecko" | "manual" | "mock",
+      // EPIC-024 C1/C3 — "computedInterest" labels deposito's live
+      // simple-interest value (never a stored/fetched price row).
+      "yahooFinance" | "coinGecko" | "manual" | "mock" | "computedInterest",
       string
     >;
     detailDelayedLabel: string;
@@ -1185,12 +1207,20 @@ export type I18nDictionary = {
     detailManualLabelPrefix: string;
     detailNoManualPrice: string;
     detailPriceUnavailable: string;
+    // EPIC-024 C1 (D8) — permanent "no automated route for this ticker"
+    // state (UnmappedTickerError), distinct from a transient refresh
+    // failure. Badge shown next to the holding name/ticker in the table.
+    automatedUnmappedBadge: string;
+    automatedUnmappedNote: string;
     fieldManualPriceLabel: string;
     fieldManualPricePlaceholder: string;
     fieldManualPriceDateLabel: string;
     manualPriceNote: string;
     autoPriceNoteSaham: string;
     autoPriceNoteKripto: string;
+    // EPIC-024 C3 (D10) — shown instead of the manual-price fields for
+    // deposito: its value is derived from bunga %/thn, never entered.
+    depositoValuationNote: string;
   };
   /** EPIC-018 Task A5 — `/aset` (consolidated assets) page copy. */
   aset: {

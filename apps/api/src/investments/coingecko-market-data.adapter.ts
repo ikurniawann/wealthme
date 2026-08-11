@@ -19,9 +19,16 @@ const COINGECKO_TIMEOUT_MS = 10_000;
 /**
  * EPIC-023 G1 (D15) — CoinGecko's `/simple/price` uses their internal coin
  * ids, not ticker symbols (e.g. "bitcoin", not "BTC"). This maps the common
- * tickers a family is likely to hold; an unmapped ticker fails loudly
- * (BadRequestException-shaped Error) rather than silently returning a mock
- * price — matching the Yahoo adapter's "throw, never fabricate" behaviour.
+ * tickers a family is likely to hold.
+ *
+ * EPIC-024 C1 (D8) — widened from 15 to cover the broader top-cap/most-held
+ * set. An unmapped ticker throws `UnmappedTickerError` (a distinguishable
+ * subclass, not a generic Error) so callers — `InvestmentsService.findAll`
+ * — can tell "this ticker will never resolve automatically, fall back to
+ * manual pricing" apart from a transient network/API failure, instead of
+ * retry-alerting on every request forever. It still never silently
+ * fabricates a price, matching the Yahoo adapter's "throw, never fabricate"
+ * behaviour.
  */
 const TICKER_TO_COINGECKO_ID: Readonly<Record<string, string>> = {
   BTC: "bitcoin",
@@ -39,10 +46,47 @@ const TICKER_TO_COINGECKO_ID: Readonly<Record<string, string>> = {
   MATIC: "matic-network",
   LTC: "litecoin",
   AVAX: "avalanche-2",
+  // EPIC-024 C1 (D8) additions.
+  SHIB: "shiba-inu",
+  LINK: "chainlink",
+  UNI: "uniswap",
+  ATOM: "cosmos",
+  ETC: "ethereum-classic",
+  XLM: "stellar",
+  BCH: "bitcoin-cash",
+  NEAR: "near",
+  APT: "aptos",
+  ARB: "arbitrum",
+  OP: "optimism",
+  ICP: "internet-computer",
+  FIL: "filecoin",
+  SUI: "sui",
+  PEPE: "pepe",
+  AAVE: "aave",
+  MKR: "maker",
+  XMR: "monero",
+  ALGO: "algorand",
+  VET: "vechain",
 };
 
 export function toCoinGeckoId(ticker: string): string | undefined {
   return TICKER_TO_COINGECKO_ID[ticker.toUpperCase()];
+}
+
+/**
+ * EPIC-024 C1 (D8) — thrown ONLY when a ticker has no CoinGecko id mapping.
+ * Distinguishable from every other failure mode of this adapter (timeout,
+ * non-2xx, bad shape, zero/negative price) so `InvestmentsService` can treat
+ * it as a permanent "no automated source" state — surfaced to the UI as a
+ * "harga manual" fallback — rather than a retryable transient error.
+ */
+export class UnmappedTickerError extends Error {
+  constructor(public readonly ticker: string) {
+    super(
+      `No CoinGecko mapping for ticker "${ticker}" — add it to TICKER_TO_COINGECKO_ID or enter the price manually.`,
+    );
+    this.name = "UnmappedTickerError";
+  }
 }
 
 // EPIC-023 Task G retry (HIGH five-reviewer finding) — the previous shape
@@ -71,9 +115,7 @@ export class CoinGeckoMarketDataAdapter implements MarketDataPort {
   ): Promise<MarketDataQuote> {
     const coinId = toCoinGeckoId(ticker);
     if (!coinId) {
-      throw new Error(
-        `No CoinGecko mapping for ticker "${ticker}" — add it to TICKER_TO_COINGECKO_ID or enter the price manually.`,
-      );
+      throw new UnmappedTickerError(ticker);
     }
 
     const url = `${COINGECKO_API_BASE}/simple/price?ids=${encodeURIComponent(
