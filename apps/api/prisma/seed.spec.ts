@@ -52,6 +52,8 @@ jest.mock("@prisma/client", () => ({
     bankSyncEntry: makeModel(),
     baSession: makeModel(),
     coaAccount: makeModel(),
+    // EPIC-024 Task J — seed() also upserts the seven reference lists.
+    referenceItem: makeModel(),
     $disconnect: disconnectMock,
   })),
 }));

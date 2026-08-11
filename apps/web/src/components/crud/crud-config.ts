@@ -311,6 +311,11 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
   // feature is hidden in the UI only. Family members are now added
   // directly (dependant/operational via `AddDependantMemberDialog`, istri
   // as a second owner via the same dialog per A1).
+  // EPIC-024 Task J (D14) — the `ReferenceItem` model backing mdbank/mdtxntype/
+  // mdinvtype/mdasettype/mdinstype/mdlembaga only stores a `label`; the demo's
+  // extra fields (kode/arah/risiko/penyusutan/jenis) had no real field to
+  // persist to, so they are dropped rather than shown and silently discarded
+  // (honest-UI: a field only appears if it does something).
   mdbank: {
     title: "Bank",
     fields: [
@@ -319,12 +324,6 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         label: "Nama Bank",
         type: "text",
         placeholder: "cth: Bank Jago",
-      },
-      {
-        key: "kode",
-        label: "Kode Bank",
-        type: "text",
-        placeholder: "cth: 542",
       },
     ],
   },
@@ -336,12 +335,6 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         label: "Nama Jenis",
         type: "text",
         placeholder: "cth: Investasi",
-      },
-      {
-        key: "arah",
-        label: "Arah",
-        type: "select",
-        options: ["Masuk", "Keluar", "Netral"],
       },
     ],
   },
@@ -391,12 +384,6 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         type: "text",
         placeholder: "cth: P2P Lending",
       },
-      {
-        key: "risiko",
-        label: "Tingkat Risiko",
-        type: "select",
-        options: ["Rendah", "Menengah", "Tinggi"],
-      },
     ],
   },
   mdasettype: {
@@ -407,12 +394,6 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         label: "Nama Jenis",
         type: "text",
         placeholder: "cth: Tanah",
-      },
-      {
-        key: "penyusutan",
-        label: "Penyusutan/Apresiasi",
-        type: "select",
-        options: ["Apresiasi", "Penyusutan", "Stabil"],
       },
     ],
   },
@@ -446,12 +427,6 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         label: "Nama Lembaga",
         type: "text",
         placeholder: "cth: ACT, Kitabisa",
-      },
-      {
-        key: "jenis",
-        label: "Jenis",
-        type: "select",
-        options: ["Zakat", "Donasi Umum", "Wakaf", "Gereja", "Lainnya"],
       },
     ],
   },

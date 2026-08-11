@@ -232,6 +232,20 @@ enum AllowanceRequestKind {
   held_expense
 }
 
+// EPIC-024 Task J (D14, US-MD-1) — the seven reference lists that used to be
+// hardcoded arrays in `masterdata/page.tsx` ("Master data is a client-side
+// illusion" — Evidence). "Kategori" is intentionally excluded: it already has
+// its own real table/API (Category) and stays that way.
+enum ReferenceItemGroup {
+  bank
+  ewallet
+  txntype
+  invtype
+  lembaga
+  asettype
+  instype
+}
+
 // ── Models ────────────────────────────────────────────────────────────────────
 
 model User {
@@ -420,6 +434,10 @@ model FamilyGroup {
   // family (nullable relation); the key itself is never stored plaintext
   // (see FamilyAiKey.encryptedKey).
   aiKey                   FamilyAiKey?
+  // EPIC-024 Task J (D14, US-MD-1) — the seven reference-list groups (bank,
+  // e-wallet, transaction type, investment type, donation institution, asset
+  // category, insurance type).
+  referenceItems          ReferenceItem[]
 
   @@map("family_groups")
 }
@@ -580,6 +598,27 @@ model Category {
   @@index([familyGroupId])
   @@index([coaAccountId])
   @@map("categories")
+}
+
+// EPIC-024 Task J (D14, US-MD-1) — real, per-family-group master data for the
+// seven reference lists (bank, e-wallet, transaction type, investment type,
+// donation institution, asset category, insurance type). Seeded from
+// `REFERENCE_ITEM_DEFAULTS` (`@wealthme/contracts`) at registration
+// (`isSystem: true`); an owner/spouse can add more (`isSystem: false`).
+// Seeded rows are protected from deletion — see ReferenceItemsService.remove.
+model ReferenceItem {
+  id            String             @id @default(uuid())
+  familyGroupId String
+  group         ReferenceItemGroup
+  label         String
+  sortOrder     Int                @default(0)
+  isSystem      Boolean            @default(false)
+  createdAt     DateTime           @default(now())
+  familyGroup   FamilyGroup        @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([familyGroupId, group, label])
+  @@index([familyGroupId, group])
+  @@map("reference_items")
 }
 
 model Transaction {

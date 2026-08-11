@@ -6,6 +6,7 @@ import type { Prisma } from "@prisma/client";
 import argon2 from "argon2";
 import {
   GENERIC_COA_CHART,
+  buildReferenceItemSeed,
   defaultCoaCodeForCategory,
 } from "@wealthme/contracts";
 
@@ -145,6 +146,19 @@ export const auth = betterAuth({
             // and adds their own, so their ledger contains only accounts
             // that exist in real life. Existing "Akun Utama" rows from
             // before this change are left untouched (no migration).
+
+            // EPIC-024 Task J (D14, US-MD-1) — mirrors the API-side
+            // auth.service.ts register() seeding so a user created through
+            // this Better-Auth hook (email/password + Google sign-in) gets
+            // the same real reference-list defaults, not just users created
+            // via the NestJS /auth/register endpoint.
+            await tx.referenceItem.createMany({
+              data: buildReferenceItemSeed().map((item) => ({
+                ...item,
+                familyGroupId: fg.id,
+                isSystem: true,
+              })),
+            });
           });
         },
       },

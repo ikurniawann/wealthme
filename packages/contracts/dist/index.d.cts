@@ -1570,4 +1570,74 @@ interface UpdateTaxRecordDto {
     notes?: string;
 }
 
-export { type AccountDto, AccountDtoSchema, type AccountOwnerFilter, AccountOwnerFilterSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AllowanceRequestDto, AllowanceRequestDtoSchema, type AllowanceRequestKind, AllowanceRequestKindSchema, type AllowanceRequestStatus, AllowanceRequestStatusSchema, AllowedCategoryDtoSchema, type ApproveAllowanceRequestInput, ApproveAllowanceRequestInputSchema, type AssetDto, type AssetHistoryDto, type AssetTypeId, type AssetValueChangeMode, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CreateAccountInput, CreateAccountInputSchema, type CreateAllowanceRequestInput, CreateAllowanceRequestInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceBeneficiaryDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT, DEFAULT_ROLE_BY_RELATIONSHIP, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, GENERIC_COA_CHART, type GoalDto, type GoalStatus, type HeldExpenseResponse, HeldExpenseResponseSchema, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceBeneficiaryDto, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDto, type InvestmentPriceDto, type InvestmentSummaryDto, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type MemberCategoryAllowanceDto, MemberCategoryAllowanceDtoSchema, type MemberRelationship, MemberRelationshipSchema, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type ParticipantStatus, type PeriodPoint, type PerpuluhanRequestDto, type PerpuluhanResultDto, type PnlDto, type Pph21RequestDto, type Pph21ResultDto, type PremiumPeriod, type PublicSplitParticipantDto, type ReconciliationBridgeDto, type RejectAllowanceRequestInput, RejectAllowanceRequestInputSchema, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Role, RoleSchema, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SetMemberCategoryAllowanceInput, SetMemberCategoryAllowanceInputSchema, type SplitBillDto, type SplitBillPayoutDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type TaxBracketDto, type TaxRecordDto, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdatePayoutAccountDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto, defaultCoaCodeForCategory, defaultRoleForRelationship };
+/**
+ * EPIC-024 Task J (D14, US-MD-1) — the seven reference lists (bank, e-wallet,
+ * transaction type, investment type, donation institution, asset category,
+ * insurance type) that used to be hardcoded arrays in `masterdata/page.tsx`
+ * ("Master data is a client-side illusion" — Evidence section). This is the
+ * single source of truth for the group ids and their seed defaults, shared
+ * by the API (`auth.service.ts` registration, the web Better-Auth hook, and
+ * the backfill migration comment) and the web `masterdata` page.
+ *
+ * "Kategori" is NOT part of this — it already has its own real API/table
+ * (`Category`) and stays that way (see `categories/index.ts`).
+ */
+declare const ReferenceItemGroupSchema: z.ZodEnum<["bank", "ewallet", "txntype", "invtype", "lembaga", "asettype", "instype"]>;
+type ReferenceItemGroup = z.infer<typeof ReferenceItemGroupSchema>;
+declare const CreateReferenceItemDtoSchema: z.ZodObject<{
+    group: z.ZodEnum<["bank", "ewallet", "txntype", "invtype", "lembaga", "asettype", "instype"]>;
+    label: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    group: "bank" | "ewallet" | "txntype" | "invtype" | "lembaga" | "asettype" | "instype";
+    label: string;
+}, {
+    group: "bank" | "ewallet" | "txntype" | "invtype" | "lembaga" | "asettype" | "instype";
+    label: string;
+}>;
+type CreateReferenceItemDto = z.infer<typeof CreateReferenceItemDtoSchema>;
+declare const ReferenceItemDtoSchema: z.ZodObject<{
+    id: z.ZodString;
+    familyGroupId: z.ZodString;
+    group: z.ZodEnum<["bank", "ewallet", "txntype", "invtype", "lembaga", "asettype", "instype"]>;
+    label: z.ZodString;
+    sortOrder: z.ZodNumber;
+    isSystem: z.ZodBoolean;
+    createdAt: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    id: string;
+    familyGroupId: string;
+    createdAt: string;
+    group: "bank" | "ewallet" | "txntype" | "invtype" | "lembaga" | "asettype" | "instype";
+    label: string;
+    sortOrder: number;
+    isSystem: boolean;
+}, {
+    id: string;
+    familyGroupId: string;
+    createdAt: string;
+    group: "bank" | "ewallet" | "txntype" | "invtype" | "lembaga" | "asettype" | "instype";
+    label: string;
+    sortOrder: number;
+    isSystem: boolean;
+}>;
+type ReferenceItemDto = z.infer<typeof ReferenceItemDtoSchema>;
+/**
+ * Seed defaults per group, in display order — ported verbatim from the old
+ * `REFERENCE_GROUPS` local array (`masterdata/page.tsx`). `sortOrder` is the
+ * array index, so seeded rows keep the same order the demo always showed.
+ */
+declare const REFERENCE_ITEM_DEFAULTS: Record<ReferenceItemGroup, readonly string[]>;
+type ReferenceItemSeedEntry = {
+    group: ReferenceItemGroup;
+    label: string;
+    sortOrder: number;
+};
+/**
+ * Flattened seed rows in `(familyGroupId, group, label, sortOrder, isSystem: true)`
+ * shape, for `createMany` at registration. Kept as a function (not a static
+ * array) purely for a fresh `sortOrder` sequence per group — the content is
+ * static.
+ */
+declare function buildReferenceItemSeed(): ReferenceItemSeedEntry[];
+
+export { type AccountDto, AccountDtoSchema, type AccountOwnerFilter, AccountOwnerFilterSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AllowanceRequestDto, AllowanceRequestDtoSchema, type AllowanceRequestKind, AllowanceRequestKindSchema, type AllowanceRequestStatus, AllowanceRequestStatusSchema, AllowedCategoryDtoSchema, type ApproveAllowanceRequestInput, ApproveAllowanceRequestInputSchema, type AssetDto, type AssetHistoryDto, type AssetTypeId, type AssetValueChangeMode, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CreateAccountInput, CreateAccountInputSchema, type CreateAllowanceRequestInput, CreateAllowanceRequestInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceBeneficiaryDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateReferenceItemDto, CreateReferenceItemDtoSchema, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT, DEFAULT_ROLE_BY_RELATIONSHIP, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, GENERIC_COA_CHART, type GoalDto, type GoalStatus, type HeldExpenseResponse, HeldExpenseResponseSchema, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceBeneficiaryDto, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDto, type InvestmentPriceDto, type InvestmentSummaryDto, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type MemberCategoryAllowanceDto, MemberCategoryAllowanceDtoSchema, type MemberRelationship, MemberRelationshipSchema, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type ParticipantStatus, type PeriodPoint, type PerpuluhanRequestDto, type PerpuluhanResultDto, type PnlDto, type Pph21RequestDto, type Pph21ResultDto, type PremiumPeriod, type PublicSplitParticipantDto, REFERENCE_ITEM_DEFAULTS, type ReconciliationBridgeDto, type ReferenceItemDto, ReferenceItemDtoSchema, type ReferenceItemGroup, ReferenceItemGroupSchema, type ReferenceItemSeedEntry, type RejectAllowanceRequestInput, RejectAllowanceRequestInputSchema, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Role, RoleSchema, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SetMemberCategoryAllowanceInput, SetMemberCategoryAllowanceInputSchema, type SplitBillDto, type SplitBillPayoutDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type TaxBracketDto, type TaxRecordDto, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdatePayoutAccountDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto, buildReferenceItemSeed, defaultCoaCodeForCategory, defaultRoleForRelationship };

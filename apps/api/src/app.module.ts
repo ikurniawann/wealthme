@@ -43,6 +43,7 @@ import { OpenBankingModule } from "./open-banking/open-banking.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { ReconciliationModule } from "./reconciliation/reconciliation.module";
 import { RedisModule } from "./redis/redis.module";
+import { ReferenceItemsModule } from "./reference-items/reference-items.module";
 import { ReportsModule } from "./reports/reports.module";
 import { SearchModule } from "./search/search.module";
 import { SplitBillsModule } from "./split-bills/split-bills.module";
@@ -119,6 +120,7 @@ import type { IncomingMessage } from "node:http";
     OpenBankingModule,
     AllowanceRequestsModule,
     MemberCategoryAllowancesModule,
+    ReferenceItemsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

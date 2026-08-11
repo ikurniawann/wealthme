@@ -8,6 +8,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { JwtService } from "@nestjs/jwt";
+import { buildReferenceItemSeed } from "@wealthme/contracts";
 import * as argon2 from "argon2";
 
 import {
@@ -188,6 +189,19 @@ export class AuthService {
       // adds their own, so their ledger contains only accounts that exist
       // in real life. Existing "Akun Utama" rows from before this change
       // are left untouched (no migration).
+
+      // EPIC-024 Task J (D14, US-MD-1) — seed the seven reference lists
+      // (bank, e-wallet, transaction type, investment type, donation
+      // institution, asset category, insurance type) so `/masterdata` shows
+      // real, deletable-by-owner data from day one instead of the old
+      // hardcoded-array illusion.
+      await tx.referenceItem.createMany({
+        data: buildReferenceItemSeed().map((item) => ({
+          ...item,
+          familyGroupId: fg.id,
+          isSystem: true,
+        })),
+      });
 
       return created;
     });

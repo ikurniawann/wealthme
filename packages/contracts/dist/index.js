@@ -487,6 +487,49 @@ var MemberCategoryAllowanceDtoSchema = z8.object({
   // Empty = unrestricted (backward compatible default for every member).
   categories: z8.array(AllowedCategoryDtoSchema)
 });
+
+// src/reference-items/index.ts
+import { z as z9 } from "zod";
+var ReferenceItemGroupSchema = z9.enum([
+  "bank",
+  "ewallet",
+  "txntype",
+  "invtype",
+  "lembaga",
+  "asettype",
+  "instype"
+]);
+var CreateReferenceItemDtoSchema = z9.object({
+  group: ReferenceItemGroupSchema,
+  label: z9.string().min(1).max(100)
+});
+var ReferenceItemDtoSchema = z9.object({
+  id: z9.string().uuid(),
+  familyGroupId: z9.string().uuid(),
+  group: ReferenceItemGroupSchema,
+  label: z9.string(),
+  sortOrder: z9.number().int(),
+  isSystem: z9.boolean(),
+  createdAt: z9.string()
+});
+var REFERENCE_ITEM_DEFAULTS = {
+  bank: ["BCA", "Mandiri", "BNI", "BRI", "CIMB Niaga", "Permata"],
+  txntype: ["Pemasukan", "Pengeluaran", "Transfer", "Kartu Kredit"],
+  invtype: ["Saham", "Reksa Dana", "Obligasi", "Emas", "Crypto"],
+  ewallet: ["GoPay", "OVO", "DANA", "LinkAja", "ShopeePay"],
+  lembaga: ["BAZNAS", "Dompet Dhuafa", "Gereja / Paroki", "Pura / Vihara"],
+  asettype: ["Properti", "Kendaraan", "Elektronik", "Perhiasan"],
+  instype: ["Jiwa", "Kesehatan", "Kendaraan", "Properti"]
+};
+function buildReferenceItemSeed() {
+  return ReferenceItemGroupSchema.options.flatMap(
+    (group) => REFERENCE_ITEM_DEFAULTS[group].map((label, index) => ({
+      group,
+      label,
+      sortOrder: index
+    }))
+  );
+}
 export {
   AccountDtoSchema,
   AccountOwnerFilterSchema,
@@ -502,6 +545,7 @@ export {
   CategoryKindSchema,
   CreateAccountInputSchema,
   CreateAllowanceRequestInputSchema,
+  CreateReferenceItemDtoSchema,
   CreateTransactionInputSchema,
   DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT,
   DEFAULT_ROLE_BY_RELATIONSHIP,
@@ -510,6 +554,9 @@ export {
   LoginInputSchema,
   MemberCategoryAllowanceDtoSchema,
   MemberRelationshipSchema,
+  REFERENCE_ITEM_DEFAULTS,
+  ReferenceItemDtoSchema,
+  ReferenceItemGroupSchema,
   RejectAllowanceRequestInputSchema,
   RoleSchema,
   RupiahSchema,
@@ -519,6 +566,7 @@ export {
   TransactionSummarySchema,
   TransactionTypeSchema,
   UpdateAccountInputSchema,
+  buildReferenceItemSeed,
   defaultCoaCodeForCategory,
   defaultRoleForRelationship
 };

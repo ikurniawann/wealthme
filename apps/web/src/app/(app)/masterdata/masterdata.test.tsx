@@ -4,13 +4,18 @@
  * budgets/allowances are attached (categories.service.spec.ts); this locks
  * in the UI half: /masterdata must surface that real message instead of a
  * generic "gagal menghapus kategori" toast.
+ *
+ * EPIC-024 Task J (D14, US-MD-1) — the seven reference lists are now real
+ * API-backed data, not a hardcoded local array. Locks in: seeded items show
+ * a "Bawaan" badge and no delete button; owner-added items add via a real
+ * POST and can be deleted via a real DELETE.
  */
 
 import type { ReactElement, ReactNode } from "react";
-import { render as rtlRender, screen } from "@testing-library/react";
+import { render as rtlRender, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { CategoryDto } from "@wealthme/contracts";
+import type { CategoryDto, ReferenceItemDto } from "@wealthme/contracts";
 
 const mockUseSessionAuth = jest.fn();
 jest.mock("../../../lib/auth-client", () => ({
@@ -26,9 +31,10 @@ jest.mock("../../../lib/api-client", () => ({
 }));
 
 const mockToastError = jest.fn();
+const mockToastSuccess = jest.fn();
 jest.mock("sonner", () => ({
   toast: Object.assign(jest.fn(), {
-    success: jest.fn(),
+    success: (...args: unknown[]) => mockToastSuccess(...args),
     error: (...args: unknown[]) => mockToastError(...args),
   }),
 }));
@@ -97,6 +103,21 @@ function buildCategory(overrides: Partial<CategoryDto> = {}): CategoryDto {
   };
 }
 
+function buildReferenceItem(
+  overrides: Partial<ReferenceItemDto> = {},
+): ReferenceItemDto {
+  return {
+    id: "ref-1",
+    familyGroupId: FAMILY_GROUP_ID,
+    group: "bank",
+    label: "BCA",
+    sortOrder: 0,
+    isSystem: true,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
 describe("MasterDataPage — category delete surfaces the real server message (EPIC-022 A5)", () => {
   beforeEach(() => {
     jest.resetAllMocks();
@@ -135,5 +156,110 @@ describe("MasterDataPage — category delete surfaces the real server message (E
     expect(mockToastError).toHaveBeenCalledWith(
       "Kategori ini dipakai 2 anggaran. Hapus atau ubah dulu sebelum menghapus kategori ini.",
     );
+  });
+});
+
+describe("MasterDataPage — reference items are real API-backed data (EPIC-024 Task J)", () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    queryClient.clear();
+
+    mockUseSessionAuth.mockReturnValue({
+      data: {
+        session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
+        user: { id: "user-1", name: "Test User", email: "user@example.com" },
+      },
+      isPending: false,
+    });
+  });
+
+  function stubApiFetch(referenceItems: ReferenceItemDto[]) {
+    mockApiFetch.mockImplementation((path: string, options?: RequestInit) => {
+      if (path.includes("/coa-accounts")) return Promise.resolve([]);
+      if (path.includes("/reference-items")) {
+        if (options?.method === "POST") {
+          return Promise.resolve(
+            buildReferenceItem({ id: "ref-new", isSystem: false }),
+          );
+        }
+        if (options?.method === "DELETE") return Promise.resolve(undefined);
+        return Promise.resolve(referenceItems);
+      }
+      if (path.includes("/categories")) return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+  }
+
+  it("shows a seeded ('Bawaan') item with no delete button — the API protects it, so the UI does not offer an action that will 403", async () => {
+    stubApiFetch([buildReferenceItem({ label: "BCA", isSystem: true })]);
+    render(<MasterDataPage />);
+
+    await screen.findByText("BCA");
+    expect(screen.getByText("Bawaan")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Hapus BCA/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a delete button for an owner-added (non-system) item", async () => {
+    stubApiFetch([
+      buildReferenceItem({
+        id: "ref-2",
+        label: "Bank Jago",
+        isSystem: false,
+      }),
+    ]);
+    render(<MasterDataPage />);
+
+    await screen.findByText("Bank Jago");
+    expect(
+      screen.getByRole("button", { name: /Hapus Bank Jago/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("adding an item POSTs {group, label} to the real reference-items API — no more 'bawaan sistem' toast", async () => {
+    stubApiFetch([]);
+    const user = userEvent.setup();
+    render(<MasterDataPage />);
+
+    await screen.findByText("🏦 Bank");
+    // Render order is Kategori, then Bank (first of the seven reference
+    // groups) — "+ Tambah" (index 1) opens the Bank add modal.
+    const addButtons = screen.getAllByRole("button", { name: "+ Tambah" });
+    await user.click(addButtons[1]);
+
+    const dialog = await screen.findByRole("dialog");
+    await user.type(
+      within(dialog).getByPlaceholderText("cth: Bank Jago"),
+      "Bank Neo",
+    );
+    await user.click(within(dialog).getByRole("button", { name: /Simpan/i }));
+
+    expect(mockApiFetch).toHaveBeenCalledWith(
+      `/family-groups/${FAMILY_GROUP_ID}/reference-items`,
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ group: "bank", label: "Bank Neo" }),
+      }),
+    );
+    expect(mockToastError).not.toHaveBeenCalled();
+  });
+
+  it("deleting a non-system item DELETEs the real reference-items API", async () => {
+    stubApiFetch([
+      buildReferenceItem({ id: "ref-3", label: "Bank Jago", isSystem: false }),
+    ]);
+    const user = userEvent.setup();
+    render(<MasterDataPage />);
+
+    await screen.findByText("Bank Jago");
+    await user.click(screen.getByRole("button", { name: /Hapus Bank Jago/i }));
+    await user.click(await screen.findByRole("button", { name: "Ya, Hapus" }));
+
+    expect(mockApiFetch).toHaveBeenCalledWith(
+      `/family-groups/${FAMILY_GROUP_ID}/reference-items/ref-3`,
+      expect.objectContaining({ method: "DELETE" }),
+    );
+    expect(mockToastSuccess).toHaveBeenCalled();
   });
 });

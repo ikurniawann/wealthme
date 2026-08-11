@@ -1371,10 +1371,14 @@ export type I18nDictionary = {
     validationPayAmountPositive: string;
   };
   /**
-   * EPIC-018 Task A5 — `/masterdata` page copy. `REFERENCE_GROUPS` in the
-   * page keeps each group's local `items` untranslated (see the
-   * `MasterDataGroupId` comment in this file); every group `title`/`label`,
-   * the real-category-API copy, and every toast resolve from here.
+   * EPIC-018 Task A5 — `/masterdata` page copy. Every group `title`/`label`
+   * (see the `MasterDataGroupId` comment in this file), the real-category-API
+   * copy, and every toast resolve from here.
+   *
+   * EPIC-024 Task J (D14, US-MD-1) — the seven reference-list groups are now
+   * backed by the real `ReferenceItem` API (`toastReferenceReadOnly` is gone;
+   * replaced by the same add/delete toast set Kategori already had, plus
+   * `toastItemProtected` for the seeded-default delete guard).
    */
   masterdata: {
     pageTitle: string;
@@ -1390,15 +1394,18 @@ export type I18nDictionary = {
     privateLabel: string;
     autoOptionLabel: string;
     groupEmpty: string;
+    groupLoading: string;
+    systemBadge: string;
     footerBold: string;
     footerRest: string;
     editAriaPrefix: string;
     deleteAriaPrefix: string;
     categoryDeleteLabelPrefix: string;
     categoryDeleteLabelSuffix: string;
+    itemDeleteLabelPrefix: string;
+    itemDeleteLabelSuffix: string;
     itemRemovedPrefix: string;
     itemRemovedSuffix: string;
-    toastReferenceReadOnly: string;
     toastInvalidSession: string;
     toastNameRequired: string;
     toastInvalidType: string;
@@ -1408,6 +1415,11 @@ export type I18nDictionary = {
     toastCategoryAddFailed: string;
     toastCategoryDeleted: string;
     toastCategoryDeleteFailed: string;
+    toastItemAdded: string;
+    toastItemAddFailed: string;
+    toastItemDeleted: string;
+    toastItemDeleteFailed: string;
+    toastItemProtected: string;
   };
   /** EPIC-018 Task A5 — `/mastercoa` (chart of accounts) page copy. */
   mastercoa: {

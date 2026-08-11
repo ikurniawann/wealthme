@@ -373,14 +373,16 @@ One task group = one branch = one PR to `development`. Execution order is in
     immediately after. Rename menu/title to "Donasi" (both locales). Clarify
     the below-nisab Rp 0 answer on `/kalkulator`. (D12, US-DON-8)
 
-- [ ] ### J — Master data: ReferenceItem tables + seed + CRUD (item 17)
-  - **J1** — Model `ReferenceItem { id, familyGroupId, group enum(bank|ewallet|txntype|invtype|lembaga|asettype|instype), label, sortOrder, isSystem, createdAt }`,
+- [x] ### J — Master data: ReferenceItem tables + seed + CRUD (item 17) ✅
+  - **J1** — [x] Model `ReferenceItem { id, familyGroupId, group enum(bank|ewallet|txntype|invtype|lembaga|asettype|instype), label, sortOrder, isSystem, createdAt }`,
     `@@unique([familyGroupId, group, label])`; seed defaults from
     `REFERENCE_GROUPS` (`masterdata/page.tsx:44-71`) at registration +
-    backfill migration for existing groups; CRUD endpoints
-    `GET/POST/DELETE /family-groups/:id/reference-items` (owner manage);
-    rewrite `masterdata/page.tsx` against the API — no more fake local
-    deletes, no more "bawaan sistem" toast. (D14, US-MD-1)
+    backfill migration (file-only, staged) for existing groups; CRUD
+    endpoints `GET/POST/DELETE /family-groups/:id/reference-items` (owner
+    manage, member read); rewrote `masterdata/page.tsx` against the API — no
+    more fake local deletes, no more "bawaan sistem" blocking toast — seeded
+    items just show a "Bawaan" badge with the delete action omitted, backed
+    by a real 403 if bypassed. (D14, US-MD-1)
 
 - [x] ### K — Labels: "Cash & E-Wallet" / "Bank & Account" (items 29, 30) ✅
   - **K1** — [x] `i18n/id.ts` + `en.ts` (structures must stay identical per
@@ -827,3 +829,10 @@ the N1 prototype has an approval recorded in the Automation Log.
   test coverage on the money-adjacent pay flow — fixed in attempt 2 with a
   shared invalidation helper and 6 new tests). PR:
   https://github.com/andrsrjld/wealthme-web/pull/264
+- 2026-08-12 /epic-loop EPIC-024 #J "Master data: ReferenceItem tables + seed
+  - CRUD" → PASS (attempts: 1) — real per-family reference tables replacing
+    the client-side-illusion (fake local-state CRUD, "bawaan sistem" blocking
+    toast) for all 7 non-Kategori groups. Migrations file-only, not applied.
+    **Waves 1-3 complete — all 11 quick-fix/foundation/feature groups (B, E, F,
+    H, I, K, A, C, D, G, J) merged.** Remaining: L (attachments, in progress),
+    M (COA matrix). PR: https://github.com/andrsrjld/wealthme-web/pull/265

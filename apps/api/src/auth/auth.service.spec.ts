@@ -32,6 +32,8 @@ const mockPrisma = {
   // EPIC-017: register() provisions the generic COA chart, then links categories.
   coaAccount: { createMany: jest.fn(), findMany: jest.fn() },
   account: { create: jest.fn() },
+  // EPIC-024 Task J — register() also seeds the seven reference lists.
+  referenceItem: { createMany: jest.fn() },
   baAccount: { updateMany: jest.fn() },
   $transaction: jest.fn(),
 };
@@ -85,6 +87,7 @@ describe("AuthService", () => {
       GENERIC_COA_CHART.map((c) => ({ id: `coa-${c.code}`, code: c.code })),
     );
     mockPrisma.account.create.mockResolvedValue({});
+    mockPrisma.referenceItem.createMany.mockResolvedValue({ count: 32 });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [

@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import {
+  buildReferenceItemSeed,
   defaultCoaCodeForCategory,
   GENERIC_COA_CHART,
 } from "@wealthme/contracts";
@@ -209,6 +210,23 @@ export async function main(): Promise<void> {
     if (!id) throw new Error(`Seed: no COA account for ${kind}/${name}`);
     return id;
   };
+
+  // ── Reference items (EPIC-024 Task J, D14/US-MD-1) ──────────────────────────
+  // Same defaults real registration seeds, so the demo `/masterdata` page
+  // shows real, deletable-by-owner data instead of empty groups.
+  for (const item of buildReferenceItemSeed()) {
+    await prisma.referenceItem.upsert({
+      where: {
+        familyGroupId_group_label: {
+          familyGroupId: FG,
+          group: item.group,
+          label: item.label,
+        },
+      },
+      update: {},
+      create: { ...item, familyGroupId: FG, isSystem: true },
+    });
+  }
 
   // ── Categories ────────────────────────────────────────────────────────────────
 

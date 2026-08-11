@@ -34,6 +34,7 @@ __export(index_exports, {
   CategoryKindSchema: () => CategoryKindSchema,
   CreateAccountInputSchema: () => CreateAccountInputSchema,
   CreateAllowanceRequestInputSchema: () => CreateAllowanceRequestInputSchema,
+  CreateReferenceItemDtoSchema: () => CreateReferenceItemDtoSchema,
   CreateTransactionInputSchema: () => CreateTransactionInputSchema,
   DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT: () => DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT,
   DEFAULT_ROLE_BY_RELATIONSHIP: () => DEFAULT_ROLE_BY_RELATIONSHIP,
@@ -42,6 +43,9 @@ __export(index_exports, {
   LoginInputSchema: () => LoginInputSchema,
   MemberCategoryAllowanceDtoSchema: () => MemberCategoryAllowanceDtoSchema,
   MemberRelationshipSchema: () => MemberRelationshipSchema,
+  REFERENCE_ITEM_DEFAULTS: () => REFERENCE_ITEM_DEFAULTS,
+  ReferenceItemDtoSchema: () => ReferenceItemDtoSchema,
+  ReferenceItemGroupSchema: () => ReferenceItemGroupSchema,
   RejectAllowanceRequestInputSchema: () => RejectAllowanceRequestInputSchema,
   RoleSchema: () => RoleSchema,
   RupiahSchema: () => RupiahSchema,
@@ -51,6 +55,7 @@ __export(index_exports, {
   TransactionSummarySchema: () => TransactionSummarySchema,
   TransactionTypeSchema: () => TransactionTypeSchema,
   UpdateAccountInputSchema: () => UpdateAccountInputSchema,
+  buildReferenceItemSeed: () => buildReferenceItemSeed,
   defaultCoaCodeForCategory: () => defaultCoaCodeForCategory,
   defaultRoleForRelationship: () => defaultRoleForRelationship
 });
@@ -545,6 +550,49 @@ var MemberCategoryAllowanceDtoSchema = import_zod8.z.object({
   // Empty = unrestricted (backward compatible default for every member).
   categories: import_zod8.z.array(AllowedCategoryDtoSchema)
 });
+
+// src/reference-items/index.ts
+var import_zod9 = require("zod");
+var ReferenceItemGroupSchema = import_zod9.z.enum([
+  "bank",
+  "ewallet",
+  "txntype",
+  "invtype",
+  "lembaga",
+  "asettype",
+  "instype"
+]);
+var CreateReferenceItemDtoSchema = import_zod9.z.object({
+  group: ReferenceItemGroupSchema,
+  label: import_zod9.z.string().min(1).max(100)
+});
+var ReferenceItemDtoSchema = import_zod9.z.object({
+  id: import_zod9.z.string().uuid(),
+  familyGroupId: import_zod9.z.string().uuid(),
+  group: ReferenceItemGroupSchema,
+  label: import_zod9.z.string(),
+  sortOrder: import_zod9.z.number().int(),
+  isSystem: import_zod9.z.boolean(),
+  createdAt: import_zod9.z.string()
+});
+var REFERENCE_ITEM_DEFAULTS = {
+  bank: ["BCA", "Mandiri", "BNI", "BRI", "CIMB Niaga", "Permata"],
+  txntype: ["Pemasukan", "Pengeluaran", "Transfer", "Kartu Kredit"],
+  invtype: ["Saham", "Reksa Dana", "Obligasi", "Emas", "Crypto"],
+  ewallet: ["GoPay", "OVO", "DANA", "LinkAja", "ShopeePay"],
+  lembaga: ["BAZNAS", "Dompet Dhuafa", "Gereja / Paroki", "Pura / Vihara"],
+  asettype: ["Properti", "Kendaraan", "Elektronik", "Perhiasan"],
+  instype: ["Jiwa", "Kesehatan", "Kendaraan", "Properti"]
+};
+function buildReferenceItemSeed() {
+  return ReferenceItemGroupSchema.options.flatMap(
+    (group) => REFERENCE_ITEM_DEFAULTS[group].map((label, index) => ({
+      group,
+      label,
+      sortOrder: index
+    }))
+  );
+}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   AccountDtoSchema,
@@ -561,6 +609,7 @@ var MemberCategoryAllowanceDtoSchema = import_zod8.z.object({
   CategoryKindSchema,
   CreateAccountInputSchema,
   CreateAllowanceRequestInputSchema,
+  CreateReferenceItemDtoSchema,
   CreateTransactionInputSchema,
   DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT,
   DEFAULT_ROLE_BY_RELATIONSHIP,
@@ -569,6 +618,9 @@ var MemberCategoryAllowanceDtoSchema = import_zod8.z.object({
   LoginInputSchema,
   MemberCategoryAllowanceDtoSchema,
   MemberRelationshipSchema,
+  REFERENCE_ITEM_DEFAULTS,
+  ReferenceItemDtoSchema,
+  ReferenceItemGroupSchema,
   RejectAllowanceRequestInputSchema,
   RoleSchema,
   RupiahSchema,
@@ -578,6 +630,7 @@ var MemberCategoryAllowanceDtoSchema = import_zod8.z.object({
   TransactionSummarySchema,
   TransactionTypeSchema,
   UpdateAccountInputSchema,
+  buildReferenceItemSeed,
   defaultCoaCodeForCategory,
   defaultRoleForRelationship
 });

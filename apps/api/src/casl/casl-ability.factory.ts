@@ -27,6 +27,7 @@ export type Subject =
   | "Notification"
   | "Reconciliation"
   | "ReconciliationTemplate"
+  | "ReferenceItem"
   | "Report"
   | "SplitBill"
   | "TaxRecord"
@@ -71,6 +72,11 @@ export class CaslAbilityFactory {
         // admin_staff), not the general "manage Transaction" grant every
         // role effectively already has.
         can("manage", "Reconciliation");
+        // EPIC-024 Task J (D14, US-MD-1) — the seven reference lists (bank,
+        // e-wallet, transaction type, investment type, donation institution,
+        // asset category, insurance type) are owner/co-master-managed master
+        // data, same shape as Category above.
+        can("manage", "ReferenceItem");
         // EPIC-023 Task C retry (six-reviewer finding) — SplitBill had no
         // grant on any role; owner gets the same full "manage" every other
         // money surface gets.
@@ -123,6 +129,10 @@ export class CaslAbilityFactory {
         // instead (reconciliation.controller.ts).
         can("read", "Reconciliation");
         can("create", "Reconciliation");
+        // EPIC-024 Task J (D14) — a member can read the reference lists (to
+        // use them in pickers) but not add/remove entries; that stays
+        // owner/spouse-managed master data.
+        can("read", "ReferenceItem");
         // EPIC-023 Task C retry — a plain member may fully manage a split
         // bill (create/settle/delete one they set up), same as every other
         // household-coordination surface (Budget/Goal/Donation/...) below.
@@ -160,6 +170,8 @@ export class CaslAbilityFactory {
         // EPIC-021 Group C (#29) — bookkeeper role can perform the
         // reconciliation fee-split (see the owner-case comment above).
         can("manage", "Reconciliation");
+        // EPIC-024 Task J (D14) — same read-only grant as Category above.
+        can("read", "ReferenceItem");
         // EPIC-023 Task C retry — bookkeeper can see split bills (needed to
         // reconcile them against the ledger) but never create/settle/delete
         // one; that stays a household-coordination action for owner/spouse/
@@ -201,6 +213,9 @@ export class CaslAbilityFactory {
         can("manage", "MemberCategoryAllowance");
         can("manage", "Notification");
         can("manage", "Reconciliation");
+        // EPIC-024 Task J (D14) — full financial co-owner, same "manage" as
+        // owner above.
+        can("manage", "ReferenceItem");
         // EPIC-023 Task C retry — a spouse is a full financial co-owner
         // (D2), same "manage" every other money surface above gets.
         can("manage", "SplitBill");

@@ -4,7 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { CategoryDto } from "@wealthme/contracts";
+import type {
+  CategoryDto,
+  ReferenceItemDto,
+  ReferenceItemGroup,
+} from "@wealthme/contracts";
 import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
@@ -19,15 +23,22 @@ import {
 } from "@/components/crud";
 
 /**
- * `entity`/`items` are structural + local reference data (see the
- * `MasterDataGroupId` comment in `@/i18n/types.ts` — the `items` reference
- * lists stay untranslated, same as the shared `crud-config.ts` select
- * options); `title`/`label` resolve from `t.masterdata.groups[entity]`.
+ * EPIC-024 Task J (D14, US-MD-1) — maps the page's local `CrudEntity` ids to
+ * the API's `ReferenceItemGroup` enum values. "Kategori" is intentionally
+ * absent — it keeps its own real API (Category), handled separately below.
  */
-interface MasterDataGroup {
+const REFERENCE_GROUP_ENTITIES: {
   entity: CrudEntity;
-  items: string[];
-}
+  group: ReferenceItemGroup;
+}[] = [
+  { entity: "mdbank", group: "bank" },
+  { entity: "mdtxntype", group: "txntype" },
+  { entity: "mdinvtype", group: "invtype" },
+  { entity: "mdewallet", group: "ewallet" },
+  { entity: "mdlembaga", group: "lembaga" },
+  { entity: "mdasettype", group: "asettype" },
+  { entity: "mdinstype", group: "instype" },
+];
 
 type CoaAccountOption = {
   id: string;
@@ -35,42 +46,6 @@ type CoaAccountOption = {
   name: string;
   groupNum: number;
 };
-
-/**
- * System reference lists. These are fixed enums / conventions with no backend
- * master table, so they are shown for reference and managed locally only.
- * (Kategori is handled separately below — it is the one entity with a real API.)
- */
-const REFERENCE_GROUPS: MasterDataGroup[] = [
-  {
-    entity: "mdbank",
-    items: ["BCA", "Mandiri", "BNI", "BRI", "CIMB Niaga", "Permata"],
-  },
-  {
-    entity: "mdtxntype",
-    items: ["Pemasukan", "Pengeluaran", "Transfer", "Kartu Kredit"],
-  },
-  {
-    entity: "mdinvtype",
-    items: ["Saham", "Reksa Dana", "Obligasi", "Emas", "Crypto"],
-  },
-  {
-    entity: "mdewallet",
-    items: ["GoPay", "OVO", "DANA", "LinkAja", "ShopeePay"],
-  },
-  {
-    entity: "mdlembaga",
-    items: ["BAZNAS", "Dompet Dhuafa", "Gereja / Paroki", "Pura / Vihara"],
-  },
-  {
-    entity: "mdasettype",
-    items: ["Properti", "Kendaraan", "Elektronik", "Perhiasan"],
-  },
-  {
-    entity: "mdinstype",
-    items: ["Jiwa", "Kesehatan", "Kendaraan", "Properti"],
-  },
-];
 
 /**
  * EPIC-022 A5 — surface the API's real validation message (e.g. the 409
@@ -119,33 +94,33 @@ export default function MasterDataPage() {
     staleTime: 60_000,
   });
 
-  const [groups, setGroups] = useState<MasterDataGroup[]>(REFERENCE_GROUPS);
+  // EPIC-024 Task J — the seven reference lists, now real per-family-group
+  // data instead of a hardcoded local array. One query for every group;
+  // grouped client-side below.
+  const referenceItemsQueryKey = ["reference-items", familyGroupId] as const;
+  const { data: referenceItems, isLoading: isReferenceItemsLoading } = useQuery<
+    ReferenceItemDto[]
+  >({
+    queryKey: referenceItemsQueryKey,
+    queryFn: () =>
+      apiFetch<ReferenceItemDto[]>(
+        `/family-groups/${familyGroupId}/reference-items`,
+        { token },
+      ),
+    enabled,
+    staleTime: 60_000,
+  });
+
   const [crud, setCrud] = useState<CrudModalState | null>(null);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(
     null,
   );
-  const [pendingDelete, setPendingDelete] = useState<{
-    label: string;
-    entity: CrudEntity;
-    item: string;
-  } | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<ReferenceItemDto | null>(
+    null,
+  );
   const [pendingCatDelete, setPendingCatDelete] = useState<CategoryDto | null>(
     null,
   );
-
-  // Local-only removal for the reference lists (no backend master table).
-  const removeItem = (entity: CrudEntity, item: string) => {
-    setGroups((prev) =>
-      prev.map((g) =>
-        g.entity === entity
-          ? { ...g, items: g.items.filter((i) => i !== item) }
-          : g,
-      ),
-    );
-    toast(
-      `${t.masterdata.itemRemovedPrefix}${item}${t.masterdata.itemRemovedSuffix}`,
-    );
-  };
 
   function openEditCategory(cat: CategoryDto) {
     setEditingCategoryId(cat.id);
@@ -162,17 +137,21 @@ export default function MasterDataPage() {
     });
   }
 
-  // Real category create/update via the categories API.
+  // Real category create/update via the categories API; real reference-item
+  // add via the reference-items API for the other six groups.
   const handleCrudSubmit = (
     entity: CrudEntity,
     mode: CrudMode,
     values: Record<string, string>,
   ) => {
-    if (entity !== "mdkategori") {
-      // Reference lists have no backend — say so instead of faking success.
-      toast.info(t.masterdata.toastReferenceReadOnly);
+    const refGroup = REFERENCE_GROUP_ENTITIES.find(
+      (g) => g.entity === entity,
+    )?.group;
+    if (refGroup) {
+      handleReferenceItemCreate(refGroup, values.nama?.trim());
       return;
     }
+    if (entity !== "mdkategori") return;
     if (!enabled) {
       toast.error(t.masterdata.toastInvalidSession);
       return;
@@ -240,6 +219,62 @@ export default function MasterDataPage() {
     })();
   };
 
+  const handleReferenceItemCreate = (
+    group: ReferenceItemGroup,
+    label: string | undefined,
+  ) => {
+    if (!enabled) {
+      toast.error(t.masterdata.toastInvalidSession);
+      return;
+    }
+    if (!label) {
+      toast.error(t.masterdata.toastNameRequired);
+      return;
+    }
+    void (async () => {
+      try {
+        await apiFetch(`/family-groups/${familyGroupId}/reference-items`, {
+          method: "POST",
+          token,
+          body: JSON.stringify({ group, label }),
+        });
+        toast.success(t.masterdata.toastItemAdded);
+        void queryClient.invalidateQueries({
+          queryKey: referenceItemsQueryKey,
+        });
+      } catch (err) {
+        toast.error(
+          extractApiErrorMessage(err, t.masterdata.toastItemAddFailed),
+        );
+      }
+    })();
+  };
+
+  const handleReferenceItemDelete = (item: ReferenceItemDto) => {
+    if (!enabled) {
+      toast.error(t.masterdata.toastInvalidSession);
+      return;
+    }
+    void (async () => {
+      try {
+        await apiFetch(
+          `/family-groups/${familyGroupId}/reference-items/${item.id}`,
+          { method: "DELETE", token },
+        );
+        toast.success(
+          `${t.masterdata.itemRemovedPrefix}${item.label}${t.masterdata.itemRemovedSuffix}`,
+        );
+        void queryClient.invalidateQueries({
+          queryKey: referenceItemsQueryKey,
+        });
+      } catch (err) {
+        toast.error(
+          extractApiErrorMessage(err, t.masterdata.toastItemDeleteFailed),
+        );
+      }
+    })();
+  };
+
   const handleCategoryDelete = (cat: CategoryDto) => {
     if (!enabled) {
       toast.error(t.masterdata.toastInvalidSession);
@@ -279,6 +314,14 @@ export default function MasterDataPage() {
       })),
     ],
   };
+
+  const referenceItemList = referenceItems ?? [];
+  const itemsByGroup = new Map<ReferenceItemGroup, ReferenceItemDto[]>();
+  for (const item of referenceItemList) {
+    const list = itemsByGroup.get(item.group) ?? [];
+    list.push(item);
+    itemsByGroup.set(item.group, list);
+  }
 
   return (
     <div>
@@ -369,58 +412,60 @@ export default function MasterDataPage() {
           )}
         </SectionCard>
 
-        {/* System reference lists (no backend master table) */}
-        {groups.map((group) => (
-          <SectionCard
-            key={group.entity}
-            title={
-              t.masterdata.groups[
-                group.entity as keyof typeof t.masterdata.groups
-              ].title
-            }
-            action={
-              <CardLink
-                onClick={() => setCrud({ entity: group.entity, mode: "add" })}
-              >
-                {t.masterdata.addLink}
-              </CardLink>
-            }
-          >
-            <div className="flex flex-wrap">
-              {group.items.length === 0 ? (
-                <div className="py-2 text-[12px] text-muted-foreground">
-                  {t.masterdata.groupEmpty}
-                </div>
-              ) : (
-                group.items.map((item) => (
-                  <span
-                    key={item}
-                    className="mr-1.5 mb-1.5 inline-flex items-center gap-2 rounded-[20px] border bg-background px-2.5 py-1.5 text-[12.5px] font-semibold"
-                  >
-                    {item}
-                    <button
-                      type="button"
-                      aria-label={`${t.masterdata.deleteAriaPrefix}${item}`}
-                      onClick={() =>
-                        setPendingDelete({
-                          label:
-                            t.masterdata.groups[
-                              group.entity as keyof typeof t.masterdata.groups
-                            ].label,
-                          entity: group.entity,
-                          item,
-                        })
-                      }
-                      className="inline-flex size-4 items-center justify-center rounded-full text-[15px] leading-none text-muted-foreground transition-colors hover:bg-destructive hover:text-white"
+        {/* EPIC-024 Task J — the seven reference lists, real API-backed data */}
+        {REFERENCE_GROUP_ENTITIES.map(({ entity, group }) => {
+          const items = itemsByGroup.get(group) ?? [];
+          return (
+            <SectionCard
+              key={entity}
+              title={
+                t.masterdata.groups[entity as keyof typeof t.masterdata.groups]
+                  .title
+              }
+              action={
+                <CardLink onClick={() => setCrud({ entity, mode: "add" })}>
+                  {t.masterdata.addLink}
+                </CardLink>
+              }
+            >
+              <div className="flex flex-wrap">
+                {isReferenceItemsLoading || !enabled ? (
+                  <div className="py-2 text-[12px] text-muted-foreground">
+                    {t.masterdata.groupLoading}
+                  </div>
+                ) : items.length === 0 ? (
+                  <div className="py-2 text-[12px] text-muted-foreground">
+                    {t.masterdata.groupEmpty}
+                  </div>
+                ) : (
+                  items.map((item) => (
+                    <span
+                      key={item.id}
+                      className="mr-1.5 mb-1.5 inline-flex items-center gap-1.5 rounded-[20px] border bg-background px-2.5 py-1.5 text-[12.5px] font-semibold"
                     >
-                      ×
-                    </button>
-                  </span>
-                ))
-              )}
-            </div>
-          </SectionCard>
-        ))}
+                      {item.label}
+                      {item.isSystem && (
+                        <StatusBadge variant="gray">
+                          {t.masterdata.systemBadge}
+                        </StatusBadge>
+                      )}
+                      {!item.isSystem && (
+                        <button
+                          type="button"
+                          aria-label={`${t.masterdata.deleteAriaPrefix}${item.label}`}
+                          onClick={() => setPendingDelete(item)}
+                          className="inline-flex size-4 items-center justify-center rounded-full text-[15px] leading-none text-muted-foreground transition-colors hover:bg-destructive hover:text-white"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </span>
+                  ))
+                )}
+              </div>
+            </SectionCard>
+          );
+        })}
       </div>
 
       <div className="mt-3.5 rounded-[12px] border border-primary/20 bg-accent p-3.5 text-[12px] text-muted-foreground">
@@ -435,11 +480,14 @@ export default function MasterDataPage() {
         dynamicOptions={coaDynamicOptions}
       />
       <ConfirmDeleteDialog
-        label={pendingDelete?.label ?? null}
+        label={
+          pendingDelete
+            ? `${t.masterdata.itemDeleteLabelPrefix}${pendingDelete.label}${t.masterdata.itemDeleteLabelSuffix}`
+            : null
+        }
         onClose={() => setPendingDelete(null)}
         onConfirm={() => {
-          if (pendingDelete)
-            removeItem(pendingDelete.entity, pendingDelete.item);
+          if (pendingDelete) handleReferenceItemDelete(pendingDelete);
         }}
       />
       <ConfirmDeleteDialog
