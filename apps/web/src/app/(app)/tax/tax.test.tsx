@@ -34,7 +34,7 @@ jest.mock("sonner", () => ({
   }),
 }));
 
-import TaxPage from "./page";
+import TaxPage, { MAX_TAX_INPUT, toClampedDigitString } from "./page";
 
 const FAMILY_GROUP_ID = "fg-1";
 const TOKEN = "test-token";
@@ -576,5 +576,55 @@ describe("TaxPage — the SPT status button follows the same access gate as Save
     expect(toast.error).toHaveBeenCalledWith(
       expect.stringContaining("Access denied"),
     );
+  });
+});
+
+/**
+ * EPIC-024 Group E (E1 retry) — review gate HIGH finding: no test coverage
+ * for `toClampedDigitString`'s boundary logic. These pin the two properties
+ * that make it safe to build a BigInt-backed numeric-string payload from raw
+ * input: (1) it clamps at `max` instead of accepting an unbounded digit
+ * string, and (2) it never round-trips through a JS `number`, so a value far
+ * past `Number.MAX_SAFE_INTEGER` never comes out as exponential notation
+ * (e.g. "1e+21") — a naive `String(Number(digits))` implementation would
+ * fail both of these.
+ */
+describe("toClampedDigitString", () => {
+  it("extracts digits from a Rupiah-formatted string", () => {
+    expect(toClampedDigitString("1.234.567", MAX_TAX_INPUT)).toBe("1234567");
+  });
+
+  it("returns the raw digits unchanged when at or under the ceiling", () => {
+    expect(toClampedDigitString(String(MAX_TAX_INPUT), MAX_TAX_INPUT)).toBe(
+      String(MAX_TAX_INPUT),
+    );
+  });
+
+  it("clamps to `max` when the input exceeds the ceiling by a huge margin, without ever producing scientific notation", () => {
+    // 30 nines — vastly larger than Number.MAX_SAFE_INTEGER (~9.007e15) and
+    // large enough that `String(Number("9".repeat(30)))` degrades to
+    // exponential notation ("9.999999999999999e+29").
+    const hugeInput = "9".repeat(30);
+
+    const result = toClampedDigitString(hugeInput, MAX_TAX_INPUT);
+
+    expect(result).toBe(String(MAX_TAX_INPUT));
+    expect(result).not.toMatch(/e/i);
+    expect(result).toMatch(/^\d+$/);
+  });
+
+  it("clamps to `max` when the digit count matches but the value itself exceeds a non-all-nines ceiling", () => {
+    // MAX_TAX_INPUT is all nines, so no same-length value can exceed it —
+    // this exercises the `asNumber > max` branch with a ceiling that isn't
+    // the maximal value for its digit length (500 vs. a 3-digit "600").
+    const customMax = 500;
+    expect("600".length).toBe(String(customMax).length);
+
+    expect(toClampedDigitString("600", customMax)).toBe(String(customMax));
+  });
+
+  it('treats an all-zero/empty digit string as "0"', () => {
+    expect(toClampedDigitString("", MAX_TAX_INPUT)).toBe("0");
+    expect(toClampedDigitString("Rp ", MAX_TAX_INPUT)).toBe("0");
   });
 });

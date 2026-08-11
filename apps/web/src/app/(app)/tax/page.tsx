@@ -64,6 +64,30 @@ const SPT_STATUS_CLASS: Record<SptStatus, string> = {
 
 const CURRENT_YEAR = new Date().getFullYear();
 
+// EPIC-024 Group E (E1) — TaxRecord persists grossIncome/ptkp/netTax as
+// Postgres BigInt (schema.prisma), and the API's Pph21RequestDto /
+// CreateTaxRecordDto both cap accepted amounts at 999_999_999_999_999 (see
+// pph21.dto.ts MAX_TAX_AMOUNT). Clamping client-side at the same ceiling
+// keeps a mis-paste of a huge number from ever reaching the API only to
+// bounce off a 400 the user can't make sense of. Field-agnostic name — the
+// same ceiling clamps grossIncome AND zakatPaid (the API's Pph21RequestDto
+// enforces the identical @Max on both).
+export const MAX_TAX_INPUT = 999_999_999_999_999;
+
+// Extract the digit string a Rupiah-formatted input actually represents,
+// without ever round-tripping through a JS `number`. `String(aFloat)` uses
+// exponential notation once the value hits 1e21 (e.g. "1e+21"), which fails
+// the API's `/^\d+$/`-style numeric-string validation outright — building
+// the payload from the raw digits sidesteps that class of bug entirely,
+// on top of the MAX_TAX_INPUT clamp above.
+export function toClampedDigitString(value: string, max: number): string {
+  const digits = value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+  if (digits === "") return "0";
+  if (digits.length > String(max).length) return String(max);
+  const asNumber = Number(digits);
+  return asNumber > max ? String(max) : digits;
+}
+
 // EPIC-023 Task I (I1) — the roles the API grants `manage TaxRecord` to; see
 // `apps/api/src/casl/casl-ability.factory.ts`. `admin_staff` gets `read` only
 // and `dependant`/`operational` get nothing, yet the sidebar offers /tax to
@@ -264,10 +288,24 @@ export default function TaxPage() {
     // mid-debounce/mid-refetch can never pair a NEW gross income with an OLD
     // netTax — canSaveTaxRecord already keeps the button disabled while the
     // two could disagree.
+    //
+    // EPIC-024 Group E (E1) — grossIncome used to be built with
+    // `String(pph21Result.grossIncome)`. That's `String(aFloat)`, which for
+    // a value at/above 1e21 serializes as scientific notation ("1e+21") and
+    // fails the API's numeric-string regex with an opaque 400. `debouncedGross`
+    // is the exact input `pph21Input.grossIncome` (and therefore this
+    // `pph21Result`) was computed from — canSaveTaxRecord/isPph21Fetching
+    // already guarantee the two are in sync — so extracting its digits
+    // directly with `toClampedDigitString` never round-trips through a
+    // `number` at all, and clamps to the same MAX_TAX_INPUT ceiling the
+    // API now enforces. `ptkp` (one of the 5 fixed PTKP_OPTIONS values) and
+    // `netTax` (bounded below the already-clamped gross income) stay well
+    // under the range where `String()` on a number risks exponential
+    // notation, so a plain `String()` is safe for those two.
     if (!pph21Result || !canSaveTaxRecord) return;
     upsertMutation.mutate({
       taxYear: CURRENT_YEAR,
-      grossIncome: String(pph21Result.grossIncome),
+      grossIncome: toClampedDigitString(debouncedGross, MAX_TAX_INPUT),
       ptkp: String(pph21Result.ptkp),
       netTax: String(Math.round(pph21Result.totalTax)),
     });
@@ -415,7 +453,9 @@ export default function TaxPage() {
                 setGross(
                   e.target.value === ""
                     ? ""
-                    : formatNumber(parseRupiah(e.target.value)),
+                    : formatNumber(
+                        Math.min(parseRupiah(e.target.value), MAX_TAX_INPUT),
+                      ),
                 )
               }
               className={FIELD_CLASS}
@@ -460,7 +500,9 @@ export default function TaxPage() {
                 setZakat(
                   e.target.value === ""
                     ? ""
-                    : formatNumber(parseRupiah(e.target.value)),
+                    : formatNumber(
+                        Math.min(parseRupiah(e.target.value), MAX_TAX_INPUT),
+                      ),
                 )
               }
               className={FIELD_CLASS}

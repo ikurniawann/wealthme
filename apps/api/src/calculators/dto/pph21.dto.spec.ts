@@ -1,7 +1,7 @@
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 
-import { Pph21RequestDto, PTKP_VALUES } from "./pph21.dto";
+import { MAX_TAX_AMOUNT, Pph21RequestDto, PTKP_VALUES } from "./pph21.dto";
 
 // TS review fix (MEDIUM #3) — /calculators/pph21 is @Public() (no auth
 // guard), so `ptkp` must be whitelisted to the 5 legal UU HPP values
@@ -41,5 +41,47 @@ describe("Pph21RequestDto validation", () => {
     const errors = await validate(dto);
     expect(errors).toHaveLength(1);
     expect(errors[0]?.property).toBe("ptkp");
+  });
+
+  // Review gate retry (HIGH #1) — /calculators/pph21 is @Public(), and
+  // grossIncome/zakatPaid ultimately land in TaxRecord's BigInt columns.
+  // `@Max(MAX_TAX_AMOUNT)` closes the gap where an unbounded number could
+  // round-trip through JS's exponential `Number#toString` (>= 1e21).
+  it("accepts grossIncome exactly at MAX_TAX_AMOUNT (the boundary)", async () => {
+    const dto = plainToInstance(Pph21RequestDto, {
+      grossIncome: MAX_TAX_AMOUNT,
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+
+  it("rejects grossIncome one above MAX_TAX_AMOUNT", async () => {
+    const dto = plainToInstance(Pph21RequestDto, {
+      grossIncome: MAX_TAX_AMOUNT + 1,
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.property).toBe("grossIncome");
+    expect(errors[0]?.constraints).toHaveProperty("max");
+  });
+
+  it("accepts zakatPaid exactly at MAX_TAX_AMOUNT (the boundary)", async () => {
+    const dto = plainToInstance(Pph21RequestDto, {
+      grossIncome: 100_000_000,
+      zakatPaid: MAX_TAX_AMOUNT,
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+
+  it("rejects zakatPaid above MAX_TAX_AMOUNT", async () => {
+    const dto = plainToInstance(Pph21RequestDto, {
+      grossIncome: 100_000_000,
+      zakatPaid: MAX_TAX_AMOUNT + 1,
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.property).toBe("zakatPaid");
+    expect(errors[0]?.constraints).toHaveProperty("max");
   });
 });

@@ -317,8 +317,8 @@ One task group = one branch = one PR to `development`. Execution order is in
     toggle % / Rp. Additive migration. Golden test on a hand-computed
     schedule. (D11, US-ASSET-6)
 
-- [ ] ### E — Pajak numeric-string robustness (item 8)
-  - **E1** — Frontend (`tax/page.tsx:261-274`): build the payload from
+- [x] ### E — Pajak numeric-string robustness (item 8) ✅
+  - **E1** — [x] Frontend (`tax/page.tsx:261-274`): build the payload from
     `parseRupiah` digits directly (never `String(float)`), with an upper bound
     guard. API: `@Max`/length caps on `create-tax-record.dto.ts` +
     `pph21.dto.ts`, friendlier message; surface server errors in the toast.
@@ -752,3 +752,6 @@ the N1 prototype has an approval recorded in the Automation Log.
 - 2026-08-11 /epic-loop EPIC-024 #B "PIN/buka cepat nginx routes + error
   surfacing" → PASS (attempts: 1). B1/B2 landed; B3 (DEV nginx smoke) pending
   epic-wide deploy. PR: https://github.com/andrsrjld/wealthme-web/pull/255
+- 2026-08-11 /epic-loop EPIC-024 #E "Pajak numeric-string robustness" → PASS
+  (attempts: 2; attempt 1 failed review gate for missing boundary test
+  coverage, fixed in attempt 2). PR: https://github.com/andrsrjld/wealthme-web/pull/256
