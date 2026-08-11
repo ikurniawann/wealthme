@@ -25,6 +25,7 @@ import type {
   SplitBillDto,
   CreateSplitBillDto,
   SplitParticipantDto,
+  UpdatePayoutAccountDto,
 } from "@wealthme/contracts";
 
 const FIELD_CLASS =
@@ -76,6 +77,10 @@ export default function SplitBillPage() {
     participantId: string;
     participantName: string;
   } | null>(null);
+  // Group F (task F3) — repairs a bill whose payoutAccountId is null or
+  // points at a deleted account.
+  const [editPayoutOpen, setEditPayoutOpen] = useState(false);
+  const [editPayoutAccountId, setEditPayoutAccountId] = useState("");
 
   // Create modal state
   const [title, setTitle] = useState("");
@@ -295,8 +300,53 @@ export default function SplitBillPage() {
     },
   });
 
+  // Group F (task F3) — repairs a bill whose payoutAccountId is null or
+  // points at a deleted account (create() requires one, but there was no
+  // way to fix it afterward). Same tenant-scoped endpoint as create().
+  const updatePayoutAccountMutation = useMutation({
+    mutationFn: ({
+      splitId,
+      dto,
+    }: {
+      splitId: string;
+      dto: UpdatePayoutAccountDto;
+    }) =>
+      apiFetch<SplitBillDto>(
+        `/family-groups/${familyGroupId}/split-bills/${splitId}`,
+        { method: "PATCH", token, body: JSON.stringify(dto) },
+      ),
+    onSuccess: (updated) => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.splitBills.list(familyGroupId ?? ""),
+      });
+      setSelectedSplit((prev) =>
+        prev && prev.id === updated.id ? updated : prev,
+      );
+      toast.success(t.splitbill.toastPayoutAccountUpdated);
+      setEditPayoutOpen(false);
+    },
+    onError: (err: { message?: string }) => {
+      toast.error(
+        err.message ?? t.splitbill.toastPayoutAccountUpdateFailedDefault,
+      );
+    },
+  });
+
   function handleRevoke(split: SplitBillDto) {
     setRevokeTarget(split);
+  }
+
+  function handleOpenEditPayout(split: SplitBillDto) {
+    setEditPayoutAccountId(split.payoutAccountId ?? "");
+    setEditPayoutOpen(true);
+  }
+
+  function handleSavePayoutAccount() {
+    if (!selectedSplit || !editPayoutAccountId) return;
+    updatePayoutAccountMutation.mutate({
+      splitId: selectedSplit.id,
+      dto: { payoutAccountId: editPayoutAccountId },
+    });
   }
 
   function handleCreate() {
@@ -658,47 +708,52 @@ export default function SplitBillPage() {
               </label>
               <div className="space-y-2">
                 {participants.map((p) => (
-                  <div key={p.localId} className="flex items-center gap-2">
+                  <div
+                    key={p.localId}
+                    className="flex flex-wrap items-center gap-2"
+                  >
                     <input
                       type="text"
                       value={p.name}
                       onChange={(e) =>
                         renameParticipant(p.localId, e.target.value)
                       }
-                      className={"flex-1 " + FIELD_CLASS}
+                      className={"min-w-0 flex-1 basis-[120px] " + FIELD_CLASS}
                     />
-                    {method === "equal" ? (
-                      <span className="w-[88px] shrink-0 text-right text-[12.5px] font-semibold text-primary">
-                        {formatRupiah(perPerson)}
-                      </span>
-                    ) : (
-                      <div className="flex w-[100px] shrink-0 items-center gap-1 rounded-md border bg-background px-2 py-1.5 focus-within:border-primary">
-                        <span className="text-[11px] text-muted-foreground">
-                          Rp
+                    <div className="ml-auto flex shrink-0 items-center gap-2">
+                      {method === "equal" ? (
+                        <span className="text-right text-[12.5px] font-semibold whitespace-nowrap text-primary">
+                          {formatRupiah(perPerson)}
                         </span>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={customAmounts[p.localId] ?? ""}
-                          onChange={(e) =>
-                            setCustomAmounts((prev) => ({
-                              ...prev,
-                              [p.localId]: formatAmountInput(e.target.value),
-                            }))
-                          }
-                          placeholder="0"
-                          className="w-full bg-transparent text-[12px] outline-none"
-                        />
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => removeParticipant(p.localId)}
-                      className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                      aria-label={`${t.splitbill.removeParticipantAriaPrefix}${p.name}`}
-                    >
-                      <X className="size-4" />
-                    </button>
+                      ) : (
+                        <div className="flex w-[92px] shrink-0 items-center gap-1 rounded-md border bg-background px-2 py-1.5 focus-within:border-primary">
+                          <span className="text-[11px] text-muted-foreground">
+                            Rp
+                          </span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={customAmounts[p.localId] ?? ""}
+                            onChange={(e) =>
+                              setCustomAmounts((prev) => ({
+                                ...prev,
+                                [p.localId]: formatAmountInput(e.target.value),
+                              }))
+                            }
+                            placeholder="0"
+                            className="w-full min-w-0 bg-transparent text-[12px] outline-none"
+                          />
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeParticipant(p.localId)}
+                        className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                        aria-label={`${t.splitbill.removeParticipantAriaPrefix}${p.name}`}
+                      >
+                        <X className="size-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -813,6 +868,23 @@ export default function SplitBillPage() {
                 </div>
               )}
 
+              {/* Group F (task F3) — repairable: legacy bills (or a bill
+                  whose payout account was later deleted) can have a null
+                  payoutAccountId. create() requires one, so this is the
+                  only way to fix it after the fact. */}
+              {!selectedSplit.payoutAccountId && (
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-[10px] bg-warning-soft px-3.5 py-2.5 text-[12px] text-warning">
+                  <span>{t.splitbill.payoutAccountMissingNotice}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEditPayout(selectedSplit)}
+                    className="shrink-0 cursor-pointer rounded-md border border-warning/40 px-2.5 py-1 text-[11px] font-semibold text-warning transition-colors hover:bg-warning/10"
+                  >
+                    {t.splitbill.editPayoutAccountButton}
+                  </button>
+                </div>
+              )}
+
               <div className="mb-4 rounded-[14px] bg-accent p-[18px] text-center">
                 <div className="text-[11px] text-muted-foreground">
                   {t.splitbill.fieldTotalLabel}
@@ -836,7 +908,7 @@ export default function SplitBillPage() {
                 {selectedSplit.participants.map((p, i) => (
                   <div
                     key={p.id}
-                    className="flex items-center gap-3 border-b py-2.5 last:border-b-0"
+                    className="flex flex-wrap items-center gap-2 border-b py-2.5 last:border-b-0"
                   >
                     <div
                       className="flex size-9 shrink-0 items-center justify-center rounded-full text-[13px] font-bold text-white"
@@ -847,54 +919,104 @@ export default function SplitBillPage() {
                     >
                       {p.name.charAt(0).toUpperCase()}
                     </div>
-                    <div className="flex-1">
-                      <div className="text-[13px] font-semibold">{p.name}</div>
+                    <div className="min-w-0 flex-1 basis-[100px]">
+                      <div className="truncate text-[13px] font-semibold">
+                        {p.name}
+                      </div>
                       <div className="text-[11px] text-muted-foreground">
                         {formatRupiah(Number(BigInt(p.amountOwed)))}
                       </div>
                     </div>
-                    {p.status === "claimed" && (
-                      <StatusBadge variant="warning">
-                        {t.splitbill.claimedBadge}
-                      </StatusBadge>
-                    )}
-                    {p.status === "paid" ? (
-                      <StatusBadge variant="success">
-                        {t.splitbill.paidBadge}
-                      </StatusBadge>
-                    ) : (
+                    <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2">
+                      {p.status === "claimed" && (
+                        <StatusBadge variant="warning">
+                          {t.splitbill.claimedBadge}
+                        </StatusBadge>
+                      )}
+                      {p.status === "paid" ? (
+                        <StatusBadge variant="success">
+                          {t.splitbill.paidBadge}
+                        </StatusBadge>
+                      ) : (
+                        <button
+                          onClick={() =>
+                            setConfirmTarget({
+                              splitId: selectedSplit.id,
+                              participantId: p.id,
+                              participantName: p.name,
+                            })
+                          }
+                          disabled={confirmMutation.isPending}
+                          className="shrink-0 cursor-pointer rounded-md border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-success hover:text-success disabled:opacity-50"
+                        >
+                          {t.splitbill.markPaidButton}
+                        </button>
+                      )}
                       <button
-                        onClick={() =>
-                          setConfirmTarget({
-                            splitId: selectedSplit.id,
-                            participantId: p.id,
-                            participantName: p.name,
-                          })
+                        onClick={() => handleShareLink(p)}
+                        disabled={Boolean(selectedSplit.revokedAt)}
+                        aria-label={`${t.splitbill.participantLinkLabel}${p.name}`}
+                        title={
+                          selectedSplit.revokedAt
+                            ? t.splitbill.copyDisabledRevokedTitle
+                            : undefined
                         }
-                        disabled={confirmMutation.isPending}
-                        className="shrink-0 cursor-pointer rounded-md border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-success hover:text-success disabled:opacity-50"
+                        className="shrink-0 cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        {t.splitbill.markPaidButton}
+                        <Link2 className="size-3.5" />
                       </button>
-                    )}
-                    <button
-                      onClick={() => handleShareLink(p)}
-                      disabled={Boolean(selectedSplit.revokedAt)}
-                      aria-label={`${t.splitbill.participantLinkLabel}${p.name}`}
-                      title={
-                        selectedSplit.revokedAt
-                          ? t.splitbill.copyDisabledRevokedTitle
-                          : undefined
-                      }
-                      className="shrink-0 cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      <Link2 className="size-3.5" />
-                    </button>
+                    </div>
                   </div>
                 ))}
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Group F (task F3) — repair the payout account for a bill whose
+          payoutAccountId is null or points at a deleted account. */}
+      <Dialog open={editPayoutOpen} onOpenChange={setEditPayoutOpen}>
+        <DialogContent className="max-w-[min(420px,calc(100%-2rem))] p-6 sm:max-w-[min(420px,calc(100%-2rem))]">
+          <DialogTitle className="mb-4 text-[17px] font-extrabold">
+            {t.splitbill.editPayoutAccountTitle}
+          </DialogTitle>
+          <div className="space-y-4">
+            <div>
+              <label
+                htmlFor="edit-payout-account"
+                className="mb-1.5 block text-[12.5px] font-semibold"
+              >
+                {t.splitbill.fieldPayoutAccountLabel}
+              </label>
+              <select
+                id="edit-payout-account"
+                value={editPayoutAccountId}
+                onChange={(e) => setEditPayoutAccountId(e.target.value)}
+                className={FIELD_CLASS}
+              >
+                <option value="">
+                  {t.splitbill.fieldPayoutAccountPlaceholder}
+                </option>
+                {accounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Button
+              onClick={handleSavePayoutAccount}
+              disabled={
+                !editPayoutAccountId || updatePayoutAccountMutation.isPending
+              }
+              className="w-full"
+            >
+              {updatePayoutAccountMutation.isPending
+                ? t.splitbill.savingPayoutAccountLabel
+                : t.splitbill.savePayoutAccountButton}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 

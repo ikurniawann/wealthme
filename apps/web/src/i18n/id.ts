@@ -2067,6 +2067,15 @@ export const id = {
     fieldPayoutInstructionsLabel: "Instruksi Pembayaran (opsional)",
     fieldPayoutInstructionsPlaceholder: "cth: GoPay 0812-xxx-xxx a.n. Budi",
     toastPayoutAccountRequired: "Pilih rekening tujuan pembayaran",
+    payoutAccountMissingNotice:
+      "Split bill ini belum punya rekening tujuan pembayaran (atau rekeningnya sudah dihapus). Atur dulu supaya peserta bisa lihat cara bayar dan pembayaran bisa dikonfirmasi.",
+    editPayoutAccountButton: "Atur Rekening Tujuan",
+    editPayoutAccountTitle: "Atur Rekening Tujuan Pembayaran",
+    savePayoutAccountButton: "Simpan Rekening",
+    savingPayoutAccountLabel: "Menyimpan...",
+    toastPayoutAccountUpdated: "Rekening tujuan pembayaran diperbarui",
+    toastPayoutAccountUpdateFailedDefault:
+      "Gagal memperbarui rekening tujuan pembayaran",
     claimedBadge: "Klaim Terkirim",
     revokeButton: "Cabut Semua Link",
     revokeConfirmMessage:

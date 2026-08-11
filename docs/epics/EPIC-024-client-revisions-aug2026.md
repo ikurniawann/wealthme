@@ -324,16 +324,17 @@ One task group = one branch = one PR to `development`. Execution order is in
     `pph21.dto.ts`, friendlier message; surface server errors in the toast.
     (US-TAX-1, US-AUTH-11)
 
-- [ ] ### F — Split bill: public URL, dialog responsif, edit rekening tujuan (items 9, 16)
-  - **F1** — Add `/split` to the middleware allowlist
-    (`apps/web/src/middleware.ts`) — the page and API are already designed
-    public. (US-SPLIT-8)
-  - **F2** — Rework both dialogs (`splitbill/page.tsx:543-899`) for ≤375px:
+- [x] ### F — Split bill: public URL, dialog responsif, edit rekening tujuan (items 9, 16) ✅
+  - **F1** — [x] Add `/split/` (trailing slash — a bare `/split` prefix leaked
+    the authenticated `/splitbill` dashboard, caught in review) to the
+    middleware allowlist (`apps/web/src/middleware.ts`) — the page and API are
+    already designed public. (US-SPLIT-8)
+  - **F2** — [x] Rework both dialogs (`splitbill/page.tsx:543-899`) for ≤375px:
     stack/wrap the participant rows, flexible field widths, breakpoint the
     `grid-cols-3` header. No horizontal scrolling anywhere. (US-SPLIT-7)
-  - **F3** — `PATCH /split-bills/:id` accepting `payoutAccountId` + edit UI in
-    the detail dialog — makes legacy bills with null/deleted payout repairable.
-    (US-SPLIT-9)
+  - **F3** — [x] `PATCH /split-bills/:id` accepting `payoutAccountId` + edit UI
+    in the detail dialog — makes legacy bills with null/deleted payout
+    repairable. (US-SPLIT-9)
 
 - [ ] ### G — Liabilitas: detail/edit/hapus/bayar UI wiring (items 12, 34)
   - **G1** — Per-item actions on `LiabilityCard` (reuse the `RowActions`
@@ -755,3 +756,9 @@ the N1 prototype has an approval recorded in the Automation Log.
 - 2026-08-11 /epic-loop EPIC-024 #E "Pajak numeric-string robustness" → PASS
   (attempts: 2; attempt 1 failed review gate for missing boundary test
   coverage, fixed in attempt 2). PR: https://github.com/andrsrjld/wealthme-web/pull/256
+- 2026-08-11 /epic-loop EPIC-024 #F "Split bill: public URL, dialog responsif,
+  edit rekening tujuan" → PASS (attempts: 2; attempt 1 failed review gate
+  CRITICAL — `pathname.startsWith("/split")` leaked the authenticated
+  `/splitbill` dashboard past the session-cookie check; fixed to `/split/`
+  trailing-slash; also missing PATCH endpoint test coverage, added). PR:
+  https://github.com/andrsrjld/wealthme-web/pull/257

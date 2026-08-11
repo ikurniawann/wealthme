@@ -2061,6 +2061,14 @@ export const en = {
     fieldPayoutInstructionsLabel: "Payment Instructions (optional)",
     fieldPayoutInstructionsPlaceholder: "e.g. GoPay 0812-xxx-xxx to Budi",
     toastPayoutAccountRequired: "Select a payout account",
+    payoutAccountMissingNotice:
+      "This split bill has no payout account (or its account was deleted). Set one so participants can see how to pay and payments can be confirmed.",
+    editPayoutAccountButton: "Set Payout Account",
+    editPayoutAccountTitle: "Set Payout Account",
+    savePayoutAccountButton: "Save Account",
+    savingPayoutAccountLabel: "Saving...",
+    toastPayoutAccountUpdated: "Payout account updated",
+    toastPayoutAccountUpdateFailedDefault: "Failed to update payout account",
     claimedBadge: "Claim Sent",
     revokeButton: "Revoke All Links",
     revokeConfirmMessage:

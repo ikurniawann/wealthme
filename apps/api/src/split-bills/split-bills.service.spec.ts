@@ -151,6 +151,70 @@ describe("SplitBillsService", () => {
     });
   });
 
+  describe("updatePayoutAccount", () => {
+    const OTHER_ACCOUNT = {
+      ...ACCOUNT,
+      id: "acc-other-group",
+      familyGroupId: "fg-2",
+    };
+
+    it("updates the bill's payout account and returns it", async () => {
+      prisma.splitBill.findUnique.mockResolvedValue(BILL);
+      prisma.account.findUnique.mockResolvedValue(OTHER_ACCOUNT); // account belongs to fg-1 in reality, just reusing shape
+      prisma.splitBill.update.mockResolvedValue({
+        ...BILL,
+        payoutAccountId: OTHER_ACCOUNT.id,
+        participants: [PARTICIPANT],
+      });
+
+      const result = await service.updatePayoutAccount(
+        FAMILY_GROUP_ID,
+        BILL.id,
+        {
+          payoutAccountId: OTHER_ACCOUNT.id,
+        },
+      );
+
+      expect(result.payoutAccountId).toBe(OTHER_ACCOUNT.id);
+      expect(prisma.splitBill.update).toHaveBeenCalledWith({
+        where: { id: BILL.id, familyGroupId: FAMILY_GROUP_ID },
+        data: { payoutAccountId: OTHER_ACCOUNT.id },
+        include: expect.anything(),
+      });
+    });
+
+    it("throws NotFoundException when the bill is not in this family group", async () => {
+      prisma.splitBill.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.updatePayoutAccount(FAMILY_GROUP_ID, "other-bill", {
+          payoutAccountId: ACCOUNT.id,
+        }),
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.account.findUnique).not.toHaveBeenCalled();
+      expect(prisma.splitBill.update).not.toHaveBeenCalled();
+    });
+
+    // Tenant-scoping proof — the target account belongs to a DIFFERENT
+    // family group. `account.findUnique` is scoped by both id AND
+    // familyGroupId (same convention as create()), so a cross-tenant
+    // account id resolves to null and must be rejected.
+    it("rejects a payout account that belongs to a different family group (tenant scoping)", async () => {
+      prisma.splitBill.findUnique.mockResolvedValue(BILL);
+      prisma.account.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.updatePayoutAccount(FAMILY_GROUP_ID, BILL.id, {
+          payoutAccountId: OTHER_ACCOUNT.id,
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.account.findUnique).toHaveBeenCalledWith({
+        where: { id: OTHER_ACCOUNT.id, familyGroupId: FAMILY_GROUP_ID },
+      });
+      expect(prisma.splitBill.update).not.toHaveBeenCalled();
+    });
+  });
+
   describe("getPublicParticipant", () => {
     it("returns only this participant's own share — no familyGroupId, bill id, or siblings", async () => {
       prisma.splitParticipant.findUnique.mockResolvedValue({

@@ -20,6 +20,7 @@ import type {
   SplitBillResponseDto,
   SplitParticipantResponseDto,
 } from "./dto/split-bill-response.dto";
+import type { UpdatePayoutAccountDto } from "./dto/update-payout-account.dto";
 
 type ParticipantRow = {
   id: string;
@@ -201,6 +202,39 @@ export class SplitBillsService {
     });
     if (!row) throw new NotFoundException("Split bill not found");
     return toSplitBillDto(row as SplitBillRow);
+  }
+
+  /**
+   * Group F (task F3) — repairs a bill whose payoutAccountId is null or
+   * points at a deleted account (create() required one, but there was no
+   * way to fix it afterward). Same tenant scoping as create(): the account
+   * must belong to THIS family group.
+   */
+  async updatePayoutAccount(
+    familyGroupId: string,
+    id: string,
+    dto: UpdatePayoutAccountDto,
+  ): Promise<SplitBillResponseDto> {
+    const existing = await this.prisma.splitBill.findUnique({
+      where: { id, familyGroupId },
+    });
+    if (!existing) throw new NotFoundException("Split bill not found");
+
+    const payoutAccount = await this.prisma.account.findUnique({
+      where: { id: dto.payoutAccountId, familyGroupId },
+    });
+    if (!payoutAccount) {
+      throw new BadRequestException(
+        `Payout account ${dto.payoutAccountId} not found in this family group`,
+      );
+    }
+
+    const updated = await this.prisma.splitBill.update({
+      where: { id, familyGroupId },
+      data: { payoutAccountId: dto.payoutAccountId },
+      include: PARTICIPANT_INCLUDE,
+    });
+    return toSplitBillDto(updated as SplitBillRow);
   }
 
   /**

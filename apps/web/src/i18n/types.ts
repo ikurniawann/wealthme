@@ -1982,6 +1982,17 @@ export type I18nDictionary = {
     fieldPayoutInstructionsLabel: string;
     fieldPayoutInstructionsPlaceholder: string;
     toastPayoutAccountRequired: string;
+    /**
+     * Group F (task F3) — repair UI for a bill whose payoutAccountId is
+     * null or points at a deleted account.
+     */
+    payoutAccountMissingNotice: string;
+    editPayoutAccountButton: string;
+    editPayoutAccountTitle: string;
+    savePayoutAccountButton: string;
+    savingPayoutAccountLabel: string;
+    toastPayoutAccountUpdated: string;
+    toastPayoutAccountUpdateFailedDefault: string;
     claimedBadge: string;
     revokeButton: string;
     revokeConfirmMessage: string;

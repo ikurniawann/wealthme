@@ -52,6 +52,13 @@ export interface CreateSplitBillDto {
   participants: CreateSplitParticipantDto[];
 }
 
+// Group F (task F3) — repairs a bill whose payoutAccountId is null or
+// points at a deleted account (create() requires one, but there was no
+// PATCH endpoint to fix it afterward).
+export interface UpdatePayoutAccountDto {
+  payoutAccountId: string;
+}
+
 // EPIC-023 F3 — the payment destination rendered on a recipient's own
 // public share link ("how to pay"). All fields are already non-sensitive
 // display data (an account's name/institution/masked number, or the

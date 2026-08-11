@@ -32,6 +32,8 @@ import {
   SplitParticipantResponseDto,
 } from "./dto/split-bill-response.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { UpdatePayoutAccountDto } from "./dto/update-payout-account.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { SplitBillsService } from "./split-bills.service";
 
 @ApiTags("split-bills")
@@ -84,6 +86,26 @@ export class SplitBillsController {
     @Param("id") id: string,
   ): Promise<SplitBillResponseDto> {
     return this.splitBillsService.findOne(familyGroupId, id);
+  }
+
+  // Group F (task F3) — repairs a bill with a null/deleted payoutAccountId.
+  // create() requires an account up front, so legacy bills that predate F3
+  // (or whose account was later deleted) had no way to be fixed. Same
+  // "manage" grant as every other write on this subject.
+  @Patch("family-groups/:familyGroupId/split-bills/:id")
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "SplitBill"))
+  @ApiBearerAuth()
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "id", type: String })
+  @ApiOperation({ summary: "Set/repair a split bill's payout account" })
+  @ApiResponse({ status: 200, type: SplitBillResponseDto })
+  @ApiResponse({ status: 404, description: "Split bill not found" })
+  updatePayoutAccount(
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("id") id: string,
+    @Body() dto: UpdatePayoutAccountDto,
+  ): Promise<SplitBillResponseDto> {
+    return this.splitBillsService.updatePayoutAccount(familyGroupId, id, dto);
   }
 
   @Delete("family-groups/:familyGroupId/split-bills/:id")
