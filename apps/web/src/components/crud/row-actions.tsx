@@ -1,7 +1,7 @@
 "use client";
 
 import type { MouseEvent } from "react";
-import { Pencil, Trash2, Banknote } from "lucide-react";
+import { Pencil, Trash2, Banknote, Info } from "lucide-react";
 
 interface RowActionsProps {
   onEdit: () => void;
@@ -63,6 +63,11 @@ export function RowActions({
 interface CardSideActionsProps {
   onEdit: () => void;
   onDelete: () => void;
+  /**
+   * EPIC-024 group G — optional "detail" action (liabilitas cards): opens a
+   * read-only dialog with the item's full info + amortisation summary.
+   */
+  onDetail?: () => void;
   /** Optional "bayar" action (liabilitas/asuransi cards). */
   onPay?: () => void;
   /**
@@ -82,12 +87,24 @@ interface CardSideActionsProps {
 export function CardSideActions({
   onEdit,
   onDelete,
+  onDetail,
   onPay,
   payDisabled = false,
   payDisabledLabel,
 }: CardSideActionsProps) {
   return (
     <div className="flex shrink-0 flex-col justify-center gap-1.5 border-l pl-2.5">
+      {onDetail && (
+        <button
+          type="button"
+          aria-label="Detail"
+          title="Detail"
+          onClick={onDetail}
+          className="flex size-[34px] items-center justify-center rounded-[9px] bg-muted text-muted-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
+        >
+          <Info className="size-3.5" />
+        </button>
+      )}
       <button
         type="button"
         aria-label="Edit"

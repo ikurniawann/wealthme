@@ -1300,6 +1300,7 @@ export type I18nDictionary = {
     toastAddFailed: string;
     errorLoad: string;
     modalTitle: string;
+    modalEditTitle: string;
     modalCloseAriaLabel: string;
     fieldNameLabel: string;
     fieldNamePlaceholder: string;
@@ -1335,6 +1336,39 @@ export type I18nDictionary = {
     dtaRatioLabel: string;
     addButton: string;
     emptyState: string;
+    /** EPIC-024 group G — per-item Detail/Edit/Hapus/Bayar wiring (US-LIAB-6). */
+    toastUpdated: string;
+    toastUpdateFailed: string;
+    toastDeleted: string;
+    toastDeleteFailed: string;
+    deleteConfirmBody: string;
+    detailDialogTitle: string;
+    detailInstitutionLabel: string;
+    detailTypeLabel: string;
+    detailStatusLabel: string;
+    detailPaidThisPeriodLabel: string;
+    detailNotPaidThisPeriodLabel: string;
+    detailCloseButton: string;
+    amortisationTitle: string;
+    amortisationMonthlyInterestLabel: string;
+    amortisationMonthlyPrincipalLabel: string;
+    amortisationEstimatedPayoffPrefix: string;
+    amortisationEstimatedPayoffSuffix: string;
+    amortisationNoPayoffNote: string;
+    amortisationUnavailableNote: string;
+    amortisationDisclaimer: string;
+    payDialogTitle: string;
+    payAmountLabel: string;
+    payPrincipalPreviewLabel: string;
+    payInterestPreviewLabel: string;
+    paySourceAccountLabel: string;
+    paySourceAccountPlaceholder: string;
+    payAlreadyPaidTooltip: string;
+    payProcessing: string;
+    payConfirmButton: string;
+    toastPaid: string;
+    toastPayFailed: string;
+    validationPayAmountPositive: string;
   };
   /**
    * EPIC-018 Task A5 — `/masterdata` page copy. `REFERENCE_GROUPS` in the

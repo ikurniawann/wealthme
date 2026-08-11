@@ -354,12 +354,13 @@ One task group = one branch = one PR to `development`. Execution order is in
     in the detail dialog — makes legacy bills with null/deleted payout
     repairable. (US-SPLIT-9)
 
-- [ ] ### G — Liabilitas: detail/edit/hapus/bayar UI wiring (items 12, 34)
-  - **G1** — Per-item actions on `LiabilityCard` (reuse the `RowActions`
-    pattern from `warisan/page.tsx:178`): **Detail** (dialog with info +
-    amortisation summary), **Edit** (`PATCH /:id`), **Hapus** (`DELETE` +
-    confirm), **Bayar** (`POST /:id/pay` with principal/interest split and
-    source-account picker — endpoint built by EPIC-023 E). (US-LIAB-6)
+- [x] ### G — Liabilitas: detail/edit/hapus/bayar UI wiring (items 12, 34) ✅
+  - **G1** — [x] Per-item actions on `LiabilityCard` (`CardSideActions`
+    pattern): **Detail** (dialog with info + honestly-labeled amortisation
+    estimate), **Edit** (`PATCH /:id`), **Hapus** (`DELETE` + confirm),
+    **Bayar** (`POST /:id/pay` with principal/interest split and
+    source-account picker — endpoint built by EPIC-023 E). All 4 mutations
+    invalidate net-worth/dashboard caches consistently. (US-LIAB-6)
 
 - [x] ### H — Warisan: heir relationship validation + error surfacing (item 15) ✅
   - **H1** — [x] Require relationship in the form before submit (or filter
@@ -820,3 +821,9 @@ the N1 prototype has an approval recorded in the Automation Log.
   tetap" → PASS (attempts: 1). Golden values: Rp 50jt at -Rp 5jt/thn × 3yr =
   Rp 35jt; × 11yr floors at Rp 0. Migration staged, not applied. PR:
   https://github.com/andrsrjld/wealthme-web/pull/263
+- 2026-08-11/12 /epic-loop EPIC-024 #G "Liabilitas: detail/edit/hapus/bayar UI
+  wiring" → PASS (attempts: 2; attempt 1 failed HIGH — create/edit/delete
+  didn't invalidate net-worth/dashboard caches like pay did, plus missing
+  test coverage on the money-adjacent pay flow — fixed in attempt 2 with a
+  shared invalidation helper and 6 new tests). PR:
+  https://github.com/andrsrjld/wealthme-web/pull/264
