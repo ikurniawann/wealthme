@@ -79,7 +79,7 @@ export const id = {
     search: "Cari",
     notifications: "Notifikasi",
     addTransaction: "Tambah transaksi",
-    searchPlaceholder: "Cari transaksi, rekening...",
+    searchPlaceholder: "Cari transaksi, bank & account...",
     logout: "Keluar",
     navSectionHeaders: {
       keuangan: "Keuangan",
@@ -93,8 +93,8 @@ export const id = {
       laporan: "Laporan",
       tujuan: "Tujuan Keuangan",
       notifikasi: "Notifikasi",
-      dana: "Tunai",
-      rekening: "Rekening",
+      dana: "Cash & E-Wallet",
+      rekening: "Bank & Account",
       investasi: "Investasi",
       aset: "Aset",
       liabilitas: "Liabilitas",
@@ -139,8 +139,8 @@ export const id = {
       laporan: "Laporan",
       tujuan: "Tujuan Keuangan",
       notifikasi: "Notifikasi",
-      dana: "Tunai",
-      rekening: "Rekening",
+      dana: "Cash & E-Wallet",
+      rekening: "Bank & Account",
       investasi: "Investasi",
       aset: "Aset Saya",
       liabilitas: "Liabilitas",
@@ -240,8 +240,8 @@ export const id = {
       title: "Tema Warna",
     },
     searchDialog: {
-      ariaLabel: "Cari transaksi, rekening, menu",
-      placeholder: "Cari transaksi, rekening, menu...",
+      ariaLabel: "Cari transaksi, bank & account, menu",
+      placeholder: "Cari transaksi, bank & account, menu...",
       dialogTitle: "Pencarian",
       financialResultsHeader: "Hasil dari Data Keuangan",
       noResultsFor: "Tidak ada hasil untuk",
@@ -734,11 +734,11 @@ export const id = {
         desc: "Butuh versi ringkas? Halaman ini menampilkan komposisi aset dan statistik kunci tanpa detail beranda.",
       },
       rekening: {
-        title: "Rekening",
+        title: "Bank & Account",
         desc: 'Klik "Tambah" untuk mendaftarkan rekening bank pertamamu — saldonya otomatis masuk ke kekayaan bersih dan mutasinya tercatat per rekening.',
       },
       dana: {
-        title: "Tunai",
+        title: "Cash & E-Wallet",
         desc: "Tambahkan saldo kas tunai atau e-wallet (GoPay, OVO, DANA) yang belum tercatat di rekening bank.",
       },
       masterdata: {
@@ -1054,7 +1054,7 @@ export const id = {
     cards: {
       transaksi: { name: "Transaksi", desc: "Pemasukan / pengeluaran" },
       investasi: { name: "Investasi", desc: "Saham, reksa dana, emas" },
-      rekening: { name: "Rekening", desc: "Tambah rekening bank" },
+      rekening: { name: "Bank & Account", desc: "Tambah rekening bank" },
       ewallet: { name: "E-Wallet", desc: "GoPay, OVO, DANA" },
       aset: { name: "Aset", desc: "Properti, kendaraan" },
       liabilitas: { name: "Liabilitas", desc: "Utang & cicilan" },
@@ -1197,8 +1197,8 @@ export const id = {
   aset: {
     tabs: {
       semua: "Semua",
-      dana: "Tunai & E-Wallet",
-      rekening: "Rekening",
+      dana: "Cash & E-Wallet",
+      rekening: "Bank & Account",
       investasi: "Investasi",
       fisik: "Aset Fisik",
     },
@@ -1251,8 +1251,8 @@ export const id = {
     saveButton: "Simpan Aset",
     physicalAssetsTitle: "Aset Fisik",
     danaRekeningTitle: "Semua Akun",
-    danaTitle: "Tunai & E-Wallet",
-    rekeningTitle: "Rekening",
+    danaTitle: "Cash & E-Wallet",
+    rekeningTitle: "Bank & Account",
     investmentsTitle: "Investasi",
     emptyPhysical: "Belum ada aset fisik.",
     emptyDanaRekening: "Belum ada akun dalam kategori ini.",
@@ -1501,7 +1501,7 @@ export const id = {
     relativeDaysSuffix: " hari lalu",
   },
   dana: {
-    totalLabel: "💵 Total Tunai & E-Wallet",
+    totalLabel: "💵 Total Cash & E-Wallet",
     loadingLabel: "Memuat...",
     accountsConnectedSuffix: " akun terhubung",
     errorPrefixLabel: "Kesalahan: ",
@@ -1691,7 +1691,7 @@ export const id = {
   },
   rekening: {
     typeLabels: {
-      bank: "Tabungan",
+      bank: "Bank",
       ewallet: "E-Wallet",
       cash: "Tunai",
       investment: "Investasi",

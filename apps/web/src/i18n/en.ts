@@ -93,8 +93,8 @@ export const en = {
       laporan: "Reports",
       tujuan: "Financial Goals",
       notifikasi: "Notifications",
-      dana: "Cash",
-      rekening: "Bank Accounts",
+      dana: "Cash & E-Wallet",
+      rekening: "Bank & Account",
       investasi: "Investments",
       aset: "Assets",
       liabilitas: "Liabilities",
@@ -139,8 +139,8 @@ export const en = {
       laporan: "Reports",
       tujuan: "Financial Goals",
       notifikasi: "Notifications",
-      dana: "Cash",
-      rekening: "Bank Accounts",
+      dana: "Cash & E-Wallet",
+      rekening: "Bank & Account",
       investasi: "Investments",
       aset: "My Assets",
       liabilitas: "Liabilities",
@@ -734,11 +734,11 @@ export const en = {
         desc: "Need a shorter version? This page shows asset composition and key stats without the Home page's detail.",
       },
       rekening: {
-        title: "Bank Accounts",
+        title: "Bank & Account",
         desc: 'Click "Add" to register your first bank account — its balance automatically flows into net worth and its mutations are tracked per account.',
       },
       dana: {
-        title: "Cash",
+        title: "Cash & E-Wallet",
         desc: "Add cash or e-wallet balances (GoPay, OVO, DANA) that aren't already tracked in a bank account.",
       },
       masterdata: {
@@ -1051,7 +1051,7 @@ export const en = {
     cards: {
       transaksi: { name: "Transaction", desc: "Income / expense" },
       investasi: { name: "Investment", desc: "Stocks, mutual funds, gold" },
-      rekening: { name: "Bank Account", desc: "Add a bank account" },
+      rekening: { name: "Bank & Account", desc: "Add a bank account" },
       ewallet: { name: "E-Wallet", desc: "GoPay, OVO, DANA" },
       aset: { name: "Asset", desc: "Property, vehicle" },
       liabilitas: { name: "Liability", desc: "Debt & installments" },
@@ -1194,7 +1194,7 @@ export const en = {
     tabs: {
       semua: "All",
       dana: "Cash & E-Wallet",
-      rekening: "Bank Accounts",
+      rekening: "Bank & Account",
       investasi: "Investments",
       fisik: "Physical Assets",
     },
@@ -1248,7 +1248,7 @@ export const en = {
     physicalAssetsTitle: "Physical Assets",
     danaRekeningTitle: "All Accounts",
     danaTitle: "Cash & E-Wallet",
-    rekeningTitle: "Bank Accounts",
+    rekeningTitle: "Bank & Account",
     investmentsTitle: "Investments",
     emptyPhysical: "No physical assets yet.",
     emptyDanaRekening: "No accounts in this category yet.",
@@ -1685,7 +1685,7 @@ export const en = {
   },
   rekening: {
     typeLabels: {
-      bank: "Savings",
+      bank: "Bank",
       ewallet: "E-Wallet",
       cash: "Cash",
       investment: "Investment",

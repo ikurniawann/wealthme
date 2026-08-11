@@ -363,8 +363,8 @@ One task group = one branch = one PR to `development`. Execution order is in
     rewrite `masterdata/page.tsx` against the API — no more fake local
     deletes, no more "bawaan sistem" toast. (D14, US-MD-1)
 
-- [ ] ### K — Labels: "Cash & E-Wallet" / "Bank & Account" (items 29, 30)
-  - **K1** — `i18n/id.ts` + `en.ts` (structures must stay identical per
+- [x] ### K — Labels: "Cash & E-Wallet" / "Bank & Account" (items 29, 30) ✅
+  - **K1** — [x] `i18n/id.ts` + `en.ts` (structures must stay identical per
     `i18n/types.ts`): `nav.items.dana`, `pageTitles.dana`, `panduan…dana`,
     `dana.*` → "Cash & E-Wallet"; `nav.items.rekening`, `pageTitles.rekening`,
     `search…rekening`, `aset.tabs.rekening` → "Bank & Account"; also fix the
@@ -770,3 +770,9 @@ the N1 prototype has an approval recorded in the Automation Log.
   menu" → PASS (attempts: 2; attempt 1 failed for missing accessible label on
   the religion select + missing test coverage, fixed in attempt 2). PR:
   https://github.com/andrsrjld/wealthme-web/pull/259
+- 2026-08-11 /epic-loop EPIC-024 #K "Labels: Cash & E-Wallet / Bank & Account"
+  → PASS (attempts: 1; typescript-reviewer's initial HIGH on untranslated
+  id.ts strings was confirmed as intentional per D17's explicit "labels
+  exactly as written" — no locale qualification — and re-verdicted PASS on
+  clarification). **Wave 1 complete** (B, E, F, H, I, K). PR:
+  https://github.com/andrsrjld/wealthme-web/pull/260

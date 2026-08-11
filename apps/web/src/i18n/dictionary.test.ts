@@ -377,11 +377,12 @@ describe("i18n dictionary key parity", () => {
       expect(id.rekening.typeLabels[key]).toBeTruthy();
       expect(en.rekening.typeLabels[key]).toBeTruthy();
     }
-    // Regression guard: /rekening's "bank" wording is intentionally distinct
-    // from /aset's accountTypeLabels.bank — different context, different copy.
-    expect(id.rekening.typeLabels.bank).not.toBe(
-      id.aset.accountTypeLabels.bank,
-    );
+    // EPIC-024 Task K1 — /rekening's "bank" wording used to diverge from
+    // /aset's accountTypeLabels.bank ("Tabungan"/"Savings" vs "Bank").
+    // The owner's evidence says the account type is a bank account, so
+    // both surfaces now use the same "Bank" wording in each locale.
+    expect(id.rekening.typeLabels.bank).toBe(id.aset.accountTypeLabels.bank);
+    expect(en.rekening.typeLabels.bank).toBe(en.aset.accountTypeLabels.bank);
   });
 
   it("donation covers every donation type (list + select-option wording) in both locales without changing persisted values", () => {
