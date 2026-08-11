@@ -751,4 +751,4 @@ the N1 prototype has an approval recorded in the Automation Log.
   Groups A–M/N3.
 - 2026-08-11 /epic-loop EPIC-024 #B "PIN/buka cepat nginx routes + error
   surfacing" → PASS (attempts: 1). B1/B2 landed; B3 (DEV nginx smoke) pending
-  epic-wide deploy. PR: (pending push)
+  epic-wide deploy. PR: https://github.com/andrsrjld/wealthme-web/pull/255
