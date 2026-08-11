@@ -80,6 +80,13 @@ enum AssetType {
   lainnya
 }
 
+// EPIC-024 D2/US-ASSET-6: which linear projection Asset.valueChangeRatePct
+// (percent) or Asset.valueChangeAmount (fixed) computeEstimatedValue applies.
+enum AssetValueChangeMode {
+  percent
+  fixed
+}
+
 enum InvestmentType {
   saham
   reksa_dana
@@ -797,6 +804,19 @@ model Asset {
   // appreciation. Compute-on-read (see AssetsService); a snapshot still
   // lands in AssetHistory whenever currentValue itself is edited.
   valueChangeRatePct Decimal?       @db.Decimal(5, 2)
+  // EPIC-024 D2/US-ASSET-6: which linear projection computeEstimatedValue
+  // applies — "percent" reads valueChangeRatePct (existing behavior,
+  // default so every pre-existing row keeps its current projection
+  // unchanged), "fixed" reads valueChangeAmount below (a flat signed Rp/yr
+  // delta instead of a rate). Additive: DEFAULT keeps this NOT NULL without
+  // a backfill script.
+  valueChangeMode    AssetValueChangeMode @default(percent)
+  // EPIC-024 D2/US-ASSET-6: signed Rp/year delta used only when
+  // valueChangeMode is "fixed" (negative = depreciation, positive =
+  // appreciation — same sign convention as valueChangeRatePct). Linear,
+  // floored at 0 by computeEstimatedValue, never applied when mode is
+  // "percent".
+  valueChangeAmount  BigInt?
   // EPIC-023 D19/US-ASSET-4: optional date the asset was acquired, used as
   // the elapsed-time anchor for computeEstimatedValue's projection instead
   // of createdAt. Nullable and additive — existing rows keep falling back to

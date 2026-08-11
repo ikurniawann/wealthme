@@ -321,15 +321,19 @@ One task group = one branch = one PR to `development`. Execution order is in
     discarding "Nilai Sekarang" — now routes to the real `/investasi` form
     instead of the broken generic CRUD path. (Evidence #5)
 
-- [ ] ### D — Aset: privacy eye toggle + penyusutan Rp tetap (items 14, 32)
-  - **D1** — Replace the inert gembok (`aset/page.tsx:932-939`) with an
-    `Eye`/`EyeOff` toggle (`aria-pressed`, per-user localStorage) that blurs
-    all amounts on the page. (D13, US-ASSET-5)
-  - **D2** — `Asset.valueChangeMode` (`percent`|`fixed`) +
+- [x] ### D — Aset: privacy eye toggle + penyusutan Rp tetap (items 14, 32) ✅
+  - **D1** — [x] Replaced the inert gembok (`aset/page.tsx:932-939`) with an
+    `Eye`/`EyeOff` toggle (`aria-pressed`, per-user localStorage keyed
+    `wm.aset-privacy.<userId>`) that blurs all amounts on the page — all 8
+    Rupiah render sites tagged `wm-money`, single ancestor blur selector so
+    coverage can't drift. (D13, US-ASSET-5)
+  - **D2** — [x] `Asset.valueChangeMode` (`percent`|`fixed`) +
     `valueChangeAmount BigInt?`; `computeEstimatedValue`
     (`assets.service.ts:58`) handles fixed mode (linear, floor 0); form mode
-    toggle % / Rp. Additive migration. Golden test on a hand-computed
-    schedule. (D11, US-ASSET-6)
+    toggle % / Rp. Additive migration staged (not applied) at
+    `apps/api/prisma/migrations/20260807100000_epic024_d2_asset_fixed_depreciation/`.
+    Golden values: Rp 50.000.000 at −Rp 5.000.000/thn × 3yr = Rp 35.000.000;
+    × 11yr floors at Rp 0 (never negative). (D11, US-ASSET-6)
 
 - [x] ### E — Pajak numeric-string robustness (item 8) ✅
   - **E1** — [x] Frontend (`tax/page.tsx:261-274`): build the payload from
@@ -812,3 +816,7 @@ the N1 prototype has an approval recorded in the Automation Log.
   and unmapped-ticker-never-throws both test-first, both adversarially
   confirmed correct on the first pass. Two migrations staged file-only, not
   applied. PR: https://github.com/andrsrjld/wealthme-web/pull/262
+- 2026-08-12 /epic-loop EPIC-024 #D "Aset: privacy eye toggle + penyusutan Rp
+  tetap" → PASS (attempts: 1). Golden values: Rp 50jt at -Rp 5jt/thn × 3yr =
+  Rp 35jt; × 11yr floors at Rp 0. Migration staged, not applied. PR:
+  https://github.com/andrsrjld/wealthme-web/pull/263

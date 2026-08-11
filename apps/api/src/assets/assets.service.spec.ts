@@ -134,6 +134,116 @@ describe("computeEstimatedValue — acquisitionDate golden value (EPIC-023 D19)"
   });
 });
 
+// EPIC-024 D2/US-ASSET-6: fixed-Rp/year depreciation mode. Golden values are
+// hand-computed independently of computeEstimatedValue below, per the same
+// discipline as the percent-mode golden test above — a test written after a
+// wrong formula can otherwise assert an identity that "passes" by
+// construction (see the epic's own retro on this class of mistake).
+describe("computeEstimatedValue — fixed mode golden values (EPIC-024 D2)", () => {
+  const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
+  const NOW = new Date("2026-01-01T00:00:00.000Z");
+
+  it("Rp 50,000,000 depreciating Rp 5,000,000/yr (fixed) over exactly 3 years → Rp 35,000,000", () => {
+    // `since` is constructed to be exactly 3 × MS_PER_YEAR before `now`, so
+    // yearsElapsed inside the function is exactly 3 — no calendar slack.
+    const acquisitionDate = new Date(NOW.getTime() - 3 * MS_PER_YEAR);
+
+    // Hand computation (independent of the function under test):
+    //   yearsElapsed = 3                                   (exact, by construction)
+    //   delta        = -5,000,000 × 3        = -15,000,000
+    //   estimated    = round(50,000,000 + -15,000,000) = 35,000,000
+    const result = computeEstimatedValue(
+      50_000_000n,
+      null, // valueChangeRatePct is unused in fixed mode
+      acquisitionDate,
+      NOW,
+      "fixed",
+      -5_000_000n,
+    );
+
+    expect(result).toBe(35_000_000n);
+  });
+
+  it("Rp 50,000,000 depreciating Rp 5,000,000/yr (fixed) over exactly 11 years floors at Rp 0, never negative", () => {
+    const acquisitionDate = new Date(NOW.getTime() - 11 * MS_PER_YEAR);
+
+    // Hand computation:
+    //   yearsElapsed = 11
+    //   delta        = -5,000,000 × 11 = -55,000,000
+    //   raw          = 50,000,000 + -55,000,000 = -5,000,000  (negative!)
+    //   estimated    = max(-5,000,000, 0) = 0                 (floored)
+    const result = computeEstimatedValue(
+      50_000_000n,
+      null,
+      acquisitionDate,
+      NOW,
+      "fixed",
+      -5_000_000n,
+    );
+
+    expect(result).toBe(0n);
+    expect(result >= 0n).toBe(true);
+  });
+
+  it("appreciates linearly for a positive fixed amount", () => {
+    const acquisitionDate = new Date(NOW.getTime() - 2 * MS_PER_YEAR);
+
+    // Hand computation:
+    //   yearsElapsed = 2
+    //   delta        = 1,000,000 × 2 = 2,000,000
+    //   estimated    = 10,000,000 + 2,000,000 = 12,000,000
+    const result = computeEstimatedValue(
+      10_000_000n,
+      null,
+      acquisitionDate,
+      NOW,
+      "fixed",
+      1_000_000n,
+    );
+
+    expect(result).toBe(12_000_000n);
+  });
+
+  it("returns currentValue unchanged when fixed amount is null", () => {
+    const result = computeEstimatedValue(
+      1_000_000n,
+      null,
+      new Date(NOW.getTime() - MS_PER_YEAR),
+      NOW,
+      "fixed",
+      null,
+    );
+    expect(result).toBe(1_000_000n);
+  });
+
+  it("returns currentValue unchanged when fixed amount is zero", () => {
+    const result = computeEstimatedValue(
+      1_000_000n,
+      null,
+      new Date(NOW.getTime() - MS_PER_YEAR),
+      NOW,
+      "fixed",
+      0n,
+    );
+    expect(result).toBe(1_000_000n);
+  });
+
+  it("ignores valueChangeRatePct entirely when mode is fixed", () => {
+    // A percent rate that would otherwise appreciate the asset must have no
+    // effect once mode is "fixed" — only valueChangeAmount is read.
+    const acquisitionDate = new Date(NOW.getTime() - 1 * MS_PER_YEAR);
+    const result = computeEstimatedValue(
+      1_000_000n,
+      new Decimal("50"), // would be +500,000 in percent mode
+      acquisitionDate,
+      NOW,
+      "fixed",
+      -100_000n,
+    );
+    expect(result).toBe(900_000n);
+  });
+});
+
 describe("AssetsService", () => {
   let service: AssetsService;
   let prisma: ReturnType<typeof makePrisma>;
@@ -637,6 +747,136 @@ describe("AssetsService", () => {
         }),
       ).rejects.toThrow();
       expect(prisma.asset.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // EPIC-024 D2/US-ASSET-6
+  describe("create/update — valueChangeMode / valueChangeAmount", () => {
+    it("create persists fixed mode and a signed valueChangeAmount", async () => {
+      prisma.asset.create.mockResolvedValue({
+        id: ASSET_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        name: "Mobil",
+        type: "kendaraan",
+        currentValue: 200_000_000n,
+        currency: "IDR",
+        notes: null,
+        valueChangeRatePct: null,
+        valueChangeMode: "fixed",
+        valueChangeAmount: -20_000_000n,
+        categoryId: null,
+        acquisitionDate: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const result = await service.create(FAMILY_GROUP_ID, {
+        name: "Mobil",
+        type: "kendaraan",
+        currentValue: "200000000",
+        valueChangeMode: "fixed",
+        valueChangeAmount: "-20000000",
+      });
+
+      expect(prisma.asset.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            valueChangeMode: "fixed",
+            valueChangeAmount: -20_000_000n,
+          }),
+        }),
+      );
+      expect(result.valueChangeMode).toBe("fixed");
+      expect(result.valueChangeAmount).toBe("-20000000");
+    });
+
+    it("create defaults to percent mode with a null amount when omitted", async () => {
+      prisma.asset.create.mockResolvedValue({
+        id: ASSET_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        name: "Rumah",
+        type: "properti",
+        currentValue: 1_000_000_000n,
+        currency: "IDR",
+        notes: null,
+        valueChangeRatePct: null,
+        valueChangeMode: "percent",
+        valueChangeAmount: null,
+        categoryId: null,
+        acquisitionDate: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const result = await service.create(FAMILY_GROUP_ID, {
+        name: "Rumah",
+        type: "properti",
+        currentValue: "1000000000",
+      });
+
+      expect(prisma.asset.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            valueChangeMode: "percent",
+            valueChangeAmount: null,
+          }),
+        }),
+      );
+      expect(result.valueChangeMode).toBe("percent");
+      expect(result.valueChangeAmount).toBeNull();
+    });
+
+    it("update switches an existing asset from percent to fixed mode", async () => {
+      const existingAsset = {
+        id: ASSET_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        name: "Mobil",
+        type: "kendaraan",
+        currentValue: 200_000_000n,
+        currency: "IDR",
+        notes: null,
+        valueChangeRatePct: new Decimal("-12"),
+        valueChangeMode: "percent" as const,
+        valueChangeAmount: null,
+        categoryId: null,
+        acquisitionDate: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      prisma.asset.findUnique.mockResolvedValue(existingAsset);
+      prisma.asset.update.mockResolvedValue({
+        ...existingAsset,
+        valueChangeMode: "fixed",
+        valueChangeAmount: -20_000_000n,
+      });
+
+      const result = await service.update(FAMILY_GROUP_ID, ASSET_ID, {
+        valueChangeMode: "fixed",
+        valueChangeAmount: "-20000000",
+      });
+
+      expect(prisma.asset.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            valueChangeMode: "fixed",
+            valueChangeAmount: -20_000_000n,
+          }),
+        }),
+      );
+      expect(result.valueChangeMode).toBe("fixed");
+      expect(result.valueChangeAmount).toBe("-20000000");
+    });
+
+    it("rejects a non-integer valueChangeAmount string", async () => {
+      await expect(
+        service.create(FAMILY_GROUP_ID, {
+          name: "Mobil",
+          type: "kendaraan",
+          currentValue: "200000000",
+          valueChangeAmount: "not-a-number",
+        }),
+      ).rejects.toThrow();
+      expect(prisma.asset.create).not.toHaveBeenCalled();
     });
   });
 });

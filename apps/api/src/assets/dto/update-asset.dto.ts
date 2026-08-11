@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { AssetType } from "@prisma/client";
+import { AssetType, AssetValueChangeMode } from "@prisma/client";
 import {
   IsDateString,
   IsEnum,
@@ -50,6 +50,27 @@ export class UpdateAssetDto {
     message: "valueChangeRatePct must be a decimal string, e.g. '-5.00'",
   })
   valueChangeRatePct?: string;
+
+  @ApiPropertyOptional({
+    enum: AssetValueChangeMode,
+    description:
+      "EPIC-024 D2/US-ASSET-6: which projection computeEstimatedValue applies — 'percent' reads valueChangeRatePct (default), 'fixed' reads valueChangeAmount.",
+  })
+  @IsOptional()
+  @IsEnum(AssetValueChangeMode)
+  valueChangeMode?: AssetValueChangeMode;
+
+  @ApiPropertyOptional({
+    description:
+      "EPIC-024 D2/US-ASSET-6: signed BigInt Rp/year delta used only when valueChangeMode is 'fixed', negative = depreciation, positive = appreciation, e.g. '-5000000'.",
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^-?\d+$/, {
+    message:
+      "valueChangeAmount must be a signed integer string, e.g. '-5000000'",
+  })
+  valueChangeAmount?: string;
 
   @ApiPropertyOptional({
     description:

@@ -61,6 +61,8 @@ function baseAsset(overrides: Partial<AssetDto> = {}): AssetDto {
     currency: "IDR",
     notes: null,
     valueChangeRatePct: null,
+    valueChangeMode: "percent",
+    valueChangeAmount: null,
     categoryId: null,
     acquisitionDate: null,
     currentEstimatedValue: "100000000",
@@ -290,5 +292,86 @@ describe("AddAssetModal (EPIC-023 Task H1 review, MEDIUM fix 4)", () => {
         }),
       );
     });
+  });
+
+  it("submits fixed mode with a signed valueChangeAmount instead of valueChangeRatePct", async () => {
+    const user = userEvent.setup();
+    render(<AsetPage />);
+
+    await user.click(screen.getByRole("button", { name: /tambah aset/i }));
+
+    fireEvent.change(screen.getByLabelText("Nama Aset"), {
+      target: { value: "Mobil" },
+    });
+    fireEvent.change(screen.getByLabelText("Nilai Aset (Rp)"), {
+      target: { value: "200000000" },
+    });
+
+    await user.click(screen.getByRole("button", { name: "Rp per tahun" }));
+    fireEvent.change(
+      screen.getByLabelText(/Perubahan Nilai per Tahun \(Rp\)/),
+      { target: { value: "-20000000" } },
+    );
+
+    await user.click(screen.getByRole("button", { name: /simpan aset/i }));
+
+    await waitFor(() => {
+      expect(mockApiFetch).toHaveBeenCalledWith(
+        `/family-groups/${FAMILY_GROUP_ID}/assets`,
+        expect.objectContaining({
+          method: "POST",
+          body: expect.stringContaining('"valueChangeMode":"fixed"'),
+        }),
+      );
+    });
+    const postCall = mockApiFetch.mock.calls.find(
+      ([, options]) =>
+        (options as { method?: string } | undefined)?.method === "POST",
+    ) as [string, { body: string }];
+    const parsedBody = JSON.parse(postCall[1].body) as Record<string, unknown>;
+    expect(parsedBody.valueChangeAmount).toBe("-20000000");
+    expect(parsedBody.valueChangeRatePct).toBeUndefined();
+  });
+});
+
+// D1/US-ASSET-5
+describe("/aset — privacy eye toggle", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    queryClient.clear();
+    window.localStorage.clear();
+    assetsFixture = [
+      baseAsset({ id: "a1", name: "Rumah", currentValue: "100000000" }),
+    ];
+  });
+
+  it("is off by default, blurs amounts when toggled on, and persists per-user across reload", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<AsetPage />);
+
+    const toggle = await screen.findByRole("button", {
+      name: "Sembunyikan jumlah",
+    });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(toggle);
+
+    const toggleOn = await screen.findByRole("button", {
+      name: "Tampilkan jumlah",
+    });
+    expect(toggleOn).toHaveAttribute("aria-pressed", "true");
+    expect(window.localStorage.getItem("wm.aset-privacy.u-1")).toBe("1");
+
+    // Simulate a reload: unmount and render a fresh instance — the stored
+    // preference must be picked back up (Gherkin: "survives reload (per
+    // user)").
+    unmount();
+    queryClient.clear();
+    render(<AsetPage />);
+
+    const toggleAfterReload = await screen.findByRole("button", {
+      name: "Tampilkan jumlah",
+    });
+    expect(toggleAfterReload).toHaveAttribute("aria-pressed", "true");
   });
 });

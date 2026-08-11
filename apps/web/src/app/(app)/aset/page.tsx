@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import {
-  Lock,
+  Eye,
+  EyeOff,
   Plus,
   X,
   Landmark,
@@ -35,6 +36,7 @@ import type {
   InvestmentDto,
   CategoryDto,
   AssetTypeId,
+  AssetValueChangeMode,
 } from "@wealthme/contracts";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -42,6 +44,36 @@ import type {
 type TabId = "semua" | "dana" | "rekening" | "investasi" | "fisik";
 
 const TAB_IDS: TabId[] = ["semua", "dana", "rekening", "investasi", "fisik"];
+
+// ── Privacy eye toggle (D1, US-ASSET-5) ─────────────────────────────────────────
+// Per-user localStorage, namespaced the same way as device-storage.ts
+// (`wm.<feature>.<userId>`) so one user's preference never bleeds into
+// another's on a shared device.
+const ASSET_PRIVACY_STORAGE_PREFIX = "wm.aset-privacy.";
+
+function readStoredPrivacy(userId: string): boolean {
+  try {
+    return (
+      window.localStorage.getItem(
+        `${ASSET_PRIVACY_STORAGE_PREFIX}${userId}`,
+      ) === "1"
+    );
+  } catch {
+    // storage may be unavailable (private browsing, SSR)
+    return false;
+  }
+}
+
+function writeStoredPrivacy(userId: string, isOn: boolean): void {
+  try {
+    window.localStorage.setItem(
+      `${ASSET_PRIVACY_STORAGE_PREFIX}${userId}`,
+      isOn ? "1" : "0",
+    );
+  } catch {
+    // storage may be unavailable — the toggle still works for this session
+  }
+}
 
 // ── Physical asset lookups ────────────────────────────────────────────────────
 
@@ -149,6 +181,11 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
   const [value, setValue] = useState("");
   const [notes, setNotes] = useState("");
   const [valueChangeRatePct, setValueChangeRatePct] = useState("");
+  // D2/US-ASSET-6: mode toggle — "percent" reuses the rate field above,
+  // "fixed" swaps in a signed Rp/year amount field instead.
+  const [valueChangeMode, setValueChangeMode] =
+    useState<AssetValueChangeMode>("percent");
+  const [valueChangeAmount, setValueChangeAmount] = useState("");
   const [categoryId, setCategoryId] = useState("");
   // EPIC-023 D19/US-ASSET-4: elapsed-time anchor for currentEstimatedValue,
   // falls back to createdAt server-side when left blank.
@@ -172,6 +209,8 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
       currentValue: string;
       notes?: string;
       valueChangeRatePct?: string;
+      valueChangeMode?: AssetValueChangeMode;
+      valueChangeAmount?: string;
       categoryId?: string;
       acquisitionDate?: string;
     }) => {
@@ -203,12 +242,27 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
     e.preventDefault();
     const digits = value.replace(/\D/g, "");
     if (!name.trim() || !digits) return;
+    // D2/US-ASSET-6: only the field matching the active mode is sent — the
+    // backend also only reads the one that matches valueChangeMode, but
+    // sending the other stale field would be confusing on GET/PATCH round
+    // trips.
+    const amountDigits = valueChangeAmount.replace(/[^-\d]/g, "");
     mutation.mutate({
       name: name.trim(),
       type,
       currentValue: digits,
       notes: notes.trim() || undefined,
-      valueChangeRatePct: valueChangeRatePct.trim() || undefined,
+      valueChangeRatePct:
+        valueChangeMode === "percent"
+          ? valueChangeRatePct.trim() || undefined
+          : undefined,
+      valueChangeMode,
+      valueChangeAmount:
+        valueChangeMode === "fixed"
+          ? amountDigits && amountDigits !== "-"
+            ? amountDigits
+            : undefined
+          : undefined,
       categoryId: categoryId || undefined,
       acquisitionDate: acquisitionDate || undefined,
     });
@@ -309,29 +363,88 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
           </div>
 
           <div>
-            <label
-              htmlFor="asset-rate"
-              className="mb-1 block text-[12px] font-semibold text-muted-foreground"
-            >
-              {t.aset.fieldValueChangeRateLabel}
-            </label>
-            <input
-              id="asset-rate"
-              type="number"
-              className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-              placeholder={t.aset.fieldValueChangeRatePlaceholder}
-              inputMode="decimal"
-              step="0.01"
-              min={-100}
-              max={100}
-              value={valueChangeRatePct}
-              onChange={(e) => setValueChangeRatePct(e.target.value)}
-            />
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              {t.aset.defaultRateHelperPrefix}:{" "}
-              {DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT[type]}%
-            </p>
+            <span className="mb-1 block text-[12px] font-semibold text-muted-foreground">
+              {t.aset.fieldValueChangeModeLabel}
+            </span>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                aria-pressed={valueChangeMode === "percent"}
+                onClick={() => setValueChangeMode("percent")}
+                className={`rounded-[10px] border px-3 py-2 text-[13px] font-semibold transition-colors ${
+                  valueChangeMode === "percent"
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "bg-background text-muted-foreground hover:bg-accent"
+                }`}
+              >
+                {t.aset.fieldValueChangeModePercentOption}
+              </button>
+              <button
+                type="button"
+                aria-pressed={valueChangeMode === "fixed"}
+                onClick={() => setValueChangeMode("fixed")}
+                className={`rounded-[10px] border px-3 py-2 text-[13px] font-semibold transition-colors ${
+                  valueChangeMode === "fixed"
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "bg-background text-muted-foreground hover:bg-accent"
+                }`}
+              >
+                {t.aset.fieldValueChangeModeFixedOption}
+              </button>
+            </div>
           </div>
+
+          {valueChangeMode === "percent" ? (
+            <div>
+              <label
+                htmlFor="asset-rate"
+                className="mb-1 block text-[12px] font-semibold text-muted-foreground"
+              >
+                {t.aset.fieldValueChangeRateLabel}
+              </label>
+              <input
+                id="asset-rate"
+                type="number"
+                className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
+                placeholder={t.aset.fieldValueChangeRatePlaceholder}
+                inputMode="decimal"
+                step="0.01"
+                min={-100}
+                max={100}
+                value={valueChangeRatePct}
+                onChange={(e) => setValueChangeRatePct(e.target.value)}
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {t.aset.defaultRateHelperPrefix}:{" "}
+                {DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT[type]}%
+              </p>
+            </div>
+          ) : (
+            <div>
+              <label
+                htmlFor="asset-value-change-amount"
+                className="mb-1 block text-[12px] font-semibold text-muted-foreground"
+              >
+                {t.aset.fieldValueChangeAmountLabel}
+              </label>
+              <input
+                id="asset-value-change-amount"
+                className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
+                placeholder={t.aset.fieldValueChangeAmountPlaceholder}
+                inputMode="decimal"
+                value={valueChangeAmount}
+                onChange={(e) => {
+                  const isNegative = e.target.value.trim().startsWith("-");
+                  const digits = e.target.value.replace(/\D/g, "");
+                  setValueChangeAmount(
+                    digits
+                      ? `${isNegative ? "-" : ""}${parseInt(digits, 10).toLocaleString("id-ID")}`
+                      : "",
+                  );
+                }}
+              />
+            </div>
+          )}
 
           <div>
             <label
@@ -500,12 +613,12 @@ function AssetRow({
           </div>
         </div>
         <div className="text-right shrink-0">
-          <div className="text-[14px] font-extrabold">
+          <div className="wm-money text-[14px] font-extrabold">
             {formatRupiah(Number(recordedValue))}
           </div>
           {hasProjectionDrift && (
             <div className="mt-0.5 flex items-center justify-end gap-1.5">
-              <span className="text-[10px] text-muted-foreground">
+              <span className="wm-money text-[10px] text-muted-foreground">
                 {t.aset.projectionLabel}: {formatRupiah(Number(estimatedValue))}
               </span>
               <button
@@ -562,7 +675,7 @@ function AssetGroupCard({
             {t.aset.physicalAssetsTitle}
           </span>
         </div>
-        <div className="text-[14px] font-extrabold">
+        <div className="wm-money text-[14px] font-extrabold">
           {formatRupiah(Number(groupTotal))}
         </div>
       </div>
@@ -625,7 +738,7 @@ function AccountsGroupCard({
           <IconChip icon={headerIcon} className={headerChip} size={28} />
           <span className="text-[13.5px] font-bold">{title}</span>
         </div>
-        <div className="text-[14px] font-extrabold">
+        <div className="wm-money text-[14px] font-extrabold">
           {formatRupiah(Number(groupTotal))}
         </div>
       </div>
@@ -662,7 +775,7 @@ function AccountsGroupCard({
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="text-[14px] font-extrabold">
+                  <div className="wm-money text-[14px] font-extrabold">
                     {formatRupiah(Number(BigInt(account.balance ?? "0")))}
                   </div>
                 </div>
@@ -706,7 +819,7 @@ function InvestasiGroupCard({ investments }: { investments: InvestmentDto[] }) {
             {t.aset.investmentsTitle}
           </span>
         </div>
-        <div className="text-[14px] font-extrabold">
+        <div className="wm-money text-[14px] font-extrabold">
           {formatRupiah(Number(groupTotal))}
         </div>
       </div>
@@ -738,7 +851,7 @@ function InvestasiGroupCard({ investments }: { investments: InvestmentDto[] }) {
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="text-[14px] font-extrabold">
+                  <div className="wm-money text-[14px] font-extrabold">
                     {formatRupiah(parseFloat(inv.currentValue ?? "0"))}
                   </div>
                 </div>
@@ -766,6 +879,27 @@ export default function AsetPage() {
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
   const familyGroupId = session?.familyGroupId;
+  const userId = session?.userId;
+
+  // D1/US-ASSET-5: privacy eye toggle — blurs every amount on the page.
+  // Loaded per-user from localStorage on mount once the userId is known, so
+  // the state survives a reload (Gherkin: "eye toggle ... survives reload
+  // (per user)").
+  const [privacyOn, setPrivacyOn] = useState(false);
+
+  useEffect(() => {
+    if (!userId) return;
+    // Reading a per-user localStorage preference on mount, same pattern as
+    // ThemePicker's preset load (components/shell/theme-picker.tsx).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPrivacyOn(readStoredPrivacy(userId));
+  }, [userId]);
+
+  function togglePrivacy(): void {
+    const next = !privacyOn;
+    setPrivacyOn(next);
+    if (userId) writeStoredPrivacy(userId, next);
+  }
 
   // Physical assets
   const {
@@ -885,7 +1019,9 @@ export default function AsetPage() {
   const isLoading = assetsLoading || accountsLoading || investmentsLoading;
 
   return (
-    <div className="space-y-4">
+    <div
+      className={`space-y-4${privacyOn ? " [&_.wm-money]:blur-sm [&_.wm-money]:select-none" : ""}`}
+    >
       {/* Tabs */}
       <div className="hide-scrollbar flex gap-2 overflow-x-auto">
         {TAB_IDS.map((id, i) => (
@@ -916,7 +1052,7 @@ export default function AsetPage() {
           {isLoading ? (
             <div className="animate-pulse h-7 w-40 rounded bg-muted" />
           ) : (
-            <div className="mono text-[24px] font-black text-primary-strong">
+            <div className="wm-money mono text-[24px] font-black text-primary-strong transition-[filter] duration-150">
               <CountUpRupiah value={grandTotal} />
             </div>
           )}
@@ -932,10 +1068,18 @@ export default function AsetPage() {
           </Button>
           <button
             type="button"
-            aria-label={t.aset.lockAriaLabel}
+            aria-pressed={privacyOn}
+            aria-label={
+              privacyOn ? t.aset.eyeShowAriaLabel : t.aset.eyeHideAriaLabel
+            }
+            onClick={togglePrivacy}
             className="flex size-9 cursor-pointer items-center justify-center rounded-md border bg-background transition-colors hover:bg-accent"
           >
-            <Lock className="size-3.5" />
+            {privacyOn ? (
+              <EyeOff className="size-3.5" />
+            ) : (
+              <Eye className="size-3.5" />
+            )}
           </button>
         </div>
       </div>

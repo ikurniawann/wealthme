@@ -9,6 +9,11 @@ export type AssetTypeId =
   | "perhiasan"
   | "lainnya";
 
+// EPIC-024 D2/US-ASSET-6: mirrors Prisma's `AssetValueChangeMode` enum —
+// which of valueChangeRatePct (percent) or valueChangeAmount (fixed)
+// computeEstimatedValue applies.
+export type AssetValueChangeMode = "percent" | "fixed";
+
 export interface AssetDto {
   id: string;
   familyGroupId: string;
@@ -20,6 +25,12 @@ export interface AssetDto {
   // EPIC-021 #17/#18: signed annual value-change rate (%), negative =
   // depreciation, positive = appreciation. Null = no rate set.
   valueChangeRatePct: string | null;
+  // EPIC-024 D2/US-ASSET-6: which projection computeEstimatedValue applies.
+  // Defaults to "percent" for every asset created before this field existed.
+  valueChangeMode: AssetValueChangeMode;
+  // EPIC-024 D2/US-ASSET-6: signed BigInt Rp/year delta, used only when
+  // valueChangeMode is "fixed" (same sign convention as valueChangeRatePct).
+  valueChangeAmount: string | null;
   // EPIC-021 #16: optional physical-asset category from master data (the
   // Category model, same family group). Null = no category set.
   categoryId: string | null;
@@ -67,6 +78,8 @@ export interface CreateAssetDto {
   currency?: string;
   notes?: string;
   valueChangeRatePct?: string;
+  valueChangeMode?: AssetValueChangeMode;
+  valueChangeAmount?: string;
   categoryId?: string;
   // EPIC-023 D19/US-ASSET-4: ISO date string. Falls back to createdAt when
   // omitted.
@@ -80,6 +93,8 @@ export interface UpdateAssetDto {
   currency?: string;
   notes?: string;
   valueChangeRatePct?: string;
+  valueChangeMode?: AssetValueChangeMode;
+  valueChangeAmount?: string;
   categoryId?: string;
   acquisitionDate?: string;
 }

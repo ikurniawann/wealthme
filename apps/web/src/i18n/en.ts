@@ -1251,7 +1251,8 @@ export const en = {
     },
     totalAssetsLabel: "Total Assets",
     addAssetButton: "Add Asset",
-    lockAriaLabel: "Lock asset view",
+    eyeShowAriaLabel: "Show amounts",
+    eyeHideAriaLabel: "Hide amounts",
     errorLoad: "Failed to load some asset data. Please refresh the page.",
     toastAdded: "Asset added successfully",
     toastAddFailed: "Failed to add asset. Please try again.",
@@ -1265,6 +1266,12 @@ export const en = {
     fieldValueChangeRatePlaceholder:
       "e.g. -5 for depreciation, 5 for appreciation",
     defaultRateHelperPrefix: "Default estimate for this type",
+    fieldValueChangeModeLabel: "Value Change Mode",
+    fieldValueChangeModePercentOption: "% per year",
+    fieldValueChangeModeFixedOption: "Rp per year",
+    fieldValueChangeAmountLabel: "Value Change per Year (Rp)",
+    fieldValueChangeAmountPlaceholder:
+      "e.g. -5,000,000 for depreciation, 5,000,000 for appreciation",
     fieldAcquisitionDateLabel: "Acquisition Date (optional)",
     fieldAcquisitionDateHelper:
       "The value projection is measured from this date. Falls back to when the asset was added if left blank.",

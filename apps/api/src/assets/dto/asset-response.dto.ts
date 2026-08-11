@@ -1,4 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { AssetValueChangeMode } from "@prisma/client";
 
 export class AssetResponseDto {
   @ApiProperty() id!: string;
@@ -14,6 +15,18 @@ export class AssetResponseDto {
       "Signed annual value-change rate (%), negative = depreciation, positive = appreciation",
   })
   valueChangeRatePct!: string | null;
+  @ApiProperty({
+    enum: AssetValueChangeMode,
+    description:
+      "EPIC-024 D2/US-ASSET-6: which projection computeEstimatedValue applies — 'percent' reads valueChangeRatePct, 'fixed' reads valueChangeAmount.",
+  })
+  valueChangeMode!: AssetValueChangeMode;
+  @ApiProperty({
+    nullable: true,
+    description:
+      "EPIC-024 D2/US-ASSET-6: signed BigInt Rp/year delta, used only when valueChangeMode is 'fixed'",
+  })
+  valueChangeAmount!: string | null;
   @ApiProperty({
     nullable: true,
     description: "Physical-asset category (master data), same family group",

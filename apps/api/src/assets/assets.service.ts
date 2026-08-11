@@ -47,23 +47,45 @@ function wibTodayUtcMidnight(now: Date): Date {
   return new Date(utcMs);
 }
 
+/** EPIC-024 D2/US-ASSET-6: mirrors the Prisma `AssetValueChangeMode` enum. */
+export type AssetValueChangeMode = "percent" | "fixed";
+
 /**
- * Pro-rata, compute-on-read estimate of an asset's current value given a
- * signed annual value-change rate (negative = depreciation, positive =
- * appreciation). Linear approximation: currentValue × (1 + rate/100 ×
- * yearsElapsed), floored at 0. `since` is the asset's acquisition date when
- * set (EPIC-023 D19/US-ASSET-4), falling back to `createdAt` for legacy
- * assets that predate the field (EPIC-021 Open Design Decision #8).
+ * Pro-rata, compute-on-read estimate of an asset's current value.
+ *
+ * - `mode: "percent"` (default, matches all pre-EPIC-024 assets): signed
+ *   annual value-change rate (negative = depreciation, positive =
+ *   appreciation). Linear approximation: currentValue × (1 + rate/100 ×
+ *   yearsElapsed), floored at 0.
+ * - `mode: "fixed"` (D11/US-ASSET-6): signed Rp/year delta instead of a
+ *   rate — same sign convention (negative = depreciation, positive =
+ *   appreciation). Linear approximation: currentValue + amount ×
+ *   yearsElapsed, floored at 0.
+ *
+ * `since` is the asset's acquisition date when set (EPIC-023 D19/US-ASSET-4),
+ * falling back to `createdAt` for legacy assets that predate the field
+ * (EPIC-021 Open Design Decision #8).
  */
 export function computeEstimatedValue(
   currentValue: bigint,
   ratePct: Decimal | null,
   since: Date,
   now: Date = new Date(),
+  mode: AssetValueChangeMode = "percent",
+  amount: bigint | null = null,
 ): bigint {
-  if (!ratePct || ratePct.isZero()) return currentValue;
   const yearsElapsed =
     Math.max(now.getTime() - since.getTime(), 0) / MS_PER_YEAR;
+
+  if (mode === "fixed") {
+    if (amount == null || amount === 0n) return currentValue;
+    const estimated = Math.round(
+      Number(currentValue) + Number(amount) * yearsElapsed,
+    );
+    return BigInt(Math.max(estimated, 0));
+  }
+
+  if (!ratePct || ratePct.isZero()) return currentValue;
   const multiplier = 1 + (ratePct.toNumber() / 100) * yearsElapsed;
   const estimated = Math.round(Number(currentValue) * multiplier);
   return BigInt(Math.max(estimated, 0));
@@ -78,6 +100,8 @@ function toAssetDto(asset: {
   currency: string;
   notes: string | null;
   valueChangeRatePct: Decimal | null;
+  valueChangeMode: AssetValueChangeMode;
+  valueChangeAmount: bigint | null;
   categoryId: string | null;
   acquisitionDate: Date | null;
   createdAt: Date;
@@ -92,12 +116,17 @@ function toAssetDto(asset: {
     currency: asset.currency,
     notes: asset.notes,
     valueChangeRatePct: asset.valueChangeRatePct?.toString() ?? null,
+    valueChangeMode: asset.valueChangeMode,
+    valueChangeAmount: asset.valueChangeAmount?.toString() ?? null,
     categoryId: asset.categoryId,
     acquisitionDate: asset.acquisitionDate?.toISOString() ?? null,
     currentEstimatedValue: computeEstimatedValue(
       asset.currentValue,
       asset.valueChangeRatePct,
       asset.acquisitionDate ?? asset.createdAt,
+      new Date(),
+      asset.valueChangeMode,
+      asset.valueChangeAmount,
     ).toString(),
     createdAt: asset.createdAt.toISOString(),
     updatedAt: asset.updatedAt.toISOString(),
@@ -140,6 +169,7 @@ export class AssetsService {
       );
     }
     this.assertValidRatePct(dto.valueChangeRatePct);
+    this.assertValidValueChangeAmount(dto.valueChangeAmount);
     this.assertValidAcquisitionDate(dto.acquisitionDate);
     const categoryId = await this.resolveCategoryId(
       familyGroupId,
@@ -155,6 +185,9 @@ export class AssetsService {
         currency: dto.currency ?? "IDR",
         notes: dto.notes ?? null,
         valueChangeRatePct: dto.valueChangeRatePct ?? null,
+        valueChangeMode: dto.valueChangeMode ?? "percent",
+        valueChangeAmount:
+          dto.valueChangeAmount != null ? BigInt(dto.valueChangeAmount) : null,
         categoryId: categoryId ?? null,
         acquisitionDate: dto.acquisitionDate
           ? new Date(dto.acquisitionDate)
@@ -190,6 +223,7 @@ export class AssetsService {
       );
     }
     this.assertValidRatePct(dto.valueChangeRatePct);
+    this.assertValidValueChangeAmount(dto.valueChangeAmount);
     this.assertValidAcquisitionDate(dto.acquisitionDate);
     const newValue =
       dto.currentValue != null
@@ -212,6 +246,13 @@ export class AssetsService {
           dto.valueChangeRatePct !== undefined
             ? dto.valueChangeRatePct
             : existing.valueChangeRatePct,
+        valueChangeMode: dto.valueChangeMode ?? existing.valueChangeMode,
+        valueChangeAmount:
+          dto.valueChangeAmount !== undefined
+            ? dto.valueChangeAmount != null
+              ? BigInt(dto.valueChangeAmount)
+              : null
+            : existing.valueChangeAmount,
         categoryId: categoryId ?? null,
         acquisitionDate:
           dto.acquisitionDate !== undefined
@@ -238,6 +279,23 @@ export class AssetsService {
     if (!Number.isFinite(n) || n < MIN_RATE_PCT || n > MAX_RATE_PCT) {
       throw new BadRequestException(
         `valueChangeRatePct must be between ${MIN_RATE_PCT} and ${MAX_RATE_PCT}`,
+      );
+    }
+  }
+
+  /**
+   * EPIC-024 D2/US-ASSET-6: signed BigInt string, e.g. "-5000000". The DTO's
+   * @Matches already rejects non-numeric strings; this only needs to guard
+   * against BigInt() throwing on the shape a regex can't easily express
+   * (leading zeros, `+` sign, etc. are already blocked by the DTO regex).
+   */
+  private assertValidValueChangeAmount(value?: string): void {
+    if (value == null) return;
+    try {
+      BigInt(value);
+    } catch {
+      throw new BadRequestException(
+        "valueChangeAmount must be a signed integer string, e.g. '-5000000'",
       );
     }
   }

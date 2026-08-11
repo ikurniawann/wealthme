@@ -1255,7 +1255,8 @@ export const id = {
     },
     totalAssetsLabel: "Total Aset",
     addAssetButton: "Tambah Aset",
-    lockAriaLabel: "Kunci tampilan aset",
+    eyeShowAriaLabel: "Tampilkan jumlah",
+    eyeHideAriaLabel: "Sembunyikan jumlah",
     errorLoad: "Gagal memuat sebagian data aset. Silakan refresh halaman.",
     toastAdded: "Aset berhasil ditambahkan",
     toastAddFailed: "Gagal menambahkan aset. Silakan coba lagi.",
@@ -1269,6 +1270,12 @@ export const id = {
     fieldValueChangeRatePlaceholder:
       "cth. -5 untuk penyusutan, 5 untuk apresiasi",
     defaultRateHelperPrefix: "Perkiraan default untuk tipe ini",
+    fieldValueChangeModeLabel: "Mode Perubahan Nilai",
+    fieldValueChangeModePercentOption: "% per tahun",
+    fieldValueChangeModeFixedOption: "Rp per tahun",
+    fieldValueChangeAmountLabel: "Perubahan Nilai per Tahun (Rp)",
+    fieldValueChangeAmountPlaceholder:
+      "cth. -5.000.000 untuk penyusutan, 5.000.000 untuk apresiasi",
     fieldAcquisitionDateLabel: "Tanggal Perolehan (opsional)",
     fieldAcquisitionDateHelper:
       "Proyeksi nilai dihitung mulai dari tanggal ini. Jika dikosongkan, dihitung sejak aset ditambahkan.",

@@ -1230,7 +1230,8 @@ export type I18nDictionary = {
     invTypeLabels: Record<InvestasiTypeId, string>;
     totalAssetsLabel: string;
     addAssetButton: string;
-    lockAriaLabel: string;
+    eyeShowAriaLabel: string;
+    eyeHideAriaLabel: string;
     errorLoad: string;
     toastAdded: string;
     toastAddFailed: string;
@@ -1249,6 +1250,12 @@ export type I18nDictionary = {
     // default (DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT) as a suggestion, not a
     // constraint.
     defaultRateHelperPrefix: string;
+    // EPIC-024 D2/US-ASSET-6: % vs Rp-tetap depreciation mode toggle.
+    fieldValueChangeModeLabel: string;
+    fieldValueChangeModePercentOption: string;
+    fieldValueChangeModeFixedOption: string;
+    fieldValueChangeAmountLabel: string;
+    fieldValueChangeAmountPlaceholder: string;
     // EPIC-023 D19/US-ASSET-4: optional acquisition date — the elapsed-time
     // anchor for currentEstimatedValue instead of createdAt.
     fieldAcquisitionDateLabel: string;
