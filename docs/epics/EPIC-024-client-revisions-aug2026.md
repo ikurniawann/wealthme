@@ -733,3 +733,18 @@ the N1 prototype has an approval recorded in the Automation Log.
   review protocol (reusing EPIC-023's proven brief), and the supersession
   note: this epic's wife-as-second-owner decision overrides EPIC-023 D2/D6
   for wives. No code changed.
+- 2026-08-11 — **N1 delivered, N2 approved.** Static-HTML prototype complete:
+  35 pages under `docs/prototype/pages/` (25 app + 7 public/auth + 3 extra:
+  `mastercoa`, `rekonsiliasi`, `panduan`), built on the shell/tokens/ApexCharts
+  infra described in `docs/prototype/README.md`, merged to `development` via
+  `feat/epic-024-task-n-uiux-revamp-prototype` (commits `e1bfce3`, `2088c81` —
+  the latter resolved the 9 UX issues found in the first owner pass on
+  2026-08-07: responsive/palette/whitespace/filter modal/master-data
+  input/cards/contrast/dropdown/date-picker). **Owner approved N2 without a
+  second live walkthrough**, on the basis of the prior review + the polish
+  commit. N3 (porting the prototype into the real app) is **not started** —
+  epic status remains `backlog`; Groups A–M are untouched. A follow-up
+  read-only audit (`EPIC-024-N-backend-gap-report.md`) was commissioned in the
+  same session to map every prototype page's depicted features against
+  current `apps/web`/`apps/api` state, ahead of a future session starting
+  Groups A–M/N3.
