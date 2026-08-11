@@ -1864,6 +1864,7 @@ export const en = {
     toastSessionNotReady: "Session not ready yet. Please try again shortly.",
     toastNameRequired: "Asset name is required.",
     toastInvalidValue: "Invalid estimated value.",
+    toastHeirRelationshipRequired: "Relationship is required for every heir.",
     heirsSectionTitle: "Heirs",
     heirNamePlaceholder: "e.g. Siti Arsandi",
     removeHeirAriaLabel: "Remove heir",

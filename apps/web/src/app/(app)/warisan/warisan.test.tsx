@@ -9,7 +9,7 @@
  */
 
 import type { ReactElement, ReactNode } from "react";
-import { render as rtlRender, screen } from "@testing-library/react";
+import { render as rtlRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -33,6 +33,8 @@ jest.mock("sonner", () => ({
     warning: jest.fn(),
   }),
 }));
+
+import { toast } from "sonner";
 
 import WarisanPage from "./page";
 
@@ -151,5 +153,157 @@ describe("WarisanPage — heir picker (EPIC-023 F1)", () => {
     // Free text remains available for a non-member heir.
     const nameInput = screen.getByPlaceholderText(/siti arsandi/i);
     expect(nameInput).not.toBeDisabled();
+  });
+});
+
+/**
+ * EPIC-024 Group H (item 15), review fix (attempt 2) — the blank-relationship
+ * guard must block the API call entirely (not just show a toast after the
+ * fact), and `extractApiErrorMessage` must not leak a raw NestJS
+ * ValidationPipe string-array `message` straight into the toast.
+ */
+describe("WarisanPage — heir relationship validation & error surfacing (EPIC-024 Group H)", () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    queryClient.clear();
+
+    mockUseSessionAuth.mockReturnValue({
+      data: {
+        session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
+        user: { id: "user-1", name: "Test User", email: "user@example.com" },
+      },
+      isPending: false,
+    });
+  });
+
+  /** Fills in the required base asset fields (name + value) so only the
+   * heir relationship guard is left to trigger. */
+  async function fillValidAssetBaseFields(
+    user: ReturnType<typeof userEvent.setup>,
+  ) {
+    await user.type(
+      screen.getByPlaceholderText(/rumah utama, deposito bca/i),
+      "Rumah Utama",
+    );
+    await user.type(screen.getByPlaceholderText("0"), "1000000");
+  }
+
+  it("blocks save on a blank heir relationship — no mutation/fetch call is made", async () => {
+    // Arrange
+    mockApiFetchDefault("ok");
+    render(<WarisanPage />);
+    const user = await openHeirEditor();
+    await fillValidAssetBaseFields(user);
+    await user.type(
+      screen.getByPlaceholderText(/siti arsandi/i),
+      "Budi Ahli Waris",
+    );
+    // relationship input left blank — proves the guard runs before any DTO
+    // is built/sent, mirroring the API's `CreateHeirDto.relationship`
+    // `@IsNotEmpty()` check, but client-side.
+    const callsBeforeSave = mockApiFetch.mock.calls.length;
+
+    // Act
+    await user.click(
+      screen.getByRole("button", { name: /simpan aset warisan/i }),
+    );
+
+    // Assert — blocked before any API call (no POST, no additional fetch).
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(mockApiFetch.mock.calls.length).toBe(callsBeforeSave);
+  });
+
+  it("surfaces the server's string message from the create mutation via extractApiErrorMessage", async () => {
+    // Arrange — the create mutation's POST rejects with a 400 carrying a
+    // single, already-localized string `message` (the common NestJS shape).
+    mockApiFetch.mockImplementation((url: string, options?: unknown) => {
+      const opts = options as { method?: string } | undefined;
+      if (
+        url === `/family-groups/${FAMILY_GROUP_ID}/inheritance` &&
+        opts?.method === "POST"
+      ) {
+        return Promise.reject({
+          status: 400,
+          message: "Nama aset sudah digunakan.",
+        });
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/inheritance`) {
+        return Promise.resolve([]);
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/assets`) {
+        return Promise.resolve([]);
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/members`) {
+        return Promise.resolve(MEMBER_LIST);
+      }
+      return Promise.reject(new Error(`unexpected url: ${url}`));
+    });
+    render(<WarisanPage />);
+    const user = userEvent.setup();
+    await user.click(
+      screen.getByRole("button", { name: /tambah aset warisan/i }),
+    );
+    await fillValidAssetBaseFields(user);
+
+    // Act
+    await user.click(
+      screen.getByRole("button", { name: /simpan aset warisan/i }),
+    );
+
+    // Assert — the server's own string message is shown, not the generic
+    // fallback.
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Nama aset sudah digunakan."),
+    );
+  });
+
+  it("does not leak a raw string-array validation message — falls back to the generic toast", async () => {
+    // Arrange — NestJS's ValidationPipe returns `message` as a string ARRAY
+    // when multiple fields fail at once. `extractApiErrorMessage` must not
+    // `String()`-join this straight into the UI.
+    mockApiFetch.mockImplementation((url: string, options?: unknown) => {
+      const opts = options as { method?: string } | undefined;
+      if (
+        url === `/family-groups/${FAMILY_GROUP_ID}/inheritance` &&
+        opts?.method === "POST"
+      ) {
+        return Promise.reject({
+          status: 400,
+          message: [
+            "name must not be empty",
+            "estimatedValue must be positive",
+          ],
+        });
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/inheritance`) {
+        return Promise.resolve([]);
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/assets`) {
+        return Promise.resolve([]);
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/members`) {
+        return Promise.resolve(MEMBER_LIST);
+      }
+      return Promise.reject(new Error(`unexpected url: ${url}`));
+    });
+    render(<WarisanPage />);
+    const user = userEvent.setup();
+    await user.click(
+      screen.getByRole("button", { name: /tambah aset warisan/i }),
+    );
+    await fillValidAssetBaseFields(user);
+
+    // Act
+    await user.click(
+      screen.getByRole("button", { name: /simpan aset warisan/i }),
+    );
+
+    // Assert — generic localized fallback, never the raw joined array.
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Gagal menyimpan aset warisan."),
+    );
+    expect(toast.error).not.toHaveBeenCalledWith(
+      expect.stringContaining("must not be empty"),
+    );
   });
 });

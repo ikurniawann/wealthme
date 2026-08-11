@@ -1790,6 +1790,10 @@ export type I18nDictionary = {
     toastSessionNotReady: string;
     toastNameRequired: string;
     toastInvalidValue: string;
+    /** EPIC-024 Group H (item 15) — block submit synchronously when an
+     * included heir row is missing its relationship, instead of relying on
+     * the server's 400 to surface a generic toast. */
+    toastHeirRelationshipRequired: string;
     /** EPIC-023 F1 (D14, US-INS-5) — heir editor copy (previously entirely
      * hardcoded Indonesian, mirroring asuransi's beneficiary editor keys). */
     heirsSectionTitle: string;

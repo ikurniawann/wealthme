@@ -343,10 +343,10 @@ One task group = one branch = one PR to `development`. Execution order is in
     confirm), **Bayar** (`POST /:id/pay` with principal/interest split and
     source-account picker — endpoint built by EPIC-023 E). (US-LIAB-6)
 
-- [ ] ### H — Warisan: heir relationship validation + error surfacing (item 15)
-  - **H1** — Require relationship in the form before submit (or filter heirs
-    lacking it); surface the server's message via `extractApiErrorMessage`.
-    (US-WAR-1, US-AUTH-11)
+- [x] ### H — Warisan: heir relationship validation + error surfacing (item 15) ✅
+  - **H1** — [x] Require relationship in the form before submit (or filter
+    heirs lacking it); surface the server's message via
+    `extractApiErrorMessage`. (US-WAR-1, US-AUTH-11)
 
 - [ ] ### I — Donasi: religion prompt inline + rename menu (item 13)
   - **I1** — When `religion === null`, render an inline "Pilih agama keluarga"
@@ -762,3 +762,7 @@ the N1 prototype has an approval recorded in the Automation Log.
   `/splitbill` dashboard past the session-cookie check; fixed to `/split/`
   trailing-slash; also missing PATCH endpoint test coverage, added). PR:
   https://github.com/andrsrjld/wealthme-web/pull/257
+- 2026-08-11 /epic-loop EPIC-024 #H "Warisan: heir relationship validation +
+  error surfacing" → PASS (attempts: 2; attempt 1 failed for missing inline
+  field-level error + unlocalized array-message leak risk + missing tests,
+  fixed in attempt 2). PR: https://github.com/andrsrjld/wealthme-web/pull/258

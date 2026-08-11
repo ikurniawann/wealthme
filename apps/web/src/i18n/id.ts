@@ -1866,6 +1866,8 @@ export const id = {
     toastSessionNotReady: "Sesi belum siap. Coba lagi sebentar.",
     toastNameRequired: "Nama aset wajib diisi.",
     toastInvalidValue: "Nilai estimasi tidak valid.",
+    toastHeirRelationshipRequired:
+      "Hubungan ahli waris wajib diisi untuk setiap ahli waris.",
     heirsSectionTitle: "Ahli Waris",
     heirNamePlaceholder: "cth: Siti Arsandi",
     removeHeirAriaLabel: "Hapus ahli waris",

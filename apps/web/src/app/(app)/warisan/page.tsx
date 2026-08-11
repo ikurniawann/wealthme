@@ -59,6 +59,26 @@ const ASSET_TYPE_BG: Record<string, string> = {
   Lainnya: "#F3F4F6",
 };
 
+// EPIC-024 Group H (item 15) — mirrors /rekening, /akun, /dana's helper: the
+// API's `CreateHeirDto.relationship` @IsNotEmpty() 400 carries an actionable
+// message, but the mutation handlers below threw it away behind a generic
+// toast. Prefer the server's message and fall back only when there isn't one.
+//
+// Review fix (attempt 2, HIGH) — NestJS's ValidationPipe can return `message`
+// as a string ARRAY when multiple fields fail validation at once. The prior
+// version did `String((err as {message: unknown}).message)` unconditionally,
+// which on an array joins entries with commas — leaking raw, unlocalized
+// backend validation strings straight into the toast. Only trust `message`
+// when it is actually a string; anything else (array, object, etc.) falls
+// back to the caller's localized message.
+function extractApiErrorMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === "object" && "message" in err) {
+    const message = (err as { message: unknown }).message;
+    if (typeof message === "string") return message;
+  }
+  return fallback;
+}
+
 // EPIC-021 Group D (#14) — mirrors the `FamilyMember` shape used on /akun for
 // the optional "link a heir to a family member" picker. EPIC-023 F1 (D14)
 // added `relationship` so selecting a member can live-fill it too — the
@@ -207,6 +227,11 @@ interface HeirEditorProps {
   // so this note tells the user WHY the picker is unavailable instead of
   // just hiding it.
   membersUnavailable?: boolean;
+  // Review fix (attempt 2, HIGH) — heir row ids that failed the blank-
+  // relationship guard in `handleSave`, so the offending row(s) can render an
+  // inline, field-associated error (WCAG 3.3.1 Error Identification) instead
+  // of relying solely on a global toast.
+  invalidRelationshipHeirIds?: Set<string>;
 }
 
 /**
@@ -223,6 +248,7 @@ function HeirEditor({
   onChange,
   familyMembers,
   membersUnavailable,
+  invalidRelationshipHeirIds,
 }: HeirEditorProps) {
   const { t } = useLocale();
   const allocated = Math.min(100, totalAllocated(rows));
@@ -247,6 +273,11 @@ function HeirEditor({
           const linkedMember = row.memberUserId
             ? familyMembers.find((m) => m.userId === row.memberUserId)
             : undefined;
+          // Review fix (attempt 2, HIGH) — associate the blank-relationship
+          // guard's error with this specific row's input, not just a toast.
+          const isRelationshipInvalid =
+            !linkedMember && invalidRelationshipHeirIds?.has(row.id);
+          const relationshipErrorId = `heir-relationship-error-${row.id}`;
           return (
             <div
               key={row.id}
@@ -271,20 +302,38 @@ function HeirEditor({
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="text"
-                  value={
-                    linkedMember
-                      ? (linkedMember.relationship ?? "")
-                      : row.relationship
-                  }
-                  disabled={!!linkedMember}
-                  onChange={(e) =>
-                    updateRow(row.id, { relationship: e.target.value })
-                  }
-                  placeholder={t.warisan.heirRelationshipPlaceholder}
-                  className={`${FIELD_CLASS} disabled:cursor-not-allowed disabled:opacity-60`}
-                />
+                <div>
+                  <input
+                    type="text"
+                    value={
+                      linkedMember
+                        ? (linkedMember.relationship ?? "")
+                        : row.relationship
+                    }
+                    disabled={!!linkedMember}
+                    onChange={(e) =>
+                      updateRow(row.id, { relationship: e.target.value })
+                    }
+                    placeholder={t.warisan.heirRelationshipPlaceholder}
+                    aria-invalid={isRelationshipInvalid ? true : undefined}
+                    aria-describedby={
+                      isRelationshipInvalid ? relationshipErrorId : undefined
+                    }
+                    className={`${FIELD_CLASS} disabled:cursor-not-allowed disabled:opacity-60 ${
+                      isRelationshipInvalid
+                        ? "border-destructive focus:border-destructive"
+                        : ""
+                    }`}
+                  />
+                  {isRelationshipInvalid && (
+                    <p
+                      id={relationshipErrorId}
+                      className="mt-1 text-[11px] text-destructive"
+                    >
+                      {t.warisan.toastHeirRelationshipRequired}
+                    </p>
+                  )}
+                </div>
                 <input
                   type="number"
                   min={0}
@@ -392,6 +441,12 @@ export default function WarisanPage() {
   const [selectedAssetId, setSelectedAssetId] = useState("");
   // EPIC-021 Group D (#12) — heirs are optional; percentages may sum to <= 100.
   const [heirs, setHeirs] = useState<HeirFormRow[]>([]);
+  // Review fix (attempt 2, HIGH) — heir row ids currently failing the blank-
+  // relationship guard in `handleSave`, so `HeirEditor` can render an inline
+  // error under the offending row(s) instead of only a global toast.
+  const [invalidRelationshipHeirIds, setInvalidRelationshipHeirIds] = useState<
+    Set<string>
+  >(new Set());
 
   const listKey = familyGroupId
     ? queryKeys.inheritance.list(familyGroupId)
@@ -452,7 +507,8 @@ export default function WarisanPage() {
       setOpen(false);
       resetForm();
     },
-    onError: () => toast.error(t.warisan.toastAddFailed),
+    onError: (err) =>
+      toast.error(extractApiErrorMessage(err, t.warisan.toastAddFailed)),
   });
 
   const updateMutation = useMutation({
@@ -468,7 +524,8 @@ export default function WarisanPage() {
       setEditing(null);
       resetForm();
     },
-    onError: () => toast.error(t.warisan.toastUpdateFailed),
+    onError: (err) =>
+      toast.error(extractApiErrorMessage(err, t.warisan.toastUpdateFailed)),
   });
 
   const updateVisibilityMutation = useMutation({
@@ -518,6 +575,7 @@ export default function WarisanPage() {
     setPickMode("manual");
     setSelectedAssetId("");
     setHeirs([]);
+    setInvalidRelationshipHeirIds(new Set());
   }
 
   function openEditAsset(item: InheritanceAssetDto) {
@@ -538,6 +596,7 @@ export default function WarisanPage() {
         memberUserId: h.memberUserId ?? "",
       })),
     );
+    setInvalidRelationshipHeirIds(new Set());
     setOpen(true);
   }
 
@@ -570,14 +629,29 @@ export default function WarisanPage() {
       return;
     }
 
-    const heirDtos: CreateHeirDto[] = heirs
-      .filter((h) => h.name.trim())
-      .map((h) => ({
-        name: h.name.trim(),
-        relationship: h.relationship.trim(),
-        sharePercent: parseFloat(h.sharePercent) || 0,
-        ...(h.memberUserId && { memberUserId: h.memberUserId }),
-      }));
+    // EPIC-024 Group H (item 15) — an included heir row (has a name) with a
+    // blank relationship used to slip through this filter, hit the API's
+    // `CreateHeirDto.relationship` @IsNotEmpty() check, and surface only a
+    // generic toast. Block the submit here, before any API call, instead.
+    //
+    // Review fix (attempt 2, HIGH) — also record WHICH row(s) are invalid so
+    // `HeirEditor` can render an inline, field-associated error under each
+    // offending relationship input (WCAG 3.3.1), not just a global toast.
+    const includedHeirs = heirs.filter((h) => h.name.trim());
+    const invalidHeirs = includedHeirs.filter((h) => !h.relationship.trim());
+    if (invalidHeirs.length > 0) {
+      setInvalidRelationshipHeirIds(new Set(invalidHeirs.map((h) => h.id)));
+      toast.error(t.warisan.toastHeirRelationshipRequired);
+      return;
+    }
+    setInvalidRelationshipHeirIds(new Set());
+
+    const heirDtos: CreateHeirDto[] = includedHeirs.map((h) => ({
+      name: h.name.trim(),
+      relationship: h.relationship.trim(),
+      sharePercent: parseFloat(h.sharePercent) || 0,
+      ...(h.memberUserId && { memberUserId: h.memberUserId }),
+    }));
     if (heirDtos.reduce((sum, h) => sum + h.sharePercent, 0) > 100) {
       toast.error("Total persentase ahli waris tidak boleh lebih dari 100%.");
       return;
@@ -908,6 +982,7 @@ export default function WarisanPage() {
               onChange={setHeirs}
               familyMembers={familyMembers}
               membersUnavailable={isFamilyMembersError}
+              invalidRelationshipHeirIds={invalidRelationshipHeirIds}
             />
 
             <Button
