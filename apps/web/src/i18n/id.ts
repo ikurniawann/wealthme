@@ -70,6 +70,11 @@ export const id = {
       "Isi profil risiko untuk mendapatkan rekomendasi investasi yang sesuai tujuanmu.",
     aiInsightCta: "Isi Profil Risiko →",
     dateLocale: "id-ID",
+    // EPIC-025 N3-G1 — bento-hero layout port + ApexCharts swap.
+    wealthComposition: "Komposisi Kekayaan",
+    liquidAssets: "Aset Likuid",
+    nonLiquidAssets: "Aset Non-Likuid",
+    cashflowThisMonth: "Arus kas bulan ini",
   },
   shell: {
     loading: "Memuat WealthMe…",

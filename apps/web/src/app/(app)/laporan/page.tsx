@@ -21,8 +21,12 @@ import {
   ProgressBar,
   StatusBadge,
 } from "@/components/wm";
-import { BarChart } from "@/components/charts/bar-chart";
-import { Donut, DonutLegend } from "@/components/charts/donut";
+import type { DonutSegment } from "@/components/charts/donut";
+// EPIC-025 N3-G2 — the chart swap: ApexCharts presets replace the old
+// BarChart/Donut+DonutLegend components. Every series fed to these presets
+// is the SAME underlying data the old components rendered (traced inline
+// at each call site) — only the rendering library changed.
+import { CashflowChart, DonutChart } from "@/components/charts/apex-presets";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import {
@@ -243,23 +247,62 @@ function RingkasanSection({
 }) {
   const { t } = useLocale();
   const chartMonths = summary?.points.map((p) => p.label) ?? [];
-  const chartIncome = summary?.points.map((p) => p.income / 1_000_000) ?? [];
-  const chartExpense = summary?.points.map((p) => p.expense / 1_000_000) ?? [];
-  const chartMax = Math.max(...chartIncome, ...chartExpense, 1);
+  // EPIC-025 N3-G2 — raw Rupiah series (not the old BarChart's /1_000_000
+  // "juta" pre-scale — that was a pixel-height scale factor for the old
+  // bespoke SVG bars, not a data change). CashflowChart's own axis/tooltip
+  // formatters (`formatRupiahCompact`/`formatRupiah`) expect real amounts.
+  const chartIncome = summary?.points.map((p) => p.income) ?? [];
+  const chartExpense = summary?.points.map((p) => p.expense) ?? [];
+  const cashflowChartAriaLabel =
+    summary && chartMonths.length > 0
+      ? `${t.laporan.ringkasan.financeTitle} ${chartMonths[chartMonths.length - 1]}: ${t.common.income} ${formatRupiah(chartIncome[chartIncome.length - 1] ?? 0)}, ${t.common.expense} ${formatRupiah(chartExpense[chartExpense.length - 1] ?? 0)}`
+      : t.laporan.ringkasan.financeTitle;
 
+  // `expenseDonut`/`wealthAlloc` keep the percentage-based `DonutSegment[]`
+  // shape `categoryBreakdownToDonut`/`balanceSheetToWealthAlloc` (protected
+  // `laporan-utils.ts`) return — still used for the legend rows below,
+  // unchanged from before the swap.
   const expenseDonut = summary
     ? categoryBreakdownToDonut(summary.topExpenseCategories)
     : [];
-  const expenseCenterValue = summary ? formatJuta(summary.totalExpense) : "—";
+  // EPIC-025 N3-G2 — DonutChart series, value = the real amount (not the
+  // percentage `expenseDonut` carries): the Apex preset sums `value` for
+  // its center-total label and formats it as currency, so the series must
+  // carry real amounts to preserve numeric parity. Built directly from
+  // `summary.topExpenseCategories` (same filter/order `categoryBreakdownToDonut`
+  // applies) rather than editing the protected util.
+  const expenseDonutAmounts: DonutSegment[] = summary
+    ? summary.topExpenseCategories
+        .filter((item) => item.percentage > 0)
+        .map((item, i) => ({
+          label: item.categoryName,
+          value: item.amount,
+          color: expenseDonut[i]?.color ?? "#E2E8F0",
+        }))
+    : [];
+  const expenseDonutAriaLabel =
+    expenseDonut.length > 0
+      ? `${t.laporan.ringkasan.expenseAllocTitle}: ${expenseDonut.map((s) => `${s.label} ${s.value}%`).join(", ")}`
+      : t.laporan.ringkasan.expenseAllocTitle;
 
   const invChart = buildInvChartData(invSummary);
 
   const wealthAlloc = balanceSheet
     ? balanceSheetToWealthAlloc(balanceSheet.assets, balanceSheet.totalAssets)
     : [];
-  const wealthCenterValue = balanceSheet
-    ? formatJuta(balanceSheet.totalAssets)
-    : "—";
+  // EPIC-025 N3-G2 — same amount-vs-percentage fix as `expenseDonutAmounts`,
+  // matched back to the real amount by `category` label (order/color stay
+  // identical to `wealthAlloc`, which the legend below still renders).
+  const wealthAllocAmounts: DonutSegment[] = wealthAlloc.map((seg) => ({
+    label: seg.label,
+    value:
+      balanceSheet?.assets.find((a) => a.category === seg.label)?.amount ?? 0,
+    color: seg.color,
+  }));
+  const wealthAllocAriaLabel =
+    wealthAlloc.length > 0
+      ? `${t.laporan.ringkasan.wealthAllocTitle}: ${wealthAlloc.map((s) => `${s.label} ${s.value}%`).join(", ")}`
+      : t.laporan.ringkasan.wealthAllocTitle;
 
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
 
@@ -293,12 +336,13 @@ function RingkasanSection({
         </div>
         {chartMonths.length > 0 && (
           <div className="mt-4">
-            <BarChart
+            {/* EPIC-025 N3-G2 — BarChart → CashflowChart (Apex). */}
+            <CashflowChart
               months={chartMonths}
               income={chartIncome}
               expense={chartExpense}
-              max={chartMax}
               height={100}
+              ariaLabel={cashflowChartAriaLabel}
             />
           </div>
         )}
@@ -309,15 +353,33 @@ function RingkasanSection({
           <div className="flex flex-wrap items-center gap-3.5">
             {expenseDonut.length > 0 ? (
               <>
-                <Donut
-                  segments={expenseDonut}
-                  size={110}
-                  thickness={16}
-                  centerValue={expenseCenterValue}
+                {/* EPIC-025 N3-G2 — Donut → DonutChart (Apex). Same segments
+                    as `expenseDonut`, amount-valued for center-total parity
+                    (see `expenseDonutAmounts` above); `expenseCenterValue`
+                    (formatJuta) is unused now that the Apex preset computes
+                    its own center total from the real series. */}
+                <DonutChart
+                  segments={expenseDonutAmounts}
                   centerLabel={t.common.total}
+                  height={220}
+                  ariaLabel={expenseDonutAriaLabel}
                 />
-                <div className="min-w-[120px] flex-1">
-                  <DonutLegend segments={expenseDonut} />
+                <div className="min-w-[120px] flex-1 space-y-1.5">
+                  {expenseDonut.map((seg) => (
+                    <div
+                      key={seg.label}
+                      className="flex items-center gap-2 text-xs"
+                    >
+                      <span
+                        className="size-2 shrink-0 rounded-full"
+                        style={{ background: seg.color }}
+                      />
+                      <span className="flex-1 text-muted-foreground">
+                        {seg.label}
+                      </span>
+                      <span className="font-bold">{seg.value}%</span>
+                    </div>
+                  ))}
                 </div>
               </>
             ) : (
@@ -331,15 +393,33 @@ function RingkasanSection({
           <div className="flex flex-wrap items-center gap-3.5">
             {wealthAlloc.length > 0 ? (
               <>
-                <Donut
-                  segments={wealthAlloc}
-                  size={110}
-                  thickness={16}
-                  centerValue={wealthCenterValue}
+                {/* EPIC-025 N3-G2 — Donut → DonutChart (Apex). Same segments
+                    as `wealthAlloc`, amount-valued for center-total parity
+                    (see `wealthAllocAmounts` above); `wealthCenterValue`
+                    (formatJuta) is unused now that the Apex preset computes
+                    its own center total from the real series. */}
+                <DonutChart
+                  segments={wealthAllocAmounts}
                   centerLabel={t.common.total}
+                  height={220}
+                  ariaLabel={wealthAllocAriaLabel}
                 />
-                <div className="min-w-[120px] flex-1">
-                  <DonutLegend segments={wealthAlloc} />
+                <div className="min-w-[120px] flex-1 space-y-1.5">
+                  {wealthAlloc.map((seg) => (
+                    <div
+                      key={seg.label}
+                      className="flex items-center gap-2 text-xs"
+                    >
+                      <span
+                        className="size-2 shrink-0 rounded-full"
+                        style={{ background: seg.color }}
+                      />
+                      <span className="flex-1 text-muted-foreground">
+                        {seg.label}
+                      </span>
+                      <span className="font-bold">{seg.value}%</span>
+                    </div>
+                  ))}
                 </div>
               </>
             ) : (
@@ -604,9 +684,14 @@ function BulananSection({
 }) {
   const { t } = useLocale();
   const chartMonths = summary?.points.map((p) => p.label) ?? [];
-  const chartIncome = summary?.points.map((p) => p.income / 1_000_000) ?? [];
-  const chartExpense = summary?.points.map((p) => p.expense / 1_000_000) ?? [];
-  const chartMax = Math.max(...chartIncome, ...chartExpense, 1);
+  // EPIC-025 N3-G2 — raw Rupiah series, same reasoning as `RingkasanSection`
+  // above (the old /1_000_000 was a pixel-scale factor, not a data change).
+  const chartIncome = summary?.points.map((p) => p.income) ?? [];
+  const chartExpense = summary?.points.map((p) => p.expense) ?? [];
+  const cashflowChartAriaLabel =
+    summary && chartMonths.length > 0
+      ? `${t.laporan.bulanan.trendTitle} ${chartMonths[chartMonths.length - 1]}: ${t.common.income} ${formatRupiah(chartIncome[chartIncome.length - 1] ?? 0)}, ${t.common.expense} ${formatRupiah(chartExpense[chartExpense.length - 1] ?? 0)}`
+      : t.laporan.bulanan.trendTitle;
 
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
 
@@ -617,12 +702,13 @@ function BulananSection({
       </div>
       {chartMonths.length > 0 && (
         <SectionCard title={t.laporan.bulanan.trendTitle}>
-          <BarChart
+          {/* EPIC-025 N3-G2 — BarChart → CashflowChart (Apex). */}
+          <CashflowChart
             months={chartMonths}
             income={chartIncome}
             expense={chartExpense}
-            max={chartMax}
             height={110}
+            ariaLabel={cashflowChartAriaLabel}
           />
         </SectionCard>
       )}
@@ -1848,9 +1934,14 @@ function KasSection({
 }) {
   const { t } = useLocale();
   const chartMonths = summary?.points.map((p) => p.label) ?? [];
-  const chartIncome = summary?.points.map((p) => p.income / 1_000_000) ?? [];
-  const chartExpense = summary?.points.map((p) => p.expense / 1_000_000) ?? [];
-  const chartMax = Math.max(...chartIncome, ...chartExpense, 1);
+  // EPIC-025 N3-G2 — raw Rupiah series, same reasoning as `RingkasanSection`
+  // above (the old /1_000_000 was a pixel-scale factor, not a data change).
+  const chartIncome = summary?.points.map((p) => p.income) ?? [];
+  const chartExpense = summary?.points.map((p) => p.expense) ?? [];
+  const cashflowChartAriaLabel =
+    summary && chartMonths.length > 0
+      ? `${t.laporan.kas.title} ${chartMonths[chartMonths.length - 1]}: ${t.common.income} ${formatRupiah(chartIncome[chartIncome.length - 1] ?? 0)}, ${t.common.expense} ${formatRupiah(chartExpense[chartExpense.length - 1] ?? 0)}`
+      : t.laporan.kas.title;
 
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
 
@@ -1881,12 +1972,13 @@ function KasSection({
         </div>
         {chartMonths.length > 0 && (
           <div className="mt-4">
-            <BarChart
+            {/* EPIC-025 N3-G2 — BarChart → CashflowChart (Apex). */}
+            <CashflowChart
               months={chartMonths}
               income={chartIncome}
               expense={chartExpense}
-              max={chartMax}
               height={110}
+              ariaLabel={cashflowChartAriaLabel}
             />
           </div>
         )}

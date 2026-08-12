@@ -19,13 +19,15 @@ import {
   Target,
   type LucideIcon,
 } from "lucide-react";
-import { Sparkline } from "@/components/charts/sparkline";
+import type { DonutSegment } from "@/components/charts/donut";
+// EPIC-025 N3-G1 — the chart swap: ApexCharts presets replace the old
+// Sparkline/Donut+DonutLegend/BarChart components. Every series below is the
+// SAME data these components rendered before the swap (traced inline).
 import {
-  Donut,
-  DonutLegend,
-  type DonutSegment,
-} from "@/components/charts/donut";
-import { BarChart } from "@/components/charts/bar-chart";
+  CashflowChart,
+  DonutChart,
+  SparklineChart,
+} from "@/components/charts/apex-presets";
 import {
   HeroCard,
   SectionCard,
@@ -47,6 +49,7 @@ import { formatRupiah, formatRupiahCompact } from "@/lib/format";
 import type {
   DashboardSummaryDto,
   GoalDto,
+  NetWorthDto,
   NetWorthHistoryDto,
 } from "@wealthme/contracts";
 
@@ -145,6 +148,20 @@ function BerandaPage() {
     staleTime: 60_000,
   });
 
+  // EPIC-025 N3-G1 — bento-hero footer metric ("Liabilitas"). Same
+  // `/dashboard/net-worth` endpoint `ringkasan` already fetches; only
+  // `liabilitiesTotal` is read here (no new backend work, per Ground Truth).
+  const { data: netWorthData } = useQuery<NetWorthDto>({
+    queryKey: queryKeys.netWorth.summary(familyGroupId ?? ""),
+    queryFn: () =>
+      apiFetch<NetWorthDto>(
+        `/family-groups/${familyGroupId}/dashboard/net-worth`,
+        { token: session?.accessToken },
+      ),
+    enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
+    staleTime: 60_000,
+  });
+
   const { data: goals, isLoading: isGoalsLoading } = useQuery<GoalDto[]>({
     queryKey: queryKeys.goals.all(familyGroupId ?? ""),
     queryFn: ({ signal }) =>
@@ -183,12 +200,25 @@ function BerandaPage() {
     };
   });
 
+  // `allocation` keeps the percentage-based shape (`item.value`) the old
+  // `DonutLegend` rendered — still used below for the legend rows/aria text.
   const allocation: DonutSegment[] = (summary?.allocation ?? []).map(
     (item) => ({
       label: item.label,
       value: item.value,
       color: item.color,
       sub: money(item.amount),
+    }),
+  );
+  // EPIC-025 N3-G1 — DonutChart series, value = `item.amount` (Rupiah), NOT
+  // the percentage: the Apex preset sums `value` for its center-total label
+  // and formats it as currency, so the series must carry the real amount to
+  // preserve numeric parity (matches `ringkasan`'s N3-C2 DonutChart wiring).
+  const donutSegments: DonutSegment[] = (summary?.allocation ?? []).map(
+    (item) => ({
+      label: item.label,
+      value: item.amount,
+      color: item.color,
     }),
   );
 
@@ -278,6 +308,40 @@ function BerandaPage() {
   // family owner sets a price (Open Design Decision #6: manual only).
   const goldGrams = hasGoldPrice ? toGoldGrams(netWorth) : null;
 
+  // EPIC-025 N3-G1 — bento-hero footer + "Komposisi Kekayaan" snapshot card.
+  // Both derived purely from data this page already fetches (`summary`,
+  // `netWorthData`) — no new backend endpoint, per Ground Truth.
+  const assetsTotal = summary?.assetsTotal ?? 0;
+  const totalLiabilities = Number(netWorthData?.liabilitiesTotal ?? 0);
+  const LIQUID_TYPES = new Set(["cash", "ewallet", "bank"]);
+  const liquidTotal = (summary?.accountSummary ?? [])
+    .filter((s) => LIQUID_TYPES.has(s.type))
+    .reduce((sum, s) => sum + s.total, 0);
+  const nonLiquidTotal = (summary?.accountSummary ?? [])
+    .filter((s) => !LIQUID_TYPES.has(s.type))
+    .reduce((sum, s) => sum + s.total, 0);
+  const liquidPct =
+    assetsTotal > 0 ? Math.round((liquidTotal / assetsTotal) * 1000) / 10 : 0;
+  const nonLiquidPct =
+    assetsTotal > 0
+      ? Math.round((nonLiquidTotal / assetsTotal) * 1000) / 10
+      : 0;
+
+  // EPIC-025 N3-G1 — chart-parity aria labels: every value below is read
+  // from the same `summary`/`netWorthHistory` data the chart series render,
+  // never a separately-computed number.
+  const sparklineAriaLabel =
+    sparklinePoints.length >= 2
+      ? `${t.beranda.totalWealth}: ${money(sparklinePoints[0]!)} → ${money(sparklinePoints[sparklinePoints.length - 1]!)}`
+      : t.beranda.totalWealth;
+  const cashflowAriaLabel = cashflow
+    ? `${t.common.cashFlow} ${cashflow.months[cashflow.months.length - 1] ?? ""}: ${t.common.income} ${money(currentMonth?.income ?? 0)}, ${t.common.expense} ${money(currentMonth?.expense ?? 0)}`
+    : t.common.cashFlow;
+  const donutAriaLabel =
+    allocation.length > 0
+      ? `${t.beranda.wealthBreakdown}: ${allocation.map((a) => `${a.label} ${a.value}%`).join(", ")}`
+      : t.beranda.wealthBreakdown;
+
   if (isError) {
     return (
       <div className="flex items-center justify-center py-16 text-[13px] text-muted-foreground">
@@ -285,14 +349,6 @@ function BerandaPage() {
       </div>
     );
   }
-
-  const donutCenterValue = isIndicative
-    ? money(netWorth)
-    : netWorth >= 1_000_000_000
-      ? (netWorth / 1_000_000_000).toFixed(2).replace(".", ",") + "M"
-      : netWorth >= 1_000_000
-        ? (netWorth / 1_000_000).toFixed(0) + " jt"
-        : formatRupiah(netWorth);
 
   const greetingKey = getGreetingKey(new Date().getHours());
   const sparkLabels = t.common.sparkLabels;
@@ -312,23 +368,21 @@ function BerandaPage() {
       </div>
 
       {/*
-        Wide-viewport main+aside reflow (EPIC-018 Task C). Below `lg` this
-        wrapper is a plain `space-y-3.5` stack, so the blocks below render in
-        exactly today's order/spacing — untouched. At `lg`+ it becomes a
-        3-col grid (main = col 1-2 / ~2/3, aside = col 3 / ~1/3); the two
-        "row" wrapper divs below switch to `display: contents` at `lg` so
-        their children become direct grid items — DOM order stays identical,
-        only visual placement changes. Hero + the cashflow chart stay wide in
-        the main column; the allocation breakdown, recent activity, and
-        goals lists move into the narrower aside alongside them.
+        EPIC-025 N3-G1 — bento-grid layout port
+        (`docs/prototype/pages/beranda.html`'s `.bento-dashboard`): a 12-col
+        grid at `lg`+, 2-col tablet, stacked mobile. Card spans mirror the
+        prototype's `.bento-hero`(7)/`.bento-snapshot`(5)/`.bento-stat`(3
+        each)/`.bento-chart`(7)/`.bento-allocation`(5)/`.bento-transactions`(7)/
+        `.bento-goals`(12). The prototype's `.bento-side` (budget-overview +
+        "Perlu Perhatian" notices) is NOT ported — beranda does not fetch
+        budget or pending-approval data today, and this wave is
+        presentation-only (Ground Truth: fold only what's already fetched,
+        never invent a new endpoint).
       */}
-      <div className="space-y-3.5 lg:grid lg:grid-cols-3 lg:items-start lg:gap-3.5 lg:space-y-0">
-        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:contents">
+      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:grid-cols-12 lg:items-start">
+        <div className="grid grid-cols-1 gap-3.5 md:col-span-2 md:grid-cols-2 lg:contents">
           {/* Wealth Hero */}
-          <Rise
-            index={0}
-            className="lg:col-start-1 lg:col-end-3 lg:row-start-1"
-          >
+          <Rise index={0} className="lg:col-span-7">
             <HeroCard className="gradient-wealth">
               <div className="flex items-center gap-1.5 text-[12.5px] font-semibold opacity-90">
                 <Gem className="size-[13px] opacity-80" />{" "}
@@ -416,22 +470,62 @@ function BerandaPage() {
               </div>
 
               <div className="mt-3 -mx-[22px]">
-                <Sparkline points={sparklinePoints} />
+                {/* EPIC-025 N3-G1 — Sparkline → SparklineChart (Apex). Same
+                    `sparklinePoints` series as before the swap, just a
+                    different rendering library. */}
+                <SparklineChart
+                  data={sparklinePoints}
+                  color="#ffffff"
+                  ariaLabel={sparklineAriaLabel}
+                />
                 <div className="mt-1 flex justify-between px-[22px] text-[10px] opacity-60">
                   {sparkLabels.map((l) => (
                     <span key={l}>{l}</span>
                   ))}
                 </div>
               </div>
+
+              {/* EPIC-025 N3-G1 — bento-hero__footer (prototype metrics
+                  row): Aset / Liabilitas / Arus kas bulan ini, all derived
+                  from data this page already fetches. */}
+              <div className="mt-3.5 grid grid-cols-3 gap-2.5">
+                <div className="rounded-[11px] border border-white/[0.18] bg-white/10 px-3 py-2.5">
+                  <div className="text-[11px] font-semibold opacity-80">
+                    {t.ringkasan.totalAssetsLabel}
+                  </div>
+                  <div className="mono mt-0.5 text-[14px] font-extrabold">
+                    {isLoading ? "…" : moneyCompact(assetsTotal)}
+                  </div>
+                </div>
+                <div className="rounded-[11px] border border-white/[0.18] bg-white/10 px-3 py-2.5">
+                  <div className="text-[11px] font-semibold opacity-80">
+                    {t.ringkasan.totalLiabilitiesLabel}
+                  </div>
+                  <div className="mono mt-0.5 text-[14px] font-extrabold">
+                    {isLoading ? "…" : moneyCompact(totalLiabilities)}
+                  </div>
+                </div>
+                <div className="rounded-[11px] border border-white/[0.18] bg-white/10 px-3 py-2.5">
+                  <div className="text-[11px] font-semibold opacity-80">
+                    {t.beranda.cashflowThisMonth}
+                  </div>
+                  <div className="mono mt-0.5 text-[14px] font-extrabold">
+                    {isLoading ? "…" : moneyCompact(currentMonth?.net ?? 0)}
+                  </div>
+                </div>
+              </div>
             </HeroCard>
           </Rise>
 
-          {/* Allocation */}
-          <Rise index={1} className="lg:col-start-3 lg:row-start-1">
+          {/* EPIC-025 N3-G1 — "Komposisi Kekayaan" snapshot card
+              (`.bento-snapshot`). Liquid vs non-liquid split, derived from
+              the already-fetched `summary.accountSummary` — no new
+              endpoint. */}
+          <Rise index={1} className="lg:col-span-5">
             <SectionCard
-              title={t.beranda.wealthBreakdown}
+              title={t.beranda.wealthComposition}
               action={
-                <CardLink onClick={() => router.push("/aset")}>
+                <CardLink onClick={() => router.push("/ringkasan")}>
                   {t.common.viewDetail}
                 </CardLink>
               }
@@ -440,21 +534,33 @@ function BerandaPage() {
                 <div className="flex h-[105px] items-center justify-center text-[13px] text-muted-foreground">
                   {t.common.loading}
                 </div>
-              ) : allocation.length === 0 ? (
-                <div className="flex h-[105px] items-center justify-center text-[13px] text-muted-foreground">
-                  {t.common.noData}
-                </div>
               ) : (
-                <div className="flex flex-wrap items-center gap-3.5">
-                  <Donut
-                    segments={allocation}
-                    size={105}
-                    thickness={17}
-                    centerValue={donutCenterValue}
-                    centerLabel={t.common.total}
-                  />
-                  <div className="min-w-[110px] flex-1">
-                    <DonutLegend segments={allocation} total={100} />
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-3 rounded-xl bg-secondary p-3">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-card text-primary">
+                      <ArrowLeftRight className="size-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[11.5px] font-bold text-muted-foreground">
+                        {t.beranda.liquidAssets} · {liquidPct}%
+                      </div>
+                      <div className="mono mt-px text-[16px] font-extrabold tracking-tight">
+                        {moneyCompact(liquidTotal)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 rounded-xl bg-secondary p-3">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-card text-brand-purple">
+                      <Landmark className="size-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[11.5px] font-bold text-muted-foreground">
+                        {t.beranda.nonLiquidAssets} · {nonLiquidPct}%
+                      </div>
+                      <div className="mono mt-px text-[16px] font-extrabold tracking-tight">
+                        {moneyCompact(nonLiquidTotal)}
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -463,7 +569,7 @@ function BerandaPage() {
         </div>
 
         {/* Summary cards */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:col-start-1 lg:col-end-3 lg:row-start-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:col-span-2 lg:col-span-12 lg:grid-cols-3 xl:grid-cols-5">
           {isLoading
             ? Array(5)
                 .fill(null)
@@ -510,12 +616,12 @@ function BerandaPage() {
               ))}
         </div>
 
-        {/* Row 3 */}
-        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3 lg:contents">
+        {/* Row 3 — Cashflow (`.bento-chart`, 7) + Allocation (`.bento-allocation`, 5) */}
+        <div className="grid grid-cols-1 gap-3.5 md:col-span-2 md:grid-cols-2 lg:contents">
           {/* Cashflow */}
           <SectionCard
             title={t.common.cashFlow}
-            className="lg:col-start-1 lg:col-end-3 lg:row-start-3"
+            className="lg:col-span-7"
             action={
               <span className="rounded-md border bg-background px-2 py-[3px] text-[11px] text-muted-foreground">
                 {cashflow?.months[cashflow.months.length - 1] ?? "—"}{" "}
@@ -547,21 +653,72 @@ function BerandaPage() {
                 {isLoading ? "..." : money(currentMonth?.net ?? 0)}
               </span>
             </div>
+            {/* EPIC-025 N3-G1 — BarChart → CashflowChart (Apex). Same
+                `cashflow.months/income/expense` series as before the swap. */}
             {cashflow && (
-              <BarChart
+              <CashflowChart
                 months={cashflow.months}
                 income={cashflow.income}
                 expense={cashflow.expense}
-                max={cashflow.max}
                 height={90}
+                ariaLabel={cashflowAriaLabel}
               />
             )}
           </SectionCard>
 
-          {/* Recent activity */}
+          {/* Allocation (`.bento-allocation`) — DonutChart, replacing the
+              old Donut+DonutLegend combo below the summary cards. */}
+          <SectionCard
+            title={t.beranda.wealthBreakdown}
+            className="lg:col-span-5"
+            action={
+              <CardLink onClick={() => router.push("/aset")}>
+                {t.common.viewDetail}
+              </CardLink>
+            }
+          >
+            {isLoading ? (
+              <div className="flex h-[220px] items-center justify-center text-[13px] text-muted-foreground">
+                {t.common.loading}
+              </div>
+            ) : allocation.length === 0 ? (
+              <div className="flex h-[220px] items-center justify-center text-[13px] text-muted-foreground">
+                {t.common.noData}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <DonutChart
+                  segments={donutSegments}
+                  centerLabel={t.common.total}
+                  height={200}
+                  ariaLabel={donutAriaLabel}
+                />
+                <div className="space-y-1.5">
+                  {allocation.map((seg) => (
+                    <div
+                      key={seg.label}
+                      className="flex items-center gap-2 text-xs"
+                    >
+                      <span
+                        className="size-2 shrink-0 rounded-full"
+                        style={{ background: seg.color }}
+                      />
+                      <span className="flex-1 text-muted-foreground">
+                        {seg.label}
+                      </span>
+                      <span className="font-bold">{seg.value}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </SectionCard>
+        </div>
+
+        {/* Recent activity (`.bento-transactions`, 7) */}
+        <div className="lg:col-span-7">
           <SectionCard
             title={t.beranda.recentTransactions}
-            className="lg:col-start-3 lg:row-start-2"
             action={
               <CardLink onClick={() => router.push("/transaksi")}>
                 {t.common.viewAll}
@@ -623,11 +780,12 @@ function BerandaPage() {
               </div>
             )}
           </SectionCard>
+        </div>
 
-          {/* Goals */}
+        {/* Goals (`.bento-goals`, full width) */}
+        <div className="lg:col-span-12">
           <SectionCard
             title={t.beranda.financialGoals}
-            className="lg:col-start-3 lg:row-start-3"
             action={
               <CardLink onClick={() => router.push("/tujuan")}>
                 {t.common.viewAll}
@@ -694,7 +852,7 @@ function BerandaPage() {
         </div>
 
         {/* AI insight banner */}
-        <div className="flex items-center gap-3.5 rounded-[14px] bg-accent p-4 lg:col-start-1 lg:col-end-4 lg:row-start-4">
+        <div className="flex items-center gap-3.5 rounded-[14px] bg-accent p-4 md:col-span-2 lg:col-span-12">
           <div className="text-[26px]">📊</div>
           <div className="flex-1">
             <div className="text-[13px] font-bold text-primary-strong">

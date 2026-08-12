@@ -70,6 +70,11 @@ export const en = {
       "Fill in your risk profile to get investment recommendations tailored to your goals.",
     aiInsightCta: "Fill Risk Profile →",
     dateLocale: "en-US",
+    // EPIC-025 N3-G1 — bento-hero layout port + ApexCharts swap.
+    wealthComposition: "Wealth Composition",
+    liquidAssets: "Liquid Assets",
+    nonLiquidAssets: "Non-Liquid Assets",
+    cashflowThisMonth: "Cash flow this month",
   },
   shell: {
     loading: "Loading WealthMe…",

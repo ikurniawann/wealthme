@@ -221,15 +221,15 @@ first, as docs only, so no later page PR has to relitigate them mid-review.
         actions.
   - [x] **F5** — Port `rekonsiliasi`.
 
-- [ ] ### N3-G — Wave 6: the chart swap (the two real consumers)
-  - **G1** — Port `beranda` to the bento-hero layout **and** replace
-    `Sparkline`/`Donut`/`BarChart` with the Apex presets from N3-A.
-    `beranda.test.tsx` must pass unmodified.
-  - **G2** — Port `laporan` (large file — consider splitting into a
-    chart-swap-only PR and a layout-port PR) **and** replace
-    `BarChart`/`Donut`/`DonutLegend`. `laporan-balance.test.tsx`,
-    `laporan-utils.test.ts`, `laporan-period.test.ts` must pass unmodified.
-    Group M2's `rcoa` COA-matrix tab behavior must be unchanged.
+- [x] ### N3-G — Wave 6: the chart swap (the two real consumers) ✅
+  - [x] **G1** — Port `beranda` to the bento-hero layout **and** replace
+        `Sparkline`/`Donut`/`BarChart` with the Apex presets from N3-A.
+        `beranda.test.tsx` must pass unmodified.
+  - [x] **G2** — Port `laporan` (large file — consider splitting into a
+        chart-swap-only PR and a layout-port PR) **and** replace
+        `BarChart`/`Donut`/`DonutLegend`. `laporan-balance.test.tsx`,
+        `laporan-utils.test.ts`, `laporan-period.test.ts` must pass unmodified.
+        Group M2's `rcoa` COA-matrix tab behavior must be unchanged.
 
 - [ ] ### N3-H — Wave 7: public/auth surfaces
   - **H1** — Port `login`: build the PIN keypad (3×4 grid + dots) as pure
@@ -571,3 +571,29 @@ prototype counterpart.
   dead i18n keys this wave (a repeated issue in N3-D/N3-E, avoided here).
   globals.css zero diff, all critical existing tests unmodified.
   PR: https://github.com/andrsrjld/wealthme-web/pull/275
+- 2026-08-12 /epic-loop EPIC-025 #8 "N3-G — Wave 6: the chart swap (the two
+  real consumers)" → PASS (attempts: 1) — **THE HIGHEST-RISK GROUP,
+  CLEARED**. Swapped `beranda`'s `Sparkline`/`Donut`/`BarChart` and
+  `laporan`'s `BarChart`/`Donut`/`DonutLegend` to the N3-A ApexCharts
+  presets (SparklineChart/DonutChart/CashflowChart). Old chart component
+  files (sparkline.tsx/donut.tsx/bar-chart.tsx) left untouched — deletion
+  is N3-I's job, after this soaks. `laporan-utils.ts` (protected) zero
+  diff — read-only import of `DonutSegment`. `rcoa` COA-matrix tab
+  untouched (diff hunks confirmed nowhere near it). An adversarial numeric-
+  parity pass (assume-wrong-until-proven) traced every donut/cashflow
+  series by hand: DonutChart series correctly switched to `.amount` (Apex
+  needs real amounts for its center-total sum, unlike the old bespoke
+  arc-width-only Donut) while legends still render from the original
+  percentage arrays — no unit cross-contamination; CashflowChart correctly
+  dropped the old `/1_000_000` pixel-scale factor (the old BarChart baked
+  it into its tooltip text, Apex's formatters need real Rupiah). Beranda
+  gained a real net-worth query (existing endpoint, already scoped) for a
+  new liquid/non-liquid composition card. `beranda.test.tsx`,
+  `laporan-balance.test.tsx`, `laporan-utils.test.ts`,
+  `laporan-period.test.ts` — 99 tests total, all pass unmodified. All 5
+  gates (react-reviewer, typescript-reviewer, adversarial numeric-parity
+  review-qa-agent pass, security-agent, test-agent) PASS. 1 MEDIUM
+  (key={i} on 3 new legend rows) fixed opportunistically (swapped to
+  `seg.label`). globals.css zero diff, no dead i18n keys. **N3-G is the
+  epic's core deliverable — the chart-library foundation change is
+  complete.** PR: https://github.com/andrsrjld/wealthme-web/pull/276

@@ -352,6 +352,11 @@ export type I18nDictionary = {
     aiInsightBody: string;
     aiInsightCta: string;
     dateLocale: string;
+    // EPIC-025 N3-G1 — bento-hero layout port + ApexCharts swap.
+    wealthComposition: string;
+    liquidAssets: string;
+    nonLiquidAssets: string;
+    cashflowThisMonth: string;
   };
   /**
    * Shell-owned copy: sidebar/topbar/mobile nav chrome, the global
