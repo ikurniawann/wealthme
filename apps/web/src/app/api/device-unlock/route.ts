@@ -1,7 +1,8 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { getServerEnv } from "@/lib/env";
+import { getServerEnv } from "@/lib/server-env";
+import { signCookieValue } from "@/lib/signed-cookie";
 
 export const runtime = "nodejs";
 
@@ -113,8 +114,30 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const { token } = (await apiRes.json()) as { token: string };
 
+  // HOTFIX (found by EPIC-024's deploy-smoke e2e run through nginx — this
+  // route's PIN-unlock flow was unreachable before Group B's nginx fix, so
+  // this bug was never exercised until now): better-auth signs its session
+  // cookie value as `${token}.${HMAC-SHA256(token)}` (verified against the
+  // installed better-auth@1.6.25 → hono@4.13.0 cookie utils — better-auth's
+  // `setSignedCookie` delegates straight to hono's `serializeSigned`). A
+  // PLAIN unsigned `token` here used to pass the middleware's presence-only
+  // check (so `/beranda` returned 200 once), but `authClient.useSession()`
+  // validates the signature client-side via `GET /api/auth/get-session`,
+  // fails, and `app-shell.tsx` bounces back to `/login` within ~1s.
+  // `signCookieValue` replicates hono's exact algorithm (HMAC-SHA256, plain
+  // base64, `${value}.${signature}`) using the same BETTER_AUTH_SECRET so
+  // better-auth's own verifier accepts it.
+  const secret = process.env.BETTER_AUTH_SECRET;
+  if (!secret) {
+    return NextResponse.json(
+      { message: "Server misconfiguration: BETTER_AUTH_SECRET is not set" },
+      { status: 500 },
+    );
+  }
+  const signedToken = await signCookieValue(token, secret);
+
   const cookieStore = await cookies();
-  cookieStore.set(sessionCookieName(), token, {
+  cookieStore.set(sessionCookieName(), signedToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
