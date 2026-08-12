@@ -869,3 +869,32 @@ the N1 prototype has an approval recorded in the Automation Log.
   reproduces through nginx, so its fix needs a live smoke test on the
   deployed environment, not just this local docker-compose deploy; (3) the
   owner walks all 27 verbatim items against DEV to formally close the epic.
+- 2026-08-12 — **Deploy-smoke run through nginx found the deployed image was
+  stale, then found a genuine functional bug the epic's own gates never
+  caught.** Root cause chain: `docs/epics/`'s deploy-smoke tests (PIN journey
+  - public split link, run via `e2e-runner` against `wealthme-nginx`) were the
+    first thing to actually exercise the merged code through nginx. First
+    finding: CI (`Lint, Build & Test`) had been **failing on every push since
+    Group B's merge** (PR #255, 12+ commits) — `apps/web/src/lib/env.ts` coupled
+    Group B's new lazy `getServerEnv()` with a pre-existing EAGER `env` export;
+    importing one for `/api/device-unlock` triggered the other, and CI's
+    `next build` has no `NEXT_PUBLIC_*` vars (correctly no committed `.env`) so
+    it crashed every time. This silently blocked the GHCR image pipeline —
+    every deploy since Group B ran a stale, pre-fix (2026-08-06) image, and
+    every `/epic-loop` gate that ran `scripts/test.sh` locally passed because a
+    local `apps/web/.env` (gitignored) supplied the vars CI never had. Second
+    finding, only visible once the image was actually fresh: PIN unlock set an
+    **unsigned** session cookie (`apps/web/src/app/api/device-unlock/route.ts`,
+    pre-dates this epic — EPIC-023 D2); better-auth requires a signed cookie
+    client-side, so the unlock appeared to succeed (`200` on `/beranda`) but
+    bounced back to `/login` within ~1s. nginx's 404 (the bug Group B fixed)
+    had masked this second bug the entire time — it was never reachable to
+    test until now. Both fixed in
+    https://github.com/andrsrjld/wealthme-web/pull/268 (CI verified green
+    before merge, GHCR image rebuilt, redeployed, both smoke flows re-run and
+    now genuinely PASS: PIN session persists past 8s on `/beranda` with a
+    correctly-shaped `token.signature` cookie; `/split/<token>` renders with
+    zero cookies and no redirect). **Group B's PIN flow item (2) above is now
+    closed** — verified live through nginx, not just deployed. Remaining human
+    gates unchanged: (1) A3 migration owner announcement, (3) owner's 27-item
+    walkthrough.
