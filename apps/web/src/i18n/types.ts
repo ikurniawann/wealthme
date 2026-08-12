@@ -436,6 +436,19 @@ export type I18nDictionary = {
       detailItemLabel: string;
       saveToTransaction: string;
       scanAgain: string;
+      // EPIC-024 Task L3 (US-TXN-9) — receipt/photo attachment on the
+      // manual-entry form (income/expense/transfer tabs only; the card tab
+      // posts through liabilities.purchase(), which returns no
+      // transactionId to attach to).
+      attachmentLabel: string;
+      attachmentPlaceholder: string;
+      attachmentSelected: string;
+      attachmentUploadFailedToast: string;
+      // EPIC-024 Task L3 (US-TXN-9) — client-side pre-check rejections (the
+      // server is authoritative; these only save a round trip for an
+      // obviously-bad file).
+      attachmentInvalidTypeToast: string;
+      attachmentTooLargeToast: string;
     };
     themeToggle: {
       ariaLabel: string;
@@ -2009,6 +2022,23 @@ export type I18nDictionary = {
      * so would desync the debt/coverage it recorded.
      */
     obligationLockedTooltip: string;
+    /**
+     * EPIC-024 Task L3 (D15, US-TXN-9) — attachment list rendered inside the
+     * read-only transaction detail dialog.
+     */
+    attachmentsSectionLabel: string;
+    attachmentsLoadingLabel: string;
+    attachmentsLoadFailedLabel: string;
+    attachmentsEmptyLabel: string;
+    attachmentImageLabel: string;
+    attachmentPdfLabel: string;
+    attachmentViewButton: string;
+    attachmentViewFailedToast: string;
+    attachmentDeleteButton: string;
+    attachmentDeleteConfirmTitle: string;
+    attachmentDeleteConfirmBody: string;
+    attachmentDeletedToast: string;
+    attachmentDeleteFailedToast: string;
   };
   /**
    * EPIC-018 Task A6 — `/splitbill` (split bill) page copy. The seed

@@ -530,7 +530,26 @@ function buildReferenceItemSeed() {
     }))
   );
 }
+
+// src/attachments/index.ts
+import { z as z10 } from "zod";
+var TransactionAttachmentDtoSchema = z10.object({
+  id: z10.string().uuid(),
+  transactionId: z10.string().uuid(),
+  mimeType: z10.string(),
+  size: z10.number().int().nonnegative(),
+  createdAt: z10.string()
+});
+var ATTACHMENT_MAX_FILE_BYTES = 5 * 1024 * 1024;
+var ATTACHMENT_ACCEPTED_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf"
+];
 export {
+  ATTACHMENT_ACCEPTED_MIME_TYPES,
+  ATTACHMENT_MAX_FILE_BYTES,
   AccountDtoSchema,
   AccountOwnerFilterSchema,
   AccountTypeSchema,
@@ -561,6 +580,7 @@ export {
   RoleSchema,
   RupiahSchema,
   SetMemberCategoryAllowanceInputSchema,
+  TransactionAttachmentDtoSchema,
   TransactionDtoSchema,
   TransactionListResponseSchema,
   TransactionSummarySchema,

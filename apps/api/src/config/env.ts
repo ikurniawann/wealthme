@@ -36,6 +36,11 @@ const envSchema = z.object({
   MINIO_ACCESS_KEY: z.string().optional(),
   MINIO_SECRET_KEY: z.string().optional(),
   MINIO_BUCKET: z.string().optional(),
+  // EPIC-024 Task L1 (D15) — root directory StorageDiskService reads/writes
+  // under. Backed by a persistent Docker volume in docker-compose.yml
+  // (`attachments_data`), not MinIO — disk now, S3 later without feature
+  // changes per the epic's design decision.
+  STORAGE_DIR: z.string().default("/data/storage"),
   MAIL_HOST: z.string().optional(),
   MAIL_PORT: z.coerce.number().optional(),
   MAIL_USER: z.string().optional(),

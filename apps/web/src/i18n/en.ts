@@ -232,6 +232,14 @@ export const en = {
       detailItemLabel: "Item Details",
       saveToTransaction: "Save to Transaction",
       scanAgain: "Scan Again",
+      attachmentLabel: "Attachment",
+      attachmentPlaceholder: "Choose file (JPG, PNG, WEBP, or PDF, max 5MB)",
+      attachmentSelected: "File selected: ",
+      attachmentUploadFailedToast:
+        "Transaction saved, but the attachment failed to upload.",
+      attachmentInvalidTypeToast:
+        "Unsupported file type — only JPG, PNG, WEBP, or PDF are allowed.",
+      attachmentTooLargeToast: "File exceeds 5MB.",
     },
     themeToggle: {
       ariaLabel: "Toggle dark mode",
@@ -2089,6 +2097,19 @@ export const en = {
     // doing so would desync the debt/coverage it recorded.
     obligationLockedTooltip:
       "This transaction settles a liability/insurance payment — adjust the related liability/insurance to correct it",
+    attachmentsSectionLabel: "Attachments",
+    attachmentsLoadingLabel: "Loading attachments…",
+    attachmentsLoadFailedLabel: "Failed to load attachments",
+    attachmentsEmptyLabel: "No attachments",
+    attachmentImageLabel: "Photo",
+    attachmentPdfLabel: "PDF document",
+    attachmentViewButton: "View",
+    attachmentViewFailedToast: "Failed to open the attachment",
+    attachmentDeleteButton: "Delete",
+    attachmentDeleteConfirmTitle: "Delete attachment?",
+    attachmentDeleteConfirmBody: "This attachment cannot be recovered.",
+    attachmentDeletedToast: "Attachment deleted",
+    attachmentDeleteFailedToast: "Failed to delete the attachment",
   },
   splitbill: {
     headerDesc: "Splitting bills made easy — you cover it, they pay you back",

@@ -1,11 +1,12 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useId, useRef, useState, type ChangeEvent } from "react";
 import {
   Camera,
   Check,
   ChevronDown,
   ChevronRight,
+  Paperclip,
   RotateCcw,
   Save,
   SquarePen,
@@ -16,9 +17,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { formatAmountInput, parseRupiah } from "@/lib/format";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, type ApiError } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
+import {
+  ATTACHMENT_ACCEPTED_MIME_TYPES,
+  ATTACHMENT_MAX_FILE_BYTES,
+} from "@wealthme/contracts";
 import { useShell } from "./shell-context";
 
 // EPIC-023 Task E3/E4 (D12/D13) — reviewed foundation exception (this file
@@ -80,6 +85,47 @@ type PurchaseLiabilityInput = {
 // transaction DTO). `held: true` is a literal discriminator — see
 // HeldExpenseResponseDto on the API.
 type CreateTransactionResult = { held: true } | Record<string, unknown>;
+
+// EPIC-024 Task L3 (D15, US-TXN-9) — `apiFetch` (lib/api-client.ts, a
+// protected foundation file) always forces `Content-Type: application/json`,
+// which is wrong for a `multipart/form-data` upload (the browser must set
+// its own boundary-bearing Content-Type from the FormData body). Per
+// WM_CONVENTIONS.md ("inline a helper here instead of touching lib/*"),
+// this is a page-local raw `fetch` — mirrors `apiFetch`'s own error-shape
+// convention (`{ status, message }`) so `extractApiErrorMessage` below
+// still works for both.
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+async function uploadAttachment(
+  familyGroupId: string,
+  transactionId: string,
+  file: File,
+  token: string | undefined,
+): Promise<void> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(
+    `${API_URL}/family-groups/${familyGroupId}/transactions/${transactionId}/attachments`,
+    {
+      method: "POST",
+      body: form,
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    },
+  );
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { message?: string };
+    throw { status: res.status, message: body.message ?? res.statusText };
+  }
+}
+
+// Reused across this dialog's mutations — mirrors the identical helper in
+// other pages (e.g. `app/(app)/dana/page.tsx`) rather than touching lib/*.
+function extractApiErrorMessage(err: unknown, fallback: string): string {
+  return err && typeof err === "object" && "message" in err
+    ? String((err as Partial<ApiError>).message)
+    : fallback;
+}
+
 // Simulated scanned-receipt content (merchant name/address, item list, OCR
 // "detected" values) — this represents what the camera would read off a real
 // (Indonesian) receipt, not app UI chrome, so it intentionally stays
@@ -113,6 +159,10 @@ export function TransactionDialog() {
   const [toAccountId, setToAccountId] = useState("");
   const [adminFee, setAdminFee] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  // EPIC-024 Task L3 (D15, US-TXN-9) — receipt/photo picked on the manual
+  // form; uploaded only after the transaction it belongs to actually
+  // exists (the attachments endpoint is nested under a real transactionId).
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   // EPIC-023 Task E3 — the credit card selected on the card tab, sourced
   // from liabilities (D12: a card is a liability, never an Account).
   const [liabilityId, setLiabilityId] = useState("");
@@ -141,6 +191,7 @@ export function TransactionDialog() {
   const accountFieldId = `${uid}-account`;
   const dateFieldId = `${uid}-date`;
   const descriptionFieldId = `${uid}-description`;
+  const attachmentFieldId = `${uid}-attachment`;
 
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
@@ -232,6 +283,30 @@ export function TransactionDialog() {
     },
   });
 
+  // EPIC-024 Task L3 (D15, US-TXN-9) — fires only after `createMutation`
+  // succeeds with a real (non-held) transaction id. A failure here does NOT
+  // roll back the already-saved transaction — the money record is correct
+  // either way — it only surfaces a distinct "saved, but attachment failed"
+  // toast so the user isn't left thinking the receipt made it when it
+  // didn't (never a silent failure).
+  const attachmentUploadMutation = useMutation({
+    mutationFn: ({
+      transactionId,
+      file,
+    }: {
+      transactionId: string;
+      file: File;
+    }) => uploadAttachment(fgId, transactionId, file, token),
+    onError: (err) => {
+      toast.error(
+        extractApiErrorMessage(
+          err,
+          t.shell.transactionDialog.attachmentUploadFailedToast,
+        ),
+      );
+    },
+  });
+
   // EPIC-023 Task E3 (D12) — a card purchase posts through the liability's
   // OWN endpoint, never `POST .../transactions`: it raises the card's debt
   // and never debits any account. Invalidates the same query keys a normal
@@ -291,6 +366,7 @@ export function TransactionDialog() {
     setLiabilityId("");
     setDescription("");
     setDate(new Date().toISOString().slice(0, 10));
+    setAttachmentFile(null);
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -313,6 +389,28 @@ export function TransactionDialog() {
   };
 
   const isSaving = createMutation.isPending || purchaseMutation.isPending;
+
+  // EPIC-024 Task L3 (D15, US-TXN-9) — client-side pre-check only; the
+  // server (`attachments.service.ts`) is authoritative and re-validates
+  // both the sniffed content signature and the byte size independently.
+  const handleAttachmentChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (
+      !ATTACHMENT_ACCEPTED_MIME_TYPES.includes(
+        file.type as (typeof ATTACHMENT_ACCEPTED_MIME_TYPES)[number],
+      )
+    ) {
+      toast.error(t.shell.transactionDialog.attachmentInvalidTypeToast);
+      return;
+    }
+    if (file.size > ATTACHMENT_MAX_FILE_BYTES) {
+      toast.error(t.shell.transactionDialog.attachmentTooLargeToast);
+      return;
+    }
+    setAttachmentFile(file);
+  };
 
   const saveTxn = (addMore?: boolean) => {
     const amountNum = parseRupiah(amount);
@@ -396,6 +494,21 @@ export function TransactionDialog() {
         onSuccess: (result) => {
           const wasHeld =
             !!result && typeof result === "object" && "held" in result;
+          // EPIC-024 Task L3 (US-TXN-9) — a held expense never became a
+          // real Transaction row, so there is no transactionId for the
+          // attachments endpoint to hang the file off of; the picked file
+          // is simply dropped (same as any other form field on a held
+          // request — none of them were saved).
+          const newTransactionId =
+            !wasHeld && result && typeof result === "object" && "id" in result
+              ? String((result as { id: unknown }).id)
+              : null;
+          if (newTransactionId && attachmentFile) {
+            attachmentUploadMutation.mutate({
+              transactionId: newTransactionId,
+              file: attachmentFile,
+            });
+          }
           toast[wasHeld ? "warning" : "success"](
             wasHeld
               ? t.shell.transactionDialog.heldToast
@@ -704,6 +817,48 @@ export function TransactionDialog() {
                 className={cn(fieldClass, "resize-none")}
               />
             </Field>
+
+            {/* EPIC-024 Task L3 (D15, US-TXN-9) — the card tab has no
+                attachment field: `purchaseMutation` posts through
+                `LiabilitiesService.purchase()`, which never returns a
+                transactionId to attach the file to (see the mutation's own
+                doc comment above). */}
+            {tabKind !== "card" && (
+              <Field
+                label={
+                  <>
+                    {t.shell.transactionDialog.attachmentLabel}{" "}
+                    <span className="font-normal text-muted-foreground">
+                      {t.shell.transactionDialog.optionalSuffix}
+                    </span>
+                  </>
+                }
+                htmlFor={attachmentFieldId}
+              >
+                <label
+                  htmlFor={attachmentFieldId}
+                  className={cn(
+                    fieldClass,
+                    "flex cursor-pointer items-center gap-2 text-muted-foreground",
+                  )}
+                >
+                  <Paperclip className="size-4 shrink-0" />
+                  <span className="truncate">
+                    {attachmentFile
+                      ? `${t.shell.transactionDialog.attachmentSelected}${attachmentFile.name}`
+                      : t.shell.transactionDialog.attachmentPlaceholder}
+                  </span>
+                </label>
+                <input
+                  id={attachmentFieldId}
+                  data-testid="attachment-file-input"
+                  type="file"
+                  accept={ATTACHMENT_ACCEPTED_MIME_TYPES.join(",")}
+                  onChange={handleAttachmentChange}
+                  className="sr-only"
+                />
+              </Field>
+            )}
 
             <button
               onClick={() => saveTxn()}

@@ -438,6 +438,9 @@ model FamilyGroup {
   // e-wallet, transaction type, investment type, donation institution, asset
   // category, insurance type).
   referenceItems          ReferenceItem[]
+  // EPIC-024 Task L2 — denormalized tenant scope on TransactionAttachment
+  // (see that model's comment for why).
+  transactionAttachments  TransactionAttachment[]
 
   @@map("family_groups")
 }
@@ -671,6 +674,9 @@ model Transaction {
   createdBy       User?           @relation("TransactionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
   liability       Liability?      @relation(fields: [liabilityId], references: [id], onDelete: SetNull)
   insurance       Insurance?      @relation(fields: [insuranceId], references: [id], onDelete: SetNull)
+  // EPIC-024 Task L (L2, D15, US-TXN-9) — receipts/photos attached to this
+  // transaction, stored on server disk behind StoragePort.
+  attachments     TransactionAttachment[]
 
   @@index([familyGroupId, occurredAt])
   @@index([accountId])
@@ -680,6 +686,30 @@ model Transaction {
   @@index([liabilityId])
   @@index([insuranceId])
   @@map("transactions")
+}
+
+// EPIC-024 Task L2 (D15, US-TXN-9) — one row per uploaded attachment.
+// `path` is the storage KEY returned by StoragePort.upload() (a
+// server-generated UUID-based key — see StorageDiskService — NEVER the
+// client-supplied filename, to rule out path traversal). `familyGroupId` is
+// denormalized alongside `transactionId` so every read/delete can be scoped
+// to the caller's tenant in a single indexed WHERE clause without an extra
+// join, and so a row can never "belong" to a transaction outside its own
+// family even if `transactionId` were guessed.
+model TransactionAttachment {
+  id            String      @id @default(uuid())
+  transactionId String
+  familyGroupId String
+  path          String
+  mimeType      String
+  size          Int
+  createdAt     DateTime    @default(now())
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  familyGroup   FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@index([transactionId, familyGroupId])
+  @@index([familyGroupId])
+  @@map("transaction_attachments")
 }
 
 // EPIC-019 Task B — member-requests -> owner-approves funding. Approval

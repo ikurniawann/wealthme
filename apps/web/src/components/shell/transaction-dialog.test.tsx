@@ -12,12 +12,35 @@
 
 import { useEffect } from "react";
 import type { ReactElement, ReactNode } from "react";
-import { render as rtlRender, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render as rtlRender,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { id as mockDictionary } from "../../i18n/id";
 import { queryKeys } from "../../lib/query-keys";
+
+// jsdom has no PointerEvent — Base UI's Dialog primitives read pointer-event
+// fields internally (same fix as dana/rekening/liabilitas tests). Needed
+// here for the EPIC-024 Task L3 attachment-upload tests, which interact
+// with a control (a hidden file input) inside the open dialog.
+if (typeof window !== "undefined" && !window.PointerEvent) {
+  class PointerEventPolyfill extends MouseEvent {
+    pointerId?: number;
+    pointerType?: string;
+    constructor(type: string, params: PointerEventInit = {}) {
+      super(type, params);
+      this.pointerId = params.pointerId;
+      this.pointerType = params.pointerType;
+    }
+  }
+  // @ts-expect-error — jsdom has no native PointerEvent to satisfy the type
+  window.PointerEvent = PointerEventPolyfill;
+}
 
 jest.mock("../../hooks/use-locale", () => ({
   useLocale: jest.fn(() => ({
@@ -232,6 +255,173 @@ describe("TransactionDialog — credit-card tab and transfer category removal (E
     expect(screen.queryByText("Kategori")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("combobox", { name: "Kategori" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * EPIC-024 Task L3 (D15, US-TXN-9) — receipt/photo attachment on the
+ * manual-entry form. `apiFetch` (mocked above) always forces JSON, so the
+ * upload path uses its own raw `fetch` (see `uploadAttachment` in
+ * `transaction-dialog.tsx`) — these tests mock `global.fetch` directly.
+ */
+describe("TransactionDialog — attachment upload (EPIC-024 Task L3, US-TXN-9)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    if (!global.fetch) {
+      global.fetch = jest.fn();
+    }
+  });
+
+  function makeFile(name: string, type: string, sizeBytes: number): File {
+    const file = new File(["x".repeat(Math.min(sizeBytes, 10))], name, {
+      type,
+    });
+    Object.defineProperty(file, "size", { value: sizeBytes });
+    return file;
+  }
+
+  // `userEvent.upload` internally clicks + focuses the input, which walks
+  // Base UI's `FloatingFocusManager` focus-out handling for the still-open
+  // dialog and hits a jsdom incompatibility unrelated to this feature
+  // (`relatedTarget?.hasAttribute is not a function` — `event.relatedTarget`
+  // is not a real `Element` under jsdom). Firing the `change` event
+  // directly is what actually exercises `handleAttachmentChange` and skips
+  // that unrelated focus dance.
+  function selectFile(input: HTMLElement, file: File) {
+    fireEvent.change(input, { target: { files: [file] } });
+  }
+
+  it("uploads the picked file to the newly created transaction after a successful save", async () => {
+    const user = userEvent.setup();
+    const fetchSpy = jest
+      .spyOn(global, "fetch")
+      .mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({}),
+      } as Response);
+    render(<TransactionDialog />);
+
+    await user.click(
+      await screen.findByRole("button", { name: /Pengeluaran/ }),
+    );
+    await user.type(screen.getByPlaceholderText("0"), "50000");
+    const accountSelect = await screen.findByRole("combobox", {
+      name: "Akun",
+    });
+    await user.selectOptions(accountSelect, "acc-1");
+
+    const file = makeFile("struk.jpg", "image/jpeg", 1024);
+    const fileInput = screen.getByTestId("attachment-file-input");
+    selectFile(fileInput, file);
+    expect(screen.getByText(/struk\.jpg/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Simpan Transaksi" }));
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `/family-groups/${FAMILY_GROUP_ID}/transactions/tx-1/attachments`,
+        ),
+        expect.objectContaining({
+          method: "POST",
+          headers: { Authorization: `Bearer ${TOKEN}` },
+        }),
+      );
+    });
+    // The body is a FormData carrying the exact File object picked.
+    const [, options] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const body = options.body as FormData;
+    expect(body.get("file")).toBe(file);
+
+    fetchSpy.mockRestore();
+  });
+
+  it("surfaces an honest error toast when the attachment upload fails — the transaction itself is still saved", async () => {
+    const user = userEvent.setup();
+    const fetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({
+      ok: false,
+      statusText: "Bad Request",
+      json: () => Promise.resolve({ message: "Unsupported file type" }),
+    } as Response);
+    render(<TransactionDialog />);
+
+    await user.click(
+      await screen.findByRole("button", { name: /Pengeluaran/ }),
+    );
+    await user.type(screen.getByPlaceholderText("0"), "50000");
+    const accountSelect = await screen.findByRole("combobox", {
+      name: "Akun",
+    });
+    await user.selectOptions(accountSelect, "acc-1");
+
+    const file = makeFile("struk.jpg", "image/jpeg", 1024);
+    selectFile(screen.getByTestId("attachment-file-input"), file);
+
+    await user.click(screen.getByRole("button", { name: "Simpan Transaksi" }));
+
+    // The transaction itself still reports success…
+    await waitFor(() => {
+      expect(mockToastSuccess).toHaveBeenCalledWith(
+        "Transaksi berhasil disimpan!",
+      );
+    });
+    // …but the failed attachment upload gets its own honest, distinct error
+    // toast — never silently dropped.
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith("Unsupported file type");
+    });
+
+    fetchSpy.mockRestore();
+  });
+
+  it("rejects an unsupported file type client-side and never adds it to the form", async () => {
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    await user.click(
+      await screen.findByRole("button", { name: /Pengeluaran/ }),
+    );
+
+    const badFile = makeFile("virus.exe", "application/x-msdownload", 1024);
+    selectFile(screen.getByTestId("attachment-file-input"), badFile);
+
+    expect(mockToastError).toHaveBeenCalledWith(
+      "Tipe file tidak didukung — hanya JPG, PNG, WEBP, atau PDF.",
+    );
+    expect(screen.queryByText(/virus\.exe/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Pilih file (JPG, PNG, WEBP, atau PDF, maks 5MB)"),
+    ).toBeInTheDocument();
+  });
+
+  it("rejects a file over 5MB client-side and never adds it to the form", async () => {
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    await user.click(
+      await screen.findByRole("button", { name: /Pengeluaran/ }),
+    );
+
+    const tooBig = makeFile("besar.png", "image/png", 6 * 1024 * 1024);
+    selectFile(screen.getByTestId("attachment-file-input"), tooBig);
+
+    expect(mockToastError).toHaveBeenCalledWith("Ukuran file melebihi 5MB.");
+    expect(screen.queryByText(/besar\.png/)).not.toBeInTheDocument();
+  });
+
+  it("the Kartu Kredit tab renders no attachment field (purchase() returns no transactionId to attach to)", async () => {
+    render(<TransactionDialog />);
+
+    expect(screen.getByText("Lampiran")).toBeInTheDocument();
+
+    await userEvent
+      .setup()
+      .click(await screen.findByRole("button", { name: /Kartu Kredit/ }));
+
+    expect(screen.queryByText("Lampiran")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("attachment-file-input"),
     ).not.toBeInTheDocument();
   });
 });

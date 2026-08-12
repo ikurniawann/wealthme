@@ -232,6 +232,14 @@ export const id = {
       detailItemLabel: "Detail Item",
       saveToTransaction: "Simpan ke Transaksi",
       scanAgain: "Pindai Ulang",
+      attachmentLabel: "Lampiran",
+      attachmentPlaceholder: "Pilih file (JPG, PNG, WEBP, atau PDF, maks 5MB)",
+      attachmentSelected: "File dipilih: ",
+      attachmentUploadFailedToast:
+        "Transaksi tersimpan, tapi lampiran gagal diunggah.",
+      attachmentInvalidTypeToast:
+        "Tipe file tidak didukung — hanya JPG, PNG, WEBP, atau PDF.",
+      attachmentTooLargeToast: "Ukuran file melebihi 5MB.",
     },
     themeToggle: {
       ariaLabel: "Toggle dark mode",
@@ -2099,6 +2107,20 @@ export const id = {
     // doing so would desync the debt/coverage it recorded.
     obligationLockedTooltip:
       "Transaksi ini terkait pembayaran liabilitas/asuransi — sesuaikan liabilitas/asuransi terkait untuk mengoreksi",
+    attachmentsSectionLabel: "Lampiran",
+    attachmentsLoadingLabel: "Memuat lampiran…",
+    attachmentsLoadFailedLabel: "Gagal memuat lampiran",
+    attachmentsEmptyLabel: "Belum ada lampiran",
+    attachmentImageLabel: "Foto",
+    attachmentPdfLabel: "Dokumen PDF",
+    attachmentViewButton: "Lihat",
+    attachmentViewFailedToast: "Gagal membuka lampiran",
+    attachmentDeleteButton: "Hapus",
+    attachmentDeleteConfirmTitle: "Hapus lampiran?",
+    attachmentDeleteConfirmBody:
+      "Lampiran yang dihapus tidak bisa dikembalikan.",
+    attachmentDeletedToast: "Lampiran dihapus",
+    attachmentDeleteFailedToast: "Gagal menghapus lampiran",
   },
   splitbill: {
     headerDesc: "Patungan jadi gampang — kamu nalangin, mereka bayar balik",

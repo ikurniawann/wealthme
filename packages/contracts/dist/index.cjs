@@ -20,6 +20,8 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/index.ts
 var index_exports = {};
 __export(index_exports, {
+  ATTACHMENT_ACCEPTED_MIME_TYPES: () => ATTACHMENT_ACCEPTED_MIME_TYPES,
+  ATTACHMENT_MAX_FILE_BYTES: () => ATTACHMENT_MAX_FILE_BYTES,
   AccountDtoSchema: () => AccountDtoSchema,
   AccountOwnerFilterSchema: () => AccountOwnerFilterSchema,
   AccountTypeSchema: () => AccountTypeSchema,
@@ -50,6 +52,7 @@ __export(index_exports, {
   RoleSchema: () => RoleSchema,
   RupiahSchema: () => RupiahSchema,
   SetMemberCategoryAllowanceInputSchema: () => SetMemberCategoryAllowanceInputSchema,
+  TransactionAttachmentDtoSchema: () => TransactionAttachmentDtoSchema,
   TransactionDtoSchema: () => TransactionDtoSchema,
   TransactionListResponseSchema: () => TransactionListResponseSchema,
   TransactionSummarySchema: () => TransactionSummarySchema,
@@ -593,8 +596,27 @@ function buildReferenceItemSeed() {
     }))
   );
 }
+
+// src/attachments/index.ts
+var import_zod10 = require("zod");
+var TransactionAttachmentDtoSchema = import_zod10.z.object({
+  id: import_zod10.z.string().uuid(),
+  transactionId: import_zod10.z.string().uuid(),
+  mimeType: import_zod10.z.string(),
+  size: import_zod10.z.number().int().nonnegative(),
+  createdAt: import_zod10.z.string()
+});
+var ATTACHMENT_MAX_FILE_BYTES = 5 * 1024 * 1024;
+var ATTACHMENT_ACCEPTED_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf"
+];
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  ATTACHMENT_ACCEPTED_MIME_TYPES,
+  ATTACHMENT_MAX_FILE_BYTES,
   AccountDtoSchema,
   AccountOwnerFilterSchema,
   AccountTypeSchema,
@@ -625,6 +647,7 @@ function buildReferenceItemSeed() {
   RoleSchema,
   RupiahSchema,
   SetMemberCategoryAllowanceInputSchema,
+  TransactionAttachmentDtoSchema,
   TransactionDtoSchema,
   TransactionListResponseSchema,
   TransactionSummarySchema,

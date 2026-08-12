@@ -166,8 +166,16 @@ services:
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
       # Google callback must use the host-accessible API URL (browser redirect).
       GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:4000/auth/google/callback}
+      # EPIC-024 Task L1 (D15) — root dir StorageDiskService reads/writes
+      # transaction attachments under; must match the volume mount below.
+      STORAGE_DIR: /data/storage
     ports:
       - "${API_PORT:-4000}:4000"
+    volumes:
+      # EPIC-024 Task L1 (D15) — persistent volume for transaction
+      # attachments (StorageDiskService). Survives container recreation;
+      # `docker compose down -v` is the only thing that drops it.
+      - attachments_data:/data/storage
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -273,3 +281,5 @@ volumes:
   postgres_data:
   redis_data:
   minio_data:
+  # EPIC-024 Task L1 (D15) — transaction attachments (StorageDiskService).
+  attachments_data:

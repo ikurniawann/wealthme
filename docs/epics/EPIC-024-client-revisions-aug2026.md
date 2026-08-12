@@ -393,18 +393,22 @@ One task group = one branch = one PR to `development`. Execution order is in
     `aset.accountTypeLabels` and `rekening.typeLabels`. Route ids `/dana`,
     `/rekening` are structural — unchanged. (D17, US-NAV-1)
 
-- [ ] ### L — Lampiran transaksi: StoragePort disk + attachment endpoints + UI (item 33)
-  - **L1** — `StorageDiskService` implementing the existing `StoragePort`
+- [x] ### L — Lampiran transaksi: StoragePort disk + attachment endpoints + UI (item 33) ✅
+  - **L1** — [x] `StorageDiskService` implementing the existing `StoragePort`
     (root from `STORAGE_DIR` env, persistent volume in `docker-compose.yml`);
-    swap the mock binding in `storage.module.ts`. (D15)
-  - **L2** — Model `TransactionAttachment { id, transactionId, familyGroupId, path, mimeType, size, createdAt }`
+    swapped the mock binding in `storage.module.ts`. Disk-quota gap explicitly
+    flagged in code (not silently fixed, per adversarial-review scope). (D15)
+  - **L2** — [x] Model `TransactionAttachment { id, transactionId, familyGroupId, path, mimeType, size, createdAt }`
     - multipart `POST /family-groups/:id/transactions/:txId/attachments`
-      (jpg/png/webp/pdf, ≤5MB — reuse the `FileInterceptor` pattern from
-      `reconciliation.controller.ts`), streamed `GET`, `DELETE`. Tenant-scope
-      every path; no path traversal. (US-TXN-9)
-  - **L3** — UI: file/photo input in the transaction dialog + attachment list
-    in transaction detail. NOTE: `components/shell/transaction-dialog.tsx` is a
-    protected foundation file — this is a reviewed foundation change.
+      (jpg/png/webp/pdf via magic-byte content sniffing, never trusted
+      Content-Type/extension, ≤5MB), streamed `GET`, `DELETE`. Storage keys are
+      server-generated UUIDs, never client filenames — no path traversal.
+      Every read/delete tenant-scoped. Migration additive, standard location.
+      (US-TXN-9)
+  - **L3** — [x] UI: file/photo input in the transaction dialog + attachment
+    list in transaction detail — reviewed foundation change to
+    `components/shell/transaction-dialog.tsx`, scoped only to the attachment
+    field.
 
 - [ ] ### M — Laporan COA matrix tanggal×bulan (item 35)
   - **M1** — `GET /family-groups/:id/reports/coa-matrix?coaAccountId=&year=`
@@ -836,3 +840,12 @@ the N1 prototype has an approval recorded in the Automation Log.
     **Waves 1-3 complete — all 11 quick-fix/foundation/feature groups (B, E, F,
     H, I, K, A, C, D, G, J) merged.** Remaining: L (attachments, in progress),
     M (COA matrix). PR: https://github.com/andrsrjld/wealthme-web/pull/265
+- 2026-08-12 /epic-loop EPIC-024 #L "Lampiran transaksi: StoragePort disk +
+  attachment endpoints + UI" → PASS (attempts: 2; attempt 1 failed HIGH ×3 on
+  adversarial+typescript review — unhandled `fs.ReadStream` error could crash
+  the whole API process on a delete/download race, a non-`Error` object
+  thrown in the web attachment fetcher lost its stack trace, and the
+  disk-quota gap wasn't explicitly flagged in code per the epic's own
+  adversarial-review scope — all three fixed and re-verified in attempt 2).
+  Path-traversal, MIME-spoofing, and cross-tenant-access hunts all confirmed
+  closed on the first pass. **Wave 4 (L) complete.** PR: https://github.com/andrsrjld/wealthme-web/pull/266

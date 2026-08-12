@@ -8,6 +8,10 @@ import {
   ArrowDownLeft,
   CreditCard,
   ArrowLeftRight,
+  FileText,
+  Image as ImageIcon,
+  Paperclip,
+  Trash2,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -21,13 +25,61 @@ import { SectionCard, MoneyStat, IconChip, Rise } from "@/components/wm";
 import { RowActions, ConfirmDeleteDialog } from "@/components/crud";
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, type ApiError } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah } from "@/lib/format";
 import type {
+  TransactionAttachmentDto,
   TransactionDto,
   TransactionListResponse,
 } from "@wealthme/contracts";
+
+// EPIC-024 Task L3 (D15, US-TXN-9) — page-local helper, same convention as
+// `app/(app)/dana/page.tsx`'s own copy: never touch lib/api-client.ts.
+function extractApiErrorMessage(err: unknown, fallback: string): string {
+  return err && typeof err === "object" && "message" in err
+    ? String((err as Partial<ApiError>).message)
+    : fallback;
+}
+
+// `lib/api-client.ts` only exports an `ApiError` *type* (no class), so
+// `apiFetch`'s own error path throws a plain object literal too — not an
+// `Error` instance, losing stack traces. `fetchAttachmentBlob` below needs
+// its own raw `fetch` (see comment above it) and therefore its own error
+// path; this local class keeps that path a real `Error` subclass instead of
+// repeating the plain-object anti-pattern. Page-local per WM_CONVENTIONS.md
+// (never touch lib/api-client.ts for a page-specific need).
+class AttachmentFetchError extends Error implements ApiError {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "AttachmentFetchError";
+    this.status = status;
+  }
+}
+
+// `apiFetch` (lib/api-client.ts) always calls `res.json()`, which throws on
+// a binary response — the streamed attachment download route returns raw
+// file bytes, not JSON, so it needs its own raw `fetch` (page-local, per
+// WM_CONVENTIONS.md).
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+async function fetchAttachmentBlob(
+  familyGroupId: string,
+  transactionId: string,
+  attachmentId: string,
+  token: string | undefined,
+): Promise<Blob> {
+  const res = await fetch(
+    `${API_URL}/family-groups/${familyGroupId}/transactions/${transactionId}/attachments/${attachmentId}`,
+    { headers: token ? { Authorization: `Bearer ${token}` } : undefined },
+  );
+  if (!res.ok) {
+    throw new AttachmentFetchError(res.status, res.statusText);
+  }
+  return res.blob();
+}
 
 type TxnType = "income" | "expense" | "transfer" | "all";
 
@@ -133,10 +185,16 @@ export function TxRow({
   tx,
   onDeleteClick,
   onEditClick,
+  familyGroupId,
+  token,
 }: {
   tx: TransactionDto;
   onDeleteClick: () => void;
   onEditClick: () => void;
+  // EPIC-024 Task L3 (D15, US-TXN-9) — forwarded to TransactionDetailDialog
+  // for its attachment list; optional so existing/other callers still work.
+  familyGroupId?: string;
+  token?: string;
 }) {
   const { t } = useLocale();
   const [detailOpen, setDetailOpen] = useState(false);
@@ -230,6 +288,8 @@ export function TxRow({
       <TransactionDetailDialog
         tx={tx}
         open={detailOpen}
+        familyGroupId={familyGroupId}
+        token={token}
         onClose={() => setDetailOpen(false)}
         onEdit={() => {
           setDetailOpen(false);
@@ -253,6 +313,189 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** "1.2 MB" / "340 KB" — human-readable attachment size. */
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * EPIC-024 Task L3 (D15, US-TXN-9) — attachment list rendered inside
+ * `TransactionDetailDialog`. Fetched only while the detail dialog is open
+ * (`enabled: open`) — no point pre-loading attachments for a dialog that
+ * might never be opened. The response DTO carries no filename (the server
+ * never trusts a client-supplied name — see the contract's own doc
+ * comment), so each row is labeled generically by `mimeType` + size + date.
+ */
+export function AttachmentList({
+  familyGroupId,
+  transactionId,
+  token,
+  open,
+}: {
+  familyGroupId: string;
+  transactionId: string;
+  token: string | undefined;
+  open: boolean;
+}) {
+  const { t, locale } = useLocale();
+  const queryClient = useQueryClient();
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [pendingViewId, setPendingViewId] = useState<string | null>(null);
+
+  const attachmentsQueryKey = [
+    "transactions",
+    familyGroupId,
+    transactionId,
+    "attachments",
+  ] as const;
+
+  const {
+    data: attachments = [],
+    isLoading,
+    isError,
+  } = useQuery<TransactionAttachmentDto[]>({
+    queryKey: attachmentsQueryKey,
+    queryFn: () =>
+      apiFetch<TransactionAttachmentDto[]>(
+        `/family-groups/${familyGroupId}/transactions/${transactionId}/attachments`,
+        { token },
+      ),
+    enabled: open && !!familyGroupId && !!transactionId && !!token,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (attachmentId: string) =>
+      apiFetch<void>(
+        `/family-groups/${familyGroupId}/transactions/${transactionId}/attachments/${attachmentId}`,
+        { method: "DELETE", token },
+      ),
+    onSuccess: () => {
+      toast.success(t.transaksi.attachmentDeletedToast);
+      void queryClient.invalidateQueries({ queryKey: attachmentsQueryKey });
+    },
+    onError: (err) => {
+      toast.error(
+        extractApiErrorMessage(err, t.transaksi.attachmentDeleteFailedToast),
+      );
+    },
+  });
+
+  const handleView = async (attachmentId: string) => {
+    setPendingViewId(attachmentId);
+    try {
+      const blob = await fetchAttachmentBlob(
+        familyGroupId,
+        transactionId,
+        attachmentId,
+        token,
+      );
+      const url = URL.createObjectURL(blob);
+      // Streamed inline (see attachments.controller.ts's `download()`) — a
+      // new tab is the simplest honest "view" affordance for both an image
+      // and a PDF without building a bespoke in-app viewer.
+      window.open(url, "_blank", "noopener,noreferrer");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      toast.error(
+        extractApiErrorMessage(err, t.transaksi.attachmentViewFailedToast),
+      );
+    } finally {
+      setPendingViewId(null);
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="pt-2">
+      <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold text-muted-foreground">
+        <Paperclip className="size-3.5" />
+        {t.transaksi.attachmentsSectionLabel}
+      </div>
+
+      {isLoading && (
+        <p className="text-[12px] text-muted-foreground">
+          {t.transaksi.attachmentsLoadingLabel}
+        </p>
+      )}
+      {isError && (
+        <p className="text-[12px] text-destructive">
+          {t.transaksi.attachmentsLoadFailedLabel}
+        </p>
+      )}
+      {!isLoading && !isError && attachments.length === 0 && (
+        <p className="text-[12px] text-muted-foreground">
+          {t.transaksi.attachmentsEmptyLabel}
+        </p>
+      )}
+
+      <div className="space-y-1.5">
+        {attachments.map((att) => {
+          const isImage = att.mimeType.startsWith("image/");
+          const AttIcon = isImage ? ImageIcon : FileText;
+          const label = isImage
+            ? t.transaksi.attachmentImageLabel
+            : t.transaksi.attachmentPdfLabel;
+          return (
+            <div
+              key={att.id}
+              className="flex items-center gap-2.5 rounded-md border bg-card px-2.5 py-2"
+            >
+              <IconChip
+                icon={AttIcon}
+                className="bg-secondary text-muted-foreground"
+                size={28}
+                rounded="rounded-md"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[12.5px] font-medium">
+                  {label}
+                </div>
+                <div className="truncate text-[11px] text-muted-foreground">
+                  {formatFileSize(att.size)} ·{" "}
+                  {formatDetailDateTime(att.createdAt, locale)}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleView(att.id)}
+                disabled={pendingViewId === att.id}
+                className="rounded-md border px-2 py-1 text-[11.5px] font-semibold disabled:opacity-50"
+              >
+                {t.transaksi.attachmentViewButton}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(att.id)}
+                aria-label={t.transaksi.attachmentDeleteButton}
+                className="rounded-md border p-1.5 text-destructive"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      <ConfirmDeleteDialog
+        label={
+          deleteTarget !== null ? t.transaksi.attachmentsSectionLabel : null
+        }
+        title={t.transaksi.attachmentDeleteConfirmTitle}
+        body={t.transaksi.attachmentDeleteConfirmBody}
+        confirmLabel={t.transaksi.attachmentDeleteButton}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget);
+          setDeleteTarget(null);
+        }}
+      />
+    </div>
+  );
+}
+
 /** Read-only transaction detail view — opened by clicking/tapping a TxRow. */
 export function TransactionDetailDialog({
   tx,
@@ -260,12 +503,19 @@ export function TransactionDetailDialog({
   onClose,
   onEdit,
   onDelete,
+  familyGroupId,
+  token,
 }: {
   tx: TransactionDto;
   open: boolean;
   onClose: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  // EPIC-024 Task L3 (D15, US-TXN-9) — needed to scope the attachment list
+  // request; optional so any pre-existing caller that doesn't pass them
+  // simply renders without the attachment section instead of crashing.
+  familyGroupId?: string;
+  token?: string;
 }) {
   const { t, locale } = useLocale();
   const isIncome = tx.type === "income";
@@ -326,6 +576,14 @@ export function TransactionDetailDialog({
             <p className="pt-2 text-[11.5px] text-muted-foreground">
               {t.transaksi.obligationLockedTooltip}
             </p>
+          )}
+          {familyGroupId && (
+            <AttachmentList
+              familyGroupId={familyGroupId}
+              transactionId={tx.id}
+              token={token}
+              open={open}
+            />
           )}
           <div className="flex gap-2 pt-3">
             <button
@@ -732,6 +990,8 @@ function TransaksiPageInner() {
                     <TxRow
                       key={tx.id}
                       tx={tx}
+                      familyGroupId={familyGroupId}
+                      token={token}
                       onDeleteClick={() => setDeleteTarget(tx.id)}
                       onEditClick={() => setEditTarget(tx)}
                     />

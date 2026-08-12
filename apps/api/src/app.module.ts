@@ -8,6 +8,7 @@ import { AccountsModule } from "./accounts/accounts.module";
 import { AiAdvisorModule } from "./ai-advisor/ai-advisor.module";
 import { AllowanceRequestsModule } from "./allowance-requests/allowance-requests.module";
 import { AssetsModule } from "./assets/assets.module";
+import { AttachmentsModule } from "./attachments/attachments.module";
 import { AuditInterceptor } from "./audit/audit.interceptor";
 import { AuditModule } from "./audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
@@ -96,6 +97,7 @@ import type { IncomingMessage } from "node:http";
     SearchModule,
     SplitBillsModule,
     TransactionsModule,
+    AttachmentsModule,
     DashboardModule,
     BudgetsModule,
     CalculatorsModule,
