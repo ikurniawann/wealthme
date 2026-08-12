@@ -550,4 +550,4 @@ prototype counterpart.
   review-qa-agent, security-agent, test-agent) PASS on final attempt.
   globals.css zero diff, all critical existing tests
   (attachment-list.test.tsx, txrow-detail.test.tsx, splitbill.test.tsx,
-  split-math.test.ts) pass unmodified. PR: (pending)
+  split-math.test.ts) pass unmodified. PR: https://github.com/andrsrjld/wealthme-web/pull/274
