@@ -677,3 +677,19 @@ EPIC-024's own closing pattern.
   evidence the review gates worked, not evidence of carelessness. Owner
   should walk the deployed DEV instance against a sample of pages from
   each wave, comparing against the prototype, before closing this epic.
+
+- 2026-08-13 `/nerve "redeploy dev"` → **PASS**, plus one durable ops
+  finding. Redeploy (`docker rm -f api web` + `DEPLOY_MODE=pull
+scripts/deploy-dev.sh`) recreated `wealthme-api`/`wealthme-web` with new
+  container IPs; `wealthme-nginx` came up reporting `unhealthy` —
+  root-caused via `docker logs`: nginx had cached the _previous_
+  containers' IPs in its upstream resolver and kept 502ing against the
+  now-dead addresses even though the new containers were healthy.
+  **Fix: `docker restart wealthme-nginx`** forces it to re-resolve
+  upstream hostnames — resolved in ~8s, confirmed via `wget
+http://127.0.0.1/api/health` from inside the nginx container. Not code —
+  a `scripts/deploy-dev.sh` gap: the script doesn't restart nginx after
+  recreating its upstream containers. Worth a follow-up fix to that script
+  (add an nginx restart/reload step after the api/web containers come up)
+  so this doesn't require manual diagnosis on every redeploy that
+  recreates those two containers.
