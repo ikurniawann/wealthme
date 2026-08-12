@@ -35,11 +35,24 @@ Preserve ALL Indonesian copy, numbers, emoji, and structure exactly. This is a f
 - `<ProgressBar value={80} color="var(--success)" />` (height prop optional, default 7)
 - `<HeroCard className="gradient-wealth">…</HeroCard>` — rounded gradient card w/ decorative circle, white text.
 
-## Charts — `import { Sparkline, Donut, DonutLegend, BarChart } from "@/components/charts/..."`
+## Charts — `import { ... } from "@/components/charts/apex-presets"` (ApexCharts, since EPIC-025 N3)
 
-- `import { Sparkline } from "@/components/charts/sparkline"` → `<Sparkline points={SPARKLINE_POINTS} />` (white line, for indigo hero).
-- `import { Donut, DonutLegend } from "@/components/charts/donut"` → `<Donut segments={[{label,value,color}]} centerValue="Rp 1,25M" centerLabel="Total" />` and `<DonutLegend segments={...} />`. Colors take CSS vars or hex.
-- `import { BarChart } from "@/components/charts/bar-chart"` → `<BarChart months={CASHFLOW.months} income={CASHFLOW.income} expense={CASHFLOW.expense} max={CASHFLOW.max} height={90} />`
+The old hand-rolled `Sparkline`/`Donut`+`DonutLegend`/`BarChart` SVG
+components were retired in EPIC-025 N3-G/N3-I — every page now renders
+charts through the ApexCharts presets below. `donut.tsx` survives only as
+the home of the `DonutSegment` type (imported by `@/lib/laporan-utils.ts`
+and every donut-using page) — it exports no components anymore.
+
+- `SparklineChart` — area sparkline, `sparkline.enabled: true`. Replaces the old white-line hero sparkline.
+- `DonutChart` — replaces `Donut`+`DonutLegend`. Takes `DonutSegment[]` (from `@/components/charts/donut`) — the series is summed for the Apex-rendered center total, so pass real **amounts**, not pre-computed percentages, if you also want a currency-formatted center value.
+- `CashflowChart` — grouped income/expense bars, replaces `BarChart`. Takes real Rupiah amounts (the old `BarChart` expected a pre-scaled `/1_000_000` value baked into its own tooltip text — Apex's formatters need the real number).
+- `HBarChart`, `TrendChart`, `RadialChart` — additional presets with no direct predecessor, added in N3-A for pages that had no chart before.
+
+All presets: `import { ... } from "@/components/charts/apex-presets"`. Always
+pass a real, data-specific `ariaLabel` — the fallback default is
+generic and only meant for the error-boundary path. See
+`apps/web/src/components/charts/apex-presets.tsx`'s own header comment
+for the full prop shape of each preset.
 
 ## shadcn UI (Base UI under the hood — IMPORTANT API quirks)
 
