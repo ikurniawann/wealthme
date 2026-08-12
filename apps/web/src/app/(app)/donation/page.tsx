@@ -12,7 +12,12 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { HeroCard, SectionCard, StatusBadge } from "@/components/wm";
+import {
+  HeroCard,
+  SectionCard,
+  StatusBadge,
+  SummaryCard,
+} from "@/components/wm";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { formatManualDate } from "@/components/consolidated-total-card";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -375,6 +380,22 @@ export default function DonationPage() {
   // Compute category totals from API data
   const totalAmount = donations.reduce((s, d) => s + Number(d.amount), 0);
 
+  // N3-D4 (prototype donation.html "auto-grid--metrics") — every figure
+  // below derives from the already-fetched donations list, no new endpoint.
+  const currentYear = new Date().getFullYear();
+  const donationsThisYear = donations.filter(
+    (d) => new Date(d.donatedAt).getFullYear() === currentYear,
+  );
+  const deductibleThisYear = donationsThisYear.filter((d) => d.isTaxDeductible);
+  const deductibleAmount = deductibleThisYear.reduce(
+    (s, d) => s + Number(d.amount),
+    0,
+  );
+  const voluntaryAmount = donationsThisYear
+    .filter((d) => !d.isTaxDeductible)
+    .reduce((s, d) => s + Number(d.amount), 0);
+  const receiptsSavedCount = donations.filter((d) => d.receiptUrl).length;
+
   return (
     <div className="space-y-4">
       {/* Hero */}
@@ -666,6 +687,44 @@ export default function DonationPage() {
           ))
         )}
       </SectionCard>
+
+      {/* N3-D4 (prototype donation.html "auto-grid--metrics") — all three
+          derive from the already-fetched donations list above; "Kuitansi
+          Tersimpan" honestly reflects `receiptUrl` (0/N until a receipt
+          upload flow exists — no fabricated completeness). */}
+      {!isLoading && donations.length > 0 && (
+        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
+          <SummaryCard
+            icon="🧾"
+            iconBg="var(--success-soft)"
+            iconColor="var(--success)"
+            label={`${t.donation.statDeductibleLabelPrefix}${currentYear}`}
+            amount={formatRupiah(deductibleAmount)}
+            delta={`${deductibleThisYear.length}${t.donation.statDeductibleDeltaMid}${donationsThisYear.length}${t.donation.statDeductibleDeltaSuffix}`}
+          />
+          <SummaryCard
+            icon="💝"
+            iconBg="var(--accent)"
+            iconColor="var(--accent-foreground)"
+            label={t.donation.statVoluntaryLabel}
+            amount={formatRupiah(voluntaryAmount)}
+            delta={t.donation.statVoluntaryDelta}
+          />
+          <SummaryCard
+            icon="📄"
+            iconBg="var(--brand-purple-soft)"
+            iconColor="var(--brand-purple)"
+            label={t.donation.statReceiptsLabel}
+            amount={`${receiptsSavedCount} / ${donations.length}`}
+            delta={
+              receiptsSavedCount === donations.length
+                ? t.donation.statReceiptsComplete
+                : t.donation.statReceiptsIncomplete
+            }
+            deltaUp={receiptsSavedCount === donations.length}
+          />
+        </div>
+      )}
 
       {/* Insight banner */}
       <div className="flex items-center gap-3 rounded-[14px] border border-primary/20 bg-accent p-4">

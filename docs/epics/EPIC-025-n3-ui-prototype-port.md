@@ -194,11 +194,11 @@ first, as docs only, so no later page PR has to relitigate them mid-review.
   - [x] **C3** — Port `masterdata`.
   - [x] **C4** — Port `tujuan`.
 
-- [ ] ### N3-D — Wave 3: forms/tables, no chart dependency
-  - **D1** — Port `tax`.
-  - **D2** — Port `mastercoa`.
-  - **D3** — Port `rekening`.
-  - **D4** — Port `donation`.
+- [x] ### N3-D — Wave 3: forms/tables, no chart dependency ✅
+  - [x] **D1** — Port `tax`.
+  - [x] **D2** — Port `mastercoa`.
+  - [x] **D3** — Port `rekening`.
+  - [x] **D4** — Port `donation`.
 
 - [ ] ### N3-E — Wave 4: large, dialog-heavy, verify recent merges
   - **E1** — Port `anggaran`.
@@ -510,3 +510,19 @@ prototype counterpart.
   build issue (stale image or wrong build-arg), not app code — needs a
   `deploy-agent`/`scripts/deploy-dev.sh` follow-up, flagged for the owner,
   out of scope for this epic.
+- 2026-08-12 /epic-loop EPIC-025 #5 "N3-D — Wave 3: forms/tables, no chart
+  dependency" → PASS (attempts: 2). Ported tax (link to /kalkulator, no
+  fake year selector — cut per Honest UI, no real multi-year calc exists),
+  mastercoa (reordered guide above stats to match prototype), rekening
+  (ownership filter chips all/mine/shared + stat tiles from already-fetched
+  accounts list; balance-trend sparkline CUT per J3 — no history stored),
+  donation (stat tiles from already-fetched donations list, receipts-saved
+  count stays honest at 0/N until an upload flow exists). Review attempt 1
+  found 1 HIGH (rekening's filter chips missing aria-pressed, inconsistent
+  with the same pattern used correctly elsewhere in the codebase) + 1
+  MEDIUM (dead unused statDeductibleDeltaPrefix i18n key); both fixed
+  (aria-pressed + role=group wrapper added, dead key removed from all 3
+  i18n files) and re-verified clean on attempt 2. All 5 gates
+  (react-reviewer, typescript-reviewer, review-qa-agent, security-agent,
+  test-agent) PASS. globals.css zero diff, existing tests unmodified.
+  PR: https://github.com/andrsrjld/wealthme-web/pull/273

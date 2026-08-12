@@ -2,12 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, EllipsisVertical, HandCoins, Save } from "lucide-react";
+import {
+  Plus,
+  EllipsisVertical,
+  HandCoins,
+  Save,
+  Landmark,
+  Users,
+  User,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useSession, signOut } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { StatusBadge } from "@/components/wm";
+import { StatusBadge, SummaryCard } from "@/components/wm";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -501,19 +509,37 @@ export default function RekeningPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // EPIC-019 Task A — "Milik saya" filter chip. Filtered client-side over
-  // the already-fetched list (the backend's `?owner=me|family|all` query
-  // param is exercised by accounts.service.spec.ts; this page just needs the
-  // narrower view, not a second round-trip).
-  const [onlyMine, setOnlyMine] = useState(false);
-  const visibleAccounts = onlyMine
-    ? (accounts ?? []).filter((a) => a.ownerUserId === myUserId)
-    : (accounts ?? []);
+  // EPIC-019 Task A — "Milik saya" filter chip, extended (N3-D3, prototype
+  // rekening.html) with a "Bersama" (family-shared) chip alongside it.
+  // Filtered client-side over the already-fetched list (the backend's
+  // `?owner=me|family|all` query param is exercised by
+  // accounts.service.spec.ts; this page just needs the narrower view, not a
+  // second round-trip).
+  const [ownerFilter, setOwnerFilter] = useState<"all" | "mine" | "shared">(
+    "all",
+  );
+  const onlyMine = ownerFilter === "mine";
+  const visibleAccounts = (accounts ?? []).filter((a) => {
+    if (ownerFilter === "mine") return a.ownerUserId === myUserId;
+    if (ownerFilter === "shared") return a.ownerUserId === null;
+    return true;
+  });
 
   const totalBalance = (accounts ?? []).reduce(
     (sum, a) => sum + parseFloat(a.balance),
     0,
   );
+  // N3-D3 (prototype rekening.html "auto-grid--metrics") — Saldo Bank /
+  // Rekening Bersama / Milik Anggota all derive from the same already-
+  // fetched accounts list, no new endpoint needed.
+  const sharedBalance = (accounts ?? [])
+    .filter((a) => a.ownerUserId === null)
+    .reduce((sum, a) => sum + parseFloat(a.balance), 0);
+  const ownedBalance = totalBalance - sharedBalance;
+  const sharedCount = (accounts ?? []).filter(
+    (a) => a.ownerUserId === null,
+  ).length;
+  const ownedCount = (accounts ?? []).length - sharedCount;
 
   const queryClient = useQueryClient();
   const [crudState, setCrudState] = useState<CrudModalState | null>(null);
@@ -685,15 +711,55 @@ export default function RekeningPage() {
         </Button>
       </div>
 
-      {/* EPIC-019 Task A — "Milik saya" filter chip. Only meaningful once at
-          least one account has an owner; harmless (no-op filter) otherwise. */}
+      {/* N3-D3 (prototype rekening.html "auto-grid--metrics") — Saldo Bank /
+          Rekening Bersama / Milik Anggota, all derived from the already-
+          fetched accounts list above. The prototype's balance-trend
+          sparkline is CUT per the epic's J3 decision table (no balance
+          history stored). */}
+      {!isLoading && !isError && (accounts?.length ?? 0) > 0 && (
+        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
+          <SummaryCard
+            icon={<Landmark className="size-4" />}
+            iconBg="var(--accent)"
+            iconColor="var(--accent-foreground)"
+            label={t.rekening.statBankBalanceLabel}
+            amount={formatRupiah(totalBalance)}
+          />
+          <SummaryCard
+            icon={<Users className="size-4" />}
+            iconBg="var(--brand-purple-soft)"
+            iconColor="var(--brand-purple)"
+            label={t.rekening.statSharedLabel}
+            amount={formatRupiah(sharedBalance)}
+            delta={`${sharedCount}${t.rekening.statSharedDeltaSuffix}`}
+          />
+          <SummaryCard
+            icon={<User className="size-4" />}
+            iconBg="var(--success-soft)"
+            iconColor="var(--success)"
+            label={t.rekening.statOwnedLabel}
+            amount={formatRupiah(ownedBalance)}
+            delta={`${ownedCount}${t.rekening.statOwnedDeltaSuffix}`}
+          />
+        </div>
+      )}
+
+      {/* EPIC-019 Task A — ownership filter chips ("Milik saya" originally;
+          N3-D3 adds "Bersama" per the prototype's 3-tab filter). Only
+          meaningful once at least one account has an owner; harmless (no-op
+          filter) otherwise. */}
       {!isLoading && (accounts?.some((a) => a.ownerUserId) ?? false) && (
-        <div className="flex gap-2">
+        <div
+          role="group"
+          aria-label={t.rekening.filterGroupLabel}
+          className="flex flex-wrap gap-2"
+        >
           <button
             type="button"
-            onClick={() => setOnlyMine(false)}
+            aria-pressed={ownerFilter === "all"}
+            onClick={() => setOwnerFilter("all")}
             className={`rounded-full border px-3 py-1 text-[12px] font-semibold transition-colors ${
-              !onlyMine
+              ownerFilter === "all"
                 ? "border-primary bg-primary text-primary-foreground"
                 : "bg-background text-muted-foreground hover:border-primary/50"
             }`}
@@ -702,14 +768,27 @@ export default function RekeningPage() {
           </button>
           <button
             type="button"
-            onClick={() => setOnlyMine(true)}
+            aria-pressed={ownerFilter === "mine"}
+            onClick={() => setOwnerFilter("mine")}
             className={`rounded-full border px-3 py-1 text-[12px] font-semibold transition-colors ${
-              onlyMine
+              ownerFilter === "mine"
                 ? "border-primary bg-primary text-primary-foreground"
                 : "bg-background text-muted-foreground hover:border-primary/50"
             }`}
           >
             {t.rekening.filterMineLabel}
+          </button>
+          <button
+            type="button"
+            aria-pressed={ownerFilter === "shared"}
+            onClick={() => setOwnerFilter("shared")}
+            className={`rounded-full border px-3 py-1 text-[12px] font-semibold transition-colors ${
+              ownerFilter === "shared"
+                ? "border-primary bg-primary text-primary-foreground"
+                : "bg-background text-muted-foreground hover:border-primary/50"
+            }`}
+          >
+            {t.rekening.filterSharedLabel}
           </button>
         </div>
       )}
@@ -743,19 +822,23 @@ export default function RekeningPage() {
         </div>
       )}
 
-      {visibleAccounts.map((account) => {
-        const card = toCardData(account, t);
-        return (
-          <AccountCardItem
-            key={account.id}
-            account={card}
-            isMine={!!myUserId && account.ownerUserId === myUserId}
-            onEdit={openEdit}
-            onDelete={() => setDeleting(card)}
-            onMintaDana={() => setRequesting(card)}
-          />
-        );
-      })}
+      {/* N3-D3 (prototype rekening.html "auto-grid--cards") — a responsive
+          card grid instead of a single stacked column. */}
+      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 xl:grid-cols-3">
+        {visibleAccounts.map((account) => {
+          const card = toCardData(account, t);
+          return (
+            <AccountCardItem
+              key={account.id}
+              account={card}
+              isMine={!!myUserId && account.ownerUserId === myUserId}
+              onEdit={openEdit}
+              onDelete={() => setDeleting(card)}
+              onMintaDana={() => setRequesting(card)}
+            />
+          );
+        })}
+      </div>
 
       <CrudModal
         state={crudState}

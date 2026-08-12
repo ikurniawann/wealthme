@@ -334,6 +334,10 @@ export default function MasterCoaPage() {
 
   return (
     <div className="space-y-4">
+      {/* Prototype order (mastercoa.html): explainer first, then stats,
+          then the account table — see EPIC-025-N3-translation-table.md */}
+      <MasterCoaGuide t={t} />
+
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
         <Rise index={0}>
@@ -430,8 +434,6 @@ export default function MasterCoaPage() {
           </div>
         </Rise>
       </div>
-
-      <MasterCoaGuide t={t} />
 
       {/* Main table card */}
       <SectionCard

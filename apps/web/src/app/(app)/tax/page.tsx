@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Send, FileText } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import {
@@ -432,7 +433,17 @@ export default function TaxPage() {
       </div>
 
       {/* Kalkulator PPh 21 */}
-      <SectionCard title={t.tax.calculatorTitle}>
+      <SectionCard
+        title={t.tax.calculatorTitle}
+        action={
+          <Link
+            href="/kalkulator"
+            className="text-xs font-semibold whitespace-nowrap text-primary hover:underline"
+          >
+            {t.tax.calculatorOtherLink}
+          </Link>
+        }
+      >
         <div className="mb-3.5 text-xs text-muted-foreground">
           {t.tax.calculatorSubtitle}
         </div>
