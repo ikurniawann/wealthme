@@ -9,8 +9,10 @@ import {
   CreditCard,
   ArrowLeftRight,
   FileText,
+  Filter,
   Image as ImageIcon,
   Paperclip,
+  Scale,
   Trash2,
   type LucideIcon,
 } from "lucide-react";
@@ -21,7 +23,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useShell } from "@/components/shell/shell-context";
 import { formatAmountInput, parseRupiah } from "@/lib/format";
 
-import { SectionCard, MoneyStat, IconChip, Rise } from "@/components/wm";
+import { SectionCard, SummaryCard, IconChip, Rise } from "@/components/wm";
 import { RowActions, ConfirmDeleteDialog } from "@/components/crud";
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
@@ -869,6 +871,12 @@ function TransaksiPageInner() {
   const totalExpense = summary ? parseFloat(summary.totalExpense) : 0;
   const netBalance = summary ? parseFloat(summary.netBalance) : 0;
 
+  // EPIC-025 N3-E4 — per-stat cards (translation table's `.stat` →
+  // `SummaryCard`) replace the single combined MoneyStat row; the surplus/
+  // deficit % is derived from the already-fetched summary, not invented copy.
+  const netPct =
+    totalIncome > 0 ? Math.round((netBalance / totalIncome) * 100) : 0;
+
   return (
     <div className="space-y-4">
       {/* Header bar */}
@@ -896,66 +904,99 @@ function TransaksiPageInner() {
         </button>
       </div>
 
-      {/* Summary bar */}
-      <div className="rounded-[14px] border bg-card p-4">
-        <div className="grid grid-cols-3 gap-3">
-          <MoneyStat
-            label={t.transaksi.totalIncomeLabel}
-            value={isLoading ? "…" : formatRupiah(totalIncome)}
-            valueClass="text-success"
-          />
-          <MoneyStat
-            label={t.transaksi.totalExpenseLabel}
-            value={isLoading ? "…" : formatRupiah(totalExpense)}
-            valueClass="text-destructive"
-          />
-          <MoneyStat
-            label={t.transaksi.differenceLabel}
-            value={isLoading ? "…" : formatRupiah(netBalance)}
-            valueClass={netBalance >= 0 ? "text-success" : "text-destructive"}
-          />
-        </div>
-      </div>
-
-      {/* Filter pills (left) + sort control (right) — redundant "Tambah" button removed */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="hide-scrollbar flex gap-2 overflow-x-auto">
-          {FILTER_VALUES.map((value) => (
-            <button
-              key={value}
-              onClick={() => setFilter(value)}
-              aria-pressed={filter === value}
-              className={
-                "whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors " +
-                (filter === value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-muted-foreground hover:bg-accent")
-              }
-            >
-              {t.transaksi.filterLabels[value]}
-            </button>
-          ))}
-        </div>
-
-        {/* Sort control — styled native select per WM conventions for simplicity */}
-        <div className="relative flex items-center">
-          <span className="pointer-events-none absolute left-3 text-[12px] text-muted-foreground select-none">
-            {t.transaksi.sortByLabel}
+      {/* Filter card — EPIC-025 N3-E4: prototype's `.card.transaction-filter-section`
+          (translation table: `.card` → `SectionCard`). Only the type-filter
+          pills + sort control exist in this app (no account/category filter
+          endpoints), so the card body carries only those — no fabricated
+          date-range/account/category selects. */}
+      <SectionCard
+        title={
+          <span className="inline-flex items-center gap-1.5">
+            <Filter className="size-3.5" />
+            {t.transaksi.filterCardTitle}
           </span>
-          <select
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value as SortOrder)}
-            className="appearance-none rounded-lg border bg-card py-1.5 pl-[68px] pr-7 text-[13px] font-semibold text-foreground outline-none transition-colors focus:border-primary cursor-pointer"
-            aria-label={t.transaksi.sortAriaLabel}
+        }
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div
+            role="group"
+            aria-label={t.transaksi.filterCardTitle}
+            className="hide-scrollbar flex gap-2 overflow-x-auto"
           >
-            {SORT_VALUES.map((value) => (
-              <option key={value} value={value}>
-                {t.transaksi.sortLabels[value]}
-              </option>
+            {FILTER_VALUES.map((value) => (
+              <button
+                key={value}
+                onClick={() => setFilter(value)}
+                aria-pressed={filter === value}
+                className={
+                  "whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors " +
+                  (filter === value
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-muted-foreground hover:bg-accent")
+                }
+              >
+                {t.transaksi.filterLabels[value]}
+              </button>
             ))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-2 size-3.5 text-muted-foreground" />
+          </div>
+
+          {/* Sort control — styled native select per WM conventions for simplicity */}
+          <div className="relative flex items-center">
+            <span className="pointer-events-none absolute left-3 text-[12px] text-muted-foreground select-none">
+              {t.transaksi.sortByLabel}
+            </span>
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value as SortOrder)}
+              className="appearance-none rounded-lg border bg-card py-1.5 pl-[68px] pr-7 text-[13px] font-semibold text-foreground outline-none transition-colors focus:border-primary cursor-pointer"
+              aria-label={t.transaksi.sortAriaLabel}
+            >
+              {SORT_VALUES.map((value) => (
+                <option key={value} value={value}>
+                  {t.transaksi.sortLabels[value]}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2 size-3.5 text-muted-foreground" />
+          </div>
         </div>
+      </SectionCard>
+
+      {/* Summary stat cards — EPIC-025 N3-E4: prototype's `.auto-grid--metrics`
+          of `.card.stat` (translation table: `.stat` → `SummaryCard`). Delta
+          text is derived from the already-fetched list/summary, not invented
+          copy. */}
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+        {/* Income/expense counts are neutral facts, not a good/bad trend —
+            SummaryCard's `delta` slot always colors success/destructive, so
+            leaving it unset here avoids implying a trend that isn't real. */}
+        <SummaryCard
+          icon={<ArrowDownLeft className="size-[17px]" />}
+          iconBg="var(--success-soft)"
+          iconColor="var(--success)"
+          label={t.transaksi.totalIncomeLabel}
+          amount={isLoading ? "…" : formatRupiah(totalIncome)}
+        />
+        <SummaryCard
+          icon={<CreditCard className="size-[17px]" />}
+          iconBg="color-mix(in oklab, var(--destructive) 14%, transparent)"
+          iconColor="var(--destructive)"
+          label={t.transaksi.totalExpenseLabel}
+          amount={isLoading ? "…" : formatRupiah(totalExpense)}
+        />
+        <SummaryCard
+          icon={<Scale className="size-[17px]" />}
+          iconBg="var(--accent)"
+          iconColor="var(--accent-foreground)"
+          label={t.transaksi.differenceLabel}
+          amount={isLoading ? "…" : formatRupiah(netBalance)}
+          delta={
+            isLoading
+              ? undefined
+              : `${netBalance >= 0 ? t.transaksi.surplusLabel : t.transaksi.deficitLabel} ${Math.abs(netPct)}${t.transaksi.ofIncomeSuffix}`
+          }
+          deltaUp={netBalance >= 0}
+        />
       </div>
 
       {/* Error state */}
@@ -968,14 +1009,25 @@ function TransaksiPageInner() {
         </div>
       )}
 
-      {/* Transaction list */}
-      <div className="space-y-1">
+      {/* Transaction list — EPIC-025 N3-E4: prototype's `.card.transaction-table-section`
+          (translation table: `.card` → `SectionCard`, `.list-row` pattern kept
+          inline per-page as the table already documents). Rows/dialogs below
+          are untouched — only the wrapping card chrome is new. */}
+      <SectionCard
+        title={t.transaksi.listSectionTitle}
+        action={
+          <span className="text-[11.5px] text-muted-foreground">
+            {t.transaksi.listSectionHint}
+            {!isLoading &&
+              ` · ${filtered.length}${t.transaksi.transactionsCountSuffix}`}
+          </span>
+        }
+        bodyClassName="space-y-1"
+      >
         {isLoading && (
-          <SectionCard>
-            <div className="py-6 text-center text-[13px] text-muted-foreground">
-              {t.transaksi.loadingLabel}
-            </div>
-          </SectionCard>
+          <div className="py-6 text-center text-[13px] text-muted-foreground">
+            {t.transaksi.loadingLabel}
+          </div>
         )}
 
         {!isLoading &&
@@ -1002,13 +1054,11 @@ function TransaksiPageInner() {
           ))}
 
         {!isLoading && sortedDays.length === 0 && !isError && (
-          <SectionCard>
-            <div className="py-6 text-center text-[13px] text-muted-foreground">
-              {t.transaksi.emptyFiltered}
-            </div>
-          </SectionCard>
+          <div className="py-6 text-center text-[13px] text-muted-foreground">
+            {t.transaksi.emptyFiltered}
+          </div>
         )}
-      </div>
+      </SectionCard>
 
       <EditTransactionDialog
         key={editTarget?.id ?? "edit-none"}

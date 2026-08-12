@@ -1017,6 +1017,9 @@ export const id = {
       resultLabel: "Estimasi Nilai Akhir",
       detailTotalCapitalPrefix: "Modal total:",
       detailProfitPrefix: "· Keuntungan:",
+      projectionChartTitle: "Proyeksi Nilai Portofolio",
+      projectionSeriesLabel: "Nilai portofolio",
+      projectionYearPrefix: "Th ",
     },
     kredit: {
       cardTitle: "Kalkulator Kredit / KPR",
@@ -2025,6 +2028,8 @@ export const id = {
     heirAllocationFullyAllocated: "Teralokasi penuh (100%)",
     heirMemberPickerUnavailable:
       "Daftar anggota keluarga tidak tersedia untuk peran Anda — isi nama secara manual.",
+    heirAllocationChartTitle: "Alokasi Ahli Waris",
+    heirAllocationUnallocatedLabel: "Belum dialokasikan",
   },
   anggaran: {
     budgetTypeLabels: {
@@ -2053,6 +2058,8 @@ export const id = {
     categoryBreakdownTitle: "Rincian Anggaran per Kategori",
     errorLoad: "Gagal memuat anggaran. Silakan refresh halaman.",
     emptyState: "Belum ada anggaran. Klik “Tambah Kategori” untuk memulai.",
+    categoryBarChartTitle: "Terpakai per Kategori",
+    emptyCategoryBarChart: "Belum ada pemakaian anggaran untuk ditampilkan.",
     typeBreakdownTitle: "Rincian per Tipe Anggaran",
     categoriesSuffix: " kategori",
     overBudgetMidText: " melebihi budget ",
@@ -2169,6 +2176,14 @@ export const id = {
       "Lampiran yang dihapus tidak bisa dikembalikan.",
     attachmentDeletedToast: "Lampiran dihapus",
     attachmentDeleteFailedToast: "Gagal menghapus lampiran",
+    filterCardTitle: "Filter",
+    listSectionTitle: "Daftar Transaksi",
+    listSectionHint:
+      "Klik baris untuk detail; opsi lanjutan muncul saat hover/focus",
+    transactionsCountSuffix: " transaksi",
+    surplusLabel: "Surplus",
+    deficitLabel: "Defisit",
+    ofIncomeSuffix: "% dari pemasukan",
   },
   splitbill: {
     headerDesc: "Patungan jadi gampang — kamu nalangin, mereka bayar balik",

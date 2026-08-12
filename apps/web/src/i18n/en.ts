@@ -1013,6 +1013,9 @@ export const en = {
       resultLabel: "Estimated Final Value",
       detailTotalCapitalPrefix: "Total capital:",
       detailProfitPrefix: "· Profit:",
+      projectionChartTitle: "Portfolio Value Projection",
+      projectionSeriesLabel: "Portfolio value",
+      projectionYearPrefix: "Yr ",
     },
     kredit: {
       cardTitle: "Loan / Mortgage Calculator",
@@ -2019,6 +2022,8 @@ export const en = {
     heirAllocationFullyAllocated: "Fully allocated (100%)",
     heirMemberPickerUnavailable:
       "The family member list isn't available for your role — enter the name manually.",
+    heirAllocationChartTitle: "Beneficiary Allocation",
+    heirAllocationUnallocatedLabel: "Unallocated",
   },
   anggaran: {
     budgetTypeLabels: {
@@ -2047,6 +2052,8 @@ export const en = {
     categoryBreakdownTitle: "Budget Breakdown by Category",
     errorLoad: "Failed to load budgets. Please refresh the page.",
     emptyState: 'No budgets yet. Click "Add Category" to get started.',
+    categoryBarChartTitle: "Spent by Category",
+    emptyCategoryBarChart: "No budget usage to show yet.",
     typeBreakdownTitle: "Breakdown by Budget Type",
     categoriesSuffix: " categories",
     overBudgetMidText: " is over budget by ",
@@ -2158,6 +2165,14 @@ export const en = {
     attachmentDeleteConfirmBody: "This attachment cannot be recovered.",
     attachmentDeletedToast: "Attachment deleted",
     attachmentDeleteFailedToast: "Failed to delete the attachment",
+    filterCardTitle: "Filter",
+    listSectionTitle: "Transaction List",
+    listSectionHint:
+      "Click a row for details; more actions appear on hover/focus",
+    transactionsCountSuffix: " transactions",
+    surplusLabel: "Surplus",
+    deficitLabel: "Deficit",
+    ofIncomeSuffix: "% of income",
   },
   splitbill: {
     headerDesc: "Splitting bills made easy — you cover it, they pay you back",

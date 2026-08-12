@@ -200,15 +200,15 @@ first, as docs only, so no later page PR has to relitigate them mid-review.
   - [x] **D3** — Port `rekening`.
   - [x] **D4** — Port `donation`.
 
-- [ ] ### N3-E — Wave 4: large, dialog-heavy, verify recent merges
-  - **E1** — Port `anggaran`.
-  - **E2** — Port `kalkulator`.
-  - **E3** — Port `warisan`.
-  - **E4** — Port `transaksi` — verify Group L's attachment UI (upload,
-    view, delete) survives the port unchanged.
-  - **E5** — Port `splitbill` — verify Group F's ≤375px responsive dialogs;
-    `apps/web/tests/e2e/.../epic-023-i2-splitbill-390.spec.ts` (or current
-    equivalent) must stay green.
+- [x] ### N3-E — Wave 4: large, dialog-heavy, verify recent merges ✅
+  - [x] **E1** — Port `anggaran`.
+  - [x] **E2** — Port `kalkulator`.
+  - [x] **E3** — Port `warisan`.
+  - [x] **E4** — Port `transaksi` — verify Group L's attachment UI (upload,
+        view, delete) survives the port unchanged.
+  - [x] **E5** — Port `splitbill` — verify Group F's ≤375px responsive dialogs;
+        `apps/web/tests/e2e/.../epic-023-i2-splitbill-390.spec.ts` (or current
+        equivalent) must stay green.
 
 - [ ] ### N3-F — Wave 5: largest pages, verify Group C/D/G merges
   - **F1** — Port `aset` — verify Group D1's eye/privacy toggle and D2's
@@ -526,3 +526,28 @@ prototype counterpart.
   (react-reviewer, typescript-reviewer, review-qa-agent, security-agent,
   test-agent) PASS. globals.css zero diff, existing tests unmodified.
   PR: https://github.com/andrsrjld/wealthme-web/pull/273
+- 2026-08-12 /epic-loop EPIC-025 #6 "N3-E — Wave 4: large, dialog-heavy,
+  verify recent merges" → PASS (attempts: 3). Ported anggaran (HBarChart
+  budget-vs-actual, FOLD per J3), kalkulator (TrendChart projection, pure
+  client-side), warisan (DonutChart heir allocation), transaksi, splitbill.
+  **First attempt's E4/E5 were incorrectly skipped entirely** (a "verify it
+  survives" instruction was misread as "don't touch it at all") —
+  review-qa-agent caught this as a CRITICAL finding; re-implemented both
+  properly, actually porting layout/structure while keeping the CRITICAL
+  pieces byte-identical: `AttachmentList`/`TransactionDetailDialog`/
+  `fetchAttachmentBlob` (Group L) and all `DialogContent`
+  `max-w-[min(...)]` classes (Group F's ≤375px fix) — verified via diff
+  showing zero hunks inside those definitions, not just claimed. Second
+  full-scope review found 1 real HIGH: kalkulator's chart-loop clamp
+  (`Math.max(1, years)`) had leaked into the SAME variable feeding
+  fv/totalModal/profit — the money numbers on the result card, not just
+  the chart — silently forcing a fake 1-year result for invalid input
+  instead of surfacing it like before; fixed by splitting into an
+  unclamped `n` (money math, unchanged behavior) and a separately-clamped
+  `chartMonths` (chart loop only). Also 2 dead i18n keys found and
+  resolved across two review rounds (one removed, one wired into a real
+  count display). All 5 gates (react-reviewer, typescript-reviewer,
+  review-qa-agent, security-agent, test-agent) PASS on final attempt.
+  globals.css zero diff, all critical existing tests
+  (attachment-list.test.tsx, txrow-detail.test.tsx, splitbill.test.tsx,
+  split-math.test.ts) pass unmodified. PR: https://github.com/andrsrjld/wealthme-web/pull/274

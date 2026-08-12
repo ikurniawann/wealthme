@@ -15,6 +15,9 @@ import {
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/hooks/use-locale";
+// EPIC-025 N3-E1 — J3 FOLD: "Terpakai per Kategori" budget-vs-actual bars,
+// derived from the already-fetched budgets list — no new backend endpoint.
+import { HBarChart } from "@/components/charts/apex-presets";
 import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -611,6 +614,14 @@ export default function AnggaranPage() {
   const totalLimit = budgets?.reduce((s, b) => s + b.limitAmount, 0) ?? 0;
   const totalSpent = budgets?.reduce((s, b) => s + b.spentAmount, 0) ?? 0;
   const typeBreakdown = budgets ? buildTypeBreakdown(budgets) : [];
+  // EPIC-025 N3-E1 — J3 FOLD: "Terpakai per Kategori" bars, sorted by
+  // spentAmount desc like the prototype's `hbar()` mount, over the same
+  // already-fetched budgets list.
+  const categoryBarBudgets = (budgets ?? [])
+    .slice()
+    .sort((a, b) => b.spentAmount - a.spentAmount);
+  const categoryBarCategories = categoryBarBudgets.map((b) => b.categoryName);
+  const categoryBarData = categoryBarBudgets.map((b) => b.spentAmount);
   const totalRemaining = Math.max(0, totalLimit - totalSpent);
   const overBudgetItems = budgets?.filter((b) => b.isOverBudget) ?? [];
   const nearLimitItems = budgets?.filter((b) => b.isNearLimit) ?? [];
@@ -726,44 +737,73 @@ export default function AnggaranPage() {
         )}
       </SectionCard>
 
-      {typeBreakdown.length > 0 && (
-        <SectionCard
-          title={t.anggaran.typeBreakdownTitle}
-          bodyClassName="-mt-1 space-y-3"
-        >
-          {typeBreakdown.map((row) => {
-            const pct =
-              row.limit > 0 ? Math.round((row.spent / row.limit) * 100) : 0;
-            const color =
-              row.spent > row.limit
-                ? "var(--destructive)"
-                : pct >= 80
-                  ? "var(--warning)"
-                  : "var(--success)";
-            return (
-              <div key={row.key}>
-                <div className="mb-1.5 flex items-center gap-2 text-[13px]">
-                  <StatusBadge variant="gray">
-                    {t.anggaran.budgetTypeLabels[row.key]}
-                  </StatusBadge>
-                  <span className="text-[11.5px] text-muted-foreground">
-                    {row.count}
-                    {t.anggaran.categoriesSuffix}
-                  </span>
-                  <span className="ml-auto font-semibold" style={{ color }}>
-                    {pct}%
-                  </span>
-                </div>
-                <div className="mb-1 text-[11.5px] text-muted-foreground">
-                  {formatRupiah(row.spent)}
-                  {t.anggaran.amountsMidDari}
-                  {formatRupiah(row.limit)}
-                </div>
-                <AnimatedProgress value={Math.min(pct, 100)} color={color} />
+      {(categoryBarBudgets.length > 0 || typeBreakdown.length > 0) && (
+        <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2">
+          {/* EPIC-025 N3-E1 — J3 FOLD: "Terpakai per Kategori" HBarChart,
+              same data `BudgetItem` rows above already render, sliced
+              differently (sorted by spentAmount desc, like the prototype). */}
+          <SectionCard title={t.anggaran.categoryBarChartTitle}>
+            {categoryBarBudgets.length === 0 ? (
+              <div className="py-4 text-center text-[13px] text-muted-foreground">
+                {t.anggaran.emptyCategoryBarChart}
               </div>
-            );
-          })}
-        </SectionCard>
+            ) : (
+              <HBarChart
+                categories={categoryBarCategories}
+                data={categoryBarData}
+                color="var(--primary)"
+                ariaLabel={`${t.anggaran.categoryBarChartTitle}: ${categoryBarBudgets
+                  .map(
+                    (b) => `${b.categoryName} ${formatRupiah(b.spentAmount)}`,
+                  )
+                  .join(", ")}`}
+              />
+            )}
+          </SectionCard>
+
+          {typeBreakdown.length > 0 && (
+            <SectionCard
+              title={t.anggaran.typeBreakdownTitle}
+              bodyClassName="-mt-1 space-y-3"
+            >
+              {typeBreakdown.map((row) => {
+                const pct =
+                  row.limit > 0 ? Math.round((row.spent / row.limit) * 100) : 0;
+                const color =
+                  row.spent > row.limit
+                    ? "var(--destructive)"
+                    : pct >= 80
+                      ? "var(--warning)"
+                      : "var(--success)";
+                return (
+                  <div key={row.key}>
+                    <div className="mb-1.5 flex items-center gap-2 text-[13px]">
+                      <StatusBadge variant="gray">
+                        {t.anggaran.budgetTypeLabels[row.key]}
+                      </StatusBadge>
+                      <span className="text-[11.5px] text-muted-foreground">
+                        {row.count}
+                        {t.anggaran.categoriesSuffix}
+                      </span>
+                      <span className="ml-auto font-semibold" style={{ color }}>
+                        {pct}%
+                      </span>
+                    </div>
+                    <div className="mb-1 text-[11.5px] text-muted-foreground">
+                      {formatRupiah(row.spent)}
+                      {t.anggaran.amountsMidDari}
+                      {formatRupiah(row.limit)}
+                    </div>
+                    <AnimatedProgress
+                      value={Math.min(pct, 100)}
+                      color={color}
+                    />
+                  </div>
+                );
+              })}
+            </SectionCard>
+          )}
+        </div>
       )}
 
       {(overBudgetItems.length > 0 || nearLimitItems.length > 0) && (

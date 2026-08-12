@@ -5,7 +5,12 @@ import { Plus, Share2, X, Link2 } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { SectionCard, ProgressBar, StatusBadge } from "@/components/wm";
+import {
+  SectionCard,
+  SummaryCard,
+  ProgressBar,
+  StatusBadge,
+} from "@/components/wm";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ConfirmDeleteDialog } from "@/components/crud";
@@ -445,46 +450,41 @@ export default function SplitBillPage() {
         </Button>
       </div>
 
-      {/* Stats */}
+      {/* Stats — EPIC-025 N3-E5: prototype's `.auto-grid--metrics` of
+          `.card.stat` (translation table: `.stat` → `SummaryCard`). Values
+          are the same derived numbers the old inline cards rendered. */}
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
-        <div className="rounded-[14px] border bg-card p-4">
-          <div className="mb-1 text-[11px] text-muted-foreground">
-            {t.splitbill.totalDitalanginLabel}
-          </div>
-          <div className="text-[20px] font-black text-primary">
-            {formatRupiah(totalDitalangin)}
-          </div>
-          <div className="text-[11px] text-muted-foreground">
-            {activeSplits.length}
-            {t.splitbill.activeSplitsSuffix}
-          </div>
-        </div>
-        <div className="rounded-[14px] border bg-card p-4">
-          <div className="mb-1 text-[11px] text-muted-foreground">
-            {t.splitbill.sudahDibayarLabel}
-          </div>
-          <div className="text-[20px] font-black text-success">
-            {formatRupiah(totalTerkumpul)}
-          </div>
-          <div className="text-[11px] text-success">
-            {totalDitalangin > 0
+        {/* Count is a neutral fact, not a good/bad trend — SummaryCard's
+            `delta` slot always colors success/destructive, so it's left
+            unset here rather than implying a trend that isn't real. */}
+        <SummaryCard
+          icon={<span aria-hidden="true">🧾</span>}
+          iconBg="var(--accent)"
+          iconColor="var(--primary)"
+          label={t.splitbill.totalDitalanginLabel}
+          amount={formatRupiah(totalDitalangin)}
+        />
+        <SummaryCard
+          icon={<span aria-hidden="true">✅</span>}
+          iconBg="var(--success-soft)"
+          iconColor="var(--success)"
+          label={t.splitbill.sudahDibayarLabel}
+          amount={formatRupiah(totalTerkumpul)}
+          delta={`${
+            totalDitalangin > 0
               ? Math.round((totalTerkumpul / totalDitalangin) * 100)
-              : 0}
-            {t.splitbill.pctCollectedSuffix}
-          </div>
-        </div>
-        <div className="rounded-[14px] border bg-card p-4">
-          <div className="mb-1 text-[11px] text-muted-foreground">
-            {t.splitbill.belumDibayarLabel}
-          </div>
-          <div className="text-[20px] font-black text-destructive">
-            {formatRupiah(totalBelum)}
-          </div>
-          <div className="text-[11px] text-destructive">
-            {belumBayarCount}
-            {t.splitbill.peopleUnpaidSuffix}
-          </div>
-        </div>
+              : 0
+          }${t.splitbill.pctCollectedSuffix}`}
+          deltaUp
+        />
+        <SummaryCard
+          icon={<span aria-hidden="true">⏳</span>}
+          iconBg="var(--warning-soft)"
+          iconColor="var(--warning)"
+          label={t.splitbill.belumDibayarLabel}
+          amount={formatRupiah(totalBelum)}
+          delta={`${belumBayarCount}${t.splitbill.peopleUnpaidSuffix}`}
+        />
       </div>
 
       {/* Error state */}
@@ -576,18 +576,16 @@ export default function SplitBillPage() {
           })}
       </SectionCard>
 
-      {/* Insight banner */}
-      <div className="flex items-center gap-3 rounded-[14px] border border-primary/20 bg-accent p-4">
-        <div className="text-[24px]">💡</div>
-        <div className="flex-1">
-          <div className="text-[13px] font-bold text-primary-strong">
-            {t.splitbill.insightTitle}
-          </div>
-          <div className="mt-0.5 text-xs text-muted-foreground">
-            {t.splitbill.insightDesc}
-          </div>
+      {/* "Cara kerja Split Bill" — EPIC-025 N3-E5: prototype's `.card` +
+          `.notice--info` (translation table: Cards → `SectionCard`, Notices
+          → inline Tailwind `notice--info` mapping). Same copy as before,
+          just the card/notice chrome instead of a bespoke accent banner. */}
+      <SectionCard title={t.splitbill.insightTitle}>
+        <div className="flex items-center gap-2.5 rounded-[11px] border border-primary/25 bg-accent p-3 text-[12.5px] text-accent-foreground">
+          <Link2 className="size-4 shrink-0" aria-hidden="true" />
+          <span>{t.splitbill.insightDesc}</span>
         </div>
-      </div>
+      </SectionCard>
 
       {/* Create modal */}
       <Dialog
