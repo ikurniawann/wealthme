@@ -1038,6 +1038,10 @@ export type I18nDictionary = {
       resultLabel: string;
       detailTotalCapitalPrefix: string;
       detailProfitPrefix: string;
+      // EPIC-025 N3-E2 — J3 FOLD: projection chart, pure client-side.
+      projectionChartTitle: string;
+      projectionSeriesLabel: string;
+      projectionYearPrefix: string;
     };
     kredit: {
       cardTitle: string;
@@ -1954,6 +1958,10 @@ export type I18nDictionary = {
      * member list failed to load (e.g. a dependant/operational role has no
      * "read Member" ability). */
     heirMemberPickerUnavailable: string;
+    // EPIC-025 N3-E3 — J3 FOLD: beneficiary-allocation donut, derived from
+    // the already-fetched inheritance-assets list.
+    heirAllocationChartTitle: string;
+    heirAllocationUnallocatedLabel: string;
   };
   /** EPIC-018 Task A6 — `/anggaran` (budgets) page copy. */
   anggaran: {
@@ -1974,6 +1982,10 @@ export type I18nDictionary = {
     categoryBreakdownTitle: string;
     errorLoad: string;
     emptyState: string;
+    // EPIC-025 N3-E1 — J3 FOLD: budget-vs-actual bars, derived from
+    // already-fetched budget data (see `docs/prototype/pages/anggaran.html`).
+    categoryBarChartTitle: string;
+    emptyCategoryBarChart: string;
     typeBreakdownTitle: string;
     categoriesSuffix: string;
     overBudgetMidText: string;
@@ -2081,6 +2093,18 @@ export type I18nDictionary = {
     attachmentDeleteConfirmBody: string;
     attachmentDeletedToast: string;
     attachmentDeleteFailedToast: string;
+    /**
+     * EPIC-025 N3-E4 — filter card + per-stat summary cards ported from
+     * `docs/prototype/pages/transaksi.html`'s `.card.transaction-filter-section`
+     * and `.auto-grid--metrics` stat cards.
+     */
+    filterCardTitle: string;
+    listSectionTitle: string;
+    listSectionHint: string;
+    transactionsCountSuffix: string;
+    surplusLabel: string;
+    deficitLabel: string;
+    ofIncomeSuffix: string;
   };
   /**
    * EPIC-018 Task A6 — `/splitbill` (split bill) page copy. The seed

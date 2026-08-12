@@ -10,8 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { HeroCard } from "@/components/wm";
+import { HeroCard, SectionCard } from "@/components/wm";
 import { ConfirmDeleteDialog, RowActions } from "@/components/crud";
+// EPIC-025 N3-E3 — J3 FOLD: beneficiary-allocation donut, derived from the
+// already-fetched inheritance-assets list — no new backend endpoint.
+import { DonutChart } from "@/components/charts/apex-presets";
+import type { DonutSegment } from "@/components/charts/donut";
 import { useLocale } from "@/hooks/use-locale";
 import type { ApiError } from "@/lib/api-client";
 import { apiFetch } from "@/lib/api-client";
@@ -710,6 +714,53 @@ export default function WarisanPage() {
     new Set(assets.flatMap((a) => a.heirs.map((h) => h.name))),
   );
 
+  // EPIC-025 N3-E3 — J3 FOLD: "Alokasi Ahli Waris" donut, ported from
+  // `docs/prototype/pages/warisan.html`'s `WMCharts.donut()` mount. Each
+  // heir's slice is the sum, across every asset, of
+  // `estimatedValue * sharePercent / 100`; any remainder per asset
+  // (unallocated share) rolls into one "Belum dialokasikan" slice — same
+  // already-fetched `assets` list `AssetRow` above already reads.
+  const heirAllocationTotals = new Map<string, number>();
+  let unallocatedTotal = 0;
+  for (const asset of assets) {
+    const value = Number(BigInt(asset.estimatedValue));
+    let allocatedPercent = 0;
+    for (const heir of asset.heirs) {
+      const pct = Number(heir.sharePercent) || 0;
+      allocatedPercent += pct;
+      heirAllocationTotals.set(
+        heir.name,
+        (heirAllocationTotals.get(heir.name) ?? 0) + (value * pct) / 100,
+      );
+    }
+    const remainingPercent = Math.max(0, 100 - allocatedPercent);
+    unallocatedTotal += (value * remainingPercent) / 100;
+  }
+  const HEIR_DONUT_COLORS = [
+    "var(--brand-purple)",
+    "var(--success)",
+    "var(--brand-cyan)",
+    "var(--primary)",
+    "var(--warning)",
+    "var(--brand-orange)",
+  ];
+  const heirAllocationSegments: DonutSegment[] = Array.from(
+    heirAllocationTotals.entries(),
+  )
+    .filter(([, value]) => value > 0)
+    .map(([label, value], i) => ({
+      label,
+      value,
+      color: HEIR_DONUT_COLORS[i % HEIR_DONUT_COLORS.length]!,
+    }));
+  if (unallocatedTotal > 0) {
+    heirAllocationSegments.push({
+      label: t.warisan.heirAllocationUnallocatedLabel,
+      value: unallocatedTotal,
+      color: "var(--muted-foreground)",
+    });
+  }
+
   return (
     <div className="space-y-4">
       {/* Hero */}
@@ -780,6 +831,20 @@ export default function WarisanPage() {
             ))}
           </Card>
         ))}
+
+      {/* EPIC-025 N3-E3 — beneficiary-allocation donut. Section is hidden
+          when there is nothing to allocate yet (Honest UI). */}
+      {!isLoading && heirAllocationSegments.length > 0 && (
+        <SectionCard title={t.warisan.heirAllocationChartTitle}>
+          <DonutChart
+            segments={heirAllocationSegments}
+            centerLabel={t.warisan.heroTitle}
+            ariaLabel={`${t.warisan.heirAllocationChartTitle}: ${heirAllocationSegments
+              .map((s) => `${s.label} ${formatRupiah(Math.round(s.value))}`)
+              .join(", ")}`}
+          />
+        </SectionCard>
+      )}
 
       {/* Insight banner */}
       <div className="flex items-center gap-3 rounded-[14px] border border-primary/20 bg-accent p-4">

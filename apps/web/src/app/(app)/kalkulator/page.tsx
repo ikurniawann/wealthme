@@ -7,6 +7,10 @@ import { useSession } from "@/lib/auth-compat";
 import { toast } from "sonner";
 import { SectionCard } from "@/components/wm";
 import { Button } from "@/components/ui/button";
+// EPIC-025 N3-E2 — J3 FOLD: investment projection chart, pure client-side
+// computation (same year-by-year compounding this tab already runs for the
+// result card) — no fetch needed.
+import { TrendChart } from "@/components/charts/apex-presets";
 import { formatManualDate } from "@/components/consolidated-total-card";
 import { useGoldPrice } from "@/hooks/use-gold-price";
 import { useLocale } from "@/hooks/use-locale";
@@ -422,20 +426,48 @@ function InvestasiTab() {
   const [rate, setRate] = useState("12");
   const [years, setYears] = useState("10");
 
-  const { fv, totalModal, profit } = useMemo(() => {
-    const m = parseRupiah(modal);
-    const mo = parseRupiah(monthly);
-    const r = Number(rate) / 100 / 12;
-    const n = Number(years) * 12;
-    const factor = Math.pow(1 + r, n);
-    const fvCalc = r === 0 ? m + mo * n : m * factor + (mo * (factor - 1)) / r;
-    const totalModalCalc = m + mo * n;
-    return {
-      fv: fvCalc,
-      totalModal: totalModalCalc,
-      profit: fvCalc - totalModalCalc,
-    };
-  }, [modal, monthly, rate, years]);
+  const { fv, totalModal, profit, projectionCategories, projectionValues } =
+    useMemo(() => {
+      const m = parseRupiah(modal);
+      const mo = parseRupiah(monthly);
+      const r = Number(rate) / 100 / 12;
+      // EPIC-025 N3-E2 hotfix — `n` feeds the ResultCard's fv/totalModal/
+      // profit; it must stay UNCLAMPED so an invalid/empty `years` field
+      // (0 or NaN) surfaces the same way it always did (fv === m, or a
+      // visibly broken number), not silently forced to a fake 1-year
+      // result. Only the projection CHART's loop bound is clamped
+      // separately (`chartMonths` below) so the chart never renders an
+      // empty series — that clamp must never leak into the money math.
+      const n = Number(years) * 12;
+      const factor = Math.pow(1 + r, n);
+      const fvCalc =
+        r === 0 ? m + mo * n : m * factor + (mo * (factor - 1)) / r;
+      const totalModalCalc = m + mo * n;
+
+      // EPIC-025 N3-E2 — J3 FOLD: year-by-year compounding, ported from
+      // `docs/prototype/pages/kalkulator.html`'s `hitungInvestasi()`. Pure
+      // client-side re-derivation of the same formula used for `fv` above —
+      // no fetch, no second source of truth to drift from the result card.
+      const chartMonths = Math.max(1, n);
+      const series: number[] = [];
+      let value = m;
+      series.push(Math.round(value));
+      for (let month = 1; month <= chartMonths; month += 1) {
+        value = value * (1 + r) + mo;
+        if (month % 12 === 0) series.push(Math.round(value));
+      }
+      const categories = series.map(
+        (_, idx) => `${t.kalkulator.investasi.projectionYearPrefix}${idx}`,
+      );
+
+      return {
+        fv: fvCalc,
+        totalModal: totalModalCalc,
+        profit: fvCalc - totalModalCalc,
+        projectionCategories: categories,
+        projectionValues: series,
+      };
+    }, [modal, monthly, rate, years, t]);
 
   return (
     <SectionCard title={t.kalkulator.investasi.cardTitle}>
@@ -493,6 +525,21 @@ function InvestasiTab() {
           </>
         }
       />
+      {/* EPIC-025 N3-E2 — J3 FOLD: projection chart, pure client-side
+          computation from the same series computed above. */}
+      <div className="mt-3.5">
+        <TrendChart
+          categories={projectionCategories}
+          series={[
+            {
+              name: t.kalkulator.investasi.projectionSeriesLabel,
+              data: projectionValues,
+            },
+          ]}
+          height={190}
+          ariaLabel={`${t.kalkulator.investasi.projectionChartTitle}: ${formatRupiah(projectionValues[0] ?? 0)} → ${formatRupiah(fv)}`}
+        />
+      </div>
     </SectionCard>
   );
 }
