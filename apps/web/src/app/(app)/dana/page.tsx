@@ -6,7 +6,7 @@ import { useSession, signOut } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useLocale } from "@/hooks/use-locale";
-import { SectionCard, HeroCard, CardLink } from "@/components/wm";
+import { SectionCard, HeroCard, CardLink, SummaryCard } from "@/components/wm";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, parseRupiah } from "@/lib/format";
@@ -262,6 +262,42 @@ export default function DanaPage() {
         >
           <span className="font-semibold">{t.dana.errorPrefixLabel}</span>
           {t.dana.errorLoadBody}
+        </div>
+      )}
+
+      {/* Prototype structural port (EPIC-025 N3-B3) — the prototype's
+          cash-summary-grid stat pair, computed from data already fetched
+          above (accounts). The prototype's third grid cell ("Komposisi"
+          donut) and the hero's category-trend line chart are NOT ported:
+          per the epic's J3 decision table the dana category-trend chart is
+          FOLD-in-scope only when "derivable from existing dana entries" —
+          this page fetches accounts (balances), not dana transaction
+          entries, so there is no time-series/category data to chart without
+          a new fetch. Per this task's instructions, that is noted and
+          skipped rather than adding a new backend call from a page PR. */}
+      {!isLoading && danaAccounts.length > 0 && (
+        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+          <SummaryCard
+            icon="👛"
+            iconBg="var(--accent)"
+            label={t.dana.cashStatLabel}
+            amount={formatRupiah(
+              cashItems.reduce((sum, a) => sum + parseFloat(a.balance), 0),
+            )}
+            delta={`${cashItems.length}${t.dana.cashCountSuffix}`}
+            deltaUp
+          />
+          <SummaryCard
+            icon="💳"
+            iconBg="var(--success-soft)"
+            iconColor="var(--success)"
+            label={t.dana.ewalletStatLabel}
+            amount={formatRupiah(
+              ewalletItems.reduce((sum, a) => sum + parseFloat(a.balance), 0),
+            )}
+            delta={`${ewalletItems.length}${t.dana.ewalletCountSuffix}`}
+            deltaUp
+          />
         </div>
       )}
 

@@ -698,6 +698,9 @@ export const en = {
     pageSubtitle:
       "Every feature, grouped by usage flow — explore based on what you need.",
     openLink: "Open →",
+    searchLabel: "Search topics",
+    searchPlaceholder: "e.g. budget, reconciliation, change role…",
+    noResults: "No topics match — try a different keyword.",
     journeys: {
       start: {
         title: "1. Start here",
@@ -1071,6 +1074,9 @@ export const en = {
     },
     toastSaved: "Saved successfully!",
     toastSaveFailed: "Failed to save. Try again.",
+    recentEntriesTitle: "Recent Entries",
+    viewAllLink: "View All",
+    emptyRecent: "No transactions yet.",
   },
   ai: {
     bannerTitle: "WealthMe AI Advisor",
@@ -1582,6 +1588,11 @@ export const en = {
     relativeHoursSuffix: " hours ago",
     relativeYesterday: "Yesterday",
     relativeDaysSuffix: " days ago",
+    filterAll: "All",
+    filterUnread: "Unread",
+    groupToday: "Today",
+    groupThisWeek: "This Week",
+    groupOlder: "Older",
   },
   dana: {
     totalLabel: "💵 Total Cash & E-Wallet",
@@ -1605,6 +1616,10 @@ export const en = {
     toastSaveFailedSuffix: ". Please try again.",
     toastDeleteFailedPrefix: "Failed to delete ",
     toastDeleteFailedSuffix: ". Please try again.",
+    cashStatLabel: "Cash",
+    ewalletStatLabel: "E-Wallet",
+    cashCountSuffix: " cash accounts",
+    ewalletCountSuffix: " e-wallets",
   },
   consolidatedTotal: {
     title: "Consolidated Total",

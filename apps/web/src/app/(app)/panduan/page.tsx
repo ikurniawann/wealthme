@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Home,
@@ -277,16 +278,69 @@ const JOURNEYS: Journey[] = [
 export default function PanduanPage() {
   const router = useRouter();
   const { t } = useLocale();
+  const [query, setQuery] = useState("");
+
+  // Prototype structural port (EPIC-025 N3-B2) — the prototype's search +
+  // area-filter bar runs for real against static topic copy; ported the
+  // same way, filtering the existing `t.panduan.journeys`/`features`
+  // dictionary (no new content invented). The prototype's own FAQ +
+  // "Hubungi Kami" contact section is not ported: J1 explicitly cuts the
+  // support-ticket dialog, and the FAQ/contact-links content has no
+  // existing i18n entries to port faithfully without inventing new copy.
+  const q = query.trim().toLowerCase();
+  const visibleJourneys = useMemo(() => {
+    if (!q) return JOURNEYS;
+    return JOURNEYS.map((journey) => {
+      const journeyText = t.panduan.journeys[journey.id];
+      const items = journey.items.filter((f) => {
+        const featureText = t.panduan.features[f.id];
+        const haystack =
+          `${journeyText.title} ${featureText.title} ${featureText.desc}`.toLowerCase();
+        return haystack.includes(q);
+      });
+      return { ...journey, items };
+    }).filter((journey) => journey.items.length > 0);
+  }, [q, t]);
+
   return (
     <div className="space-y-4">
-      <div className="mb-1">
-        <div className="text-[15px] font-bold">{t.panduan.pageTitle}</div>
-        <div className="text-[12px] text-muted-foreground">
+      <section aria-labelledby="panduan-heading" className="mb-1">
+        <h1
+          id="panduan-heading"
+          className="text-[17px] font-extrabold tracking-tight"
+        >
+          {t.panduan.pageTitle}
+        </h1>
+        <div className="mt-1 text-[12.5px] text-muted-foreground">
           {t.panduan.pageSubtitle}
         </div>
-      </div>
+      </section>
 
-      {JOURNEYS.map((journey, ji) => {
+      <SectionCard>
+        <label className="block">
+          <span className="mb-1.5 block text-[12.5px] font-semibold">
+            {t.panduan.searchLabel}
+          </span>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t.panduan.searchPlaceholder}
+            aria-label={t.panduan.searchLabel}
+            className="w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card"
+          />
+        </label>
+      </SectionCard>
+
+      {visibleJourneys.length === 0 && (
+        <SectionCard>
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            {t.panduan.noResults}
+          </p>
+        </SectionCard>
+      )}
+
+      {visibleJourneys.map((journey, ji) => {
         const journeyText = t.panduan.journeys[journey.id];
         return (
           <Rise key={journey.id} index={ji}>
@@ -294,7 +348,7 @@ export default function PanduanPage() {
               <div className="-mt-2 mb-3 text-[12px] text-muted-foreground">
                 {journeyText.subtitle}
               </div>
-              <div className="space-y-1">
+              <div className="grid grid-cols-1 gap-1 md:grid-cols-2 lg:grid-cols-3">
                 {journey.items.map((f) => {
                   const featureText = t.panduan.features[f.id];
                   return (

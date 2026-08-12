@@ -1,15 +1,29 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
 import { CardLink, SectionCard, StatusBadge } from "@/components/wm";
+import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 
 import type { NotificationDto } from "@wealthme/contracts";
+
+// Prototype structural port (EPIC-025 N3-B1) — the prototype groups
+// notifications by "Hari Ini / Minggu Ini / Lebih Lama" in separate `.card`
+// sections and offers a filter. `NotificationDto` has no category field
+// (only title/body/icon/isRead/createdAt), so only the two filters
+// derivable from real data are ported (Semua / Belum dibaca) — the
+// prototype's Transaksi/Anggaran/Persetujuan tabs would require guessing a
+// category from free-text title/body, which is not honest filtering. The
+// prototype's notification-detail and settings dialogs are NOT ported: they
+// have no backing API (no per-notification detail endpoint, no settings
+// persistence) — porting them would be a dead/mocked control (Honest UI).
+type Filter = "semua" | "belum-dibaca";
 
 function formatRelativeTime(
   iso: string,
@@ -32,6 +46,21 @@ function formatRelativeTime(
   });
 }
 
+function groupByRecency(notifications: NotificationDto[]) {
+  const now = Date.now();
+  const oneDay = 24 * 60 * 60 * 1000;
+  const today: NotificationDto[] = [];
+  const thisWeek: NotificationDto[] = [];
+  const older: NotificationDto[] = [];
+  for (const n of notifications) {
+    const age = now - new Date(n.createdAt).getTime();
+    if (age < oneDay) today.push(n);
+    else if (age < 7 * oneDay) thisWeek.push(n);
+    else older.push(n);
+  }
+  return { today, thisWeek, older };
+}
+
 function NotifSkeleton() {
   return (
     <div className="flex animate-pulse flex-col gap-4 py-2">
@@ -49,12 +78,82 @@ function NotifSkeleton() {
   );
 }
 
+function NotifRow({
+  n,
+  t,
+  locale,
+}: {
+  n: NotificationDto;
+  t: ReturnType<typeof useLocale>["t"];
+  locale: Locale;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-start gap-3 border-b py-3.5 last:border-b-0",
+        n.isRead && "opacity-60",
+      )}
+    >
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-[18px]">
+        {n.icon ?? "🔔"}
+      </div>
+      <div className="flex-1">
+        <div className="text-[13.5px] font-bold text-foreground">{n.title}</div>
+        <div className="mt-0.5 text-[12.5px] text-muted-foreground">
+          {n.body}
+        </div>
+        <div className="mt-1 text-[11px] text-muted-foreground">
+          {formatRelativeTime(n.createdAt, t, locale)}
+        </div>
+      </div>
+      {!n.isRead && (
+        <StatusBadge variant="success" className="text-[10px]">
+          {t.notifikasi.unreadBadge}
+        </StatusBadge>
+      )}
+    </div>
+  );
+}
+
+function NotifGroup({
+  title,
+  items,
+  t,
+  locale,
+}: {
+  title: string;
+  items: NotificationDto[];
+  t: ReturnType<typeof useLocale>["t"];
+  locale: Locale;
+}) {
+  if (items.length === 0) return null;
+  const unreadCount = items.filter((n) => !n.isRead).length;
+  return (
+    <SectionCard
+      title={title}
+      action={
+        unreadCount > 0 ? (
+          <StatusBadge variant="danger">
+            {unreadCount}
+            {t.notifikasi.newCountSuffix}
+          </StatusBadge>
+        ) : undefined
+      }
+    >
+      {items.map((n) => (
+        <NotifRow key={n.id} n={n} t={t} locale={locale} />
+      ))}
+    </SectionCard>
+  );
+}
+
 export default function NotifikasiPage() {
   const { t, locale } = useLocale();
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId;
   const token = session?.accessToken;
   const queryClient = useQueryClient();
+  const [filter, setFilter] = useState<Filter>("semua");
 
   const {
     data: notifications,
@@ -103,76 +202,109 @@ export default function NotifikasiPage() {
     },
   });
 
+  const filtered = useMemo(() => {
+    const all = notifications ?? [];
+    return filter === "belum-dibaca" ? all.filter((n) => !n.isRead) : all;
+  }, [notifications, filter]);
+
+  const { today, thisWeek, older } = groupByRecency(filtered);
+
   return (
-    <SectionCard
-      title={
-        <span className="flex items-center gap-2">
-          {t.notifikasi.title}
-          {unreadCount > 0 && (
-            <StatusBadge variant="danger">
-              {unreadCount}
-              {t.notifikasi.newCountSuffix}
-            </StatusBadge>
-          )}
-        </span>
-      }
-      action={
+    <div className="space-y-4">
+      <section
+        aria-labelledby="notifikasi-heading"
+        className="flex flex-wrap items-center gap-4"
+      >
+        <div className="min-w-[220px] flex-1">
+          <h1
+            id="notifikasi-heading"
+            className="flex items-center gap-2 text-[17px] font-extrabold tracking-tight"
+          >
+            {t.notifikasi.title}
+            {unreadCount > 0 && (
+              <StatusBadge variant="danger">
+                {unreadCount}
+                {t.notifikasi.newCountSuffix}
+              </StatusBadge>
+            )}
+          </h1>
+        </div>
         <CardLink
           onClick={() => familyGroupId && markAllRead.mutate(familyGroupId)}
           disabled={markAllRead.isPending || unreadCount === 0}
+          className="rounded-md border bg-card px-3 py-1.5 text-[11.5px] no-underline shadow-sm hover:no-underline"
         >
           {markAllRead.isPending
             ? t.notifikasi.processing
             : t.notifikasi.markAllRead}
         </CardLink>
-      }
-      bodyClassName="flex flex-col"
-    >
-      {isLoading && <NotifSkeleton />}
+      </section>
+
+      <section
+        role="group"
+        aria-label={t.notifikasi.title}
+        className="inline-flex gap-0.5 rounded-[10px] bg-secondary p-[3px]"
+      >
+        {(["semua", "belum-dibaca"] as Filter[]).map((f) => (
+          <button
+            key={f}
+            type="button"
+            aria-pressed={filter === f}
+            onClick={() => setFilter(f)}
+            className={cn(
+              "rounded-lg px-3 py-1.5 text-[12.5px] font-semibold text-muted-foreground transition-colors",
+              filter === f && "bg-card text-foreground shadow-sm",
+            )}
+          >
+            {f === "semua" ? t.notifikasi.filterAll : t.notifikasi.filterUnread}
+          </button>
+        ))}
+      </section>
+
+      {isLoading && (
+        <SectionCard>
+          <NotifSkeleton />
+        </SectionCard>
+      )}
 
       {isError && (
-        <p className="py-6 text-center text-sm text-muted-foreground">
-          {t.notifikasi.errorLoad}
-        </p>
+        <SectionCard>
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            {t.notifikasi.errorLoad}
+          </p>
+        </SectionCard>
       )}
 
-      {!isLoading && !isError && notifications?.length === 0 && (
-        <p className="py-6 text-center text-sm text-muted-foreground">
-          {t.notifikasi.emptyState}
-        </p>
+      {!isLoading && !isError && filtered.length === 0 && (
+        <SectionCard>
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            {t.notifikasi.emptyState}
+          </p>
+        </SectionCard>
       )}
 
-      {!isLoading &&
-        !isError &&
-        notifications?.map((n, i) => {
-          const isLast = i === (notifications.length ?? 0) - 1;
-          return (
-            <div
-              key={n.id}
-              className={`flex items-start gap-3 py-3.5 ${isLast ? "" : "border-b"} ${n.isRead ? "opacity-60" : ""} ${i === 0 ? "pt-0" : ""}`}
-            >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-[18px]">
-                {n.icon ?? "🔔"}
-              </div>
-              <div className="flex-1">
-                <div className="text-[13.5px] font-bold text-foreground">
-                  {n.title}
-                </div>
-                <div className="mt-0.5 text-[12.5px] text-muted-foreground">
-                  {n.body}
-                </div>
-                <div className="mt-1 text-[11px] text-muted-foreground">
-                  {formatRelativeTime(n.createdAt, t, locale)}
-                </div>
-              </div>
-              {!n.isRead && (
-                <StatusBadge variant="success" className="text-[10px]">
-                  {t.notifikasi.unreadBadge}
-                </StatusBadge>
-              )}
-            </div>
-          );
-        })}
-    </SectionCard>
+      {!isLoading && !isError && filtered.length > 0 && (
+        <>
+          <NotifGroup
+            title={t.notifikasi.groupToday}
+            items={today}
+            t={t}
+            locale={locale}
+          />
+          <NotifGroup
+            title={t.notifikasi.groupThisWeek}
+            items={thisWeek}
+            t={t}
+            locale={locale}
+          />
+          <NotifGroup
+            title={t.notifikasi.groupOlder}
+            items={older}
+            t={t}
+            locale={locale}
+          />
+        </>
+      )}
+    </div>
   );
 }

@@ -698,6 +698,9 @@ export const id = {
     pageSubtitle:
       "Semua fitur, dikelompokkan berdasarkan alur pemakaian — jelajahi sesuai kebutuhanmu.",
     openLink: "Buka →",
+    searchLabel: "Cari topik",
+    searchPlaceholder: "cth. anggaran, rekonsiliasi, ganti peran…",
+    noResults: "Tidak ada topik yang cocok — coba kata kunci lain.",
     journeys: {
       start: {
         title: "1. Mulai di sini",
@@ -1075,6 +1078,9 @@ export const id = {
     },
     toastSaved: "Berhasil disimpan!",
     toastSaveFailed: "Gagal menyimpan. Coba lagi.",
+    recentEntriesTitle: "Entri Terakhir",
+    viewAllLink: "Lihat Semua",
+    emptyRecent: "Belum ada transaksi.",
   },
   ai: {
     bannerTitle: "WealthMe AI Advisor",
@@ -1587,6 +1593,11 @@ export const id = {
     relativeHoursSuffix: " jam lalu",
     relativeYesterday: "Kemarin",
     relativeDaysSuffix: " hari lalu",
+    filterAll: "Semua",
+    filterUnread: "Belum dibaca",
+    groupToday: "Hari Ini",
+    groupThisWeek: "Minggu Ini",
+    groupOlder: "Lebih Lama",
   },
   dana: {
     totalLabel: "💵 Total Cash & E-Wallet",
@@ -1610,6 +1621,10 @@ export const id = {
     toastSaveFailedSuffix: ". Coba lagi.",
     toastDeleteFailedPrefix: "Gagal menghapus ",
     toastDeleteFailedSuffix: ". Coba lagi.",
+    cashStatLabel: "Tunai",
+    ewalletStatLabel: "E-Wallet",
+    cashCountSuffix: " kas",
+    ewalletCountSuffix: " dompet digital",
   },
   consolidatedTotal: {
     title: "Total Konsolidasi",

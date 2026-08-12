@@ -260,7 +260,7 @@ export default function AiPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[800px]">
+    <div className="mx-auto max-w-[1100px]">
       {/* Banner */}
       <div className="gradient-ai mb-4 flex items-center gap-4 rounded-[14px] p-5 text-white">
         <div className="text-[38px] leading-none">🤖</div>
@@ -272,103 +272,119 @@ export default function AiPage() {
         </div>
       </div>
 
-      {/* Chips */}
-      <div className="mb-2 text-[12px] font-semibold text-muted-foreground">
-        {t.ai.popularQuestionsLabel}
-      </div>
-      <div className="mb-4 flex flex-wrap gap-2">
-        {t.ai.chips.map((chip) => (
-          <button
-            key={chip}
-            type="button"
-            onClick={() => send(chip)}
-            disabled={isStreaming}
-            className="cursor-pointer rounded-full border bg-card px-3.5 py-2 text-[12.5px] font-medium transition-colors hover:border-primary hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {chip}
-          </button>
-        ))}
-      </div>
-
-      {/* Chat */}
-      <div className="flex flex-col overflow-hidden rounded-[14px] border bg-card">
-        <div
-          ref={scrollRef}
-          className="hide-scrollbar flex min-h-[200px] max-h-[440px] flex-col gap-4 overflow-y-auto p-4"
-        >
-          {messages.map((msg) =>
-            msg.role === "assistant" ? (
-              <div key={msg.id} className="flex items-start gap-2.5">
-                <div
-                  className="flex size-9 flex-shrink-0 items-center justify-center rounded-full text-[16px]"
-                  style={{ background: "#EEF2FF" }}
-                >
-                  🤖
-                </div>
-                {/* EPIC-023 Task G retry (MEDIUM five-reviewer finding,
+      {/* Bento layout (EPIC-025 N3-B5) — chat column spans 8/12 on desktop,
+          matching the prototype's `bento-span-8`; stacks to a single column
+          on tablet/mobile per the translation table's bento-grid mapping. */}
+      <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-12">
+        <div className="lg:col-span-8">
+          {/* Chat */}
+          <div className="flex flex-col overflow-hidden rounded-[14px] border bg-card">
+            <div
+              ref={scrollRef}
+              className="hide-scrollbar flex min-h-[200px] max-h-[440px] flex-col gap-4 overflow-y-auto p-4"
+            >
+              {messages.map((msg) =>
+                msg.role === "assistant" ? (
+                  <div key={msg.id} className="flex items-start gap-2.5">
+                    <div
+                      className="flex size-9 flex-shrink-0 items-center justify-center rounded-full text-[16px]"
+                      style={{ background: "#EEF2FF" }}
+                    >
+                      🤖
+                    </div>
+                    {/* EPIC-023 Task G retry (MEDIUM five-reviewer finding,
                     round 2) — the truncation notice is a SEPARATE, visually
                     distinct element below the bubble, not text appended
                     into it (which collapsed into one run-on sentence and
                     read as though the model wrote the caveat itself).
                     `whitespace-pre-wrap` also lets the model's own
                     intentional line breaks render instead of collapsing. */}
-                <div className="flex max-w-[78%] flex-col gap-1">
-                  <div className="whitespace-pre-wrap rounded-2xl rounded-tl-sm bg-secondary px-3.5 py-2.5 text-[13px] leading-relaxed text-secondary-foreground">
-                    {msg.text || (
-                      <span className="animate-pulse text-muted-foreground">
-                        ●●●
-                      </span>
-                    )}
-                  </div>
-                  {msg.truncated && (
-                    <div className="px-1 text-[11px] font-medium italic text-muted-foreground">
-                      {t.ai.truncatedNotice}
+                    <div className="flex max-w-[78%] flex-col gap-1">
+                      <div className="whitespace-pre-wrap rounded-2xl rounded-tl-sm bg-secondary px-3.5 py-2.5 text-[13px] leading-relaxed text-secondary-foreground">
+                        {msg.text || (
+                          <span className="animate-pulse text-muted-foreground">
+                            ●●●
+                          </span>
+                        )}
+                      </div>
+                      {msg.truncated && (
+                        <div className="px-1 text-[11px] font-medium italic text-muted-foreground">
+                          {t.ai.truncatedNotice}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div
-                key={msg.id}
-                className="flex items-start justify-end gap-2.5"
+                  </div>
+                ) : (
+                  <div
+                    key={msg.id}
+                    className="flex items-start justify-end gap-2.5"
+                  >
+                    <div className="max-w-[78%] rounded-2xl rounded-tr-sm bg-primary px-3.5 py-2.5 text-[13px] leading-relaxed text-white">
+                      {msg.text}
+                    </div>
+                  </div>
+                ),
+              )}
+            </div>
+
+            {/* Input */}
+            <div className="flex items-center gap-2 border-t p-3">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSubmit();
+                }}
+                disabled={isStreaming}
+                placeholder={t.ai.inputPlaceholder}
+                className="w-full rounded-full border bg-background px-4 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card disabled:opacity-50"
+              />
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={isStreaming || !input.trim()}
+                aria-label={t.ai.sendAriaLabel}
+                className="flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-primary text-white transition-opacity hover:opacity-90 disabled:opacity-50"
               >
-                <div className="max-w-[78%] rounded-2xl rounded-tr-sm bg-primary px-3.5 py-2.5 text-[13px] leading-relaxed text-white">
-                  {msg.text}
-                </div>
-              </div>
-            ),
-          )}
+                ➤
+              </button>
+            </div>
+          </div>
+
+          {/* Disclaimer */}
+          <p className="mt-3 text-center text-[11px] text-muted-foreground">
+            {t.ai.disclaimer}
+          </p>
         </div>
 
-        {/* Input */}
-        <div className="flex items-center gap-2 border-t p-3">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleSubmit();
-            }}
-            disabled={isStreaming}
-            placeholder={t.ai.inputPlaceholder}
-            className="w-full rounded-full border bg-background px-4 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card disabled:opacity-50"
-          />
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isStreaming || !input.trim()}
-            aria-label={t.ai.sendAriaLabel}
-            className="flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-primary text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            ➤
-          </button>
-        </div>
+        {/* Sidebar — mirrors the prototype's bento-span-4 column. No new
+            copy invented: reuses the existing status/canManage state and
+            popular-questions data already on this page instead of the
+            prototype's mocked "Claude · Sonnet" model badge and API-key
+            on/off demo toggle (neither is honest without a real
+            provider/model field and a real settings mutation). */}
+        <aside className="lg:col-span-4">
+          <div className="rounded-[14px] border bg-card p-4">
+            <div className="mb-3 text-[13.5px] font-bold text-muted-foreground">
+              {t.ai.popularQuestionsLabel}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {t.ai.chips.map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => send(chip)}
+                  disabled={isStreaming}
+                  className="rounded-lg px-2.5 py-2 text-left text-[12.5px] text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+          </div>
+        </aside>
       </div>
-
-      {/* Disclaimer */}
-      <p className="mt-3 text-center text-[11px] text-muted-foreground">
-        {t.ai.disclaimer}
-      </p>
     </div>
   );
 }

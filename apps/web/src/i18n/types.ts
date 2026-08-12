@@ -858,6 +858,9 @@ export type I18nDictionary = {
     pageTitle: string;
     pageSubtitle: string;
     openLink: string;
+    searchLabel: string;
+    searchPlaceholder: string;
+    noResults: string;
     journeys: Record<PanduanJourneyId, { title: string; subtitle: string }>;
     features: Record<PanduanFeatureId, { title: string; desc: string }>;
   };
@@ -1092,6 +1095,9 @@ export type I18nDictionary = {
     cards: Record<QuickInputCardId, { name: string; desc: string }>;
     toastSaved: string;
     toastSaveFailed: string;
+    recentEntriesTitle: string;
+    viewAllLink: string;
+    emptyRecent: string;
   };
   /** EPIC-018 Task A4 — `/ai` (AI Advisor chat) page copy. */
   ai: {
@@ -1524,6 +1530,11 @@ export type I18nDictionary = {
     relativeHoursSuffix: string;
     relativeYesterday: string;
     relativeDaysSuffix: string;
+    filterAll: string;
+    filterUnread: string;
+    groupToday: string;
+    groupThisWeek: string;
+    groupOlder: string;
   };
   /** EPIC-018 Task A6 — `/dana` (cash & e-wallet) page copy. */
   dana: {
@@ -1548,6 +1559,10 @@ export type I18nDictionary = {
     toastSaveFailedSuffix: string;
     toastDeleteFailedPrefix: string;
     toastDeleteFailedSuffix: string;
+    cashStatLabel: string;
+    ewalletStatLabel: string;
+    cashCountSuffix: string;
+    ewalletCountSuffix: string;
   };
   /**
    * EPIC-021 Group F (#6) — shared copy for the consolidated-total display

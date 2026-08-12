@@ -2,14 +2,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
 import { useShell } from "@/components/shell/shell-context";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
-import { parseRupiah } from "@/lib/format";
+import { parseRupiah, formatRupiah } from "@/lib/format";
 import { buildGoalBody } from "@/lib/goals-utils";
+import { SectionCard, CardLink } from "@/components/wm";
+import { queryKeys } from "@/lib/query-keys";
+import type { TransactionDto } from "@wealthme/contracts";
 import {
   ArrowUpDown,
   BarChart3,
@@ -284,6 +287,20 @@ export default function QuickInputPage() {
   const token = session?.accessToken;
   const [crud, setCrud] = useState<CrudModalState | null>(null);
 
+  // Prototype structural port (EPIC-025 N3-B4) — the prototype's "Entri
+  // Terakhir" card is real, read-only data already exposed by the
+  // transactions endpoint the /transaksi page uses (limit param), not a
+  // new backend call — a lightweight recent-activity readout.
+  const { data: recentTransactions } = useQuery<TransactionDto[]>({
+    queryKey: [...queryKeys.transactions.all(familyGroupId ?? ""), "recent"],
+    queryFn: () =>
+      apiFetch<TransactionDto[]>(
+        `/family-groups/${familyGroupId}/transactions?limit=5`,
+        { token },
+      ),
+    enabled: Boolean(familyGroupId) && Boolean(token),
+  });
+
   const handleClick = (card: QuickCard) => {
     if (card.action === "crud") {
       setCrud({ entity: card.entity, mode: "add" });
@@ -320,13 +337,18 @@ export default function QuickInputPage() {
   }
 
   return (
-    <div>
-      <div className="mb-[18px]">
-        <div className="text-[15px] font-bold">{t.quickinput.pageTitle}</div>
-        <div className="text-[12px] text-muted-foreground">
+    <div className="space-y-4">
+      <section aria-labelledby="quickinput-heading" className="mb-1">
+        <h1
+          id="quickinput-heading"
+          className="text-[17px] font-extrabold tracking-tight"
+        >
+          {t.quickinput.pageTitle}
+        </h1>
+        <div className="mt-1 text-[12.5px] text-muted-foreground">
           {t.quickinput.pageSubtitle}
         </div>
-      </div>
+      </section>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {QUICK_CARDS.map((card) => (
@@ -351,6 +373,48 @@ export default function QuickInputPage() {
           </button>
         ))}
       </div>
+
+      {recentTransactions && (
+        <SectionCard
+          title={t.quickinput.recentEntriesTitle}
+          action={
+            <CardLink
+              onClick={() => router.push("/transaksi")}
+              className="no-underline hover:no-underline"
+            >
+              {t.quickinput.viewAllLink}
+            </CardLink>
+          }
+          bodyClassName="-my-3"
+        >
+          {recentTransactions.length === 0 && (
+            <p className="py-3 text-[13.5px] text-muted-foreground">
+              {t.quickinput.emptyRecent}
+            </p>
+          )}
+          {recentTransactions.map((tx, i) => (
+            <div
+              key={tx.id}
+              className={`flex items-center gap-3 py-3 ${i < recentTransactions.length - 1 ? "border-b" : ""}`}
+            >
+              <div className="flex-1">
+                <div className="text-[13.5px] font-semibold">
+                  {tx.description ?? tx.categoryName ?? "—"}
+                </div>
+                <div className="text-[11.5px] text-muted-foreground">
+                  {tx.accountName ?? "—"}
+                </div>
+              </div>
+              <div
+                className={`text-[13.5px] font-bold ${tx.type === "expense" ? "text-destructive" : "text-success"}`}
+              >
+                {tx.type === "expense" ? "−" : "+"}
+                {formatRupiah(parseFloat(tx.amount))}
+              </div>
+            </div>
+          ))}
+        </SectionCard>
+      )}
 
       <CrudModal
         state={crud}

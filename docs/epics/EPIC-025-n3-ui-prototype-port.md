@@ -170,17 +170,17 @@ first, as docs only, so no later page PR has to relitigate them mid-review.
         `/beranda` and `/laporan` **unchanged** (nothing imports the new module
         yet).
 
-- [ ] ### N3-B — Wave 1: small pages, establish translation conventions
-  - **B0** — Write the prototype-class → Tailwind/`@/components/wm`
-    translation table into this epic's Automation Log (or a linked doc):
-    `bento-*`, `stat`, `snapshot-row`, `list-row`, `segmented`, `notice`,
-    `card__header/__title/__action`, `page-card`. Every later wave cites it
-    instead of re-deriving it.
-  - **B1** — Port `notifikasi`.
-  - **B2** — Port `panduan` (cut the support-ticket dialog per J1).
-  - **B3** — Port `dana`.
-  - **B4** — Port `quickinput`.
-  - **B5** — Port `ai`.
+- [x] ### N3-B — Wave 1: small pages, establish translation conventions ✅
+  - [x] **B0** — Write the prototype-class → Tailwind/`@/components/wm`
+        translation table into this epic's Automation Log (or a linked doc):
+        `bento-*`, `stat`, `snapshot-row`, `list-row`, `segmented`, `notice`,
+        `card__header/__title/__action`, `page-card`. Every later wave cites it
+        instead of re-deriving it.
+  - [x] **B1** — Port `notifikasi`.
+  - [x] **B2** — Port `panduan` (cut the support-ticket dialog per J1).
+  - [x] **B3** — Port `dana`.
+  - [x] **B4** — Port `quickinput`.
+  - [x] **B5** — Port `ai`.
 
 - [ ] ### N3-C — Wave 2: mid pages + ApexCharts proving ground
   - **C1** — Port `persetujuan`: add client-computed stat tiles (Menunggu /
@@ -457,3 +457,18 @@ prototype counterpart.
   options, missing a11y) — all fixed and re-verified clean on attempt 2. All
   4 gates (react-reviewer, typescript-reviewer, security-agent,
   ecc:security-reviewer, test-agent) PASS. PR: https://github.com/andrsrjld/wealthme-web/pull/270
+- 2026-08-12 /epic-loop EPIC-025 #3 "N3-B — Wave 1: small pages, establish
+  translation conventions" → PASS (attempts: 2). Wrote
+  docs/epics/EPIC-025-N3-translation-table.md (B0). Ported
+  notifikasi/panduan/dana/quickinput/ai. Honest-UI cuts applied per J1/J3:
+  panduan support-ticket dialog, notifikasi category tabs + detail/settings
+  dialogs, dana composition donut/trend chart (no time-series fetch on this
+  page), ai's mocked model badge/API-key toggle/fake advisor-data sidebar —
+  all skipped rather than shipped as dead controls. Zero globals.css diff,
+  zero other protected-path touch. Review attempt 1 found 1 HIGH (notifikasi
+  filter used role="tablist"/"tab"/aria-selected with no keyboard nav or
+  panel linkage — fake tabs semantics) + 1 LOW (quickinput's emptyRecent
+  i18n key wired but dead); both fixed (role="group"+aria-pressed toggle,
+  wired the empty-state render) and re-verified clean on attempt 2. All 5
+  gates (react-reviewer, typescript-reviewer, review-qa-agent, security-agent,
+  test-agent) PASS. PR: https://github.com/andrsrjld/wealthme-web/pull/271
