@@ -2284,6 +2284,8 @@ export const en = {
     confirmPaymentButton: "Yes, Confirm",
     copyDisabledRevokedTitle:
       "This link is revoked and can no longer be copied",
+    publicNoAccountNotice:
+      "Public page — you don't need a WealthMe account to open or pay this.",
     publicEyebrow: "Split Bill",
     publicLoading: "Loading bill…",
     publicNotFoundTitle: "Link not found",

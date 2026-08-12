@@ -12,6 +12,7 @@
 // auth, no (app) shell), mirroring /join/[token].
 
 import { use } from "react";
+import { Link as LinkIcon } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/wm";
@@ -120,7 +121,15 @@ export function SplitShareView({ shareToken }: { shareToken: string }) {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <div className="flex min-h-screen flex-col items-center gap-3.5 bg-background p-4 pt-8 sm:pt-14">
+      {/* EPIC-025 N3-H5 — ported from docs/prototype/pages/split-public.html:
+          this route has no login wall (see the file-level comment above),
+          so it says so up front. */}
+      <div className="flex w-full max-w-[440px] items-center gap-2.5 rounded-[11px] border border-primary/25 bg-accent p-3 text-[12.5px] text-accent-foreground">
+        <LinkIcon className="size-4 shrink-0" aria-hidden="true" />
+        <span>{t.splitbill.publicNoAccountNotice}</span>
+      </div>
+
       <div className="w-full max-w-[440px] rounded-2xl border bg-card p-6 shadow-sm sm:p-8">
         {isLoading && (
           <div className="py-10 text-center text-[13px] text-muted-foreground">

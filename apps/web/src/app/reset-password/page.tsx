@@ -3,9 +3,48 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Eye, EyeOff, Lock } from "lucide-react";
+import { ArrowLeft, Check, Eye, EyeOff, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
+
+// EPIC-025 N3-H4 — live rule checklist ported from
+// docs/prototype/pages/reset-password.html, pure client-side UI. Trimmed to
+// ONLY the rules `doReset` (below) and the backend actually enforce (min 8
+// chars + confirmation match) — the prototype's extra uppercase/number/
+// symbol rules aren't checked by better-auth's password policy here, so
+// showing them would be a fake requirement (honest-UI mandate).
+function PasswordRules({
+  password,
+  confirm,
+}: {
+  password: string;
+  confirm: string;
+}) {
+  const rules = [
+    { label: "Minimal 8 karakter", ok: password.length >= 8 },
+    {
+      label: "Konfirmasi sama dengan password baru",
+      ok: password.length > 0 && password === confirm,
+    },
+  ];
+  return (
+    <div className="mb-4 space-y-1.5">
+      {rules.map((rule) => (
+        <div
+          key={rule.label}
+          className={`flex items-center gap-2 text-[12px] ${
+            rule.ok ? "text-success" : "text-slate-400"
+          }`}
+        >
+          <Check
+            className={`size-3 shrink-0 ${rule.ok ? "opacity-100" : "opacity-30"}`}
+          />
+          {rule.label}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -144,6 +183,8 @@ function ResetPasswordForm() {
             )}
           </button>
         </div>
+
+        <PasswordRules password={password} confirm={confirm} />
 
         <button
           type="submit"

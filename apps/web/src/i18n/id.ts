@@ -2295,6 +2295,8 @@ export const id = {
       "Ini akan mencatat pemasukan nyata dan menambah saldo rekening tujuan. Setelah dikonfirmasi, tidak ada cara untuk membatalkannya.",
     confirmPaymentButton: "Ya, Konfirmasi",
     copyDisabledRevokedTitle: "Link ini sudah dicabut dan tidak bisa disalin",
+    publicNoAccountNotice:
+      "Halaman publik — kamu tidak perlu punya akun WealthMe untuk membuka atau membayar ini.",
     publicEyebrow: "Split Bill",
     publicLoading: "Memuat tagihan…",
     publicNotFoundTitle: "Link tidak ditemukan",

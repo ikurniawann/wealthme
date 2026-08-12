@@ -304,26 +304,22 @@ export default function LoginPage() {
             </p>
           )}
 
-          <div className="mb-4 mt-1 flex items-center justify-between">
-            <label className="flex cursor-pointer items-center gap-1.5 text-[12.5px] text-slate-600">
-              <input
-                type="checkbox"
-                defaultChecked
-                className="accent-[#4f46e5]"
-              />{" "}
-              Ingat saya
-            </label>
-            {/* Password-reset is email-based — not applicable to a
-                username-only dependant/operational account. */}
-            {mode === "email" && (
+          {/* EPIC-025 N3-H1 (J1) — the "Ingat saya" checkbox was purely
+              decorative (no session-persistence logic reads it) — cut per
+              the honest-UI mandate instead of shipping a dead control.
+              Password-reset is email-based — not applicable to a
+              username-only dependant/operational account, so it only shows
+              in email mode. */}
+          {mode === "email" && (
+            <div className="mb-4 mt-1 flex items-center justify-end">
               <Link
                 href="/lupa-password"
                 className="text-[12.5px] font-semibold text-primary hover:text-primary-strong transition-colors"
               >
                 Lupa password?
               </Link>
-            )}
-          </div>
+            </div>
+          )}
 
           <button
             type="submit"

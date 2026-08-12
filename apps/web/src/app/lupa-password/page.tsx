@@ -43,14 +43,7 @@ export default function LupaPasswordPage() {
       }}
     >
       <div className="w-full max-w-[420px] rounded-3xl bg-white/[0.97] p-10 shadow-[0_32px_80px_rgba(0,0,0,0.3)]">
-        <Link
-          href="/login"
-          className="mb-5 flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary-strong transition-colors"
-        >
-          <ArrowLeft className="size-4" /> Kembali ke Login
-        </Link>
-
-        <div className="mb-7 flex items-center justify-center gap-2.5">
+        <div className="mb-5 flex items-center justify-center gap-2.5">
           <div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl font-extrabold tracking-tighter text-white">
             W
           </div>
@@ -58,6 +51,13 @@ export default function LupaPasswordPage() {
             Wealth<span className="text-primary">Me</span>
           </div>
         </div>
+
+        <Link
+          href="/login"
+          className="mb-5 flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary-strong transition-colors"
+        >
+          <ArrowLeft className="size-4" /> Kembali ke Login
+        </Link>
 
         {sent ? (
           <div className="text-center">
@@ -104,7 +104,7 @@ export default function LupaPasswordPage() {
               >
                 Email
               </label>
-              <div className="relative mb-6">
+              <div className="relative mb-2">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
                   <Mail className="size-3.5" />
                 </span>
@@ -117,6 +117,14 @@ export default function LupaPasswordPage() {
                   className="w-full rounded-md border-[1.5px] border-slate-200 bg-white py-2.5 pl-[38px] pr-3.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition-colors focus:border-primary"
                 />
               </div>
+              {/* EPIC-025 N3-H3 (J2) — the prototype's hint also promises
+                  "minta kepala keluarga menyetel ulang passwordnya" (head
+                  resets a member's password). Zero backend support exists
+                  for that today, so only the true, backend-supported half
+                  of the hint is kept — see the epic's H3 sub-step. */}
+              <p className="mb-6 text-xs text-slate-400">
+                Reset lewat email hanya untuk akun ber-email.
+              </p>
 
               <button
                 type="submit"

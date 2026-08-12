@@ -231,22 +231,22 @@ first, as docs only, so no later page PR has to relitigate them mid-review.
         `laporan-utils.test.ts`, `laporan-period.test.ts` must pass unmodified.
         Group M2's `rcoa` COA-matrix tab behavior must be unchanged.
 
-- [ ] ### N3-H — Wave 7: public/auth surfaces
-  - **H1** — Port `login`: build the PIN keypad (3×4 grid + dots) as pure
-    UI; remove the inert "Ingat saya" checkbox per J1; cut the attempt
-    counter and "Perangkat dikenali" badge per J1 (need backend).
-  - **H2** — Port `register`: keep the password-strength meter (pure UI);
-    cut the consent checkbox per J1.
-  - **H3** — Port `lupa-password` + `ubah-password-wajib`: **delete** the
-    head-resets-a-member's-password promise from the copy unless J2's
-    follow-up task builds it first.
-  - **H4** — Port `reset-password`: **delete** the session/device
-    revocation promise from the copy unless J2's follow-up task builds it
-    first.
-  - **H5** — Port `/split/[shareToken]`.
-  - **H6** — Do **not** port `join-token.html`'s tombstone content — the
-    real accept flow (`apps/web/src/app/join/[token]/page.tsx`) still works
-    and must not be replaced.
+- [x] ### N3-H — Wave 7: public/auth surfaces ✅
+  - [x] **H1** — Port `login`: build the PIN keypad (3×4 grid + dots) as pure
+        UI; remove the inert "Ingat saya" checkbox per J1; cut the attempt
+        counter and "Perangkat dikenali" badge per J1 (need backend).
+  - [x] **H2** — Port `register`: keep the password-strength meter (pure UI);
+        cut the consent checkbox per J1.
+  - [x] **H3** — Port `lupa-password` + `ubah-password-wajib`: **delete** the
+        head-resets-a-member's-password promise from the copy unless J2's
+        follow-up task builds it first.
+  - [x] **H4** — Port `reset-password`: **delete** the session/device
+        revocation promise from the copy unless J2's follow-up task builds it
+        first.
+  - [x] **H5** — Port `/split/[shareToken]`.
+  - [x] **H6** — Do **not** port `join-token.html`'s tombstone content — the
+        real accept flow (`apps/web/src/app/join/[token]/page.tsx`) still works
+        and must not be replaced.
 
 - [ ] ### N3-I — Wave 8: cleanup
   - **I1** — Delete `bar-chart.tsx`, `sparkline.tsx`, the old `Donut` render
@@ -597,3 +597,22 @@ prototype counterpart.
   `seg.label`). globals.css zero diff, no dead i18n keys. **N3-G is the
   epic's core deliverable — the chart-library foundation change is
   complete.** PR: https://github.com/andrsrjld/wealthme-web/pull/276
+- 2026-08-13 /epic-loop EPIC-025 #9 "N3-H — Wave 7: public/auth surfaces"
+  → PASS (attempts: 1). Ported login (PIN keypad — 3x4 grid + 6-dot
+  readout, writes into the SAME `pin` state/submit logic as before,
+  original input kept `sr-only` for a11y/test compatibility; "Ingat saya"
+  checkbox actually deleted, not hidden), register (password-strength
+  meter, pure UI), lupa-password + ubah-password-wajib (the prototype's
+  "kepala keluarga bisa reset password anggota" promise deleted from copy
+  per J2 — zero backend support), reset-password (session/device
+  revocation promise deleted per J2; rule checklist trimmed to only what's
+  actually enforced), split/[shareToken] (public-no-account notice). H6
+  correctly skipped — join/[token] untouched, real accept-flow preserved.
+  Protected auth files (device-unlock/route.ts, lib/auth.ts,
+  lib/signed-cookie.ts, lib/server-env.ts) and join/[token]/page.tsx: zero
+  diff, verified directly. Hit this session's 200-agent spawn cap
+  mid-gate-run — completed typescript/i18n-parity/security/test checks
+  directly instead of via subagents (react-reviewer ran as an agent and
+  independently confirmed the same). No dead i18n keys. globals.css zero
+  diff. 41 auth-page tests + full 428-test suite pass unmodified.
+  PR: https://github.com/andrsrjld/wealthme-web/pull/277

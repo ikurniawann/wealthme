@@ -2245,6 +2245,11 @@ export type I18nDictionary = {
      * Indonesian). Each recipient's own link now identifies a single
      * `SplitParticipant`, not the whole bill.
      */
+    /**
+     * EPIC-025 N3-H5 — ported from split-public.html's "no login wall"
+     * notice: this route has no account/auth requirement at all.
+     */
+    publicNoAccountNotice: string;
     publicEyebrow: string;
     publicLoading: string;
     publicNotFoundTitle: string;

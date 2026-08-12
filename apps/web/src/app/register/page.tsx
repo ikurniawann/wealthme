@@ -8,6 +8,52 @@ import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { useLocale } from "@/hooks/use-locale";
 
+// EPIC-025 N3-H2 — password-strength meter ported from
+// docs/prototype/pages/register.html. Pure client-side UI, no backend
+// involved — kept as-is (unlike the consent checkbox, which the current
+// register form never had, so there is nothing to cut there).
+type StrengthLevel = { label: string; colorClass: string; fill: number };
+
+const STRENGTH_LEVELS: StrengthLevel[] = [
+  { label: "Sangat lemah", colorClass: "bg-destructive", fill: 1 },
+  { label: "Lemah", colorClass: "bg-destructive", fill: 2 },
+  { label: "Cukup", colorClass: "bg-warning", fill: 3 },
+  { label: "Kuat", colorClass: "bg-success", fill: 4 },
+];
+
+function scorePassword(value: string): number {
+  let score = 0;
+  if (value.length >= 8) score++;
+  if (value.length >= 12) score++;
+  if (/[A-Z]/.test(value) && /[a-z]/.test(value)) score++;
+  if (/\d/.test(value) && /[^A-Za-z0-9]/.test(value)) score++;
+  return Math.min(4, Math.max(1, score));
+}
+
+function PasswordStrengthMeter({ password }: { password: string }) {
+  if (!password) return null;
+  const level = STRENGTH_LEVELS[scorePassword(password) - 1];
+  return (
+    <div className="mb-4 -mt-2.5">
+      <div className="flex gap-1.5">
+        {STRENGTH_LEVELS.map((_, i) => (
+          <span
+            key={i}
+            className={`h-1 flex-1 rounded-full ${
+              i < level.fill ? level.colorClass : "bg-secondary"
+            }`}
+          />
+        ))}
+      </div>
+      <p className="mt-1.5 text-[11.5px] text-slate-400">
+        Kekuatan password:{" "}
+        <strong className="text-slate-600">{level.label}</strong> ·{" "}
+        {password.length} karakter
+      </p>
+    </div>
+  );
+}
+
 export default function RegisterPage() {
   const router = useRouter();
   const { locale, setLocale } = useLocale();
@@ -256,6 +302,7 @@ export default function RegisterPage() {
               )}
             </button>
           </InputWrap>
+          <PasswordStrengthMeter password={password} />
           {errors.password && (
             <p
               id="password-error"

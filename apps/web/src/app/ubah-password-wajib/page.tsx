@@ -88,9 +88,32 @@ export default function UbahPasswordWajibPage() {
         <h1 className="text-center text-[19px] font-extrabold text-slate-900">
           {t.forcePasswordChange.title}
         </h1>
-        <p className="mb-7 text-center text-[13px] text-slate-500">
+        <p className="text-center text-[13px] text-slate-500">
           {t.forcePasswordChange.subtitle}
         </p>
+
+        {session?.user.name && (
+          <div className="mt-4 flex items-center gap-2.5 rounded-xl bg-slate-50 p-3">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
+              {session.user.name.charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1 text-[12.5px] font-semibold text-slate-700">
+              {session.user.name}
+            </div>
+          </div>
+        )}
+
+        {/* EPIC-025 N3-H3 (J2) — states the real, already-enforced backend
+            gate (see the file-level comment above), NOT the prototype's
+            "kepala keluarga bisa reset password anggota" promise, which has
+            zero backend support today. */}
+        <div className="mb-7 mt-4 flex items-start gap-2.5 rounded-xl border border-warning/35 bg-warning-soft p-3 text-[12.5px] text-warning">
+          <Lock className="mt-0.5 size-3.5 shrink-0" />
+          <span>
+            Langkah ini tidak bisa dilewati — semua halaman lain menolak akun
+            ini sampai password diganti.
+          </span>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

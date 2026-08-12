@@ -7,8 +7,13 @@ import { toast } from "sonner";
 import { useLocale } from "@/hooks/use-locale";
 import { type StoredDevice } from "./device-storage";
 
-const FIELD_CLASS =
-  "w-full rounded-md border-[1.5px] border-slate-200 bg-white py-3 px-3.5 text-center text-2xl tracking-[0.5em] text-slate-900 outline-none transition-colors focus:border-primary";
+const PIN_LENGTH = 6;
+const PAD_DIGITS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+
+const PAD_BUTTON_CLASS =
+  "rounded-md border-[1.5px] border-slate-200 bg-white py-3.5 text-lg font-bold text-slate-900 transition-colors hover:border-primary hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50";
+const PAD_GHOST_BUTTON_CLASS =
+  "rounded-md bg-transparent py-3.5 text-sm font-semibold text-slate-500 transition-colors hover:text-primary disabled:cursor-not-allowed disabled:opacity-50";
 
 function formatRemaining(ms: number): string {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
@@ -115,19 +120,85 @@ export function DeviceUnlockPad({
       </p>
 
       <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+        {/* EPIC-025 N3-H1 — the real, keyboard-typeable PIN field stays for
+            accessibility (tab + type still works) but is visually replaced
+            by the dot readout + keypad below, matching the prototype's
+            keypad-only presentation. Same `pin` state, same submit logic. */}
         <input
           type="password"
           inputMode="numeric"
-          maxLength={6}
+          maxLength={PIN_LENGTH}
           autoFocus
           value={pin}
           onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-          className={FIELD_CLASS}
+          className="sr-only"
           aria-label={t.deviceUnlock.padTitle}
         />
+
+        <div
+          className="flex justify-center gap-3"
+          aria-hidden="true"
+          data-testid="pin-dots"
+        >
+          {Array.from({ length: PIN_LENGTH }).map((_, i) => (
+            <span
+              key={i}
+              className={`size-3 rounded-full border-[1.5px] transition-colors ${
+                i < pin.length
+                  ? "border-primary bg-primary"
+                  : "border-slate-300 bg-transparent"
+              }`}
+            />
+          ))}
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          {PAD_DIGITS.map((digit) => (
+            <button
+              key={digit}
+              type="button"
+              disabled={loading}
+              onClick={() =>
+                setPin((p) => (p.length >= PIN_LENGTH ? p : p + digit))
+              }
+              className={PAD_BUTTON_CLASS}
+            >
+              {digit}
+            </button>
+          ))}
+          <button
+            type="button"
+            disabled={loading}
+            aria-label="Bersihkan"
+            onClick={() => setPin("")}
+            className={PAD_GHOST_BUTTON_CLASS}
+          >
+            C
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              setPin((p) => (p.length >= PIN_LENGTH ? p : p + "0"))
+            }
+            className={PAD_BUTTON_CLASS}
+          >
+            0
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            aria-label="Hapus satu digit"
+            onClick={() => setPin((p) => p.slice(0, -1))}
+            className={PAD_GHOST_BUTTON_CLASS}
+          >
+            ⌫
+          </button>
+        </div>
+
         <button
           type="submit"
-          disabled={loading || pin.length !== 6}
+          disabled={loading || pin.length !== PIN_LENGTH}
           className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-3 text-sm font-bold text-white transition-all hover:-translate-y-px hover:bg-primary-strong disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading
