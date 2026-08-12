@@ -142,33 +142,33 @@ first, as docs only, so no later page PR has to relitigate them mid-review.
         referenced for Group N does not exist on this machine — use
         `frontend-design` + `dataviz` instead.
 
-- [ ] ### N3-A — ApexCharts foundation (added alongside, zero page changes)
-  - **A1** — Add `apexcharts` + `react-apexcharts` to `apps/web/package.json`;
-    record measured gzipped bundle delta in the PR body.
-  - **A2** — `apps/web/src/components/charts/apex-base.tsx`: `"use client"`,
-    `next/dynamic(..., { ssr: false })`, a `cssVar()` token reader, shared
-    base grid/tooltip/legend/font options, and a theme-change re-render
-    registry (port `docs/prototype/assets/charts.js:60-123`'s
-    `registry.push({chart, build})` pattern — `next-themes` needs this wired
-    explicitly, it is not automatic).
-  - **A3** — `apps/web/src/components/charts/apex-presets.tsx`: one exported
-    component per prototype preset —`CashflowChart` (grouped bar),
-    `TrendChart` (gradient area), `DonutChart`, `SparklineChart` (area,
-    `sparkline.enabled`), `HBarChart`, `RadialChart` (port
-    `docs/prototype/assets/charts.js:127-260`). `DonutChart` accepts the
-    **existing** `DonutSegment[]` type — never redefine that shape.
-  - **A4** — `apps/web/src/components/charts/chart-error.tsx` + wire the
-    failed-`render()` fallback so a broken chart degrades to a labeled error
-    card, not silent whitespace or an uncaught throw.
-  - **A5** — Unit tests for the preset option-builders as pure functions
-    (extract option-building logic so it's testable without mounting Apex in
-    jsdom — Apex measures SVG geometry jsdom does not implement).
-  - **A6** — Confirm `jest.setup.ts`'s existing `ResizeObserver`/`matchMedia`
-    polyfills (there because of `sparkline.tsx`) still cover what Apex needs;
-    do not remove them in N3-I without checking.
-  - **Exit**: `scripts/test.sh` green; `next build` route-size table for
-    `/beranda` and `/laporan` **unchanged** (nothing imports the new module
-    yet).
+- [x] ### N3-A — ApexCharts foundation (added alongside, zero page changes) ✅
+  - [x] **A1** — Add `apexcharts` + `react-apexcharts` to `apps/web/package.json`;
+        record measured gzipped bundle delta in the PR body.
+  - [x] **A2** — `apps/web/src/components/charts/apex-base.tsx`: `"use client"`,
+        `next/dynamic(..., { ssr: false })`, a `cssVar()` token reader, shared
+        base grid/tooltip/legend/font options, and a theme-change re-render
+        registry (port `docs/prototype/assets/charts.js:60-123`'s
+        `registry.push({chart, build})` pattern — `next-themes` needs this wired
+        explicitly, it is not automatic).
+  - [x] **A3** — `apps/web/src/components/charts/apex-presets.tsx`: one exported
+        component per prototype preset —`CashflowChart` (grouped bar),
+        `TrendChart` (gradient area), `DonutChart`, `SparklineChart` (area,
+        `sparkline.enabled`), `HBarChart`, `RadialChart` (port
+        `docs/prototype/assets/charts.js:127-260`). `DonutChart` accepts the
+        **existing** `DonutSegment[]` type — never redefine that shape.
+  - [x] **A4** — `apps/web/src/components/charts/chart-error.tsx` + wire the
+        failed-`render()` fallback so a broken chart degrades to a labeled error
+        card, not silent whitespace or an uncaught throw.
+  - [x] **A5** — Unit tests for the preset option-builders as pure functions
+        (extract option-building logic so it's testable without mounting Apex in
+        jsdom — Apex measures SVG geometry jsdom does not implement).
+  - [x] **A6** — Confirm `jest.setup.ts`'s existing `ResizeObserver`/`matchMedia`
+        polyfills (there because of `sparkline.tsx`) still cover what Apex needs;
+        do not remove them in N3-I without checking.
+  - [x] **Exit**: `scripts/test.sh` green; `next build` route-size table for
+        `/beranda` and `/laporan` **unchanged** (nothing imports the new module
+        yet).
 
 - [ ] ### N3-B — Wave 1: small pages, establish translation conventions
   - **B0** — Write the prototype-class → Tailwind/`@/components/wm`
@@ -443,3 +443,17 @@ prototype counterpart.
   time-series data persisted for portfolio value, lot prices, asset
   valuation, or account balance; recorded as one follow-up "historical
   snapshots" epic under J2, not five separate gaps). PR: https://github.com/andrsrjld/wealthme-web/pull/269
+- 2026-08-12 /epic-loop EPIC-025 #2 "N3-A — ApexCharts foundation (added
+  alongside, zero page changes)" → PASS (attempts: 2). Added `apexcharts`
+  (~241KB gzip minified) + `react-apexcharts` behind `next/dynamic(...,
+{ ssr: false })`, six presets (Cashflow/Trend/Donut/Sparkline/HBar/Radial),
+  a ref-counted module-level `MutationObserver`-based theme-rebuild registry
+  (fixed from an O(n²) per-instance-broadcast design found in review),
+  memoized option builders, `ariaLabel`/`role="img"` a11y on every preset,
+  and a `ChartErrorBoundary` fallback. `DonutSegment` type reused verbatim
+  from `laporan-utils.ts`, never redefined. Zero page files touched, zero
+  `globals.css` diff, confirmed no chunk references `apexcharts` yet. Review
+  attempt 1 found 1 HIGH (theme-rebuild fan-out) + 2 MEDIUM (unmemoized
+  options, missing a11y) — all fixed and re-verified clean on attempt 2. All
+  4 gates (react-reviewer, typescript-reviewer, security-agent,
+  ecc:security-reviewer, test-agent) PASS. PR: https://github.com/andrsrjld/wealthme-web/pull/270
