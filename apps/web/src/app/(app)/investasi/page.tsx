@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { io } from "socket.io-client";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, RefreshCw, Info } from "lucide-react";
 
 import {
   SectionCard,
@@ -15,6 +15,8 @@ import {
   CountUpRupiah,
   Rise,
 } from "@/components/wm";
+import { DonutChart } from "@/components/charts/apex-presets";
+import type { DonutSegment } from "@/components/charts/donut";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,6 +64,11 @@ const TYPE_LOGO_BG: Record<string, string> = {
   lainnya: "#6B7280",
   deposito: "#0F766E",
 };
+
+// EPIC-025 N3-F2 — allocation-by-instrument donut (FOLD per J3): same
+// per-type colors as TYPE_LOGO_BG, reused so the donut and the holdings
+// table's ticker chips agree visually.
+const TYPE_DONUT_COLOR = TYPE_LOGO_BG;
 
 const INVESTMENT_TYPES = [
   "saham",
@@ -766,8 +773,67 @@ export default function InvestasiPage() {
     (h) => activeFilter === "semua" || h.type === activeFilter,
   );
 
+  // EPIC-025 N3-F2 — allocation-by-instrument donut (FOLD per J3): derived
+  // from the same `holdings` list already fetched above, no new endpoint.
+  // The prototype's "Nilai Portofolio 6 Bulan" trend chart is CUT per J3 —
+  // no historical price-snapshot series exists to build it from.
+  const allocationByType = new Map<string, number>();
+  for (const h of holdings ?? []) {
+    const label = t.investasi.typeLabels[h.type as InvestmentType] ?? h.type;
+    allocationByType.set(
+      label,
+      (allocationByType.get(label) ?? 0) + parseFloat(h.currentValue ?? "0"),
+    );
+  }
+  const allocationSegments: DonutSegment[] = (holdings ?? [])
+    .reduce<{ type: string; label: string }[]>((acc, h) => {
+      if (acc.some((a) => a.type === h.type)) return acc;
+      return [
+        ...acc,
+        {
+          type: h.type,
+          label: t.investasi.typeLabels[h.type as InvestmentType] ?? h.type,
+        },
+      ];
+    }, [])
+    .map(({ type, label }) => ({
+      label,
+      value: allocationByType.get(label) ?? 0,
+      color: TYPE_DONUT_COLOR[type] ?? "#6B7280",
+    }))
+    .filter((seg) => seg.value > 0);
+
+  // EPIC-024 #6/#7 pricing-source explainer: "only N positions priced live"
+  // is derived from real holdings, never a static/invented count.
+  const livePositionsCount = (holdings ?? []).filter((h) =>
+    AUTOMATED_PRICE_TYPES.includes(h.type as InvestmentType),
+  ).length;
+
   return (
     <div className="space-y-4">
+      {/* EPIC-025 N3-F2 — real manual refresh: invalidates the live-price
+          queries (same ones the socket.io listener above invalidates), it
+          does not just show a toast with no effect. */}
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => {
+            if (!familyGroupId) return;
+            void queryClient.invalidateQueries({
+              queryKey: queryKeys.investments.all(familyGroupId),
+            });
+            void queryClient.invalidateQueries({
+              queryKey: queryKeys.investments.summary(familyGroupId),
+            });
+            toast.success(t.investasi.refreshPriceToast);
+          }}
+          disabled={!familyGroupId}
+          className="flex cursor-pointer items-center gap-1.5 rounded-md border bg-background px-3 py-1.5 text-[12.5px] font-semibold transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <RefreshCw className="size-3.5" /> {t.investasi.refreshPriceButton}
+        </button>
+      </div>
+
       {/* EPIC-021 #19: filter tabs by type */}
       <div className="hide-scrollbar flex gap-2 overflow-x-auto">
         {FILTER_TAB_IDS.map((id) => (
@@ -809,9 +875,10 @@ export default function InvestasiPage() {
         }}
       />
 
-      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
         {isLoading ? (
           <>
+            <SummaryCardSkeleton />
             <SummaryCardSkeleton />
             <SummaryCardSkeleton />
           </>
@@ -838,22 +905,46 @@ export default function InvestasiPage() {
                       "—"
                     )}
                   </div>
-                  <div
-                    className={`mt-1 text-[12px] ${
-                      (summary?.totalReturnPct ?? 0) >= 0
-                        ? "text-success"
-                        : "text-destructive"
-                    }`}
-                  >
-                    {(summary?.totalReturnPct ?? 0) >= 0 ? "▲" : "▼"}{" "}
-                    {formatReturnPct(summary?.totalReturnPct ?? null)} ·{" "}
-                    {formatDecimalRupiah(summary?.totalReturnRp ?? null)}{" "}
-                    {t.investasi.totalReturnSuffix}
+                  <div className="mt-1 text-[12px] text-muted-foreground">
+                    {t.investasi.capitalInvestedPrefix}{" "}
+                    <span className="mono">
+                      {formatDecimalRupiah(summary?.totalCostBasis ?? null)}
+                    </span>
                   </div>
                 </Card>
               </div>
             </Rise>
             <Rise index={1}>
+              <div className="transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
+                <Card className="gap-0 p-5">
+                  <div className="mb-1 text-[11px] text-muted-foreground">
+                    {t.investasi.totalReturnSuffix}
+                  </div>
+                  <div
+                    className={`mono text-[24px] font-black ${
+                      (summary?.totalReturnPct ?? 0) >= 0
+                        ? "text-success"
+                        : "text-destructive"
+                    }`}
+                  >
+                    {formatDecimalRupiah(summary?.totalReturnRp ?? null)}
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <StatusBadge
+                      variant={
+                        (summary?.totalReturnPct ?? 0) >= 0
+                          ? "success"
+                          : "danger"
+                      }
+                    >
+                      {(summary?.totalReturnPct ?? 0) >= 0 ? "▲" : "▼"}{" "}
+                      {formatReturnPct(summary?.totalReturnPct ?? null)}
+                    </StatusBadge>
+                  </div>
+                </Card>
+              </div>
+            </Rise>
+            <Rise index={2}>
               <div className="transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
                 <Card className="gap-0 p-5">
                   <div className="mb-1 text-[11px] text-muted-foreground">
@@ -868,21 +959,36 @@ export default function InvestasiPage() {
                   >
                     {formatDecimalRupiah(summary?.todayReturnRp ?? null)}
                   </div>
-                  <div
-                    className={`mt-1 text-[12px] ${
-                      (summary?.todayReturnPct ?? 0) >= 0
-                        ? "text-success"
-                        : "text-destructive"
-                    }`}
-                  >
-                    {formatReturnPct(summary?.todayReturnPct ?? null)}{" "}
-                    {t.investasi.vsYesterdaySuffix}
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <StatusBadge
+                      variant={
+                        (summary?.todayReturnPct ?? 0) >= 0
+                          ? "success"
+                          : "danger"
+                      }
+                    >
+                      {formatReturnPct(summary?.todayReturnPct ?? null)}
+                    </StatusBadge>
+                    <span className="text-[11px] text-muted-foreground">
+                      {t.investasi.vsYesterdaySuffix} · {livePositionsCount}{" "}
+                      {t.investasi.livePositionsSuffix}
+                    </span>
                   </div>
                 </Card>
               </div>
             </Rise>
           </>
         )}
+      </div>
+
+      {/* EPIC-024 #6/#7 pricing-source explainer — generic, true regardless
+          of data (no fake "last synced" timestamp is tracked or shown). */}
+      <div className="flex items-start gap-2.5 rounded-[11px] border border-primary/25 bg-accent p-3 text-[12.5px] text-accent-foreground">
+        <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+        <span>
+          <strong>{t.investasi.pricingSourceNoticeTitle}</strong>{" "}
+          {t.investasi.pricingSourceNoticeBody}
+        </span>
       </div>
 
       <SectionCard
@@ -1168,6 +1274,20 @@ export default function InvestasiPage() {
           </table>
         </div>
       </SectionCard>
+
+      {/* Allocation-by-instrument donut (FOLD per J3 — derived from the
+          holdings list already fetched above). The prototype's "Nilai
+          Portofolio 6 Bulan" trend chart is CUT per J3 — no historical
+          price-snapshot series is persisted. */}
+      {!isLoading && allocationSegments.length > 0 && (
+        <SectionCard title={t.investasi.allocationTitle}>
+          <DonutChart
+            segments={allocationSegments}
+            centerLabel={t.investasi.totalValueLabel}
+            ariaLabel={`${t.investasi.allocationTitle}: ${allocationSegments.map((s) => `${s.label} ${formatDecimalRupiah(String(s.value))}`).join(", ")}`}
+          />
+        </SectionCard>
+      )}
     </div>
   );
 }

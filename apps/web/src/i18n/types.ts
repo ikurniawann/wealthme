@@ -950,6 +950,11 @@ export type I18nDictionary = {
      * picker when the member list failed to load (e.g. a dependant/
      * operational role has no "read Member" ability). */
     beneficiaryMemberPickerUnavailable: string;
+    // EPIC-025 N3-F3: coverage-by-type donut (FOLD) + real nearest-renewal
+    // warning banner, both derived from the already-fetched insurances list.
+    coverageAllocationTitle: string;
+    renewalWarningPrefix: string;
+    renewalWarningSuffix: string;
   };
   /**
    * EPIC-018 Task A4 — `/kalkulator` page copy (7 sub-tools). Detail rows
@@ -1250,6 +1255,15 @@ export type I18nDictionary = {
     // EPIC-024 C3 (D10) — shown instead of the manual-price fields for
     // deposito: its value is derived from bunga %/thn, never entered.
     depositoValuationNote: string;
+    // EPIC-025 N3-F2: manual refresh action + summary/notice/allocation copy
+    // added by the prototype port.
+    refreshPriceButton: string;
+    refreshPriceToast: string;
+    capitalInvestedPrefix: string;
+    livePositionsSuffix: string;
+    pricingSourceNoticeTitle: string;
+    pricingSourceNoticeBody: string;
+    allocationTitle: string;
   };
   /** EPIC-018 Task A5 — `/aset` (consolidated assets) page copy. */
   aset: {
@@ -1314,6 +1328,15 @@ export type I18nDictionary = {
     useThisValueButton: string;
     toastValueAdopted: string;
     toastValueAdoptFailed: string;
+    // EPIC-025 N3-F1: allocation donut (FOLD per J3) — same categories the
+    // page already groups accounts/investments/assets into.
+    breakdownCashLabel: string;
+    breakdownBankLabel: string;
+    breakdownInvestasiLabel: string;
+    breakdownFisikLabel: string;
+    allocationTitle: string;
+    recordedValueLabel: string;
+    perYearSuffix: string;
   };
   /** EPIC-018 Task A5 — `/liabilitas` (debts & credit) page copy. */
   liabilitas: {
@@ -1398,6 +1421,13 @@ export type I18nDictionary = {
     toastPaid: string;
     toastPayFailed: string;
     validationPayAmountPositive: string;
+    // EPIC-025 N3-F4: type-filter tabs + 3rd summary stat + payoff
+    // projection chart (FOLD — pure client-side amortization, no fetch).
+    filterAllLabel: string;
+    monthlyInstallmentLabel: string;
+    monthlyInstallmentSuffix: string;
+    payoffProjectionTitle: string;
+    payoffProjectionSeriesLabel: string;
   };
   /**
    * EPIC-018 Task A5 — `/masterdata` page copy. Every group `title`/`label`
@@ -2317,6 +2347,9 @@ export type I18nDictionary = {
     matchedStatLabel: string;
     needsReviewStatLabel: string;
     notMatchedStatLabel: string;
+    // EPIC-025 N3-F5: composition donut (FOLD) — same matched/suggested/
+    // unmatched counts the stat row above already computes.
+    compositionTitle: string;
     matchResultsTitle: string;
     transactionsCountBadgeSuffix: string;
     colBankStatement: string;

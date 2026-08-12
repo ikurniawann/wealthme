@@ -932,6 +932,9 @@ export const en = {
       "Total beneficiary share cannot exceed 100%",
     beneficiaryMemberPickerUnavailable:
       "The family member list isn't available for your role — enter the name manually.",
+    coverageAllocationTitle: "Coverage by Type",
+    renewalWarningPrefix: "The",
+    renewalWarningSuffix: "premium is due",
   },
   kalkulator: {
     tabs: {
@@ -1243,6 +1246,14 @@ export const en = {
     autoPriceNoteKripto: "Price updates automatically from CoinGecko.",
     depositoValuationNote:
       "Deposit value is computed automatically from the nominal + annual interest rate (simple interest, pro-rata) — no manual entry needed.",
+    refreshPriceButton: "Refresh Prices",
+    refreshPriceToast: "Reloading latest prices…",
+    capitalInvestedPrefix: "Capital invested",
+    livePositionsSuffix: "positions priced live",
+    pricingSourceNoticeTitle: "Two pricing sources.",
+    pricingSourceNoticeBody:
+      "IDX stocks come from Yahoo Finance (.JK code) and crypto from CoinGecko — both delayed ±15 minutes, not real-time. Mutual funds, bonds, gold, and time deposits have no automated feed: you enter the value manually and it's always shown with its valuation date.",
+    allocationTitle: "Allocation by Type",
   },
   aset: {
     tabs: {
@@ -1319,6 +1330,13 @@ export const en = {
     useThisValueButton: "Use this figure",
     toastValueAdopted: "Asset value updated successfully",
     toastValueAdoptFailed: "Failed to update asset value. Please try again.",
+    breakdownCashLabel: "Cash & E-Wallet",
+    breakdownBankLabel: "Bank & Account",
+    breakdownInvestasiLabel: "Investments",
+    breakdownFisikLabel: "Physical Assets",
+    allocationTitle: "Asset Allocation",
+    recordedValueLabel: "Recorded Value",
+    perYearSuffix: "/ year",
   },
   liabilitas: {
     typeLabels: {
@@ -1411,6 +1429,11 @@ export const en = {
     toastPaid: "Payment recorded successfully",
     toastPayFailed: "Failed to record payment. Please try again.",
     validationPayAmountPositive: "Payment amount must be greater than 0",
+    filterAllLabel: "All",
+    monthlyInstallmentLabel: "This Month's Installment",
+    monthlyInstallmentSuffix: "total active min. payment",
+    payoffProjectionTitle: "6-Month Remaining Balance Projection",
+    payoffProjectionSeriesLabel: "Remaining Balance",
   },
   masterdata: {
     pageTitle: "🗄️ Master Data Setup",
@@ -2357,6 +2380,7 @@ export const en = {
     matchedStatLabel: "✅ Matched",
     needsReviewStatLabel: "⚠️ Needs Review",
     notMatchedStatLabel: "❌ Not Matched",
+    compositionTitle: "Result Composition",
     matchResultsTitle: "Matching Results",
     transactionsCountBadgeSuffix: " Transactions",
     colBankStatement: "Bank Statement",

@@ -25,8 +25,10 @@ import {
   CountUpRupiah,
   IconChip,
   Rise,
+  SectionCard,
   StatusBadge,
 } from "@/components/wm";
+import { TrendChart } from "@/components/charts/apex-presets";
 
 import type {
   LiabilityDto,
@@ -118,6 +120,40 @@ function computeAmortisationPreview(
       ? Math.ceil(remainingBalance / monthlyPrincipal)
       : null;
   return { monthlyInterest, monthlyPrincipal, months };
+}
+
+/**
+ * EPIC-025 N3-F4 (J3 — payoff projection, FOLD): pure client-side 6-month
+ * roll-forward of the SAME amortisation preview math as
+ * `computeAmortisationPreview` above, summed across every liability with a
+ * positive minimumPayment. A liability with no minimumPayment set has no
+ * knowable payoff schedule, so its balance is carried flat rather than
+ * guessed — never fabricated.
+ */
+function projectRemainingBalance(liabilities: LiabilityDto[]): number[] {
+  const months = 6;
+  const balances = liabilities.map((l) =>
+    l.remainingBalance ? Number(BigInt(l.remainingBalance)) : 0,
+  );
+  const totals: number[] = [];
+  for (let m = 0; m < months; m += 1) {
+    for (let i = 0; i < liabilities.length; i += 1) {
+      const l = liabilities[i];
+      if (!l) continue;
+      const minimumPayment = l.minimumPayment
+        ? Number(BigInt(l.minimumPayment))
+        : 0;
+      if (minimumPayment <= 0 || (balances[i] ?? 0) <= 0) continue;
+      const { monthlyPrincipal } = computeAmortisationPreview(
+        balances[i] ?? 0,
+        minimumPayment,
+        parseFloat(l.interestRate) || 0,
+      );
+      balances[i] = Math.max(0, (balances[i] ?? 0) - monthlyPrincipal);
+    }
+    totals.push(balances.reduce((sum, b) => sum + b, 0));
+  }
+  return totals;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -1042,7 +1078,7 @@ function PayLiabilityDialog({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function LiabilitasPage() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState<LiabilityDto | null>(null);
   const [detailItem, setDetailItem] = useState<LiabilityDto | null>(null);
@@ -1050,6 +1086,11 @@ export default function LiabilitasPage() {
   const [payTarget, setPayTarget] = useState<LiabilityDto | null>(null);
   const [paySourceAccountId, setPaySourceAccountId] = useState("");
   const [payAmount, setPayAmount] = useState("");
+  // EPIC-025 N3-F4 — type filter tabs, matching the /aset and /investasi
+  // filter-tab pattern (role="group"+aria-pressed, never a fake tablist).
+  const [activeTypeFilter, setActiveTypeFilter] = useState<
+    LiabilityTypeValue | "semua"
+  >("semua");
 
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
@@ -1176,9 +1217,31 @@ export default function LiabilitasPage() {
     BigInt(0),
   );
 
+  // EPIC-025 N3-F4 — "Cicilan Bulan Ini" 3rd stat + type filter tabs, both
+  // derived from the same already-fetched `liabilities` list.
+  const totalMinimumPayment = (liabilities ?? []).reduce(
+    (sum, l) => sum + (l.minimumPayment ? BigInt(l.minimumPayment) : BigInt(0)),
+    BigInt(0),
+  );
+  const nearestDueDate = (liabilities ?? [])
+    .filter((l) => l.dueDate)
+    .map((l) => l.dueDate as string)
+    .sort()[0];
+
+  const filteredLiabilities = (liabilities ?? []).filter(
+    (l) => activeTypeFilter === "semua" || l.type === activeTypeFilter,
+  );
+
+  // Payoff projection (FOLD per J3 — pure client-side amortization, no
+  // fetch). The prototype's chart is CUT-equivalent honesty-wise only in
+  // the sense that it's an estimate — labeled as such via the same
+  // disclaimer copy the Detail dialog already uses.
+  const payoffProjectionMonths = ["+1", "+2", "+3", "+4", "+5", "+6"];
+  const payoffProjectionSeries = projectRemainingBalance(liabilities ?? []);
+
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3.5">
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
         <div className="rounded-[14px] border border-[#FECACA] bg-[#FEE2E2] p-4">
           <div className="mb-1 text-[11px] text-[#B91C1C]">
             {t.liabilitas.totalLiabilitiesLabel}
@@ -1215,14 +1278,64 @@ export default function LiabilitasPage() {
             {dtaRisk.label}
           </div>
         </div>
+        <div className="rounded-[14px] border bg-card p-4">
+          <div className="mb-1 text-[11px] text-muted-foreground">
+            {t.liabilitas.monthlyInstallmentLabel}
+          </div>
+          {isLoading ? (
+            <div className="animate-pulse h-7 w-32 rounded bg-muted" />
+          ) : (
+            <div className="mono text-[22px] font-black">
+              {formatRupiah(Number(totalMinimumPayment))}
+            </div>
+          )}
+          <div className="text-[11px] text-muted-foreground">
+            {nearestDueDate
+              ? `${t.liabilitas.statusDuePrefix}${formatLocaleDate(nearestDueDate, locale)}`
+              : t.liabilitas.monthlyInstallmentSuffix}
+          </div>
+        </div>
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
+        <div
+          role="group"
+          aria-label={t.liabilitas.fieldTypeLabel}
+          className="hide-scrollbar flex gap-2 overflow-x-auto"
+        >
+          <button
+            type="button"
+            aria-pressed={activeTypeFilter === "semua"}
+            onClick={() => setActiveTypeFilter("semua")}
+            className={`shrink-0 cursor-pointer rounded-full px-4 py-2 text-[13px] font-semibold transition-colors ${
+              activeTypeFilter === "semua"
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-secondary-foreground hover:bg-accent"
+            }`}
+          >
+            {t.liabilitas.filterAllLabel}
+          </button>
+          {LIABILITY_TYPES.map((liabilityType) => (
+            <button
+              key={liabilityType}
+              type="button"
+              aria-pressed={activeTypeFilter === liabilityType}
+              onClick={() => setActiveTypeFilter(liabilityType)}
+              className={`shrink-0 cursor-pointer rounded-full px-4 py-2 text-[13px] font-semibold transition-colors ${
+                activeTypeFilter === liabilityType
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-secondary-foreground hover:bg-accent"
+              }`}
+            >
+              {t.liabilitas.typeLabels[liabilityType]}
+            </button>
+          ))}
+        </div>
         <Button
           type="button"
           onClick={() => setShowAddModal(true)}
           disabled={!familyGroupId || !token}
-          className="h-auto px-[14px] py-2"
+          className="h-auto shrink-0 px-[14px] py-2"
         >
           <Plus className="size-4" /> {t.liabilitas.addButton}
         </Button>
@@ -1242,12 +1355,12 @@ export default function LiabilitasPage() {
           <LiabilityCardSkeleton />
           <LiabilityCardSkeleton />
         </>
-      ) : (liabilities ?? []).length === 0 ? (
+      ) : filteredLiabilities.length === 0 ? (
         <div className="rounded-[14px] border bg-card px-4 py-10 text-center text-[13px] text-muted-foreground">
           {t.liabilitas.emptyState}
         </div>
       ) : (
-        (liabilities ?? []).map((item, i) => (
+        filteredLiabilities.map((item, i) => (
           <Rise key={item.id} index={i}>
             <LiabilityCard
               item={item}
@@ -1268,6 +1381,29 @@ export default function LiabilitasPage() {
           </Rise>
         ))
       )}
+
+      {/* Payoff projection (FOLD per J3 — pure client-side amortization
+          roll-forward, no fetch) */}
+      {!isLoading &&
+        (liabilities ?? []).some(
+          (l) => l.minimumPayment && Number(BigInt(l.minimumPayment)) > 0,
+        ) && (
+          <SectionCard title={t.liabilitas.payoffProjectionTitle}>
+            <TrendChart
+              categories={payoffProjectionMonths}
+              series={[
+                {
+                  name: t.liabilitas.payoffProjectionSeriesLabel,
+                  data: payoffProjectionSeries,
+                },
+              ]}
+              ariaLabel={`${t.liabilitas.payoffProjectionTitle}: ${formatRupiah(Number(totalRemaining))} → ${formatRupiah(payoffProjectionSeries[payoffProjectionSeries.length - 1] ?? 0)}`}
+            />
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              {t.liabilitas.amortisationDisclaimer}
+            </p>
+          </SectionCard>
+        )}
 
       {showAddModal && familyGroupId && (
         <LiabilityModal

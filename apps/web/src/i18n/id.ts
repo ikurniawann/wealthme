@@ -933,6 +933,9 @@ export const id = {
       "Total persentase ahli waris tidak boleh lebih dari 100%",
     beneficiaryMemberPickerUnavailable:
       "Daftar anggota keluarga tidak tersedia untuk peran Anda — isi nama secara manual.",
+    coverageAllocationTitle: "Uang Pertanggungan per Jenis",
+    renewalWarningPrefix: "Premi",
+    renewalWarningSuffix: "jatuh tempo",
   },
   kalkulator: {
     tabs: {
@@ -1247,6 +1250,14 @@ export const id = {
     autoPriceNoteKripto: "Harga diperbarui otomatis dari CoinGecko.",
     depositoValuationNote:
       "Nilai deposito dihitung otomatis dari nominal + bunga tahunan (bunga sederhana, pro-rata) — tidak perlu diinput manual.",
+    refreshPriceButton: "Perbarui Harga",
+    refreshPriceToast: "Memuat ulang harga terbaru…",
+    capitalInvestedPrefix: "Modal ditanam",
+    livePositionsSuffix: "posisi berharga live",
+    pricingSourceNoticeTitle: "Dua sumber harga.",
+    pricingSourceNoticeBody:
+      "Saham IDX diambil dari Yahoo Finance (kode .JK) dan kripto dari CoinGecko — keduanya delayed ±15 menit, bukan real-time. Reksa dana, obligasi, emas, dan deposito tidak punya feed otomatis: nilainya kamu isi manual dan selalu ditampilkan bersama tanggal penilaiannya.",
+    allocationTitle: "Alokasi per Jenis",
   },
   aset: {
     tabs: {
@@ -1323,6 +1334,13 @@ export const id = {
     useThisValueButton: "Gunakan nilai ini",
     toastValueAdopted: "Nilai aset berhasil diperbarui",
     toastValueAdoptFailed: "Gagal memperbarui nilai aset. Silakan coba lagi.",
+    breakdownCashLabel: "Cash & E-Wallet",
+    breakdownBankLabel: "Bank & Account",
+    breakdownInvestasiLabel: "Investasi",
+    breakdownFisikLabel: "Aset Fisik",
+    allocationTitle: "Alokasi Aset",
+    recordedValueLabel: "Nilai Tercatat",
+    perYearSuffix: "/ tahun",
   },
   liabilitas: {
     typeLabels: {
@@ -1416,6 +1434,11 @@ export const id = {
     toastPaid: "Pembayaran berhasil dicatat",
     toastPayFailed: "Gagal mencatat pembayaran. Silakan coba lagi.",
     validationPayAmountPositive: "Jumlah bayar harus lebih dari 0",
+    filterAllLabel: "Semua",
+    monthlyInstallmentLabel: "Cicilan Bulan Ini",
+    monthlyInstallmentSuffix: "total min. bayar aktif",
+    payoffProjectionTitle: "Proyeksi Sisa Utang 6 Bulan",
+    payoffProjectionSeriesLabel: "Sisa Utang",
   },
   masterdata: {
     pageTitle: "🗄️ Setup Master Data",
@@ -2370,6 +2393,7 @@ export const id = {
     matchedStatLabel: "✅ Cocok",
     needsReviewStatLabel: "⚠️ Perlu Review",
     notMatchedStatLabel: "❌ Tidak Cocok",
+    compositionTitle: "Komposisi Hasil",
     matchResultsTitle: "Hasil Pencocokan",
     transactionsCountBadgeSuffix: " Transaksi",
     colBankStatement: "Rekening Koran",

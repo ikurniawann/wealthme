@@ -28,6 +28,8 @@ import {
   ProgressBar,
   CardLink,
 } from "@/components/wm";
+import { DonutChart } from "@/components/charts/apex-presets";
+import type { DonutSegment } from "@/components/charts/donut";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { formatAmountInput, parseRupiah } from "@/lib/format";
@@ -1333,6 +1335,27 @@ export default function RekonsiliasiPage() {
     (e) => e.reconStatus === "unmatched",
   ).length;
 
+  // EPIC-025 N3-F5 — "Komposisi Hasil" donut (FOLD): same
+  // matched/suggested/unmatched counts the stat row above already computes
+  // from `entries`, no new fetch.
+  const compositionSegments: DonutSegment[] = [
+    {
+      label: t.rekonsiliasi.matchedStatLabel,
+      value: matchedCount,
+      color: "var(--success)",
+    },
+    {
+      label: t.rekonsiliasi.needsReviewStatLabel,
+      value: suggestedCount,
+      color: "var(--warning)",
+    },
+    {
+      label: t.rekonsiliasi.notMatchedStatLabel,
+      value: unmatchedCount,
+      color: "var(--destructive)",
+    },
+  ].filter((seg) => seg.value > 0);
+
   return (
     <div>
       <Stepper step={step} />
@@ -1701,6 +1724,26 @@ export default function RekonsiliasiPage() {
               </div>
             </div>
           </div>
+
+          {/* EPIC-025 N3-F5 — composition donut (FOLD), same counts as the
+              stat row above. */}
+          {compositionSegments.length > 0 && (
+            <SectionCard
+              title={t.rekonsiliasi.compositionTitle}
+              action={
+                <StatusBadge variant="gray">
+                  {entries.length}
+                  {t.rekonsiliasi.transactionsCountBadgeSuffix}
+                </StatusBadge>
+              }
+            >
+              <DonutChart
+                segments={compositionSegments}
+                height={200}
+                ariaLabel={`${t.rekonsiliasi.compositionTitle}: ${compositionSegments.map((s) => `${s.label} ${s.value}`).join(", ")}`}
+              />
+            </SectionCard>
+          )}
 
           <SectionCard
             title={t.rekonsiliasi.matchResultsTitle}

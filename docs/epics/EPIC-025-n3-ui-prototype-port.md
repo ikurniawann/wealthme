@@ -210,16 +210,16 @@ first, as docs only, so no later page PR has to relitigate them mid-review.
         `apps/web/tests/e2e/.../epic-023-i2-splitbill-390.spec.ts` (or current
         equivalent) must stay green.
 
-- [ ] ### N3-F — Wave 5: largest pages, verify Group C/D/G merges
-  - **F1** — Port `aset` — verify Group D1's eye/privacy toggle and D2's
-    fixed-Rp depreciation mode.
-  - **F2** — Port `investasi` — verify Group C2/C3's lot/lembar toggle,
-    deposito, purchasedAt date picker, and live-price refresh.
-  - **F3** — Port `asuransi` (cut the invented premium-history chart per
-    J1).
-  - **F4** — Port `liabilitas` — verify Group G1's Detail/Edit/Hapus/Bayar
-    actions.
-  - **F5** — Port `rekonsiliasi`.
+- [x] ### N3-F — Wave 5: largest pages, verify Group C/D/G merges ✅
+  - [x] **F1** — Port `aset` — verify Group D1's eye/privacy toggle and D2's
+        fixed-Rp depreciation mode.
+  - [x] **F2** — Port `investasi` — verify Group C2/C3's lot/lembar toggle,
+        deposito, purchasedAt date picker, and live-price refresh.
+  - [x] **F3** — Port `asuransi` (cut the invented premium-history chart per
+        J1).
+  - [x] **F4** — Port `liabilitas` — verify Group G1's Detail/Edit/Hapus/Bayar
+        actions.
+  - [x] **F5** — Port `rekonsiliasi`.
 
 - [ ] ### N3-G — Wave 6: the chart swap (the two real consumers)
   - **G1** — Port `beranda` to the bento-hero layout **and** replace
@@ -551,3 +551,23 @@ prototype counterpart.
   globals.css zero diff, all critical existing tests
   (attachment-list.test.tsx, txrow-detail.test.tsx, splitbill.test.tsx,
   split-math.test.ts) pass unmodified. PR: https://github.com/andrsrjld/wealthme-web/pull/274
+- 2026-08-12 /epic-loop EPIC-025 #7 "N3-F — Wave 5: largest pages, verify
+  Group C/D/G merges" → PASS (attempts: 2). Ported aset (DonutChart
+  allocation; D1 privacy toggle + D2 fixed-Rp depreciation verified
+  zero-diff via grep/diff proof, not trust), investasi (real "Perbarui
+  Harga" refresh button, DonutChart allocation; C2/C3 lot/lembar/deposito/
+  purchasedAt/live-price all verified zero-diff), asuransi (DonutChart
+  coverage-by-type, real renewal warning; premium-history chart correctly
+  CUT per J1, not faked), liabilitas (TrendChart payoff projection FOLD per
+  J3, type-filter tabs role=group+aria-pressed; G1 Detail/Edit/Hapus/Bayar
+  verified zero-diff), rekonsiliasi (DonutChart composition, 4-step wizard
+  preserved as-is). Review attempt 1 found 1 real HIGH: liabilitas's new
+  "Cicilan Bulan Ini" stat hardcoded `formatLocaleDate(date, "id")` instead
+  of the page's actual selected locale — English-locale users would see an
+  Indonesian-formatted date on that one stat while the rest of the page
+  read English; fixed by destructuring `locale` from `useLocale()` and
+  threading it through. All 5 gates (react-reviewer, typescript-reviewer,
+  review-qa-agent, security-agent, test-agent) PASS on final attempt. No
+  dead i18n keys this wave (a repeated issue in N3-D/N3-E, avoided here).
+  globals.css zero diff, all critical existing tests unmodified.
+  PR: https://github.com/andrsrjld/wealthme-web/pull/275

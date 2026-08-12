@@ -28,6 +28,8 @@ import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { IconChip, CountUpRupiah, Rise } from "@/components/wm";
+import { DonutChart } from "@/components/charts/apex-presets";
+import type { DonutSegment } from "@/components/charts/donut";
 
 import { DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT } from "@wealthme/contracts";
 import type {
@@ -525,7 +527,6 @@ interface AssetRowProps {
   familyGroupId: string;
   token: string | undefined;
   subtitle: string;
-  isLast: boolean;
   index: number;
 }
 
@@ -541,12 +542,18 @@ interface AssetRowProps {
  * useSession() again here — AsetPage already resolves it once at the top
  * level, matching how familyGroupId is already passed down.
  */
+/**
+ * EPIC-025 N3-F1: restructured from a `.list-row` into the prototype's
+ * `.grid--3` physical-asset mini-card (icon/title row → Nilai Tercatat/
+ * Proyeksi 2-col grid → rate badge + "Gunakan nilai ini" action). The
+ * underlying data and mutation are unchanged from the pre-port list-row
+ * version — only the layout moved.
+ */
 function AssetRow({
   asset,
   familyGroupId,
   token,
   subtitle,
-  isLast,
   index,
 }: AssetRowProps) {
   const { t } = useLocale();
@@ -561,6 +568,14 @@ function AssetRow({
     asset.currentEstimatedValue ?? asset.currentValue ?? "0",
   );
   const hasProjectionDrift = estimatedValue !== recordedValue;
+  const isAppreciating = estimatedValue > recordedValue;
+
+  // D2/US-ASSET-6: badge text reflects whichever mode actually produced the
+  // drift — percent rate or fixed Rp/year amount — never invented.
+  const rateBadgeText =
+    asset.valueChangeMode === "fixed"
+      ? `${Number(asset.valueChangeAmount ?? "0") >= 0 ? "+" : ""}${formatRupiah(Number(asset.valueChangeAmount ?? "0"))} ${t.aset.perYearSuffix}`
+      : `${Number(asset.valueChangeRatePct ?? "0") >= 0 ? "+" : ""}${asset.valueChangeRatePct}% ${t.aset.perYearSuffix}`;
 
   const adoptMutation = useMutation({
     mutationFn: () => {
@@ -595,43 +610,70 @@ function AssetRow({
 
   return (
     <Rise index={index}>
-      <div
-        className={`flex items-center gap-3 py-3 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)] ${isLast ? "" : "border-b"}`}
-      >
-        <IconChip
-          icon={cfg.icon}
-          className={cfg.chip}
-          size={34}
-          rounded="rounded-full"
-        />
-        <div className="flex-1 min-w-0">
-          <div className="text-[13.5px] font-semibold truncate">
-            {asset.name}
-          </div>
-          <div className="text-[11.5px] text-muted-foreground truncate">
-            {subtitle}
+      <div className="flex flex-col gap-2.5 rounded-[12px] border p-3.5 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
+        <div className="flex items-center gap-2.5">
+          <IconChip
+            icon={cfg.icon}
+            className={cfg.chip}
+            size={30}
+            rounded="rounded-full"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="text-[13.5px] font-semibold truncate">
+              {asset.name}
+            </div>
+            <div className="text-[11.5px] text-muted-foreground truncate">
+              {subtitle}
+            </div>
           </div>
         </div>
-        <div className="text-right shrink-0">
-          <div className="wm-money text-[14px] font-extrabold">
-            {formatRupiah(Number(recordedValue))}
+
+        <div
+          className={`grid gap-2.5 ${hasProjectionDrift ? "grid-cols-2" : "grid-cols-1"}`}
+        >
+          <div>
+            <div className="text-[11px] text-muted-foreground">
+              {t.aset.recordedValueLabel}
+            </div>
+            <div className="wm-money text-[14px] font-black">
+              {formatRupiah(Number(recordedValue))}
+            </div>
           </div>
           {hasProjectionDrift && (
-            <div className="mt-0.5 flex items-center justify-end gap-1.5">
-              <span className="wm-money text-[10px] text-muted-foreground">
-                {t.aset.projectionLabel}: {formatRupiah(Number(estimatedValue))}
-              </span>
-              <button
-                type="button"
-                onClick={() => adoptMutation.mutate()}
-                disabled={adoptMutation.isPending || !token || !familyGroupId}
-                className="cursor-pointer text-[10px] font-semibold text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+            <div>
+              <div className="text-[11px] text-muted-foreground">
+                {t.aset.projectionLabel}
+              </div>
+              <div
+                className={`wm-money text-[14px] font-black ${isAppreciating ? "text-success" : "text-destructive"}`}
               >
-                {t.aset.useThisValueButton}
-              </button>
+                {formatRupiah(Number(estimatedValue))}
+              </div>
             </div>
           )}
         </div>
+
+        {hasProjectionDrift && (
+          <div className="flex items-center justify-between gap-2">
+            <span
+              className={`inline-flex items-center rounded-full px-2.5 py-[3px] text-[11px] font-semibold ${
+                isAppreciating
+                  ? "bg-success-soft text-emerald-700 dark:text-emerald-300"
+                  : "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
+              }`}
+            >
+              {rateBadgeText}
+            </span>
+            <button
+              type="button"
+              onClick={() => adoptMutation.mutate()}
+              disabled={adoptMutation.isPending || !token || !familyGroupId}
+              className="cursor-pointer text-[11px] font-semibold text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t.aset.useThisValueButton}
+            </button>
+          </div>
+        )}
       </div>
     </Rise>
   );
@@ -679,7 +721,7 @@ function AssetGroupCard({
           {formatRupiah(Number(groupTotal))}
         </div>
       </div>
-      <div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {assets.map((asset, i) => {
           const subtitle = asset.notes
             ? asset.notes
@@ -695,13 +737,12 @@ function AssetGroupCard({
               familyGroupId={familyGroupId}
               token={token}
               subtitle={subtitle}
-              isLast={i === assets.length - 1}
               index={i}
             />
           );
         })}
         {assets.length === 0 && (
-          <div className="py-4 text-center text-[12px] text-muted-foreground">
+          <div className="col-span-full py-4 text-center text-[12px] text-muted-foreground">
             {t.aset.emptyPhysical}
           </div>
         )}
@@ -1018,6 +1059,43 @@ export default function AsetPage() {
 
   const isLoading = assetsLoading || accountsLoading || investmentsLoading;
 
+  // EPIC-025 N3-F1: bento-metrics breakdown row + allocation donut — both
+  // FOLD (J3): derived entirely from accounts/investments/assets already
+  // fetched above, no new endpoint. No fake month-over-month delta is
+  // rendered on the stat cards (no historical snapshot exists to compute one
+  // from — Honest UI).
+  const cashTotal = danaAccounts.reduce(
+    (sum, a) => sum + BigInt(a.balance ?? "0"),
+    BigInt(0),
+  );
+  const bankTotal = rekeningAccounts.reduce(
+    (sum, a) => sum + BigInt(a.balance ?? "0"),
+    BigInt(0),
+  );
+
+  const allocationSegments: DonutSegment[] = [
+    {
+      label: t.aset.breakdownFisikLabel,
+      value: Number(assetsTotalBig),
+      color: "var(--warning)",
+    },
+    {
+      label: t.aset.breakdownInvestasiLabel,
+      value: investmentsTotal,
+      color: "var(--brand-purple)",
+    },
+    {
+      label: t.aset.breakdownBankLabel,
+      value: Number(bankTotal),
+      color: "var(--accent-foreground)",
+    },
+    {
+      label: t.aset.breakdownCashLabel,
+      value: Number(cashTotal),
+      color: "var(--success)",
+    },
+  ].filter((seg) => seg.value > 0);
+
   return (
     <div
       className={`space-y-4${privacyOn ? " [&_.wm-money]:blur-sm [&_.wm-money]:select-none" : ""}`}
@@ -1091,6 +1169,22 @@ export default function AsetPage() {
           className="rounded-[14px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive"
         >
           {t.aset.errorLoad}
+        </div>
+      )}
+
+      {/* Allocation donut (FOLD per J3 — derived from data already fetched
+          above; the prototype's "Pertumbuhan Aset 6 Bulan" trend chart is
+          CUT per J3 — no asset valuation history is persisted) */}
+      {!isLoading && allocationSegments.length > 0 && (
+        <div className="rounded-[14px] border bg-card p-4">
+          <div className="mb-2 text-[13.5px] font-bold">
+            {t.aset.allocationTitle}
+          </div>
+          <DonutChart
+            segments={allocationSegments}
+            centerLabel={t.aset.totalAssetsLabel}
+            ariaLabel={`${t.aset.allocationTitle}: ${allocationSegments.map((s) => `${s.label} ${formatRupiah(s.value)}`).join(", ")}`}
+          />
         </div>
       )}
 

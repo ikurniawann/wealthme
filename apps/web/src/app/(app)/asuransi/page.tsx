@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus, X, CalendarClock } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -9,7 +9,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { StatusBadge } from "@/components/wm";
+import { StatusBadge, SectionCard } from "@/components/wm";
+import { DonutChart } from "@/components/charts/apex-presets";
+import type { DonutSegment } from "@/components/charts/donut";
 import { CardSideActions, ConfirmDeleteDialog } from "@/components/crud";
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
@@ -57,6 +59,18 @@ const INSURANCE_TYPE_BG: Record<string, string> = {
   properti: "#FEF9C3",
   pendidikan: "#FFE4E6",
   lainnya: "#F3F4F6",
+};
+
+// EPIC-025 N3-F3 — coverage-by-type donut (FOLD): distinct hex per type so
+// segments read clearly (INSURANCE_TYPE_BG's pastel tints are too close to
+// each other for a donut legend).
+const INSURANCE_TYPE_DONUT_COLOR: Record<string, string> = {
+  jiwa: "#7C3AED",
+  kesehatan: "#16A34A",
+  kendaraan: "#2563EB",
+  properti: "#D97706",
+  pendidikan: "#DB2777",
+  lainnya: "#6B7280",
 };
 
 const FIELD_CLASS =
@@ -108,7 +122,7 @@ function PolicyCardSkeleton() {
         </div>
         <div className="h-5 w-14 rounded-full bg-muted" />
       </div>
-      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
         {[1, 2, 3].map((i) => (
           <div key={i} className="space-y-1">
             <div className="h-2.5 w-20 rounded bg-muted" />
@@ -171,7 +185,7 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
             <StatusBadge variant={statusVariant}>{statusLabel}</StatusBadge>
           </div>
 
-          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
             {item.coverageAmount && (
               <div>
                 <div className="mb-[3px] text-[11px] text-muted-foreground">
@@ -1110,6 +1124,47 @@ export default function AsuransiPage() {
     ? formatRupiah(Number(BigInt(summary.totalMonthlyPremium)))
     : "Rp 0";
 
+  // EPIC-025 N3-F3 — coverage-by-type donut (FOLD): derived from the
+  // already-fetched `insurances` list, same coverageAmount PolicyCard
+  // already renders per row. The prototype's "Premi 6 Bulan Terakhir"
+  // trend chart is CUT (J1 — prototype-invented, no premium-history
+  // concept exists in the backend).
+  const coverageByType = new Map<string, bigint>();
+  for (const item of insurances ?? []) {
+    if (!item.coverageAmount) continue;
+    const label = t.asuransi.typeLabels[item.type] ?? item.type;
+    coverageByType.set(
+      label,
+      (coverageByType.get(label) ?? BigInt(0)) + BigInt(item.coverageAmount),
+    );
+  }
+  const coverageSegments: DonutSegment[] = (insurances ?? [])
+    .reduce<{ type: string; label: string }[]>((acc, item) => {
+      if (acc.some((a) => a.type === item.type)) return acc;
+      return [
+        ...acc,
+        {
+          type: item.type,
+          label: t.asuransi.typeLabels[item.type] ?? item.type,
+        },
+      ];
+    }, [])
+    .map(({ type, label }) => ({
+      label,
+      value: Number(coverageByType.get(label) ?? BigInt(0)),
+      color: INSURANCE_TYPE_DONUT_COLOR[type] ?? "#6B7280",
+    }))
+    .filter((seg) => seg.value > 0);
+
+  // Real nearest-renewal warning — the prototype hardcodes one policy's
+  // name/date; here it's the actual soonest-renewing active policy, or
+  // nothing at all when none is within 30 days.
+  const nearestRenewal = (insurances ?? [])
+    .filter((item) => item.status === "aktif" && item.daysUntilRenewal !== null)
+    .sort((a, b) => (a.daysUntilRenewal ?? 0) - (b.daysUntilRenewal ?? 0))[0];
+  const showRenewalWarning =
+    nearestRenewal && (nearestRenewal.daysUntilRenewal ?? 999) <= 30;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2.5">
@@ -1140,8 +1195,36 @@ export default function AsuransiPage() {
         </div>
       )}
 
+      {/* Coverage-by-type donut (FOLD per J3-adjacent decision — derived
+          from data already fetched below; premium-history trend CUT per
+          J1). */}
+      {!isLoading && !isError && coverageSegments.length > 0 && (
+        <SectionCard title={t.asuransi.coverageAllocationTitle}>
+          <DonutChart
+            segments={coverageSegments}
+            centerLabel={t.asuransi.coverageLabel}
+            ariaLabel={`${t.asuransi.coverageAllocationTitle}: ${coverageSegments.map((s) => `${s.label} ${formatRupiah(s.value)}`).join(", ")}`}
+          />
+        </SectionCard>
+      )}
+
+      {/* Real nearest-renewal warning — never a hardcoded policy/date. */}
+      {!isLoading && !isError && showRenewalWarning && nearestRenewal && (
+        <div className="flex items-center gap-2.5 rounded-[11px] border border-warning/35 bg-warning-soft p-3 text-[12.5px] text-warning">
+          <CalendarClock className="size-4 shrink-0" aria-hidden="true" />
+          <span>
+            {t.asuransi.renewalWarningPrefix}{" "}
+            <strong>{nearestRenewal.name}</strong>{" "}
+            {t.asuransi.renewalWarningSuffix}{" "}
+            {formatLocaleDate(nearestRenewal.renewalDate, locale)} —{" "}
+            {nearestRenewal.daysUntilRenewal}{" "}
+            {t.asuransi.daysUntilRenewalSuffix}.
+          </span>
+        </div>
+      )}
+
       {isLoading && (
-        <div className="space-y-3.5">
+        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
           {[1, 2, 3].map((i) => (
             <PolicyCardSkeleton key={i} />
           ))}
@@ -1154,17 +1237,19 @@ export default function AsuransiPage() {
         </div>
       )}
 
-      {!isLoading &&
-        !isError &&
-        insurances?.map((item) => (
-          <PolicyCard
-            key={item.id}
-            item={item}
-            onEdit={() => setEditingItem(item)}
-            onPay={() => setPayTarget(item)}
-            onDelete={() => setDeleteTarget(item)}
-          />
-        ))}
+      {!isLoading && !isError && insurances && insurances.length > 0 && (
+        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+          {insurances.map((item) => (
+            <PolicyCard
+              key={item.id}
+              item={item}
+              onEdit={() => setEditingItem(item)}
+              onPay={() => setPayTarget(item)}
+              onDelete={() => setDeleteTarget(item)}
+            />
+          ))}
+        </div>
+      )}
 
       {showModal && familyGroupId && (
         <InsuranceModal
