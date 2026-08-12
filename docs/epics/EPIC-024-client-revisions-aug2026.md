@@ -1,6 +1,6 @@
 # EPIC-024: Client Revision Punch-List (docs/revisi.txt, Aug 2026)
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 retries: 0
 phase: 4
@@ -859,3 +859,13 @@ the N1 prototype has an approval recorded in the Automation Log.
   still file-only), (2) DEV deploy + smoke (Group B's PIN flow specifically,
   which only reproduces through nginx), (3) the owner walking all 27
   verbatim items against DEV. PR: https://github.com/andrsrjld/wealthme-web/pull/267
+- 2026-08-12 /epic-loop EPIC-024 deploy-agent → PASS. `scripts/deploy-dev.sh`
+  applied all standard-location migrations from this epic (C2, D2, J1,
+  J1-backfill, L2) cleanly; A3's istri-owner backfill and C1's mock-price
+  purge correctly stayed unapplied (staged outside `apps/api/prisma/migrations/`
+  by design). **Status → `ready-for-qa`.** Two human gates remain per the
+  epic's own DoD: (1) owner announcement before manually staging/running A3's
+  migration — it changes a real family's access; (2) Group B's PIN flow only
+  reproduces through nginx, so its fix needs a live smoke test on the
+  deployed environment, not just this local docker-compose deploy; (3) the
+  owner walks all 27 verbatim items against DEV to formally close the epic.
