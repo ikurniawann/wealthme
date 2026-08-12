@@ -1,6 +1,6 @@
 # EPIC-025: N3 — Port the Approved Prototype into apps/web
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 phase: 5
 priority: P1
@@ -656,3 +656,24 @@ caught before merge, not after.
 **Remaining before this epic can be marked `ready-for-qa`**: DEV
 deployment (deploy-agent) to verify the merged state end-to-end, matching
 EPIC-024's own closing pattern.
+
+- 2026-08-13 /epic-loop EPIC-025 — Deploy → **PASS**. CI run 31621391019
+  (commit 4af078e, the merge of all 10 N3 groups including N3-I) built and
+  pushed fresh api+web images to GHCR. Deployed via
+  `DEPLOY_MODE=pull bash scripts/deploy-dev.sh` (session's 200-agent
+  spawn cap was hit; ran directly instead of via deploy-agent). All
+  containers healthy (api, web, postgres, redis, minio, mailhog, nginx,
+  migrate). Image freshness verified via `docker inspect`: web image
+  created ~4 minutes before container start, matching the just-completed
+  CI run — not a stale cached image. `status` set to `ready-for-qa`.
+
+  **EPIC-025 is done pending human QA.** All 10 task groups (N3-J through
+  N3-I) merged, chart-library foundation swapped to ApexCharts across its
+  two real consumers (beranda, laporan), old chart components deleted,
+  every prototype page ported with zero functional regression verified
+  per-page against existing/unmodified test suites. Two real bugs caught
+  and fixed by the gate process during the epic itself (kalkulator's
+  chart-clamp money-math leak, liabilitas's hardcoded locale) — both
+  evidence the review gates worked, not evidence of carelessness. Owner
+  should walk the deployed DEV instance against a sample of pages from
+  each wave, comparing against the prototype, before closing this epic.
