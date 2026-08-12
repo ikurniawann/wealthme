@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2, GraduationCap } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  GraduationCap,
+  CircleCheck,
+  Gauge,
+  TriangleAlert,
+} from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -360,11 +368,12 @@ export default function TujuanPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2.5">
         <div>
-          <div className="text-[15px] font-bold">
+          {/* EPIC-025 N3-C4 — `.section-title` per the N3 translation table. */}
+          <h1 className="text-[17px] font-extrabold tracking-tight">
             {isLoading
               ? "…"
               : `${goals?.length ?? 0}${t.tujuan.activeGoalsSuffix}`}
-          </div>
+          </h1>
           <div className="text-xs text-muted-foreground">
             {t.tujuan.totalAllocatedPrefix}
             {isLoading ? "…" : <CountUpRupiah value={totalAllocated} />}
@@ -388,6 +397,9 @@ export default function TujuanPage() {
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
         <Rise index={0}>
           <div className="rounded-[14px] border border-[#86EFAC] bg-[#DCFCE7] p-4">
+            <div className="mb-1.5 flex size-[30px] items-center justify-center rounded-md bg-[#BBF7D0] text-[#15803D]">
+              <CircleCheck className="size-[17px]" aria-hidden="true" />
+            </div>
             <div className="text-[10.5px] text-[#15803D]">
               {t.tujuan.onTrackLabel}
             </div>
@@ -401,6 +413,9 @@ export default function TujuanPage() {
         </Rise>
         <Rise index={1}>
           <div className="rounded-[14px] border bg-card p-4">
+            <div className="mb-1.5 flex size-[30px] items-center justify-center rounded-md bg-warning-soft text-warning">
+              <Gauge className="size-[17px]" aria-hidden="true" />
+            </div>
             <div className="text-[10.5px] text-warning">
               {t.tujuan.needsBoostLabel}
             </div>
@@ -414,6 +429,9 @@ export default function TujuanPage() {
         </Rise>
         <Rise index={2}>
           <div className="rounded-[14px] border bg-card p-4">
+            <div className="mb-1.5 flex size-[30px] items-center justify-center rounded-md bg-brand-purple/15 text-brand-purple">
+              <TriangleAlert className="size-[17px]" aria-hidden="true" />
+            </div>
             <div className="text-[10.5px] text-muted-foreground">
               {t.tujuan.atRiskLabel}
             </div>

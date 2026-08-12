@@ -848,6 +848,12 @@ export type I18nDictionary = {
     riwayatStatusApproved: string;
     riwayatStatusRejected: string;
     notOwnerNotice: string;
+    statPendingLabel: string;
+    statPendingTotalPrefix: string;
+    statApprovedLabel: string;
+    statApprovedSuffix: string;
+    statRejectedLabel: string;
+    statRejectedSuffix: string;
   };
   /**
    * EPIC-018 Task A2 — `/panduan` page copy. `JOURNEYS` in the page keeps
@@ -1439,6 +1445,9 @@ export type I18nDictionary = {
     toastItemDeleted: string;
     toastItemDeleteFailed: string;
     toastItemProtected: string;
+    topNoticeBold: string;
+    topNoticePrefix: string;
+    topNoticeSuffix: string;
   };
   /** EPIC-018 Task A5 — `/mastercoa` (chart of accounts) page copy. */
   mastercoa: {
@@ -1615,6 +1624,8 @@ export type I18nDictionary = {
     healthStatusGood: string;
     healthStatusFair: string;
     healthStatusNeedsAttention: string;
+    liabilityBreakdownTitle: string;
+    emptyLiabilityBreakdown: string;
   };
   /** EPIC-018 Task A6 — `/tujuan` (financial goals) page copy. */
   tujuan: {

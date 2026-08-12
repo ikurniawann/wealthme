@@ -182,17 +182,17 @@ first, as docs only, so no later page PR has to relitigate them mid-review.
   - [x] **B4** — Port `quickinput`.
   - [x] **B5** — Port `ai`.
 
-- [ ] ### N3-C — Wave 2: mid pages + ApexCharts proving ground
-  - **C1** — Port `persetujuan`: add client-computed stat tiles (Menunggu /
-    Disetujui bulan ini / Ditolak bulan ini) from the already-fetched list;
-    decide the reject-reason field per J2 (cut, or build the column first);
-    cut "Unduh CSV" per J1.
-  - **C2** — Port `ringkasan` **and** add its 4 ApexCharts mounts — this is
-    the **go/no-go gate for the whole ApexCharts swap**: a page with no
-    existing chart to regress, first real SSR/hydration/theme-toggle proof
-    on a live DEV deploy. Do not start N3-G until this is verified working.
-  - **C3** — Port `masterdata`.
-  - **C4** — Port `tujuan`.
+- [x] ### N3-C — Wave 2: mid pages + ApexCharts proving ground ✅
+  - [x] **C1** — Port `persetujuan`: add client-computed stat tiles (Menunggu /
+        Disetujui bulan ini / Ditolak bulan ini) from the already-fetched list;
+        decide the reject-reason field per J2 (cut, or build the column first);
+        cut "Unduh CSV" per J1.
+  - [x] **C2** — Port `ringkasan` **and** add its 4 ApexCharts mounts — this is
+        the **go/no-go gate for the whole ApexCharts swap**: a page with no
+        existing chart to regress, first real SSR/hydration/theme-toggle proof
+        on a live DEV deploy. Do not start N3-G until this is verified working.
+  - [x] **C3** — Port `masterdata`.
+  - [x] **C4** — Port `tujuan`.
 
 - [ ] ### N3-D — Wave 3: forms/tables, no chart dependency
   - **D1** — Port `tax`.
@@ -472,3 +472,20 @@ prototype counterpart.
   wired the empty-state render) and re-verified clean on attempt 2. All 5
   gates (react-reviewer, typescript-reviewer, review-qa-agent, security-agent,
   test-agent) PASS. PR: https://github.com/andrsrjld/wealthme-web/pull/271
+- 2026-08-12 /epic-loop EPIC-025 #4 "N3-C — Wave 2: mid pages + ApexCharts
+  proving ground" → PASS (attempts: 1). Ported persetujuan (3 client-computed
+  stat tiles from already-fetched requests list; reject-reason field
+  deliberately NOT rendered per J2 rather than silently discarded; "Unduh
+  CSV" cut per J1), ringkasan (THE GO/NO-GO GATE — wired all 4 mandated
+  ApexCharts mounts: TrendChart/net-worth, CashflowChart/income-expense,
+  DonutChart/allocation (reused DonutSegment type), HBarChart/liability
+  breakdown (new useQuery against the existing liabilities endpoint, no new
+  backend) — every series traced back to a real fetch, verified by
+  review-qa-agent, no mock numbers), masterdata, tujuan. All gates PASS on
+  attempt 1: react-reviewer (2 MEDIUM non-blocking a11y polish notes),
+  typescript-reviewer, review-qa-agent (explicitly traced all 4 chart data
+  sources), security-agent (tenant scoping verified on the new liabilities
+  query), test-agent. globals.css zero diff, existing tests unmodified.
+  **ringkasan is deployed to DEV for live SSR/hydration/theme-toggle
+  verification before N3-G starts (see next Automation Log entry).**
+  PR: https://github.com/andrsrjld/wealthme-web/pull/272

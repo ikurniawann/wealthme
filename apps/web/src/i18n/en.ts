@@ -692,6 +692,14 @@ export const en = {
     riwayatStatusRejected: "Rejected",
     notOwnerNotice:
       "This page is for the family's owner/co-master only. You don't have access.",
+    // EPIC-025 N3-C1 — client-computed stat tiles from the already-fetched
+    // allowance-requests list (no new endpoint).
+    statPendingLabel: "Pending Approval",
+    statPendingTotalPrefix: "Total ",
+    statApprovedLabel: "Approved This Month",
+    statApprovedSuffix: " disbursed",
+    statRejectedLabel: "Rejected This Month",
+    statRejectedSuffix: " not disbursed",
   },
   panduan: {
     pageTitle: "📖 WealthMe Feature Guide",
@@ -1450,6 +1458,11 @@ export const en = {
     toastItemDeleted: "Item deleted",
     toastItemDeleteFailed: "Failed to delete item",
     toastItemProtected: "This is a built-in system item and can't be deleted.",
+    // EPIC-025 N3-C3 — top `.notice--info` banner per the prototype.
+    topNoticeBold: "Every list on this page can be changed.",
+    topNoticePrefix: "Items marked",
+    topNoticeSuffix:
+      "are WealthMe's starter data — you can still delete or replace them if your family doesn't use them. Changes save to the server immediately and apply to every family member.",
   },
   mastercoa: {
     groupLabels: {
@@ -1668,6 +1681,9 @@ export const en = {
     healthStatusGood: "Healthy",
     healthStatusFair: "Fair",
     healthStatusNeedsAttention: "Needs Attention",
+    // EPIC-025 N3-C2 — HBarChart mount (liability breakdown, FOLD per J3).
+    liabilityBreakdownTitle: "Liability Breakdown",
+    emptyLiabilityBreakdown: "No liabilities recorded yet.",
   },
   tujuan: {
     statusLabels: {

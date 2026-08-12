@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { PencilLine } from "lucide-react";
 import type {
   CategoryDto,
   ReferenceItemDto,
@@ -324,12 +325,29 @@ export default function MasterDataPage() {
   }
 
   return (
-    <div>
-      <div className="mb-[18px]">
-        <div className="text-[15px] font-bold">{t.masterdata.pageTitle}</div>
-        <div className="text-[12px] text-muted-foreground">
-          {t.masterdata.pageSubtitle}
+    <div className="space-y-3.5">
+      {/* EPIC-025 N3-C3 — page-lead pattern per the N3 translation table
+          (`.page-lead` → flex row, `.section-title` → 17px/extrabold). */}
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="min-w-[220px] flex-1">
+          <h1 className="text-[17px] font-extrabold tracking-tight">
+            {t.masterdata.pageTitle}
+          </h1>
+          <p className="mt-1 text-[12.5px] text-muted-foreground">
+            {t.masterdata.pageSubtitle}
+          </p>
         </div>
+      </div>
+
+      {/* `.notice--info` per the translation table — inline Tailwind, no
+          new class added to globals.css. */}
+      <div className="flex items-center gap-2.5 rounded-[11px] border border-primary/25 bg-accent p-3 text-[12.5px] text-accent-foreground">
+        <PencilLine className="size-4 shrink-0" aria-hidden="true" />
+        <span>
+          <strong>{t.masterdata.topNoticeBold}</strong>{" "}
+          {t.masterdata.topNoticePrefix} &ldquo;{t.masterdata.systemBadge}
+          &rdquo; {t.masterdata.topNoticeSuffix}
+        </span>
       </div>
 
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-3">

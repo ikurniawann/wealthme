@@ -24,7 +24,7 @@ import { useMyRole } from "@/hooks/use-my-role";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah } from "@/lib/format";
-import { SectionCard, StatusBadge } from "@/components/wm";
+import { SectionCard, StatusBadge, SummaryCard } from "@/components/wm";
 import {
   Dialog,
   DialogContent,
@@ -89,17 +89,70 @@ export default function PersetujuanPage() {
     );
   }
 
-  const pendingCount = (requests ?? []).filter(
-    (r) => r.status === "pending",
-  ).length;
+  const pending = (requests ?? []).filter((r) => r.status === "pending");
+  const pendingCount = pending.length;
+  const pendingTotal = pending.reduce((sum, r) => sum + Number(r.amount), 0);
   const riwayat = (requests ?? [])
     .filter((r) => r.status !== "pending")
     .sort((a, b) => (b.decidedAt ?? "").localeCompare(a.decidedAt ?? ""));
+
+  // EPIC-025 N3-C1 — "this month" tiles derived client-side from the
+  // already-fetched `requests` list; no new backend endpoint.
+  const now = new Date();
+  const isThisMonth = (isoDate: string | null) => {
+    if (!isoDate) return false;
+    const d = new Date(isoDate);
+    return (
+      d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+    );
+  };
+  const approvedThisMonth = (requests ?? []).filter(
+    (r) => r.status === "approved" && isThisMonth(r.decidedAt),
+  );
+  const rejectedThisMonth = (requests ?? []).filter(
+    (r) => r.status === "rejected" && isThisMonth(r.decidedAt),
+  );
+  const approvedThisMonthTotal = approvedThisMonth.reduce(
+    (sum, r) => sum + Number(r.amount),
+    0,
+  );
+  const rejectedThisMonthTotal = rejectedThisMonth.reduce(
+    (sum, r) => sum + Number(r.amount),
+    0,
+  );
 
   return (
     <div className="space-y-3.5">
       <div className="text-[12.5px] text-muted-foreground">
         {t.persetujuan.pageDesc}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+        <SummaryCard
+          icon="⏳"
+          iconBg="var(--warning-soft)"
+          iconColor="var(--warning)"
+          label={t.persetujuan.statPendingLabel}
+          amount={pendingCount}
+          delta={`${t.persetujuan.statPendingTotalPrefix}${formatRupiah(pendingTotal)}`}
+        />
+        <SummaryCard
+          icon="✅"
+          iconBg="var(--success-soft)"
+          iconColor="var(--success)"
+          label={t.persetujuan.statApprovedLabel}
+          amount={approvedThisMonth.length}
+          delta={`${formatRupiah(approvedThisMonthTotal)}${t.persetujuan.statApprovedSuffix}`}
+          deltaUp
+        />
+        <SummaryCard
+          icon="🚫"
+          iconBg="hsl(var(--destructive) / 0.14)"
+          iconColor="var(--destructive)"
+          label={t.persetujuan.statRejectedLabel}
+          amount={rejectedThisMonth.length}
+          delta={`${formatRupiah(rejectedThisMonthTotal)}${t.persetujuan.statRejectedSuffix}`}
+        />
       </div>
 
       <div className="flex gap-1.5 rounded-lg border bg-card p-1">

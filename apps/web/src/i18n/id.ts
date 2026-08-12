@@ -692,6 +692,14 @@ export const id = {
     riwayatStatusRejected: "Ditolak",
     notOwnerNotice:
       "Halaman ini hanya untuk master/co-master keluarga. Kamu tidak memiliki akses.",
+    // EPIC-025 N3-C1 — client-computed stat tiles from the already-fetched
+    // allowance-requests list (no new endpoint).
+    statPendingLabel: "Menunggu Persetujuan",
+    statPendingTotalPrefix: "Total ",
+    statApprovedLabel: "Disetujui Bulan Ini",
+    statApprovedSuffix: " dicairkan",
+    statRejectedLabel: "Ditolak Bulan Ini",
+    statRejectedSuffix: " tidak dicairkan",
   },
   panduan: {
     pageTitle: "📖 Panduan Fitur WealthMe",
@@ -1455,6 +1463,11 @@ export const id = {
     toastItemDeleted: "Item dihapus",
     toastItemDeleteFailed: "Gagal menghapus item",
     toastItemProtected: "Item bawaan sistem tidak bisa dihapus.",
+    // EPIC-025 N3-C3 — top `.notice--info` banner per the prototype.
+    topNoticeBold: "Semua daftar di halaman ini bisa diubah.",
+    topNoticePrefix: "Item bertanda",
+    topNoticeSuffix:
+      "adalah isian awal dari WealthMe — tetap bisa kamu hapus atau ganti kalau tidak dipakai keluargamu. Perubahan langsung tersimpan ke server dan berlaku untuk seluruh anggota keluarga.",
   },
   mastercoa: {
     groupLabels: {
@@ -1673,6 +1686,9 @@ export const id = {
     healthStatusGood: "Sehat",
     healthStatusFair: "Cukup",
     healthStatusNeedsAttention: "Perlu Perhatian",
+    // EPIC-025 N3-C2 — HBarChart mount (liability breakdown, FOLD per J3).
+    liabilityBreakdownTitle: "Rincian Liabilitas",
+    emptyLiabilityBreakdown: "Belum ada liabilitas tercatat.",
   },
   tujuan: {
     statusLabels: {

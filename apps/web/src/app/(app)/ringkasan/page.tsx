@@ -9,10 +9,20 @@ import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, formatRupiahCompact } from "@/lib/format";
 import { useCurrencyPreference } from "@/hooks/use-currency-preference";
 import { useLocale } from "@/hooks/use-locale";
-import { buildNetWorthTrendPath } from "@/lib/chart-utils";
 import { ConsolidatedTotalCard } from "@/components/consolidated-total-card";
+// EPIC-025 N3-C2 — ringkasan is the ApexCharts go/no-go gate: the first page
+// wired to the N3-A presets. All 4 series below are derived from data this
+// page (or `beranda`) already fetches — no new backend endpoint.
+import {
+  CashflowChart,
+  DonutChart,
+  HBarChart,
+  TrendChart,
+} from "@/components/charts/apex-presets";
+import type { DonutSegment } from "@/components/charts/donut";
 import type {
   DashboardSummaryDto,
+  LiabilityDto,
   NetWorthDto,
   NetWorthHistoryDto,
   ReportSummaryDto,
@@ -129,16 +139,26 @@ export default function RingkasanPage() {
       enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
       staleTime: 60_000,
     });
-  const netWorthTrendPoints = (netWorthHistory?.points ?? []).map((p) =>
+  const netWorthHistoryPoints = netWorthHistory?.points ?? [];
+  const netWorthTrendValues = netWorthHistoryPoints.map((p) =>
     Number(p.netWorth),
   );
-  // A trend needs at least two points to mean anything — one snapshot would
-  // render as a flat single dot, which looks like data rather than "not
-  // enough history yet".
-  const trend =
-    netWorthTrendPoints.length >= 2
-      ? buildNetWorthTrendPath(netWorthTrendPoints, 320, 90)
-      : { linePath: "", areaPath: "", points: [] };
+  // EPIC-025 N3-C2 — TrendChart mount. A trend needs at least two points to
+  // mean anything — one snapshot would render as a flat single dot, which
+  // looks like data rather than "not enough history yet".
+  const netWorthTrendCategories = netWorthHistoryPoints.map((p) =>
+    new Date(p.capturedAt).toLocaleDateString(t.beranda.dateLocale, {
+      month: "short",
+      year: "2-digit",
+    }),
+  );
+  const netWorthTrendSeries = [
+    { name: t.ringkasan.totalNetWorthLabel, data: netWorthTrendValues },
+  ];
+  const netWorthTrendAriaLabel =
+    netWorthTrendValues.length >= 2
+      ? `${t.ringkasan.netWorthTrendTitle}: ${moneyFull(netWorthTrendValues[0]!)} ${t.ringkasan.netWorthTrendRangeStart} → ${moneyFull(netWorthTrendValues[netWorthTrendValues.length - 1]!)} ${t.ringkasan.netWorthTrendRangeEnd}`
+      : t.ringkasan.netWorthTrendTitle;
 
   const composition = (summary?.allocation ?? []).map((item) => ({
     label: item.label,
@@ -150,6 +170,63 @@ export default function RingkasanPage() {
           ?.type ?? ""
       ] ?? item.color,
   }));
+
+  // EPIC-025 N3-C2 — DonutChart mount, reusing the existing `DonutSegment[]`
+  // shape (never redefined) over the same allocation data `composition`
+  // above already derives.
+  const donutSegments: DonutSegment[] = (summary?.allocation ?? []).map(
+    (item) => ({
+      label: item.label,
+      value: item.amount,
+      color:
+        COMPOSITION_COLOR[
+          (summary?.accountSummary ?? []).find((s) => s.label === item.label)
+            ?.type ?? ""
+        ] ?? item.color,
+    }),
+  );
+  const donutAriaLabel =
+    composition.length > 0
+      ? `${t.ringkasan.compositionTitle}: ${composition.map((c) => `${c.label} ${c.pct}%`).join(", ")}`
+      : t.ringkasan.compositionTitle;
+
+  // EPIC-025 N3-C2 — CashflowChart mount, over `summary.cashflow` (the same
+  // months/income/expense arrays `beranda`'s existing BarChart already
+  // sums — no new endpoint).
+  const cashflowMonths = summary?.cashflow.months ?? [];
+  const cashflowIncome = summary?.cashflow.income ?? [];
+  const cashflowExpense = summary?.cashflow.expense ?? [];
+  const cashflowAriaLabel =
+    cashflowMonths.length > 0
+      ? `${t.ringkasan.cashFlowTitlePrefix}${cashflowMonths.at(-1) ?? ""}: ${t.ringkasan.incomeLabel} ${moneyFull(monthIncome)}, ${t.ringkasan.expenseLabel} ${moneyFull(monthExpense)}`
+      : t.ringkasan.cashFlowTitlePrefix;
+
+  // EPIC-025 N3-C2 — HBarChart mount for the liability breakdown, over the
+  // same `/liabilities` list the `/liabilitas` page already fetches — no
+  // new endpoint.
+  const { data: liabilities, isLoading: isLiabilitiesLoading } = useQuery<
+    LiabilityDto[]
+  >({
+    queryKey: queryKeys.liabilities.all(familyGroupId ?? ""),
+    queryFn: () =>
+      apiFetch<LiabilityDto[]>(`/family-groups/${familyGroupId}/liabilities`, {
+        token: session?.accessToken,
+      }),
+    enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
+    staleTime: 60_000,
+  });
+  const liabilityBreakdown = (liabilities ?? [])
+    .slice()
+    .sort((a, b) => Number(b.remainingBalance) - Number(a.remainingBalance))
+    .slice(0, 6);
+  const liabilityCategories = liabilityBreakdown.map((l) => l.name);
+  const liabilityData = liabilityBreakdown.map((l) =>
+    Number(l.remainingBalance),
+  );
+  const liabilityAriaLabel =
+    liabilityBreakdown.length > 0
+      ? `${t.ringkasan.liabilityBreakdownTitle}: ${liabilityBreakdown.map((l) => `${l.name} ${moneyFull(Number(l.remainingBalance))}`).join(", ")}`
+      : t.ringkasan.liabilityBreakdownTitle;
 
   if (isError) {
     return (
@@ -246,54 +323,22 @@ export default function RingkasanPage() {
             title={t.ringkasan.netWorthTrendTitle}
             className="lg:col-start-1 lg:col-end-3 lg:row-start-1"
           >
+            {/* EPIC-025 N3-C2 — ApexCharts go/no-go gate: first real chart
+                mount, replacing the hand-rolled SVG path. */}
             {isNetWorthHistoryLoading ? (
-              <div className="h-[90px] animate-pulse rounded-md bg-muted" />
-            ) : trend.points.length === 0 ? (
-              <div className="flex h-[90px] items-center justify-center text-[12px] text-muted-foreground">
+              <div className="h-[250px] animate-pulse rounded-md bg-muted" />
+            ) : netWorthTrendValues.length < 2 ? (
+              <div className="flex h-[250px] items-center justify-center text-[12px] text-muted-foreground">
                 {t.ringkasan.emptyNetWorthTrend}
               </div>
             ) : (
-              <svg
-                viewBox="0 0 320 90"
-                width="100%"
-                height={90}
-                preserveAspectRatio="none"
-              >
-                <defs>
-                  <linearGradient id="ng" x1="0" y1="0" x2="0" y2="1">
-                    <stop
-                      offset="0%"
-                      stopColor="var(--primary)"
-                      stopOpacity={0.18}
-                    />
-                    <stop
-                      offset="100%"
-                      stopColor="var(--primary)"
-                      stopOpacity={0.01}
-                    />
-                  </linearGradient>
-                </defs>
-                {trend.areaPath && <path d={trend.areaPath} fill="url(#ng)" />}
-                {trend.linePath && (
-                  <path
-                    d={trend.linePath}
-                    fill="none"
-                    stroke="var(--primary)"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                )}
-                {trend.points.length > 0 && (
-                  <circle
-                    cx={trend.points[trend.points.length - 1]!.x}
-                    cy={trend.points[trend.points.length - 1]!.y}
-                    r="4"
-                    fill="var(--primary)"
-                  />
-                )}
-              </svg>
+              <TrendChart
+                categories={netWorthTrendCategories}
+                series={netWorthTrendSeries}
+                ariaLabel={netWorthTrendAriaLabel}
+              />
             )}
-            {trend.points.length > 0 && (
+            {netWorthTrendValues.length >= 2 && (
               <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
                 <span>{t.ringkasan.netWorthTrendRangeStart}</span>
                 <span>{t.ringkasan.netWorthTrendRangeEnd}</span>
@@ -323,6 +368,14 @@ export default function RingkasanPage() {
               </div>
             ) : (
               <div className="space-y-3">
+                {/* EPIC-025 N3-C2 — DonutChart mount, same allocation data
+                    the legend list below already sums. */}
+                <DonutChart
+                  segments={donutSegments}
+                  centerLabel={t.ringkasan.totalAssetsLabel}
+                  height={220}
+                  ariaLabel={donutAriaLabel}
+                />
                 {composition.map((c) => (
                   <div key={c.label}>
                     <div className="mb-1 flex items-center justify-between gap-2 text-[12px]">
@@ -351,6 +404,26 @@ export default function RingkasanPage() {
             title={`${t.ringkasan.cashFlowTitlePrefix}${summary?.cashflow.months.at(-1) ?? ""}`}
             className="lg:col-start-1 lg:col-end-3 lg:row-start-2"
           >
+            {/* EPIC-025 N3-C2 — CashflowChart mount, over the same
+                `summary.cashflow` months/income/expense arrays already
+                fetched for this page. */}
+            {isLoading ? (
+              <div className="mb-2.5 h-[220px] animate-pulse rounded-md bg-muted" />
+            ) : cashflowMonths.length === 0 ? (
+              <div className="mb-2.5 flex h-[100px] items-center justify-center text-[12px] text-muted-foreground">
+                {t.ringkasan.emptyTopExpenses}
+              </div>
+            ) : (
+              <div className="mb-2.5">
+                <CashflowChart
+                  months={cashflowMonths}
+                  income={cashflowIncome}
+                  expense={cashflowExpense}
+                  height={220}
+                  ariaLabel={cashflowAriaLabel}
+                />
+              </div>
+            )}
             <div className="mb-2.5">
               <div className="text-[11px] text-muted-foreground">
                 {t.ringkasan.incomeLabel}
@@ -489,6 +562,25 @@ export default function RingkasanPage() {
           </SectionCard>
         </div>
       </div>
+
+      {/* EPIC-025 N3-C2 — HBarChart mount for the liability breakdown, over
+          the same `/liabilities` list `/liabilitas` already fetches. */}
+      <SectionCard title={t.ringkasan.liabilityBreakdownTitle}>
+        {isLiabilitiesLoading ? (
+          <div className="h-[180px] animate-pulse rounded-md bg-muted" />
+        ) : liabilityBreakdown.length === 0 ? (
+          <div className="py-4 text-center text-[13px] text-muted-foreground">
+            {t.ringkasan.emptyLiabilityBreakdown}
+          </div>
+        ) : (
+          <HBarChart
+            categories={liabilityCategories}
+            data={liabilityData}
+            color="var(--destructive)"
+            ariaLabel={liabilityAriaLabel}
+          />
+        )}
+      </SectionCard>
     </div>
   );
 }
