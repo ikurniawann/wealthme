@@ -424,9 +424,11 @@ One task group = one branch = one PR to `development`. Execution order is in
 - [ ] ### N — UI/UX revamp: HTML prototype semua halaman (shadcn + ApexCharts) → approval → implementasi (item 36)
   - **N1** — Static-HTML prototype of ALL pages + modals/popups: shadcn look
     (dashboard-blocks patterns) + ApexCharts via CDN, openable in a browser,
-    zero app changes. Built with the `frontend-design` + `dataviz` +
-    `ui-ux-pro-max` skills (style/palette/font-pairing database for the
-    visual decisions). (D18, US-UI-1)
+    zero app changes. Built with the `frontend-design` + `dataviz` skills
+    (style/palette/font-pairing decisions). (D18, US-UI-1)
+    <!-- EPIC-025 N3-J4: this originally also cited a `ui-ux-pro-max` skill
+    that does not exist on this machine — corrected here and in the routing
+    table below to the two skills actually used. -->
   - **N2** — Owner reviews and approves the prototype. **Nothing in N ships to
     the app before this sign-off.**
   - **N3** — Implementation to follow as its own planned wave after N2;
@@ -657,22 +659,22 @@ hazard). Within wave 3: C2 → D2 → J1.
 
 ### Per-group routing
 
-| Group                | Implement                  | Domain skills to load first                             | Review (beyond the standard gate)                                             |
-| -------------------- | -------------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| **A** family & roles | `code-agent`               | `ecc:nestjs-patterns`, `ecc:prisma-patterns`            | **adversarial**, `ecc:security-reviewer`, `database-reviewer`                 |
-| **B** PIN nginx      | `code-agent`               | —                                                       | `ecc:security-reviewer` (auth routing), deploy-smoke evidence mandatory       |
-| **C** investasi      | `code-agent` + `tdd-guide` | `ecc:prisma-patterns`, `docs-lookup` (CoinGecko/Yahoo)  | **adversarial**, `database-reviewer`, `ecc:typescript-reviewer`               |
-| **D** aset           | `code-agent` + `tdd-guide` | —                                                       | `ecc:react-reviewer`; D2 golden values in PR body                             |
-| **E** pajak          | `code-agent`               | —                                                       | `ecc:typescript-reviewer`                                                     |
-| **F** split bill     | `code-agent`               | `shadcn`, `frontend-design` (F2)                        | `ecc:react-reviewer`, `ecc:security-reviewer` (F1 public route)               |
-| **G** liabilitas UI  | `code-agent`               | `shadcn`                                                | `silent-failure-hunter` (pay flow), `ecc:react-reviewer`                      |
-| **H** warisan        | `code-agent`               | —                                                       | standard gate only                                                            |
-| **I** donasi         | `code-agent`               | —                                                       | standard gate only                                                            |
-| **J** master data    | `code-agent`               | `ecc:database-migrations`, `ecc:prisma-patterns`        | `database-reviewer`                                                           |
-| **K** labels         | `code-agent`               | —                                                       | standard gate only (i18n structural typecheck covers it)                      |
-| **L** attachments    | `code-agent`               | `ecc:nestjs-patterns`                                   | **adversarial**, `ecc:security-reviewer` (upload: MIME/size/traversal/tenant) |
-| **M** COA matrix     | `code-agent` + `tdd-guide` | `ecc:postgres-patterns` (query shape)                   | `database-reviewer` (query perf), `ecc:react-reviewer`                        |
-| **N** prototype      | main session               | `frontend-design`, `dataviz`, `shadcn`, `ui-ux-pro-max` | owner approval — the review IS the sign-off                                   |
+| Group                | Implement                  | Domain skills to load first                            | Review (beyond the standard gate)                                             |
+| -------------------- | -------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| **A** family & roles | `code-agent`               | `ecc:nestjs-patterns`, `ecc:prisma-patterns`           | **adversarial**, `ecc:security-reviewer`, `database-reviewer`                 |
+| **B** PIN nginx      | `code-agent`               | —                                                      | `ecc:security-reviewer` (auth routing), deploy-smoke evidence mandatory       |
+| **C** investasi      | `code-agent` + `tdd-guide` | `ecc:prisma-patterns`, `docs-lookup` (CoinGecko/Yahoo) | **adversarial**, `database-reviewer`, `ecc:typescript-reviewer`               |
+| **D** aset           | `code-agent` + `tdd-guide` | —                                                      | `ecc:react-reviewer`; D2 golden values in PR body                             |
+| **E** pajak          | `code-agent`               | —                                                      | `ecc:typescript-reviewer`                                                     |
+| **F** split bill     | `code-agent`               | `shadcn`, `frontend-design` (F2)                       | `ecc:react-reviewer`, `ecc:security-reviewer` (F1 public route)               |
+| **G** liabilitas UI  | `code-agent`               | `shadcn`                                               | `silent-failure-hunter` (pay flow), `ecc:react-reviewer`                      |
+| **H** warisan        | `code-agent`               | —                                                      | standard gate only                                                            |
+| **I** donasi         | `code-agent`               | —                                                      | standard gate only                                                            |
+| **J** master data    | `code-agent`               | `ecc:database-migrations`, `ecc:prisma-patterns`       | `database-reviewer`                                                           |
+| **K** labels         | `code-agent`               | —                                                      | standard gate only (i18n structural typecheck covers it)                      |
+| **L** attachments    | `code-agent`               | `ecc:nestjs-patterns`                                  | **adversarial**, `ecc:security-reviewer` (upload: MIME/size/traversal/tenant) |
+| **M** COA matrix     | `code-agent` + `tdd-guide` | `ecc:postgres-patterns` (query shape)                  | `database-reviewer` (query perf), `ecc:react-reviewer`                        |
+| **N** prototype      | main session               | `frontend-design`, `dataviz`, `shadcn`                 | owner approval — the review IS the sign-off                                   |
 
 ### Mandatory before touching shared code
 
