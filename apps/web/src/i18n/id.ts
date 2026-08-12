@@ -131,6 +131,7 @@ export const id = {
       rasl: "Aset & Liabilitas",
       rperf: "Performa",
       rpajak: "Pajak",
+      rcoa: "Ringkasan COA",
     },
     pageTitles: {
       beranda: "Beranda",
@@ -2683,6 +2684,19 @@ export const id = {
       estimateNoteAfter:
         "(lajang, tanpa tanggungan). Untuk status pernikahan/tanggungan lain, gunakan",
       calculatorLinkLabel: "Kalkulator PPh 21",
+    },
+    coa: {
+      title: "Ringkasan COA — Matriks Tahunan",
+      accountLabel: "Akun COA",
+      accountPlaceholder: "Pilih akun COA",
+      yearLabel: "Tahun",
+      totalLabel: "Total Tahunan",
+      colTanggal: "Tanggal",
+      emptyAccount: "Pilih akun COA untuk melihat matriks tahunannya.",
+      emptyMatrix: "Belum ada transaksi untuk akun COA ini pada tahun ini.",
+      dialogTitlePrefix: "Transaksi tanggal",
+      dialogDescriptionPrefix: "Akun COA",
+      dialogNoDesc: "Tanpa deskripsi",
     },
     export: {
       title: "Export Laporan",

@@ -22,6 +22,7 @@ import type {
   BalanceSheetDto,
   BankReportDto,
   CashflowStatementDto,
+  CoaMatrixDto,
   DetailReportDto,
   PnlDto,
   ReconciliationBridgeDto,
@@ -301,6 +302,39 @@ export class ReportsController {
       familyGroupId,
       startDate,
       endDate,
+      canSeePrivate,
+    );
+  }
+
+  // EPIC-024 Task M (M1, D16, US-RPT-14) — same ability/tenant-scoping shape
+  // as every other route here: `@CheckAbility` is required or
+  // `AbilitiesGuard` fails OPEN (see the project's AbilitiesGuard note).
+  @Get("coa-matrix")
+  @CheckAbility((ab: AppAbility) => ab.can("read", "Account"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiQuery({ name: "coaAccountId", required: true, type: String })
+  @ApiQuery({ name: "year", required: true, type: Number })
+  @ApiOperation({
+    summary:
+      "Get the yearly tanggal x bulan matrix for one COA account (US-RPT-14)",
+  })
+  @ApiResponse({ status: 200, description: "COA matrix data" })
+  getCoaMatrix(
+    @Param("familyGroupId") familyGroupId: string,
+    @Req() req: Request,
+    @Query("coaAccountId") coaAccountId: string,
+    @Query("year") yearStr: string,
+  ): Promise<CoaMatrixDto> {
+    const parsedYear = parseInt(yearStr, 10);
+    const year = Number.isNaN(parsedYear)
+      ? new Date().getFullYear()
+      : parsedYear;
+    assertHouseholdWideReadAllowed(req.tenantContext?.member?.role);
+    const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
+    return this.reportsService.getCoaMatrix(
+      familyGroupId,
+      coaAccountId,
+      year,
       canSeePrivate,
     );
   }

@@ -131,6 +131,7 @@ export const en = {
       rasl: "Assets & Liabilities",
       rperf: "Performance",
       rpajak: "Tax",
+      rcoa: "COA Summary",
     },
     pageTitles: {
       beranda: "Home",
@@ -2675,6 +2676,19 @@ export const en = {
       estimateNoteAfter:
         "(single, no dependents). For marital/dependent status, use the",
       calculatorLinkLabel: "PPh 21 Calculator",
+    },
+    coa: {
+      title: "COA Summary — Yearly Matrix",
+      accountLabel: "COA Account",
+      accountPlaceholder: "Select a COA account",
+      yearLabel: "Year",
+      totalLabel: "Yearly Total",
+      colTanggal: "Date",
+      emptyAccount: "Select a COA account to view its yearly matrix.",
+      emptyMatrix: "No transactions for this COA account in this year.",
+      dialogTitlePrefix: "Transactions on",
+      dialogDescriptionPrefix: "COA account",
+      dialogNoDesc: "No description",
     },
     export: {
       title: "Export Report",

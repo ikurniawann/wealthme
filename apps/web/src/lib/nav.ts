@@ -54,6 +54,10 @@ export const REPORT_TAB_IDS = [
   "rasl",
   "rperf",
   "rpajak",
+  // EPIC-024 Task M (M2, D16, US-RPT-14) — Laporan COA yearly matrix
+  // (tanggal x bulan). Protected-file addition explicitly authorized by
+  // the epic's Task M scope — kept minimal (one new tab id).
+  "rcoa",
 ] as const;
 
 export type ReportTabId = (typeof REPORT_TAB_IDS)[number];

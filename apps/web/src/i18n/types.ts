@@ -2633,6 +2633,20 @@ export type I18nDictionary = {
       estimateNoteAfter: string;
       calculatorLinkLabel: string;
     };
+    // EPIC-024 Task M (M2, D16, US-RPT-14) — Laporan COA yearly matrix tab.
+    coa: {
+      title: string;
+      accountLabel: string;
+      accountPlaceholder: string;
+      yearLabel: string;
+      totalLabel: string;
+      colTanggal: string;
+      emptyAccount: string;
+      emptyMatrix: string;
+      dialogTitlePrefix: string;
+      dialogDescriptionPrefix: string;
+      dialogNoDesc: string;
+    };
     export: {
       title: string;
       downloadButton: string;

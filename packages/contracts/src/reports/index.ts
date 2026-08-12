@@ -257,3 +257,24 @@ export interface CashflowStatementDto {
   closingBalance: number;
   netChange: number;
 }
+
+// EPIC-024 Task M (D16, US-RPT-14) — yearly matrix per COA account: rows
+// tanggal 1-31, columns Jan-Dec, each cell lists the individual
+// transactions that landed on that day (stacked when more than one), plus
+// a yearly total. `cells` is sparse — a month/day key is only present when
+// at least one transaction occurred on it, so a day that cannot exist in a
+// given month (e.g. day 31 in April) never appears, and an empty year
+// produces `cells: {}` rather than a synthetic 12x31 grid of empties.
+export interface CoaMatrixCell {
+  txId: string;
+  amount: number;
+  description: string | null;
+}
+
+export interface CoaMatrixDto {
+  coaAccountId: string;
+  year: number;
+  total: number;
+  /** Keyed by calendar month (1-12), then day-of-month (1-31). */
+  cells: Record<number, Record<number, CoaMatrixCell[]>>;
+}

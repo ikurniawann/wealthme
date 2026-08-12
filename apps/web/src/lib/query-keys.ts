@@ -127,5 +127,8 @@ export const queryKeys = {
       ["reports", familyGroupId, "sankey", start, end] as const,
     reconciliationBridge: (familyGroupId: string, start: string, end: string) =>
       ["reports", familyGroupId, "reconciliationBridge", start, end] as const,
+    // EPIC-024 Task M (M2, D16, US-RPT-14)
+    coaMatrix: (familyGroupId: string, coaAccountId: string, year: number) =>
+      ["reports", familyGroupId, "coaMatrix", coaAccountId, year] as const,
   },
 } as const;

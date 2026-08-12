@@ -16,6 +16,7 @@ import type {
   BankReportDto,
   CashflowStatementDto,
   CategoryBreakdownItem,
+  CoaMatrixDto,
   DetailReportDto,
   PeriodPoint,
   PnlDto,
@@ -1156,6 +1157,67 @@ export class ReportsService {
       dataAvailable: true,
       restrictedForViewer: false,
     };
+  }
+
+  /**
+   * EPIC-024 Task M (M1, D16, US-RPT-14) — yearly tanggal x bulan matrix for
+   * ONE COA account, joining `Transaction` → `Category.coaAccountId`
+   * (Category.coaAccountId is NOT NULL, per the epic's Evidence note, so
+   * every categorized transaction is reachable this way; a category-LESS
+   * transaction has no COA account at all and is correctly excluded).
+   *
+   * `cells` is built ONLY from the transactions actually returned — a real
+   * `Transaction.occurredAt` can never carry an invalid calendar date (e.g.
+   * 31 April), so a short month never gets a fabricated day-31 entry, and a
+   * year with zero matching transactions naturally yields `cells: {}`
+   * rather than a synthetic populated grid.
+   */
+  async getCoaMatrix(
+    familyGroupId: string,
+    coaAccountId: string,
+    year: number,
+    canSeePrivate: boolean,
+  ): Promise<CoaMatrixDto> {
+    const startDate = new Date(year, 0, 1, 0, 0, 0, 0);
+    const endDate = new Date(year, 11, 31, 23, 59, 59, 999);
+
+    const transactions = await this.prisma.transaction.findMany({
+      where: {
+        familyGroupId,
+        occurredAt: { gte: startDate, lte: endDate },
+        category: { coaAccountId },
+        ...transactionPrivacyWhere(canSeePrivate),
+      },
+      select: {
+        id: true,
+        amount: true,
+        description: true,
+        occurredAt: true,
+      },
+      orderBy: [{ occurredAt: "asc" }, { createdAt: "asc" }],
+    });
+
+    const cells: CoaMatrixDto["cells"] = {};
+    let total = 0;
+
+    for (const tx of transactions) {
+      const month = tx.occurredAt.getMonth() + 1;
+      const day = tx.occurredAt.getDate();
+      const amount = Number(tx.amount);
+      total += amount;
+
+      const monthCells = cells[month] ?? {};
+      const dayCells = monthCells[day] ?? [];
+      cells[month] = {
+        ...monthCells,
+        [day]: [
+          ...dayCells,
+          { txId: tx.id, amount, description: tx.description ?? null },
+        ],
+      };
+    }
+
+    return { coaAccountId, year, total, cells };
   }
 
   /** Zeroed-out `ReconciliationBridgeDto` — either genuinely no snapshot

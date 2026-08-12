@@ -410,12 +410,13 @@ One task group = one branch = one PR to `development`. Execution order is in
     `components/shell/transaction-dialog.tsx`, scoped only to the attachment
     field.
 
-- [ ] ### M — Laporan COA matrix tanggal×bulan (item 35)
-  - **M1** — `GET /family-groups/:id/reports/coa-matrix?coaAccountId=&year=`
+- [x] ### M — Laporan COA matrix tanggal×bulan (item 35) ✅
+  - **M1** — [x] `GET /family-groups/:id/reports/coa-matrix?coaAccountId=&year=`
     → `{ total, cells: { [month][day]: [{txId, amount, description}] } }`,
-    joining transactions via `Category.coaAccountId` (pattern:
-    `coa-classify.util.ts`). Unit tests: short months, day 31, empty year.
-  - **M2** — New laporan tab `rcoa` ("Ringkasan COA") in `nav.ts` +
+    joining transactions via `Category.coaAccountId`. Unit tests: short
+    months (leap-year Feb 29), day 31 excluded in 30-day months, empty year,
+    same-day stacking. No migration needed (read-only report).
+  - **M2** — [x] New laporan tab `rcoa` ("Ringkasan COA") in `nav.ts` +
     `laporan/page.tsx`: COA-account + year pickers → grid tanggal(1–31) ×
     bulan(Jan–Des), stacked per-transaction amounts, yearly total header,
     cell click → transaction list. (D16, US-RPT-14)
@@ -849,3 +850,12 @@ the N1 prototype has an approval recorded in the Automation Log.
   adversarial-review scope — all three fixed and re-verified in attempt 2).
   Path-traversal, MIME-spoofing, and cross-tenant-access hunts all confirmed
   closed on the first pass. **Wave 4 (L) complete.** PR: https://github.com/andrsrjld/wealthme-web/pull/266
+- 2026-08-12 /epic-loop EPIC-024 #M "Laporan COA matrix tanggal×bulan" → PASS
+  (attempts: 1). Read-only report endpoint, no migration. **Wave 5 (M)
+  complete — all 13 task groups (B, E, F, H, I, K, A, C, D, G, J, L, M) now
+  merged into `development`.** Remaining before the epic itself can close per
+  its Done Signal: (1) owner announcement + manual apply of A3's istri-owner
+  backfill migration (`docs/migrations/epic-024-a3-istri-owner-backfill.sql`,
+  still file-only), (2) DEV deploy + smoke (Group B's PIN flow specifically,
+  which only reproduces through nginx), (3) the owner walking all 27
+  verbatim items against DEV. PR: https://github.com/andrsrjld/wealthme-web/pull/267
