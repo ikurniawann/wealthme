@@ -489,3 +489,24 @@ prototype counterpart.
   **ringkasan is deployed to DEV for live SSR/hydration/theme-toggle
   verification before N3-G starts (see next Automation Log entry).**
   PR: https://github.com/andrsrjld/wealthme-web/pull/272
+- 2026-08-12 EPIC-025 N3-C2 GO/NO-GO GATE → **PASS.** Fresh image (digest
+  confirmed via docker inspect, built by CI for commit 5c81a6e, not stale)
+  deployed to DEV via deploy-agent, all containers healthy. e2e-runner
+  verified /ringkasan live: all 4 chart containers present
+  (`div[role="img"]` with correct data-specific aria-labels), 4/4
+  `.apexcharts-svg` mounted, 0 console error-level messages, 0
+  hydration/Apex/window/React-error matches, 0 page errors. Theme toggle
+  (light→dark) re-rendered all 4 SVGs correctly (gradient fill IDs and
+  palette changed, no blank/crashed charts). Screenshots captured.
+  **N3-G (beranda/laporan chart swap) is cleared to start.**
+  Separate non-blocking finding (NOT an N3/ApexCharts defect): this DEV
+  image's client bundle has `NEXT_PUBLIC_APP_URL`/`NEXT_PUBLIC_API_URL`
+  baked to the production domain (`https://wealthme.demo-wit.id`) instead
+  of this host, even though `apps/web/.env` on disk is correct — every
+  client-side fetch (better-auth + apiFetch) goes cross-origin and fails,
+  blocking normal UI login on this specific deploy. Worked around
+  test-side only (proxy in a throwaway, now-deleted spec) to complete this
+  verification; no app source touched. Root cause is a deploy-time env/
+  build issue (stale image or wrong build-arg), not app code — needs a
+  `deploy-agent`/`scripts/deploy-dev.sh` follow-up, flagged for the owner,
+  out of scope for this epic.
