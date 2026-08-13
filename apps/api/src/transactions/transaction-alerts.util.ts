@@ -89,8 +89,19 @@ export async function checkBudgetAlert(
     if (!owner) return;
     if (!resolveNotifPrefs(owner.user.notificationPrefs).budget80) return;
 
-    const safeName = escapeHtml(category?.name ?? "kategori ini");
+    // The in-app notification (`prisma.notification.create` below) is
+    // rendered as plain React text — never HTML — so it must use the raw
+    // category name. `safeName` is HTML-escaped and stays scoped to the
+    // EMAIL body only; reusing it for the in-app title/body previously made
+    // "Makan & Minum" literally display as "Makan &amp; Minum" in
+    // /notifikasi (found during EPIC-025 N3 fidelity audit).
+    const rawName = category?.name ?? "kategori ini";
+    const safeName = escapeHtml(rawName);
     const subject =
+      usagePct >= 100
+        ? `Anggaran ${rawName} terlampaui!`
+        : `Anggaran ${rawName} sudah ${usagePct}%`;
+    const emailSubject =
       usagePct >= 100
         ? `Anggaran ${safeName} terlampaui!`
         : `Anggaran ${safeName} sudah ${usagePct}%`;
@@ -102,14 +113,14 @@ export async function checkBudgetAlert(
       notificationSender.sendEmail(
         owner.user.email,
         owner.user.name,
-        subject,
+        emailSubject,
         htmlBody,
       ),
       prisma.notification.create({
         data: {
           familyGroupId,
           title: subject,
-          body: `Pengeluaran ${safeName} sudah ${usagePct}% dari anggaran bulan ini.`,
+          body: `Pengeluaran ${rawName} sudah ${usagePct}% dari anggaran bulan ini.`,
           icon: "💸",
         },
       }),

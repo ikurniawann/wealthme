@@ -75,6 +75,10 @@ export const id = {
     liquidAssets: "Aset Likuid",
     nonLiquidAssets: "Aset Non-Likuid",
     cashflowThisMonth: "Arus kas bulan ini",
+    needsAttentionTitle: "Perlu Perhatian",
+    pendingApprovalsNotice: "permintaan dana menunggu persetujuan kamu.",
+    liabilityDueNotice: "jatuh tempo",
+    noNotices: "Tidak ada yang perlu perhatian saat ini 🎉",
   },
   shell: {
     loading: "Memuat WealthMe…",
@@ -1272,6 +1276,7 @@ export const id = {
       investasi: "Investasi",
       fisik: "Aset Fisik",
     },
+    assetTrendTitle: "Pertumbuhan Aset 6 Bulan",
     assetTypeLabels: {
       properti: "Properti",
       kendaraan: "Kendaraan",

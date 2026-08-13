@@ -28,7 +28,7 @@ import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { IconChip, CountUpRupiah, Rise } from "@/components/wm";
-import { DonutChart } from "@/components/charts/apex-presets";
+import { DonutChart, TrendChart } from "@/components/charts/apex-presets";
 import type { DonutSegment } from "@/components/charts/donut";
 
 import { DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT } from "@wealthme/contracts";
@@ -39,6 +39,7 @@ import type {
   CategoryDto,
   AssetTypeId,
   AssetValueChangeMode,
+  NetWorthHistoryDto,
 } from "@wealthme/contracts";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -913,7 +914,7 @@ function InvestasiGroupCard({ investments }: { investments: InvestmentDto[] }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function AsetPage() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [activeTab, setActiveTab] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -994,6 +995,22 @@ export default function AsetPage() {
         { token, signal },
       );
     },
+  });
+
+  // 6-month asset trend — same `/dashboard/net-worth/history` endpoint
+  // `beranda`/`ringkasan` already fetch; only `totalAssets` per point is
+  // read here. Real fix for the prototype's "Pertumbuhan Aset 6 Bulan"
+  // chart, previously cut for lack of persisted history — the history
+  // endpoint already exists and already carries this field per point.
+  const { data: assetHistory } = useQuery<NetWorthHistoryDto>({
+    queryKey: ["dashboard", familyGroupId ?? "", "net-worth-history", "6m"],
+    queryFn: () =>
+      apiFetch<NetWorthHistoryDto>(
+        `/family-groups/${familyGroupId}/dashboard/net-worth/history?range=6m`,
+        { token },
+      ),
+    enabled: Boolean(familyGroupId) && Boolean(token),
+    staleTime: 60_000,
   });
 
   // Categories (EPIC-021 #16: master-data category names for physical assets)
@@ -1172,9 +1189,38 @@ export default function AsetPage() {
         </div>
       )}
 
+      {/* 6-month asset trend — real fix (EPIC-025 N3 fidelity follow-up):
+          `assetHistory.points[].totalAssets` comes from the SAME
+          `/dashboard/net-worth/history` endpoint `beranda` already queries
+          for its net-worth sparkline; no new backend work. */}
+      {!isLoading &&
+        assetHistory?.points &&
+        assetHistory.points.length >= 2 && (
+          <div className="rounded-[14px] border bg-card p-4">
+            <div className="mb-2 text-[13.5px] font-bold">
+              {t.aset.assetTrendTitle}
+            </div>
+            <TrendChart
+              categories={assetHistory.points.map((p) =>
+                new Date(p.capturedAt).toLocaleDateString(
+                  locale === "en" ? "en-US" : "id-ID",
+                  { month: "short" },
+                ),
+              )}
+              series={[
+                {
+                  name: t.aset.totalAssetsLabel,
+                  data: assetHistory.points.map((p) => Number(p.totalAssets)),
+                },
+              ]}
+              height={200}
+              ariaLabel={`${t.aset.assetTrendTitle}: ${formatRupiah(Number(assetHistory.points[0]!.totalAssets))} → ${formatRupiah(Number(assetHistory.points[assetHistory.points.length - 1]!.totalAssets))}`}
+            />
+          </div>
+        )}
+
       {/* Allocation donut (FOLD per J3 — derived from data already fetched
-          above; the prototype's "Pertumbuhan Aset 6 Bulan" trend chart is
-          CUT per J3 — no asset valuation history is persisted) */}
+          above). */}
       {!isLoading && allocationSegments.length > 0 && (
         <div className="rounded-[14px] border bg-card p-4">
           <div className="mb-2 text-[13.5px] font-bold">

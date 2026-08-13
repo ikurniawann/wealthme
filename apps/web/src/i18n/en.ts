@@ -75,6 +75,10 @@ export const en = {
     liquidAssets: "Liquid Assets",
     nonLiquidAssets: "Non-Liquid Assets",
     cashflowThisMonth: "Cash flow this month",
+    needsAttentionTitle: "Needs Attention",
+    pendingApprovalsNotice: "fund requests are waiting for your approval.",
+    liabilityDueNotice: "due",
+    noNotices: "Nothing needs your attention right now 🎉",
   },
   shell: {
     loading: "Loading WealthMe…",
@@ -1268,6 +1272,7 @@ export const en = {
       investasi: "Investments",
       fisik: "Physical Assets",
     },
+    assetTrendTitle: "6-Month Asset Growth",
     assetTypeLabels: {
       properti: "Property",
       kendaraan: "Vehicle",

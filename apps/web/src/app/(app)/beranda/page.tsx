@@ -47,8 +47,10 @@ import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, formatRupiahCompact } from "@/lib/format";
 import type {
+  AllowanceRequestDto,
   DashboardSummaryDto,
   GoalDto,
+  LiabilityDto,
   NetWorthDto,
   NetWorthHistoryDto,
 } from "@wealthme/contracts";
@@ -162,6 +164,31 @@ function BerandaPage() {
     staleTime: 60_000,
   });
 
+  // EPIC-025 N3 fidelity follow-up — "Perlu Perhatian" card
+  // (`docs/prototype/pages/beranda.html`'s `.bento-side` second article),
+  // cut in N3-G1 on the (wrong) assumption it needed a new endpoint. Both
+  // queries below already exist and are already fetched by
+  // /persetujuan and /liabilitas respectively — no new backend work.
+  const { data: allowanceRequests } = useQuery<AllowanceRequestDto[]>({
+    queryKey: queryKeys.allowanceRequests.all(familyGroupId ?? ""),
+    queryFn: () =>
+      apiFetch<AllowanceRequestDto[]>(
+        `/family-groups/${familyGroupId}/allowance-requests`,
+        { token: session?.accessToken },
+      ),
+    enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
+    staleTime: 60_000,
+  });
+  const { data: liabilities } = useQuery<LiabilityDto[]>({
+    queryKey: queryKeys.liabilities.all(familyGroupId ?? ""),
+    queryFn: () =>
+      apiFetch<LiabilityDto[]>(`/family-groups/${familyGroupId}/liabilities`, {
+        token: session?.accessToken,
+      }),
+    enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
+    staleTime: 60_000,
+  });
+
   const { data: goals, isLoading: isGoalsLoading } = useQuery<GoalDto[]>({
     queryKey: queryKeys.goals.all(familyGroupId ?? ""),
     queryFn: ({ signal }) =>
@@ -221,6 +248,17 @@ function BerandaPage() {
       color: item.color,
     }),
   );
+
+  // "Perlu Perhatian" notices — same derivations liabilitas/persetujuan
+  // already compute client-side from their own fetched lists.
+  const pendingApprovalsCount = (allowanceRequests ?? []).filter(
+    (r) => r.status === "pending",
+  ).length;
+  const nearestDueLiability = (liabilities ?? [])
+    .filter((l) => l.dueDate)
+    .sort((a, b) =>
+      (a.dueDate as string).localeCompare(b.dueDate as string),
+    )[0];
 
   const SUMMARY_ROUTE: Record<string, string> = {
     investment: "/investasi",
@@ -777,6 +815,66 @@ function BerandaPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </SectionCard>
+        </div>
+
+        {/* "Perlu Perhatian" (`.bento-side` 2nd article) — lg:col-span-5,
+            paired next to Recent activity's lg:col-span-7 like the
+            prototype's aside column. */}
+        <div className="lg:col-span-5">
+          <SectionCard title={t.beranda.needsAttentionTitle}>
+            {isLoading ? (
+              <div className="space-y-2">
+                {Array(2)
+                  .fill(null)
+                  .map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-[42px] animate-pulse rounded-md bg-muted"
+                    />
+                  ))}
+              </div>
+            ) : pendingApprovalsCount === 0 && !nearestDueLiability ? (
+              <div className="py-4 text-center text-[13px] text-muted-foreground">
+                {t.beranda.noNotices}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {pendingApprovalsCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => router.push("/persetujuan")}
+                    className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border border-warning/30 bg-warning-soft px-3 py-2.5 text-left text-[12.5px]"
+                  >
+                    <span className="text-[15px]">✅</span>
+                    <span>
+                      <strong>{pendingApprovalsCount}</strong>{" "}
+                      {t.beranda.pendingApprovalsNotice}
+                    </span>
+                  </button>
+                )}
+                {nearestDueLiability && (
+                  <button
+                    type="button"
+                    onClick={() => router.push("/liabilitas")}
+                    className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border bg-accent px-3 py-2.5 text-left text-[12.5px]"
+                  >
+                    <span className="text-[15px]">📅</span>
+                    <span>
+                      <strong>{nearestDueLiability.name}</strong>{" "}
+                      {t.beranda.liabilityDueNotice}{" "}
+                      {new Date(
+                        nearestDueLiability.dueDate!,
+                      ).toLocaleDateString(t.beranda.dateLocale, {
+                        day: "numeric",
+                        month: "short",
+                      })}
+                      .
+                    </span>
+                  </button>
+                )}
               </div>
             )}
           </SectionCard>

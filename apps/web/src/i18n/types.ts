@@ -357,6 +357,10 @@ export type I18nDictionary = {
     liquidAssets: string;
     nonLiquidAssets: string;
     cashflowThisMonth: string;
+    needsAttentionTitle: string;
+    pendingApprovalsNotice: string;
+    liabilityDueNotice: string;
+    noNotices: string;
   };
   /**
    * Shell-owned copy: sidebar/topbar/mobile nav chrome, the global
@@ -1277,6 +1281,7 @@ export type I18nDictionary = {
     accountTypeLabels: Record<AsetAccountTypeId, string>;
     invTypeLabels: Record<InvestasiTypeId, string>;
     totalAssetsLabel: string;
+    assetTrendTitle: string;
     addAssetButton: string;
     eyeShowAriaLabel: string;
     eyeHideAriaLabel: string;
