@@ -104,14 +104,19 @@ describe("i18n dictionary key parity", () => {
     }
   });
 
-  it("panduan covers all 9 journeys and 24 features with non-empty translations in both locales", () => {
+  it("panduan covers all 9 journeys and 29 features with non-empty translations in both locales", () => {
     // Matches the epic's inventory (9 journeys x title/subtitle + 24 nested
     // features x title/desc = 66 string fields) — guards against silently
     // dropping a journey/feature during the JOURNEYS structural refactor.
+    //
+    // EPIC-025 N3 prototype structural port (panduan) added 5 more feature
+    // ids (akun, persetujuan, passwordLogin, privateCategories, apiKeyAi)
+    // for the prototype's 6-group layout, alongside (not replacing) the
+    // original 24 — the pre-existing 9 journeys/24 features stay untouched.
     const journeyKeys = Object.keys(id.panduan.journeys);
     const featureKeys = Object.keys(id.panduan.features);
     expect(journeyKeys).toHaveLength(9);
-    expect(featureKeys).toHaveLength(24);
+    expect(featureKeys).toHaveLength(29);
     for (const key of journeyKeys as (keyof typeof id.panduan.journeys)[]) {
       expect(id.panduan.journeys[key].title).toBeTruthy();
       expect(id.panduan.journeys[key].subtitle).toBeTruthy();

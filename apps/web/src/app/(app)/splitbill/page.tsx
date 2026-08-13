@@ -11,6 +11,7 @@ import {
   ProgressBar,
   StatusBadge,
 } from "@/components/wm";
+import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ConfirmDeleteDialog } from "@/components/crud";
@@ -436,10 +437,16 @@ export default function SplitBillPage() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
+      {/* Header — the page had only the subtitle, which read as an orphan
+          sentence with no heading above it. */}
       <div className="flex flex-wrap items-center justify-between gap-2.5">
-        <div className="text-[13px] text-muted-foreground">
-          {t.splitbill.headerDesc}
+        <div>
+          <h1 className="text-[17px] font-extrabold tracking-tight">
+            {t.splitbill.pageTitle}
+          </h1>
+          <div className="mt-1 text-[13px] text-muted-foreground">
+            {t.splitbill.headerDesc}
+          </div>
         </div>
         <Button
           onClick={() => setCreateOpen(true)}
@@ -454,16 +461,29 @@ export default function SplitBillPage() {
           `.card.stat` (translation table: `.stat` → `SummaryCard`). Values
           are the same derived numbers the old inline cards rendered. */}
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
-        {/* Count is a neutral fact, not a good/bad trend — SummaryCard's
-            `delta` slot always colors success/destructive, so it's left
-            unset here rather than implying a trend that isn't real. */}
-        <SummaryCard
-          icon={<span aria-hidden="true">🧾</span>}
-          iconBg="var(--accent)"
-          iconColor="var(--primary)"
-          label={t.splitbill.totalDitalanginLabel}
-          amount={formatRupiah(totalDitalangin)}
-        />
+        {/* `activeSplits.length` is a neutral fact, not a good/bad trend —
+            SummaryCard's `delta` slot always colors it success/destructive
+            (foundation component, not ours to change), so this one card is
+            built locally with a muted sub-line instead of borrowing that
+            slot for something that isn't a trend. */}
+        <Card className="gap-0 p-4">
+          <div
+            className="mb-2 flex size-[34px] items-center justify-center rounded-md text-[15px]"
+            style={{ background: "var(--accent)", color: "var(--primary)" }}
+          >
+            <span aria-hidden="true">🧾</span>
+          </div>
+          <div className="mb-0.5 text-[10.5px] font-medium text-muted-foreground">
+            {t.splitbill.totalDitalanginLabel}
+          </div>
+          <div className="mb-[3px] text-[15px] font-extrabold">
+            {formatRupiah(totalDitalangin)}
+          </div>
+          <div className="text-[10.5px] font-bold text-muted-foreground">
+            {activeSplits.length}
+            {t.splitbill.activeSplitsSuffix}
+          </div>
+        </Card>
         <SummaryCard
           icon={<span aria-hidden="true">✅</span>}
           iconBg="var(--success-soft)"
@@ -527,18 +547,53 @@ export default function SplitBillPage() {
               (p) => p.status === "paid",
             ).length;
             const barColor = pct >= 75 ? "var(--success)" : "var(--warning)";
+            // Prototype's row-level status badge — priority order matches
+            // its urgency: a missing payout account blocks confirmation
+            // outright, so it outranks "still collecting".
+            const rowBadge = !split.payoutAccountId ? (
+              <StatusBadge variant="danger">
+                {t.splitbill.badgeNoPayoutAccount}
+              </StatusBadge>
+            ) : pct >= 100 ? (
+              <StatusBadge variant="success">
+                {t.splitbill.badgeSettled}
+              </StatusBadge>
+            ) : (
+              <StatusBadge variant="warning">
+                {t.splitbill.badgeUnpaid}
+              </StatusBadge>
+            );
             return (
               <div key={split.id} className="rounded-[10px] border p-3.5">
-                <div className="mb-3 flex items-center gap-3">
-                  <div className="flex-1">
-                    <div className="text-[14px] font-bold">{split.title}</div>
+                <div className="mb-3 flex flex-wrap items-start gap-3">
+                  <div className="min-w-[180px] flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[14px] font-bold">
+                        {split.title}
+                      </span>
+                      {rowBadge}
+                    </div>
                     <div className="text-[11px] text-muted-foreground">
+                      {split.participants.length}
+                      {t.splitbill.peopleCountSuffix}
+                      {" · "}
+                      {split.participants.length > 0 && (
+                        <span className="mono">
+                          {formatRupiah(
+                            Math.round(
+                              Number(BigInt(split.totalAmount)) /
+                                split.participants.length,
+                            ),
+                          )}
+                          {t.splitbill.perOrgSuffix}
+                        </span>
+                      )}
+                      {" · "}
+                      {t.splitbill.createdOnPrefix}
                       {new Date(split.createdAt).toLocaleDateString(
                         locale === "en" ? "en-US" : "id-ID",
                         { day: "numeric", month: "short", year: "numeric" },
-                      )}{" "}
-                      · {split.participants.length}
-                      {t.splitbill.peopleCountSuffix}
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
@@ -546,24 +601,21 @@ export default function SplitBillPage() {
                       {formatRupiah(Number(BigInt(split.totalAmount)))}
                     </div>
                     <div className="text-[11px] text-muted-foreground">
-                      {split.participants.length > 0
-                        ? `${formatRupiah(Math.round(Number(BigInt(split.totalAmount)) / split.participants.length))}${t.splitbill.perOrgSuffix}`
-                        : ""}
+                      <span className="font-bold" style={{ color: barColor }}>
+                        {paidCount}
+                      </span>
+                      {t.splitbill.paidOfMidText}
+                      {split.participants.length}
+                      {t.splitbill.paidStatusSuffix.replace(" · ", "")}
                     </div>
                   </div>
                 </div>
                 <ProgressBar value={pct} color={barColor} className="mb-2" />
                 <div className="flex items-center justify-between gap-2">
-                  <div className="text-[12px] text-muted-foreground">
-                    <span className="font-bold" style={{ color: barColor }}>
-                      {paidCount}
-                      {t.splitbill.paidOfMidText}
-                      {split.participants.length}
-                    </span>
-                    {t.splitbill.paidStatusSuffix}
+                  <span className="text-[12px] text-muted-foreground">
                     {formatRupiah(computePaidAmount(split))}
                     {t.splitbill.collectedSuffix}
-                  </div>
+                  </span>
                   <button
                     onClick={() => setSelectedSplit(split)}
                     className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md bg-accent px-3.5 py-1.5 text-[12px] font-semibold text-primary transition-colors hover:bg-accent/70"

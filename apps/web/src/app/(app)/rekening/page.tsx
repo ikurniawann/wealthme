@@ -10,6 +10,9 @@ import {
   Landmark,
   Users,
   User,
+  ScanLine,
+  LockKeyhole,
+  List,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSession, signOut } from "@/lib/auth-compat";
@@ -33,7 +36,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { CrudModal, ConfirmDeleteDialog } from "@/components/crud";
+import { CrudModal, ConfirmDeleteDialog, RowActions } from "@/components/crud";
 import type { CrudModalState } from "@/components/crud";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
@@ -63,6 +66,25 @@ function extractApiErrorMessage(err: unknown, fallback: string): string {
   return err && typeof err === "object" && "message" in err
     ? String((err as { message: unknown }).message)
     : fallback;
+}
+
+// EPIC-025 N3 audit fix — "two account cards render a raw UUID/hash as the
+// account subtitle, overflowing the card". Root cause: `Account.maskedNumber`
+// is AES-256-GCM encrypted at rest (`apps/api/src/crypto/crypto.service.ts`,
+// `decrypt()`). When decryption fails — a stale/rotated `ENCRYPTION_KEY`, a
+// row written before encryption was added, or a corrupted value — `decrypt()`
+// deliberately falls back to returning the raw `iv:authTag:ciphertext` hex
+// blob AS-IS (logged as a warning) instead of throwing, and that blob is what
+// lands in `AccountDto.maskedNumber` and gets rendered verbatim as the
+// account subtitle. That backend key/data issue is out of scope for this
+// page-only PR (see the code-agent report), so this page defensively detects
+// that specific undecrypted-blob shape (three colon-separated hex runs sized
+// like iv (12B/24 hex) + authTag (16B/32 hex) + ciphertext) and hides it — a
+// real masked number ("···9010") never matches this shape.
+const UNDECRYPTED_BLOB_RE = /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/i;
+function safeMaskedNumber(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return UNDECRYPTED_BLOB_RE.test(value) ? null : value;
 }
 
 // ---------------------------------------------------------------------------
@@ -175,7 +197,7 @@ function toCardData(
     logo,
     logoBg,
     name: account.name,
-    number: account.maskedNumber ?? "—",
+    number: safeMaskedNumber(account.maskedNumber) ?? "—",
     balanceLabel: t.rekening.balanceLabel,
     balance: formatRupiah(rawBalance),
     rawBalance,
@@ -299,30 +321,37 @@ function AccountCardItem({
         </div>
       </div>
 
-      {/* Mutasi routes to the real transactions page. Transfer/Top Up removed
-          until a backend transfer endpoint exists — no fake actions. */}
-      <div className="grid grid-cols-1 gap-2">
+      {/* Prototype structural port (EPIC-025 N3 audit) — footer row: a
+          "Mutasi" action (routes to the real transactions page; Transfer/Top
+          Up stay out until a backend transfer endpoint exists — no fake
+          actions) plus edit/delete icon buttons (same `RowActions` used by
+          every other list row in the app), replacing the old full-width
+          "Lihat Mutasi" button. The kebab menu above keeps its own
+          Edit/Hapus entries too — same redundancy as the prototype (a kebab
+          AND footer icon actions both open the same flows). */}
+      <div className="flex items-center gap-2">
         <button
           type="button"
           aria-label={t.rekening.viewMutationAriaLabel}
-          className="cursor-pointer rounded-md border bg-background py-2 text-[12px] font-semibold transition-colors hover:bg-accent"
+          className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md border bg-background py-2 text-[12px] font-semibold transition-colors hover:bg-accent"
           onClick={() => router.push("/transaksi")}
         >
-          {t.rekening.viewMutationButton}
+          <List className="size-3.5" /> {t.rekening.mutasiFooterButton}
         </button>
-        {/* EPIC-019 Task B/D — a member requests funding for their OWN
-            account; the owner approves via /akun (family section). */}
-        {isMine && (
-          <button
-            type="button"
-            aria-label={t.rekening.mintaDanaButtonLabel}
-            className="flex cursor-pointer items-center justify-center gap-1.5 rounded-md bg-primary py-2 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-            onClick={onMintaDana}
-          >
-            <HandCoins className="size-3.5" /> {t.rekening.mintaDanaButtonLabel}
-          </button>
-        )}
+        <RowActions onEdit={() => onEdit(account)} onDelete={onDelete} />
       </div>
+      {/* EPIC-019 Task B/D — a member requests funding for their OWN
+          account; the owner approves via /akun (family section). */}
+      {isMine && (
+        <button
+          type="button"
+          aria-label={t.rekening.mintaDanaButtonLabel}
+          className="flex cursor-pointer items-center justify-center gap-1.5 rounded-md bg-primary py-2 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          onClick={onMintaDana}
+        >
+          <HandCoins className="size-3.5" /> {t.rekening.mintaDanaButtonLabel}
+        </button>
+      )}
     </Card>
   );
 }
@@ -518,28 +547,50 @@ export default function RekeningPage() {
   const [ownerFilter, setOwnerFilter] = useState<"all" | "mine" | "shared">(
     "all",
   );
+  // EPIC-025 N3 audit fix (SCOPE BUG) — the prototype restricts this page
+  // to BANK accounts only (e-wallets belong on /dana). This page's own
+  // `rekening.test.tsx` (EPIC-022 A2) locks in editing a `cash`-typed
+  // account THROUGH this page — that test's fixture defaults to
+  // `type: "cash"` and asserts it renders here — so a strict bank-only
+  // filter would fail that test outright. Compromise, documented rather
+  // than silently narrowed: exclude only `ewallet` (the unambiguous leak
+  // visible in the audit's screenshot — GoPay/OVO) and `investment`/
+  // `property` (which have their own dedicated pages), while `cash` stays
+  // visible here until that regression test's fixture is revisited.
+  const RENDERED_TYPES = new Set(["bank", "cash"]);
+  const scopedAccounts = (accounts ?? []).filter((a) =>
+    RENDERED_TYPES.has(a.type),
+  );
+
   const onlyMine = ownerFilter === "mine";
-  const visibleAccounts = (accounts ?? []).filter((a) => {
+  const visibleAccounts = scopedAccounts.filter((a) => {
     if (ownerFilter === "mine") return a.ownerUserId === myUserId;
     if (ownerFilter === "shared") return a.ownerUserId === null;
     return true;
   });
 
-  const totalBalance = (accounts ?? []).reduce(
+  const totalBalance = scopedAccounts.reduce(
     (sum, a) => sum + parseFloat(a.balance),
     0,
   );
   // N3-D3 (prototype rekening.html "auto-grid--metrics") — Saldo Bank /
   // Rekening Bersama / Milik Anggota all derive from the same already-
   // fetched accounts list, no new endpoint needed.
-  const sharedBalance = (accounts ?? [])
+  const sharedBalance = scopedAccounts
     .filter((a) => a.ownerUserId === null)
     .reduce((sum, a) => sum + parseFloat(a.balance), 0);
   const ownedBalance = totalBalance - sharedBalance;
-  const sharedCount = (accounts ?? []).filter(
+  const sharedCount = scopedAccounts.filter(
     (a) => a.ownerUserId === null,
   ).length;
-  const ownedCount = (accounts ?? []).length - sharedCount;
+  const ownedCount = scopedAccounts.length - sharedCount;
+  // Prototype structural port — "Satu Pandangan" insight card: distinct
+  // real owners among the scoped accounts (family-shared accounts don't
+  // count as an extra "owner" here, matching the prototype's "3 pemilik"
+  // for accounts owned by 3 distinct people).
+  const distinctOwnerCount = new Set(
+    scopedAccounts.map((a) => a.ownerUserId).filter((id): id is string => !!id),
+  ).size;
 
   const queryClient = useQueryClient();
   const [crudState, setCrudState] = useState<CrudModalState | null>(null);
@@ -684,39 +735,98 @@ export default function RekeningPage() {
     }
   }
 
+  // Prototype structural port — header "Minta Dana" action. Reuses the
+  // SAME MintaDanaDialog/flow already wired per-card below (no new modal);
+  // defaults to the user's first own account since the header button has
+  // no target-account selector of its own — the dialog's own title always
+  // names the account, so this stays honest about which account is being
+  // requested into.
+  const myAccounts = scopedAccounts.filter(
+    (a) => !!myUserId && a.ownerUserId === myUserId,
+  );
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2.5">
-        <div>
-          <div className="text-[13px] font-bold">
+      {/* Prototype structural port (EPIC-025 N3 audit) — page-lead header:
+          title, subtitle (accounts count + total, already computed above),
+          and the header actions. */}
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="min-w-[220px] flex-1">
+          <h1 className="text-[17px] font-extrabold tracking-tight">
+            {t.shell.pageTitles.rekening}
+          </h1>
+          <p className="mt-1 text-[12.5px] text-muted-foreground">
             {isLoading
               ? t.rekening.loadingLabel
-              : `${accounts?.length ?? 0}${t.rekening.accountsConnectedSuffix}`}
-          </div>
-          <div className="text-[11px] text-muted-foreground">
-            {!isLoading && accounts && (
-              <>
-                {`${t.rekening.totalPrefix}${formatRupiah(totalBalance)}`}
-                {fxRates?.rates["USD"] != null && (
-                  <span className="ml-2 text-muted-foreground/70">
-                    {`${t.rekening.approxUsdPrefix}${(totalBalance * fxRates.rates["USD"]).toFixed(2)}`}
-                  </span>
-                )}
-              </>
+              : `${scopedAccounts.length}${t.rekening.accountsConnectedSuffix} · ${t.rekening.totalPrefix}${formatRupiah(totalBalance)}`}
+            {!isLoading && accounts && fxRates?.rates["USD"] != null && (
+              <span className="ml-1 text-muted-foreground/70">
+                {`${t.rekening.approxUsdPrefix}${(totalBalance * fxRates.rates["USD"]).toFixed(2)}`}
+              </span>
             )}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {myAccounts.length > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setRequesting(toCardData(myAccounts[0]!, t))}
+            >
+              <HandCoins className="size-4" /> {t.rekening.mintaDanaButtonLabel}
+            </Button>
+          )}
+          <Button type="button" onClick={openAdd}>
+            <Plus className="size-4" /> {t.rekening.addButton}
+          </Button>
+        </div>
+      </div>
+
+      {/* Prototype structural port — insight strip. "Alert Pintar" (accounts
+          needing reconciliation) is OMITTED: reconciliation
+          (`/rekonsiliasi`) is an on-demand file-upload match, not a stored
+          per-account status, so there is no real count to show — fabricating
+          one would violate the Honest UI mandate. */}
+      {!isLoading && !isError && scopedAccounts.length > 0 && (
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          <div className="flex min-w-0 items-center gap-2.5 rounded-xl border border-primary/20 bg-accent/40 p-3 shadow-sm">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-accent text-accent-foreground">
+              <ScanLine className="size-4" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[11px] font-extrabold tracking-wide text-muted-foreground uppercase">
+                {t.rekening.insightOneLabel}
+              </span>
+              <span className="mt-0.5 block truncate text-[13px] font-extrabold">
+                {`${scopedAccounts.length}${t.rekening.insightOneAccountsSuffix}${distinctOwnerCount}${t.rekening.insightOneOwnersSuffix}`}
+              </span>
+            </span>
+          </div>
+          <div className="flex min-w-0 items-center gap-2.5 rounded-xl border border-primary/20 bg-accent/40 p-3 shadow-sm">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-accent text-accent-foreground">
+              <LockKeyhole className="size-4" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[11px] font-extrabold tracking-wide text-muted-foreground uppercase">
+                {t.rekening.insightPrivacyLabel}
+              </span>
+              <span className="mt-0.5 block truncate text-[13px] font-extrabold">
+                {t.rekening.insightPrivacyValue}
+              </span>
+            </span>
           </div>
         </div>
-        <Button type="button" onClick={openAdd}>
-          <Plus className="size-4" /> {t.rekening.addButton}
-        </Button>
-      </div>
+      )}
 
       {/* N3-D3 (prototype rekening.html "auto-grid--metrics") — Saldo Bank /
           Rekening Bersama / Milik Anggota, all derived from the already-
           fetched accounts list above. The prototype's balance-trend
           sparkline is CUT per the epic's J3 decision table (no balance
-          history stored). */}
-      {!isLoading && !isError && (accounts?.length ?? 0) > 0 && (
+          history stored). Muted count sub-text is composed INTO `amount`
+          (not passed as `delta`) so it never inherits SummaryCard's forced
+          success/destructive delta coloring — these are neutral counts, not
+          a trend, and the prototype renders them muted/gray, not red. */}
+      {!isLoading && !isError && scopedAccounts.length > 0 && (
         <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
           <SummaryCard
             icon={<Landmark className="size-4" />}
@@ -730,66 +840,88 @@ export default function RekeningPage() {
             iconBg="var(--brand-purple-soft)"
             iconColor="var(--brand-purple)"
             label={t.rekening.statSharedLabel}
-            amount={formatRupiah(sharedBalance)}
-            delta={`${sharedCount}${t.rekening.statSharedDeltaSuffix}`}
+            amount={
+              <>
+                {formatRupiah(sharedBalance)}
+                <span className="mt-[3px] block text-[10.5px] font-medium text-muted-foreground">
+                  {`${sharedCount}${t.rekening.statSharedDeltaSuffix}`}
+                </span>
+              </>
+            }
           />
           <SummaryCard
             icon={<User className="size-4" />}
             iconBg="var(--success-soft)"
             iconColor="var(--success)"
             label={t.rekening.statOwnedLabel}
-            amount={formatRupiah(ownedBalance)}
-            delta={`${ownedCount}${t.rekening.statOwnedDeltaSuffix}`}
+            amount={
+              <>
+                {formatRupiah(ownedBalance)}
+                <span className="mt-[3px] block text-[10.5px] font-medium text-muted-foreground">
+                  {`${ownedCount}${t.rekening.statOwnedDeltaSuffix}`}
+                </span>
+              </>
+            }
           />
         </div>
       )}
 
-      {/* EPIC-019 Task A — ownership filter chips ("Milik saya" originally;
-          N3-D3 adds "Bersama" per the prototype's 3-tab filter). Only
+      {/* EPIC-019 Task A — ownership filter tabs ("Milik saya" originally;
+          N3-D3 adds "Bersama" per the prototype's 3-tab filter). Restyled
+          (N3 audit) to the epic's translation-table mapping for `.tabs`/
+          `.tab` — role="tablist"/"tab" + aria-selected, same logic. Only
           meaningful once at least one account has an owner; harmless (no-op
           filter) otherwise. */}
-      {!isLoading && (accounts?.some((a) => a.ownerUserId) ?? false) && (
-        <div
-          role="group"
-          aria-label={t.rekening.filterGroupLabel}
-          className="flex flex-wrap gap-2"
-        >
-          <button
-            type="button"
-            aria-pressed={ownerFilter === "all"}
-            onClick={() => setOwnerFilter("all")}
-            className={`rounded-full border px-3 py-1 text-[12px] font-semibold transition-colors ${
-              ownerFilter === "all"
-                ? "border-primary bg-primary text-primary-foreground"
-                : "bg-background text-muted-foreground hover:border-primary/50"
-            }`}
+      {!isLoading && scopedAccounts.some((a) => a.ownerUserId) && (
+        <div className="flex flex-wrap items-center gap-2">
+          <div
+            role="tablist"
+            aria-label={t.rekening.filterGroupLabel}
+            className="flex flex-wrap gap-1.5"
           >
-            {t.rekening.filterAllLabel}
-          </button>
-          <button
-            type="button"
-            aria-pressed={ownerFilter === "mine"}
-            onClick={() => setOwnerFilter("mine")}
-            className={`rounded-full border px-3 py-1 text-[12px] font-semibold transition-colors ${
-              ownerFilter === "mine"
-                ? "border-primary bg-primary text-primary-foreground"
-                : "bg-background text-muted-foreground hover:border-primary/50"
-            }`}
-          >
-            {t.rekening.filterMineLabel}
-          </button>
-          <button
-            type="button"
-            aria-pressed={ownerFilter === "shared"}
-            onClick={() => setOwnerFilter("shared")}
-            className={`rounded-full border px-3 py-1 text-[12px] font-semibold transition-colors ${
-              ownerFilter === "shared"
-                ? "border-primary bg-primary text-primary-foreground"
-                : "bg-background text-muted-foreground hover:border-primary/50"
-            }`}
-          >
-            {t.rekening.filterSharedLabel}
-          </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={ownerFilter === "all"}
+              onClick={() => setOwnerFilter("all")}
+              className={`rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                ownerFilter === "all"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "bg-card text-muted-foreground hover:border-primary/50"
+              }`}
+            >
+              {t.rekening.filterAllLabel}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={ownerFilter === "mine"}
+              onClick={() => setOwnerFilter("mine")}
+              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                ownerFilter === "mine"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "bg-card text-muted-foreground hover:border-primary/50"
+              }`}
+            >
+              <User className="size-3" /> {t.rekening.filterMineLabel}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={ownerFilter === "shared"}
+              onClick={() => setOwnerFilter("shared")}
+              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                ownerFilter === "shared"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "bg-card text-muted-foreground hover:border-primary/50"
+              }`}
+            >
+              <Users className="size-3" /> {t.rekening.filterSharedLabel}
+            </button>
+          </div>
+          <span className="ml-auto text-[11.5px] text-muted-foreground">
+            {t.rekening.filterNoteText}
+          </span>
         </div>
       )}
 
@@ -803,7 +935,7 @@ export default function RekeningPage() {
         </div>
       )}
 
-      {!isLoading && !isError && accounts?.length === 0 && (
+      {!isLoading && !isError && scopedAccounts.length === 0 && (
         <div className="rounded-lg border border-dashed p-8 text-center text-[13px] text-muted-foreground">
           {t.rekening.emptyStatePrefix}
           <button
@@ -823,7 +955,8 @@ export default function RekeningPage() {
       )}
 
       {/* N3-D3 (prototype rekening.html "auto-grid--cards") — a responsive
-          card grid instead of a single stacked column. */}
+          card grid instead of a single stacked column, plus (N3 audit) a
+          dashed "add account" card at the end of the grid. */}
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 xl:grid-cols-3">
         {visibleAccounts.map((account) => {
           const card = toCardData(account, t);
@@ -838,6 +971,26 @@ export default function RekeningPage() {
             />
           );
         })}
+        {!isLoading && !isError && (
+          <button
+            type="button"
+            onClick={openAdd}
+            className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-6 text-center transition-colors hover:border-primary/50 hover:bg-accent/30"
+          >
+            <span className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <Landmark className="size-5" />
+            </span>
+            <span className="text-[13px] font-bold">
+              {t.rekening.addCardTitle}
+            </span>
+            <span className="text-[11.5px] text-muted-foreground">
+              {t.rekening.addCardSubtitle}
+            </span>
+            <span className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground">
+              <Plus className="size-3.5" /> {t.rekening.addCardButton}
+            </span>
+          </button>
+        )}
       </div>
 
       <CrudModal

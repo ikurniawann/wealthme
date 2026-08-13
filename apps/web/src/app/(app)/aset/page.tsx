@@ -40,6 +40,7 @@ import type {
   AssetTypeId,
   AssetValueChangeMode,
   NetWorthHistoryDto,
+  NetWorthHistoryPointDto,
 } from "@wealthme/contracts";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -786,13 +787,26 @@ function AccountsGroupCard({
       </div>
       <div>
         {accounts.map((account, i) => {
-          const subtitle =
-            account.institution ??
-            account.maskedNumber ??
+          // EPIC-025 N3 fidelity follow-up: the prototype renders account
+          // meta as ONE combined line — "Bank · ···9010 · Bersama" — not a
+          // single field chosen by fallback. Join every real field that's
+          // actually present (type, institution, masked number, owner)
+          // instead of discarding all but the first non-null one.
+          const typeLabel =
             t.aset.accountTypeLabels[
               account.type as keyof typeof t.aset.accountTypeLabels
-            ] ??
-            account.type;
+            ] ?? account.type;
+          const ownerSegment = account.ownerUserId
+            ? (account.ownerName ?? t.aset.ownerUnknownLabel)
+            : t.aset.ownerSharedLabel;
+          const subtitle = [
+            typeLabel,
+            account.institution,
+            account.maskedNumber,
+            ownerSegment,
+          ]
+            .filter((part): part is string => Boolean(part && part.trim()))
+            .join(" · ");
           const cfg = ACCOUNT_TYPE_ICON[account.type] ?? {
             icon: Wallet,
             chip: "bg-gray-100 text-gray-600",
@@ -907,6 +921,96 @@ function InvestasiGroupCard({ investments }: { investments: InvestmentDto[] }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Net-worth history → monthly buckets ─────────────────────────────────────
+//
+// EPIC-025 N3 fidelity follow-up — root cause of the broken "Pertumbuhan
+// Aset 6 Bulan" chart: `/dashboard/net-worth/history` returns one row per
+// captured SNAPSHOT (effectively daily), not one row per month. The
+// previous version of this page mapped every raw point straight to a
+// month-short label ("Jul"/"Agu"/…), so a `range=6m` response with dozens
+// of daily rows produced dozens of chart points whose x-axis repeated the
+// same month label back-to-back ("Jul Jul Jul … Agu Agu Agu") and whose
+// line looked flat because most neighbouring points barely move day to
+// day. Bucketing to one point per calendar month (keeping the LAST/most
+// recent snapshot within each month as that month's representative value)
+// yields exactly one point — and one distinct label — per month.
+function bucketPointsByMonth(
+  points: NetWorthHistoryPointDto[],
+): NetWorthHistoryPointDto[] {
+  const latestByMonth = new Map<string, NetWorthHistoryPointDto>();
+  for (const point of points) {
+    const monthKey = point.capturedAt.slice(0, 7); // "YYYY-MM"
+    const existing = latestByMonth.get(monthKey);
+    if (!existing || point.capturedAt > existing.capturedAt) {
+      latestByMonth.set(monthKey, point);
+    }
+  }
+  return Array.from(latestByMonth.values())
+    .sort((a, b) => a.capturedAt.localeCompare(b.capturedAt))
+    .slice(-6);
+}
+
+// ── Asset breakdown stat card ────────────────────────────────────────────────
+//
+// EPIC-025 N3 fidelity follow-up: the prototype's `.bento-metrics` row under
+// the hero — one mini-card per Cash & E-Wallet / Bank & Account / Investasi
+// / Aset Fisik, each with an icon, label, value, and an optional sub-line.
+// The sub-line is either a real computed month-over-month delta (`deltaText`)
+// or a neutral, non-numeric note (`note`) — never both, and never a
+// fabricated delta. Matches this file's existing card idiom (`rounded-[14px]
+// border bg-card p-4`) rather than reusing `@/components/wm`'s `SummaryCard`,
+// which forces the delta slot to success/destructive coloring and has no
+// neutral-note variant.
+interface AssetStatCardProps {
+  icon: LucideIcon;
+  iconBg: string;
+  iconColor: string;
+  label: string;
+  value: number;
+  deltaText?: string;
+  deltaDirection?: "up" | "down";
+  note?: string;
+}
+
+function AssetStatCard({
+  icon: Icon,
+  iconBg,
+  iconColor,
+  label,
+  value,
+  deltaText,
+  deltaDirection,
+  note,
+}: AssetStatCardProps) {
+  return (
+    <div className="rounded-[14px] border bg-card p-4">
+      <div
+        className="mb-2 flex size-9 items-center justify-center rounded-[10px]"
+        style={{ background: iconBg, color: iconColor }}
+      >
+        <Icon className="size-4" />
+      </div>
+      <div className="mb-0.5 text-[11px] text-muted-foreground">{label}</div>
+      <div className="wm-money mono mb-[3px] text-[15px] font-extrabold">
+        {formatRupiah(value)}
+      </div>
+      {deltaText ? (
+        <div
+          className={`text-[11px] font-bold ${deltaDirection === "down" ? "text-destructive" : "text-success"}`}
+        >
+          {deltaText}
+        </div>
+      ) : (
+        note && (
+          <div className="text-[11px] font-semibold text-muted-foreground">
+            {note}
+          </div>
+        )
+      )}
     </div>
   );
 }
@@ -1090,6 +1194,19 @@ export default function AsetPage() {
     BigInt(0),
   );
 
+  // A "breakdown" only says something useful when the portfolio actually
+  // spans more than one category — with a single funded category, each
+  // stat card would just repeat the group card's own total (and, when that
+  // category also happens to equal the grand total, the grand-total banner
+  // too) with zero added information. The row only renders once there are
+  // at least two non-zero categories to compare.
+  const nonZeroAssetCategoryCount = [
+    cashTotal > BigInt(0),
+    bankTotal > BigInt(0),
+    investmentsTotal > 0,
+    assetsTotalBig > BigInt(0),
+  ].filter(Boolean).length;
+
   const allocationSegments: DonutSegment[] = [
     {
       label: t.aset.breakdownFisikLabel,
@@ -1112,6 +1229,48 @@ export default function AsetPage() {
       color: "var(--success)",
     },
   ].filter((seg) => seg.value > 0);
+
+  // EPIC-025 N3 fidelity follow-up: one point per calendar month (see
+  // `bucketPointsByMonth` above) — feeds both the trend chart and the
+  // Investasi stat card's month-over-month delta below.
+  const monthlyAssetPoints = bucketPointsByMonth(assetHistory?.points ?? []);
+
+  // Investasi stat-card delta: a REAL month-over-month % change computed
+  // from `totalInvestments` across the two most recent monthly buckets —
+  // only rendered when at least two distinct months of history exist and
+  // the earlier bucket is non-zero (Honest UI: never fabricated, never a
+  // divide-by-zero). Cash & E-Wallet / Bank & Account have no equivalent:
+  // the history snapshot only carries a COMBINED `totalCash` (all accounts
+  // together, see dashboard.service.ts), so there is no real per-category
+  // split to compute a Cash-only or Bank-only delta from — those two cards
+  // render without a delta rather than showing a misattributed shared
+  // number on both.
+  const investasiDeltaPct = (() => {
+    if (monthlyAssetPoints.length < 2) return null;
+    const prevPoint = monthlyAssetPoints[monthlyAssetPoints.length - 2]!;
+    const latestPoint = monthlyAssetPoints[monthlyAssetPoints.length - 1]!;
+    const prev = parseFloat(prevPoint.totalInvestments);
+    const latest = parseFloat(latestPoint.totalInvestments);
+    if (!prev) return null;
+    return ((latest - prev) / prev) * 100;
+  })();
+  const investasiDeltaText =
+    investasiDeltaPct === null
+      ? undefined
+      : `${investasiDeltaPct >= 0 ? "↑" : "↓"} ${Math.abs(
+          investasiDeltaPct,
+        ).toLocaleString(locale === "en" ? "en-US" : "id-ID", {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        })}% ${t.aset.statFromLastMonthSuffix}`;
+
+  const totalAssetsAsOfLabel = new Date().toLocaleDateString(
+    locale === "en" ? "en-US" : "id-ID",
+    { day: "numeric", month: "long", year: "numeric" },
+  );
+
+  const showTrendChart = !isLoading && monthlyAssetPoints.length >= 2;
+  const showAllocationDonut = !isLoading && allocationSegments.length > 0;
 
   return (
     <div
@@ -1151,6 +1310,10 @@ export default function AsetPage() {
               <CountUpRupiah value={grandTotal} />
             </div>
           )}
+          <div className="mt-[2px] text-[11px] text-muted-foreground">
+            {t.aset.totalAssetsSubtitlePrefix}
+            {totalAssetsAsOfLabel}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -1179,6 +1342,50 @@ export default function AsetPage() {
         </div>
       </div>
 
+      {/* Breakdown stat cards — Cash & E-Wallet / Bank & Account / Investasi
+          / Aset Fisik, each derived from data already fetched above. Only
+          shown once the portfolio spans 2+ categories (see
+          `nonZeroAssetCategoryCount` above). */}
+      {!isLoading && nonZeroAssetCategoryCount >= 2 && (
+        <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
+          <AssetStatCard
+            icon={Wallet}
+            iconBg="var(--success-soft)"
+            iconColor="var(--success)"
+            label={t.aset.breakdownCashLabel}
+            value={Number(cashTotal)}
+          />
+          <AssetStatCard
+            icon={Landmark}
+            iconBg="var(--accent)"
+            iconColor="var(--accent-foreground)"
+            label={t.aset.breakdownBankLabel}
+            value={Number(bankTotal)}
+          />
+          <AssetStatCard
+            icon={TrendingUp}
+            iconBg="var(--brand-purple-soft)"
+            iconColor="var(--brand-purple)"
+            label={t.aset.breakdownInvestasiLabel}
+            value={investmentsTotal}
+            deltaText={investasiDeltaText}
+            deltaDirection={
+              investasiDeltaPct !== null && investasiDeltaPct < 0
+                ? "down"
+                : "up"
+            }
+          />
+          <AssetStatCard
+            icon={Home}
+            iconBg="var(--warning-soft)"
+            iconColor="var(--warning)"
+            label={t.aset.breakdownFisikLabel}
+            value={Number(assetsTotalBig)}
+            note={t.aset.statFisikNote}
+          />
+        </div>
+      )}
+
       {/* Errors */}
       {hasError && (
         <div
@@ -1189,48 +1396,55 @@ export default function AsetPage() {
         </div>
       )}
 
-      {/* 6-month asset trend — real fix (EPIC-025 N3 fidelity follow-up):
-          `assetHistory.points[].totalAssets` comes from the SAME
-          `/dashboard/net-worth/history` endpoint `beranda` already queries
-          for its net-worth sparkline; no new backend work. */}
-      {!isLoading &&
-        assetHistory?.points &&
-        assetHistory.points.length >= 2 && (
-          <div className="rounded-[14px] border bg-card p-4">
-            <div className="mb-2 text-[13.5px] font-bold">
-              {t.aset.assetTrendTitle}
+      {/* Trend (6-month asset growth) + allocation donut, side by side
+          (2:1) — matches the prototype's `.bento-grid` (`bento-span-8` /
+          `bento-span-4`), previously stacked full-width. Trend fix (EPIC-025
+          N3 fidelity follow-up): `monthlyAssetPoints` (see
+          `bucketPointsByMonth` above) buckets the raw daily snapshot rows
+          from `/dashboard/net-worth/history` down to one point per month. */}
+      {(showTrendChart || showAllocationDonut) && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {showTrendChart && (
+            <div className="rounded-[14px] border bg-card p-4 lg:col-span-2">
+              <div className="mb-2 text-[13.5px] font-bold">
+                {t.aset.assetTrendTitle}
+              </div>
+              <TrendChart
+                categories={monthlyAssetPoints.map((p) =>
+                  new Date(p.capturedAt).toLocaleDateString(
+                    locale === "en" ? "en-US" : "id-ID",
+                    { month: "short" },
+                  ),
+                )}
+                series={[
+                  {
+                    name: t.aset.totalAssetsLabel,
+                    data: monthlyAssetPoints.map((p) => Number(p.totalAssets)),
+                  },
+                ]}
+                height={250}
+                ariaLabel={`${t.aset.assetTrendTitle}: ${formatRupiah(Number(monthlyAssetPoints[0]!.totalAssets))} → ${formatRupiah(Number(monthlyAssetPoints[monthlyAssetPoints.length - 1]!.totalAssets))}`}
+              />
             </div>
-            <TrendChart
-              categories={assetHistory.points.map((p) =>
-                new Date(p.capturedAt).toLocaleDateString(
-                  locale === "en" ? "en-US" : "id-ID",
-                  { month: "short" },
-                ),
-              )}
-              series={[
-                {
-                  name: t.aset.totalAssetsLabel,
-                  data: assetHistory.points.map((p) => Number(p.totalAssets)),
-                },
-              ]}
-              height={200}
-              ariaLabel={`${t.aset.assetTrendTitle}: ${formatRupiah(Number(assetHistory.points[0]!.totalAssets))} → ${formatRupiah(Number(assetHistory.points[assetHistory.points.length - 1]!.totalAssets))}`}
-            />
-          </div>
-        )}
+          )}
 
-      {/* Allocation donut (FOLD per J3 — derived from data already fetched
-          above). */}
-      {!isLoading && allocationSegments.length > 0 && (
-        <div className="rounded-[14px] border bg-card p-4">
-          <div className="mb-2 text-[13.5px] font-bold">
-            {t.aset.allocationTitle}
-          </div>
-          <DonutChart
-            segments={allocationSegments}
-            centerLabel={t.aset.totalAssetsLabel}
-            ariaLabel={`${t.aset.allocationTitle}: ${allocationSegments.map((s) => `${s.label} ${formatRupiah(s.value)}`).join(", ")}`}
-          />
+          {showAllocationDonut && (
+            // EPIC-025 N3 fidelity follow-up: the prototype's donut has NO
+            // legend row, only the centered total. `DonutChart` (protected —
+            // `components/charts/*`) doesn't expose a legend toggle, so the
+            // default ApexCharts bottom legend is hidden here, page-locally,
+            // via a Tailwind arbitrary-variant selector instead.
+            <div className="rounded-[14px] border bg-card p-4 lg:col-span-1 [&_.apexcharts-legend]:hidden">
+              <div className="mb-2 text-[13.5px] font-bold">
+                {t.aset.allocationTitle}
+              </div>
+              <DonutChart
+                segments={allocationSegments}
+                centerLabel={t.aset.totalAssetsLabel}
+                ariaLabel={`${t.aset.allocationTitle}: ${allocationSegments.map((s) => `${s.label} ${formatRupiah(s.value)}`).join(", ")}`}
+              />
+            </div>
+          )}
         </div>
       )}
 

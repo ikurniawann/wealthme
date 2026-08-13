@@ -16,7 +16,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useLocale } from "@/hooks/use-locale";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { HeroCard, SectionCard, CardLink } from "@/components/wm";
+import { HeroCard, SectionCard, CardLink, StatusBadge } from "@/components/wm";
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah, parseRupiah, formatNumber } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
@@ -63,7 +63,19 @@ const SPT_STATUS_CLASS: Record<SptStatus, string> = {
   terlambat: "text-destructive",
 };
 
+// Prototype's Riwayat rows use pill status badges rather than plain coloured
+// text (matches StatusBadge's own variant set in components/wm).
+const SPT_STATUS_BADGE_VARIANT: Record<
+  SptStatus,
+  "success" | "warning" | "danger"
+> = {
+  belum_lapor: "warning",
+  sudah_lapor: "success",
+  terlambat: "danger",
+};
+
 const CURRENT_YEAR = new Date().getFullYear();
+const TAX_YEAR_OPTIONS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2];
 
 // EPIC-024 Group E (E1) — TaxRecord persists grossIncome/ptkp/netTax as
 // Postgres BigInt (schema.prisma), and the API's Pph21RequestDto /
@@ -187,6 +199,12 @@ export default function TaxPage() {
   const [gross, setGross] = useState("");
   const [ptkp, setPtkp] = useState(54000000);
   const [zakat, setZakat] = useState("");
+  // Prototype structural port follow-up — the calculator math itself is
+  // year-independent (the BE brackets don't vary per year), but which
+  // TaxRecord year a Save writes to genuinely is real, wired functionality
+  // (TaxRecordDto.taxYear accepts any year), unlike a hero-level year
+  // switcher which would have no distinct historical estimate to show.
+  const [taxYear, setTaxYear] = useState(CURRENT_YEAR);
 
   const debouncedGross = useDebounce(gross, 300);
   const debouncedZakat = useDebounce(zakat, 300);
@@ -305,11 +323,19 @@ export default function TaxPage() {
     // notation, so a plain `String()` is safe for those two.
     if (!pph21Result || !canSaveTaxRecord) return;
     upsertMutation.mutate({
-      taxYear: CURRENT_YEAR,
+      taxYear,
       grossIncome: toClampedDigitString(debouncedGross, MAX_TAX_INPUT),
       ptkp: String(pph21Result.ptkp),
       netTax: String(Math.round(pph21Result.totalTax)),
     });
+  }
+
+  function handleResetCalculator(): void {
+    setGross("");
+    setZakat("");
+    setPtkp(54000000);
+    setTaxYear(CURRENT_YEAR);
+    toast(t.tax.toastReset);
   }
 
   function handleUpdateSptStatus(id: string, sptStatus: SptStatus): void {
@@ -324,6 +350,26 @@ export default function TaxPage() {
   // Current year record (if any)
   const currentRecord = taxRecords.find((r) => r.taxYear === CURRENT_YEAR);
   const prevRecord = taxRecords.find((r) => r.taxYear === CURRENT_YEAR - 1);
+
+  // Prototype puts the "Tandai Sudah Lapor" action on the still-open filing
+  // year (a bordered button, not a bare text link) — never on a year that's
+  // already reported. Shared so it renders identically wherever a record's
+  // sptStatus is actually "belum_lapor".
+  function renderMarkReportedButton(recordId: string) {
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => handleUpdateSptStatus(recordId, "sudah_lapor")}
+        disabled={!canManageTaxRecords}
+        aria-describedby={!canManageTaxRecords ? "tax-access-note" : undefined}
+        title={!canManageTaxRecords ? (accessNote ?? undefined) : undefined}
+        className="mt-2 h-auto px-2.5 py-1 text-[11px]"
+      >
+        {t.tax.markReportedButton}
+      </Button>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -368,25 +414,8 @@ export default function TaxPage() {
               >
                 {t.tax.sptStatusLabels[prevRecord.sptStatus as SptStatus]}
               </div>
-              <button
-                onClick={() =>
-                  handleUpdateSptStatus(prevRecord.id, "sudah_lapor")
-                }
-                disabled={!canManageTaxRecords}
-                aria-describedby={
-                  !canManageTaxRecords ? "tax-access-note" : undefined
-                }
-                title={
-                  !canManageTaxRecords ? (accessNote ?? undefined) : undefined
-                }
-                className={`mt-1 text-[10.5px] text-primary ${
-                  canManageTaxRecords
-                    ? "cursor-pointer hover:underline"
-                    : "cursor-not-allowed opacity-50"
-                }`}
-              >
-                {t.tax.markReportedButton}
-              </button>
+              {prevRecord.sptStatus === "belum_lapor" &&
+                renderMarkReportedButton(prevRecord.id)}
             </>
           ) : (
             <div className="text-[16px] font-extrabold text-muted-foreground">
@@ -410,16 +439,24 @@ export default function TaxPage() {
                 {t.tax.deadlinePrefix}
                 {CURRENT_YEAR + 1}
               </div>
+              {currentRecord.sptStatus === "belum_lapor" &&
+                renderMarkReportedButton(currentRecord.id)}
             </>
           ) : (
-            <div className="text-[16px] font-extrabold text-warning">
-              {t.tax.sptStatusLabels.belum_lapor}
-            </div>
+            <>
+              <div className="text-[16px] font-extrabold text-warning">
+                {t.tax.sptStatusLabels.belum_lapor}
+              </div>
+              <div className="text-[10.5px] text-muted-foreground">
+                {t.tax.deadlinePrefix}
+                {CURRENT_YEAR + 1}
+              </div>
+            </>
           )}
         </Card>
         <Card className="gap-0 p-4">
           <div className="mb-1 text-[10.5px] text-muted-foreground">
-            {t.tax.zakatDeductionTitle}
+            {t.tax.perpuluhanDeductionTitle}
           </div>
           <div className="text-[16px] font-extrabold text-primary">
             {currentRecord
@@ -427,7 +464,7 @@ export default function TaxPage() {
               : t.tax.zakatDeductionDash}
           </div>
           <div className="text-[10.5px] text-muted-foreground">
-            {t.tax.zakatDeductionDesc}
+            {t.tax.perpuluhanDeductionDesc}
           </div>
         </Card>
       </div>
@@ -448,6 +485,26 @@ export default function TaxPage() {
           {t.tax.calculatorSubtitle}
         </div>
         <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+          <div>
+            <label
+              htmlFor="tax-year-select"
+              className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground"
+            >
+              {t.tax.fieldTaxYearLabel}
+            </label>
+            <select
+              id="tax-year-select"
+              value={taxYear}
+              onChange={(e) => setTaxYear(Number(e.target.value))}
+              className={FIELD_CLASS}
+            >
+              {TAX_YEAR_OPTIONS.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
           <div>
             <label
               htmlFor="tax-gross-input"
@@ -471,6 +528,9 @@ export default function TaxPage() {
               }
               className={FIELD_CLASS}
             />
+            <div className="mt-1.5 text-[11px] text-muted-foreground">
+              {t.tax.grossInputHint}
+            </div>
           </div>
           <div>
             <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
@@ -487,6 +547,10 @@ export default function TaxPage() {
                 </option>
               ))}
             </select>
+            <div className="mt-1.5 text-[11px] text-muted-foreground">
+              {t.tax.ptkpSelectedPrefix}
+              <span className="mono">{formatRupiah(ptkp)}</span>
+            </div>
           </div>
           <div>
             <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
@@ -498,10 +562,13 @@ export default function TaxPage() {
               disabled
               className={FIELD_CLASS + " opacity-70"}
             />
+            <div className="mt-1.5 text-[11px] text-muted-foreground">
+              {t.tax.jabatanHint}
+            </div>
           </div>
-          <div>
+          <div className="md:col-span-2">
             <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
-              {t.tax.fieldZakatLabel}
+              {t.tax.fieldPerpuluhanLabel}
             </label>
             <input
               type="text"
@@ -518,7 +585,21 @@ export default function TaxPage() {
               }
               className={FIELD_CLASS}
             />
+            <div className="mt-1.5 text-[11px] text-muted-foreground">
+              {t.tax.perpuluhanHint}
+              <Link href="/donation" className="text-primary hover:underline">
+                {t.tax.perpuluhanHintLinkLabel}
+              </Link>
+              .
+            </div>
           </div>
+        </div>
+        <div className="notice notice--info mt-3.5 rounded-[10px] border border-primary/15 bg-accent/60 p-3 text-[11px] text-muted-foreground">
+          {t.tax.payloadCalloutPrefix}
+          <span className="mono">
+            {`{ grossIncome: "${toClampedDigitString(debouncedGross, MAX_TAX_INPUT)}", ptkp: "${ptkp}", perpuluhanPaid: "${toClampedDigitString(debouncedZakat, MAX_TAX_INPUT)}" }`}
+          </span>
+          {t.tax.payloadCalloutSuffix}
         </div>
         <div className="mt-4 rounded-[12px] border border-primary/15 bg-accent p-4 text-center">
           <div className="text-[11.5px] text-muted-foreground">
@@ -546,19 +627,28 @@ export default function TaxPage() {
             </>
           )}
         </div>
-        <Button
-          onClick={handleSaveTaxRecord}
-          disabled={!canSaveTaxRecord || upsertMutation.isPending}
-          aria-describedby={
-            !canManageTaxRecords ? "tax-access-note" : undefined
-          }
-          className="mt-3.5 h-auto px-4 py-2.5"
-          variant="outline"
-        >
-          {upsertMutation.isPending
-            ? t.tax.savingLabel
-            : t.tax.saveToTaxRecordButton}
-        </Button>
+        <div className="mt-3.5 flex flex-wrap gap-2.5">
+          <Button
+            onClick={handleSaveTaxRecord}
+            disabled={!canSaveTaxRecord || upsertMutation.isPending}
+            aria-describedby={
+              !canManageTaxRecords ? "tax-access-note" : undefined
+            }
+            className="h-auto px-4 py-2.5"
+            variant="outline"
+          >
+            {upsertMutation.isPending
+              ? t.tax.savingLabel
+              : t.tax.saveToTaxRecordButton}
+          </Button>
+          <Button
+            onClick={handleResetCalculator}
+            className="h-auto px-4 py-2.5"
+            variant="outline"
+          >
+            {t.tax.resetButton}
+          </Button>
+        </div>
         {/* EPIC-023 Task I (I1) — say why Save (and the SPT status buttons
             above, which share this same explanation via aria-describedby)
             are unavailable, instead of letting the user press them and
@@ -586,6 +676,9 @@ export default function TaxPage() {
                   {t.tax.colRate}
                 </th>
                 <th className="py-2 text-right font-semibold text-muted-foreground">
+                  {t.tax.colTaxableBase}
+                </th>
+                <th className="py-2 text-right font-semibold text-muted-foreground">
                   {t.tax.colTax}
                 </th>
               </tr>
@@ -593,6 +686,7 @@ export default function TaxPage() {
             <tbody>
               {BRACKET_ROWS.map((row) => {
                 const layerAmt = taxBreakdown[row.idx]?.tax ?? 0;
+                const taxableBase = taxBreakdown[row.idx]?.taxableAmount ?? 0;
                 const muted = layerAmt <= 0;
                 return (
                   <tr key={row.id} className="border-b last:border-b-0">
@@ -617,6 +711,14 @@ export default function TaxPage() {
                         (muted ? "text-muted-foreground" : "")
                       }
                     >
+                      {formatRupiah(Math.round(taxableBase))}
+                    </td>
+                    <td
+                      className={
+                        "mono py-2 text-right " +
+                        (muted ? "text-muted-foreground" : "")
+                      }
+                    >
                       {formatRupiah(Math.round(layerAmt))}
                     </td>
                   </tr>
@@ -624,6 +726,9 @@ export default function TaxPage() {
               })}
             </tbody>
           </table>
+        </div>
+        <div className="mt-2.5 text-[11px] text-muted-foreground">
+          {t.tax.bracketFootnote}
         </div>
       </SectionCard>
 
@@ -651,11 +756,11 @@ export default function TaxPage() {
                 </div>
               </div>
               <div className="text-right">
-                <div
-                  className={`text-[12px] font-bold ${SPT_STATUS_CLASS[r.sptStatus as SptStatus]}`}
+                <StatusBadge
+                  variant={SPT_STATUS_BADGE_VARIANT[r.sptStatus as SptStatus]}
                 >
                   {t.tax.sptStatusLabels[r.sptStatus as SptStatus]}
-                </div>
+                </StatusBadge>
                 {r.sptStatus === "belum_lapor" && (
                   <button
                     onClick={() => handleUpdateSptStatus(r.id, "sudah_lapor")}
@@ -694,8 +799,16 @@ export default function TaxPage() {
         }
         bodyClassName="-mt-1"
       >
-        <div className="py-6 text-center text-[12.5px] text-muted-foreground">
-          {t.tax.emptyDocuments}
+        <div className="flex flex-col items-center gap-1 py-6 text-center">
+          <div className="mb-1 text-[28px]" aria-hidden>
+            📄
+          </div>
+          <div className="text-[13px] font-bold">
+            {t.tax.emptyDocumentsTitle}
+          </div>
+          <div className="text-[12px] text-muted-foreground">
+            {t.tax.emptyDocumentsSub}
+          </div>
         </div>
       </SectionCard>
 

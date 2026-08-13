@@ -64,7 +64,16 @@ type PanduanFeatureId =
   | "splitbill"
   | "warisan"
   | "mastercoa"
-  | "ai";
+  | "ai"
+  // EPIC-025 N3 prototype structural port (panduan) — the 5 topics the
+  // prototype documents that had no `features` entry yet: two "Keluarga &
+  // Peran" topics (akun, persetujuan) and the 3 "Keamanan" topics the old
+  // 9-journey structure dropped entirely.
+  | "akun"
+  | "persetujuan"
+  | "passwordLogin"
+  | "privateCategories"
+  | "apiKeyAi";
 
 type PanduanJourneyId =
   | "start"
@@ -76,6 +85,35 @@ type PanduanJourneyId =
   | "familySharing"
   | "advancedConfig"
   | "aiAssistant";
+
+/**
+ * EPIC-025 N3 prototype structural port — the prototype's own 6-group
+ * layout (`docs/prototype/pages/panduan.html`), added alongside the
+ * pre-existing 9-journey structure above rather than replacing it (the
+ * `journeys`/`features` keys already shipped must not be removed/renamed).
+ * The page now renders from `groups`/`areaLabels` instead of `journeys`.
+ */
+type PanduanGroupId =
+  | "memulai"
+  | "transaksi"
+  | "anggaran"
+  | "laporan"
+  | "keluarga"
+  | "keamanan";
+
+type PanduanFaqLinkItem = {
+  q: string;
+  before: string;
+  linkLabel: string;
+  after: string;
+};
+
+type PanduanFaqStrongItem = {
+  q: string;
+  before: string;
+  strong: string;
+  after: string;
+};
 
 /** EPIC-018 Task A4 — `/asuransi` insurance type/period/status enum ids
  * (mirror the `InsuranceType` / `PremiumPeriod` / `InsuranceStatus` contracts
@@ -361,6 +399,19 @@ export type I18nDictionary = {
     pendingApprovalsNotice: string;
     liabilityDueNotice: string;
     noNotices: string;
+    // EPIC-025 N3 fidelity follow-up — prototype's `.bento-side` budget
+    // card + composition-row badges/due-notice + Arus Kas period toggle.
+    budgetCardTitlePrefix: string;
+    budgetManageLink: string;
+    budgetOverBudgetPrefix: string;
+    budgetEmptyNote: string;
+    liquidBadgeLabel: string;
+    nonLiquidBadgeLabel: string;
+    cashflowTitle6: string;
+    cashflowTitle12: string;
+    periodToggle6: string;
+    periodToggle12: string;
+    periodToggleAriaLabel: string;
   };
   /**
    * Shell-owned copy: sidebar/topbar/mobile nav chrome, the global
@@ -863,6 +914,15 @@ export type I18nDictionary = {
     statApprovedSuffix: string;
     statRejectedLabel: string;
     statRejectedSuffix: string;
+    headerBadgeSuffix: string;
+    approverRuleNotice: string;
+    tabsAriaLabel: string;
+    requestedAtPrefix: string;
+    kindFundingLabel: string;
+    kindHeldLabel: string;
+    fieldKeperluanLabel: string;
+    heldWarningNotice: string;
+    fundingApproveHelperNotice: string;
   };
   /**
    * EPIC-018 Task A2 — `/panduan` page copy. `JOURNEYS` in the page keeps
@@ -878,6 +938,37 @@ export type I18nDictionary = {
     noResults: string;
     journeys: Record<PanduanJourneyId, { title: string; subtitle: string }>;
     features: Record<PanduanFeatureId, { title: string; desc: string }>;
+    // EPIC-025 N3 prototype structural port — see PanduanGroupId above.
+    groups: Record<PanduanGroupId, { title: string; tagline: string }>;
+    areaLabels: Record<"all" | PanduanGroupId, string>;
+    searchResultPrefix: string;
+    searchResultMid: string;
+    searchResultSuffix: string;
+    searchNoResultsFiltered: string;
+    contactHeaderButton: string;
+    faqSectionTitle: string;
+    faq: {
+      pdfRejected: PanduanFaqLinkItem;
+      addOwnReferences: PanduanFaqLinkItem;
+      mortgageNotFullExpense: PanduanFaqLinkItem;
+      aiNotAnswering: PanduanFaqLinkItem;
+      whoCanSeeTransactions: PanduanFaqStrongItem;
+      changeMemberRole: PanduanFaqLinkItem;
+      dataExportOnLeave: PanduanFaqLinkItem;
+    };
+    contact: {
+      title: string;
+      linkLabel: string;
+      emailTitle: string;
+      emailValue: string;
+      emailDesc: string;
+      phoneTitle: string;
+      phoneValue: string;
+      phoneDesc: string;
+      whatsappTitle: string;
+      whatsappValue: string;
+      whatsappDesc: string;
+    };
   };
   /** EPIC-018 Task A4 — `/asuransi` (insurance policies) page copy. */
   asuransi: {
@@ -964,6 +1055,27 @@ export type I18nDictionary = {
     coverageAllocationTitle: string;
     renewalWarningPrefix: string;
     renewalWarningSuffix: string;
+    // EPIC-025 N3 restructure — page header, card footer actions, and the
+    // aggregated "Ahli Waris Asuransi" table + its policy-picker dialogs.
+    totalCoveragePrefix: string;
+    renewalWarningDaysLeftSuffix: string;
+    payButtonLabel: string;
+    cardEditButton: string;
+    cardDeleteButton: string;
+    beneficiaryTableHeaderName: string;
+    beneficiaryTableHeaderRelationship: string;
+    beneficiaryTableHeaderMember: string;
+    beneficiaryTableHeaderPercent: string;
+    beneficiaryTableHeaderBenefit: string;
+    beneficiaryTablePolicyPrefix: string;
+    addBeneficiaryHeaderAriaLabel: string;
+    policyPickerPayTitle: string;
+    policyPickerBeneficiaryTitle: string;
+    policyPickerLabel: string;
+    policyPickerPlaceholder: string;
+    policyPickerConfirm: string;
+    policyPickerPayEmpty: string;
+    policyPickerBeneficiaryEmpty: string;
   };
   /**
    * EPIC-018 Task A4 — `/kalkulator` page copy (7 sub-tools). Detail rows
@@ -990,6 +1102,11 @@ export type I18nDictionary = {
     ];
     sessionExpired: string;
     calculating: string;
+    // EPIC-025 N3 fidelity follow-up — page header + shared "Hasil" card
+    // title (prototype's `.page-lead` + paired result cards).
+    pageTitle: string;
+    pageSubtitle: string;
+    hasilCardTitle: string;
     zakat: {
       cardTitle: string;
       /** EPIC-022 E2 — replaces the old hardcoded `nisabNotePrefix` +
@@ -1042,6 +1159,19 @@ export type I18nDictionary = {
       ptkpLabel: string;
       zakatLabel: string;
       progressiveHeading: string;
+      // EPIC-025 N3 fidelity follow-up — dotted-input helper note + the
+      // "Rincian lapisan tarif" dialog (real `taxBreakdown` data).
+      typingNote: string;
+      bracketDialogLinkLabel: string;
+      bracketDialogTitle: string;
+      bracketDialogDesc: string;
+      bracketDialogBracketHeader: string;
+      bracketDialogRateHeader: string;
+      bracketDialogTaxableHeader: string;
+      bracketDialogTaxHeader: string;
+      bracketDialogTotalLabel: string;
+      bracketDialogCloseButton: string;
+      bracketDialogEmptyNote: string;
     };
     investasi: {
       cardTitle: string;
@@ -1056,6 +1186,11 @@ export type I18nDictionary = {
       projectionChartTitle: string;
       projectionSeriesLabel: string;
       projectionYearPrefix: string;
+      // EPIC-025 N3 fidelity follow-up — prototype copy/order + result rows.
+      fieldReturnRateLabel: string;
+      returnRateHint: string;
+      rowTotalDepositLabel: string;
+      rowGrowthLabel: string;
     };
     kredit: {
       cardTitle: string;
@@ -1066,6 +1201,20 @@ export type I18nDictionary = {
       resultLabel: string;
       detailPrincipalPrefix: string;
       detailTotalPaymentPrefix: string;
+      // EPIC-025 N3 fidelity follow-up — prototype's Harga Properti + DP
+      // (Rp) model, breakdown rows, and the 30%-rule warning.
+      cardTitleAlt: string;
+      fieldPropertyPrice: string;
+      fieldDownPaymentAmount: string;
+      dpPercentSuffix: string;
+      rowPrincipalLabel: string;
+      rowTotalInterestLabel: string;
+      rowTotalPaymentLabel: string;
+      rowInstallmentCountLabel: string;
+      installmentCountSuffix: string;
+      ruleWarningNote: string;
+      minIncomeNotePrefix: string;
+      minIncomeNoteSuffix: string;
     };
     pensiun: {
       cardTitle: string;
@@ -1085,6 +1234,11 @@ export type I18nDictionary = {
        * annual expenses (≈5% withdrawal rate) — the multiplier itself is
        * unchanged, only its basis is now stated instead of hidden. */
       targetBasisNote: string;
+      // EPIC-025 N3 fidelity follow-up — "Hasil" card breakdown rows,
+      // sourced only from real `/calculators/retirement` response fields.
+      rowMonthlyContributionLabel: string;
+      rowTotalContributionsLabel: string;
+      rowProjectedValueLabel: string;
     };
     tabungan: {
       cardTitle: string;
@@ -1154,6 +1308,34 @@ export type I18nDictionary = {
     errorAuthFailed: string;
     errorRateLimited: string;
     errorTimeout: string;
+    /** Restructure (prototype parity) — status/provider/context surfaces on
+     * the configured-chat view, built only from real fields already
+     * returned by `useAiKeyStatus`/`DashboardSummaryDto` and the advisor's
+     * own system-prompt builder (`advisor-prompt.util.ts`). No mocked
+     * model name or per-item toggle — those aren't real fields. */
+    statusApiKeyLabel: string;
+    statusConnectedBadge: string;
+    manageApiKeyButton: string;
+    changeApiKeyLink: string;
+    providerLabels: Record<"claude" | "openai" | "gemini", string>;
+    newConversationButton: string;
+    dataReadTitle: string;
+    dataReadNetWorth: string;
+    dataReadCashflow: string;
+    dataReadCategories: string;
+    dataReadTransactions: string;
+    dataReadAccountNumbers: string;
+    yesLabel: string;
+    noLabel: string;
+    contextSummaryTitle: string;
+    contextNetWorthLabel: string;
+    contextIncomeLabel: string;
+    contextExpenseLabel: string;
+    providerKeyTitle: string;
+    providerLabel: string;
+    apiKeyLabel: string;
+    encryptionNote: string;
+    notManagedHint: string;
   };
   /** EPIC-018 Task A5 — `/investasi` (investment portfolio) page copy. */
   investasi: {
@@ -1273,6 +1455,37 @@ export type I18nDictionary = {
     pricingSourceNoticeTitle: string;
     pricingSourceNoticeBody: string;
     allocationTitle: string;
+    // EPIC-025 N3 audit (structural port fidelity) — page-lead header,
+    // restored "Jumlah"/"Harga / Sumber" table columns, per-row price-source
+    // badges, and the "Terakhir sinkron" timestamp.
+    pageSubtitle: string;
+    addInvestmentHeaderButton: string;
+    positionsCountSuffix: string;
+    tableQuantity: string;
+    tablePriceSource: string;
+    /** Template with `{returnRp}` and `{costBasis}` placeholders. */
+    returnFormulaLabel: string;
+    livePositionsOnlyPrefix: string;
+    filterNewBadge: string;
+    /** Template with `{ticker}` and `{date}` placeholders. */
+    rowTickerPurchasedTemplate: string;
+    /** Template with `{rate}` and `{date}` placeholders. */
+    rowCouponPurchasedTemplate: string;
+    /** Template with `{date}` and `{maturityDate}` placeholders. */
+    rowDepositoTermTemplate: string;
+    /** Template with a `{rate}` placeholder. */
+    depositoRateTemplate: string;
+    priceLiveBadge: string;
+    priceLiveDelayedBadge: string;
+    /** Template with a `{date}` placeholder. */
+    priceManualBadgeTemplate: string;
+    priceComputedBadgeLabel: string;
+    unitCoinSuffix: string;
+    unitFundUnit: string;
+    unitGram: string;
+    navPricePrefix: string;
+    nominalPrefix: string;
+    pricingSourceLastSyncedPrefix: string;
   };
   /** EPIC-018 Task A5 — `/aset` (consolidated assets) page copy. */
   aset: {
@@ -1347,6 +1560,15 @@ export type I18nDictionary = {
     allocationTitle: string;
     recordedValueLabel: string;
     perYearSuffix: string;
+    // EPIC-025 N3 fidelity follow-up (prototype parity): hero sub-line,
+    // breakdown stat-card "vs last month" delta suffix, the Aset Fisik
+    // card's neutral (non-delta) note, and account-row ownership segment
+    // labels ("Bersama"/"Tidak diketahui").
+    totalAssetsSubtitlePrefix: string;
+    statFromLastMonthSuffix: string;
+    statFisikNote: string;
+    ownerSharedLabel: string;
+    ownerUnknownLabel: string;
   };
   /** EPIC-018 Task A5 — `/liabilitas` (debts & credit) page copy. */
   liabilitas: {
@@ -1395,6 +1617,7 @@ export type I18nDictionary = {
     progressPayoffLabel: string;
     totalLiabilitiesLabel: string;
     remainingActiveSuffix: string;
+    remainingActiveCountSuffix: string;
     dtaRatioLabel: string;
     addButton: string;
     emptyState: string;
@@ -1438,6 +1661,8 @@ export type I18nDictionary = {
     monthlyInstallmentSuffix: string;
     payoffProjectionTitle: string;
     payoffProjectionSeriesLabel: string;
+    overdueWarningPrefix: string;
+    overdueWarningSuffix: string;
   };
   /**
    * EPIC-018 Task A5 — `/masterdata` page copy. Every group `title`/`label`
@@ -1452,6 +1677,8 @@ export type I18nDictionary = {
   masterdata: {
     pageTitle: string;
     pageSubtitle: string;
+    masterCoaButton: string;
+    categoryFooterHint: string;
     groups: Record<MasterDataGroupId, { title: string; label: string }>;
     categorySectionTitle: string;
     masterCoaLink: string;
@@ -1498,6 +1725,17 @@ export type I18nDictionary = {
     groupLabels: Record<MasterCoaGroupNum, string>;
     directionLabels: Record<MasterCoaDirectionId, string>;
     budgetTypeLabels: Record<MasterCoaBudgetTypeId, string>;
+    // EPIC-025 N3 prototype structural port — page header, numbered filter
+    // tabs/badges, grouped table headers, and upper-case ARAH wording added
+    // alongside the pre-existing `groupLabels`/`directionLabels` keys.
+    pageTitle: string;
+    pageSubtitle: string;
+    masterDataButton: string;
+    groupBadgeLabels: Record<MasterCoaGroupNum, string>;
+    groupTabLabels: Record<MasterCoaGroupNum, string>;
+    groupHeaderLabels: Record<MasterCoaGroupNum, string>;
+    accountsCountSuffix: string;
+    directionLabelsUpper: Record<MasterCoaDirectionId, string>;
     tabAll: string;
     totalAccountsTitle: string;
     sixGroupsLabel: string;
@@ -1573,11 +1811,15 @@ export type I18nDictionary = {
   notifikasi: {
     title: string;
     newCountSuffix: string;
+    subtitlePrefix: string;
+    subtitleSuffix: string;
     processing: string;
     markAllRead: string;
     errorLoad: string;
     emptyState: string;
     unreadBadge: string;
+    groupUnreadSuffix: string;
+    metaCountSuffix: string;
     relativeJustNow: string;
     relativeMinutesSuffix: string;
     relativeHoursSuffix: string;
@@ -1616,6 +1858,24 @@ export type I18nDictionary = {
     ewalletStatLabel: string;
     cashCountSuffix: string;
     ewalletCountSuffix: string;
+    /** EPIC-025 N3 prototype structural port. */
+    pageSubtitle: string;
+    addCashHeaderButton: string;
+    addEwalletHeaderButton: string;
+    compositionTitle: string;
+    compositionTotalLabel: string;
+    infoNoticeBold: string;
+    infoNoticeBody: string;
+    infoNoticeLinkLabel: string;
+    infoNoticeSuffix: string;
+    mutationsSectionTitle: string;
+    mutationsViewAllLabel: string;
+    mutationsEmptyLabel: string;
+    tableDateHeader: string;
+    tableDescriptionHeader: string;
+    tableAccountHeader: string;
+    tableAmountHeader: string;
+    updatedPrefix: string;
   };
   /**
    * EPIC-021 Group F (#6) — shared copy for the consolidated-total display
@@ -1670,6 +1930,49 @@ export type I18nDictionary = {
     healthStatusNeedsAttention: string;
     liabilityBreakdownTitle: string;
     emptyLiabilityBreakdown: string;
+    // Structural port fidelity follow-up — page header (H1 + subtitle).
+    pageHeaderTitle: string;
+    pageHeaderSubtitleConnector: string;
+    pageHeaderFamilyFallback: string;
+    // Trend range segmented control ("6 Bln / 12 Bln / Semua").
+    trendRangeGroupAriaLabel: string;
+    trendRangeLabel6m: string;
+    trendRangeLabel12m: string;
+    trendRangeLabelAll: string;
+    netWorthTrendTitle12m: string;
+    netWorthTrendTitleAll: string;
+    yoyUpPrefix: string;
+    yoyDownPrefix: string;
+    yoySuffix: string;
+    // "Sembunyikan nominal" privacy toggle (page-local, mirrors aset/page.tsx).
+    hideAmountsButton: string;
+    showAmountsButton: string;
+    hideAmountsAriaLabel: string;
+    showAmountsAriaLabel: string;
+    // "Rincian Aset vs Liabilitas" table.
+    breakdownTableTitle: string;
+    breakdownColPos: string;
+    breakdownColJenis: string;
+    breakdownColPorsi: string;
+    breakdownColNilai: string;
+    breakdownAssetPhysicalLabel: string;
+    breakdownAssetInvestmentLabel: string;
+    breakdownAssetBankLabel: string;
+    breakdownAssetCashLabel: string;
+    breakdownBadgeAssetFisik: string;
+    breakdownBadgeInvestasi: string;
+    breakdownBadgeBank: string;
+    breakdownBadgeKas: string;
+    breakdownBadgeLiabilitas: string;
+    breakdownTotalAssetsRow: string;
+    breakdownTotalLiabilitiesRow: string;
+    breakdownNetWorthRow: string;
+    breakdownNetWorthFormula: string;
+    breakdownEmpty: string;
+    // Health Score debt-ratio insight note.
+    healthDebtRatioNotePrefix: string;
+    healthDebtRatioNoteSuffixSafe: string;
+    healthDebtRatioNoteSuffixAttention: string;
   };
   /** EPIC-018 Task A6 — `/tujuan` (financial goals) page copy. */
   tujuan: {
@@ -1702,6 +2005,17 @@ export type I18nDictionary = {
     atRiskDesc: string;
     errorLoad: string;
     emptyState: string;
+    overallSectionTitle: string;
+    overallTotalLabel: string;
+    overallActiveGoalsSuffix: string;
+    overallMonthlyPrefix: string;
+    overallMonthlySuffix: string;
+    addGoalCardTitle: string;
+    addGoalCardDesc: string;
+    noticeSavingsPrefix: string;
+    noticeSavingsPerMonthMiddle: string;
+    noticeSavingsMonthsSuffix: string;
+    noticeSavingsNoAutoDebitSuffix: string;
   };
   /**
    * EPIC-018 Task A6 — `/tax` (tax center) page copy. `LEMBAGA_OPTIONS`-style
@@ -1772,6 +2086,29 @@ export type I18nDictionary = {
      * owner the wrong thing sends them down a false trail mid-incident.
      */
     accessCheckFailedNote: string;
+    // Prototype structural port follow-up — Tahun Pajak select (drives which
+    // year a saved TaxRecord is tagged with; the calculator math itself is
+    // year-independent per the shared BE brackets).
+    fieldTaxYearLabel: string;
+    // Renamed calculator field for the "perpuluhan/donasi" deduction — kept
+    // separate from `fieldZakatLabel` (unremoved, per i18n convention) since
+    // the prototype's approved copy is "Perpuluhan (pengurang)".
+    fieldPerpuluhanLabel: string;
+    grossInputHint: string;
+    ptkpSelectedPrefix: string;
+    jabatanHint: string;
+    perpuluhanHint: string;
+    perpuluhanHintLinkLabel: string;
+    payloadCalloutPrefix: string;
+    payloadCalloutSuffix: string;
+    resetButton: string;
+    toastReset: string;
+    colTaxableBase: string;
+    bracketFootnote: string;
+    perpuluhanDeductionTitle: string;
+    perpuluhanDeductionDesc: string;
+    emptyDocumentsTitle: string;
+    emptyDocumentsSub: string;
   };
   /** EPIC-018 Task A6 — `/rekening` (bank accounts) page copy. */
   rekening: {
@@ -1823,6 +2160,17 @@ export type I18nDictionary = {
     mintaDanaSubmitting: string;
     mintaDanaSuccessToast: string;
     mintaDanaFailToast: string;
+    /** EPIC-025 N3 prototype structural port. */
+    insightOneLabel: string;
+    insightOneAccountsSuffix: string;
+    insightOneOwnersSuffix: string;
+    insightPrivacyLabel: string;
+    insightPrivacyValue: string;
+    filterNoteText: string;
+    addCardTitle: string;
+    addCardSubtitle: string;
+    addCardButton: string;
+    mutasiFooterButton: string;
   };
   /**
    * EPIC-018 Task A6 — `/donation` (donation & zakat) page copy.
@@ -1840,6 +2188,7 @@ export type I18nDictionary = {
     groupUmum: string;
     heroTitle: string;
     transactionsSuffix: string;
+    yearRunningPrefix: string;
     subheaderDesc: string;
     recordDonationButton: string;
     zakatCalculatorTitle: string;
@@ -1877,6 +2226,9 @@ export type I18nDictionary = {
     loadingLabel: string;
     emptyHistory: string;
     taxDeductibleBadge: string;
+    taxNonDeductibleBadge: string;
+    receiptLabel: string;
+    historyLaporanLink: string;
     statDeductibleLabelPrefix: string;
     statDeductibleDeltaMid: string;
     statDeductibleDeltaSuffix: string;
@@ -1911,12 +2263,19 @@ export type I18nDictionary = {
      * has its OWN arithmetic (10% of income) — not zakat relabelled.
      */
     perpuluhanCalculatorTitle: string;
+    perpuluhanCalculatorBadge: string;
     perpuluhanCalculatorSubtitle: string;
     fieldIncomeLabel: string;
+    fieldOtherIncomeLabel: string;
+    fieldRateLabel: string;
+    fieldRateHint: string;
     perpuluhanDueLabel: string;
+    perpuluhanResultLabel: string;
+    perpuluhanResultSummaryMid: string;
     perpuluhanCalculatingMsg: string;
     perpuluhanCalcErrorMsg: string;
     payPerpuluhanNowButton: string;
+    recordPerpuluhanButton: string;
     /** Shown instead of any calculator when the family's religion setting
      * is `none` — honest UI: no calculator is fabricated for a faith the
      * family hasn't set. */
@@ -2002,6 +2361,13 @@ export type I18nDictionary = {
     // the already-fetched inheritance-assets list.
     heirAllocationChartTitle: string;
     heirAllocationUnallocatedLabel: string;
+    // EPIC-025 N3 restructure — 2-col layout: aggregated asset list card
+    // title/caption and per-row "estimated value" sub-label / linked-asset
+    // meta line prefix.
+    assetListCardTitle: string;
+    visibleToAllHeirsCaption: string;
+    estimatedValueLabel: string;
+    linkedToAssetPrefix: string;
   };
   /** EPIC-018 Task A6 — `/anggaran` (budgets) page copy. */
   anggaran: {
@@ -2067,6 +2433,19 @@ export type I18nDictionary = {
     obligationsPayConfirmButton: string;
     obligationsToastPaySuccess: string;
     obligationsToastPayFailed: string;
+    /** EPIC-025 N3 rework — hero card (`docs/prototype/pages/anggaran.html`). */
+    heroDaysLeftMid: string;
+    heroDaysLeftSuffix: string;
+    heroTerpakaiPrefix: string;
+    heroRencanaPrefix: string;
+    statAvgSafePrefix: string;
+    statAvgSafeSuffix: string;
+    categoryAddAction: string;
+    categoryFooterRemainingPrefix: string;
+    categoryFooterOverBudgetPrefix: string;
+    obligationsSummaryMidPrefix: string;
+    obligationsSummaryMidSuffix: string;
+    obligationsDueDatePrefix: string;
   };
   /** EPIC-018 Task A6 — `/transaksi` (transactions list) page copy. */
   transaksi: {
@@ -2145,6 +2524,37 @@ export type I18nDictionary = {
     surplusLabel: string;
     deficitLabel: string;
     ofIncomeSuffix: string;
+    /**
+     * EPIC-025 N3 restructure (screenshot-vs-prototype gap fix) — filter
+     * card date-range/account/category selects, table column headers,
+     * pagination footer, and the honest "% terkategori" insight pill. Every
+     * value here is wired to real fetched data (transactions/accounts/
+     * categories) or a real query param the API already accepts — see the
+     * page's own comments for what was deliberately omitted instead of
+     * fabricated (per-member "who recorded it", large-transaction
+     * verification counts).
+     */
+    dateRangeLabel: string;
+    dateFromAriaLabel: string;
+    dateToAriaLabel: string;
+    accountFilterFieldLabel: string;
+    allAccountsOption: string;
+    categoryFilterFieldLabel: string;
+    allCategoriesOption: string;
+    resetFilterButton: string;
+    tableColDate: string;
+    tableColDesc: string;
+    tableColCategory: string;
+    tableColAccount: string;
+    tableColAmount: string;
+    tableColOptions: string;
+    lockedBadgeLabel: string;
+    paginationShowingLabel: string;
+    paginationOfMid: string;
+    paginationPrevButton: string;
+    paginationNextButton: string;
+    insightCategorizedLabel: string;
+    insightCategorizedValueSuffix: string;
   };
   /**
    * EPIC-018 Task A6 — `/splitbill` (split bill) page copy. The seed
@@ -2153,6 +2563,7 @@ export type I18nDictionary = {
    * mock profile name.
    */
   splitbill: {
+    pageTitle: string;
     headerDesc: string;
     createButton: string;
     totalDitalanginLabel: string;
@@ -2172,6 +2583,10 @@ export type I18nDictionary = {
     detailButton: string;
     insightTitle: string;
     insightDesc: string;
+    badgeUnpaid: string;
+    badgeNoPayoutAccount: string;
+    badgeSettled: string;
+    createdOnPrefix: string;
     fieldTitleLabel: string;
     fieldTitlePlaceholder: string;
     fieldTotalLabel: string;
@@ -2297,7 +2712,25 @@ export type I18nDictionary = {
    * page — proper nouns, same convention as `donation`'s `LEMBAGA_OPTIONS`.
    */
   rekonsiliasi: {
+    headerTitle: string;
+    headerSubtitle: string;
+    uploadMutasiButton: string;
     steps: Record<RekonsiliasiStepNum, { label: string; sub: string }>;
+    stepStatusDone: string;
+    stepStatusActive: string;
+    stepStatusPending: string;
+    formatCalloutTitle: string;
+    formatCalloutBody: string;
+    pdfCalloutTitle: string;
+    pdfCalloutBody: string;
+    mappingSectionTitle: string;
+    mappingSectionHint: string;
+    matchFilterAll: string;
+    matchFilterNeedsReview: string;
+    matchFilterNotMatched: string;
+    matchResultsFooterPrefix: string;
+    matchResultsFooterMid: string;
+    matchResultsFooterSuffix: string;
     uploadTitle: string;
     uploadSubtitle: string;
     uploadingLabel: string;
@@ -2508,6 +2941,35 @@ export type I18nDictionary = {
     totalLiabilitiesLabel: string;
     netWorthLabel: string;
     emptyMonthTransactions: string;
+    // EPIC-025 N3-J1 — prototype-parity page header (docs/prototype/pages/
+    // laporan.html's `.page-lead`): big H1 + subtitle + Excel/PDF export
+    // buttons that reuse `ExportSection`'s real job, not new dead controls.
+    header: {
+      title: string;
+      subtitle: string;
+      exportExcelButton: string;
+      exportPdfButton: string;
+    };
+    // EPIC-025 N3-J1 — the prototype's "Filter Laporan" card wrapping the
+    // existing preset/period selectors (logic unchanged, presentation only).
+    filterCard: {
+      title: string;
+      appliesAllTabsCaption: string;
+      periodeLabel: string;
+      dateRangeLabel: string;
+    };
+    // EPIC-025 N3-J1 — cash-basis disclosure callout under the filter card.
+    cashBasisNotice: {
+      title: string;
+      body: string;
+      activePeriodPrefix: string;
+    };
+    // EPIC-025 N3-J1 — pill tab strip with scroll arrows.
+    tabStrip: {
+      ariaLabel: string;
+      scrollLeftAriaLabel: string;
+      scrollRightAriaLabel: string;
+    };
     ringkasan: {
       financeTitle: string;
       expenseAllocTitle: string;
@@ -2525,6 +2987,26 @@ export type I18nDictionary = {
       aiInsightTitle: string;
       aiInsightBody: string;
       aiInsightCta: string;
+      // EPIC-025 N3-J1 — headline stat cards (gap 5) + cashflow chart
+      // range toggle + category breakdown table (gap 6/7). Deltas are only
+      // rendered when genuinely computable from `summary.points` (trailing
+      // months already fetched) — no fabricated figures.
+      cashflowCardTitle: string;
+      cashflowRange6: string;
+      cashflowRange12: string;
+      statNetCashflowLabel: string;
+      statSavingsRatioLabel: string;
+      statVsPrefix: string;
+      statSurplusStreakTemplate: string;
+      statSavingsAboveTargetTemplate: string;
+      statSavingsBelowTargetTemplate: string;
+      categoryTable: {
+        title: string;
+        colKategori: string;
+        colPersentase: string;
+        colBulanIni: string;
+        emptyState: string;
+      };
     };
     harian: {
       titlePrefix: string;

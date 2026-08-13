@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth-compat";
@@ -20,9 +20,7 @@ import {
   Pencil,
   Trash2,
   BookOpen,
-  TrendingDown,
-  TrendingUp,
-  ArrowLeftRight,
+  Database,
   AlertTriangle,
 } from "lucide-react";
 
@@ -43,13 +41,19 @@ type CoaAccount = {
   updatedAt: string;
 };
 
-const DIR_ICON: Record<CoaDirection, React.ReactNode> = {
-  INCOME: <TrendingDown className="inline size-3 text-green-500" />,
-  EXPENSE: <TrendingUp className="inline size-3 text-red-500" />,
-  TRANSFER: <ArrowLeftRight className="inline size-3 text-purple-500" />,
-};
-
 const GROUP_NUMS: CoaGroupNum[] = [1, 2, 3, 4, 5, 6];
+
+// EPIC-025 N3 prototype structural port (mastercoa.html) — ARAH badge
+// color per direction, matching the prototype's badge--success/danger/
+// purple mapping (income green, expense red, transfer purple).
+const DIRECTION_BADGE_VARIANT: Record<
+  CoaDirection,
+  "success" | "danger" | "purple"
+> = {
+  INCOME: "success",
+  EXPENSE: "danger",
+  TRANSFER: "purple",
+};
 
 type FormState = {
   code: string;
@@ -206,6 +210,16 @@ export default function MasterCoaPage() {
       ? accounts
       : accounts.filter((a) => a.groupNum === activeTab);
 
+  // EPIC-025 N3 prototype structural port — the prototype inserts a tinted
+  // group-header row inside the table ("1 · Pendapatan (Income) · 6 akun")
+  // instead of rendering one flat ~105-row list. Counts are real (derived
+  // from the currently-filtered accounts), not the prototype's static seed
+  // numbers.
+  const groupedRows = GROUP_NUMS.map((groupNum) => ({
+    groupNum,
+    items: filtered.filter((a) => a.groupNum === groupNum),
+  })).filter((g) => g.items.length > 0);
+
   const createMutation = useMutation({
     mutationFn: (data: {
       code?: string;
@@ -334,6 +348,41 @@ export default function MasterCoaPage() {
 
   return (
     <div className="space-y-4">
+      {/* Page header (EPIC-025 N3 prototype structural port) — H1 +
+          subtitle + "Master Data"/"+ Tambah Akun" header actions, matching
+          the prototype's page-lead block. The add button lives only here
+          now (was duplicated in the table card's header previously). */}
+      <section aria-labelledby="mastercoa-heading" className="mb-1">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1
+              id="mastercoa-heading"
+              className="text-[17px] font-extrabold tracking-tight"
+            >
+              {t.mastercoa.pageTitle}
+            </h1>
+            <div className="mt-1 text-[12.5px] text-muted-foreground">
+              {t.mastercoa.pageSubtitle}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => router.push("/masterdata")}
+              className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-[12px] font-semibold text-foreground transition-colors hover:bg-secondary"
+            >
+              <Database className="size-3.5" /> {t.mastercoa.masterDataButton}
+            </button>
+            <button
+              onClick={openAdd}
+              disabled={!familyGroupId}
+              className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+            >
+              <Plus className="size-3.5" /> {t.mastercoa.addAccountButton}
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* Prototype order (mastercoa.html): explainer first, then stats,
           then the account table — see EPIC-025-N3-translation-table.md */}
       <MasterCoaGuide t={t} />
@@ -436,19 +485,11 @@ export default function MasterCoaPage() {
       </div>
 
       {/* Main table card */}
-      <SectionCard
-        title={t.mastercoa.listTitle}
-        action={
-          <button
-            onClick={openAdd}
-            disabled={!familyGroupId}
-            className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-          >
-            <Plus className="size-3.5" /> {t.mastercoa.addAccountButton}
-          </button>
-        }
-      >
-        {/* Filter tabs */}
+      <SectionCard title={t.mastercoa.listTitle}>
+        {/* Filter tabs — EPIC-025 N3 prototype structural port: numbered
+            Indonesian labels ("1 Pendapatan", "2 Beban", …) instead of the
+            English names, and no counts (the prototype's own tabs don't
+            show them). */}
         <div className="flex flex-wrap gap-1.5 mb-4">
           <button
             onClick={() => setActiveTab(0)}
@@ -470,15 +511,14 @@ export default function MasterCoaPage() {
                   : "bg-secondary text-muted-foreground hover:bg-accent hover:text-foreground"
               }`}
             >
-              {t.mastercoa.groupLabels[groupNum]}
-              <span className="ml-1 text-[10px] opacity-70">
-                ({accounts.filter((a) => a.groupNum === groupNum).length})
-              </span>
+              {groupNum} {t.mastercoa.groupTabLabels[groupNum]}
             </button>
           ))}
         </div>
 
-        {/* Table */}
+        {/* Table — EPIC-025 N3 prototype structural port: tinted group
+            header rows restore the prototype's "1 · Pendapatan (Income) ·
+            N akun" section anchors instead of one flat ~105-row list. */}
         <div className="w-full overflow-x-auto">
           <table className="min-w-[680px] w-full text-[13px]">
             <thead>
@@ -523,67 +563,88 @@ export default function MasterCoaPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((a) => (
-                  <tr
-                    key={a.id}
-                    className="border-b last:border-0 hover:bg-secondary/30 transition-colors"
-                  >
-                    <td className="py-2.5 font-mono text-[12px] text-muted-foreground">
-                      {a.code}
-                    </td>
-                    <td className="py-2.5 font-medium">{a.name}</td>
-                    <td className="py-2.5">
-                      <StatusBadge variant="info">
-                        {t.mastercoa.groupLabels[a.groupNum as CoaGroupNum] ??
-                          String(a.groupNum)}
-                      </StatusBadge>
-                    </td>
-                    <td className="py-2.5">
-                      <span className="flex items-center gap-1">
-                        {DIR_ICON[a.direction]}
-                        <span className="text-[12px]">
-                          {t.mastercoa.directionLabels[a.direction]}
-                        </span>
-                      </span>
-                    </td>
-                    <td className="py-2.5">
-                      {a.budgetType ? (
-                        <StatusBadge
-                          variant={
-                            a.budgetType === "FIXED"
-                              ? "success"
-                              : a.budgetType === "VARIABLE"
-                                ? "warning"
-                                : "purple"
-                          }
-                        >
-                          {t.mastercoa.budgetTypeLabels[a.budgetType]}
-                        </StatusBadge>
-                      ) : (
-                        <span className="text-muted-foreground">
-                          {t.mastercoa.budgetTypeNone}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-2.5 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => openEdit(a)}
-                          className="rounded p-1 text-muted-foreground hover:text-primary hover:bg-accent transition-colors"
-                          title={t.mastercoa.editTitle}
-                        >
-                          <Pencil className="size-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteId(a.id)}
-                          className="rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                          title={t.common.delete}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                groupedRows.map((group) => (
+                  <Fragment key={group.groupNum}>
+                    <tr className="bg-secondary">
+                      <td className="py-2 font-mono text-[12px] font-bold">
+                        {group.groupNum}
+                      </td>
+                      <td colSpan={5} className="py-2 text-[12.5px] font-bold">
+                        {t.mastercoa.groupHeaderLabels[group.groupNum]}
+                        {" · "}
+                        {group.items.length}
+                        {t.mastercoa.accountsCountSuffix}
+                      </td>
+                    </tr>
+                    {group.items.map((a) => (
+                      <tr
+                        key={a.id}
+                        className="border-b last:border-0 hover:bg-secondary/30 transition-colors"
+                      >
+                        <td className="py-2.5 pl-1 font-mono text-[12px] text-muted-foreground">
+                          {a.code}
+                        </td>
+                        <td className="py-2.5 pl-3 font-medium">{a.name}</td>
+                        <td className="py-2.5">
+                          <StatusBadge variant="gray">
+                            {a.groupNum}{" "}
+                            {t.mastercoa.groupBadgeLabels[
+                              a.groupNum as CoaGroupNum
+                            ] ?? ""}
+                          </StatusBadge>
+                        </td>
+                        <td className="py-2.5">
+                          <StatusBadge
+                            variant={DIRECTION_BADGE_VARIANT[a.direction]}
+                          >
+                            {t.mastercoa.directionLabelsUpper[a.direction]}
+                          </StatusBadge>
+                        </td>
+                        <td className="py-2.5">
+                          {/* EPIC-025 N3 prototype structural port — budget
+                              type conceptually doesn't apply to TRANSFER
+                              rows (savings/investment moves, receivables,
+                              payables): the prototype leaves them blank
+                              regardless of any stored value. */}
+                          {a.direction !== "TRANSFER" && a.budgetType ? (
+                            <StatusBadge
+                              variant={
+                                a.budgetType === "FIXED"
+                                  ? "success"
+                                  : a.budgetType === "VARIABLE"
+                                    ? "warning"
+                                    : "purple"
+                              }
+                            >
+                              {t.mastercoa.budgetTypeLabels[a.budgetType]}
+                            </StatusBadge>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              {t.mastercoa.budgetTypeNone}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => openEdit(a)}
+                              className="rounded p-1 text-muted-foreground hover:text-primary hover:bg-accent transition-colors"
+                              title={t.mastercoa.editTitle}
+                            >
+                              <Pencil className="size-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setDeleteId(a.id)}
+                              className="rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              title={t.common.delete}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </Fragment>
                 ))
               )}
             </tbody>

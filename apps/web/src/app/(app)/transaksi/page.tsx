@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useEffect, Suspense, type KeyboardEvent } from "react";
+import {
+  useState,
+  useEffect,
+  Suspense,
+  type ChangeEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
@@ -11,8 +18,11 @@ import {
   FileText,
   Filter,
   Image as ImageIcon,
+  Lock,
   Paperclip,
   Scale,
+  Sparkles,
+  Tag,
   Trash2,
   type LucideIcon,
 } from "lucide-react";
@@ -20,10 +30,12 @@ import { toast } from "sonner";
 import { useSession, signOut } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Card } from "@/components/ui/card";
 import { useShell } from "@/components/shell/shell-context";
 import { formatAmountInput, parseRupiah } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
-import { SectionCard, SummaryCard, IconChip, Rise } from "@/components/wm";
+import { SectionCard, CardLink, StatusBadge, IconChip } from "@/components/wm";
 import { RowActions, ConfirmDeleteDialog } from "@/components/crud";
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
@@ -135,32 +147,12 @@ function formatTime(isoString: string): string {
   return isoString.slice(11, 16);
 }
 
-function formatDayLabel(
-  dateStr: string,
-  t: ReturnType<typeof useLocale>["t"],
-  locale: Locale,
-): string {
-  const today = new Date().toISOString().slice(0, 10);
-  const yesterday = new Date(Date.now() - 86_400_000)
-    .toISOString()
-    .slice(0, 10);
-  if (dateStr === today) return t.common.today;
-  if (dateStr === yesterday) return t.common.yesterday;
-  const [year, month, day] = dateStr.split("-");
-  const d = new Date(Number(year), Number(month) - 1, Number(day));
-  return d.toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
 /**
  * Absolute "D Month YYYY" date, always the real calendar date (never "Hari
  * ini"/"Kemarin" relative labels) — used in the read-only detail view where
- * the exact date matters. Parses the date parts directly from the ISO
- * string (like formatDayLabel above) rather than `new Date(isoString)`, to
- * avoid a timezone-conversion shift of the displayed calendar day.
+ * the exact date matters. Parses the date parts directly rather than
+ * `new Date(isoString)`, to avoid a timezone-conversion shift of the
+ * displayed calendar day.
  */
 function formatFullDate(dateStr: string, locale: Locale): string {
   const [year, month, day] = dateStr.split("-");
@@ -176,6 +168,38 @@ function formatFullDate(dateStr: string, locale: Locale): string {
 function formatDetailDateTime(isoString: string, locale: Locale): string {
   return `${formatFullDate(isoString.slice(0, 10), locale)}, ${formatTime(isoString)}`;
 }
+
+/**
+ * "D Mon YYYY" — abbreviated absolute date for the transaction table's
+ * Tanggal column (prototype: "6 Agu 2026"). Same manual date-part parsing
+ * as `formatFullDate` above to avoid a timezone-shift of the displayed
+ * calendar day.
+ */
+function formatShortDate(dateStr: string, locale: Locale): string {
+  const [year, month, day] = dateStr.split("-");
+  const d = new Date(Number(year), Number(month) - 1, Number(day));
+  return d.toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+/** "Agustus 2026" — used for the stat cards' "N transaksi · <bulan>" subtext,
+ * only when a real date-range filter (`summary.period.from`) is active. */
+function formatMonthYear(dateStr: string, locale: Locale): string {
+  const [year, month] = dateStr.split("-");
+  const d = new Date(Number(year), Number(month) - 1, 1);
+  return d.toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+const PAGE_SIZE = 10;
+
+const fieldClass =
+  "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
 
 const TX_ICON: Record<string, { icon: LucideIcon; chip: string }> = {
   income: { icon: ArrowDownLeft, chip: "bg-green-100 text-green-600" },
@@ -303,6 +327,240 @@ export function TxRow({
         }}
       />
     </>
+  );
+}
+
+/**
+ * Table-row rendering of a transaction, ported from
+ * `docs/prototype/pages/transaksi.html`'s `.table.table--transactions`
+ * (Tanggal / Deskripsi / Kategori / Akun / Jumlah / Opsi columns). Shares
+ * `TransactionDetailDialog`/`RowActions`/the obligation-lock guard with
+ * `TxRow` above — only the row's own markup differs (table cells instead of
+ * a flex list row). `TxRow` itself stays exported/rendered as-is; it is
+ * covered by `txrow-detail.test.tsx` and kept for that contract, but the
+ * page below now renders `TxTableRow`, not `TxRow`, per the prototype.
+ *
+ * Honest-UI note: the prototype shows a "dicatat oleh <nama>" line and a
+ * paperclip attachment-count chip per row — `TransactionDto` (the list
+ * response) carries neither a recorder name nor an attachment count (that
+ * data is only fetched, lazily, once the detail dialog for a single
+ * transaction is opened), so both are omitted here rather than faked.
+ */
+function TxTableRow({
+  tx,
+  onDeleteClick,
+  onEditClick,
+  familyGroupId,
+  token,
+}: {
+  tx: TransactionDto;
+  onDeleteClick: () => void;
+  onEditClick: () => void;
+  familyGroupId?: string;
+  token?: string;
+}) {
+  const { t, locale } = useLocale();
+  const [detailOpen, setDetailOpen] = useState(false);
+  const isIncome = tx.type === "income";
+  const isTransfer = tx.type === "transfer";
+  const amount = parseFloat(tx.amount);
+  // A transfer moves money between the family's own accounts — neither a
+  // gain nor a loss — so (unlike income/expense) it renders with no sign and
+  // a neutral color, matching the prototype's "Rp 1.000.000" transfer row.
+  const amountStr = isTransfer
+    ? formatRupiah(amount)
+    : (isIncome ? "+" : "-") + formatRupiah(amount);
+  const typeLabels: Record<string, string> = t.transaksi.typeLabels;
+  const isObligationLinked = !!tx.liabilityId || !!tx.insuranceId;
+  const isTransferWithDest = isTransfer && !!tx.toAccountName;
+  const typeLabel = typeLabels[tx.type] ?? tx.type;
+  const displayName = isTransferWithDest
+    ? (tx.description ?? typeLabels.transfer)
+    : (tx.description ?? tx.categoryName ?? tx.accountName ?? "—");
+  const accountCell = isTransferWithDest
+    ? `${tx.accountName ?? "—"} → ${tx.toAccountName}`
+    : (tx.accountName ?? "—");
+
+  const openDetail = () => setDetailOpen(true);
+  // Delegated keyboard handling: only react to Enter/Space when the event's
+  // target IS the row itself, not a bubbled keydown from a nested RowActions
+  // button — a table row can't keep RowActions as a DOM sibling (it must be
+  // a cell inside this same <tr>), so without this guard, pressing Enter on
+  // the focused Edit/Hapus button would re-trigger this row's own handler
+  // and hijack keyboard Edit/Hapus, same regression class `TxRow` above
+  // avoids via sibling structure.
+  const handleRowKeyDown = (e: KeyboardEvent<HTMLTableRowElement>) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openDetail();
+    }
+  };
+
+  return (
+    <>
+      <tr
+        tabIndex={0}
+        onClick={openDetail}
+        onKeyDown={handleRowKeyDown}
+        aria-label={`${t.transaksi.detailAriaLabelPrefix}${typeLabel} ${displayName}, ${amountStr}`}
+        className="cursor-pointer border-b transition-colors last:border-b-0 hover:bg-accent/40 focus:outline-none focus-visible:bg-accent/40"
+      >
+        <td className="px-3 py-3 align-top text-[11.5px] font-[family-name:var(--font-mono)] whitespace-nowrap">
+          {formatShortDate(tx.occurredAt.slice(0, 10), locale)}
+          <div className="text-muted-foreground">
+            {formatTime(tx.occurredAt)}
+          </div>
+        </td>
+        <td className="px-3 py-3 align-top">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[13px] font-semibold">{displayName}</span>
+            {isObligationLinked && (
+              <StatusBadge variant="warning">
+                <Lock className="size-2.5" />
+                {t.transaksi.lockedBadgeLabel}
+              </StatusBadge>
+            )}
+          </div>
+          {(isTransferWithDest || isObligationLinked) && (
+            <div className="text-[11px] text-muted-foreground">
+              {isObligationLinked
+                ? t.transaksi.obligationLockedTooltip
+                : accountCell}
+            </div>
+          )}
+        </td>
+        <td className="px-3 py-3 align-top">
+          {isTransfer ? (
+            <StatusBadge variant="purple">🔁 {typeLabels.transfer}</StatusBadge>
+          ) : (
+            <StatusBadge variant="gray">
+              <Tag className="size-2.5" />
+              {tx.categoryName ?? "—"}
+            </StatusBadge>
+          )}
+        </td>
+        <td className="px-3 py-3 align-top text-[12px] text-muted-foreground">
+          {accountCell}
+        </td>
+        <td
+          className={cn(
+            "px-3 py-3 text-right align-top font-[family-name:var(--font-mono)] text-[13px] font-bold",
+            isTransfer
+              ? "text-muted-foreground"
+              : isIncome
+                ? "text-success"
+                : "text-destructive",
+          )}
+        >
+          {amountStr}
+        </td>
+        <td className="px-3 py-3 text-right align-top">
+          <RowActions
+            onEdit={onEditClick}
+            onDelete={onDeleteClick}
+            className="justify-end"
+            disabled={isObligationLinked}
+            disabledLabel={t.transaksi.obligationLockedTooltip}
+          />
+        </td>
+      </tr>
+      <TransactionDetailDialog
+        tx={tx}
+        open={detailOpen}
+        familyGroupId={familyGroupId}
+        token={token}
+        onClose={() => setDetailOpen(false)}
+        onEdit={() => {
+          setDetailOpen(false);
+          onEditClick();
+        }}
+        onDelete={() => {
+          setDetailOpen(false);
+          onDeleteClick();
+        }}
+      />
+    </>
+  );
+}
+
+/** `.stat` card (icon + label + amount + optional muted subtext line) —
+ * matches `@/components/wm`'s `SummaryCard` visuals exactly, but adds a
+ * neutral (non success/destructive-forced) subtext slot that
+ * `SummaryCard` (a protected foundation component) doesn't expose, needed
+ * for the income/expense cards' "N transaksi · <bulan>" line. Inlined per
+ * WM_CONVENTIONS.md's "if not, inline the Tailwind translation in the page
+ * file" rule rather than editing the shared primitive. */
+function StatCard({
+  icon,
+  iconBg,
+  iconColor,
+  label,
+  amount,
+  subtext,
+  subtextClassName,
+}: {
+  icon: ReactNode;
+  iconBg: string;
+  iconColor?: string;
+  label: ReactNode;
+  amount: ReactNode;
+  subtext?: ReactNode;
+  subtextClassName?: string;
+}) {
+  return (
+    <Card className="gap-0 p-4">
+      <div
+        className="mb-2 flex size-[34px] items-center justify-center rounded-md text-[15px]"
+        style={{ background: iconBg, color: iconColor }}
+      >
+        {icon}
+      </div>
+      <div className="mb-0.5 text-[10.5px] font-medium text-muted-foreground">
+        {label}
+      </div>
+      <div className="mb-[3px] text-[15px] font-extrabold">{amount}</div>
+      {subtext && (
+        <div
+          className={cn(
+            "text-[10.5px] font-bold",
+            subtextClassName ?? "text-muted-foreground",
+          )}
+        >
+          {subtext}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/** Top insight pill row — prototype's `.value-strip`/`.value-pill`. Only
+ * the "% terkategori" pill is honest here: the other two prototype pills
+ * ("N anggota aktif mencatat", "N transaksi besar sudah diverifikasi")
+ * need a per-transaction recorder identity and a verification flag that
+ * `TransactionDto` doesn't carry — they are deliberately NOT rendered
+ * rather than shipped with an invented number. */
+function InsightPill({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode;
+  label: ReactNode;
+  value: ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 rounded-xl border bg-card px-3.5 py-2.5">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent text-primary">
+        {icon}
+      </span>
+      <span className="flex flex-col">
+        <span className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
+          {label}
+        </span>
+        <span className="text-[12.5px] font-semibold">{value}</span>
+      </span>
+    </div>
   );
 }
 
@@ -752,6 +1010,14 @@ function TransaksiPageInner() {
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<TransactionDto | null>(null);
+  // EPIC-025 restructure — real filter-card controls wired to the API's own
+  // `categoryId`/`from`/`to` query params (ListTransactionsQueryDto already
+  // supports them); `accountId` reuses the existing URL-driven "mutasi" lens
+  // below instead of a second, conflicting piece of state.
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [page, setPage] = useState(1);
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
   const { setTxnOpen } = useShell();
@@ -792,17 +1058,32 @@ function TransaksiPageInner() {
   });
 
   const { data, isLoading, isError } = useQuery<TransactionListResponse>({
-    queryKey: [...queryKeys.transactions.all(familyGroupId), token, accountId],
-    queryFn: () =>
-      apiFetch<TransactionListResponse>(
-        `/family-groups/${familyGroupId}/transactions?limit=50${accountId ? `&accountId=${encodeURIComponent(accountId)}` : ""}`,
+    queryKey: [
+      ...queryKeys.transactions.all(familyGroupId),
+      token,
+      accountId,
+      categoryFilter,
+      dateFrom,
+      dateTo,
+    ],
+    queryFn: () => {
+      const params = new URLSearchParams({ limit: "50" });
+      if (accountId) params.set("accountId", accountId);
+      if (categoryFilter) params.set("categoryId", categoryFilter);
+      if (dateFrom) params.set("from", dateFrom);
+      if (dateTo) params.set("to", dateTo);
+      return apiFetch<TransactionListResponse>(
+        `/family-groups/${familyGroupId}/transactions?${params.toString()}`,
         { token },
-      ),
+      );
+    },
     enabled: !!token && !!familyGroupId,
   });
 
-  // Per-account "mutasi" lens (EPIC-021 #24): resolve the account name for the
-  // filter pill only when an accountId filter is active.
+  // Per-account "mutasi" lens (EPIC-021 #24) + the filter card's "Akun"
+  // select below share this same fetch — always loaded once a family group
+  // is known, not only when a chip/filter is already active, since the
+  // select needs the full list of options regardless.
   const { data: filterAccounts } = useQuery<{ id: string; name: string }[]>({
     queryKey: ["accounts", familyGroupId, "txn-filter"],
     queryFn: () =>
@@ -810,11 +1091,41 @@ function TransaksiPageInner() {
         `/family-groups/${familyGroupId}/accounts`,
         { token },
       ),
-    enabled: !!token && !!familyGroupId && !!accountId,
+    enabled: !!token && !!familyGroupId,
   });
   const filterAccountName = accountId
     ? (filterAccounts?.find((a) => a.id === accountId)?.name ?? "…")
     : null;
+
+  // Filter card's "Kategori" select — same real endpoint
+  // `transaction-dialog.tsx`'s own category picker already uses.
+  const { data: filterCategories } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["categories", familyGroupId, "txn-filter"],
+    queryFn: () =>
+      apiFetch<{ id: string; name: string }[]>(
+        `/family-groups/${familyGroupId}/categories`,
+        { token },
+      ),
+    enabled: !!token && !!familyGroupId,
+  });
+
+  const handleAccountFilterChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    setPage(1);
+    router.replace(
+      value
+        ? `/transaksi?accountId=${encodeURIComponent(value)}`
+        : "/transaksi",
+    );
+  };
+
+  const handleResetFilters = () => {
+    setFilter("all");
+    setCategoryFilter("");
+    setDateFrom("");
+    setDateTo("");
+    setPage(1);
+  };
 
   // EPIC-023 Task E retry (HIGH 4) — only fetched when the "Kartu Kredit"
   // filter is actually selected, mirroring the `filterAccounts` lazy-fetch
@@ -856,15 +1167,13 @@ function TransaksiPageInner() {
     return sortOrder === "newest" ? -cmp : cmp;
   });
 
-  const groups = sorted.reduce<Record<string, TransactionDto[]>>((acc, tx) => {
-    const day = tx.occurredAt.slice(0, 10);
-    const existing = acc[day];
-    return { ...acc, [day]: existing ? [...existing, tx] : [tx] };
-  }, {});
-
-  // Day order derived from sort: newest = desc, oldest = asc
-  const sortedDays = Object.keys(groups).sort((a, b) =>
-    sortOrder === "newest" ? b.localeCompare(a) : a.localeCompare(b),
+  // Prototype's table renders a flat, paginated row list (no date-group
+  // headers) — the date is its own table column instead.
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedTransactions = sorted.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
   );
 
   const totalIncome = summary ? parseFloat(summary.totalIncome) : 0;
@@ -876,6 +1185,31 @@ function TransaksiPageInner() {
   // deficit % is derived from the already-fetched summary, not invented copy.
   const netPct =
     totalIncome > 0 ? Math.round((netBalance / totalIncome) * 100) : 0;
+
+  // Income/expense transaction counts + the real applied period (only set
+  // when the date-range filter above is actually in use — `summary.period`
+  // echoes back the API's own `from`/`to` query params, never fabricated).
+  const incomeCount = transactions.filter((tx) => tx.type === "income").length;
+  const expenseCount = transactions.filter(
+    (tx) => tx.type === "expense",
+  ).length;
+  const monthLabel = summary?.period.from
+    ? formatMonthYear(summary.period.from, locale)
+    : null;
+  const incomeSubtext = isLoading
+    ? undefined
+    : `${incomeCount}${t.transaksi.transactionsCountSuffix}${monthLabel ? ` · ${monthLabel}` : ""}`;
+  const expenseSubtext = isLoading
+    ? undefined
+    : `${expenseCount}${t.transaksi.transactionsCountSuffix}${monthLabel ? ` · ${monthLabel}` : ""}`;
+
+  // "Otomatis rapi" insight pill — the one honest number derivable from the
+  // already-fetched list (see the omission note on `InsightPill` above).
+  const categorizedCount = transactions.filter((tx) => !!tx.categoryId).length;
+  const categorizedPct =
+    transactions.length > 0
+      ? Math.round((categorizedCount / transactions.length) * 100)
+      : 0;
 
   return (
     <div className="space-y-4">
@@ -904,11 +1238,24 @@ function TransaksiPageInner() {
         </button>
       </div>
 
-      {/* Filter card — EPIC-025 N3-E4: prototype's `.card.transaction-filter-section`
-          (translation table: `.card` → `SectionCard`). Only the type-filter
-          pills + sort control exist in this app (no account/category filter
-          endpoints), so the card body carries only those — no fabricated
-          date-range/account/category selects. */}
+      {/* Insight pill row — prototype's `.value-strip`. Only the honestly
+          derivable pill is rendered; see `InsightPill`'s own doc comment for
+          the two prototype pills deliberately omitted instead of faked. */}
+      {!isLoading && transactions.length > 0 && (
+        <div className="flex flex-wrap gap-2.5">
+          <InsightPill
+            icon={<Sparkles className="size-4" />}
+            label={t.transaksi.insightCategorizedLabel}
+            value={`${categorizedPct}${t.transaksi.insightCategorizedValueSuffix}`}
+          />
+        </div>
+      )}
+
+      {/* Filter card — prototype's `.card.transaction-filter-section`
+          (translation table: `.card` → `SectionCard`). Rentang Tanggal/
+          Akun/Kategori below are real controls wired to the API's own
+          `from`/`to`/`categoryId`/`accountId` query params — see the
+          `data` query above. */}
       <SectionCard
         title={
           <span className="inline-flex items-center gap-1.5">
@@ -916,8 +1263,89 @@ function TransaksiPageInner() {
             {t.transaksi.filterCardTitle}
           </span>
         }
+        action={
+          <div className="flex items-center gap-2.5">
+            {!isLoading && (
+              <StatusBadge variant="gray">
+                {sorted.length}
+                {t.transaksi.transactionsCountSuffix}
+              </StatusBadge>
+            )}
+            <CardLink onClick={handleResetFilters}>
+              {t.transaksi.resetFilterButton}
+            </CardLink>
+          </div>
+        }
       >
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+              {t.transaksi.dateRangeLabel}
+            </span>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => {
+                  setDateFrom(e.target.value);
+                  setPage(1);
+                }}
+                aria-label={t.transaksi.dateFromAriaLabel}
+                className={fieldClass}
+              />
+              <span className="text-[12px] text-muted-foreground">–</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => {
+                  setDateTo(e.target.value);
+                  setPage(1);
+                }}
+                aria-label={t.transaksi.dateToAriaLabel}
+                className={fieldClass}
+              />
+            </div>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+              {t.transaksi.accountFilterFieldLabel}
+            </span>
+            <select
+              value={accountId ?? ""}
+              onChange={handleAccountFilterChange}
+              className={fieldClass}
+            >
+              <option value="">{t.transaksi.allAccountsOption}</option>
+              {filterAccounts?.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+              {t.transaksi.categoryFilterFieldLabel}
+            </span>
+            <select
+              value={categoryFilter}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value);
+                setPage(1);
+              }}
+              className={fieldClass}
+            >
+              <option value="">{t.transaksi.allCategoriesOption}</option>
+              {filterCategories?.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2">
           <div
             role="group"
             aria-label={t.transaksi.filterCardTitle}
@@ -926,7 +1354,10 @@ function TransaksiPageInner() {
             {FILTER_VALUES.map((value) => (
               <button
                 key={value}
-                onClick={() => setFilter(value)}
+                onClick={() => {
+                  setFilter(value);
+                  setPage(1);
+                }}
                 aria-pressed={filter === value}
                 className={
                   "whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors " +
@@ -947,7 +1378,10 @@ function TransaksiPageInner() {
             </span>
             <select
               value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value as SortOrder)}
+              onChange={(e) => {
+                setSortOrder(e.target.value as SortOrder);
+                setPage(1);
+              }}
               className="appearance-none rounded-lg border bg-card py-1.5 pl-[68px] pr-7 text-[13px] font-semibold text-foreground outline-none transition-colors focus:border-primary cursor-pointer"
               aria-label={t.transaksi.sortAriaLabel}
             >
@@ -962,40 +1396,41 @@ function TransaksiPageInner() {
         </div>
       </SectionCard>
 
-      {/* Summary stat cards — EPIC-025 N3-E4: prototype's `.auto-grid--metrics`
-          of `.card.stat` (translation table: `.stat` → `SummaryCard`). Delta
-          text is derived from the already-fetched list/summary, not invented
-          copy. */}
+      {/* Summary stat cards — prototype's `.auto-grid--metrics` of
+          `.card.stat`. Subtext lines are derived from the already-fetched
+          list/summary, not invented copy — the month label only appears
+          when a real date-range filter is active (`summary.period.from`). */}
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
-        {/* Income/expense counts are neutral facts, not a good/bad trend —
-            SummaryCard's `delta` slot always colors success/destructive, so
-            leaving it unset here avoids implying a trend that isn't real. */}
-        <SummaryCard
+        <StatCard
           icon={<ArrowDownLeft className="size-[17px]" />}
           iconBg="var(--success-soft)"
           iconColor="var(--success)"
           label={t.transaksi.totalIncomeLabel}
           amount={isLoading ? "…" : formatRupiah(totalIncome)}
+          subtext={incomeSubtext}
         />
-        <SummaryCard
+        <StatCard
           icon={<CreditCard className="size-[17px]" />}
           iconBg="color-mix(in oklab, var(--destructive) 14%, transparent)"
           iconColor="var(--destructive)"
           label={t.transaksi.totalExpenseLabel}
           amount={isLoading ? "…" : formatRupiah(totalExpense)}
+          subtext={expenseSubtext}
         />
-        <SummaryCard
+        <StatCard
           icon={<Scale className="size-[17px]" />}
           iconBg="var(--accent)"
           iconColor="var(--accent-foreground)"
           label={t.transaksi.differenceLabel}
           amount={isLoading ? "…" : formatRupiah(netBalance)}
-          delta={
+          subtext={
             isLoading
               ? undefined
               : `${netBalance >= 0 ? t.transaksi.surplusLabel : t.transaksi.deficitLabel} ${Math.abs(netPct)}${t.transaksi.ofIncomeSuffix}`
           }
-          deltaUp={netBalance >= 0}
+          subtextClassName={
+            netBalance >= 0 ? "text-success" : "text-destructive"
+          }
         />
       </div>
 
@@ -1009,20 +1444,18 @@ function TransaksiPageInner() {
         </div>
       )}
 
-      {/* Transaction list — EPIC-025 N3-E4: prototype's `.card.transaction-table-section`
-          (translation table: `.card` → `SectionCard`, `.list-row` pattern kept
-          inline per-page as the table already documents). Rows/dialogs below
-          are untouched — only the wrapping card chrome is new. */}
+      {/* Transaction table — prototype's `.card.transaction-table-section`
+          `.table.table--transactions` (translation table: `.card` →
+          `SectionCard`). Wrapped for horizontal scroll on mobile per
+          WM_CONVENTIONS.md's table responsiveness rule. */}
       <SectionCard
         title={t.transaksi.listSectionTitle}
         action={
           <span className="text-[11.5px] text-muted-foreground">
             {t.transaksi.listSectionHint}
-            {!isLoading &&
-              ` · ${filtered.length}${t.transaksi.transactionsCountSuffix}`}
           </span>
         }
-        bodyClassName="space-y-1"
+        bodyClassName="pt-0"
       >
         {isLoading && (
           <div className="py-6 text-center text-[13px] text-muted-foreground">
@@ -1030,16 +1463,35 @@ function TransaksiPageInner() {
           </div>
         )}
 
-        {!isLoading &&
-          sortedDays.map((day, i) => (
-            <Rise key={day} index={i}>
-              <div>
-                <div className="mt-3 mb-1.5 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-                  {formatDayLabel(day, t, locale)}
-                </div>
-                <div className="space-y-1.5">
-                  {groups[day]?.map((tx) => (
-                    <TxRow
+        {!isLoading && sorted.length > 0 && (
+          <>
+            <div className="w-full overflow-x-auto">
+              <table className="w-full min-w-[720px] text-left">
+                <thead>
+                  <tr className="border-b">
+                    <th className="px-3 py-2 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+                      {t.transaksi.tableColDate}
+                    </th>
+                    <th className="px-3 py-2 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+                      {t.transaksi.tableColDesc}
+                    </th>
+                    <th className="px-3 py-2 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+                      {t.transaksi.tableColCategory}
+                    </th>
+                    <th className="px-3 py-2 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+                      {t.transaksi.tableColAccount}
+                    </th>
+                    <th className="px-3 py-2 text-right text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+                      {t.transaksi.tableColAmount}
+                    </th>
+                    <th className="px-3 py-2 text-right text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+                      {t.transaksi.tableColOptions}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagedTransactions.map((tx) => (
+                    <TxTableRow
                       key={tx.id}
                       tx={tx}
                       familyGroupId={familyGroupId}
@@ -1048,12 +1500,41 @@ function TransaksiPageInner() {
                       onEditClick={() => setEditTarget(tx)}
                     />
                   ))}
-                </div>
-              </div>
-            </Rise>
-          ))}
+                </tbody>
+              </table>
+            </div>
 
-        {!isLoading && sortedDays.length === 0 && !isError && (
+            <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-3">
+              <span className="text-[11.5px] text-muted-foreground">
+                {t.transaksi.paginationShowingLabel}
+                {pagedTransactions.length}
+                {t.transaksi.paginationOfMid}
+                {sorted.length}
+                {t.transaksi.transactionsCountSuffix}
+              </span>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  disabled={currentPage <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="rounded-md border px-3 py-1.5 text-[12px] font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {t.transaksi.paginationPrevButton}
+                </button>
+                <button
+                  type="button"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="rounded-md border px-3 py-1.5 text-[12px] font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {t.transaksi.paginationNextButton}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {!isLoading && sorted.length === 0 && !isError && (
           <div className="py-6 text-center text-[13px] text-muted-foreground">
             {t.transaksi.emptyFiltered}
           </div>

@@ -10,7 +10,18 @@ import {
   useState,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Download, FileSpreadsheet } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  FileSpreadsheet,
+  FileText,
+  Info,
+  Target,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -232,31 +243,157 @@ function BarRow({
 
 /* ───────────────────────── Section: Ringkasan ───────────────────────── */
 
+/** Headline stat card — prototype's `.card.stat` (gap 5): tinted icon,
+ * label, value, and an optional delta sub-line. `delta` is only rendered
+ * when the caller actually computed one from real data — never a
+ * placeholder. */
+function RingkasanStatCard({
+  icon,
+  iconBg,
+  iconColor,
+  label,
+  value,
+  valueClass,
+  delta,
+  deltaClass,
+}: {
+  icon: React.ReactNode;
+  iconBg: string;
+  iconColor: string;
+  label: string;
+  value: string;
+  valueClass?: string;
+  delta?: string;
+  deltaClass?: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-[12px] border bg-card p-4">
+      <div
+        className="flex size-9 shrink-0 items-center justify-center rounded-[10px]"
+        style={{ background: iconBg, color: iconColor }}
+      >
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[10.5px] text-muted-foreground">{label}</div>
+        <div
+          className={"mono text-[17px] font-extrabold " + (valueClass ?? "")}
+        >
+          {value}
+        </div>
+        {delta && (
+          <div
+            className={
+              "mt-1 text-[11px] " + (deltaClass ?? "text-muted-foreground")
+            }
+          >
+            {delta}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function RingkasanSection({
   go,
   summary,
   invSummary,
   balanceSheet,
   isLoading,
+  chartSummary,
+  isChartLoading,
+  chartRange,
+  onChartRangeChange,
+  periodLabel,
 }: {
   go: (id: string) => void;
   summary?: ReportSummaryDto;
   invSummary?: InvestmentSummaryDto;
   balanceSheet?: BalanceSheetDto;
   isLoading?: boolean;
+  /** EPIC-025 N3-J1 (gap 7) — the "Pemasukan vs Pengeluaran" chart's own
+   * 6/12-month window, independent of `summary` (which always stays the
+   * trailing-6-month window every other section/stat card here relies on). */
+  chartSummary?: ReportSummaryDto;
+  isChartLoading?: boolean;
+  chartRange?: 6 | 12;
+  onChartRangeChange?: (range: 6 | 12) => void;
+  periodLabel?: string;
 }) {
   const { t } = useLocale();
-  const chartMonths = summary?.points.map((p) => p.label) ?? [];
+  const activeChartSummary = chartSummary ?? summary;
+  const chartMonths = activeChartSummary?.points.map((p) => p.label) ?? [];
   // EPIC-025 N3-G2 — raw Rupiah series (not the old BarChart's /1_000_000
   // "juta" pre-scale — that was a pixel-height scale factor for the old
   // bespoke SVG bars, not a data change). CashflowChart's own axis/tooltip
   // formatters (`formatRupiahCompact`/`formatRupiah`) expect real amounts.
-  const chartIncome = summary?.points.map((p) => p.income) ?? [];
-  const chartExpense = summary?.points.map((p) => p.expense) ?? [];
+  const chartIncome = activeChartSummary?.points.map((p) => p.income) ?? [];
+  const chartExpense = activeChartSummary?.points.map((p) => p.expense) ?? [];
   const cashflowChartAriaLabel =
-    summary && chartMonths.length > 0
-      ? `${t.laporan.ringkasan.financeTitle} ${chartMonths[chartMonths.length - 1]}: ${t.common.income} ${formatRupiah(chartIncome[chartIncome.length - 1] ?? 0)}, ${t.common.expense} ${formatRupiah(chartExpense[chartExpense.length - 1] ?? 0)}`
-      : t.laporan.ringkasan.financeTitle;
+    activeChartSummary && chartMonths.length > 0
+      ? `${t.laporan.ringkasan.cashflowCardTitle} ${chartMonths[chartMonths.length - 1]}: ${t.common.income} ${formatRupiah(chartIncome[chartIncome.length - 1] ?? 0)}, ${t.common.expense} ${formatRupiah(chartExpense[chartExpense.length - 1] ?? 0)}`
+      : t.laporan.ringkasan.cashflowCardTitle;
+
+  // EPIC-025 N3-J1 (gap 5) — headline stat deltas, computed ONLY from data
+  // already fetched (`summary.points`, trailing months ending at the
+  // selected period). `points` is ascending chronological — the last entry
+  // is the active period, the one before it is "last month". No delta is
+  // rendered when there is no real previous point to compare against (a
+  // dashed placeholder would be more misleading than nothing).
+  const points = summary?.points ?? [];
+  const currentPoint = points[points.length - 1];
+  const previousPoint =
+    points.length > 1 ? points[points.length - 2] : undefined;
+  const incomeDeltaPct =
+    currentPoint && previousPoint && previousPoint.income > 0
+      ? ((currentPoint.income - previousPoint.income) / previousPoint.income) *
+        100
+      : null;
+  const expenseDeltaPct =
+    currentPoint && previousPoint && previousPoint.expense > 0
+      ? ((currentPoint.expense - previousPoint.expense) /
+          previousPoint.expense) *
+        100
+      : null;
+  // Consecutive trailing months (from the most recent) with a positive net
+  // — a real streak read off the same series, not a guess.
+  let surplusStreak = 0;
+  for (let i = points.length - 1; i >= 0; i -= 1) {
+    if (points[i].net > 0) surplusStreak += 1;
+    else break;
+  }
+  // Matches the 30% savings-rate target `PerfSection` already uses
+  // elsewhere on this page (`laporan.performa.savingsRateTargetLabel`) —
+  // reused here, not a new invented threshold.
+  const SAVINGS_TARGET_PCT = 30;
+
+  function formatDeltaPct(pct: number): string {
+    const arrow = pct >= 0 ? "↑" : "↓";
+    return `${arrow} ${Math.abs(pct).toFixed(1)}%`;
+  }
+  const incomeDeltaLabel =
+    incomeDeltaPct !== null && previousPoint
+      ? `${formatDeltaPct(incomeDeltaPct)} ${t.laporan.ringkasan.statVsPrefix} ${previousPoint.label}`
+      : undefined;
+  const expenseDeltaLabel =
+    expenseDeltaPct !== null && previousPoint
+      ? `${formatDeltaPct(expenseDeltaPct)} ${t.laporan.ringkasan.statVsPrefix} ${previousPoint.label}`
+      : undefined;
+  const netCashflowDeltaLabel =
+    summary && surplusStreak > 0
+      ? t.laporan.ringkasan.statSurplusStreakTemplate.replace(
+          "{count}",
+          String(surplusStreak),
+        )
+      : undefined;
+  const savingsRatioDeltaLabel =
+    summary != null
+      ? (summary.savingsRate >= SAVINGS_TARGET_PCT
+          ? t.laporan.ringkasan.statSavingsAboveTargetTemplate
+          : t.laporan.ringkasan.statSavingsBelowTargetTemplate
+        ).replace("{target}", String(SAVINGS_TARGET_PCT))
+      : undefined;
 
   // `expenseDonut`/`wealthAlloc` keep the percentage-based `DonutSegment[]`
   // shape `categoryBreakdownToDonut`/`balanceSheetToWealthAlloc` (protected
@@ -308,47 +445,116 @@ function RingkasanSection({
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <SectionCard title={t.laporan.ringkasan.financeTitle}>
-        <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
-          <MoneyStat
-            label={t.laporan.totalIncomeLabel}
-            value={summary ? formatRupiah(summary.totalIncome) : "Rp —"}
-            valueClass="text-success"
-          />
-          <MoneyStat
-            label={t.laporan.totalExpenseLabel}
-            value={summary ? formatRupiah(summary.totalExpense) : "Rp —"}
-            valueClass="text-destructive"
-          />
-          <MoneyStat
-            label={t.laporan.surplusLabel}
-            value={summary ? formatRupiah(summary.netSavings) : "Rp —"}
-            valueClass="text-success"
-          />
-          <div>
-            <div className="mb-[3px] text-[11px] text-muted-foreground">
-              {t.laporan.savingsRateLabel}
-            </div>
-            <div className="text-[17px] font-extrabold text-primary">
-              {summary ? `${summary.savingsRate}%` : "—"}
-            </div>
-          </div>
-        </div>
-        {chartMonths.length > 0 && (
-          <div className="mt-4">
-            {/* EPIC-025 N3-G2 — BarChart → CashflowChart (Apex). */}
-            <CashflowChart
-              months={chartMonths}
-              income={chartIncome}
-              expense={chartExpense}
-              height={100}
-              ariaLabel={cashflowChartAriaLabel}
-            />
-          </div>
-        )}
-      </SectionCard>
+      {/* EPIC-025 N3-J1 (gap 5) — headline stat cards, prototype's
+          `.auto-grid--metrics` of `.card.stat`. */}
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+        <RingkasanStatCard
+          icon={<TrendingUp className="size-[17px]" />}
+          iconBg="var(--success-soft)"
+          iconColor="var(--success)"
+          label={t.laporan.totalIncomeLabel}
+          value={summary ? formatRupiah(summary.totalIncome) : "Rp —"}
+          valueClass="text-success"
+          delta={incomeDeltaLabel}
+          deltaClass={
+            incomeDeltaPct !== null && incomeDeltaPct < 0
+              ? "text-destructive"
+              : "text-success"
+          }
+        />
+        <RingkasanStatCard
+          icon={<TrendingDown className="size-[17px]" />}
+          iconBg="color-mix(in oklab, var(--destructive) 14%, transparent)"
+          iconColor="var(--destructive)"
+          label={t.laporan.totalExpenseLabel}
+          value={summary ? formatRupiah(summary.totalExpense) : "Rp —"}
+          valueClass="text-destructive"
+          delta={expenseDeltaLabel}
+          deltaClass={
+            expenseDeltaPct !== null && expenseDeltaPct < 0
+              ? "text-success"
+              : "text-destructive"
+          }
+        />
+        <RingkasanStatCard
+          icon={<Wallet className="size-[17px]" />}
+          iconBg="var(--accent)"
+          iconColor="var(--accent-foreground)"
+          label={t.laporan.ringkasan.statNetCashflowLabel}
+          value={summary ? formatSignedRupiah(summary.netSavings) : "Rp —"}
+          valueClass={
+            summary && summary.netSavings >= 0
+              ? "text-success"
+              : "text-destructive"
+          }
+          delta={netCashflowDeltaLabel}
+        />
+        <RingkasanStatCard
+          icon={<Target className="size-[17px]" />}
+          iconBg="var(--brand-purple-soft)"
+          iconColor="var(--brand-purple)"
+          label={t.laporan.ringkasan.statSavingsRatioLabel}
+          value={summary ? `${summary.savingsRate}%` : "—"}
+          delta={savingsRatioDeltaLabel}
+          deltaClass={
+            summary && summary.savingsRate >= SAVINGS_TARGET_PCT
+              ? "text-success"
+              : "text-warning"
+          }
+        />
+      </div>
 
-      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+      <div className="grid grid-cols-1 items-stretch gap-3.5 lg:grid-cols-2">
+        <SectionCard
+          title={t.laporan.ringkasan.cashflowCardTitle}
+          action={
+            chartRange && onChartRangeChange ? (
+              <div className="inline-flex rounded-full border bg-secondary p-0.5 text-[11.5px] font-semibold">
+                {([6, 12] as const).map((range) => (
+                  <button
+                    key={range}
+                    type="button"
+                    aria-pressed={chartRange === range}
+                    onClick={() => onChartRangeChange(range)}
+                    className={
+                      "rounded-full px-2.5 py-1 transition-colors " +
+                      (chartRange === range
+                        ? "bg-card text-primary shadow-sm"
+                        : "text-muted-foreground hover:text-foreground")
+                    }
+                  >
+                    {range === 6
+                      ? t.laporan.ringkasan.cashflowRange6
+                      : t.laporan.ringkasan.cashflowRange12}
+                  </button>
+                ))}
+              </div>
+            ) : undefined
+          }
+        >
+          {/* EPIC-025 N3-J1 (gap 7) — fixed height (was 100px, visibly
+              squashed with overlapping axis labels) + real series derived
+              from the active-range summary. */}
+          <div
+            className={
+              isChartLoading ? "opacity-50 pointer-events-none" : undefined
+            }
+          >
+            {chartMonths.length > 0 ? (
+              <CashflowChart
+                months={chartMonths}
+                income={chartIncome}
+                expense={chartExpense}
+                height={260}
+                ariaLabel={cashflowChartAriaLabel}
+              />
+            ) : (
+              <div className="flex h-[260px] items-center justify-center text-[12px] text-muted-foreground">
+                {t.laporan.emptyMonthTransactions}
+              </div>
+            )}
+          </div>
+        </SectionCard>
         <SectionCard title={t.laporan.ringkasan.expenseAllocTitle}>
           <div className="flex flex-wrap items-center gap-3.5">
             {expenseDonut.length > 0 ? (
@@ -389,47 +595,112 @@ function RingkasanSection({
             )}
           </div>
         </SectionCard>
-        <SectionCard title={t.laporan.ringkasan.wealthAllocTitle}>
-          <div className="flex flex-wrap items-center gap-3.5">
-            {wealthAlloc.length > 0 ? (
-              <>
-                {/* EPIC-025 N3-G2 — Donut → DonutChart (Apex). Same segments
-                    as `wealthAlloc`, amount-valued for center-total parity
-                    (see `wealthAllocAmounts` above); `wealthCenterValue`
-                    (formatJuta) is unused now that the Apex preset computes
-                    its own center total from the real series. */}
-                <DonutChart
-                  segments={wealthAllocAmounts}
-                  centerLabel={t.common.total}
-                  height={220}
-                  ariaLabel={wealthAllocAriaLabel}
-                />
-                <div className="min-w-[120px] flex-1 space-y-1.5">
-                  {wealthAlloc.map((seg) => (
-                    <div
-                      key={seg.label}
-                      className="flex items-center gap-2 text-xs"
-                    >
-                      <span
-                        className="size-2 shrink-0 rounded-full"
-                        style={{ background: seg.color }}
-                      />
-                      <span className="flex-1 text-muted-foreground">
-                        {seg.label}
-                      </span>
-                      <span className="font-bold">{seg.value}%</span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="py-4 text-[12px] text-muted-foreground">
-                {t.laporan.ringkasan.emptyWealthAlloc}
-              </div>
-            )}
-          </div>
-        </SectionCard>
       </div>
+
+      {/* EPIC-025 N3-J1 (gap 6) — "Rincian per Kategori" table, built from
+          `summary.topExpenseCategories` (already fetched — no new
+          endpoint). The prototype also shows an "Akun COA", "Transaksi"
+          count, "Bulan Lalu", and a signed "Selisih" column; those are
+          genuinely omitted (not just visually) because `ReportSummaryDto`
+          carries neither a COA account code nor a per-category transaction
+          count nor a previous-period breakdown per category — only this
+          period's amount + share. Rendering fabricated numbers for those
+          columns would violate the no-fabricated-data rule; a new endpoint
+          is out of this task's scope. */}
+      <SectionCard
+        title={t.laporan.ringkasan.categoryTable.title}
+        action={
+          periodLabel ? (
+            <span className="text-[11px] text-muted-foreground">
+              {periodLabel}
+            </span>
+          ) : undefined
+        }
+        bodyClassName="pt-0"
+      >
+        {summary && summary.topExpenseCategories.length > 0 ? (
+          <div className="w-full overflow-x-auto">
+            <table className="w-full min-w-[420px] text-left text-[12.5px]">
+              <thead>
+                <tr className="border-b text-muted-foreground">
+                  <th className="py-2 font-semibold">
+                    {t.laporan.ringkasan.categoryTable.colKategori}
+                  </th>
+                  <th className="py-2 text-right font-semibold">
+                    {t.laporan.ringkasan.categoryTable.colPersentase}
+                  </th>
+                  <th className="py-2 text-right font-semibold">
+                    {t.laporan.ringkasan.categoryTable.colBulanIni}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {summary.topExpenseCategories.map((item) => (
+                  <tr
+                    key={item.categoryName}
+                    className="border-b last:border-0"
+                  >
+                    <td className="py-2.5 font-semibold">
+                      {item.categoryName}
+                    </td>
+                    <td className="mono py-2.5 text-right text-muted-foreground">
+                      {item.percentage}%
+                    </td>
+                    <td className="mono py-2.5 text-right font-bold">
+                      {formatRupiah(item.amount)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="py-6 text-center text-[12px] text-muted-foreground">
+            {t.laporan.ringkasan.categoryTable.emptyState}
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard title={t.laporan.ringkasan.wealthAllocTitle}>
+        <div className="flex flex-wrap items-center gap-3.5">
+          {wealthAlloc.length > 0 ? (
+            <>
+              {/* EPIC-025 N3-G2 — Donut → DonutChart (Apex). Same segments
+                  as `wealthAlloc`, amount-valued for center-total parity
+                  (see `wealthAllocAmounts` above); `wealthCenterValue`
+                  (formatJuta) is unused now that the Apex preset computes
+                  its own center total from the real series. */}
+              <DonutChart
+                segments={wealthAllocAmounts}
+                centerLabel={t.common.total}
+                height={220}
+                ariaLabel={wealthAllocAriaLabel}
+              />
+              <div className="min-w-[120px] flex-1 space-y-1.5">
+                {wealthAlloc.map((seg) => (
+                  <div
+                    key={seg.label}
+                    className="flex items-center gap-2 text-xs"
+                  >
+                    <span
+                      className="size-2 shrink-0 rounded-full"
+                      style={{ background: seg.color }}
+                    />
+                    <span className="flex-1 text-muted-foreground">
+                      {seg.label}
+                    </span>
+                    <span className="font-bold">{seg.value}%</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="py-4 text-[12px] text-muted-foreground">
+              {t.laporan.ringkasan.emptyWealthAlloc}
+            </div>
+          )}
+        </div>
+      </SectionCard>
 
       <SectionCard
         title={t.laporan.ringkasan.invPerformanceTitle}
@@ -2814,7 +3085,14 @@ const EXPORT_REPORT_TYPE_IDS: ExportReportType[] = [
   "cashflow",
 ];
 
-function ExportSection({
+/**
+ * EPIC-025 N3-J1 — export job logic extracted from `ExportSection` into a
+ * hook so the prototype's header "Excel"/"PDF" buttons (gap 1) can trigger
+ * the SAME real export job as the detailed export card below the tabs,
+ * instead of a second, disconnected implementation. Behaviour is unchanged
+ * from the original `ExportSection` — only the state moved up one level.
+ */
+function useExportJob({
   familyGroupId,
   accessToken,
   startDate,
@@ -2953,11 +3231,42 @@ function ExportSection({
     status && status.status !== "done" && status.status !== "failed";
   const isDone = status?.status === "done";
 
+  return {
+    reportType,
+    setReportType,
+    jobId,
+    status,
+    isSubmitting,
+    startExport,
+    handleDownload,
+    isActive,
+    isDone,
+  };
+}
+
+/* ───────────────────────── Export Section ───────────────────────── */
+
+type ExportJobState = ReturnType<typeof useExportJob>;
+
+function ExportSection({ exportJob }: { exportJob: ExportJobState }) {
+  const { t } = useLocale();
+  const {
+    reportType,
+    setReportType,
+    jobId,
+    status,
+    isSubmitting,
+    startExport,
+    handleDownload,
+    isActive,
+    isDone,
+  } = exportJob;
+
   return (
     <div className="rounded-[12px] border bg-card p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="text-[13px] font-bold">{t.laporan.export.title}</div>
-        {isDone && status.downloadUrl && (
+        {isDone && status?.downloadUrl && (
           <button
             onClick={handleDownload}
             className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:opacity-90"
@@ -3295,6 +3604,35 @@ function LaporanInner() {
       enabled,
       staleTime: 60_000,
     });
+
+  // EPIC-025 N3-J1 (gap 7) — Ringkasan's "Pemasukan vs Pengeluaran" chart
+  // segmented toggle (6 Bln / 12 Bln, prototype's `.segmented`). A second,
+  // independent query — NOT a mutation of `SUMMARY_MONTHS` above — so every
+  // other tab that shares `summary` (Bulanan, Arus Kas, Performa) keeps its
+  // existing trailing-6-month window regardless of what the Ringkasan chart
+  // toggle is set to. Only fetched when the 12-month view is actually
+  // selected on the Ringkasan tab.
+  const [ringkasanChartRange, setRingkasanChartRange] = useState<6 | 12>(6);
+  const { data: summary12, isLoading: isSummary12Loading } =
+    useQuery<ReportSummaryDto>({
+      queryKey: queryKeys.reports.summary(
+        familyGroupId,
+        12,
+        "monthly",
+        summaryAnchorEnd,
+      ),
+      queryFn: () =>
+        apiFetch<ReportSummaryDto>(
+          `/family-groups/${familyGroupId}/reports/summary?months=12&endDate=${summaryAnchorEnd}`,
+          { token },
+        ),
+      enabled: enabled && tab === "rsum" && ringkasanChartRange === 12,
+      staleTime: 60_000,
+    });
+  const ringkasanChartSummary =
+    ringkasanChartRange === 12 ? summary12 : summary;
+  const isRingkasanChartLoading =
+    ringkasanChartRange === 12 ? isSummary12Loading : isSummaryLoading;
 
   // Laporan Harian always needs one specific day. Default to "today's
   // day-of-month" (clamped into the selected month) until the shared filter
@@ -3674,6 +4012,35 @@ function LaporanInner() {
   const go = (id: string) =>
     router.push("/laporan?tab=" + id, { scroll: false });
 
+  // EPIC-025 N3-J1 (gap 1) — the header's "Excel"/"PDF" buttons reuse this
+  // SAME export job the detailed export card below the tabs uses, instead
+  // of new controls that do nothing.
+  const exportJob = useExportJob({
+    familyGroupId,
+    accessToken,
+    startDate: rangeStart,
+    endDate: rangeEnd,
+  });
+
+  // EPIC-025 N3-J1 (gap 4) — pill tab strip with scroll arrows.
+  const tabsScrollRef = useRef<HTMLDivElement>(null);
+  function scrollReportTabs(direction: number) {
+    const el = tabsScrollRef.current;
+    if (!el) return;
+    const amount = Math.max(280, Math.round(el.clientWidth * 0.72));
+    el.scrollBy({ left: direction * amount, behavior: "smooth" });
+  }
+  const tabIndex = REPORT_TABS.findIndex((item) => item.id === tab);
+  function handleTabKeyDown(e: React.KeyboardEvent<HTMLButtonElement>) {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const delta = e.key === "ArrowRight" ? 1 : -1;
+    const next =
+      REPORT_TABS[(tabIndex + delta + REPORT_TABS.length) % REPORT_TABS.length];
+    go(next.id);
+    document.getElementById(`laporan-tab-${next.id}`)?.focus();
+  }
+
   function renderSection() {
     switch (tab) {
       case "rharian":
@@ -3805,6 +4172,11 @@ function LaporanInner() {
             invSummary={invSummary}
             balanceSheet={balanceSheet}
             isLoading={isSummaryLoading}
+            chartSummary={ringkasanChartSummary}
+            isChartLoading={isRingkasanChartLoading}
+            chartRange={ringkasanChartRange}
+            onChartRangeChange={setRingkasanChartRange}
+            periodLabel={periodLabel}
           />
         );
     }
@@ -3812,55 +4184,144 @@ function LaporanInner() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[13px] text-muted-foreground">
-          {t.laporan.subtitle}
+      {/* Page lead — prototype's `.page-lead` (gap 1): H1 + subtitle with an
+          accent underline, and header export buttons that trigger the SAME
+          real job as the detailed export card below the tabs (`exportJob`,
+          shared with `ExportSection`) — never a second, dead control. */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="border-l-4 border-primary pl-3 text-[20px] font-extrabold tracking-tight sm:text-[22px]">
+            {t.laporan.header.title}
+          </h1>
+          <p className="mt-1.5 max-w-xl pl-3 text-[13px] text-muted-foreground">
+            {t.laporan.header.subtitle}
+          </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex shrink-0 gap-2">
+          <button
+            type="button"
+            onClick={() => void exportJob.startExport("excel")}
+            disabled={!!exportJob.isActive || exportJob.isSubmitting}
+            className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3.5 py-[8px] text-[12px] font-semibold transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <FileSpreadsheet className="size-3.5" />
+            {t.laporan.header.exportExcelButton}
+          </button>
+          <button
+            type="button"
+            onClick={() => void exportJob.startExport("pdf")}
+            disabled={!!exportJob.isActive || exportJob.isSubmitting}
+            className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3.5 py-[8px] text-[12px] font-semibold transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <FileText className="size-3.5" />
+            {t.laporan.header.exportPdfButton}
+          </button>
+        </div>
+      </div>
+
+      {/* Filter Laporan card (gap 2) — wraps the existing preset/period
+          selectors; logic is unchanged, only the presentation moved into a
+          proper card matching the prototype. */}
+      <div className="rounded-[12px] border bg-card p-4">
+        <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
+          <div className="text-[13px] font-bold">
+            {t.laporan.filterCard.title}
+          </div>
+          <span className="text-[11px] text-muted-foreground">
+            {t.laporan.filterCard.appliesAllTabsCaption}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex min-w-[200px] flex-col gap-1">
+            <label className="text-[11px] font-semibold text-muted-foreground">
+              {t.laporan.filterCard.periodeLabel}
+            </label>
             {/* EPIC-023 Task B (B1, US-RPT-12) — quick-range presets applied
                 across every /laporan sub-view. "Custom" hands control back
                 to the year/month/day filter below it. */}
             <RangePresetSelect preset={rangePreset} onChange={setRangePreset} />
-            {rangePreset === "custom" && (
+          </div>
+          {rangePreset === "custom" && (
+            <div className="flex min-w-[220px] flex-col gap-1">
+              <label className="text-[11px] font-semibold text-muted-foreground">
+                {t.laporan.filterCard.dateRangeLabel}
+              </label>
               <PeriodFilter period={period} onChange={setPeriod} />
-            )}
-          </div>
-          {/* EPIC-022 B7 — report boundaries are pinned to WIB (never the
-              viewer's local offset); disclose the pin instead of leaving it
-              silent. */}
-          <div className="text-[10.5px] text-muted-foreground">
-            {t.laporan.periodFilter.timezoneNotePrefix}
-            {REPORT_TIMEZONE_LABEL}
-            {t.laporan.periodFilter.timezoneNoteSuffix}
-          </div>
-          {/* EPIC-023 Task B retry (HIGH) — rfamily (roster + net worth)
-              and rinv (current holdings) have no period semantics to
-              filter by (see the query comments above); say so plainly
-              instead of rendering a selector that silently does nothing. */}
-          {(tab === "rfamily" || tab === "rinv") && (
-            <div className="text-[10.5px] text-warning">
-              {t.laporan.periodFilter.periodNotApplicableNote}
             </div>
           )}
         </div>
+        {/* EPIC-022 B7 — report boundaries are pinned to WIB (never the
+            viewer's local offset); disclose the pin instead of leaving it
+            silent. */}
+        <div className="mt-2 text-[10.5px] text-muted-foreground">
+          {t.laporan.periodFilter.timezoneNotePrefix}
+          {REPORT_TIMEZONE_LABEL}
+          {t.laporan.periodFilter.timezoneNoteSuffix}
+        </div>
+        {/* EPIC-023 Task B retry (HIGH) — rfamily (roster + net worth)
+            and rinv (current holdings) have no period semantics to
+            filter by (see the query comments above); say so plainly
+            instead of rendering a selector that silently does nothing. */}
+        {(tab === "rfamily" || tab === "rinv") && (
+          <div className="mt-1 text-[10.5px] text-warning">
+            {t.laporan.periodFilter.periodNotApplicableNote}
+          </div>
+        )}
+
+        {/* Cash-basis disclosure callout (gap 3) — active period rendered
+            from the real `periodLabel` derivation above, not a static
+            string. */}
+        <div className="mt-3.5 flex items-start gap-2.5 rounded-md border border-primary/20 bg-accent/50 p-3 text-[12px] text-muted-foreground">
+          <Info className="mt-0.5 size-4 shrink-0 text-primary" />
+          <span>
+            <strong className="text-foreground">
+              {t.laporan.cashBasisNotice.title}
+            </strong>{" "}
+            {t.laporan.cashBasisNotice.body}{" "}
+            {t.laporan.cashBasisNotice.activePeriodPrefix}{" "}
+            <span className="mono font-semibold text-foreground">
+              {periodLabel}
+            </span>
+            .
+          </span>
+        </div>
       </div>
 
-      {/* Tab bar */}
-      <div className="relative">
-        <div className="hide-scrollbar flex gap-0.5 overflow-x-auto rounded-md border bg-background p-1">
+      {/* Pill tab strip with scroll arrows (gap 4) — a single mounted panel
+          per active tab (SPA pattern), so `role="tabpanel"` targets the one
+          rendered panel rather than the prototype's N hidden siblings. */}
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => scrollReportTabs(-1)}
+          aria-label={t.laporan.tabStrip.scrollLeftAriaLabel}
+          className="shrink-0 rounded-full border bg-card p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ChevronLeft className="size-4" />
+        </button>
+        <div
+          ref={tabsScrollRef}
+          role="tablist"
+          aria-label={t.laporan.tabStrip.ariaLabel}
+          className="hide-scrollbar flex flex-1 gap-1.5 overflow-x-auto scroll-smooth"
+        >
           {REPORT_TABS.map((tabItem) => {
             const active = tabItem.id === tab;
             return (
               <button
                 key={tabItem.id}
+                id={`laporan-tab-${tabItem.id}`}
+                role="tab"
+                aria-selected={active}
+                aria-controls="laporan-panel"
+                tabIndex={active ? 0 : -1}
                 onClick={() => go(tabItem.id)}
+                onKeyDown={handleTabKeyDown}
                 className={
-                  "whitespace-nowrap rounded px-3.5 py-2 text-[13px] font-semibold transition-colors " +
+                  "shrink-0 rounded-full px-3.5 py-2 text-[13px] font-semibold whitespace-nowrap transition-colors " +
                   (active
-                    ? "bg-card text-primary shadow-sm"
-                    : "text-muted-foreground hover:text-foreground")
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-muted-foreground hover:bg-accent")
                 }
               >
                 {t.shell.reportTabs[tabItem.id]}
@@ -3868,24 +4329,27 @@ function LaporanInner() {
             );
           })}
         </div>
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 right-0 w-8 rounded-r-md bg-gradient-to-l from-background to-transparent"
-        />
+        <button
+          type="button"
+          onClick={() => scrollReportTabs(1)}
+          aria-label={t.laporan.tabStrip.scrollRightAriaLabel}
+          className="shrink-0 rounded-full border bg-card p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ChevronRight className="size-4" />
+        </button>
       </div>
 
-      {/* Export */}
-      {familyGroupId && (
-        <ExportSection
-          familyGroupId={familyGroupId}
-          accessToken={accessToken}
-          startDate={rangeStart}
-          endDate={rangeEnd}
-        />
-      )}
+      {/* Export (detailed card — report type, status, download) */}
+      {familyGroupId && <ExportSection exportJob={exportJob} />}
 
       {/* Active section */}
-      {renderSection()}
+      <div
+        id="laporan-panel"
+        role="tabpanel"
+        aria-labelledby={`laporan-tab-${tab}`}
+      >
+        {renderSection()}
+      </div>
 
       {/* Investment Add/Edit Dialog */}
       <Dialog

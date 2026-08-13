@@ -1,7 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, X, CreditCard, Landmark, type LucideIcon } from "lucide-react";
+import {
+  Plus,
+  X,
+  CreditCard,
+  Landmark,
+  FileText,
+  Pencil,
+  Trash2,
+  Banknote,
+  TriangleAlert,
+  type LucideIcon,
+} from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import {
   useMutation,
@@ -19,7 +30,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { CardSideActions, ConfirmDeleteDialog } from "@/components/crud";
+import { ConfirmDeleteDialog } from "@/components/crud";
 import {
   AnimatedProgress,
   CountUpRupiah,
@@ -182,6 +193,28 @@ function formatLocaleDate(iso: string, locale: Locale): string {
   return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
     day: "numeric",
     month: "short",
+  });
+}
+
+// Prototype's "Cicilan Bulan Ini" sub-line ("Jatuh tempo terdekat 12
+// Agustus") spells the month out in full, unlike the card badges' short form.
+function formatLocaleDateFullMonth(iso: string, locale: Locale): string {
+  return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
+    day: "numeric",
+    month: "long",
+  });
+}
+
+// Prototype's payoff-projection x-axis uses real month labels (Agu Sep Okt
+// …), not a relative "+1 … +6" — the 6 calendar months following today,
+// matching `projectRemainingBalance`'s own month-by-month roll-forward.
+function nextSixMonthLabels(locale: Locale): string[] {
+  const now = new Date();
+  return Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() + 1 + i, 1);
+    return d.toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
+      month: "short",
+    });
   });
 }
 
@@ -608,6 +641,64 @@ function LiabilityModal({
   );
 }
 
+// Prototype's bottom action bar (docs/prototype/pages/liabilitas.html) —
+// labelled Detail/Edit/Hapus on the left, a primary Bayar on the right.
+// Page-local (not the shared `CardSideActions` in components/crud, which
+// /asuransi also uses and stays untouched) so only this page's layout
+// changes from the icon-only vertical column to a labelled bottom row.
+function LiabilityCardActionBar({
+  onDetail,
+  onEdit,
+  onDelete,
+  onPay,
+  payDisabled,
+  payDisabledLabel,
+}: {
+  onDetail: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onPay: () => void;
+  payDisabled: boolean;
+  payDisabledLabel: string;
+}) {
+  return (
+    <div className="mt-3.5 flex flex-wrap items-center gap-2 border-t pt-3.5">
+      <button
+        type="button"
+        onClick={onDetail}
+        className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[12px] font-semibold text-foreground transition-colors hover:bg-secondary"
+      >
+        <FileText className="size-3.5" /> Detail
+      </button>
+      <button
+        type="button"
+        onClick={onEdit}
+        className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[12px] font-semibold text-foreground transition-colors hover:bg-secondary"
+      >
+        <Pencil className="size-3.5" /> Edit
+      </button>
+      <button
+        type="button"
+        onClick={onDelete}
+        className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-semibold text-destructive transition-colors hover:bg-destructive/10"
+      >
+        <Trash2 className="size-3.5" /> Hapus
+      </button>
+      <span className="flex-1" />
+      <button
+        type="button"
+        onClick={onPay}
+        disabled={payDisabled}
+        title={payDisabled ? payDisabledLabel : undefined}
+        className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <Banknote className="size-3.5" />{" "}
+        {payDisabled ? payDisabledLabel : "Bayar"}
+      </button>
+    </div>
+  );
+}
+
 // ── Liability Card ─────────────────────────────────────────────────────────────
 
 interface LiabilityCardProps {
@@ -656,111 +747,124 @@ function LiabilityCard({
   };
   const typeLabel =
     t.liabilitas.typeLabels[item.type as LiabilityTypeValue] ?? item.type;
+  // Overdue = a real installment past its due date and not yet paid this
+  // period. No `denda`/late-fee field exists on LiabilityDto, so this warns
+  // honestly without inventing a penalty amount (unlike the prototype's
+  // static mock figure).
+  const isOverdue = status.variant === "danger" && !item.paidThisPeriod;
 
   return (
     <div className="transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
       <Card className="gap-0 p-[18px]">
-        <div className="flex items-stretch gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="mb-3.5 flex items-center gap-2.5">
-              <IconChip
-                icon={iconCfg.icon}
-                className={iconCfg.chip}
-                size={38}
-                rounded="rounded-[10px]"
-              />
-              <div>
-                <div className="text-[14px] font-bold">{item.name}</div>
-                <div className="text-[11.5px] text-muted-foreground">
-                  {item.institution
-                    ? `${item.institution} · ${typeLabel}`
-                    : typeLabel}
-                </div>
-              </div>
-              <div className="ml-auto">
-                <StatusBadge variant={status.variant}>
-                  {status.text}
-                </StatusBadge>
+        <div className="min-w-0 flex-1">
+          <div className="mb-3.5 flex items-center gap-2.5">
+            <IconChip
+              icon={iconCfg.icon}
+              className={iconCfg.chip}
+              size={38}
+              rounded="rounded-[10px]"
+            />
+            <div>
+              <div className="text-[14px] font-bold">{item.name}</div>
+              <div className="text-[11.5px] text-muted-foreground">
+                {item.institution
+                  ? `${item.institution} · ${typeLabel}`
+                  : typeLabel}
               </div>
             </div>
+            <div className="ml-auto">
+              <StatusBadge variant={status.variant}>{status.text}</StatusBadge>
+            </div>
+          </div>
 
-            <div className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
+          <div className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
+            <div>
+              <div className="mb-[3px] text-[11px] text-muted-foreground">
+                {isCreditCard
+                  ? t.liabilitas.ccCurrentBillLabel
+                  : t.liabilitas.loanRemainingPrincipalLabel}
+              </div>
+              <div
+                className="text-[13.5px] font-bold"
+                style={{ color: "var(--danger)" }}
+              >
+                {formatRupiah(remaining)}
+              </div>
+            </div>
+            <div>
+              <div className="mb-[3px] text-[11px] text-muted-foreground">
+                {isCreditCard
+                  ? t.liabilitas.ccLimitLabel
+                  : t.liabilitas.loanTotalLabel}
+              </div>
+              <div className="text-[13.5px] font-bold">
+                {formatRupiah(totalDebt)}
+              </div>
+            </div>
+            {minimumPayment > 0 && (
               <div>
                 <div className="mb-[3px] text-[11px] text-muted-foreground">
                   {isCreditCard
-                    ? t.liabilitas.ccCurrentBillLabel
-                    : t.liabilitas.loanRemainingPrincipalLabel}
+                    ? t.liabilitas.ccMinPaymentLabel
+                    : t.liabilitas.loanInstallmentLabel}
+                </div>
+                <div className="text-[13.5px] font-bold">
+                  {formatRupiah(minimumPayment)}
+                </div>
+              </div>
+            )}
+            {parseFloat(item.interestRate) > 0 && (
+              <div>
+                <div className="mb-[3px] text-[11px] text-muted-foreground">
+                  {isCreditCard
+                    ? t.liabilitas.ccInterestMonthlyLabel
+                    : t.liabilitas.loanInterestYearlyLabel}
                 </div>
                 <div
                   className="text-[13.5px] font-bold"
                   style={{ color: "var(--danger)" }}
                 >
-                  {formatRupiah(remaining)}
+                  {item.interestRate}%
                 </div>
               </div>
-              <div>
-                <div className="mb-[3px] text-[11px] text-muted-foreground">
-                  {isCreditCard
-                    ? t.liabilitas.ccLimitLabel
-                    : t.liabilitas.loanTotalLabel}
-                </div>
-                <div className="text-[13.5px] font-bold">
-                  {formatRupiah(totalDebt)}
-                </div>
-              </div>
-              {minimumPayment > 0 && (
-                <div>
-                  <div className="mb-[3px] text-[11px] text-muted-foreground">
-                    {isCreditCard
-                      ? t.liabilitas.ccMinPaymentLabel
-                      : t.liabilitas.loanInstallmentLabel}
-                  </div>
-                  <div className="text-[13.5px] font-bold">
-                    {formatRupiah(minimumPayment)}
-                  </div>
-                </div>
-              )}
-              {parseFloat(item.interestRate) > 0 && (
-                <div>
-                  <div className="mb-[3px] text-[11px] text-muted-foreground">
-                    {isCreditCard
-                      ? t.liabilitas.ccInterestMonthlyLabel
-                      : t.liabilitas.loanInterestYearlyLabel}
-                  </div>
-                  <div
-                    className="text-[13.5px] font-bold"
-                    style={{ color: "var(--danger)" }}
-                  >
-                    {item.interestRate}%
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <div className="mb-1.5 flex items-center justify-between">
-                <span className="text-[11.5px] font-semibold">
-                  {progressLabel}
-                </span>
-                <span
-                  className="text-[12px] font-bold"
-                  style={{ color: progressColor }}
-                >
-                  {progressValue}%
-                </span>
-              </div>
-              <AnimatedProgress value={progressValue} color={progressColor} />
-            </div>
+            )}
           </div>
-          <CardSideActions
-            onDetail={onDetail}
-            onEdit={onEdit}
-            onPay={onPay}
-            onDelete={onDelete}
-            payDisabled={item.paidThisPeriod}
-            payDisabledLabel={t.liabilitas.payAlreadyPaidTooltip}
-          />
+
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-[11.5px] font-semibold">
+                {progressLabel}
+              </span>
+              <span
+                className="text-[12px] font-bold"
+                style={{ color: progressColor }}
+              >
+                {progressValue}%
+              </span>
+            </div>
+            <AnimatedProgress value={progressValue} color={progressColor} />
+          </div>
         </div>
+
+        {isOverdue && (
+          <div className="mt-3.5 flex items-start gap-2 rounded-[10px] border border-destructive/30 bg-destructive/5 p-3 text-[12px] text-destructive">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+            <span>
+              {t.liabilitas.overdueWarningPrefix}
+              {item.dueDate ? formatLocaleDate(item.dueDate, locale) : ""}
+              {t.liabilitas.overdueWarningSuffix}
+            </span>
+          </div>
+        )}
+
+        <LiabilityCardActionBar
+          onDetail={onDetail}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onPay={onPay}
+          payDisabled={item.paidThisPeriod}
+          payDisabledLabel={t.liabilitas.payAlreadyPaidTooltip}
+        />
       </Card>
     </div>
   );
@@ -1236,7 +1340,7 @@ export default function LiabilitasPage() {
   // fetch). The prototype's chart is CUT-equivalent honesty-wise only in
   // the sense that it's an estimate — labeled as such via the same
   // disclaimer copy the Detail dialog already uses.
-  const payoffProjectionMonths = ["+1", "+2", "+3", "+4", "+5", "+6"];
+  const payoffProjectionMonths = nextSixMonthLabels(locale);
   const payoffProjectionSeries = projectRemainingBalance(liabilities ?? []);
 
   return (
@@ -1255,6 +1359,8 @@ export default function LiabilitasPage() {
           )}
           <div className="text-[11px] text-[#B91C1C]">
             {t.liabilitas.remainingActiveSuffix}
+            {!isLoading &&
+              ` · ${(liabilities ?? []).length}${t.liabilitas.remainingActiveCountSuffix}`}
           </div>
         </div>
         <div className="rounded-[14px] border bg-card p-4">
@@ -1291,7 +1397,7 @@ export default function LiabilitasPage() {
           )}
           <div className="text-[11px] text-muted-foreground">
             {nearestDueDate
-              ? `${t.liabilitas.statusDuePrefix}${formatLocaleDate(nearestDueDate, locale)}`
+              ? `${t.liabilitas.statusDuePrefix}${formatLocaleDateFullMonth(nearestDueDate, locale)}`
               : t.liabilitas.monthlyInstallmentSuffix}
           </div>
         </div>

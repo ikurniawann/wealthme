@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { PencilLine } from "lucide-react";
+import { BookOpen, PencilLine } from "lucide-react";
 import type {
   CategoryDto,
   ReferenceItemDto,
@@ -28,14 +28,18 @@ import {
  * the API's `ReferenceItemGroup` enum values. "Kategori" is intentionally
  * absent — it keeps its own real API (Category), handled separately below.
  */
+// Order matches the prototype's card grid (docs/prototype/pages/
+// masterdata.html): row 1 = Kategori · Bank · E-Wallet, row 2 = Jenis
+// Transaksi · Jenis Investasi · Lembaga Donasi, row 3 = the two groups the
+// prototype doesn't otherwise order (Kategori Aset, Jenis Asuransi).
 const REFERENCE_GROUP_ENTITIES: {
   entity: CrudEntity;
   group: ReferenceItemGroup;
 }[] = [
   { entity: "mdbank", group: "bank" },
+  { entity: "mdewallet", group: "ewallet" },
   { entity: "mdtxntype", group: "txntype" },
   { entity: "mdinvtype", group: "invtype" },
-  { entity: "mdewallet", group: "ewallet" },
   { entity: "mdlembaga", group: "lembaga" },
   { entity: "mdasettype", group: "asettype" },
   { entity: "mdinstype", group: "instype" },
@@ -337,6 +341,13 @@ export default function MasterDataPage() {
             {t.masterdata.pageSubtitle}
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => router.push("/mastercoa")}
+          className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-[12px] font-semibold text-foreground transition-colors hover:bg-secondary"
+        >
+          <BookOpen className="size-3.5" /> {t.masterdata.masterCoaButton}
+        </button>
       </div>
 
       {/* `.notice--info` per the translation table — inline Tailwind, no
@@ -350,7 +361,11 @@ export default function MasterDataPage() {
         </span>
       </div>
 
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
+      {/* `items-start` — without it CSS Grid's default `align-items: stretch`
+          makes every card in a row match the tallest sibling's height, so
+          Kategori's ~19 chips stretched Bank/E-Wallet into empty space
+          alongside it. Each card now sizes to its own content. */}
+      <div className="grid grid-cols-1 items-start gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
         {/* Kategori — backed by the real categories API */}
         <SectionCard
           title={t.masterdata.categorySectionTitle}
@@ -427,6 +442,11 @@ export default function MasterDataPage() {
                 </span>
               ))}
             </div>
+          )}
+          {!isCategoriesLoading && enabled && categoryList.length > 0 && (
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              {t.masterdata.categoryFooterHint}
+            </p>
           )}
         </SectionCard>
 

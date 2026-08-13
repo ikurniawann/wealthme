@@ -12,7 +12,7 @@ import { parseRupiah, formatRupiah } from "@/lib/format";
 import { buildGoalBody } from "@/lib/goals-utils";
 import { SectionCard, CardLink } from "@/components/wm";
 import { queryKeys } from "@/lib/query-keys";
-import type { TransactionDto } from "@wealthme/contracts";
+import type { TransactionListResponse } from "@wealthme/contracts";
 import {
   ArrowUpDown,
   BarChart3,
@@ -291,15 +291,22 @@ export default function QuickInputPage() {
   // Terakhir" card is real, read-only data already exposed by the
   // transactions endpoint the /transaksi page uses (limit param), not a
   // new backend call — a lightweight recent-activity readout.
-  const { data: recentTransactions } = useQuery<TransactionDto[]>({
+  // `/transactions` returns the paginated ENVELOPE `{ data, meta, summary }`
+  // (TransactionListResponse), not a bare array. This query used to declare
+  // `TransactionDto[]`, so `recentTransactions` was the envelope object at
+  // runtime while TypeScript believed it was an array — `.map()` on it threw
+  // and took the whole page down to the error boundary ("This page couldn't
+  // load"). Typed correctly and read through `.data` below.
+  const { data: recentResponse } = useQuery<TransactionListResponse>({
     queryKey: [...queryKeys.transactions.all(familyGroupId ?? ""), "recent"],
     queryFn: () =>
-      apiFetch<TransactionDto[]>(
+      apiFetch<TransactionListResponse>(
         `/family-groups/${familyGroupId}/transactions?limit=5`,
         { token },
       ),
     enabled: Boolean(familyGroupId) && Boolean(token),
   });
+  const recentTransactions = recentResponse?.data;
 
   const handleClick = (card: QuickCard) => {
     if (card.action === "crud") {

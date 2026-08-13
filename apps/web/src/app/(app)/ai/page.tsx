@@ -4,9 +4,20 @@ import * as React from "react";
 import Link from "next/link";
 import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
-import { useAiKeyStatus } from "@/hooks/use-ai-key";
+import { useAiKeyStatus, type AiProvider } from "@/hooks/use-ai-key";
+import { apiFetch } from "@/lib/api-client";
+import { formatRupiah } from "@/lib/format";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+/** Restructure (prototype parity) — minimal shape read from the real
+ * `/dashboard/summary` endpoint (mirrors `DashboardSummaryDto` from
+ * `@wealthme/contracts`); only the fields the "Ringkasan Konteks" card
+ * actually renders. */
+type DashboardSummaryLite = {
+  netWorth: number;
+  currentMonth: { income: number; expense: number };
+};
 
 type Msg = {
   id: number;
@@ -79,6 +90,45 @@ function NotConfiguredPanel({
   );
 }
 
+/** Restructure (prototype parity) — one row in the "Data yang Dibaca
+ * Advisor" list. `read` is derived from `advisor-prompt.util.ts`'s
+ * `buildAdvisorSystemPrompt`, which sends net-worth/cashflow aggregates and
+ * top spending categories only — never raw per-transaction rows or account
+ * numbers. */
+function DataReadRow({
+  label,
+  detail,
+  read,
+  yesLabel,
+  noLabel,
+}: {
+  label: string;
+  detail?: string;
+  read: boolean;
+  yesLabel: string;
+  noLabel: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b py-2 text-[12.5px] last:border-b-0">
+      <div>
+        <div className="font-semibold">{label}</div>
+        {detail && (
+          <div className="text-[11px] text-muted-foreground">{detail}</div>
+        )}
+      </div>
+      <span
+        className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold ${
+          read
+            ? "bg-success-soft text-emerald-700 dark:text-emerald-300"
+            : "bg-muted text-muted-foreground"
+        }`}
+      >
+        {read ? yesLabel : noLabel}
+      </span>
+    </div>
+  );
+}
+
 export default function AiPage() {
   const { t } = useLocale();
   const { data: session } = useSession();
@@ -87,8 +137,33 @@ export default function AiPage() {
   const {
     configured: aiKeyConfigured,
     canManage: canManageAiKey,
+    provider: aiProvider,
+    keyHint: aiKeyHint,
     isLoading: isAiKeyStatusLoading,
   } = useAiKeyStatus();
+
+  // Restructure (prototype parity) — "Ringkasan Konteks" reuses the real
+  // dashboard summary (same netWorth/currentMonth fields the AI system
+  // prompt itself is built from), not a fabricated value. Plain fetch +
+  // state (mirroring this file's existing chat-streaming fetch), not
+  // TanStack Query — this component intentionally has no QueryClientProvider
+  // dependency, matching its existing test setup.
+  const [dashboardSummary, setDashboardSummary] =
+    React.useState<DashboardSummaryLite | null>(null);
+
+  React.useEffect(() => {
+    if (!familyGroupId || !token) return;
+    const ctrl = new AbortController();
+    apiFetch<DashboardSummaryLite>(
+      `/family-groups/${familyGroupId}/dashboard/summary`,
+      { token, signal: ctrl.signal },
+    )
+      .then(setDashboardSummary)
+      .catch(() => {
+        // Non-critical: the context-summary card simply falls back to "—".
+      });
+    return () => ctrl.abort();
+  }, [familyGroupId, token]);
 
   const [messages, setMessages] = React.useState<Msg[]>([
     {
@@ -241,6 +316,22 @@ export default function AiPage() {
     setInput("");
   }
 
+  /** Restructure (prototype parity) — "Mulai Baru": aborts any in-flight
+   * stream and resets the transcript to the same greeting the page mounts
+   * with. No server-side conversation record exists to delete — the chat
+   * endpoint is stateless per-request (the full history is resent each
+   * turn) — so this is purely a client-side reset. */
+  function handleNewConversation() {
+    abortRef.current?.abort();
+    setIsStreaming(false);
+    idRef.current = 1;
+    setMessages([{ id: 0, role: "assistant", text: t.ai.initialMessage }]);
+  }
+
+  const providerLabel = aiProvider
+    ? t.ai.providerLabels[aiProvider as AiProvider]
+    : undefined;
+
   if (!familyGroupId) {
     return (
       <div className="mx-auto flex max-w-[800px] flex-col items-center justify-center gap-4 py-20 text-center">
@@ -261,15 +352,56 @@ export default function AiPage() {
 
   return (
     <div className="mx-auto max-w-[1100px]">
-      {/* Banner */}
-      <div className="gradient-ai mb-4 flex items-center gap-4 rounded-[14px] p-5 text-white">
+      {/* Banner — includes the real configured provider (from
+          `useAiKeyStatus`, never a fabricated model name) and the settings
+          entry point, matching the prototype's header actions. */}
+      <div className="gradient-ai mb-2 flex flex-wrap items-center gap-4 rounded-[14px] p-5 text-white">
         <div className="text-[38px] leading-none">🤖</div>
-        <div>
+        <div className="flex-1">
           <div className="text-[16px] font-bold">{t.ai.bannerTitle}</div>
           <div className="mt-[3px] text-[12.5px] opacity-65">
             {t.ai.bannerSubtitle}
           </div>
         </div>
+        {providerLabel && (
+          <span className="rounded-full bg-white/15 px-3 py-1 text-[11.5px] font-bold">
+            {providerLabel}
+          </span>
+        )}
+        {canManageAiKey && (
+          <Link
+            href="/akun"
+            className="rounded-lg bg-white/15 px-4 py-2 text-[12.5px] font-bold transition-colors hover:bg-white/25"
+          >
+            {t.ai.manageApiKeyButton}
+          </Link>
+        )}
+      </div>
+
+      <div className="mb-4 flex items-center gap-2 text-[12px] text-muted-foreground">
+        <span className="font-semibold text-foreground">
+          {t.ai.statusApiKeyLabel}
+        </span>
+        <span className="rounded-full bg-success-soft px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+          {t.ai.statusConnectedBadge}
+        </span>
+      </div>
+
+      {/* Popular-questions carousel — horizontal scroll strip above the
+          chat, matching the prototype's chip row (moved out of the sidebar
+          list it previously lived in). */}
+      <div className="hide-scrollbar mb-3.5 flex gap-2 overflow-x-auto pb-1">
+        {t.ai.chips.map((chip) => (
+          <button
+            key={chip}
+            type="button"
+            onClick={() => send(chip)}
+            disabled={isStreaming}
+            className="flex-shrink-0 whitespace-nowrap rounded-full border bg-card px-3.5 py-2 text-[12px] font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {chip}
+          </button>
+        ))}
       </div>
 
       {/* Bento layout (EPIC-025 N3-B5) — chat column spans 8/12 on desktop,
@@ -279,6 +411,16 @@ export default function AiPage() {
         <div className="lg:col-span-8">
           {/* Chat */}
           <div className="flex flex-col overflow-hidden rounded-[14px] border bg-card">
+            <div className="flex items-center justify-end border-b px-3 py-2">
+              <button
+                type="button"
+                onClick={handleNewConversation}
+                disabled={isStreaming}
+                className="rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-primary transition-colors hover:bg-accent disabled:opacity-50"
+              >
+                {t.ai.newConversationButton}
+              </button>
+            </div>
             <div
               ref={scrollRef}
               className="hide-scrollbar flex min-h-[200px] max-h-[440px] flex-col gap-4 overflow-y-auto p-4"
@@ -358,29 +500,119 @@ export default function AiPage() {
           </p>
         </div>
 
-        {/* Sidebar — mirrors the prototype's bento-span-4 column. No new
-            copy invented: reuses the existing status/canManage state and
-            popular-questions data already on this page instead of the
-            prototype's mocked "Claude · Sonnet" model badge and API-key
-            on/off demo toggle (neither is honest without a real
-            provider/model field and a real settings mutation). */}
-        <aside className="lg:col-span-4">
+        {/* Sidebar — mirrors the prototype's bento-span-4 column. Every row
+            is a real field: `DataReadRow`s are derived from
+            `advisor-prompt.util.ts`'s actual context builder, "Ringkasan
+            Konteks" reuses the real dashboard summary, and "Penyedia &
+            Kunci" reads the real `useAiKeyStatus` provider/keyHint. No
+            invented model name, "Diatur oleh" person, or on/off demo
+            toggle — none of those are real fields on `AiKeyStatusDto`. */}
+        <aside className="flex flex-col gap-3.5 lg:col-span-4">
           <div className="rounded-[14px] border bg-card p-4">
-            <div className="mb-3 text-[13.5px] font-bold text-muted-foreground">
-              {t.ai.popularQuestionsLabel}
+            <div className="mb-1 text-[13.5px] font-bold text-muted-foreground">
+              {t.ai.dataReadTitle}
             </div>
-            <div className="flex flex-col gap-1.5">
-              {t.ai.chips.map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  onClick={() => send(chip)}
-                  disabled={isStreaming}
-                  className="rounded-lg px-2.5 py-2 text-left text-[12.5px] text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            <DataReadRow
+              label={t.ai.dataReadNetWorth}
+              read
+              yesLabel={t.ai.yesLabel}
+              noLabel={t.ai.noLabel}
+            />
+            <DataReadRow
+              label={t.ai.dataReadCashflow}
+              read
+              yesLabel={t.ai.yesLabel}
+              noLabel={t.ai.noLabel}
+            />
+            <DataReadRow
+              label={t.ai.dataReadCategories}
+              read
+              yesLabel={t.ai.yesLabel}
+              noLabel={t.ai.noLabel}
+            />
+            <DataReadRow
+              label={t.ai.dataReadTransactions}
+              read={false}
+              yesLabel={t.ai.yesLabel}
+              noLabel={t.ai.noLabel}
+            />
+            <DataReadRow
+              label={t.ai.dataReadAccountNumbers}
+              read={false}
+              yesLabel={t.ai.yesLabel}
+              noLabel={t.ai.noLabel}
+            />
+          </div>
+
+          <div className="rounded-[14px] border bg-card p-4">
+            <div className="mb-2 text-[13.5px] font-bold text-muted-foreground">
+              {t.ai.contextSummaryTitle}
+            </div>
+            <div className="space-y-1.5 text-[12.5px]">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">
+                  {t.ai.contextNetWorthLabel}
+                </span>
+                <span className="font-bold">
+                  {dashboardSummary
+                    ? formatRupiah(dashboardSummary.netWorth)
+                    : "—"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">
+                  {t.ai.contextIncomeLabel}
+                </span>
+                <span className="font-bold text-success">
+                  {dashboardSummary
+                    ? formatRupiah(dashboardSummary.currentMonth.income)
+                    : "—"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">
+                  {t.ai.contextExpenseLabel}
+                </span>
+                <span className="font-bold text-destructive">
+                  {dashboardSummary
+                    ? formatRupiah(dashboardSummary.currentMonth.expense)
+                    : "—"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[14px] border bg-card p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-[13.5px] font-bold text-muted-foreground">
+                {t.ai.providerKeyTitle}
+              </div>
+              {canManageAiKey && (
+                <Link
+                  href="/akun"
+                  className="text-[11.5px] font-bold text-primary"
                 >
-                  {chip}
-                </button>
-              ))}
+                  {t.ai.changeApiKeyLink}
+                </Link>
+              )}
+            </div>
+            <div className="space-y-1.5 text-[12.5px]">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">
+                  {t.ai.providerLabel}
+                </span>
+                <span className="font-bold">{providerLabel ?? "—"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">
+                  {t.ai.apiKeyLabel}
+                </span>
+                <span className="mono font-bold">{aiKeyHint ?? "••••"}</span>
+              </div>
+            </div>
+            <div className="mt-3 rounded-md bg-muted px-2.5 py-2 text-[11px] text-muted-foreground">
+              {t.ai.encryptionNote}
+              {!canManageAiKey && ` ${t.ai.notManagedHint}`}
             </div>
           </div>
         </aside>

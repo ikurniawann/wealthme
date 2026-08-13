@@ -98,9 +98,11 @@ function NotifRow({
         {n.icon ?? "🔔"}
       </div>
       <div className="flex-1">
-        <div className="text-[13.5px] font-bold text-foreground">{n.title}</div>
-        <div className="mt-0.5 text-[12.5px] text-muted-foreground">
-          {n.body}
+        {/* N3-B2 (prototype notifikasi.html list-row) — title and body flow
+            inline on one line, timestamp on its own line beneath. */}
+        <div className="text-[13.5px] leading-snug">
+          <span className="font-bold text-foreground">{n.title}</span>{" "}
+          <span className="text-muted-foreground">{n.body}</span>
         </div>
         <div className="mt-1 text-[11px] text-muted-foreground">
           {formatRelativeTime(n.createdAt, t, locale)}
@@ -135,7 +137,7 @@ function NotifGroup({
         unreadCount > 0 ? (
           <StatusBadge variant="danger">
             {unreadCount}
-            {t.notifikasi.newCountSuffix}
+            {t.notifikasi.groupUnreadSuffix}
           </StatusBadge>
         ) : undefined
       }
@@ -154,6 +156,17 @@ export default function NotifikasiPage() {
   const token = session?.accessToken;
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<Filter>("semua");
+
+  // N3-B2 (prototype notifikasi.html page-lead subtitle) — real family
+  // group name for "Aktivitas keluarga {name}, ..."; only rendered once
+  // loaded so the subtitle never flashes a placeholder/undefined name.
+  const { data: myFamilyGroups } = useQuery<{ name: string }[]>({
+    queryKey: [...queryKeys.familyGroups.mine(), token],
+    queryFn: () =>
+      apiFetch<{ name: string }[]>("/family-groups/mine", { token }),
+    enabled: Boolean(token),
+  });
+  const familyName = myFamilyGroups?.[0]?.name;
 
   const {
     data: notifications,
@@ -228,6 +241,15 @@ export default function NotifikasiPage() {
               </StatusBadge>
             )}
           </h1>
+          {/* N3-B2 — only rendered once the real family name has loaded;
+              no placeholder/fabricated name shown while pending. */}
+          {familyName && (
+            <div className="mt-1 text-[13px] text-muted-foreground">
+              {t.notifikasi.subtitlePrefix}
+              {familyName}
+              {t.notifikasi.subtitleSuffix}
+            </div>
+          )}
         </div>
         <CardLink
           onClick={() => familyGroupId && markAllRead.mutate(familyGroupId)}
@@ -240,25 +262,35 @@ export default function NotifikasiPage() {
         </CardLink>
       </section>
 
-      <section
-        role="group"
-        aria-label={t.notifikasi.title}
-        className="inline-flex gap-0.5 rounded-[10px] bg-secondary p-[3px]"
-      >
-        {(["semua", "belum-dibaca"] as Filter[]).map((f) => (
-          <button
-            key={f}
-            type="button"
-            aria-pressed={filter === f}
-            onClick={() => setFilter(f)}
-            className={cn(
-              "rounded-lg px-3 py-1.5 text-[12.5px] font-semibold text-muted-foreground transition-colors",
-              filter === f && "bg-card text-foreground shadow-sm",
-            )}
-          >
-            {f === "semua" ? t.notifikasi.filterAll : t.notifikasi.filterUnread}
-          </button>
-        ))}
+      <section className="flex flex-wrap items-center gap-3">
+        <div
+          role="group"
+          aria-label={t.notifikasi.title}
+          className="inline-flex gap-0.5 rounded-[10px] bg-secondary p-[3px]"
+        >
+          {(["semua", "belum-dibaca"] as Filter[]).map((f) => (
+            <button
+              key={f}
+              type="button"
+              aria-pressed={filter === f}
+              onClick={() => setFilter(f)}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-[12.5px] font-semibold text-muted-foreground transition-colors",
+                filter === f && "bg-card text-foreground shadow-sm",
+              )}
+            >
+              {f === "semua"
+                ? t.notifikasi.filterAll
+                : t.notifikasi.filterUnread}
+            </button>
+          ))}
+        </div>
+        {!isLoading && !isError && (
+          <span className="ml-auto text-xs text-muted-foreground">
+            {filtered.length}
+            {t.notifikasi.metaCountSuffix}
+          </span>
+        )}
       </section>
 
       {isLoading && (

@@ -79,6 +79,19 @@ export const en = {
     pendingApprovalsNotice: "fund requests are waiting for your approval.",
     liabilityDueNotice: "due",
     noNotices: "Nothing needs your attention right now 🎉",
+    // EPIC-025 N3 fidelity follow-up — prototype's `.bento-side` budget
+    // card + composition-row badges/due-notice + Arus Kas period toggle.
+    budgetCardTitlePrefix: "Budget for ",
+    budgetManageLink: "Manage",
+    budgetOverBudgetPrefix: "Over budget by ",
+    budgetEmptyNote: "No budgets set for this month yet.",
+    liquidBadgeLabel: "Ready to use",
+    nonLiquidBadgeLabel: "Growing",
+    cashflowTitle6: "Cash Flow 6 Months",
+    cashflowTitle12: "Cash Flow 12 Months",
+    periodToggle6: "6 Mo",
+    periodToggle12: "12 Mo",
+    periodToggleAriaLabel: "Wealth trend range",
   },
   shell: {
     loading: "Loading WealthMe…",
@@ -709,6 +722,23 @@ export const en = {
     statApprovedSuffix: " disbursed",
     statRejectedLabel: "Rejected This Month",
     statRejectedSuffix: " not disbursed",
+    // EPIC-025 N3 restructure — in-page header (badge + role pill), tabs
+    // aria-label, and the pending-request card copy that the prototype
+    // ports but the live page previously omitted.
+    headerBadgeSuffix: " pending",
+    approverRuleNotice: "Only the Master & Co-Master can approve or reject.",
+    tabsAriaLabel: "Filter approvals",
+    requestedAtPrefix: "requested ",
+    kindFundingLabel: "Funding request",
+    kindHeldLabel: "Held expense",
+    fieldKeperluanLabel: "Purpose",
+    // Honest UI: no per-member threshold amount is available on
+    // AllowanceRequestDto, so this notice states the fact (held, over the
+    // member's limit) without fabricating a specific Rupiah figure.
+    heldWarningNotice:
+      "This expense exceeds the member's transaction limit and is held — it hasn't been recorded until you approve or reject it.",
+    fundingApproveHelperNotice:
+      "Approving will transfer real funds between accounts.",
   },
   panduan: {
     pageTitle: "📖 WealthMe Feature Guide",
@@ -848,6 +878,134 @@ export const en = {
         title: "AI Advisor",
         desc: "Type a question about your finances — the AI analyzes your transaction data and gives concrete advice.",
       },
+      akun: {
+        title: "Account & Family",
+        desc: "Invite your partner, kids, or household staff, then set their role: master, co-master, member, or view-only.",
+      },
+      persetujuan: {
+        title: "Approvals",
+        desc: "Fund requests from family members land here — approve or reject them, with notes.",
+      },
+      passwordLogin: {
+        title: "Password & Login",
+        desc: "Change your password, see which devices are logged in, and sign out sessions you don't recognize.",
+      },
+      privateCategories: {
+        title: "Private Categories",
+        desc: "Mark a category as private — its transactions are only visible to you and are not sent to the AI Advisor.",
+      },
+      apiKeyAi: {
+        title: "AI API Key",
+        desc: "The AI key is stored encrypted on the server and can only be set by the owner or partner.",
+      },
+    },
+    // EPIC-025 N3 prototype structural port — mirrors id.ts's `groups`/
+    // `areaLabels` addition (see that file's comment).
+    groups: {
+      memulai: {
+        title: "1. Getting Started",
+        tagline: "Get to know your main dashboard",
+      },
+      transaksi: {
+        title: "2. Transactions",
+        tagline: "What you'll use most",
+      },
+      anggaran: { title: "3. Budget", tagline: "Give your money direction" },
+      laporan: {
+        title: "4. Reports",
+        tagline: "Get value from the data you've already logged",
+      },
+      keluarga: {
+        title: "5. Family & Roles",
+        tagline: "Manage finances together",
+      },
+      keamanan: {
+        title: "6. Security",
+        tagline: "Protect your family's data",
+      },
+    },
+    areaLabels: {
+      all: "All",
+      memulai: "Getting Started",
+      transaksi: "Transactions",
+      anggaran: "Budget",
+      laporan: "Reports",
+      keluarga: "Family & Roles",
+      keamanan: "Security",
+    },
+    searchResultPrefix: "Showing ",
+    searchResultMid: " of ",
+    searchResultSuffix: " topics",
+    searchNoResultsFiltered:
+      "No topics match — try a different keyword or contact us.",
+    contactHeaderButton: "Contact Us",
+    faqSectionTitle: "Frequently Asked Questions",
+    faq: {
+      pdfRejected: {
+        q: "Why was my bank's PDF statement rejected?",
+        before:
+          "PDF layouts differ across banks, and auto-read numbers often drift without anyone noticing — a bigger risk than a bit of extra effort. Export your account mutations as CSV from your bank's app or site, then upload that CSV file on the ",
+        linkLabel: "Reconciliation",
+        after: " page.",
+      },
+      addOwnReferences: {
+        q: "Can I add my own banks and investment types?",
+        before: "Yes. Every reference list in ",
+        linkLabel: "Master Data",
+        after:
+          ' has an "+ Add" button and can be deleted — including built-in items your family doesn\'t use. No list is locked.',
+      },
+      mortgageNotFullExpense: {
+        q: "Why doesn't my mortgage installment fully count as an expense?",
+        before:
+          "Because only the interest portion is a real expense. The principal reduces your debt, not your profit — that money was never your income in the first place. Full explanation in ",
+        linkLabel: "Master COA",
+        after: ", group 5 (Debt).",
+      },
+      aiNotAnswering: {
+        q: "Why isn't my AI Advisor answering?",
+        before:
+          "AI Advisor uses your own API key (Claude, OpenAI, or Gemini). Until a key is connected, the feature is deliberately disabled and shows no answer at all — better empty than a made-up suggestion. The owner or partner can set it up at ",
+        linkLabel: "AI Advisor → Set API Key",
+        after: ".",
+      },
+      whoCanSeeTransactions: {
+        q: "Who can see my transactions?",
+        before:
+          "Masters and co-masters see all family accounts and transactions. Regular members only see their own. Categories you mark ",
+        strong: "private",
+        after:
+          " aren't visible to anyone but you, and aren't sent to the AI Advisor either.",
+      },
+      changeMemberRole: {
+        q: "How do I change a family member's role?",
+        before: "Open ",
+        linkLabel: "Account & Family",
+        after:
+          ", pick the member, then change their role. Only a master can promote or demote a co-master. Role changes are logged in the family activity log.",
+      },
+      dataExportOnLeave: {
+        q: "Is my data exported if I stop using WealthMe?",
+        before:
+          "Yes. All transactions, accounts, and reports can be exported as CSV or PDF from the ",
+        linkLabel: "Reports",
+        after: " page anytime, with no need to contact us.",
+      },
+    },
+    // EPIC-025 N3 — mirrors id.ts's `contact` addition; values match the
+    // real support channels already shipped in `akun.hubungi`.
+    contact: {
+      title: "Still Need Help?",
+      linkLabel: "Contact Us",
+      emailTitle: "Email",
+      emailValue: "support@wealthme.id",
+      emailDesc: "Response within 1x24 business hours.",
+      phoneTitle: "Phone",
+      phoneValue: "0800-1234-5678",
+      phoneDesc: "Mon–Fri, 08:00–17:00 WIB.",
+      whatsappTitle: "WhatsApp",
+      whatsappValue: "+62 811 2345 6789",
+      whatsappDesc: "Direct chat.",
     },
   },
   asuransi: {
@@ -944,13 +1102,33 @@ export const en = {
     coverageAllocationTitle: "Coverage by Type",
     renewalWarningPrefix: "The",
     renewalWarningSuffix: "premium is due",
+    totalCoveragePrefix: "Total coverage",
+    renewalWarningDaysLeftSuffix: "days left",
+    payButtonLabel: "Pay Premium",
+    cardEditButton: "Edit",
+    cardDeleteButton: "Delete",
+    beneficiaryTableHeaderName: "Name",
+    beneficiaryTableHeaderRelationship: "Relationship",
+    beneficiaryTableHeaderMember: "Family Member",
+    beneficiaryTableHeaderPercent: "Percentage",
+    beneficiaryTableHeaderBenefit: "Estimated Benefit",
+    beneficiaryTablePolicyPrefix: "Policy:",
+    addBeneficiaryHeaderAriaLabel: "Add beneficiary (pick a policy)",
+    policyPickerPayTitle: "Pay Premium",
+    policyPickerBeneficiaryTitle: "Add Beneficiary",
+    policyPickerLabel: "Policy",
+    policyPickerPlaceholder: "Select a policy...",
+    policyPickerConfirm: "Continue",
+    policyPickerPayEmpty: "No policy needs to be paid right now.",
+    policyPickerBeneficiaryEmpty:
+      "No policy available to add a beneficiary to yet.",
   },
   kalkulator: {
     tabs: {
       zakat: "🌙 Zakat Maal",
       pph21: "🧾 PPh 21",
       investasi: "📈 Investment",
-      kredit: "💳 Loan",
+      kredit: "💳 Mortgage",
       pensiun: "🏖️ Retirement",
       tabungan: "🏦 Savings",
       splitgroup: "🧾 Split Group",
@@ -971,6 +1149,10 @@ export const en = {
     ],
     sessionExpired: "Session expired, please log in again.",
     calculating: "Calculating...",
+    pageTitle: "Financial Calculators",
+    pageSubtitle:
+      "Every rupiah field auto-formats with thousand separators — 100,000,000 still reads as one hundred million when saved.",
+    hasilCardTitle: "Result",
     zakat: {
       cardTitle: "Zakat Maal Calculator",
       nisabAutoNote:
@@ -1015,6 +1197,19 @@ export const en = {
       ptkpLabel: "PTKP (TK/0)",
       zakatLabel: "Zakat",
       progressiveHeading: "Progressive Rates:",
+      typingNote:
+        "Type digits only — thousand separators appear automatically. The stored value is always a plain number.",
+      bracketDialogLinkLabel: "Bracket breakdown",
+      bracketDialogTitle: "PPh 21 Bracket Breakdown",
+      bracketDialogDesc:
+        "UU HPP progressive rates — each bracket is taxed separately, not one flat rate.",
+      bracketDialogBracketHeader: "PKP Bracket",
+      bracketDialogRateHeader: "Rate",
+      bracketDialogTaxableHeader: "Taxable",
+      bracketDialogTaxHeader: "Tax",
+      bracketDialogTotalLabel: "Total PPh 21",
+      bracketDialogCloseButton: "Close",
+      bracketDialogEmptyNote: "Calculate PPh 21 first to see the breakdown.",
     },
     investasi: {
       cardTitle: "Investment Calculator",
@@ -1028,6 +1223,10 @@ export const en = {
       projectionChartTitle: "Portfolio Value Projection",
       projectionSeriesLabel: "Portfolio value",
       projectionYearPrefix: "Yr ",
+      fieldReturnRateLabel: "Return (% / Year)",
+      returnRateHint: "An assumption, not a promise. Markets can fall.",
+      rowTotalDepositLabel: "Total deposited",
+      rowGrowthLabel: "Growth earned",
     },
     kredit: {
       cardTitle: "Loan / Mortgage Calculator",
@@ -1038,6 +1237,19 @@ export const en = {
       resultLabel: "Monthly Installment",
       detailPrincipalPrefix: "Loan principal:",
       detailTotalPaymentPrefix: "· Total payment:",
+      cardTitleAlt: "Mortgage Simulation",
+      fieldPropertyPrice: "Property Price (Rp)",
+      fieldDownPaymentAmount: "Down Payment (Rp)",
+      dpPercentSuffix: "% of property price",
+      rowPrincipalLabel: "Loan principal",
+      rowTotalInterestLabel: "Total interest",
+      rowTotalPaymentLabel: "Total payment",
+      rowInstallmentCountLabel: "Number of instalments",
+      installmentCountSuffix: " months",
+      ruleWarningNote: "Instalments should stay under 30% of monthly income.",
+      minIncomeNotePrefix:
+        "Using the 30% rule, monthly income should be at least ",
+      minIncomeNoteSuffix: " for this instalment to be safe.",
     },
     pensiun: {
       cardTitle: "Retirement Fund Calculator",
@@ -1053,6 +1265,9 @@ export const en = {
       detailMonthlyInvestmentNeededPrefix: "Monthly investment needed:",
       targetBasisNote:
         "The target assumes 20× current annual expenses (a ~5% withdrawal rate) — not the more common 25×/4% rule.",
+      rowMonthlyContributionLabel: "Monthly investment needed",
+      rowTotalContributionsLabel: "Total contributions",
+      rowProjectedValueLabel: "Projected retirement fund",
     },
     tabungan: {
       cardTitle: "Savings Calculator",
@@ -1144,6 +1359,33 @@ export const en = {
     errorRateLimited:
       "The AI provider is rate-limiting this request — try again shortly.",
     errorTimeout: "The request to the AI provider timed out — try again.",
+    statusApiKeyLabel: "API Key Status",
+    statusConnectedBadge: "Connected",
+    manageApiKeyButton: "Set API Key",
+    changeApiKeyLink: "Change",
+    providerLabels: {
+      claude: "Claude (Anthropic)",
+      openai: "OpenAI",
+      gemini: "Gemini (Google)",
+    },
+    newConversationButton: "New Chat",
+    dataReadTitle: "Data the Advisor Reads",
+    dataReadNetWorth: "Net worth & balance sheet",
+    dataReadCashflow: "Income & expenses this month",
+    dataReadCategories: "Top spending categories",
+    dataReadTransactions: "Individual transaction details",
+    dataReadAccountNumbers: "Account numbers & per-account balances",
+    yesLabel: "Yes",
+    noLabel: "No",
+    contextSummaryTitle: "Context Summary",
+    contextNetWorthLabel: "Net worth",
+    contextIncomeLabel: "Income this month",
+    contextExpenseLabel: "Expenses this month",
+    providerKeyTitle: "Provider & Key",
+    providerLabel: "Provider",
+    apiKeyLabel: "API Key",
+    encryptionNote: "The key is stored encrypted on the server.",
+    notManagedHint: "Managed by this family's owner or spouse.",
   },
   investasi: {
     typeLabels: {
@@ -1206,19 +1448,52 @@ export const en = {
     saving: "Saving...",
     saveButton: "Save",
     totalValueLabel: "Total Investment Value",
-    totalReturnSuffix: "total return",
-    todayReturnLabel: "Today's Return",
+    // EPIC-025 N3 audit (structural port) — restored the prototype's real
+    // label ("Total Gain/Loss" / "Today's Change") instead of the drifted
+    // "total return" / "Today's Return". Value edited in place, key kept
+    // stable.
+    totalReturnSuffix: "Total Gain/Loss",
+    todayReturnLabel: "Today's Change",
     vsYesterdaySuffix: "from yesterday",
-    portfolioSectionTitle: "Portfolio",
+    portfolioSectionTitle: "Holdings",
     addInvestmentLink: "+ Record Investment",
     filterAllLabel: "All",
     tableName: "Name",
     tableType: "Type",
     tableCapital: "Capital",
-    tableValue: "Value",
-    tableReturn: "Return",
+    tableValue: "Current Value",
+    tableReturn: "Gain / Loss",
     tablePercent: "%",
     tableAction: "Action",
+    // EPIC-025 N3 audit — page-lead header (title reuses `pageTitles.investasi`).
+    pageSubtitle:
+      "Stocks & crypto are priced automatically from the market. Other types you enter yourself, along with a valuation date.",
+    addInvestmentHeaderButton: "Record Investment",
+    // "N positions" count in the holdings card header (replaces the old
+    // "+ Record Investment" table-header link now that the page header
+    // owns the add action).
+    positionsCountSuffix: "positions",
+    tableQuantity: "Quantity",
+    tablePriceSource: "Price / Source",
+    // Formula sub-line under "Total Gain/Loss" — {returnRp}/{costBasis}
+    // are always filled from the real summary DTO, never invented.
+    returnFormulaLabel: "= gain ÷ capital ({returnRp} ÷ {costBasis})",
+    livePositionsOnlyPrefix: "only from",
+    filterNewBadge: "New",
+    rowTickerPurchasedTemplate: "{ticker} · bought {date}",
+    rowCouponPurchasedTemplate: "Coupon {rate}%/yr · bought {date}",
+    rowDepositoTermTemplate: "Started {date} · matures {maturityDate}",
+    depositoRateTemplate: "{rate}% interest / yr",
+    priceLiveBadge: "Live",
+    priceLiveDelayedBadge: "Live · delayed",
+    priceManualBadgeTemplate: "Manual price · {date}",
+    priceComputedBadgeLabel: "Value computed · accrued interest",
+    unitCoinSuffix: "coin",
+    unitFundUnit: "unit",
+    unitGram: "gram",
+    navPricePrefix: "NAV ",
+    nominalPrefix: "Nominal ",
+    pricingSourceLastSyncedPrefix: "Last synced",
     emptyState: "No investments yet.",
     emptyStateCta: "Record now",
     detailToggleShow: "View Detail",
@@ -1270,7 +1545,7 @@ export const en = {
       dana: "Cash & E-Wallet",
       rekening: "Bank & Account",
       investasi: "Investments",
-      fisik: "Physical Assets",
+      fisik: "Physical",
     },
     assetTrendTitle: "6-Month Asset Growth",
     assetTypeLabels: {
@@ -1347,6 +1622,12 @@ export const en = {
     allocationTitle: "Asset Allocation",
     recordedValueLabel: "Recorded Value",
     perYearSuffix: "/ year",
+    totalAssetsSubtitlePrefix:
+      "Cash & bank + investments + physical assets · as of ",
+    statFromLastMonthSuffix: "vs last month",
+    statFisikNote: "Recorded value · projection tracked separately",
+    ownerSharedLabel: "Shared",
+    ownerUnknownLabel: "Unknown",
   },
   liabilitas: {
     typeLabels: {
@@ -1401,6 +1682,7 @@ export const en = {
     progressPayoffLabel: "Payoff Progress",
     totalLiabilitiesLabel: "Total Liabilities",
     remainingActiveSuffix: "Active remaining balance",
+    remainingActiveCountSuffix: " liabilities",
     dtaRatioLabel: "Debt-to-Asset Ratio",
     addButton: "Add Liability",
     emptyState: "No liabilities yet. Add a credit card or loan.",
@@ -1444,10 +1726,16 @@ export const en = {
     monthlyInstallmentSuffix: "total active min. payment",
     payoffProjectionTitle: "6-Month Remaining Balance Projection",
     payoffProjectionSeriesLabel: "Remaining Balance",
+    overdueWarningPrefix: "The ",
+    overdueWarningSuffix: " installment hasn't been paid.",
   },
   masterdata: {
     pageTitle: "🗄️ Master Data Setup",
-    pageSubtitle: "Manage the reference data used across the app",
+    pageSubtitle:
+      "Manage the reference data used across the app. Every list on this page can be added to and deleted by you.",
+    masterCoaButton: "Master COA",
+    categoryFooterHint:
+      "The code next to each category is the COA account its transactions post to in reports.",
     groups: {
       mdbank: { title: "🏦 Bank", label: "Bank" },
       mdtxntype: { title: "↕️ Transaction Type", label: "Transaction Type" },
@@ -1469,9 +1757,9 @@ export const en = {
     groupEmpty: "No data yet",
     groupLoading: "Loading…",
     systemBadge: "Built-in",
-    footerBold: "Every list on this page",
+    footerBold: "Category",
     footerRest:
-      ' is saved to the server and used across the app (transactions, reports, etc.). Built-in system items ("Built-in" badge) can\'t be deleted; items you add yourself can.',
+      " is saved to the server and used in transactions & reports. The other reference lists (bank, e-wallet, transaction type, investment type, donation institution, asset category, insurance type) are also saved per family — not a locked system default. Deleting an item still in use by a transaction is rejected with a message naming that data.",
     editAriaPrefix: "Edit ",
     deleteAriaPrefix: "Remove ",
     categoryDeleteLabelPrefix: 'category "',
@@ -1518,6 +1806,41 @@ export const en = {
       FIXED: "Fixed",
       VARIABLE: "Variable",
       REIMBURSEMENT: "Reimbursement",
+    },
+    // EPIC-025 N3 prototype structural port — mirrors id.ts's additions.
+    pageTitle: "📚 Master COA",
+    pageSubtitle:
+      "The account structure your P&L and balance sheet reports use. For advanced accounting needs — optional.",
+    masterDataButton: "Master Data",
+    groupBadgeLabels: {
+      1: "Income",
+      2: "Expense",
+      3: "Allocation",
+      4: "Receivable",
+      5: "Payable",
+      6: "Tax",
+    },
+    groupTabLabels: {
+      1: "Income",
+      2: "Expense",
+      3: "Allocation",
+      4: "Receivable",
+      5: "Payable",
+      6: "Tax",
+    },
+    groupHeaderLabels: {
+      1: "Income",
+      2: "Expense",
+      3: "Wealth Allocation",
+      4: "Account Receivable",
+      5: "Account Payable",
+      6: "Tax",
+    },
+    accountsCountSuffix: " accounts",
+    directionLabelsUpper: {
+      INCOME: "↓ INCOME",
+      EXPENSE: "↑ EXPENSE",
+      TRANSFER: "↔ TRANSFER",
     },
     tabAll: "All",
     totalAccountsTitle: "Total Accounts",
@@ -1627,11 +1950,15 @@ export const en = {
   notifikasi: {
     title: "Notifications",
     newCountSuffix: " New",
+    subtitlePrefix: "Activity for ",
+    subtitleSuffix: ", due-date reminders, and approval requests.",
     processing: "Processing...",
     markAllRead: "Mark all as read",
     errorLoad: "Failed to load notifications. Please try again.",
     emptyState: "No notifications yet.",
     unreadBadge: "New",
+    groupUnreadSuffix: " unread",
+    metaCountSuffix: " notifications",
     relativeJustNow: "Just now",
     relativeMinutesSuffix: " minutes ago",
     relativeHoursSuffix: " hours ago",
@@ -1669,6 +1996,27 @@ export const en = {
     ewalletStatLabel: "E-Wallet",
     cashCountSuffix: " cash accounts",
     ewalletCountSuffix: " e-wallets",
+    // EPIC-025 N3 prototype structural port — page header, Composition
+    // donut, info callout and the "Recent Movement" table.
+    pageSubtitle: "Cash on hand and digital wallet balances for your family.",
+    addCashHeaderButton: "Cash",
+    addEwalletHeaderButton: "E-Wallet",
+    compositionTitle: "Composition",
+    compositionTotalLabel: "Total",
+    infoNoticeBold: "Cash balances may go negative.",
+    infoNoticeBody:
+      " A cash account can be negative (e.g. a driver's fuel advance not yet reimbursed). ",
+    infoNoticeLinkLabel: "Bank & Account",
+    infoNoticeSuffix:
+      " balances may not — use a liability to record a bank shortfall.",
+    mutationsSectionTitle: "Recent Cash & E-Wallet Movement",
+    mutationsViewAllLabel: "View All",
+    mutationsEmptyLabel: "No cash/e-wallet movement yet.",
+    tableDateHeader: "Date",
+    tableDescriptionHeader: "Description",
+    tableAccountHeader: "Account",
+    tableAmountHeader: "Amount",
+    updatedPrefix: "updated ",
   },
   consolidatedTotal: {
     title: "Consolidated Total",
@@ -1720,6 +2068,50 @@ export const en = {
     // EPIC-025 N3-C2 — HBarChart mount (liability breakdown, FOLD per J3).
     liabilityBreakdownTitle: "Liability Breakdown",
     emptyLiabilityBreakdown: "No liabilities recorded yet.",
+    // Structural port fidelity follow-up — page header (H1 + subtitle).
+    pageHeaderTitle: "Wealth Summary",
+    pageHeaderSubtitleConnector: " · as of ",
+    pageHeaderFamilyFallback: "Family",
+    // Trend range segmented control ("6 Bln / 12 Bln / Semua").
+    trendRangeGroupAriaLabel: "Net worth trend range",
+    trendRangeLabel6m: "6 Mo",
+    trendRangeLabel12m: "12 Mo",
+    trendRangeLabelAll: "All",
+    netWorthTrendTitle12m: "Net Worth Trend (12 Months)",
+    netWorthTrendTitleAll: "Net Worth Trend (All Time)",
+    yoyUpPrefix: "↑ ",
+    yoyDownPrefix: "↓ ",
+    yoySuffix: "% YoY",
+    // "Hide amounts" privacy toggle (page-local, mirrors aset/page.tsx).
+    hideAmountsButton: "Hide amounts",
+    showAmountsButton: "Show amounts",
+    hideAmountsAriaLabel: "Hide amounts",
+    showAmountsAriaLabel: "Show amounts",
+    // "Asset vs Liability Breakdown" table.
+    breakdownTableTitle: "Asset vs Liability Breakdown",
+    breakdownColPos: "Item",
+    breakdownColJenis: "Type",
+    breakdownColPorsi: "Share",
+    breakdownColNilai: "Value",
+    breakdownAssetPhysicalLabel: "Physical Assets",
+    breakdownAssetInvestmentLabel: "Investments",
+    breakdownAssetBankLabel: "Bank & Accounts",
+    breakdownAssetCashLabel: "Cash & E-Wallet",
+    breakdownBadgeAssetFisik: "Physical Asset",
+    breakdownBadgeInvestasi: "Investment",
+    breakdownBadgeBank: "Bank",
+    breakdownBadgeKas: "Cash",
+    breakdownBadgeLiabilitas: "Liability",
+    breakdownTotalAssetsRow: "Total Assets",
+    breakdownTotalLiabilitiesRow: "Total Liabilities",
+    breakdownNetWorthRow: "Net Worth",
+    breakdownNetWorthFormula: "Total Assets − Total Liabilities",
+    breakdownEmpty: "No asset or liability data to show yet.",
+    // Health Score debt-ratio insight note.
+    healthDebtRatioNotePrefix: "Debt-to-asset ratio ",
+    healthDebtRatioNoteSuffixSafe: " — still within a safe range.",
+    healthDebtRatioNoteSuffixAttention:
+      " — approaching the limit, consider reducing debt.",
   },
   tujuan: {
     statusLabels: {
@@ -1759,6 +2151,20 @@ export const en = {
     atRiskDesc: "goals at risk of missing target",
     errorLoad: "Failed to load financial goals. Please refresh the page.",
     emptyState: 'No financial goals yet. Click "Add Goal" to get started.',
+    // EPIC-025 N3 restructure — 4th "Overall Progress" summary card, 3-col
+    // goal grid's dashed add-card, and the per-card "you need to save"
+    // notice, all computed client-side from the already-fetched goal list.
+    overallSectionTitle: "Overall Progress",
+    overallTotalLabel: "Total reached",
+    overallActiveGoalsSuffix: " active goals",
+    overallMonthlyPrefix: "Need to save a total of ",
+    overallMonthlySuffix: " / month",
+    addGoalCardTitle: "Add a New Goal",
+    addGoalCardDesc: "A trip, a down payment, retirement — any target.",
+    noticeSavingsPrefix: "Need to save ",
+    noticeSavingsPerMonthMiddle: " / month for ",
+    noticeSavingsMonthsSuffix: " more months.",
+    noticeSavingsNoAutoDebitSuffix: " / month — no recurring allocation yet.",
   },
   tax: {
     sptStatusLabels: {
@@ -1838,6 +2244,26 @@ export const en = {
     checkingAccessLabel: "Checking access…",
     accessCheckFailedNote:
       "Couldn't verify your access — try refreshing the page.",
+    fieldTaxYearLabel: "Tax Year",
+    fieldPerpuluhanLabel: "Tithe (deduction)",
+    grossInputHint:
+      'Typed with thousands separators for readability — dots are stripped automatically before sending ("780.000.000" → "780000000").',
+    ptkpSelectedPrefix: "Selected PTKP: ",
+    jabatanHint: "5% of gross, capped at Rp 6,000,000/year.",
+    perpuluhanHint:
+      "Only tithes paid to a registered institution qualify as a deduction (PP 60/2010). Pulled automatically from ",
+    perpuluhanHintLinkLabel: "Donations",
+    payloadCalloutPrefix: "Sent to the server: ",
+    payloadCalloutSuffix: " — plain digits, no separators.",
+    resetButton: "Reset",
+    toastReset: "Calculation reset",
+    colTaxableBase: "Taxable Base",
+    bracketFootnote:
+      "The Tax column always sums to the headline above — the 30% bracket (500M–5B) is included.",
+    perpuluhanDeductionTitle: "Tithe Tax Deduction",
+    perpuluhanDeductionDesc: "from recorded donations",
+    emptyDocumentsTitle: "No documents yet",
+    emptyDocumentsSub: "Tax document upload & listing is coming soon.",
   },
   rekening: {
     typeLabels: {
@@ -1897,6 +2323,20 @@ export const en = {
     mintaDanaSuccessToast:
       "Funding request sent. Waiting for the family owner's approval.",
     mintaDanaFailToast: "Failed to send the funding request. Please try again.",
+    // EPIC-025 N3 prototype structural port — page header (title reuses
+    // `t.shell.pageTitles.rekening`), insight strip, ownership filter tabs, and
+    // the dashed "add account" card.
+    insightOneLabel: "One view",
+    insightOneAccountsSuffix: " accounts, ",
+    insightOneOwnersSuffix: " owners, 1 family balance",
+    insightPrivacyLabel: "Privacy",
+    insightPrivacyValue: "Private balances stay segmented",
+    filterNoteText:
+      "Bank balances may not go negative — a shortfall is recorded as a liability.",
+    addCardTitle: "Add a new account",
+    addCardSubtitle: "Connect a bank account and assign its owner.",
+    addCardButton: "Add Account",
+    mutasiFooterButton: "Transactions",
   },
   donation: {
     typeLabels: {
@@ -1922,6 +2362,7 @@ export const en = {
     groupUmum: "❤️ General",
     heroTitle: "Total Donations & Zakat",
     transactionsSuffix: " transactions",
+    yearRunningPrefix: " · year to date ",
     subheaderDesc: "Record donations & fulfill your zakat obligation",
     recordDonationButton: "Record Donation",
     zakatCalculatorTitle: "🕌 Zakat Maal Calculator",
@@ -1953,6 +2394,9 @@ export const en = {
     loadingLabel: "Loading...",
     emptyHistory: "No donation records yet",
     taxDeductibleBadge: "Tax Deductible",
+    taxNonDeductibleBadge: "Not tax deductible",
+    receiptLabel: "Receipt",
+    historyLaporanLink: "Report",
     statDeductibleLabelPrefix: "Total Tax Deduction ",
     statDeductibleDeltaMid: " of ",
     statDeductibleDeltaSuffix: " transactions qualify",
@@ -1983,12 +2427,20 @@ export const en = {
     toastSaveFailed: "Failed to save donation",
     toastInvalidAmount: "Invalid donation amount",
     perpuluhanCalculatorTitle: "✝️ Tithe Calculator",
-    perpuluhanCalculatorSubtitle: "Tithe is 10% of income",
-    fieldIncomeLabel: "Income (Rp)",
+    perpuluhanCalculatorBadge: "10% of income",
+    perpuluhanCalculatorSubtitle:
+      "Calculate the tithe from your regular and other income for this period.",
+    fieldIncomeLabel: "Monthly Income (Rp)",
+    fieldOtherIncomeLabel: "Other Income (Rp)",
+    fieldRateLabel: "Percentage (%)",
+    fieldRateHint: "Typically 10%, but it can still be adjusted.",
     perpuluhanDueLabel: "Tithe (10%)",
+    perpuluhanResultLabel: "Tithe Per Month",
+    perpuluhanResultSummaryMid: "% of ",
     perpuluhanCalculatingMsg: "Calculating...",
     perpuluhanCalcErrorMsg: "Failed to calculate the tithe. Try again.",
     payPerpuluhanNowButton: "Pay Tithe Now",
+    recordPerpuluhanButton: "Record Tithe",
     religionCalculatorNoneTitle: "Religious donation calculator is off",
     religionCalculatorNoneDesc:
       "Set the family religion in Account Settings to enable the Zakat or Tithe calculator.",
@@ -2057,6 +2509,10 @@ export const en = {
       "The family member list isn't available for your role — enter the name manually.",
     heirAllocationChartTitle: "Beneficiary Allocation",
     heirAllocationUnallocatedLabel: "Unallocated",
+    assetListCardTitle: "Inheritance Assets",
+    visibleToAllHeirsCaption: "Visible to all heirs",
+    estimatedValueLabel: "Estimated value",
+    linkedToAssetPrefix: "linked to Asset",
   },
   anggaran: {
     budgetTypeLabels: {
@@ -2126,6 +2582,18 @@ export const en = {
     obligationsPayConfirmButton: "Pay Now",
     obligationsToastPaySuccess: "Obligation paid successfully.",
     obligationsToastPayFailed: "Failed to pay obligation. Try again.",
+    heroDaysLeftMid: " days left of ",
+    heroDaysLeftSuffix: " days",
+    heroTerpakaiPrefix: "Spent ",
+    heroRencanaPrefix: "Planned ",
+    statAvgSafePrefix: "Safe average ",
+    statAvgSafeSuffix: "/day",
+    categoryAddAction: "Add",
+    categoryFooterRemainingPrefix: "Remaining ",
+    categoryFooterOverBudgetPrefix: "Over budget by ",
+    obligationsSummaryMidPrefix: " of ",
+    obligationsSummaryMidSuffix: " unpaid · ",
+    obligationsDueDatePrefix: " · due ",
   },
   transaksi: {
     typeLabels: {
@@ -2206,6 +2674,27 @@ export const en = {
     surplusLabel: "Surplus",
     deficitLabel: "Deficit",
     ofIncomeSuffix: "% of income",
+    dateRangeLabel: "Date Range",
+    dateFromAriaLabel: "Start date",
+    dateToAriaLabel: "End date",
+    accountFilterFieldLabel: "Account",
+    allAccountsOption: "All Accounts",
+    categoryFilterFieldLabel: "Category",
+    allCategoriesOption: "All Categories",
+    resetFilterButton: "Reset",
+    tableColDate: "Date",
+    tableColDesc: "Description",
+    tableColCategory: "Category",
+    tableColAccount: "Account",
+    tableColAmount: "Amount",
+    tableColOptions: "Options",
+    lockedBadgeLabel: "Locked",
+    paginationShowingLabel: "Showing ",
+    paginationOfMid: " of ",
+    paginationPrevButton: "Previous",
+    paginationNextButton: "Next",
+    insightCategorizedLabel: "Auto-Organized",
+    insightCategorizedValueSuffix: "% of transactions are categorized",
   },
   splitbill: {
     headerDesc: "Splitting bills made easy — you cover it, they pay you back",
@@ -2226,9 +2715,14 @@ export const en = {
     paidStatusSuffix: " paid · ",
     collectedSuffix: " collected",
     detailButton: "Details",
+    pageTitle: "Split Bill",
     insightTitle: "How Split Bill works",
     insightDesc:
-      "Create a bill, split it evenly or custom, then send the link to friends. They can pay via transfer/e-wallet & you get an automatic notification.",
+      "Create a bill, split it evenly or custom, then send the link to friends. Recipients don't need a WealthMe account — their share page is public. You're still the one who confirms payment, manually.",
+    badgeUnpaid: "Unpaid",
+    badgeNoPayoutAccount: "No payout account",
+    badgeSettled: "Settled",
+    createdOnPrefix: "created ",
     fieldTitleLabel: "Event Title",
     fieldTitlePlaceholder: "e.g. Dinner at Sushi Tei",
     fieldTotalLabel: "Total Bill",
@@ -2322,12 +2816,34 @@ export const en = {
       "There was a connection problem loading this bill. Check your internet connection and try again.",
   },
   rekonsiliasi: {
+    headerTitle: "Bank Reconciliation",
+    headerSubtitle:
+      "Upload a bank statement, auto-match it against transactions you've already logged, then save the results.",
+    uploadMutasiButton: "Upload Statement",
     steps: {
       1: { label: "Upload", sub: "Upload document" },
       2: { label: "Scan", sub: "AI reads data" },
       3: { label: "Match", sub: "Match transactions" },
       4: { label: "Done", sub: "Save results" },
     },
+    stepStatusDone: "Done",
+    stepStatusActive: "In progress",
+    stepStatusPending: "Pending",
+    formatCalloutTitle: "Supported formats: CSV and Excel (.xlsx).",
+    formatCalloutBody:
+      "Minimum required columns: date, description, and amount (or a debit/credit pair).",
+    pdfCalloutTitle: "PDF is rejected — on purpose.",
+    pdfCalloutBody:
+      "PDF statements can't be processed automatically: layouts differ per bank and OCR numbers can silently drift. Export your statement as CSV from your bank's app/site, then upload that CSV file.",
+    mappingSectionTitle: "Column Mapping",
+    mappingSectionHint:
+      "Match your bank file's column names to WealthMe's columns. Save it once as a template, and every later upload from the same bank uses it automatically.",
+    matchFilterAll: "All",
+    matchFilterNeedsReview: "Needs Review",
+    matchFilterNotMatched: "Not Matched",
+    matchResultsFooterPrefix: "Showing ",
+    matchResultsFooterMid: " of ",
+    matchResultsFooterSuffix: " rows",
     uploadTitle: "Upload Bank Statement / Reconciliation",
     uploadSubtitle: "Upload a PDF, Excel, or CSV file from your bank.",
     uploadingLabel: "Uploading...",
@@ -2547,6 +3063,29 @@ export const en = {
     totalLiabilitiesLabel: "Total Liabilities",
     netWorthLabel: "Net Worth",
     emptyMonthTransactions: "No transactions yet this month",
+    header: {
+      title: "Financial Reports",
+      subtitle:
+        "17 reports from a single shared period. Change the date range once and every tab follows.",
+      exportExcelButton: "Excel",
+      exportPdfButton: "PDF",
+    },
+    filterCard: {
+      title: "Report Filter",
+      appliesAllTabsCaption: "Applies to every tab",
+      periodeLabel: "Period",
+      dateRangeLabel: "Date Range",
+    },
+    cashBasisNotice: {
+      title: "Cash basis.",
+      body: "Every report on this page is computed when money actually moves in or out of an account — not when a bill is issued. Receivables, unpaid payables, and unbilled expenses do not appear in this period.",
+      activePeriodPrefix: "Active period:",
+    },
+    tabStrip: {
+      ariaLabel: "Report navigation",
+      scrollLeftAriaLabel: "Scroll tabs left",
+      scrollRightAriaLabel: "Scroll tabs right",
+    },
     ringkasan: {
       financeTitle: "Financial Summary",
       expenseAllocTitle: "Expense Allocation",
@@ -2565,6 +3104,22 @@ export const en = {
       aiInsightBody:
         "Your lifestyle spending is up 18% from last month. Try adjusting your budget to keep your savings rate healthy.",
       aiInsightCta: "See Recommendation →",
+      cashflowCardTitle: "Income vs Expenses",
+      cashflowRange6: "6 Mo",
+      cashflowRange12: "12 Mo",
+      statNetCashflowLabel: "Net Cashflow",
+      statSavingsRatioLabel: "Savings Ratio",
+      statVsPrefix: "vs",
+      statSurplusStreakTemplate: "Surplus for {count} months in a row",
+      statSavingsAboveTargetTemplate: "Above the {target}% target",
+      statSavingsBelowTargetTemplate: "Below the {target}% target",
+      categoryTable: {
+        title: "Category Breakdown",
+        colKategori: "Category",
+        colPersentase: "% of Expenses",
+        colBulanIni: "This Month",
+        emptyState: "No expense category data yet",
+      },
     },
     harian: {
       titlePrefix: "Daily Report —",

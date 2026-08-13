@@ -9,6 +9,8 @@ import {
   CircleCheck,
   Gauge,
   TriangleAlert,
+  PiggyBank,
+  Target,
 } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -103,6 +105,27 @@ function formatTargetDate(
   );
 }
 
+// EPIC-025 N3 restructure — how many whole months remain until `targetDate`
+// (floored at 1 so an imminent/past-due date never divides by zero or goes
+// negative), used to derive the "perlu menabung Rp X / bulan selama N
+// bulan" notice from data already on `GoalDto` — no new endpoint.
+function monthsUntilTarget(targetDate: string): number {
+  const target = new Date(targetDate);
+  const now = new Date();
+  const months =
+    (target.getFullYear() - now.getFullYear()) * 12 +
+    (target.getMonth() - now.getMonth());
+  return Math.max(months, 1);
+}
+
+// Returns null when the monthly figure can't be honestly computed (no
+// target date) or isn't needed (goal already fully funded) — the caller
+// omits the notice entirely rather than showing a fabricated number.
+function monthlyNeededFor(goal: GoalDto): number | null {
+  if (!goal.targetDate || goal.remainingAmount <= 0) return null;
+  return Math.ceil(goal.remainingAmount / monthsUntilTarget(goal.targetDate));
+}
+
 function GoalCardSkeleton() {
   return (
     <div className="overflow-hidden rounded-[14px] border bg-card">
@@ -150,6 +173,21 @@ function GoalCard({ goal, onEdit, onDelete }: GoalCardProps) {
   );
   const icon = goal.icon ?? "🎯";
   const useEducationChip = isEducationGoal(goal);
+  const hasAutoDebit = goal.autoDebitAmount != null;
+  const monthlyNeeded = monthlyNeededFor(goal);
+  const noticeVariant = !hasAutoDebit
+    ? "danger"
+    : goal.status === "needs_boost"
+      ? "warning"
+      : goal.status === "at_risk"
+        ? "danger"
+        : "info";
+  const noticeClass =
+    noticeVariant === "danger"
+      ? "border-destructive/30 bg-destructive/10 text-destructive"
+      : noticeVariant === "warning"
+        ? "border-warning/35 bg-warning-soft text-warning"
+        : "border-primary/25 bg-accent text-accent-foreground";
 
   return (
     <div className="overflow-hidden rounded-[14px] border bg-card transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
@@ -172,10 +210,10 @@ function GoalCard({ goal, onEdit, onDelete }: GoalCardProps) {
             </div>
           )}
           <div className="min-w-0">
-            <div className="text-[14px] font-bold">{goal.name}</div>
-            <div className="text-[11.5px] text-muted-foreground">
+            <span className="text-[14px] font-bold">{goal.name}</span>{" "}
+            <span className="text-[11.5px] text-muted-foreground">
               {formatTargetDate(goal.targetDate, t, locale)}
-            </div>
+            </span>
           </div>
           <StatusBadge variant={variant} className="ml-auto">
             {label}
@@ -219,21 +257,36 @@ function GoalCard({ goal, onEdit, onDelete }: GoalCardProps) {
           )}
         </div>
 
-        <div className="mt-2.5 flex gap-1.5">
+        {monthlyNeeded != null && (
+          <div
+            className={`mt-2.5 flex items-start gap-2 rounded-[11px] border p-2.5 text-[11.5px] ${noticeClass}`}
+          >
+            <PiggyBank
+              className="mt-0.5 size-[15px] shrink-0"
+              aria-hidden="true"
+            />
+            <span>
+              {t.tujuan.noticeSavingsPrefix}
+              <strong className="font-[family-name:var(--font-mono)]">
+                {formatRupiah(monthlyNeeded)}
+              </strong>
+              {hasAutoDebit
+                ? `${t.tujuan.noticeSavingsPerMonthMiddle}${monthsUntilTarget(goal.targetDate as string)}${t.tujuan.noticeSavingsMonthsSuffix}`
+                : t.tujuan.noticeSavingsNoAutoDebitSuffix}
+            </span>
+          </div>
+        )}
+
+        <div className="mt-2.5 grid grid-cols-2 gap-1.5">
           <button
             onClick={() => onEdit(goal)}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-[7px] px-3 py-[7px] text-[11px] font-semibold"
-            style={{
-              background: "var(--primary-light)",
-              color: "var(--primary)",
-            }}
+            className="flex items-center justify-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[11px] font-semibold transition-colors hover:bg-accent"
           >
             <Pencil className="size-[13px]" /> {t.tujuan.editButton}
           </button>
           <button
             onClick={() => onDelete(goal)}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-[7px] px-3 py-[7px] text-[11px] font-semibold text-destructive"
-            style={{ background: "hsl(var(--destructive) / 0.1)" }}
+            className="flex items-center justify-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[11px] font-semibold text-destructive transition-colors hover:bg-destructive/5"
           >
             <Trash2 className="size-[13px]" /> {t.tujuan.deleteButton}
           </button>
@@ -283,6 +336,14 @@ export default function TujuanPage() {
   const atRiskCount = goals?.filter((g) => g.status === "at_risk").length ?? 0;
   const totalAllocated =
     goals?.reduce((sum, g) => sum + g.currentAmount, 0) ?? 0;
+  // EPIC-025 N3 restructure — "Progres Keseluruhan" summary card: overall
+  // percent, total target, and the sum of every goal's own monthly-needed
+  // figure, all derived from the goal list already fetched above.
+  const totalTarget = goals?.reduce((sum, g) => sum + g.targetAmount, 0) ?? 0;
+  const overallPercent =
+    totalTarget > 0 ? Math.round((totalAllocated / totalTarget) * 100) : 0;
+  const totalMonthlyNeeded =
+    goals?.reduce((sum, g) => sum + (monthlyNeededFor(g) ?? 0), 0) ?? 0;
 
   function handleEdit(goal: GoalDto) {
     setEditingGoalId(goal.id);
@@ -394,7 +455,7 @@ export default function TujuanPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
         <Rise index={0}>
           <div className="rounded-[14px] border border-[#86EFAC] bg-[#DCFCE7] p-4">
             <div className="mb-1.5 flex size-[30px] items-center justify-center rounded-md bg-[#BBF7D0] text-[#15803D]">
@@ -443,6 +504,51 @@ export default function TujuanPage() {
             </div>
           </div>
         </Rise>
+        <Rise index={3}>
+          <div className="flex flex-col justify-center rounded-[14px] border bg-card p-4">
+            <div className="mb-1.5 text-[10.5px] font-bold text-muted-foreground">
+              {t.tujuan.overallSectionTitle}
+            </div>
+            <div className="flex items-end justify-between gap-2">
+              <div>
+                <div className="text-[10.5px] text-muted-foreground">
+                  {t.tujuan.overallTotalLabel}
+                </div>
+                <div className="text-[22px] font-black text-primary">
+                  {overallPercent}%
+                </div>
+              </div>
+              <StatusBadge variant="success">
+                {goals?.length ?? 0}
+                {t.tujuan.overallActiveGoalsSuffix}
+              </StatusBadge>
+            </div>
+            <div className="mt-2">
+              <AnimatedProgress
+                value={overallPercent}
+                color="var(--primary)"
+                height={9}
+              />
+            </div>
+            <div className="mt-2 flex justify-between text-[10.5px] text-muted-foreground">
+              <span>
+                {formatRupiah(totalAllocated)}
+                {t.tujuan.collectedSuffix}
+              </span>
+              <span>
+                {t.tujuan.targetPrefix}
+                {formatRupiah(totalTarget)}
+              </span>
+            </div>
+            <div className="mt-2 border-t pt-2 text-[10.5px] text-muted-foreground">
+              {t.tujuan.overallMonthlyPrefix}
+              <strong className="font-[family-name:var(--font-mono)] text-foreground">
+                {formatRupiah(totalMonthlyNeeded)}
+              </strong>
+              {t.tujuan.overallMonthlySuffix}
+            </div>
+          </div>
+        </Rise>
       </div>
 
       {isError && (
@@ -451,13 +557,13 @@ export default function TujuanPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
         {isLoading
           ? Array.from({ length: 3 }).map((_, i) => (
               <GoalCardSkeleton key={i} />
             ))
           : goals?.map((g, i) => (
-              <Rise key={g.id} index={3 + i}>
+              <Rise key={g.id} index={4 + i}>
                 <GoalCard
                   goal={g}
                   onEdit={handleEdit}
@@ -469,6 +575,24 @@ export default function TujuanPage() {
           <div className="col-span-full rounded-[14px] border bg-card px-4 py-8 text-center text-[13px] text-muted-foreground">
             {t.tujuan.emptyState}
           </div>
+        )}
+        {!isLoading && !isError && (
+          <button
+            type="button"
+            onClick={() => setCrud({ entity: "tujuan", mode: "add" })}
+            disabled={!familyGroupId}
+            className="flex flex-col items-center justify-center gap-2 rounded-[14px] border border-dashed p-8 text-center transition-colors hover:bg-accent/40 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span className="flex size-12 items-center justify-center rounded-full bg-accent text-primary">
+              <Target className="size-6" aria-hidden="true" />
+            </span>
+            <span className="text-[13px] font-bold">
+              {t.tujuan.addGoalCardTitle}
+            </span>
+            <span className="text-[11.5px] text-muted-foreground">
+              {t.tujuan.addGoalCardDesc}
+            </span>
+          </button>
         )}
       </div>
 

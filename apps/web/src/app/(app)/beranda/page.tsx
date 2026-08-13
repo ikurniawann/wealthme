@@ -12,12 +12,10 @@ import {
   Landmark,
   Wallet,
   TrendingUp,
-  Home,
   CreditCard,
   ArrowDownLeft,
   ArrowLeftRight,
   Target,
-  type LucideIcon,
 } from "lucide-react";
 import type { DonutSegment } from "@/components/charts/donut";
 // EPIC-025 N3-G1 — the chart swap: ApexCharts presets replace the old
@@ -33,9 +31,11 @@ import {
   SectionCard,
   CardLink,
   SummaryCard,
+  StatusBadge,
   IconChip,
   CountUpRupiah,
   AnimatedProgress,
+  ProgressBar,
   Rise,
 } from "@/components/wm";
 import { LocaleSwitcher } from "@/components/locale-switcher";
@@ -48,6 +48,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, formatRupiahCompact } from "@/lib/format";
 import type {
   AllowanceRequestDto,
+  BudgetDto,
   DashboardSummaryDto,
   GoalDto,
   LiabilityDto,
@@ -55,22 +56,19 @@ import type {
   NetWorthHistoryDto,
 } from "@wealthme/contracts";
 
-const PERIODS = ["1M", "3M", "6M", "1Y", "All"] as const;
+// EPIC-025 N3 fidelity follow-up — prototype's Arus Kas card carries a
+// "6 Bln / 12 Bln" toggle instead of the hero's 1M/3M/6M/1Y/All pills. The
+// toggle still drives the same range-parametrized net-worth-history query
+// the hero sparkline already renders (there is no 12-month CASHFLOW feed —
+// `DashboardSummaryDto.cashflow` is a fixed 6-month backend rollup with no
+// range param, and adding one is backend work out of this page-only pass).
+// Relocating the control here matches the prototype's card placement
+// without fabricating a 12-month income/expense series.
+const PERIODS = ["6M", "12M"] as const;
 
 const PERIOD_RANGE: Record<(typeof PERIODS)[number], string> = {
-  "1M": "30d",
-  "3M": "3m",
   "6M": "6m",
-  "1Y": "12m",
-  All: "120m",
-};
-
-const ACCOUNT_TYPE_ICON: Record<string, { icon: LucideIcon; chip: string }> = {
-  bank: { icon: Landmark, chip: "bg-blue-100 text-blue-600" },
-  ewallet: { icon: Wallet, chip: "bg-green-100 text-green-600" },
-  investment: { icon: TrendingUp, chip: "bg-violet-100 text-violet-600" },
-  property: { icon: Home, chip: "bg-yellow-100 text-yellow-600" },
-  cash: { icon: Wallet, chip: "bg-green-100 text-green-600" },
+  "12M": "12m",
 };
 
 const GOAL_STATUS_STYLE: Record<
@@ -82,6 +80,24 @@ const GOAL_STATUS_STYLE: Record<
   needs_boost: { color: "var(--warning)", iconBg: "#FEF9C3" },
   at_risk: { color: "var(--brand-purple)", iconBg: "#EDE9FE" },
 };
+
+/** Page-local budget progress-bar colour, matching `/anggaran`'s own
+ * `budgetBarColor` derivation (isOverBudget/isNearLimit from the real
+ * `BudgetDto`) — not duplicated import since `/anggaran/page.tsx` has no
+ * exported helpers. */
+function budgetBarColor(dto: BudgetDto): string {
+  if (dto.isOverBudget) return "var(--destructive)";
+  if (dto.isNearLimit) return "var(--warning)";
+  return "var(--success)";
+}
+
+/** "6,2 / 8 jt" style compact spent/limit pair (prototype's `.mono` figure)
+ * — reuses `formatRupiahCompact` (already handles jt/rb/M scaling) rather
+ * than hand-rolling a second Rupiah-compacting formula. */
+function formatBudgetRow(spent: number, limit: number): string {
+  const strip = (s: string) => s.replace("Rp ", "");
+  return `${strip(formatRupiahCompact(spent))} / ${strip(formatRupiahCompact(limit))}`;
+}
 
 function getGreetingKey(
   h: number,
@@ -118,7 +134,7 @@ function BerandaPage() {
         ? `≈ ${formatMoney(value)}`
         : formatRupiahCompact(value);
   const firstName = session?.user?.name?.split(" ")[0] ?? "Kamu";
-  const [period, setPeriod] = useState<(typeof PERIODS)[number]>("1M");
+  const [period, setPeriod] = useState<(typeof PERIODS)[number]>("6M");
 
   const familyGroupId = session?.familyGroupId ?? null;
 
@@ -183,6 +199,20 @@ function BerandaPage() {
     queryKey: queryKeys.liabilities.all(familyGroupId ?? ""),
     queryFn: () =>
       apiFetch<LiabilityDto[]>(`/family-groups/${familyGroupId}/liabilities`, {
+        token: session?.accessToken,
+      }),
+    enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
+    staleTime: 60_000,
+  });
+
+  // EPIC-025 N3 fidelity follow-up — "Anggaran <Bulan>" card
+  // (`docs/prototype/pages/beranda.html`'s `.bento-side` first article).
+  // Same `/budgets` endpoint `/anggaran` already fetches — no new backend
+  // work, per Ground Truth.
+  const { data: budgets, isLoading: isBudgetsLoading } = useQuery<BudgetDto[]>({
+    queryKey: queryKeys.budgets.all(familyGroupId ?? ""),
+    queryFn: () =>
+      apiFetch<BudgetDto[]>(`/family-groups/${familyGroupId}/budgets`, {
         token: session?.accessToken,
       }),
     enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
@@ -260,36 +290,6 @@ function BerandaPage() {
       (a.dueDate as string).localeCompare(b.dueDate as string),
     )[0];
 
-  const SUMMARY_ROUTE: Record<string, string> = {
-    investment: "/investasi",
-    property: "/aset",
-    bank: "/rekening",
-    ewallet: "/rekening",
-    cash: "/rekening",
-  };
-
-  const summaryCards = (summary?.accountSummary ?? []).map((s) => {
-    const cfg = ACCOUNT_TYPE_ICON[s.type] ?? {
-      icon: Wallet,
-      chip: "bg-gray-100 text-gray-600",
-    };
-    // isIndicative (non-IDR preference): switch from the compact IDR format
-    // to formatMoney's converted output, prefixed with "≈" — these mock FX
-    // rates are indicative, never a live/authoritative conversion. IDR
-    // (the default) keeps today's exact compact format unchanged. moneyCompact
-    // also withholds rendering (loading placeholder) until the FX rate is
-    // actually ready, so this never shows a fabricated 1:1-rate number.
-    return {
-      icon: cfg.icon,
-      chip: cfg.chip,
-      label: s.label,
-      amount: moneyCompact(s.total),
-      delta: "—",
-      up: true as boolean,
-      href: SUMMARY_ROUTE[s.type] ?? "/rekening",
-    };
-  });
-
   const activities = (summary?.recentTransactions ?? []).map((tx) => ({
     icon:
       tx.type === "income"
@@ -364,6 +364,73 @@ function BerandaPage() {
     assetsTotal > 0
       ? Math.round((nonLiquidTotal / assetsTotal) * 1000) / 10
       : 0;
+
+  // EPIC-025 N3 fidelity follow-up — the prototype's 4 stat cards (Cash &
+  // E-Wallet / Bank & Account / Investasi / Liabilitas). `cashEwalletTotal`
+  // merges the two liquid account types the backend returns separately;
+  // `liabilitasTotal` reuses `totalLiabilities` (already fetched above, not
+  // part of `accountSummary` since it's a liability, not an account).
+  // Delta stays "—" (the same honest placeholder the page already used):
+  // the backend has no month-over-month comparison for these totals, and
+  // fabricating one — unlike the prototype's static "Naik 2,4% dari Juli"
+  // — would violate the no-fabricated-numbers rule.
+  const cashEwalletTotal = (summary?.accountSummary ?? [])
+    .filter((s) => s.type === "cash" || s.type === "ewallet")
+    .reduce((sum, s) => sum + s.total, 0);
+  const bankTotal = (summary?.accountSummary ?? [])
+    .filter((s) => s.type === "bank")
+    .reduce((sum, s) => sum + s.total, 0);
+  const investasiTotal = (summary?.accountSummary ?? [])
+    .filter((s) => s.type === "investment")
+    .reduce((sum, s) => sum + s.total, 0);
+  // Guarded on `summary` (not just an unconditional array) so the cards
+  // render only once real data has loaded — matches the page's existing
+  // convention (e.g. `allocation`/`donutSegments` below) of never showing
+  // populated-looking cards before their backing data exists.
+  const summaryCards = !summary
+    ? []
+    : [
+        {
+          icon: Wallet,
+          chip: "bg-green-100 text-green-600",
+          label: t.shell.pageTitles.dana,
+          amount: moneyCompact(cashEwalletTotal),
+          delta: "—",
+          up: true as boolean,
+          href: "/dana",
+        },
+        {
+          icon: Landmark,
+          chip: "bg-blue-100 text-blue-600",
+          label: t.shell.pageTitles.rekening,
+          amount: moneyCompact(bankTotal),
+          delta: "—",
+          up: true as boolean,
+          href: "/rekening",
+        },
+        {
+          icon: TrendingUp,
+          chip: "bg-violet-100 text-violet-600",
+          label: t.shell.pageTitles.investasi,
+          amount: moneyCompact(investasiTotal),
+          delta: "—",
+          up: true as boolean,
+          href: "/investasi",
+        },
+        {
+          icon: CreditCard,
+          chip: "bg-red-100 text-red-600",
+          label: t.shell.pageTitles.liabilitas,
+          amount: moneyCompact(totalLiabilities),
+          delta: "—",
+          up: false as boolean,
+          href: "/liabilitas",
+        },
+      ];
+
+  // EPIC-025 N3 fidelity follow-up — "Anggaran <Bulan>" card rows.
+  const budgetMonthLabel = t.laporan.months[new Date().getMonth()];
+  const budgetRows = (budgets ?? []).slice(0, 4);
 
   // EPIC-025 N3-G1 — chart-parity aria labels: every value below is read
   // from the same `summary`/`netWorthHistory` data the chart series render,
@@ -486,27 +553,10 @@ function BerandaPage() {
                 </div>
               )}
 
-              <div
-                role="group"
-                aria-label={t.common.period}
-                className="mt-3.5 flex gap-1.5"
-              >
-                {PERIODS.map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setPeriod(p)}
-                    aria-pressed={period === p}
-                    className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
-                      period === p
-                        ? "bg-white text-primary"
-                        : "bg-white/15 text-white hover:bg-white/25"
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-
+              {/* EPIC-025 N3 fidelity follow-up — the prototype's hero has
+                  no period picker (just the static "vs Rp ... di Juli"
+                  note above); the working range control now lives on the
+                  Arus Kas card below as a "6 Bln / 12 Bln" toggle. */}
               <div className="mt-3 -mx-[22px]">
                 {/* EPIC-025 N3-G1 — Sparkline → SparklineChart (Apex). Same
                     `sparklinePoints` series as before the swap, just a
@@ -586,6 +636,9 @@ function BerandaPage() {
                         {moneyCompact(liquidTotal)}
                       </div>
                     </div>
+                    <StatusBadge variant="success">
+                      {t.beranda.liquidBadgeLabel}
+                    </StatusBadge>
                   </div>
                   <div className="flex items-center gap-3 rounded-xl bg-secondary p-3">
                     <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-card text-brand-purple">
@@ -599,7 +652,34 @@ function BerandaPage() {
                         {moneyCompact(nonLiquidTotal)}
                       </div>
                     </div>
+                    <StatusBadge variant="purple">
+                      {t.beranda.nonLiquidBadgeLabel}
+                    </StatusBadge>
                   </div>
+                  {/* EPIC-025 N3 fidelity follow-up — prototype's due-date
+                      notice link under the composition rows, reusing the
+                      same `nearestDueLiability` the "Perlu Perhatian" card
+                      below already derives. */}
+                  {nearestDueLiability && (
+                    <button
+                      type="button"
+                      onClick={() => router.push("/liabilitas")}
+                      className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border border-warning/30 bg-warning-soft px-3 py-2.5 text-left text-[12px]"
+                    >
+                      <span>📅</span>
+                      <span>
+                        <strong>{nearestDueLiability.name}</strong>{" "}
+                        {t.beranda.liabilityDueNotice}{" "}
+                        {new Date(
+                          nearestDueLiability.dueDate!,
+                        ).toLocaleDateString(t.beranda.dateLocale, {
+                          day: "numeric",
+                          month: "short",
+                        })}
+                        .
+                      </span>
+                    </button>
+                  )}
                 </div>
               )}
             </SectionCard>
@@ -607,9 +687,9 @@ function BerandaPage() {
         </div>
 
         {/* Summary cards */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:col-span-2 lg:col-span-12 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:col-span-2 lg:col-span-12">
           {isLoading
-            ? Array(5)
+            ? Array(4)
                 .fill(null)
                 .map((_, i) => (
                   <div
@@ -617,7 +697,7 @@ function BerandaPage() {
                     className="h-[88px] animate-pulse rounded-[14px] bg-muted"
                   />
                 ))
-            : summaryCards.slice(0, 5).map((s, i) => (
+            : summaryCards.map((s, i) => (
                 <Rise key={s.label} index={2 + i}>
                   <div
                     role="link"
@@ -658,13 +738,36 @@ function BerandaPage() {
         <div className="grid grid-cols-1 gap-3.5 md:col-span-2 md:grid-cols-2 lg:contents">
           {/* Cashflow */}
           <SectionCard
-            title={t.common.cashFlow}
+            title={
+              period === "12M"
+                ? t.beranda.cashflowTitle12
+                : t.beranda.cashflowTitle6
+            }
             className="lg:col-span-7"
             action={
-              <span className="rounded-md border bg-background px-2 py-[3px] text-[11px] text-muted-foreground">
-                {cashflow?.months[cashflow.months.length - 1] ?? "—"}{" "}
-                {t.common.latest}
-              </span>
+              <div
+                role="group"
+                aria-label={t.beranda.periodToggleAriaLabel}
+                className="flex gap-1 rounded-full bg-secondary p-1"
+              >
+                {PERIODS.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPeriod(p)}
+                    aria-pressed={period === p}
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                      period === p
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-secondary/70"
+                    }`}
+                  >
+                    {p === "12M"
+                      ? t.beranda.periodToggle12
+                      : t.beranda.periodToggle6}
+                  </button>
+                ))}
+              </div>
             }
           >
             <div className="mb-2.5 flex flex-wrap gap-4">
@@ -820,10 +923,62 @@ function BerandaPage() {
           </SectionCard>
         </div>
 
-        {/* "Perlu Perhatian" (`.bento-side` 2nd article) — lg:col-span-5,
-            paired next to Recent activity's lg:col-span-7 like the
-            prototype's aside column. */}
-        <div className="lg:col-span-5">
+        {/* `.bento-side` — lg:col-span-5, paired next to Recent activity's
+            lg:col-span-7. Stacks the "Anggaran <Bulan>" budget card above
+            "Perlu Perhatian", matching the prototype's aside column. */}
+        <div className="flex flex-col gap-3.5 lg:col-span-5">
+          <SectionCard
+            title={`${t.beranda.budgetCardTitlePrefix}${budgetMonthLabel}`}
+            action={
+              <CardLink onClick={() => router.push("/anggaran")}>
+                {t.beranda.budgetManageLink}
+              </CardLink>
+            }
+          >
+            {isBudgetsLoading ? (
+              <div className="space-y-2">
+                {Array(3)
+                  .fill(null)
+                  .map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-[38px] animate-pulse rounded-md bg-muted"
+                    />
+                  ))}
+              </div>
+            ) : budgetRows.length === 0 ? (
+              <div className="py-4 text-center text-[13px] text-muted-foreground">
+                {t.beranda.budgetEmptyNote}
+              </div>
+            ) : (
+              <div className="space-y-3.5">
+                {budgetRows.map((b) => (
+                  <div key={b.id}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] font-bold">
+                        {b.categoryName}
+                      </span>
+                      <span className="mono text-[11px] text-muted-foreground">
+                        {formatBudgetRow(b.spentAmount, b.limitAmount)}
+                      </span>
+                    </div>
+                    <ProgressBar
+                      value={Math.min(100, b.usagePercent)}
+                      color={budgetBarColor(b)}
+                      className="mt-1.5"
+                    />
+                    {b.isOverBudget && (
+                      <div className="mt-1 text-[11px] text-destructive">
+                        {t.beranda.budgetOverBudgetPrefix}
+                        {formatRupiah(b.spentAmount - b.limitAmount)}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+
           <SectionCard title={t.beranda.needsAttentionTitle}>
             {isLoading ? (
               <div className="space-y-2">

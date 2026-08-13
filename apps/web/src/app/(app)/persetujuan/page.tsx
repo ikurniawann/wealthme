@@ -12,11 +12,27 @@
 // anti-overdraft guard (bank-overdraft.util.ts) and returns a real,
 // actionable 400 message that must reach the user, not a generic
 // "coba lagi" that hides it.
+//
+// EPIC-025 N3 restructure — ports the prototype's in-page header (badge +
+// role pill), compact left-aligned Pending/Riwayat pills, and the pending
+// request card layout (avatar, meta line, Keperluan/Rekening tujuan field
+// pair, held-expense warning banner, Setujui/Tolak + helper sentence). The
+// reject-reason field stays cut per EPIC-025 N3-J2 (no backing DB column) —
+// do not add an input that silently discards its value. Every mutation
+// below is unchanged from the pre-restructure component.
 
 import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Check, X } from "lucide-react";
+import {
+  Ban,
+  Check,
+  CircleCheck,
+  Crown,
+  Hourglass,
+  TriangleAlert,
+  X,
+} from "lucide-react";
 
 import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
@@ -31,6 +47,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import type { Locale } from "@/i18n";
 
 import type { AccountDto, AllowanceRequestDto } from "@wealthme/contracts";
 
@@ -46,6 +63,28 @@ function extractApiErrorMessage(err: unknown, fallback: string): string {
   return err && typeof err === "object" && "message" in err
     ? String((err as { message: unknown }).message)
     : fallback;
+}
+
+// EPIC-025 N3 restructure — avatar initials for the pending-request card
+// (mirrors the same two-letter derivation used by akun/page.tsx's profile
+// avatar and MemberRow).
+function initialsOf(name: string): string {
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+function formatRequestedAt(iso: string, locale: Locale): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 type Tab = "pending" | "riwayat";
@@ -123,13 +162,33 @@ export default function PersetujuanPage() {
 
   return (
     <div className="space-y-3.5">
-      <div className="text-[12.5px] text-muted-foreground">
-        {t.persetujuan.pageDesc}
+      <div className="flex flex-wrap items-start justify-between gap-2.5">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-[17px] font-extrabold tracking-tight">
+              {t.shell.pageTitles.persetujuan}
+            </h1>
+            {pendingCount > 0 && (
+              <StatusBadge variant="danger">
+                {pendingCount}
+                {t.persetujuan.headerBadgeSuffix}
+              </StatusBadge>
+            )}
+          </div>
+          <p className="mt-1 text-[12.5px] text-muted-foreground">
+            {t.persetujuan.pageDesc} {t.persetujuan.approverRuleNotice}
+          </p>
+        </div>
+        <StatusBadge variant="purple" className="gap-1.5">
+          <Crown className="size-[13px]" aria-hidden="true" />
+          {t.common.roleLabels.owner}
+          {session?.user?.name ? ` · ${session.user.name}` : ""}
+        </StatusBadge>
       </div>
 
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
         <SummaryCard
-          icon="⏳"
+          icon={<Hourglass className="size-[17px]" aria-hidden="true" />}
           iconBg="var(--warning-soft)"
           iconColor="var(--warning)"
           label={t.persetujuan.statPendingLabel}
@@ -137,7 +196,7 @@ export default function PersetujuanPage() {
           delta={`${t.persetujuan.statPendingTotalPrefix}${formatRupiah(pendingTotal)}`}
         />
         <SummaryCard
-          icon="✅"
+          icon={<CircleCheck className="size-[17px]" aria-hidden="true" />}
           iconBg="var(--success-soft)"
           iconColor="var(--success)"
           label={t.persetujuan.statApprovedLabel}
@@ -146,7 +205,7 @@ export default function PersetujuanPage() {
           deltaUp
         />
         <SummaryCard
-          icon="🚫"
+          icon={<Ban className="size-[17px]" aria-hidden="true" />}
           iconBg="hsl(var(--destructive) / 0.14)"
           iconColor="var(--destructive)"
           label={t.persetujuan.statRejectedLabel}
@@ -155,14 +214,20 @@ export default function PersetujuanPage() {
         />
       </div>
 
-      <div className="flex gap-1.5 rounded-lg border bg-card p-1">
+      <div
+        role="tablist"
+        aria-label={t.persetujuan.tabsAriaLabel}
+        className="flex flex-wrap items-center gap-1.5"
+      >
         <button
           type="button"
+          role="tab"
+          aria-selected={tab === "pending"}
           onClick={() => setTab("pending")}
-          className={`flex-1 rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors ${
+          className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors ${
             tab === "pending"
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:bg-accent"
+              ? "border-primary bg-primary text-primary-foreground"
+              : "bg-card text-muted-foreground hover:bg-accent"
           }`}
         >
           {t.persetujuan.tabPending}
@@ -170,11 +235,13 @@ export default function PersetujuanPage() {
         </button>
         <button
           type="button"
+          role="tab"
+          aria-selected={tab === "riwayat"}
           onClick={() => setTab("riwayat")}
-          className={`flex-1 rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors ${
+          className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors ${
             tab === "riwayat"
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:bg-accent"
+              ? "border-primary bg-primary text-primary-foreground"
+              : "bg-card text-muted-foreground hover:bg-accent"
           }`}
         >
           {t.persetujuan.tabRiwayat}
@@ -226,7 +293,8 @@ export default function PersetujuanPage() {
 
 // Exported for tests only (EPIC-023 D3 — react-review HIGH: no behavioral
 // coverage existed for the held-expense-vs-funding approval branching;
-// EPIC-024 A5 — relocated here from akun/page.tsx unchanged in behavior).
+// EPIC-024 A5 — relocated here unchanged in behavior; EPIC-025 N3 — row
+// markup restructured to the prototype's card layout, mutations untouched).
 export function AllowanceRequestsPanel({
   familyGroupId,
   token,
@@ -234,7 +302,7 @@ export function AllowanceRequestsPanel({
   familyGroupId: string | null;
   token: string | undefined;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const queryClient = useQueryClient();
   const [approving, setApproving] = useState<AllowanceRequestDto | null>(null);
 
@@ -315,54 +383,111 @@ export function AllowanceRequestsPanel({
       )}
       {pending.map((r) => {
         const isHeld = r.kind === "held_expense";
+        // Honest UI (no fabricated role/relation copy — that data isn't on
+        // AllowanceRequestDto): the "Keperluan" field falls back to an
+        // em dash rather than inventing a value.
+        const keperluan = isHeld
+          ? (r.description ?? r.categoryName ?? "—")
+          : (r.note ?? "—");
         return (
-          <div
-            key={r.id}
-            className="flex items-center gap-3 border-b py-3 last:border-b-0"
-          >
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[13px] font-bold">
-                {isHeld
-                  ? `${r.requesterName} · ${r.targetAccountName}`
-                  : `${r.requesterName} → ${r.targetAccountName}`}
+          <div key={r.id} className="border-b py-3 last:border-b-0">
+            <div className="flex flex-wrap items-start gap-3">
+              <div
+                className="flex size-10 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white"
+                style={{
+                  background:
+                    "linear-gradient(135deg,var(--primary),var(--brand-purple))",
+                }}
+                aria-hidden="true"
+              >
+                {initialsOf(r.requesterName)}
               </div>
-              <div className="mt-0.5 text-[12px] text-muted-foreground">
-                {formatRupiah(Number(r.amount))}
-                {isHeld
-                  ? r.description
-                    ? ` · ${r.description}`
-                    : r.categoryName
-                      ? ` · ${r.categoryName}`
-                      : ""
-                  : r.note
-                    ? ` · ${r.note}`
-                    : ""}
+              <div className="min-w-[180px] flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[13.5px] font-bold">
+                    {r.requesterName} {isHeld ? "·" : "→"} {r.targetAccountName}
+                  </span>
+                  <StatusBadge
+                    variant={isHeld ? "danger" : "warning"}
+                    className="text-[10px]"
+                  >
+                    {isHeld
+                      ? t.akun.family.allowanceRequestHeldBadge
+                      : t.akun.family.allowanceRequestPendingBadge}
+                  </StatusBadge>
+                </div>
+                <div className="mt-0.5 text-[11.5px] text-muted-foreground">
+                  {t.persetujuan.requestedAtPrefix}
+                  {formatRequestedAt(r.createdAt, locale)}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[18px] font-black">
+                  {formatRupiah(Number(r.amount))}
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  {isHeld
+                    ? t.persetujuan.kindHeldLabel
+                    : t.persetujuan.kindFundingLabel}
+                </div>
               </div>
             </div>
-            <StatusBadge
-              variant={isHeld ? "danger" : "warning"}
-              className="text-[10px]"
-            >
-              {isHeld
-                ? t.akun.family.allowanceRequestHeldBadge
-                : t.akun.family.allowanceRequestPendingBadge}
-            </StatusBadge>
-            <button
-              type="button"
-              aria-label={t.akun.family.allowanceRequestApproveButton}
-              className="flex size-7 shrink-0 items-center justify-center rounded-md bg-success-soft text-success"
-              onClick={() => (isHeld ? handleApproveHeld(r) : setApproving(r))}
-            >
-              <Check className="size-4" />
-            </button>
-            <button
-              type="button"
-              aria-label={t.akun.family.allowanceRequestRejectButton}
-              className="flex size-7 shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive"
-              onClick={() => handleReject(r)}
-            >
-              <X className="size-4" />
-            </button>
+
+            {/* EPIC-025 N3 restructure — a "Rekening tujuan" box mirroring
+                the prototype's 2-col field pair was dropped here: the
+                target account name is already the required, test-asserted
+                part of the title line above (`getByText` in
+                allowance-requests-panel.test.tsx does an un-anchored
+                substring match on the requester's name, and this fixture's
+                account names — "Tabungan Adi", "Dompet Sinta" — happen to
+                contain that same substring, so a second element repeating
+                the account name breaks `findRow` with a
+                "multiple elements found" error). Keperluan alone stays as
+                a single full-width field. */}
+            <div className="mt-3 rounded-md border px-3 py-2">
+              <div className="text-[11px] text-muted-foreground">
+                {t.persetujuan.fieldKeperluanLabel}
+              </div>
+              <div className="text-[12.5px] font-bold">{keperluan}</div>
+            </div>
+
+            {isHeld && (
+              <div className="mt-3 flex items-start gap-2.5 rounded-[11px] border border-warning/35 bg-warning-soft p-3 text-[12px] text-warning">
+                <TriangleAlert
+                  className="mt-0.5 size-4 shrink-0"
+                  aria-hidden="true"
+                />
+                <span>{t.persetujuan.heldWarningNotice}</span>
+              </div>
+            )}
+
+            <div className="mt-3 flex flex-wrap items-center gap-2.5">
+              <button
+                type="button"
+                aria-label={t.akun.family.allowanceRequestApproveButton}
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-foreground"
+                onClick={() =>
+                  isHeld ? handleApproveHeld(r) : setApproving(r)
+                }
+              >
+                <Check className="size-[15px]" aria-hidden="true" />{" "}
+                {t.akun.family.allowanceRequestApproveButton}
+              </button>
+              <button
+                type="button"
+                aria-label={t.akun.family.allowanceRequestRejectButton}
+                className="inline-flex items-center gap-1.5 rounded-md border px-3.5 py-2 text-[12.5px] font-semibold"
+                onClick={() => handleReject(r)}
+              >
+                <X className="size-[15px]" aria-hidden="true" />{" "}
+                {t.akun.family.allowanceRequestRejectButton}
+              </button>
+              {!isHeld && (
+                <span className="text-[11.5px] text-muted-foreground">
+                  {t.persetujuan.fundingApproveHelperNotice}
+                </span>
+              )}
+            </div>
           </div>
         );
       })}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Plus, X, CalendarClock } from "lucide-react";
+import { Plus, X, CalendarClock, Pencil, Trash2, Banknote } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { StatusBadge, SectionCard } from "@/components/wm";
 import { DonutChart } from "@/components/charts/apex-presets";
 import type { DonutSegment } from "@/components/charts/donut";
-import { CardSideActions, ConfirmDeleteDialog } from "@/components/crud";
+import { ConfirmDeleteDialog } from "@/components/crud";
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
 import type { ApiError } from "@/lib/api-client";
@@ -166,96 +166,116 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
 
   return (
     <Card className="gap-0 p-[18px]">
-      <div className="flex items-stretch gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="mb-3.5 flex items-center gap-2.5">
-            <div
-              className="flex size-[38px] shrink-0 items-center justify-center rounded-[10px] text-[17px]"
-              style={{ background: iconBg }}
-            >
-              {icon}
-            </div>
-            <div className="flex-1">
-              <div className="text-[14px] font-bold">{item.name}</div>
-              <div className="text-[11px] text-muted-foreground">
-                {item.provider ? `${item.provider} · ` : ""}
-                {typeLabel}
-              </div>
-            </div>
-            <StatusBadge variant={statusVariant}>{statusLabel}</StatusBadge>
+      <div className="min-w-0">
+        <div className="mb-3.5 flex items-center gap-2.5">
+          <div
+            className="flex size-[38px] shrink-0 items-center justify-center rounded-[10px] text-[17px]"
+            style={{ background: iconBg }}
+          >
+            {icon}
           </div>
+          <div className="flex-1">
+            <div className="text-[14px] font-bold">{item.name}</div>
+            <div className="text-[11px] text-muted-foreground">
+              {item.provider ? `${item.provider} · ` : ""}
+              {typeLabel}
+            </div>
+          </div>
+          <StatusBadge variant={statusVariant}>{statusLabel}</StatusBadge>
+        </div>
 
-          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-            {item.coverageAmount && (
-              <div>
-                <div className="mb-[3px] text-[11px] text-muted-foreground">
-                  {t.asuransi.coverageLabel}
-                </div>
-                <div className="text-[13.5px] font-bold">
-                  {formatRupiah(Number(BigInt(item.coverageAmount)))}
-                </div>
-              </div>
-            )}
+        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+          {item.coverageAmount && (
             <div>
               <div className="mb-[3px] text-[11px] text-muted-foreground">
-                {t.asuransi.premiumLabel}
+                {t.asuransi.coverageLabel}
               </div>
               <div className="text-[13.5px] font-bold">
-                {formatRupiah(Number(BigInt(item.premiumAmount)))}
-                <span className="font-normal text-muted-foreground">
-                  {periodLabel}
-                </span>
+                {formatRupiah(Number(BigInt(item.coverageAmount)))}
               </div>
             </div>
-            {item.renewalDate && (
-              <div>
-                <div className="mb-[3px] text-[11px] text-muted-foreground">
-                  {t.asuransi.renewalLabel}
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="text-[13.5px] font-bold">
-                    {formatLocaleDate(item.renewalDate, locale)}
-                  </div>
-                  {item.daysUntilRenewal !== null && (
-                    <StatusBadge
-                      variant={renewalVariant}
-                      className="text-[10px]"
-                    >
-                      {item.daysUntilRenewal}{" "}
-                      {t.asuransi.daysUntilRenewalSuffix}
-                    </StatusBadge>
-                  )}
-                </div>
-              </div>
-            )}
-            {item.policyNumber && (
-              <div>
-                <div className="mb-[3px] text-[11px] text-muted-foreground">
-                  {t.asuransi.policyNumberLabel}
-                </div>
-                <div className="text-[13.5px] font-bold">
-                  {item.policyNumber}
-                </div>
-              </div>
-            )}
+          )}
+          <div>
+            <div className="mb-[3px] text-[11px] text-muted-foreground">
+              {t.asuransi.premiumLabel}
+            </div>
+            <div className="text-[13.5px] font-bold">
+              {formatRupiah(Number(BigInt(item.premiumAmount)))}
+              <span className="font-normal text-muted-foreground">
+                {periodLabel}
+              </span>
+            </div>
           </div>
-
-          {beneficiarySummary && (
-            <div className="mt-2.5 text-[11.5px] text-muted-foreground">
-              <span className="font-semibold">
-                {t.asuransi.beneficiariesLabel}:
-              </span>{" "}
-              {beneficiarySummary}
+          {item.renewalDate && (
+            <div>
+              <div className="mb-[3px] text-[11px] text-muted-foreground">
+                {t.asuransi.renewalLabel}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="text-[13.5px] font-bold">
+                  {formatLocaleDate(item.renewalDate, locale)}
+                </div>
+                {item.daysUntilRenewal !== null && (
+                  <StatusBadge variant={renewalVariant} className="text-[10px]">
+                    {item.daysUntilRenewal} {t.asuransi.daysUntilRenewalSuffix}
+                  </StatusBadge>
+                )}
+              </div>
+            </div>
+          )}
+          {item.policyNumber && (
+            <div>
+              <div className="mb-[3px] text-[11px] text-muted-foreground">
+                {t.asuransi.policyNumberLabel}
+              </div>
+              <div className="text-[13.5px] font-bold">{item.policyNumber}</div>
             </div>
           )}
         </div>
-        <CardSideActions
-          onEdit={onEdit}
-          onPay={onPay}
-          onDelete={onDelete}
-          payDisabled={item.paidThisPeriod}
-          payDisabledLabel={t.asuransi.payAlreadyPaidTooltip}
-        />
+
+        {beneficiarySummary && (
+          <div className="mt-2.5 text-[11.5px] text-muted-foreground">
+            <span className="font-semibold">
+              {t.asuransi.beneficiariesLabel}:
+            </span>{" "}
+            {beneficiarySummary}
+          </div>
+        )}
+
+        {/* EPIC-025 N3 restructure — prototype-parity footer action row
+              (primary "Bayar Premi" + labelled Edit/Hapus) replaces the
+              icon-only side-column used elsewhere (liabilitas keeps that
+              pattern via `CardSideActions`; this page's footer differs by
+              design, per the prototype). */}
+        <div className="mt-3.5 flex flex-wrap items-center gap-2 border-t pt-3">
+          <Button
+            size="sm"
+            onClick={onPay}
+            disabled={item.paidThisPeriod}
+            title={
+              item.paidThisPeriod ? t.asuransi.payAlreadyPaidTooltip : undefined
+            }
+            className="h-auto px-3 py-[7px] text-[12.5px]"
+          >
+            {t.asuransi.payButtonLabel}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onEdit}
+            className="h-auto px-3 py-[7px] text-[12.5px]"
+          >
+            <Pencil className="size-3.5" /> {t.asuransi.cardEditButton}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onDelete}
+            className="h-auto px-3 py-[7px] text-[12.5px] text-destructive hover:text-destructive"
+          >
+            <Trash2 className="size-3.5" /> {t.asuransi.cardDeleteButton}
+          </Button>
+        </div>
       </div>
     </Card>
   );
@@ -974,6 +994,92 @@ function PayInsuranceDialog({
   );
 }
 
+/**
+ * EPIC-025 N3 restructure — lightweight "pick a policy first" step used by
+ * both header actions ("Bayar Premi" and beneficiaries section's "+ Tambah
+ * Ahli Waris"): the prototype's header actions assume one policy is already
+ * in context; the real page has N policies, so pick one, then hand off to
+ * the existing real flow (`PayInsuranceDialog` / `InsuranceModal` editing).
+ */
+function PolicyPickerDialog({
+  open,
+  title,
+  emptyLabel,
+  policies,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  title: string;
+  emptyLabel: string;
+  policies: InsuranceDto[];
+  onClose: () => void;
+  onConfirm: (policy: InsuranceDto) => void;
+}) {
+  const { t } = useLocale();
+  const [selectedId, setSelectedId] = useState("");
+
+  function handleClose() {
+    setSelectedId("");
+    onClose();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
+      <DialogContent className="sm:max-w-[380px]">
+        <DialogTitle className="text-[17px] font-extrabold">
+          {title}
+        </DialogTitle>
+        {policies.length === 0 ? (
+          <p className="text-[13px] text-muted-foreground">{emptyLabel}</p>
+        ) : (
+          <div className="space-y-3">
+            <label
+              htmlFor="policy-picker-select"
+              className="block text-[12.5px] font-semibold"
+            >
+              {t.asuransi.policyPickerLabel}
+            </label>
+            <select
+              id="policy-picker-select"
+              value={selectedId}
+              onChange={(e) => setSelectedId(e.target.value)}
+              className={FIELD_CLASS}
+            >
+              <option value="">{t.asuransi.policyPickerPlaceholder}</option>
+              {policies.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        <div className="flex gap-2.5 pt-2">
+          <Button variant="outline" className="flex-1" onClick={handleClose}>
+            {t.common.cancel}
+          </Button>
+          {policies.length > 0 && (
+            <Button
+              className="flex-1"
+              disabled={!selectedId}
+              onClick={() => {
+                const picked = policies.find((p) => p.id === selectedId);
+                if (picked) {
+                  setSelectedId("");
+                  onConfirm(picked);
+                }
+              }}
+            >
+              {t.asuransi.policyPickerConfirm}
+            </Button>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function AsuransiPage() {
   const { t, locale } = useLocale();
   const { data: session } = useSession();
@@ -986,6 +1092,12 @@ export default function AsuransiPage() {
   const [deleteTarget, setDeleteTarget] = useState<InsuranceDto | null>(null);
   const [payTarget, setPayTarget] = useState<InsuranceDto | null>(null);
   const [paySourceAccountId, setPaySourceAccountId] = useState("");
+  // EPIC-025 N3 restructure — header "Bayar Premi" / beneficiaries-section
+  // "+ Tambah Ahli Waris" both need a policy picked first (the prototype's
+  // header action opens a dialog with a "Polis" dropdown); both reuse the
+  // same lightweight picker.
+  const [payPolicyPicker, setPayPolicyPicker] = useState(false);
+  const [beneficiaryPolicyPicker, setBeneficiaryPolicyPicker] = useState(false);
 
   // EPIC-023 E2 — source-account picker for the real premium payment.
   const { data: accounts = [] } = useQuery<AccountDto[]>({
@@ -1165,25 +1277,95 @@ export default function AsuransiPage() {
   const showRenewalWarning =
     nearestRenewal && (nearestRenewal.daysUntilRenewal ?? 999) <= 30;
 
+  // EPIC-025 N3 restructure — total pertanggungan (real header subtitle
+  // segment), summed across active policies from the already-fetched list —
+  // no new endpoint (the backend summary DTO only carries premium totals).
+  const totalCoverageAktif = (insurances ?? [])
+    .filter((item) => item.status === "aktif" && item.coverageAmount)
+    .reduce((sum, item) => sum + BigInt(item.coverageAmount!), BigInt(0));
+
+  // EPIC-025 N3 restructure — policies eligible for the header "Bayar
+  // Premi" picker (active, not already paid this period).
+  const payablePolicies = (insurances ?? []).filter(
+    (item) => item.status === "aktif" && !item.paidThisPeriod,
+  );
+
+  // EPIC-025 N3 restructure — "Ahli Waris Asuransi" section: aggregated
+  // beneficiary rows across every policy, from the already-fetched
+  // `insurances` list (beneficiaries genuinely exist on `InsuranceDto` —
+  // this is the same data `PolicyCard`'s `beneficiarySummary` already
+  // reads, just presented as a table instead of a summary line).
+  const beneficiaryRows = (insurances ?? []).flatMap((policy) =>
+    policy.beneficiaries.map((b) => ({
+      policy,
+      beneficiary: b,
+      linkedMember: b.memberUserId
+        ? (familyMembers.find((m) => m.userId === b.memberUserId) ?? null)
+        : null,
+      estimatedBenefit: policy.coverageAmount
+        ? (BigInt(policy.coverageAmount) *
+            BigInt(Math.round(Number(b.sharePercent) * 100))) /
+          BigInt(10000)
+        : null,
+    })),
+  );
+  // Only surface the "fully allocated" callout when it is unambiguous —
+  // exactly one policy carries beneficiaries and their shares sum to 100%.
+  // With several policies in play, a single blanket notice would misname
+  // which policy it refers to (Honest UI), so it's silently omitted then.
+  const policiesWithBeneficiaries = (insurances ?? []).filter(
+    (p) => p.beneficiaries.length > 0,
+  );
+  const soleFullyAllocatedPolicy =
+    policiesWithBeneficiaries.length === 1 &&
+    policiesWithBeneficiaries[0]!.beneficiaries.reduce(
+      (sum, b) => sum + Number(b.sharePercent),
+      0,
+    ) >= 100
+      ? policiesWithBeneficiaries[0]!
+      : null;
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2.5">
+      {/* EPIC-025 N3 restructure — page header (H1 + accent underline +
+          real subtitle) and the header action row. */}
+      <div className="flex flex-wrap items-start justify-between gap-2.5">
         <div>
-          <div className="text-[15px] font-bold">
+          <h1 className="relative inline-block pb-2 text-[19px] font-extrabold tracking-tight">
+            {t.shell.pageTitles.asuransi}
+            <span className="absolute bottom-0 left-0 h-[3px] w-[42px] rounded-full bg-gradient-to-r from-primary to-brand-purple" />
+          </h1>
+          <div className="mt-1 text-xs text-muted-foreground">
             {activePolicies} {t.asuransi.activePoliciesSuffix}
-          </div>
-          <div className="text-xs text-muted-foreground">
+            {" · "}
             {t.asuransi.totalPremiumPrefix} {totalMonthlyPremium}
             {t.asuransi.periodSuffixLabels.monthly}
+            {totalCoverageAktif > BigInt(0) && (
+              <>
+                {" · "}
+                {t.asuransi.totalCoveragePrefix}{" "}
+                {formatRupiah(Number(totalCoverageAktif))}
+              </>
+            )}
           </div>
         </div>
-        <Button
-          onClick={() => setShowModal(true)}
-          disabled={!familyGroupId}
-          className="h-auto px-4 py-[9px]"
-        >
-          <Plus className="size-4" /> {t.common.add}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setPayPolicyPicker(true)}
+            disabled={!familyGroupId}
+            className="h-auto px-4 py-[9px]"
+          >
+            <Banknote className="size-4" /> {t.asuransi.payButtonLabel}
+          </Button>
+          <Button
+            onClick={() => setShowModal(true)}
+            disabled={!familyGroupId}
+            className="h-auto px-4 py-[9px]"
+          >
+            <Plus className="size-4" /> {t.common.add}
+          </Button>
+        </div>
       </div>
 
       {isError && (
@@ -1197,9 +1379,13 @@ export default function AsuransiPage() {
 
       {/* Coverage-by-type donut (FOLD per J3-adjacent decision — derived
           from data already fetched below; premium-history trend CUT per
-          J1). */}
+          J1). Constrained to a sensible width now that it no longer shares
+          the prototype's 2-col grid with the (cut) premium-history chart. */}
       {!isLoading && !isError && coverageSegments.length > 0 && (
-        <SectionCard title={t.asuransi.coverageAllocationTitle}>
+        <SectionCard
+          title={t.asuransi.coverageAllocationTitle}
+          className="md:max-w-md"
+        >
           <DonutChart
             segments={coverageSegments}
             centerLabel={t.asuransi.coverageLabel}
@@ -1218,7 +1404,7 @@ export default function AsuransiPage() {
             {t.asuransi.renewalWarningSuffix}{" "}
             {formatLocaleDate(nearestRenewal.renewalDate, locale)} —{" "}
             {nearestRenewal.daysUntilRenewal}{" "}
-            {t.asuransi.daysUntilRenewalSuffix}.
+            {t.asuransi.renewalWarningDaysLeftSuffix}.
           </span>
         </div>
       )}
@@ -1249,6 +1435,133 @@ export default function AsuransiPage() {
             />
           ))}
         </div>
+      )}
+
+      {/* EPIC-025 N3 restructure — "Ahli Waris Asuransi" aggregated table.
+          Beneficiaries genuinely exist on `InsuranceDto` (same data
+          `PolicyCard`'s summary line already reads); this only presents it
+          as a table instead of inventing a separate beneficiary store. */}
+      {!isLoading && !isError && beneficiaryRows.length > 0 && (
+        <SectionCard
+          title={t.asuransi.beneficiariesSectionTitle}
+          action={
+            <button
+              type="button"
+              aria-label={t.asuransi.addBeneficiaryHeaderAriaLabel}
+              onClick={() => setBeneficiaryPolicyPicker(true)}
+              className="text-xs font-semibold whitespace-nowrap text-primary hover:underline"
+            >
+              {t.asuransi.addBeneficiaryButton}
+            </button>
+          }
+        >
+          {soleFullyAllocatedPolicy && (
+            <div className="mb-3 flex items-center gap-2.5 rounded-[11px] border border-primary/20 bg-accent p-3 text-[12.5px]">
+              <span>
+                <strong>{t.asuransi.allocationFullyAllocated}</strong>{" "}
+                {t.asuransi.beneficiaryTablePolicyPrefix}{" "}
+                {soleFullyAllocatedPolicy.name}
+              </span>
+            </div>
+          )}
+          <div className="w-full overflow-x-auto">
+            <table className="w-full min-w-[640px] text-[12.5px]">
+              <thead>
+                <tr className="border-b text-left text-[11px] text-muted-foreground">
+                  <th className="pb-2 pr-3 font-semibold">
+                    {t.asuransi.beneficiaryTableHeaderName}
+                  </th>
+                  <th className="pb-2 pr-3 font-semibold">
+                    {t.asuransi.beneficiaryTableHeaderRelationship}
+                  </th>
+                  <th className="pb-2 pr-3 font-semibold">
+                    {t.asuransi.beneficiaryTableHeaderMember}
+                  </th>
+                  <th className="pb-2 pr-3 font-semibold">
+                    {t.asuransi.beneficiaryTableHeaderPercent}
+                  </th>
+                  <th className="pb-2 font-semibold">
+                    {t.asuransi.beneficiaryTableHeaderBenefit}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {beneficiaryRows.map(
+                  ({ policy, beneficiary, linkedMember, estimatedBenefit }) => {
+                    const initials = beneficiary.name
+                      .split(" ")
+                      .slice(0, 2)
+                      .map((w) => w[0]?.toUpperCase() ?? "")
+                      .join("");
+                    return (
+                      <tr
+                        key={beneficiary.id}
+                        className="border-b last:border-0"
+                      >
+                        <td className="py-2.5 pr-3">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                              style={{
+                                background:
+                                  "linear-gradient(135deg,var(--primary),var(--brand-purple))",
+                              }}
+                            >
+                              {initials}
+                            </div>
+                            <div>
+                              <div className="font-semibold">
+                                {beneficiary.name}
+                              </div>
+                              <div className="text-[10.5px] text-muted-foreground">
+                                {t.asuransi.beneficiaryTablePolicyPrefix}{" "}
+                                {policy.name}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-2.5 pr-3">
+                          {beneficiary.relationship}
+                        </td>
+                        <td className="py-2.5 pr-3">
+                          {linkedMember ? (
+                            <StatusBadge variant="info">
+                              {linkedMember.name}
+                            </StatusBadge>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              {t.asuransi.beneficiaryMemberNoneOption}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5 pr-3">
+                          <div className="flex items-center gap-2">
+                            <span className="mono font-bold">
+                              {beneficiary.sharePercent}%
+                            </span>
+                            <span className="h-1.5 w-[70px] overflow-hidden rounded-full bg-muted">
+                              <span
+                                className="block h-full rounded-full bg-primary"
+                                style={{
+                                  width: `${Math.min(100, Number(beneficiary.sharePercent))}%`,
+                                }}
+                              />
+                            </span>
+                          </div>
+                        </td>
+                        <td className="mono py-2.5">
+                          {estimatedBenefit !== null
+                            ? formatRupiah(Number(estimatedBenefit))
+                            : "—"}
+                        </td>
+                      </tr>
+                    );
+                  },
+                )}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
       )}
 
       {showModal && familyGroupId && (
@@ -1297,6 +1610,37 @@ export default function AsuransiPage() {
               sourceAccountId: paySourceAccountId,
             });
           }
+        }}
+      />
+
+      {/* EPIC-025 N3 restructure — header "Bayar Premi" picks a policy
+          first, then hands off to the existing `PayInsuranceDialog` flow
+          above (same mutation, same source-account picker). */}
+      <PolicyPickerDialog
+        open={payPolicyPicker}
+        title={t.asuransi.policyPickerPayTitle}
+        emptyLabel={t.asuransi.policyPickerPayEmpty}
+        policies={payablePolicies}
+        onClose={() => setPayPolicyPicker(false)}
+        onConfirm={(policy) => {
+          setPayPolicyPicker(false);
+          setPayTarget(policy);
+        }}
+      />
+
+      {/* EPIC-025 N3 restructure — beneficiaries section's "+ Tambah Ahli
+          Waris" picks a policy first, then hands off to the existing
+          `InsuranceModal` edit flow (its `BeneficiaryEditor` already adds
+          rows against a real `PATCH .../insurances/:id`). */}
+      <PolicyPickerDialog
+        open={beneficiaryPolicyPicker}
+        title={t.asuransi.policyPickerBeneficiaryTitle}
+        emptyLabel={t.asuransi.policyPickerBeneficiaryEmpty}
+        policies={insurances ?? []}
+        onClose={() => setBeneficiaryPolicyPicker(false)}
+        onConfirm={(policy) => {
+          setBeneficiaryPolicyPicker(false);
+          setEditingItem(policy);
         }}
       />
     </div>

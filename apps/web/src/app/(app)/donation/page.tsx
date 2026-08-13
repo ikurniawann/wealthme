@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Plus, HandHeart } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import {
@@ -37,7 +38,6 @@ import type {
   CreateDonationDto,
   DonationDto,
   DonationType,
-  PerpuluhanResultDto,
   ZakatResultDto,
 } from "@wealthme/contracts";
 
@@ -106,6 +106,21 @@ const LEMBAGA_OPTIONS = [
   "Yayasan Sosial",
   "Lainnya",
 ];
+
+// EPIC-025 N3 audit fix (mirrors dana/rekening) — `Account.maskedNumber`
+// can carry an undecrypted ciphertext blob for legacy rows; never render
+// that verbatim as the account subtitle.
+const UNDECRYPTED_BLOB_RE = /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/i;
+function safeMaskedNumber(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return UNDECRYPTED_BLOB_RE.test(value) ? null : value;
+}
+
+function formatAccountLabel(account: AccountDto | undefined): string | null {
+  if (!account) return null;
+  const masked = safeMaskedNumber(account.maskedNumber);
+  return masked ? `${account.name} ···${masked}` : account.name;
+}
 
 function ZkInput({
   label,
@@ -249,32 +264,18 @@ export default function DonationPage() {
       : t.donation.nisabIndicativeNote;
   const canPayZakatNow = hasZakatResult && !isZakatFetching && !isZakatError;
 
-  // Perpuluhan (tithe) calculator — EPIC-023 F2 (D20, US-DON-6/7): its own
-  // arithmetic (10% of income), computed by the shared BE calculator
-  // (/calculators/perpuluhan), not zakat relabelled.
-  const [income, setIncome] = useState("");
-  const debouncedIncome = useDebounce(income, 300);
-  const perpuluhanInput = { income: parseRupiah(debouncedIncome) };
-
-  const {
-    data: perpuluhanResult,
-    isFetching: isPerpuluhanFetching,
-    isError: isPerpuluhanError,
-  } = useQuery<PerpuluhanResultDto>({
-    queryKey: ["calculators", "perpuluhan", perpuluhanInput],
-    queryFn: () =>
-      apiFetch<PerpuluhanResultDto>("/calculators/perpuluhan", {
-        method: "POST",
-        token,
-        body: JSON.stringify(perpuluhanInput),
-      }),
-    enabled: !!token && religion === "kristen",
-    placeholderData: keepPreviousData,
-  });
-  const hasPerpuluhanResult = !!perpuluhanResult;
-  const tithe = perpuluhanResult?.tithe ?? 0;
-  const canPayPerpuluhanNow =
-    hasPerpuluhanResult && !isPerpuluhanFetching && !isPerpuluhanError;
+  // Perpuluhan (tithe) calculator — EPIC-023 F2 (D20, US-DON-6/7) / N3-C1
+  // (prototype donation.html "Kalkulator Perpuluhan"): pure client-side
+  // arithmetic — (income + other income) × an adjustable rate% — matching
+  // the prototype's own three inputs. No backend call needed; its own
+  // arithmetic, not zakat relabelled.
+  const [titheIncome, setTitheIncome] = useState("");
+  const [titheOther, setTitheOther] = useState("");
+  const [titheRate, setTitheRate] = useState("10");
+  const titheRateNum = Math.min(100, Math.max(0, Number(titheRate) || 0));
+  const titheBase = parseRupiah(titheIncome) + parseRupiah(titheOther);
+  const tithe = titheBase * (titheRateNum / 100);
+  const canPayPerpuluhanNow = tithe > 0;
 
   // Donation modal state
   const [open, setOpen] = useState(false);
@@ -409,6 +410,8 @@ export default function DonationPage() {
         <div className="mt-1.5 text-xs opacity-85">
           {donations.length}
           {t.donation.transactionsSuffix}
+          {t.donation.yearRunningPrefix}
+          {currentYear}
         </div>
         <div className="pointer-events-none absolute -top-5 -right-5 text-[140px] opacity-[0.12]">
           🤲
@@ -588,42 +591,70 @@ export default function DonationPage() {
         </SectionCard>
       )}
 
-      {/* Kalkulator Persepuluhan — its own arithmetic (10% of income), not
-          zakat relabelled (US-DON-6). */}
+      {/* Kalkulator Persepuluhan — N3-C1 (prototype donation.html "Kalkulator
+          Perpuluhan"): its own arithmetic (income + other income) × an
+          adjustable rate, not zakat relabelled (US-DON-6). Pure client-side
+          math — no backend round-trip needed for a percentage calculation. */}
       {!isReligionLoading && !isReligionError && religion === "kristen" && (
-        <SectionCard title={t.donation.perpuluhanCalculatorTitle}>
+        <SectionCard
+          title={t.donation.perpuluhanCalculatorTitle}
+          action={
+            <StatusBadge variant="success" className="text-[11px]">
+              {t.donation.perpuluhanCalculatorBadge}
+            </StatusBadge>
+          }
+        >
           <div className="mb-3.5 text-xs text-muted-foreground">
             {t.donation.perpuluhanCalculatorSubtitle}
           </div>
-          <ZkInput
-            label={t.donation.fieldIncomeLabel}
-            value={income}
-            onChange={setIncome}
-          />
+          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+            <ZkInput
+              label={t.donation.fieldIncomeLabel}
+              value={titheIncome}
+              onChange={setTitheIncome}
+            />
+            <ZkInput
+              label={t.donation.fieldOtherIncomeLabel}
+              value={titheOther}
+              onChange={setTitheOther}
+            />
+            <div>
+              <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
+                {t.donation.fieldRateLabel}
+              </label>
+              <input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                max={100}
+                value={titheRate}
+                onChange={(e) => setTitheRate(e.target.value)}
+                className={FIELD_CLASS}
+              />
+              <p className="mt-1.5 text-[11px] text-muted-foreground">
+                {t.donation.fieldRateHint}
+              </p>
+            </div>
+          </div>
           <div className="mt-4 rounded-[12px] border border-primary/15 bg-accent p-4 text-center">
             <div className="text-[11.5px] text-muted-foreground">
-              {t.donation.perpuluhanDueLabel}
+              {t.donation.perpuluhanResultLabel}
             </div>
-            {isPerpuluhanError ? (
-              <div className="mt-1 text-[13px] font-semibold text-destructive">
-                {t.donation.perpuluhanCalcErrorMsg}
-              </div>
-            ) : !hasPerpuluhanResult ? (
-              <div className="mt-1 text-[13px] text-muted-foreground">
-                {t.donation.perpuluhanCalculatingMsg}
-              </div>
-            ) : (
-              <div className="mt-1 text-[24px] font-black text-primary">
-                {formatRupiah(tithe)}
-              </div>
-            )}
+            <div className="mt-1 text-[24px] font-black text-primary">
+              {formatRupiah(tithe)}
+            </div>
+            <div className="mt-1.5 text-xs text-muted-foreground">
+              {titheRateNum}
+              {t.donation.perpuluhanResultSummaryMid}
+              {formatRupiah(titheBase)}
+            </div>
           </div>
           <Button
             onClick={() => openModal("perpuluhan")}
             disabled={!canPayPerpuluhanNow}
             className="mt-3.5 h-auto px-4 py-2.5"
           >
-            <HandHeart className="size-4" /> {t.donation.payPerpuluhanNowButton}
+            <HandHeart className="size-4" /> {t.donation.recordPerpuluhanButton}
           </Button>
         </SectionCard>
       )}
@@ -643,7 +674,18 @@ export default function DonationPage() {
       )}
 
       {/* Riwayat Donasi */}
-      <SectionCard title={t.donation.historyTitle} bodyClassName="-mt-1">
+      <SectionCard
+        title={t.donation.historyTitle}
+        bodyClassName="-mt-1"
+        action={
+          <Link
+            href="/laporan"
+            className="text-xs font-semibold whitespace-nowrap text-primary hover:underline"
+          >
+            {t.donation.historyLaporanLink}
+          </Link>
+        }
+      >
         {isLoading ? (
           <div className="py-6 text-center text-[13px] text-muted-foreground">
             {t.donation.loadingLabel}
@@ -653,38 +695,60 @@ export default function DonationPage() {
             {t.donation.emptyHistory}
           </div>
         ) : (
-          donations.map((d) => (
-            <div
-              key={d.id}
-              className="flex items-center gap-3 border-b py-3 last:border-b-0"
-            >
+          donations.map((d) => {
+            const accountLabel = formatAccountLabel(
+              accounts.find((a) => a.id === d.accountId),
+            );
+            return (
               <div
-                className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] text-[15px]"
-                style={{ background: DONATION_TYPE_BG[d.type] ?? "#F3F4F6" }}
+                key={d.id}
+                className="flex items-center gap-3 border-b py-3 last:border-b-0"
               >
-                {DONATION_TYPE_ICON[d.type] ?? "🤲"}
-              </div>
-              <div className="flex-1">
-                <div className="text-[13.5px] font-semibold">
-                  {t.donation.typeLabels[d.type as DonationType] ?? d.type} —{" "}
-                  {d.recipient}
+                <div
+                  className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] text-[15px]"
+                  style={{ background: DONATION_TYPE_BG[d.type] ?? "#F3F4F6" }}
+                >
+                  {DONATION_TYPE_ICON[d.type] ?? "🤲"}
                 </div>
-                <div className="text-[11.5px] text-muted-foreground">
-                  {formatLocaleDate(d.donatedAt, locale)}
+                <div className="flex-1">
+                  <div className="text-[13.5px] font-semibold">
+                    {t.donation.typeLabels[d.type as DonationType] ?? d.type} —{" "}
+                    {d.recipient}
+                  </div>
+                  <div className="text-[11.5px] text-muted-foreground">
+                    {formatLocaleDate(d.donatedAt, locale)}
+                    {accountLabel && ` · ${accountLabel}`}
+                    {d.receiptUrl && (
+                      <>
+                        {" · "}
+                        <a
+                          href={d.receiptUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline"
+                        >
+                          {t.donation.receiptLabel}
+                        </a>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="text-right">
-                <div className="text-[13.5px] font-bold text-destructive">
-                  -{formatRupiah(Number(d.amount))}
-                </div>
-                {d.isTaxDeductible && (
-                  <StatusBadge variant="success" className="mt-0.5 text-[10px]">
-                    {t.donation.taxDeductibleBadge}
+                <div className="flex items-center gap-2 text-right">
+                  <span className="text-[13.5px] font-bold">
+                    {formatRupiah(Number(d.amount))}
+                  </span>
+                  <StatusBadge
+                    variant={d.isTaxDeductible ? "success" : "gray"}
+                    className="text-[10px]"
+                  >
+                    {d.isTaxDeductible
+                      ? t.donation.taxDeductibleBadge
+                      : t.donation.taxNonDeductibleBadge}
                   </StatusBadge>
-                )}
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </SectionCard>
 

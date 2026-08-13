@@ -79,6 +79,19 @@ export const id = {
     pendingApprovalsNotice: "permintaan dana menunggu persetujuan kamu.",
     liabilityDueNotice: "jatuh tempo",
     noNotices: "Tidak ada yang perlu perhatian saat ini 🎉",
+    // EPIC-025 N3 fidelity follow-up — prototype's `.bento-side` budget
+    // card + composition-row badges/due-notice + Arus Kas period toggle.
+    budgetCardTitlePrefix: "Anggaran ",
+    budgetManageLink: "Atur",
+    budgetOverBudgetPrefix: "Lewat anggaran ",
+    budgetEmptyNote: "Belum ada anggaran bulan ini.",
+    liquidBadgeLabel: "Siap dipakai",
+    nonLiquidBadgeLabel: "Tumbuh",
+    cashflowTitle6: "Arus Kas 6 Bulan",
+    cashflowTitle12: "Arus Kas 12 Bulan",
+    periodToggle6: "6 Bln",
+    periodToggle12: "12 Bln",
+    periodToggleAriaLabel: "Rentang tren kekayaan",
   },
   shell: {
     loading: "Memuat WealthMe…",
@@ -693,7 +706,7 @@ export const id = {
   persetujuan: {
     pageDesc:
       "Setujui atau tolak permintaan dana keluarga di satu tempat, terpisah dari pengaturan akun.",
-    tabPending: "Menunggu",
+    tabPending: "Pending",
     tabRiwayat: "Riwayat",
     riwayatEmpty: "Belum ada permintaan yang diputuskan.",
     riwayatDecidedByLabel: "Diputuskan oleh",
@@ -709,6 +722,24 @@ export const id = {
     statApprovedSuffix: " dicairkan",
     statRejectedLabel: "Ditolak Bulan Ini",
     statRejectedSuffix: " tidak dicairkan",
+    // EPIC-025 N3 restructure — in-page header (badge + role pill), tabs
+    // aria-label, and the pending-request card copy that the prototype
+    // ports but the live page previously omitted.
+    headerBadgeSuffix: " menunggu",
+    approverRuleNotice:
+      "Hanya Master & Co-Master yang dapat menyetujui atau menolak.",
+    tabsAriaLabel: "Filter persetujuan",
+    requestedAtPrefix: "diajukan ",
+    kindFundingLabel: "Permintaan dana",
+    kindHeldLabel: "Pengeluaran tertahan",
+    fieldKeperluanLabel: "Keperluan",
+    // Honest UI: no per-member threshold amount is available on
+    // AllowanceRequestDto, so this notice states the fact (held, over the
+    // member's limit) without fabricating a specific Rupiah figure.
+    heldWarningNotice:
+      "Pengeluaran ini melebihi batas transaksi anggota dan ditahan — belum dicatat sampai kamu menyetujui atau menolaknya.",
+    fundingApproveHelperNotice:
+      "Menyetujui akan mentransfer dana sungguhan antar rekening.",
   },
   panduan: {
     pageTitle: "📖 Panduan Fitur WealthMe",
@@ -849,6 +880,136 @@ export const id = {
         title: "AI Advisor",
         desc: "Ketik pertanyaan seputar keuanganmu — AI menganalisis data transaksimu dan memberi saran konkret.",
       },
+      akun: {
+        title: "Akun & Keluarga",
+        desc: "Undang pasangan, anak, atau asisten rumah tangga, lalu tentukan perannya: master, co-master, anggota, atau hanya lihat.",
+      },
+      persetujuan: {
+        title: "Persetujuan",
+        desc: "Permintaan dana dari anggota keluarga masuk ke sini — setujui atau tolak, lengkap dengan catatan.",
+      },
+      passwordLogin: {
+        title: "Kata Sandi & Login",
+        desc: "Ganti kata sandi, lihat perangkat yang sedang login, dan keluarkan sesi yang tidak kamu kenali.",
+      },
+      privateCategories: {
+        title: "Kategori Privat",
+        desc: "Tandai kategori sebagai privat — transaksinya hanya terlihat olehmu dan tidak dikirim ke AI Advisor.",
+      },
+      apiKeyAi: {
+        title: "API Key AI",
+        desc: "Key AI disimpan terenkripsi di server dan hanya bisa diatur oleh owner atau pasangan.",
+      },
+    },
+    // EPIC-025 N3 prototype structural port — the prototype's 6-group
+    // layout (docs/prototype/pages/panduan.html), rendered from `groups`/
+    // `areaLabels` instead of the pre-existing `journeys` above.
+    groups: {
+      memulai: { title: "1 · Memulai", tagline: "Kenali dashboard utamamu" },
+      transaksi: {
+        title: "2 · Transaksi",
+        tagline: "Yang paling sering kamu pakai",
+      },
+      anggaran: { title: "3 · Anggaran", tagline: "Beri arah pada uangmu" },
+      laporan: {
+        title: "4 · Laporan",
+        tagline: "Ambil manfaat dari data yang sudah dicatat",
+      },
+      keluarga: {
+        title: "5 · Keluarga & Peran",
+        tagline: "Kelola keuangan bersama",
+      },
+      keamanan: {
+        title: "6 · Keamanan",
+        tagline: "Lindungi data keluargamu",
+      },
+    },
+    areaLabels: {
+      all: "Semua",
+      memulai: "Memulai",
+      transaksi: "Transaksi",
+      anggaran: "Anggaran",
+      laporan: "Laporan",
+      keluarga: "Keluarga & Peran",
+      keamanan: "Keamanan",
+    },
+    searchResultPrefix: "Menampilkan ",
+    searchResultMid: " dari ",
+    searchResultSuffix: " topik",
+    searchNoResultsFiltered:
+      "Tidak ada topik yang cocok — coba kata kunci lain atau hubungi kami.",
+    contactHeaderButton: "Hubungi Kami",
+    faqSectionTitle: "Pertanyaan yang Sering Diajukan",
+    faq: {
+      pdfRejected: {
+        q: "Kenapa statement PDF dari bank saya ditolak?",
+        before:
+          "Tata letak PDF berbeda di tiap bank, dan angka hasil pembacaan otomatis sering meleset tanpa ketahuan — itu risiko yang lebih besar daripada repot sedikit. Ekspor mutasi rekening sebagai CSV dari aplikasi atau situs bank Anda, lalu unggah file CSV tersebut di halaman ",
+        linkLabel: "Rekonsiliasi",
+        after: ".",
+      },
+      addOwnReferences: {
+        q: "Apakah daftar bank dan jenis investasi bisa saya tambah sendiri?",
+        before: "Bisa. Semua daftar referensi di ",
+        linkLabel: "Master Data",
+        after:
+          ' punya tombol "+ Tambah" dan bisa dihapus — termasuk item bawaan yang tidak dipakai keluargamu. Tidak ada daftar yang terkunci.',
+      },
+      mortgageNotFullExpense: {
+        q: "Kenapa cicilan KPR saya tidak seluruhnya masuk pengeluaran?",
+        before:
+          "Karena hanya bagian bunganya yang benar-benar pengeluaran. Pokok cicilan mengurangi utangmu, bukan labamu — uang itu memang bukan pemasukanmu waktu dulu kamu pinjam. Penjelasan lengkapnya ada di ",
+        linkLabel: "Master COA",
+        after: ", grup 5 (Utang).",
+      },
+      aiNotAnswering: {
+        q: "Kenapa AI Advisor saya tidak bisa menjawab?",
+        before:
+          "AI Advisor memakai API key milikmu sendiri (Claude, OpenAI, atau Gemini). Selama key belum disambungkan, fitur ini sengaja dinonaktifkan dan tidak menampilkan jawaban apa pun — lebih baik kosong daripada saran yang dikarang. Owner atau pasangan bisa mengaturnya di ",
+        linkLabel: "AI Advisor → Atur API Key",
+        after: ".",
+      },
+      whoCanSeeTransactions: {
+        q: "Siapa saja yang bisa melihat transaksi saya?",
+        before:
+          "Master dan co-master melihat seluruh rekening dan transaksi keluarga. Anggota biasa hanya melihat miliknya sendiri. Kategori yang kamu tandai ",
+        strong: "privat",
+        after:
+          " tidak terlihat oleh siapa pun selain kamu, dan tidak ikut dikirim ke AI Advisor.",
+      },
+      changeMemberRole: {
+        q: "Bagaimana cara mengubah peran anggota keluarga?",
+        before: "Buka ",
+        linkLabel: "Akun & Keluarga",
+        after:
+          ", pilih anggotanya, lalu ubah perannya. Hanya master yang bisa mengangkat atau menurunkan co-master. Perubahan peran tercatat di log aktivitas keluarga.",
+      },
+      dataExportOnLeave: {
+        q: "Apakah data saya diekspor kalau saya berhenti pakai WealthMe?",
+        before:
+          "Ya. Semua transaksi, rekening, dan laporan bisa diekspor sebagai CSV atau PDF dari halaman ",
+        linkLabel: "Laporan",
+        after: " kapan saja, tanpa perlu menghubungi kami.",
+      },
+    },
+    // EPIC-025 N3 — the "Masih Butuh Bantuan?" contact card. Values mirror
+    // the real, already-shipped support channels from `akun.hubungi`
+    // (SUPPORT_EMAIL/SUPPORT_PHONE_TEL/SUPPORT_WHATSAPP_URL in
+    // app/(app)/akun/page.tsx) rather than the prototype's placeholder
+    // contact details, since inventing a different real-looking support
+    // channel here would publish a fake one.
+    contact: {
+      title: "Masih Butuh Bantuan?",
+      linkLabel: "Hubungi Kami",
+      emailTitle: "Email",
+      emailValue: "support@wealthme.id",
+      emailDesc: "Respons 1×24 jam kerja.",
+      phoneTitle: "Telepon",
+      phoneValue: "0800-1234-5678",
+      phoneDesc: "Senin–Jumat, 08.00–17.00 WIB.",
+      whatsappTitle: "WhatsApp",
+      whatsappValue: "+62 811 2345 6789",
+      whatsappDesc: "Chat langsung.",
     },
   },
   asuransi: {
@@ -945,13 +1106,39 @@ export const id = {
     coverageAllocationTitle: "Uang Pertanggungan per Jenis",
     renewalWarningPrefix: "Premi",
     renewalWarningSuffix: "jatuh tempo",
+    // EPIC-025 N3 restructure — page header (H1 + subtitle), card footer
+    // action row, and the aggregated "Ahli Waris Asuransi" beneficiaries
+    // table + its policy-picker dialogs.
+    totalCoveragePrefix: "Total pertanggungan",
+    renewalWarningDaysLeftSuffix: "hari lagi",
+    payButtonLabel: "Bayar Premi",
+    cardEditButton: "Edit",
+    cardDeleteButton: "Hapus",
+    beneficiaryTableHeaderName: "Nama",
+    beneficiaryTableHeaderRelationship: "Hubungan",
+    beneficiaryTableHeaderMember: "Anggota Keluarga",
+    beneficiaryTableHeaderPercent: "Persentase",
+    beneficiaryTableHeaderBenefit: "Estimasi Manfaat",
+    beneficiaryTablePolicyPrefix: "Polis:",
+    addBeneficiaryHeaderAriaLabel: "Tambah ahli waris (pilih polis)",
+    policyPickerPayTitle: "Bayar Premi",
+    policyPickerBeneficiaryTitle: "Tambah Ahli Waris",
+    policyPickerLabel: "Polis",
+    policyPickerPlaceholder: "Pilih polis...",
+    policyPickerConfirm: "Lanjutkan",
+    policyPickerPayEmpty: "Tidak ada polis yang perlu dibayar saat ini.",
+    policyPickerBeneficiaryEmpty:
+      "Belum ada polis untuk ditambahkan ahli warisnya.",
   },
   kalkulator: {
     tabs: {
       zakat: "🌙 Zakat Maal",
       pph21: "🧾 PPh 21",
       investasi: "📈 Investasi",
-      kredit: "💳 Kredit",
+      // EPIC-025 N3 fidelity follow-up — prototype calls this calculator
+      // "KPR" (it computes a property-loan/mortgage instalment); label
+      // aligned, tab id/key kept as "kredit" so nothing downstream breaks.
+      kredit: "💳 KPR",
       pensiun: "🏖️ Pensiun",
       tabungan: "🏦 Tabungan",
       splitgroup: "🧾 Split Group",
@@ -972,6 +1159,14 @@ export const id = {
     ],
     sessionExpired: "Sesi habis, silakan login ulang.",
     calculating: "Menghitung...",
+    // EPIC-025 N3 fidelity follow-up — page header ported from
+    // `docs/prototype/pages/kalkulator.html`'s `.page-lead`.
+    pageTitle: "Kalkulator Keuangan",
+    pageSubtitle:
+      "Semua kolom rupiah otomatis pakai titik ribuan — 100.000.000 tetap terbaca sebagai seratus juta saat disimpan.",
+    // EPIC-025 N3 fidelity follow-up — every calculator now pairs its input
+    // card with its own "Hasil" result card (prototype's `grid--sidebar`).
+    hasilCardTitle: "Hasil",
     zakat: {
       cardTitle: "Kalkulator Zakat Maal",
       nisabAutoNote:
@@ -1019,6 +1214,22 @@ export const id = {
       ptkpLabel: "PTKP (TK/0)",
       zakatLabel: "Zakat",
       progressiveHeading: "Tarif Progresif:",
+      // EPIC-025 N3 fidelity follow-up — prototype's dotted-input helper
+      // note + "Rincian lapisan tarif" dialog (real data: the same
+      // `taxBreakdown` the result card already renders as rows).
+      typingNote:
+        "Ketik angkanya saja — titik ribuan muncul sendiri. Nilai yang tersimpan tetap angka murni.",
+      bracketDialogLinkLabel: "Rincian lapisan tarif",
+      bracketDialogTitle: "Rincian Lapisan Tarif PPh 21",
+      bracketDialogDesc:
+        "Tarif progresif UU HPP — setiap lapisan dikenakan terpisah, bukan satu tarif rata.",
+      bracketDialogBracketHeader: "Lapisan PKP",
+      bracketDialogRateHeader: "Tarif",
+      bracketDialogTaxableHeader: "Kena Pajak",
+      bracketDialogTaxHeader: "Pajak",
+      bracketDialogTotalLabel: "Total PPh 21",
+      bracketDialogCloseButton: "Tutup",
+      bracketDialogEmptyNote: "Hitung PPh 21 dahulu untuk melihat rinciannya.",
     },
     investasi: {
       cardTitle: "Kalkulator Investasi",
@@ -1032,6 +1243,12 @@ export const id = {
       projectionChartTitle: "Proyeksi Nilai Portofolio",
       projectionSeriesLabel: "Nilai portofolio",
       projectionYearPrefix: "Th ",
+      // EPIC-025 N3 fidelity follow-up — prototype copy/field order + the
+      // "Hasil" card's breakdown rows (Total setoran / Hasil pengembangan).
+      fieldReturnRateLabel: "Imbal Hasil (% / Tahun)",
+      returnRateHint: "Asumsi, bukan janji. Pasar bisa turun.",
+      rowTotalDepositLabel: "Total setoran",
+      rowGrowthLabel: "Hasil pengembangan",
     },
     kredit: {
       cardTitle: "Kalkulator Kredit / KPR",
@@ -1042,6 +1259,22 @@ export const id = {
       resultLabel: "Cicilan per Bulan",
       detailPrincipalPrefix: "Pokok pinjaman:",
       detailTotalPaymentPrefix: "· Total bayar:",
+      // EPIC-025 N3 fidelity follow-up — restructured to the prototype's
+      // KPR model: Harga Properti + DP (Rp, with a live % note) instead of
+      // Jumlah Pinjaman + DP(%). Same annuity math, just entered the way a
+      // real mortgage is quoted.
+      cardTitleAlt: "Simulasi KPR",
+      fieldPropertyPrice: "Harga Properti (Rp)",
+      fieldDownPaymentAmount: "Uang Muka (DP) (Rp)",
+      dpPercentSuffix: "% dari harga properti",
+      rowPrincipalLabel: "Pokok pinjaman",
+      rowTotalInterestLabel: "Total bunga",
+      rowTotalPaymentLabel: "Total dibayar",
+      rowInstallmentCountLabel: "Jumlah angsuran",
+      installmentCountSuffix: " bulan",
+      ruleWarningNote: "Cicilan sebaiknya di bawah 30% penghasilan bulanan.",
+      minIncomeNotePrefix: "Dengan aturan 30%, penghasilan bulanan minimal ",
+      minIncomeNoteSuffix: " agar cicilan ini aman.",
     },
     pensiun: {
       cardTitle: "Kalkulator Dana Pensiun",
@@ -1057,6 +1290,13 @@ export const id = {
       detailMonthlyInvestmentNeededPrefix: "Investasi bulanan yang dibutuhkan:",
       targetBasisNote:
         "Target diasumsikan 20× pengeluaran tahunan saat ini (≈5% tarik dana/tahun) — bukan aturan 25×/4% yang lebih umum digunakan.",
+      // EPIC-025 N3 fidelity follow-up — "Hasil" card breakdown rows, all
+      // sourced from the real `/calculators/retirement` response fields
+      // (no client-recomputed inflation/shortfall figures — see the E3
+      // comment above on why this tab stopped duplicating backend math).
+      rowMonthlyContributionLabel: "Investasi bulanan yang dibutuhkan",
+      rowTotalContributionsLabel: "Total kontribusi",
+      rowProjectedValueLabel: "Proyeksi dana pensiun",
     },
     tabungan: {
       cardTitle: "Kalkulator Tabungan",
@@ -1148,6 +1388,33 @@ export const id = {
     errorRateLimited:
       "Penyedia AI membatasi permintaan ini sementara — coba lagi sebentar lagi.",
     errorTimeout: "Permintaan ke penyedia AI kehabisan waktu — coba lagi.",
+    statusApiKeyLabel: "Status API Key",
+    statusConnectedBadge: "Tersambung",
+    manageApiKeyButton: "Atur API Key",
+    changeApiKeyLink: "Ubah",
+    providerLabels: {
+      claude: "Claude (Anthropic)",
+      openai: "OpenAI",
+      gemini: "Gemini (Google)",
+    },
+    newConversationButton: "Mulai Baru",
+    dataReadTitle: "Data yang Dibaca Advisor",
+    dataReadNetWorth: "Kekayaan bersih & neraca",
+    dataReadCashflow: "Pemasukan & pengeluaran bulan ini",
+    dataReadCategories: "Kategori pengeluaran teratas",
+    dataReadTransactions: "Detail transaksi individual",
+    dataReadAccountNumbers: "Nomor rekening & saldo per akun",
+    yesLabel: "Ya",
+    noLabel: "Tidak",
+    contextSummaryTitle: "Ringkasan Konteks",
+    contextNetWorthLabel: "Kekayaan bersih",
+    contextIncomeLabel: "Pemasukan bulan ini",
+    contextExpenseLabel: "Pengeluaran bulan ini",
+    providerKeyTitle: "Penyedia & Kunci",
+    providerLabel: "Penyedia",
+    apiKeyLabel: "API Key",
+    encryptionNote: "Key disimpan terenkripsi di server.",
+    notManagedHint: "Diatur oleh owner atau pasangan keluarga ini.",
   },
   investasi: {
     typeLabels: {
@@ -1210,19 +1477,52 @@ export const id = {
     saving: "Menyimpan...",
     saveButton: "Simpan",
     totalValueLabel: "Total Nilai Investasi",
-    totalReturnSuffix: "total return",
-    todayReturnLabel: "Return Hari Ini",
+    // EPIC-025 N3 audit (structural port) — restored the prototype's
+    // Indonesian label ("Untung / Rugi Total" / "Perubahan Hari Ini")
+    // instead of the drifted English-ish "total return" / "Return Hari
+    // Ini". Value edited in place, key kept stable.
+    totalReturnSuffix: "Untung / Rugi Total",
+    todayReturnLabel: "Perubahan Hari Ini",
     vsYesterdaySuffix: "dari kemarin",
-    portfolioSectionTitle: "Portofolio",
+    portfolioSectionTitle: "Kepemilikan",
     addInvestmentLink: "+ Catat Investasi",
     filterAllLabel: "Semua",
     tableName: "Nama",
     tableType: "Jenis",
     tableCapital: "Modal",
-    tableValue: "Nilai",
-    tableReturn: "Return",
+    tableValue: "Nilai Sekarang",
+    tableReturn: "Untung / Rugi",
     tablePercent: "%",
     tableAction: "Aksi",
+    // EPIC-025 N3 audit — page-lead header (title reuses `pageTitles.investasi`).
+    pageSubtitle:
+      "Saham & kripto dihargai otomatis dari pasar. Jenis lain kamu isi harganya sendiri, lengkap dengan tanggal penilaian.",
+    addInvestmentHeaderButton: "Catat Investasi",
+    // "N posisi" count in the holdings card header (replaces the old
+    // "+ Catat Investasi" table-header link now that the page header owns
+    // the add action).
+    positionsCountSuffix: "posisi",
+    tableQuantity: "Jumlah",
+    tablePriceSource: "Harga / Sumber",
+    // Formula sub-line under "Untung / Rugi Total" — {returnRp}/{costBasis}
+    // are always filled from the real summary DTO, never invented.
+    returnFormulaLabel: "= untung ÷ modal ({returnRp} ÷ {costBasis})",
+    livePositionsOnlyPrefix: "hanya dari",
+    filterNewBadge: "Baru",
+    rowTickerPurchasedTemplate: "{ticker} · beli {date}",
+    rowCouponPurchasedTemplate: "Kupon {rate}%/tahun · beli {date}",
+    rowDepositoTermTemplate: "Mulai {date} · jatuh tempo {maturityDate}",
+    depositoRateTemplate: "Bunga {rate}% / tahun",
+    priceLiveBadge: "Live",
+    priceLiveDelayedBadge: "Live · delayed",
+    priceManualBadgeTemplate: "Harga manual · {date}",
+    priceComputedBadgeLabel: "Nilai dihitung · bunga berjalan",
+    unitCoinSuffix: "koin",
+    unitFundUnit: "unit",
+    unitGram: "gram",
+    navPricePrefix: "NAB ",
+    nominalPrefix: "Nominal ",
+    pricingSourceLastSyncedPrefix: "Terakhir sinkron",
     emptyState: "Belum ada investasi.",
     emptyStateCta: "Catat sekarang",
     detailToggleShow: "Lihat Detail",
@@ -1274,7 +1574,7 @@ export const id = {
       dana: "Cash & E-Wallet",
       rekening: "Bank & Account",
       investasi: "Investasi",
-      fisik: "Aset Fisik",
+      fisik: "Fisik",
     },
     assetTrendTitle: "Pertumbuhan Aset 6 Bulan",
     assetTypeLabels: {
@@ -1351,6 +1651,11 @@ export const id = {
     allocationTitle: "Alokasi Aset",
     recordedValueLabel: "Nilai Tercatat",
     perYearSuffix: "/ tahun",
+    totalAssetsSubtitlePrefix: "Kas & bank + investasi + aset fisik · per ",
+    statFromLastMonthSuffix: "dari bulan lalu",
+    statFisikNote: "Nilai tercatat · proyeksi terpisah",
+    ownerSharedLabel: "Bersama",
+    ownerUnknownLabel: "Tidak diketahui",
   },
   liabilitas: {
     typeLabels: {
@@ -1405,6 +1710,7 @@ export const id = {
     progressPayoffLabel: "Progres Pelunasan",
     totalLiabilitiesLabel: "Total Liabilitas",
     remainingActiveSuffix: "Sisa tagihan aktif",
+    remainingActiveCountSuffix: " liabilitas",
     dtaRatioLabel: "Rasio Utang terhadap Aset",
     addButton: "Tambah Liabilitas",
     emptyState:
@@ -1449,10 +1755,20 @@ export const id = {
     monthlyInstallmentSuffix: "total min. bayar aktif",
     payoffProjectionTitle: "Proyeksi Sisa Utang 6 Bulan",
     payoffProjectionSeriesLabel: "Sisa Utang",
+    // Prototype's inline red overdue notice inside a past-due card. No
+    // `denda`/late-fee field exists on LiabilityDto — unlike the prototype's
+    // static mock, this never invents a penalty amount, only names the
+    // missed due date.
+    overdueWarningPrefix: "Cicilan ",
+    overdueWarningSuffix: " belum dibayar.",
   },
   masterdata: {
     pageTitle: "🗄️ Setup Master Data",
-    pageSubtitle: "Kelola data referensi yang dipakai di seluruh aplikasi",
+    pageSubtitle:
+      "Kelola data referensi yang dipakai di seluruh aplikasi. Semua daftar di halaman ini bisa kamu tambah dan hapus sendiri.",
+    masterCoaButton: "Master COA",
+    categoryFooterHint:
+      "Kode di samping tiap kategori adalah akun COA tempat transaksinya tercatat di laporan.",
     groups: {
       mdbank: { title: "🏦 Bank", label: "Bank" },
       mdtxntype: { title: "↕️ Jenis Transaksi", label: "Jenis Transaksi" },
@@ -1474,9 +1790,9 @@ export const id = {
     groupEmpty: "Belum ada data",
     groupLoading: "Memuat…",
     systemBadge: "Bawaan",
-    footerBold: "Semua daftar di halaman ini",
+    footerBold: "Kategori",
     footerRest:
-      ' tersimpan ke server dan dipakai di seluruh aplikasi (transaksi, laporan, dll.). Item bawaan sistem (badge "Bawaan") tidak bisa dihapus; item yang Anda tambahkan sendiri bisa.',
+      " tersimpan ke server dan dipakai di transaksi & laporan. Daftar referensi lain (bank, e-wallet, jenis transaksi, jenis investasi, lembaga donasi, kategori aset, jenis asuransi) juga tersimpan per keluarga — bukan bawaan sistem yang terkunci. Menghapus item yang masih dipakai transaksi akan ditolak dengan pesan yang menyebutkan datanya.",
     editAriaPrefix: "Edit ",
     deleteAriaPrefix: "Hapus ",
     categoryDeleteLabelPrefix: 'kategori "',
@@ -1523,6 +1839,43 @@ export const id = {
       FIXED: "Fixed",
       VARIABLE: "Variable",
       REIMBURSEMENT: "Reimbursement",
+    },
+    // EPIC-025 N3 prototype structural port (docs/prototype/pages/
+    // mastercoa.html) — page header, numbered tab/badge copy, grouped
+    // table section headers, and upper-case ARAH wording.
+    pageTitle: "📚 Master COA",
+    pageSubtitle:
+      "Struktur akun yang dipakai laporan laba-rugi & neraca. Untuk kebutuhan akuntansi lanjutan — opsional.",
+    masterDataButton: "Master Data",
+    groupBadgeLabels: {
+      1: "Income",
+      2: "Expense",
+      3: "Alokasi",
+      4: "Piutang",
+      5: "Utang",
+      6: "Pajak",
+    },
+    groupTabLabels: {
+      1: "Pendapatan",
+      2: "Beban",
+      3: "Alokasi",
+      4: "Piutang",
+      5: "Utang",
+      6: "Pajak",
+    },
+    groupHeaderLabels: {
+      1: "Pendapatan (Income)",
+      2: "Beban (Expense)",
+      3: "Alokasi Kekayaan (Wealth Allocation)",
+      4: "Piutang (Account Receivable)",
+      5: "Utang (Account Payable)",
+      6: "Pajak (Tax)",
+    },
+    accountsCountSuffix: " akun",
+    directionLabelsUpper: {
+      INCOME: "↓ INCOME",
+      EXPENSE: "↑ EXPENSE",
+      TRANSFER: "↔ TRANSFER",
     },
     tabAll: "Semua",
     totalAccountsTitle: "Total Akun",
@@ -1632,11 +1985,21 @@ export const id = {
   notifikasi: {
     title: "Notifikasi",
     newCountSuffix: " Baru",
+    // N3-B2 (prototype notifikasi.html page-lead subtitle) — prefix/suffix
+    // wrapped around the real family group name; only rendered once the
+    // name has loaded so it never flashes "undefined".
+    subtitlePrefix: "Aktivitas keluarga ",
+    subtitleSuffix: ", pengingat jatuh tempo, dan permintaan persetujuan.",
     processing: "Memproses...",
     markAllRead: "Tandai semua dibaca",
     errorLoad: "Gagal memuat notifikasi. Silakan coba lagi.",
     emptyState: "Tidak ada notifikasi.",
     unreadBadge: "Baru",
+    // N3-B2 — the group-header badge counts unread items within that
+    // group specifically ("3 belum dibaca"), distinct from `newCountSuffix`
+    // which labels the page-level total.
+    groupUnreadSuffix: " belum dibaca",
+    metaCountSuffix: " notifikasi",
     relativeJustNow: "Baru saja",
     relativeMinutesSuffix: " menit lalu",
     relativeHoursSuffix: " jam lalu",
@@ -1674,6 +2037,28 @@ export const id = {
     ewalletStatLabel: "E-Wallet",
     cashCountSuffix: " kas",
     ewalletCountSuffix: " dompet digital",
+    // EPIC-025 N3 prototype structural port — page header, Komposisi
+    // donut, info callout and the "Mutasi Terakhir" table.
+    pageSubtitle:
+      "Uang tunai di tangan dan saldo dompet digital keluarga Anda.",
+    addCashHeaderButton: "Tunai",
+    addEwalletHeaderButton: "E-Wallet",
+    compositionTitle: "Komposisi",
+    compositionTotalLabel: "Total",
+    infoNoticeBold: "Saldo kas boleh minus.",
+    infoNoticeBody:
+      " Kas tunai bisa bernilai negatif (mis. talangan supir yang belum diganti). Saldo ",
+    infoNoticeLinkLabel: "Bank & Account",
+    infoNoticeSuffix:
+      " tidak boleh minus — gunakan liabilitas untuk mencatat kekurangan dana bank.",
+    mutationsSectionTitle: "Mutasi Tunai & E-Wallet Terakhir",
+    mutationsViewAllLabel: "Lihat Semua",
+    mutationsEmptyLabel: "Belum ada mutasi tunai/e-wallet.",
+    tableDateHeader: "Tanggal",
+    tableDescriptionHeader: "Keterangan",
+    tableAccountHeader: "Akun",
+    tableAmountHeader: "Jumlah",
+    updatedPrefix: "diperbarui ",
   },
   consolidatedTotal: {
     title: "Total Konsolidasi",
@@ -1725,6 +2110,50 @@ export const id = {
     // EPIC-025 N3-C2 — HBarChart mount (liability breakdown, FOLD per J3).
     liabilityBreakdownTitle: "Rincian Liabilitas",
     emptyLiabilityBreakdown: "Belum ada liabilitas tercatat.",
+    // Structural port fidelity follow-up — page header (H1 + subtitle).
+    pageHeaderTitle: "Ringkasan Kekayaan",
+    pageHeaderSubtitleConnector: " · per ",
+    pageHeaderFamilyFallback: "Keluarga",
+    // Trend range segmented control ("6 Bln / 12 Bln / Semua").
+    trendRangeGroupAriaLabel: "Rentang tren kekayaan bersih",
+    trendRangeLabel6m: "6 Bln",
+    trendRangeLabel12m: "12 Bln",
+    trendRangeLabelAll: "Semua",
+    netWorthTrendTitle12m: "Tren Kekayaan Bersih (12 Bulan)",
+    netWorthTrendTitleAll: "Tren Kekayaan Bersih (Semua)",
+    yoyUpPrefix: "↑ ",
+    yoyDownPrefix: "↓ ",
+    yoySuffix: "% YoY",
+    // "Sembunyikan nominal" privacy toggle (page-local, mirrors aset/page.tsx).
+    hideAmountsButton: "Sembunyikan nominal",
+    showAmountsButton: "Tampilkan nominal",
+    hideAmountsAriaLabel: "Sembunyikan nominal",
+    showAmountsAriaLabel: "Tampilkan nominal",
+    // "Rincian Aset vs Liabilitas" table.
+    breakdownTableTitle: "Rincian Aset vs Liabilitas",
+    breakdownColPos: "Pos",
+    breakdownColJenis: "Jenis",
+    breakdownColPorsi: "Porsi",
+    breakdownColNilai: "Nilai",
+    breakdownAssetPhysicalLabel: "Aset Fisik",
+    breakdownAssetInvestmentLabel: "Investasi",
+    breakdownAssetBankLabel: "Bank & Rekening",
+    breakdownAssetCashLabel: "Kas & E-Wallet",
+    breakdownBadgeAssetFisik: "Aset Fisik",
+    breakdownBadgeInvestasi: "Investasi",
+    breakdownBadgeBank: "Bank",
+    breakdownBadgeKas: "Kas",
+    breakdownBadgeLiabilitas: "Liabilitas",
+    breakdownTotalAssetsRow: "Total Aset",
+    breakdownTotalLiabilitiesRow: "Total Liabilitas",
+    breakdownNetWorthRow: "Kekayaan Bersih",
+    breakdownNetWorthFormula: "Total Aset − Total Liabilitas",
+    breakdownEmpty: "Belum ada data aset atau liabilitas untuk ditampilkan.",
+    // Health Score debt-ratio insight note.
+    healthDebtRatioNotePrefix: "Rasio utang terhadap aset ",
+    healthDebtRatioNoteSuffixSafe: " — masih dalam batas aman.",
+    healthDebtRatioNoteSuffixAttention:
+      " — mendekati batas, pertimbangkan mengurangi utang.",
   },
   tujuan: {
     statusLabels: {
@@ -1765,6 +2194,20 @@ export const id = {
     atRiskDesc: "tujuan berisiko tidak tercapai",
     errorLoad: "Gagal memuat tujuan keuangan. Silakan refresh halaman.",
     emptyState: 'Belum ada tujuan keuangan. Klik "Tambah Tujuan" untuk mulai.',
+    // EPIC-025 N3 restructure — 4th "Progres Keseluruhan" summary card,
+    // 3-col goal grid's dashed add-card, and the per-card "perlu menabung"
+    // notice, all computed client-side from the already-fetched goal list.
+    overallSectionTitle: "Progres Keseluruhan",
+    overallTotalLabel: "Total tercapai",
+    overallActiveGoalsSuffix: " tujuan aktif",
+    overallMonthlyPrefix: "Perlu menabung total ",
+    overallMonthlySuffix: " / bulan",
+    addGoalCardTitle: "Tambah Tujuan Baru",
+    addGoalCardDesc: "Liburan, DP rumah, dana pensiun — apa pun targetnya.",
+    noticeSavingsPrefix: "Perlu menabung ",
+    noticeSavingsPerMonthMiddle: " / bulan selama ",
+    noticeSavingsMonthsSuffix: " bulan.",
+    noticeSavingsNoAutoDebitSuffix: " / bulan — belum ada alokasi rutin.",
   },
   tax: {
     sptStatusLabels: {
@@ -1844,6 +2287,26 @@ export const id = {
     checkingAccessLabel: "Memeriksa akses…",
     accessCheckFailedNote:
       "Tidak dapat memverifikasi akses Anda — coba muat ulang halaman.",
+    fieldTaxYearLabel: "Tahun Pajak",
+    fieldPerpuluhanLabel: "Perpuluhan (pengurang)",
+    grossInputHint:
+      'Diketik dengan titik ribuan agar mudah dibaca — titik dihapus otomatis sebelum dikirim ("780.000.000" → "780000000").',
+    ptkpSelectedPrefix: "PTKP terpilih: ",
+    jabatanHint: "5% dari bruto, maksimal Rp 6.000.000/tahun.",
+    perpuluhanHint:
+      "Hanya persembahan perpuluhan ke lembaga resmi yang boleh menjadi pengurang (PP 60/2010). Ambil otomatis dari ",
+    perpuluhanHintLinkLabel: "Donasi",
+    payloadCalloutPrefix: "Yang dikirim ke server: ",
+    payloadCalloutSuffix: " — angka murni tanpa titik.",
+    resetButton: "Reset",
+    toastReset: "Perhitungan direset",
+    colTaxableBase: "Dasar Kena Tarif",
+    bracketFootnote:
+      "Jumlah kolom Pajak selalu sama dengan headline di atas — lapisan 30% (500 jt – 5 M) ikut ditampilkan.",
+    perpuluhanDeductionTitle: "Perpuluhan Pengurang Pajak",
+    perpuluhanDeductionDesc: "dari donasi tercatat",
+    emptyDocumentsTitle: "Belum ada dokumen",
+    emptyDocumentsSub: "Fitur upload & daftar dokumen pajak segera hadir.",
   },
   rekening: {
     typeLabels: {
@@ -1903,6 +2366,20 @@ export const id = {
     mintaDanaSuccessToast:
       "Permintaan dana terkirim. Menunggu persetujuan pemilik family.",
     mintaDanaFailToast: "Gagal mengirim permintaan dana. Coba lagi.",
+    // EPIC-025 N3 prototype structural port — page header (title reuses
+    // `t.shell.pageTitles.rekening`), insight strip, ownership filter tabs, and
+    // the dashed "add account" card.
+    insightOneLabel: "Satu pandangan",
+    insightOneAccountsSuffix: " rekening, ",
+    insightOneOwnersSuffix: " pemilik, 1 saldo keluarga",
+    insightPrivacyLabel: "Privasi",
+    insightPrivacyValue: "Saldo pribadi tetap tersegmentasi",
+    filterNoteText:
+      "Saldo bank tidak boleh minus — kekurangan dana dicatat sebagai liabilitas.",
+    addCardTitle: "Tambah rekening baru",
+    addCardSubtitle: "Hubungkan rekening bank dan tetapkan pemiliknya.",
+    addCardButton: "Tambah Rekening",
+    mutasiFooterButton: "Mutasi",
   },
   donation: {
     typeLabels: {
@@ -1928,6 +2405,7 @@ export const id = {
     groupUmum: "❤️ Umum",
     heroTitle: "Total Donasi & Zakat",
     transactionsSuffix: " transaksi",
+    yearRunningPrefix: " · tahun berjalan ",
     subheaderDesc: "Catat donasi & tunaikan kewajiban zakat",
     recordDonationButton: "Catat Donasi",
     zakatCalculatorTitle: "🕌 Kalkulator Zakat Maal",
@@ -1959,6 +2437,9 @@ export const id = {
     loadingLabel: "Memuat...",
     emptyHistory: "Belum ada catatan donasi",
     taxDeductibleBadge: "Pengurang Pajak",
+    taxNonDeductibleBadge: "Tidak mengurangi pajak",
+    receiptLabel: "Kuitansi",
+    historyLaporanLink: "Laporan",
     statDeductibleLabelPrefix: "Total Pengurang Pajak ",
     statDeductibleDeltaMid: " dari ",
     statDeductibleDeltaSuffix: " transaksi memenuhi syarat",
@@ -1989,12 +2470,20 @@ export const id = {
     toastSaveFailed: "Gagal menyimpan donasi",
     toastInvalidAmount: "Jumlah donasi tidak valid",
     perpuluhanCalculatorTitle: "✝️ Kalkulator Persepuluhan",
-    perpuluhanCalculatorSubtitle: "Persepuluhan 10% dari penghasilan",
-    fieldIncomeLabel: "Penghasilan (Rp)",
+    perpuluhanCalculatorBadge: "10% dari penghasilan",
+    perpuluhanCalculatorSubtitle:
+      "Hitung perpuluhan dari penghasilan rutin dan penghasilan lain pada periode ini.",
+    fieldIncomeLabel: "Penghasilan Bulanan (Rp)",
+    fieldOtherIncomeLabel: "Penghasilan Lain (Rp)",
+    fieldRateLabel: "Persentase (%)",
+    fieldRateHint: "Umumnya 10%, tetapi tetap dapat disesuaikan.",
     perpuluhanDueLabel: "Persepuluhan (10%)",
+    perpuluhanResultLabel: "Perpuluhan Per Bulan",
+    perpuluhanResultSummaryMid: "% dari ",
     perpuluhanCalculatingMsg: "Menghitung...",
     perpuluhanCalcErrorMsg: "Gagal menghitung persepuluhan. Coba lagi.",
     payPerpuluhanNowButton: "Tunaikan Persepuluhan Sekarang",
+    recordPerpuluhanButton: "Catat Perpuluhan",
     religionCalculatorNoneTitle: "Kalkulator donasi keagamaan tidak aktif",
     religionCalculatorNoneDesc:
       "Atur agama keluarga di Pengaturan Akun untuk mengaktifkan kalkulator Zakat atau Persepuluhan.",
@@ -2063,6 +2552,10 @@ export const id = {
       "Daftar anggota keluarga tidak tersedia untuk peran Anda — isi nama secara manual.",
     heirAllocationChartTitle: "Alokasi Ahli Waris",
     heirAllocationUnallocatedLabel: "Belum dialokasikan",
+    assetListCardTitle: "Aset Warisan",
+    visibleToAllHeirsCaption: "Terlihat oleh seluruh ahli waris",
+    estimatedValueLabel: "Nilai estimasi",
+    linkedToAssetPrefix: "terhubung ke Aset",
   },
   anggaran: {
     budgetTypeLabels: {
@@ -2136,6 +2629,18 @@ export const id = {
     obligationsPayConfirmButton: "Bayar Sekarang",
     obligationsToastPaySuccess: "Kewajiban berhasil dibayar.",
     obligationsToastPayFailed: "Gagal membayar kewajiban. Coba lagi.",
+    heroDaysLeftMid: " Hari tersisa dari ",
+    heroDaysLeftSuffix: " hari",
+    heroTerpakaiPrefix: "Terpakai ",
+    heroRencanaPrefix: "Rencana ",
+    statAvgSafePrefix: "Rata-rata aman ",
+    statAvgSafeSuffix: "/hari",
+    categoryAddAction: "Tambah",
+    categoryFooterRemainingPrefix: "Sisa ",
+    categoryFooterOverBudgetPrefix: "Lewat anggaran ",
+    obligationsSummaryMidPrefix: " dari ",
+    obligationsSummaryMidSuffix: " belum dibayar · ",
+    obligationsDueDatePrefix: " · jatuh tempo ",
   },
   transaksi: {
     typeLabels: {
@@ -2217,6 +2722,27 @@ export const id = {
     surplusLabel: "Surplus",
     deficitLabel: "Defisit",
     ofIncomeSuffix: "% dari pemasukan",
+    dateRangeLabel: "Rentang Tanggal",
+    dateFromAriaLabel: "Tanggal mulai",
+    dateToAriaLabel: "Tanggal akhir",
+    accountFilterFieldLabel: "Akun",
+    allAccountsOption: "Semua Akun",
+    categoryFilterFieldLabel: "Kategori",
+    allCategoriesOption: "Semua Kategori",
+    resetFilterButton: "Reset",
+    tableColDate: "Tanggal",
+    tableColDesc: "Deskripsi",
+    tableColCategory: "Kategori",
+    tableColAccount: "Akun",
+    tableColAmount: "Jumlah",
+    tableColOptions: "Opsi",
+    lockedBadgeLabel: "Terkunci",
+    paginationShowingLabel: "Menampilkan ",
+    paginationOfMid: " dari ",
+    paginationPrevButton: "Sebelumnya",
+    paginationNextButton: "Berikutnya",
+    insightCategorizedLabel: "Otomatis Rapi",
+    insightCategorizedValueSuffix: "% transaksi sudah terkategori",
   },
   splitbill: {
     headerDesc: "Patungan jadi gampang — kamu nalangin, mereka bayar balik",
@@ -2237,9 +2763,19 @@ export const id = {
     paidStatusSuffix: " sudah bayar · ",
     collectedSuffix: " terkumpul",
     detailButton: "Detail",
+    pageTitle: "Split Bill",
     insightTitle: "Cara kerja Split Bill",
+    // Honesty fix: the app does NOT send automatic payment notifications and
+    // there is no in-app transfer/e-wallet payment flow — the owner shares a
+    // link, and `markPaidButton` above is the ONLY thing that ever confirms
+    // a payment (manually, by the owner). Recipients also don't need a
+    // WealthMe account (see `publicNoAccountNotice`, already true today).
     insightDesc:
-      "Bikin tagihan, bagi rata atau custom, lalu kirim link ke teman. Mereka bisa bayar via transfer/e-wallet & kamu dapat notifikasi otomatis.",
+      "Bikin tagihan, bagi rata atau custom, lalu kirim link ke teman. Penerima link tidak perlu punya akun WealthMe — halaman bagiannya terbuka publik. Kamu tetap yang mengonfirmasi pembayaran secara manual.",
+    badgeUnpaid: "Belum Lunas",
+    badgeNoPayoutAccount: "Rekening tujuan kosong",
+    badgeSettled: "Lunas",
+    createdOnPrefix: "dibuat ",
     fieldTitleLabel: "Judul Acara",
     fieldTitlePlaceholder: "cth: Makan di Sushi Tei",
     fieldTotalLabel: "Total Tagihan",
@@ -2335,12 +2871,34 @@ export const id = {
       "Terjadi masalah koneksi saat memuat tagihan ini. Periksa koneksi internet kamu dan coba lagi.",
   },
   rekonsiliasi: {
+    headerTitle: "Rekonsiliasi Bank",
+    headerSubtitle:
+      "Unggah mutasi rekening, cocokkan otomatis dengan transaksi yang sudah kamu catat, lalu simpan hasilnya.",
+    uploadMutasiButton: "Upload Mutasi",
     steps: {
       1: { label: "Upload", sub: "Upload dokumen" },
       2: { label: "Pindai", sub: "AI membaca data" },
       3: { label: "Cocokkan", sub: "Samakan transaksi" },
       4: { label: "Selesai", sub: "Simpan hasil" },
     },
+    stepStatusDone: "Selesai",
+    stepStatusActive: "Sedang berjalan",
+    stepStatusPending: "Menunggu",
+    formatCalloutTitle: "Format yang didukung: CSV dan Excel (.xlsx).",
+    formatCalloutBody:
+      "Kolom minimal yang dibutuhkan: tanggal, keterangan, dan jumlah (atau pasangan debit/kredit).",
+    pdfCalloutTitle: "PDF ditolak — ini disengaja.",
+    pdfCalloutBody:
+      "Statement PDF tidak bisa diproses secara otomatis: tata letaknya berbeda tiap bank dan angka hasil pembacaan sering meleset tanpa ketahuan. Ekspor mutasi rekening sebagai CSV dari aplikasi/situs bank Anda, lalu unggah file CSV tersebut.",
+    mappingSectionTitle: "Pemetaan Kolom",
+    mappingSectionHint:
+      "Cocokkan nama kolom di file bank dengan kolom WealthMe. Simpan sekali sebagai template, dan setiap unggahan berikutnya dari bank yang sama otomatis memakainya.",
+    matchFilterAll: "Semua",
+    matchFilterNeedsReview: "Perlu Review",
+    matchFilterNotMatched: "Tidak Cocok",
+    matchResultsFooterPrefix: "Menampilkan ",
+    matchResultsFooterMid: " dari ",
+    matchResultsFooterSuffix: " baris",
     uploadTitle: "Upload Rekening Koran / Rekon Bank",
     uploadSubtitle: "Upload file PDF, Excel, atau CSV dari bank Anda.",
     uploadingLabel: "Mengunggah...",
@@ -2554,6 +3112,29 @@ export const id = {
     totalLiabilitiesLabel: "Total Liabilitas",
     netWorthLabel: "Net Worth",
     emptyMonthTransactions: "Belum ada transaksi bulan ini",
+    header: {
+      title: "Laporan Keuangan",
+      subtitle:
+        "17 laporan dari satu periode yang sama. Ganti rentang tanggal sekali, semua tab ikut menyesuaikan.",
+      exportExcelButton: "Excel",
+      exportPdfButton: "PDF",
+    },
+    filterCard: {
+      title: "Filter Laporan",
+      appliesAllTabsCaption: "Berlaku untuk semua tab",
+      periodeLabel: "Periode",
+      dateRangeLabel: "Rentang Tanggal",
+    },
+    cashBasisNotice: {
+      title: "Cash basis.",
+      body: "Semua laporan di halaman ini dihitung saat uang benar-benar masuk atau keluar rekening — bukan saat tagihan terbit. Piutang, utang usaha, dan biaya yang belum dibayar tidak muncul di periode ini.",
+      activePeriodPrefix: "Periode aktif:",
+    },
+    tabStrip: {
+      ariaLabel: "Navigasi laporan",
+      scrollLeftAriaLabel: "Geser tab ke kiri",
+      scrollRightAriaLabel: "Geser tab ke kanan",
+    },
     ringkasan: {
       financeTitle: "Ringkasan Keuangan",
       expenseAllocTitle: "Alokasi Pengeluaran",
@@ -2572,6 +3153,22 @@ export const id = {
       aiInsightBody:
         "Pengeluaran gaya hidupmu naik 18% dibanding bulan lalu. Coba atur budget agar savings rate tetap sehat.",
       aiInsightCta: "Lihat Rekomendasi →",
+      cashflowCardTitle: "Pemasukan vs Pengeluaran",
+      cashflowRange6: "6 Bln",
+      cashflowRange12: "12 Bln",
+      statNetCashflowLabel: "Arus Kas Bersih",
+      statSavingsRatioLabel: "Rasio Menabung",
+      statVsPrefix: "vs",
+      statSurplusStreakTemplate: "Surplus {count} bulan berturut-turut",
+      statSavingsAboveTargetTemplate: "Di atas target {target}%",
+      statSavingsBelowTargetTemplate: "Di bawah target {target}%",
+      categoryTable: {
+        title: "Rincian per Kategori",
+        colKategori: "Kategori",
+        colPersentase: "% dari Pengeluaran",
+        colBulanIni: "Bulan Ini",
+        emptyState: "Belum ada data kategori pengeluaran",
+      },
     },
     harian: {
       titlePrefix: "Laporan Harian —",

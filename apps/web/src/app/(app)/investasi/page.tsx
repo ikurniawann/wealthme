@@ -1,15 +1,15 @@
 "use client";
 
 import { Fragment, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { io } from "socket.io-client";
-import { TrendingUp, RefreshCw, Info } from "lucide-react";
+import { TrendingUp, RefreshCw, Info, Plus } from "lucide-react";
 
 import {
   SectionCard,
-  CardLink,
   StatusBadge,
   IconChip,
   CountUpRupiah,
@@ -31,10 +31,11 @@ import { formatManualDate } from "@/components/consolidated-total-card";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { formatRupiah } from "@/lib/format";
+import { formatRupiah, formatNumber } from "@/lib/format";
 import {
   canonicalizeSahamQuantity,
   convertQuantityDisplay,
+  divideBy100,
 } from "./quantity-conversion";
 
 import type { Locale } from "@/i18n";
@@ -176,6 +177,213 @@ function formatLocaleDateTime(iso: string, locale: Locale): string {
   });
 }
 
+type Dict = ReturnType<typeof useLocale>["t"];
+
+// EPIC-025 N3 audit (structural port fidelity) — restores the prototype's
+// per-row "instrument" sub-line: ticker + purchase date for most types,
+// coupon + purchase date for obligasi, start + maturity for deposito. Every
+// value comes from the real `InvestmentDto` fields already fetched — falls
+// back to the bare ticker when `purchasedAt` is unset (legacy rows created
+// before that column existed).
+function formatInstrumentSubline(
+  h: InvestmentDto,
+  t: Dict,
+  locale: Locale,
+): string {
+  const purchasedDate = h.purchasedAt
+    ? formatManualDate(h.purchasedAt, locale)
+    : null;
+  if (h.type === "deposito" && h.maturityDate && purchasedDate) {
+    return t.investasi.rowDepositoTermTemplate
+      .replace("{date}", purchasedDate)
+      .replace("{maturityDate}", formatManualDate(h.maturityDate, locale));
+  }
+  if (h.type === "obligasi" && h.interestRatePct && purchasedDate) {
+    return t.investasi.rowCouponPurchasedTemplate
+      .replace("{rate}", h.interestRatePct)
+      .replace("{date}", purchasedDate);
+  }
+  if (purchasedDate) {
+    return t.investasi.rowTickerPurchasedTemplate
+      .replace("{ticker}", h.ticker)
+      .replace("{date}", purchasedDate);
+  }
+  return h.ticker;
+}
+
+// EPIC-025 N3 audit — restores the prototype's "Jumlah" column. Every unit
+// shown is derived from the real stored `quantity`/`costBasisPerUnit`
+// (never invented). Saham shows both lot and lembar via the SAME exact
+// decimal math (`divideBy100`) as the add/edit form's Lot/Lembar toggle.
+function formatQuantityCell(h: InvestmentDto, t: Dict): ReactNode {
+  const qty = parseFloat(h.quantity);
+  if (h.type === "saham") {
+    const lot = parseFloat(divideBy100(h.quantity));
+    return (
+      <>
+        <div>
+          {formatNumber(lot)} {t.investasi.unitLot.toLowerCase()}
+        </div>
+        <div className="text-muted-foreground">
+          {formatNumber(qty)} {t.investasi.unitLembar.toLowerCase()}
+        </div>
+      </>
+    );
+  }
+  if (h.type === "kripto") {
+    return (
+      <div>
+        {qty.toLocaleString("id-ID", { maximumFractionDigits: 8 })} {h.ticker}
+      </div>
+    );
+  }
+  if (h.type === "reksa_dana") {
+    return (
+      <div>
+        {formatNumber(qty)} {t.investasi.unitFundUnit}
+      </div>
+    );
+  }
+  if (h.type === "emas") {
+    return (
+      <div>
+        {formatNumber(qty)} {t.investasi.unitGram}
+      </div>
+    );
+  }
+  if (h.type === "obligasi" || h.type === "deposito") {
+    // Prototype shows the total nominal here, which equals this row's own
+    // "Modal" column value (quantity × costBasisPerUnit) — not a separate,
+    // invented figure.
+    const nominal = parseFloat(h.costBasisPerUnit) * qty;
+    return (
+      <div>
+        {t.investasi.nominalPrefix}
+        {formatRupiah(nominal)}
+      </div>
+    );
+  }
+  return <div>{formatNumber(qty)}</div>;
+}
+
+// EPIC-025 N3 audit — restores the prototype's "Harga / Sumber" column and
+// its per-row price-source badges ("Live · delayed", "Harga manual ·
+// <date>", "Nilai dihitung · bunga berjalan"). Honest-UI note: unlike the
+// prototype's static obligasi row (a fabricated "Harga 103,45%" percent of
+// par — a concept this data model doesn't store), obligasi renders its real
+// `currentPrice` in Rupiah instead of inventing a percentage.
+function formatPriceSourceCell(
+  h: InvestmentDto,
+  t: Dict,
+  locale: Locale,
+): ReactNode {
+  const priceSourceLabelKey =
+    PRICE_SOURCE_LABEL_KEYS[
+      h.latestPriceSource as keyof typeof PRICE_SOURCE_LABEL_KEYS
+    ];
+  const providerLabel = priceSourceLabelKey
+    ? t.investasi.sourceLabels[priceSourceLabelKey]
+    : h.latestPriceSource;
+
+  if (h.type === "deposito") {
+    return (
+      <>
+        <div className="mono">
+          {h.interestRatePct
+            ? t.investasi.depositoRateTemplate.replace(
+                "{rate}",
+                h.interestRatePct,
+              )
+            : t.investasi.detailNoRateSet}
+        </div>
+        <div className="mt-0.5">
+          <StatusBadge variant="gray">
+            {t.investasi.priceComputedBadgeLabel}
+          </StatusBadge>
+        </div>
+      </>
+    );
+  }
+
+  if (h.automatedPriceUnmapped) {
+    return (
+      <>
+        {h.currentPrice !== null && (
+          <div className="mono">{formatDecimalRupiah(h.currentPrice)}</div>
+        )}
+        <div className="mt-0.5">
+          <StatusBadge variant="warning">
+            {t.investasi.automatedUnmappedBadge}
+          </StatusBadge>
+        </div>
+      </>
+    );
+  }
+
+  if (h.currentPrice === null) {
+    return (
+      <span className="text-muted-foreground">
+        {isManualPriceType(h.type as InvestmentType)
+          ? t.investasi.detailNoManualPrice
+          : t.investasi.detailPriceUnavailable}
+      </span>
+    );
+  }
+
+  if (AUTOMATED_PRICE_TYPES.includes(h.type as InvestmentType)) {
+    const unitSuffix =
+      h.type === "saham"
+        ? `/ ${t.investasi.unitLembar.toLowerCase()}`
+        : `/ ${t.investasi.unitCoinSuffix}`;
+    return (
+      <>
+        <div className="mono">
+          {formatDecimalRupiah(h.currentPrice)} {unitSuffix}
+        </div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+          <StatusBadge variant="success">
+            {h.latestPriceDelayed
+              ? t.investasi.priceLiveDelayedBadge
+              : t.investasi.priceLiveBadge}
+          </StatusBadge>
+          <span className="text-[10.5px] text-muted-foreground">
+            {providerLabel}
+          </span>
+        </div>
+      </>
+    );
+  }
+
+  // Manual-priced types: reksa_dana, obligasi, emas, lainnya.
+  const unitSuffix =
+    h.type === "reksa_dana"
+      ? ` / ${t.investasi.unitFundUnit}`
+      : h.type === "emas"
+        ? ` / ${t.investasi.unitGram}`
+        : "";
+  const pricePrefix = h.type === "reksa_dana" ? t.investasi.navPricePrefix : "";
+  const asOf = h.latestPriceAsOf ?? h.latestPriceRecordedAt;
+  return (
+    <>
+      <div className="mono">
+        {pricePrefix}
+        {formatDecimalRupiah(h.currentPrice)}
+        {unitSuffix}
+      </div>
+      <div className="mt-0.5">
+        <StatusBadge variant="gray">
+          {asOf
+            ? t.investasi.priceManualBadgeTemplate.replace(
+                "{date}",
+                formatManualDate(asOf, locale),
+              )
+            : t.investasi.detailNoManualPrice}
+        </StatusBadge>
+      </div>
+    </>
+  );
+}
+
 function SkeletonBlock({ className }: { className?: string }) {
   return (
     <div className={`animate-pulse rounded-md bg-muted ${className ?? ""}`} />
@@ -195,7 +403,7 @@ function SummaryCardSkeleton() {
 function HoldingRowSkeleton() {
   return (
     <tr className="border-b last:border-0">
-      {Array.from({ length: 6 }).map((_, i) => (
+      {Array.from({ length: 8 }).map((_, i) => (
         <td key={`skeleton-${i}`} className="py-3 pr-3">
           <SkeletonBlock className="h-4 w-20" />
         </td>
@@ -698,6 +906,10 @@ export default function InvestasiPage() {
     data: holdings,
     isLoading: holdingsLoading,
     isError: holdingsError,
+    // EPIC-025 N3 audit — real "last synced" timestamp for the pricing-source
+    // notice, sourced from react-query's own fetch bookkeeping (not a fake
+    // static timestamp).
+    dataUpdatedAt: holdingsUpdatedAt,
   } = useQuery<InvestmentDto[]>({
     queryKey: [...queryKeys.investments.all(familyGroupId ?? ""), token ?? ""],
     queryFn: () =>
@@ -811,47 +1023,46 @@ export default function InvestasiPage() {
 
   return (
     <div className="space-y-4">
-      {/* EPIC-025 N3-F2 — real manual refresh: invalidates the live-price
-          queries (same ones the socket.io listener above invalidates), it
-          does not just show a toast with no effect. */}
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => {
-            if (!familyGroupId) return;
-            void queryClient.invalidateQueries({
-              queryKey: queryKeys.investments.all(familyGroupId),
-            });
-            void queryClient.invalidateQueries({
-              queryKey: queryKeys.investments.summary(familyGroupId),
-            });
-            toast.success(t.investasi.refreshPriceToast);
-          }}
-          disabled={!familyGroupId}
-          className="flex cursor-pointer items-center gap-1.5 rounded-md border bg-background px-3 py-1.5 text-[12.5px] font-semibold transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <RefreshCw className="size-3.5" /> {t.investasi.refreshPriceButton}
-        </button>
-      </div>
-
-      {/* EPIC-021 #19: filter tabs by type */}
-      <div className="hide-scrollbar flex gap-2 overflow-x-auto">
-        {FILTER_TAB_IDS.map((id) => (
-          <button
-            key={id}
+      {/* EPIC-025 N3 audit (structural port) — page-lead header: title +
+          subtitle, "Perbarui Harga" (real manual refresh — invalidates the
+          same live-price queries the socket.io listener above invalidates,
+          not just a toast with no effect) and "Catat Investasi" (the SAME
+          openAdd flow the table used to expose as a header link). Gap #2:
+          the prototype orders stat cards → info callout → filter pills →
+          table; the old layout put the filter pills first. */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="min-w-[220px] flex-1">
+          <h1 className="text-[17px] font-extrabold tracking-tight">
+            {t.shell.pageTitles.investasi}
+          </h1>
+          <p className="mt-1 text-[12.5px] text-muted-foreground">
+            {t.investasi.pageSubtitle}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
             type="button"
-            onClick={() => setActiveFilter(id)}
-            className={`shrink-0 cursor-pointer rounded-full px-4 py-2 text-[13px] font-semibold transition-colors ${
-              activeFilter === id
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-secondary-foreground hover:bg-accent"
-            }`}
+            variant="outline"
+            size="sm"
+            disabled={!familyGroupId}
+            onClick={() => {
+              if (!familyGroupId) return;
+              void queryClient.invalidateQueries({
+                queryKey: queryKeys.investments.all(familyGroupId),
+              });
+              void queryClient.invalidateQueries({
+                queryKey: queryKeys.investments.summary(familyGroupId),
+              });
+              toast.success(t.investasi.refreshPriceToast);
+            }}
           >
-            {id === "semua"
-              ? t.investasi.filterAllLabel
-              : t.investasi.typeLabels[id]}
-          </button>
-        ))}
+            <RefreshCw className="size-3.5" /> {t.investasi.refreshPriceButton}
+          </Button>
+          <Button type="button" size="sm" onClick={() => setModalOpen(true)}>
+            <Plus className="size-3.5" />{" "}
+            {t.investasi.addInvestmentHeaderButton}
+          </Button>
+        </div>
       </div>
 
       {familyGroupId && token && (
@@ -940,6 +1151,24 @@ export default function InvestasiPage() {
                       {(summary?.totalReturnPct ?? 0) >= 0 ? "▲" : "▼"}{" "}
                       {formatReturnPct(summary?.totalReturnPct ?? null)}
                     </StatusBadge>
+                    {/* Gap #3 — formula sub-line, computed from the real
+                        summary DTO (never a static/invented figure). */}
+                    {summary?.totalReturnRp != null &&
+                      summary.totalCostBasis != null && (
+                        <span className="text-[11px] text-muted-foreground">
+                          {t.investasi.returnFormulaLabel
+                            .replace(
+                              "{returnRp}",
+                              formatRupiah(
+                                Math.abs(parseFloat(summary.totalReturnRp)),
+                              ),
+                            )
+                            .replace(
+                              "{costBasis}",
+                              formatRupiah(parseFloat(summary.totalCostBasis)),
+                            )}
+                        </span>
+                      )}
                   </div>
                 </Card>
               </div>
@@ -970,7 +1199,7 @@ export default function InvestasiPage() {
                       {formatReturnPct(summary?.todayReturnPct ?? null)}
                     </StatusBadge>
                     <span className="text-[11px] text-muted-foreground">
-                      {t.investasi.vsYesterdaySuffix} · {livePositionsCount}{" "}
+                      {t.investasi.livePositionsOnlyPrefix} {livePositionsCount}{" "}
                       {t.investasi.livePositionsSuffix}
                     </span>
                   </div>
@@ -981,22 +1210,64 @@ export default function InvestasiPage() {
         )}
       </div>
 
-      {/* EPIC-024 #6/#7 pricing-source explainer — generic, true regardless
-          of data (no fake "last synced" timestamp is tracked or shown). */}
+      {/* EPIC-024 #6/#7 pricing-source explainer, extended by the N3 audit
+          (gap #9) with a real "Terakhir sinkron" line sourced from
+          react-query's own `dataUpdatedAt` for the holdings fetch — never a
+          static/invented timestamp. */}
       <div className="flex items-start gap-2.5 rounded-[11px] border border-primary/25 bg-accent p-3 text-[12.5px] text-accent-foreground">
         <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
         <span>
           <strong>{t.investasi.pricingSourceNoticeTitle}</strong>{" "}
           {t.investasi.pricingSourceNoticeBody}
+          {holdingsUpdatedAt > 0 && (
+            <>
+              {" "}
+              {t.investasi.pricingSourceLastSyncedPrefix}{" "}
+              <span className="mono">
+                {formatLocaleDateTime(
+                  new Date(holdingsUpdatedAt).toISOString(),
+                  locale,
+                )}
+              </span>
+              .
+            </>
+          )}
         </span>
+      </div>
+
+      {/* EPIC-021 #19: filter tabs by type. Gap #2 — moved below the info
+          callout (prototype order: stats → callout → pills → table). Gap
+          #4 — "Baru" badge on the deposito pill, matching the prototype. */}
+      <div className="hide-scrollbar flex gap-2 overflow-x-auto">
+        {FILTER_TAB_IDS.map((id) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setActiveFilter(id)}
+            className={`shrink-0 cursor-pointer rounded-full px-4 py-2 text-[13px] font-semibold transition-colors ${
+              activeFilter === id
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-secondary-foreground hover:bg-accent"
+            }`}
+          >
+            {id === "semua"
+              ? t.investasi.filterAllLabel
+              : t.investasi.typeLabels[id]}
+            {id === "deposito" && (
+              <StatusBadge variant="purple" className="ml-1.5">
+                {t.investasi.filterNewBadge}
+              </StatusBadge>
+            )}
+          </button>
+        ))}
       </div>
 
       <SectionCard
         title={t.investasi.portfolioSectionTitle}
         action={
-          <CardLink onClick={() => setModalOpen(true)}>
-            {t.investasi.addInvestmentLink}
-          </CardLink>
+          <span className="text-[12px] text-muted-foreground">
+            {filteredHoldings.length} {t.investasi.positionsCountSuffix}
+          </span>
         }
       >
         <div className="w-full overflow-x-auto">
@@ -1010,6 +1281,12 @@ export default function InvestasiPage() {
                   {t.investasi.tableType}
                 </th>
                 <th className="py-2.5 pr-3 font-semibold">
+                  {t.investasi.tableQuantity}
+                </th>
+                <th className="py-2.5 pr-3 font-semibold">
+                  {t.investasi.tablePriceSource}
+                </th>
+                <th className="py-2.5 pr-3 font-semibold">
                   {t.investasi.tableCapital}
                 </th>
                 <th className="py-2.5 pr-3 font-semibold">
@@ -1017,9 +1294,6 @@ export default function InvestasiPage() {
                 </th>
                 <th className="py-2.5 pr-3 font-semibold">
                   {t.investasi.tableReturn}
-                </th>
-                <th className="py-2.5 pr-3 font-semibold">
-                  {t.investasi.tablePercent}
                 </th>
                 <th className="py-2.5 font-semibold">
                   {t.investasi.tableAction}
@@ -1037,7 +1311,7 @@ export default function InvestasiPage() {
                 filteredHoldings.length === 0 && (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={8}
                       className="py-8 text-center text-[13px] text-muted-foreground"
                     >
                       {t.investasi.emptyState}{" "}
@@ -1101,8 +1375,12 @@ export default function InvestasiPage() {
                                 </StatusBadge>
                               )}
                             </div>
+                            {/* Gap #6 — ticker + purchase date (coupon/
+                                maturity for obligasi/deposito), derived from
+                                the real purchasedAt/interestRatePct/
+                                maturityDate fields. */}
                             <div className="text-[11px] text-muted-foreground">
-                              {h.ticker}
+                              {formatInstrumentSubline(h, t, locale)}
                             </div>
                             <button
                               type="button"
@@ -1121,25 +1399,34 @@ export default function InvestasiPage() {
                       <td className="py-3 pr-3">
                         <StatusBadge variant={variant}>{label}</StatusBadge>
                       </td>
+                      {/* Gap #5 — restored "Jumlah" column. */}
+                      <td className="mono py-3 pr-3 text-[11.5px] whitespace-nowrap">
+                        {formatQuantityCell(h, t)}
+                      </td>
+                      {/* Gap #6 — restored "Harga / Sumber" column with
+                          per-row price-source badges. */}
+                      <td className="py-3 pr-3 text-[11.5px] whitespace-nowrap">
+                        {formatPriceSourceCell(h, t, locale)}
+                      </td>
                       <td className="mono py-3 pr-3 whitespace-nowrap">
                         {formatRupiah(totalCost)}
                       </td>
                       <td className="mono py-3 pr-3 font-extrabold whitespace-nowrap">
                         {formatDecimalRupiah(h.currentValue)}
                       </td>
+                      {/* Gap #5 — merged Return-Rp + Return-% back into one
+                          "Untung / Rugi" column, matching the prototype. */}
                       <td
                         className={`mono py-3 pr-3 whitespace-nowrap ${
                           isUp ? "text-success" : "text-destructive"
                         }`}
                       >
-                        {formatDecimalRupiah(h.returnRp)}
-                      </td>
-                      <td
-                        className={`py-3 pr-3 font-semibold whitespace-nowrap ${
-                          isUp ? "text-success" : "text-destructive"
-                        }`}
-                      >
-                        {formatReturnPct(h.returnPct)}
+                        <div className="font-semibold">
+                          {formatDecimalRupiah(h.returnRp)}
+                        </div>
+                        <div className="text-[11px]">
+                          {formatReturnPct(h.returnPct)}
+                        </div>
                       </td>
                       <td className="py-3">
                         <RowActions
@@ -1153,7 +1440,7 @@ export default function InvestasiPage() {
                     </tr>
                     {isExpanded && (
                       <tr className="border-b bg-muted/30 last:border-0">
-                        <td colSpan={7} className="px-3 py-3 text-[12px]">
+                        <td colSpan={8} className="px-3 py-3 text-[12px]">
                           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                             <div>
                               <div className="text-muted-foreground">
@@ -1276,17 +1563,26 @@ export default function InvestasiPage() {
       </SectionCard>
 
       {/* Allocation-by-instrument donut (FOLD per J3 — derived from the
-          holdings list already fetched above). The prototype's "Nilai
-          Portofolio 6 Bulan" trend chart is CUT per J3 — no historical
-          price-snapshot series is persisted. */}
+          holdings list already fetched above). Gap #7/#8 — the prototype's
+          "Nilai Portofolio 6 Bulan" trend chart stays CUT per J3 (no
+          historical price-snapshot series is persisted anywhere in the
+          schema — confirmed still true, not fabricated): with no second
+          chart to share the row, the donut is rendered on its own,
+          constrained to a sensible width (not full-bleed) with a thinner
+          ring and no legend row (matches `/aset`'s DonutChart treatment —
+          `DonutChart` itself is protected and exposes no legend toggle, so
+          the default ApexCharts legend is hidden page-locally). */}
       {!isLoading && allocationSegments.length > 0 && (
-        <SectionCard title={t.investasi.allocationTitle}>
-          <DonutChart
-            segments={allocationSegments}
-            centerLabel={t.investasi.totalValueLabel}
-            ariaLabel={`${t.investasi.allocationTitle}: ${allocationSegments.map((s) => `${s.label} ${formatDecimalRupiah(String(s.value))}`).join(", ")}`}
-          />
-        </SectionCard>
+        <div className="max-w-md [&_.apexcharts-legend]:hidden">
+          <SectionCard title={t.investasi.allocationTitle}>
+            <DonutChart
+              segments={allocationSegments}
+              centerLabel={t.investasi.totalValueLabel}
+              height={220}
+              ariaLabel={`${t.investasi.allocationTitle}: ${allocationSegments.map((s) => `${s.label} ${formatDecimalRupiah(String(s.value))}`).join(", ")}`}
+            />
+          </SectionCard>
+        </div>
       )}
     </div>
   );

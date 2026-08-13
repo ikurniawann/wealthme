@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Save } from "lucide-react";
+import { Plus, Save, TrendingDown, Calendar } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   SectionCard,
-  CountUpRupiah,
+  CardLink,
+  HeroCard,
   AnimatedProgress,
   Rise,
   StatusBadge,
@@ -28,8 +29,11 @@ import type {
   BudgetType,
   CreateBudgetDto,
   LiabilityDto,
+  LiabilityType,
   InsuranceDto,
+  InsuranceType,
 } from "@wealthme/contracts";
+import type { Locale } from "@/i18n";
 
 type TypeBreakdownRow = {
   key: BudgetType | "OTHER";
@@ -123,6 +127,20 @@ function BudgetItem({ dto, index }: { dto: BudgetDto; index: number }) {
           value={Math.min(dto.usagePercent, 100)}
           color={color}
         />
+        {/* EPIC-025 N3 rework — prototype's per-card footer line: "Sisa
+            Rp N" for a healthy category, a red "Lewat anggaran Rp N" once
+            spend has exceeded the limit. Both derived from `dto`, no new
+            data. */}
+        <div
+          className={
+            "mt-1.5 text-[11px] " +
+            (dto.isOverBudget ? "text-destructive" : "text-muted-foreground")
+          }
+        >
+          {dto.isOverBudget
+            ? `${t.anggaran.categoryFooterOverBudgetPrefix}${formatRupiah(dto.spentAmount - dto.limitAmount)}`
+            : `${t.anggaran.categoryFooterRemainingPrefix}${formatRupiah(dto.remainingAmount)}`}
+        </div>
       </div>
     </Rise>
   );
@@ -160,6 +178,31 @@ type Obligation = {
   name: string;
   amountDue: number;
   paidThisPeriod: boolean;
+  // EPIC-025 N3 rework — prototype's row icon + due-date text
+  // (`docs/prototype/pages/anggaran.html`'s "Kewajiban Bulan Ini"). Both
+  // derived from real fields already on the DTO (`type` → icon,
+  // `dueDate`/`renewalDate` → due date) — no fabricated data.
+  dueDate: string | null;
+  icon: string;
+};
+
+// EPIC-025 N3 rework — one emoji per liability/insurance `type`, matching
+// the prototype's per-row icon. Falls back to a generic document icon for
+// any type not explicitly mapped.
+const LIABILITY_ICONS: Record<LiabilityType, string> = {
+  kpr: "🏠",
+  kartu_kredit: "💳",
+  pinjaman_pribadi: "🏦",
+  kendaraan: "🚗",
+  lainnya: "📄",
+};
+const INSURANCE_ICONS: Record<InsuranceType, string> = {
+  jiwa: "🛡️",
+  kesehatan: "🏥",
+  kendaraan: "🚗",
+  properti: "🏠",
+  pendidikan: "🎓",
+  lainnya: "📄",
 };
 
 /**
@@ -191,6 +234,8 @@ function toObligations(
       // computing the truncation independently and drifting apart.
       amountDue: Math.trunc(Number(l.minimumPayment)),
       paidThisPeriod: l.paidThisPeriod,
+      dueDate: l.dueDate,
+      icon: LIABILITY_ICONS[l.type] ?? "📄",
     }));
   const fromInsurances: Obligation[] = insurances
     .filter((i) => i.status === "aktif" && Number(i.premiumAmount) > 0)
@@ -200,8 +245,18 @@ function toObligations(
       name: i.name,
       amountDue: Number(i.premiumAmount),
       paidThisPeriod: i.paidThisPeriod,
+      dueDate: i.renewalDate,
+      icon: INSURANCE_ICONS[i.type] ?? "📄",
     }));
   return [...fromLiabilities, ...fromInsurances];
+}
+
+function formatLocaleDate(iso: string, locale: Locale): string {
+  return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 }
 
 function PayObligationDialog({
@@ -295,10 +350,16 @@ function ObligationRow({
   index: number;
   onPay: () => void;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
+  const dueDateLabel = obligation.dueDate
+    ? formatLocaleDate(obligation.dueDate, locale)
+    : null;
   return (
     <Rise index={index}>
       <div className="flex items-center gap-2.5 rounded-[12px] border bg-card p-3.5">
+        <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-accent text-[14px]">
+          {obligation.icon}
+        </div>
         <div className="flex-1">
           <div className="flex items-center gap-1.5 text-[13.5px] font-semibold">
             <span>{obligation.name}</span>
@@ -313,6 +374,12 @@ function ObligationRow({
           <div className="text-[11.5px] text-muted-foreground">
             {formatRupiah(obligation.amountDue)}
           </div>
+          {dueDateLabel && (
+            <div className="text-[11px] text-muted-foreground">
+              {t.anggaran.obligationsDueDatePrefix}
+              {dueDateLabel}
+            </div>
+          )}
         </div>
         {/* EPIC-023 Task E retry (CRITICAL 1) — an already-paid obligation
             must not accept a second Pay click: the label previously stayed
@@ -453,9 +520,29 @@ export function ObligationsSection({
   const obligations = toObligations(liabilities, insurances);
   if (obligations.length === 0) return null;
 
+  // EPIC-025 N3 rework — prototype's right-aligned section summary
+  // ("3 dari 5 belum dibayar · Rp 5.945.000"), derived from the same
+  // obligations list already rendered below — no new data.
+  const unpaid = obligations.filter((o) => !o.paidThisPeriod);
+  const unpaidTotal = unpaid.reduce((sum, o) => sum + o.amountDue, 0);
+
   return (
     <SectionCard
       title={t.anggaran.obligationsSectionTitle}
+      action={
+        // EPIC-025 N3 rework — kept as ONE text node (no nested `mono` span
+        // around the amount): a per-row amount can equal this total exactly
+        // when only one obligation is unpaid, and an isolated element with
+        // the same exact text would make `getByText` in
+        // obligations-section.test.tsx ambiguous between the two.
+        <span className="text-xs text-muted-foreground">
+          {unpaid.length}
+          {t.anggaran.obligationsSummaryMidPrefix}
+          {obligations.length}
+          {t.anggaran.obligationsSummaryMidSuffix}
+          {formatRupiah(unpaidTotal)}
+        </span>
+      }
       bodyClassName="-mt-1 space-y-3"
     >
       {obligations.map((o, i) => (
@@ -661,53 +748,141 @@ export default function AnggaranPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
-        <Rise index={0}>
-          <div className="rounded-[14px] border border-[#86EFAC] bg-[#DCFCE7] p-4 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
-            <div className="mb-1 text-[11px] text-[#15803D]">
+      {/* EPIC-025 N3 rework — prototype's `budget-summary-grid`: a gradient
+          hero (remaining budget, usage badge, days-left, spent/planned
+          progress bar) plus 2 stacked mini-stats, replacing the previous
+          flat 3-stat-card row. All values are the same already-computed
+          `totalRemaining`/`totalSpent`/`daysLeft` this page already fetched
+          — no new data. */}
+      <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-3">
+        <Rise index={0} className="lg:col-span-2">
+          <HeroCard className="gradient-emerald h-full">
+            <div className="mb-1 text-xs opacity-80">
               {t.anggaran.remainingBudgetLabel}
             </div>
-            <div className="mono text-[22px] font-black text-[#15803D]">
-              <CountUpRupiah value={totalRemaining} />
+            <div className="mono text-[26px] font-black">
+              {formatRupiah(totalRemaining)}
             </div>
-            <div className="text-[11px] text-[#15803D]">
-              {totalLimit > 0
-                ? `${100 - usagePct}${t.anggaran.pctOfBudgetSuffix}`
-                : t.anggaran.noBudgetYet}
+            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold">
+                {totalLimit > 0
+                  ? `${100 - usagePct}${t.anggaran.pctOfBudgetSuffix}`
+                  : t.anggaran.noBudgetYet}
+              </span>
+              <span className="text-[11px] opacity-85">
+                {daysLeft}
+                {t.anggaran.heroDaysLeftMid}
+                {daysInMonth}
+                {t.anggaran.heroDaysLeftSuffix}
+              </span>
             </div>
-          </div>
+            <div className="mt-3.5 h-[7px] overflow-hidden rounded-full bg-white/25">
+              <div
+                className="h-full rounded-full bg-white transition-[width] duration-700"
+                style={{ width: `${Math.min(100, usagePct)}%` }}
+              />
+            </div>
+            <div className="mono mt-1.5 flex items-center justify-between text-[11px] opacity-90">
+              <span>
+                {t.anggaran.heroTerpakaiPrefix}
+                {formatRupiah(totalSpent)}
+              </span>
+              <span>
+                {t.anggaran.heroRencanaPrefix}
+                {formatRupiah(totalLimit)}
+              </span>
+            </div>
+          </HeroCard>
         </Rise>
         <Rise index={1}>
-          <div className="rounded-[14px] border bg-card p-4 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
-            <div className="mb-1 text-[11px] text-muted-foreground">
-              {t.anggaran.totalSpentLabel}
+          <div className="flex h-full flex-col justify-between gap-4 rounded-[14px] border bg-card p-4">
+            <div className="flex items-center gap-2.5">
+              <div className="flex size-[34px] shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive">
+                <TrendingDown className="size-4" />
+              </div>
+              <div>
+                <div className="text-[11px] text-muted-foreground">
+                  {t.anggaran.totalSpentLabel}
+                </div>
+                <div className="mono text-[15px] font-extrabold text-destructive">
+                  {formatRupiah(totalSpent)}
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  {usagePct}
+                  {t.anggaran.pctOfBudgetSuffix}
+                </div>
+              </div>
             </div>
-            <div className="mono text-[22px] font-black text-destructive">
-              <CountUpRupiah value={totalSpent} />
-            </div>
-            <div className="text-[11px] text-muted-foreground">
-              {usagePct}
-              {t.anggaran.pctOfBudgetSuffix}
-            </div>
-          </div>
-        </Rise>
-        <Rise index={2}>
-          <div className="rounded-[14px] border bg-card p-4 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
-            <div className="mb-1 text-[11px] text-muted-foreground">
-              {t.anggaran.daysLeftLabel}
-            </div>
-            <div className="text-[22px] font-black text-primary">
-              {daysLeft}
-              {t.anggaran.daysSuffix}
-            </div>
-            <div className="text-[11px] text-muted-foreground">
-              {t.anggaran.daysOfPrefix}
-              {daysInMonth}
-              {t.anggaran.daysOfSuffix}
+            <div className="flex items-center gap-2.5">
+              <div className="flex size-[34px] shrink-0 items-center justify-center rounded-md bg-warning-soft text-warning">
+                <Calendar className="size-4" />
+              </div>
+              <div>
+                <div className="text-[11px] text-muted-foreground">
+                  {t.anggaran.daysLeftLabel}
+                </div>
+                <div className="text-[15px] font-extrabold">
+                  {daysLeft}
+                  {t.anggaran.daysSuffix}
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  {t.anggaran.statAvgSafePrefix}
+                  <span className="mono">
+                    {formatRupiah(
+                      daysLeft > 0
+                        ? Math.round(totalRemaining / daysLeft)
+                        : totalRemaining,
+                    )}
+                  </span>
+                  {t.anggaran.statAvgSafeSuffix}
+                </div>
+              </div>
             </div>
           </div>
         </Rise>
       </div>
+
+      {/* EPIC-025 N3 rework — prototype places the over-budget/near-limit
+          alert directly under the hero, not at the bottom of the page
+          (same computed `overBudgetItems`/`nearLimitItems`, only moved). */}
+      {(overBudgetItems.length > 0 || nearLimitItems.length > 0) && (
+        <div className="flex items-center gap-3 rounded-[14px] border border-primary/20 bg-accent p-4">
+          <div className="text-[24px]">⚠️</div>
+          <div className="flex-1">
+            {overBudgetItems.length > 0 ? (
+              <>
+                <div className="text-[13px] font-bold text-primary-strong">
+                  {overBudgetItems[0]!.categoryName}
+                  {t.anggaran.overBudgetMidText}
+                  {overBudgetItems[0]!.usagePercent - 100}
+                  {t.anggaran.overBudgetSuffix}
+                </div>
+                <div className="mt-0.5 text-xs text-muted-foreground">
+                  {t.anggaran.overBudgetDesc}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-[13px] font-bold text-primary-strong">
+                  {nearLimitItems[0]!.categoryName}
+                  {t.anggaran.nearLimitMidText}
+                  {nearLimitItems[0]!.usagePercent}
+                  {t.anggaran.nearLimitSuffix}
+                </div>
+                <div className="mt-0.5 text-xs text-muted-foreground">
+                  {t.anggaran.nearLimitDesc}
+                </div>
+              </>
+            )}
+          </div>
+          <span
+            aria-disabled="true"
+            className="shrink-0 text-[12.5px] font-bold text-primary opacity-60"
+          >
+            {t.anggaran.tipsSavingLink}
+          </span>
+        </div>
+      )}
 
       {familyGroupId && (
         <ObligationsSection familyGroupId={familyGroupId} token={token} />
@@ -715,6 +890,11 @@ export default function AnggaranPage() {
 
       <SectionCard
         title={t.anggaran.categoryBreakdownTitle}
+        action={
+          <CardLink onClick={() => setOpen(true)}>
+            {t.anggaran.categoryAddAction}
+          </CardLink>
+        }
         bodyClassName="-mt-1"
       >
         {isLoading && <BudgetSkeleton />}
@@ -729,7 +909,7 @@ export default function AnggaranPage() {
           </div>
         )}
         {!isLoading && !isError && budgets && budgets.length > 0 && (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
             {budgets.map((b, i) => (
               <BudgetItem key={b.id} dto={b} index={i} />
             ))}
@@ -803,45 +983,6 @@ export default function AnggaranPage() {
               })}
             </SectionCard>
           )}
-        </div>
-      )}
-
-      {(overBudgetItems.length > 0 || nearLimitItems.length > 0) && (
-        <div className="flex items-center gap-3 rounded-[14px] border border-primary/20 bg-accent p-4">
-          <div className="text-[24px]">⚠️</div>
-          <div className="flex-1">
-            {overBudgetItems.length > 0 ? (
-              <>
-                <div className="text-[13px] font-bold text-primary-strong">
-                  {overBudgetItems[0]!.categoryName}
-                  {t.anggaran.overBudgetMidText}
-                  {overBudgetItems[0]!.usagePercent - 100}
-                  {t.anggaran.overBudgetSuffix}
-                </div>
-                <div className="mt-0.5 text-xs text-muted-foreground">
-                  {t.anggaran.overBudgetDesc}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="text-[13px] font-bold text-primary-strong">
-                  {nearLimitItems[0]!.categoryName}
-                  {t.anggaran.nearLimitMidText}
-                  {nearLimitItems[0]!.usagePercent}
-                  {t.anggaran.nearLimitSuffix}
-                </div>
-                <div className="mt-0.5 text-xs text-muted-foreground">
-                  {t.anggaran.nearLimitDesc}
-                </div>
-              </>
-            )}
-          </div>
-          <span
-            aria-disabled="true"
-            className="shrink-0 text-[12.5px] font-bold text-primary opacity-60"
-          >
-            {t.anggaran.tipsSavingLink}
-          </span>
         </div>
       )}
 

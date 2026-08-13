@@ -146,52 +146,63 @@ const SUPPORTED_BANKS = [
 
 type MatchStatus = "ok" | "warn" | "err";
 
-/* ─────────────────────────── Stepper ─────────────────────────── */
+/* ─────────────────────────── Step cards ─────────────────────────── */
 
-function Stepper({ step }: { step: number }) {
+/** Restructure (prototype parity) — bordered numbered step cards with a
+ * status badge (Selesai / Sedang berjalan / Menunggu) and an outlined
+ * active card, replacing the plain circles-and-lines stepper. Purely a
+ * navigation/visual change — `step` state and the 4-step flow are
+ * unchanged. */
+function StepCards({ step }: { step: number }) {
   const { t } = useLocale();
   return (
-    <div className="mb-5 flex items-center">
-      {STEP_NUMS.map((num, i) => {
+    <div className="mb-5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+      {STEP_NUMS.map((num) => {
         const done = step > num;
         const active = step === num;
         const s = t.rekonsiliasi.steps[num];
+        const statusLabel = done
+          ? t.rekonsiliasi.stepStatusDone
+          : active
+            ? t.rekonsiliasi.stepStatusActive
+            : t.rekonsiliasi.stepStatusPending;
         return (
-          <React.Fragment key={num}>
-            <div className="flex flex-1 flex-col items-center text-center">
+          <div
+            key={num}
+            className={[
+              "rounded-[14px] border-2 bg-card p-3.5 transition-colors",
+              active ? "border-primary" : "border-transparent",
+            ].join(" ")}
+          >
+            <div className="mb-2 flex items-center justify-between">
               <div
                 className={[
-                  "flex size-9 items-center justify-center rounded-full text-[14px] font-bold transition-colors",
+                  "flex size-7 items-center justify-center rounded-full text-[12px] font-bold",
                   done
                     ? "bg-success text-white"
                     : active
-                      ? "bg-primary text-white ring-4 ring-primary/20"
+                      ? "bg-primary text-white"
                       : "bg-muted text-muted-foreground",
                 ].join(" ")}
               >
-                {done ? <Check className="size-[18px]" /> : num}
+                {done ? <Check className="size-[14px]" /> : num}
               </div>
-              <div
+              <span
                 className={[
-                  "mt-1.5 text-[12px] font-bold",
-                  active || done ? "text-foreground" : "text-muted-foreground",
+                  "rounded-full px-2 py-0.5 text-[10px] font-bold",
+                  done
+                    ? "bg-success-soft text-emerald-700 dark:text-emerald-300"
+                    : active
+                      ? "bg-accent text-primary-strong"
+                      : "bg-muted text-muted-foreground",
                 ].join(" ")}
               >
-                {s.label}
-                <span className="block text-[10px] font-normal text-muted-foreground">
-                  {s.sub}
-                </span>
-              </div>
+                {statusLabel}
+              </span>
             </div>
-            {i < STEP_NUMS.length - 1 && (
-              <div
-                className={[
-                  "mx-1 mb-7 h-[2px] flex-1 transition-colors",
-                  step > num ? "bg-success" : "bg-border",
-                ].join(" ")}
-              />
-            )}
-          </React.Fragment>
+            <div className="text-[13.5px] font-extrabold">{s.label}</div>
+            <div className="text-[11px] text-muted-foreground">{s.sub}</div>
+          </div>
         );
       })}
     </div>
@@ -1275,6 +1286,14 @@ export default function RekonsiliasiPage() {
     },
   });
 
+  // Restructure (prototype parity) — the segmented filter above the match
+  // table narrows which fetched entries render; it never re-fetches or
+  // changes the real matched/suggested/unmatched counts above it (those
+  // stay computed off the full `entries` list).
+  const [entryFilter, setEntryFilter] = React.useState<"all" | "warn" | "err">(
+    "all",
+  );
+
   /* ─── Step 3: entry detail (#9) + fee-split (#29) dialogs ─── */
   const [detailEntry, setDetailEntry] = React.useState<BankSyncEntryDto | null>(
     null,
@@ -1358,7 +1377,47 @@ export default function RekonsiliasiPage() {
 
   return (
     <div>
-      <Stepper step={step} />
+      {/* Restructure (prototype parity) — page header with title/subtitle
+          and the two header actions from the prototype. "Kelola Template"
+          is gated the same as its existing bank-picker CardLink
+          (owner/admin_staff/spouse — casl-ability.factory.ts's
+          ReconciliationTemplate subject); "Upload Mutasi" jumps to Step 1
+          and opens the real file picker. */}
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="mb-1 text-[19px] font-extrabold">
+            {t.rekonsiliasi.headerTitle}
+          </div>
+          <div className="h-[3px] w-9 rounded-full bg-primary" />
+          <div className="mt-2 text-[12.5px] text-muted-foreground">
+            {t.rekonsiliasi.headerSubtitle}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {canManageTemplates && (
+            <button
+              type="button"
+              onClick={() => setTemplateManagerOpen(true)}
+              className="rounded-lg border px-3.5 py-2 text-[12.5px] font-bold transition-colors hover:bg-accent"
+            >
+              {t.rekonsiliasi.manageTemplatesLink}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              goto(1);
+              handleUploadAreaClick();
+            }}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-bold text-white transition-opacity hover:opacity-90"
+          >
+            <ArrowUpFromLine className="size-3.5" />
+            {t.rekonsiliasi.uploadMutasiButton}
+          </button>
+        </div>
+      </div>
+
+      <StepCards step={step} />
 
       {/* EPIC-023 Task G retry (HIGH five-reviewer finding) — a partial
           import must stay visible past the upload toast: every skipped row
@@ -1398,240 +1457,317 @@ export default function RekonsiliasiPage() {
         </div>
       )}
 
-      {/* ─── Step 1: Upload ─── */}
+      {/* ─── Step 1: Upload — restructured into the prototype's 2-column
+          layout: upload/mapping/history on the left, a reference rail
+          (supported banks + tips) on the right. ─── */}
       {step === 1 && (
-        <div className="space-y-4">
-          <SectionCard>
-            <div className="mb-1 text-[15px] font-extrabold">
-              {t.rekonsiliasi.uploadTitle}
-            </div>
-            <div className="mb-[18px] text-[12.5px] text-muted-foreground">
-              {t.rekonsiliasi.uploadSubtitle}
-            </div>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,.xlsx,.pdf"
-              className="sr-only"
-              onChange={handleFileChange}
-            />
-
-            <button
-              type="button"
-              onClick={handleUploadAreaClick}
-              disabled={uploading || uploadMutation.isPending}
-              className="w-full cursor-pointer rounded-[14px] border-2 border-dashed border-primary/40 bg-accent/40 px-5 py-8 text-center transition-colors hover:border-primary hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="space-y-4 lg:col-span-2">
+            <SectionCard
+              action={
+                <span className="text-[11px] font-semibold text-muted-foreground">
+                  {t.rekonsiliasi.maxFileSizeLabel}
+                </span>
+              }
             >
-              <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full bg-accent">
-                <CloudUpload className="size-7 text-primary" />
+              <div className="mb-1 text-[15px] font-extrabold">
+                {t.rekonsiliasi.uploadTitle}
               </div>
-              <div className="mb-1.5 text-[15px] font-bold text-primary-strong">
-                {uploading || uploadMutation.isPending
-                  ? t.rekonsiliasi.uploadingLabel
-                  : t.rekonsiliasi.dragDropLabel}
+              <div className="mb-[18px] text-[12.5px] text-muted-foreground">
+                {t.rekonsiliasi.uploadSubtitle}
               </div>
-              <div className="mb-4 text-[12.5px] text-muted-foreground">
-                {t.rekonsiliasi.orLabel}
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-[11px] text-[13.5px] font-bold text-white">
-                <ArrowUpFromLine className="size-4" />{" "}
-                {t.rekonsiliasi.chooseFileButton}
-              </div>
-              <div className="mt-3.5 text-[11.5px] text-muted-foreground">
-                {t.rekonsiliasi.supportedFormatsLabel}
-              </div>
-              <div className="text-[11.5px] text-muted-foreground">
-                {t.rekonsiliasi.maxFileSizeLabel}
-              </div>
-            </button>
-          </SectionCard>
 
-          {/* EPIC-023 G2 (D17) — bank picker: selecting a bank applies its
-              saved column-mapping template; leaving it unselected falls
-              back to header-alias auto-detection on the server. */}
-          <SectionCard
-            title={t.rekonsiliasi.supportedBanksTitle}
-            action={
-              canManageTemplates ? (
-                <CardLink onClick={() => setTemplateManagerOpen(true)}>
-                  {t.rekonsiliasi.manageTemplatesLink}
-                </CardLink>
-              ) : (
-                <CardLink>{t.rekonsiliasi.viewAllLink}</CardLink>
-              )
-            }
-          >
-            <div className="mb-2.5 text-[11.5px] text-muted-foreground">
-              {t.rekonsiliasi.bankPickerHint}
-            </div>
-            <div className="flex flex-wrap gap-2.5">
-              {SUPPORTED_BANKS.map((b) => {
-                const selected = selectedBankCode === b.code;
-                const hasTemplate = templateBankCodes.has(b.code);
-                return (
-                  <button
-                    key={b.code}
-                    type="button"
-                    onClick={() =>
-                      setSelectedBankCode(selected ? null : b.code)
-                    }
-                    className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-[12.5px] font-semibold transition-colors ${
-                      selected
-                        ? "border-primary bg-accent"
-                        : "bg-card hover:bg-accent/50"
-                    }`}
-                  >
-                    <div
-                      className="flex h-6 min-w-9 items-center justify-center rounded px-1 text-[10px] font-extrabold"
-                      style={{ background: b.bg, color: b.color }}
-                    >
-                      {b.code}
-                    </div>
-                    {b.name}
-                    {hasTemplate && (
-                      <span
-                        className="size-1.5 rounded-full bg-success"
-                        title={t.rekonsiliasi.templateSavedIndicator}
-                      />
-                    )}
-                  </button>
-                );
-              })}
-              <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-[12.5px] font-semibold text-muted-foreground">
-                {t.rekonsiliasi.othersLabel}
-              </div>
-            </div>
-            {selectedBankCode && (
-              <div className="mt-2.5 text-[11.5px] text-primary">
-                {templateBankCodes.has(selectedBankCode)
-                  ? t.rekonsiliasi.bankSelectedWithTemplate
-                  : t.rekonsiliasi.bankSelectedNoTemplate}
-              </div>
-            )}
-          </SectionCard>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.xlsx,.pdf"
+                className="sr-only"
+                onChange={handleFileChange}
+              />
 
-          <ReconciliationTemplateManagerDialog
-            open={templateManagerOpen}
-            onClose={() => setTemplateManagerOpen(false)}
-            familyGroupId={familyGroupId}
-            token={token}
-          />
+              <button
+                type="button"
+                onClick={handleUploadAreaClick}
+                disabled={uploading || uploadMutation.isPending}
+                className="w-full cursor-pointer rounded-[14px] border-2 border-dashed border-primary/40 bg-accent/40 px-5 py-8 text-center transition-colors hover:border-primary hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full bg-accent">
+                  <CloudUpload className="size-7 text-primary" />
+                </div>
+                <div className="mb-1.5 text-[15px] font-bold text-primary-strong">
+                  {uploading || uploadMutation.isPending
+                    ? t.rekonsiliasi.uploadingLabel
+                    : t.rekonsiliasi.dragDropLabel}
+                </div>
+                <div className="mb-4 text-[12.5px] text-muted-foreground">
+                  {t.rekonsiliasi.orLabel}
+                </div>
+                <div className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-[11px] text-[13.5px] font-bold text-white">
+                  <ArrowUpFromLine className="size-4" />{" "}
+                  {t.rekonsiliasi.chooseFileButton}
+                </div>
+                <div className="mt-3.5 flex items-center justify-center gap-1.5">
+                  <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                    CSV
+                  </span>
+                  <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                    XLSX
+                  </span>
+                </div>
+              </button>
 
-          {/* Recent documents */}
-          <SectionCard
-            title={t.rekonsiliasi.recentDocsTitle}
-            action={<CardLink>{t.rekonsiliasi.viewHistoryLink}</CardLink>}
-          >
-            {syncsQuery.isLoading ? (
-              <div className="py-6 text-center text-[12.5px] text-muted-foreground">
-                {t.rekonsiliasi.loadingLabel}
+              {/* Format callouts — honest, non-decorative: the CSV/XLSX
+                  callout matches the parser's real minimum columns
+                  (reconciliation-parsers.ts), and the PDF callout explains
+                  the server's real, deliberate refusal
+                  (uploadErrorPdfUnsupported). */}
+              <div className="mt-3.5 rounded-lg border border-success/30 bg-success-soft px-3.5 py-3 text-[12px] text-emerald-800 dark:text-emerald-300">
+                <span className="font-bold">
+                  {t.rekonsiliasi.formatCalloutTitle}
+                </span>{" "}
+                {t.rekonsiliasi.formatCalloutBody}
               </div>
-            ) : !syncsQuery.data || syncsQuery.data.length === 0 ? (
-              <div className="py-6 text-center text-[12.5px] text-muted-foreground">
-                {t.rekonsiliasi.emptyDocs}
+              <div className="mt-2 rounded-lg border border-destructive/30 bg-red-50 px-3.5 py-3 text-[12px] text-red-800 dark:bg-red-950/30 dark:text-red-300">
+                <span className="font-bold">
+                  {t.rekonsiliasi.pdfCalloutTitle}
+                </span>{" "}
+                {t.rekonsiliasi.pdfCalloutBody}
               </div>
-            ) : (
-              <div className="space-y-2">
-                {syncsQuery.data.map((sync) => {
-                  const isSpreadsheet = /\.(xlsx?|csv)$/i.test(sync.fileName);
+            </SectionCard>
+
+            {/* EPIC-023 G2 (D17) — bank picker: selecting a bank applies its
+                saved column-mapping template; leaving it unselected falls
+                back to header-alias auto-detection on the server. */}
+            <SectionCard title={t.rekonsiliasi.supportedBanksTitle}>
+              <div className="mb-2.5 text-[11.5px] text-muted-foreground">
+                {t.rekonsiliasi.bankPickerHint}
+              </div>
+              <div className="flex flex-wrap gap-2.5">
+                {SUPPORTED_BANKS.map((b) => {
+                  const selected = selectedBankCode === b.code;
+                  const hasTemplate = templateBankCodes.has(b.code);
                   return (
                     <button
-                      key={sync.id}
+                      key={b.code}
                       type="button"
-                      onClick={() => {
-                        setSyncId(sync.id);
-                        setStep(2);
-                      }}
-                      className="flex w-full cursor-pointer items-center gap-3 rounded-lg border bg-card p-3 text-left transition-colors hover:bg-accent/50"
+                      onClick={() =>
+                        setSelectedBankCode(selected ? null : b.code)
+                      }
+                      className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-[12.5px] font-semibold transition-colors ${
+                        selected
+                          ? "border-primary bg-accent"
+                          : "bg-card hover:bg-accent/50"
+                      }`}
                     >
                       <div
-                        className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg text-white"
-                        style={{
-                          background: isSpreadsheet ? "#217346" : "#E53E3E",
-                        }}
+                        className="flex h-6 min-w-9 items-center justify-center rounded px-1 text-[10px] font-extrabold"
+                        style={{ background: b.bg, color: b.color }}
                       >
-                        {isSpreadsheet ? (
-                          <FileSpreadsheet className="size-[18px]" />
-                        ) : (
-                          <FileText className="size-[18px]" />
-                        )}
+                        {b.code}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-[13px] font-bold">
-                          {sync.fileName}
-                        </div>
-                        <div className="truncate text-[11px] text-muted-foreground">
-                          {`${t.rekonsiliasi.uploadedAtPrefix}${new Date(
-                            sync.uploadedAt,
-                          ).toLocaleString(
-                            locale === "en" ? "en-US" : "id-ID",
-                          )}`}
-                        </div>
-                      </div>
-                      <div className="flex-shrink-0 text-right">
-                        <StatusBadge
-                          variant="info"
-                          className="mb-[3px] text-[10px]"
-                        >
-                          {t.rekonsiliasi.uploadedBadge}
-                        </StatusBadge>
-                        <div className="text-[11px] text-muted-foreground">
-                          {`${sync.rowCount}${t.rekonsiliasi.transactionsCountSuffix}`}
-                        </div>
-                      </div>
-                      <ChevronRight className="size-3 flex-shrink-0 text-muted-foreground" />
+                      {b.name}
+                      {hasTemplate && (
+                        <span
+                          className="size-1.5 rounded-full bg-success"
+                          title={t.rekonsiliasi.templateSavedIndicator}
+                        />
+                      )}
                     </button>
                   );
                 })}
+                <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-[12.5px] font-semibold text-muted-foreground">
+                  {t.rekonsiliasi.othersLabel}
+                </div>
               </div>
-            )}
-          </SectionCard>
+              {selectedBankCode && (
+                <div className="mt-2.5 text-[11.5px] text-primary">
+                  {templateBankCodes.has(selectedBankCode)
+                    ? t.rekonsiliasi.bankSelectedWithTemplate
+                    : t.rekonsiliasi.bankSelectedNoTemplate}
+                </div>
+              )}
+            </SectionCard>
 
-          {/* Tips */}
-          {showTips && (
-            <div className="relative rounded-[14px] border border-amber-300 bg-amber-50 px-4 py-3.5 dark:border-amber-900 dark:bg-amber-950/30">
-              <button
-                type="button"
-                onClick={() => setShowTips(false)}
-                aria-label={t.rekonsiliasi.closeTipsAriaLabel}
-                className="absolute right-3 top-2.5 cursor-pointer text-[16px] text-muted-foreground"
+            {/* Restructure (prototype parity) — "Pemetaan Kolom" as an
+                inline section (not only inside the template-manager
+                dialog), scoped to the real template fields the API
+                actually stores: dateColumn/descriptionColumn/amountColumn
+                (upsert-reconciliation-template.dto.ts). The prototype also
+                shows separate Debit/Kredit selects and a "Uji 5 baris"
+                preview button — neither has a backing field/endpoint
+                (`ReconciliationTemplate` has one `amountColumn`, and there
+                is no dry-run endpoint), so both are omitted rather than
+                faked. */}
+            {selectedBankCode && (
+              <SectionCard
+                title={`${t.rekonsiliasi.mappingSectionTitle} — ${
+                  SUPPORTED_BANKS.find((b) => b.code === selectedBankCode)
+                    ?.name ?? selectedBankCode
+                }`}
+                action={
+                  templateBankCodes.has(selectedBankCode) ? (
+                    <StatusBadge variant="success" className="text-[10px]">
+                      {t.rekonsiliasi.templateSavedIndicator}
+                    </StatusBadge>
+                  ) : undefined
+                }
               >
-                ×
-              </button>
-              <div className="flex items-start gap-2.5">
-                <Lightbulb className="mt-0.5 size-4 flex-shrink-0 text-warning" />
-                <div>
-                  <div className="mb-1.5 text-[12.5px] font-bold">
-                    {t.rekonsiliasi.tipsTitle}
+                <div className="mb-3 text-[11.5px] text-muted-foreground">
+                  {t.rekonsiliasi.mappingSectionHint}
+                </div>
+                {canManageTemplates ? (
+                  <button
+                    type="button"
+                    onClick={() => setTemplateManagerOpen(true)}
+                    className="rounded-md bg-primary px-4 py-2 text-[12.5px] font-bold text-white transition-opacity hover:opacity-90"
+                  >
+                    {t.rekonsiliasi.manageTemplatesLink}
+                  </button>
+                ) : (
+                  <div className="text-[11.5px] text-muted-foreground">
+                    {t.rekonsiliasi.bankSelectedNoTemplate}
                   </div>
-                  <div className="flex flex-col gap-1 text-[12px] text-foreground/80">
-                    <span className="flex items-center gap-1.5">
-                      <Check className="size-3.5 text-success" />
-                      {t.rekonsiliasi.tip1}
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <Check className="size-3.5 text-success" />
-                      {t.rekonsiliasi.tip2}
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <Check className="size-3.5 text-success" />
-                      {t.rekonsiliasi.tip3}
-                    </span>
+                )}
+              </SectionCard>
+            )}
+
+            <ReconciliationTemplateManagerDialog
+              open={templateManagerOpen}
+              onClose={() => setTemplateManagerOpen(false)}
+              familyGroupId={familyGroupId}
+              token={token}
+            />
+
+            {/* Recent documents */}
+            <SectionCard
+              title={t.rekonsiliasi.recentDocsTitle}
+              action={<CardLink>{t.rekonsiliasi.viewHistoryLink}</CardLink>}
+            >
+              {syncsQuery.isLoading ? (
+                <div className="py-6 text-center text-[12.5px] text-muted-foreground">
+                  {t.rekonsiliasi.loadingLabel}
+                </div>
+              ) : !syncsQuery.data || syncsQuery.data.length === 0 ? (
+                <div className="py-6 text-center text-[12.5px] text-muted-foreground">
+                  {t.rekonsiliasi.emptyDocs}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {syncsQuery.data.map((sync) => {
+                    const isSpreadsheet = /\.(xlsx?|csv)$/i.test(sync.fileName);
+                    return (
+                      <button
+                        key={sync.id}
+                        type="button"
+                        onClick={() => {
+                          setSyncId(sync.id);
+                          setStep(2);
+                        }}
+                        className="flex w-full cursor-pointer items-center gap-3 rounded-lg border bg-card p-3 text-left transition-colors hover:bg-accent/50"
+                      >
+                        <div
+                          className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg text-white"
+                          style={{
+                            background: isSpreadsheet ? "#217346" : "#E53E3E",
+                          }}
+                        >
+                          {isSpreadsheet ? (
+                            <FileSpreadsheet className="size-[18px]" />
+                          ) : (
+                            <FileText className="size-[18px]" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-[13px] font-bold">
+                            {sync.fileName}
+                            <span className="ml-1.5 font-normal text-muted-foreground">
+                              ·{" "}
+                              {`${t.rekonsiliasi.uploadedAtPrefix}${new Date(
+                                sync.uploadedAt,
+                              ).toLocaleString(
+                                locale === "en" ? "en-US" : "id-ID",
+                              )} · ${sync.rowCount}${t.rekonsiliasi.transactionsCountSuffix}`}
+                            </span>
+                          </div>
+                        </div>
+                        <StatusBadge
+                          variant="info"
+                          className="flex-shrink-0 text-[10px]"
+                        >
+                          {t.rekonsiliasi.uploadedBadge}
+                        </StatusBadge>
+                        <ChevronRight className="size-3 flex-shrink-0 text-muted-foreground" />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </SectionCard>
+
+            <button
+              type="button"
+              onClick={() => setStep(2)}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-[13.5px] font-bold text-white transition-opacity hover:opacity-90"
+            >
+              {t.rekonsiliasi.continueToMatchButton}{" "}
+              <ArrowRight className="size-4" />
+            </button>
+          </div>
+
+          {/* Right rail — supported banks quick reference + tips card,
+              matching the prototype's 2-column layout. */}
+          <div className="space-y-4">
+            <SectionCard title={t.rekonsiliasi.supportedBanksTitle}>
+              <div className="flex flex-wrap gap-1.5">
+                {SUPPORTED_BANKS.map((b) => (
+                  <span
+                    key={b.code}
+                    className="rounded-full border bg-card px-2.5 py-1 text-[11px] font-semibold"
+                  >
+                    {b.name}
+                  </span>
+                ))}
+              </div>
+              <div className="mt-2.5 text-[11px] text-muted-foreground">
+                {t.rekonsiliasi.bankPickerHint}
+              </div>
+            </SectionCard>
+
+            {showTips && (
+              <div className="relative rounded-[14px] border border-amber-300 bg-amber-50 px-4 py-3.5 dark:border-amber-900 dark:bg-amber-950/30">
+                <button
+                  type="button"
+                  onClick={() => setShowTips(false)}
+                  aria-label={t.rekonsiliasi.closeTipsAriaLabel}
+                  className="absolute right-3 top-2.5 cursor-pointer text-[16px] text-muted-foreground"
+                >
+                  ×
+                </button>
+                <div className="flex items-start gap-2.5">
+                  <Lightbulb className="mt-0.5 size-4 flex-shrink-0 text-warning" />
+                  <div>
+                    <div className="mb-1.5 text-[12.5px] font-bold">
+                      {t.rekonsiliasi.tipsTitle}
+                    </div>
+                    <div className="flex flex-col gap-1 text-[12px] text-foreground/80">
+                      <span className="flex items-center gap-1.5">
+                        <Check className="size-3.5 text-success" />
+                        {t.rekonsiliasi.tip1}
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <Check className="size-3.5 text-success" />
+                        {t.rekonsiliasi.tip2}
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <Check className="size-3.5 text-success" />
+                        {t.rekonsiliasi.tip3}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setStep(2)}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-[13.5px] font-bold text-white transition-opacity hover:opacity-90"
-          >
-            {t.rekonsiliasi.continueToMatchButton}{" "}
-            <ArrowRight className="size-4" />
-          </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -1702,239 +1838,284 @@ export default function RekonsiliasiPage() {
       )}
 
       {/* ─── Step 3: Matching ─── */}
-      {step === 3 && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-2.5">
-            <div className="flex flex-col items-center gap-0.5 rounded-lg bg-success-soft py-3 text-emerald-700 dark:text-emerald-300">
-              <div className="text-[22px] font-black">{matchedCount}</div>
-              <div className="text-[11px] font-semibold">
-                {t.rekonsiliasi.matchedStatLabel}
-              </div>
-            </div>
-            <div className="flex flex-col items-center gap-0.5 rounded-lg bg-warning-soft py-3 text-amber-700 dark:text-amber-300">
-              <div className="text-[22px] font-black">{suggestedCount}</div>
-              <div className="text-[11px] font-semibold">
-                {t.rekonsiliasi.needsReviewStatLabel}
-              </div>
-            </div>
-            <div className="flex flex-col items-center gap-0.5 rounded-lg bg-red-100 py-3 text-red-700 dark:bg-red-950 dark:text-red-300">
-              <div className="text-[22px] font-black">{unmatchedCount}</div>
-              <div className="text-[11px] font-semibold">
-                {t.rekonsiliasi.notMatchedStatLabel}
-              </div>
-            </div>
-          </div>
-
-          {/* EPIC-025 N3-F5 — composition donut (FOLD), same counts as the
-              stat row above. */}
-          {compositionSegments.length > 0 && (
-            <SectionCard
-              title={t.rekonsiliasi.compositionTitle}
-              action={
-                <StatusBadge variant="gray">
-                  {entries.length}
-                  {t.rekonsiliasi.transactionsCountBadgeSuffix}
-                </StatusBadge>
-              }
-            >
-              <DonutChart
-                segments={compositionSegments}
-                height={200}
-                ariaLabel={`${t.rekonsiliasi.compositionTitle}: ${compositionSegments.map((s) => `${s.label} ${s.value}`).join(", ")}`}
-              />
-            </SectionCard>
-          )}
-
-          <SectionCard
-            title={t.rekonsiliasi.matchResultsTitle}
-            action={
-              <StatusBadge variant="success">
-                {entries.length}
-                {t.rekonsiliasi.transactionsCountBadgeSuffix}
-              </StatusBadge>
-            }
-          >
-            {/* Header */}
-            <div className="mb-2 flex text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
-              <div className="flex-1 px-3">
-                {t.rekonsiliasi.colBankStatement}
-              </div>
-              <div className="w-9" />
-              <div className="flex-1 px-3">{t.rekonsiliasi.colStatus}</div>
-            </div>
-
-            {entriesQuery.isLoading && (
-              <div className="py-8 text-center text-[13px] text-muted-foreground">
-                {t.rekonsiliasi.loadingEntries}
-              </div>
-            )}
-
-            {entriesQuery.isError && (
-              <div className="py-8 text-center text-[13px] text-destructive">
-                {t.rekonsiliasi.errorLoadEntries}
-              </div>
-            )}
-
-            {!entriesQuery.isLoading &&
-              entries.length === 0 &&
-              !entriesQuery.isError && (
-                <div className="py-8 text-center text-[13px] text-muted-foreground">
-                  {t.rekonsiliasi.emptyEntries}
+      {step === 3 &&
+        (() => {
+          const filteredEntries = entries.filter((entry) => {
+            if (entryFilter === "all") return true;
+            return entryStatus(entry.reconStatus) === entryFilter;
+          });
+          return (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-2.5">
+                <div className="flex flex-col items-center gap-0.5 rounded-lg bg-success-soft py-3 text-emerald-700 dark:text-emerald-300">
+                  <div className="text-[22px] font-black">{matchedCount}</div>
+                  <div className="text-[11px] font-semibold">
+                    {t.rekonsiliasi.matchedStatLabel}
+                  </div>
                 </div>
+                <div className="flex flex-col items-center gap-0.5 rounded-lg bg-warning-soft py-3 text-amber-700 dark:text-amber-300">
+                  <div className="text-[22px] font-black">{suggestedCount}</div>
+                  <div className="text-[11px] font-semibold">
+                    {t.rekonsiliasi.needsReviewStatLabel}
+                  </div>
+                </div>
+                <div className="flex flex-col items-center gap-0.5 rounded-lg bg-red-100 py-3 text-red-700 dark:bg-red-950 dark:text-red-300">
+                  <div className="text-[22px] font-black">{unmatchedCount}</div>
+                  <div className="text-[11px] font-semibold">
+                    {t.rekonsiliasi.notMatchedStatLabel}
+                  </div>
+                </div>
+              </div>
+
+              {/* EPIC-025 N3-F5 — composition donut (FOLD), same counts as the
+              stat row above. */}
+              {compositionSegments.length > 0 && (
+                <SectionCard
+                  title={t.rekonsiliasi.compositionTitle}
+                  action={
+                    <StatusBadge variant="gray">
+                      {entries.length}
+                      {t.rekonsiliasi.transactionsCountBadgeSuffix}
+                    </StatusBadge>
+                  }
+                >
+                  <DonutChart
+                    segments={compositionSegments}
+                    height={200}
+                    ariaLabel={`${t.rekonsiliasi.compositionTitle}: ${compositionSegments.map((s) => `${s.label} ${s.value}`).join(", ")}`}
+                  />
+                </SectionCard>
               )}
 
-            <div className="space-y-2">
-              {entries.map((entry) => {
-                const status = entryStatus(entry.reconStatus);
-                const amtNum = parseInt(entry.amount, 10) / 100;
-                const amtFormatted = new Intl.NumberFormat(
-                  locale === "en" ? "en-US" : "id-ID",
-                  {
-                    style: "currency",
-                    currency: entry.currency || "IDR",
-                    minimumFractionDigits: 0,
-                  },
-                ).format(Math.abs(amtNum));
-                const amtDisplay =
-                  amtNum < 0 ? `-${amtFormatted}` : `+${amtFormatted}`;
-                const amtClass =
-                  amtNum < 0 ? "text-destructive" : "text-success";
-                const entryDate = new Date(entry.date).toLocaleDateString(
-                  locale === "en" ? "en-US" : "id-ID",
-                  {
-                    day: "numeric",
-                    month: "short",
-                  },
-                );
-                // EPIC-021 Group C (#9) — detail-trigger is keyboard-operable
-                // (Enter/Space), mirroring the `/transaksi` TxRow convention.
-                // The Confirm/Pecah buttons below render as SIBLINGS of this
-                // role="button" element (not nested inside it) so neither a
-                // click nor a keydown on those buttons bubbles up and
-                // re-triggers this row's own handler.
-                const openDetail = () => setDetailEntry(entry);
-                const handleRowKeyDown = (
-                  e: React.KeyboardEvent<HTMLDivElement>,
-                ) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    openDetail();
-                  }
-                };
+              <SectionCard
+                title={t.rekonsiliasi.matchResultsTitle}
+                action={
+                  <StatusBadge variant="success">
+                    {entries.length}
+                    {t.rekonsiliasi.transactionsCountBadgeSuffix}
+                  </StatusBadge>
+                }
+              >
+                {/* Restructure (prototype parity) — segmented filter narrows
+                the already-fetched `entries` list client-side; it does not
+                change the stat counts or re-fetch. */}
+                <div className="mb-3 inline-flex rounded-lg border p-0.5">
+                  {(
+                    [
+                      ["all", t.rekonsiliasi.matchFilterAll],
+                      ["warn", t.rekonsiliasi.matchFilterNeedsReview],
+                      ["err", t.rekonsiliasi.matchFilterNotMatched],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setEntryFilter(value)}
+                      className={`rounded-md px-3 py-1.5 text-[11.5px] font-semibold transition-colors ${
+                        entryFilter === value
+                          ? "bg-primary text-white"
+                          : "text-muted-foreground hover:bg-accent"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
 
-                return (
-                  <div key={entry.id} className="flex items-stretch">
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={openDetail}
-                      onKeyDown={handleRowKeyDown}
-                      aria-label={`${t.rekonsiliasi.entryDetailAriaLabelPrefix} ${entry.description}, ${amtDisplay}`}
-                      className="flex-1 cursor-pointer rounded-lg border bg-card px-3 py-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                      <div className="text-[11px] text-muted-foreground">
-                        {entryDate} · {entry.description}
-                      </div>
-                      <div className={`text-[13px] font-bold ${amtClass}`}>
-                        {amtDisplay}
-                      </div>
+                {/* Header */}
+                <div className="mb-2 flex text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
+                  <div className="flex-1 px-3">
+                    {t.rekonsiliasi.colBankStatement}
+                  </div>
+                  <div className="w-9" />
+                  <div className="flex-1 px-3">{t.rekonsiliasi.colStatus}</div>
+                </div>
+
+                {entriesQuery.isLoading && (
+                  <div className="py-8 text-center text-[13px] text-muted-foreground">
+                    {t.rekonsiliasi.loadingEntries}
+                  </div>
+                )}
+
+                {entriesQuery.isError && (
+                  <div className="py-8 text-center text-[13px] text-destructive">
+                    {t.rekonsiliasi.errorLoadEntries}
+                  </div>
+                )}
+
+                {!entriesQuery.isLoading &&
+                  entries.length === 0 &&
+                  !entriesQuery.isError && (
+                    <div className="py-8 text-center text-[13px] text-muted-foreground">
+                      {t.rekonsiliasi.emptyEntries}
                     </div>
-                    <MatchIcon status={status} />
-                    <div
-                      className={[
-                        "flex flex-1 items-center rounded-lg border bg-card px-3 py-2",
-                        status === "warn"
-                          ? "bg-warning-soft border-amber-300"
-                          : status === "err"
-                            ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900"
-                            : "",
-                      ].join(" ")}
-                    >
-                      {status === "ok" && (
-                        <div>
+                  )}
+
+                <div className="space-y-2">
+                  {filteredEntries.map((entry) => {
+                    const status = entryStatus(entry.reconStatus);
+                    const amtNum = parseInt(entry.amount, 10) / 100;
+                    const amtFormatted = new Intl.NumberFormat(
+                      locale === "en" ? "en-US" : "id-ID",
+                      {
+                        style: "currency",
+                        currency: entry.currency || "IDR",
+                        minimumFractionDigits: 0,
+                      },
+                    ).format(Math.abs(amtNum));
+                    const amtDisplay =
+                      amtNum < 0 ? `-${amtFormatted}` : `+${amtFormatted}`;
+                    const amtClass =
+                      amtNum < 0 ? "text-destructive" : "text-success";
+                    const entryDate = new Date(entry.date).toLocaleDateString(
+                      locale === "en" ? "en-US" : "id-ID",
+                      {
+                        day: "numeric",
+                        month: "short",
+                      },
+                    );
+                    // EPIC-021 Group C (#9) — detail-trigger is keyboard-operable
+                    // (Enter/Space), mirroring the `/transaksi` TxRow convention.
+                    // The Confirm/Pecah buttons below render as SIBLINGS of this
+                    // role="button" element (not nested inside it) so neither a
+                    // click nor a keydown on those buttons bubbles up and
+                    // re-triggers this row's own handler.
+                    const openDetail = () => setDetailEntry(entry);
+                    const handleRowKeyDown = (
+                      e: React.KeyboardEvent<HTMLDivElement>,
+                    ) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openDetail();
+                      }
+                    };
+
+                    return (
+                      <div key={entry.id} className="flex items-stretch">
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={openDetail}
+                          onKeyDown={handleRowKeyDown}
+                          aria-label={`${t.rekonsiliasi.entryDetailAriaLabelPrefix} ${entry.description}, ${amtDisplay}`}
+                          className="flex-1 cursor-pointer rounded-lg border bg-card px-3 py-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        >
                           <div className="text-[11px] text-muted-foreground">
-                            {t.rekonsiliasi.matchedLabel}
+                            {entryDate} · {entry.description}
                           </div>
                           <div className={`text-[13px] font-bold ${amtClass}`}>
                             {amtDisplay}
                           </div>
                         </div>
-                      )}
-                      {status === "warn" && (
-                        <div className="flex w-full items-center justify-between gap-2">
-                          <div className="text-[11px] text-warning">
-                            {t.rekonsiliasi.suggestedLabel}
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              disabled={confirmMutation.isPending}
-                              onClick={() => {
-                                if (entry.suggestedTxId) {
-                                  confirmMutation.mutate({
-                                    entryId: entry.id,
-                                    transactionId: entry.suggestedTxId,
-                                  });
-                                }
-                              }}
-                              className="rounded-md bg-primary px-2.5 py-1 text-[11px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
-                            >
-                              {t.rekonsiliasi.confirmButton}
-                            </button>
-                            <button
-                              type="button"
-                              aria-label={`${t.rekonsiliasi.splitButtonAriaLabelPrefix} ${entry.description}`}
-                              onClick={() => setSplitEntryTarget(entry)}
-                              className="flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-bold transition-colors hover:bg-accent"
-                            >
-                              <Scissors className="size-3" />
-                              {t.rekonsiliasi.splitButton}
-                            </button>
-                          </div>
+                        <MatchIcon status={status} />
+                        <div
+                          className={[
+                            "flex flex-1 items-center rounded-lg border bg-card px-3 py-2",
+                            status === "warn"
+                              ? "bg-warning-soft border-amber-300"
+                              : status === "err"
+                                ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900"
+                                : "",
+                          ].join(" ")}
+                        >
+                          {status === "ok" && (
+                            <div>
+                              <div className="text-[11px] text-muted-foreground">
+                                {t.rekonsiliasi.matchedLabel}
+                              </div>
+                              <div
+                                className={`text-[13px] font-bold ${amtClass}`}
+                              >
+                                {amtDisplay}
+                              </div>
+                            </div>
+                          )}
+                          {status === "warn" && (
+                            <div className="flex w-full items-center justify-between gap-2">
+                              <div className="text-[11px] text-warning">
+                                {t.rekonsiliasi.suggestedLabel}
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  disabled={confirmMutation.isPending}
+                                  onClick={() => {
+                                    if (entry.suggestedTxId) {
+                                      confirmMutation.mutate({
+                                        entryId: entry.id,
+                                        transactionId: entry.suggestedTxId,
+                                      });
+                                    }
+                                  }}
+                                  className="rounded-md bg-primary px-2.5 py-1 text-[11px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                                >
+                                  {t.rekonsiliasi.confirmButton}
+                                </button>
+                                <button
+                                  type="button"
+                                  aria-label={`${t.rekonsiliasi.splitButtonAriaLabelPrefix} ${entry.description}`}
+                                  onClick={() => setSplitEntryTarget(entry)}
+                                  className="flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-bold transition-colors hover:bg-accent"
+                                >
+                                  <Scissors className="size-3" />
+                                  {t.rekonsiliasi.splitButton}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          {status === "err" && (
+                            <div className="flex w-full items-center justify-between gap-2">
+                              <div className="text-[11px] text-destructive">
+                                {t.rekonsiliasi.notFoundLabel}
+                              </div>
+                              <button
+                                type="button"
+                                aria-label={`${t.rekonsiliasi.splitButtonAriaLabelPrefix} ${entry.description}`}
+                                onClick={() => setSplitEntryTarget(entry)}
+                                className="flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-bold transition-colors hover:bg-accent"
+                              >
+                                <Scissors className="size-3" />
+                                {t.rekonsiliasi.splitButton}
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {status === "err" && (
-                        <div className="flex w-full items-center justify-between gap-2">
-                          <div className="text-[11px] text-destructive">
-                            {t.rekonsiliasi.notFoundLabel}
-                          </div>
-                          <button
-                            type="button"
-                            aria-label={`${t.rekonsiliasi.splitButtonAriaLabelPrefix} ${entry.description}`}
-                            onClick={() => setSplitEntryTarget(entry)}
-                            className="flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-bold transition-colors hover:bg-accent"
-                          >
-                            <Scissors className="size-3" />
-                            {t.rekonsiliasi.splitButton}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </SectionCard>
+                      </div>
+                    );
+                  })}
+                </div>
 
-          <div className="flex gap-2.5">
-            <button
-              type="button"
-              onClick={() => goto(1)}
-              className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border-[1.5px] bg-background px-4 py-2.5 text-[13.5px] font-bold transition-colors hover:bg-accent"
-            >
-              <ArrowLeft className="size-4" /> {t.rekonsiliasi.backButton}
-            </button>
-            <button
-              type="button"
-              onClick={() => goto(4)}
-              className="flex flex-[2] cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-bold text-white transition-opacity hover:opacity-90"
-            >
-              <Save className="size-4" />{" "}
-              {t.rekonsiliasi.saveReconciliationButton}
-            </button>
-          </div>
-        </div>
-      )}
+                {!entriesQuery.isLoading && entries.length > 0 && (
+                  <div className="mt-3 text-[11.5px] text-muted-foreground">
+                    {t.rekonsiliasi.matchResultsFooterPrefix}
+                    {filteredEntries.length}
+                    {t.rekonsiliasi.matchResultsFooterMid}
+                    {entries.length}
+                    {t.rekonsiliasi.matchResultsFooterSuffix}
+                  </div>
+                )}
+              </SectionCard>
+
+              <div className="flex gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => goto(1)}
+                  className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border-[1.5px] bg-background px-4 py-2.5 text-[13.5px] font-bold transition-colors hover:bg-accent"
+                >
+                  <ArrowLeft className="size-4" /> {t.rekonsiliasi.backButton}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goto(4)}
+                  className="flex flex-[2] cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-bold text-white transition-opacity hover:opacity-90"
+                >
+                  <Save className="size-4" />{" "}
+                  {t.rekonsiliasi.saveReconciliationButton}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
       {/* ─── Step 4: Done ─── */}
       {step === 4 && (

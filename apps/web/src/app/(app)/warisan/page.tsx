@@ -10,7 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { HeroCard, SectionCard } from "@/components/wm";
+import {
+  HeroCard,
+  SectionCard,
+  StatusBadge,
+  ProgressBar,
+} from "@/components/wm";
 import { ConfirmDeleteDialog, RowActions } from "@/components/crud";
 // EPIC-025 N3-E3 — J3 FOLD: beneficiary-allocation donut, derived from the
 // already-fetched inheritance-assets list — no new backend endpoint.
@@ -132,74 +137,124 @@ function booleanToVisibility(v: boolean): InheritanceVisibility {
   return v ? "heirs_only" : "private";
 }
 
-function CardTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mb-3.5 text-[13.5px] font-bold text-muted-foreground">
-      {children}
-    </div>
-  );
-}
+const HEIR_CHIP_VARIANTS = [
+  "purple",
+  "info",
+  "success",
+  "warning",
+  "gray",
+] as const;
 
-interface AssetRowProps {
+interface AssetCardProps {
   item: InheritanceAssetDto;
+  linkedAssetName: string | undefined;
   onEdit: () => void;
   onDelete: () => void;
   onVisibilityToggle: (visible: boolean) => void;
-  last: boolean;
 }
 
-function AssetRow({
+/**
+ * EPIC-025 N3 restructure — one self-contained card per asset (prototype
+ * parity): type badge chip, meta line (notes + linked-asset name when the
+ * record is tied to a real `Asset`), per-heir allocation chips, and an
+ * allocation progress bar/status line. Only fields that genuinely exist on
+ * `InheritanceAssetDto` are rendered — no invented "SHM No." style copy.
+ */
+function AssetCard({
   item,
+  linkedAssetName,
   onEdit,
   onDelete,
   onVisibilityToggle,
-  last,
-}: AssetRowProps) {
+}: AssetCardProps) {
+  const { t } = useLocale();
   const icon = ASSET_TYPE_ICON[item.assetType] ?? "📋";
   const iconBg = ASSET_TYPE_BG[item.assetType] ?? "#F3F4F6";
-  const heirSummary =
-    item.heirs.length > 0
-      ? item.heirs.map((h) => `${h.name} (${h.sharePercent}%)`).join(", ")
-      : null;
-  // EPIC-021 Group D (#12) — "setiap asset ada ahli waris sesuai presentasi":
-  // surface the unallocated remainder alongside the heir list.
   const allocated = item.heirs.reduce(
     (sum, h) => sum + Number(h.sharePercent),
     0,
   );
+  const clampedAllocated = Math.min(100, allocated);
   const unallocated = Math.max(0, 100 - allocated);
+  const isFullyAllocated = allocated >= 100;
+  const barColor = isFullyAllocated
+    ? "var(--success)"
+    : allocated > 0
+      ? "var(--warning)"
+      : "var(--muted-foreground)";
+  const metaLine = [
+    item.notes,
+    linkedAssetName
+      ? `${t.warisan.linkedToAssetPrefix} "${linkedAssetName}"`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
-    <div
-      className={"flex items-center gap-2.5 py-3 " + (last ? "" : "border-b")}
-    >
-      <div
-        className="flex size-[36px] shrink-0 items-center justify-center rounded-[10px] text-[15px]"
-        style={{ background: iconBg }}
-      >
-        {icon}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-[13.5px] font-semibold truncate">{item.name}</div>
-        <div className="text-[11.5px] text-muted-foreground truncate">
-          {item.assetType}
-          {heirSummary ? ` · ${heirSummary}` : ""}
+    <div className="rounded-[12px] border bg-background p-3.5">
+      <div className="flex flex-wrap items-start gap-2.5">
+        <div
+          className="flex size-[36px] shrink-0 items-center justify-center rounded-[10px] text-[15px]"
+          style={{ background: iconBg }}
+        >
+          {icon}
         </div>
-        {item.heirs.length > 0 && unallocated > 0 && (
-          <div className="text-[11px] text-warning">
-            {unallocated}% belum dialokasikan
+        <div className="min-w-[170px] flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[13.5px] font-bold">{item.name}</span>
+            <StatusBadge variant="gray">{item.assetType}</StatusBadge>
           </div>
-        )}
+          {metaLine && (
+            <div className="mt-0.5 text-[11px] text-muted-foreground">
+              {metaLine}
+            </div>
+          )}
+        </div>
+        <div className="shrink-0 text-right">
+          <div className="text-[15px] font-black">
+            {formatRupiah(Number(BigInt(item.estimatedValue)))}
+          </div>
+          <div className="text-[11px] text-muted-foreground">
+            {t.warisan.estimatedValueLabel}
+          </div>
+        </div>
       </div>
-      <div className="text-right text-[13.5px] font-bold shrink-0">
-        {formatRupiah(Number(BigInt(item.estimatedValue)))}
+
+      <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+        {item.heirs.map((h, i) => (
+          <StatusBadge
+            key={h.id}
+            variant={HEIR_CHIP_VARIANTS[i % HEIR_CHIP_VARIANTS.length]}
+          >
+            {h.name} · {h.relationship} · {h.sharePercent}%
+          </StatusBadge>
+        ))}
+        <div className="flex-1" />
+        <Switch
+          checked={visibilityToBoolean(item.visibility)}
+          onCheckedChange={onVisibilityToggle}
+          className="shrink-0"
+        />
+        <RowActions onEdit={onEdit} onDelete={onDelete} />
       </div>
-      <Switch
-        checked={visibilityToBoolean(item.visibility)}
-        onCheckedChange={onVisibilityToggle}
-        className="shrink-0"
-      />
-      <RowActions className="ml-1" onEdit={onEdit} onDelete={onDelete} />
+
+      {item.heirs.length > 0 && (
+        <>
+          <ProgressBar
+            value={clampedAllocated}
+            color={barColor}
+            className="mt-2.5"
+          />
+          <div
+            className={`mt-1 text-[11px] ${isFullyAllocated ? "text-success" : "text-warning"}`}
+          >
+            {isFullyAllocated
+              ? t.warisan.heirAllocationFullyAllocated
+              : `${unallocated}${t.warisan.heirAllocationUnallocatedSuffix}`}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -694,17 +749,6 @@ export default function WarisanPage() {
     }
   }
 
-  // Group assets by assetType
-  const grouped = assets.reduce<Record<string, InheritanceAssetDto[]>>(
-    (acc, item) => {
-      const key = item.assetType;
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(item);
-      return acc;
-    },
-    {},
-  );
-
   const totalValue = assets.reduce(
     (sum, a) => sum + BigInt(a.estimatedValue),
     BigInt(0),
@@ -721,6 +765,10 @@ export default function WarisanPage() {
   // (unallocated share) rolls into one "Belum dialokasikan" slice — same
   // already-fetched `assets` list `AssetRow` above already reads.
   const heirAllocationTotals = new Map<string, number>();
+  // EPIC-025 N3 restructure — the relationship shown alongside each heir in
+  // the beneficiary list below the donut (first relationship string seen for
+  // that name; heirs are rarely recorded under two different relationships).
+  const heirRelationships = new Map<string, string>();
   let unallocatedTotal = 0;
   for (const asset of assets) {
     const value = Number(BigInt(asset.estimatedValue));
@@ -732,6 +780,9 @@ export default function WarisanPage() {
         heir.name,
         (heirAllocationTotals.get(heir.name) ?? 0) + (value * pct) / 100,
       );
+      if (!heirRelationships.has(heir.name)) {
+        heirRelationships.set(heir.name, heir.relationship);
+      }
     }
     const remainingPercent = Math.max(0, 100 - allocatedPercent);
     unallocatedTotal += (value * remainingPercent) / 100;
@@ -761,6 +812,24 @@ export default function WarisanPage() {
     });
   }
 
+  // EPIC-025 N3 restructure — avatar-row beneficiary list rendered under the
+  // donut (prototype parity), built from the same totals above. Colors cycle
+  // through the identical palette so a heir's avatar always matches its
+  // donut slice.
+  const heirBeneficiaryRows = Array.from(heirAllocationTotals.entries())
+    .filter(([, value]) => value > 0)
+    .map(([name, value], i) => ({
+      name,
+      relationship: heirRelationships.get(name) ?? "",
+      value,
+      color: HEIR_DONUT_COLORS[i % HEIR_DONUT_COLORS.length]!,
+      initials: name
+        .split(" ")
+        .slice(0, 2)
+        .map((w) => w[0]?.toUpperCase() ?? "")
+        .join(""),
+    }));
+
   return (
     <div className="space-y-4">
       {/* Hero */}
@@ -768,32 +837,41 @@ export default function WarisanPage() {
         <div className="mb-1.5 flex items-center gap-2 text-[12px] opacity-85">
           <Scroll className="size-3.5" /> {t.warisan.heroTitle}
         </div>
-        <div className="text-[30px] font-black tracking-[-1px]">
-          {formatRupiah(Number(totalValue))}
-        </div>
-        <div className="mt-1.5 text-[12px] opacity-85">
-          {assets.length}
-          {t.warisan.assetsRegisteredSuffix}
-          {heirNames.length > 0
-            ? `${t.warisan.heirsMidDot}${heirNames.length}${t.warisan.heirsSuffix}`
-            : ""}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="text-[30px] font-black tracking-[-1px]">
+              {formatRupiah(Number(totalValue))}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <StatusBadge
+                variant="gray"
+                className="bg-white/20 text-white dark:text-white"
+              >
+                {assets.length}
+                {t.warisan.assetsRegisteredSuffix}
+              </StatusBadge>
+              {heirNames.length > 0 && (
+                <span className="text-[12px] opacity-85">
+                  {t.warisan.heirsMidDot}
+                  {heirNames.length}
+                  {t.warisan.heirsSuffix}
+                </span>
+              )}
+            </div>
+          </div>
+          <Button
+            onClick={() => setOpen(true)}
+            variant="outline"
+            className="h-auto shrink-0 border-white/30 bg-white/15 px-4 py-[9px] text-white hover:bg-white/25 hover:text-white"
+          >
+            <Plus className="size-4" /> {t.warisan.addAssetButton}
+          </Button>
         </div>
         <div className="pointer-events-none absolute -top-5 -right-5 text-[140px] opacity-10">
           🏛️
         </div>
       </HeroCard>
 
-      {/* Header action */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[13px] text-muted-foreground">
-          {t.warisan.headerDesc}
-        </div>
-        <Button onClick={() => setOpen(true)} className="h-auto px-4 py-[9px]">
-          <Plus className="size-4" /> {t.warisan.addAssetButton}
-        </Button>
-      </div>
-
-      {/* Asset list grouped by type */}
       {isLoading && (
         <Card className="gap-0 p-5">
           <AssetSkeleton />
@@ -808,62 +886,119 @@ export default function WarisanPage() {
         </Card>
       )}
 
-      {!isLoading &&
-        Object.entries(grouped).map(([type, items]) => (
-          <Card key={type} className="gap-0 p-5">
-            <CardTitle>
-              {ASSET_TYPE_ICON[type] ?? "📋"} {type}
-            </CardTitle>
-            {items.map((item, i) => (
-              <AssetRow
-                key={item.id}
-                item={item}
-                last={i === items.length - 1}
-                onEdit={() => openEditAsset(item)}
-                onDelete={() => setDeleteTarget(item)}
-                onVisibilityToggle={(v) =>
-                  updateVisibilityMutation.mutate({
-                    id: item.id,
-                    visibility: booleanToVisibility(v),
-                  })
-                }
-              />
-            ))}
+      {/* EPIC-025 N3 restructure — 2-col layout: the asset list (~65%) on
+          the left, allocation donut + notes card in a right rail. */}
+      {!isLoading && assets.length > 0 && (
+        <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-[1fr_360px]">
+          <Card className="gap-0 p-5">
+            <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
+              <div className="text-[13.5px] font-bold text-muted-foreground">
+                {t.warisan.assetListCardTitle}
+              </div>
+              <span className="text-[11px] text-muted-foreground">
+                {t.warisan.visibleToAllHeirsCaption}
+              </span>
+            </div>
+            <div className="space-y-3">
+              {assets.map((item) => (
+                <AssetCard
+                  key={item.id}
+                  item={item}
+                  linkedAssetName={
+                    item.assetId
+                      ? pickableAssets.find((a) => a.id === item.assetId)?.name
+                      : undefined
+                  }
+                  onEdit={() => openEditAsset(item)}
+                  onDelete={() => setDeleteTarget(item)}
+                  onVisibilityToggle={(v) =>
+                    updateVisibilityMutation.mutate({
+                      id: item.id,
+                      visibility: booleanToVisibility(v),
+                    })
+                  }
+                />
+              ))}
+            </div>
           </Card>
-        ))}
 
-      {/* EPIC-025 N3-E3 — beneficiary-allocation donut. Section is hidden
-          when there is nothing to allocate yet (Honest UI). */}
-      {!isLoading && heirAllocationSegments.length > 0 && (
-        <SectionCard title={t.warisan.heirAllocationChartTitle}>
-          <DonutChart
-            segments={heirAllocationSegments}
-            centerLabel={t.warisan.heroTitle}
-            ariaLabel={`${t.warisan.heirAllocationChartTitle}: ${heirAllocationSegments
-              .map((s) => `${s.label} ${formatRupiah(Math.round(s.value))}`)
-              .join(", ")}`}
-          />
-        </SectionCard>
-      )}
+          <div className="space-y-3.5">
+            {/* EPIC-025 N3-E3 — beneficiary-allocation donut. Section is
+                hidden when there is nothing to allocate yet (Honest UI). */}
+            {heirAllocationSegments.length > 0 && (
+              <SectionCard title={t.warisan.heirAllocationChartTitle}>
+                <DonutChart
+                  segments={heirAllocationSegments}
+                  centerLabel={t.warisan.heroTitle}
+                  ariaLabel={`${t.warisan.heirAllocationChartTitle}: ${heirAllocationSegments
+                    .map(
+                      (s) => `${s.label} ${formatRupiah(Math.round(s.value))}`,
+                    )
+                    .join(", ")}`}
+                />
+                <div className="mt-1.5 space-y-0.5">
+                  {heirBeneficiaryRows.map((row) => (
+                    <div
+                      key={row.name}
+                      className="flex items-center gap-2.5 py-1.5"
+                    >
+                      <div
+                        className="flex size-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                        style={{ background: row.color }}
+                      >
+                        {row.initials}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[12.5px] font-semibold">
+                          {row.name}
+                        </div>
+                        {row.relationship && (
+                          <div className="truncate text-[11px] text-muted-foreground">
+                            {row.relationship}
+                          </div>
+                        )}
+                      </div>
+                      <span className="mono shrink-0 text-[12px] font-bold">
+                        {formatRupiah(Math.round(row.value))}
+                      </span>
+                    </div>
+                  ))}
+                  {unallocatedTotal > 0 && (
+                    <div className="flex items-center gap-2.5 py-1.5">
+                      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-bold text-muted-foreground">
+                        ?
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[12.5px] font-semibold">
+                          {t.warisan.heirAllocationUnallocatedLabel}
+                        </div>
+                      </div>
+                      <span className="mono shrink-0 text-[12px] font-bold text-warning">
+                        {formatRupiah(Math.round(unallocatedTotal))}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </SectionCard>
+            )}
 
-      {/* Insight banner */}
-      <div className="flex items-center gap-3 rounded-[14px] border border-primary/20 bg-accent p-4">
-        <div className="text-[24px]">🛡️</div>
-        <div className="flex-1">
-          <div className="text-[13px] font-bold text-primary-strong">
-            {t.warisan.insightTitle}
-          </div>
-          <div className="mt-0.5 text-[12px] text-muted-foreground">
-            {t.warisan.insightDesc}
+            {/* Notes card */}
+            <SectionCard title={t.warisan.insightTitle}>
+              <div className="flex items-start gap-2.5 rounded-[11px] border border-primary/20 bg-accent p-3 text-[12px] text-muted-foreground">
+                <span className="text-[16px]">🛡️</span>
+                <span>{t.warisan.insightDesc}</span>
+              </div>
+              <button
+                onClick={() => toast(t.warisan.toastUploadUnavailable)}
+                className="mt-2.5 flex w-full cursor-not-allowed items-center justify-center gap-1.5 rounded-md border-[1.5px] border-dashed p-2.5 text-[12.5px] font-semibold text-muted-foreground opacity-70"
+              >
+                <CloudUpload className="size-4" />
+                {t.warisan.uploadComingSoonButton}
+              </button>
+            </SectionCard>
           </div>
         </div>
-        <button
-          onClick={() => toast(t.warisan.toastUploadUnavailable)}
-          className="shrink-0 cursor-not-allowed text-[12.5px] font-bold text-muted-foreground"
-        >
-          {t.warisan.uploadComingSoonButton}
-        </button>
-      </div>
+      )}
 
       {/* Confirm delete */}
       <ConfirmDeleteDialog

@@ -1,11 +1,15 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { Sparkles } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { SectionCard, StatusBadge, ProgressBar } from "@/components/wm";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { cn } from "@/lib/utils";
 import { formatRupiah, formatRupiahCompact } from "@/lib/format";
 import { useCurrencyPreference } from "@/hooks/use-currency-preference";
 import { useLocale } from "@/hooks/use-locale";
@@ -25,6 +29,7 @@ import type {
   LiabilityDto,
   NetWorthDto,
   NetWorthHistoryDto,
+  NetWorthHistoryPointDto,
   ReportSummaryDto,
 } from "@wealthme/contracts";
 
@@ -36,10 +41,87 @@ const COMPOSITION_COLOR: Record<string, string> = {
   cash: "var(--muted-foreground)",
 };
 
+// ── Privacy ("Sembunyikan nominal") toggle ──────────────────────────────────
+// Page-local port of the same pattern already shipped on `aset/page.tsx`
+// (D1/US-ASSET-5): per-user localStorage, namespaced the same way as
+// device-storage.ts (`wm.<feature>.<userId>`) so one user's preference never
+// bleeds into another's on a shared device. Kept page-local because
+// `components/wm/*` is a protected foundation directory.
+const RINGKASAN_PRIVACY_STORAGE_PREFIX = "wm.ringkasan-privacy.";
+
+function readStoredPrivacy(userId: string): boolean {
+  try {
+    return (
+      window.localStorage.getItem(
+        `${RINGKASAN_PRIVACY_STORAGE_PREFIX}${userId}`,
+      ) === "1"
+    );
+  } catch {
+    // storage may be unavailable (private browsing, SSR)
+    return false;
+  }
+}
+
+function writeStoredPrivacy(userId: string, isOn: boolean): void {
+  try {
+    window.localStorage.setItem(
+      `${RINGKASAN_PRIVACY_STORAGE_PREFIX}${userId}`,
+      isOn ? "1" : "0",
+    );
+  } catch {
+    // storage may be unavailable — the toggle still works for this session
+  }
+}
+
+// ── Trend range segmented control ("6 Bln / 12 Bln / Semua") ───────────────
+// Mirrors `beranda/page.tsx`'s PERIOD_RANGE mapping onto the same
+// `/dashboard/net-worth/history` endpoint — no new backend work.
+type TrendRangeKey = "6m" | "12m" | "all";
+const TREND_RANGE_PARAM: Record<TrendRangeKey, string> = {
+  "6m": "6m",
+  "12m": "12m",
+  all: "120m",
+};
+
+// ── Root cause of the x-axis label bug ──────────────────────────────────────
+// The history endpoint returns one snapshot PER DAY the scheduler ran
+// (`dashboard.service.ts#getNetWorthHistory`), not one per month. Mapping
+// every raw point straight to a chart category produced a category per
+// snapshot day — many of which fall in the same calendar month — so the
+// x-axis rendered the same "MMM YY" label repeated for every day inside
+// that month. Fix: bucket the ascending, already-sorted points by calendar
+// month and keep the LAST (most recent / "closing") snapshot per month, so
+// each category label is unique.
+function groupHistoryPointsByMonth(
+  points: NetWorthHistoryPointDto[],
+): NetWorthHistoryPointDto[] {
+  const lastByMonth = new Map<string, NetWorthHistoryPointDto>();
+  const monthOrder: string[] = [];
+  for (const point of points) {
+    const captured = new Date(point.capturedAt);
+    const monthKey = `${captured.getFullYear()}-${captured.getMonth()}`;
+    if (!lastByMonth.has(monthKey)) monthOrder.push(monthKey);
+    lastByMonth.set(monthKey, point);
+  }
+  return monthOrder.map((key) => lastByMonth.get(key)!);
+}
+
+// Minimum days of history required before an "N% YoY" figure is honest —
+// under this span the badge is omitted instead of extrapolated (Honest UI).
+const YOY_MIN_SPAN_DAYS = 330;
+
+function formatPercent1(value: number, dateLocale: string): string {
+  return value.toLocaleString(dateLocale, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+}
+
 export default function RingkasanPage() {
   const { t } = useLocale();
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId ?? null;
+  const userId = session?.userId;
   const { currency, formatMoney, isIndicative, isReady } =
     useCurrencyPreference();
   // Never show a fabricated 1:1-rate conversion — while a non-IDR FX rate is
@@ -62,6 +144,32 @@ export default function RingkasanPage() {
       : isIndicative
         ? `≈ ${formatMoney(value)}`
         : formatRupiah(value);
+
+  // D1/US-ASSET-5-style privacy eye toggle, ported page-locally for
+  // ringkasan (prototype's "Sembunyikan nominal" button).
+  const [privacyOn, setPrivacyOn] = useState(false);
+  useEffect(() => {
+    if (!userId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPrivacyOn(readStoredPrivacy(userId));
+  }, [userId]);
+  function togglePrivacy(): void {
+    const next = !privacyOn;
+    setPrivacyOn(next);
+    if (userId) writeStoredPrivacy(userId, next);
+  }
+
+  const [trendRange, setTrendRange] = useState<TrendRangeKey>("12m");
+  const trendRanges: { key: TrendRangeKey; label: string }[] = [
+    { key: "6m", label: t.ringkasan.trendRangeLabel6m },
+    { key: "12m", label: t.ringkasan.trendRangeLabel12m },
+    { key: "all", label: t.ringkasan.trendRangeLabelAll },
+  ];
+  const trendTitleByRange: Record<TrendRangeKey, string> = {
+    "6m": t.ringkasan.netWorthTrendTitle,
+    "12m": t.ringkasan.netWorthTrendTitle12m,
+    all: t.ringkasan.netWorthTrendTitleAll,
+  };
 
   const {
     data: summary,
@@ -90,6 +198,28 @@ export default function RingkasanPage() {
       staleTime: 60_000,
     });
 
+  // Family group name for the page header subtitle ("<Family> · per <date>").
+  // `/family-groups/mine` already exists and is already used by
+  // `akun/page.tsx` — no new endpoint.
+  const { data: familyGroups } = useQuery<{ id: string; name: string }[]>({
+    queryKey: queryKeys.familyGroups.mine(),
+    queryFn: () =>
+      apiFetch<{ id: string; name: string }[]>("/family-groups/mine", {
+        token: session?.accessToken,
+      }),
+    enabled: Boolean(session?.accessToken),
+    staleTime: 60_000,
+  });
+  const familyName =
+    familyGroups?.find((g) => g.id === familyGroupId)?.name ??
+    familyGroups?.[0]?.name ??
+    t.ringkasan.pageHeaderFamilyFallback;
+  const todayLabel = new Date().toLocaleDateString(t.beranda.dateLocale, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
   const netWorth = summary?.netWorth ?? 0;
   // EPIC-022 B5 — use the API's own net-worth rollup (accounts + investments
   // + other assets) so this card reconciles with the net-worth figure beside
@@ -97,10 +227,10 @@ export default function RingkasanPage() {
   // `accountSummary` filtered to positive balances only — it silently
   // dropped overdrawn accounts and excluded investments/other assets that
   // ARE part of net worth.
-  const totalAssets =
-    Number(netWorthData?.accountsTotal ?? 0) +
-    Number(netWorthData?.investmentsTotal ?? 0) +
-    Number(netWorthData?.assetsTotal ?? 0);
+  const accountsTotal = Number(netWorthData?.accountsTotal ?? 0);
+  const investmentsTotal = Number(netWorthData?.investmentsTotal ?? 0);
+  const physicalAssetsTotal = Number(netWorthData?.assetsTotal ?? 0);
+  const totalAssets = accountsTotal + investmentsTotal + physicalAssetsTotal;
   const savingsRate = summary?.currentMonth.savingsRate ?? 0;
   const monthIncome = summary?.currentMonth.income ?? 0;
   const monthExpense = summary?.currentMonth.expense ?? 0;
@@ -123,30 +253,36 @@ export default function RingkasanPage() {
 
   const topExpenses = reportSummary?.topExpenseCategories ?? [];
 
-  // EPIC-022 B4 — "Tren Kekayaan Bersih (6 Bulan)" now plots the real
-  // net-worth history endpoint (already used by /beranda), instead of a
-  // cumulative running sum of income − expense from zero, which is
-  // cumulative cashflow, not net worth. Chosen over relabelling because the
-  // real data source already exists and fits the "6 months" window exactly.
+  // "Tren Kekayaan Bersih" — plots the real net-worth history endpoint
+  // (already used by /beranda), instead of a cumulative running sum of
+  // income − expense from zero, which is cumulative cashflow, not net
+  // worth. The range is now driven by the "6 Bln / 12 Bln / Semua"
+  // segmented control instead of a fixed 6-month window.
   const { data: netWorthHistory, isLoading: isNetWorthHistoryLoading } =
     useQuery<NetWorthHistoryDto>({
-      queryKey: ["dashboard", familyGroupId ?? "", "net-worth-history", "6m"],
+      queryKey: [
+        "dashboard",
+        familyGroupId ?? "",
+        "net-worth-history",
+        TREND_RANGE_PARAM[trendRange],
+      ],
       queryFn: () =>
         apiFetch<NetWorthHistoryDto>(
-          `/family-groups/${familyGroupId}/dashboard/net-worth/history?range=6m`,
+          `/family-groups/${familyGroupId}/dashboard/net-worth/history?range=${TREND_RANGE_PARAM[trendRange]}`,
           { token: session?.accessToken },
         ),
       enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
       staleTime: 60_000,
     });
   const netWorthHistoryPoints = netWorthHistory?.points ?? [];
-  const netWorthTrendValues = netWorthHistoryPoints.map((p) =>
+  // Bucketed to one (closing) point per calendar month — see
+  // `groupHistoryPointsByMonth`'s header comment for why the raw points
+  // produced repeated x-axis labels.
+  const groupedHistoryPoints = groupHistoryPointsByMonth(netWorthHistoryPoints);
+  const netWorthTrendValues = groupedHistoryPoints.map((p) =>
     Number(p.netWorth),
   );
-  // EPIC-025 N3-C2 — TrendChart mount. A trend needs at least two points to
-  // mean anything — one snapshot would render as a flat single dot, which
-  // looks like data rather than "not enough history yet".
-  const netWorthTrendCategories = netWorthHistoryPoints.map((p) =>
+  const netWorthTrendCategories = groupedHistoryPoints.map((p) =>
     new Date(p.capturedAt).toLocaleDateString(t.beranda.dateLocale, {
       month: "short",
       year: "2-digit",
@@ -157,8 +293,34 @@ export default function RingkasanPage() {
   ];
   const netWorthTrendAriaLabel =
     netWorthTrendValues.length >= 2
-      ? `${t.ringkasan.netWorthTrendTitle}: ${moneyFull(netWorthTrendValues[0]!)} ${t.ringkasan.netWorthTrendRangeStart} → ${moneyFull(netWorthTrendValues[netWorthTrendValues.length - 1]!)} ${t.ringkasan.netWorthTrendRangeEnd}`
-      : t.ringkasan.netWorthTrendTitle;
+      ? `${trendTitleByRange[trendRange]}: ${moneyFull(netWorthTrendValues[0]!)} ${t.ringkasan.netWorthTrendRangeStart} → ${moneyFull(netWorthTrendValues[netWorthTrendValues.length - 1]!)} ${t.ringkasan.netWorthTrendRangeEnd}`
+      : trendTitleByRange[trendRange];
+
+  // "↑ N% YoY" badge — computed honestly from the same series already
+  // plotted. Only rendered when the fetched history actually spans close to
+  // a year; otherwise a shorter-range selection (e.g. "6 Bln") would
+  // silently produce a misleading "YoY" number.
+  const firstHistoryPoint = groupedHistoryPoints[0];
+  const lastHistoryPoint =
+    groupedHistoryPoints[groupedHistoryPoints.length - 1];
+  let yoyPct: number | null = null;
+  if (
+    firstHistoryPoint &&
+    lastHistoryPoint &&
+    firstHistoryPoint !== lastHistoryPoint
+  ) {
+    const spanDays =
+      (new Date(lastHistoryPoint.capturedAt).getTime() -
+        new Date(firstHistoryPoint.capturedAt).getTime()) /
+      86_400_000;
+    const firstNetWorth = Number(firstHistoryPoint.netWorth);
+    if (spanDays >= YOY_MIN_SPAN_DAYS && firstNetWorth !== 0) {
+      yoyPct =
+        ((Number(lastHistoryPoint.netWorth) - firstNetWorth) /
+          Math.abs(firstNetWorth)) *
+        100;
+    }
+  }
 
   const composition = (summary?.allocation ?? []).map((item) => ({
     label: item.label,
@@ -215,10 +377,10 @@ export default function RingkasanPage() {
     enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
     staleTime: 60_000,
   });
-  const liabilityBreakdown = (liabilities ?? [])
+  const allLiabilities = (liabilities ?? [])
     .slice()
-    .sort((a, b) => Number(b.remainingBalance) - Number(a.remainingBalance))
-    .slice(0, 6);
+    .sort((a, b) => Number(b.remainingBalance) - Number(a.remainingBalance));
+  const liabilityBreakdown = allLiabilities.slice(0, 6);
   const liabilityCategories = liabilityBreakdown.map((l) => l.name);
   const liabilityData = liabilityBreakdown.map((l) =>
     Number(l.remainingBalance),
@@ -227,6 +389,52 @@ export default function RingkasanPage() {
     liabilityBreakdown.length > 0
       ? `${t.ringkasan.liabilityBreakdownTitle}: ${liabilityBreakdown.map((l) => `${l.name} ${moneyFull(Number(l.remainingBalance))}`).join(", ")}`
       : t.ringkasan.liabilityBreakdownTitle;
+
+  // "Rincian Aset vs Liabilitas" table — grouped by type, from data already
+  // fetched on this page (`netWorthData`'s rollups + `summary.accountSummary`
+  // for the bank/cash split + the full `liabilities` list above). No new
+  // endpoint, and every row reconciles with the stat cards above (same
+  // `totalAssets`/`totalLiabilities` figures).
+  const accountSummaryList = summary?.accountSummary ?? [];
+  const bankAmount = accountSummaryList
+    .filter((a) => a.type === "bank")
+    .reduce((sum, a) => sum + a.total, 0);
+  const cashAmount = accountSummaryList
+    .filter((a) => a.type === "cash" || a.type === "ewallet")
+    .reduce((sum, a) => sum + a.total, 0);
+  const assetBreakdownRows = [
+    {
+      key: "physical",
+      label: t.ringkasan.breakdownAssetPhysicalLabel,
+      badgeLabel: t.ringkasan.breakdownBadgeAssetFisik,
+      badgeVariant: "success" as const,
+      amount: physicalAssetsTotal,
+    },
+    {
+      key: "investment",
+      label: t.ringkasan.breakdownAssetInvestmentLabel,
+      badgeLabel: t.ringkasan.breakdownBadgeInvestasi,
+      badgeVariant: "info" as const,
+      amount: investmentsTotal,
+    },
+    {
+      key: "bank",
+      label: t.ringkasan.breakdownAssetBankLabel,
+      badgeLabel: t.ringkasan.breakdownBadgeBank,
+      badgeVariant: "info" as const,
+      amount: bankAmount,
+    },
+    {
+      key: "cash",
+      label: t.ringkasan.breakdownAssetCashLabel,
+      badgeLabel: t.ringkasan.breakdownBadgeKas,
+      badgeVariant: "success" as const,
+      amount: cashAmount,
+    },
+  ].filter((row) => row.amount > 0);
+
+  const debtRatio =
+    totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : null;
 
   if (isError) {
     return (
@@ -237,17 +445,76 @@ export default function RingkasanPage() {
   }
 
   return (
-    <div className="space-y-3.5">
+    <div
+      className={cn(
+        "space-y-3.5",
+        privacyOn && "[&_.wm-money]:blur-sm [&_.wm-money]:select-none",
+      )}
+    >
+      {/* Page lead — H1 + subtitle + range control + privacy toggle */}
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="min-w-[220px] flex-1">
+          <h1 className="text-[17px] font-extrabold tracking-tight">
+            {t.ringkasan.pageHeaderTitle}
+          </h1>
+          <p className="mt-1 text-[12.5px] text-muted-foreground">
+            {familyName}
+            {t.ringkasan.pageHeaderSubtitleConnector}
+            {todayLabel}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div
+            role="tablist"
+            aria-label={t.ringkasan.trendRangeGroupAriaLabel}
+            className="inline-flex gap-0.5 rounded-[10px] bg-secondary p-[3px]"
+          >
+            {trendRanges.map((range) => (
+              <button
+                key={range.key}
+                type="button"
+                role="tab"
+                aria-selected={trendRange === range.key}
+                onClick={() => setTrendRange(range.key)}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-[12.5px] font-semibold text-muted-foreground",
+                  trendRange === range.key &&
+                    "bg-card text-foreground shadow-sm",
+                )}
+              >
+                {range.label}
+              </button>
+            ))}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-pressed={privacyOn}
+            aria-label={
+              privacyOn
+                ? t.ringkasan.showAmountsAriaLabel
+                : t.ringkasan.hideAmountsAriaLabel
+            }
+            onClick={togglePrivacy}
+          >
+            {privacyOn
+              ? t.ringkasan.showAmountsButton
+              : t.ringkasan.hideAmountsButton}
+          </Button>
+        </div>
+      </div>
+
       {/* Top stat cards */}
       <div className="mb-[18px] grid grid-cols-2 gap-3.5 md:grid-cols-4">
         <Card className="gap-0 border-none gradient-wealth p-5 text-white">
           <div className="mb-1.5 text-[11px] opacity-80">
             {t.ringkasan.totalNetWorthLabel}
           </div>
-          <div className="text-[20px] font-black">
+          <div className="wm-money text-[20px] font-black">
             {isLoading ? "..." : money(netWorth)}
           </div>
-          <div className="mt-1 text-[11px] text-emerald-300">
+          <div className="wm-money mt-1 text-[11px] text-emerald-300">
             {isLoading
               ? "..."
               : monthNet >= 0
@@ -259,7 +526,7 @@ export default function RingkasanPage() {
           <div className="mb-1.5 text-[11px] text-muted-foreground">
             {t.ringkasan.totalAssetsLabel}
           </div>
-          <div className="text-[20px] font-black text-success">
+          <div className="wm-money text-[20px] font-black text-success">
             {isLoading || isNetWorthLoading ? "..." : money(totalAssets)}
           </div>
           <div className="text-[11px] text-muted-foreground">
@@ -272,7 +539,7 @@ export default function RingkasanPage() {
           <div className="mb-1.5 text-[11px] text-muted-foreground">
             {t.ringkasan.totalLiabilitiesLabel}
           </div>
-          <div className="text-[20px] font-black text-muted-foreground">
+          <div className="wm-money text-[20px] font-black text-muted-foreground">
             {isLoading || isNetWorthLoading ? "..." : money(totalLiabilities)}
           </div>
           <div className="text-[11px] text-muted-foreground">
@@ -286,7 +553,7 @@ export default function RingkasanPage() {
           <div className="text-[20px] font-black text-primary">
             {isLoading ? "..." : `${savingsRate}%`}
           </div>
-          <div className="text-[11px] text-success">
+          <div className="wm-money text-[11px] text-success">
             {monthExpense > 0
               ? `${t.ringkasan.expenseValuePrefix}${money(monthExpense)}`
               : t.ringkasan.noDataDash}
@@ -320,7 +587,20 @@ export default function RingkasanPage() {
       <div className="space-y-3.5 lg:grid lg:grid-cols-3 lg:items-start lg:gap-3.5 lg:space-y-0">
         <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:contents">
           <SectionCard
-            title={t.ringkasan.netWorthTrendTitle}
+            title={
+              <div className="flex flex-wrap items-center gap-2">
+                <span>{trendTitleByRange[trendRange]}</span>
+                {yoyPct !== null && (
+                  <StatusBadge variant={yoyPct >= 0 ? "success" : "danger"}>
+                    {yoyPct >= 0
+                      ? t.ringkasan.yoyUpPrefix
+                      : t.ringkasan.yoyDownPrefix}
+                    {formatPercent1(Math.abs(yoyPct), t.beranda.dateLocale)}
+                    {t.ringkasan.yoySuffix}
+                  </StatusBadge>
+                )}
+              </div>
+            }
             className="lg:col-start-1 lg:col-end-3 lg:row-start-1"
           >
             {/* EPIC-025 N3-C2 — ApexCharts go/no-go gate: first real chart
@@ -332,11 +612,13 @@ export default function RingkasanPage() {
                 {t.ringkasan.emptyNetWorthTrend}
               </div>
             ) : (
-              <TrendChart
-                categories={netWorthTrendCategories}
-                series={netWorthTrendSeries}
-                ariaLabel={netWorthTrendAriaLabel}
-              />
+              <div className="wm-money">
+                <TrendChart
+                  categories={netWorthTrendCategories}
+                  series={netWorthTrendSeries}
+                  ariaLabel={netWorthTrendAriaLabel}
+                />
+              </div>
             )}
             {netWorthTrendValues.length >= 2 && (
               <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
@@ -346,7 +628,9 @@ export default function RingkasanPage() {
             )}
           </SectionCard>
 
-          {/* Asset composition — horizontal labelled bar list */}
+          {/* Asset composition — donut + single labelled bar list (the
+              donut's own built-in ApexCharts legend is hidden below so it
+              doesn't duplicate this list). */}
           <SectionCard
             title={t.ringkasan.compositionTitle}
             className="lg:col-start-3 lg:row-start-1"
@@ -369,13 +653,18 @@ export default function RingkasanPage() {
             ) : (
               <div className="space-y-3">
                 {/* EPIC-025 N3-C2 — DonutChart mount, same allocation data
-                    the legend list below already sums. */}
-                <DonutChart
-                  segments={donutSegments}
-                  centerLabel={t.ringkasan.totalAssetsLabel}
-                  height={220}
-                  ariaLabel={donutAriaLabel}
-                />
+                    the list below already sums. `apexcharts-legend` is
+                    hidden here — the list below is the ONE legend for this
+                    card (previously duplicated: the donut's default legend
+                    + this list). */}
+                <div className="wm-money [&_.apexcharts-legend]:hidden">
+                  <DonutChart
+                    segments={donutSegments}
+                    centerLabel={t.ringkasan.totalAssetsLabel}
+                    height={220}
+                    ariaLabel={donutAriaLabel}
+                  />
+                </div>
                 {composition.map((c) => (
                   <div key={c.label}>
                     <div className="mb-1 flex items-center justify-between gap-2 text-[12px]">
@@ -386,7 +675,7 @@ export default function RingkasanPage() {
                         />
                         {c.label}
                       </span>
-                      <span className="shrink-0 text-muted-foreground">
+                      <span className="wm-money shrink-0 text-muted-foreground">
                         {c.value}
                       </span>
                     </div>
@@ -397,7 +686,127 @@ export default function RingkasanPage() {
             )}
           </SectionCard>
         </div>
+      </div>
 
+      {/* "Rincian Aset vs Liabilitas" — asset-type rows (reconciling with
+          the stat cards above), a Total Aset subtotal, each liability,
+          a Total Liabilitas subtotal, then Kekayaan Bersih. Every figure is
+          derived from `netWorthData`/`summary`/`liabilities`, already
+          fetched above — no new endpoint. */}
+      <SectionCard title={t.ringkasan.breakdownTableTitle}>
+        {isLoading || isNetWorthLoading || isLiabilitiesLoading ? (
+          <div className="h-[220px] animate-pulse rounded-md bg-muted" />
+        ) : assetBreakdownRows.length === 0 && allLiabilities.length === 0 ? (
+          <div className="py-4 text-center text-[13px] text-muted-foreground">
+            {t.ringkasan.breakdownEmpty}
+          </div>
+        ) : (
+          <div className="w-full overflow-x-auto">
+            <table className="min-w-[640px] w-full text-[12.5px]">
+              <thead>
+                <tr className="border-b text-left text-muted-foreground">
+                  <th className="py-2 font-semibold">
+                    {t.ringkasan.breakdownColPos}
+                  </th>
+                  <th className="py-2 font-semibold">
+                    {t.ringkasan.breakdownColJenis}
+                  </th>
+                  <th className="py-2 text-right font-semibold">
+                    {t.ringkasan.breakdownColPorsi}
+                  </th>
+                  <th className="py-2 text-right font-semibold">
+                    {t.ringkasan.breakdownColNilai}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {assetBreakdownRows.map((row) => (
+                  <tr key={row.key} className="border-b last:border-0">
+                    <td className="py-2.5 font-bold">{row.label}</td>
+                    <td className="py-2.5">
+                      <StatusBadge variant={row.badgeVariant}>
+                        {row.badgeLabel}
+                      </StatusBadge>
+                    </td>
+                    <td className="mono py-2.5 text-right text-muted-foreground">
+                      {totalAssets > 0
+                        ? `${formatPercent1((row.amount / totalAssets) * 100, t.beranda.dateLocale)}%`
+                        : t.ringkasan.noDataDash}
+                    </td>
+                    <td className="wm-money mono py-2.5 text-right font-bold text-success">
+                      {moneyFull(row.amount)}
+                    </td>
+                  </tr>
+                ))}
+                {assetBreakdownRows.length > 0 && (
+                  <tr className="border-b bg-secondary/40 last:border-0">
+                    <td className="py-2.5 font-bold">
+                      {t.ringkasan.breakdownTotalAssetsRow}
+                    </td>
+                    <td className="py-2.5" />
+                    <td className="mono py-2.5 text-right text-muted-foreground">
+                      100%
+                    </td>
+                    <td className="wm-money mono py-2.5 text-right font-extrabold text-success">
+                      {moneyFull(totalAssets)}
+                    </td>
+                  </tr>
+                )}
+
+                {allLiabilities.map((liability) => (
+                  <tr key={liability.id} className="border-b last:border-0">
+                    <td className="py-2.5 font-bold">{liability.name}</td>
+                    <td className="py-2.5">
+                      <StatusBadge variant="danger">
+                        {t.ringkasan.breakdownBadgeLiabilitas}
+                      </StatusBadge>
+                    </td>
+                    <td className="mono py-2.5 text-right text-muted-foreground">
+                      {totalLiabilities > 0
+                        ? `${formatPercent1((Number(liability.remainingBalance) / totalLiabilities) * 100, t.beranda.dateLocale)}%`
+                        : t.ringkasan.noDataDash}
+                    </td>
+                    <td className="wm-money mono py-2.5 text-right font-bold text-destructive">
+                      {moneyFull(Number(liability.remainingBalance))}
+                    </td>
+                  </tr>
+                ))}
+                {allLiabilities.length > 0 && (
+                  <tr className="border-b bg-secondary/40 last:border-0">
+                    <td className="py-2.5 font-bold">
+                      {t.ringkasan.breakdownTotalLiabilitiesRow}
+                    </td>
+                    <td className="py-2.5" />
+                    <td className="mono py-2.5 text-right text-muted-foreground">
+                      100%
+                    </td>
+                    <td className="wm-money mono py-2.5 text-right font-extrabold text-destructive">
+                      {moneyFull(totalLiabilities)}
+                    </td>
+                  </tr>
+                )}
+
+                <tr>
+                  <td className="py-2.5 font-extrabold">
+                    {t.ringkasan.breakdownNetWorthRow}
+                  </td>
+                  <td
+                    colSpan={2}
+                    className="py-2.5 text-[11.5px] text-muted-foreground"
+                  >
+                    {t.ringkasan.breakdownNetWorthFormula}
+                  </td>
+                  <td className="wm-money mono py-2.5 text-right text-[15px] font-extrabold text-primary">
+                    {moneyFull(totalAssets - totalLiabilities)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
+
+      <div className="space-y-3.5 lg:grid lg:grid-cols-3 lg:items-start lg:gap-3.5 lg:space-y-0">
         <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3 lg:contents">
           {/* Cash Flow */}
           <SectionCard
@@ -414,7 +823,7 @@ export default function RingkasanPage() {
                 {t.ringkasan.emptyTopExpenses}
               </div>
             ) : (
-              <div className="mb-2.5">
+              <div className="wm-money mb-2.5">
                 <CashflowChart
                   months={cashflowMonths}
                   income={cashflowIncome}
@@ -428,7 +837,7 @@ export default function RingkasanPage() {
               <div className="text-[11px] text-muted-foreground">
                 {t.ringkasan.incomeLabel}
               </div>
-              <div className="text-[18px] font-extrabold text-success">
+              <div className="wm-money text-[18px] font-extrabold text-success">
                 {isLoading ? "..." : moneyFull(monthIncome)}
               </div>
             </div>
@@ -436,7 +845,7 @@ export default function RingkasanPage() {
               <div className="text-[11px] text-muted-foreground">
                 {t.ringkasan.expenseLabel}
               </div>
-              <div className="text-[18px] font-extrabold text-destructive">
+              <div className="wm-money text-[18px] font-extrabold text-destructive">
                 {isLoading ? "..." : moneyFull(monthExpense)}
               </div>
             </div>
@@ -445,7 +854,7 @@ export default function RingkasanPage() {
                 {t.ringkasan.surplusLabel}
               </div>
               <div
-                className={`text-[18px] font-extrabold ${monthNet >= 0 ? "text-success" : "text-destructive"}`}
+                className={`wm-money text-[18px] font-extrabold ${monthNet >= 0 ? "text-success" : "text-destructive"}`}
               >
                 {isLoading ? "..." : moneyFull(monthNet)}
               </div>
@@ -494,7 +903,7 @@ export default function RingkasanPage() {
                       {expenseItem.percentage}%
                     </StatusBadge>
                     <div className="text-right">
-                      <div className="text-[13px] font-bold text-destructive">
+                      <div className="wm-money text-[13px] font-bold text-destructive">
                         {moneyFull(expenseItem.amount)}
                       </div>
                     </div>
@@ -558,6 +967,20 @@ export default function RingkasanPage() {
                       : t.ringkasan.healthStatusNeedsAttention}
                 </StatusBadge>
               </div>
+              {debtRatio !== null && (
+                <div className="mt-3 flex items-start gap-2.5 rounded-[11px] border border-primary/25 bg-accent p-3 text-left text-[12.5px] text-accent-foreground">
+                  <Sparkles className="size-[15px] shrink-0 translate-y-0.5" />
+                  <span>
+                    {t.ringkasan.healthDebtRatioNotePrefix}
+                    <strong className="mono">
+                      {formatPercent1(debtRatio, t.beranda.dateLocale)}%
+                    </strong>
+                    {debtRatio <= 40
+                      ? t.ringkasan.healthDebtRatioNoteSuffixSafe
+                      : t.ringkasan.healthDebtRatioNoteSuffixAttention}
+                  </span>
+                </div>
+              )}
             </div>
           </SectionCard>
         </div>
@@ -573,12 +996,14 @@ export default function RingkasanPage() {
             {t.ringkasan.emptyLiabilityBreakdown}
           </div>
         ) : (
-          <HBarChart
-            categories={liabilityCategories}
-            data={liabilityData}
-            color="var(--destructive)"
-            ariaLabel={liabilityAriaLabel}
-          />
+          <div className="wm-money">
+            <HBarChart
+              categories={liabilityCategories}
+              data={liabilityData}
+              color="var(--destructive)"
+              ariaLabel={liabilityAriaLabel}
+            />
+          </div>
         )}
       </SectionCard>
     </div>
