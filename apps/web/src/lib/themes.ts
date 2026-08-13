@@ -5,15 +5,23 @@
  *   - Mode   : `.dark` class on <html>  (managed by next-themes, unchanged)
  *   - Preset : `data-theme` attr on <html>  (managed by this module + no-flash script)
  *
- * The default preset (indigo) writes NO `data-theme` attribute so the existing
+ * The default preset (teal) writes NO `data-theme` attribute so the existing
  * :root / .dark CSS values remain the byte-identical fallback.
  */
 
 /** localStorage key used by both the no-flash script and the picker component. */
 export const THEME_PRESET_STORAGE_KEY = "wealthme-theme-preset";
 
-/** The default preset id — maps to existing :root / .dark vars; no data-theme written. */
-export const DEFAULT_THEME_PRESET = "indigo" as const;
+/**
+ * The default preset id — maps to existing :root / .dark vars; no data-theme written.
+ *
+ * Was "indigo" until the owner-approved prototype palette (teal/navy/gold) was
+ * ported into `globals.css`'s :root/.dark. No migration is needed for the
+ * rename: the default preset never wrote a `data-theme` attribute or a
+ * localStorage value, so no existing client has "indigo" stored — and if one
+ * somehow did, `isValidPreset` rejects it and the picker falls back here.
+ */
+export const DEFAULT_THEME_PRESET = "teal" as const;
 
 /** A single color-preset entry. */
 export interface ThemePreset {
@@ -27,11 +35,11 @@ export interface ThemePreset {
 
 /**
  * All supported presets.
- * "indigo" is the default: selecting it removes the `data-theme` attribute
+ * "teal" is the default: selecting it removes the `data-theme` attribute
  * so the existing :root / .dark blocks take full effect.
  */
 export const THEME_PRESETS: readonly ThemePreset[] = [
-  { id: "indigo", label: "Indigo", swatch: "#4f46e5" }, // default — no data-theme attr
+  { id: "teal", label: "Teal", swatch: "#126f64" }, // default — no data-theme attr
   { id: "emerald", label: "Emerald", swatch: "#059669" },
   { id: "rose", label: "Rose", swatch: "#e11d48" },
   { id: "amber", label: "Amber", swatch: "#d97706" },

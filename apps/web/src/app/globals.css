@@ -59,52 +59,74 @@
   --radius: 0.875rem; /* 14px — matches WealthMe --radius */
 
   /*
-   * Light-mode neutrals are subtly tinted toward --primary (same approach as
-   * .dark) so the overall mood follows the active preset. Kept very light to
-   * preserve text contrast; cards stay pure white for crispness.
+   * BRAND PALETTE — teal / navy / gold.
+   *
+   * Ported verbatim from `docs/prototype/assets/tokens.css`, the owner-approved
+   * (2026-08-11) prototype palette. That file's own header called this port out
+   * as a required follow-up step: "If approved, this palette still needs to be
+   * ported back into globals.css itself before it becomes the real standard;
+   * until then the prototype and production tokens diverge on purpose."
+   * EPIC-025 (the N3 prototype port) never did it — its Ground Truth wrongly
+   * asserted "colors already match" and made a zero-diff `globals.css` a hard
+   * success criterion, which guaranteed the app kept shipping the old indigo
+   * brand under a prototype-shaped layout. This is that missing port.
+   *
+   * Owner-provided swatches: navy #0A3A52, teal #167A6D / #2CA8A0, light teal
+   * #65C3B5, gold #D9A441. --primary stays the DARKER teal in both light and
+   * dark mode rather than brightening on dark — the mid teal (#2CA8A0) drops
+   * white-text contrast to ~2.9:1, below the 4.5:1 minimum.
+   *
+   * Neutrals keep this file's existing color-mix mechanism (base hex tinted
+   * toward --primary) so the `[data-theme]` presets below still retint the
+   * whole surface, not just buttons. Only the BASE hexes changed — from the
+   * old cool slate greys to the prototype's warmer, faintly-green greys.
    */
-  --primary: #4f46e5;
+  --primary: #126f64;
   --primary-foreground: #ffffff;
-  --primary-soft: #eef2ff;
-  --primary-strong: #3730a3;
+  --primary-soft: #ddf3ef;
+  --primary-strong: #0a3a52;
 
-  --background: color-mix(in oklab, #f8f9fc 96%, var(--primary));
-  --foreground: #0f172a;
-  --card: #ffffff;
-  --card-foreground: #0f172a;
-  --popover: #ffffff;
-  --popover-foreground: #0f172a;
+  --background: color-mix(in oklab, #f6f8f6 96%, var(--primary));
+  --foreground: #10202a;
+  --card: #fffefb;
+  --card-foreground: #10202a;
+  --popover: #fffefb;
+  --popover-foreground: #10202a;
 
-  --secondary: color-mix(in oklab, #f1f5f9 94%, var(--primary));
-  --secondary-foreground: #0f172a;
-  --muted: color-mix(in oklab, #f1f5f9 94%, var(--primary));
-  --muted-foreground: #64748b;
-  --accent: #eef2ff;
-  --accent-foreground: #4f46e5;
+  --secondary: color-mix(in oklab, #edf3f0 94%, var(--primary));
+  --secondary-foreground: #10202a;
+  --muted: color-mix(in oklab, #eef3f1 94%, var(--primary));
+  --muted-foreground: #607279;
+  --accent: #ddf3ef;
+  --accent-foreground: #0f655c;
 
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
 
-  --success: #10b981;
+  --success: #0f9f73;
   --success-foreground: #ffffff;
   --success-soft: #dcfce7;
-  --warning: #f59e0b;
+  --warning: #b7791f;
   --warning-foreground: #ffffff;
   --warning-soft: #fef9c3;
-  --brand-purple: #8b5cf6;
-  --brand-purple-soft: #ede9fe;
-  --brand-cyan: #06b6d4;
+  /* NOTE: `--brand-purple` keeps its token NAME for compatibility (it is used
+     across ~20 page files) but now carries the prototype's GOLD accent — the
+     third brand hue in the approved palette. Renaming the token is a separate
+     mechanical refactor, deliberately not bundled into this palette swap. */
+  --brand-purple: #c98f24;
+  --brand-purple-soft: #f8edd8;
+  --brand-cyan: #2ca8a0;
   --brand-orange: #f97316;
 
-  --border: color-mix(in oklab, #e2e8f0 92%, var(--primary));
-  --input: color-mix(in oklab, #e2e8f0 92%, var(--primary));
-  --ring: #4f46e5;
+  --border: color-mix(in oklab, #dbe5e1 92%, var(--primary));
+  --input: color-mix(in oklab, #dbe5e1 92%, var(--primary));
+  --ring: #126f64;
 
-  --chart-1: #4f46e5;
-  --chart-2: #10b981;
-  --chart-3: #f59e0b;
-  --chart-4: #8b5cf6;
-  --chart-5: #06b6d4;
+  --chart-1: #126f64;
+  --chart-2: #0f9f73;
+  --chart-3: #c98f24;
+  --chart-4: #2ca8a0;
+  --chart-5: #0a3a52;
 }
 
 .dark {
@@ -115,48 +137,49 @@
    * reference var(--primary), they retint automatically — no per-preset neutral
    * declarations needed. The slate hex below is the original untinted value.
    */
-  --primary: #6366f1;
-  --primary-foreground: #ffffff;
-  --primary-soft: #1e1b4b;
-  --primary-strong: #818cf8;
+  /* Dark-mode half of the approved prototype palette (see :root above). */
+  --primary: #5fb7ad;
+  --primary-foreground: #03231f;
+  --primary-soft: #182a2d;
+  --primary-strong: #8fd8cf;
 
-  --background: color-mix(in oklab, #0f172a 92%, var(--primary));
-  --foreground: #f1f5f9;
-  --card: color-mix(in oklab, #1e293b 91%, var(--primary));
-  --card-foreground: #f1f5f9;
-  --popover: color-mix(in oklab, #1e293b 91%, var(--primary));
-  --popover-foreground: #f1f5f9;
+  --background: color-mix(in oklab, #0b0f14 92%, var(--primary));
+  --foreground: #eef3f5;
+  --card: color-mix(in oklab, #121820 91%, var(--primary));
+  --card-foreground: #eef3f5;
+  --popover: color-mix(in oklab, #151c25 91%, var(--primary));
+  --popover-foreground: #eef3f5;
 
-  --secondary: color-mix(in oklab, #263348 88%, var(--primary));
-  --secondary-foreground: #f1f5f9;
-  --muted: color-mix(in oklab, #263348 88%, var(--primary));
-  --muted-foreground: #94a3b8;
-  --accent: #1e1b4b;
-  --accent-foreground: #818cf8;
+  --secondary: color-mix(in oklab, #1a222c 88%, var(--primary));
+  --secondary-foreground: #eef3f5;
+  --muted: color-mix(in oklab, #171f28 88%, var(--primary));
+  --muted-foreground: #a7b2bc;
+  --accent: #1a272d;
+  --accent-foreground: #91d8cf;
 
   --destructive: #f87171;
   --destructive-foreground: #ffffff;
 
-  --success: #34d399;
+  --success: #6ad39f;
   --success-foreground: #052e1b;
-  --success-soft: #064e3b;
-  --warning: #fbbf24;
-  --warning-foreground: #422006;
-  --warning-soft: #422006;
-  --brand-purple: #a78bfa;
-  --brand-purple-soft: #2e1065;
-  --brand-cyan: #22d3ee;
+  --success-soft: #173526;
+  --warning: #e8b85a;
+  --warning-foreground: #2a1a03;
+  --warning-soft: #4a3514;
+  --brand-purple: #e8b85a; /* gold — see the token-name note in :root */
+  --brand-purple-soft: #3a2e17;
+  --brand-cyan: #5fb7ad;
   --brand-orange: #fb923c;
 
-  --border: color-mix(in oklab, #334155 84%, var(--primary));
-  --input: color-mix(in oklab, #334155 84%, var(--primary));
-  --ring: #6366f1;
+  --border: color-mix(in oklab, #283440 84%, var(--primary));
+  --input: color-mix(in oklab, #303d4a 84%, var(--primary));
+  --ring: #5fb7ad;
 
-  --chart-1: #818cf8;
-  --chart-2: #34d399;
-  --chart-3: #fbbf24;
-  --chart-4: #a78bfa;
-  --chart-5: #22d3ee;
+  --chart-1: #5fb7ad;
+  --chart-2: #6ad39f;
+  --chart-3: #d9a441;
+  --chart-4: #2ca8a0;
+  --chart-5: #8fb8d9;
 }
 
 /* ── Color presets (data-theme) ─ swap brand/accent/ring/chart-1 only ── */
@@ -172,8 +195,9 @@
  * left unchanged — they form a categorical multi-series palette and recoloring
  * them to a single hue would make stacked/multi-line charts unreadable.
  *
- * The default preset (indigo) writes NO data-theme attribute, so :root / .dark
- * remain the byte-identical fallback and are NOT touched here.
+ * The default preset (teal — the approved prototype brand) writes NO data-theme
+ * attribute, so :root / .dark remain the byte-identical fallback and are NOT
+ * touched here.
  */
 
 /* ── emerald ── */
@@ -302,30 +326,40 @@
 
 /* Reusable brand gradients (hero / profile / ai cards) */
 /*
- * gradient-wealth / gradient-profile follow the active --primary (theme preset)
- * via color-mix, so the hero/total "mood" backgrounds match the chosen color.
- * gradient-emerald (semantic success) and gradient-ai (neutral slate) stay fixed.
+ * Re-derived to match `docs/prototype/assets/tokens.css`'s approved gradients
+ * while staying preset-aware (the prototype hardcodes teal hexes; expressing
+ * the same ramp through the brand tokens keeps `[data-theme]` presets working).
+ *
+ *   prototype .gradient-wealth : #0a3a52 → #167a6d → #2ca8a0  (navy → teal → light teal)
+ *   here                       : --primary-strong → --primary → a lightened --primary
+ *
+ *   prototype .gradient-ai     : #167a6d → #2ca8a0 → #d9a441  (teal → gold)
+ *   here                       : --primary → --brand-cyan → --brand-purple (gold)
+ *
+ * gradient-emerald (semantic success) and gradient-profile (deliberately
+ * neutral slate in the prototype) stay fixed, matching the prototype exactly.
  */
 @utility gradient-wealth {
   background-image: linear-gradient(
     135deg,
-    color-mix(in oklab, var(--primary) 55%, black) 0%,
-    color-mix(in oklab, var(--primary) 78%, black) 55%,
-    var(--primary) 100%
+    var(--primary-strong) 0%,
+    var(--primary) 55%,
+    color-mix(in oklab, var(--primary) 70%, white) 100%
   );
 }
 @utility gradient-emerald {
-  background-image: linear-gradient(135deg, #059669, #10b981);
+  background-image: linear-gradient(135deg, #059669, #10b981 55%, #34d399);
 }
 @utility gradient-profile {
-  background-image: linear-gradient(
-    135deg,
-    color-mix(in oklab, var(--primary) 55%, black),
-    var(--primary)
-  );
+  background-image: linear-gradient(135deg, #0f172a, #1e293b 60%, #334155);
 }
 @utility gradient-ai {
-  background-image: linear-gradient(135deg, #0f172a, #1e293b);
+  background-image: linear-gradient(
+    135deg,
+    var(--primary) 0%,
+    var(--brand-cyan) 45%,
+    var(--brand-purple) 100%
+  );
 }
 @utility hide-scrollbar {
   scrollbar-width: none;
