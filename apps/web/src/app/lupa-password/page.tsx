@@ -39,7 +39,7 @@ export default function LupaPasswordPage() {
       className="relative flex min-h-screen items-center justify-center p-5"
       style={{
         backgroundImage:
-          "linear-gradient(135deg,#1e1b4b 0%,#312e81 40%,#4338ca 70%,#6366f1 100%)",
+          "linear-gradient(135deg, var(--primary-strong) 0%, var(--primary) 55%, color-mix(in oklab, var(--primary) 70%, white) 100%)",
       }}
     >
       <div className="w-full max-w-[420px] rounded-3xl bg-white/[0.97] p-10 shadow-[0_32px_80px_rgba(0,0,0,0.3)]">

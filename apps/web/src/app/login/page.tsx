@@ -122,7 +122,7 @@ export default function LoginPage() {
         className="relative flex min-h-screen items-center justify-center p-5"
         style={{
           backgroundImage:
-            "linear-gradient(135deg,#1e1b4b 0%,#312e81 40%,#4338ca 70%,#6366f1 100%)",
+            "linear-gradient(135deg, var(--primary-strong) 0%, var(--primary) 55%, color-mix(in oklab, var(--primary) 70%, white) 100%)",
         }}
       >
         <DeviceUnlockPad
@@ -144,7 +144,7 @@ export default function LoginPage() {
       className="relative flex min-h-screen items-center justify-center p-5"
       style={{
         backgroundImage:
-          "linear-gradient(135deg,#1e1b4b 0%,#312e81 40%,#4338ca 70%,#6366f1 100%)",
+          "linear-gradient(135deg, var(--primary-strong) 0%, var(--primary) 55%, color-mix(in oklab, var(--primary) 70%, white) 100%)",
       }}
     >
       <div className="w-full max-w-[420px] rounded-3xl bg-white/[0.97] p-10 shadow-[0_32px_80px_rgba(0,0,0,0.3)]">
@@ -165,9 +165,9 @@ export default function LoginPage() {
         </p>
 
         {process.env.NODE_ENV !== "production" && (
-          <div className="mb-[22px] flex items-center gap-2.5 rounded-xl border-[1.5px] border-indigo-200 bg-gradient-to-br from-indigo-50 to-violet-50 px-4 py-3">
+          <div className="mb-[22px] flex items-center gap-2.5 rounded-xl border-[1.5px] border-primary/25 bg-accent px-4 py-3">
             <Info className="size-4 shrink-0 text-primary" />
-            <div className="text-xs text-indigo-900">
+            <div className="text-xs text-primary-strong">
               <strong className="block">Demo Account tersedia</strong>
               Gunakan <code>demo@wealthme.id</code> / <code>demo1234</code>{" "}
               untuk masuk.
@@ -346,7 +346,7 @@ export default function LoginPage() {
 
             <button
               onClick={doGoogleLogin}
-              className="flex w-full items-center justify-center gap-2 rounded-md border-[1.5px] border-slate-200 bg-slate-50 py-2.5 text-[13px] font-semibold text-slate-700 transition-colors hover:border-primary hover:bg-indigo-50"
+              className="flex w-full items-center justify-center gap-2 rounded-md border-[1.5px] border-slate-200 bg-slate-50 py-2.5 text-[13px] font-semibold text-slate-700 transition-colors hover:border-primary hover:bg-accent"
             >
               <GoogleIcon /> Google
             </button>

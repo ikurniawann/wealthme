@@ -11,7 +11,7 @@ const PIN_LENGTH = 6;
 const PAD_DIGITS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
 const PAD_BUTTON_CLASS =
-  "rounded-md border-[1.5px] border-slate-200 bg-white py-3.5 text-lg font-bold text-slate-900 transition-colors hover:border-primary hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50";
+  "rounded-md border-[1.5px] border-slate-200 bg-white py-3.5 text-lg font-bold text-slate-900 transition-colors hover:border-primary hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50";
 const PAD_GHOST_BUTTON_CLASS =
   "rounded-md bg-transparent py-3.5 text-sm font-semibold text-slate-500 transition-colors hover:text-primary disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -209,7 +209,7 @@ export function DeviceUnlockPad({
 
       <button
         onClick={onUsePassword}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border-[1.5px] border-slate-200 bg-slate-50 py-2.5 text-[13px] font-semibold text-slate-700 transition-colors hover:border-primary hover:bg-indigo-50"
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border-[1.5px] border-slate-200 bg-slate-50 py-2.5 text-[13px] font-semibold text-slate-700 transition-colors hover:border-primary hover:bg-accent"
       >
         {t.deviceUnlock.padUsePasswordInstead}
       </button>
