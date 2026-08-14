@@ -2307,6 +2307,16 @@ export const id = {
     perpuluhanDeductionDesc: "dari donasi tercatat",
     emptyDocumentsTitle: "Belum ada dokumen",
     emptyDocumentsSub: "Fitur upload & daftar dokumen pajak segera hadir.",
+    saveDialogTitle: "Simpan ke Catatan Pajak",
+    saveDialogDescPrefix:
+      "Catatan pajak tahun akan dibuat/diperbarui dengan angka di bawah ini: ",
+    saveDialogGrossRow: "Penghasilan bruto",
+    saveDialogPtkpRow: "PTKP",
+    saveDialogPerpuluhanRow: "Perpuluhan pengurang",
+    saveDialogTaxRow: "PPh 21 terutang",
+    saveDialogNote:
+      "Nilai dikirim sebagai string angka murni — titik ribuan hanya untuk tampilan.",
+    saveDialogConfirmButton: "Simpan",
   },
   rekening: {
     typeLabels: {

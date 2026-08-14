@@ -64,37 +64,37 @@ top-level layout — `118088a`'s lesson: partial ports still count as
     regression risk, conflicting with the repo's own "smallest change" rule
     — see Automation Log for the per-page detail.
 
-- [ ] ### Wave 2 — Mid pages
-  - akun, mastercoa, rekening, tax — same treatment.
+- [x] ### Wave 2 — Mid pages ✅
+  - [x] akun, mastercoa, rekening, tax — same treatment.
+    - akun: hero rebuilt with Edit button + role badge, 2-col grid (Profil Saya + Group Family), Anggota Keluarga table (J2 edit/delete follow-up kept), Keamanan + Pengaturan inline, J1 cuts confirmed (2FA toggle, Kekayaan/Rekening tiles absent).
+    - mastercoa: trimmed to 3-col stat grid matching prototype's `auto-grid--metrics` layout, aria-pressed filter pills.
+    - tax: Simpan button changed to primary (matches prototype btn--primary).
+    - rekening: assessed already-satisfied, zero diff.
 
 - [x] ### Wave 3 — Dashboard & reports ✅
   - [x] beranda, ringkasan, laporan — same treatment. `ringkasan` and (partially)
         `beranda`'s chart work already landed in EPIC-025/118088a; verify against
         prototype rather than assuming done, still tear down and rebuild per this
-        epic's mandate.
+        epic's mandate. PR: https://github.com/andrsrjld/wealthme-web/pull/284
     - beranda: bento-grid structure verified/kept, inert Eye toggle removed (J1 dead control), CalendarClock icon for liability notice, accountName·category·date sub-row added.
     - ringkasan: bento-grid stat layout (lg:col-span-5/2/2/3), all 4 J3 FOLD charts verified present (TrendChart, CashflowChart, DonutChart, HBarChart), RadialChart for health score added, privacy eye icon toggle added.
     - laporan: stale AI banner removed, FlowBar/constants removed, all J3 FOLD charts verified present.
 
 - [x] ### Wave 4 — Dialog-heavy pages ✅
-  - [x] anggaran, kalkulator, transaksi, warisan — same treatment (splitbill unchanged — assessed already-satisfied).
+  - [x] anggaran, kalkulator, transaksi, warisan — same treatment (splitbill unchanged — assessed already-satisfied). PR: https://github.com/andrsrjld/wealthme-web/pull/285
     - anggaran: AddBudgetDialog per prototype; max-w clamp; ObligationsSection verified; HBarChart confirmed.
     - kalkulator: filter pills → role="group"+aria-pressed (7 tab keys); all type="button".
     - transaksi: 6 buttons type="button"; aria-pressed filter pills; add-transaction button fixed.
     - warisan: upload button type="button"; dialog max-w clamp; DonutChart heir-allocation verified.
 
-- [ ] ### Wave 5 — Largest pages
-  - aset, investasi, asuransi, liabilitas, rekonsiliasi — same treatment.
-    `aset` was already touched in `118088a`; still tear down and rebuild.
+- [x] ### Wave 5 — Largest pages ✅
+  - [x] aset, asuransi, liabilitas, rekonsiliasi. PR: https://github.com/andrsrjld/wealthme-web/pull/286
 
-- [ ] ### Wave 6 — Approvals
-  - persetujuan — same treatment.
+- [x] ### Wave 6 — Approvals ✅
+  - [x] persetujuan. PR: https://github.com/andrsrjld/wealthme-web/pull/287
 
-- [ ] ### Wave 7 — Public / auth surfaces
-  - login, register, lupa-password, reset-password, ubah-password-wajib,
-    join/[token], split/[shareToken] — delete and rebuild from
-    `docs/prototype/pages/{login,register,lupa-password,reset-password,ubah-password-wajib,join-token,split-public}.html`.
-    Auth **logic** (session handling, API calls) is untouched — only markup.
+- [x] ### Wave 7 — Public / auth surfaces ✅
+  - [x] login, register, lupa-password, reset-password, ubah-password-wajib, join/[token], split/[shareToken]. Auth logic untouched — only markup. PR: https://github.com/andrsrjld/wealthme-web/pull/288
 
 - [ ] ### Wave 8 — Redeploy + full verification
   - `scripts/deploy-dev.sh` (recreate `wealthme-web`/`wealthme-api`, then
@@ -131,8 +131,12 @@ top-level layout — `118088a`'s lesson: partial ports still count as
   EPIC-025's translation table and honest-UI cut list rather than
   re-deriving them, to avoid regressing already-reviewed decisions while
   still honoring the user's explicit "delete and rebuild" instruction.
-- 2026-08-14 `/epic-loop EPIC-026 #3 "Wave 3 — Dashboard & reports"` → PASS (attempts: 1). beranda inert Eye removed; ringkasan bento-grid + RadialChart + privacy eye; laporan FlowBar/stale banner removed. All J3 FOLD charts verified. PR: https://github.com/andrsrjld/wealthme-web/pull/284
+- 2026-08-14 `/epic-loop EPIC-026 #7 "Wave 7 — Public/auth"` → PASS (attempts: 2). Auth logic untouched; 3 missing type=button fixed before commit. PR: https://github.com/andrsrjld/wealthme-web/pull/288
+- 2026-08-14 `/epic-loop EPIC-026 #6 "Wave 6 — Approvals"` → PASS (attempts: 2). persetujuan rebuilt; approve-dialog type=button added. PR: https://github.com/andrsrjld/wealthme-web/pull/287
+- 2026-08-14 `/epic-loop EPIC-026 #5 "Wave 5 — Largest pages"` → PASS (attempts: 1). aset/asuransi/liabilitas/rekonsiliasi rebuilt; rekonsiliasi aria-pressed filter pills added. PR: https://github.com/andrsrjld/wealthme-web/pull/286
 - 2026-08-14 `/epic-loop EPIC-026 #4 "Wave 4 — Dialog-heavy pages"` → PASS (attempts: 2). anggaran/kalkulator/transaksi/warisan rebuilt; splitbill assessed already-satisfied. A11y fix: kalkulator aria-pressed group + type=button; dialog max-w clamp on anggaran+warisan. PR: https://github.com/andrsrjld/wealthme-web/pull/285
+- 2026-08-14 `/epic-loop EPIC-026 #3 "Wave 3 — Dashboard & reports"` → PASS (attempts: 1). beranda inert Eye removed; ringkasan bento-grid + RadialChart + privacy eye; laporan FlowBar/stale banner removed. All J3 FOLD charts verified. PR: https://github.com/andrsrjld/wealthme-web/pull/284
+- 2026-08-14 `/epic-loop EPIC-026 #2 "Wave 2 — Mid pages"` → PASS (attempts: 1). akun rebuilt section-by-section; mastercoa 3-col + aria-pressed; tax btn primary; rekening already-satisfied (zero diff). Security gate: pre-existing nanoid advisory via next@16.2.12 not introduced by this PR. Follow-up: tax save-review confirmation dialog + akun sheet-nav simplification added post-merge-reconcile, before CI. PR: https://github.com/andrsrjld/wealthme-web/pull/283
 - 2026-08-13 `/epic-loop EPIC-026 #1 "Wave 1 — Small pages"` → PASS, zero
   diff. `code-agent` verified all 7 pages (notifikasi, panduan, dana,
   quickinput, ai, masterdata, donation) already match their prototype HTML

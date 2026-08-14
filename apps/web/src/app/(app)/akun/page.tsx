@@ -34,7 +34,6 @@ import {
   Lock,
   Landmark,
   Wallet,
-  Settings,
   Bell,
   ShieldHalf,
   CircleQuestionMark,
@@ -67,7 +66,6 @@ import { toast } from "sonner";
 
 import { CrudModal, type CrudModalState } from "@/components/crud";
 import { SectionCard, StatusBadge } from "@/components/wm";
-import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
@@ -2986,6 +2984,14 @@ export default function AkunPage() {
   const [subpage, setSubpage] = useState<SubPageId | null>(null);
   const [addDependantOpen, setAddDependantOpen] = useState(false);
   const [crud, setCrud] = useState<CrudModalState | null>(null);
+  // EPIC-026 Wave 2 — the members table's Aksi column reuses the exact
+  // member controls FamilyBody already had (category-limit + threshold
+  // dialogs); member edit/delete stays a J2 follow-up, not resurrected here.
+  const [categoryLimitMember, setCategoryLimitMember] =
+    useState<FamilyMember | null>(null);
+  const [thresholdMember, setThresholdMember] = useState<FamilyMember | null>(
+    null,
+  );
 
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
@@ -3015,6 +3021,10 @@ export default function AkunPage() {
   });
 
   const primaryGroup = familyGroups?.[0] ?? null;
+  // Mirrors FamilyBody's gating (EPIC-023 Task C retry): owner + spouse can
+  // set a member-role category limit; threshold stays owner-only.
+  const isElevated =
+    primaryGroup?.myRole === "owner" || primaryGroup?.myRole === "spouse";
 
   const { data: familyMembers } = useQuery<FamilyMember[]>({
     queryKey: [
@@ -3182,20 +3192,53 @@ export default function AkunPage() {
     }
   }
 
+  /* EPIC-026 Wave 2 rebuild — akun was excluded from all EPIC-025 N3 waves.
+     Prototype structure (akun.html):
+       1. Hero (gradient-profile) + Edit button → dialog
+       2. 2-col grid: Profil Saya card + Group Family card (J1 CUT: no wealth/account tiles)
+       3. Anggota Keluarga section (table, 5 cols)
+       4. Keamanan card (inline KeamananBody)
+       5. Pengaturan Umum card (inline PengaturanBody)
+       Extra non-prototype features (Koneksi, Notif, Privasi, Bantuan, Hubungi, Tentang)
+       kept as a collapsible menu section + sheet for those not in prototype. */
+
   return (
-    <div className="space-y-3.5">
-      {/* Profile hero */}
+    <div className="space-y-4">
+      {/* 1. Profile hero — gradient-profile with Edit button */}
       <div className="gradient-profile flex items-center gap-4 rounded-2xl p-5 text-white">
         <div className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-full bg-white/20 text-[22px] font-extrabold">
           {meLoading ? "…" : displayInitials || <User className="size-5" />}
         </div>
-        <div>
-          <div className="text-[18px] font-extrabold">{displayName}</div>
-          <div className="text-[13px] opacity-90">{displayEmail}</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[18px] font-extrabold">{displayName}</span>
+            {primaryGroup && (
+              <span
+                className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                style={{ background: "rgb(255 255 255 / 0.22)", color: "#fff" }}
+              >
+                {t.common.roleLabels[primaryGroup.myRole] ??
+                  primaryGroup.myRole}
+              </span>
+            )}
+          </div>
+          <div className="mt-0.5 text-[13px] opacity-90">{displayEmail}</div>
           <div className="mt-0.5 text-[12px] opacity-75">
             {t.akun.heroMemberSince}
           </div>
         </div>
+        <button
+          type="button"
+          onClick={() => open("profil")}
+          className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold"
+          style={{
+            background: "rgb(255 255 255 / 0.16)",
+            border: "1px solid rgb(255 255 255 / 0.3)",
+            color: "#fff",
+          }}
+        >
+          <User className="size-3.5" /> {t.akun.menuProfilName}
+        </button>
       </div>
 
       {meError && (
@@ -3204,73 +3247,278 @@ export default function AkunPage() {
         </div>
       )}
 
-      {/* Group Family card */}
-      <Card className="p-4">
-        <div className="mb-3 text-[13px] font-bold text-foreground">
-          {t.akun.familyGroupCardTitle}
-        </div>
-        <button
-          onClick={() => open("family")}
-          className="w-full rounded-xl border-[1.5px] p-3.5 text-left transition-colors hover:border-primary"
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-xl bg-accent text-[20px]">
-              👨‍👩‍👧‍👦
+      {/* 2. 2-col grid: Profil Saya + Group Family */}
+      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+        {/* Profil Saya — read-only list rows */}
+        <SectionCard title={t.akun.menuProfilName}>
+          <div className="divide-y">
+            <div className="flex items-center gap-3 py-3">
+              <span className="text-[17px]">👤</span>
+              <div className="min-w-0 flex-1">
+                <div className="text-[12px] text-muted-foreground">
+                  {t.akun.profil.nameLabel}
+                </div>
+                <div className="text-[13.5px] font-semibold text-foreground truncate">
+                  {displayName}
+                </div>
+              </div>
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 text-[14px] font-bold text-foreground">
-                {primaryGroup?.name ?? t.akun.noFamilyGroup}
-                {primaryGroup && (
-                  <StatusBadge variant="info" className="text-[10px]">
+            <div className="flex items-center gap-3 py-3">
+              <span className="text-[17px]">✉️</span>
+              <div className="min-w-0 flex-1">
+                <div className="text-[12px] text-muted-foreground">
+                  {t.akun.profil.emailLabel}
+                </div>
+                <div className="text-[13.5px] font-semibold text-foreground truncate">
+                  {displayEmail}
+                </div>
+              </div>
+            </div>
+            {profileDetail?.phone && (
+              <div className="flex items-center gap-3 py-3">
+                <span className="text-[17px]">📱</span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[12px] text-muted-foreground">
+                    {t.akun.profil.phoneLabel}
+                  </div>
+                  <div className="text-[13.5px] font-semibold text-foreground">
+                    {profileDetail.phone}
+                  </div>
+                </div>
+              </div>
+            )}
+            {profileDetail?.jobTitle && (
+              <div className="flex items-center gap-3 py-3">
+                <span className="text-[17px]">💼</span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[12px] text-muted-foreground">
+                    {t.akun.profil.jobTitleLabel}
+                  </div>
+                  <div className="text-[13.5px] font-semibold text-foreground">
+                    {profileDetail.jobTitle}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </SectionCard>
+
+        {/* Group Family card — J1 CUT: Kekayaan Keluarga + Rekening Terhubung tiles removed */}
+        <SectionCard title={`👨‍👩‍👧‍👦 ${t.akun.familyGroupCardTitle}`}>
+          {primaryGroup ? (
+            <>
+              <div className="flex items-center gap-3">
+                <div className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-xl gradient-wealth text-[20px] text-white font-extrabold">
+                  {(primaryGroup.name ?? "").slice(0, 2).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[14px] font-extrabold text-foreground">
+                    {primaryGroup.name}
+                  </div>
+                  <div className="text-[12px] text-muted-foreground">
+                    {primaryGroup.memberCount} {t.akun.memberCountSuffix} ·{" "}
                     {t.common.roleLabels[primaryGroup.myRole] ??
                       primaryGroup.myRole}
-                  </StatusBadge>
-                )}
+                  </div>
+                </div>
               </div>
-              <div className="mt-0.5 text-[11.5px] text-muted-foreground">
-                {primaryGroup
-                  ? `${primaryGroup.memberCount} ${t.akun.memberCountSuffix}`
-                  : t.akun.createOrJoinFamilyGroup}
+              <div className="mt-3 flex items-start gap-2 rounded-lg border border-primary/30 bg-accent px-3 py-2.5 text-[12px] text-muted-foreground">
+                <Info className="mt-0.5 size-3.5 shrink-0 text-primary" />
+                <span>{t.akun.family.adminInfoNote}</span>
               </div>
+            </>
+          ) : (
+            <div className="py-3 text-[12px] text-muted-foreground">
+              {t.akun.createOrJoinFamilyGroup}
             </div>
-            <ChevronRight className="ml-auto size-4 shrink-0 text-muted-foreground" />
-          </div>
-        </button>
-      </Card>
+          )}
+        </SectionCard>
+      </div>
 
-      {/* Akun */}
-      <SectionCard title={t.akun.sectionAkun}>
-        <MenuRow
-          icon={<User className="size-4 text-primary" />}
-          iconBg="#EEF2FF"
-          name={t.akun.menuProfilName}
-          sub={`${displayName} · ${displayEmail}`}
-          onClick={() => open("profil")}
-        />
-        <MenuRow
-          icon={<Lock className="size-4 text-success" />}
-          iconBg="#DCFCE7"
-          name={t.akun.menuKeamananName}
-          sub={t.akun.menuKeamananSub}
-          onClick={() => open("keamanan")}
-        />
+      {/* 3. Anggota Keluarga table */}
+      <SectionCard
+        title={`${t.akun.family.membersSectionTitle} (${(familyMembers ?? []).filter((m) => m.role !== "admin_staff").length})`}
+        action={
+          primaryGroup?.myRole === "owner" ? (
+            <button
+              type="button"
+              onClick={() => setAddDependantOpen(true)}
+              className="flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-[11.5px] font-semibold text-white"
+            >
+              <UserCog className="size-3" /> {t.akun.family.addDependantButton}
+            </button>
+          ) : undefined
+        }
+      >
+        {/* Direct-creation notice */}
+        <div className="mb-3 flex items-start gap-2 rounded-lg border border-primary/20 bg-accent px-3 py-2.5 text-[12px] text-muted-foreground">
+          <User className="mt-0.5 size-3.5 shrink-0 text-primary" />
+          <span>{t.akun.addDependant.dialogDesc}</span>
+        </div>
+        <div className="w-full overflow-x-auto">
+          <table className="w-full min-w-[560px] text-[13px]">
+            <thead>
+              {/* Prototype table headers (akun.html) — no i18n keys exist for
+                  these; literal Indonesian per the prototype. "Rekening
+                  Ditugaskan" column is omitted: FamilyMember carries no
+                  assigned-accounts data (honest UI). */}
+              <tr className="border-b text-[11px] uppercase tracking-wide text-muted-foreground">
+                <th className="pb-2 text-left font-semibold">Anggota</th>
+                <th className="pb-2 text-left font-semibold">Peran</th>
+                <th className="pb-2 text-left font-semibold">
+                  {t.akun.addDependant.relationshipLabel}
+                </th>
+                <th className="pb-2 text-right font-semibold">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(familyMembers ?? [])
+                .filter((m) => m.role !== "admin_staff")
+                .map((m, i) => {
+                  const isMe = m.userId === myUserId;
+                  const initials = isMe
+                    ? displayInitials
+                    : memberInitials(m.name);
+                  const gradient =
+                    MEMBER_GRADIENTS[i % MEMBER_GRADIENTS.length] ??
+                    MEMBER_GRADIENTS[0]!;
+                  return (
+                    <tr
+                      key={m.id}
+                      className="border-b last:border-0 hover:bg-secondary/30"
+                    >
+                      <td className="py-3 pr-3">
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white"
+                            style={{ background: gradient }}
+                          >
+                            {initials}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-foreground">
+                              {m.name}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground truncate max-w-[140px]">
+                              {m.email}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 pr-3">
+                        <StatusBadge
+                          variant={
+                            m.role === "owner"
+                              ? "info"
+                              : m.role === "spouse"
+                                ? "purple"
+                                : m.role === "dependant"
+                                  ? "warning"
+                                  : "gray"
+                          }
+                        >
+                          {t.common.roleLabels[m.role] ?? m.role}
+                        </StatusBadge>
+                      </td>
+                      <td className="py-3 pr-3 text-muted-foreground text-[12px]">
+                        {/* FamilyMember carries no relationship field (honest
+                          UI) — only the role-derived "Kepala keluarga" for
+                          the owner row, per the prototype. */}
+                        {m.role === "owner" ? "Kepala keluarga" : "—"}
+                      </td>
+                      <td className="py-3 text-right">
+                        {isMe ? (
+                          <StatusBadge variant="gray">
+                            {t.akun.family.youBadge}
+                          </StatusBadge>
+                        ) : (
+                          <div className="flex items-center justify-end gap-1.5">
+                            {/* Same gating as FamilyBody (EPIC-019 Task C /
+                              EPIC-023 Task D) — member edit/delete UI stays
+                              a J2 follow-up. */}
+                            {isElevated && m.role === "member" && (
+                              <button
+                                type="button"
+                                aria-label={`${t.akun.family.categoryLimitButton} ${m.name}`}
+                                className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                                onClick={() => setCategoryLimitMember(m)}
+                              >
+                                <Target className="size-4" />
+                              </button>
+                            )}
+                            {primaryGroup?.myRole === "owner" &&
+                              (m.role === "dependant" ||
+                                m.role === "operational") && (
+                                <button
+                                  type="button"
+                                  aria-label={`${t.akun.family.thresholdButton} ${m.name}`}
+                                  className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                                  onClick={() => setThresholdMember(m)}
+                                >
+                                  <Gauge className="size-4" />
+                                </button>
+                              )}
+                            {!(
+                              (isElevated && m.role === "member") ||
+                              (primaryGroup?.myRole === "owner" &&
+                                (m.role === "dependant" ||
+                                  m.role === "operational"))
+                            ) && (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              {(familyMembers ?? []).length === 0 && (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="py-6 text-center text-[12px] text-muted-foreground"
+                  >
+                    {displayName} · {displayEmail}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {/* Approval notice — prototype copy (akun.html), literal Indonesian */}
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-primary/20 bg-accent px-3 py-2.5 text-[12px] text-muted-foreground">
+          <ShieldHalf className="mt-0.5 size-3.5 shrink-0 text-primary" />
+          <span>
+            Persetujuan permintaan dana kini punya halamannya sendiri —{" "}
+            <button
+              onClick={() => router.push("/persetujuan")}
+              className="font-bold text-primary hover:underline"
+            >
+              buka halaman Persetujuan
+            </button>
+            .
+          </span>
+        </div>
+      </SectionCard>
+
+      {/* 4. Keamanan — inline KeamananBody */}
+      <SectionCard title={t.akun.menuKeamananName}>
+        <KeamananBody />
+      </SectionCard>
+
+      {/* 5. Pengaturan Umum — inline PengaturanBody */}
+      <SectionCard title={t.akun.menuPengaturanName}>
+        <PengaturanBody />
+      </SectionCard>
+
+      {/* Extra non-prototype features as a compact menu section */}
+      <SectionCard title={t.akun.sectionBantuan}>
         <MenuRow
           icon={<Landmark className="size-4" style={{ color: "#1D4ED8" }} />}
           iconBg="#DBEAFE"
           name={t.akun.menuKoneksiName}
           sub={t.akun.menuKoneksiSub}
           onClick={() => open("koneksi")}
-        />
-      </SectionCard>
-
-      {/* Pengaturan */}
-      <SectionCard title={t.akun.sectionPengaturan}>
-        <MenuRow
-          icon={<Settings className="size-4 text-muted-foreground" />}
-          iconBg="#F3F4F6"
-          name={t.akun.menuPengaturanName}
-          sub={t.akun.menuPengaturanSub}
-          onClick={() => open("pengaturan")}
         />
         <MenuRow
           icon={<Bell className="size-4 text-warning" />}
@@ -3286,10 +3534,6 @@ export default function AkunPage() {
           sub={t.akun.menuPrivasiSub}
           onClick={() => open("privasi")}
         />
-      </SectionCard>
-
-      {/* Bantuan */}
-      <SectionCard title={t.akun.sectionBantuan}>
         <MenuRow
           icon={<CircleQuestionMark className="size-4 text-destructive" />}
           iconBg="#FEE2E2"
@@ -3327,7 +3571,7 @@ export default function AkunPage() {
         <LogOut className="size-4" /> {t.akun.logoutButton}
       </button>
 
-      {/* Slide-in sub-page sheet */}
+      {/* Slide-in sub-page sheet (for Edit Profil + extra non-prototype sub-pages) */}
       <Sheet
         open={subpage !== null}
         onOpenChange={(o) => {
@@ -3356,6 +3600,20 @@ export default function AkunPage() {
         onOpenChange={setAddDependantOpen}
         familyGroupId={primaryGroup?.id ?? null}
         token={token}
+      />
+      {/* EPIC-026 Wave 2 — dialogs backing the members table's Aksi column
+          (same components FamilyBody mounts for the sheet variant). */}
+      <CategoryLimitDialog
+        member={categoryLimitMember}
+        familyGroupId={primaryGroup?.id ?? null}
+        token={token}
+        onClose={() => setCategoryLimitMember(null)}
+      />
+      <ThresholdDialog
+        member={thresholdMember}
+        familyGroupId={primaryGroup?.id ?? null}
+        token={token}
+        onClose={() => setThresholdMember(null)}
       />
       {/* EPIC-024 A2 (D2, item 18) — `AddAdminDialog` and the "member" CRUD
           entity (email invite-link UI) were removed; `CrudModal` here is

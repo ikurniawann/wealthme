@@ -190,8 +190,15 @@ describe("TaxPage — PPh21 save uses the server-echoed result, never a stale/mi
     // Save re-enables once the server has echoed the new, matching pair.
     await waitFor(() => expect(saveButton).not.toBeDisabled());
 
-    // Act — save.
+    // Act — save. EPIC-026 Wave 2 (prototype structural port) — Save now
+    // opens a review dialog ("Simpan ke Catatan Pajak") before persisting;
+    // the actual POST only fires once that dialog's own "Simpan" button is
+    // confirmed.
     await user.click(saveButton);
+    const confirmButton = await screen.findByRole("button", {
+      name: "Simpan",
+    });
+    await user.click(confirmButton);
 
     // Assert — the persisted payload is the self-consistent server-echoed
     // pair (100jt gross with its own 2.050.000 netTax), not a mix of a
@@ -262,6 +269,16 @@ describe("TaxPage — Save is only offered when the API would actually accept it
     });
   }
 
+  // EPIC-026 Wave 2 (prototype structural port) — Save now opens a review
+  // dialog ("Simpan ke Catatan Pajak") before persisting; the POST only
+  // fires once that dialog's own "Simpan" button is confirmed.
+  async function confirmSaveDialog(user: ReturnType<typeof userEvent.setup>) {
+    const confirmButton = await screen.findByRole("button", {
+      name: "Simpan",
+    });
+    await user.click(confirmButton);
+  }
+
   function postCalls() {
     return mockApiFetch.mock.calls.filter(
       (call) =>
@@ -284,6 +301,7 @@ describe("TaxPage — Save is only offered when the API would actually accept it
     const button = await saveButton();
     await waitFor(() => expect(button).not.toBeDisabled());
     await user.click(button);
+    await confirmSaveDialog(user);
 
     await waitFor(() => expect(postCalls().length).toBe(1));
     expect(screen.queryByText(/tidak dapat mencatat data pajak/i)).toBeNull();
@@ -304,6 +322,7 @@ describe("TaxPage — Save is only offered when the API would actually accept it
       const button = await saveButton();
       await waitFor(() => expect(button).not.toBeDisabled());
       await user.click(button);
+      await confirmSaveDialog(user);
 
       await waitFor(() => expect(postCalls().length).toBe(1));
       expect(screen.queryByText(/tidak dapat mencatat data pajak/i)).toBeNull();
@@ -396,6 +415,7 @@ describe("TaxPage — Save is only offered when the API would actually accept it
     const button = await saveButton();
     await waitFor(() => expect(button).not.toBeDisabled());
     await user.click(button);
+    await confirmSaveDialog(user);
 
     await waitFor(() => expect(toast.error).toHaveBeenCalled());
     expect(toast.error).toHaveBeenCalledWith(

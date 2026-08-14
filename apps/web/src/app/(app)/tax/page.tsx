@@ -16,6 +16,12 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useLocale } from "@/hooks/use-locale";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { HeroCard, SectionCard, CardLink, StatusBadge } from "@/components/wm";
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah, parseRupiah, formatNumber } from "@/lib/format";
@@ -205,6 +211,11 @@ export default function TaxPage() {
   // (TaxRecordDto.taxYear accepts any year), unlike a hero-level year
   // switcher which would have no distinct historical estimate to show.
   const [taxYear, setTaxYear] = useState(CURRENT_YEAR);
+  // EPIC-026 Wave 2 — prototype structural port: the prototype gates Save
+  // behind a review dialog ("Simpan ke Catatan Pajak") showing the exact
+  // numbers about to be persisted; Save used to write through immediately
+  // with no review step.
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
 
   const debouncedGross = useDebounce(gross, 300);
   const debouncedZakat = useDebounce(zakat, 300);
@@ -322,12 +333,15 @@ export default function TaxPage() {
     // under the range where `String()` on a number risks exponential
     // notation, so a plain `String()` is safe for those two.
     if (!pph21Result || !canSaveTaxRecord) return;
-    upsertMutation.mutate({
-      taxYear,
-      grossIncome: toClampedDigitString(debouncedGross, MAX_TAX_INPUT),
-      ptkp: String(pph21Result.ptkp),
-      netTax: String(Math.round(pph21Result.totalTax)),
-    });
+    upsertMutation.mutate(
+      {
+        taxYear,
+        grossIncome: toClampedDigitString(debouncedGross, MAX_TAX_INPUT),
+        ptkp: String(pph21Result.ptkp),
+        netTax: String(Math.round(pph21Result.totalTax)),
+      },
+      { onSettled: () => setShowSaveDialog(false) },
+    );
   }
 
   function handleResetCalculator(): void {
@@ -628,14 +642,15 @@ export default function TaxPage() {
           )}
         </div>
         <div className="mt-3.5 flex flex-wrap gap-2.5">
+          {/* EPIC-026 Wave 2 — prototype (tax.html) renders Simpan as
+              btn--primary; Reset stays outline. */}
           <Button
-            onClick={handleSaveTaxRecord}
+            onClick={() => setShowSaveDialog(true)}
             disabled={!canSaveTaxRecord || upsertMutation.isPending}
             aria-describedby={
               !canManageTaxRecords ? "tax-access-note" : undefined
             }
             className="h-auto px-4 py-2.5"
-            variant="outline"
           >
             {upsertMutation.isPending
               ? t.tax.savingLabel
@@ -834,6 +849,91 @@ export default function TaxPage() {
           <FileText className="size-4" /> {t.tax.downloadSummaryButton}
         </Button>
       </div>
+
+      {/* EPIC-026 Wave 2 — prototype structural port: review the exact
+          numbers before Save actually persists (prototype's "Simpan ke
+          Catatan Pajak" dialog). Every value here is the same
+          server-echoed `pph21Result` `handleSaveTaxRecord` itself sends —
+          never the raw, still-debouncing input state. */}
+      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+        <DialogContent className="max-w-[min(420px,calc(100%-2rem))] p-6">
+          <DialogHeader>
+            <DialogTitle className="text-[15px] font-bold">
+              {t.tax.saveDialogTitle}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-[12.5px] text-muted-foreground">
+            {t.tax.saveDialogDescPrefix}
+            {taxYear}
+          </p>
+          {pph21Result && (
+            <table className="w-full text-[12.5px]">
+              <tbody>
+                <tr className="border-b">
+                  <td className="py-1.5 text-muted-foreground">
+                    {t.tax.saveDialogGrossRow}
+                  </td>
+                  <td className="mono py-1.5 text-right font-semibold">
+                    {formatRupiah(
+                      Number(
+                        toClampedDigitString(debouncedGross, MAX_TAX_INPUT),
+                      ),
+                    )}
+                  </td>
+                </tr>
+                <tr className="border-b">
+                  <td className="py-1.5 text-muted-foreground">
+                    {t.tax.saveDialogPtkpRow}
+                  </td>
+                  <td className="mono py-1.5 text-right font-semibold">
+                    {formatRupiah(pph21Result.ptkp)}
+                  </td>
+                </tr>
+                <tr className="border-b">
+                  <td className="py-1.5 text-muted-foreground">
+                    {t.tax.saveDialogPerpuluhanRow}
+                  </td>
+                  <td className="mono py-1.5 text-right font-semibold">
+                    {formatRupiah(
+                      Number(
+                        toClampedDigitString(debouncedZakat, MAX_TAX_INPUT),
+                      ),
+                    )}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-1.5 font-bold">{t.tax.saveDialogTaxRow}</td>
+                  <td className="mono py-1.5 text-right font-bold text-primary">
+                    {formatRupiah(Math.round(pph21Result.totalTax))}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          )}
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {t.tax.saveDialogNote}
+          </p>
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              className="flex-1 rounded-lg border py-2 text-[13px] font-semibold text-foreground"
+              onClick={() => setShowSaveDialog(false)}
+            >
+              {t.common.cancel}
+            </button>
+            <button
+              type="button"
+              className="flex-1 rounded-lg bg-primary py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
+              disabled={!canSaveTaxRecord || upsertMutation.isPending}
+              onClick={handleSaveTaxRecord}
+            >
+              {upsertMutation.isPending
+                ? t.tax.savingLabel
+                : t.tax.saveDialogConfirmButton}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -387,8 +387,11 @@ export default function MasterCoaPage() {
           then the account table — see EPIC-025-N3-translation-table.md */}
       <MasterCoaGuide t={t} />
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+      {/* Summary cards — EPIC-026 Wave 2: prototype has exactly 3 stat cards
+          (Total Akun, Kategori Terhubung, Akun COA Kosong). The 4th "Digunakan
+          di Laporan" card was extra; removed to match prototype's auto-grid--metrics
+          3-column layout (grid-cols-1 md:grid-cols-3). */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
         <Rise index={0}>
           <div className="h-full transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
             <SectionCard
@@ -457,41 +460,17 @@ export default function MasterCoaPage() {
             </SectionCard>
           </div>
         </Rise>
-        <Rise index={3}>
-          <div className="h-full transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
-            <SectionCard
-              title={t.mastercoa.usedInReportsTitle}
-              bodyClassName="pt-2 pb-3"
-              action={
-                <CardLink onClick={() => router.push("/laporan")}>
-                  {t.mastercoa.viewLink}
-                </CardLink>
-              }
-            >
-              <div className="flex items-center gap-1.5 pt-1">
-                <span className="text-[13px] font-bold leading-snug">
-                  {t.mastercoa.reportsBadgeText}
-                </span>
-                <StatusBadge variant="success">
-                  {t.mastercoa.activeBadge}
-                </StatusBadge>
-              </div>
-              <div className="text-[11px] text-muted-foreground">
-                {t.mastercoa.usedInReportsDesc}
-              </div>
-            </SectionCard>
-          </div>
-        </Rise>
       </div>
 
       {/* Main table card */}
       <SectionCard title={t.mastercoa.listTitle}>
-        {/* Filter tabs — EPIC-025 N3 prototype structural port: numbered
-            Indonesian labels ("1 Pendapatan", "2 Beban", …) instead of the
-            English names, and no counts (the prototype's own tabs don't
-            show them). */}
+        {/* Filter buttons — visual filter pills, not a true ARIA tab widget
+            (prototype .tabs/.tab = scroll-pill filter, not tabpanel-linked).
+            Using aria-pressed per ARIA authoring: no panel linkage required. */}
         <div className="flex flex-wrap gap-1.5 mb-4">
           <button
+            type="button"
+            aria-pressed={activeTab === 0}
             onClick={() => setActiveTab(0)}
             className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
               activeTab === 0
@@ -504,6 +483,8 @@ export default function MasterCoaPage() {
           {GROUP_NUMS.map((groupNum) => (
             <button
               key={groupNum}
+              type="button"
+              aria-pressed={activeTab === groupNum}
               onClick={() => setActiveTab(groupNum)}
               className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
                 activeTab === groupNum

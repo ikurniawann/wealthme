@@ -2264,6 +2264,16 @@ export const en = {
     perpuluhanDeductionDesc: "from recorded donations",
     emptyDocumentsTitle: "No documents yet",
     emptyDocumentsSub: "Tax document upload & listing is coming soon.",
+    saveDialogTitle: "Save to Tax Record",
+    saveDialogDescPrefix:
+      "This year's tax record will be created/updated with the figures below: ",
+    saveDialogGrossRow: "Gross income",
+    saveDialogPtkpRow: "PTKP",
+    saveDialogPerpuluhanRow: "Deductible tithe",
+    saveDialogTaxRow: "PPh 21 owed",
+    saveDialogNote:
+      "Values are sent as plain numeric strings — thousands separators are display-only.",
+    saveDialogConfirmButton: "Save",
   },
   rekening: {
     typeLabels: {

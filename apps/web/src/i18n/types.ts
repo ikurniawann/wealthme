@@ -2109,6 +2109,18 @@ export type I18nDictionary = {
     perpuluhanDeductionDesc: string;
     emptyDocumentsTitle: string;
     emptyDocumentsSub: string;
+    // EPIC-026 Wave 2 — prototype structural port: the prototype's
+    // "Simpan ke Catatan Pajak" confirmation dialog (review the exact
+    // numbers being persisted before Save actually fires) had no real-app
+    // counterpart; Save wrote straight through with no review step.
+    saveDialogTitle: string;
+    saveDialogDescPrefix: string;
+    saveDialogGrossRow: string;
+    saveDialogPtkpRow: string;
+    saveDialogPerpuluhanRow: string;
+    saveDialogTaxRow: string;
+    saveDialogNote: string;
+    saveDialogConfirmButton: string;
   };
   /** EPIC-018 Task A6 — `/rekening` (bank accounts) page copy. */
   rekening: {
