@@ -561,7 +561,7 @@ export function SplitEntryDialog({
         if (!o) onClose();
       }}
     >
-      <DialogContent className="max-w-[440px] sm:max-w-[440px]">
+      <DialogContent className="max-w-[min(440px,calc(100%-2rem))]">
         <DialogTitle>{t.rekonsiliasi.splitDialogTitle}</DialogTitle>
         {entry && (
           <div className="pt-1">
@@ -807,7 +807,7 @@ function ReconciliationTemplateManagerDialog({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-[480px] sm:max-w-[480px]">
+      <DialogContent className="max-w-[min(480px,calc(100%-2rem))]">
         <DialogTitle className="mb-4 text-[17px] font-extrabold">
           {t.rekonsiliasi.templateManagerTitle}
         </DialogTitle>

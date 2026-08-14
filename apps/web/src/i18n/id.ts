@@ -2244,7 +2244,9 @@ export const id = {
     calculatorSubtitle:
       "Hitung estimasi pajak penghasilan berdasarkan tarif progresif UU HPP",
     fieldGrossLabel: "Penghasilan Bruto/Tahun (Rp)",
-    fieldStatusLabel: "Status",
+    // UI/UX parity fix (docs/prototype/pages/tax.html:104) — prototype
+    // labels this "Status PTKP", not the bare "Status".
+    fieldStatusLabel: "Status PTKP",
     fieldJabatanLabel: "Biaya Jabatan (otomatis)",
     fieldZakatLabel: "Zakat/Donasi (pengurang)",
     estimateLabel: "Estimasi PPh 21 Terutang/Tahun",

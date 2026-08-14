@@ -1513,7 +1513,28 @@ function TransaksiPageInner() {
 
         {!isLoading && sorted.length > 0 && (
           <>
-            <div className="w-full overflow-x-auto">
+            {/* UI/UX parity fix (docs/uiux-beda audit) — the prototype's
+                `.table--transactions` has its own `@media (max-width: 640px)`
+                CSS transform turning each cell into a labeled stacked row
+                (Tanggal/Kategori/Akun/Jumlah/Opsi all visible, no
+                scrolling); a bare overflow-x-auto table hides those columns
+                behind a horizontal scroll on phones instead. `TxRow` above
+                is that exact stacked-card shape, already built and covered
+                by txrow-detail.test.tsx — reused here for the mobile list
+                instead of porting the prototype's ::before-label CSS. */}
+            <div className="flex flex-col gap-2 sm:hidden">
+              {pagedTransactions.map((tx) => (
+                <TxRow
+                  key={tx.id}
+                  tx={tx}
+                  familyGroupId={familyGroupId}
+                  token={token}
+                  onDeleteClick={() => setDeleteTarget(tx.id)}
+                  onEditClick={() => setEditTarget(tx)}
+                />
+              ))}
+            </div>
+            <div className="hidden w-full overflow-x-auto sm:block">
               <table className="w-full min-w-[720px] text-left">
                 <thead>
                   <tr className="border-b">

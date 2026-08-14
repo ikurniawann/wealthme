@@ -811,7 +811,7 @@ export default function DonationPage() {
 
       {/* Donation modal */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-[480px] p-6 sm:max-w-[480px]">
+        <DialogContent className="max-w-[min(480px,calc(100%-2rem))] p-6">
           <DialogTitle className="mb-4 text-[17px] font-extrabold">
             {t.donation.modalTitle}
           </DialogTitle>

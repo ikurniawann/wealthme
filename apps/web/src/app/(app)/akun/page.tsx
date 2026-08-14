@@ -2435,7 +2435,7 @@ function CategoryLimitDialog({
           fully replaces the DialogContent default via tailwind-merge, so it
           must carry the same dynamic-viewport unit or it silently
           reintroduces the bug (see components/ui/dialog.tsx). */}
-      <DialogContent className="max-h-[80dvh] max-w-[420px] overflow-y-auto p-6 sm:max-w-[420px]">
+      <DialogContent className="max-h-[80dvh] max-w-[min(420px,calc(100%-2rem))] overflow-y-auto p-6">
         <DialogHeader>
           <DialogTitle className="text-[15px] font-bold">
             {t.akun.family.categoryLimitDialogTitle}
@@ -2586,7 +2586,7 @@ function ThresholdDialog({
 
   return (
     <Dialog open={!!member} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[420px] p-6 sm:max-w-[420px]">
+      <DialogContent className="max-w-[min(420px,calc(100%-2rem))] p-6">
         <DialogHeader>
           <DialogTitle className="text-[15px] font-bold">
             {t.akun.family.thresholdDialogTitle}

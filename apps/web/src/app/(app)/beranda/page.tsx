@@ -612,8 +612,12 @@ function BerandaPage() {
             <SectionCard
               title={t.beranda.wealthComposition}
               action={
+                // UI/UX parity fix (docs/prototype/pages/beranda.html:38) —
+                // this card's action link reads "Lihat ringkasan", distinct
+                // from the shared t.common.viewDetail ("Lihat detail") used
+                // elsewhere; hardcoded here to match the prototype exactly.
                 <CardLink onClick={() => router.push("/ringkasan")}>
-                  {t.common.viewDetail}
+                  Lihat ringkasan
                 </CardLink>
               }
             >
@@ -820,7 +824,7 @@ function BerandaPage() {
               /* EPIC-026 Wave 3 — prototype's "Detail" action links to
                  ringkasan.html, not aset. */
               <CardLink onClick={() => router.push("/ringkasan")}>
-                {t.common.viewDetail}
+                Detail
               </CardLink>
             }
           >
@@ -833,31 +837,16 @@ function BerandaPage() {
                 {t.common.noData}
               </div>
             ) : (
-              <div className="space-y-3">
-                <DonutChart
-                  segments={donutSegments}
-                  centerLabel={t.common.total}
-                  height={200}
-                  ariaLabel={donutAriaLabel}
-                />
-                <div className="space-y-1.5">
-                  {allocation.map((seg) => (
-                    <div
-                      key={seg.label}
-                      className="flex items-center gap-2 text-xs"
-                    >
-                      <span
-                        className="size-2 shrink-0 rounded-full"
-                        style={{ background: seg.color }}
-                      />
-                      <span className="flex-1 text-muted-foreground">
-                        {seg.label}
-                      </span>
-                      <span className="font-bold">{seg.value}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              // UI/UX parity fix (docs/prototype/pages/beranda.html:255-260)
+              // — prototype's WMCharts.donut() call passes "Kekayaan" as the
+              // center label and renders no itemized legend list underneath
+              // (just the chart). Dropped the extra legend rows to match.
+              <DonutChart
+                segments={donutSegments}
+                centerLabel="Kekayaan"
+                height={200}
+                ariaLabel={donutAriaLabel}
+              />
             )}
           </SectionCard>
         </div>
