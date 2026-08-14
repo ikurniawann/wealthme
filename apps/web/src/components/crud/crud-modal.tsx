@@ -143,7 +143,7 @@ function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
           carry the same dynamic-viewport unit or it silently reintroduces
           the bug this dialog is meant to be protected from (see the comment
           on DialogContent in components/ui/dialog.tsx). */}
-      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-md">
+      <DialogContent className="min-[769px]:w-[min(448px,calc(100%-2rem))]">
         <DialogHeader>
           <DialogTitle className="text-[15px] font-bold">
             {state.mode === "edit" ? "Edit" : "Tambah"} {config.title}

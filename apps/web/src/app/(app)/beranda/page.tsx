@@ -1,103 +1,139 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-compat";
-import { useQuery } from "@tanstack/react-query";
-import {
-  Gem,
-  ArrowUp,
-  ArrowDown,
-  Landmark,
-  Wallet,
-  TrendingUp,
-  CreditCard,
-  ArrowDownLeft,
-  ArrowLeftRight,
-  CalendarClock,
-  CheckCheck,
-  Target,
-} from "lucide-react";
-import type { DonutSegment } from "@/components/charts/donut";
-// EPIC-025 N3-G1 — the chart swap: ApexCharts presets replace the old
-// Sparkline/Donut+DonutLegend/BarChart components. Every series below is the
-// SAME data these components rendered before the swap (traced inline).
-import {
-  CashflowChart,
-  DonutChart,
-  SparklineChart,
-} from "@/components/charts/apex-presets";
-import {
-  HeroCard,
-  SectionCard,
-  CardLink,
-  SummaryCard,
-  StatusBadge,
-  IconChip,
-  CountUpRupiah,
-  AnimatedProgress,
-  ProgressBar,
-  Rise,
-} from "@/components/wm";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { useLocale } from "@/hooks/use-locale";
-import { useCurrencyPreference } from "@/hooks/use-currency-preference";
-import { useGoldPrice } from "@/hooks/use-gold-price";
-import { formatGoldGrams } from "@/components/consolidated-total-card";
-import { apiFetch } from "@/lib/api-client";
-import { queryKeys } from "@/lib/query-keys";
-import { formatRupiah, formatRupiahCompact } from "@/lib/format";
-import type {
-  AllowanceRequestDto,
-  BudgetDto,
-  DashboardSummaryDto,
-  GoalDto,
-  LiabilityDto,
-  NetWorthDto,
-  NetWorthHistoryDto,
-} from "@wealthme/contracts";
+import { BerandaHero } from "./_components/hero-card";
+import { WealthSnapshot } from "./_components/wealth-snapshot";
+import { StatCards } from "./_components/stat-cards";
+import { CashflowCard } from "./_components/cashflow-card";
+import { AllocationCard } from "./_components/allocation-card";
+import { RecentActivity } from "./_components/recent-activity";
+import { BudgetCard } from "./_components/budget-card";
+import { AttentionCard } from "./_components/attention-card";
+import { GoalsCard } from "./_components/goals-card";
+import {
+  useBerandaData,
+  useMoneyFormatters,
+  type BerandaPeriod,
+} from "./_components/use-beranda-data";
 
-// EPIC-025 N3 fidelity follow-up — prototype's Arus Kas card carries a
-// "6 Bln / 12 Bln" toggle instead of the hero's 1M/3M/6M/1Y/All pills. The
-// toggle still drives the same range-parametrized net-worth-history query
-// the hero sparkline already renders (there is no 12-month CASHFLOW feed —
-// `DashboardSummaryDto.cashflow` is a fixed 6-month backend rollup with no
-// range param, and adding one is backend work out of this page-only pass).
-// Relocating the control here matches the prototype's card placement
-// without fabricating a 12-month income/expense series.
-const PERIODS = ["6M", "12M"] as const;
+/**
+ * EPIC-026 Wave 8 — `/beranda` rebuilt 1:1 against
+ * `docs/prototype/pages/beranda.html`'s `.bento-dashboard`.
+ *
+ * Section order matches the prototype exactly: hero (7) · composition
+ * snapshot (5) · four stat tiles (3 each) · cashflow chart (7) · allocation
+ * donut (5) · recent transactions (7) · side column with budget + needs
+ * attention (5) · goals (full width). All spans come from `design-system.css`;
+ * this file owns composition only — the sections live in `_components/`.
+ */
+function BerandaPage() {
+  const { data: session } = useSession();
+  const { t } = useLocale();
+  const [period, setPeriod] = useState<BerandaPeriod>("6M");
 
-const PERIOD_RANGE: Record<(typeof PERIODS)[number], string> = {
-  "6M": "6m",
-  "12M": "12m",
-};
+  const fmt = useMoneyFormatters();
+  const data = useBerandaData(period);
 
-const GOAL_STATUS_STYLE: Record<
-  GoalDto["status"],
-  { color: string; iconBg: string }
-> = {
-  achieved: { color: "var(--success)", iconBg: "#DCFCE7" },
-  on_track: { color: "var(--primary)", iconBg: "#DBEAFE" },
-  needs_boost: { color: "var(--warning)", iconBg: "#FEF9C3" },
-  at_risk: { color: "var(--brand-purple)", iconBg: "#EDE9FE" },
-};
+  if (data.isError) {
+    return (
+      <div className="t-md t-muted flex items-center justify-center py-16">
+        {t.beranda.loadError}
+      </div>
+    );
+  }
 
-/** Page-local budget progress-bar colour, matching `/anggaran`'s own
- * `budgetBarColor` derivation (isOverBudget/isNearLimit from the real
- * `BudgetDto`) — not duplicated import since `/anggaran/page.tsx` has no
- * exported helpers. */
-function budgetBarColor(dto: BudgetDto): string {
-  if (dto.isOverBudget) return "var(--destructive)";
-  if (dto.isNearLimit) return "var(--warning)";
-  return "var(--success)";
-}
+  const firstName = session?.user?.name?.split(" ")[0] ?? "Kamu";
+  const greetingKey = getGreetingKey(new Date().getHours());
 
-/** "6,2 / 8 jt" style compact spent/limit pair (prototype's `.mono` figure)
- * — reuses `formatRupiahCompact` (already handles jt/rb/M scaling) rather
- * than hand-rolling a second Rupiah-compacting formula. */
-function formatBudgetRow(spent: number, limit: number): string {
-  const strip = (s: string) => s.replace("Rp ", "");
-  return `${strip(formatRupiahCompact(spent))} / ${strip(formatRupiahCompact(limit))}`;
+  return (
+    <div className="stack gap-3.5">
+      <div className="mb-[18px]">
+        <div className="row row--between gap-2">
+          <div className="section-title">
+            {t.greeting[greetingKey]}, {firstName} 👋
+          </div>
+          <LocaleSwitcher />
+        </div>
+        <div className="t-sm t-muted mt-0.5">{t.beranda.subtitle}</div>
+      </div>
+
+      <section className="bento-dashboard" aria-label={t.beranda.title}>
+        <BerandaHero
+          isLoading={data.isLoading}
+          netWorth={data.netWorth}
+          assetsTotal={data.assetsTotal}
+          totalLiabilities={data.totalLiabilities}
+          currentMonth={data.currentMonth}
+          sparklinePoints={data.sparklinePoints}
+          fmt={fmt}
+        />
+
+        <WealthSnapshot
+          isLoading={data.isLoading}
+          liquidTotal={data.liquidTotal}
+          nonLiquidTotal={data.nonLiquidTotal}
+          liquidPct={data.liquidPct}
+          nonLiquidPct={data.nonLiquidPct}
+          nearestDueLiability={data.nearestDueLiability}
+          fmt={fmt}
+        />
+
+        <StatCards
+          hasData={Boolean(data.summary)}
+          cashEwalletTotal={data.cashEwalletTotal}
+          bankTotal={data.bankTotal}
+          investasiTotal={data.investasiTotal}
+          totalLiabilities={data.totalLiabilities}
+          fmt={fmt}
+        />
+
+        <CashflowCard
+          isLoading={data.isLoading}
+          period={period}
+          onPeriodChange={setPeriod}
+          cashflow={data.cashflow}
+          currentMonth={data.currentMonth}
+          fmt={fmt}
+        />
+
+        <AllocationCard
+          isLoading={data.isLoading}
+          allocation={data.allocation}
+        />
+
+        <RecentActivity
+          isLoading={data.isLoading}
+          transactions={data.recentTransactions}
+          fmt={fmt}
+        />
+
+        <div className="bento-side">
+          <BudgetCard
+            isLoading={data.isBudgetsLoading}
+            budgets={data.budgets}
+          />
+          <AttentionCard
+            isLoading={data.isLoading}
+            pendingApprovalsCount={data.pendingApprovalsCount}
+            nearestDueLiability={data.nearestDueLiability}
+          />
+        </div>
+
+        <GoalsCard
+          isLoading={data.isGoalsLoading}
+          goals={data.goals}
+          fmt={fmt}
+        />
+      </section>
+
+      {/* EPIC-026 Wave 3 — the AI insight banner was removed: the prototype's
+          bento-dashboard ends at `.bento-goals`, and the banner's "insight"
+          was static i18n copy, not real analysis. */}
+    </div>
+  );
 }
 
 function getGreetingKey(
@@ -107,1011 +143,6 @@ function getGreetingKey(
   if (h < 15) return "afternoon";
   if (h < 18) return "afternoon2";
   return "evening";
-}
-
-function BerandaPage() {
-  const router = useRouter();
-  const { data: session } = useSession();
-  const { t } = useLocale();
-  const { currency, formatMoney, isIndicative, isReady } =
-    useCurrencyPreference();
-  // EPIC-021 Group F (#6) — the hero card's gold-equivalent line (part of
-  // the consolidated IDR/USD/gram-emas total, Open Design Decision #6).
-  const { hasPrice: hasGoldPrice, toGoldGrams } = useGoldPrice();
-  // Every monetary display on this page routes through these two helpers so
-  // conversion coverage stays consistent — never a fabricated 1:1-rate
-  // number rendered under a foreign currency symbol while the FX rate is
-  // still loading (or failed to load).
-  const money = (value: number): string =>
-    !isReady
-      ? t.common.loading
-      : isIndicative
-        ? `≈ ${formatMoney(value)}`
-        : formatRupiah(value);
-  const moneyCompact = (value: number): string =>
-    !isReady
-      ? t.common.loading
-      : isIndicative
-        ? `≈ ${formatMoney(value)}`
-        : formatRupiahCompact(value);
-  const firstName = session?.user?.name?.split(" ")[0] ?? "Kamu";
-  const [period, setPeriod] = useState<(typeof PERIODS)[number]>("6M");
-
-  const familyGroupId = session?.familyGroupId ?? null;
-
-  const {
-    data: summary,
-    isLoading,
-    isError,
-  } = useQuery<DashboardSummaryDto>({
-    queryKey: queryKeys.dashboard.summary(familyGroupId ?? ""),
-    queryFn: () =>
-      apiFetch<DashboardSummaryDto>(
-        `/family-groups/${familyGroupId}/dashboard/summary`,
-        { token: session?.accessToken },
-      ),
-    enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
-    staleTime: 60_000,
-  });
-
-  const range = PERIOD_RANGE[period];
-  // ponytail: inline key — lib/query-keys.ts is a protected foundation file.
-  const { data: netWorthHistory } = useQuery<NetWorthHistoryDto>({
-    queryKey: ["dashboard", familyGroupId ?? "", "net-worth-history", range],
-    queryFn: () =>
-      apiFetch<NetWorthHistoryDto>(
-        `/family-groups/${familyGroupId}/dashboard/net-worth/history?range=${range}`,
-        { token: session?.accessToken },
-      ),
-    enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
-    staleTime: 60_000,
-  });
-
-  // EPIC-025 N3-G1 — bento-hero footer metric ("Liabilitas"). Same
-  // `/dashboard/net-worth` endpoint `ringkasan` already fetches; only
-  // `liabilitiesTotal` is read here (no new backend work, per Ground Truth).
-  const { data: netWorthData } = useQuery<NetWorthDto>({
-    queryKey: queryKeys.netWorth.summary(familyGroupId ?? ""),
-    queryFn: () =>
-      apiFetch<NetWorthDto>(
-        `/family-groups/${familyGroupId}/dashboard/net-worth`,
-        { token: session?.accessToken },
-      ),
-    enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
-    staleTime: 60_000,
-  });
-
-  // EPIC-025 N3 fidelity follow-up — "Perlu Perhatian" card
-  // (`docs/prototype/pages/beranda.html`'s `.bento-side` second article),
-  // cut in N3-G1 on the (wrong) assumption it needed a new endpoint. Both
-  // queries below already exist and are already fetched by
-  // /persetujuan and /liabilitas respectively — no new backend work.
-  const { data: allowanceRequests } = useQuery<AllowanceRequestDto[]>({
-    queryKey: queryKeys.allowanceRequests.all(familyGroupId ?? ""),
-    queryFn: () =>
-      apiFetch<AllowanceRequestDto[]>(
-        `/family-groups/${familyGroupId}/allowance-requests`,
-        { token: session?.accessToken },
-      ),
-    enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
-    staleTime: 60_000,
-  });
-  const { data: liabilities } = useQuery<LiabilityDto[]>({
-    queryKey: queryKeys.liabilities.all(familyGroupId ?? ""),
-    queryFn: () =>
-      apiFetch<LiabilityDto[]>(`/family-groups/${familyGroupId}/liabilities`, {
-        token: session?.accessToken,
-      }),
-    enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
-    staleTime: 60_000,
-  });
-
-  // EPIC-025 N3 fidelity follow-up — "Anggaran <Bulan>" card
-  // (`docs/prototype/pages/beranda.html`'s `.bento-side` first article).
-  // Same `/budgets` endpoint `/anggaran` already fetches — no new backend
-  // work, per Ground Truth.
-  const { data: budgets, isLoading: isBudgetsLoading } = useQuery<BudgetDto[]>({
-    queryKey: queryKeys.budgets.all(familyGroupId ?? ""),
-    queryFn: () =>
-      apiFetch<BudgetDto[]>(`/family-groups/${familyGroupId}/budgets`, {
-        token: session?.accessToken,
-      }),
-    enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
-    staleTime: 60_000,
-  });
-
-  const { data: goals, isLoading: isGoalsLoading } = useQuery<GoalDto[]>({
-    queryKey: queryKeys.goals.all(familyGroupId ?? ""),
-    queryFn: ({ signal }) =>
-      apiFetch<GoalDto[]>(`/family-groups/${familyGroupId}/goals`, {
-        token: session?.accessToken,
-        signal,
-      }),
-    enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
-    staleTime: 60_000,
-  });
-
-  function formatRelativeDate(isoString: string): string {
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / 86400000);
-    if (diffDays === 0) return t.common.today;
-    if (diffDays === 1) return t.common.yesterday;
-    return date.toLocaleDateString(t.beranda.dateLocale, {
-      day: "numeric",
-      month: "short",
-    });
-  }
-
-  const goalItems = (goals ?? []).slice(0, 4).map((g) => {
-    const style = GOAL_STATUS_STYLE[g.status] ?? GOAL_STATUS_STYLE.on_track;
-    return {
-      id: g.id,
-      icon: g.icon ?? "🎯",
-      iconBg: style.iconBg,
-      name: g.name,
-      pct: g.progressPercent,
-      color: style.color,
-      now: moneyCompact(g.currentAmount),
-      target: moneyCompact(g.targetAmount),
-    };
-  });
-
-  // `allocation` keeps the percentage-based shape (`item.value`) the old
-  // `DonutLegend` rendered — still used below for the legend rows/aria text.
-  const allocation: DonutSegment[] = (summary?.allocation ?? []).map(
-    (item) => ({
-      label: item.label,
-      value: item.value,
-      color: item.color,
-      sub: money(item.amount),
-    }),
-  );
-  // EPIC-025 N3-G1 — DonutChart series, value = `item.amount` (Rupiah), NOT
-  // the percentage: the Apex preset sums `value` for its center-total label
-  // and formats it as currency, so the series must carry the real amount to
-  // preserve numeric parity (matches `ringkasan`'s N3-C2 DonutChart wiring).
-  const donutSegments: DonutSegment[] = (summary?.allocation ?? []).map(
-    (item) => ({
-      label: item.label,
-      value: item.amount,
-      color: item.color,
-    }),
-  );
-
-  // "Perlu Perhatian" notices — same derivations liabilitas/persetujuan
-  // already compute client-side from their own fetched lists.
-  const pendingApprovalsCount = (allowanceRequests ?? []).filter(
-    (r) => r.status === "pending",
-  ).length;
-  const nearestDueLiability = (liabilities ?? [])
-    .filter((l) => l.dueDate)
-    .sort((a, b) =>
-      (a.dueDate as string).localeCompare(b.dueDate as string),
-    )[0];
-
-  const activities = (summary?.recentTransactions ?? []).map((tx) => ({
-    icon:
-      tx.type === "income"
-        ? ArrowDownLeft
-        : tx.type === "expense"
-          ? CreditCard
-          : ArrowLeftRight,
-    chip:
-      tx.type === "income"
-        ? "bg-green-100 text-green-600"
-        : tx.type === "expense"
-          ? "bg-red-100 text-red-600"
-          : "bg-violet-100 text-violet-600",
-    // EPIC-023 Task E retry (MEDIUM 5) — `accountName` is null for a card
-    // purchase (E3); without this fallback a description-less card
-    // purchase rendered a blank-named row here.
-    name: tx.description ?? tx.accountName ?? "—",
-    // EPIC-026 Wave 3 — prototype's `.list-row__sub` is a single
-    // "account · category · date" line (beranda.html), not category-left/
-    // date-right; assembled from fields the summary already returns.
-    accountName: tx.accountName,
-    cat:
-      tx.categoryName ??
-      (tx.type === "income"
-        ? t.common.income2
-        : tx.type === "expense"
-          ? t.common.expense2
-          : t.common.transfer),
-    // EPIC-022 B8 — a transfer is neither income nor expense; render it
-    // neutrally (no +/- sign) instead of a red negative that contradicts
-    // its neutral (violet) chip above.
-    amt: !isReady
-      ? t.common.loading
-      : tx.type === "transfer"
-        ? money(tx.amount)
-        : (tx.type === "income" ? "+" : "-") + money(tx.amount),
-    inc: tx.type === "income",
-    isTransfer: tx.type === "transfer",
-    date: formatRelativeDate(tx.occurredAt),
-  }));
-
-  // Real wealth trend from persisted snapshots; falls back to the 30-day
-  // transaction-flow proxy until enough snapshots accumulate.
-  const snapshotPoints = (netWorthHistory?.points ?? []).map((p) =>
-    Number(p.netWorth),
-  );
-  const sparklinePoints =
-    snapshotPoints.length >= 2
-      ? snapshotPoints
-      : summary?.sparkline && summary.sparkline.length > 0
-        ? summary.sparkline
-        : (Array(30).fill(50) as number[]);
-
-  const cashflow = summary?.cashflow;
-  const netWorth = summary?.netWorth ?? 0;
-  const currentMonth = summary?.currentMonth;
-  // EPIC-021 Group F (#6) — gold-equivalent of net worth, null until the
-  // family owner sets a price (Open Design Decision #6: manual only).
-  const goldGrams = hasGoldPrice ? toGoldGrams(netWorth) : null;
-
-  // EPIC-025 N3-G1 — bento-hero footer + "Komposisi Kekayaan" snapshot card.
-  // Both derived purely from data this page already fetches (`summary`,
-  // `netWorthData`) — no new backend endpoint, per Ground Truth.
-  const assetsTotal = summary?.assetsTotal ?? 0;
-  const totalLiabilities = Number(netWorthData?.liabilitiesTotal ?? 0);
-  const LIQUID_TYPES = new Set(["cash", "ewallet", "bank"]);
-  const liquidTotal = (summary?.accountSummary ?? [])
-    .filter((s) => LIQUID_TYPES.has(s.type))
-    .reduce((sum, s) => sum + s.total, 0);
-  const nonLiquidTotal = (summary?.accountSummary ?? [])
-    .filter((s) => !LIQUID_TYPES.has(s.type))
-    .reduce((sum, s) => sum + s.total, 0);
-  const liquidPct =
-    assetsTotal > 0 ? Math.round((liquidTotal / assetsTotal) * 1000) / 10 : 0;
-  const nonLiquidPct =
-    assetsTotal > 0
-      ? Math.round((nonLiquidTotal / assetsTotal) * 1000) / 10
-      : 0;
-
-  // EPIC-025 N3 fidelity follow-up — the prototype's 4 stat cards (Cash &
-  // E-Wallet / Bank & Account / Investasi / Liabilitas). `cashEwalletTotal`
-  // merges the two liquid account types the backend returns separately;
-  // `liabilitasTotal` reuses `totalLiabilities` (already fetched above, not
-  // part of `accountSummary` since it's a liability, not an account).
-  // Delta stays "—" (the same honest placeholder the page already used):
-  // the backend has no month-over-month comparison for these totals, and
-  // fabricating one — unlike the prototype's static "Naik 2,4% dari Juli"
-  // — would violate the no-fabricated-numbers rule.
-  const cashEwalletTotal = (summary?.accountSummary ?? [])
-    .filter((s) => s.type === "cash" || s.type === "ewallet")
-    .reduce((sum, s) => sum + s.total, 0);
-  const bankTotal = (summary?.accountSummary ?? [])
-    .filter((s) => s.type === "bank")
-    .reduce((sum, s) => sum + s.total, 0);
-  const investasiTotal = (summary?.accountSummary ?? [])
-    .filter((s) => s.type === "investment")
-    .reduce((sum, s) => sum + s.total, 0);
-  // Guarded on `summary` (not just an unconditional array) so the cards
-  // render only once real data has loaded — matches the page's existing
-  // convention (e.g. `allocation`/`donutSegments` below) of never showing
-  // populated-looking cards before their backing data exists.
-  const summaryCards = !summary
-    ? []
-    : [
-        {
-          icon: Wallet,
-          chip: "bg-green-100 text-green-600",
-          label: t.shell.pageTitles.dana,
-          amount: moneyCompact(cashEwalletTotal),
-          delta: "—",
-          up: true as boolean,
-          href: "/dana",
-        },
-        {
-          icon: Landmark,
-          chip: "bg-blue-100 text-blue-600",
-          label: t.shell.pageTitles.rekening,
-          amount: moneyCompact(bankTotal),
-          delta: "—",
-          up: true as boolean,
-          href: "/rekening",
-        },
-        {
-          icon: TrendingUp,
-          chip: "bg-violet-100 text-violet-600",
-          label: t.shell.pageTitles.investasi,
-          amount: moneyCompact(investasiTotal),
-          delta: "—",
-          up: true as boolean,
-          href: "/investasi",
-        },
-        {
-          icon: CreditCard,
-          chip: "bg-red-100 text-red-600",
-          label: t.shell.pageTitles.liabilitas,
-          amount: moneyCompact(totalLiabilities),
-          delta: "—",
-          up: false as boolean,
-          href: "/liabilitas",
-        },
-      ];
-
-  // EPIC-025 N3 fidelity follow-up — "Anggaran <Bulan>" card rows.
-  const budgetMonthLabel = t.laporan.months[new Date().getMonth()];
-  const budgetRows = (budgets ?? []).slice(0, 4);
-
-  // EPIC-025 N3-G1 — chart-parity aria labels: every value below is read
-  // from the same `summary`/`netWorthHistory` data the chart series render,
-  // never a separately-computed number.
-  const sparklineAriaLabel =
-    sparklinePoints.length >= 2
-      ? `${t.beranda.totalWealth}: ${money(sparklinePoints[0]!)} → ${money(sparklinePoints[sparklinePoints.length - 1]!)}`
-      : t.beranda.totalWealth;
-  const cashflowAriaLabel = cashflow
-    ? `${t.common.cashFlow} ${cashflow.months[cashflow.months.length - 1] ?? ""}: ${t.common.income} ${money(currentMonth?.income ?? 0)}, ${t.common.expense} ${money(currentMonth?.expense ?? 0)}`
-    : t.common.cashFlow;
-  const donutAriaLabel =
-    allocation.length > 0
-      ? `${t.beranda.wealthBreakdown}: ${allocation.map((a) => `${a.label} ${a.value}%`).join(", ")}`
-      : t.beranda.wealthBreakdown;
-
-  if (isError) {
-    return (
-      <div className="flex items-center justify-center py-16 text-[13px] text-muted-foreground">
-        {t.beranda.loadError}
-      </div>
-    );
-  }
-
-  const greetingKey = getGreetingKey(new Date().getHours());
-  const sparkLabels = t.common.sparkLabels;
-
-  return (
-    <div className="space-y-3.5">
-      <div className="mb-[18px]">
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-[21px] font-extrabold">
-            {t.greeting[greetingKey]}, {firstName} 👋
-          </div>
-          <LocaleSwitcher />
-        </div>
-        <div className="mt-0.5 text-[12.5px] text-muted-foreground">
-          {t.beranda.subtitle}
-        </div>
-      </div>
-
-      {/*
-        EPIC-025 N3-G1 — bento-grid layout port
-        (`docs/prototype/pages/beranda.html`'s `.bento-dashboard`): a 12-col
-        grid at `lg`+, 2-col tablet, stacked mobile. Card spans mirror the
-        prototype's `.bento-hero`(7)/`.bento-snapshot`(5)/`.bento-stat`(3
-        each)/`.bento-chart`(7)/`.bento-allocation`(5)/`.bento-transactions`(7)/
-        `.bento-side`(5: budget overview + "Perlu Perhatian")/`.bento-goals`(12).
-      */}
-      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:grid-cols-12 lg:items-start">
-        <div className="grid grid-cols-1 gap-3.5 md:col-span-2 md:grid-cols-2 lg:contents">
-          {/* Wealth Hero */}
-          <Rise index={0} className="lg:col-span-7">
-            <HeroCard className="gradient-wealth">
-              {/* EPIC-026 Wave 3 — the eye "toggle" here had no onClick
-                  (dead control, not in the prototype hero either) — removed
-                  per the J1 honest-UI rule, same defect class as login's
-                  inert "Ingat saya" checkbox. */}
-              <div className="flex items-center gap-1.5 text-[12.5px] font-semibold opacity-90">
-                <Gem className="size-[13px] opacity-80" />{" "}
-                {t.beranda.totalWealth}
-              </div>
-              <h1 className="mono mt-1 text-[28px] font-extrabold tracking-tight">
-                {isLoading || (isIndicative && !isReady) ? (
-                  t.common.loading
-                ) : isIndicative ? (
-                  <>≈ {formatMoney(netWorth)}</>
-                ) : (
-                  <CountUpRupiah value={netWorth} />
-                )}
-              </h1>
-              {isIndicative && (
-                <div className="mt-0.5 text-[10.5px] opacity-70">
-                  Perkiraan dalam {currency} · kurs indikatif, bukan kurs pasar
-                  real-time
-                </div>
-              )}
-              {/* EPIC-021 Group F (#6) — gold-equivalent line, part of the
-                  consolidated IDR/USD/gram-emas total (Open Design
-                  Decision #6: no live gold feed, manual price only). */}
-              {!isLoading && goldGrams !== null && (
-                <div className="mt-0.5 text-[10.5px] opacity-70">
-                  ≈ {formatGoldGrams(goldGrams)}
-                  {t.consolidatedTotal.goldUnitSuffix}{" "}
-                  {t.consolidatedTotal.goldLabel.toLowerCase()}
-                </div>
-              )}
-              {!isLoading && goldGrams === null && (
-                <div className="mt-0.5 text-[10.5px] opacity-70">
-                  <button
-                    type="button"
-                    onClick={() => router.push("/akun")}
-                    className="cursor-pointer underline decoration-white/40 underline-offset-2 hover:decoration-white"
-                  >
-                    {t.consolidatedTotal.goldPromptText}
-                  </button>
-                </div>
-              )}
-              {currentMonth && (
-                <div className="mt-1 text-[12.5px]">
-                  <span
-                    className={
-                      currentMonth.net >= 0
-                        ? "font-semibold text-emerald-300"
-                        : "font-semibold text-red-300"
-                    }
-                  >
-                    {currentMonth.net >= 0 ? "▲" : "▼"}{" "}
-                    {money(Math.abs(currentMonth.net))} {t.beranda.thisMonth}
-                  </span>{" "}
-                  <span className="opacity-60">
-                    ({t.common.savingsRate} {currentMonth.savingsRate}%)
-                  </span>
-                </div>
-              )}
-
-              {/* EPIC-025 N3 fidelity follow-up — the prototype's hero has
-                  no period picker (just the static "vs Rp ... di Juli"
-                  note above); the working range control now lives on the
-                  Arus Kas card below as a "6 Bln / 12 Bln" toggle. */}
-              <div className="mt-3 -mx-[22px]">
-                {/* EPIC-025 N3-G1 — Sparkline → SparklineChart (Apex). Same
-                    `sparklinePoints` series as before the swap, just a
-                    different rendering library. */}
-                <SparklineChart
-                  data={sparklinePoints}
-                  color="#ffffff"
-                  ariaLabel={sparklineAriaLabel}
-                />
-                <div className="mt-1 flex justify-between px-[22px] text-[10px] opacity-60">
-                  {sparkLabels.map((l) => (
-                    <span key={l}>{l}</span>
-                  ))}
-                </div>
-              </div>
-
-              {/* EPIC-025 N3-G1 — bento-hero__footer (prototype metrics
-                  row): Aset / Liabilitas / Arus kas bulan ini, all derived
-                  from data this page already fetches. */}
-              <div className="mt-3.5 grid grid-cols-3 gap-2.5">
-                <div className="rounded-[11px] border border-white/[0.18] bg-white/10 px-3 py-2.5">
-                  <div className="text-[11px] font-semibold opacity-80">
-                    {t.ringkasan.totalAssetsLabel}
-                  </div>
-                  <div className="mono mt-0.5 text-[14px] font-extrabold">
-                    {isLoading ? "…" : moneyCompact(assetsTotal)}
-                  </div>
-                </div>
-                <div className="rounded-[11px] border border-white/[0.18] bg-white/10 px-3 py-2.5">
-                  <div className="text-[11px] font-semibold opacity-80">
-                    {t.ringkasan.totalLiabilitiesLabel}
-                  </div>
-                  <div className="mono mt-0.5 text-[14px] font-extrabold">
-                    {isLoading ? "…" : moneyCompact(totalLiabilities)}
-                  </div>
-                </div>
-                <div className="rounded-[11px] border border-white/[0.18] bg-white/10 px-3 py-2.5">
-                  <div className="text-[11px] font-semibold opacity-80">
-                    {t.beranda.cashflowThisMonth}
-                  </div>
-                  <div className="mono mt-0.5 text-[14px] font-extrabold">
-                    {isLoading ? "…" : moneyCompact(currentMonth?.net ?? 0)}
-                  </div>
-                </div>
-              </div>
-            </HeroCard>
-          </Rise>
-
-          {/* EPIC-025 N3-G1 — "Komposisi Kekayaan" snapshot card
-              (`.bento-snapshot`). Liquid vs non-liquid split, derived from
-              the already-fetched `summary.accountSummary` — no new
-              endpoint. */}
-          <Rise index={1} className="lg:col-span-5">
-            <SectionCard
-              title={t.beranda.wealthComposition}
-              action={
-                // UI/UX parity fix (docs/prototype/pages/beranda.html:38) —
-                // this card's action link reads "Lihat ringkasan", distinct
-                // from the shared t.common.viewDetail ("Lihat detail") used
-                // elsewhere; hardcoded here to match the prototype exactly.
-                <CardLink onClick={() => router.push("/ringkasan")}>
-                  Lihat ringkasan
-                </CardLink>
-              }
-            >
-              {isLoading ? (
-                <div className="flex h-[105px] items-center justify-center text-[13px] text-muted-foreground">
-                  {t.common.loading}
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  <div className="flex items-center gap-3 rounded-xl bg-secondary p-3">
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-card text-primary">
-                      <ArrowLeftRight className="size-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[11.5px] font-bold text-muted-foreground">
-                        {t.beranda.liquidAssets} · {liquidPct}%
-                      </div>
-                      <div className="mono mt-px text-[16px] font-extrabold tracking-tight">
-                        {moneyCompact(liquidTotal)}
-                      </div>
-                    </div>
-                    <StatusBadge variant="success">
-                      {t.beranda.liquidBadgeLabel}
-                    </StatusBadge>
-                  </div>
-                  <div className="flex items-center gap-3 rounded-xl bg-secondary p-3">
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-card text-brand-purple">
-                      <Landmark className="size-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[11.5px] font-bold text-muted-foreground">
-                        {t.beranda.nonLiquidAssets} · {nonLiquidPct}%
-                      </div>
-                      <div className="mono mt-px text-[16px] font-extrabold tracking-tight">
-                        {moneyCompact(nonLiquidTotal)}
-                      </div>
-                    </div>
-                    <StatusBadge variant="purple">
-                      {t.beranda.nonLiquidBadgeLabel}
-                    </StatusBadge>
-                  </div>
-                  {/* EPIC-025 N3 fidelity follow-up — prototype's due-date
-                      notice link under the composition rows, reusing the
-                      same `nearestDueLiability` the "Perlu Perhatian" card
-                      below already derives. */}
-                  {nearestDueLiability && (
-                    <button
-                      type="button"
-                      onClick={() => router.push("/liabilitas")}
-                      className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border border-warning/30 bg-warning-soft px-3 py-2.5 text-left text-[12px]"
-                    >
-                      <CalendarClock className="size-4 shrink-0" />
-                      <span>
-                        <strong>{nearestDueLiability.name}</strong>{" "}
-                        {t.beranda.liabilityDueNotice}{" "}
-                        {new Date(
-                          nearestDueLiability.dueDate!,
-                        ).toLocaleDateString(t.beranda.dateLocale, {
-                          day: "numeric",
-                          month: "short",
-                        })}
-                        .
-                      </span>
-                    </button>
-                  )}
-                </div>
-              )}
-            </SectionCard>
-          </Rise>
-        </div>
-
-        {/* Summary cards */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:col-span-2 lg:col-span-12">
-          {isLoading
-            ? Array(4)
-                .fill(null)
-                .map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-[88px] animate-pulse rounded-[14px] bg-muted"
-                  />
-                ))
-            : summaryCards.map((s, i) => (
-                <Rise key={s.label} index={2 + i}>
-                  <div
-                    role="link"
-                    tabIndex={0}
-                    aria-label={`Buka ${s.label}`}
-                    onClick={() => router.push(s.href)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ")
-                        router.push(s.href);
-                    }}
-                    className="cursor-pointer transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]"
-                  >
-                    <SummaryCard
-                      icon={
-                        <IconChip icon={s.icon} className={s.chip} size={34} />
-                      }
-                      iconBg="transparent"
-                      label={s.label}
-                      amount={s.amount}
-                      delta={
-                        <>
-                          {s.up ? (
-                            <ArrowUp className="size-[9px]" />
-                          ) : (
-                            <ArrowDown className="size-[9px]" />
-                          )}
-                          {s.delta}
-                        </>
-                      }
-                      deltaUp={s.up}
-                    />
-                  </div>
-                </Rise>
-              ))}
-        </div>
-
-        {/* Row 3 — Cashflow (`.bento-chart`, 7) + Allocation (`.bento-allocation`, 5) */}
-        <div className="grid grid-cols-1 gap-3.5 md:col-span-2 md:grid-cols-2 lg:contents">
-          {/* Cashflow */}
-          <SectionCard
-            title={
-              period === "12M"
-                ? t.beranda.cashflowTitle12
-                : t.beranda.cashflowTitle6
-            }
-            className="lg:col-span-7"
-            action={
-              /* EPIC-026 Wave 3 — restyled to the translation table's
-                 `.segmented` mapping (role=tablist/tab + aria-selected,
-                 carried verbatim from the prototype per acceptance
-                 criterion #5), replacing the pill-group styling. */
-              <div
-                role="tablist"
-                aria-label={t.beranda.periodToggleAriaLabel}
-                className="inline-flex gap-0.5 rounded-[10px] bg-secondary p-[3px]"
-              >
-                {PERIODS.map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    role="tab"
-                    onClick={() => setPeriod(p)}
-                    aria-selected={period === p}
-                    className={`cursor-pointer rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                      period === p
-                        ? "bg-card text-foreground shadow-sm"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {p === "12M"
-                      ? t.beranda.periodToggle12
-                      : t.beranda.periodToggle6}
-                  </button>
-                ))}
-              </div>
-            }
-          >
-            <div className="mb-2.5 flex flex-wrap gap-4">
-              <div>
-                <div className="text-[10.5px] text-muted-foreground">
-                  {t.common.income}
-                </div>
-                <div className="text-[15px] font-extrabold text-success">
-                  {isLoading ? "..." : money(currentMonth?.income ?? 0)}
-                </div>
-              </div>
-              <div>
-                <div className="text-[10.5px] text-muted-foreground">
-                  {t.common.expense}
-                </div>
-                <div className="text-[15px] font-extrabold text-destructive">
-                  {isLoading ? "..." : money(currentMonth?.expense ?? 0)}
-                </div>
-              </div>
-            </div>
-            <div className="mb-2 text-[11px] text-muted-foreground">
-              {t.common.surplus}{" "}
-              <span className="font-bold text-success">
-                {isLoading ? "..." : money(currentMonth?.net ?? 0)}
-              </span>
-            </div>
-            {/* EPIC-025 N3-G1 — BarChart → CashflowChart (Apex). Same
-                `cashflow.months/income/expense` series as before the swap. */}
-            {cashflow && (
-              <CashflowChart
-                months={cashflow.months}
-                income={cashflow.income}
-                expense={cashflow.expense}
-                // Prototype parity: docs/prototype/assets/charts.js's
-                // `cashflow()` mounts at height 260. Rendering it at 90 left
-                // ~60px of plot area once the bottom legend took its share,
-                // which collapsed the bars into slivers and stacked the
-                // y-axis labels on top of each other.
-                height={260}
-                ariaLabel={cashflowAriaLabel}
-              />
-            )}
-          </SectionCard>
-
-          {/* Allocation (`.bento-allocation`) — DonutChart, replacing the
-              old Donut+DonutLegend combo below the summary cards. */}
-          <SectionCard
-            title={t.beranda.wealthBreakdown}
-            className="lg:col-span-5"
-            action={
-              /* EPIC-026 Wave 3 — prototype's "Detail" action links to
-                 ringkasan.html, not aset. */
-              <CardLink onClick={() => router.push("/ringkasan")}>
-                Detail
-              </CardLink>
-            }
-          >
-            {isLoading ? (
-              <div className="flex h-[220px] items-center justify-center text-[13px] text-muted-foreground">
-                {t.common.loading}
-              </div>
-            ) : allocation.length === 0 ? (
-              <div className="flex h-[220px] items-center justify-center text-[13px] text-muted-foreground">
-                {t.common.noData}
-              </div>
-            ) : (
-              // UI/UX parity fix (docs/prototype/pages/beranda.html:255-260)
-              // — prototype's WMCharts.donut() call passes "Kekayaan" as the
-              // center label and renders no itemized legend list underneath
-              // (just the chart). Dropped the extra legend rows to match.
-              <DonutChart
-                segments={donutSegments}
-                centerLabel="Kekayaan"
-                height={200}
-                ariaLabel={donutAriaLabel}
-              />
-            )}
-          </SectionCard>
-        </div>
-
-        {/* Recent activity (`.bento-transactions`, 7) */}
-        <div className="lg:col-span-7">
-          <SectionCard
-            title={t.beranda.recentTransactions}
-            action={
-              <CardLink onClick={() => router.push("/transaksi")}>
-                {t.common.viewAll}
-              </CardLink>
-            }
-          >
-            {isLoading ? (
-              <div className="space-y-2">
-                {Array(3)
-                  .fill(null)
-                  .map((_, i) => (
-                    <div
-                      key={i}
-                      className="h-[42px] animate-pulse rounded-md bg-muted"
-                    />
-                  ))}
-              </div>
-            ) : activities.length === 0 ? (
-              <div className="py-4 text-center text-[13px] text-muted-foreground">
-                {t.beranda.noTransactions}
-              </div>
-            ) : (
-              <div className="divide-y">
-                {activities.map((a, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
-                  >
-                    <IconChip
-                      icon={a.icon}
-                      className={a.chip}
-                      size={34}
-                      rounded="rounded-full"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[13px] font-semibold">
-                        {a.name}
-                      </div>
-                      <div className="truncate text-[11px] text-muted-foreground">
-                        {[a.accountName, a.cat, a.date]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </div>
-                    </div>
-                    <div
-                      className={`mono text-[13px] font-bold ${
-                        a.isTransfer
-                          ? "text-muted-foreground"
-                          : a.inc
-                            ? "text-success"
-                            : "text-destructive"
-                      }`}
-                    >
-                      {a.amt}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </SectionCard>
-        </div>
-
-        {/* `.bento-side` — lg:col-span-5, paired next to Recent activity's
-            lg:col-span-7. Stacks the "Anggaran <Bulan>" budget card above
-            "Perlu Perhatian", matching the prototype's aside column. */}
-        <div className="flex flex-col gap-3.5 lg:col-span-5">
-          <SectionCard
-            title={`${t.beranda.budgetCardTitlePrefix}${budgetMonthLabel}`}
-            action={
-              <CardLink onClick={() => router.push("/anggaran")}>
-                {t.beranda.budgetManageLink}
-              </CardLink>
-            }
-          >
-            {isBudgetsLoading ? (
-              <div className="space-y-2">
-                {Array(3)
-                  .fill(null)
-                  .map((_, i) => (
-                    <div
-                      key={i}
-                      className="h-[38px] animate-pulse rounded-md bg-muted"
-                    />
-                  ))}
-              </div>
-            ) : budgetRows.length === 0 ? (
-              <div className="py-4 text-center text-[13px] text-muted-foreground">
-                {t.beranda.budgetEmptyNote}
-              </div>
-            ) : (
-              <div className="space-y-3.5">
-                {budgetRows.map((b) => (
-                  <div key={b.id}>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[13px] font-bold">
-                        {b.categoryName}
-                      </span>
-                      <span className="mono text-[11px] text-muted-foreground">
-                        {formatBudgetRow(b.spentAmount, b.limitAmount)}
-                      </span>
-                    </div>
-                    <ProgressBar
-                      value={Math.min(100, b.usagePercent)}
-                      color={budgetBarColor(b)}
-                      className="mt-1.5"
-                    />
-                    {b.isOverBudget && (
-                      <div className="mt-1 text-[11px] text-destructive">
-                        {t.beranda.budgetOverBudgetPrefix}
-                        {formatRupiah(b.spentAmount - b.limitAmount)}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </SectionCard>
-
-          <SectionCard title={t.beranda.needsAttentionTitle}>
-            {isLoading ? (
-              <div className="space-y-2">
-                {Array(2)
-                  .fill(null)
-                  .map((_, i) => (
-                    <div
-                      key={i}
-                      className="h-[42px] animate-pulse rounded-md bg-muted"
-                    />
-                  ))}
-              </div>
-            ) : pendingApprovalsCount === 0 && !nearestDueLiability ? (
-              <div className="py-4 text-center text-[13px] text-muted-foreground">
-                {t.beranda.noNotices}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {pendingApprovalsCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => router.push("/persetujuan")}
-                    className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border border-warning/30 bg-warning-soft px-3 py-2.5 text-left text-[12.5px]"
-                  >
-                    <CheckCheck className="size-4 shrink-0" />
-                    <span>
-                      <strong>{pendingApprovalsCount}</strong>{" "}
-                      {t.beranda.pendingApprovalsNotice}
-                    </span>
-                  </button>
-                )}
-                {nearestDueLiability && (
-                  <button
-                    type="button"
-                    onClick={() => router.push("/liabilitas")}
-                    className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border bg-accent px-3 py-2.5 text-left text-[12.5px]"
-                  >
-                    <CalendarClock className="size-4 shrink-0" />
-                    <span>
-                      <strong>{nearestDueLiability.name}</strong>{" "}
-                      {t.beranda.liabilityDueNotice}{" "}
-                      {new Date(
-                        nearestDueLiability.dueDate!,
-                      ).toLocaleDateString(t.beranda.dateLocale, {
-                        day: "numeric",
-                        month: "short",
-                      })}
-                      .
-                    </span>
-                  </button>
-                )}
-              </div>
-            )}
-          </SectionCard>
-        </div>
-
-        {/* Goals (`.bento-goals`, full width) */}
-        <div className="lg:col-span-12">
-          <SectionCard
-            title={t.beranda.financialGoals}
-            action={
-              <CardLink onClick={() => router.push("/tujuan")}>
-                {t.common.viewAll}
-              </CardLink>
-            }
-            bodyClassName="flex flex-1 flex-col"
-          >
-            {isGoalsLoading ? (
-              <div className="space-y-3.5">
-                {Array(3)
-                  .fill(null)
-                  .map((_, i) => (
-                    <div
-                      key={i}
-                      className="h-[52px] animate-pulse rounded-md bg-muted"
-                    />
-                  ))}
-              </div>
-            ) : goalItems.length === 0 ? (
-              <div className="flex flex-1 flex-col items-center justify-center gap-2 py-4 text-center">
-                <Target className="size-7 text-muted-foreground/40" />
-                <div className="text-[13px] text-muted-foreground">
-                  {t.beranda.noGoals}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => router.push("/tujuan")}
-                  className="text-[12px] font-semibold text-primary hover:underline"
-                >
-                  + {t.beranda.addGoalCta}
-                </button>
-              </div>
-            ) : (
-              /* EPIC-026 Wave 3 — prototype's `.bento-goal-list` is a
-                 3-col grid of `.bento-goal` tiles (bg-secondary, 12px pad,
-                 30px icon chip, "now / target" mono line, progress below)
-                 — was rendered as a vertical list before this rebuild. */
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {goalItems.map((g) => (
-                  <div key={g.id} className="rounded-xl bg-secondary p-3">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="flex size-[30px] shrink-0 items-center justify-center rounded-[9px] bg-card text-[14px]"
-                        style={{ background: g.iconBg }}
-                      >
-                        {g.icon}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-[12.5px] font-bold">
-                          {g.name}
-                        </div>
-                        <div className="mono truncate text-[11.5px] text-muted-foreground">
-                          {g.now} / {g.target}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-[9px]">
-                      <AnimatedProgress value={g.pct} color={g.color} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </SectionCard>
-        </div>
-
-        {/* EPIC-026 Wave 3 — the AI insight banner was removed: the
-            prototype's bento-dashboard ends at `.bento-goals`, and the
-            banner's "insight" was static i18n copy, not real analysis.
-            (Its aiInsight* keys remain in the protected i18n files — noted
-            for a separate foundation cleanup.) */}
-      </div>
-    </div>
-  );
 }
 
 export default BerandaPage;

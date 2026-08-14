@@ -34,9 +34,6 @@ import type {
   UpdatePayoutAccountDto,
 } from "@wealthme/contracts";
 
-const FIELD_CLASS =
-  "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
-
 const AVATAR_GRADIENTS = [
   "linear-gradient(135deg,#10B981,#06B6D4)",
   "linear-gradient(135deg,#F59E0B,#FBBF24)",
@@ -647,7 +644,7 @@ export default function SplitBillPage() {
           if (!o) resetCreateForm();
         }}
       >
-        <DialogContent className="max-w-[min(480px,calc(100%-2rem))] p-6 sm:max-w-[min(480px,calc(100%-2rem))]">
+        <DialogContent>
           <DialogTitle className="mb-4 text-[17px] font-extrabold">
             {t.splitbill.createButton}
           </DialogTitle>
@@ -662,7 +659,7 @@ export default function SplitBillPage() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder={t.splitbill.fieldTitlePlaceholder}
-                className={FIELD_CLASS}
+                className="input"
               />
             </div>
 
@@ -694,7 +691,7 @@ export default function SplitBillPage() {
                 id="splitbill-payout-account"
                 value={payoutAccountId}
                 onChange={(e) => setPayoutAccountId(e.target.value)}
-                className={FIELD_CLASS}
+                className="select"
               >
                 <option value="">
                   {t.splitbill.fieldPayoutAccountPlaceholder}
@@ -720,7 +717,7 @@ export default function SplitBillPage() {
                 value={payoutInstructions}
                 onChange={(e) => setPayoutInstructions(e.target.value)}
                 placeholder={t.splitbill.fieldPayoutInstructionsPlaceholder}
-                className={FIELD_CLASS}
+                className="input"
               />
             </div>
 
@@ -768,7 +765,7 @@ export default function SplitBillPage() {
                       onChange={(e) =>
                         renameParticipant(p.localId, e.target.value)
                       }
-                      className={"min-w-0 flex-1 basis-[120px] " + FIELD_CLASS}
+                      className="input min-w-0 flex-1 basis-[120px]"
                     />
                     <div className="ml-auto flex shrink-0 items-center gap-2">
                       {method === "equal" ? (
@@ -894,7 +891,7 @@ export default function SplitBillPage() {
           if (!o) setSelectedSplit(null);
         }}
       >
-        <DialogContent className="max-w-[min(480px,calc(100%-2rem))] p-6 sm:max-w-[min(480px,calc(100%-2rem))]">
+        <DialogContent>
           {selectedSplit && (
             <>
               <div className="mb-4 flex items-start justify-between gap-2">
@@ -1027,7 +1024,7 @@ export default function SplitBillPage() {
       {/* Group F (task F3) — repair the payout account for a bill whose
           payoutAccountId is null or points at a deleted account. */}
       <Dialog open={editPayoutOpen} onOpenChange={setEditPayoutOpen}>
-        <DialogContent className="max-w-[min(420px,calc(100%-2rem))] p-6 sm:max-w-[min(420px,calc(100%-2rem))]">
+        <DialogContent className="min-[769px]:w-[min(420px,calc(100%-2rem))]">
           <DialogTitle className="mb-4 text-[17px] font-extrabold">
             {t.splitbill.editPayoutAccountTitle}
           </DialogTitle>
@@ -1043,7 +1040,7 @@ export default function SplitBillPage() {
                 id="edit-payout-account"
                 value={editPayoutAccountId}
                 onChange={(e) => setEditPayoutAccountId(e.target.value)}
-                className={FIELD_CLASS}
+                className="select"
               >
                 <option value="">
                   {t.splitbill.fieldPayoutAccountPlaceholder}

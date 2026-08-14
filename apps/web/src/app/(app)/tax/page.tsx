@@ -39,9 +39,6 @@ import type {
 type TaxPtkpId = "tk0" | "k0" | "k1" | "k2" | "k3";
 type TaxBracketId = "b0" | "b1" | "b2" | "b3" | "b4";
 
-const FIELD_CLASS =
-  "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
-
 const PTKP_OPTIONS: { value: number; id: TaxPtkpId }[] = [
   { value: 54000000, id: "tk0" },
   { value: 58500000, id: "k0" },
@@ -510,7 +507,7 @@ export default function TaxPage() {
               id="tax-year-select"
               value={taxYear}
               onChange={(e) => setTaxYear(Number(e.target.value))}
-              className={FIELD_CLASS}
+              className="select"
             >
               {TAX_YEAR_OPTIONS.map((y) => (
                 <option key={y} value={y}>
@@ -540,7 +537,7 @@ export default function TaxPage() {
                       ),
                 )
               }
-              className={FIELD_CLASS}
+              className="input"
             />
             <div className="mt-1.5 text-[11px] text-muted-foreground">
               {t.tax.grossInputHint}
@@ -553,7 +550,7 @@ export default function TaxPage() {
             <select
               value={ptkp}
               onChange={(e) => setPtkp(Number(e.target.value))}
-              className={FIELD_CLASS}
+              className="select"
             >
               {PTKP_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -574,7 +571,7 @@ export default function TaxPage() {
               type="text"
               value={formatNumber(jabatan)}
               disabled
-              className={FIELD_CLASS + " opacity-70"}
+              className="input opacity-70"
             />
             <div className="mt-1.5 text-[11px] text-muted-foreground">
               {t.tax.jabatanHint}
@@ -597,7 +594,7 @@ export default function TaxPage() {
                       ),
                 )
               }
-              className={FIELD_CLASS}
+              className="input"
             />
             <div className="mt-1.5 text-[11px] text-muted-foreground">
               {t.tax.perpuluhanHint}
@@ -856,7 +853,7 @@ export default function TaxPage() {
           server-echoed `pph21Result` `handleSaveTaxRecord` itself sends —
           never the raw, still-debouncing input state. */}
       <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
-        <DialogContent className="max-w-[min(420px,calc(100%-2rem))] p-6">
+        <DialogContent className="min-[769px]:w-[min(420px,calc(100%-2rem))]">
           <DialogHeader>
             <DialogTitle className="text-[15px] font-bold">
               {t.tax.saveDialogTitle}

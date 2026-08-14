@@ -41,9 +41,6 @@ import type {
   ZakatResultDto,
 } from "@wealthme/contracts";
 
-const FIELD_CLASS =
-  "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
-
 const DONATION_TYPE_ICON: Record<string, string> = {
   zakat_maal: "🕌",
   zakat_fitrah: "🍚",
@@ -141,7 +138,7 @@ function ZkInput({
         inputMode="numeric"
         value={value}
         onChange={(e) => onChange(formatAmountInput(e.target.value))}
-        className={FIELD_CLASS}
+        className="input"
       />
     </div>
   );
@@ -470,7 +467,7 @@ export default function DonationPage() {
             <div className="mt-3.5 flex flex-col gap-2 sm:flex-row sm:items-center">
               <select
                 aria-label={t.akun.pengaturan.religionLabel}
-                className={`${FIELD_CLASS} sm:max-w-[240px]`}
+                className="select sm:max-w-[240px]"
                 value={pendingReligion}
                 disabled={isReligionUpdating}
                 onChange={(e) =>
@@ -629,7 +626,7 @@ export default function DonationPage() {
                 max={100}
                 value={titheRate}
                 onChange={(e) => setTitheRate(e.target.value)}
-                className={FIELD_CLASS}
+                className="input"
               />
               <p className="mt-1.5 text-[11px] text-muted-foreground">
                 {t.donation.fieldRateHint}
@@ -811,7 +808,7 @@ export default function DonationPage() {
 
       {/* Donation modal */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-[min(480px,calc(100%-2rem))] p-6">
+        <DialogContent>
           <DialogTitle className="mb-4 text-[17px] font-extrabold">
             {t.donation.modalTitle}
           </DialogTitle>
@@ -832,7 +829,7 @@ export default function DonationPage() {
                     setIsTaxDeductible(false);
                   }
                 }}
-                className={FIELD_CLASS}
+                className="select"
               >
                 {JENIS_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -871,7 +868,7 @@ export default function DonationPage() {
               <select
                 value={lembaga}
                 onChange={(e) => setLembaga(e.target.value)}
-                className={FIELD_CLASS}
+                className="select"
               >
                 {LEMBAGA_OPTIONS.map((o) => (
                   <option key={o}>{o}</option>
@@ -887,7 +884,7 @@ export default function DonationPage() {
                 type="date"
                 value={tanggal}
                 onChange={(e) => setTanggal(e.target.value)}
-                className={FIELD_CLASS}
+                className="input"
               />
             </div>
 
@@ -898,7 +895,7 @@ export default function DonationPage() {
               <select
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
-                className={FIELD_CLASS}
+                className="select"
               >
                 <option value="">{t.donation.accountNoneOption}</option>
                 {accounts.map((a) => (

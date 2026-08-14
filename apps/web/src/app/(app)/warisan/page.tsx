@@ -42,9 +42,6 @@ import type {
   UpdateInheritanceAssetDto,
 } from "@wealthme/contracts";
 
-const FIELD_CLASS =
-  "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
-
 // NOTE: these are the actual `assetType` values persisted on an inheritance
 // asset record (free-text category), not a translated enum — kept in
 // Indonesian in both locales so switching language never changes what gets
@@ -356,7 +353,7 @@ function HeirEditor({
                   disabled={!!linkedMember}
                   onChange={(e) => updateRow(row.id, { name: e.target.value })}
                   placeholder={t.warisan.heirNamePlaceholder}
-                  className={`${FIELD_CLASS} disabled:cursor-not-allowed disabled:opacity-60`}
+                  className="input disabled:cursor-not-allowed disabled:opacity-60"
                 />
                 <button
                   type="button"
@@ -385,7 +382,7 @@ function HeirEditor({
                     aria-describedby={
                       isRelationshipInvalid ? relationshipErrorId : undefined
                     }
-                    className={`${FIELD_CLASS} disabled:cursor-not-allowed disabled:opacity-60 ${
+                    className={`input disabled:cursor-not-allowed disabled:opacity-60 ${
                       isRelationshipInvalid
                         ? "border-destructive focus:border-destructive"
                         : ""
@@ -410,7 +407,7 @@ function HeirEditor({
                     updateRow(row.id, { sharePercent: e.target.value })
                   }
                   placeholder={t.warisan.heirSharePercentPlaceholder}
-                  className={FIELD_CLASS}
+                  className="input"
                 />
               </div>
               {familyMembers.length > 0 ? (
@@ -434,7 +431,7 @@ function HeirEditor({
                         : {}),
                     });
                   }}
-                  className={FIELD_CLASS}
+                  className="select"
                   aria-label={t.warisan.heirMemberAriaLabel}
                 >
                   <option value="">{t.warisan.heirMemberNoneOption}</option>
@@ -1029,7 +1026,7 @@ export default function WarisanPage() {
           }
         }}
       >
-        <DialogContent className="max-w-[min(480px,calc(100%-2rem))] p-6">
+        <DialogContent>
           <DialogTitle className="text-[17px] font-extrabold">
             {editing ? t.warisan.modalTitleEdit : t.warisan.addAssetButton}
           </DialogTitle>
@@ -1081,7 +1078,7 @@ export default function WarisanPage() {
                 <select
                   value={selectedAssetId}
                   onChange={(e) => handlePickAsset(e.target.value)}
-                  className={FIELD_CLASS}
+                  className="select"
                 >
                   <option value="">— Pilih aset —</option>
                   {pickableAssets.map((a) => (
@@ -1100,7 +1097,7 @@ export default function WarisanPage() {
               <select
                 value={assetType}
                 onChange={(e) => setAssetType(e.target.value)}
-                className={FIELD_CLASS}
+                className="select"
               >
                 {ASSET_TYPE_OPTIONS.map((o) => (
                   <option key={o}>{o}</option>
@@ -1117,7 +1114,7 @@ export default function WarisanPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t.warisan.fieldNamePlaceholder}
-                className={FIELD_CLASS}
+                className="input"
               />
             </div>
 
@@ -1149,7 +1146,7 @@ export default function WarisanPage() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder={t.warisan.fieldNotesPlaceholder}
-                className={FIELD_CLASS}
+                className="input"
               />
             </div>
 

@@ -968,7 +968,7 @@ function LiabilityDetailDialog({
 
   return (
     <Dialog open={item !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[420px]">
+      <DialogContent className="min-[769px]:w-[min(420px,calc(100%-2rem))]">
         <DialogTitle className="text-[17px] font-extrabold">
           {t.liabilitas.detailDialogTitle}
         </DialogTitle>
@@ -1204,7 +1204,7 @@ function PayLiabilityDialog({
 
   return (
     <Dialog open={item !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[380px]">
+      <DialogContent className="min-[769px]:w-[min(380px,calc(100%-2rem))]">
         <DialogTitle className="text-[17px] font-extrabold">
           {t.liabilitas.payDialogTitle}
         </DialogTitle>

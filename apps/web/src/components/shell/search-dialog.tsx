@@ -125,7 +125,7 @@ export function SearchDialog() {
           did — it only adds the scroll affordance when actually needed. */}
       <DialogContent
         showCloseButton={false}
-        className="top-[12%] max-w-[520px] translate-y-0 gap-0 overflow-y-auto p-0 sm:max-w-[520px]"
+        className="top-[12%] bottom-auto translate-y-0 p-0 min-[769px]:top-[12%] min-[769px]:translate-y-0 min-[769px]:w-[min(520px,calc(100%-2rem))]"
       >
         <DialogTitle className="sr-only">
           {t.shell.searchDialog.dialogTitle}

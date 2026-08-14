@@ -138,9 +138,6 @@ const OCR_ITEMS = [
   ["MINYAK GORENG BIMOLI 1L", "Rp 17.000"],
 ];
 
-const fieldClass =
-  "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
-
 type View = "form" | "ocr-scan" | "ocr-result";
 
 export function TransactionDialog() {
@@ -542,7 +539,7 @@ export function TransactionDialog() {
           global, frequently-opened dialog to be exempt from the fix. */}
       <DialogContent
         showCloseButton={view === "form"}
-        className="max-h-[90dvh] w-full max-w-[480px] gap-0 overflow-x-hidden overflow-y-auto p-0 sm:max-w-[480px]"
+        className="overflow-x-hidden p-0"
       >
         {view === "form" && (
           <div className="p-6">
@@ -617,7 +614,7 @@ export function TransactionDialog() {
                   onChange={(e) => setAmount(formatAmountInput(e.target.value))}
                   placeholder="0"
                   className={cn(
-                    fieldClass,
+                    "input",
                     "pl-[38px] text-xl font-extrabold placeholder:text-base placeholder:font-normal placeholder:text-muted-foreground",
                   )}
                 />
@@ -639,7 +636,7 @@ export function TransactionDialog() {
               >
                 <select
                   id={categoryFieldId}
-                  className={fieldClass}
+                  className="select"
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
                 >
@@ -663,7 +660,7 @@ export function TransactionDialog() {
               >
                 <select
                   id={cardFieldId}
-                  className={fieldClass}
+                  className="select"
                   value={liabilityId}
                   onChange={(e) => setLiabilityId(e.target.value)}
                 >
@@ -685,7 +682,7 @@ export function TransactionDialog() {
                 >
                   <select
                     id={sourceAccountFieldId}
-                    className={fieldClass}
+                    className="select"
                     value={accountId}
                     onChange={(e) => {
                       const nextAccountId = e.target.value;
@@ -714,7 +711,7 @@ export function TransactionDialog() {
                 >
                   <select
                     id={destAccountFieldId}
-                    className={fieldClass}
+                    className="select"
                     value={toAccountId}
                     onChange={(e) => setToAccountId(e.target.value)}
                   >
@@ -755,7 +752,7 @@ export function TransactionDialog() {
                         setAdminFee(formatAmountInput(e.target.value))
                       }
                       placeholder="0"
-                      className={cn(fieldClass, "pl-[38px]")}
+                      className="input pl-[38px]"
                     />
                   </div>
                 </Field>
@@ -767,7 +764,7 @@ export function TransactionDialog() {
               >
                 <select
                   id={accountFieldId}
-                  className={fieldClass}
+                  className="select"
                   value={accountId}
                   onChange={(e) => setAccountId(e.target.value)}
                 >
@@ -793,7 +790,7 @@ export function TransactionDialog() {
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className={fieldClass}
+                className="input"
               />
             </Field>
 
@@ -814,7 +811,7 @@ export function TransactionDialog() {
                 placeholder={t.shell.transactionDialog.descriptionPlaceholder}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className={cn(fieldClass, "resize-none")}
+                className="textarea resize-none"
               />
             </Field>
 
@@ -838,7 +835,7 @@ export function TransactionDialog() {
                 <label
                   htmlFor={attachmentFieldId}
                   className={cn(
-                    fieldClass,
+                    "input",
                     "flex cursor-pointer items-center gap-2 text-muted-foreground",
                   )}
                 >

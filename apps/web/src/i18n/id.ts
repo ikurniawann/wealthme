@@ -92,6 +92,9 @@ export const id = {
     periodToggle6: "6 Bln",
     periodToggle12: "12 Bln",
     periodToggleAriaLabel: "Rentang tren kekayaan",
+    viewSummaryLink: "Lihat ringkasan",
+    donutCenterLabel: "Kekayaan",
+    allocationDetailLink: "Detail",
   },
   shell: {
     loading: "Memuat WealthMe…",
@@ -2107,6 +2110,7 @@ export const id = {
     topExpensesTitle: "Top Pengeluaran",
     emptyTopExpenses: "Belum ada pengeluaran bulan ini.",
     healthScoreTitle: "Health Score",
+    healthScoreCenterLabel: "Skor",
     financialHealthScoreLabel: "Financial Health Score",
     healthStatusGood: "Sehat",
     healthStatusFair: "Cukup",

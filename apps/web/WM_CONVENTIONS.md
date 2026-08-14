@@ -59,34 +59,69 @@ for the full prop shape of each preset.
 Components live in `@/components/ui/*`: `button, card, input, label, badge, dialog, sheet, tabs, select, textarea, switch, separator, accordion, avatar, progress, table, tooltip, dropdown-menu, scroll-area`.
 
 - **Base UI uses `render={<el/>}` NOT `asChild`.** Triggers render a `<button>` by default — put className/props directly on the trigger.
-- For **forms (selects, inputs)** prefer **styled native elements** over the shadcn Select to keep it simple. Native select field class:
-  `"w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card"`
+- For **forms (selects, inputs)** prefer **styled native elements** over the shadcn Select.
+  Since EPIC-026 the field look comes from the prototype design system
+  (`src/app/design-system.css`), NOT from a hand-rolled Tailwind string:
+
+  ```tsx
+  <label className="field">
+    <span className="label">Nama Aset</span>
+    <input className="input" />
+  </label>
+  <select className="select">…</select>
+  <textarea className="textarea" />
+  <p className="error-text">…</p>
+  ```
+
+  Available form/control classes: `.field`, `.field-row`, `.label`, `.input`,
+  `.select`, `.textarea`, `.switch`, `.error-text`, `.segmented` /
+  `.segmented__item`, and `.btn` (+ `--primary` `--outline` `--ghost`
+  `--destructive` `--sm` `--icon` `--block`). The 7 shadcn primitives
+  (`button`, `dialog`, `input`, `select`, `textarea`, `switch`, `label`) emit
+  these classes, so `<Input>` / `<Button>` and a bare `<input className="input">`
+  look identical. **Never re-introduce a page-local `FIELD_CLASS` constant** —
+  EPIC-026 deleted 15 copies of one; the CSS is the single source of truth.
+
 - Modals: use the `Dialog` from `@/components/ui/dialog`:
 
   ```tsx
   import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
   const [open, setOpen] = useState(false);
   <Dialog open={open} onOpenChange={setOpen}>
-    <DialogContent className="max-w-[480px] sm:max-w-[480px] p-6">
-      <DialogTitle className="text-[17px] font-extrabold mb-4">
-        Judul
-      </DialogTitle>
-      …
+    <DialogContent>
+      <DialogTitle>Judul</DialogTitle>…
     </DialogContent>
   </Dialog>;
   ```
 
-  (Always include a `DialogTitle` — add `className="sr-only"` if visually hidden. Override width with BOTH `max-w-[N]` and `sm:max-w-[N]` because the base content sets `sm:max-w-sm`.)
+  Always include a `DialogTitle` — add `className="sr-only"` if visually hidden.
 
-  **Wrap the width in `min(...)`: `max-w-[min(480px,calc(100%-2rem))]`.** The dialog
-  base sets `max-w-[calc(100%-2rem)]` to keep a 2rem side gutter on a phone, and
-  `tailwind-merge` lets a caller's `max-w-*` replace it outright — verified, not
-  assumed: merging the base with `max-w-[480px]` drops the base value entirely.
-  A bare `max-w-[480px]` therefore renders the dialog edge-to-edge at 390px wide
-  with no side margin. `min()` keeps the intended width above ~512px and restores
-  the gutter below it. Same trap as the `dvh` note in `components/ui/dialog.tsx`:
-  an override silently defeats the base, just on the width axis instead of height.
-  (EPIC-023 I2.)
+  **Pass no styling by default.** `DialogContent` renders the prototype's
+  `.dialog`, which already owns width `min(480px, 100% - 2rem)`, `max-height:
+85dvh`, internal scroll, 20px padding, radius, shadow, the `dialog-in` entry
+  animation, and the ≤768px full-width bottom-sheet form. `DialogTitle` /
+  `DialogDescription` / `DialogFooter` render `.dialog__title` / `.dialog__desc` /
+  `.dialog__footer`. Adding `p-6`, `max-h-*`, `overflow-*`, `gap-*` or a bare
+  `max-w-*` silently defeats the prototype, because Tailwind utilities are
+  emitted **after** the `@layer components` block that holds design-system.css.
+
+  For a non-default width, either use the prototype's own modifier
+  (`className="dialog--sm"` = 400px, `className="dialog--wide"` = 720px) or
+  scope the override above the mobile breakpoint so the bottom sheet survives:
+  `className="min-[769px]:w-[min(560px,calc(100%-2rem))]"`. The `min(...)`
+  wrapper keeps the 2rem side gutter on a phone — a bare `w-[560px]` renders
+  edge-to-edge at 390px wide. (EPIC-023 I2 established the `min()` rule for the
+  old `max-w-*` idiom; EPIC-026 moved it onto `w-*` at `min-[769px]:`.)
+
+  **Base UI `data-open` landmine:** the prototype's `.dialog-backdrop` is
+  `display: none` until `[data-open="true"]`, but Base UI emits a _valueless_
+  `data-open=""` (see `popupStateMapping.js`), so that selector never matches
+  and the class is deliberately NOT used — the backdrop reproduces the
+  prototype's values with utilities instead. Verified in a browser:
+  `backdrop.matches('[data-open="true"]') === false`. Never assume a prototype
+  selector qualified by `[data-open]` will work on a Base UI popup.
+  (`.switch[aria-checked="true"]` _does_ work — Base UI's Switch renders a real
+  `aria-checked` value.)
 
 - The **global "Tambah Transaksi" + search dialogs already exist** — do NOT rebuild them. Page-specific modals (budget, split bill, warisan, donation, add-admin) ARE yours to build locally.
 

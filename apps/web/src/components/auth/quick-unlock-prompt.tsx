@@ -40,9 +40,6 @@ function resolveSetupFailureMessage(error: unknown, t: I18nDictionary): string {
   return t.deviceUnlock.toastSetupFailed;
 }
 
-const FIELD_CLASS =
-  "w-full rounded-md border-[1.5px] border-slate-200 bg-white py-2.5 px-3.5 text-center text-lg tracking-[0.4em] text-slate-900 outline-none transition-colors focus:border-primary";
-
 /**
  * EPIC-023 D2 (US-FAM-13, D7) — "set up quick unlock" prompt, offered (not
  * forced) right after a successful password login. Registers a device
@@ -105,7 +102,7 @@ export function QuickUnlockPrompt({
         onOpenChange(next);
       }}
     >
-      <DialogContent className="max-w-[min(420px,calc(100%-2rem))] p-6">
+      <DialogContent className="min-[769px]:w-[min(420px,calc(100%-2rem))]">
         <div className="mb-3 flex items-center gap-2.5">
           <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <ShieldCheck className="size-5" />
@@ -133,7 +130,7 @@ export function QuickUnlockPrompt({
               value={pin}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
               placeholder={t.deviceUnlock.promptPinPlaceholder}
-              className={FIELD_CLASS}
+              className="input text-center text-lg tracking-[0.4em]"
             />
           </div>
           <div>
@@ -144,7 +141,7 @@ export function QuickUnlockPrompt({
               value={confirmPin}
               onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
               placeholder={t.deviceUnlock.promptConfirmPinPlaceholder}
-              className={FIELD_CLASS}
+              className="input text-center text-lg tracking-[0.4em]"
               aria-label={t.deviceUnlock.promptConfirmPinPlaceholder}
             />
           </div>

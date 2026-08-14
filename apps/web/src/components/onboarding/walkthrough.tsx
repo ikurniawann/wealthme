@@ -70,7 +70,7 @@ export function Walkthrough() {
     return (
       <>
         <Dialog open onOpenChange={(open) => !open && dismissAsSkip()}>
-          <DialogContent className="max-w-[420px] p-6 sm:max-w-[420px]">
+          <DialogContent className="min-[769px]:w-[min(420px,calc(100%-2rem))]">
             <DialogTitle className="sr-only">{tr.welcomeTitle}</DialogTitle>
             <div className="text-center">
               <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary text-2xl font-extrabold text-white">
@@ -163,7 +163,7 @@ export function Walkthrough() {
     return (
       <>
         <Dialog open onOpenChange={(open) => !open && dismissAsSkip()}>
-          <DialogContent className="max-w-[420px] p-6 sm:max-w-[420px]">
+          <DialogContent className="min-[769px]:w-[min(420px,calc(100%-2rem))]">
             <DialogTitle className="text-[17px] font-extrabold">
               {tr.resumeTitle}
             </DialogTitle>

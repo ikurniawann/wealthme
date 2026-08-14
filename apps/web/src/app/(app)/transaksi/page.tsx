@@ -203,9 +203,6 @@ function formatMonthYear(dateStr: string, locale: Locale): string {
 
 const PAGE_SIZE = 10;
 
-const fieldClass =
-  "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
-
 const TX_ICON: Record<string, { icon: LucideIcon; chip: string }> = {
   income: { icon: ArrowDownLeft, chip: "bg-green-100 text-green-600" },
   expense: { icon: CreditCard, chip: "bg-red-100 text-red-600" },
@@ -810,7 +807,7 @@ export function TransactionDetailDialog({
         if (!o) onClose();
       }}
     >
-      <DialogContent className="max-w-sm">
+      <DialogContent className="dialog--sm">
         <DialogTitle>{t.transaksi.detailDialogTitle}</DialogTitle>
         {/* EPIC-026 Wave 4 — prototype's `dialog__desc`
             (transaksi.html:437); amount is `t-xl t-black mono`. */}
@@ -957,7 +954,7 @@ function EditTransactionDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="max-w-sm">
+      <DialogContent className="dialog--sm">
         <DialogTitle>{t.transaksi.editDialogTitle}</DialogTitle>
         {/* EPIC-026 Wave 4 — prototype's `dialog__desc`
             (transaksi.html:542). */}
@@ -1330,7 +1327,7 @@ function TransaksiPageInner() {
                   setPage(1);
                 }}
                 aria-label={t.transaksi.dateFromAriaLabel}
-                className={fieldClass}
+                className="input"
               />
               <span className="text-[12px] text-muted-foreground">–</span>
               <input
@@ -1341,7 +1338,7 @@ function TransaksiPageInner() {
                   setPage(1);
                 }}
                 aria-label={t.transaksi.dateToAriaLabel}
-                className={fieldClass}
+                className="input"
               />
             </div>
           </label>
@@ -1352,7 +1349,7 @@ function TransaksiPageInner() {
             <select
               value={accountId ?? ""}
               onChange={handleAccountFilterChange}
-              className={fieldClass}
+              className="select"
             >
               <option value="">{t.transaksi.allAccountsOption}</option>
               {filterAccounts?.map((a) => (
@@ -1372,7 +1369,7 @@ function TransaksiPageInner() {
                 setCategoryFilter(e.target.value);
                 setPage(1);
               }}
-              className={fieldClass}
+              className="select"
             >
               <option value="">{t.transaksi.allCategoriesOption}</option>
               {filterCategories?.map((c) => (

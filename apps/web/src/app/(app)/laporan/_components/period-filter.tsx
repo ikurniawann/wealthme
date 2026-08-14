@@ -21,8 +21,6 @@ export function PeriodFilter({
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 6 }, (_, i) => currentYear - i);
   const maxDay = daysInMonth(period.year, period.month);
-  const fieldClass =
-    "rounded-md border bg-background px-3 py-[7px] text-[13.5px] outline-none focus:border-primary";
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -36,7 +34,7 @@ export function PeriodFilter({
             : null;
           onChange({ ...period, year, day });
         }}
-        className={fieldClass}
+        className="select"
       >
         {years.map((y) => (
           <option key={y} value={y}>
@@ -54,7 +52,7 @@ export function PeriodFilter({
             : null;
           onChange({ ...period, month, day });
         }}
-        className={fieldClass}
+        className="select"
       >
         {t.laporan.months.map((label, i) => (
           <option key={label} value={i + 1}>
@@ -69,7 +67,7 @@ export function PeriodFilter({
           const value = e.target.value;
           onChange({ ...period, day: value === "" ? null : Number(value) });
         }}
-        className={fieldClass}
+        className="select"
       >
         <option value="">{t.laporan.periodFilter.allDatesOption}</option>
         {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
@@ -125,8 +123,6 @@ export function RangePresetSelect({
   onChange: (next: ReportRangePreset) => void;
 }) {
   const { t } = useLocale();
-  const fieldClass =
-    "rounded-md border bg-background px-3 py-[7px] text-[13.5px] outline-none focus:border-primary";
   const labels = buildRangePresetLabels(t);
 
   return (
@@ -134,7 +130,7 @@ export function RangePresetSelect({
       aria-label={t.laporan.periodFilter.presetAriaLabel}
       value={preset}
       onChange={(e) => onChange(e.target.value as ReportRangePreset)}
-      className={fieldClass}
+      className="select"
     >
       {RANGE_PRESET_IDS.map((id) => (
         <option key={id} value={id}>

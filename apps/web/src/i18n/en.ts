@@ -92,6 +92,9 @@ export const en = {
     periodToggle6: "6 Mo",
     periodToggle12: "12 Mo",
     periodToggleAriaLabel: "Wealth trend range",
+    viewSummaryLink: "View summary",
+    donutCenterLabel: "Wealth",
+    allocationDetailLink: "Details",
   },
   shell: {
     loading: "Loading WealthMe…",
@@ -2065,6 +2068,7 @@ export const en = {
     topExpensesTitle: "Top Expenses",
     emptyTopExpenses: "No expenses yet this month.",
     healthScoreTitle: "Health Score",
+    healthScoreCenterLabel: "Score",
     financialHealthScoreLabel: "Financial Health Score",
     healthStatusGood: "Healthy",
     healthStatusFair: "Fair",

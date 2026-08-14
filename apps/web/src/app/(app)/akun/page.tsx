@@ -164,9 +164,6 @@ function extractApiErrorMessage(err: unknown, fallback: string): string {
 
 /* ─────────────────── Shared field / row primitives ─────────────────── */
 
-const FIELD_CLASS =
-  "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
-
 // EPIC-023 Group F fix round (HIGH 3) — every consumer's `<label>` rendered
 // with no `htmlFor`, so screen readers/click-to-focus never associated the
 // label with its control (repeat finding — task H1 and group E both hit
@@ -446,17 +443,17 @@ export function ProfilBody({
       </div>
       <Field label={t.akun.profil.nameLabel}>
         <input
-          className={FIELD_CLASS}
+          className="input"
           value={form.name}
           onChange={(e) => update("name", e.target.value)}
         />
       </Field>
       <Field label={t.akun.profil.emailLabel}>
-        <input className={FIELD_CLASS} defaultValue={email} readOnly />
+        <input className="input" defaultValue={email} readOnly />
       </Field>
       <Field label={t.akun.profil.phoneLabel}>
         <input
-          className={FIELD_CLASS}
+          className="input"
           value={form.phone}
           onChange={(e) => update("phone", e.target.value)}
           placeholder={t.akun.profil.phonePlaceholder}
@@ -465,14 +462,14 @@ export function ProfilBody({
       <Field label={t.akun.profil.birthDateLabel}>
         <input
           type="date"
-          className={FIELD_CLASS}
+          className="input"
           value={form.birthDate}
           onChange={(e) => update("birthDate", e.target.value)}
         />
       </Field>
       <Field label={t.akun.profil.genderLabel}>
         <select
-          className={FIELD_CLASS}
+          className="select"
           // Display GENDER_OPTIONS[0] when nothing is set yet, but that is a
           // display-only fallback — form.gender itself stays "" until the
           // user actually picks something (or the server already had a
@@ -491,7 +488,7 @@ export function ProfilBody({
       </Field>
       <Field label={t.akun.profil.jobTitleLabel}>
         <input
-          className={FIELD_CLASS}
+          className="input"
           value={form.jobTitle}
           onChange={(e) => update("jobTitle", e.target.value)}
           placeholder={t.akun.profil.jobTitlePlaceholder}
@@ -499,7 +496,7 @@ export function ProfilBody({
       </Field>
       <Field label={t.akun.profil.monthlyIncomeLabel}>
         <input
-          className={FIELD_CLASS}
+          className="input"
           value={form.monthlyIncome}
           onChange={(e) => update("monthlyIncome", e.target.value)}
           placeholder={t.akun.profil.monthlyIncomePlaceholder}
@@ -707,7 +704,7 @@ export function KeamananBody() {
           <Field label={t.akun.keamanan.currentPwLabel}>
             <input
               type="password"
-              className={FIELD_CLASS}
+              className="input"
               value={currentPw}
               onChange={(e) => setCurrentPw(e.target.value)}
               placeholder={t.akun.keamanan.currentPwPlaceholder}
@@ -716,7 +713,7 @@ export function KeamananBody() {
           <Field label={t.akun.keamanan.newPwLabel}>
             <input
               type="password"
-              className={FIELD_CLASS}
+              className="input"
               value={newPw}
               onChange={(e) => setNewPw(e.target.value)}
               placeholder={t.akun.keamanan.newPwPlaceholder}
@@ -725,7 +722,7 @@ export function KeamananBody() {
           <Field label={t.akun.keamanan.confirmPwLabel}>
             <input
               type="password"
-              className={FIELD_CLASS}
+              className="input"
               value={confirmPw}
               onChange={(e) => setConfirmPw(e.target.value)}
               placeholder={t.akun.keamanan.confirmPwPlaceholder}
@@ -935,7 +932,7 @@ export function KeamananBody() {
         open={deviceToRevoke !== null}
         onOpenChange={(open) => !open && setDeviceToRevoke(null)}
       >
-        <DialogContent className="max-w-[min(400px,calc(100%-2rem))]">
+        <DialogContent className="dialog--sm">
           <DialogHeader>
             <DialogTitle>{t.deviceUnlock.manageRevokeConfirmTitle}</DialogTitle>
           </DialogHeader>
@@ -1390,7 +1387,7 @@ export function PengaturanBody() {
               <input
                 type="text"
                 inputMode="numeric"
-                className={FIELD_CLASS}
+                className="input"
                 placeholder={t.akun.pengaturan.goldPricePlaceholder}
                 value={goldPriceInput}
                 onChange={(e) =>
@@ -1444,7 +1441,7 @@ export function PengaturanBody() {
           <>
             <Field label={t.akun.pengaturan.aiKeyProviderLabel}>
               <select
-                className={FIELD_CLASS}
+                className="select"
                 value={aiKeyProviderInput}
                 onChange={(e) =>
                   setAiKeyProviderInput(e.target.value as AiProvider)
@@ -1466,7 +1463,7 @@ export function PengaturanBody() {
                 <input
                   type="password"
                   autoComplete="off"
-                  className={FIELD_CLASS}
+                  className="input"
                   placeholder={t.akun.pengaturan.aiKeyInputPlaceholder}
                   value={aiKeyInput}
                   onChange={(e) => setAiKeyInput(e.target.value)}
@@ -1502,7 +1499,7 @@ export function PengaturanBody() {
         <SectionTitle>{t.akun.pengaturan.displaySectionTitle}</SectionTitle>
         <Field label={t.akun.pengaturan.languageLabel}>
           <select
-            className={FIELD_CLASS}
+            className="select"
             value={languageLabel}
             onChange={(e) => setLocale(localeLabelToValue(e.target.value))}
           >
@@ -1513,7 +1510,7 @@ export function PengaturanBody() {
         </Field>
         <Field label={t.akun.pengaturan.dateFormatLabel}>
           <select
-            className={FIELD_CLASS}
+            className="select"
             value={settings.dateFormat}
             onChange={(e) => update("dateFormat", e.target.value)}
           >
@@ -1524,7 +1521,7 @@ export function PengaturanBody() {
         </Field>
         <Field label={t.akun.pengaturan.themeLabel}>
           <select
-            className={FIELD_CLASS}
+            className="select"
             value={themeLabel}
             onChange={(e) =>
               setTheme(
@@ -1563,7 +1560,7 @@ export function PengaturanBody() {
         ) : isReligionOwner ? (
           <Field label={t.akun.pengaturan.religionLabel}>
             <select
-              className={FIELD_CLASS}
+              className="select"
               // EPIC-023 Group F fix round (MEDIUM 9) — `currentReligion`
               // is `null` for a family that has never chosen. The empty
               // string only ever selects the disabled placeholder below —
@@ -2025,7 +2022,7 @@ function HubungiBody() {
         </div>
         <div className="mb-2.5">
           <textarea
-            className={`${FIELD_CLASS} resize-none`}
+            className="textarea resize-none"
             rows={3}
             value={feedback}
             onChange={(e) => setFeedback(e.target.value)}
@@ -2435,7 +2432,7 @@ function CategoryLimitDialog({
           fully replaces the DialogContent default via tailwind-merge, so it
           must carry the same dynamic-viewport unit or it silently
           reintroduces the bug (see components/ui/dialog.tsx). */}
-      <DialogContent className="max-h-[80dvh] max-w-[min(420px,calc(100%-2rem))] overflow-y-auto p-6">
+      <DialogContent className="min-[769px]:w-[min(420px,calc(100%-2rem))]">
         <DialogHeader>
           <DialogTitle className="text-[15px] font-bold">
             {t.akun.family.categoryLimitDialogTitle}
@@ -2586,7 +2583,7 @@ function ThresholdDialog({
 
   return (
     <Dialog open={!!member} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[min(420px,calc(100%-2rem))] p-6">
+      <DialogContent className="min-[769px]:w-[min(420px,calc(100%-2rem))]">
         <DialogHeader>
           <DialogTitle className="text-[15px] font-bold">
             {t.akun.family.thresholdDialogTitle}
@@ -2673,7 +2670,7 @@ export function ThresholdForm({
           value={amount}
           onChange={(e) => setAmount(formatAmountInput(e.target.value))}
           placeholder="0"
-          className={`${FIELD_CLASS} pl-[38px]`}
+          className="input pl-[38px]"
         />
       </div>
       <div className="mt-1.5 text-[11px] text-muted-foreground">
@@ -2809,7 +2806,7 @@ function AddDependantMemberDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-[min(480px,calc(100%-2rem))] p-6">
+      <DialogContent>
         <DialogTitle className="mb-1.5 text-[17px] font-extrabold">
           {t.akun.addDependant.dialogTitle}
         </DialogTitle>
@@ -2819,7 +2816,7 @@ function AddDependantMemberDialog({
         <Field label={t.akun.addDependant.nameLabel}>
           <input
             ref={nameRef}
-            className={FIELD_CLASS}
+            className="input"
             placeholder={t.akun.addDependant.namePlaceholder}
             type="text"
           />
@@ -2827,7 +2824,7 @@ function AddDependantMemberDialog({
         <Field label={t.akun.addDependant.usernameLabel}>
           <input
             ref={usernameRef}
-            className={FIELD_CLASS}
+            className="input"
             placeholder={t.akun.addDependant.usernamePlaceholder}
             type="text"
           />
@@ -2839,7 +2836,7 @@ function AddDependantMemberDialog({
           <div className="relative">
             <input
               ref={passwordRef}
-              className={`${FIELD_CLASS} pr-10`}
+              className="input pr-10"
               placeholder={t.akun.addDependant.passwordPlaceholder}
               type={showPassword ? "text" : "password"}
               autoComplete="new-password"
@@ -2872,7 +2869,7 @@ function AddDependantMemberDialog({
         </Field>
         <Field label={t.akun.addDependant.roleLabel}>
           <select
-            className={FIELD_CLASS}
+            className="select"
             value={role}
             onChange={(e) => {
               const next = e.target.value as
@@ -2905,7 +2902,7 @@ function AddDependantMemberDialog({
         )}
         <Field label={t.akun.addDependant.relationshipLabel}>
           <select
-            className={FIELD_CLASS}
+            className="select"
             value={relationship}
             disabled={isIstriCoMaster}
             onChange={(e) =>

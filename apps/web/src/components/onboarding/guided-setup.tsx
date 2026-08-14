@@ -10,7 +10,6 @@ import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
-import { cn } from "@/lib/utils";
 import { queryKeys } from "@/lib/query-keys";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { setOnboarded } from "./use-onboarded";
@@ -30,9 +29,6 @@ import {
 // each real write. No bespoke write path is introduced.
 
 const STEP_ORDER: SetupStep[] = ["account", "budget", "transaction"];
-
-const fieldClass =
-  "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
 
 type AccountLite = { id: string; name: string };
 type BudgetLite = {
@@ -613,7 +609,7 @@ export function GuidedSetup({
               value={accountNameField}
               onChange={(e) => setAccountNameField(e.target.value)}
               placeholder={tr.account.namePlaceholder}
-              className={fieldClass}
+              className="input"
               aria-describedby={nameHintId}
             />
             {/* EPIC-023 Task H fix round (MEDIUM 12) — the submit button
@@ -641,7 +637,7 @@ export function GuidedSetup({
                   setBalanceField(formatAmountInput(e.target.value))
                 }
                 placeholder="0"
-                className={cn(fieldClass, "pl-9")}
+                className="input pl-9"
               />
             </div>
           </Field>
@@ -723,7 +719,7 @@ export function GuidedSetup({
               value={categoryNameField}
               onChange={(e) => setCategoryNameField(e.target.value)}
               placeholder={tr.budget.namePlaceholder}
-              className={fieldClass}
+              className="input"
               aria-describedby={budgetHintId}
             />
           </Field>
@@ -740,7 +736,7 @@ export function GuidedSetup({
                   setLimitField(formatAmountInput(e.target.value))
                 }
                 placeholder="0"
-                className={cn(fieldClass, "pl-9")}
+                className="input pl-9"
                 aria-describedby={budgetHintId}
               />
             </div>
@@ -831,7 +827,7 @@ export function GuidedSetup({
                   setAmountField(formatAmountInput(e.target.value))
                 }
                 placeholder="0"
-                className={cn(fieldClass, "pl-9")}
+                className="input pl-9"
                 aria-describedby={amountHintId}
               />
             </div>
@@ -850,7 +846,7 @@ export function GuidedSetup({
               value={descriptionField}
               onChange={(e) => setDescriptionField(e.target.value)}
               placeholder={tr.transaction.descriptionPlaceholder}
-              className={fieldClass}
+              className="input"
             />
           </Field>
         </div>
@@ -951,7 +947,7 @@ export function GuidedSetup({
           exactly this once, I2); `min(440px,calc(100%-2rem))` keeps the
           gutter on narrow screens while preserving the intended width
           above ~504px. */}
-      <DialogContent className="max-h-[90dvh] w-full max-w-[min(440px,calc(100%-2rem))] gap-0 overflow-y-auto p-0 sm:max-w-[min(440px,calc(100%-2rem))]">
+      <DialogContent className="p-0 min-[769px]:w-[min(440px,calc(100%-2rem))]">
         <div className="p-6">
           <div className="mb-4 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">

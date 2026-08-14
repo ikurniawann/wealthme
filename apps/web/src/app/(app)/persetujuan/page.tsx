@@ -70,9 +70,6 @@ import type { Locale } from "@/i18n";
 
 import type { AccountDto, AllowanceRequestDto } from "@wealthme/contracts";
 
-const FIELD_CLASS =
-  "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
-
 /**
  * EPIC-024 A5 (US-AUTH-11) — surfaces the server's real validation/business
  * message (e.g. the anti-overdraft 400) instead of a generic toast. Mirrors
@@ -611,7 +608,7 @@ function ApproveRequestDialog({
       {/* EPIC-026 Wave 6 — acceptance criterion #5: dialog width keeps the
           `max-w-[min(Npx,calc(100%-2rem))]` guard so it never overflows
           sub-420px viewports. */}
-      <DialogContent className="max-w-[min(420px,calc(100%-2rem))] p-6 sm:max-w-[min(420px,calc(100%-2rem))]">
+      <DialogContent className="min-[769px]:w-[min(420px,calc(100%-2rem))]">
         <DialogHeader>
           <DialogTitle className="text-[15px] font-bold">
             {t.akun.family.allowanceRequestApproveDialogTitle}
@@ -705,7 +702,7 @@ function ApproveRequestForm({
       </label>
       <select
         id={fromAccountFieldId}
-        className={FIELD_CLASS}
+        className="select"
         value={fromAccountId}
         onChange={(e) => {
           setFromAccountId(e.target.value);

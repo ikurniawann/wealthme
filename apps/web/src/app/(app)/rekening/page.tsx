@@ -373,7 +373,7 @@ function MintaDanaDialog({
 }) {
   return (
     <Dialog open={!!account} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[min(420px,calc(100%-2rem))] p-6">
+      <DialogContent className="min-[769px]:w-[min(420px,calc(100%-2rem))]">
         {/* Keyed by account id (not an effect) so amount/note reset whenever
             a different account's "Minta Dana" button is clicked. */}
         {account && (

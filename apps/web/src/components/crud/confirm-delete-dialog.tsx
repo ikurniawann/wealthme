@@ -32,7 +32,7 @@ export function ConfirmDeleteDialog({
   return (
     <Dialog open={label !== null} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className="text-center sm:max-w-[380px]"
+        className="text-center min-[769px]:w-[min(380px,calc(100%-2rem))]"
         showCloseButton={false}
       >
         <div className="mx-auto flex size-[60px] items-center justify-center rounded-full bg-destructive/10 text-[26px]">

@@ -1,0 +1,87 @@
+"use client";
+
+import { useMemo } from "react";
+import { useRouter } from "next/navigation";
+import {
+  chartPalette,
+  useThemeRebuildToken,
+} from "@/components/charts/apex-base";
+import { DonutChart } from "@/components/charts/apex-presets";
+import type { DonutSegment } from "@/components/charts/donut";
+import { CardLink, SectionCard } from "@/components/wm";
+import { useLocale } from "@/hooks/use-locale";
+import type { AllocationItem } from "./use-beranda-data";
+
+/**
+ * EPIC-026 Wave 8 — prototype's `.card.bento-allocation` ("Alokasi Kekayaan").
+ *
+ * Donut palette fix: the segment colours used to come straight from the API
+ * (`DashboardSummaryDto.allocation[].color` — hardcoded hexes such as the
+ * bright cyan `#06B6D4` for "Rekening" in `dashboard.service.ts`), which
+ * rendered off-brand against the prototype. The prototype's `WMCharts.donut()`
+ * tints from the shared chart tokens instead, so the segments below are
+ * recoloured from `chartPalette()` (`--chart-1`..`--chart-5`) and re-read on a
+ * theme flip via `useThemeRebuildToken()`. The API colour survives only as the
+ * pre-mount fallback, when `getComputedStyle` cannot resolve the tokens yet.
+ */
+export function AllocationCard({
+  isLoading,
+  allocation,
+}: {
+  isLoading: boolean;
+  allocation: AllocationItem[];
+}) {
+  const router = useRouter();
+  const { t } = useLocale();
+  const rebuildToken = useThemeRebuildToken();
+
+  const segments: DonutSegment[] = useMemo(() => {
+    const palette = chartPalette().filter(Boolean);
+    return allocation.map((item, i) => ({
+      label: item.label,
+      // Value = the real Rupiah amount, NOT the percentage: the Apex preset
+      // sums `value` for its currency-formatted center total.
+      value: item.amount,
+      color: palette.length > 0 ? palette[i % palette.length]! : item.apiColor,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuildToken forces a re-read of the CSS chart tokens on a theme flip.
+  }, [allocation, rebuildToken]);
+
+  const donutAriaLabel =
+    allocation.length > 0
+      ? `${t.beranda.wealthBreakdown}: ${allocation
+          .map((a) => `${a.label} ${a.percent}%`)
+          .join(", ")}`
+      : t.beranda.wealthBreakdown;
+
+  return (
+    <SectionCard
+      className="bento-allocation"
+      title={t.beranda.wealthBreakdown}
+      action={
+        /* EPIC-026 Wave 3 — the prototype's "Detail" action links to
+           ringkasan.html, not aset. */
+        <CardLink onClick={() => router.push("/ringkasan")}>
+          {t.beranda.allocationDetailLink}
+        </CardLink>
+      }
+    >
+      {isLoading || segments.length === 0 ? (
+        <div className="t-md t-muted flex h-[220px] items-center justify-center">
+          {isLoading ? t.common.loading : t.common.noData}
+        </div>
+      ) : (
+        // Prototype parity (beranda.html:255-260): `WMCharts.donut()` passes
+        // "Kekayaan" as the center label and renders no itemized legend list.
+        <div className="chart">
+          <DonutChart
+            segments={segments}
+            centerLabel={t.beranda.donutCenterLabel}
+            height={220}
+            ariaLabel={donutAriaLabel}
+          />
+        </div>
+      )}
+    </SectionCard>
+  );
+}

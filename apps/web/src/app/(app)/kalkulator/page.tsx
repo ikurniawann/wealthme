@@ -29,9 +29,6 @@ import type {
   ZakatResultDto,
 } from "@wealthme/contracts";
 
-const FIELD_CLASS =
-  "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
-
 // Sample participant names for the Split Group calculator preview — mock
 // data (like `lib/data`'s USER name), not translatable UI copy.
 const GROUP_NAMES = [
@@ -259,7 +256,7 @@ function ZakatTab({ token }: { token: string | undefined }) {
                 inputMode="numeric"
                 value={cash}
                 onChange={(e) => setCash(formatAmountInput(e.target.value))}
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
             <Field label={t.kalkulator.zakat.fieldInvestments}>
@@ -270,7 +267,7 @@ function ZakatTab({ token }: { token: string | undefined }) {
                 onChange={(e) =>
                   setInvestments(formatAmountInput(e.target.value))
                 }
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
             <Field label={t.kalkulator.zakat.fieldGold}>
@@ -279,7 +276,7 @@ function ZakatTab({ token }: { token: string | undefined }) {
                 inputMode="numeric"
                 value={gold}
                 onChange={(e) => setGold(formatAmountInput(e.target.value))}
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
             <Field label={t.kalkulator.zakat.fieldLiabilities}>
@@ -290,7 +287,7 @@ function ZakatTab({ token }: { token: string | undefined }) {
                 onChange={(e) =>
                   setLiabilities(formatAmountInput(e.target.value))
                 }
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
           </div>
@@ -443,7 +440,7 @@ function Pph21Tab({ token }: { token: string | undefined }) {
                   inputMode="numeric"
                   value={gross}
                   onChange={(e) => setGross(formatAmountInput(e.target.value))}
-                  className={FIELD_CLASS}
+                  className="input"
                 />
               </Field>
               <Field label={t.kalkulator.pph21.fieldZakatPaid}>
@@ -454,7 +451,7 @@ function Pph21Tab({ token }: { token: string | undefined }) {
                   onChange={(e) =>
                     setZakatPaid(formatAmountInput(e.target.value))
                   }
-                  className={FIELD_CLASS}
+                  className="input"
                 />
               </Field>
             </div>
@@ -539,7 +536,7 @@ function Pph21BracketDialog({
   const { t } = useLocale();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[min(560px,calc(100%-2rem))] sm:max-w-[min(560px,calc(100%-2rem))] p-6">
+      <DialogContent className="min-[769px]:w-[min(560px,calc(100%-2rem))]">
         <DialogTitle className="text-[17px] font-extrabold">
           {t.kalkulator.pph21.bracketDialogTitle}
         </DialogTitle>
@@ -671,7 +668,7 @@ function InvestasiTab() {
                 inputMode="numeric"
                 value={modal}
                 onChange={(e) => setModal(formatAmountInput(e.target.value))}
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
             <Field label={t.kalkulator.investasi.fieldMonthlyDeposit}>
@@ -680,7 +677,7 @@ function InvestasiTab() {
                 inputMode="numeric"
                 value={monthly}
                 onChange={(e) => setMonthly(formatAmountInput(e.target.value))}
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
             {/* EPIC-025 N3 fidelity follow-up — field order swapped to match
@@ -692,7 +689,7 @@ function InvestasiTab() {
                 max={50}
                 value={years}
                 onChange={(e) => setYears(e.target.value)}
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
             <Field label={t.kalkulator.investasi.fieldReturnRateLabel}>
@@ -702,7 +699,7 @@ function InvestasiTab() {
                 max={100}
                 value={rate}
                 onChange={(e) => setRate(e.target.value)}
-                className={FIELD_CLASS}
+                className="input"
               />
               <div className="mt-1.5 text-[11.5px] text-muted-foreground">
                 {t.kalkulator.investasi.returnRateHint}
@@ -804,7 +801,7 @@ function KreditTab() {
                 inputMode="numeric"
                 value={harga}
                 onChange={(e) => setHarga(formatAmountInput(e.target.value))}
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
             <Field label={t.kalkulator.kredit.fieldDownPaymentAmount}>
@@ -813,7 +810,7 @@ function KreditTab() {
                 inputMode="numeric"
                 value={dp}
                 onChange={(e) => setDp(formatAmountInput(e.target.value))}
-                className={FIELD_CLASS}
+                className="input"
               />
               <div className="mt-1.5 text-[11.5px] text-muted-foreground">
                 {dpPct.toFixed(1).replace(".", ",")}
@@ -828,7 +825,7 @@ function KreditTab() {
                 step={0.05}
                 value={bunga}
                 onChange={(e) => setBunga(e.target.value)}
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
             <Field label={t.kalkulator.kredit.fieldTenor}>
@@ -838,7 +835,7 @@ function KreditTab() {
                 max={30}
                 value={tenor}
                 onChange={(e) => setTenor(e.target.value)}
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
           </div>
@@ -952,7 +949,7 @@ function PensiunTab({ token }: { token: string | undefined }) {
                 type="number"
                 value={now}
                 onChange={(e) => setNow(e.target.value)}
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
             <Field label={t.kalkulator.pensiun.fieldRetireAge}>
@@ -960,7 +957,7 @@ function PensiunTab({ token }: { token: string | undefined }) {
                 type="number"
                 value={retire}
                 onChange={(e) => setRetire(e.target.value)}
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
             <Field label={t.kalkulator.pensiun.fieldCurrentMonthlyExpense}>
@@ -969,7 +966,7 @@ function PensiunTab({ token }: { token: string | undefined }) {
                 inputMode="numeric"
                 value={monthly}
                 onChange={(e) => setMonthly(formatAmountInput(e.target.value))}
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
             <Field label={t.kalkulator.pensiun.fieldInvestmentReturn}>
@@ -977,7 +974,7 @@ function PensiunTab({ token }: { token: string | undefined }) {
                 type="number"
                 value={ret}
                 onChange={(e) => setRet(e.target.value)}
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
           </div>
@@ -1068,7 +1065,7 @@ function TabunganTab() {
                 inputMode="numeric"
                 value={target}
                 onChange={(e) => setTarget(formatAmountInput(e.target.value))}
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
             <Field label={t.kalkulator.tabungan.fieldCurrentBalance}>
@@ -1077,7 +1074,7 @@ function TabunganTab() {
                 inputMode="numeric"
                 value={current}
                 onChange={(e) => setCurrent(formatAmountInput(e.target.value))}
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
             <Field label={t.kalkulator.tabungan.fieldAnnualInterest}>
@@ -1085,7 +1082,7 @@ function TabunganTab() {
                 type="number"
                 value={bunga}
                 onChange={(e) => setBunga(e.target.value)}
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
             <Field label={t.kalkulator.tabungan.fieldMonthlyDeposit}>
@@ -1094,7 +1091,7 @@ function TabunganTab() {
                 inputMode="numeric"
                 value={setor}
                 onChange={(e) => setSetor(formatAmountInput(e.target.value))}
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
           </div>
@@ -1154,7 +1151,7 @@ function SplitGroupTab() {
                 inputMode="numeric"
                 value={total}
                 onChange={(e) => setTotal(formatAmountInput(e.target.value))}
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
             <Field label={t.kalkulator.splitgroup.fieldPeopleCount}>
@@ -1163,7 +1160,7 @@ function SplitGroupTab() {
                 min={1}
                 value={people}
                 onChange={(e) => setPeople(e.target.value)}
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
             <Field label={t.kalkulator.splitgroup.fieldTaxService}>
@@ -1171,7 +1168,7 @@ function SplitGroupTab() {
                 type="number"
                 value={tax}
                 onChange={(e) => setTax(e.target.value)}
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
             <Field label={t.kalkulator.splitgroup.fieldExtraTip}>
@@ -1179,7 +1176,7 @@ function SplitGroupTab() {
                 type="number"
                 value={tip}
                 onChange={(e) => setTip(e.target.value)}
-                className={FIELD_CLASS}
+                className="input"
               />
             </Field>
           </div>

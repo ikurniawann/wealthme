@@ -635,7 +635,7 @@ export default function MasterCoaPage() {
 
       {/* Add/Edit Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-[min(480px,calc(100%-2rem))] p-6">
+        <DialogContent>
           <DialogTitle className="text-[17px] font-extrabold mb-4">
             {editTarget
               ? t.mastercoa.modalTitleEdit
@@ -789,7 +789,7 @@ export default function MasterCoaPage() {
 
       {/* Delete confirm modal */}
       <Dialog open={Boolean(deleteId)} onOpenChange={() => setDeleteId(null)}>
-        <DialogContent className="max-w-[min(380px,calc(100%-2rem))] p-6">
+        <DialogContent className="min-[769px]:w-[min(380px,calc(100%-2rem))]">
           <DialogTitle className="text-[17px] font-extrabold mb-2">
             {t.mastercoa.deleteConfirmTitle}
           </DialogTitle>

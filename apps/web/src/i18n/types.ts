@@ -412,6 +412,12 @@ export type I18nDictionary = {
     periodToggle6: string;
     periodToggle12: string;
     periodToggleAriaLabel: string;
+    // EPIC-026 Wave 8 — prototype beranda card actions ("Lihat ringkasan"
+    // on `.bento-snapshot`, "Detail" on `.bento-allocation`); previously
+    // hardcoded at the call site.
+    viewSummaryLink: string;
+    donutCenterLabel: string;
+    allocationDetailLink: string;
   };
   /**
    * Shell-owned copy: sidebar/topbar/mobile nav chrome, the global
@@ -1933,6 +1939,8 @@ export type I18nDictionary = {
     topExpensesTitle: string;
     emptyTopExpenses: string;
     healthScoreTitle: string;
+    /** Center label inside the prototype's `#c-health` radial gauge. */
+    healthScoreCenterLabel: string;
     financialHealthScoreLabel: string;
     healthStatusGood: string;
     healthStatusFair: string;

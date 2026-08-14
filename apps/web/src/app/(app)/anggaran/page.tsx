@@ -103,9 +103,6 @@ function budgetAmountsLabel(
 
 const ICON_OPTIONS = ["🎓", "🎨", "🎁", "🐶", "👶", "📚", "💪", "🙏"];
 
-const FIELD_CLASS =
-  "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
-
 function BudgetItem({ dto, index }: { dto: BudgetDto; index: number }) {
   const { t } = useLocale();
   const color = budgetBarColor(dto);
@@ -304,7 +301,7 @@ function PayObligationDialog({
       open={obligation !== null}
       onOpenChange={(open) => !open && onClose()}
     >
-      <DialogContent className="sm:max-w-[380px]">
+      <DialogContent className="min-[769px]:w-[min(380px,calc(100%-2rem))]">
         <DialogTitle className="text-[17px] font-extrabold">
           {t.anggaran.obligationsPayDialogTitle}
         </DialogTitle>
@@ -342,7 +339,7 @@ function PayObligationDialog({
                 id="obligation-source-account"
                 value={sourceAccountId}
                 onChange={(e) => onSourceAccountChange(e.target.value)}
-                className={FIELD_CLASS}
+                className="select"
               >
                 <option value="">
                   {t.anggaran.obligationsSourceAccountPlaceholder}
@@ -1038,7 +1035,7 @@ export default function AnggaranPage() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-[min(480px,calc(100%-2rem))] p-6">
+        <DialogContent>
           <DialogTitle className="text-[17px] font-extrabold">
             {t.anggaran.modalAddTitle}
           </DialogTitle>
@@ -1064,7 +1061,7 @@ export default function AnggaranPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t.anggaran.fieldCategoryNamePlaceholder}
-                className={FIELD_CLASS}
+                className="input"
               />
             </div>
             <div>
@@ -1133,7 +1130,7 @@ export default function AnggaranPage() {
                   id="budget-period"
                   value={period}
                   onChange={(e) => setPeriod(e.target.value as BudgetPeriod)}
-                  className={FIELD_CLASS}
+                  className="select"
                 >
                   <option value="monthly">
                     {t.anggaran.periodLabels.monthly}

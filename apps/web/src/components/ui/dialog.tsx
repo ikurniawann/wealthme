@@ -23,6 +23,26 @@ function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
 }
 
+// EPIC-026 — prototype backdrop, WITHOUT the prototype's `.dialog-backdrop`
+// class. This is the documented landmine and it is real, not theoretical:
+//
+//   design-system.css:  .dialog-backdrop      { display: none }
+//                       .dialog-backdrop[data-open="true"] { display: grid }
+//
+// but Base UI's `popupStateMapping` (verified in
+// `node_modules/@base-ui/react/esm/utils/popupStateMapping.js`) emits a
+// *valueless* attribute — `POPUP_OPEN_HOOK = { 'data-open': '' }` — so it
+// renders `data-open=""`, which `[data-open="true"]` never matches. Applying
+// `.dialog-backdrop` here would leave every dialog's backdrop permanently
+// `display: none`. Same failure mode that forced the mobile drawer to keep the
+// Base UI `Sheet`.
+//
+// So the prototype's *visual* backdrop is reproduced with utilities that carry
+// the exact same values (`rgb(15 23 42 / 0.5)`, `blur(2px)`, `z-index: 60`),
+// and Base UI keeps ownership of mount/unmount, focus trap, Escape, scroll
+// lock and ARIA. Do not "fix" this by hardcoding `data-open="true"`: Base UI's
+// own state attribute wins on close and the backdrop would snap to
+// `display: none` mid-transition.
 function DialogOverlay({
   className,
   ...props
@@ -31,7 +51,7 @@ function DialogOverlay({
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 isolate z-[60] bg-[rgb(15_23_42_/_0.5)] duration-100 supports-backdrop-filter:backdrop-blur-[2px] data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className,
       )}
       {...props}
@@ -53,35 +73,32 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          // EPIC-022 Group G (G1) — bounded height + internal scroll by
-          // default so any dialog whose body grows with user-added rows
-          // (heirs, beneficiaries, participants, long CRUD forms) keeps its
-          // header and submit action reachable instead of growing past the
-          // viewport with no way to scroll to it.
+          // EPIC-026 — the prototype's `.dialog` (design-system.css) is the
+          // specification and owns the whole box: width `min(480px, 100% - 2rem)`,
+          // `max-height: 85dvh`, `overflow-y: auto`, popover surface, 1px border,
+          // `var(--radius)`, `var(--shadow-pop)`, 20px padding, and the
+          // `dialog-in` entry animation. Below 768px it becomes a full-width
+          // bottom sheet (`width: 100%`, `18px 18px 0 0` radius, safe-area
+          // padding) — which is why the positioning utilities below are
+          // bottom-anchored on mobile and centred from 769px up, matching the
+          // prototype's own `@media (max-width: 768px)` boundary exactly.
           //
-          // `dvh` (not `vh`): `vh` is the CSS *layout* viewport, which is
-          // fixed to the largest possible viewport and ignores mobile browser
-          // chrome (address bar). `dvh` tracks the *dynamic/visible*
-          // viewport, so it shrinks correctly when the address bar is
-          // showing — the whole reason this unit was chosen. On an iPhone SE
-          // (375x667, ~460-480px visible once the address bar + our own
-          // dialog header/footer padding are subtracted), `vh`-based 85%
-          // caps against the full 667px layout viewport and still overflows
-          // the ~480px actually visible; `dvh` caps against the real number.
+          // EPIC-022 Group G (G1) — the bounded height + internal scroll that
+          // used to live here as `max-h-[85dvh] overflow-y-auto` is now
+          // `.dialog`'s own `max-height: 85dvh; overflow-y: auto`, so a dialog
+          // whose body grows with user-added rows still keeps its header and
+          // submit action reachable. `dvh` (not `vh`) for the same reason as
+          // before: `vh` is the fixed layout viewport and ignores mobile browser
+          // chrome, `dvh` tracks the visible one.
           //
-          // Why 85: leaves ~15% (safe-area/rounded-corner breathing room)
-          // between the dialog edge and the viewport edge — the same ratio
-          // already used by the /asuransi reference modal and crud-modal.tsx
-          // before this fix. It is a target, not a guarantee of a specific
-          // usable body height — actual remaining space for form fields
-          // depends on each dialog's own header/footer/padding.
-          //
-          // Individual dialogs may still override max-h/overflow via their
-          // own className — tailwind-merge lets the caller's class win, so
-          // every override must also use `dvh` (see crud-modal.tsx,
-          // akun/page.tsx's CategoryLimitDialog, and the global transaction
-          // dialog) or it silently reintroduces this exact bug.
-          "fixed top-1/2 left-1/2 z-50 grid max-h-[85dvh] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          // Callers must NOT re-add `p-*`, `max-h-*`, `overflow-*` or plain
+          // `w-*`/`max-w-*`: Tailwind utilities are emitted after the components
+          // layer that holds design-system.css, so any of them silently defeats
+          // the prototype. A non-default width belongs on the `min-[769px]:`
+          // breakpoint (`min-[769px]:w-[min(560px,calc(100%-2rem))]`) so it does
+          // not break the mobile bottom sheet, or should use the prototype's own
+          // `dialog--sm` / `dialog--wide` modifiers where the size matches.
+          "dialog fixed bottom-0 left-1/2 z-[60] -translate-x-1/2 outline-none min-[769px]:top-1/2 min-[769px]:bottom-auto min-[769px]:-translate-y-1/2 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className,
         )}
         {...props}
@@ -93,7 +110,7 @@ function DialogContent({
             render={
               <Button
                 variant="ghost"
-                className="absolute top-2 right-2"
+                className="absolute top-3 right-3"
                 size="icon-sm"
               />
             }
@@ -107,11 +124,20 @@ function DialogContent({
   );
 }
 
+// The prototype puts `.dialog__title` / `.dialog__desc` directly inside
+// `.dialog` and spaces them with margins, so this wrapper stays a plain block —
+// a flex/grid container here would collapse `.dialog__desc`'s `margin-top`.
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+  return <div data-slot="dialog-header" className={className} {...props} />;
+}
+
+// Prototype `.dialog__body` — `margin-top: 16px`, plus the mobile scroll
+// container. Exported so call sites can express the prototype's structure.
+function DialogBody({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      data-slot="dialog-header"
-      className={cn("flex flex-col gap-2", className)}
+      data-slot="dialog-body"
+      className={cn("dialog__body", className)}
       {...props}
     />
   );
@@ -128,10 +154,7 @@ function DialogFooter({
   return (
     <div
       data-slot="dialog-footer"
-      className={cn(
-        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
-        className,
-      )}
+      className={cn("dialog__footer", className)}
       {...props}
     >
       {children}
@@ -148,7 +171,7 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("text-base leading-none font-medium", className)}
+      className={cn("dialog__title", className)}
       {...props}
     />
   );
@@ -162,7 +185,7 @@ function DialogDescription({
     <DialogPrimitive.Description
       data-slot="dialog-description"
       className={cn(
-        "text-sm text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
+        "dialog__desc *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
         className,
       )}
       {...props}
@@ -172,6 +195,7 @@ function DialogDescription({
 
 export {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,

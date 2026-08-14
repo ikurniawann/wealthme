@@ -208,7 +208,7 @@ export function CoaSection({
           if (!open) setActiveCell(null);
         }}
       >
-        <DialogContent className="max-w-[min(480px,calc(100%-2rem))]">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>
               {activeCell

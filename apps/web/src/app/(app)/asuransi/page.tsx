@@ -73,9 +73,6 @@ const INSURANCE_TYPE_DONUT_COLOR: Record<string, string> = {
   lainnya: "#6B7280",
 };
 
-const FIELD_CLASS =
-  "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
-
 const TYPE_OPTIONS: InsuranceType[] = [
   "jiwa",
   "kesehatan",
@@ -365,7 +362,7 @@ function BeneficiaryEditor({
                   disabled={!!linkedMember}
                   onChange={(e) => updateRow(row.id, { name: e.target.value })}
                   placeholder={t.asuransi.beneficiaryNamePlaceholder}
-                  className={`${FIELD_CLASS} disabled:cursor-not-allowed disabled:opacity-60`}
+                  className="input disabled:cursor-not-allowed disabled:opacity-60"
                 />
                 <button
                   type="button"
@@ -389,7 +386,7 @@ function BeneficiaryEditor({
                     updateRow(row.id, { relationship: e.target.value })
                   }
                   placeholder={t.asuransi.beneficiaryRelationshipPlaceholder}
-                  className={`${FIELD_CLASS} disabled:cursor-not-allowed disabled:opacity-60`}
+                  className="input disabled:cursor-not-allowed disabled:opacity-60"
                 />
                 <input
                   type="number"
@@ -401,7 +398,7 @@ function BeneficiaryEditor({
                     updateRow(row.id, { sharePercent: e.target.value })
                   }
                   placeholder={t.asuransi.beneficiarySharePercentLabel}
-                  className={FIELD_CLASS}
+                  className="input"
                 />
               </div>
               {familyMembers.length > 0 ? (
@@ -425,7 +422,7 @@ function BeneficiaryEditor({
                         : {}),
                     });
                   }}
-                  className={FIELD_CLASS}
+                  className="select"
                   aria-label={t.asuransi.beneficiaryMemberLabel}
                 >
                   <option value="">
@@ -678,7 +675,7 @@ function InsuranceModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={t.asuransi.fieldNamePlaceholder}
-              className={FIELD_CLASS}
+              className="input"
             />
           </div>
 
@@ -695,7 +692,7 @@ function InsuranceModal({
               value={provider}
               onChange={(e) => setProvider(e.target.value)}
               placeholder={t.asuransi.fieldProviderPlaceholder}
-              className={FIELD_CLASS}
+              className="input"
             />
           </div>
 
@@ -711,7 +708,7 @@ function InsuranceModal({
                 id="ins-type"
                 value={type}
                 onChange={(e) => setType(e.target.value as InsuranceType)}
-                className={FIELD_CLASS}
+                className="select"
               >
                 {TYPE_OPTIONS.map((opt) => (
                   <option key={opt} value={opt}>
@@ -732,7 +729,7 @@ function InsuranceModal({
                 id="ins-status"
                 value={status}
                 onChange={(e) => setStatus(e.target.value as InsuranceStatus)}
-                className={FIELD_CLASS}
+                className="select"
               >
                 {STATUS_OPTIONS.map((opt) => (
                   <option key={opt} value={opt}>
@@ -779,7 +776,7 @@ function InsuranceModal({
               onChange={(e) =>
                 setPremiumPeriod(e.target.value as PremiumPeriod)
               }
-              className={FIELD_CLASS}
+              className="select"
             >
               {PERIOD_OPTIONS.map((opt) => (
                 <option key={opt} value={opt}>
@@ -824,7 +821,7 @@ function InsuranceModal({
               type="date"
               value={renewalDate}
               onChange={(e) => setRenewalDate(e.target.value)}
-              className={FIELD_CLASS}
+              className="input"
             />
             {renewalDate && (
               <label className="mt-2 flex items-center gap-2 text-[12px] text-muted-foreground">
@@ -852,7 +849,7 @@ function InsuranceModal({
               value={policyNumber}
               onChange={(e) => setPolicyNumber(e.target.value)}
               placeholder={t.asuransi.fieldPolicyNumberPlaceholder}
-              className={FIELD_CLASS}
+              className="input"
             />
           </div>
 
@@ -869,7 +866,7 @@ function InsuranceModal({
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               placeholder={t.asuransi.fieldNotesPlaceholder}
-              className={`${FIELD_CLASS} resize-none`}
+              className="textarea resize-none"
             />
           </div>
 
@@ -929,7 +926,7 @@ function PayInsuranceDialog({
     : "";
   return (
     <Dialog open={item !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[380px]">
+      <DialogContent className="min-[769px]:w-[min(380px,calc(100%-2rem))]">
         <DialogTitle className="text-[17px] font-extrabold">
           {t.asuransi.payDialogTitle}
         </DialogTitle>
@@ -957,7 +954,7 @@ function PayInsuranceDialog({
                 id="pay-insurance-source-account"
                 value={sourceAccountId}
                 onChange={(e) => onSourceAccountChange(e.target.value)}
-                className={FIELD_CLASS}
+                className="select"
               >
                 <option value="">
                   {t.asuransi.paySourceAccountPlaceholder}
@@ -1026,7 +1023,7 @@ function PolicyPickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
-      <DialogContent className="sm:max-w-[380px]">
+      <DialogContent className="min-[769px]:w-[min(380px,calc(100%-2rem))]">
         <DialogTitle className="text-[17px] font-extrabold">
           {title}
         </DialogTitle>
@@ -1044,7 +1041,7 @@ function PolicyPickerDialog({
               id="policy-picker-select"
               value={selectedId}
               onChange={(e) => setSelectedId(e.target.value)}
-              className={FIELD_CLASS}
+              className="select"
             >
               <option value="">{t.asuransi.policyPickerPlaceholder}</option>
               {policies.map((p) => (
