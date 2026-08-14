@@ -11,6 +11,7 @@ import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
 import type { I18nDictionary } from "@/i18n/types";
+import { NavSheet } from "./nav-sheet";
 import { ThemePicker } from "./theme-picker";
 import { ThemeToggle } from "./theme-toggle";
 import { useShell } from "./shell-context";
@@ -21,6 +22,13 @@ function usePageTitle(t: I18nDictionary): string {
   return isPageTitleId(seg) ? t.shell.pageTitles[seg] : "WealthMe";
 }
 
+/**
+ * EPIC-026 shell migration — the prototype's single `.topbar`, which serves
+ * every breakpoint: `design-system.css` reveals `.topbar__menu-btn` and
+ * shrinks `.topbar__search` to an icon below 768px. This replaces the app's
+ * previous split desktop-Topbar / mobile-MobileHeader pair; every control from
+ * both is present here.
+ */
 export function Topbar() {
   const { t } = useLocale();
   const title = usePageTitle(t);
@@ -50,39 +58,40 @@ export function Topbar() {
   };
 
   return (
-    <div className="sticky top-0 z-50 hidden h-16 items-center gap-3.5 border-b bg-card px-6 md:flex">
-      <div className="text-lg font-extrabold">{title}</div>
-      <div className="flex-1" />
+    <header className="topbar">
+      <NavSheet />
+      <div className="topbar__title">{title}</div>
+      <div className="topbar__spacer" />
       <button
+        type="button"
         onClick={() => setSearchOpen(true)}
-        className="flex max-w-[260px] flex-1 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-[7px] text-[12.5px] text-muted-foreground transition-colors hover:border-primary"
+        aria-label={t.shell.search}
+        className="topbar__search"
       >
-        <Search className="size-[13px]" />
-        <span className="flex-1 text-left">{t.shell.searchPlaceholder}</span>
-        <span className="mono rounded bg-border px-1.5 py-0.5 text-[10px]">
-          ⌘K
-        </span>
+        <Search className="size-[15px] shrink-0" aria-hidden="true" />
+        <span>{t.shell.searchPlaceholder}</span>
+        <span className="kbd">⌘K</span>
       </button>
-      <div className="flex gap-1.5">
-        <ThemeToggle />
-        <Link
-          href="/notifikasi"
-          className="relative flex size-9 items-center justify-center rounded-md bg-secondary text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
-        >
-          <Bell className="size-[15px]" />
-          {hasUnread && (
-            <span className="absolute right-1.5 top-1.5 size-[7px] rounded-full border-2 border-card bg-destructive" />
-          )}
-        </Link>
-        <ThemePicker />
-        <button
-          onClick={handleLogout}
-          aria-label={t.shell.logout}
-          className="flex size-9 items-center justify-center rounded-md bg-secondary text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
-        >
-          <LogOut className="size-[15px]" />
-        </button>
-      </div>
-    </div>
+      <ThemeToggle />
+      <Link
+        href="/notifikasi"
+        aria-label={t.shell.notifications}
+        className="btn btn--ghost btn--icon btn--sm relative"
+      >
+        <Bell className="size-[17px]" aria-hidden="true" />
+        {hasUnread && (
+          <span className="absolute top-1 right-1 size-[7px] rounded-full border-2 border-card bg-destructive" />
+        )}
+      </Link>
+      <ThemePicker />
+      <button
+        type="button"
+        onClick={handleLogout}
+        aria-label={t.shell.logout}
+        className="btn btn--ghost btn--icon btn--sm"
+      >
+        <LogOut className="size-[17px]" aria-hidden="true" />
+      </button>
+    </header>
   );
 }

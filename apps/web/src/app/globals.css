@@ -137,6 +137,21 @@
   --chart-3: #c98f24;
   --chart-4: #2ca8a0;
   --chart-5: #0a3a52;
+
+  /*
+   * Layout + elevation constants from `docs/prototype/assets/tokens.css`.
+   * `design-system.css` references all four (`.sidebar` width, `.topbar`
+   * height, `.main` offset, the mobile safe-area header, and every card
+   * shadow); the initial design-system port brought the component rules
+   * across but not these tokens, so those declarations were resolving to
+   * nothing. --sidebar-w is overridden at runtime (72px) by the sidebar
+   * collapse toggle — see components/shell/use-sidebar-collapse.ts.
+   */
+  --shadow-card:
+    0 1px 2px 0 rgb(16 32 42 / 0.05), 0 8px 24px -20px rgb(10 58 82 / 0.36);
+  --shadow-pop: 0 18px 42px -18px rgb(10 58 82 / 0.35);
+  --sidebar-w: 248px;
+  --topbar-h: 60px;
 }
 
 .dark {
@@ -190,6 +205,14 @@
   --chart-3: #d9a441;
   --chart-4: #2ca8a0;
   --chart-5: #8fb8d9;
+
+  /* Dark half of the prototype's elevation tokens (see :root). Deeper and
+     softer than the light values — a light-mode shadow reads as a grey
+     halo on a dark surface. --sidebar-w/--topbar-h are theme-independent
+     and are not repeated here. */
+  --shadow-card:
+    0 1px 2px 0 rgb(0 0 0 / 0.36), 0 14px 32px -26px rgb(0 0 0 / 0.8);
+  --shadow-pop: 0 22px 52px -20px rgb(0 0 0 / 0.78);
 }
 
 /* ── Color presets (data-theme) ─ swap brand/accent/ring/chart-1 only ── */

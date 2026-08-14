@@ -423,7 +423,16 @@ export type I18nDictionary = {
     loading: string;
     addTransactionTooltip: string;
     openMenu: string;
+    closeMenu: string;
     navMenuTitle: string;
+    // EPIC-026 shell migration — distinct landmark name for the bottom bar so
+    // it isn't ambiguous with the drawer nav when both are exposed on mobile.
+    mobileNavTitle: string;
+    // EPIC-026 shell migration — desktop sidebar collapse toggle. The label
+    // flips with the pressed state so a screen reader announces the action,
+    // not just the widget.
+    collapseSidebar: string;
+    expandSidebar: string;
     search: string;
     notifications: string;
     addTransaction: string;
