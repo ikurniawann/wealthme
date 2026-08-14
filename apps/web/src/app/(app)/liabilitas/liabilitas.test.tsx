@@ -298,7 +298,13 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
       );
     });
     await waitFor(() => expect(toastSuccess).toHaveBeenCalled());
-  });
+    // CI stability fix — this test does clear+type(6 chars)+selectOptions+
+    // click+2x waitFor, which occasionally exceeds Jest's 5000ms default
+    // under a loaded CI runner (observed 3 consecutive CI failures on this
+    // exact test, unrelated to any app-code change — see PR #291/#292
+    // history). Bumped to 15000ms rather than chasing a flaky rerun each
+    // time; every other test in this file stays on the default.
+  }, 15000);
 
   it("surfaces the real 409 'already paid' server message, not a generic fallback", async () => {
     payOutcome = "conflict";
