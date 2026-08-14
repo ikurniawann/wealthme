@@ -20,6 +20,24 @@
 // reject-reason field stays cut per EPIC-025 N3-J2 (no backing DB column) —
 // do not add an input that silently discards its value. Every mutation
 // below is unchanged from the pre-restructure component.
+//
+// EPIC-026 Wave 6 — section-by-section rebuild against
+// docs/prototype/pages/persetujuan.html. Genuine divergences fixed:
+// (1) each pending request is its own card in a stack (prototype
+// `section.stack > article.card`), not rows inside one titled SectionCard;
+// (2) Riwayat is the prototype's "Riwayat Keputusan" table (Pemohon /
+// Keperluan / Rekening / Status / Diputuskan oleh / Tanggal / Jumlah) with
+// a danger "Ditolak" badge, not a 2-line list; (3) the Setujui dialog
+// surfaces the server's real error message inline in a danger notice (the
+// prototype's "INI inti perbaikannya" comment) in addition to the toast
+// (the prototype fires both), gains the source-account hint line, and a
+// Batal + Setujui footer. Stays cut per the carried-forward N3-J
+// decisions: "Unduh CSV" on riwayat (J1), the reject-reason dialog (J2 —
+// no backing DB column), the fabricated role/relation meta line and the
+// specific threshold Rupiah figure (honest UI — not on the DTO), and the
+// "Rekening tujuan" field box (repeating the account name breaks the
+// colocated test's un-anchored `getByText(requesterName)` row lookup —
+// see allowance-requests-panel.test.tsx `findRow`).
 
 import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -27,6 +45,7 @@ import { toast } from "sonner";
 import {
   Ban,
   Check,
+  CircleAlert,
   CircleCheck,
   Crown,
   Hourglass,
@@ -87,10 +106,29 @@ function formatRequestedAt(iso: string, locale: Locale): string {
   });
 }
 
+// Date-only variant for the riwayat table's "Tanggal" column (prototype
+// shows "4 Agu 2026", no time).
+function formatDecidedDate(iso: string, locale: Locale): string {
+  return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+// Honest UI (shared by the pending card's Keperluan field and the riwayat
+// table's Keperluan column): falls back to an em dash rather than inventing
+// a value — role/relation copy is NOT on AllowanceRequestDto.
+function keperluanOf(r: AllowanceRequestDto): string {
+  return r.kind === "held_expense"
+    ? (r.description ?? r.categoryName ?? "—")
+    : (r.note ?? "—");
+}
+
 type Tab = "pending" | "riwayat";
 
 export default function PersetujuanPage() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const { data: session } = useSession();
   const token = session?.accessToken;
   const familyGroupId = session?.familyGroupId ?? null;
@@ -251,38 +289,71 @@ export default function PersetujuanPage() {
       {tab === "pending" ? (
         <AllowanceRequestsPanel familyGroupId={familyGroupId} token={token} />
       ) : (
-        <SectionCard title={t.persetujuan.tabRiwayat}>
-          {riwayat.length === 0 && (
+        /* EPIC-026 Wave 6 — the prototype's "Riwayat Keputusan" decision
+           table (docs/prototype/pages/persetujuan.html §panel-riwayat).
+           "Unduh CSV" stays cut per EPIC-025 N3-J1. The "(Co-Master)" role
+           suffix on "Diputuskan oleh" is not on AllowanceRequestDto —
+           honest UI: name only. Header/title copy without an existing i18n
+           key uses the prototype's literal Indonesian text (per EPIC-026;
+           i18n dictionaries are protected). */
+        <SectionCard title="Riwayat Keputusan">
+          {riwayat.length === 0 ? (
             <div className="py-6 text-center text-[12px] text-muted-foreground">
               {t.persetujuan.riwayatEmpty}
             </div>
-          )}
-          {riwayat.map((r) => (
-            <div
-              key={r.id}
-              className="flex items-center gap-3 border-b py-3 last:border-b-0"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[13px] font-bold">
-                  {r.requesterName} → {r.targetAccountName}
-                </div>
-                <div className="mt-0.5 text-[12px] text-muted-foreground">
-                  {formatRupiah(Number(r.amount))}
-                  {r.decidedByName
-                    ? ` · ${t.persetujuan.riwayatDecidedByLabel} ${r.decidedByName}`
-                    : ""}
-                </div>
-              </div>
-              <StatusBadge
-                variant={r.status === "approved" ? "success" : "gray"}
-                className="text-[10px]"
-              >
-                {r.status === "approved"
-                  ? t.persetujuan.riwayatStatusApproved
-                  : t.persetujuan.riwayatStatusRejected}
-              </StatusBadge>
+          ) : (
+            <div className="w-full overflow-x-auto">
+              <table className="w-full min-w-[640px] border-collapse text-left text-[12.5px]">
+                <thead>
+                  <tr className="border-b text-[11px] text-muted-foreground">
+                    <th className="py-2 pr-3 font-semibold">Pemohon</th>
+                    <th className="py-2 pr-3 font-semibold">
+                      {t.persetujuan.fieldKeperluanLabel}
+                    </th>
+                    <th className="py-2 pr-3 font-semibold">Rekening</th>
+                    <th className="py-2 pr-3 font-semibold">Status</th>
+                    <th className="py-2 pr-3 font-semibold">
+                      {t.persetujuan.riwayatDecidedByLabel}
+                    </th>
+                    <th className="py-2 pr-3 font-semibold">Tanggal</th>
+                    <th className="py-2 text-right font-semibold">Jumlah</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {riwayat.map((r) => (
+                    <tr key={r.id} className="border-b last:border-b-0">
+                      <td className="py-2.5 pr-3 font-semibold">
+                        {r.requesterName}
+                      </td>
+                      <td className="py-2.5 pr-3">{keperluanOf(r)}</td>
+                      <td className="py-2.5 pr-3">{r.targetAccountName}</td>
+                      <td className="py-2.5 pr-3">
+                        <StatusBadge
+                          variant={
+                            r.status === "approved" ? "success" : "danger"
+                          }
+                          className="text-[10px]"
+                        >
+                          {r.status === "approved"
+                            ? t.persetujuan.riwayatStatusApproved
+                            : t.persetujuan.riwayatStatusRejected}
+                        </StatusBadge>
+                      </td>
+                      <td className="py-2.5 pr-3">{r.decidedByName ?? "—"}</td>
+                      <td className="py-2.5 pr-3 text-[12px] text-muted-foreground">
+                        {r.decidedAt
+                          ? formatDecidedDate(r.decidedAt, locale)
+                          : "—"}
+                      </td>
+                      <td className="mono py-2.5 text-right font-bold">
+                        {formatRupiah(Number(r.amount))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ))}
+          )}
         </SectionCard>
       )}
     </div>
@@ -374,23 +445,30 @@ export function AllowanceRequestsPanel({
 
   const pending = (requests ?? []).filter((r) => r.status === "pending");
 
+  // EPIC-026 Wave 6 — prototype card grouping: each pending request is its
+  // own card in a stack (`section.stack > article.card`), with no section
+  // title header. The pre-existing section title stays as the section's
+  // accessible name. Each card keeps a literal `border-b` class (with a
+  // transparent color so it draws nothing on top of the Card ring) because
+  // the colocated test's `findRow` locates a request via
+  // `.closest(".border-b")` — tests must pass unmodified.
   return (
-    <SectionCard title={t.akun.family.allowanceRequestsSectionTitle}>
+    <section
+      aria-label={t.akun.family.allowanceRequestsSectionTitle}
+      className="space-y-3.5"
+    >
       {pending.length === 0 && (
-        <div className="py-6 text-center text-[12px] text-muted-foreground">
-          {t.akun.family.allowanceRequestsEmpty}
-        </div>
+        <SectionCard>
+          <div className="py-6 text-center text-[12px] text-muted-foreground">
+            {t.akun.family.allowanceRequestsEmpty}
+          </div>
+        </SectionCard>
       )}
       {pending.map((r) => {
         const isHeld = r.kind === "held_expense";
-        // Honest UI (no fabricated role/relation copy — that data isn't on
-        // AllowanceRequestDto): the "Keperluan" field falls back to an
-        // em dash rather than inventing a value.
-        const keperluan = isHeld
-          ? (r.description ?? r.categoryName ?? "—")
-          : (r.note ?? "—");
+        const keperluan = keperluanOf(r);
         return (
-          <div key={r.id} className="border-b py-3 last:border-b-0">
+          <SectionCard key={r.id} className="border-b border-b-transparent">
             <div className="flex flex-wrap items-start gap-3">
               <div
                 className="flex size-10 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white"
@@ -422,7 +500,7 @@ export function AllowanceRequestsPanel({
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-[18px] font-black">
+                <div className="mono text-[20px] font-extrabold">
                   {formatRupiah(Number(r.amount))}
                 </div>
                 <div className="text-[11px] text-muted-foreground">
@@ -483,12 +561,14 @@ export function AllowanceRequestsPanel({
                 {t.akun.family.allowanceRequestRejectButton}
               </button>
               {!isHeld && (
-                <span className="text-[11.5px] text-muted-foreground">
+                /* Prototype's `.spacer` pushes the helper sentence to the
+                   right edge of the action row. */
+                <span className="ml-auto text-[11.5px] text-muted-foreground">
                   {t.persetujuan.fundingApproveHelperNotice}
                 </span>
               )}
             </div>
-          </div>
+          </SectionCard>
         );
       })}
       <ApproveRequestDialog
@@ -498,7 +578,7 @@ export function AllowanceRequestsPanel({
         onClose={() => setApproving(null)}
         onApproved={invalidate}
       />
-    </SectionCard>
+    </section>
   );
 }
 
@@ -528,7 +608,10 @@ function ApproveRequestDialog({
 
   return (
     <Dialog open={!!request} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[420px] p-6 sm:max-w-[420px]">
+      {/* EPIC-026 Wave 6 — acceptance criterion #5: dialog width keeps the
+          `max-w-[min(Npx,calc(100%-2rem))]` guard so it never overflows
+          sub-420px viewports. */}
+      <DialogContent className="max-w-[min(420px,calc(100%-2rem))] p-6 sm:max-w-[min(420px,calc(100%-2rem))]">
         <DialogHeader>
           <DialogTitle className="text-[15px] font-bold">
             {t.akun.family.allowanceRequestApproveDialogTitle}
@@ -571,6 +654,13 @@ function ApproveRequestForm({
 }) {
   const { t } = useLocale();
   const [fromAccountId, setFromAccountId] = useState("");
+  // EPIC-026 Wave 6 — the prototype's core point on this dialog (its own
+  // comment: "pesan error asli dari server ditampilkan apa adanya di dalam
+  // dialog, bukan ditelan jadi toast generik"): the server's real error
+  // message renders inline in a danger notice inside the dialog, IN
+  // ADDITION to the toast (the prototype fires both — see its
+  // `submitSetujui()`; the toast is also what the colocated test asserts).
+  const [approveError, setApproveError] = useState<string | null>(null);
   const fromAccountFieldId = useId();
 
   const { mutate: approve, isPending: isSaving } = useMutation({
@@ -589,20 +679,23 @@ function ApproveRequestForm({
       // `catch { toast.error(generic) }`, swallowing the anti-overdraft
       // guard's real message ("Saldo rekening bank ... tidak mencukupi
       // ...") behind a generic "coba lagi" toast.
-      toast.error(
-        extractApiErrorMessage(
-          err,
-          t.akun.family.allowanceRequestApproveFailed,
-        ),
+      const message = extractApiErrorMessage(
+        err,
+        t.akun.family.allowanceRequestApproveFailed,
       );
+      setApproveError(message);
+      toast.error(message);
     },
   });
 
   return (
     <>
       <div className="mb-3 text-[12px] text-muted-foreground">
-        {request.requesterName} — {formatRupiah(Number(request.amount))} →{" "}
-        {request.targetAccountName}
+        {request.requesterName} —{" "}
+        <span className="mono font-bold">
+          {formatRupiah(Number(request.amount))}
+        </span>{" "}
+        → {request.targetAccountName}
       </div>
       <label
         htmlFor={fromAccountFieldId}
@@ -614,7 +707,12 @@ function ApproveRequestForm({
         id={fromAccountFieldId}
         className={FIELD_CLASS}
         value={fromAccountId}
-        onChange={(e) => setFromAccountId(e.target.value)}
+        onChange={(e) => {
+          setFromAccountId(e.target.value);
+          // Mirrors the prototype: the stale error clears once another
+          // source account is picked (re-set on the next failed attempt).
+          setApproveError(null);
+        }}
       >
         <option value="">—</option>
         {eligibleAccounts.map((a) => (
@@ -623,14 +721,44 @@ function ApproveRequestForm({
           </option>
         ))}
       </select>
-      <button
-        disabled={isSaving || !fromAccountId}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-60"
-        onClick={() => approve()}
-      >
-        <Check className="size-4" />{" "}
-        {isSaving ? "..." : t.akun.family.allowanceRequestApproveButton}
-      </button>
+      {/* Prototype `.field .hint` under the source-account select — no
+          existing i18n key, so the prototype's literal Indonesian copy is
+          used inline (i18n dictionaries are protected). */}
+      <span className="mt-1.5 block text-[11px] text-muted-foreground">
+        Dana ditransfer sungguhan dari rekening ini ke rekening tujuan.
+      </span>
+      {approveError && (
+        <div
+          role="alert"
+          className="mt-3 flex items-start gap-2.5 rounded-[11px] border border-destructive/30 bg-destructive/10 p-3 text-[12px] text-destructive"
+        >
+          <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <span>{approveError}</span>
+        </div>
+      )}
+      {/* Prototype `.dialog__footer` — Batal (outline) + primary approve.
+          The approve label stays `allowanceRequestApproveButton` ("Setujui"),
+          not the prototype's "Setujui & Transfer": the colocated test
+          queries the button by that exact accessible name and must pass
+          unmodified. */}
+      <div className="mt-4 flex items-center justify-end gap-2.5">
+        <button
+          type="button"
+          className="rounded-md border px-3.5 py-2 text-[12.5px] font-semibold"
+          onClick={onClose}
+        >
+          {t.common.cancel}
+        </button>
+        <button
+          type="button"
+          disabled={isSaving || !fromAccountId}
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-foreground disabled:opacity-60"
+          onClick={() => approve()}
+        >
+          <Check className="size-4" />{" "}
+          {isSaving ? "..." : t.akun.family.allowanceRequestApproveButton}
+        </button>
+      </div>
     </>
   );
 }
