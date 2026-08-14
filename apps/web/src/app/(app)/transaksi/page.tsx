@@ -29,7 +29,12 @@ import {
 import { toast } from "sonner";
 import { useSession, signOut } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
 import { useShell } from "@/components/shell/shell-context";
 import { formatAmountInput, parseRupiah } from "@/lib/format";
@@ -497,6 +502,7 @@ function StatCard({
   iconColor,
   label,
   amount,
+  amountClassName,
   subtext,
   subtextClassName,
 }: {
@@ -505,6 +511,9 @@ function StatCard({
   iconColor?: string;
   label: ReactNode;
   amount: ReactNode;
+  // EPIC-026 Wave 4 — prototype's stat values are `mono t-success`/
+  // `t-danger` colored (transaksi.html:139/152/162), not plain foreground.
+  amountClassName?: string;
   subtext?: ReactNode;
   subtextClassName?: string;
 }) {
@@ -519,7 +528,14 @@ function StatCard({
       <div className="mb-0.5 text-[10.5px] font-medium text-muted-foreground">
         {label}
       </div>
-      <div className="mb-[3px] text-[15px] font-extrabold">{amount}</div>
+      <div
+        className={cn(
+          "mono mb-[3px] text-[15px] font-extrabold",
+          amountClassName,
+        )}
+      >
+        {amount}
+      </div>
       {subtext && (
         <div
           className={cn(
@@ -796,6 +812,11 @@ export function TransactionDetailDialog({
     >
       <DialogContent className="max-w-sm">
         <DialogTitle>{t.transaksi.detailDialogTitle}</DialogTitle>
+        {/* EPIC-026 Wave 4 — prototype's `dialog__desc`
+            (transaksi.html:437); amount is `t-xl t-black mono`. */}
+        <DialogDescription className="text-[12.5px] text-muted-foreground">
+          Catatan lengkap beserta lampiran bukti.
+        </DialogDescription>
         <div className="space-y-1 pt-1">
           <div className="mb-2 flex items-center justify-between">
             <span
@@ -805,7 +826,7 @@ export function TransactionDetailDialog({
             </span>
             <span
               className={
-                "text-[17px] font-bold " +
+                "mono text-[20px] font-black " +
                 (isIncome ? "text-success" : "text-destructive")
               }
             >
@@ -847,6 +868,7 @@ export function TransactionDetailDialog({
           )}
           <div className="flex gap-2 pt-3">
             <button
+              type="button"
               onClick={onEdit}
               disabled={isObligationLinked}
               title={
@@ -859,6 +881,7 @@ export function TransactionDetailDialog({
               {t.transaksi.detailEditButton}
             </button>
             <button
+              type="button"
               onClick={onDelete}
               disabled={isObligationLinked}
               title={
@@ -936,6 +959,11 @@ function EditTransactionDialog({
     >
       <DialogContent className="max-w-sm">
         <DialogTitle>{t.transaksi.editDialogTitle}</DialogTitle>
+        {/* EPIC-026 Wave 4 — prototype's `dialog__desc`
+            (transaksi.html:542). */}
+        <DialogDescription className="text-[12.5px] text-muted-foreground">
+          Perubahan langsung memperbarui saldo akun terkait.
+        </DialogDescription>
         <div className="space-y-3 pt-1">
           <div>
             <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
@@ -974,12 +1002,14 @@ function EditTransactionDialog({
           </div>
           <div className="flex gap-2 pt-1">
             <button
+              type="button"
               onClick={onClose}
               className="flex-1 rounded-md border py-2.5 text-[13px] font-semibold"
             >
               {t.transaksi.cancelButton}
             </button>
             <button
+              type="button"
               onClick={handleSave}
               disabled={updateMutation.isPending}
               className="flex-1 rounded-md bg-primary py-2.5 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
@@ -1213,11 +1243,19 @@ function TransaksiPageInner() {
 
   return (
     <div className="space-y-4">
-      {/* Header bar */}
+      {/* Header bar — EPIC-026 Wave 4: prototype `page-lead` has an h1
+          title above the sub line (transaksi.html:21), not the sub line
+          alone. The prototype's "Ekspor" button stays CUT (toast stub, no
+          export endpoint — J1 defect class). */}
       <div className="flex flex-wrap items-center justify-between gap-2.5">
-        <span className="text-[13px] text-muted-foreground">
-          {t.transaksi.headerDesc}
-        </span>
+        <div className="min-w-[180px]">
+          <h1 className="text-[17px] font-extrabold tracking-tight">
+            Transaksi
+          </h1>
+          <div className="mt-1 text-[12.5px] text-muted-foreground">
+            {t.transaksi.headerDesc}
+          </div>
+        </div>
         {filterAccountName && (
           <button
             type="button"
@@ -1231,6 +1269,7 @@ function TransaksiPageInner() {
           </button>
         )}
         <button
+          type="button"
           onClick={() => setTxnOpen(true)}
           className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground"
         >
@@ -1351,19 +1390,23 @@ function TransaksiPageInner() {
             aria-label={t.transaksi.filterCardTitle}
             className="hide-scrollbar flex gap-2 overflow-x-auto"
           >
+            {/* EPIC-026 Wave 4 — prototype `.tab` pills: bordered
+                `bg-card` idle, primary fill selected (app.css:2308,
+                2492). */}
             {FILTER_VALUES.map((value) => (
               <button
                 key={value}
+                type="button"
                 onClick={() => {
                   setFilter(value);
                   setPage(1);
                 }}
                 aria-pressed={filter === value}
                 className={
-                  "whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors " +
+                  "whitespace-nowrap rounded-full border px-[13px] py-[7px] text-[12.5px] font-semibold transition-colors " +
                   (filter === value
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-muted-foreground hover:bg-accent")
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-muted-foreground hover:bg-secondary/70")
                 }
               >
                 {t.transaksi.filterLabels[value]}
@@ -1407,6 +1450,7 @@ function TransaksiPageInner() {
           iconColor="var(--success)"
           label={t.transaksi.totalIncomeLabel}
           amount={isLoading ? "…" : formatRupiah(totalIncome)}
+          amountClassName="text-success"
           subtext={incomeSubtext}
         />
         <StatCard
@@ -1415,6 +1459,7 @@ function TransaksiPageInner() {
           iconColor="var(--destructive)"
           label={t.transaksi.totalExpenseLabel}
           amount={isLoading ? "…" : formatRupiah(totalExpense)}
+          amountClassName="text-destructive"
           subtext={expenseSubtext}
         />
         <StatCard
@@ -1423,6 +1468,9 @@ function TransaksiPageInner() {
           iconColor="var(--accent-foreground)"
           label={t.transaksi.differenceLabel}
           amount={isLoading ? "…" : formatRupiah(netBalance)}
+          amountClassName={
+            netBalance >= 0 ? "text-success" : "text-destructive"
+          }
           subtext={
             isLoading
               ? undefined

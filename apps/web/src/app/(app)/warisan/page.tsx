@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CloudUpload, Plus, Save, Scroll, X } from "lucide-react";
+import { CloudUpload, Plus, Save, X } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -9,7 +9,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   HeroCard,
   SectionCard,
@@ -212,7 +217,9 @@ function AssetCard({
           )}
         </div>
         <div className="shrink-0 text-right">
-          <div className="text-[15px] font-black">
+          {/* EPIC-026 Wave 4 — prototype value is `t-lg t-black mono`
+              (16px mono, warisan.html:49). */}
+          <div className="mono text-[16px] font-black">
             {formatRupiah(Number(BigInt(item.estimatedValue)))}
           </div>
           <div className="text-[11px] text-muted-foreground">
@@ -832,14 +839,16 @@ export default function WarisanPage() {
 
   return (
     <div className="space-y-4">
-      {/* Hero */}
-      <HeroCard className="gradient-wealth">
-        <div className="mb-1.5 flex items-center gap-2 text-[12px] opacity-85">
-          <Scroll className="size-3.5" /> {t.warisan.heroTitle}
+      {/* Hero — EPIC-026 Wave 4: prototype uses `gradient-emerald` with a
+          plain `hero__label` + mono `hero__value` (warisan.html:15); the
+          previous gradient-wealth + 🏛️ watermark were app inventions. */}
+      <HeroCard className="gradient-emerald">
+        <div className="text-[12.5px] font-semibold opacity-85">
+          {t.warisan.heroTitle}
         </div>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="text-[30px] font-black tracking-[-1px]">
+            <div className="mono mt-1 text-[30px] font-extrabold tracking-[-0.03em]">
               {formatRupiah(Number(totalValue))}
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -867,9 +876,6 @@ export default function WarisanPage() {
             <Plus className="size-4" /> {t.warisan.addAssetButton}
           </Button>
         </div>
-        <div className="pointer-events-none absolute -top-5 -right-5 text-[140px] opacity-10">
-          🏛️
-        </div>
       </HeroCard>
 
       {isLoading && (
@@ -886,10 +892,12 @@ export default function WarisanPage() {
         </Card>
       )}
 
-      {/* EPIC-025 N3 restructure — 2-col layout: the asset list (~65%) on
-          the left, allocation donut + notes card in a right rail. */}
+      {/* EPIC-025 N3 restructure — 2-col layout: the asset list on the
+          left, allocation donut + notes card in a right rail.
+          EPIC-026 Wave 4 — prototype's `grid--sidebar` is 2fr/1fr
+          (app.css:748), not 1fr/360px. */}
       {!isLoading && assets.length > 0 && (
-        <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-[1fr_360px]">
+        <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <Card className="gap-0 p-5">
             <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
               <div className="text-[13.5px] font-bold text-muted-foreground">
@@ -989,6 +997,7 @@ export default function WarisanPage() {
                 <span>{t.warisan.insightDesc}</span>
               </div>
               <button
+                type="button"
                 onClick={() => toast(t.warisan.toastUploadUnavailable)}
                 className="mt-2.5 flex w-full cursor-not-allowed items-center justify-center gap-1.5 rounded-md border-[1.5px] border-dashed p-2.5 text-[12.5px] font-semibold text-muted-foreground opacity-70"
               >
@@ -1020,10 +1029,16 @@ export default function WarisanPage() {
           }
         }}
       >
-        <DialogContent className="max-w-[480px] p-6 sm:max-w-[480px]">
-          <DialogTitle className="mb-4 text-[17px] font-extrabold">
+        <DialogContent className="max-w-[min(480px,calc(100%-2rem))] p-6">
+          <DialogTitle className="text-[17px] font-extrabold">
             {editing ? t.warisan.modalTitleEdit : t.warisan.addAssetButton}
           </DialogTitle>
+          {/* EPIC-026 Wave 4 — prototype's `dialog__desc`
+              (warisan.html:223). */}
+          <DialogDescription className="mb-2 text-[12.5px] text-muted-foreground">
+            Hubungkan ke aset yang sudah tercatat, lalu tentukan pembagian ahli
+            waris.
+          </DialogDescription>
 
           <div className="space-y-4">
             {/* EPIC-021 Group D (#11) — pick an existing Asset instead of
@@ -1185,16 +1200,31 @@ export default function WarisanPage() {
               invalidRelationshipHeirIds={invalidRelationshipHeirIds}
             />
 
-            <Button
-              onClick={handleSave}
-              disabled={createMutation.isPending}
-              className="w-full"
-            >
-              <Save className="size-4" />
-              {createMutation.isPending
-                ? t.warisan.savingLabel
-                : t.warisan.saveAssetButton}
-            </Button>
+            {/* EPIC-026 Wave 4 — prototype's `dialog__footer`: Batal +
+                Simpan side by side (warisan.html:352). */}
+            <div className="flex gap-2.5 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setOpen(false);
+                  setEditing(null);
+                  resetForm();
+                }}
+              >
+                {t.common.cancel}
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={createMutation.isPending || updateMutation.isPending}
+                className="flex-1"
+              >
+                <Save className="size-4" />
+                {createMutation.isPending || updateMutation.isPending
+                  ? t.warisan.savingLabel
+                  : t.warisan.saveAssetButton}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

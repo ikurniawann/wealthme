@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Save, TrendingDown, Calendar } from "lucide-react";
+import {
+  Plus,
+  Save,
+  TrendingDown,
+  Calendar,
+  TriangleAlert,
+} from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -13,7 +19,12 @@ import {
   Rise,
   StatusBadge,
 } from "@/components/wm";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/hooks/use-locale";
 // EPIC-025 N3-E1 — J3 FOLD: "Terpakai per Kategori" budget-vs-actual bars,
@@ -101,7 +112,14 @@ function BudgetItem({ dto, index }: { dto: BudgetDto; index: number }) {
   const icon = dto.categoryIcon ?? "📦";
   return (
     <Rise index={index}>
-      <div className="rounded-[12px] border bg-card p-3.5 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
+      {/* EPIC-026 Wave 4 — prototype tints an over-budget card's border
+          destructive (anggaran.html:168). */}
+      <div
+        className={
+          "rounded-[12px] border bg-card p-3.5 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)] " +
+          (dto.isOverBudget ? "border-destructive/40" : "")
+        }
+      >
         <div className="mb-2 flex items-center gap-2.5">
           <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-accent text-[14px]">
             {icon}
@@ -251,10 +269,14 @@ function toObligations(
   return [...fromLiabilities, ...fromInsurances];
 }
 
-function formatLocaleDate(iso: string, locale: Locale): string {
+function formatLocaleDate(
+  iso: string,
+  locale: Locale,
+  month: "short" | "long" = "long",
+): string {
   return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
     day: "numeric",
-    month: "long",
+    month,
     year: "numeric",
   });
 }
@@ -276,7 +298,7 @@ function PayObligationDialog({
   onClose: () => void;
   onConfirm: () => void;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   return (
     <Dialog
       open={obligation !== null}
@@ -286,15 +308,28 @@ function PayObligationDialog({
         <DialogTitle className="text-[17px] font-extrabold">
           {t.anggaran.obligationsPayDialogTitle}
         </DialogTitle>
+        {/* EPIC-026 Wave 4 — prototype's `dialog__desc` (anggaran.html:457). */}
+        <DialogDescription className="text-[12.5px] text-muted-foreground">
+          Pembayaran akan mencatat transaksi dan mengurangi saldo rekening
+          sumber.
+        </DialogDescription>
         {obligation && (
           <div className="space-y-3 text-[13px]">
             <div className="rounded-lg bg-muted p-3.5">
               <div className="text-[11px] text-muted-foreground">
                 {obligation.name}
               </div>
-              <div className="text-[18px] font-black">
+              <div className="mono text-[18px] font-black">
                 {formatRupiah(obligation.amountDue)}
               </div>
+              {/* EPIC-026 Wave 4 — prototype's pay-dialog notice carries the
+                  due date under the amount (`dlg-pay`, anggaran.html:463);
+                  same `dueDate` the row already renders. */}
+              {obligation.dueDate && (
+                <div className="text-[11px] text-muted-foreground">
+                  Jatuh tempo {formatLocaleDate(obligation.dueDate, locale)}
+                </div>
+              )}
             </div>
             <div>
               <label
@@ -352,16 +387,21 @@ function ObligationRow({
 }) {
   const { t, locale } = useLocale();
   const dueDateLabel = obligation.dueDate
-    ? formatLocaleDate(obligation.dueDate, locale)
+    ? formatLocaleDate(obligation.dueDate, locale, "short")
     : null;
   return (
     <Rise index={index}>
-      <div className="flex items-center gap-2.5 rounded-[12px] border bg-card p-3.5">
-        <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-accent text-[14px]">
+      {/* EPIC-026 Wave 4 — prototype renders obligations as `.list-row`s
+          inside the card (anggaran.html:113), not as bordered sub-cards:
+          translation-table list-row pattern (`divide-y` on the body,
+          `py-3` rows), amount + due date merged into ONE mono sub line
+          ("Rp N · jatuh tempo D") exactly like `list-row__sub`. */}
+      <div className="flex items-center gap-3 py-3">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-accent text-[15px]">
           {obligation.icon}
         </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-1.5 text-[13.5px] font-semibold">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5 text-[13.5px] font-semibold">
             <span>{obligation.name}</span>
             <StatusBadge
               variant={obligation.paidThisPeriod ? "success" : "gray"}
@@ -371,15 +411,15 @@ function ObligationRow({
                 : t.anggaran.obligationsDueBadge}
             </StatusBadge>
           </div>
-          <div className="text-[11.5px] text-muted-foreground">
+          <div className="mono text-[11.5px] text-muted-foreground">
             {formatRupiah(obligation.amountDue)}
+            {dueDateLabel && (
+              <>
+                {t.anggaran.obligationsDueDatePrefix}
+                {dueDateLabel}
+              </>
+            )}
           </div>
-          {dueDateLabel && (
-            <div className="text-[11px] text-muted-foreground">
-              {t.anggaran.obligationsDueDatePrefix}
-              {dueDateLabel}
-            </div>
-          )}
         </div>
         {/* EPIC-023 Task E retry (CRITICAL 1) — an already-paid obligation
             must not accept a second Pay click: the label previously stayed
@@ -543,7 +583,7 @@ export function ObligationsSection({
           {formatRupiah(unpaidTotal)}
         </span>
       }
-      bodyClassName="-mt-1 space-y-3"
+      bodyClassName="-mt-1 divide-y"
     >
       {obligations.map((o, i) => (
         <ObligationRow
@@ -725,18 +765,27 @@ export default function AnggaranPage() {
 
   return (
     <div className="space-y-4">
+      {/* EPIC-026 Wave 4 — prototype `page-lead` typography (translation
+          table: h1 17px extrabold, 12.5px muted sub) + the "· N kategori
+          aktif" tail (anggaran.html:22), derived from the budgets list
+          already fetched. The prototype's period prev/next + Bulanan/
+          Mingguan/Tahunan segmented control stay CUT: they are toast-stub
+          dead controls with no period-browsing backend (J1 defect class). */}
       <div className="flex flex-wrap items-center justify-between gap-2.5">
         <div>
-          <div className="text-[15px] font-bold">
+          <h1 className="text-[17px] font-extrabold tracking-tight">
             {t.anggaran.pageTitlePrefix}
             {now.toLocaleString(locale === "en" ? "en-US" : "id-ID", {
               month: "long",
               year: "numeric",
             })}
-          </div>
-          <div className="text-xs text-muted-foreground">
+          </h1>
+          <div className="mt-1 text-[12.5px] text-muted-foreground">
             {t.anggaran.totalBudgetPrefix}
-            {formatRupiah(totalLimit)}
+            <span className="mono">{formatRupiah(totalLimit)}</span>
+            {budgets && budgets.length > 0 && (
+              <> · {budgets.length} kategori aktif</>
+            )}
           </div>
         </div>
         <Button
@@ -795,8 +844,11 @@ export default function AnggaranPage() {
           </HeroCard>
         </Rise>
         <Rise index={1}>
-          <div className="flex h-full flex-col justify-between gap-4 rounded-[14px] border bg-card p-4">
-            <div className="flex items-center gap-2.5">
+          {/* EPIC-026 Wave 4 — prototype separates the two mini-stats with
+              a border (`.budget-mini-stat + .budget-mini-stat`,
+              app.css:1225). */}
+          <div className="flex h-full flex-col justify-between divide-y rounded-[14px] border bg-card px-4 py-2">
+            <div className="flex items-center gap-2.5 py-2">
               <div className="flex size-[34px] shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive">
                 <TrendingDown className="size-4" />
               </div>
@@ -813,7 +865,7 @@ export default function AnggaranPage() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2.5 py-2">
               <div className="flex size-[34px] shrink-0 items-center justify-center rounded-md bg-warning-soft text-warning">
                 <Calendar className="size-4" />
               </div>
@@ -845,42 +897,38 @@ export default function AnggaranPage() {
       {/* EPIC-025 N3 rework — prototype places the over-budget/near-limit
           alert directly under the hero, not at the bottom of the page
           (same computed `overBudgetItems`/`nearLimitItems`, only moved). */}
+      {/* EPIC-026 Wave 4 — prototype's alert is a `notice notice--warning`
+          with a triangle-alert icon (anggaran.html:96), not a primary/
+          accent box: warning styling per the translation-table notice
+          mapping. The prototype's "Tips Hemat →" is a toast-stub dead
+          control — removed per the J1 defect class (same as login's inert
+          "Ingat saya"). */}
       {(overBudgetItems.length > 0 || nearLimitItems.length > 0) && (
-        <div className="flex items-center gap-3 rounded-[14px] border border-primary/20 bg-accent p-4">
-          <div className="text-[24px]">⚠️</div>
+        <div className="flex items-center gap-2.5 rounded-[11px] border border-warning/35 bg-warning-soft p-3 text-warning">
+          <TriangleAlert className="size-[18px] shrink-0" />
           <div className="flex-1">
             {overBudgetItems.length > 0 ? (
               <>
-                <div className="text-[13px] font-bold text-primary-strong">
+                <div className="text-[12.5px] font-bold">
                   {overBudgetItems[0]!.categoryName}
                   {t.anggaran.overBudgetMidText}
                   {overBudgetItems[0]!.usagePercent - 100}
                   {t.anggaran.overBudgetSuffix}
                 </div>
-                <div className="mt-0.5 text-xs text-muted-foreground">
-                  {t.anggaran.overBudgetDesc}
-                </div>
+                <div className="text-[11.5px]">{t.anggaran.overBudgetDesc}</div>
               </>
             ) : (
               <>
-                <div className="text-[13px] font-bold text-primary-strong">
+                <div className="text-[12.5px] font-bold">
                   {nearLimitItems[0]!.categoryName}
                   {t.anggaran.nearLimitMidText}
                   {nearLimitItems[0]!.usagePercent}
                   {t.anggaran.nearLimitSuffix}
                 </div>
-                <div className="mt-0.5 text-xs text-muted-foreground">
-                  {t.anggaran.nearLimitDesc}
-                </div>
+                <div className="text-[11.5px]">{t.anggaran.nearLimitDesc}</div>
               </>
             )}
           </div>
-          <span
-            aria-disabled="true"
-            className="shrink-0 text-[12.5px] font-bold text-primary opacity-60"
-          >
-            {t.anggaran.tipsSavingLink}
-          </span>
         </div>
       )}
 
@@ -917,8 +965,11 @@ export default function AnggaranPage() {
         )}
       </SectionCard>
 
+      {/* EPIC-026 Wave 4 — prototype uses `grid--sidebar` (2fr/1fr) for
+          the chart + type-breakdown band (anggaran.html:331), not equal
+          halves. */}
       {(categoryBarBudgets.length > 0 || typeBreakdown.length > 0) && (
-        <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           {/* EPIC-025 N3-E1 — J3 FOLD: "Terpakai per Kategori" HBarChart,
               same data `BudgetItem` rows above already render, sliced
               differently (sorted by spentAmount desc, like the prototype). */}
@@ -987,10 +1038,18 @@ export default function AnggaranPage() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-[480px] p-6 sm:max-w-[480px]">
-          <DialogTitle className="mb-4 text-[17px] font-extrabold">
+        <DialogContent className="max-w-[min(480px,calc(100%-2rem))] p-6">
+          <DialogTitle className="text-[17px] font-extrabold">
             {t.anggaran.modalAddTitle}
           </DialogTitle>
+          {/* EPIC-026 Wave 4 — prototype's `dialog__desc` (anggaran.html:389).
+              The prototype's "Tipe Anggaran" select and "Peringatan 80%"
+              switch stay CUT: CreateBudgetDto has no budgetType (it derives
+              from the category's COA) and no notification-threshold field
+              exists — fake controls per J1. */}
+          <DialogDescription className="mb-2 text-[12.5px] text-muted-foreground">
+            Batas belanja per periode untuk satu kategori pengeluaran.
+          </DialogDescription>
           <div className="space-y-4">
             <div>
               <label
@@ -1036,56 +1095,80 @@ export default function AnggaranPage() {
                 ))}
               </div>
             </div>
-            <div>
-              <label
-                htmlFor="budget-amount"
-                className="mb-1.5 block text-[12.5px] font-semibold"
-              >
-                {t.anggaran.fieldAmountLabel}
-              </label>
-              <div className="flex items-center gap-2 rounded-md border bg-background px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:bg-card">
-                <span className="text-[13.5px] text-muted-foreground">Rp</span>
-                <input
-                  id="budget-amount"
-                  type="text"
-                  inputMode="numeric"
-                  value={amount}
-                  onChange={(e) => setAmount(formatAmountInput(e.target.value))}
-                  placeholder="0"
-                  className="w-full bg-transparent text-[13.5px] outline-none"
-                />
+            {/* EPIC-026 Wave 4 — prototype puts amount + periode side by
+                side in a `field-row` (anggaran.html:410). */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label
+                  htmlFor="budget-amount"
+                  className="mb-1.5 block text-[12.5px] font-semibold"
+                >
+                  {t.anggaran.fieldAmountLabel}
+                </label>
+                <div className="flex items-center gap-2 rounded-md border bg-background px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:bg-card">
+                  <span className="text-[13.5px] text-muted-foreground">
+                    Rp
+                  </span>
+                  <input
+                    id="budget-amount"
+                    type="text"
+                    inputMode="numeric"
+                    value={amount}
+                    onChange={(e) =>
+                      setAmount(formatAmountInput(e.target.value))
+                    }
+                    placeholder="0"
+                    className="w-full bg-transparent text-[13.5px] outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label
+                  htmlFor="budget-period"
+                  className="mb-1.5 block text-[12.5px] font-semibold"
+                >
+                  {t.anggaran.fieldPeriodLabel}
+                </label>
+                <select
+                  id="budget-period"
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value as BudgetPeriod)}
+                  className={FIELD_CLASS}
+                >
+                  <option value="monthly">
+                    {t.anggaran.periodLabels.monthly}
+                  </option>
+                  <option value="weekly">
+                    {t.anggaran.periodLabels.weekly}
+                  </option>
+                  <option value="yearly">
+                    {t.anggaran.periodLabels.yearly}
+                  </option>
+                </select>
               </div>
             </div>
-            <div>
-              <label
-                htmlFor="budget-period"
-                className="mb-1.5 block text-[12.5px] font-semibold"
+            {/* EPIC-026 Wave 4 — prototype's `dialog__footer`: Batal +
+                Simpan side by side (anggaran.html:444), not a single
+                full-width save. */}
+            <div className="flex gap-2.5 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setOpen(false)}
               >
-                {t.anggaran.fieldPeriodLabel}
-              </label>
-              <select
-                id="budget-period"
-                value={period}
-                onChange={(e) => setPeriod(e.target.value as BudgetPeriod)}
-                className={FIELD_CLASS}
+                {t.common.cancel}
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={createMutation.isPending}
+                className="flex-1"
               >
-                <option value="monthly">
-                  {t.anggaran.periodLabels.monthly}
-                </option>
-                <option value="weekly">{t.anggaran.periodLabels.weekly}</option>
-                <option value="yearly">{t.anggaran.periodLabels.yearly}</option>
-              </select>
+                <Save className="size-4" />
+                {createMutation.isPending
+                  ? t.anggaran.savingLabel
+                  : t.anggaran.saveCategoryButton}
+              </Button>
             </div>
-            <Button
-              onClick={handleSave}
-              disabled={createMutation.isPending}
-              className="w-full"
-            >
-              <Save className="size-4" />
-              {createMutation.isPending
-                ? t.anggaran.savingLabel
-                : t.anggaran.saveCategoryButton}
-            </Button>
           </div>
         </DialogContent>
       </Dialog>

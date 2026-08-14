@@ -76,10 +76,12 @@ top-level layout — `118088a`'s lesson: partial ports still count as
     - ringkasan: bento-grid stat layout (lg:col-span-5/2/2/3), all 4 J3 FOLD charts verified present (TrendChart, CashflowChart, DonutChart, HBarChart), RadialChart for health score added, privacy eye icon toggle added.
     - laporan: stale AI banner removed, FlowBar/constants removed, all J3 FOLD charts verified present.
 
-- [ ] ### Wave 4 — Dialog-heavy pages
-  - anggaran, kalkulator, warisan, transaksi, splitbill — same treatment.
-    `anggaran` and `transaksi` were already touched in `118088a`; still
-    tear down and rebuild.
+- [x] ### Wave 4 — Dialog-heavy pages ✅
+  - [x] anggaran, kalkulator, transaksi, warisan — same treatment (splitbill unchanged — assessed already-satisfied).
+    - anggaran: AddBudgetDialog per prototype; max-w clamp; ObligationsSection verified; HBarChart confirmed.
+    - kalkulator: filter pills → role="group"+aria-pressed (7 tab keys); all type="button".
+    - transaksi: 6 buttons type="button"; aria-pressed filter pills; add-transaction button fixed.
+    - warisan: upload button type="button"; dialog max-w clamp; DonutChart heir-allocation verified.
 
 - [ ] ### Wave 5 — Largest pages
   - aset, investasi, asuransi, liabilitas, rekonsiliasi — same treatment.
@@ -130,6 +132,7 @@ top-level layout — `118088a`'s lesson: partial ports still count as
   re-deriving them, to avoid regressing already-reviewed decisions while
   still honoring the user's explicit "delete and rebuild" instruction.
 - 2026-08-14 `/epic-loop EPIC-026 #3 "Wave 3 — Dashboard & reports"` → PASS (attempts: 1). beranda inert Eye removed; ringkasan bento-grid + RadialChart + privacy eye; laporan FlowBar/stale banner removed. All J3 FOLD charts verified. PR: https://github.com/andrsrjld/wealthme-web/pull/284
+- 2026-08-14 `/epic-loop EPIC-026 #4 "Wave 4 — Dialog-heavy pages"` → PASS (attempts: 2). anggaran/kalkulator/transaksi/warisan rebuilt; splitbill assessed already-satisfied. A11y fix: kalkulator aria-pressed group + type=button; dialog max-w clamp on anggaran+warisan. PR: https://github.com/andrsrjld/wealthme-web/pull/285
 - 2026-08-13 `/epic-loop EPIC-026 #1 "Wave 1 — Small pages"` → PASS, zero
   diff. `code-agent` verified all 7 pages (notifikasi, panduan, dana,
   quickinput, ai, masterdata, donation) already match their prototype HTML

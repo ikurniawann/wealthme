@@ -84,8 +84,10 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
    at a time (`.calc-panel[hidden]` toggled by its own tab bar) — only the
    result placement (separate card vs inline) differed from the live app. */
 function CalcLayout({ input, hasil }: { input: ReactNode; hasil: ReactNode }) {
+  // EPIC-026 Wave 4 — prototype's `grid--sidebar` is 2fr/1fr
+  // (app.css:748), not equal halves.
   return (
-    <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2 lg:items-start">
+    <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
       {input}
       {hasil}
     </div>
@@ -101,14 +103,16 @@ function Headline({
   value: string;
   note?: ReactNode;
 }) {
+  // EPIC-026 Wave 4 — prototype's Hasil headline is `t-2xl mono t-black
+  // t-primary` (26px, kalkulator.html:89).
   return (
     <div>
-      <div className="text-[12px] text-muted-foreground">{label}</div>
-      <div className="mono mt-0.5 text-[22px] font-black text-primary-strong">
+      <div className="text-[11.5px] text-muted-foreground">{label}</div>
+      <div className="mono mt-0.5 text-[26px] font-black text-primary">
         {value}
       </div>
       {note && (
-        <div className="mt-1.5 text-[12px] text-muted-foreground">{note}</div>
+        <div className="mt-1.5 text-[12.5px] text-muted-foreground">{note}</div>
       )}
     </div>
   );
@@ -123,11 +127,17 @@ function Row({
   value: ReactNode;
   valueClassName?: string;
 }) {
+  // EPIC-026 Wave 4 — prototype renders result details as borderless
+  // `.table` rows separated by a bottom border (app.css:1725), not
+  // rounded chips.
   return (
-    <div className="flex items-center justify-between gap-2 rounded-md border px-3.5 py-2">
-      <span className="text-[12.5px] text-muted-foreground">{label}</span>
+    <div className="flex items-center justify-between gap-2 border-b py-2.5 last:border-b-0">
+      <span className="text-[11.5px] text-muted-foreground">{label}</span>
       <span
-        className={cn("mono text-[13px] font-bold text-right", valueClassName)}
+        className={cn(
+          "mono text-[12.5px] font-bold text-right",
+          valueClassName,
+        )}
       >
         {value}
       </span>
@@ -1227,23 +1237,39 @@ export default function KalkulatorPage() {
 
   return (
     <div className="space-y-4">
+      {/* EPIC-026 Wave 4 — prototype `page-lead` uses `section-title`
+          (17px extrabold, kalkulator.html:20), not 21px. */}
       <div>
-        <h1 className="text-[21px] font-extrabold">{t.kalkulator.pageTitle}</h1>
+        <h1 className="text-[17px] font-extrabold tracking-tight">
+          {t.kalkulator.pageTitle}
+        </h1>
         <p className="mt-1 text-[12.5px] text-muted-foreground">
           {t.kalkulator.pageSubtitle}
         </p>
       </div>
 
-      <div className="hide-scrollbar flex gap-2 overflow-x-auto">
+      {/* EPIC-026 Wave 4 — prototype `.tab` pills: bordered `bg-card`
+          idle, primary fill when selected (app.css:2308, 2492). Tab SET
+          stays the app's real 7 calculators (zakat kept over perpuluhan
+          per the documented contracts carve-out; tabungan/splitgroup are
+          real shipped features — dropping them would be a functional
+          regression, out of this presentation wave's scope). */}
+      <div
+        className="hide-scrollbar flex gap-[7px] overflow-x-auto"
+        role="group"
+        aria-label="Pilih kalkulator"
+      >
         {TAB_KEYS.map((key) => (
           <button
             key={key}
+            type="button"
+            aria-pressed={tab === key}
             onClick={() => setTab(key)}
             className={
-              "shrink-0 cursor-pointer rounded-full px-3.5 py-2 text-[12.5px] font-semibold whitespace-nowrap transition-colors " +
+              "shrink-0 cursor-pointer rounded-full border px-[13px] py-[7px] text-[12.5px] font-semibold whitespace-nowrap transition-colors " +
               (tab === key
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-muted-foreground hover:bg-secondary/70")
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-card text-muted-foreground hover:bg-secondary/70")
             }
           >
             {t.kalkulator.tabs[key]}
