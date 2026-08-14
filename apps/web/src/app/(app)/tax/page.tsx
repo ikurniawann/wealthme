@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Send, FileText } from "lucide-react";
+import { Send, FileText, ShieldCheck } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import {
   keepPreviousData,
@@ -18,8 +18,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
-  DialogHeader,
+  DialogDescription,
+  DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { HeroCard, SectionCard, CardLink, StatusBadge } from "@/components/wm";
@@ -853,82 +855,82 @@ export default function TaxPage() {
           server-echoed `pph21Result` `handleSaveTaxRecord` itself sends —
           never the raw, still-debouncing input state. */}
       <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
-        <DialogContent className="min-[769px]:w-[min(420px,calc(100%-2rem))]">
-          <DialogHeader>
-            <DialogTitle className="text-[15px] font-bold">
-              {t.tax.saveDialogTitle}
-            </DialogTitle>
-          </DialogHeader>
-          <p className="text-[12.5px] text-muted-foreground">
+        {/* EPIC-026 Wave 8 — composition ported 1:1 from the prototype's
+            `dlg-simpan-pajak` (docs/prototype/pages/tax.html): default
+            480px `.dialog`, `.dialog__title` + `.dialog__desc`, a
+            `.table-wrap` > `.table.table--num` summary, the `notice--info`
+            about the numeric-string payload, and an outline/primary
+            `.dialog__footer`. */}
+        <DialogContent>
+          <DialogTitle>{t.tax.saveDialogTitle}</DialogTitle>
+          <DialogDescription>
             {t.tax.saveDialogDescPrefix}
             {taxYear}
-          </p>
-          {pph21Result && (
-            <table className="w-full text-[12.5px]">
-              <tbody>
-                <tr className="border-b">
-                  <td className="py-1.5 text-muted-foreground">
-                    {t.tax.saveDialogGrossRow}
-                  </td>
-                  <td className="mono py-1.5 text-right font-semibold">
-                    {formatRupiah(
-                      Number(
-                        toClampedDigitString(debouncedGross, MAX_TAX_INPUT),
-                      ),
-                    )}
-                  </td>
-                </tr>
-                <tr className="border-b">
-                  <td className="py-1.5 text-muted-foreground">
-                    {t.tax.saveDialogPtkpRow}
-                  </td>
-                  <td className="mono py-1.5 text-right font-semibold">
-                    {formatRupiah(pph21Result.ptkp)}
-                  </td>
-                </tr>
-                <tr className="border-b">
-                  <td className="py-1.5 text-muted-foreground">
-                    {t.tax.saveDialogPerpuluhanRow}
-                  </td>
-                  <td className="mono py-1.5 text-right font-semibold">
-                    {formatRupiah(
-                      Number(
-                        toClampedDigitString(debouncedZakat, MAX_TAX_INPUT),
-                      ),
-                    )}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="py-1.5 font-bold">{t.tax.saveDialogTaxRow}</td>
-                  <td className="mono py-1.5 text-right font-bold text-primary">
-                    {formatRupiah(Math.round(pph21Result.totalTax))}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          )}
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            {t.tax.saveDialogNote}
-          </p>
-          <div className="mt-2 flex gap-2">
-            <button
+          </DialogDescription>
+          <DialogBody>
+            {pph21Result && (
+              <div className="table-wrap">
+                <table className="table table--num min-w-0">
+                  <tbody>
+                    <tr>
+                      <td>{t.tax.saveDialogGrossRow}</td>
+                      <td className="mono">
+                        {formatRupiah(
+                          Number(
+                            toClampedDigitString(debouncedGross, MAX_TAX_INPUT),
+                          ),
+                        )}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>{t.tax.saveDialogPtkpRow}</td>
+                      <td className="mono">{formatRupiah(pph21Result.ptkp)}</td>
+                    </tr>
+                    <tr>
+                      <td>{t.tax.saveDialogPerpuluhanRow}</td>
+                      <td className="mono">
+                        {formatRupiah(
+                          Number(
+                            toClampedDigitString(debouncedZakat, MAX_TAX_INPUT),
+                          ),
+                        )}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <strong>{t.tax.saveDialogTaxRow}</strong>
+                      </td>
+                      <td className="mono t-bold text-primary">
+                        {formatRupiah(Math.round(pph21Result.totalTax))}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="notice notice--info mt-3">
+              <ShieldCheck aria-hidden="true" className="size-4 shrink-0" />
+              <span>{t.tax.saveDialogNote}</span>
+            </div>
+          </DialogBody>
+          <DialogFooter>
+            <Button
               type="button"
-              className="flex-1 rounded-lg border py-2 text-[13px] font-semibold text-foreground"
+              variant="outline"
               onClick={() => setShowSaveDialog(false)}
             >
               {t.common.cancel}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="flex-1 rounded-lg bg-primary py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
               disabled={!canSaveTaxRecord || upsertMutation.isPending}
               onClick={handleSaveTaxRecord}
             >
               {upsertMutation.isPending
                 ? t.tax.savingLabel
                 : t.tax.saveDialogConfirmButton}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

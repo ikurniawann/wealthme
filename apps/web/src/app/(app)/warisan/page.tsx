@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { CloudUpload, Plus, Save, X } from "lucide-react";
+import {
+  CloudUpload,
+  CircleAlert,
+  PieChart,
+  Plus,
+  Save,
+  X,
+} from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -11,8 +18,10 @@ import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
@@ -323,158 +332,201 @@ function HeirEditor({
 
   return (
     <div>
-      <label className="mb-1.5 block text-[12.5px] font-semibold">
+      {/* EPIC-026 Wave 8 — prototype composition (warisan.html:262): a
+          `section-title` + a `.table-wrap`/`.table` of heir rows
+          (Nama / Hubungan* / Bagian (%) / Aksi), a `btn--block` add button,
+          then the allocation `.notice` + `.progress` bar. The member picker
+          lives in the Nama cell: the prototype folds "link to a family
+          member" into that column's own <select>, and the app keeps both
+          controls because a heir may be a non-member. */}
+      <div className="section-title mt-[18px] mb-2 text-[14px]">
         {t.warisan.heirsSectionTitle}
-      </label>
-      <div className="space-y-2.5">
-        {rows.map((row) => {
-          // EPIC-023 F1 (D14) — once linked, name/relationship are
-          // resolved from the member's CURRENT record (not the row's own
-          // free-text fields) so the editor never shows a value that would
-          // be overwritten the moment the API re-resolves it on the next
-          // read (see inheritance.service.ts's `MemberLookup`).
-          const linkedMember = row.memberUserId
-            ? familyMembers.find((m) => m.userId === row.memberUserId)
-            : undefined;
-          // Review fix (attempt 2, HIGH) — associate the blank-relationship
-          // guard's error with this specific row's input, not just a toast.
-          const isRelationshipInvalid =
-            !linkedMember && invalidRelationshipHeirIds?.has(row.id);
-          const relationshipErrorId = `heir-relationship-error-${row.id}`;
-          return (
-            <div
-              key={row.id}
-              className="space-y-2 rounded-md border bg-background p-3"
-            >
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={linkedMember ? linkedMember.name : row.name}
-                  disabled={!!linkedMember}
-                  onChange={(e) => updateRow(row.id, { name: e.target.value })}
-                  placeholder={t.warisan.heirNamePlaceholder}
-                  className="input disabled:cursor-not-allowed disabled:opacity-60"
-                />
-                <button
-                  type="button"
-                  aria-label={t.warisan.removeHeirAriaLabel}
-                  onClick={() => onChange(rows.filter((r) => r.id !== row.id))}
-                  className="flex size-8 shrink-0 items-center justify-center rounded-full hover:bg-muted"
-                >
-                  <X className="size-3.5" />
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <input
-                    type="text"
-                    value={
-                      linkedMember
-                        ? (linkedMember.relationship ?? "")
-                        : row.relationship
-                    }
-                    disabled={!!linkedMember}
-                    onChange={(e) =>
-                      updateRow(row.id, { relationship: e.target.value })
-                    }
-                    placeholder={t.warisan.heirRelationshipPlaceholder}
-                    aria-invalid={isRelationshipInvalid ? true : undefined}
-                    aria-describedby={
-                      isRelationshipInvalid ? relationshipErrorId : undefined
-                    }
-                    className={`input disabled:cursor-not-allowed disabled:opacity-60 ${
-                      isRelationshipInvalid
-                        ? "border-destructive focus:border-destructive"
-                        : ""
-                    }`}
-                  />
-                  {isRelationshipInvalid && (
-                    <p
-                      id={relationshipErrorId}
-                      className="mt-1 text-[11px] text-destructive"
+      </div>
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>{t.warisan.heirTableHeaderName}</th>
+              <th>
+                {t.warisan.heirTableHeaderRelationship}{" "}
+                <span className="t-danger">*</span>
+              </th>
+              <th>{t.warisan.heirTableHeaderShare}</th>
+              <th className="text-right">{t.warisan.heirTableHeaderAction}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={4} className="text-muted-foreground">
+                  {t.warisan.heirTableEmpty}
+                </td>
+              </tr>
+            )}
+            {rows.map((row) => {
+              // EPIC-023 F1 (D14) — once linked, name/relationship are
+              // resolved from the member's CURRENT record (not the row's own
+              // free-text fields) so the editor never shows a value that
+              // would be overwritten the moment the API re-resolves it on
+              // the next read (see inheritance.service.ts's `MemberLookup`).
+              const linkedMember = row.memberUserId
+                ? familyMembers.find((m) => m.userId === row.memberUserId)
+                : undefined;
+              // Review fix (attempt 2, HIGH) — associate the blank-
+              // relationship guard's error with this specific row's input,
+              // not just a toast.
+              const isRelationshipInvalid =
+                !linkedMember && invalidRelationshipHeirIds?.has(row.id);
+              const relationshipErrorId = `heir-relationship-error-${row.id}`;
+              return (
+                <tr key={row.id}>
+                  <td>
+                    {familyMembers.length > 0 ? (
+                      <select
+                        value={row.memberUserId}
+                        onChange={(e) => {
+                          const memberUserId = e.target.value;
+                          const picked = familyMembers.find(
+                            (m) => m.userId === memberUserId,
+                          );
+                          // Live-fill on selection; the API re-resolves from
+                          // the CURRENT member record on every subsequent
+                          // read regardless of what is stored here (see the
+                          // comment above).
+                          updateRow(row.id, {
+                            memberUserId,
+                            ...(picked
+                              ? {
+                                  name: picked.name,
+                                  relationship: picked.relationship ?? "",
+                                }
+                              : {}),
+                          });
+                        }}
+                        className="select"
+                        aria-label={t.warisan.heirMemberAriaLabel}
+                      >
+                        <option value="">
+                          {t.warisan.heirMemberNoneOption}
+                        </option>
+                        {familyMembers.map((m) => (
+                          <option key={m.userId} value={m.userId}>
+                            {m.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      membersUnavailable && (
+                        <p className="hint">
+                          {t.warisan.heirMemberPickerUnavailable}
+                        </p>
+                      )
+                    )}
+                    <input
+                      type="text"
+                      value={linkedMember ? linkedMember.name : row.name}
+                      disabled={!!linkedMember}
+                      onChange={(e) =>
+                        updateRow(row.id, { name: e.target.value })
+                      }
+                      placeholder={t.warisan.heirNamePlaceholder}
+                      aria-label={t.warisan.heirTableHeaderName}
+                      className="input mt-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      value={
+                        linkedMember
+                          ? (linkedMember.relationship ?? "")
+                          : row.relationship
+                      }
+                      disabled={!!linkedMember}
+                      onChange={(e) =>
+                        updateRow(row.id, { relationship: e.target.value })
+                      }
+                      placeholder={t.warisan.heirRelationshipPlaceholder}
+                      aria-label={t.warisan.heirTableHeaderRelationship}
+                      aria-required
+                      aria-invalid={isRelationshipInvalid ? true : undefined}
+                      aria-describedby={
+                        isRelationshipInvalid ? relationshipErrorId : undefined
+                      }
+                      className={`input disabled:cursor-not-allowed disabled:opacity-60 ${
+                        isRelationshipInvalid
+                          ? "border-destructive focus:border-destructive"
+                          : ""
+                      }`}
+                    />
+                    {isRelationshipInvalid && (
+                      <span id={relationshipErrorId} className="error-text">
+                        {t.warisan.toastHeirRelationshipRequired}
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="0.01"
+                      value={row.sharePercent}
+                      onChange={(e) =>
+                        updateRow(row.id, { sharePercent: e.target.value })
+                      }
+                      placeholder={t.warisan.heirSharePercentPlaceholder}
+                      aria-label={t.warisan.heirTableHeaderShare}
+                      className="input mono"
+                    />
+                  </td>
+                  <td className="text-right">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`${t.warisan.removeHeirAriaLabel} ${
+                        linkedMember ? linkedMember.name : row.name
+                      }`.trim()}
+                      onClick={() =>
+                        onChange(rows.filter((r) => r.id !== row.id))
+                      }
                     >
-                      {t.warisan.toastHeirRelationshipRequired}
-                    </p>
-                  )}
-                </div>
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step="0.01"
-                  value={row.sharePercent}
-                  onChange={(e) =>
-                    updateRow(row.id, { sharePercent: e.target.value })
-                  }
-                  placeholder={t.warisan.heirSharePercentPlaceholder}
-                  className="input"
-                />
-              </div>
-              {familyMembers.length > 0 ? (
-                <select
-                  value={row.memberUserId}
-                  onChange={(e) => {
-                    const memberUserId = e.target.value;
-                    const picked = familyMembers.find(
-                      (m) => m.userId === memberUserId,
-                    );
-                    // Live-fill on selection; the API re-resolves from the
-                    // CURRENT member record on every subsequent read
-                    // regardless of what is stored here (see comment above).
-                    updateRow(row.id, {
-                      memberUserId,
-                      ...(picked
-                        ? {
-                            name: picked.name,
-                            relationship: picked.relationship ?? "",
-                          }
-                        : {}),
-                    });
-                  }}
-                  className="select"
-                  aria-label={t.warisan.heirMemberAriaLabel}
-                >
-                  <option value="">{t.warisan.heirMemberNoneOption}</option>
-                  {familyMembers.map((m) => (
-                    <option key={m.userId} value={m.userId}>
-                      {m.name}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                membersUnavailable && (
-                  <p className="text-[11px] text-muted-foreground">
-                    {t.warisan.heirMemberPickerUnavailable}
-                  </p>
-                )
-              )}
-            </div>
-          );
-        })}
+                      <X className="size-[15px]" />
+                    </Button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
-      <button
+      <Button
         type="button"
+        variant="outline"
         onClick={() => onChange([...rows, emptyHeirRow()])}
-        className="mt-2 text-[12.5px] font-semibold text-primary"
+        className="btn--block mt-2.5"
       >
-        {t.warisan.addHeirButton}
-      </button>
+        <Plus className="size-[15px]" /> {t.warisan.addHeirButton}
+      </Button>
 
       {rows.length > 0 && (
-        <div className="mt-2.5">
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-primary transition-all"
-              style={{ width: `${allocated}%` }}
-            />
+        <>
+          <div className="notice mt-3">
+            <PieChart className="size-4 shrink-0" aria-hidden="true" />
+            <span>
+              {unallocated <= 0
+                ? t.warisan.heirAllocationFullyAllocated
+                : `${allocated}${t.warisan.heirAllocationAllocatedSuffix} · ${unallocated}${t.warisan.heirAllocationUnallocatedSuffix}`}
+            </span>
           </div>
-          <div className="mt-1 text-[11.5px] text-muted-foreground">
-            {unallocated <= 0
-              ? t.warisan.heirAllocationFullyAllocated
-              : `${allocated}${t.warisan.heirAllocationAllocatedSuffix} · ${unallocated}${t.warisan.heirAllocationUnallocatedSuffix}`}
-          </div>
-        </div>
+          <ProgressBar
+            value={allocated}
+            color={unallocated <= 0 ? "var(--success)" : "var(--warning)"}
+            className="mt-2"
+          />
+        </>
       )}
     </div>
   );
@@ -716,7 +768,7 @@ export default function WarisanPage() {
       ...(h.memberUserId && { memberUserId: h.memberUserId }),
     }));
     if (heirDtos.reduce((sum, h) => sum + h.sharePercent, 0) > 100) {
-      toast.error("Total persentase ahli waris tidak boleh lebih dari 100%.");
+      toast.error(t.warisan.toastSharePercentExceeded);
       return;
     }
 
@@ -1006,9 +1058,11 @@ export default function WarisanPage() {
         </div>
       )}
 
-      {/* Confirm delete */}
+      {/* Confirm delete — prototype `dlg-hapus-warisan` (warisan.html:359):
+          `dialog--sm`, its own body copy, Batal + destructive "Ya, Hapus". */}
       <ConfirmDeleteDialog
         label={deleteTarget?.name ?? null}
+        body={t.warisan.deleteConfirmBody}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => {
           if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
@@ -1026,90 +1080,80 @@ export default function WarisanPage() {
           }
         }}
       >
-        <DialogContent>
-          <DialogTitle className="text-[17px] font-extrabold">
+        <DialogContent className="dialog--wide">
+          <DialogTitle>
             {editing ? t.warisan.modalTitleEdit : t.warisan.addAssetButton}
           </DialogTitle>
-          {/* EPIC-026 Wave 4 — prototype's `dialog__desc`
-              (warisan.html:223). */}
-          <DialogDescription className="mb-2 text-[12.5px] text-muted-foreground">
-            Hubungkan ke aset yang sudah tercatat, lalu tentukan pembagian ahli
-            waris.
-          </DialogDescription>
+          {/* EPIC-026 Wave 8 — prototype `.dialog__desc` (warisan.html:222). */}
+          <DialogDescription>{t.warisan.modalDesc}</DialogDescription>
 
-          <div className="space-y-4">
+          <DialogBody>
             {/* EPIC-021 Group D (#11) — pick an existing Asset instead of
-                manual re-entry; manual entry stays available. */}
-            <div>
-              <label className="mb-1.5 block text-[12.5px] font-semibold">
-                Sumber Data
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPickMode("manual")}
-                  className={`rounded-md border px-3 py-2 text-[12.5px] font-semibold transition-colors ${
-                    pickMode === "manual"
-                      ? "border-primary bg-accent text-primary-strong"
-                      : "bg-background"
-                  }`}
-                >
-                  Input Manual
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPickMode("asset")}
-                  className={`rounded-md border px-3 py-2 text-[12.5px] font-semibold transition-colors ${
-                    pickMode === "asset"
-                      ? "border-primary bg-accent text-primary-strong"
-                      : "bg-background"
-                  }`}
-                >
-                  Pilih dari Aset
-                </button>
+                manual re-entry; manual entry stays available. The prototype
+                folds both into a single "Aset" <select> whose last option is
+                "— Tidak dihubungkan (catat manual) —"; the app keeps the
+                explicit mode switch it already shipped and renders it with
+                the prototype's `.segmented` control. */}
+            <div className="field">
+              <span className="label" id="warisan-source-label">
+                {t.warisan.fieldSourceLabel}
+              </span>
+              <div
+                className="segmented flex w-full"
+                role="tablist"
+                aria-labelledby="warisan-source-label"
+              >
+                {(
+                  [
+                    ["manual", t.warisan.sourceManualOption],
+                    ["asset", t.warisan.sourceAssetOption],
+                  ] as const
+                ).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    role="tab"
+                    aria-selected={pickMode === mode}
+                    onClick={() => setPickMode(mode)}
+                    className="segmented__item flex-1"
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
 
             {pickMode === "asset" && (
-              <div>
-                <label className="mb-1.5 block text-[12.5px] font-semibold">
-                  Pilih Aset
+              <div className="field">
+                <label className="label" htmlFor="warisan-asset">
+                  {t.warisan.fieldAssetLabel}
                 </label>
                 <select
+                  id="warisan-asset"
+                  aria-describedby="warisan-asset-hint"
                   value={selectedAssetId}
                   onChange={(e) => handlePickAsset(e.target.value)}
                   className="select"
                 >
-                  <option value="">— Pilih aset —</option>
+                  <option value="">{t.warisan.assetPickerPlaceholder}</option>
                   {pickableAssets.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.name} ({formatRupiah(Number(BigInt(a.currentValue)))})
                     </option>
                   ))}
                 </select>
+                <span className="hint" id="warisan-asset-hint">
+                  {t.warisan.assetPickerHint}
+                </span>
               </div>
             )}
 
-            <div>
-              <label className="mb-1.5 block text-[12.5px] font-semibold">
-                {t.warisan.fieldCategoryLabel}
-              </label>
-              <select
-                value={assetType}
-                onChange={(e) => setAssetType(e.target.value)}
-                className="select"
-              >
-                {ASSET_TYPE_OPTIONS.map((o) => (
-                  <option key={o}>{o}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-[12.5px] font-semibold">
+            <div className="field">
+              <label className="label" htmlFor="warisan-name">
                 {t.warisan.fieldNameLabel}
               </label>
               <input
+                id="warisan-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -1118,13 +1162,15 @@ export default function WarisanPage() {
               />
             </div>
 
-            <div>
-              <label className="mb-1.5 block text-[12.5px] font-semibold">
-                {t.warisan.fieldValueLabel}
-              </label>
-              <div className="flex items-center gap-2 rounded-md border bg-background px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:bg-card">
-                <span className="text-[13.5px] text-muted-foreground">Rp</span>
+            {/* Prototype pairs Nilai Estimasi + Kategori 2-up
+                (warisan.html:235). */}
+            <div className="field-row mt-3">
+              <div className="field mt-0">
+                <label className="label" htmlFor="warisan-value">
+                  {t.warisan.fieldValueLabel}
+                </label>
                 <input
+                  id="warisan-value"
                   type="text"
                   inputMode="numeric"
                   value={valueInput}
@@ -1132,59 +1178,71 @@ export default function WarisanPage() {
                     setValueInput(formatAmountInput(e.target.value))
                   }
                   placeholder="0"
-                  className="w-full bg-transparent text-[13.5px] outline-none"
+                  className="input mono"
                 />
+              </div>
+              <div className="field mt-0">
+                <label className="label" htmlFor="warisan-category">
+                  {t.warisan.fieldCategoryLabel}
+                </label>
+                <select
+                  id="warisan-category"
+                  value={assetType}
+                  onChange={(e) => setAssetType(e.target.value)}
+                  className="select"
+                >
+                  {ASSET_TYPE_OPTIONS.map((o) => (
+                    <option key={o}>{o}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            <div>
-              <label className="mb-1.5 block text-[12.5px] font-semibold">
+            <div className="field">
+              <label className="label" htmlFor="warisan-notes">
                 {t.warisan.fieldNotesLabel}
               </label>
-              <input
-                type="text"
+              <textarea
+                id="warisan-notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
+                rows={2}
                 placeholder={t.warisan.fieldNotesPlaceholder}
-                className="input"
+                className="textarea resize-none"
               />
             </div>
 
-            <div>
-              <label className="mb-1.5 block text-[12.5px] font-semibold">
-                {t.warisan.fieldDocumentLabel}
-              </label>
+            {/* App-only field with no prototype counterpart — kept because it
+                already shipped, and labeled honestly as unavailable rather
+                than pretending to upload. */}
+            <div className="field">
+              <span className="label">{t.warisan.fieldDocumentLabel}</span>
               <button
                 type="button"
                 onClick={() => toast(t.warisan.toastUploadUnavailable)}
                 className="w-full cursor-not-allowed rounded-md border-[1.5px] border-dashed p-[18px] text-center opacity-60"
               >
                 <CloudUpload className="mx-auto mb-1.5 size-[22px] text-muted-foreground" />
-                <div className="text-[12px] text-muted-foreground">
+                <span className="text-[12px] text-muted-foreground">
                   {t.warisan.documentUploadHint}
-                </div>
+                </span>
               </button>
             </div>
 
-            <div>
-              <label className="mb-1.5 block text-[12.5px] font-semibold">
-                {t.warisan.fieldAccessLabel}
-              </label>
-              <div className="rounded-md border bg-card px-3.5 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-[13px] font-semibold">
-                      {t.warisan.visibleToHeirsLabel}
-                    </div>
-                    <div className="text-[11.5px] text-muted-foreground">
-                      {visible
-                        ? t.warisan.visibleToHeirsOnDesc
-                        : t.warisan.visibleToHeirsOffDesc}
-                    </div>
-                  </div>
-                  <Switch checked={visible} onCheckedChange={setVisible} />
-                </div>
+            {/* Prototype's visibility row: label + switch on one line, hint
+                underneath (warisan.html:254). */}
+            <div className="field">
+              <div className="row row--between">
+                <span className="label m-0" id="warisan-visibility-label">
+                  {t.warisan.visibleToHeirsLabel}
+                </span>
+                <Switch
+                  checked={visible}
+                  onCheckedChange={setVisible}
+                  aria-labelledby="warisan-visibility-label"
+                />
               </div>
+              <span className="hint">{t.warisan.visibleToHeirsHint}</span>
             </div>
 
             {/* EPIC-021 Group D (#12) — heirs are optional; add/edit by
@@ -1197,32 +1255,42 @@ export default function WarisanPage() {
               invalidRelationshipHeirIds={invalidRelationshipHeirIds}
             />
 
-            {/* EPIC-026 Wave 4 — prototype's `dialog__footer`: Batal +
-                Simpan side by side (warisan.html:352). */}
-            <div className="flex gap-2.5 pt-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => {
-                  setOpen(false);
-                  setEditing(null);
-                  resetForm();
-                }}
-              >
-                {t.common.cancel}
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={createMutation.isPending || updateMutation.isPending}
-                className="flex-1"
-              >
-                <Save className="size-4" />
-                {createMutation.isPending || updateMutation.isPending
-                  ? t.warisan.savingLabel
-                  : t.warisan.saveAssetButton}
-              </Button>
-            </div>
-          </div>
+            {/* Prototype's `notice notice--danger` save blocker
+                (warisan.html:341) — shown for the same condition the
+                client-side guard in `handleSave` blocks on. */}
+            {invalidRelationshipHeirIds.size > 0 && (
+              <div className="notice notice--danger mt-3" role="alert">
+                <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
+                <span>{t.warisan.toastHeirRelationshipRequired}</span>
+              </div>
+            )}
+          </DialogBody>
+
+          {/* Prototype `.dialog__footer`: Batal (outline) then the primary
+              save (warisan.html:352). */}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setOpen(false);
+                setEditing(null);
+                resetForm();
+              }}
+            >
+              {t.common.cancel}
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSave}
+              disabled={createMutation.isPending || updateMutation.isPending}
+            >
+              <Save className="size-4" />
+              {createMutation.isPending || updateMutation.isPending
+                ? t.warisan.savingLabel
+                : t.warisan.saveAssetButton}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

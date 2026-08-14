@@ -7,7 +7,14 @@ import { useSession } from "@/lib/auth-compat";
 import { toast } from "sonner";
 import { SectionCard } from "@/components/wm";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
 // EPIC-025 N3-E2 — J3 FOLD: investment projection chart, pure client-side
 // computation (same year-by-year compounding this tab already runs for the
 // result card) — no fetch needed.
@@ -536,19 +543,21 @@ function Pph21BracketDialog({
   const { t } = useLocale();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-[769px]:w-[min(560px,calc(100%-2rem))]">
-        <DialogTitle className="text-[17px] font-extrabold">
-          {t.kalkulator.pph21.bracketDialogTitle}
-        </DialogTitle>
-        <p className="mt-1 text-[12.5px] text-muted-foreground">
+      {/* EPIC-026 Wave 8 — #dlg-pph is the prototype's default 480px
+          `.dialog` (kalkulator.html:340), not a bespoke 560px box. */}
+      <DialogContent>
+        <DialogTitle>{t.kalkulator.pph21.bracketDialogTitle}</DialogTitle>
+        <DialogDescription>
           {t.kalkulator.pph21.bracketDialogDesc}
-        </p>
+        </DialogDescription>
         {!result || result.taxBreakdown.length === 0 ? (
-          <p className="mt-4 text-[13px] text-muted-foreground">
-            {t.kalkulator.pph21.bracketDialogEmptyNote}
-          </p>
+          <DialogBody>
+            <p className="text-[13px] text-muted-foreground">
+              {t.kalkulator.pph21.bracketDialogEmptyNote}
+            </p>
+          </DialogBody>
         ) : (
-          <div className="mt-4">
+          <DialogBody>
             <div className="w-full overflow-x-auto">
               <table className="min-w-[420px] w-full text-left text-[12.5px]">
                 <thead>
@@ -593,13 +602,18 @@ function Pph21BracketDialog({
                 {formatRupiah(result.totalTax)}
               </span>
             </div>
-          </div>
+          </DialogBody>
         )}
-        <div className="mt-5 flex justify-end">
+        {/* Prototype `.dialog__footer` (kalkulator.html:360-365). Its second
+            button, "Simpan Perhitungan", is deliberately NOT reproduced: the
+            prototype only fires a toast, and this app has no endpoint that
+            persists a PPh 21 calculation — a Save button that saves nothing
+            would be dishonest UI. Only the outline Tutup survives. */}
+        <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t.kalkulator.pph21.bracketDialogCloseButton}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

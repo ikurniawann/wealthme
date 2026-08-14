@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, X, CalendarClock, Pencil, Trash2, Banknote } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -8,7 +8,15 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { StatusBadge, SectionCard } from "@/components/wm";
 import { DonutChart } from "@/components/charts/apex-presets";
 import type { DonutSegment } from "@/components/charts/donut";
@@ -337,9 +345,15 @@ function BeneficiaryEditor({
 
   return (
     <div>
-      <label className="mb-1.5 block text-[12.5px] font-semibold">
+      {/* EPIC-026 Wave 8 — each row reproduces the prototype's
+          `dlg-asuransi-ahliwaris` field order (asuransi.html:459):
+          "Hubungkan ke Anggota Keluarga", then Nama + Hubungan 2-up, then
+          Persentase (%). The prototype models one beneficiary per dialog; the
+          app edits all of a policy's beneficiaries inline, so the block
+          repeats per row with its own remove action. */}
+      <div className="section-title mt-[18px] mb-2 text-[14px]">
         {t.asuransi.beneficiariesSectionTitle}
-      </label>
+      </div>
       <div className="space-y-2.5">
         {rows.map((row) => {
           // EPIC-023 F1 (D14) — once linked, name/relationship are
@@ -351,55 +365,22 @@ function BeneficiaryEditor({
             ? familyMembers.find((m) => m.userId === row.memberUserId)
             : undefined;
           return (
-            <div
-              key={row.id}
-              className="space-y-2 rounded-md border bg-background p-3"
-            >
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={linkedMember ? linkedMember.name : row.name}
-                  disabled={!!linkedMember}
-                  onChange={(e) => updateRow(row.id, { name: e.target.value })}
-                  placeholder={t.asuransi.beneficiaryNamePlaceholder}
-                  className="input disabled:cursor-not-allowed disabled:opacity-60"
-                />
-                <button
+            <div key={row.id} className="rounded-md border bg-background p-3">
+              <div className="row row--between mb-1.5">
+                <span className="label m-0">
+                  {t.asuransi.beneficiaryMemberLabel}
+                </span>
+                <Button
                   type="button"
-                  aria-label={t.asuransi.removeBeneficiaryAriaLabel}
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`${t.asuransi.removeBeneficiaryAriaLabel} ${
+                    linkedMember ? linkedMember.name : row.name
+                  }`.trim()}
                   onClick={() => onChange(rows.filter((r) => r.id !== row.id))}
-                  className="flex size-8 shrink-0 items-center justify-center rounded-full hover:bg-muted"
                 >
-                  <X className="size-3.5" />
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="text"
-                  value={
-                    linkedMember
-                      ? (linkedMember.relationship ?? "")
-                      : row.relationship
-                  }
-                  disabled={!!linkedMember}
-                  onChange={(e) =>
-                    updateRow(row.id, { relationship: e.target.value })
-                  }
-                  placeholder={t.asuransi.beneficiaryRelationshipPlaceholder}
-                  className="input disabled:cursor-not-allowed disabled:opacity-60"
-                />
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step="0.01"
-                  value={row.sharePercent}
-                  onChange={(e) =>
-                    updateRow(row.id, { sharePercent: e.target.value })
-                  }
-                  placeholder={t.asuransi.beneficiarySharePercentLabel}
-                  className="input"
-                />
+                  <X className="size-[15px]" />
+                </Button>
               </div>
               {familyMembers.length > 0 ? (
                 <select
@@ -436,38 +417,120 @@ function BeneficiaryEditor({
                 </select>
               ) : (
                 membersUnavailable && (
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="hint">
                     {t.asuransi.beneficiaryMemberPickerUnavailable}
                   </p>
                 )
               )}
+
+              <div className="field-row mt-3">
+                <div className="field mt-0">
+                  <label
+                    className="label"
+                    htmlFor={`beneficiary-name-${row.id}`}
+                  >
+                    {t.asuransi.beneficiaryNameLabel}
+                  </label>
+                  <input
+                    id={`beneficiary-name-${row.id}`}
+                    type="text"
+                    value={linkedMember ? linkedMember.name : row.name}
+                    disabled={!!linkedMember}
+                    onChange={(e) =>
+                      updateRow(row.id, { name: e.target.value })
+                    }
+                    placeholder={t.asuransi.beneficiaryNamePlaceholder}
+                    className="input disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                </div>
+                <div className="field mt-0">
+                  <label
+                    className="label"
+                    htmlFor={`beneficiary-relationship-${row.id}`}
+                  >
+                    {t.asuransi.beneficiaryRelationshipLabel}
+                  </label>
+                  <input
+                    id={`beneficiary-relationship-${row.id}`}
+                    type="text"
+                    value={
+                      linkedMember
+                        ? (linkedMember.relationship ?? "")
+                        : row.relationship
+                    }
+                    disabled={!!linkedMember}
+                    onChange={(e) =>
+                      updateRow(row.id, { relationship: e.target.value })
+                    }
+                    placeholder={t.asuransi.beneficiaryRelationshipPlaceholder}
+                    className="input disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                </div>
+              </div>
+
+              <div className="field">
+                <label
+                  className="label"
+                  htmlFor={`beneficiary-share-${row.id}`}
+                >
+                  {t.asuransi.beneficiarySharePercentLabel}
+                </label>
+                <input
+                  id={`beneficiary-share-${row.id}`}
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  value={row.sharePercent}
+                  onChange={(e) =>
+                    updateRow(row.id, { sharePercent: e.target.value })
+                  }
+                  placeholder={t.asuransi.beneficiarySharePercentLabel}
+                  className="input mono"
+                />
+                {/* Prototype's `.error-text` under Persentase
+                    (asuransi.html:494) — shown for the same condition
+                    `handleSave` blocks on. */}
+                {totalAllocated(rows) > 100 && (
+                  <span className="error-text">
+                    {t.asuransi.validationSharePercentExceeded}
+                  </span>
+                )}
+              </div>
             </div>
           );
         })}
       </div>
 
-      <button
+      <Button
         type="button"
+        variant="outline"
         onClick={() => onChange([...rows, emptyBeneficiaryRow()])}
-        className="mt-2 text-[12.5px] font-semibold text-primary"
+        className="btn--block mt-2.5"
       >
-        {t.asuransi.addBeneficiaryButton}
-      </button>
+        <Plus className="size-[15px]" /> {t.asuransi.addBeneficiaryButton}
+      </Button>
 
       {rows.length > 0 && (
-        <div className="mt-2.5">
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        <>
+          <div className="notice mt-3">
+            <span>
+              {unallocated <= 0
+                ? t.asuransi.allocationFullyAllocated
+                : `${allocated}${t.asuransi.allocationAllocatedSuffix} · ${unallocated}${t.asuransi.allocationUnallocatedSuffix}`}
+            </span>
+          </div>
+          <div className="progress mt-2">
             <div
-              className="h-full rounded-full bg-primary transition-all"
-              style={{ width: `${allocated}%` }}
+              className="progress__bar"
+              style={{
+                width: `${allocated}%`,
+                background:
+                  unallocated <= 0 ? "var(--success)" : "var(--warning)",
+              }}
             />
           </div>
-          <div className="mt-1 text-[11.5px] text-muted-foreground">
-            {unallocated <= 0
-              ? t.asuransi.allocationFullyAllocated
-              : `${allocated}${t.asuransi.allocationAllocatedSuffix} · ${unallocated}${t.asuransi.allocationUnallocatedSuffix}`}
-          </div>
-        </div>
+        </>
       )}
     </div>
   );
@@ -497,18 +560,10 @@ function InsuranceModal({
 }: InsuranceModalProps) {
   const { t } = useLocale();
   const queryClient = useQueryClient();
-  const innerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const prev = document.activeElement as HTMLElement | null;
-    const first = innerRef.current?.querySelector<HTMLElement>(
-      'button, input, select, textarea, [tabindex]:not([tabindex="-1"])',
-    );
-    first?.focus();
-    return () => {
-      prev?.focus();
-    };
-  }, []);
+  // EPIC-026 Wave 8 — the hand-rolled "focus the first control on mount,
+  // restore on unmount" effect is gone: this is now a real Base UI Dialog,
+  // which owns initial focus, the focus trap, focus restore, Escape and the
+  // scroll lock.
 
   const [name, setName] = useState(editing?.name ?? "");
   const [provider, setProvider] = useState(editing?.provider ?? "");
@@ -633,75 +688,51 @@ function InsuranceModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="add-insurance-title"
-    >
-      {/* EPIC-022 Group G (G1) — `dvh`, not `vh`: hand-rolled, does not
-          inherit components/ui/dialog.tsx's DialogContent default, so this
-          unit must be kept correct independently (see that file's comment
-          for why `vh` under-caps on a real mobile browser). */}
-      <div
-        ref={innerRef}
-        className="max-h-[85dvh] w-full max-w-[480px] overflow-y-auto rounded-[16px] bg-card p-6 shadow-xl"
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 id="add-insurance-title" className="text-[17px] font-extrabold">
-            {editing ? t.asuransi.modalEditTitle : t.asuransi.modalTitle}
-          </h2>
-          <button
-            type="button"
-            aria-label={t.asuransi.modalCloseAriaLabel}
-            onClick={onClose}
-            className="flex size-8 items-center justify-center rounded-full hover:bg-muted"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
+    // EPIC-026 Wave 8 — was a hand-rolled fixed overlay; now the real Base UI
+    // Dialog rendering the prototype's `dlg-asuransi-form`
+    // (docs/prototype/pages/asuransi.html:373): `dialog--wide`, a
+    // `.dialog__desc`, four 2-up `.field-row` groups, then No. Polis, the
+    // auto-renew switch row and Catatan.
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="dialog--wide">
+        <DialogTitle>
+          {editing ? t.asuransi.modalEditTitle : t.asuransi.modalTitle}
+        </DialogTitle>
+        <DialogDescription>{t.asuransi.modalDesc}</DialogDescription>
 
-        <div className="space-y-3.5">
-          <div>
-            <label
-              htmlFor="ins-name"
-              className="mb-1.5 block text-[12.5px] font-semibold"
-            >
-              {t.asuransi.fieldNameLabel}
-            </label>
-            <input
-              id="ins-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t.asuransi.fieldNamePlaceholder}
-              className="input"
-            />
+        <DialogBody>
+          <div className="field-row">
+            <div className="field mt-0">
+              <label className="label" htmlFor="ins-name">
+                {t.asuransi.fieldNameLabel}
+              </label>
+              <input
+                id="ins-name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={t.asuransi.fieldNamePlaceholder}
+                className="input"
+              />
+            </div>
+            <div className="field mt-0">
+              <label className="label" htmlFor="ins-provider">
+                {t.asuransi.fieldProviderLabel}
+              </label>
+              <input
+                id="ins-provider"
+                type="text"
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
+                placeholder={t.asuransi.fieldProviderPlaceholder}
+                className="input"
+              />
+            </div>
           </div>
 
-          <div>
-            <label
-              htmlFor="ins-provider"
-              className="mb-1.5 block text-[12.5px] font-semibold"
-            >
-              {t.asuransi.fieldProviderLabel}
-            </label>
-            <input
-              id="ins-provider"
-              type="text"
-              value={provider}
-              onChange={(e) => setProvider(e.target.value)}
-              placeholder={t.asuransi.fieldProviderPlaceholder}
-              className="input"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label
-                htmlFor="ins-type"
-                className="mb-1.5 block text-[12.5px] font-semibold"
-              >
+          <div className="field-row mt-3">
+            <div className="field mt-0">
+              <label className="label" htmlFor="ins-type">
                 {t.asuransi.fieldTypeLabel}
               </label>
               <select
@@ -717,12 +748,8 @@ function InsuranceModal({
                 ))}
               </select>
             </div>
-
-            <div>
-              <label
-                htmlFor="ins-status"
-                className="mb-1.5 block text-[12.5px] font-semibold"
-              >
+            <div className="field mt-0">
+              <label className="label" htmlFor="ins-status">
                 {t.asuransi.fieldStatusLabel}
               </label>
               <select
@@ -740,15 +767,11 @@ function InsuranceModal({
             </div>
           </div>
 
-          <div>
-            <label
-              htmlFor="ins-premium"
-              className="mb-1.5 block text-[12.5px] font-semibold"
-            >
-              {t.asuransi.fieldPremiumLabel}
-            </label>
-            <div className="flex items-center gap-2 rounded-md border bg-background px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:bg-card">
-              <span className="text-[13.5px] text-muted-foreground">Rp</span>
+          <div className="field-row mt-3">
+            <div className="field mt-0">
+              <label className="label" htmlFor="ins-premium">
+                {t.asuransi.fieldPremiumLabel}
+              </label>
               <input
                 id="ins-premium"
                 type="text"
@@ -758,43 +781,35 @@ function InsuranceModal({
                   setPremiumAmount(formatAmountInput(e.target.value))
                 }
                 placeholder="0"
-                className="w-full bg-transparent text-[13.5px] outline-none"
+                className="input mono"
               />
+            </div>
+            <div className="field mt-0">
+              <label className="label" htmlFor="ins-period">
+                {t.asuransi.fieldPeriodLabel}
+              </label>
+              <select
+                id="ins-period"
+                value={premiumPeriod}
+                onChange={(e) =>
+                  setPremiumPeriod(e.target.value as PremiumPeriod)
+                }
+                className="select"
+              >
+                {PERIOD_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {t.asuransi.periodOptionLabels[opt]}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
-          <div>
-            <label
-              htmlFor="ins-period"
-              className="mb-1.5 block text-[12.5px] font-semibold"
-            >
-              {t.asuransi.fieldPeriodLabel}
-            </label>
-            <select
-              id="ins-period"
-              value={premiumPeriod}
-              onChange={(e) =>
-                setPremiumPeriod(e.target.value as PremiumPeriod)
-              }
-              className="select"
-            >
-              {PERIOD_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>
-                  {t.asuransi.periodOptionLabels[opt]}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label
-              htmlFor="ins-coverage"
-              className="mb-1.5 block text-[12.5px] font-semibold"
-            >
-              {t.asuransi.fieldCoverageLabel}
-            </label>
-            <div className="flex items-center gap-2 rounded-md border bg-background px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:bg-card">
-              <span className="text-[13.5px] text-muted-foreground">Rp</span>
+          <div className="field-row mt-3">
+            <div className="field mt-0">
+              <label className="label" htmlFor="ins-coverage">
+                {t.asuransi.fieldCoverageLabel}
+              </label>
               <input
                 id="ins-coverage"
                 type="text"
@@ -804,43 +819,25 @@ function InsuranceModal({
                   setCoverageAmount(formatAmountInput(e.target.value))
                 }
                 placeholder="0"
-                className="w-full bg-transparent text-[13.5px] outline-none"
+                className="input mono"
+              />
+            </div>
+            <div className="field mt-0">
+              <label className="label" htmlFor="ins-renewal">
+                {t.asuransi.fieldRenewalDateLabel}
+              </label>
+              <input
+                id="ins-renewal"
+                type="date"
+                value={renewalDate}
+                onChange={(e) => setRenewalDate(e.target.value)}
+                className="input"
               />
             </div>
           </div>
 
-          <div>
-            <label
-              htmlFor="ins-renewal"
-              className="mb-1.5 block text-[12.5px] font-semibold"
-            >
-              {t.asuransi.fieldRenewalDateLabel}
-            </label>
-            <input
-              id="ins-renewal"
-              type="date"
-              value={renewalDate}
-              onChange={(e) => setRenewalDate(e.target.value)}
-              className="input"
-            />
-            {renewalDate && (
-              <label className="mt-2 flex items-center gap-2 text-[12px] text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={autoRenewDate}
-                  onChange={(e) => setAutoRenewDate(e.target.checked)}
-                  className="size-3.5"
-                />
-                {t.asuransi.autoRenewLabel}
-              </label>
-            )}
-          </div>
-
-          <div>
-            <label
-              htmlFor="ins-policy-number"
-              className="mb-1.5 block text-[12.5px] font-semibold"
-            >
+          <div className="field">
+            <label className="label" htmlFor="ins-policy-number">
               {t.asuransi.policyNumberLabel}
             </label>
             <input
@@ -849,15 +846,30 @@ function InsuranceModal({
               value={policyNumber}
               onChange={(e) => setPolicyNumber(e.target.value)}
               placeholder={t.asuransi.fieldPolicyNumberPlaceholder}
-              className="input"
+              className="input mono"
             />
           </div>
 
-          <div>
-            <label
-              htmlFor="ins-notes"
-              className="mb-1.5 block text-[12.5px] font-semibold"
-            >
+          {/* Prototype's `.row` + `.switch` auto-renew toggle
+              (asuransi.html:487). Still gated on a renewal date being set —
+              `autoRenewDate` is only sent alongside `renewalDate`, so showing
+              the switch without one would be a control that does nothing
+              (Honest UI). */}
+          {renewalDate && (
+            <div className="row mt-3">
+              <Switch
+                checked={autoRenewDate}
+                onCheckedChange={setAutoRenewDate}
+                aria-labelledby="ins-auto-renew-label"
+              />
+              <span className="text-[13px]" id="ins-auto-renew-label">
+                {t.asuransi.autoRenewLabel}
+              </span>
+            </div>
+          )}
+
+          <div className="field">
+            <label className="label" htmlFor="ins-notes">
               {t.asuransi.fieldNotesLabel}
             </label>
             <textarea
@@ -876,17 +888,22 @@ function InsuranceModal({
             familyMembers={familyMembers}
             membersUnavailable={membersUnavailable}
           />
+        </DialogBody>
 
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            {t.common.cancel}
+          </Button>
           <Button
+            type="button"
             onClick={handleSave}
             disabled={mutation.isPending}
-            className="w-full"
           >
             {mutation.isPending ? t.asuransi.saving : t.asuransi.saveButton}
           </Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -925,67 +942,75 @@ function PayInsuranceDialog({
     ? (t.asuransi.periodSuffixLabels[item.premiumPeriod] ?? "")
     : "";
   return (
+    // EPIC-026 Wave 8 — prototype `dlg-asuransi-bayar` (asuransi.html:320):
+    // title + a `.dialog__desc` that states exactly what confirming does,
+    // then the premium figure and the source-account field.
     <Dialog open={item !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="min-[769px]:w-[min(380px,calc(100%-2rem))]">
-        <DialogTitle className="text-[17px] font-extrabold">
-          {t.asuransi.payDialogTitle}
-        </DialogTitle>
+      <DialogContent>
+        <DialogTitle>{t.asuransi.payDialogTitle}</DialogTitle>
         {item && (
-          <div className="space-y-3 text-[13px]">
-            <div className="rounded-lg bg-muted p-3.5">
-              <div className="text-[11px] text-muted-foreground">
-                {t.asuransi.premiumLabel}
-              </div>
-              <div className="text-[18px] font-black">
-                {formatRupiah(Number(BigInt(item.premiumAmount)))}
-                <span className="ml-1 text-[12px] font-normal text-muted-foreground">
-                  {periodLabel}
-                </span>
-              </div>
-            </div>
-            <div>
-              <label
-                htmlFor="pay-insurance-source-account"
-                className="mb-1.5 block text-[12.5px] font-semibold"
-              >
-                {t.asuransi.paySourceAccountLabel}
-              </label>
-              <select
-                id="pay-insurance-source-account"
-                value={sourceAccountId}
-                onChange={(e) => onSourceAccountChange(e.target.value)}
-                className="select"
-              >
-                <option value="">
-                  {t.asuransi.paySourceAccountPlaceholder}
-                </option>
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                    {a.institution ? ` (${a.institution})` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <p className="text-muted-foreground">
+          <>
+            <DialogDescription>
               {t.asuransi.payConfirmPrefix}
               {item.name}
               {t.asuransi.payConfirmSuffix}
-            </p>
-          </div>
+            </DialogDescription>
+
+            <DialogBody className="text-[13px]">
+              {/* The prototype's "Polis" and "Jumlah Premi" inputs are
+                  read-only here on purpose: this dialog always pays THE
+                  policy the user picked, for its stored premium —
+                  `POST .../insurances/:id/pay` takes only
+                  `{ sourceAccountId }`. Rendering them as editable inputs
+                  would silently drop whatever the user typed (Honest UI).
+                  The prototype's "Tanggal Bayar" field is omitted for the
+                  same reason: the payment is always booked as of now. */}
+              <div className="rounded-lg bg-muted p-3.5">
+                <div className="t-xs t-muted">{t.asuransi.premiumLabel}</div>
+                <div className="mono text-[18px] font-black">
+                  {formatRupiah(Number(BigInt(item.premiumAmount)))}
+                  <span className="ml-1 text-[12px] font-normal text-muted-foreground">
+                    {periodLabel}
+                  </span>
+                </div>
+              </div>
+
+              <div className="field">
+                <label className="label" htmlFor="pay-insurance-source-account">
+                  {t.asuransi.paySourceAccountLabel}
+                </label>
+                <select
+                  id="pay-insurance-source-account"
+                  value={sourceAccountId}
+                  onChange={(e) => onSourceAccountChange(e.target.value)}
+                  className="select"
+                >
+                  <option value="">
+                    {t.asuransi.paySourceAccountPlaceholder}
+                  </option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                      {a.institution ? ` (${a.institution})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </DialogBody>
+          </>
         )}
-        <div className="flex gap-2.5 pt-2">
-          <Button variant="outline" className="flex-1" onClick={onClose}>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
             {t.common.cancel}
           </Button>
           <Button
-            className="flex-1"
+            type="button"
             disabled={isPending || !sourceAccountId}
             onClick={onConfirm}
           >
             {isPending ? t.asuransi.payProcessing : t.asuransi.payConfirmButton}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -1001,6 +1026,7 @@ function PayInsuranceDialog({
 function PolicyPickerDialog({
   open,
   title,
+  description,
   emptyLabel,
   policies,
   onClose,
@@ -1008,6 +1034,7 @@ function PolicyPickerDialog({
 }: {
   open: boolean;
   title: string;
+  description: string;
   emptyLabel: string;
   policies: InsuranceDto[];
   onClose: () => void;
@@ -1022,43 +1049,45 @@ function PolicyPickerDialog({
   }
 
   return (
+    // EPIC-026 Wave 8 — the prototype's `dlg-asuransi-ahliwaris` /
+    // `dlg-asuransi-bayar` both open with a "Polis" <select>; this is that
+    // step, so it carries the prototype's title + `.dialog__desc` + a single
+    // `.field` and a Batal/confirm `.dialog__footer`.
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
-      <DialogContent className="min-[769px]:w-[min(380px,calc(100%-2rem))]">
-        <DialogTitle className="text-[17px] font-extrabold">
-          {title}
-        </DialogTitle>
-        {policies.length === 0 ? (
-          <p className="text-[13px] text-muted-foreground">{emptyLabel}</p>
-        ) : (
-          <div className="space-y-3">
-            <label
-              htmlFor="policy-picker-select"
-              className="block text-[12.5px] font-semibold"
-            >
-              {t.asuransi.policyPickerLabel}
-            </label>
-            <select
-              id="policy-picker-select"
-              value={selectedId}
-              onChange={(e) => setSelectedId(e.target.value)}
-              className="select"
-            >
-              <option value="">{t.asuransi.policyPickerPlaceholder}</option>
-              {policies.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
+      <DialogContent>
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription>
+          {policies.length === 0 ? emptyLabel : description}
+        </DialogDescription>
+        {policies.length > 0 && (
+          <DialogBody>
+            <div className="field">
+              <label className="label" htmlFor="policy-picker-select">
+                {t.asuransi.policyPickerLabel}
+              </label>
+              <select
+                id="policy-picker-select"
+                value={selectedId}
+                onChange={(e) => setSelectedId(e.target.value)}
+                className="select"
+              >
+                <option value="">{t.asuransi.policyPickerPlaceholder}</option>
+                {policies.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </DialogBody>
         )}
-        <div className="flex gap-2.5 pt-2">
-          <Button variant="outline" className="flex-1" onClick={handleClose}>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={handleClose}>
             {t.common.cancel}
           </Button>
           {policies.length > 0 && (
             <Button
-              className="flex-1"
+              type="button"
               disabled={!selectedId}
               onClick={() => {
                 const picked = policies.find((p) => p.id === selectedId);
@@ -1071,7 +1100,7 @@ function PolicyPickerDialog({
               {t.asuransi.policyPickerConfirm}
             </Button>
           )}
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -1238,7 +1267,7 @@ export default function AsuransiPage() {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.insurances.summary(familyGroupId ?? ""),
       });
-      toast.success("Ahli waris dihapus");
+      toast.success(t.asuransi.toastBeneficiaryDeleted);
     },
     onError: (err: { message?: string }) => {
       toast.error(err.message ?? t.asuransi.toastUpdateFailed);
@@ -1645,8 +1674,12 @@ export default function AsuransiPage() {
         />
       )}
 
+      {/* Prototype `dlg-asuransi-hapus` (asuransi.html:511): `dialog--sm`,
+          "Hapus data ini?" + its own body copy, Batal + destructive confirm. */}
       <ConfirmDeleteDialog
         label={deleteTarget ? t.shell.navSections.asuransi : null}
+        title={t.asuransi.deleteDialogTitle}
+        body={t.asuransi.deleteDialogBody}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => {
           if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
@@ -1659,6 +1692,7 @@ export default function AsuransiPage() {
             ? `"${deleteBeneficiaryTarget.beneficiary.name}"`
             : null
         }
+        body={t.asuransi.deleteBeneficiaryDialogBody}
         onClose={() => setDeleteBeneficiaryTarget(null)}
         onConfirm={() => {
           if (deleteBeneficiaryTarget) {
@@ -1695,6 +1729,7 @@ export default function AsuransiPage() {
       <PolicyPickerDialog
         open={payPolicyPicker}
         title={t.asuransi.policyPickerPayTitle}
+        description={t.asuransi.policyPickerPayDesc}
         emptyLabel={t.asuransi.policyPickerPayEmpty}
         policies={payablePolicies}
         onClose={() => setPayPolicyPicker(false)}
@@ -1711,6 +1746,7 @@ export default function AsuransiPage() {
       <PolicyPickerDialog
         open={beneficiaryPolicyPicker}
         title={t.asuransi.policyPickerBeneficiaryTitle}
+        description={t.asuransi.policyPickerBeneficiaryDesc}
         emptyLabel={t.asuransi.policyPickerBeneficiaryEmpty}
         policies={insurances ?? []}
         onClose={() => setBeneficiaryPolicyPicker(false)}

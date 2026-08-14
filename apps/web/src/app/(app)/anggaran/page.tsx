@@ -21,8 +21,10 @@ import {
 } from "@/components/wm";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -301,38 +303,37 @@ function PayObligationDialog({
       open={obligation !== null}
       onOpenChange={(open) => !open && onClose()}
     >
-      <DialogContent className="min-[769px]:w-[min(380px,calc(100%-2rem))]">
-        <DialogTitle className="text-[17px] font-extrabold">
-          {t.anggaran.obligationsPayDialogTitle}
-        </DialogTitle>
-        {/* EPIC-026 Wave 4 — prototype's `dialog__desc` (anggaran.html:457). */}
-        <DialogDescription className="text-[12.5px] text-muted-foreground">
-          Pembayaran akan mencatat transaksi dan mengurangi saldo rekening
-          sumber.
+      {/* EPIC-026 — composition ported 1:1 from the prototype's `dlg-pay`
+          (docs/prototype/pages/anggaran.html:454): `dialog--sm` box, title +
+          `.dialog__desc`, a `.notice` carrying name / amount / due date, one
+          `.field` source-account select, and a Batal / Bayar Sekarang
+          `.dialog__footer`. */}
+      <DialogContent className="dialog--sm">
+        <DialogTitle>{t.anggaran.obligationsPayDialogTitle}</DialogTitle>
+        <DialogDescription>
+          {t.anggaran.obligationsPayDialogDesc}
         </DialogDescription>
         {obligation && (
-          <div className="space-y-3 text-[13px]">
-            <div className="rounded-lg bg-muted p-3.5">
-              <div className="text-[11px] text-muted-foreground">
-                {obligation.name}
-              </div>
-              <div className="mono text-[18px] font-black">
-                {formatRupiah(obligation.amountDue)}
-              </div>
-              {/* EPIC-026 Wave 4 — prototype's pay-dialog notice carries the
-                  due date under the amount (`dlg-pay`, anggaran.html:463);
-                  same `dueDate` the row already renders. */}
-              {obligation.dueDate && (
-                <div className="text-[11px] text-muted-foreground">
-                  Jatuh tempo {formatLocaleDate(obligation.dueDate, locale)}
+          <DialogBody>
+            <div className="notice">
+              <div className="flex-1">
+                <div className="t-xs t-muted">{obligation.name}</div>
+                <div className="t-xl t-black mono">
+                  {formatRupiah(obligation.amountDue)}
                 </div>
-              )}
+                {/* EPIC-026 Wave 4 — prototype's pay-dialog notice carries the
+                    due date under the amount (`dlg-pay`, anggaran.html:463);
+                    same `dueDate` the row already renders. */}
+                {obligation.dueDate && (
+                  <div className="t-xs t-muted">
+                    {t.anggaran.obligationsDueDateNoticePrefix}
+                    {formatLocaleDate(obligation.dueDate, locale)}
+                  </div>
+                )}
+              </div>
             </div>
-            <div>
-              <label
-                htmlFor="obligation-source-account"
-                className="mb-1.5 block text-[12.5px] font-semibold"
-              >
+            <div className="field mt-3">
+              <label className="label" htmlFor="obligation-source-account">
                 {t.anggaran.obligationsSourceAccountLabel}
               </label>
               <select
@@ -352,22 +353,18 @@ function PayObligationDialog({
                 ))}
               </select>
             </div>
-          </div>
+          </DialogBody>
         )}
-        <div className="flex gap-2.5 pt-2">
-          <Button variant="outline" className="flex-1" onClick={onClose}>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
             {t.common.cancel}
           </Button>
-          <Button
-            className="flex-1"
-            disabled={isPending || !sourceAccountId}
-            onClick={onConfirm}
-          >
+          <Button disabled={isPending || !sourceAccountId} onClick={onConfirm}>
             {isPending
               ? t.anggaran.obligationsPayProcessing
               : t.anggaran.obligationsPayConfirmButton}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -1035,24 +1032,21 @@ export default function AnggaranPage() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
+        {/* EPIC-026 — composition ported 1:1 from the prototype's
+            `dlg-budget` (docs/prototype/pages/anggaran.html:386): title +
+            `.dialog__desc`, then `.field` Nama Kategori → `.field` Ikon
+            (a row of `.btn--outline.btn--icon` toggles) → a `.field-row`
+            pairing Budget per Bulan with Periode → `.dialog__footer`.
+            The prototype's "Tipe Anggaran" select and "Peringatan 80%"
+            switch stay CUT: CreateBudgetDto has no budgetType (it derives
+            from the category's COA) and no notification-threshold field
+            exists — rendering either would silently drop the user's input. */}
         <DialogContent>
-          <DialogTitle className="text-[17px] font-extrabold">
-            {t.anggaran.modalAddTitle}
-          </DialogTitle>
-          {/* EPIC-026 Wave 4 — prototype's `dialog__desc` (anggaran.html:389).
-              The prototype's "Tipe Anggaran" select and "Peringatan 80%"
-              switch stay CUT: CreateBudgetDto has no budgetType (it derives
-              from the category's COA) and no notification-threshold field
-              exists — fake controls per J1. */}
-          <DialogDescription className="mb-2 text-[12.5px] text-muted-foreground">
-            Batas belanja per periode untuk satu kategori pengeluaran.
-          </DialogDescription>
-          <div className="space-y-4">
-            <div>
-              <label
-                htmlFor="budget-name"
-                className="mb-1.5 block text-[12.5px] font-semibold"
-              >
+          <DialogTitle>{t.anggaran.modalAddTitle}</DialogTitle>
+          <DialogDescription>{t.anggaran.modalAddDesc}</DialogDescription>
+          <DialogBody>
+            <div className="field">
+              <label className="label" htmlFor="budget-name">
                 {t.anggaran.fieldCategoryNameLabel}
               </label>
               <input
@@ -1064,66 +1058,50 @@ export default function AnggaranPage() {
                 className="input"
               />
             </div>
-            <div>
+            <div className="field">
+              <span className="label">{t.anggaran.iconLabel}</span>
               <div
                 role="group"
                 aria-label={t.anggaran.iconGroupAriaLabel}
-                className="mb-1.5 text-[12.5px] font-semibold"
+                className="row row--wrap gap-2"
               >
-                {t.anggaran.iconLabel}
-              </div>
-              <div className="flex flex-wrap gap-2">
                 {ICON_OPTIONS.map((opt) => (
-                  <button
+                  <Button
                     key={opt}
                     type="button"
+                    variant="outline"
+                    size="icon"
                     aria-label={`${t.anggaran.iconAriaLabelPrefix}${opt}`}
                     aria-pressed={icon === opt}
                     onClick={() => setIcon(opt)}
                     className={
-                      "flex size-[42px] items-center justify-center rounded-[10px] border text-[18px] transition-colors " +
-                      (icon === opt
-                        ? "border-primary bg-accent"
-                        : "border-border bg-background hover:bg-accent/50")
+                      icon === opt ? "border-primary bg-accent" : undefined
                     }
                   >
                     {opt}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
             {/* EPIC-026 Wave 4 — prototype puts amount + periode side by
                 side in a `field-row` (anggaran.html:410). */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <label
-                  htmlFor="budget-amount"
-                  className="mb-1.5 block text-[12.5px] font-semibold"
-                >
+            <div className="field field-row">
+              <div className="field mt-0">
+                <label className="label" htmlFor="budget-amount">
                   {t.anggaran.fieldAmountLabel}
                 </label>
-                <div className="flex items-center gap-2 rounded-md border bg-background px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:bg-card">
-                  <span className="text-[13.5px] text-muted-foreground">
-                    Rp
-                  </span>
-                  <input
-                    id="budget-amount"
-                    type="text"
-                    inputMode="numeric"
-                    value={amount}
-                    onChange={(e) =>
-                      setAmount(formatAmountInput(e.target.value))
-                    }
-                    placeholder="0"
-                    className="w-full bg-transparent text-[13.5px] outline-none"
-                  />
-                </div>
+                <input
+                  id="budget-amount"
+                  type="text"
+                  inputMode="numeric"
+                  value={amount}
+                  onChange={(e) => setAmount(formatAmountInput(e.target.value))}
+                  placeholder="0"
+                  className="input mono"
+                />
               </div>
-              <div>
-                <label
-                  htmlFor="budget-period"
-                  className="mb-1.5 block text-[12.5px] font-semibold"
-                >
+              <div className="field mt-0">
+                <label className="label" htmlFor="budget-period">
                   {t.anggaran.fieldPeriodLabel}
                 </label>
                 <select
@@ -1144,29 +1122,21 @@ export default function AnggaranPage() {
                 </select>
               </div>
             </div>
-            {/* EPIC-026 Wave 4 — prototype's `dialog__footer`: Batal +
-                Simpan side by side (anggaran.html:444), not a single
-                full-width save. */}
-            <div className="flex gap-2.5 pt-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setOpen(false)}
-              >
-                {t.common.cancel}
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={createMutation.isPending}
-                className="flex-1"
-              >
-                <Save className="size-4" />
-                {createMutation.isPending
-                  ? t.anggaran.savingLabel
-                  : t.anggaran.saveCategoryButton}
-              </Button>
-            </div>
-          </div>
+          </DialogBody>
+          {/* EPIC-026 Wave 4 — prototype's `dialog__footer`: Batal +
+              Simpan side by side (anggaran.html:444), not a single
+              full-width save. */}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              {t.common.cancel}
+            </Button>
+            <Button onClick={handleSave} disabled={createMutation.isPending}>
+              <Save className="size-[14px]" />
+              {createMutation.isPending
+                ? t.anggaran.savingLabel
+                : t.anggaran.saveCategoryButton}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

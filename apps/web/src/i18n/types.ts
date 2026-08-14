@@ -524,6 +524,11 @@ export type I18nDictionary = {
       // obviously-bad file).
       attachmentInvalidTypeToast: string;
       attachmentTooLargeToast: string;
+      // EPIC-026 Wave 8 — prototype `.dialog__desc` on `#dlg-transaksi`
+      // (assets/shell.js) and its `.dialog__footer` Batal button.
+      dialogDesc: string;
+      modeSwitchLabel: string;
+      typeSwitchLabel: string;
     };
     themeToggle: {
       ariaLabel: string;
@@ -938,6 +943,8 @@ export type I18nDictionary = {
     fieldKeperluanLabel: string;
     heldWarningNotice: string;
     fundingApproveHelperNotice: string;
+    // EPIC-026 Wave 8 — prototype `.hint` under #setujui-sumber.
+    approveSourceAccountHint: string;
   };
   /**
    * EPIC-018 Task A2 — `/panduan` page copy. `JOURNEYS` in the page keeps
@@ -1091,6 +1098,18 @@ export type I18nDictionary = {
     policyPickerConfirm: string;
     policyPickerPayEmpty: string;
     policyPickerBeneficiaryEmpty: string;
+    // EPIC-026 Wave 8 — prototype dialog composition
+    // (docs/prototype/pages/asuransi.html): every `.dialog` there carries a
+    // `.dialog__desc` supporting line, and the delete dialog has its own
+    // copy rather than the generic "Hapus X?" fallback.
+    modalDesc: string;
+    policyPickerPayDesc: string;
+    policyPickerBeneficiaryDesc: string;
+    deleteDialogTitle: string;
+    deleteDialogBody: string;
+    deleteBeneficiaryDialogBody: string;
+    toastBeneficiaryDeleted: string;
+    autoRenewSwitchAriaLabel: string;
   };
   /**
    * EPIC-018 Task A4 — `/kalkulator` page copy (7 sub-tools). Detail rows
@@ -1501,6 +1520,19 @@ export type I18nDictionary = {
     navPricePrefix: string;
     nominalPrefix: string;
     pricingSourceLastSyncedPrefix: string;
+    // EPIC-026 Wave 8 — prototype #dlg-catat (`.investment-dialog`):
+    // dialog description + the `.investment-form__section` headings and
+    // the `.hint` lines under the identity fields.
+    modalDesc: string;
+    sectionIdentityTitle: string;
+    sectionIdentityDesc: string;
+    sectionPositionTitle: string;
+    sectionPositionDesc: string;
+    sectionValuationTitle: string;
+    sectionValuationDesc: string;
+    hintName: string;
+    hintPurchaseDate: string;
+    hintLotConversion: string;
   };
   /** EPIC-018 Task A5 — `/aset` (consolidated assets) page copy. */
   aset: {
@@ -1678,6 +1710,24 @@ export type I18nDictionary = {
     payoffProjectionSeriesLabel: string;
     overdueWarningPrefix: string;
     overdueWarningSuffix: string;
+    // EPIC-026 Wave 8 — prototype dialog composition
+    // (docs/prototype/pages/liabilitas.html): `.dialog__desc` lines, the
+    // Detail dialog's amortisation-schedule table headers, the Bayar
+    // dialog's amount presets / source-account hint / split-preview notice.
+    modalDesc: string;
+    detailNextDueLabel: string;
+    detailPayButton: string;
+    amortisationScheduleTitle: string;
+    amortisationScheduleCountSuffix: string;
+    amortisationScheduleHeaderIndex: string;
+    amortisationScheduleHeaderDate: string;
+    amortisationScheduleHeaderPrincipal: string;
+    amortisationScheduleHeaderInterest: string;
+    payPresetLabel: string;
+    payPresetInstallment: string;
+    payPresetPayoff: string;
+    paySourceAccountHint: string;
+    payRemainingAfterLabel: string;
   };
   /**
    * EPIC-018 Task A5 — `/masterdata` page copy. Every group `title`/`label`
@@ -1792,6 +1842,12 @@ export type I18nDictionary = {
     budgetTypeNone: string;
     deleteConfirmTitle: string;
     deleteConfirmBody: string;
+    /** EPIC-026 Wave 8 — prototype `dlg-coa` supporting line + hint + the
+     * warning notice, and `dlg-coa-delete`'s danger notice. */
+    modalDesc: string;
+    fieldCodeHint: string;
+    modalWarning: string;
+    deleteConfirmNotice: string;
     toastAdded: string;
     toastAddFailed: string;
     toastUpdated: string;
@@ -2189,6 +2245,12 @@ export type I18nDictionary = {
     mintaDanaSubmitting: string;
     mintaDanaSuccessToast: string;
     mintaDanaFailToast: string;
+    // EPIC-026 Wave 3 — prototype `dlg-minta-dana` / `dlg-rekening-hapus`
+    // (docs/prototype/pages/rekening.html) supporting copy.
+    mintaDanaDialogDesc: string;
+    deleteDialogTitle: string;
+    deleteDialogBody: string;
+    deleteDialogConfirm: string;
     /** EPIC-025 N3 prototype structural port. */
     insightOneLabel: string;
     insightOneAccountsSuffix: string;
@@ -2321,6 +2383,15 @@ export type I18nDictionary = {
     religionErrorMsg: string;
     religionCalculatorUnconfirmedTitle: string;
     religionCalculatorUnconfirmedDesc: string;
+    /**
+     * EPIC-026 — prototype `dlg-donasi` composition
+     * (`docs/prototype/pages/donation.html`): the dialog's supporting
+     * description line and the two-line label on the tax-deduction switch
+     * row (the prototype uses a `.switch`, not a checkbox).
+     */
+    modalDesc: string;
+    taxDeductibleSwitchTitle: string;
+    taxDeductibleSwitchDesc: string;
   };
   /**
    * EPIC-018 Task A6 — `/warisan` (inheritance assets) page copy.
@@ -2397,6 +2468,25 @@ export type I18nDictionary = {
     visibleToAllHeirsCaption: string;
     estimatedValueLabel: string;
     linkedToAssetPrefix: string;
+    // EPIC-026 Wave 8 — prototype dialog composition
+    // (docs/prototype/pages/warisan.html): the `.dialog__desc`, the linked-
+    // asset picker + its hint, the visibility switch hint, and the two
+    // previously-hardcoded Indonesian strings in the save path.
+    modalDesc: string;
+    fieldSourceLabel: string;
+    sourceManualOption: string;
+    sourceAssetOption: string;
+    fieldAssetLabel: string;
+    assetPickerPlaceholder: string;
+    assetPickerHint: string;
+    visibleToHeirsHint: string;
+    deleteConfirmBody: string;
+    toastSharePercentExceeded: string;
+    heirTableHeaderName: string;
+    heirTableHeaderRelationship: string;
+    heirTableHeaderShare: string;
+    heirTableHeaderAction: string;
+    heirTableEmpty: string;
   };
   /** EPIC-018 Task A6 — `/anggaran` (budgets) page copy. */
   anggaran: {
@@ -2475,6 +2565,15 @@ export type I18nDictionary = {
     obligationsSummaryMidPrefix: string;
     obligationsSummaryMidSuffix: string;
     obligationsDueDatePrefix: string;
+    /**
+     * EPIC-026 — prototype `dlg-budget` / `dlg-pay` composition
+     * (`docs/prototype/pages/anggaran.html`): each dialog's `.dialog__desc`
+     * supporting line, plus the due-date line inside the pay dialog's
+     * `.notice` (previously hardcoded Indonesian).
+     */
+    modalAddDesc: string;
+    obligationsPayDialogDesc: string;
+    obligationsDueDateNoticePrefix: string;
   };
   /** EPIC-018 Task A6 — `/transaksi` (transactions list) page copy. */
   transaksi: {
@@ -2584,6 +2683,12 @@ export type I18nDictionary = {
     paginationNextButton: string;
     insightCategorizedLabel: string;
     insightCategorizedValueSuffix: string;
+    // EPIC-026 Wave 8 — prototype `.dialog__desc` lines on #dlg-tx-detail /
+    // #dlg-tx-edit, and #dlg-tx-delete's title + supporting line.
+    detailDialogDesc: string;
+    editDialogDesc: string;
+    deleteDialogTitle: string;
+    deleteDialogBody: string;
   };
   /**
    * EPIC-018 Task A6 — `/splitbill` (split bill) page copy. The seed
@@ -2734,6 +2839,23 @@ export type I18nDictionary = {
      */
     publicNetworkErrorTitle: string;
     publicNetworkErrorDesc: string;
+    /**
+     * EPIC-026 — prototype `dlg-buat-split` / `dlg-detail-split`
+     * composition (`docs/prototype/pages/splitbill.html`): dialog
+     * descriptions, field hints, the detail dialog's footer close action,
+     * and the custom-split remainder notice (previously hardcoded
+     * Indonesian inside the page).
+     */
+    createDialogDesc: string;
+    fieldPayoutAccountHint: string;
+    editPayoutAccountDesc: string;
+    detailCloseButton: string;
+    remainderNeedTotalNote: string;
+    remainderExactLabel: string;
+    remainderLeftPrefix: string;
+    remainderOverPrefix: string;
+    remainderOverSuffix: string;
+    splitRemainderButton: string;
   };
   /**
    * EPIC-018 Task A6 — `/rekonsiliasi` (bank reconciliation wizard) page
@@ -2797,6 +2919,9 @@ export type I18nDictionary = {
     templateDateFormatLabel: string;
     templateDateFormatIso: string;
     templateSaveButton: string;
+    /** EPIC-026 Wave 8 — prototype `dlg-template` saved-template table. */
+    templateColumnsHeader: string;
+    templateActionHeader: string;
     toastTemplateSaved: string;
     toastTemplateSaveFailed: string;
     toastTemplateDeleted: string;
@@ -2905,6 +3030,10 @@ export type I18nDictionary = {
     splitEntryAmountLabel: string;
     splitSubmitButton: string;
     splitCancelButton: string;
+    /** EPIC-026 Wave 8 — prototype `dlg-split` balance notice
+     * (display-only; the submit-time validation is unchanged). */
+    splitBalancedNotice: string;
+    splitUnbalancedNotice: string;
     splitValidationSelectSourceAccount: string;
     splitValidationSelectDestAccount: string;
     splitValidationSameAccount: string;
@@ -3472,5 +3601,15 @@ export type I18nDictionary = {
       viewTransactionsButton: string;
       finishButton: string;
     };
+  };
+  /**
+   * EPIC-026 Wave 8 — supporting line for the shared `CrudModal`
+   * (`components/crud/crud-modal.tsx`). The prototype's `dlg-md-add`
+   * always carries a `.dialog__desc`; the generic modal has no
+   * entity-specific copy, so these two stay deliberately entity-neutral.
+   */
+  crud: {
+    addDescription: string;
+    editDescription: string;
   };
 };

@@ -57,6 +57,7 @@ import {
   FileText,
   Scale,
   UserCog,
+  Crown,
   Target,
   Eye,
   EyeOff,
@@ -70,7 +71,10 @@ import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -198,11 +202,14 @@ function Field({
       : children;
 
   return (
-    <div className="mb-3.5">
-      <label
-        htmlFor={childId}
-        className="mb-1.5 block text-[12.5px] font-semibold text-muted-foreground"
-      >
+    // EPIC-026 — prototype `.field` / `.label` (design-system.css). The
+    // prototype wraps the control in the `<label class="field">` itself; we
+    // keep the explicit `htmlFor`/`id` pairing instead so the accessible name
+    // is exactly the label text (a wrapping label would absorb any `.hint`
+    // rendered next to the control). Visually identical: `.field` and
+    // `.label` are class-based, not element-based.
+    <div className="field">
+      <label htmlFor={childId} className="label">
         {label}
       </label>
       {content}
@@ -503,7 +510,7 @@ export function ProfilBody({
         />
       </Field>
       <button
-        className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground"
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground"
         onClick={() => void handleSave()}
       >
         <Save className="size-4" /> {t.akun.profil.saveButton}
@@ -932,24 +939,27 @@ export function KeamananBody() {
         open={deviceToRevoke !== null}
         onOpenChange={(open) => !open && setDeviceToRevoke(null)}
       >
+        {/* EPIC-026 Wave 3 — prototype `dlg-lupakan-perangkat`
+            (docs/prototype/pages/akun.html): `dialog--sm`, title + desc, and
+            a `.dialog__footer` with outline Batal then destructive confirm. */}
         <DialogContent className="dialog--sm">
           <DialogHeader>
             <DialogTitle>{t.deviceUnlock.manageRevokeConfirmTitle}</DialogTitle>
+            <DialogDescription>
+              {t.deviceUnlock.manageRevokeConfirmBody}
+            </DialogDescription>
           </DialogHeader>
-          <p className="text-[13px] text-muted-foreground">
-            {t.deviceUnlock.manageRevokeConfirmBody}
-          </p>
-          <div className="mt-3 flex gap-2">
+          <DialogFooter>
             <button
               type="button"
-              className="flex-1 rounded-lg border py-2 text-[13px] font-semibold text-foreground"
+              className="btn btn--outline"
               onClick={() => setDeviceToRevoke(null)}
             >
               {t.common.cancel}
             </button>
             <button
               type="button"
-              className="flex-1 rounded-lg bg-destructive py-2 text-[13px] font-semibold text-destructive-foreground"
+              className="btn btn--destructive"
               onClick={() => {
                 if (!deviceToRevoke) return;
                 const { id } = deviceToRevoke;
@@ -963,7 +973,7 @@ export function KeamananBody() {
             >
               {t.deviceUnlock.manageRevokeConfirmButton}
             </button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
@@ -2427,17 +2437,22 @@ function CategoryLimitDialog({
 
   return (
     <Dialog open={!!member} onOpenChange={(open) => !open && onClose()}>
-      {/* EPIC-022 Group G (G1) — `dvh`, not `vh`: this list grows with the
-          family's expense category count (can be 8+), and this override
-          fully replaces the DialogContent default via tailwind-merge, so it
-          must carry the same dynamic-viewport unit or it silently
-          reintroduces the bug (see components/ui/dialog.tsx). */}
-      <DialogContent className="min-[769px]:w-[min(420px,calc(100%-2rem))]">
+      {/* EPIC-022 Group G (G1) — the bounded height + internal scroll this
+          list needs (it grows with the family's expense category count, can
+          be 8+) now lives on `.dialog` itself as `max-height: 85dvh;
+          overflow-y: auto`, so no width/height override is needed here.
+          EPIC-026 Wave 3 — app-only dialog (no prototype counterpart);
+          composed with the prototype's title/desc/body/footer structure at
+          the default 480px width. */}
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-[15px] font-bold">
+          <DialogTitle>
             {t.akun.family.categoryLimitDialogTitle}
             {member ? ` — ${member.name}` : ""}
           </DialogTitle>
+          <DialogDescription>
+            {t.akun.family.categoryLimitDialogDesc}
+          </DialogDescription>
         </DialogHeader>
         {/* Keyed by member id (not an effect) so the checkbox selection
             resets/re-seeds whenever a different member's dialog opens; only
@@ -2519,49 +2534,51 @@ function CategoryLimitForm({
 
   return (
     <>
-      <div className="mb-3 text-[12px] text-muted-foreground">
-        {t.akun.family.categoryLimitDialogDesc}
-      </div>
-      {categories.length === 0 ? (
-        <div className="rounded-md border border-dashed p-4 text-center text-[12px] text-muted-foreground">
-          {t.akun.family.categoryLimitEmptyCategories}
-        </div>
-      ) : (
-        <div className="space-y-1.5">
-          {categories.map((c) => (
-            <label
-              key={c.id}
-              className="flex cursor-pointer items-center gap-2.5 rounded-md border px-3 py-2 text-[13px] hover:bg-accent"
-            >
-              <input
-                type="checkbox"
-                checked={selected.has(c.id)}
-                onChange={() => toggle(c.id)}
-                className="size-4 accent-primary"
-              />
-              <span>
-                {c.icon ? `${c.icon} ` : ""}
-                {c.name}
-              </span>
-            </label>
-          ))}
-        </div>
-      )}
-      {selected.size === 0 && categories.length > 0 && (
-        <div className="mt-2 text-[11.5px] text-muted-foreground">
-          {t.akun.family.categoryLimitUnrestrictedHint}
-        </div>
-      )}
-      <button
-        disabled={isSaving}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-60"
-        onClick={handleSave}
-      >
-        <Save className="size-4" />{" "}
-        {isSaving
-          ? t.akun.family.categoryLimitSaving
-          : t.akun.family.categoryLimitSaveButton}
-      </button>
+      <DialogBody>
+        {categories.length === 0 ? (
+          <div className="rounded-md border border-dashed p-4 text-center text-[12px] text-muted-foreground">
+            {t.akun.family.categoryLimitEmptyCategories}
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {categories.map((c) => (
+              <label
+                key={c.id}
+                className="flex cursor-pointer items-center gap-2.5 rounded-md border px-3 py-2 text-[13px] hover:bg-accent"
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.has(c.id)}
+                  onChange={() => toggle(c.id)}
+                  className="size-4 accent-primary"
+                />
+                <span>
+                  {c.icon ? `${c.icon} ` : ""}
+                  {c.name}
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+        {selected.size === 0 && categories.length > 0 && (
+          <p className="hint">{t.akun.family.categoryLimitUnrestrictedHint}</p>
+        )}
+      </DialogBody>
+      <DialogFooter>
+        <button type="button" className="btn btn--outline" onClick={onClose}>
+          {t.common.cancel}
+        </button>
+        <button
+          type="button"
+          disabled={isSaving}
+          className="btn btn--primary disabled:opacity-60"
+          onClick={handleSave}
+        >
+          {isSaving
+            ? t.akun.family.categoryLimitSaving
+            : t.akun.family.categoryLimitSaveButton}
+        </button>
+      </DialogFooter>
     </>
   );
 }
@@ -2583,12 +2600,20 @@ function ThresholdDialog({
 
   return (
     <Dialog open={!!member} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="min-[769px]:w-[min(420px,calc(100%-2rem))]">
+      {/* EPIC-026 Wave 3 — the prototype has no standalone threshold dialog;
+          "Batas Transaksi Besar" is a field inside `dlg-edit-anggota`
+          (docs/prototype/pages/akun.html). This app-only dialog reuses that
+          field's exact prototype composition (`.field` + `.input.mono` +
+          `.hint`) at the prototype's default 480px width. */}
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-[15px] font-bold">
+          <DialogTitle>
             {t.akun.family.thresholdDialogTitle}
             {member ? ` — ${member.name}` : ""}
           </DialogTitle>
+          <DialogDescription>
+            {t.akun.family.thresholdDialogDesc}
+          </DialogDescription>
         </DialogHeader>
         {member && familyGroupId && (
           <ThresholdForm
@@ -2651,41 +2676,40 @@ export function ThresholdForm({
 
   return (
     <>
-      <div className="mb-3 text-[12px] text-muted-foreground">
-        {t.akun.family.thresholdDialogDesc}
-      </div>
-      <label
-        htmlFor="threshold-amount"
-        className="mb-1.5 block text-[12px] font-semibold text-muted-foreground"
-      >
-        {t.akun.family.thresholdLabel}
-      </label>
-      <div className="relative">
-        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
-          Rp
-        </span>
-        <input
-          id="threshold-amount"
-          inputMode="numeric"
-          value={amount}
-          onChange={(e) => setAmount(formatAmountInput(e.target.value))}
-          placeholder="0"
-          className="input pl-[38px]"
-        />
-      </div>
-      <div className="mt-1.5 text-[11px] text-muted-foreground">
-        {t.akun.family.thresholdEmptyHint}
-      </div>
-      <button
-        disabled={isSaving}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-60"
-        onClick={handleSave}
-      >
-        <Save className="size-4" />{" "}
-        {isSaving
-          ? t.akun.family.thresholdSaving
-          : t.akun.family.thresholdSaveButton}
-      </button>
+      <DialogBody>
+        {/* Prototype `dlg-edit-anggota` renders this as a bare
+            `.input.mono` with the hint below — no "Rp" adornment — so the
+            accessible name stays exactly the label text. */}
+        <div className="field">
+          <label htmlFor="threshold-amount" className="label">
+            {t.akun.family.thresholdLabel}
+          </label>
+          <input
+            id="threshold-amount"
+            inputMode="numeric"
+            value={amount}
+            onChange={(e) => setAmount(formatAmountInput(e.target.value))}
+            placeholder="0"
+            className="input mono"
+          />
+          <p className="hint">{t.akun.family.thresholdEmptyHint}</p>
+        </div>
+      </DialogBody>
+      <DialogFooter>
+        <button type="button" className="btn btn--outline" onClick={onClose}>
+          {t.common.cancel}
+        </button>
+        <button
+          type="button"
+          disabled={isSaving}
+          className="btn btn--primary disabled:opacity-60"
+          onClick={handleSave}
+        >
+          {isSaving
+            ? t.akun.family.thresholdSaving
+            : t.akun.family.thresholdSaveButton}
+        </button>
+      </DialogFooter>
     </>
   );
 }
@@ -2712,6 +2736,11 @@ function AddDependantMemberDialog({
 }) {
   const { t } = useLocale();
   const queryClient = useQueryClient();
+  // EPIC-026 Wave 3 — this dialog composes the prototype's `.field` markup
+  // directly (label + control + `.hint`) instead of the `Field` helper,
+  // because `Field` only wires `htmlFor` when the control is its single
+  // child — the hint-bearing fields here previously lost that association.
+  const fieldId = useId();
   const nameRef = useRef<HTMLInputElement>(null);
   const usernameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
@@ -2806,129 +2835,174 @@ function AddDependantMemberDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
+      {/* EPIC-026 Wave 3 — prototype `dlg-tambah-anggota`
+          (docs/prototype/pages/akun.html). Field order, hints, the
+          Co-Master `.notice--warning`, and the two-button footer are the
+          prototype's; only the fields the API actually persists are
+          rendered (see the omission note on "Rekening yang ditugaskan"
+          below). Default 480px width, as in the prototype. */}
       <DialogContent>
-        <DialogTitle className="mb-1.5 text-[17px] font-extrabold">
-          {t.akun.addDependant.dialogTitle}
-        </DialogTitle>
-        <div className="mb-4 text-[12px] text-muted-foreground">
-          {t.akun.addDependant.dialogDesc}
-        </div>
-        <Field label={t.akun.addDependant.nameLabel}>
-          <input
-            ref={nameRef}
-            className="input"
-            placeholder={t.akun.addDependant.namePlaceholder}
-            type="text"
-          />
-        </Field>
-        <Field label={t.akun.addDependant.usernameLabel}>
-          <input
-            ref={usernameRef}
-            className="input"
-            placeholder={t.akun.addDependant.usernamePlaceholder}
-            type="text"
-          />
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            {t.akun.addDependant.usernameHint}
-          </p>
-        </Field>
-        <Field label={t.akun.addDependant.passwordLabel}>
-          <div className="relative">
-            <input
-              ref={passwordRef}
-              className="input pr-10"
-              placeholder={t.akun.addDependant.passwordPlaceholder}
-              type={showPassword ? "text" : "password"}
-              autoComplete="new-password"
-            />
-            <button
-              type="button"
-              aria-label={
-                showPassword
-                  ? t.akun.addDependant.hidePassword
-                  : t.akun.addDependant.showPassword
+        <DialogHeader>
+          <DialogTitle>{t.akun.addDependant.dialogTitle}</DialogTitle>
+          <DialogDescription>
+            {t.akun.addDependant.dialogDesc}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody>
+          {/* Prototype order: Hubungan → Nama → Username → Password Awal →
+              Peran. The prototype autofills Peran from Hubungan; this app
+              runs the lockstep the other way (Peran "Istri (Co-Master)"
+              forces relationship "istri", which the API independently
+              re-enforces), so the Co-Master notice below stays attached to
+              the control that actually triggers it. */}
+          <div className="field">
+            <label className="label" htmlFor={`${fieldId}-relationship`}>
+              {t.akun.addDependant.relationshipLabel}
+            </label>
+            <select
+              id={`${fieldId}-relationship`}
+              className="select"
+              value={relationship}
+              disabled={isIstriCoMaster}
+              onChange={(e) =>
+                setRelationship(e.target.value as MemberRelationship | "")
               }
-              aria-pressed={showPassword}
-              onClick={() => setShowPassword((s) => !s)}
-              // UI/UX audit fix (docs/uiux-beda) — muted-foreground on the
-              // dark-theme input background reads as near-invisible; bump
-              // to foreground/70 (still a subtle icon, but findable) and
-              // give it a visible hit target background on hover/focus.
-              className="absolute right-3 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-foreground/70 transition-colors hover:bg-accent hover:text-primary focus-visible:bg-accent focus-visible:text-primary focus-visible:outline-none"
             >
-              {showPassword ? (
-                <EyeOff className="size-3.5" />
-              ) : (
-                <Eye className="size-3.5" />
-              )}
-            </button>
-          </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            {t.akun.addDependant.passwordHint}
-          </p>
-        </Field>
-        <Field label={t.akun.addDependant.roleLabel}>
-          <select
-            className="select"
-            value={role}
-            onChange={(e) => {
-              const next = e.target.value as
-                | "dependant"
-                | "operational"
-                | "owner";
-              setRole(next);
-              // EPIC-024 A1 — selecting "Istri (Co-Master)" locks the
-              // relationship picker below to "istri" (the API rejects any
-              // other pairing with role owner); switching away clears it
-              // back to editable.
-              setRelationship(next === "owner" ? "istri" : "");
-            }}
-          >
-            <option value="dependant">
-              {t.akun.addDependant.roleOptions.dependant}
-            </option>
-            <option value="operational">
-              {t.akun.addDependant.roleOptions.operational}
-            </option>
-            <option value="owner">
-              {t.akun.addDependant.roleOptions.istriCoMaster}
-            </option>
-          </select>
-        </Field>
-        {isIstriCoMaster && (
-          <p className="-mt-2 mb-4 text-[11px] text-muted-foreground">
-            {t.akun.addDependant.istriCoMasterHint}
-          </p>
-        )}
-        <Field label={t.akun.addDependant.relationshipLabel}>
-          <select
-            className="select"
-            value={relationship}
-            disabled={isIstriCoMaster}
-            onChange={(e) =>
-              setRelationship(e.target.value as MemberRelationship | "")
-            }
-          >
-            <option value="">
-              {t.akun.addDependant.relationshipNoneOption}
-            </option>
-            {MemberRelationshipSchema.options.map((r) => (
-              <option key={r} value={r}>
-                {r}
+              <option value="">
+                {t.akun.addDependant.relationshipNoneOption}
               </option>
-            ))}
-          </select>
-        </Field>
-        <button
-          disabled={isPending || !familyGroupId}
-          className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-60"
-          onClick={handleCreate}
-        >
-          <UserCog className="size-4" />{" "}
-          {isPending
-            ? t.akun.addDependant.creating
-            : t.akun.addDependant.createButton}
-        </button>
+              {MemberRelationshipSchema.options.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label className="label" htmlFor={`${fieldId}-name`}>
+              {t.akun.addDependant.nameLabel}
+            </label>
+            <input
+              id={`${fieldId}-name`}
+              ref={nameRef}
+              className="input"
+              placeholder={t.akun.addDependant.namePlaceholder}
+              type="text"
+            />
+          </div>
+          <div className="field">
+            <label className="label" htmlFor={`${fieldId}-username`}>
+              {t.akun.addDependant.usernameLabel}
+            </label>
+            <input
+              id={`${fieldId}-username`}
+              ref={usernameRef}
+              className="input"
+              placeholder={t.akun.addDependant.usernamePlaceholder}
+              type="text"
+            />
+            <p className="hint">{t.akun.addDependant.usernameHint}</p>
+          </div>
+          <div className="field">
+            <label className="label" htmlFor={`${fieldId}-password`}>
+              {t.akun.addDependant.passwordLabel}
+            </label>
+            <div className="relative">
+              <input
+                id={`${fieldId}-password`}
+                ref={passwordRef}
+                className="input pr-10"
+                placeholder={t.akun.addDependant.passwordPlaceholder}
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                aria-label={
+                  showPassword
+                    ? t.akun.addDependant.hidePassword
+                    : t.akun.addDependant.showPassword
+                }
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword((s) => !s)}
+                // UI/UX audit fix (docs/uiux-beda) — muted-foreground on the
+                // dark-theme input background reads as near-invisible; bump
+                // to foreground/70 (still a subtle icon, but findable) and
+                // give it a visible hit target background on hover/focus.
+                className="absolute right-3 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-foreground/70 transition-colors hover:bg-accent hover:text-primary focus-visible:bg-accent focus-visible:text-primary focus-visible:outline-none"
+              >
+                {showPassword ? (
+                  <EyeOff className="size-3.5" />
+                ) : (
+                  <Eye className="size-3.5" />
+                )}
+              </button>
+            </div>
+            <p className="hint">{t.akun.addDependant.passwordHint}</p>
+          </div>
+          <div className="field">
+            <label className="label" htmlFor={`${fieldId}-role`}>
+              {t.akun.addDependant.roleLabel}
+            </label>
+            <select
+              id={`${fieldId}-role`}
+              className="select"
+              value={role}
+              onChange={(e) => {
+                const next = e.target.value as
+                  | "dependant"
+                  | "operational"
+                  | "owner";
+                setRole(next);
+                // EPIC-024 A1 — selecting "Istri (Co-Master)" locks the
+                // relationship picker above to "istri" (the API rejects any
+                // other pairing with role owner); switching away clears it
+                // back to editable.
+                setRelationship(next === "owner" ? "istri" : "");
+              }}
+            >
+              <option value="dependant">
+                {t.akun.addDependant.roleOptions.dependant}
+              </option>
+              <option value="operational">
+                {t.akun.addDependant.roleOptions.operational}
+              </option>
+              <option value="owner">
+                {t.akun.addDependant.roleOptions.istriCoMaster}
+              </option>
+            </select>
+          </div>
+          {isIstriCoMaster && (
+            <div className="notice notice--warning mt-2.5">
+              <Crown className="size-4 shrink-0" aria-hidden />
+              <span>{t.akun.addDependant.istriCoMasterHint}</span>
+            </div>
+          )}
+          {/* Honest UI — the prototype's "Rekening yang ditugaskan
+              (opsional)" select is omitted: POST
+              /family-groups/:id/members/dependant accepts only
+              name/username/initialPassword/role/relationship, so an account
+              picker here would silently drop the operator's choice. */}
+        </DialogBody>
+        <DialogFooter>
+          <button
+            type="button"
+            className="btn btn--outline"
+            onClick={() => handleOpenChange(false)}
+          >
+            {t.common.cancel}
+          </button>
+          <button
+            type="button"
+            disabled={isPending || !familyGroupId}
+            className="btn btn--primary disabled:opacity-60"
+            onClick={handleCreate}
+          >
+            {isPending
+              ? t.akun.addDependant.creating
+              : t.akun.addDependant.createButton}
+          </button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

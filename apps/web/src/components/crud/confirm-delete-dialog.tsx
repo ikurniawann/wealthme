@@ -1,6 +1,12 @@
 "use client";
 
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
 interface ConfirmDeleteDialogProps {
@@ -30,27 +36,29 @@ export function ConfirmDeleteDialog({
   confirmVariant = "destructive",
 }: ConfirmDeleteDialogProps) {
   return (
+    // EPIC-026 Wave 8 — composition taken verbatim from the prototype's
+    // `dlg-md-delete` (docs/prototype/pages/masterdata.html): a
+    // `dialog--sm` (400px) box, left-aligned `.dialog__title` +
+    // `.dialog__desc`, and a `.dialog__footer` whose outline "Batal" sits
+    // left of the destructive confirm. The previous centred layout and its
+    // ⚠️ emoji medallion were app inventions with no prototype counterpart.
+    // The prototype additionally carries a `.notice` explaining the
+    // consequence — deliberately NOT reproduced here: this component takes
+    // exactly one caller-supplied sentence (`body`), which belongs in
+    // `.dialog__desc`; inventing a second, generic consequence line would
+    // be copy the callers never wrote.
     <Dialog open={label !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent
-        className="text-center min-[769px]:w-[min(380px,calc(100%-2rem))]"
-        showCloseButton={false}
-      >
-        <div className="mx-auto flex size-[60px] items-center justify-center rounded-full bg-destructive/10 text-[26px]">
-          ⚠️
-        </div>
-        <DialogTitle className="text-center text-[17px] font-extrabold">
-          {title ?? `Hapus ${label}?`}
-        </DialogTitle>
-        <p className="text-[13px] text-muted-foreground">
+      <DialogContent className="dialog--sm" showCloseButton={false}>
+        <DialogTitle>{title ?? `Hapus ${label}?`}</DialogTitle>
+        <DialogDescription>
           {body ?? `${label} yang dihapus tidak bisa dikembalikan.`}
-        </p>
-        <div className="flex gap-2.5">
-          <Button variant="outline" className="flex-1" onClick={onClose}>
+        </DialogDescription>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
             Batal
           </Button>
           <Button
             variant={confirmVariant}
-            className="flex-1"
             onClick={() => {
               onClose();
               onConfirm();
@@ -58,7 +66,7 @@ export function ConfirmDeleteDialog({
           >
             {confirmLabel ?? "Ya, Hapus"}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

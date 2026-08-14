@@ -19,7 +19,15 @@ import {
   StatusBadge,
   SummaryCard,
 } from "@/components/wm";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { formatManualDate } from "@/components/consolidated-total-card";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
@@ -808,17 +816,23 @@ export default function DonationPage() {
 
       {/* Donation modal */}
       <Dialog open={open} onOpenChange={setOpen}>
+        {/* EPIC-026 — composition ported 1:1 from the prototype's
+            `dlg-donasi` (docs/prototype/pages/donation.html:170): title +
+            `.dialog__desc`, then the prototype's field ORDER — jenis →
+            lembaga → jumlah → tanggal → rekening (+`.hint`) — followed by
+            the tax-deduction `.switch` row with its own `.hint`, and a
+            Batal / Simpan Catatan `.dialog__footer`. */}
         <DialogContent>
-          <DialogTitle className="mb-4 text-[17px] font-extrabold">
-            {t.donation.modalTitle}
-          </DialogTitle>
+          <DialogTitle>{t.donation.modalTitle}</DialogTitle>
+          <DialogDescription>{t.donation.modalDesc}</DialogDescription>
 
-          <div className="space-y-4">
-            <div>
-              <label className="mb-1.5 block text-[12.5px] font-semibold">
+          <DialogBody>
+            <div className="field">
+              <label className="label" htmlFor="dn-jenis">
                 {t.donation.fieldJenisLabel}
               </label>
               <select
+                id="dn-jenis"
                 value={jenis}
                 onChange={(e) => {
                   const next = e.target.value as DonationType;
@@ -844,28 +858,12 @@ export default function DonationPage() {
               </select>
             </div>
 
-            <div>
-              <label className="mb-1.5 block text-[12.5px] font-semibold">
-                {t.donation.fieldJumlahLabel}
-              </label>
-              <div className="flex items-center gap-2 rounded-md border bg-background px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:bg-card">
-                <span className="text-[13.5px] text-muted-foreground">Rp</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={jumlah}
-                  onChange={(e) => setJumlah(formatAmountInput(e.target.value))}
-                  placeholder="0"
-                  className="w-full bg-transparent text-[13.5px] outline-none"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-[12.5px] font-semibold">
+            <div className="field">
+              <label className="label" htmlFor="dn-lembaga">
                 {t.donation.fieldLembagaLabel}
               </label>
               <select
+                id="dn-lembaga"
                 value={lembaga}
                 onChange={(e) => setLembaga(e.target.value)}
                 className="select"
@@ -876,11 +874,27 @@ export default function DonationPage() {
               </select>
             </div>
 
-            <div>
-              <label className="mb-1.5 block text-[12.5px] font-semibold">
+            <div className="field">
+              <label className="label" htmlFor="dn-jumlah">
+                {t.donation.fieldJumlahLabel}
+              </label>
+              <input
+                id="dn-jumlah"
+                type="text"
+                inputMode="numeric"
+                value={jumlah}
+                onChange={(e) => setJumlah(formatAmountInput(e.target.value))}
+                placeholder="0"
+                className="input mono"
+              />
+            </div>
+
+            <div className="field">
+              <label className="label" htmlFor="dn-tanggal">
                 {t.donation.fieldTanggalLabel}
               </label>
               <input
+                id="dn-tanggal"
                 type="date"
                 value={tanggal}
                 onChange={(e) => setTanggal(e.target.value)}
@@ -888,11 +902,12 @@ export default function DonationPage() {
               />
             </div>
 
-            <div>
-              <label className="mb-1.5 block text-[12.5px] font-semibold">
+            <div className="field">
+              <label className="label" htmlFor="dn-rekening">
                 {t.donation.fieldAccountLabel}
               </label>
               <select
+                id="dn-rekening"
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
                 className="select"
@@ -904,51 +919,40 @@ export default function DonationPage() {
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                {t.donation.accountHint}
-              </p>
+              <div className="hint">{t.donation.accountHint}</div>
             </div>
 
-            <div>
-              <div className="flex items-center gap-2">
-                <input
-                  id="tax-deductible"
-                  type="checkbox"
-                  checked={isTaxDeductible && isDeductibleEligible}
-                  disabled={!isDeductibleEligible}
-                  onChange={(e) => setIsTaxDeductible(e.target.checked)}
-                  className="size-4 accent-primary disabled:cursor-not-allowed disabled:opacity-50"
-                />
-                <label
-                  htmlFor="tax-deductible"
-                  className={
-                    "text-[12.5px] " +
-                    (isDeductibleEligible
-                      ? "text-muted-foreground"
-                      : "text-muted-foreground/60")
-                  }
-                >
-                  {t.donation.taxDeductibleCheckboxLabel}
-                </label>
+            <div className="row row--between mt-3.5 items-start gap-3">
+              <div className="pr-3">
+                <div className="t-sm t-bold" id="dn-deductible-label">
+                  {t.donation.taxDeductibleSwitchTitle}
+                </div>
+                <div className="t-xs t-muted">
+                  {t.donation.taxDeductibleSwitchDesc}
+                </div>
               </div>
-              {!isDeductibleEligible && (
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {t.donation.taxDeductibleIneligibleNote}
-                </p>
-              )}
+              <Switch
+                id="dn-deductible"
+                aria-labelledby="dn-deductible-label"
+                checked={isTaxDeductible && isDeductibleEligible}
+                disabled={!isDeductibleEligible}
+                onCheckedChange={(checked) => setIsTaxDeductible(checked)}
+              />
             </div>
+            <div className="hint">{t.donation.taxDeductibleIneligibleNote}</div>
+          </DialogBody>
 
-            <Button
-              onClick={handleSave}
-              disabled={createMutation.isPending}
-              className="w-full"
-            >
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              {t.common.cancel}
+            </Button>
+            <Button onClick={handleSave} disabled={createMutation.isPending}>
               <HandHeart className="size-4" />{" "}
               {createMutation.isPending
                 ? t.donation.savingLabel
                 : t.donation.saveRecordButton}
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

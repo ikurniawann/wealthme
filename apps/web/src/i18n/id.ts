@@ -270,6 +270,10 @@ export const id = {
       attachmentInvalidTypeToast:
         "Tipe file tidak didukung — hanya JPG, PNG, WEBP, atau PDF.",
       attachmentTooLargeToast: "Ukuran file melebihi 5MB.",
+      dialogDesc:
+        "Catat pemasukan, pengeluaran, transfer, atau belanja kartu kredit.",
+      modeSwitchLabel: "Cara input",
+      typeSwitchLabel: "Jenis transaksi",
     },
     themeToggle: {
       ariaLabel: "Toggle dark mode",
@@ -747,6 +751,8 @@ export const id = {
       "Pengeluaran ini melebihi batas transaksi anggota dan ditahan — belum dicatat sampai kamu menyetujui atau menolaknya.",
     fundingApproveHelperNotice:
       "Menyetujui akan mentransfer dana sungguhan antar rekening.",
+    approveSourceAccountHint:
+      "Dana ditransfer sungguhan dari rekening ini ke rekening tujuan.",
   },
   panduan: {
     pageTitle: "📖 Panduan Fitur WealthMe",
@@ -1101,7 +1107,7 @@ export const id = {
     beneficiarySharePercentLabel: "Persentase (%)",
     beneficiaryMemberLabel: "Hubungkan ke Anggota Keluarga",
     beneficiaryMemberNoneOption: "Tidak terhubung",
-    addBeneficiaryButton: "+ Tambah Ahli Waris",
+    addBeneficiaryButton: "Tambah Ahli Waris",
     removeBeneficiaryAriaLabel: "Hapus ahli waris",
     allocationAllocatedSuffix: "% dialokasikan",
     allocationUnallocatedSuffix: "% belum dialokasikan",
@@ -1136,6 +1142,19 @@ export const id = {
     policyPickerPayEmpty: "Tidak ada polis yang perlu dibayar saat ini.",
     policyPickerBeneficiaryEmpty:
       "Belum ada polis untuk ditambahkan ahli warisnya.",
+    modalDesc:
+      "Premi dan jatuh tempo dipakai untuk pengingat dan proyeksi arus kas.",
+    policyPickerPayDesc:
+      "Pilih polis yang preminya ingin dibayar, lalu tentukan rekening sumbernya di langkah berikutnya.",
+    policyPickerBeneficiaryDesc:
+      "Pilih polis dulu — ahli waris disimpan pada polis tersebut, dan total persentasenya tidak boleh lebih dari 100%.",
+    deleteDialogTitle: "Hapus data ini?",
+    deleteDialogBody:
+      "Data polis akan dihapus permanen. Riwayat pembayaran premi tetap tersimpan di Transaksi.",
+    deleteBeneficiaryDialogBody:
+      "Ahli waris ini dihapus dari polis. Persentase yang sudah dialokasikan untuknya menjadi belum teralokasi.",
+    toastBeneficiaryDeleted: "Ahli waris dihapus",
+    autoRenewSwitchAriaLabel: "Perpanjang otomatis",
   },
   kalkulator: {
     tabs: {
@@ -1574,6 +1593,18 @@ export const id = {
     pricingSourceNoticeBody:
       "Saham IDX diambil dari Yahoo Finance (kode .JK) dan kripto dari CoinGecko — keduanya delayed ±15 menit, bukan real-time. Reksa dana, obligasi, emas, dan deposito tidak punya feed otomatis: nilainya kamu isi manual dan selalu ditampilkan bersama tanggal penilaiannya.",
     allocationTitle: "Alokasi per Jenis",
+    modalDesc:
+      "Isi jenis dulu — kolom di bawah menyesuaikan. Saham dihitung per lot, kripto per koin, deposito per bunga berjalan.",
+    sectionIdentityTitle: "Informasi instrumen",
+    sectionIdentityDesc:
+      "Pilih jenis dan identitas investasi yang akan dicatat.",
+    sectionPositionTitle: "Jumlah & harga beli",
+    sectionPositionDesc: "Masukkan posisi awal beserta harga belinya.",
+    sectionValuationTitle: "Penilaian",
+    sectionValuationDesc: "Dari mana nilai terkini posisi ini berasal.",
+    hintName: "Nama lengkap yang akan tampil di daftar kepemilikan.",
+    hintPurchaseDate: "Dipakai untuk menghitung lama kepemilikan.",
+    hintLotConversion: "1 lot = 100 lembar (aturan IDX).",
   },
   aset: {
     tabs: {
@@ -1726,7 +1757,8 @@ export const id = {
     toastUpdateFailed: "Gagal memperbarui liabilitas. Silakan coba lagi.",
     toastDeleted: "Liabilitas berhasil dihapus",
     toastDeleteFailed: "Gagal menghapus liabilitas. Silakan coba lagi.",
-    deleteConfirmBody: "Liabilitas yang dihapus tidak bisa dikembalikan.",
+    deleteConfirmBody:
+      "Liabilitas ini akan dihapus beserta jadwal cicilannya. Riwayat pembayaran yang sudah tercatat di transaksi tetap tersimpan. Tindakan ini tidak bisa dibatalkan.",
     detailDialogTitle: "Detail Liabilitas",
     detailInstitutionLabel: "Institusi",
     detailTypeLabel: "Jenis",
@@ -1768,6 +1800,22 @@ export const id = {
     // missed due date.
     overdueWarningPrefix: "Cicilan ",
     overdueWarningSuffix: " belum dibayar.",
+    modalDesc:
+      "Perubahan langsung memengaruhi rasio utang terhadap aset dan proyeksi pelunasan.",
+    detailNextDueLabel: "Jatuh Tempo Berikutnya",
+    detailPayButton: "Bayar Cicilan",
+    amortisationScheduleTitle: "Jadwal Amortisasi",
+    amortisationScheduleCountSuffix: " angsuran berikutnya",
+    amortisationScheduleHeaderIndex: "Ke-",
+    amortisationScheduleHeaderDate: "Tanggal",
+    amortisationScheduleHeaderPrincipal: "Pokok",
+    amortisationScheduleHeaderInterest: "Bunga",
+    payPresetLabel: "Jenis Pembayaran",
+    payPresetInstallment: "Cicilan",
+    payPresetPayoff: "Pelunasan penuh",
+    paySourceAccountHint:
+      "Saldo rekening akan didebet dan tercatat otomatis di Transaksi.",
+    payRemainingAfterLabel: "Sisa pokok setelah bayar",
   },
   masterdata: {
     pageTitle: "🗄️ Setup Master Data",
@@ -1925,6 +1973,14 @@ export const id = {
     budgetTypeNone: "—",
     deleteConfirmTitle: "Hapus Akun COA?",
     deleteConfirmBody: "Tindakan ini tidak dapat dibatalkan.",
+    modalDesc:
+      "Kode dibuat otomatis dari grup yang dipilih, tapi masih bisa kamu ubah sendiri selama digit pertamanya sesuai.",
+    fieldCodeHint:
+      "Dikosongkan = kode dibuat otomatis dari grup yang dipilih — bisa diubah.",
+    modalWarning:
+      "Mengubah grup atau arah akun yang sudah dipakai akan mengubah arti transaksi lama — laporan laba-rugi dan neraca ikut berubah.",
+    deleteConfirmNotice:
+      "Transaksi lama yang memakai akun ini akan kehilangan klasifikasinya di laporan laba-rugi dan neraca.",
     toastAdded: "Akun COA berhasil ditambahkan",
     toastAddFailed: "Gagal menambahkan akun COA",
     toastUpdated: "Akun COA berhasil diperbarui",
@@ -2386,6 +2442,12 @@ export const id = {
     mintaDanaSuccessToast:
       "Permintaan dana terkirim. Menunggu persetujuan pemilik family.",
     mintaDanaFailToast: "Gagal mengirim permintaan dana. Coba lagi.",
+    mintaDanaDialogDesc:
+      "Permintaan dikirim ke pemilik family untuk disetujui sebelum dana dipindahkan.",
+    deleteDialogTitle: "Hapus rekening ini?",
+    deleteDialogBody:
+      "Mutasi lama tetap tersimpan, tetapi rekening tidak lagi dihitung dalam total kekayaan.",
+    deleteDialogConfirm: "Ya, Hapus",
     // EPIC-025 N3 prototype structural port — page header (title reuses
     // `t.shell.pageTitles.rekening`), insight strip, ownership filter tabs, and
     // the dashed "add account" card.
@@ -2473,7 +2535,7 @@ export const id = {
       "Zakat yang dibayarkan ke lembaga resmi (BAZNAS/LAZ) bisa mengurangi penghasilan kena pajak. Cek di Tax Center.",
     modalTitle: "Catat Donasi Keagamaan",
     fieldJenisLabel: "Jenis",
-    fieldJumlahLabel: "Jumlah",
+    fieldJumlahLabel: "Jumlah (Rp)",
     fieldLembagaLabel: "Lembaga / Penerima",
     fieldTanggalLabel: "Tanggal",
     fieldAccountLabel: "Bayar dari Rekening (opsional)",
@@ -2513,6 +2575,11 @@ export const id = {
     religionCalculatorUnconfirmedTitle: "Agama keluarga belum dipilih",
     religionCalculatorUnconfirmedDesc:
       "Pilih agama keluarga di Pengaturan Akun untuk mengaktifkan kalkulator Zakat atau Persepuluhan yang sesuai.",
+    modalDesc:
+      "Tercatat sebagai pengeluaran dan memotong saldo rekening jika sumber dana dipilih.",
+    taxDeductibleSwitchTitle: "Pengurang pajak penghasilan",
+    taxDeductibleSwitchDesc:
+      "Kontribusi keagamaan wajib ke lembaga resmi (PP 60/2010).",
   },
   warisan: {
     heroTitle: "Total Nilai Warisan",
@@ -2564,7 +2631,7 @@ export const id = {
     heirSharePercentPlaceholder: "Persentase (%)",
     heirMemberAriaLabel: "Hubungkan ke Anggota Keluarga",
     heirMemberNoneOption: "Tidak terhubung",
-    addHeirButton: "+ Tambah Ahli Waris",
+    addHeirButton: "Tambah Ahli Waris",
     heirAllocationAllocatedSuffix: "% dialokasikan",
     heirAllocationUnallocatedSuffix: "% belum dialokasikan",
     heirAllocationFullyAllocated: "Teralokasi penuh (100%)",
@@ -2576,6 +2643,26 @@ export const id = {
     visibleToAllHeirsCaption: "Terlihat oleh seluruh ahli waris",
     estimatedValueLabel: "Nilai estimasi",
     linkedToAssetPrefix: "terhubung ke Aset",
+    modalDesc:
+      "Hubungkan ke aset yang sudah tercatat, lalu tentukan pembagian ahli waris.",
+    fieldSourceLabel: "Sumber Data",
+    sourceManualOption: "Input Manual",
+    sourceAssetOption: "Pilih dari Aset",
+    fieldAssetLabel: "Aset",
+    assetPickerPlaceholder: "— Pilih aset —",
+    assetPickerHint:
+      "Nilai estimasi terisi otomatis dari aset terhubung, tetap bisa kamu ubah.",
+    visibleToHeirsHint:
+      "Ahli waris dapat melihat aset ini di halaman Warisan mereka.",
+    deleteConfirmBody:
+      "Catatan warisan beserta pembagian ahli warisnya akan dihapus. Aset aslinya di halaman Aset tidak ikut terhapus.",
+    toastSharePercentExceeded:
+      "Total persentase ahli waris tidak boleh lebih dari 100%.",
+    heirTableHeaderName: "Nama",
+    heirTableHeaderRelationship: "Hubungan",
+    heirTableHeaderShare: "Bagian (%)",
+    heirTableHeaderAction: "Aksi",
+    heirTableEmpty: "Belum ada ahli waris untuk aset ini.",
   },
   anggaran: {
     budgetTypeLabels: {
@@ -2661,6 +2748,10 @@ export const id = {
     obligationsSummaryMidPrefix: " dari ",
     obligationsSummaryMidSuffix: " belum dibayar · ",
     obligationsDueDatePrefix: " · jatuh tempo ",
+    modalAddDesc: "Batas belanja per periode untuk satu kategori pengeluaran.",
+    obligationsPayDialogDesc:
+      "Pembayaran akan mencatat transaksi dan mengurangi saldo rekening sumber.",
+    obligationsDueDateNoticePrefix: "Jatuh tempo ",
   },
   transaksi: {
     typeLabels: {
@@ -2763,6 +2854,11 @@ export const id = {
     paginationNextButton: "Berikutnya",
     insightCategorizedLabel: "Otomatis Rapi",
     insightCategorizedValueSuffix: "% transaksi sudah terkategori",
+    detailDialogDesc: "Catatan lengkap beserta lampiran bukti.",
+    editDialogDesc: "Perubahan langsung memperbarui saldo akun terkait.",
+    deleteDialogTitle: "Hapus Transaksi?",
+    deleteDialogBody:
+      "Transaksi ini akan dihapus permanen dan saldo akun akan disesuaikan.",
   },
   splitbill: {
     headerDesc: "Patungan jadi gampang — kamu nalangin, mereka bayar balik",
@@ -2889,6 +2985,20 @@ export const id = {
     publicNetworkErrorTitle: "Gagal memuat",
     publicNetworkErrorDesc:
       "Terjadi masalah koneksi saat memuat tagihan ini. Periksa koneksi internet kamu dan coba lagi.",
+    createDialogDesc:
+      "Bagi tagihan rata atau custom, lalu bagikan link ke tiap peserta.",
+    fieldPayoutAccountHint:
+      "Rekening ini ditampilkan di halaman bagian tiap peserta.",
+    editPayoutAccountDesc:
+      "Diambil dari daftar Bank & Account keluarga. Peserta melihat rekening ini di link bagiannya.",
+    detailCloseButton: "Tutup",
+    remainderNeedTotalNote:
+      "Isi total tagihan dulu untuk menghitung pembagian per orang.",
+    remainderExactLabel: "Pas! Sudah sama dengan total tagihan",
+    remainderLeftPrefix: "Sisa belum dialokasikan: ",
+    remainderOverPrefix: "Lebih ",
+    remainderOverSuffix: " dari total tagihan",
+    splitRemainderButton: "Bagi Rata Sisa",
   },
   rekonsiliasi: {
     headerTitle: "Rekonsiliasi Bank",
@@ -2955,6 +3065,8 @@ export const id = {
     templateDateFormatLabel: "Format Tanggal",
     templateDateFormatIso: "Otomatis / ISO (YYYY-MM-DD)",
     templateSaveButton: "Simpan Template",
+    templateColumnsHeader: "Kolom",
+    templateActionHeader: "Aksi",
     toastTemplateSaved: "✅ Template pemetaan kolom disimpan",
     toastTemplateSaveFailed: "Gagal menyimpan template pemetaan kolom",
     toastTemplateDeleted: "Template dihapus",
@@ -3076,6 +3188,9 @@ export const id = {
     splitEntryAmountLabel: "Jumlah Entri",
     splitSubmitButton: "Simpan Pembagian",
     splitCancelButton: "Batal",
+    splitBalancedNotice: "Jumlah sudah seimbang — pembagian bisa disimpan.",
+    splitUnbalancedNotice:
+      "Jumlah pokok + biaya admin harus sama persis dengan jumlah entri.",
     splitValidationSelectSourceAccount: "Pilih akun sumber terlebih dahulu",
     splitValidationSelectDestAccount: "Pilih akun tujuan terlebih dahulu",
     splitValidationSameAccount: "Akun sumber dan tujuan harus berbeda",
@@ -3599,5 +3714,9 @@ export const id = {
       viewTransactionsButton: "Lihat Transaksi",
       finishButton: "Selesai",
     },
+  },
+  crud: {
+    addDescription: "Data baru langsung tersedia di seluruh formulir aplikasi.",
+    editDescription: "Perubahan langsung berlaku di seluruh formulir aplikasi.",
   },
 } satisfies I18nDictionary;

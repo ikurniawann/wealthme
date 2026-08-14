@@ -14,7 +14,14 @@ import {
 import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { formatAmountInput, parseRupiah } from "@/lib/format";
 import { apiFetch, type ApiError } from "@/lib/api-client";
@@ -542,32 +549,67 @@ export function TransactionDialog() {
         className="overflow-x-hidden p-0"
       >
         {view === "form" && (
-          <div className="p-6">
-            <DialogTitle className="mb-5 text-[17px] font-extrabold">
-              {t.shell.transactionDialog.title}
-            </DialogTitle>
+          // The `p-0` on DialogContent is deliberate — the OCR views below
+          // are full-bleed — so the form view restores the prototype
+          // `.dialog`'s own 20px padding itself.
+          <div className="p-5">
+            <DialogTitle>{t.shell.transactionDialog.title}</DialogTitle>
+            {/* EPIC-026 Wave 8 — prototype `.dialog__desc` on #dlg-transaksi
+                (docs/prototype/assets/shell.js). */}
+            <DialogDescription>
+              {t.shell.transactionDialog.dialogDesc}
+            </DialogDescription>
 
-            <div className="mb-[18px] flex gap-2">
-              <button className="flex flex-1 items-center justify-center gap-2 rounded-md border border-primary bg-accent px-3.5 py-2.5 text-[12.5px] font-semibold text-primary">
-                <SquarePen className="size-4" />{" "}
-                {t.shell.transactionDialog.manualInput}
-              </button>
-              <button
-                onClick={startOcr}
-                className="relative flex flex-1 items-center justify-center gap-2 rounded-md border bg-background px-3.5 py-2.5 text-[12.5px] font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+            {/* Manual vs Scan-Struk mode switch. Not in the prototype's own
+                #dlg-transaksi (its scan lives inside the Lampiran field), but
+                this app has a real second view for it — kept, and moved onto
+                the prototype's `.segmented` control so it stops being a
+                bespoke pair of bordered buttons. */}
+            <div className="mt-4">
+              <div
+                className="segmented max-w-full flex-wrap"
+                role="tablist"
+                aria-label={t.shell.transactionDialog.modeSwitchLabel}
               >
-                <Camera className="size-4" />{" "}
-                {t.shell.transactionDialog.scanReceipt}
-                <span className="rounded-full bg-success px-1.5 py-0.5 text-[9px] font-bold text-white">
-                  {t.shell.transactionDialog.newBadge}
-                </span>
-              </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected
+                  className="segmented__item inline-flex items-center gap-1.5"
+                >
+                  <SquarePen className="size-4" aria-hidden="true" />
+                  {t.shell.transactionDialog.manualInput}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={false}
+                  onClick={startOcr}
+                  className="segmented__item inline-flex items-center gap-1.5"
+                >
+                  <Camera className="size-4" aria-hidden="true" />
+                  {t.shell.transactionDialog.scanReceipt}
+                  <span className="rounded-full bg-success px-1.5 py-0.5 text-[9px] font-bold text-white">
+                    {t.shell.transactionDialog.newBadge}
+                  </span>
+                </button>
+              </div>
             </div>
 
-            <div className="mb-4 grid grid-cols-2 gap-1 rounded-md bg-secondary p-1">
+            {/* Prototype's 4-way type switch — `.segmented` / `.segmented__item`
+                with `role="tablist"`/`role="tab"` (shell.js:531-535). */}
+            <div
+              className="segmented mt-3.5 max-w-full flex-wrap"
+              role="tablist"
+              aria-label={t.shell.transactionDialog.typeSwitchLabel}
+            >
               {TABS.map((tabLabel, i) => (
                 <button
                   key={i}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === i}
+                  className="segmented__item"
                   onClick={() => {
                     setTab(i);
                     // EPIC-023 Task E retry (MEDIUM 10) — deliberate split,
@@ -587,114 +629,156 @@ export function TransactionDialog() {
                     setAccountId("");
                     setLiabilityId("");
                   }}
-                  className={cn(
-                    "rounded-md px-2 py-2 text-center text-xs font-semibold transition-colors",
-                    tab === i
-                      ? "bg-card text-primary shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
                 >
                   {tabLabel}
                 </button>
               ))}
             </div>
 
-            <Field
-              label={t.shell.transactionDialog.amountLabel}
-              htmlFor={amountFieldId}
-            >
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
-                  Rp
-                </span>
-                <input
-                  id={amountFieldId}
-                  inputMode="numeric"
-                  value={amount}
-                  onChange={(e) => setAmount(formatAmountInput(e.target.value))}
-                  placeholder="0"
-                  className={cn(
-                    "input",
-                    "pl-[38px] text-xl font-extrabold placeholder:text-base placeholder:font-normal placeholder:text-muted-foreground",
-                  )}
-                />
-              </div>
-            </Field>
-
-            {/* EPIC-023 Task E4 (D13) — reviewed foundation exception (see
-                the E3 comment above the TAB_KINDS declaration): the
-                Transfer tab loses its category entirely. Moving money
-                between your own accounts is neither income nor expense
-                (CategoryKind is only "income" | "expense" — schema.prisma),
-                so this select was previously ALWAYS empty on that tab; the
-                category belongs on the tab where the money is actually
-                spent. */}
-            {tabKind !== "transfer" && (
+            {/* Prototype field order (shell.js:536-570): Jumlah → Akun →
+                Kategori → [Tanggal | Deskripsi] → Lampiran. */}
+            <DialogBody>
               <Field
-                label={t.shell.transactionDialog.categoryLabel}
-                htmlFor={categoryFieldId}
+                label={t.shell.transactionDialog.amountLabel}
+                htmlFor={amountFieldId}
               >
-                <select
-                  id={categoryFieldId}
-                  className="select"
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                >
-                  <option value="">
-                    {t.shell.transactionDialog.categoryPlaceholder}
-                  </option>
-                  {relevantCategories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.icon ? `${c.icon} ` : ""}
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
+                    Rp
+                  </span>
+                  <input
+                    id={amountFieldId}
+                    inputMode="numeric"
+                    value={amount}
+                    onChange={(e) =>
+                      setAmount(formatAmountInput(e.target.value))
+                    }
+                    placeholder="0"
+                    className={cn(
+                      "input",
+                      "pl-[38px] text-xl font-extrabold placeholder:text-base placeholder:font-normal placeholder:text-muted-foreground",
+                    )}
+                  />
+                </div>
               </Field>
-            )}
 
-            {tabKind === "card" ? (
-              <Field
-                label={t.shell.transactionDialog.cardLabel}
-                htmlFor={cardFieldId}
-              >
-                <select
-                  id={cardFieldId}
-                  className="select"
-                  value={liabilityId}
-                  onChange={(e) => setLiabilityId(e.target.value)}
-                >
-                  <option value="">
-                    {t.shell.transactionDialog.cardPlaceholder}
-                  </option>
-                  {creditCards.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            ) : tabKind === "transfer" ? (
-              <>
+              {tabKind === "card" ? (
                 <Field
-                  label={t.shell.transactionDialog.sourceAccountLabel}
-                  htmlFor={sourceAccountFieldId}
+                  label={t.shell.transactionDialog.cardLabel}
+                  htmlFor={cardFieldId}
                 >
                   <select
-                    id={sourceAccountFieldId}
+                    id={cardFieldId}
                     className="select"
-                    value={accountId}
-                    onChange={(e) => {
-                      const nextAccountId = e.target.value;
-                      setAccountId(nextAccountId);
-                      // Keep source/destination mutually exclusive: dropping
-                      // the now-invalid destination avoids a stale option
-                      // hidden by the destination select's own filter.
-                      if (toAccountId === nextAccountId) setToAccountId("");
-                    }}
+                    value={liabilityId}
+                    onChange={(e) => setLiabilityId(e.target.value)}
                   >
                     <option value="">
-                      {t.shell.transactionDialog.sourceAccountPlaceholder}
+                      {t.shell.transactionDialog.cardPlaceholder}
+                    </option>
+                    {creditCards.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              ) : tabKind === "transfer" ? (
+                <>
+                  <Field
+                    label={t.shell.transactionDialog.sourceAccountLabel}
+                    htmlFor={sourceAccountFieldId}
+                  >
+                    <select
+                      id={sourceAccountFieldId}
+                      className="select"
+                      value={accountId}
+                      onChange={(e) => {
+                        const nextAccountId = e.target.value;
+                        setAccountId(nextAccountId);
+                        // Keep source/destination mutually exclusive: dropping
+                        // the now-invalid destination avoids a stale option
+                        // hidden by the destination select's own filter.
+                        if (toAccountId === nextAccountId) setToAccountId("");
+                      }}
+                    >
+                      <option value="">
+                        {t.shell.transactionDialog.sourceAccountPlaceholder}
+                      </option>
+                      {accounts.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                          {a.institution ? ` — ${a.institution}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field
+                    label={t.shell.transactionDialog.destAccountLabel}
+                    htmlFor={destAccountFieldId}
+                  >
+                    <select
+                      id={destAccountFieldId}
+                      className="select"
+                      value={toAccountId}
+                      onChange={(e) => setToAccountId(e.target.value)}
+                    >
+                      <option value="">
+                        {t.shell.transactionDialog.destAccountPlaceholder}
+                      </option>
+                      {accounts
+                        .filter((a) => a.id !== accountId)
+                        .map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name}
+                            {a.institution ? ` — ${a.institution}` : ""}
+                          </option>
+                        ))}
+                    </select>
+                  </Field>
+
+                  <Field
+                    label={
+                      <>
+                        {t.shell.transactionDialog.adminFeeLabel}{" "}
+                        <span className="font-normal text-muted-foreground">
+                          {t.shell.transactionDialog.optionalSuffix}
+                        </span>
+                      </>
+                    }
+                    htmlFor={adminFeeFieldId}
+                  >
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
+                        Rp
+                      </span>
+                      <input
+                        id={adminFeeFieldId}
+                        inputMode="numeric"
+                        value={adminFee}
+                        onChange={(e) =>
+                          setAdminFee(formatAmountInput(e.target.value))
+                        }
+                        placeholder="0"
+                        className="input pl-[38px]"
+                      />
+                    </div>
+                  </Field>
+                </>
+              ) : (
+                <Field
+                  label={t.shell.transactionDialog.accountLabel}
+                  htmlFor={accountFieldId}
+                >
+                  <select
+                    id={accountFieldId}
+                    className="select"
+                    value={accountId}
+                    onChange={(e) => setAccountId(e.target.value)}
+                  >
+                    <option value="">
+                      {t.shell.transactionDialog.accountPlaceholder}
                     </option>
                     {accounts.map((a) => (
                       <option key={a.id} value={a.id}>
@@ -704,176 +788,157 @@ export function TransactionDialog() {
                     ))}
                   </select>
                 </Field>
+              )}
 
+              {/* EPIC-023 Task E4 (D13) — reviewed foundation exception (see
+                the E3 comment above the TAB_KINDS declaration): the
+                Transfer tab loses its category entirely. Moving money
+                between your own accounts is neither income nor expense
+                (CategoryKind is only "income" | "expense" — schema.prisma),
+                so this select was previously ALWAYS empty on that tab; the
+                category belongs on the tab where the money is actually
+                spent. */}
+              {tabKind !== "transfer" && (
                 <Field
-                  label={t.shell.transactionDialog.destAccountLabel}
-                  htmlFor={destAccountFieldId}
+                  label={t.shell.transactionDialog.categoryLabel}
+                  htmlFor={categoryFieldId}
                 >
                   <select
-                    id={destAccountFieldId}
+                    id={categoryFieldId}
                     className="select"
-                    value={toAccountId}
-                    onChange={(e) => setToAccountId(e.target.value)}
+                    value={categoryId}
+                    onChange={(e) => setCategoryId(e.target.value)}
                   >
                     <option value="">
-                      {t.shell.transactionDialog.destAccountPlaceholder}
+                      {t.shell.transactionDialog.categoryPlaceholder}
                     </option>
-                    {accounts
-                      .filter((a) => a.id !== accountId)
-                      .map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name}
-                          {a.institution ? ` — ${a.institution}` : ""}
-                        </option>
-                      ))}
+                    {relevantCategories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.icon ? `${c.icon} ` : ""}
+                        {c.name}
+                      </option>
+                    ))}
                   </select>
+                </Field>
+              )}
+
+              {/* Prototype pairs Tanggal and Deskripsi 2-up in a
+                `.field-row` (shell.js:558-568). */}
+              <div className="field-row">
+                <Field
+                  label={t.shell.transactionDialog.dateLabel}
+                  htmlFor={dateFieldId}
+                >
+                  <input
+                    id={dateFieldId}
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="input"
+                  />
                 </Field>
 
                 <Field
                   label={
                     <>
-                      {t.shell.transactionDialog.adminFeeLabel}{" "}
+                      {t.shell.transactionDialog.descriptionLabel}{" "}
                       <span className="font-normal text-muted-foreground">
                         {t.shell.transactionDialog.optionalSuffix}
                       </span>
                     </>
                   }
-                  htmlFor={adminFeeFieldId}
+                  htmlFor={descriptionFieldId}
                 >
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
-                      Rp
-                    </span>
-                    <input
-                      id={adminFeeFieldId}
-                      inputMode="numeric"
-                      value={adminFee}
-                      onChange={(e) =>
-                        setAdminFee(formatAmountInput(e.target.value))
-                      }
-                      placeholder="0"
-                      className="input pl-[38px]"
-                    />
-                  </div>
+                  <textarea
+                    id={descriptionFieldId}
+                    rows={2}
+                    placeholder={
+                      t.shell.transactionDialog.descriptionPlaceholder
+                    }
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="textarea resize-none"
+                  />
                 </Field>
-              </>
-            ) : (
-              <Field
-                label={t.shell.transactionDialog.accountLabel}
-                htmlFor={accountFieldId}
-              >
-                <select
-                  id={accountFieldId}
-                  className="select"
-                  value={accountId}
-                  onChange={(e) => setAccountId(e.target.value)}
-                >
-                  <option value="">
-                    {t.shell.transactionDialog.accountPlaceholder}
-                  </option>
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                      {a.institution ? ` — ${a.institution}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            )}
+              </div>
 
-            <Field
-              label={t.shell.transactionDialog.dateLabel}
-              htmlFor={dateFieldId}
-            >
-              <input
-                id={dateFieldId}
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="input"
-              />
-            </Field>
-
-            <Field
-              label={
-                <>
-                  {t.shell.transactionDialog.descriptionLabel}{" "}
-                  <span className="font-normal text-muted-foreground">
-                    {t.shell.transactionDialog.optionalSuffix}
-                  </span>
-                </>
-              }
-              htmlFor={descriptionFieldId}
-            >
-              <textarea
-                id={descriptionFieldId}
-                rows={2}
-                placeholder={t.shell.transactionDialog.descriptionPlaceholder}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="textarea resize-none"
-              />
-            </Field>
-
-            {/* EPIC-024 Task L3 (D15, US-TXN-9) — the card tab has no
+              {/* EPIC-024 Task L3 (D15, US-TXN-9) — the card tab has no
                 attachment field: `purchaseMutation` posts through
                 `LiabilitiesService.purchase()`, which never returns a
                 transactionId to attach the file to (see the mutation's own
                 doc comment above). */}
-            {tabKind !== "card" && (
-              <Field
-                label={
-                  <>
-                    {t.shell.transactionDialog.attachmentLabel}{" "}
-                    <span className="font-normal text-muted-foreground">
-                      {t.shell.transactionDialog.optionalSuffix}
-                    </span>
-                  </>
-                }
-                htmlFor={attachmentFieldId}
-              >
-                <label
+              {tabKind !== "card" && (
+                <Field
+                  label={
+                    <>
+                      {t.shell.transactionDialog.attachmentLabel}{" "}
+                      <span className="font-normal text-muted-foreground">
+                        {t.shell.transactionDialog.optionalSuffix}
+                      </span>
+                    </>
+                  }
                   htmlFor={attachmentFieldId}
-                  className={cn(
-                    "input",
-                    "flex cursor-pointer items-center gap-2 text-muted-foreground",
-                  )}
                 >
-                  <Paperclip className="size-4 shrink-0" />
-                  <span className="truncate">
-                    {attachmentFile
-                      ? `${t.shell.transactionDialog.attachmentSelected}${attachmentFile.name}`
-                      : t.shell.transactionDialog.attachmentPlaceholder}
-                  </span>
-                </label>
-                <input
-                  id={attachmentFieldId}
-                  data-testid="attachment-file-input"
-                  type="file"
-                  accept={ATTACHMENT_ACCEPTED_MIME_TYPES.join(",")}
-                  onChange={handleAttachmentChange}
-                  className="sr-only"
-                />
-              </Field>
-            )}
+                  <label
+                    htmlFor={attachmentFieldId}
+                    className={cn(
+                      "input",
+                      "flex cursor-pointer items-center gap-2 text-muted-foreground",
+                    )}
+                  >
+                    <Paperclip className="size-4 shrink-0" />
+                    <span className="truncate">
+                      {attachmentFile
+                        ? `${t.shell.transactionDialog.attachmentSelected}${attachmentFile.name}`
+                        : t.shell.transactionDialog.attachmentPlaceholder}
+                    </span>
+                  </label>
+                  <input
+                    id={attachmentFieldId}
+                    data-testid="attachment-file-input"
+                    type="file"
+                    accept={ATTACHMENT_ACCEPTED_MIME_TYPES.join(",")}
+                    onChange={handleAttachmentChange}
+                    className="sr-only"
+                  />
+                </Field>
+              )}
+            </DialogBody>
 
-            <button
-              onClick={() => saveTxn()}
-              disabled={isSaving}
-              className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong disabled:opacity-60"
-            >
-              <Save className="size-4" />{" "}
-              {isSaving
-                ? t.shell.transactionDialog.saving
-                : t.shell.transactionDialog.saveTransaction}
-            </button>
-            <button
-              onClick={() => saveTxn(true)}
-              disabled={isSaving}
-              className="mt-2 mb-2 w-full rounded-md py-2.5 text-[13.5px] font-bold text-primary transition-colors hover:bg-accent disabled:opacity-60"
-            >
-              {t.shell.transactionDialog.saveAndAddMore}
-            </button>
+            {/* Prototype `.dialog__footer` — outline Batal on the left,
+                primary Simpan on the right (shell.js:590-595). "Simpan &
+                Tambah Lagi" has no prototype counterpart but is a real,
+                working feature of this dialog (it saves and resets instead
+                of closing), so it is kept as a ghost button between the two
+                rather than deleted to chase the mock. */}
+            <DialogFooter>
+              <button
+                type="button"
+                onClick={() => handleOpenChange(false)}
+                className="btn btn--outline"
+              >
+                {t.common.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={() => saveTxn(true)}
+                disabled={isSaving}
+                className="btn btn--ghost"
+              >
+                {t.shell.transactionDialog.saveAndAddMore}
+              </button>
+              <button
+                type="button"
+                onClick={() => saveTxn()}
+                disabled={isSaving}
+                className="btn btn--primary"
+              >
+                <Save className="size-4" aria-hidden="true" />
+                {isSaving
+                  ? t.shell.transactionDialog.saving
+                  : t.shell.transactionDialog.saveTransaction}
+              </button>
+            </DialogFooter>
           </div>
         )}
 
@@ -1065,12 +1130,13 @@ function Field({
   htmlFor: string;
   children: React.ReactNode;
 }) {
+  // EPIC-026 Wave 8 — the prototype's `<label class="field"><span
+  // class="label">…` structure. Kept as a `<div>` + explicit `htmlFor` (not
+  // a wrapping `<label>`) so the HIGH-3 label/control association above
+  // stays explicit and `.field-row` can pair two of these 2-up.
   return (
-    <div className="mb-3.5">
-      <label
-        htmlFor={htmlFor}
-        className="mb-1.5 block text-xs font-semibold text-muted-foreground"
-      >
+    <div className="field">
+      <label htmlFor={htmlFor} className="label">
         {label}
       </label>
       {children}

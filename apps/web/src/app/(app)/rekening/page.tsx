@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
   EllipsisVertical,
   HandCoins,
-  Save,
   Landmark,
   Users,
   User,
@@ -23,12 +22,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -373,7 +373,11 @@ function MintaDanaDialog({
 }) {
   return (
     <Dialog open={!!account} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="min-[769px]:w-[min(420px,calc(100%-2rem))]">
+      {/* EPIC-026 Wave 3 — prototype `dlg-minta-dana`
+          (docs/prototype/pages/rekening.html): `dialog--sm`, title + desc,
+          `.dialog__body` fields, and an outline-Batal / primary-submit
+          `.dialog__footer`. */}
+      <DialogContent className="dialog--sm">
         {/* Keyed by account id (not an effect) so amount/note reset whenever
             a different account's "Minta Dana" button is clicked. */}
         {account && (
@@ -402,6 +406,7 @@ function MintaDanaForm({
   onClose: () => void;
 }) {
   const { t } = useLocale();
+  const fieldId = useId();
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -442,47 +447,59 @@ function MintaDanaForm({
   return (
     <>
       <DialogHeader>
-        <DialogTitle className="text-[15px] font-bold">
+        {/* The prototype's "Rekening Tujuan" select is omitted on purpose:
+            the target account is fixed by the card whose "Minta Dana" button
+            was pressed (and is what the POST sends), so a picker here would
+            imply a switchable target it cannot honour. The account is named
+            in the title instead. */}
+        <DialogTitle>
           {t.rekening.mintaDanaDialogTitle} — {account.name}
         </DialogTitle>
+        <DialogDescription>{t.rekening.mintaDanaDialogDesc}</DialogDescription>
       </DialogHeader>
-      <div className="space-y-3">
-        <div>
-          <label className="mb-1.5 block text-[12px] font-semibold text-muted-foreground">
+      <DialogBody>
+        <div className="field">
+          <label className="label" htmlFor={`${fieldId}-amount`}>
             {t.rekening.mintaDanaAmountLabel}
           </label>
-          <div className="relative">
-            <span className="absolute top-1/2 left-3 -translate-y-1/2 text-[12px] font-semibold text-muted-foreground">
-              Rp
-            </span>
-            <Input
-              inputMode="numeric"
-              className="pl-9 text-[13px]"
-              placeholder="0"
-              value={amount}
-              onChange={(e) => setAmount(formatAmountInput(e.target.value))}
-            />
-          </div>
+          <input
+            id={`${fieldId}-amount`}
+            inputMode="numeric"
+            className="input mono"
+            placeholder="0"
+            value={amount}
+            onChange={(e) => setAmount(formatAmountInput(e.target.value))}
+          />
         </div>
-        <div>
-          <label className="mb-1.5 block text-[12px] font-semibold text-muted-foreground">
+        <div className="field">
+          <label className="label" htmlFor={`${fieldId}-note`}>
             {t.rekening.mintaDanaNoteLabel}
           </label>
-          <Textarea
-            rows={2}
-            className="resize-none text-[13px]"
+          <input
+            id={`${fieldId}-note`}
+            type="text"
+            className="input"
             placeholder={t.rekening.mintaDanaNotePlaceholder}
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />
         </div>
-      </div>
-      <Button className="w-full" onClick={handleSend} disabled={isSaving}>
-        <Save className="size-4" />{" "}
-        {isSaving
-          ? t.rekening.mintaDanaSubmitting
-          : t.rekening.mintaDanaSubmitButton}
-      </Button>
+      </DialogBody>
+      <DialogFooter>
+        <button type="button" className="btn btn--outline" onClick={onClose}>
+          {t.common.cancel}
+        </button>
+        <button
+          type="button"
+          className="btn btn--primary disabled:opacity-60"
+          onClick={handleSend}
+          disabled={isSaving}
+        >
+          {isSaving
+            ? t.rekening.mintaDanaSubmitting
+            : t.rekening.mintaDanaSubmitButton}
+        </button>
+      </DialogFooter>
     </>
   );
 }
@@ -999,8 +1016,16 @@ export default function RekeningPage() {
         onSubmit={handleSubmit}
         dynamicOptions={{ ownerUserId: ownerOptions }}
       />
+      {/* EPIC-026 Wave 3 — prototype `dlg-rekening-hapus`
+          (docs/prototype/pages/rekening.html) supplies the title, body and
+          confirm label; the shared `ConfirmDeleteDialog` already renders the
+          prototype's `dialog--sm` confirm shape (outline Batal + destructive
+          confirm), so only the copy is overridden here. */}
       <ConfirmDeleteDialog
         label={deleting ? `"${deleting.name}"` : null}
+        title={t.rekening.deleteDialogTitle}
+        body={t.rekening.deleteDialogBody}
+        confirmLabel={t.rekening.deleteDialogConfirm}
         onClose={() => setDeleting(null)}
         onConfirm={handleDeleteConfirm}
       />

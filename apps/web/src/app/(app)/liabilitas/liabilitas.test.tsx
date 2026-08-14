@@ -199,7 +199,14 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     await user.click(await screen.findByRole("button", { name: "Detail" }));
 
     const dialog = within(await screen.findByRole("dialog"));
-    expect(dialog.getByText("Detail Liabilitas")).toBeInTheDocument();
+    // EPIC-026 Wave 8 — the prototype's `dlg-lia-detail` titles the dialog
+    // with the liability's own name and puts `institusi · jenis` in the
+    // `.dialog__desc`, so the generic "Detail Liabilitas" string is no longer
+    // rendered; assert the accessible dialog title + description instead.
+    expect(
+      dialog.getByRole("heading", { name: "Kartu Kredit BCA" }),
+    ).toBeInTheDocument();
+    expect(dialog.getByText("BCA · Kartu Kredit")).toBeInTheDocument();
     expect(dialog.getByText("Kartu Kredit BCA")).toBeInTheDocument();
     expect(dialog.getByText("Ringkasan Amortisasi")).toBeInTheDocument();
     // Honestly labeled as an estimate, not an authoritative schedule.

@@ -5,14 +5,15 @@ import { toast } from "sonner";
 import { Save } from "lucide-react";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
-  DialogHeader,
+  DialogDescription,
+  DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { useLocale } from "@/hooks/use-locale";
 import { CRUD_CONFIG, type CrudEntity, type CrudField } from "./crud-config";
 
 export type CrudMode = "add" | "edit";
@@ -82,8 +83,39 @@ function initialFieldValues(
   return values;
 }
 
-const FIELD_INPUT_CLASS =
-  "h-9 w-full rounded-lg border bg-background px-3 text-[13px] outline-none focus:border-primary";
+/**
+ * EPIC-026 Wave 8 — the prototype's only 2-up grouping in a reference-data
+ * dialog is `dlg-md-kategori`'s `.field-row` holding "Ikon" next to the
+ * "Tipe" select (docs/prototype/pages/masterdata.html); everything else
+ * stacks full-width. That is reproduced here as: an `iconpick` field pairs
+ * with the nearest following `select`, which is pulled up into the row.
+ *
+ * The grouping is derived at render time on purpose — `crud-config.ts`'s
+ * schema and every entity's declared field list are left byte-for-byte
+ * unchanged, and the submitted `values` object is keyed, so visual order has
+ * no effect on any payload. An entity with an icon picker but no select
+ * (e.g. `tujuan`) simply keeps the picker full-width, as it renders today.
+ */
+function groupFieldsIntoRows(fields: CrudField[]): CrudField[][] {
+  const rows: CrudField[][] = [];
+  const consumed = new Set<number>();
+  fields.forEach((field, i) => {
+    if (consumed.has(i)) return;
+    if (field.type === "iconpick") {
+      const partnerIndex = fields.findIndex(
+        (candidate, j) =>
+          j > i && !consumed.has(j) && candidate.type === "select",
+      );
+      if (partnerIndex !== -1) {
+        consumed.add(partnerIndex);
+        rows.push([field, fields[partnerIndex]]);
+        return;
+      }
+    }
+    rows.push([field]);
+  });
+  return rows;
+}
 
 export function CrudModal({
   state,
@@ -109,6 +141,7 @@ interface CrudFormProps extends CrudModalProps {
 }
 
 function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
+  const { t } = useLocale();
   const config = CRUD_CONFIG[state.entity];
   const [values, setValues] = useState<Record<string, string>>(() =>
     initialFieldValues(config.fields, state.initialValues),
@@ -136,141 +169,187 @@ function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
     }
   };
 
+  const rows = groupFieldsIntoRows(config.fields);
+
+  const renderControl = (f: CrudField) => {
+    if (f.type === "select") {
+      return (
+        <select
+          className="select"
+          value={values[f.key] ?? ""}
+          onChange={(e) => setField(f.key, e.target.value)}
+        >
+          {(
+            dynamicOptions?.[f.key] ??
+            (f.options ?? []).map((o) => ({ value: o, label: o }))
+          ).map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      );
+    }
+    if (f.type === "textarea") {
+      return (
+        <textarea
+          className="textarea"
+          rows={2}
+          placeholder={f.placeholder}
+          value={values[f.key] ?? ""}
+          onChange={(e) => setField(f.key, e.target.value)}
+        />
+      );
+    }
+    if (f.type === "amount") {
+      // Prototype money inputs are `.input.mono` holding a dot-grouped
+      // value (see `dlg-split`'s "Jumlah Pokok") — no "Rp" adornment.
+      return (
+        <input
+          className="input mono"
+          inputMode={f.allowNegative ? "text" : "numeric"}
+          placeholder="0"
+          value={values[f.key] ?? ""}
+          onChange={(e) =>
+            setField(f.key, formatThousands(e.target.value, f.allowNegative))
+          }
+        />
+      );
+    }
+    if (f.type === "date") {
+      return (
+        <input
+          className="input"
+          type="date"
+          value={values[f.key] ?? ""}
+          onChange={(e) => setField(f.key, e.target.value)}
+        />
+      );
+    }
+    return (
+      <input
+        className="input"
+        type={
+          f.type === "number" ? "number" : f.type === "email" ? "email" : "text"
+        }
+        placeholder={f.placeholder}
+        value={values[f.key] ?? ""}
+        onChange={(e) => setField(f.key, e.target.value)}
+      />
+    );
+  };
+
+  const renderField = (f: CrudField, inRow: boolean) => {
+    const fieldClass = inRow ? "field mt-0" : "field";
+    const hint = f.helper?.(values);
+
+    // Prototype `dlg-md-kategori` — the switch is a `.row`, not a boxed
+    // card: control first, then a bold label with its muted sub-copy.
+    if (f.type === "toggle") {
+      return (
+        <div key={f.key} className="row mt-3.5 gap-[9px]">
+          <Switch
+            aria-label={f.label}
+            checked={values[f.key] === "true"}
+            onCheckedChange={(checked) =>
+              setField(f.key, checked ? "true" : "false")
+            }
+          />
+          <span>
+            <span className="t-sm t-bold">{f.label}</span>
+            {f.helperText && (
+              <span className="t-xs t-muted block">{f.helperText}</span>
+            )}
+          </span>
+        </div>
+      );
+    }
+
+    // The icon picker is a button group, which cannot live inside a
+    // `<label>` — it keeps a `<div class="field">` plus a `<span
+    // class="label">`, exactly as the prototype's own icon picker does.
+    if (f.type === "iconpick") {
+      return (
+        <div key={f.key} className={fieldClass}>
+          <span className="label">{f.label}</span>
+          <div className="flex flex-wrap gap-1.5">
+            {(f.options ?? []).map((o) => (
+              <button
+                key={o}
+                type="button"
+                aria-pressed={values[f.key] === o}
+                onClick={() => setField(f.key, o)}
+                className={`flex size-9 items-center justify-center rounded-lg border text-[16px] transition-colors ${
+                  values[f.key] === o
+                    ? "border-primary bg-accent"
+                    : "bg-background hover:border-primary/50"
+                }`}
+              >
+                {o}
+              </button>
+            ))}
+          </div>
+          {hint && <span className="hint block">{hint}</span>}
+        </div>
+      );
+    }
+
+    return (
+      <label key={f.key} className={fieldClass}>
+        <span className="label">{f.label}</span>
+        {renderControl(f)}
+        {hint && <span className="hint block">{hint}</span>}
+      </label>
+    );
+  };
+
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      {/* EPIC-022 Group G (G1) — `dvh`, not `vh`: this override fully
-          replaces the DialogContent default via tailwind-merge, so it must
-          carry the same dynamic-viewport unit or it silently reintroduces
-          the bug this dialog is meant to be protected from (see the comment
-          on DialogContent in components/ui/dialog.tsx). */}
-      <DialogContent className="min-[769px]:w-[min(448px,calc(100%-2rem))]">
-        <DialogHeader>
-          <DialogTitle className="text-[15px] font-bold">
-            {state.mode === "edit" ? "Edit" : "Tambah"} {config.title}
-          </DialogTitle>
-        </DialogHeader>
+      {/* EPIC-026 Wave 8 — composition ported from the prototype's
+          `dlg-md-add` / `dlg-md-kategori` (docs/prototype/pages/
+          masterdata.html): `.dialog__title` + `.dialog__desc`, a
+          `.dialog__body` of `.field` / `.field-row` groups, and a
+          `.dialog__footer` with outline "Batal" left of the primary
+          confirm. No width override — `.dialog`'s own 480px default is what
+          the prototype uses for the field-bearing reference dialog, and the
+          former `min-[769px]:w-[min(448px,…)]` was an app invention. */}
+      <DialogContent>
+        <DialogTitle>
+          {state.mode === "edit" ? "Edit" : "Tambah"} {config.title}
+        </DialogTitle>
+        <DialogDescription>
+          {state.mode === "edit"
+            ? t.crud.editDescription
+            : t.crud.addDescription}
+        </DialogDescription>
 
-        <div className="space-y-3">
-          {config.fields.map((f) =>
-            f.type === "toggle" ? (
+        <DialogBody>
+          {rows.map((row, i) =>
+            row.length === 2 ? (
+              // `.field-row` carries no margin of its own (only `.field +
+              // .field` does), so every row after the first restores the
+              // prototype's 12px gap — matching its inline
+              // `style="margin-top: 12px"`.
               <div
-                key={f.key}
-                className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                key={row[0].key}
+                className={i === 0 ? "field-row" : "field-row mt-3"}
               >
-                <div>
-                  <div className="text-[13px] font-semibold">{f.label}</div>
-                  {f.helperText && (
-                    <div className="text-[11.5px] text-muted-foreground">
-                      {f.helperText}
-                    </div>
-                  )}
-                </div>
-                <Switch
-                  aria-label={f.label}
-                  checked={values[f.key] === "true"}
-                  onCheckedChange={(checked) =>
-                    setField(f.key, checked ? "true" : "false")
-                  }
-                />
+                {row.map((f) => renderField(f, true))}
               </div>
             ) : (
-              <div key={f.key}>
-                <label className="mb-1.5 block text-[12px] font-semibold text-muted-foreground">
-                  {f.label}
-                </label>
-                {f.type === "select" ? (
-                  <select
-                    className={FIELD_INPUT_CLASS}
-                    value={values[f.key] ?? ""}
-                    onChange={(e) => setField(f.key, e.target.value)}
-                  >
-                    {(
-                      dynamicOptions?.[f.key] ??
-                      (f.options ?? []).map((o) => ({ value: o, label: o }))
-                    ).map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                ) : f.type === "textarea" ? (
-                  <Textarea
-                    rows={2}
-                    className="resize-none text-[13px]"
-                    placeholder={f.placeholder}
-                    value={values[f.key] ?? ""}
-                    onChange={(e) => setField(f.key, e.target.value)}
-                  />
-                ) : f.type === "amount" ? (
-                  <div className="relative">
-                    <span className="absolute top-1/2 left-3 -translate-y-1/2 text-[12px] font-semibold text-muted-foreground">
-                      Rp
-                    </span>
-                    <Input
-                      inputMode={f.allowNegative ? "text" : "numeric"}
-                      className="pl-9 text-[13px]"
-                      placeholder="0"
-                      value={values[f.key] ?? ""}
-                      onChange={(e) =>
-                        setField(
-                          f.key,
-                          formatThousands(e.target.value, f.allowNegative),
-                        )
-                      }
-                    />
-                  </div>
-                ) : f.type === "iconpick" ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {(f.options ?? []).map((o) => (
-                      <button
-                        key={o}
-                        type="button"
-                        onClick={() => setField(f.key, o)}
-                        className={`flex size-9 items-center justify-center rounded-lg border text-[16px] transition-colors ${
-                          values[f.key] === o
-                            ? "border-primary bg-accent"
-                            : "bg-background hover:border-primary/50"
-                        }`}
-                      >
-                        {o}
-                      </button>
-                    ))}
-                  </div>
-                ) : f.type === "date" ? (
-                  <Input
-                    type="date"
-                    className="text-[13px]"
-                    value={values[f.key] ?? ""}
-                    onChange={(e) => setField(f.key, e.target.value)}
-                  />
-                ) : (
-                  <Input
-                    type={
-                      f.type === "number"
-                        ? "number"
-                        : f.type === "email"
-                          ? "email"
-                          : "text"
-                    }
-                    className="text-[13px]"
-                    placeholder={f.placeholder}
-                    value={values[f.key] ?? ""}
-                    onChange={(e) => setField(f.key, e.target.value)}
-                  />
-                )}
-                {f.helper?.(values) && (
-                  <div className="mt-1 text-[11.5px] text-muted-foreground">
-                    {f.helper(values)}
-                  </div>
-                )}
-              </div>
+              renderField(row[0], false)
             ),
           )}
-        </div>
+        </DialogBody>
 
-        <Button className="w-full" onClick={handleSave} disabled={isSaving}>
-          <Save className="size-4" /> {isSaving ? "Menyimpan..." : "Simpan"}
-        </Button>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Batal
+          </Button>
+          <Button onClick={handleSave} disabled={isSaving}>
+            <Save className="size-4" /> {isSaving ? "Menyimpan..." : "Simpan"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

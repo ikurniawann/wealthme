@@ -13,7 +13,15 @@ import {
   IconChip,
   Rise,
 } from "@/components/wm";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
   Plus,
@@ -633,21 +641,44 @@ export default function MasterCoaPage() {
         </div>
       </SectionCard>
 
-      {/* Add/Edit Modal */}
+      {/* Add/Edit Modal — EPIC-026 Wave 8: composition ported 1:1 from the
+          prototype's `dlg-coa` (docs/prototype/pages/mastercoa.html). Field
+          order is the prototype's: Grup, then Kode Akun (+ hint), Nama Akun,
+          the Arah/Budget Type `.field-row`, Kode Induk, then the
+          `notice--warning`. Behaviour (auto-code on blank create, required
+          code on edit, the mutations) is unchanged. */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent>
-          <DialogTitle className="text-[17px] font-extrabold mb-4">
+          <DialogTitle>
             {editTarget
               ? t.mastercoa.modalTitleEdit
               : t.mastercoa.modalTitleAdd}
           </DialogTitle>
-          <form onSubmit={handleSubmit} className="space-y-3.5">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
-                  {t.mastercoa.fieldCodeLabel}
-                </label>
+          <DialogDescription>{t.mastercoa.modalDesc}</DialogDescription>
+          <form onSubmit={handleSubmit}>
+            <DialogBody>
+              <label className="field">
+                <span className="label">{t.mastercoa.fieldGroupLabel}</span>
+                <select
+                  className="select"
+                  value={form.groupNum}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, groupNum: Number(e.target.value) }))
+                  }
+                  required
+                >
+                  {GROUP_NUMS.map((groupNum) => (
+                    <option key={groupNum} value={groupNum}>
+                      {groupNum} — {t.mastercoa.groupLabels[groupNum]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="field">
+                <span className="label">{t.mastercoa.fieldCodeLabel}</span>
                 <input
+                  className="input mono"
                   value={form.code}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, code: e.target.value }))
@@ -663,154 +694,151 @@ export default function MasterCoaPage() {
                   // (still required there, since a saved account can't have
                   // no code).
                   required={Boolean(editTarget)}
-                  className="w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] font-mono outline-none transition-colors focus:border-primary focus:bg-card"
                 />
-              </div>
-              <div>
-                <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
-                  {t.mastercoa.fieldGroupLabel}
-                </label>
-                <select
-                  value={form.groupNum}
+                {/* The prototype previews the exact next free code
+                    (`Dibuat otomatis: 10104`). The app cannot: the next code
+                    is allocated server-side on POST and there is no endpoint
+                    that returns it, so the hint states the rule instead of
+                    showing a number that might not be the one issued. */}
+                {!editTarget && (
+                  <span className="hint block">
+                    {t.mastercoa.fieldCodeHint}
+                  </span>
+                )}
+              </label>
+
+              <label className="field">
+                <span className="label">{t.mastercoa.fieldNameLabel}</span>
+                <input
+                  className="input"
+                  value={form.name}
                   onChange={(e) =>
-                    setForm((f) => ({ ...f, groupNum: Number(e.target.value) }))
+                    setForm((f) => ({ ...f, name: e.target.value }))
                   }
+                  placeholder={t.mastercoa.fieldNamePlaceholder}
                   required
-                  className="w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card"
-                >
-                  {GROUP_NUMS.map((groupNum) => (
-                    <option key={groupNum} value={groupNum}>
-                      {groupNum} — {t.mastercoa.groupLabels[groupNum]}
+                />
+              </label>
+
+              <div className="field-row mt-3">
+                <label className="field mt-0">
+                  <span className="label">
+                    {t.mastercoa.fieldDirectionLabel}
+                  </span>
+                  <select
+                    className="select"
+                    value={form.direction}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        direction: e.target.value as CoaDirection,
+                      }))
+                    }
+                    required
+                  >
+                    <option value="INCOME">
+                      {t.mastercoa.directionLabels.INCOME}
                     </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
-                {t.mastercoa.fieldNameLabel}
-              </label>
-              <input
-                value={form.name}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, name: e.target.value }))
-                }
-                placeholder={t.mastercoa.fieldNamePlaceholder}
-                required
-                className="w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
-                  {t.mastercoa.fieldDirectionLabel}
+                    <option value="EXPENSE">
+                      {t.mastercoa.directionLabels.EXPENSE}
+                    </option>
+                    <option value="TRANSFER">
+                      {t.mastercoa.directionLabels.TRANSFER}
+                    </option>
+                  </select>
                 </label>
-                <select
-                  value={form.direction}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      direction: e.target.value as CoaDirection,
-                    }))
-                  }
-                  required
-                  className="w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card"
-                >
-                  <option value="INCOME">
-                    {t.mastercoa.directionLabels.INCOME}
-                  </option>
-                  <option value="EXPENSE">
-                    {t.mastercoa.directionLabels.EXPENSE}
-                  </option>
-                  <option value="TRANSFER">
-                    {t.mastercoa.directionLabels.TRANSFER}
-                  </option>
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
-                  {t.mastercoa.fieldBudgetTypeLabel}
+                <label className="field mt-0">
+                  <span className="label">
+                    {t.mastercoa.fieldBudgetTypeLabel}
+                  </span>
+                  <select
+                    className="select"
+                    value={form.budgetType}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        budgetType: e.target.value as CoaBudgetType | "",
+                      }))
+                    }
+                  >
+                    <option value="">{t.mastercoa.budgetTypeNone}</option>
+                    <option value="FIXED">
+                      {t.mastercoa.budgetTypeLabels.FIXED}
+                    </option>
+                    <option value="VARIABLE">
+                      {t.mastercoa.budgetTypeLabels.VARIABLE}
+                    </option>
+                    <option value="REIMBURSEMENT">
+                      {t.mastercoa.budgetTypeLabels.REIMBURSEMENT}
+                    </option>
+                  </select>
                 </label>
-                <select
-                  value={form.budgetType}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      budgetType: e.target.value as CoaBudgetType | "",
-                    }))
-                  }
-                  className="w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card"
-                >
-                  <option value="">{t.mastercoa.budgetTypeNone}</option>
-                  <option value="FIXED">
-                    {t.mastercoa.budgetTypeLabels.FIXED}
-                  </option>
-                  <option value="VARIABLE">
-                    {t.mastercoa.budgetTypeLabels.VARIABLE}
-                  </option>
-                  <option value="REIMBURSEMENT">
-                    {t.mastercoa.budgetTypeLabels.REIMBURSEMENT}
-                  </option>
-                </select>
               </div>
-            </div>
-            <div>
-              <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">
-                {t.mastercoa.fieldParentCodeLabel}
+
+              <label className="field">
+                <span className="label">
+                  {t.mastercoa.fieldParentCodeLabel}
+                </span>
+                <input
+                  className="input mono"
+                  value={form.parentCode}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, parentCode: e.target.value }))
+                  }
+                  placeholder={t.mastercoa.fieldParentCodePlaceholder}
+                />
               </label>
-              <input
-                value={form.parentCode}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, parentCode: e.target.value }))
-                }
-                placeholder={t.mastercoa.fieldParentCodePlaceholder}
-                className="w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] font-mono outline-none transition-colors focus:border-primary focus:bg-card"
-              />
-            </div>
-            <div className="flex gap-2 pt-1">
-              <button
+
+              <div className="notice notice--warning mt-3.5">
+                <AlertTriangle aria-hidden="true" className="size-4 shrink-0" />
+                <span>{t.mastercoa.modalWarning}</span>
+              </div>
+            </DialogBody>
+
+            <DialogFooter>
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => setModalOpen(false)}
-                className="flex-1 rounded-md border py-2.5 text-[13px] font-semibold text-muted-foreground hover:bg-secondary transition-colors"
               >
                 {t.common.cancel}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
                 disabled={createMutation.isPending || updateMutation.isPending}
-                className="flex-1 rounded-md bg-primary py-2.5 text-[13px] font-semibold text-white hover:bg-primary/90 disabled:opacity-50 transition-colors"
               >
                 {editTarget ? t.common.save : t.common.add}
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirm modal */}
+      {/* Delete confirm modal — prototype `dlg-coa-delete`: `dialog--sm`,
+          title + desc, a `notice--danger` spelling out the consequence, and
+          an outline/destructive footer pair. */}
       <Dialog open={Boolean(deleteId)} onOpenChange={() => setDeleteId(null)}>
-        <DialogContent className="min-[769px]:w-[min(380px,calc(100%-2rem))]">
-          <DialogTitle className="text-[17px] font-extrabold mb-2">
-            {t.mastercoa.deleteConfirmTitle}
-          </DialogTitle>
-          <p className="text-[13px] text-muted-foreground mb-4">
-            {t.mastercoa.deleteConfirmBody}
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setDeleteId(null)}
-              className="flex-1 rounded-md border py-2.5 text-[13px] font-semibold text-muted-foreground hover:bg-secondary transition-colors"
-            >
+        <DialogContent className="dialog--sm">
+          <DialogTitle>{t.mastercoa.deleteConfirmTitle}</DialogTitle>
+          <DialogDescription>{t.mastercoa.deleteConfirmBody}</DialogDescription>
+          <DialogBody>
+            <div className="notice notice--danger">
+              <AlertTriangle aria-hidden="true" className="size-4 shrink-0" />
+              <span>{t.mastercoa.deleteConfirmNotice}</span>
+            </div>
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteId(null)}>
               {t.common.cancel}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="destructive"
               onClick={() => deleteId && deleteMutation.mutate(deleteId)}
               disabled={deleteMutation.isPending}
-              className="flex-1 rounded-md bg-destructive py-2.5 text-[13px] font-semibold text-white hover:bg-destructive/90 disabled:opacity-50 transition-colors"
             >
               {t.common.delete}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

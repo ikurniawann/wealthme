@@ -18,6 +18,9 @@ import {
   Bot,
   X,
   ChevronRight,
+  CheckCheck,
+  ReceiptText,
+  TriangleAlert,
 } from "lucide-react";
 // EPIC-026 Wave 5 note — the prototype's rekonsiliasi page mounts NO chart
 // at all (its <script> block loads only shell.js); the composition card is
@@ -25,7 +28,15 @@ import {
 // invention relative to the prototype and has been replaced by that bar.
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import {
   SectionCard,
   StatusBadge,
@@ -336,8 +347,13 @@ export function EntryDetailDialog({
     >
       <DialogContent className="dialog--sm">
         <DialogTitle>{t.rekonsiliasi.detailDialogTitle}</DialogTitle>
+        {/* No prototype counterpart — `rekonsiliasi.html` ships upload /
+            split / template dialogs only, and this read-only entry detail
+            (EPIC-021 #9) is a genuine post-prototype feature. It is kept and
+            re-composed with the same `.dialog__body` / `.dialog__footer`
+            grammar so it sits consistently beside the ported dialogs. */}
         {entry && (
-          <div className="space-y-1 pt-1">
+          <DialogBody className="space-y-1">
             <div className="mb-2 flex items-center justify-between">
               <span
                 className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusChipClass}`}
@@ -402,49 +418,15 @@ export function EntryDetailDialog({
                 {t.rekonsiliasi.detailNoMatchedTx}
               </div>
             )}
-            <div className="pt-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="w-full rounded-md border py-2.5 text-[13px] font-semibold"
-              >
-                {t.rekonsiliasi.closeButton}
-              </button>
-            </div>
-          </div>
+          </DialogBody>
         )}
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            {t.rekonsiliasi.closeButton}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-const splitFieldClass =
-  "w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card";
-
-// Explicit `htmlFor`/`id` pairing (not the shell `transaction-dialog.tsx`
-// Field's unassociated sibling `<label>`) — a real `<label for>` gives every
-// field a correct accessible name for screen readers AND `getByLabelText`,
-// and keeps the label's own text (e.g. "Jumlah Pokok") from being polluted
-// by unrelated decorative text (the "Rp" prefix) rendered inside `children`.
-function SplitField({
-  id,
-  label,
-  children,
-}: {
-  id: string;
-  label: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="mb-3.5">
-      <label
-        htmlFor={id}
-        className="mb-1.5 block text-xs font-semibold text-muted-foreground"
-      >
-        {label}
-      </label>
-      {children}
-    </div>
   );
 }
 
@@ -554,6 +536,19 @@ export function SplitEntryDialog({
     splitMutation.mutate();
   }
 
+  const money = (n: number) =>
+    new Intl.NumberFormat(numLocale, {
+      style: "currency",
+      currency: entry?.currency || "IDR",
+      minimumFractionDigits: 0,
+    }).format(n);
+
+  // Display-only running totals, mirroring the prototype's two
+  // `.row--between` lines and its balance notice. The authoritative check is
+  // still `handleSubmit`'s — nothing here blocks or alters submission.
+  const splitTotal = parseRupiah(principal) + (parseRupiah(adminFee) || 0);
+  const isBalanced = entry !== null && splitTotal === entryMagnitude;
+
   return (
     <Dialog
       open={!!entry}
@@ -561,27 +556,43 @@ export function SplitEntryDialog({
         if (!o) onClose();
       }}
     >
-      <DialogContent className="min-[769px]:w-[min(440px,calc(100%-2rem))]">
+      {/* EPIC-026 Wave 8 — composition ported 1:1 from the prototype's
+          `dlg-split` (docs/prototype/pages/rekonsiliasi.html): a
+          `dialog--wide` (720px) box, title + desc, the entry-summary
+          `.notice`, two 2-up `.field-row`s (source/destination, then
+          principal/admin fee), the optional note field, the running totals
+          and the balance notice, and an outline/primary `.dialog__footer`.
+          The multi-step import/matching logic and this dialog's own
+          validation + mutation are untouched. */}
+      <DialogContent className="dialog--wide">
         <DialogTitle>{t.rekonsiliasi.splitDialogTitle}</DialogTitle>
+        <DialogDescription>
+          {t.rekonsiliasi.splitDialogDescription}
+        </DialogDescription>
         {entry && (
-          <div className="pt-1">
-            <p className="mb-3.5 text-[12.5px] text-muted-foreground">
-              {t.rekonsiliasi.splitDialogDescription}
-            </p>
+          <DialogBody>
+            <div className="notice mb-3.5">
+              <ReceiptText aria-hidden="true" className="size-4 shrink-0" />
+              <span>
+                <strong>{entry.description}</strong>
+                {" · "}
+                {new Date(entry.date).toLocaleDateString(numLocale, {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+                {" · "}
+                <span className="mono">{entryAmountDisplay}</span>
+              </span>
+            </div>
 
-            <DetailRow
-              label={t.rekonsiliasi.splitEntryAmountLabel}
-              value={entryAmountDisplay}
-            />
-
-            <div className="mt-3.5">
-              <SplitField
-                id="split-source-account"
-                label={t.rekonsiliasi.splitSourceAccountLabel}
-              >
+            <div className="field-row">
+              <label className="field mt-0">
+                <span className="label">
+                  {t.rekonsiliasi.splitSourceAccountLabel}
+                </span>
                 <select
-                  id="split-source-account"
-                  className={splitFieldClass}
+                  className="select"
                   value={sourceAccountId}
                   onChange={(e) => {
                     const next = e.target.value;
@@ -599,15 +610,14 @@ export function SplitEntryDialog({
                     </option>
                   ))}
                 </select>
-              </SplitField>
+              </label>
 
-              <SplitField
-                id="split-dest-account"
-                label={t.rekonsiliasi.splitDestAccountLabel}
-              >
+              <label className="field mt-0">
+                <span className="label">
+                  {t.rekonsiliasi.splitDestAccountLabel}
+                </span>
                 <select
-                  id="split-dest-account"
-                  className={splitFieldClass}
+                  className="select"
                   value={destAccountId}
                   onChange={(e) => setDestAccountId(e.target.value)}
                 >
@@ -623,90 +633,98 @@ export function SplitEntryDialog({
                       </option>
                     ))}
                 </select>
-              </SplitField>
+              </label>
+            </div>
 
-              <SplitField
-                id="split-principal"
-                label={t.rekonsiliasi.splitPrincipalLabel}
-              >
-                <div className="relative">
-                  <span
-                    aria-hidden="true"
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground"
-                  >
-                    Rp
-                  </span>
-                  <input
-                    id="split-principal"
-                    inputMode="numeric"
-                    value={principal}
-                    onChange={(e) =>
-                      setPrincipal(formatAmountInput(e.target.value))
-                    }
-                    placeholder="0"
-                    className={`${splitFieldClass} pl-[38px]`}
-                  />
-                </div>
-              </SplitField>
-
-              <SplitField
-                id="split-admin-fee"
-                label={t.rekonsiliasi.splitAdminFeeLabel}
-              >
-                <div className="relative">
-                  <span
-                    aria-hidden="true"
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground"
-                  >
-                    Rp
-                  </span>
-                  <input
-                    id="split-admin-fee"
-                    inputMode="numeric"
-                    value={adminFee}
-                    onChange={(e) =>
-                      setAdminFee(formatAmountInput(e.target.value))
-                    }
-                    placeholder="0"
-                    className={`${splitFieldClass} pl-[38px]`}
-                  />
-                </div>
-              </SplitField>
-
-              <SplitField
-                id="split-description"
-                label={t.rekonsiliasi.splitDescriptionLabel}
-              >
+            <div className="field-row mt-3">
+              <label className="field mt-0">
+                <span className="label">
+                  {t.rekonsiliasi.splitPrincipalLabel}
+                </span>
                 <input
-                  id="split-description"
-                  type="text"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder={t.rekonsiliasi.splitDescriptionPlaceholder}
-                  className={splitFieldClass}
+                  className="input mono"
+                  inputMode="numeric"
+                  value={principal}
+                  onChange={(e) =>
+                    setPrincipal(formatAmountInput(e.target.value))
+                  }
+                  placeholder="0"
                 />
-              </SplitField>
+              </label>
+
+              <label className="field mt-0">
+                <span className="label">
+                  {t.rekonsiliasi.splitAdminFeeLabel}
+                </span>
+                <input
+                  className="input mono"
+                  inputMode="numeric"
+                  value={adminFee}
+                  onChange={(e) =>
+                    setAdminFee(formatAmountInput(e.target.value))
+                  }
+                  placeholder="0"
+                />
+              </label>
             </div>
 
-            <div className="flex gap-2 pt-1">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 rounded-md border py-2.5 text-[13px] font-semibold"
-              >
-                {t.rekonsiliasi.splitCancelButton}
-              </button>
-              <button
-                type="button"
-                disabled={splitMutation.isPending}
-                onClick={handleSubmit}
-                className="flex-1 rounded-md bg-primary py-2.5 text-[13px] font-semibold text-white disabled:opacity-60"
-              >
-                {t.rekonsiliasi.splitSubmitButton}
-              </button>
+            <label className="field">
+              <span className="label">
+                {t.rekonsiliasi.splitDescriptionLabel}
+              </span>
+              <input
+                className="input"
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder={t.rekonsiliasi.splitDescriptionPlaceholder}
+              />
+            </label>
+
+            <div className="row row--between mt-3.5">
+              <span className="t-sm t-muted">
+                {t.rekonsiliasi.splitTotalLabel}
+              </span>
+              <span className="t-sm t-bold mono">{money(splitTotal)}</span>
             </div>
-          </div>
+            <div className="row row--between mt-1">
+              <span className="t-sm t-muted">
+                {t.rekonsiliasi.splitEntryAmountLabel}
+              </span>
+              <span className="t-sm t-bold mono">{entryAmountDisplay}</span>
+            </div>
+
+            <div
+              className={`notice mt-2.5 ${
+                isBalanced ? "notice--info" : "notice--warning"
+              }`}
+            >
+              {isBalanced ? (
+                <CheckCheck aria-hidden="true" className="size-4 shrink-0" />
+              ) : (
+                <TriangleAlert aria-hidden="true" className="size-4 shrink-0" />
+              )}
+              <span>
+                {isBalanced
+                  ? t.rekonsiliasi.splitBalancedNotice
+                  : t.rekonsiliasi.splitUnbalancedNotice}
+              </span>
+            </div>
+          </DialogBody>
         )}
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            {t.rekonsiliasi.splitCancelButton}
+          </Button>
+          <Button
+            type="button"
+            disabled={splitMutation.isPending}
+            onClick={handleSubmit}
+          >
+            {t.rekonsiliasi.splitSubmitButton}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -807,157 +825,168 @@ function ReconciliationTemplateManagerDialog({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent>
-        <DialogTitle className="mb-4 text-[17px] font-extrabold">
-          {t.rekonsiliasi.templateManagerTitle}
-        </DialogTitle>
-        <div className="mb-4 text-[12px] text-muted-foreground">
-          {t.rekonsiliasi.templateManagerHint}
-        </div>
+      {/* EPIC-026 Wave 8 — composition ported from the prototype's
+          `dlg-template` (docs/prototype/pages/rekonsiliasi.html): a
+          `dialog--wide` box, title + desc, the saved-template
+          `.table-wrap` table, then 2-up `.field-row`s for bank/name and the
+          column mapping, the date-format select, and a `.dialog__footer`
+          with "Tutup" left of "Simpan Template".
 
-        {(templatesQuery.data?.length ?? 0) > 0 && (
-          <div className="mb-4 space-y-1.5">
-            {templatesQuery.data?.map((tpl) => (
-              <div
-                key={tpl.id}
-                className="flex items-center justify-between rounded-md border px-3 py-2 text-[12.5px]"
-              >
-                <div>
-                  <span className="font-semibold">{tpl.bankCode}</span> —{" "}
-                  {tpl.name}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => deleteMutation.mutate(tpl.bankCode)}
-                  disabled={deleteMutation.isPending}
-                  className="text-destructive disabled:opacity-60"
-                >
-                  {t.rekonsiliasi.templateDeleteButton}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+          Honest-UI deviation: the prototype splits the amount mapping into
+          "Kolom Debit" + "Kolom Kredit". The API's
+          `ReconciliationTemplateDto` has a single `amountColumn` and no
+          debit/credit pair, so one "Kolom Jumlah" field is rendered instead
+          of two inputs whose second value would be silently dropped. */}
+      <DialogContent className="dialog--wide">
+        <DialogTitle>{t.rekonsiliasi.templateManagerTitle}</DialogTitle>
+        <DialogDescription>
+          {t.rekonsiliasi.templateManagerHint}
+        </DialogDescription>
 
         <form
           onSubmit={(e) => {
             e.preventDefault();
             saveMutation.mutate();
           }}
-          className="space-y-2.5"
         >
-          <div className="space-y-1">
-            <label
-              className="text-[12px] text-muted-foreground"
-              htmlFor="template-bank-code"
-            >
-              {t.rekonsiliasi.templateBankLabel}
-            </label>
-            <select
-              id="template-bank-code"
-              value={bankCode}
-              onChange={(e) => setBankCode(e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
-            >
-              {SUPPORTED_BANKS.map((b) => (
-                <option key={b.code} value={b.code}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label
-              className="text-[12px] text-muted-foreground"
-              htmlFor="template-name"
-            >
-              {t.rekonsiliasi.templateNameLabel}
-            </label>
-            <input
-              id="template-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t.rekonsiliasi.templateNamePlaceholder}
-              className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="space-y-1">
-              <label
-                className="text-[12px] text-muted-foreground"
-                htmlFor="template-date-column"
-              >
-                {t.rekonsiliasi.templateDateColumnLabel}
+          <DialogBody>
+            {(templatesQuery.data?.length ?? 0) > 0 && (
+              <div className="table-wrap mb-4">
+                <table className="table min-w-[520px]">
+                  <thead>
+                    <tr>
+                      <th>{t.rekonsiliasi.templateBankLabel}</th>
+                      <th>{t.rekonsiliasi.templateNameLabel}</th>
+                      <th>{t.rekonsiliasi.templateColumnsHeader}</th>
+                      <th>{t.rekonsiliasi.templateActionHeader}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {templatesQuery.data?.map((tpl) => (
+                      <tr key={tpl.id}>
+                        <td className="t-sm t-bold">{tpl.bankCode}</td>
+                        <td className="t-sm">{tpl.name}</td>
+                        <td className="t-xs t-muted mono">
+                          {[
+                            tpl.dateColumn,
+                            tpl.descriptionColumn,
+                            tpl.amountColumn,
+                          ].join(" · ")}
+                        </td>
+                        <td>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteMutation.mutate(tpl.bankCode)}
+                            disabled={deleteMutation.isPending}
+                          >
+                            {t.rekonsiliasi.templateDeleteButton}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="field-row">
+              <label className="field mt-0">
+                <span className="label">
+                  {t.rekonsiliasi.templateBankLabel}
+                </span>
+                <select
+                  className="select"
+                  value={bankCode}
+                  onChange={(e) => setBankCode(e.target.value)}
+                >
+                  {SUPPORTED_BANKS.map((b) => (
+                    <option key={b.code} value={b.code}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
               </label>
-              <input
-                id="template-date-column"
-                required
-                value={dateColumn}
-                onChange={(e) => setDateColumn(e.target.value)}
-                placeholder={t.rekonsiliasi.templateDateColumnPlaceholder}
-                className="w-full rounded-md border bg-background px-2.5 py-2 text-[12.5px] outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            <div className="space-y-1">
-              <label
-                className="text-[12px] text-muted-foreground"
-                htmlFor="template-description-column"
-              >
-                {t.rekonsiliasi.templateDescriptionColumnLabel}
+              <label className="field mt-0">
+                <span className="label">
+                  {t.rekonsiliasi.templateNameLabel}
+                </span>
+                <input
+                  className="input"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={t.rekonsiliasi.templateNamePlaceholder}
+                />
               </label>
-              <input
-                id="template-description-column"
-                required
-                value={descriptionColumn}
-                onChange={(e) => setDescriptionColumn(e.target.value)}
-                placeholder={
-                  t.rekonsiliasi.templateDescriptionColumnPlaceholder
-                }
-                className="w-full rounded-md border bg-background px-2.5 py-2 text-[12.5px] outline-none focus:ring-1 focus:ring-primary"
-              />
             </div>
-            <div className="space-y-1">
-              <label
-                className="text-[12px] text-muted-foreground"
-                htmlFor="template-amount-column"
-              >
+
+            <div className="field-row mt-3">
+              <label className="field mt-0">
+                <span className="label">
+                  {t.rekonsiliasi.templateDateColumnLabel}
+                </span>
+                <input
+                  className="input"
+                  required
+                  value={dateColumn}
+                  onChange={(e) => setDateColumn(e.target.value)}
+                  placeholder={t.rekonsiliasi.templateDateColumnPlaceholder}
+                />
+              </label>
+              <label className="field mt-0">
+                <span className="label">
+                  {t.rekonsiliasi.templateDescriptionColumnLabel}
+                </span>
+                <input
+                  className="input"
+                  required
+                  value={descriptionColumn}
+                  onChange={(e) => setDescriptionColumn(e.target.value)}
+                  placeholder={
+                    t.rekonsiliasi.templateDescriptionColumnPlaceholder
+                  }
+                />
+              </label>
+            </div>
+
+            <label className="field">
+              <span className="label">
                 {t.rekonsiliasi.templateAmountColumnLabel}
-              </label>
+              </span>
               <input
-                id="template-amount-column"
+                className="input"
                 required
                 value={amountColumn}
                 onChange={(e) => setAmountColumn(e.target.value)}
                 placeholder={t.rekonsiliasi.templateAmountColumnPlaceholder}
-                className="w-full rounded-md border bg-background px-2.5 py-2 text-[12.5px] outline-none focus:ring-1 focus:ring-primary"
               />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <label
-              className="text-[12px] text-muted-foreground"
-              htmlFor="template-date-format"
-            >
-              {t.rekonsiliasi.templateDateFormatLabel}
             </label>
-            <select
-              id="template-date-format"
-              value={dateFormat}
-              onChange={(e) => setDateFormat(e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="">{t.rekonsiliasi.templateDateFormatIso}</option>
-              <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-              <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-            </select>
-          </div>
-          <button
-            type="submit"
-            disabled={saveMutation.isPending}
-            className="w-full rounded-md bg-primary py-2.5 text-[13px] font-semibold text-white disabled:opacity-60"
-          >
-            {t.rekonsiliasi.templateSaveButton}
-          </button>
+
+            <label className="field">
+              <span className="label">
+                {t.rekonsiliasi.templateDateFormatLabel}
+              </span>
+              <select
+                className="select"
+                value={dateFormat}
+                onChange={(e) => setDateFormat(e.target.value)}
+              >
+                <option value="">{t.rekonsiliasi.templateDateFormatIso}</option>
+                <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+              </select>
+            </label>
+          </DialogBody>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              {t.rekonsiliasi.closeButton}
+            </Button>
+            <Button type="submit" disabled={saveMutation.isPending}>
+              {t.rekonsiliasi.templateSaveButton}
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

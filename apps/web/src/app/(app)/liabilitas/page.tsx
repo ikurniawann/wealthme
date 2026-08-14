@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import {
   Plus,
-  X,
   CreditCard,
   Landmark,
   FileText,
   Pencil,
   Trash2,
   Banknote,
+  Split,
+  StickyNote,
   TriangleAlert,
   type LucideIcon,
 } from "lucide-react";
@@ -29,7 +30,15 @@ import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { ConfirmDeleteDialog } from "@/components/crud";
 import {
   AnimatedProgress,
@@ -492,211 +501,190 @@ function LiabilityModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md rounded-t-[20px] bg-background p-6 sm:rounded-[20px]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-5 flex items-center justify-between">
-          <span className="text-[15px] font-bold">
-            {editing ? t.liabilitas.modalEditTitle : t.liabilitas.modalTitle}
-          </span>
-          <button
-            type="button"
-            aria-label={t.liabilitas.modalCloseAriaLabel}
-            onClick={onClose}
-            className="rounded-md p-1 hover:bg-accent"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
+    // EPIC-026 Wave 8 — was a hand-rolled fixed overlay; now the real Base UI
+    // Dialog so it inherits `.dialog` (focus trap, Escape, scroll lock, the
+    // mobile bottom sheet) and can express the prototype's
+    // `dialog__title`/`__desc`/`__body`/`__footer` structure
+    // (docs/prototype/pages/liabilitas.html `dlg-lia-edit`).
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogTitle>
+          {editing ? t.liabilitas.modalEditTitle : t.liabilitas.modalTitle}
+        </DialogTitle>
+        <DialogDescription>{t.liabilitas.modalDesc}</DialogDescription>
 
-        <form onSubmit={handleSubmit} className="space-y-3.5">
-          <div>
-            <label
-              htmlFor="liability-name"
-              className="mb-1 block text-[12px] font-semibold text-muted-foreground"
-            >
-              {t.liabilitas.fieldNameLabel}
-            </label>
-            <input
-              id="liability-name"
-              className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-              placeholder={t.liabilitas.fieldNamePlaceholder}
-              maxLength={100}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="liability-institution"
-              className="mb-1 block text-[12px] font-semibold text-muted-foreground"
-            >
-              {t.liabilitas.fieldInstitutionLabel}
-            </label>
-            <input
-              id="liability-institution"
-              className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-              placeholder={t.liabilitas.fieldInstitutionPlaceholder}
-              maxLength={100}
-              value={institution}
-              onChange={(e) => setInstitution(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="liability-type"
-              className="mb-1 block text-[12px] font-semibold text-muted-foreground"
-            >
-              {t.liabilitas.fieldTypeLabel}
-            </label>
-            <select
-              id="liability-type"
-              className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-              value={type}
-              onChange={(e) => setType(e.target.value as LiabilityTypeValue)}
-            >
-              {LIABILITY_TYPES.map((liabilityType) => (
-                <option key={liabilityType} value={liabilityType}>
-                  {t.liabilitas.typeLabels[liabilityType]}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label
-                htmlFor="liability-total-debt"
-                className="mb-1 block text-[12px] font-semibold text-muted-foreground"
-              >
-                {t.liabilitas.fieldTotalDebtLabel}
-              </label>
-              <input
-                id="liability-total-debt"
-                className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-                placeholder={t.liabilitas.fieldTotalDebtPlaceholder}
-                inputMode="numeric"
-                value={totalDebt}
-                onChange={(e) => setTotalDebt(formatNum(e.target.value))}
-                required
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="liability-remaining"
-                className="mb-1 block text-[12px] font-semibold text-muted-foreground"
-              >
-                {t.liabilitas.fieldRemainingLabel}
-              </label>
-              <input
-                id="liability-remaining"
-                className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-                placeholder={t.liabilitas.fieldRemainingPlaceholder}
-                inputMode="numeric"
-                value={remainingBalance}
-                onChange={(e) => setRemainingBalance(formatNum(e.target.value))}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label
-                htmlFor="liability-min-payment"
-                className="mb-1 block text-[12px] font-semibold text-muted-foreground"
-              >
-                {t.liabilitas.fieldMinPaymentLabel}
-              </label>
-              <input
-                id="liability-min-payment"
-                className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-                placeholder={t.liabilitas.fieldMinPaymentPlaceholder}
-                inputMode="numeric"
-                value={minimumPayment}
-                onChange={(e) => setMinimumPayment(formatNum(e.target.value))}
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="liability-interest-rate"
-                className="mb-1 block text-[12px] font-semibold text-muted-foreground"
-              >
-                {t.liabilitas.fieldInterestRateLabel}
-              </label>
-              <input
-                id="liability-interest-rate"
-                className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-                placeholder={t.liabilitas.fieldInterestRatePlaceholder}
-                inputMode="decimal"
-                value={interestRate}
-                onChange={(e) => setInterestRate(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label
-              htmlFor="liability-due-date"
-              className="mb-1 block text-[12px] font-semibold text-muted-foreground"
-            >
-              {t.liabilitas.fieldDueDateLabel}
-            </label>
-            <input
-              id="liability-due-date"
-              type="date"
-              className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-            />
-            {dueDate && (
-              <label className="mt-2 flex items-center gap-2 text-[12px] text-muted-foreground">
+        <form onSubmit={handleSubmit}>
+          <DialogBody>
+            {/* Prototype pairs Nama + Institusi 2-up (liabilitas.html:432). */}
+            <div className="field-row">
+              <div className="field mt-0">
+                <label className="label" htmlFor="liability-name">
+                  {t.liabilitas.fieldNameLabel}
+                </label>
                 <input
-                  type="checkbox"
-                  checked={autoAdvanceDueDate}
-                  onChange={(e) => setAutoAdvanceDueDate(e.target.checked)}
-                  className="size-3.5"
+                  id="liability-name"
+                  className="input"
+                  placeholder={t.liabilitas.fieldNamePlaceholder}
+                  maxLength={100}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
                 />
-                {t.liabilitas.autoAdvanceLabel}
+              </div>
+              <div className="field mt-0">
+                <label className="label" htmlFor="liability-institution">
+                  {t.liabilitas.fieldInstitutionLabel}
+                </label>
+                <input
+                  id="liability-institution"
+                  className="input"
+                  placeholder={t.liabilitas.fieldInstitutionPlaceholder}
+                  maxLength={100}
+                  value={institution}
+                  onChange={(e) => setInstitution(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="field">
+              <label className="label" htmlFor="liability-type">
+                {t.liabilitas.fieldTypeLabel}
               </label>
+              <select
+                id="liability-type"
+                className="select"
+                value={type}
+                onChange={(e) => setType(e.target.value as LiabilityTypeValue)}
+              >
+                {LIABILITY_TYPES.map((liabilityType) => (
+                  <option key={liabilityType} value={liabilityType}>
+                    {t.liabilitas.typeLabels[liabilityType]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="field-row mt-3">
+              <div className="field mt-0">
+                <label className="label" htmlFor="liability-total-debt">
+                  {t.liabilitas.fieldTotalDebtLabel}
+                </label>
+                <input
+                  id="liability-total-debt"
+                  className="input mono"
+                  placeholder={t.liabilitas.fieldTotalDebtPlaceholder}
+                  inputMode="numeric"
+                  value={totalDebt}
+                  onChange={(e) => setTotalDebt(formatNum(e.target.value))}
+                  required
+                />
+              </div>
+              <div className="field mt-0">
+                <label className="label" htmlFor="liability-remaining">
+                  {t.liabilitas.fieldRemainingLabel}
+                </label>
+                <input
+                  id="liability-remaining"
+                  className="input mono"
+                  placeholder={t.liabilitas.fieldRemainingPlaceholder}
+                  inputMode="numeric"
+                  value={remainingBalance}
+                  onChange={(e) =>
+                    setRemainingBalance(formatNum(e.target.value))
+                  }
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="field-row mt-3">
+              <div className="field mt-0">
+                <label className="label" htmlFor="liability-min-payment">
+                  {t.liabilitas.fieldMinPaymentLabel}
+                </label>
+                <input
+                  id="liability-min-payment"
+                  className="input mono"
+                  placeholder={t.liabilitas.fieldMinPaymentPlaceholder}
+                  inputMode="numeric"
+                  value={minimumPayment}
+                  onChange={(e) => setMinimumPayment(formatNum(e.target.value))}
+                />
+              </div>
+              <div className="field mt-0">
+                <label className="label" htmlFor="liability-interest-rate">
+                  {t.liabilitas.fieldInterestRateLabel}
+                </label>
+                <input
+                  id="liability-interest-rate"
+                  className="input mono"
+                  placeholder={t.liabilitas.fieldInterestRatePlaceholder}
+                  inputMode="decimal"
+                  value={interestRate}
+                  onChange={(e) => setInterestRate(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="field">
+              <label className="label" htmlFor="liability-due-date">
+                {t.liabilitas.fieldDueDateLabel}
+              </label>
+              <input
+                id="liability-due-date"
+                type="date"
+                className="input"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
+            </div>
+
+            {/* Prototype's `.row` + `.switch` auto-advance toggle
+                (liabilitas.html:479). Still gated on a due date being set —
+                `autoAdvanceDueDate` is only sent when `dueDate` is, so
+                showing the switch without one would be a control that does
+                nothing (Honest UI). */}
+            {dueDate && (
+              <div className="row mt-3">
+                <Switch
+                  checked={autoAdvanceDueDate}
+                  onCheckedChange={setAutoAdvanceDueDate}
+                  aria-labelledby="liability-auto-advance-label"
+                />
+                <span className="text-[13px]" id="liability-auto-advance-label">
+                  {t.liabilitas.autoAdvanceLabel}
+                </span>
+              </div>
             )}
-          </div>
 
-          <div>
-            <label
-              htmlFor="liability-notes"
-              className="mb-1 block text-[12px] font-semibold text-muted-foreground"
-            >
-              {t.liabilitas.fieldNotesLabel}
-            </label>
-            <input
-              id="liability-notes"
-              className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-              placeholder={t.liabilitas.fieldNotesPlaceholder}
-              maxLength={500}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
+            <div className="field">
+              <label className="label" htmlFor="liability-notes">
+                {t.liabilitas.fieldNotesLabel}
+              </label>
+              <input
+                id="liability-notes"
+                className="input"
+                placeholder={t.liabilitas.fieldNotesPlaceholder}
+                maxLength={500}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
+          </DialogBody>
 
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={mutation.isPending}
-          >
-            {mutation.isPending ? t.liabilitas.saving : t.liabilitas.saveButton}
-          </Button>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              {t.common.cancel}
+            </Button>
+            <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending
+                ? t.liabilitas.saving
+                : t.liabilitas.saveButton}
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -937,9 +925,13 @@ function LiabilityCard({
 function LiabilityDetailDialog({
   item,
   onClose,
+  onPay,
 }: {
   item: LiabilityDto | null;
   onClose: () => void;
+  /** Prototype `dlg-lia-detail` footer's "Bayar Cicilan" (liabilitas.html:412)
+   *  — closes Detail and hands off to the existing real pay flow. */
+  onPay: (item: LiabilityDto) => void;
 }) {
   const { t, locale } = useLocale();
   const typeLabel = item
@@ -967,198 +959,226 @@ function LiabilityDetailDialog({
     : [];
 
   return (
+    // EPIC-026 Wave 8 — prototype `dlg-lia-detail` (liabilitas.html:312) is a
+    // read-only data sheet on `dialog--wide`: the liability's name as the
+    // title, `institusi · jenis` as the description, then stat grids, the
+    // amortisation table and a `.notice` for the note.
     <Dialog open={item !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="min-[769px]:w-[min(420px,calc(100%-2rem))]">
-        <DialogTitle className="text-[17px] font-extrabold">
-          {t.liabilitas.detailDialogTitle}
-        </DialogTitle>
+      <DialogContent className="dialog--wide">
         {item && (
-          <div className="space-y-3.5 text-[13px]">
-            <div>
-              <div className="text-[15px] font-bold">{item.name}</div>
-              <div className="text-[11.5px] text-muted-foreground">
-                {item.institution
-                  ? `${item.institution} · ${typeLabel}`
-                  : typeLabel}
-              </div>
-            </div>
+          <>
+            <DialogTitle>{item.name}</DialogTitle>
+            <DialogDescription>
+              {[item.institution, typeLabel].filter(Boolean).join(" · ")}
+            </DialogDescription>
 
-            <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted p-3.5">
-              <div>
-                <div className="text-[11px] text-muted-foreground">
-                  {t.liabilitas.loanRemainingPrincipalLabel}
-                </div>
-                <div
-                  className="text-[14px] font-bold"
-                  style={{ color: "var(--danger)" }}
-                >
-                  {formatRupiah(remaining)}
-                </div>
-              </div>
-              <div>
-                <div className="text-[11px] text-muted-foreground">
-                  {t.liabilitas.loanTotalLabel}
-                </div>
-                <div className="text-[14px] font-bold">
-                  {formatRupiah(totalDebt)}
-                </div>
-              </div>
-              <div>
-                <div className="text-[11px] text-muted-foreground">
-                  {t.liabilitas.loanInstallmentLabel}
-                </div>
-                <div className="text-[14px] font-bold">
-                  {minimumPayment > 0 ? formatRupiah(minimumPayment) : "—"}
-                </div>
-              </div>
-              <div>
-                <div className="text-[11px] text-muted-foreground">
-                  {t.liabilitas.loanInterestYearlyLabel}
-                </div>
-                <div className="text-[14px] font-bold">
-                  {interestRatePercent > 0 ? `${item.interestRate}%` : "—"}
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <div className="mb-[3px] text-[11px] text-muted-foreground">
-                  {t.liabilitas.fieldDueDateLabel}
-                </div>
-                <div className="text-[13px] font-semibold">
-                  {item.dueDate ? formatLocaleDate(item.dueDate, locale) : "—"}
-                </div>
-              </div>
-              <div>
-                <div className="mb-[3px] text-[11px] text-muted-foreground">
-                  {t.liabilitas.detailStatusLabel}
-                </div>
-                <StatusBadge variant={item.paidThisPeriod ? "success" : "gray"}>
-                  {item.paidThisPeriod
-                    ? t.liabilitas.detailPaidThisPeriodLabel
-                    : t.liabilitas.detailNotPaidThisPeriodLabel}
-                </StatusBadge>
-              </div>
-            </div>
-
-            {item.notes && (
-              <div>
-                <div className="mb-[3px] text-[11px] text-muted-foreground">
-                  {t.liabilitas.fieldNotesLabel}
-                </div>
-                <div className="text-[13px]">{item.notes}</div>
-              </div>
-            )}
-
-            <div className="rounded-lg border p-3.5">
-              <div className="mb-2 text-[12.5px] font-bold">
-                {t.liabilitas.amortisationTitle}
-              </div>
-              {minimumPayment > 0 ? (
-                <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {t.liabilitas.amortisationMonthlyPrincipalLabel}
-                      </div>
-                      <div className="text-[13.5px] font-bold">
-                        {formatRupiah(preview.monthlyPrincipal)}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {t.liabilitas.amortisationMonthlyInterestLabel}
-                      </div>
-                      <div
-                        className="text-[13.5px] font-bold"
-                        style={{ color: "var(--danger)" }}
-                      >
-                        {formatRupiah(preview.monthlyInterest)}
-                      </div>
-                    </div>
+            <DialogBody className="space-y-3.5 text-[13px]">
+              {/* Prototype's `grid grid--4` headline figures. The prototype's
+                  "akad"/"tenor" meta and its "Sisa Tenor" / "Rekening
+                  Autodebet" cells are OMITTED: `LiabilityDto` carries no
+                  origination date, tenor, or autodebit account, and inventing
+                  them would be a fabricated record (Honest UI). */}
+              <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted p-3.5 md:grid-cols-4">
+                <div>
+                  <div className="t-xs t-muted">
+                    {t.liabilitas.loanRemainingPrincipalLabel}
                   </div>
-                  {preview.months !== null ? (
-                    <div className="mt-2.5 text-[12.5px] font-semibold text-success">
-                      {t.liabilitas.amortisationEstimatedPayoffPrefix}
-                      {preview.months}
-                      {t.liabilitas.amortisationEstimatedPayoffSuffix}
-                    </div>
-                  ) : (
-                    <div className="mt-2.5 text-[12px] text-destructive">
-                      {t.liabilitas.amortisationNoPayoffNote}
-                    </div>
-                  )}
-                  {preview.monthlyPrincipal > 0 && schedule.length > 0 && (
-                    <div className="mt-3">
-                      <div className="mb-1.5 text-[12px] font-bold">
-                        Jadwal Amortisasi ({schedule.length} angsuran
-                        berikutnya)
+                  <div
+                    className="mono text-[14px] font-bold"
+                    style={{ color: "var(--danger)" }}
+                  >
+                    {formatRupiah(remaining)}
+                  </div>
+                </div>
+                <div>
+                  <div className="t-xs t-muted">
+                    {t.liabilitas.loanTotalLabel}
+                  </div>
+                  <div className="mono text-[14px] font-bold">
+                    {formatRupiah(totalDebt)}
+                  </div>
+                </div>
+                <div>
+                  <div className="t-xs t-muted">
+                    {t.liabilitas.loanInstallmentLabel}
+                  </div>
+                  <div className="mono text-[14px] font-bold">
+                    {minimumPayment > 0 ? formatRupiah(minimumPayment) : "—"}
+                  </div>
+                </div>
+                <div>
+                  <div className="t-xs t-muted">
+                    {t.liabilitas.loanInterestYearlyLabel}
+                  </div>
+                  <div className="mono text-[14px] font-bold">
+                    {interestRatePercent > 0 ? `${item.interestRate}%` : "—"}
+                  </div>
+                </div>
+              </div>
+
+              {/* Prototype's second `grid grid--3` row — only the two cells
+                  the API can actually answer. */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="t-xs t-muted mb-[3px]">
+                    {t.liabilitas.detailNextDueLabel}
+                  </div>
+                  <div className="text-[13px] font-semibold">
+                    {item.dueDate
+                      ? formatLocaleDate(item.dueDate, locale)
+                      : "—"}
+                  </div>
+                </div>
+                <div>
+                  <div className="t-xs t-muted mb-[3px]">
+                    {t.liabilitas.detailStatusLabel}
+                  </div>
+                  <StatusBadge
+                    variant={item.paidThisPeriod ? "success" : "gray"}
+                  >
+                    {item.paidThisPeriod
+                      ? t.liabilitas.detailPaidThisPeriodLabel
+                      : t.liabilitas.detailNotPaidThisPeriodLabel}
+                  </StatusBadge>
+                </div>
+              </div>
+
+              <div className="rounded-lg border p-3.5">
+                <div className="mb-2 text-[12.5px] font-bold">
+                  {t.liabilitas.amortisationTitle}
+                </div>
+                {minimumPayment > 0 ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="t-xs t-muted">
+                          {t.liabilitas.amortisationMonthlyPrincipalLabel}
+                        </div>
+                        <div className="mono text-[13.5px] font-bold">
+                          {formatRupiah(preview.monthlyPrincipal)}
+                        </div>
                       </div>
-                      <div className="w-full overflow-x-auto">
-                        <table className="w-full min-w-[360px] text-[11.5px]">
-                          <thead>
-                            <tr className="border-b text-left text-[10.5px] text-muted-foreground">
-                              <th className="py-1.5 pr-2 font-semibold">Ke-</th>
-                              <th className="py-1.5 pr-2 font-semibold">
-                                Tanggal
-                              </th>
-                              <th className="py-1.5 pr-2 text-right font-semibold">
-                                Pokok
-                              </th>
-                              <th className="py-1.5 pr-2 text-right font-semibold">
-                                Bunga
-                              </th>
-                              <th className="py-1.5 text-right font-semibold">
-                                {t.liabilitas.loanRemainingPrincipalLabel}
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {schedule.map((row) => (
-                              <tr
-                                key={row.index}
-                                className="border-b last:border-0"
-                              >
-                                <td className="mono py-1.5 pr-2">
-                                  {row.index}
-                                </td>
-                                <td className="py-1.5 pr-2 whitespace-nowrap">
-                                  {formatScheduleDate(row.date, locale)}
-                                </td>
-                                <td className="mono py-1.5 pr-2 text-right whitespace-nowrap">
-                                  {formatRupiah(row.principal)}
-                                </td>
-                                <td className="mono py-1.5 pr-2 text-right whitespace-nowrap">
-                                  {formatRupiah(row.interest)}
-                                </td>
-                                <td className="mono py-1.5 text-right whitespace-nowrap">
-                                  {formatRupiah(row.remaining)}
-                                </td>
+                      <div>
+                        <div className="t-xs t-muted">
+                          {t.liabilitas.amortisationMonthlyInterestLabel}
+                        </div>
+                        <div
+                          className="mono text-[13.5px] font-bold"
+                          style={{ color: "var(--danger)" }}
+                        >
+                          {formatRupiah(preview.monthlyInterest)}
+                        </div>
+                      </div>
+                    </div>
+                    {preview.months !== null ? (
+                      <div className="mt-2.5 text-[12.5px] font-semibold text-success">
+                        {t.liabilitas.amortisationEstimatedPayoffPrefix}
+                        {preview.months}
+                        {t.liabilitas.amortisationEstimatedPayoffSuffix}
+                      </div>
+                    ) : (
+                      <div className="mt-2.5 text-[12px] text-destructive">
+                        {t.liabilitas.amortisationNoPayoffNote}
+                      </div>
+                    )}
+                    {preview.monthlyPrincipal > 0 && schedule.length > 0 && (
+                      <div className="mt-3">
+                        <div className="section-title mb-2 text-[13px]">
+                          {t.liabilitas.amortisationScheduleTitle} (
+                          {schedule.length}
+                          {t.liabilitas.amortisationScheduleCountSuffix})
+                        </div>
+                        <div className="table-wrap">
+                          <table className="table table--num">
+                            <thead>
+                              <tr>
+                                <th>
+                                  {t.liabilitas.amortisationScheduleHeaderIndex}
+                                </th>
+                                <th>
+                                  {t.liabilitas.amortisationScheduleHeaderDate}
+                                </th>
+                                <th>
+                                  {
+                                    t.liabilitas
+                                      .amortisationScheduleHeaderPrincipal
+                                  }
+                                </th>
+                                <th>
+                                  {
+                                    t.liabilitas
+                                      .amortisationScheduleHeaderInterest
+                                  }
+                                </th>
+                                <th>
+                                  {t.liabilitas.loanRemainingPrincipalLabel}
+                                </th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {schedule.map((row) => (
+                                <tr key={row.index}>
+                                  <td className="mono">{row.index}</td>
+                                  <td className="whitespace-nowrap">
+                                    {formatScheduleDate(row.date, locale)}
+                                  </td>
+                                  <td className="mono whitespace-nowrap">
+                                    {formatRupiah(row.principal)}
+                                  </td>
+                                  <td className="mono whitespace-nowrap">
+                                    {formatRupiah(row.interest)}
+                                  </td>
+                                  <td className="mono whitespace-nowrap">
+                                    {formatRupiah(row.remaining)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
+                    )}
+                    <div className="hint">
+                      {t.liabilitas.amortisationDisclaimer}
                     </div>
-                  )}
-                  <div className="mt-2 text-[11px] text-muted-foreground">
-                    {t.liabilitas.amortisationDisclaimer}
+                  </>
+                ) : (
+                  <div className="text-[12px] text-muted-foreground">
+                    {t.liabilitas.amortisationUnavailableNote}
                   </div>
-                </>
-              ) : (
-                <div className="text-[12px] text-muted-foreground">
-                  {t.liabilitas.amortisationUnavailableNote}
+                )}
+              </div>
+
+              {/* Prototype's `.notice` note row (liabilitas.html:405). */}
+              {item.notes && (
+                <div className="notice">
+                  <StickyNote className="size-4 shrink-0" aria-hidden="true" />
+                  <span>
+                    {t.liabilitas.fieldNotesLabel}: {item.notes}
+                  </span>
                 </div>
               )}
-            </div>
-          </div>
+            </DialogBody>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>
+                {t.liabilitas.detailCloseButton}
+              </Button>
+              <Button
+                type="button"
+                disabled={item.paidThisPeriod}
+                title={
+                  item.paidThisPeriod
+                    ? t.liabilitas.payAlreadyPaidTooltip
+                    : undefined
+                }
+                onClick={() => onPay(item)}
+              >
+                {t.liabilitas.detailPayButton}
+              </Button>
+            </DialogFooter>
+          </>
         )}
-        <div className="pt-2">
-          <Button variant="outline" className="w-full" onClick={onClose}>
-            {t.liabilitas.detailCloseButton}
-          </Button>
-        </div>
       </DialogContent>
     </Dialog>
   );
@@ -1192,33 +1212,93 @@ function PayLiabilityDialog({
   onClose: () => void;
   onConfirm: () => void;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const parsedAmount = parseRupiah(amount);
+  const remainingBalance = item ? Number(BigInt(item.remainingBalance)) : 0;
+  const minimumPayment = item ? Number(BigInt(item.minimumPayment)) : 0;
   const preview = item
     ? computeAmortisationPreview(
-        Number(BigInt(item.remainingBalance)),
+        remainingBalance,
         parsedAmount,
         parseFloat(item.interestRate) || 0,
       )
     : { monthlyInterest: 0, monthlyPrincipal: 0, months: null };
 
+  // Prototype's `.segmented` amount presets (liabilitas.html:524). The
+  // prototype offers "Cicilan penuh / Minimum / Pelunasan sebagian"; the API
+  // stores ONE `minimumPayment`, so only the two presets backed by real
+  // fields are offered — a third would be an invented number (Honest UI).
+  // These only prefill the amount input; the amount posted is always whatever
+  // the input holds, and the authoritative principal/interest split is
+  // computed server-side by `pay()`.
+  const presets = [
+    ...(minimumPayment > 0
+      ? [
+          {
+            key: "installment",
+            label: t.liabilitas.payPresetInstallment,
+            value: minimumPayment,
+          },
+        ]
+      : []),
+    {
+      key: "payoff",
+      label: t.liabilitas.payPresetPayoff,
+      value: remainingBalance,
+    },
+  ];
+
   return (
     <Dialog open={item !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="min-[769px]:w-[min(380px,calc(100%-2rem))]">
-        <DialogTitle className="text-[17px] font-extrabold">
-          {t.liabilitas.payDialogTitle}
-        </DialogTitle>
+      <DialogContent>
+        <DialogTitle>{t.liabilitas.payDialogTitle}</DialogTitle>
         {item && (
-          <div className="space-y-3 text-[13px]">
-            <div>
-              <label
-                htmlFor="pay-liability-amount"
-                className="mb-1.5 block text-[12.5px] font-semibold"
-              >
-                {t.liabilitas.payAmountLabel}
-              </label>
-              <div className="flex items-center gap-2 rounded-md border bg-background px-3.5 py-2.5 transition-colors focus-within:border-primary focus-within:bg-card">
-                <span className="text-[13.5px] text-muted-foreground">Rp</span>
+          <>
+            {/* Prototype `.dialog__desc`: name · institution · due date
+                (liabilitas.html:521). */}
+            <DialogDescription>
+              {[
+                item.name,
+                item.institution,
+                item.dueDate
+                  ? `${t.liabilitas.statusDuePrefix}${formatLocaleDate(item.dueDate, locale)}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </DialogDescription>
+
+            <DialogBody>
+              <div className="field">
+                <span className="label" id="pay-liability-preset-label">
+                  {t.liabilitas.payPresetLabel}
+                </span>
+                <div
+                  className="segmented flex w-full"
+                  role="tablist"
+                  aria-labelledby="pay-liability-preset-label"
+                >
+                  {presets.map((preset) => (
+                    <button
+                      key={preset.key}
+                      type="button"
+                      role="tab"
+                      aria-selected={parsedAmount === preset.value}
+                      onClick={() =>
+                        onAmountChange(preset.value.toLocaleString("id-ID"))
+                      }
+                      className="segmented__item flex-1"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="field">
+                <label className="label" htmlFor="pay-liability-amount">
+                  {t.liabilitas.payAmountLabel}
+                </label>
                 <input
                   id="pay-liability-amount"
                   type="text"
@@ -1228,82 +1308,86 @@ function PayLiabilityDialog({
                     onAmountChange(formatAmountInput(e.target.value))
                   }
                   placeholder="0"
-                  className="w-full bg-transparent text-[13.5px] outline-none"
+                  className="input mono"
                 />
               </div>
-            </div>
 
-            {parsedAmount > 0 && (
-              <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted p-3.5">
-                <div>
-                  <div className="text-[11px] text-muted-foreground">
-                    {t.liabilitas.payPrincipalPreviewLabel}
-                  </div>
-                  <div className="text-[13.5px] font-bold">
-                    {formatRupiah(preview.monthlyPrincipal)}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[11px] text-muted-foreground">
-                    {t.liabilitas.payInterestPreviewLabel}
-                  </div>
-                  <div
-                    className="text-[13.5px] font-bold"
-                    style={{ color: "var(--danger)" }}
-                  >
-                    {formatRupiah(preview.monthlyInterest)}
-                  </div>
-                </div>
-                {/* EPIC-026 Wave 5 — prototype's split-preview also shows
-                    the remaining principal after this payment; same
-                    client-side PREVIEW caveat as the split above. */}
-                <div className="col-span-2 text-[11px] text-muted-foreground">
-                  Sisa pokok setelah bayar:{" "}
-                  <span className="mono font-semibold text-foreground">
-                    {formatRupiah(
-                      Math.max(
-                        0,
-                        Number(BigInt(item.remainingBalance)) -
-                          preview.monthlyPrincipal,
-                      ),
-                    )}
+              <div className="field">
+                <label className="label" htmlFor="pay-liability-source-account">
+                  {t.liabilitas.paySourceAccountLabel}
+                </label>
+                <select
+                  id="pay-liability-source-account"
+                  aria-describedby="pay-liability-source-account-hint"
+                  value={sourceAccountId}
+                  onChange={(e) => onSourceAccountChange(e.target.value)}
+                  className="select"
+                >
+                  <option value="">
+                    {t.liabilitas.paySourceAccountPlaceholder}
+                  </option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                      {a.institution ? ` (${a.institution})` : ""}
+                    </option>
+                  ))}
+                </select>
+                <span className="hint" id="pay-liability-source-account-hint">
+                  {t.liabilitas.paySourceAccountHint}
+                </span>
+              </div>
+
+              {/* The prototype also has a "Tanggal Bayar" date input. OMITTED:
+                  `POST .../liabilities/:id/pay` accepts only
+                  `{ sourceAccountId, amount }` and always books the payment
+                  as of now, so a date picker here would silently drop the
+                  user's choice (Honest UI). */}
+
+              {/* Prototype's `notice notice--info` split preview
+                  (liabilitas.html:566) — a client-side PREVIEW; the
+                  authoritative split is computed server-side by `pay()`. */}
+              {parsedAmount > 0 && (
+                <div className="notice notice--info mt-3.5">
+                  <Split className="size-4 shrink-0" aria-hidden="true" />
+                  <span>
+                    <strong>
+                      {t.liabilitas.payPrincipalPreviewLabel}{" "}
+                      <span className="mono">
+                        {formatRupiah(preview.monthlyPrincipal)}
+                      </span>
+                    </strong>{" "}
+                    ·{" "}
+                    <strong>
+                      {t.liabilitas.payInterestPreviewLabel}{" "}
+                      <span className="mono">
+                        {formatRupiah(preview.monthlyInterest)}
+                      </span>
+                    </strong>
+                    <br />
+                    <span className="t-xs">
+                      {t.liabilitas.payRemainingAfterLabel}:{" "}
+                      <span className="mono">
+                        {formatRupiah(
+                          Math.max(
+                            0,
+                            remainingBalance - preview.monthlyPrincipal,
+                          ),
+                        )}
+                      </span>
+                    </span>
                   </span>
                 </div>
-              </div>
-            )}
-
-            <div>
-              <label
-                htmlFor="pay-liability-source-account"
-                className="mb-1.5 block text-[12.5px] font-semibold"
-              >
-                {t.liabilitas.paySourceAccountLabel}
-              </label>
-              <select
-                id="pay-liability-source-account"
-                value={sourceAccountId}
-                onChange={(e) => onSourceAccountChange(e.target.value)}
-                className="w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card"
-              >
-                <option value="">
-                  {t.liabilitas.paySourceAccountPlaceholder}
-                </option>
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                    {a.institution ? ` (${a.institution})` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+              )}
+            </DialogBody>
+          </>
         )}
-        <div className="flex gap-2.5 pt-2">
-          <Button variant="outline" className="flex-1" onClick={onClose}>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
             {t.common.cancel}
           </Button>
           <Button
-            className="flex-1"
+            type="button"
             disabled={isPending || !sourceAccountId || parsedAmount <= 0}
             onClick={onConfirm}
           >
@@ -1311,7 +1395,7 @@ function PayLiabilityDialog({
               ? t.liabilitas.payProcessing
               : t.liabilitas.payConfirmButton}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -1452,6 +1536,18 @@ export default function LiabilitasPage() {
       toast.error(t.liabilitas.errorLoad);
     }
   }, [isError, t]);
+
+  // Shared by the card's "Bayar" action and the Detail dialog's prototype
+  // "Bayar Cicilan" footer button — same real pay flow, amount prefilled from
+  // the liability's own minimum payment.
+  function openPayDialog(liability: LiabilityDto) {
+    setPayTarget(liability);
+    setPayAmount(
+      Number(BigInt(liability.minimumPayment)) > 0
+        ? Number(BigInt(liability.minimumPayment)).toLocaleString("id-ID")
+        : "",
+    );
+  }
 
   const totalRemaining = (liabilities ?? []).reduce(
     (sum, l) =>
@@ -1610,16 +1706,7 @@ export default function LiabilitasPage() {
               item={item}
               onDetail={() => setDetailItem(item)}
               onEdit={() => setEditingItem(item)}
-              onPay={() => {
-                setPayTarget(item);
-                setPayAmount(
-                  Number(BigInt(item.minimumPayment)) > 0
-                    ? Number(BigInt(item.minimumPayment)).toLocaleString(
-                        "id-ID",
-                      )
-                    : "",
-                );
-              }}
+              onPay={() => openPayDialog(item)}
               onDelete={() => setDeleteTarget(item)}
             />
           </Rise>
@@ -1668,6 +1755,10 @@ export default function LiabilitasPage() {
       <LiabilityDetailDialog
         item={detailItem}
         onClose={() => setDetailItem(null)}
+        onPay={(liability) => {
+          setDetailItem(null);
+          openPayDialog(liability);
+        }}
       />
 
       <ConfirmDeleteDialog

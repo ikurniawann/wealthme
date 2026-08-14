@@ -20,6 +20,7 @@ import {
   Image as ImageIcon,
   Lock,
   Paperclip,
+  Pencil,
   Scale,
   Sparkles,
   Tag,
@@ -31,8 +32,10 @@ import { useSession, signOut } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
@@ -683,7 +686,13 @@ export function AttachmentList({
 
   return (
     <div className="pt-2">
-      <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold text-muted-foreground">
+      {/* EPIC-026 Wave 8 — prototype's attachment block heading inside
+          #dlg-tx-detail is a `t-sm t-bold` line ("Lampiran"), not a muted
+          caption. Its "+ Tambah Lampiran" card-link is deliberately NOT
+          reproduced: this app only uploads an attachment while the
+          transaction is being created (the shell dialog's Lampiran field),
+          so a button here would have nothing honest to do. */}
+      <div className="mb-2 flex items-center gap-1.5 text-[13px] font-bold">
         <Paperclip className="size-3.5" />
         {t.transaksi.attachmentsSectionLabel}
       </div>
@@ -807,15 +816,16 @@ export function TransactionDetailDialog({
         if (!o) onClose();
       }}
     >
-      <DialogContent className="dialog--sm">
+      {/* EPIC-026 Wave 8 — #dlg-tx-detail is the prototype's DEFAULT 480px
+          `.dialog` (only #dlg-tx-delete carries `dialog--sm`), so no width
+          modifier here. */}
+      <DialogContent>
         <DialogTitle>{t.transaksi.detailDialogTitle}</DialogTitle>
-        {/* EPIC-026 Wave 4 — prototype's `dialog__desc`
-            (transaksi.html:437); amount is `t-xl t-black mono`. */}
-        <DialogDescription className="text-[12.5px] text-muted-foreground">
-          Catatan lengkap beserta lampiran bukti.
-        </DialogDescription>
-        <div className="space-y-1 pt-1">
-          <div className="mb-2 flex items-center justify-between">
+        {/* Prototype `.dialog__desc` (transaksi.html:437); amount is
+            `t-xl t-black mono`. */}
+        <DialogDescription>{t.transaksi.detailDialogDesc}</DialogDescription>
+        <DialogBody className="space-y-1">
+          <div className="mb-3 flex items-center justify-between">
             <span
               className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${txIcon.chip}`}
             >
@@ -863,35 +873,39 @@ export function TransactionDetailDialog({
               open={open}
             />
           )}
-          <div className="flex gap-2 pt-3">
-            <button
-              type="button"
-              onClick={onEdit}
-              disabled={isObligationLinked}
-              title={
-                isObligationLinked
-                  ? t.transaksi.obligationLockedTooltip
-                  : undefined
-              }
-              className="flex-1 rounded-md border py-2.5 text-[13px] font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {t.transaksi.detailEditButton}
-            </button>
-            <button
-              type="button"
-              onClick={onDelete}
-              disabled={isObligationLinked}
-              title={
-                isObligationLinked
-                  ? t.transaksi.obligationLockedTooltip
-                  : undefined
-              }
-              className="flex-1 rounded-md bg-destructive py-2.5 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {t.transaksi.detailDeleteButton}
-            </button>
-          </div>
-        </div>
+        </DialogBody>
+        {/* Prototype `.dialog__footer` — `btn btn--outline` Edit then
+            `btn btn--destructive` Hapus (transaksi.html:527-534). */}
+        <DialogFooter>
+          <button
+            type="button"
+            onClick={onEdit}
+            disabled={isObligationLinked}
+            title={
+              isObligationLinked
+                ? t.transaksi.obligationLockedTooltip
+                : undefined
+            }
+            className="btn btn--outline"
+          >
+            <Pencil className="size-3.5" aria-hidden="true" />
+            {t.transaksi.detailEditButton}
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={isObligationLinked}
+            title={
+              isObligationLinked
+                ? t.transaksi.obligationLockedTooltip
+                : undefined
+            }
+            className="btn btn--destructive"
+          >
+            <Trash2 className="size-3.5" aria-hidden="true" />
+            {t.transaksi.detailDeleteButton}
+          </button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -954,69 +968,66 @@ function EditTransactionDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="dialog--sm">
+      {/* EPIC-026 Wave 8 — #dlg-tx-edit is the prototype's default 480px
+          `.dialog`, no width modifier. */}
+      <DialogContent>
         <DialogTitle>{t.transaksi.editDialogTitle}</DialogTitle>
-        {/* EPIC-026 Wave 4 — prototype's `dialog__desc`
-            (transaksi.html:542). */}
-        <DialogDescription className="text-[12.5px] text-muted-foreground">
-          Perubahan langsung memperbarui saldo akun terkait.
-        </DialogDescription>
-        <div className="space-y-3 pt-1">
-          <div>
-            <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
-              {t.transaksi.fieldAmountLabel}
-            </label>
+        {/* Prototype `.dialog__desc` (transaksi.html:542). */}
+        <DialogDescription>{t.transaksi.editDialogDesc}</DialogDescription>
+        <DialogBody>
+          {/* Prototype field order: Jumlah → Deskripsi → [Tanggal | Kategori]
+              → Akun. Kategori and Akun are deliberately NOT rendered: this
+              dialog's PATCH body only carries amount/description/occurredAt,
+              so a category or account picker here would silently discard the
+              user's choice (honest UI). That also leaves Tanggal without its
+              2-up partner, so it stays a full-width `.field`. */}
+          <label className="field">
+            <span className="label">{t.transaksi.fieldAmountLabel}</span>
             <input
-              className="w-full rounded-md border bg-background px-3 py-2.5 text-[13.5px] outline-none focus:border-primary"
+              className="input mono"
               value={amount}
               onChange={(e) => setAmount(formatAmountInput(e.target.value))}
               inputMode="numeric"
               placeholder="0"
             />
-          </div>
-          <div>
-            <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
-              {t.transaksi.fieldDescLabel}
-            </label>
+          </label>
+          <label className="field">
+            <span className="label">{t.transaksi.fieldDescLabel}</span>
             <input
-              className="w-full rounded-md border bg-background px-3 py-2.5 text-[13.5px] outline-none focus:border-primary"
+              className="input"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t.transaksi.fieldDescPlaceholder}
               maxLength={200}
             />
-          </div>
-          <div>
-            <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
-              {t.transaksi.fieldDateLabel}
-            </label>
+          </label>
+          <label className="field">
+            <span className="label">{t.transaksi.fieldDateLabel}</span>
             <input
               type="date"
-              className="w-full rounded-md border bg-background px-3 py-2.5 text-[13.5px] outline-none focus:border-primary"
+              className="input"
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />
-          </div>
-          <div className="flex gap-2 pt-1">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 rounded-md border py-2.5 text-[13px] font-semibold"
-            >
-              {t.transaksi.cancelButton}
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={updateMutation.isPending}
-              className="flex-1 rounded-md bg-primary py-2.5 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
-            >
-              {updateMutation.isPending
-                ? t.transaksi.savingLabel
-                : t.transaksi.saveButton}
-            </button>
-          </div>
-        </div>
+          </label>
+        </DialogBody>
+        {/* Prototype `.dialog__footer` — Batal (outline) then Simpan
+            (primary), right-aligned (transaksi.html:576-581). */}
+        <DialogFooter>
+          <button type="button" onClick={onClose} className="btn btn--outline">
+            {t.transaksi.cancelButton}
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={updateMutation.isPending}
+            className="btn btn--primary"
+          >
+            {updateMutation.isPending
+              ? t.transaksi.savingLabel
+              : t.transaksi.saveButton}
+          </button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -1621,8 +1632,15 @@ function TransaksiPageInner() {
         }}
       />
 
+      {/* EPIC-026 Wave 8 — the prototype's #dlg-tx-delete copy: title
+          "Hapus Transaksi?" + the `.dialog__desc` that spells out the
+          consequence ("...saldo akun akan disesuaikan"). The shared
+          ConfirmDeleteDialog already renders the prototype's `dialog--sm`
+          box and Batal/destructive footer; only the copy was generic. */}
       <ConfirmDeleteDialog
         label={deleteTarget !== null ? t.transaksi.deleteLabel : null}
+        title={t.transaksi.deleteDialogTitle}
+        body={t.transaksi.deleteDialogBody}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => {
           if (deleteTarget) deleteMutation.mutate(deleteTarget);

@@ -63,6 +63,9 @@ import { SectionCard, StatusBadge, SummaryCard } from "@/components/wm";
 import {
   Dialog,
   DialogContent,
+  DialogBody,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -605,14 +608,28 @@ function ApproveRequestDialog({
 
   return (
     <Dialog open={!!request} onOpenChange={(open) => !open && onClose()}>
-      {/* EPIC-026 Wave 6 — acceptance criterion #5: dialog width keeps the
-          `max-w-[min(Npx,calc(100%-2rem))]` guard so it never overflows
-          sub-420px viewports. */}
-      <DialogContent className="min-[769px]:w-[min(420px,calc(100%-2rem))]">
+      {/* EPIC-026 Wave 8 — #dlg-setujui is the prototype's DEFAULT 480px
+          `.dialog` (only #dlg-tolak, the reject confirm this app does not
+          have, is `dialog--sm`), so the bespoke 420px override is gone. */}
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-[15px] font-bold">
+          <DialogTitle>
             {t.akun.family.allowanceRequestApproveDialogTitle}
           </DialogTitle>
+          {/* Prototype `.dialog__desc` — "<pemohon> — <jumlah> → <rekening
+              tujuan>" with the amount in `mono t-bold`
+              (persetujuan.html:233-235). Rendered here rather than in the
+              form below so Base UI wires it up as the dialog's
+              `aria-describedby`. */}
+          {request && (
+            <DialogDescription>
+              {request.requesterName} —{" "}
+              <span className="mono font-bold">
+                {formatRupiah(Number(request.amount))}
+              </span>{" "}
+              → {request.targetAccountName}
+            </DialogDescription>
+          )}
         </DialogHeader>
         {/* Keyed by request id (not an effect) so the source-account
             selection resets whenever a different request is being approved. */}
@@ -687,75 +704,63 @@ function ApproveRequestForm({
 
   return (
     <>
-      <div className="mb-3 text-[12px] text-muted-foreground">
-        {request.requesterName} —{" "}
-        <span className="mono font-bold">
-          {formatRupiah(Number(request.amount))}
-        </span>{" "}
-        → {request.targetAccountName}
-      </div>
-      <label
-        htmlFor={fromAccountFieldId}
-        className="mb-1.5 block text-[12px] font-semibold text-muted-foreground"
-      >
-        {t.akun.family.allowanceRequestSourceAccountLabel}
-      </label>
-      <select
-        id={fromAccountFieldId}
-        className="select"
-        value={fromAccountId}
-        onChange={(e) => {
-          setFromAccountId(e.target.value);
-          // Mirrors the prototype: the stale error clears once another
-          // source account is picked (re-set on the next failed attempt).
-          setApproveError(null);
-        }}
-      >
-        <option value="">—</option>
-        {eligibleAccounts.map((a) => (
-          <option key={a.id} value={a.id}>
-            {a.name} ({formatRupiah(Number(a.balance))})
-          </option>
-        ))}
-      </select>
-      {/* Prototype `.field .hint` under the source-account select — no
-          existing i18n key, so the prototype's literal Indonesian copy is
-          used inline (i18n dictionaries are protected). */}
-      <span className="mt-1.5 block text-[11px] text-muted-foreground">
-        Dana ditransfer sungguhan dari rekening ini ke rekening tujuan.
-      </span>
-      {approveError && (
-        <div
-          role="alert"
-          className="mt-3 flex items-start gap-2.5 rounded-[11px] border border-destructive/30 bg-destructive/10 p-3 text-[12px] text-destructive"
-        >
-          <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-          <span>{approveError}</span>
+      {/* EPIC-026 Wave 8 — the prototype's #dlg-setujui body is a single
+          `.field` (label + select + `.hint`) followed by the danger notice.
+          The requester/amount/destination line moved up into the dialog's
+          `.dialog__desc`, where the prototype puts it. */}
+      <DialogBody>
+        <div className="field">
+          <label className="label" htmlFor={fromAccountFieldId}>
+            {t.akun.family.allowanceRequestSourceAccountLabel}
+          </label>
+          <select
+            id={fromAccountFieldId}
+            className="select"
+            value={fromAccountId}
+            onChange={(e) => {
+              setFromAccountId(e.target.value);
+              // Mirrors the prototype: the stale error clears once another
+              // source account is picked (re-set on the next failed attempt).
+              setApproveError(null);
+            }}
+          >
+            <option value="">—</option>
+            {eligibleAccounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name} ({formatRupiah(Number(a.balance))})
+              </option>
+            ))}
+          </select>
+          <span className="hint">{t.persetujuan.approveSourceAccountHint}</span>
         </div>
-      )}
+        {approveError && (
+          /* Prototype `#setujui-error` — `.notice .notice--danger` with the
+             circle-alert icon (persetujuan.html:252). */
+          <div role="alert" className="notice notice--danger mt-3">
+            <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
+            <span>{approveError}</span>
+          </div>
+        )}
+      </DialogBody>
       {/* Prototype `.dialog__footer` — Batal (outline) + primary approve.
           The approve label stays `allowanceRequestApproveButton` ("Setujui"),
           not the prototype's "Setujui & Transfer": the colocated test
           queries the button by that exact accessible name and must pass
           unmodified. */}
-      <div className="mt-4 flex items-center justify-end gap-2.5">
-        <button
-          type="button"
-          className="rounded-md border px-3.5 py-2 text-[12.5px] font-semibold"
-          onClick={onClose}
-        >
+      <DialogFooter>
+        <button type="button" className="btn btn--outline" onClick={onClose}>
           {t.common.cancel}
         </button>
         <button
           type="button"
           disabled={isSaving || !fromAccountId}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-foreground disabled:opacity-60"
+          className="btn btn--primary"
           onClick={() => approve()}
         >
-          <Check className="size-4" />{" "}
+          <Check className="size-4" aria-hidden="true" />
           {isSaving ? "..." : t.akun.family.allowanceRequestApproveButton}
         </button>
-      </div>
+      </DialogFooter>
     </>
   );
 }

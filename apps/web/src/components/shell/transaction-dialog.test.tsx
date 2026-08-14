@@ -150,9 +150,7 @@ describe("TransactionDialog — credit-card tab and transfer category removal (E
     render(<TransactionDialog />);
 
     // Switch to the Kartu Kredit tab (4th tab).
-    await user.click(
-      await screen.findByRole("button", { name: /Kartu Kredit/ }),
-    );
+    await user.click(await screen.findByRole("tab", { name: /Kartu Kredit/ }));
 
     // Amount.
     const amountInput = screen.getByPlaceholderText("0");
@@ -199,9 +197,7 @@ describe("TransactionDialog — credit-card tab and transfer category removal (E
     const { queryClient } = render(<TransactionDialog />);
     const invalidateSpy = jest.spyOn(queryClient, "invalidateQueries");
 
-    await user.click(
-      await screen.findByRole("button", { name: /Kartu Kredit/ }),
-    );
+    await user.click(await screen.findByRole("tab", { name: /Kartu Kredit/ }));
     await user.type(screen.getByPlaceholderText("0"), "150000");
     const cardSelect = await screen.findByRole("combobox", {
       name: "Kartu Kredit",
@@ -224,9 +220,7 @@ describe("TransactionDialog — credit-card tab and transfer category removal (E
     const invalidateSpy = jest.spyOn(queryClient, "invalidateQueries");
 
     // Default tab is Income; switch to Expense (2nd tab).
-    await user.click(
-      await screen.findByRole("button", { name: /Pengeluaran/ }),
-    );
+    await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
     await user.type(screen.getByPlaceholderText("0"), "50000");
     const accountSelect = await screen.findByRole("combobox", {
       name: "Akun",
@@ -250,7 +244,7 @@ describe("TransactionDialog — credit-card tab and transfer category removal (E
     // Income/Expense/Kartu Kredit tabs DO show the category field.
     expect(screen.getByText("Kategori")).toBeInTheDocument();
 
-    await user.click(await screen.findByRole("button", { name: /Transfer/ }));
+    await user.click(await screen.findByRole("tab", { name: /Transfer/ }));
 
     expect(screen.queryByText("Kategori")).not.toBeInTheDocument();
     expect(
@@ -294,17 +288,13 @@ describe("TransactionDialog — attachment upload (EPIC-024 Task L3, US-TXN-9)",
 
   it("uploads the picked file to the newly created transaction after a successful save", async () => {
     const user = userEvent.setup();
-    const fetchSpy = jest
-      .spyOn(global, "fetch")
-      .mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({}),
-      } as Response);
+    const fetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({}),
+    } as Response);
     render(<TransactionDialog />);
 
-    await user.click(
-      await screen.findByRole("button", { name: /Pengeluaran/ }),
-    );
+    await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
     await user.type(screen.getByPlaceholderText("0"), "50000");
     const accountSelect = await screen.findByRole("combobox", {
       name: "Akun",
@@ -346,9 +336,7 @@ describe("TransactionDialog — attachment upload (EPIC-024 Task L3, US-TXN-9)",
     } as Response);
     render(<TransactionDialog />);
 
-    await user.click(
-      await screen.findByRole("button", { name: /Pengeluaran/ }),
-    );
+    await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
     await user.type(screen.getByPlaceholderText("0"), "50000");
     const accountSelect = await screen.findByRole("combobox", {
       name: "Akun",
@@ -379,9 +367,7 @@ describe("TransactionDialog — attachment upload (EPIC-024 Task L3, US-TXN-9)",
     const user = userEvent.setup();
     render(<TransactionDialog />);
 
-    await user.click(
-      await screen.findByRole("button", { name: /Pengeluaran/ }),
-    );
+    await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
 
     const badFile = makeFile("virus.exe", "application/x-msdownload", 1024);
     selectFile(screen.getByTestId("attachment-file-input"), badFile);
@@ -399,9 +385,7 @@ describe("TransactionDialog — attachment upload (EPIC-024 Task L3, US-TXN-9)",
     const user = userEvent.setup();
     render(<TransactionDialog />);
 
-    await user.click(
-      await screen.findByRole("button", { name: /Pengeluaran/ }),
-    );
+    await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
 
     const tooBig = makeFile("besar.png", "image/png", 6 * 1024 * 1024);
     selectFile(screen.getByTestId("attachment-file-input"), tooBig);
@@ -417,7 +401,7 @@ describe("TransactionDialog — attachment upload (EPIC-024 Task L3, US-TXN-9)",
 
     await userEvent
       .setup()
-      .click(await screen.findByRole("button", { name: /Kartu Kredit/ }));
+      .click(await screen.findByRole("tab", { name: /Kartu Kredit/ }));
 
     expect(screen.queryByText("Lampiran")).not.toBeInTheDocument();
     expect(

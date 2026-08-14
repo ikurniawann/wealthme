@@ -270,6 +270,10 @@ export const en = {
       attachmentInvalidTypeToast:
         "Unsupported file type — only JPG, PNG, WEBP, or PDF are allowed.",
       attachmentTooLargeToast: "File exceeds 5MB.",
+      dialogDesc:
+        "Record income, an expense, a transfer, or a credit-card purchase.",
+      modeSwitchLabel: "Input method",
+      typeSwitchLabel: "Transaction type",
     },
     themeToggle: {
       ariaLabel: "Toggle dark mode",
@@ -746,6 +750,8 @@ export const en = {
       "This expense exceeds the member's transaction limit and is held — it hasn't been recorded until you approve or reject it.",
     fundingApproveHelperNotice:
       "Approving will transfer real funds between accounts.",
+    approveSourceAccountHint:
+      "Funds are really transferred from this account to the destination account.",
   },
   panduan: {
     pageTitle: "📖 WealthMe Feature Guide",
@@ -1097,7 +1103,7 @@ export const en = {
     beneficiarySharePercentLabel: "Share (%)",
     beneficiaryMemberLabel: "Link to Family Member",
     beneficiaryMemberNoneOption: "Not linked",
-    addBeneficiaryButton: "+ Add Beneficiary",
+    addBeneficiaryButton: "Add Beneficiary",
     removeBeneficiaryAriaLabel: "Remove beneficiary",
     allocationAllocatedSuffix: "% allocated",
     allocationUnallocatedSuffix: "% unallocated",
@@ -1129,6 +1135,19 @@ export const en = {
     policyPickerPayEmpty: "No policy needs to be paid right now.",
     policyPickerBeneficiaryEmpty:
       "No policy available to add a beneficiary to yet.",
+    modalDesc:
+      "Premium and renewal date drive the reminders and cash-flow projection.",
+    policyPickerPayDesc:
+      "Pick the policy whose premium you want to pay; you choose the source account in the next step.",
+    policyPickerBeneficiaryDesc:
+      "Pick a policy first — beneficiaries are stored on that policy, and their shares may not exceed 100% in total.",
+    deleteDialogTitle: "Delete this record?",
+    deleteDialogBody:
+      "The policy will be permanently deleted. Premium payments already recorded stay in Transactions.",
+    deleteBeneficiaryDialogBody:
+      "This beneficiary is removed from the policy. The share allocated to them becomes unallocated.",
+    toastBeneficiaryDeleted: "Beneficiary removed",
+    autoRenewSwitchAriaLabel: "Auto-renew",
   },
   kalkulator: {
     tabs: {
@@ -1545,6 +1564,18 @@ export const en = {
     pricingSourceNoticeBody:
       "IDX stocks come from Yahoo Finance (.JK code) and crypto from CoinGecko — both delayed ±15 minutes, not real-time. Mutual funds, bonds, gold, and time deposits have no automated feed: you enter the value manually and it's always shown with its valuation date.",
     allocationTitle: "Allocation by Type",
+    modalDesc:
+      "Pick the type first — the fields below adapt. Stocks are counted in lots, crypto in coins, time deposits by accrued interest.",
+    sectionIdentityTitle: "Instrument details",
+    sectionIdentityDesc:
+      "Choose the type and identity of the holding you're recording.",
+    sectionPositionTitle: "Quantity & purchase price",
+    sectionPositionDesc: "Enter the opening position and what you paid for it.",
+    sectionValuationTitle: "Valuation",
+    sectionValuationDesc: "Where this position's current value comes from.",
+    hintName: "The full name shown in your holdings list.",
+    hintPurchaseDate: "Used to calculate how long you have held the position.",
+    hintLotConversion: "1 lot = 100 shares (IDX rule).",
   },
   aset: {
     tabs: {
@@ -1697,7 +1728,8 @@ export const en = {
     toastUpdateFailed: "Failed to update liability. Please try again.",
     toastDeleted: "Liability deleted successfully",
     toastDeleteFailed: "Failed to delete liability. Please try again.",
-    deleteConfirmBody: "A deleted liability cannot be recovered.",
+    deleteConfirmBody:
+      "This liability and its installment schedule will be deleted. Payments already recorded in Transactions are kept. This action cannot be undone.",
     detailDialogTitle: "Liability Detail",
     detailInstitutionLabel: "Institution",
     detailTypeLabel: "Type",
@@ -1735,6 +1767,22 @@ export const en = {
     payoffProjectionSeriesLabel: "Remaining Balance",
     overdueWarningPrefix: "The ",
     overdueWarningSuffix: " installment hasn't been paid.",
+    modalDesc:
+      "Changes feed straight into the debt-to-asset ratio and the payoff projection.",
+    detailNextDueLabel: "Next Due Date",
+    detailPayButton: "Pay Installment",
+    amortisationScheduleTitle: "Amortisation Schedule",
+    amortisationScheduleCountSuffix: " upcoming installments",
+    amortisationScheduleHeaderIndex: "No.",
+    amortisationScheduleHeaderDate: "Date",
+    amortisationScheduleHeaderPrincipal: "Principal",
+    amortisationScheduleHeaderInterest: "Interest",
+    payPresetLabel: "Payment Type",
+    payPresetInstallment: "Installment",
+    payPresetPayoff: "Full payoff",
+    paySourceAccountHint:
+      "The account balance is debited and recorded automatically in Transactions.",
+    payRemainingAfterLabel: "Remaining principal after payment",
   },
   masterdata: {
     pageTitle: "🗄️ Master Data Setup",
@@ -1890,6 +1938,14 @@ export const en = {
     budgetTypeNone: "—",
     deleteConfirmTitle: "Delete COA Account?",
     deleteConfirmBody: "This action cannot be undone.",
+    modalDesc:
+      "The code is generated automatically from the selected group, but you can still change it as long as the first digit matches.",
+    fieldCodeHint:
+      "Leave blank and the code is generated automatically from the selected group — you can still change it.",
+    modalWarning:
+      "Changing the group or direction of an account already in use changes the meaning of older transactions — the profit-and-loss and balance sheet change with it.",
+    deleteConfirmNotice:
+      "Older transactions using this account lose their classification in the profit-and-loss and balance sheet.",
     toastAdded: "COA account added successfully",
     toastAddFailed: "Failed to add COA account",
     toastUpdated: "COA account updated successfully",
@@ -2341,6 +2397,12 @@ export const en = {
     mintaDanaSuccessToast:
       "Funding request sent. Waiting for the family owner's approval.",
     mintaDanaFailToast: "Failed to send the funding request. Please try again.",
+    mintaDanaDialogDesc:
+      "The request is sent to the family owner for approval before any funds move.",
+    deleteDialogTitle: "Delete this account?",
+    deleteDialogBody:
+      "Past transactions stay on record, but the account no longer counts toward total net worth.",
+    deleteDialogConfirm: "Yes, Delete",
     // EPIC-025 N3 prototype structural port — page header (title reuses
     // `t.shell.pageTitles.rekening`), insight strip, ownership filter tabs, and
     // the dashed "add account" card.
@@ -2428,7 +2490,7 @@ export const en = {
       "Zakat paid to an official institution (BAZNAS/LAZ) can reduce your taxable income. Check the Tax Center.",
     modalTitle: "Record Religious Donation",
     fieldJenisLabel: "Type",
-    fieldJumlahLabel: "Amount",
+    fieldJumlahLabel: "Amount (Rp)",
     fieldLembagaLabel: "Institution / Recipient",
     fieldTanggalLabel: "Date",
     fieldAccountLabel: "Pay from Account (optional)",
@@ -2468,6 +2530,11 @@ export const en = {
     religionCalculatorUnconfirmedTitle: "Family religion not yet chosen",
     religionCalculatorUnconfirmedDesc:
       "Choose the family religion in Account Settings to enable the matching Zakat or Tithe calculator.",
+    modalDesc:
+      "Recorded as an expense, and deducted from the account balance when a source account is selected.",
+    taxDeductibleSwitchTitle: "Income tax deduction",
+    taxDeductibleSwitchDesc:
+      "Obligatory religious contribution to an official institution (PP 60/2010).",
   },
   warisan: {
     heroTitle: "Total Inheritance Value",
@@ -2519,7 +2586,7 @@ export const en = {
     heirSharePercentPlaceholder: "Percentage (%)",
     heirMemberAriaLabel: "Link to Family Member",
     heirMemberNoneOption: "Not linked",
-    addHeirButton: "+ Add Heir",
+    addHeirButton: "Add Heir",
     heirAllocationAllocatedSuffix: "% allocated",
     heirAllocationUnallocatedSuffix: "% unallocated",
     heirAllocationFullyAllocated: "Fully allocated (100%)",
@@ -2531,6 +2598,24 @@ export const en = {
     visibleToAllHeirsCaption: "Visible to all heirs",
     estimatedValueLabel: "Estimated value",
     linkedToAssetPrefix: "linked to Asset",
+    modalDesc:
+      "Link it to an asset you already track, then set how it is split between heirs.",
+    fieldSourceLabel: "Data Source",
+    sourceManualOption: "Manual Entry",
+    sourceAssetOption: "Pick from Assets",
+    fieldAssetLabel: "Asset",
+    assetPickerPlaceholder: "— Pick an asset —",
+    assetPickerHint:
+      "The estimated value is filled in from the linked asset; you can still change it.",
+    visibleToHeirsHint: "Heirs can see this asset on their Inheritance page.",
+    deleteConfirmBody:
+      "The inheritance record and its heir allocation will be deleted. The original asset on the Assets page is kept.",
+    toastSharePercentExceeded: "Total heir share cannot exceed 100%.",
+    heirTableHeaderName: "Name",
+    heirTableHeaderRelationship: "Relationship",
+    heirTableHeaderShare: "Share (%)",
+    heirTableHeaderAction: "Action",
+    heirTableEmpty: "No heirs recorded for this asset yet.",
   },
   anggaran: {
     budgetTypeLabels: {
@@ -2612,6 +2697,10 @@ export const en = {
     obligationsSummaryMidPrefix: " of ",
     obligationsSummaryMidSuffix: " unpaid · ",
     obligationsDueDatePrefix: " · due ",
+    modalAddDesc: "Spending limit per period for a single expense category.",
+    obligationsPayDialogDesc:
+      "Paying records a transaction and reduces the source account balance.",
+    obligationsDueDateNoticePrefix: "Due ",
   },
   transaksi: {
     typeLabels: {
@@ -2713,6 +2802,12 @@ export const en = {
     paginationNextButton: "Next",
     insightCategorizedLabel: "Auto-Organized",
     insightCategorizedValueSuffix: "% of transactions are categorized",
+    detailDialogDesc: "The full record, including receipt attachments.",
+    editDialogDesc:
+      "Changes update the balance of the linked account immediately.",
+    deleteDialogTitle: "Delete transaction?",
+    deleteDialogBody:
+      "This transaction will be deleted permanently and the account balance adjusted.",
   },
   splitbill: {
     headerDesc: "Splitting bills made easy — you cover it, they pay you back",
@@ -2832,6 +2927,20 @@ export const en = {
     publicNetworkErrorTitle: "Couldn't load this",
     publicNetworkErrorDesc:
       "There was a connection problem loading this bill. Check your internet connection and try again.",
+    createDialogDesc:
+      "Split the bill evenly or custom, then share a link with each participant.",
+    fieldPayoutAccountHint:
+      "This account is shown on every participant's share page.",
+    editPayoutAccountDesc:
+      "Taken from the family's Bank & Account list. Participants see this account on their share link.",
+    detailCloseButton: "Close",
+    remainderNeedTotalNote:
+      "Enter the total bill first to work out each person's share.",
+    remainderExactLabel: "Exact — this matches the total bill",
+    remainderLeftPrefix: "Unallocated: ",
+    remainderOverPrefix: "Over by ",
+    remainderOverSuffix: " above the total bill",
+    splitRemainderButton: "Split Remainder Evenly",
   },
   rekonsiliasi: {
     headerTitle: "Bank Reconciliation",
@@ -2898,6 +3007,8 @@ export const en = {
     templateDateFormatLabel: "Date Format",
     templateDateFormatIso: "Automatic / ISO (YYYY-MM-DD)",
     templateSaveButton: "Save Template",
+    templateColumnsHeader: "Columns",
+    templateActionHeader: "Action",
     toastTemplateSaved: "✅ Column-mapping template saved",
     toastTemplateSaveFailed: "Failed to save the column-mapping template",
     toastTemplateDeleted: "Template deleted",
@@ -3019,6 +3130,9 @@ export const en = {
     splitEntryAmountLabel: "Entry Amount",
     splitSubmitButton: "Save Split",
     splitCancelButton: "Cancel",
+    splitBalancedNotice: "The amounts balance — this split can be saved.",
+    splitUnbalancedNotice:
+      "Principal + admin fee must match the entry amount exactly.",
     splitValidationSelectSourceAccount: "Select a source account first",
     splitValidationSelectDestAccount: "Select a destination account first",
     splitValidationSameAccount: "Source and destination account must differ",
@@ -3546,5 +3660,9 @@ export const en = {
       viewTransactionsButton: "View Transactions",
       finishButton: "Finish",
     },
+  },
+  crud: {
+    addDescription: "New data is immediately available across every app form.",
+    editDescription: "Changes take effect immediately across every app form.",
   },
 } satisfies I18nDictionary;
