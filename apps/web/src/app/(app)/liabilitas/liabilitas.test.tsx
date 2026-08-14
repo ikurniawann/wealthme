@@ -161,6 +161,18 @@ function render(ui: ReactElement) {
   return rtlRender(ui, { wrapper: Providers });
 }
 
+/*
+ * CI stability. Every test here drives the pay/edit dialogs through
+ * userEvent (open dialog -> clear -> type -> selectOptions -> click ->
+ * several waitFor round-trips), which regularly runs past Jest's 5000ms
+ * default on a loaded CI runner while passing comfortably in ~3s locally.
+ * Two different tests in this one file have already failed CI that way on
+ * changes that touched neither of them (PR #292, then #295). A per-test
+ * bump just moves the failure to the next-slowest test in the suite, so
+ * the timeout is raised once for the whole file instead.
+ */
+jest.setTimeout(20000);
+
 describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -298,13 +310,7 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
       );
     });
     await waitFor(() => expect(toastSuccess).toHaveBeenCalled());
-    // CI stability fix — this test does clear+type(6 chars)+selectOptions+
-    // click+2x waitFor, which occasionally exceeds Jest's 5000ms default
-    // under a loaded CI runner (observed 3 consecutive CI failures on this
-    // exact test, unrelated to any app-code change — see PR #291/#292
-    // history). Bumped to 15000ms rather than chasing a flaky rerun each
-    // time; every other test in this file stays on the default.
-  }, 15000);
+  });
 
   it("surfaces the real 409 'already paid' server message, not a generic fallback", async () => {
     payOutcome = "conflict";

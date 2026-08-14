@@ -809,7 +809,12 @@ function BerandaPage() {
                 months={cashflow.months}
                 income={cashflow.income}
                 expense={cashflow.expense}
-                height={90}
+                // Prototype parity: docs/prototype/assets/charts.js's
+                // `cashflow()` mounts at height 260. Rendering it at 90 left
+                // ~60px of plot area once the bottom legend took its share,
+                // which collapsed the bars into slivers and stacked the
+                // y-axis labels on top of each other.
+                height={260}
                 ariaLabel={cashflowAriaLabel}
               />
             )}

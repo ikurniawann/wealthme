@@ -33,12 +33,15 @@ export function BulananSection({
       </div>
       {chartMonths.length > 0 && (
         <SectionCard title={t.laporan.bulanan.trendTitle}>
-          {/* EPIC-025 N3-G2 — BarChart → CashflowChart (Apex). */}
+          {/* EPIC-025 N3-G2 — BarChart → CashflowChart (Apex). Height 260
+                matches docs/prototype/assets/charts.js's `cashflow()`; the
+                previous 110 left too little plot area once the bottom
+                legend took its share. */}
           <CashflowChart
             months={chartMonths}
             income={chartIncome}
             expense={chartExpense}
-            height={110}
+            height={260}
             ariaLabel={cashflowChartAriaLabel}
           />
         </SectionCard>
