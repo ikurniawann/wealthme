@@ -67,11 +67,14 @@ top-level layout — `118088a`'s lesson: partial ports still count as
 - [ ] ### Wave 2 — Mid pages
   - akun, mastercoa, rekening, tax — same treatment.
 
-- [ ] ### Wave 3 — Dashboard & reports
-  - beranda, ringkasan, laporan — same treatment. `ringkasan` and (partially)
-    `beranda`'s chart work already landed in EPIC-025/118088a; verify against
-    prototype rather than assuming done, still tear down and rebuild per this
-    epic's mandate.
+- [x] ### Wave 3 — Dashboard & reports ✅
+  - [x] beranda, ringkasan, laporan — same treatment. `ringkasan` and (partially)
+        `beranda`'s chart work already landed in EPIC-025/118088a; verify against
+        prototype rather than assuming done, still tear down and rebuild per this
+        epic's mandate.
+    - beranda: bento-grid structure verified/kept, inert Eye toggle removed (J1 dead control), CalendarClock icon for liability notice, accountName·category·date sub-row added.
+    - ringkasan: bento-grid stat layout (lg:col-span-5/2/2/3), all 4 J3 FOLD charts verified present (TrendChart, CashflowChart, DonutChart, HBarChart), RadialChart for health score added, privacy eye icon toggle added.
+    - laporan: stale AI banner removed, FlowBar/constants removed, all J3 FOLD charts verified present.
 
 - [ ] ### Wave 4 — Dialog-heavy pages
   - anggaran, kalkulator, warisan, transaksi, splitbill — same treatment.
@@ -126,6 +129,7 @@ top-level layout — `118088a`'s lesson: partial ports still count as
   EPIC-025's translation table and honest-UI cut list rather than
   re-deriving them, to avoid regressing already-reviewed decisions while
   still honoring the user's explicit "delete and rebuild" instruction.
+- 2026-08-14 `/epic-loop EPIC-026 #3 "Wave 3 — Dashboard & reports"` → PASS (attempts: 1). beranda inert Eye removed; ringkasan bento-grid + RadialChart + privacy eye; laporan FlowBar/stale banner removed. All J3 FOLD charts verified. PR: https://github.com/andrsrjld/wealthme-web/pull/284
 - 2026-08-13 `/epic-loop EPIC-026 #1 "Wave 1 — Small pages"` → PASS, zero
   diff. `code-agent` verified all 7 pages (notifikasi, panduan, dana,
   quickinput, ai, masterdata, donation) already match their prototype HTML

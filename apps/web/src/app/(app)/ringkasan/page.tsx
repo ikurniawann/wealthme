@@ -1,12 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Sparkles, Eye, EyeOff } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { SectionCard, StatusBadge, ProgressBar } from "@/components/wm";
+import {
+  SectionCard,
+  StatusBadge,
+  ProgressBar,
+  CardLink,
+} from "@/components/wm";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
@@ -21,6 +27,7 @@ import {
   CashflowChart,
   DonutChart,
   HBarChart,
+  RadialChart,
   TrendChart,
 } from "@/components/charts/apex-presets";
 import type { DonutSegment } from "@/components/charts/donut";
@@ -118,6 +125,7 @@ function formatPercent1(value: number, dateLocale: string): string {
 }
 
 export default function RingkasanPage() {
+  const router = useRouter();
   const { t } = useLocale();
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId ?? null;
@@ -252,6 +260,12 @@ export default function RingkasanPage() {
   });
 
   const topExpenses = reportSummary?.topExpenseCategories ?? [];
+  // EPIC-026 Wave 3 — prototype's `#c-topexp` mount is an hbar chart
+  // (`WMCharts.hbar`, destructive color), not a list; same
+  // `topExpenseCategories` data this page already fetches.
+  const topExpenseSlice = topExpenses.slice(0, 5);
+  const topExpenseCategories = topExpenseSlice.map((e) => e.categoryName);
+  const topExpenseData = topExpenseSlice.map((e) => e.amount);
 
   // "Tren Kekayaan Bersih" — plots the real net-worth history endpoint
   // (already used by /beranda), instead of a cumulative running sum of
@@ -498,6 +512,13 @@ export default function RingkasanPage() {
             }
             onClick={togglePrivacy}
           >
+            {/* EPIC-026 Wave 3 — prototype's privacy button carries an
+                eye-off/eye icon next to its label. */}
+            {privacyOn ? (
+              <Eye className="size-3.5" />
+            ) : (
+              <EyeOff className="size-3.5" />
+            )}
             {privacyOn
               ? t.ringkasan.showAmountsButton
               : t.ringkasan.hideAmountsButton}
@@ -505,9 +526,11 @@ export default function RingkasanPage() {
         </div>
       </div>
 
-      {/* Top stat cards */}
-      <div className="mb-[18px] grid grid-cols-2 gap-3.5 md:grid-cols-4">
-        <Card className="gap-0 border-none gradient-wealth p-5 text-white">
+      {/* Top stat cards — EPIC-026 Wave 3: prototype's bento-grid spans
+          (hero span-5, stat span-2/2/3 of 12) instead of 4 equal columns;
+          md 2-col fallback per the translation table's bento rule. */}
+      <div className="mb-[18px] grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:grid-cols-12">
+        <Card className="gap-0 border-none gradient-wealth p-5 text-white md:col-span-2 lg:col-span-5">
           <div className="mb-1.5 text-[11px] opacity-80">
             {t.ringkasan.totalNetWorthLabel}
           </div>
@@ -522,7 +545,7 @@ export default function RingkasanPage() {
                 : `${t.ringkasan.monthDeltaDownPrefix}${money(Math.abs(monthNet))}${t.ringkasan.monthDeltaSuffix}`}
           </div>
         </Card>
-        <Card className="gap-0 p-5">
+        <Card className="gap-0 p-5 lg:col-span-2">
           <div className="mb-1.5 text-[11px] text-muted-foreground">
             {t.ringkasan.totalAssetsLabel}
           </div>
@@ -535,7 +558,7 @@ export default function RingkasanPage() {
               : t.ringkasan.noDataDash}
           </div>
         </Card>
-        <Card className="gap-0 p-5">
+        <Card className="gap-0 p-5 lg:col-span-2">
           <div className="mb-1.5 text-[11px] text-muted-foreground">
             {t.ringkasan.totalLiabilitiesLabel}
           </div>
@@ -546,7 +569,7 @@ export default function RingkasanPage() {
             {t.ringkasan.liabilitiesSublabel}
           </div>
         </Card>
-        <Card className="gap-0 p-5">
+        <Card className="gap-0 p-5 md:col-span-2 lg:col-span-3">
           <div className="mb-1.5 text-[11px] text-muted-foreground">
             {t.ringkasan.savingsRateLabel}
           </div>
@@ -634,6 +657,12 @@ export default function RingkasanPage() {
           <SectionCard
             title={t.ringkasan.compositionTitle}
             className="lg:col-start-3 lg:row-start-1"
+            action={
+              /* EPIC-026 Wave 3 — prototype's "Detail" action → aset.html. */
+              <CardLink onClick={() => router.push("/aset")}>
+                {t.common.viewDetail}
+              </CardLink>
+            }
           >
             {isLoading ? (
               <div className="space-y-2">
@@ -861,56 +890,36 @@ export default function RingkasanPage() {
             </div>
           </SectionCard>
 
+          {/* EPIC-026 Wave 3 — rebuilt to the prototype's `#c-topexp` hbar
+              mount (was a hand-rolled list with fabricated rotating emoji
+              icons — removed); "Laporan" action per the prototype. */}
           <SectionCard
             title={t.ringkasan.topExpensesTitle}
             className="lg:col-start-3 lg:row-start-2"
+            action={
+              <CardLink onClick={() => router.push("/laporan")}>
+                {t.shell.pageTitles.laporan}
+              </CardLink>
+            }
           >
-            <div className="divide-y">
-              {isLoading && (
-                <div className="py-4 text-center text-[13px] text-muted-foreground">
-                  {t.ringkasan.loadingLabel}
-                </div>
-              )}
-              {!isLoading && topExpenses.length === 0 && (
-                <div className="py-4 text-center text-[13px] text-muted-foreground">
-                  {t.ringkasan.emptyTopExpenses}
-                </div>
-              )}
-              {topExpenses.slice(0, 5).map((expenseItem, idx) => (
-                <div
-                  key={expenseItem.categoryName}
-                  className="flex items-center gap-3 py-2 first:pt-0 last:pb-0"
-                >
-                  <div
-                    className="flex size-[30px] shrink-0 items-center justify-center rounded-md text-[13px]"
-                    style={{
-                      background:
-                        expenseItem.color ??
-                        ["#EEF2FF", "#DCFCE7", "#FEF9C3", "#FEE2E2", "#F3F4F6"][
-                          idx % 5
-                        ],
-                    }}
-                  >
-                    {["🏠", "😊", "🚗", "🏥", "💡"][idx % 5]}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[13px] font-semibold">
-                      {expenseItem.categoryName}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <StatusBadge variant="gray">
-                      {expenseItem.percentage}%
-                    </StatusBadge>
-                    <div className="text-right">
-                      <div className="wm-money text-[13px] font-bold text-destructive">
-                        {moneyFull(expenseItem.amount)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {isLoading ? (
+              <div className="h-[180px] animate-pulse rounded-md bg-muted" />
+            ) : topExpenseSlice.length === 0 ? (
+              <div className="py-4 text-center text-[13px] text-muted-foreground">
+                {t.ringkasan.emptyTopExpenses}
+              </div>
+            ) : (
+              <div className="wm-money">
+                <HBarChart
+                  categories={topExpenseCategories}
+                  data={topExpenseData}
+                  color="var(--destructive)"
+                  ariaLabel={`${t.ringkasan.topExpensesTitle}: ${topExpenseSlice
+                    .map((e) => `${e.categoryName} ${moneyFull(e.amount)}`)
+                    .join(", ")}`}
+                />
+              </div>
+            )}
           </SectionCard>
 
           {/* Health Score */}
@@ -919,34 +928,17 @@ export default function RingkasanPage() {
             className="lg:col-start-3 lg:row-start-3"
           >
             <div className="py-2.5 text-center">
-              <svg
-                viewBox="0 0 120 70"
-                width="140"
-                height="80"
-                className="mx-auto"
-              >
-                <path
-                  d="M10,60 A50,50 0 0,1 110,60"
-                  fill="none"
-                  stroke="var(--muted)"
-                  strokeWidth="12"
-                  strokeLinecap="round"
-                />
-                <path
-                  d="M10,60 A50,50 0 0,1 110,60"
-                  fill="none"
-                  stroke="var(--primary)"
-                  strokeWidth="12"
-                  strokeLinecap="round"
-                  strokeDasharray="157"
-                  strokeDashoffset={Math.round(
-                    157 - (Math.max(0, Math.min(100, savingsRate)) / 100) * 157,
-                  )}
-                />
-              </svg>
-              <div className="-mt-3.5 text-[32px] font-black text-primary">
-                {savingsRate}
-              </div>
+              {/* EPIC-026 Wave 3 — prototype's `#c-health` mount is the
+                  ApexCharts radial preset (`WMCharts.radial(…, 176)`), not
+                  a hand-rolled SVG gauge. Same savingsRate-as-score data
+                  as before the rebuild. "Skor" is the prototype's literal
+                  center label (no existing i18n key). */}
+              <RadialChart
+                value={Math.max(0, Math.min(100, savingsRate))}
+                label="Skor"
+                height={176}
+                ariaLabel={`${t.ringkasan.financialHealthScoreLabel}: ${savingsRate}`}
+              />
               <div className="text-[11px] text-muted-foreground">
                 {t.ringkasan.financialHealthScoreLabel}
               </div>

@@ -37,7 +37,13 @@ import type { DonutSegment } from "@/components/charts/donut";
 // BarChart/Donut+DonutLegend components. Every series fed to these presets
 // is the SAME underlying data the old components rendered (traced inline
 // at each call site) — only the rendering library changed.
-import { CashflowChart, DonutChart } from "@/components/charts/apex-presets";
+import {
+  CashflowChart,
+  DonutChart,
+  HBarChart,
+  RadialChart,
+  TrendChart,
+} from "@/components/charts/apex-presets";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import {
@@ -810,23 +816,11 @@ function RingkasanSection({
         </div>
       </SectionCard>
 
-      <div className="flex items-start gap-3 rounded-[12px] border border-primary/20 bg-accent p-3.5">
-        <div className="text-[24px]">🤖</div>
-        <div className="flex-1">
-          <div className="text-[13px] font-bold text-primary-strong">
-            {t.laporan.ringkasan.aiInsightTitle}
-          </div>
-          <div className="text-[12px] text-muted-foreground">
-            {t.laporan.ringkasan.aiInsightBody}
-          </div>
-        </div>
-        <a
-          href="/ai"
-          className="self-center whitespace-nowrap text-[12px] font-bold text-primary hover:underline"
-        >
-          {t.laporan.ringkasan.aiInsightCta}
-        </a>
-      </div>
+      {/* EPIC-026 Wave 3 — the "Insight AI" banner was removed: the
+          prototype's rsum panel ends at the category table, and the
+          banner's "insight" was static i18n copy (a hardcoded "18%"
+          claim), not real analysis. Its aiInsight* keys remain in the
+          i18n dictionaries — noted for a separate cleanup. */}
     </div>
   );
 }
@@ -1053,14 +1047,7 @@ function TahunanSection({
 }) {
   const { t } = useLocale();
   const points = yearly?.points ?? [];
-  const maxIncome = Math.max(...points.map((p) => p.income), 1);
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
-  const YEAR_COLORS = [
-    "var(--primary)",
-    "var(--brand-cyan)",
-    "var(--success)",
-    "var(--warning)",
-  ];
 
   const latest = points[points.length - 1];
 
@@ -1101,24 +1088,26 @@ function TahunanSection({
       )}
       {points.length > 0 && (
         <SectionCard title={t.laporan.tahunan.trendTitle}>
-          <div className="flex flex-col gap-2.5">
-            {points.map((p, i) => (
-              <BarRow
-                key={p.label}
-                label={p.label}
-                right={
-                  <span
-                    style={{ color: YEAR_COLORS[i % YEAR_COLORS.length] }}
-                    className="font-bold"
-                  >
-                    {formatRupiah(p.income)}
-                  </span>
-                }
-                value={Math.round((p.income / maxIncome) * 100)}
-                color={YEAR_COLORS[i % YEAR_COLORS.length] ?? "var(--primary)"}
-              />
-            ))}
-          </div>
+          {/* EPIC-026 Wave 3 — prototype's `#c-tahunan` mount is the Apex
+              trend preset (J3 FOLD); same yearly income series the
+              hand-rolled progress bars rendered before this rebuild. The
+              prototype's own series (net worth per year) needs historical
+              snapshots the schema does not persist — income per year is
+              what this section's data actually carries (its existing
+              title already says so). */}
+          <TrendChart
+            categories={points.map((p) => p.label)}
+            series={[
+              {
+                name: t.laporan.totalIncomeLabel,
+                data: points.map((p) => p.income),
+              },
+            ]}
+            height={260}
+            ariaLabel={`${t.laporan.tahunan.trendTitle}: ${points
+              .map((p) => `${p.label} ${formatRupiah(p.income)}`)
+              .join(", ")}`}
+          />
         </SectionCard>
       )}
     </div>
@@ -1442,46 +1431,6 @@ function DetailSection({
 
 /* ───────────────────────── Section: Aliran Dana ───────────────────────── */
 
-function FlowBar({
-  width,
-  grad,
-  label,
-  amount,
-}: {
-  width: string;
-  grad: string;
-  label: string;
-  amount: string;
-}) {
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between text-[12px]">
-        <span className="font-semibold">{label}</span>
-        <span className="font-bold">{amount}</span>
-      </div>
-      <div className="h-[10px] w-full overflow-hidden rounded-full bg-muted">
-        <div
-          className="h-full rounded-full"
-          style={{ width, background: grad }}
-        />
-      </div>
-    </div>
-  );
-}
-
-const FLOW_GRADS_INCOME = [
-  "linear-gradient(90deg,var(--success),#34D399)",
-  "linear-gradient(90deg,#8B5CF6,#A78BFA)",
-  "linear-gradient(90deg,#06B6D4,#22D3EE)",
-  "linear-gradient(90deg,#F59E0B,#FBBF24)",
-];
-const FLOW_GRADS_EXPENSE = [
-  "linear-gradient(90deg,#4F46E5,#6366F1)",
-  "linear-gradient(90deg,#10B981,#34D399)",
-  "linear-gradient(90deg,#F59E0B,#FBBF24)",
-  "linear-gradient(90deg,#EC4899,#F43F5E)",
-];
-
 function AliranSection({
   sankeyData,
   isLoading,
@@ -1503,48 +1452,40 @@ function AliranSection({
       <div className="text-[15px] font-bold">{t.laporan.aliran.title}</div>
       <SectionCard title={`${t.laporan.aliran.cardTitlePrefix} ${bulan}`}>
         {sankeyData && (incomeBars.length > 0 || expenseBars.length > 0) ? (
+          /* EPIC-026 Wave 3 — prototype's `#c-aliran` mount is the Apex
+             hbar preset (J3 FOLD); same sankey-derived label/amount pairs
+             the hand-rolled gradient bars rendered before this rebuild. */
           <div className="flex flex-col gap-3.5">
-            <div>
-              <div className="mb-2 text-[11px] font-bold text-success">
-                {t.laporan.aliran.incomeSourceLabel}
+            {incomeBars.length > 0 && (
+              <div>
+                <div className="mb-2 text-[11px] font-bold text-success">
+                  {t.laporan.aliran.incomeSourceLabel}
+                </div>
+                <HBarChart
+                  categories={incomeBars.map((b) => b.label)}
+                  data={incomeBars.map((b) => b.amount)}
+                  color="var(--success)"
+                  ariaLabel={`${t.laporan.aliran.incomeSourceLabel}: ${incomeBars
+                    .map((b) => `${b.label} ${formatJuta(b.amount)}`)
+                    .join(", ")}`}
+                />
               </div>
-              <div className="flex flex-col gap-3">
-                {incomeBars.map((b, i) => (
-                  <FlowBar
-                    key={b.label}
-                    width={`${b.widthPct}%`}
-                    grad={
-                      FLOW_GRADS_INCOME[i % FLOW_GRADS_INCOME.length] ??
-                      FLOW_GRADS_INCOME[0]!
-                    }
-                    label={b.label}
-                    amount={formatJuta(b.amount)}
-                  />
-                ))}
+            )}
+            {expenseBars.length > 0 && (
+              <div>
+                <div className="mb-2 text-[11px] font-bold text-destructive">
+                  {t.laporan.aliran.expenseAllocLabel}
+                </div>
+                <HBarChart
+                  categories={expenseBars.map((b) => b.label)}
+                  data={expenseBars.map((b) => b.amount)}
+                  color="var(--destructive)"
+                  ariaLabel={`${t.laporan.aliran.expenseAllocLabel}: ${expenseBars
+                    .map((b) => `${b.label} ${formatJuta(b.amount)}`)
+                    .join(", ")}`}
+                />
               </div>
-            </div>
-            <div className="text-center text-[18px] text-muted-foreground">
-              ⬇
-            </div>
-            <div>
-              <div className="mb-2 text-[11px] font-bold text-destructive">
-                {t.laporan.aliran.expenseAllocLabel}
-              </div>
-              <div className="flex flex-col gap-3">
-                {expenseBars.map((b, i) => (
-                  <FlowBar
-                    key={b.label}
-                    width={`${b.widthPct}%`}
-                    grad={
-                      FLOW_GRADS_EXPENSE[i % FLOW_GRADS_EXPENSE.length] ??
-                      FLOW_GRADS_EXPENSE[0]!
-                    }
-                    label={b.label}
-                    amount={formatJuta(b.amount)}
-                  />
-                ))}
-              </div>
-            </div>
+            )}
           </div>
         ) : (
           <div className="py-4 text-center text-[12px] text-muted-foreground">
@@ -2400,22 +2341,43 @@ function InvSection({
       </div>
       <SectionCard title={t.laporan.investasi.portfolioByTypeTitle}>
         {typeRows.length > 0 ? (
-          <div className="flex flex-col gap-2.5">
-            {typeRows.map((row) => (
-              <BarRow
-                key={row.label}
-                label={row.label}
-                right={
-                  <span className="font-bold" style={{ color: row.color }}>
-                    {formatRupiah(row.value)} · {row.pct}%
-                  </span>
-                }
-                value={
-                  maxValue > 0 ? Math.round((row.value / maxValue) * 100) : 0
-                }
-                color={row.color}
+          <div className="flex flex-col gap-3.5">
+            {/* EPIC-026 Wave 3 — prototype's `#c-rinv` mount is the Apex
+                donut preset (J3 FOLD), over the SAME by-type totals the
+                allocation rows below already sum; the rows stay, matching
+                the prototype's donut + allocation-row pairing. Legend
+                hidden — the rows below are the one legend for this card. */}
+            <div className="[&_.apexcharts-legend]:hidden">
+              <DonutChart
+                segments={typeRows.map((row) => ({
+                  label: row.label,
+                  value: row.value,
+                  color: row.color,
+                }))}
+                centerLabel={t.laporan.investasi.totalPortfolioLabel}
+                height={230}
+                ariaLabel={`${t.laporan.investasi.portfolioByTypeTitle}: ${typeRows
+                  .map((row) => `${row.label} ${row.pct}%`)
+                  .join(", ")}`}
               />
-            ))}
+            </div>
+            <div className="flex flex-col gap-2.5">
+              {typeRows.map((row) => (
+                <BarRow
+                  key={row.label}
+                  label={row.label}
+                  right={
+                    <span className="font-bold" style={{ color: row.color }}>
+                      {formatRupiah(row.value)} · {row.pct}%
+                    </span>
+                  }
+                  value={
+                    maxValue > 0 ? Math.round((row.value / maxValue) * 100) : 0
+                  }
+                  color={row.color}
+                />
+              ))}
+            </div>
           </div>
         ) : (
           <div className="py-4 text-center text-[12px] text-muted-foreground">
@@ -2563,6 +2525,32 @@ function AslSection({
           </div>
         </div>
       </div>
+      {/* EPIC-026 Wave 3 — prototype's `#c-rasl` mount is the Apex hbar
+          preset (J3 FOLD): every asset category then every liability
+          category side by side, from the same balance-sheet breakdown
+          this section already fetches. */}
+      {balanceSheet &&
+        (balanceSheet.assets.length > 0 ||
+          balanceSheet.liabilities.length > 0) && (
+          <SectionCard title={t.shell.reportTabs.rasl}>
+            <HBarChart
+              categories={[
+                ...balanceSheet.assets.map((g) => g.category),
+                ...balanceSheet.liabilities.map((g) => g.category),
+              ]}
+              data={[
+                ...balanceSheet.assets.map((g) => g.amount),
+                ...balanceSheet.liabilities.map((g) => g.amount),
+              ]}
+              ariaLabel={`${t.shell.reportTabs.rasl}: ${[
+                ...balanceSheet.assets,
+                ...balanceSheet.liabilities,
+              ]
+                .map((g) => `${g.category} ${formatRupiah(g.amount)}`)
+                .join(", ")}`}
+            />
+          </SectionCard>
+        )}
       <SectionCard title={t.laporan.asetLiabilitas.ratioTitle}>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-md bg-muted p-3">
@@ -2633,6 +2621,22 @@ function PerfSection({
   return (
     <div className={"space-y-3.5 " + loadingClass}>
       <SectionCard title={t.laporan.performa.title}>
+        {/* EPIC-026 Wave 3 — prototype's `#c-rperf` mount is the Apex
+            radial preset (J3 FOLD) beside the indicator list. The
+            prototype's own radial ("Dana Darurat", months of emergency
+            fund) needs a liquid-balance-vs-monthly-expense figure this
+            section does not fetch — the radial gauges the savings rate,
+            the same indicator the first row below tracks. */}
+        {savingsRate !== null && (
+          <div className="mb-3.5">
+            <RadialChart
+              value={Math.max(0, Math.min(100, savingsRate))}
+              label={t.laporan.savingsRateLabel}
+              height={200}
+              ariaLabel={`${t.laporan.performa.savingsRateTargetLabel}: ${savingsRate}%`}
+            />
+          </div>
+        )}
         <div className="flex flex-col gap-2.5">
           {savingsRate !== null && (
             <BarRow

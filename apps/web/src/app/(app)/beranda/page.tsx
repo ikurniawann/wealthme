@@ -6,7 +6,6 @@ import { useSession } from "@/lib/auth-compat";
 import { useQuery } from "@tanstack/react-query";
 import {
   Gem,
-  Eye,
   ArrowUp,
   ArrowDown,
   Landmark,
@@ -15,6 +14,8 @@ import {
   CreditCard,
   ArrowDownLeft,
   ArrowLeftRight,
+  CalendarClock,
+  CheckCheck,
   Target,
 } from "lucide-react";
 import type { DonutSegment } from "@/components/charts/donut";
@@ -307,6 +308,10 @@ function BerandaPage() {
     // purchase (E3); without this fallback a description-less card
     // purchase rendered a blank-named row here.
     name: tx.description ?? tx.accountName ?? "—",
+    // EPIC-026 Wave 3 — prototype's `.list-row__sub` is a single
+    // "account · category · date" line (beranda.html), not category-left/
+    // date-right; assembled from fields the summary already returns.
+    accountName: tx.accountName,
     cat:
       tx.categoryName ??
       (tx.type === "income"
@@ -478,26 +483,20 @@ function BerandaPage() {
         grid at `lg`+, 2-col tablet, stacked mobile. Card spans mirror the
         prototype's `.bento-hero`(7)/`.bento-snapshot`(5)/`.bento-stat`(3
         each)/`.bento-chart`(7)/`.bento-allocation`(5)/`.bento-transactions`(7)/
-        `.bento-goals`(12). The prototype's `.bento-side` (budget-overview +
-        "Perlu Perhatian" notices) is NOT ported — beranda does not fetch
-        budget or pending-approval data today, and this wave is
-        presentation-only (Ground Truth: fold only what's already fetched,
-        never invent a new endpoint).
+        `.bento-side`(5: budget overview + "Perlu Perhatian")/`.bento-goals`(12).
       */}
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:grid-cols-12 lg:items-start">
         <div className="grid grid-cols-1 gap-3.5 md:col-span-2 md:grid-cols-2 lg:contents">
           {/* Wealth Hero */}
           <Rise index={0} className="lg:col-span-7">
             <HeroCard className="gradient-wealth">
+              {/* EPIC-026 Wave 3 — the eye "toggle" here had no onClick
+                  (dead control, not in the prototype hero either) — removed
+                  per the J1 honest-UI rule, same defect class as login's
+                  inert "Ingat saya" checkbox. */}
               <div className="flex items-center gap-1.5 text-[12.5px] font-semibold opacity-90">
                 <Gem className="size-[13px] opacity-80" />{" "}
                 {t.beranda.totalWealth}
-                <button
-                  aria-label={t.common.toggleBalance}
-                  className="ml-0.5 cursor-pointer opacity-60"
-                >
-                  <Eye className="size-[13px]" />
-                </button>
               </div>
               <h1 className="mono mt-1 text-[28px] font-extrabold tracking-tight">
                 {isLoading || (isIndicative && !isReady) ? (
@@ -666,7 +665,7 @@ function BerandaPage() {
                       onClick={() => router.push("/liabilitas")}
                       className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border border-warning/30 bg-warning-soft px-3 py-2.5 text-left text-[12px]"
                     >
-                      <span>📅</span>
+                      <CalendarClock className="size-4 shrink-0" />
                       <span>
                         <strong>{nearestDueLiability.name}</strong>{" "}
                         {t.beranda.liabilityDueNotice}{" "}
@@ -745,21 +744,26 @@ function BerandaPage() {
             }
             className="lg:col-span-7"
             action={
+              /* EPIC-026 Wave 3 — restyled to the translation table's
+                 `.segmented` mapping (role=tablist/tab + aria-selected,
+                 carried verbatim from the prototype per acceptance
+                 criterion #5), replacing the pill-group styling. */
               <div
-                role="group"
+                role="tablist"
                 aria-label={t.beranda.periodToggleAriaLabel}
-                className="flex gap-1 rounded-full bg-secondary p-1"
+                className="inline-flex gap-0.5 rounded-[10px] bg-secondary p-[3px]"
               >
                 {PERIODS.map((p) => (
                   <button
                     key={p}
                     type="button"
+                    role="tab"
                     onClick={() => setPeriod(p)}
-                    aria-pressed={period === p}
-                    className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                    aria-selected={period === p}
+                    className={`cursor-pointer rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
                       period === p
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-secondary/70"
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground"
                     }`}
                   >
                     {p === "12M"
@@ -813,7 +817,9 @@ function BerandaPage() {
             title={t.beranda.wealthBreakdown}
             className="lg:col-span-5"
             action={
-              <CardLink onClick={() => router.push("/aset")}>
+              /* EPIC-026 Wave 3 — prototype's "Detail" action links to
+                 ringkasan.html, not aset. */
+              <CardLink onClick={() => router.push("/ringkasan")}>
                 {t.common.viewDetail}
               </CardLink>
             }
@@ -894,27 +900,26 @@ function BerandaPage() {
                       size={34}
                       rounded="rounded-full"
                     />
-                    <div className="flex-1">
-                      <div className="text-[13px] font-semibold">{a.name}</div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {a.cat}
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[13px] font-semibold">
+                        {a.name}
+                      </div>
+                      <div className="truncate text-[11px] text-muted-foreground">
+                        {[a.accountName, a.cat, a.date]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div
-                        className={`text-[13px] font-bold ${
-                          a.isTransfer
-                            ? "text-muted-foreground"
-                            : a.inc
-                              ? "text-success"
-                              : "text-destructive"
-                        }`}
-                      >
-                        {a.amt}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {a.date}
-                      </div>
+                    <div
+                      className={`mono text-[13px] font-bold ${
+                        a.isTransfer
+                          ? "text-muted-foreground"
+                          : a.inc
+                            ? "text-success"
+                            : "text-destructive"
+                      }`}
+                    >
+                      {a.amt}
                     </div>
                   </div>
                 ))}
@@ -1003,7 +1008,7 @@ function BerandaPage() {
                     onClick={() => router.push("/persetujuan")}
                     className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border border-warning/30 bg-warning-soft px-3 py-2.5 text-left text-[12.5px]"
                   >
-                    <span className="text-[15px]">✅</span>
+                    <CheckCheck className="size-4 shrink-0" />
                     <span>
                       <strong>{pendingApprovalsCount}</strong>{" "}
                       {t.beranda.pendingApprovalsNotice}
@@ -1016,7 +1021,7 @@ function BerandaPage() {
                     onClick={() => router.push("/liabilitas")}
                     className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border bg-accent px-3 py-2.5 text-left text-[12.5px]"
                   >
-                    <span className="text-[15px]">📅</span>
+                    <CalendarClock className="size-4 shrink-0" />
                     <span>
                       <strong>{nearestDueLiability.name}</strong>{" "}
                       {t.beranda.liabilityDueNotice}{" "}
@@ -1072,30 +1077,31 @@ function BerandaPage() {
                 </button>
               </div>
             ) : (
-              <div className="space-y-3.5">
+              /* EPIC-026 Wave 3 — prototype's `.bento-goal-list` is a
+                 3-col grid of `.bento-goal` tiles (bg-secondary, 12px pad,
+                 30px icon chip, "now / target" mono line, progress below)
+                 — was rendered as a vertical list before this rebuild. */
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {goalItems.map((g) => (
-                  <div key={g.id}>
-                    <div className="mb-1.5 flex items-center gap-2">
-                      <div
-                        className="flex size-[26px] items-center justify-center rounded-md text-[13px]"
+                  <div key={g.id} className="rounded-xl bg-secondary p-3">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="flex size-[30px] shrink-0 items-center justify-center rounded-[9px] bg-card text-[14px]"
                         style={{ background: g.iconBg }}
                       >
                         {g.icon}
-                      </div>
-                      <div className="flex-1 text-[13px] font-semibold">
-                        {g.name}
-                      </div>
-                      <div
-                        className="text-[13px] font-bold"
-                        style={{ color: g.color }}
-                      >
-                        {g.pct}%
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[12.5px] font-bold">
+                          {g.name}
+                        </div>
+                        <div className="mono truncate text-[11.5px] text-muted-foreground">
+                          {g.now} / {g.target}
+                        </div>
                       </div>
                     </div>
-                    <AnimatedProgress value={g.pct} color={g.color} />
-                    <div className="mt-1 flex justify-between text-[10.5px] text-muted-foreground">
-                      <span>{g.now}</span>
-                      <span>{g.target}</span>
+                    <div className="mt-[9px]">
+                      <AnimatedProgress value={g.pct} color={g.color} />
                     </div>
                   </div>
                 ))}
@@ -1104,25 +1110,11 @@ function BerandaPage() {
           </SectionCard>
         </div>
 
-        {/* AI insight banner */}
-        <div className="flex items-center gap-3.5 rounded-[14px] bg-accent p-4 md:col-span-2 lg:col-span-12">
-          <div className="text-[26px]">📊</div>
-          <div className="flex-1">
-            <div className="text-[13px] font-bold text-primary-strong">
-              {t.beranda.aiInsightTitle}
-            </div>
-            <div className="mt-0.5 text-[12px] text-muted-foreground">
-              {t.beranda.aiInsightBody}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => router.push("/ai")}
-            className="cursor-pointer rounded-lg bg-primary px-3.5 py-2 text-[12px] font-semibold whitespace-nowrap text-primary-foreground hover:opacity-90"
-          >
-            {t.beranda.aiInsightCta}
-          </button>
-        </div>
+        {/* EPIC-026 Wave 3 — the AI insight banner was removed: the
+            prototype's bento-dashboard ends at `.bento-goals`, and the
+            banner's "insight" was static i18n copy, not real analysis.
+            (Its aiInsight* keys remain in the protected i18n files — noted
+            for a separate foundation cleanup.) */}
       </div>
     </div>
   );
