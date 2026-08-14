@@ -2853,7 +2853,11 @@ function AddDependantMemberDialog({
               }
               aria-pressed={showPassword}
               onClick={() => setShowPassword((s) => !s)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
+              // UI/UX audit fix (docs/uiux-beda) — muted-foreground on the
+              // dark-theme input background reads as near-invisible; bump
+              // to foreground/70 (still a subtle icon, but findable) and
+              // give it a visible hit target background on hover/focus.
+              className="absolute right-3 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-foreground/70 transition-colors hover:bg-accent hover:text-primary focus-visible:bg-accent focus-visible:text-primary focus-visible:outline-none"
             >
               {showPassword ? (
                 <EyeOff className="size-3.5" />

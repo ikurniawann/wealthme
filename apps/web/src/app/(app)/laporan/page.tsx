@@ -625,7 +625,7 @@ function RingkasanSection({
         bodyClassName="pt-0"
       >
         {summary && summary.topExpenseCategories.length > 0 ? (
-          <div className="w-full overflow-x-auto">
+          <div className="w-full overflow-x-auto [mask-image:linear-gradient(to_left,transparent,black_24px)]">
             <table className="w-full min-w-[420px] text-left text-[12.5px]">
               <thead>
                 <tr className="border-b text-muted-foreground">
@@ -978,7 +978,7 @@ function BulananSection({
         </SectionCard>
       )}
       <SectionCard title={t.laporan.bulanan.recapTitle}>
-        <div className="w-full overflow-x-auto">
+        <div className="w-full overflow-x-auto [mask-image:linear-gradient(to_left,transparent,black_24px)]">
           <table className="w-full text-[12.5px]">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
@@ -1355,7 +1355,7 @@ function DetailSection({
         <div className="text-[15px] font-bold">{t.laporan.detail.title}</div>
       </div>
       <SectionCard>
-        <div className="w-full overflow-x-auto">
+        <div className="w-full overflow-x-auto [mask-image:linear-gradient(to_left,transparent,black_24px)]">
           <table className="min-w-[580px] w-full text-[12.5px]">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
@@ -2395,7 +2395,7 @@ function InvSection({
       </SectionCard>
       {investments && investments.length > 0 && (
         <SectionCard title={t.laporan.investasi.instrumentListTitle}>
-          <div className="w-full overflow-x-auto">
+          <div className="w-full overflow-x-auto [mask-image:linear-gradient(to_left,transparent,black_24px)]">
             <table className="w-full text-[12px]">
               <thead>
                 <tr className="border-b text-left text-muted-foreground">
@@ -2779,7 +2779,7 @@ function PajakSection({
 
       {pph21 && pph21.taxBreakdown.length > 0 && (
         <SectionCard title={t.laporan.pajak.bracketBreakdownTitle}>
-          <div className="w-full overflow-x-auto">
+          <div className="w-full overflow-x-auto [mask-image:linear-gradient(to_left,transparent,black_24px)]">
             <table className="w-full text-[12.5px]">
               <thead>
                 <tr className="border-b text-left text-muted-foreground">
@@ -2972,7 +2972,7 @@ function CoaSection({
                 {t.laporan.coa.emptyMatrix}
               </div>
             ) : (
-              <div className="w-full overflow-x-auto">
+              <div className="w-full overflow-x-auto [mask-image:linear-gradient(to_left,transparent,black_24px)]">
                 <table className="w-full min-w-[900px] text-[11px]">
                   <thead>
                     <tr className="border-b text-left text-muted-foreground">
@@ -4341,6 +4341,12 @@ function LaporanInner() {
         >
           <ChevronRight className="size-4" />
         </button>
+        {/* UI/UX audit fix (docs/uiux-beda) — 17 tabs scroll behind a small
+            chevron with no hint how many are off-screen; a plain numeric
+            position needs no i18n string. */}
+        <span className="mono shrink-0 text-[11px] text-muted-foreground">
+          {tabIndex + 1}/{REPORT_TABS.length}
+        </span>
       </div>
 
       {/* Export (detailed card — report type, status, download) */}
