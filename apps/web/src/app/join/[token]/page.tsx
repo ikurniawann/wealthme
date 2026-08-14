@@ -6,9 +6,18 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useSession, signOut } from "@/lib/auth-compat";
 import { apiFetch } from "@/lib/api-client";
+import { SectionCard } from "@/components/wm";
 import { id } from "@/i18n/id";
 
 import type { Role } from "@wealthme/contracts";
+
+// EPIC-026 Wave 7 — restyled to docs/prototype/pages/join-token.html's
+// `.auth` shell (brand above a token card, `.btn` translations per
+// EPIC-025-N3-translation-table.md). Per J1/H6, the prototype's tombstone
+// content ("Undangan keluarga sudah tidak dipakai", the legacy-token
+// warning, and the "Cara bergabung sekarang" steps) is NOT ported — the
+// real accept-invite flow below still works, and replacing it would break
+// pending invites. Accept logic is untouched.
 
 type Invitation = {
   familyGroupName: string;
@@ -66,88 +75,99 @@ export default function JoinPage({
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-[420px] rounded-2xl border bg-card p-8 text-center shadow-sm">
-        <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-accent text-[26px]">
-          👨‍👩‍👧‍👦
+    <div className="grid min-h-screen place-items-center bg-background px-4 py-6">
+      <div className="w-full max-w-[440px]">
+        <div className="mb-[18px] flex items-center justify-center gap-2.5">
+          <div className="gradient-wealth grid size-[34px] place-items-center rounded-[9px] text-[15px] font-extrabold text-white">
+            W
+          </div>
+          <div className="text-[18px] font-extrabold tracking-tight">
+            WealthMe
+          </div>
         </div>
 
-        {isLoading && (
-          <div className="text-[13px] text-muted-foreground">
-            Memuat undangan…
+        <SectionCard bodyClassName="text-center">
+          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-accent text-[26px]">
+            👨‍👩‍👧‍👦
           </div>
-        )}
 
-        {isError && (
-          <>
-            <div className="text-[17px] font-extrabold">
-              Undangan tidak valid
+          {isLoading && (
+            <div className="text-[12.5px] text-muted-foreground">
+              Memuat undangan…
             </div>
-            <div className="mt-2 text-[13px] text-muted-foreground">
-              {error instanceof Error && error.message
-                ? error.message
-                : "Link undangan kedaluwarsa, sudah dipakai, atau tidak ditemukan."}
-            </div>
-          </>
-        )}
+          )}
 
-        {invitation && !accepted && (
-          <>
-            <div className="text-[17px] font-extrabold">
-              Undangan bergabung ke
-              <br />
-              &ldquo;{invitation.familyGroupName}&rdquo;
-            </div>
-            <div className="mt-2 text-[13px] text-muted-foreground">
-              Untuk {invitation.email} · peran{" "}
-              {id.common.roleLabels[invitation.role] ?? invitation.role}
-            </div>
+          {isError && (
+            <>
+              <div className="text-[16px] font-extrabold">
+                Undangan tidak valid
+              </div>
+              <div className="mt-2 text-[12.5px] text-muted-foreground">
+                {error instanceof Error && error.message
+                  ? error.message
+                  : "Link undangan kedaluwarsa, sudah dipakai, atau tidak ditemukan."}
+              </div>
+            </>
+          )}
 
-            {session?.accessToken ? (
-              <button
-                type="button"
-                disabled={accepting}
-                onClick={handleAccept}
-                className="mt-6 w-full cursor-pointer rounded-lg bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
-              >
-                {accepting ? "Memproses…" : "Terima Undangan"}
-              </button>
-            ) : (
-              <>
-                <div className="mt-4 text-[12.5px] text-muted-foreground">
-                  Masuk atau daftar dulu, lalu buka link ini kembali.
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => router.push("/login")}
-                    className="cursor-pointer rounded-lg bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary/90"
-                  >
-                    Masuk
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => router.push("/register")}
-                    className="cursor-pointer rounded-lg border py-2.5 text-[13.5px] font-bold transition-colors hover:bg-accent"
-                  >
-                    Daftar
-                  </button>
-                </div>
-              </>
-            )}
-          </>
-        )}
+          {invitation && !accepted && (
+            <>
+              <div className="text-[16px] font-extrabold">
+                Undangan bergabung ke
+                <br />
+                &ldquo;{invitation.familyGroupName}&rdquo;
+              </div>
+              <div className="mt-2 text-[12.5px] text-muted-foreground">
+                Untuk {invitation.email} · peran{" "}
+                {id.common.roleLabels[invitation.role] ?? invitation.role}
+              </div>
 
-        {accepted && (
-          <>
-            <div className="text-[17px] font-extrabold text-success">
-              Berhasil bergabung! 🎉
-            </div>
-            <div className="mt-2 text-[13px] text-muted-foreground">
-              Mengalihkan ke halaman masuk…
-            </div>
-          </>
-        )}
+              {session?.accessToken ? (
+                <button
+                  type="button"
+                  disabled={accepting}
+                  onClick={handleAccept}
+                  className="mt-5 flex h-9 w-full cursor-pointer items-center justify-center gap-[7px] rounded-[9px] bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {accepting ? "Memproses…" : "Terima Undangan"}
+                </button>
+              ) : (
+                <>
+                  <div className="mt-4 text-[12.5px] text-muted-foreground">
+                    Masuk atau daftar dulu, lalu buka link ini kembali.
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => router.push("/login")}
+                      className="flex h-9 cursor-pointer items-center justify-center rounded-[9px] bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong"
+                    >
+                      Masuk
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => router.push("/register")}
+                      className="flex h-9 cursor-pointer items-center justify-center rounded-[9px] border bg-card px-3.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-secondary"
+                    >
+                      Daftar
+                    </button>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {accepted && (
+            <>
+              <div className="text-[16px] font-extrabold text-success">
+                Berhasil bergabung! 🎉
+              </div>
+              <div className="mt-2 text-[12.5px] text-muted-foreground">
+                Mengalihkan ke halaman masuk…
+              </div>
+            </>
+          )}
+        </SectionCard>
       </div>
     </div>
   );

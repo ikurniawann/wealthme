@@ -2,9 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Mail, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
+import { SectionCard } from "@/components/wm";
+
+// EPIC-026 Wave 7 — markup rebuilt from
+// docs/prototype/pages/lupa-password.html (token-based `.auth` layout per
+// EPIC-025-N3-translation-table.md): brand above card, form state and
+// "sent" empty-state, "Link berlaku 60 menit" (better-auth's default reset
+// token expiry is 1 hour) and the outline "Kembali ke Login" button.
+// Per J2, only the true half of the prototype's hint is kept — the
+// "minta kepala keluarga menyetel ulang passwordnya" promise has zero
+// backend support today. Request logic is untouched.
 
 export default function LupaPasswordPage() {
   const [email, setEmail] = useState("");
@@ -35,61 +45,62 @@ export default function LupaPasswordPage() {
   };
 
   return (
-    <div
-      className="relative flex min-h-screen items-center justify-center p-5"
-      style={{
-        backgroundImage:
-          "linear-gradient(135deg, var(--primary-strong) 0%, var(--primary) 55%, color-mix(in oklab, var(--primary) 70%, white) 100%)",
-      }}
-    >
-      <div className="w-full max-w-[420px] rounded-3xl bg-white/[0.97] p-10 shadow-[0_32px_80px_rgba(0,0,0,0.3)]">
-        <div className="mb-5 flex items-center justify-center gap-2.5">
-          <div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl font-extrabold tracking-tighter text-white">
+    <div className="grid min-h-screen place-items-center bg-background px-4 py-6">
+      <div className="w-full max-w-[420px]">
+        <div className="mb-[18px] flex items-center justify-center gap-2.5">
+          <div className="gradient-wealth grid size-[34px] place-items-center rounded-[9px] text-[15px] font-extrabold text-white">
             W
           </div>
-          <div className="text-[22px] font-extrabold text-slate-900">
-            Wealth<span className="text-primary">Me</span>
+          <div className="text-[18px] font-extrabold tracking-tight">
+            WealthMe
           </div>
         </div>
 
-        <Link
-          href="/login"
-          className="mb-5 flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary-strong transition-colors"
-        >
-          <ArrowLeft className="size-4" /> Kembali ke Login
-        </Link>
-
         {sent ? (
-          <div className="text-center">
-            <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-green-100">
-              <Send className="size-7 text-green-600" />
+          <SectionCard>
+            <div className="grid place-items-center gap-2 px-5 py-6 text-center">
+              <div className="grid size-16 place-items-center rounded-full bg-success-soft text-success">
+                <Send className="size-[26px]" />
+              </div>
+              <div className="text-[16px] font-extrabold">Email Terkirim!</div>
+              <div className="text-[12.5px] text-muted-foreground">
+                Kami telah mengirim link reset password ke{" "}
+                <strong>{email}</strong>. Periksa kotak masuk atau folder spam
+                Anda.
+              </div>
+              <div className="mt-1.5 text-[11.5px] text-muted-foreground">
+                Link berlaku 60 menit. Tidak menerima email?{" "}
+                <button
+                  type="button"
+                  onClick={() => setSent(false)}
+                  className="text-[12.5px] font-bold text-primary transition-colors hover:text-primary-strong"
+                >
+                  Coba lagi
+                </button>
+              </div>
             </div>
-            <h1 className="mb-2 text-[20px] font-extrabold text-slate-900">
-              Email Terkirim!
-            </h1>
-            <p className="mb-6 text-sm text-slate-500">
-              Kami telah mengirim link reset password ke{" "}
-              <strong className="text-slate-700">{email}</strong>. Periksa kotak
-              masuk atau folder spam Anda.
-            </p>
-            <p className="text-xs text-slate-400">
-              Tidak menerima email?{" "}
-              <button
-                onClick={() => setSent(false)}
-                className="font-semibold text-primary hover:text-primary-strong transition-colors"
-              >
-                Coba lagi
-              </button>
-            </p>
-          </div>
+            <Link
+              href="/login"
+              className="flex h-9 w-full items-center justify-center gap-[7px] rounded-[9px] border bg-card px-3.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-secondary"
+            >
+              Kembali ke Login
+            </Link>
+          </SectionCard>
         ) : (
-          <>
-            <h1 className="text-center text-[22px] font-extrabold text-slate-900">
+          <SectionCard>
+            <Link
+              href="/login"
+              className="text-[12.5px] font-bold text-primary transition-colors hover:text-primary-strong"
+            >
+              ← Kembali ke Login
+            </Link>
+
+            <h1 className="mt-3.5 text-center text-[16px] font-extrabold">
               Lupa Password?
             </h1>
-            <p className="mb-7 text-center text-[13px] text-slate-400">
+            <p className="mt-1 mb-[18px] text-center text-[11.5px] text-muted-foreground">
               Masukkan email Anda dan kami akan mengirim link untuk mereset
-              password
+              password.
             </p>
 
             <form
@@ -100,42 +111,37 @@ export default function LupaPasswordPage() {
             >
               <label
                 htmlFor="email"
-                className="mb-1.5 block text-xs font-semibold text-slate-600"
+                className="mb-[5px] block text-[12.5px] font-semibold"
               >
                 Email
               </label>
-              <div className="relative mb-2">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                  <Mail className="size-3.5" />
-                </span>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="nama@email.com"
-                  className="w-full rounded-md border-[1.5px] border-slate-200 bg-white py-2.5 pl-[38px] pr-3.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition-colors focus:border-primary"
-                />
-              </div>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="nama@email.com"
+                className="w-full rounded-[9px] border bg-background px-3 py-[9px] text-[13.5px] text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-primary focus-visible:bg-card focus-visible:ring-[3px] focus-visible:ring-primary/20"
+              />
               {/* EPIC-025 N3-H3 (J2) — the prototype's hint also promises
                   "minta kepala keluarga menyetel ulang passwordnya" (head
                   resets a member's password). Zero backend support exists
                   for that today, so only the true, backend-supported half
-                  of the hint is kept — see the epic's H3 sub-step. */}
-              <p className="mb-6 text-xs text-slate-400">
+                  of the hint is kept. */}
+              <div className="mt-[5px] text-[11.5px] text-muted-foreground">
                 Reset lewat email hanya untuk akun ber-email.
-              </p>
+              </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-3 text-sm font-bold text-white transition-all hover:-translate-y-px hover:bg-primary-strong hover:shadow-[0_4px_16px_rgba(79,70,229,0.4)] disabled:opacity-60 disabled:cursor-not-allowed"
+                className="mt-[18px] flex h-9 w-full items-center justify-center gap-[7px] rounded-[9px] bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Send className="size-4" />
                 {loading ? "Mengirim…" : "Kirim Link Reset"}
               </button>
             </form>
-          </>
+          </SectionCard>
         )}
       </div>
     </div>

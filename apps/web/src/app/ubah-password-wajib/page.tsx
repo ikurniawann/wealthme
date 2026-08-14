@@ -9,10 +9,18 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession, signOut } from "@/lib/auth-compat";
 import { apiFetch } from "@/lib/api-client";
 import { useLocale } from "@/hooks/use-locale";
+import { SectionCard } from "@/components/wm";
 
-const FIELD_CLASS =
-  "w-full rounded-md border-[1.5px] border-slate-200 bg-white py-2.5 px-3.5 text-sm text-slate-900 outline-none transition-colors focus:border-primary";
-
+// EPIC-026 Wave 7 — markup rebuilt from
+// docs/prototype/pages/ubah-password-wajib.html (token-based `.auth`
+// layout per EPIC-025-N3-translation-table.md): warning-tinted brand mark
+// above the card, avatar identity row, token `.notice--warning`, field
+// hints. NOT ported, per J2: the prototype's "minta kepala keluarga
+// menyetel ulang di Akun & Keluarga → Anggota" footer — head-resets-a-
+// member's-password has zero backend support today. The prototype's
+// username/role/created-by identity detail is trimmed to what the session
+// actually carries (the display name). Logic is untouched.
+//
 // EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — forced first-login password
 // change for a head-created dependant/operational member
 // (`mustChangePassword: true`). Lives OUTSIDE the `(app)` route group so
@@ -22,6 +30,12 @@ const FIELD_CLASS =
 // account with 403 `{ code: "PASSWORD_CHANGE_REQUIRED" }` until this
 // succeeds; this page is reachable specifically because
 // `POST /auth/set-password` is allowlisted there.
+
+const INPUT_CLASS =
+  "w-full rounded-[9px] border bg-background px-3 py-[9px] text-[13.5px] text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-primary focus-visible:bg-card focus-visible:ring-[3px] focus-visible:ring-primary/20";
+const LABEL_CLASS = "mb-[5px] block text-[12.5px] font-semibold";
+const HINT_CLASS = "mt-[5px] text-[11.5px] text-muted-foreground";
+
 export default function UbahPasswordWajibPage() {
   const { t } = useLocale();
   const router = useRouter();
@@ -72,129 +86,122 @@ export default function UbahPasswordWajibPage() {
   }
 
   return (
-    <div
-      className="relative flex min-h-screen items-center justify-center p-5"
-      style={{
-        backgroundImage:
-          "linear-gradient(135deg, var(--primary-strong) 0%, var(--primary) 55%, color-mix(in oklab, var(--primary) 70%, white) 100%)",
-      }}
-    >
-      <div className="w-full max-w-[420px] rounded-3xl bg-white/[0.97] p-10 shadow-[0_32px_80px_rgba(0,0,0,0.3)]">
-        <div className="mb-5 flex items-center justify-center gap-2.5">
-          <div className="flex size-11 items-center justify-center rounded-xl bg-warning text-xl text-white">
-            <ShieldAlert className="size-5" />
+    <div className="grid min-h-screen place-items-center bg-background px-4 py-6">
+      <div className="w-full max-w-[420px]">
+        <div className="mb-[18px] flex items-center justify-center gap-2.5">
+          <div className="grid size-[34px] place-items-center rounded-[9px] bg-warning text-white">
+            <ShieldAlert className="size-[18px]" />
+          </div>
+          <div className="text-[18px] font-extrabold tracking-tight">
+            WealthMe
           </div>
         </div>
-        <h1 className="text-center text-[19px] font-extrabold text-slate-900">
-          {t.forcePasswordChange.title}
-        </h1>
-        <p className="text-center text-[13px] text-slate-500">
-          {t.forcePasswordChange.subtitle}
-        </p>
 
-        {session?.user.name && (
-          <div className="mt-4 flex items-center gap-2.5 rounded-xl bg-slate-50 p-3">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
-              {session.user.name.charAt(0).toUpperCase()}
+        <SectionCard>
+          <h1 className="text-center text-[16px] font-extrabold">
+            {t.forcePasswordChange.title}
+          </h1>
+          <p className="mt-1.5 text-center text-[11.5px] text-muted-foreground">
+            {t.forcePasswordChange.subtitle}
+          </p>
+
+          {session?.user.name && (
+            <div className="mt-4 flex items-center gap-2.5">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-[12px] font-extrabold text-accent-foreground">
+                {session.user.name.charAt(0).toUpperCase()}
+              </span>
+              <div className="min-w-0 flex-1 text-[12.5px] font-bold">
+                {session.user.name}
+              </div>
             </div>
-            <div className="min-w-0 flex-1 text-[12.5px] font-semibold text-slate-700">
-              {session.user.name}
-            </div>
+          )}
+
+          {/* EPIC-025 N3-H3 (J2) — states the real, already-enforced backend
+              gate (see the file-level comment above), NOT the prototype's
+              "kepala keluarga bisa reset password anggota" promise, which
+              has zero backend support today. */}
+          <div className="mt-3.5 flex items-start gap-2.5 rounded-[11px] border border-warning/35 bg-warning-soft p-3 text-[12.5px] text-warning">
+            <Lock className="mt-0.5 size-4 shrink-0" />
+            <span>
+              <strong>Langkah ini tidak bisa dilewati.</strong> Semua halaman
+              lain menolak akun ini sampai password diganti.
+            </span>
           </div>
-        )}
 
-        {/* EPIC-025 N3-H3 (J2) — states the real, already-enforced backend
-            gate (see the file-level comment above), NOT the prototype's
-            "kepala keluarga bisa reset password anggota" promise, which has
-            zero backend support today. */}
-        <div className="mb-7 mt-4 flex items-start gap-2.5 rounded-xl border border-warning/35 bg-warning-soft p-3 text-[12.5px] text-warning">
-          <Lock className="mt-0.5 size-3.5 shrink-0" />
-          <span>
-            Langkah ini tidak bisa dilewati — semua halaman lain menolak akun
-            ini sampai password diganti.
-          </span>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label
-              htmlFor="currentPassword"
-              className="mb-1.5 block text-xs font-semibold text-slate-600"
-            >
-              {t.forcePasswordChange.currentPasswordLabel}
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+          <form onSubmit={handleSubmit} className="mt-4">
+            <div>
+              <label htmlFor="currentPassword" className={LABEL_CLASS}>
+                {t.forcePasswordChange.currentPasswordLabel}
+              </label>
               <input
                 id="currentPassword"
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                className={`${FIELD_CLASS} pl-9`}
+                className={INPUT_CLASS}
                 required
               />
+              <div className={HINT_CLASS}>
+                Password sementara yang diberikan kepala keluarga saat akun ini
+                dibuat.
+              </div>
             </div>
-          </div>
-          <div>
-            <label
-              htmlFor="newPassword"
-              className="mb-1.5 block text-xs font-semibold text-slate-600"
-            >
-              {t.forcePasswordChange.newPasswordLabel}
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+
+            <div className="mt-3">
+              <label htmlFor="newPassword" className={LABEL_CLASS}>
+                {t.forcePasswordChange.newPasswordLabel}
+              </label>
               <input
                 id="newPassword"
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className={`${FIELD_CLASS} pl-9`}
+                className={INPUT_CLASS}
                 minLength={8}
                 required
               />
             </div>
-          </div>
-          <div>
-            <label
-              htmlFor="confirmPassword"
-              className="mb-1.5 block text-xs font-semibold text-slate-600"
-            >
-              {t.forcePasswordChange.confirmPasswordLabel}
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+
+            <div className="mt-3">
+              <label htmlFor="confirmPassword" className={LABEL_CLASS}>
+                {t.forcePasswordChange.confirmPasswordLabel}
+              </label>
               <input
                 id="confirmPassword"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className={`${FIELD_CLASS} pl-9`}
+                className={INPUT_CLASS}
                 minLength={8}
                 required
               />
+              <div className={HINT_CLASS}>
+                Minimal 8 karakter. Kepala keluarga tidak bisa melihat password
+                barumu.
+              </div>
             </div>
-          </div>
+
+            <button
+              type="submit"
+              disabled={isPending || !token}
+              className="mt-4 flex h-9 w-full items-center justify-center gap-[7px] rounded-[9px] bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isPending
+                ? t.forcePasswordChange.submitting
+                : t.forcePasswordChange.submitButton}
+            </button>
+          </form>
 
           <button
-            type="submit"
-            disabled={isPending || !token}
-            className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-3 text-sm font-bold text-white transition-all hover:-translate-y-px hover:bg-primary-strong disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={() => {
+              void signOut({ callbackUrl: "/login" });
+            }}
+            className="mt-2.5 flex h-9 w-full items-center justify-center gap-[7px] rounded-[9px] border bg-card px-3.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-secondary"
           >
-            {isPending
-              ? t.forcePasswordChange.submitting
-              : t.forcePasswordChange.submitButton}
+            <LogOut className="size-[15px]" />{" "}
+            {t.forcePasswordChange.logoutButton}
           </button>
-        </form>
-
-        <button
-          onClick={() => {
-            void signOut({ callbackUrl: "/login" });
-          }}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border-[1.5px] border-slate-200 bg-slate-50 py-2.5 text-[13px] font-semibold text-slate-700 transition-colors hover:border-destructive hover:bg-red-50"
-        >
-          <LogOut className="size-3.5" /> {t.forcePasswordChange.logoutButton}
-        </button>
+        </SectionCard>
       </div>
     </div>
   );

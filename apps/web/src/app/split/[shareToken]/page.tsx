@@ -11,11 +11,25 @@
 // `/splitbill` page) ever posts real income. Standalone public route (no
 // auth, no (app) shell), mirroring /join/[token].
 
+// EPIC-026 Wave 7 — markup restyled to docs/prototype/pages/
+// split-public.html (`.auth` shell: brand mark above the cards, token
+// `.card`/`.section-title`/`.btn` translations per
+// EPIC-025-N3-translation-table.md). NOT ported — each needs data
+// `PublicSplitParticipantDto` deliberately excludes (privacy: the DTO
+// exposes ONLY the recipient's own share): the bill sub-line (venue/date/
+// headcount), the "Ditagih oleh" owner row and total-bill badge, the
+// "Salin Nomor" copy button (only a masked account number is exposed —
+// copying it would paste a broken number), and the status timeline (bill-
+// created/link-shared timestamps are not in the DTO). The prototype's
+// second "Varian" card is a prototype-only demo (badged "Prototipe") — the
+// real payout-missing state is already handled inline below. Claim logic
+// is untouched.
+
 import { use } from "react";
-import { Link as LinkIcon } from "lucide-react";
+import { Check, Link as LinkIcon } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { StatusBadge } from "@/components/wm";
+import { SectionCard, StatusBadge } from "@/components/wm";
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah } from "@/lib/format";
 import { useLocale } from "@/hooks/use-locale";
@@ -121,7 +135,16 @@ export function SplitShareView({ shareToken }: { shareToken: string }) {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center gap-3.5 bg-background p-4 pt-8 sm:pt-14">
+    <div className="flex min-h-screen flex-col items-center gap-3.5 bg-background px-3.5 pt-5 pb-10">
+      <div className="flex items-center justify-center gap-2.5">
+        <div className="gradient-wealth grid size-[30px] place-items-center rounded-[9px] text-[13px] font-extrabold text-white">
+          W
+        </div>
+        <div className="text-[16px] font-extrabold tracking-tight">
+          WealthMe
+        </div>
+      </div>
+
       {/* EPIC-025 N3-H5 — ported from docs/prototype/pages/split-public.html:
           this route has no login wall (see the file-level comment above),
           so it says so up front. */}
@@ -130,7 +153,7 @@ export function SplitShareView({ shareToken }: { shareToken: string }) {
         <span>{t.splitbill.publicNoAccountNotice}</span>
       </div>
 
-      <div className="w-full max-w-[440px] rounded-2xl border bg-card p-6 shadow-sm sm:p-8">
+      <SectionCard className="w-full max-w-[440px]">
         {isLoading && (
           <div className="py-10 text-center text-[13px] text-muted-foreground">
             {t.splitbill.publicLoading}
@@ -190,32 +213,32 @@ export function SplitShareView({ shareToken }: { shareToken: string }) {
 
         {participant && (
           <>
-            <div className="mb-1 text-center text-[12px] font-semibold text-primary">
+            <div className="text-center text-[11.5px] font-bold tracking-[0.06em] text-primary">
               {t.splitbill.publicEyebrow}
             </div>
-            <h1 className="mb-4 text-center text-[19px] font-extrabold">
+            <h1 className="mt-1 text-center text-[16px] font-extrabold">
               {participant.billTitle}
             </h1>
 
-            <div className="mb-4 rounded-[14px] bg-accent p-[18px] text-center">
-              <div className="text-[11px] text-muted-foreground">
+            <div className="mt-4 rounded-[14px] bg-accent px-3.5 py-[18px] text-center">
+              <div className="text-[11.5px] text-muted-foreground">
                 {t.splitbill.publicYourShareLabel} —{" "}
                 {participant.participantName}
               </div>
-              <div className="text-[26px] font-black text-primary">
+              <div className="mono mt-0.5 text-[26px] font-black text-primary">
                 {formatRupiah(amount)}
               </div>
-              <div className="mt-1.5 flex justify-center">
+              <div className="mt-2 flex justify-center">
                 <StatusBadge variant={statusVariant[participant.status]}>
                   {statusLabel[participant.status]}
                 </StatusBadge>
               </div>
             </div>
 
-            <div className="mb-2 text-[12px] font-bold text-muted-foreground">
+            <div className="mt-[18px] mb-2 text-[17px] font-extrabold tracking-tight">
               {t.splitbill.publicPayoutTitle}
             </div>
-            <div className="mb-4 rounded-[10px] border bg-background p-3.5 text-[13px]">
+            <div className="mb-4 rounded-xl border bg-background p-3.5 text-[13px]">
               {participant.payout.accountName ? (
                 <div className="font-semibold">
                   {participant.payout.accountName}
@@ -253,13 +276,15 @@ export function SplitShareView({ shareToken }: { shareToken: string }) {
             {participant.status === "pending" && (
               <div className="space-y-2">
                 <button
+                  type="button"
                   onClick={() => claimMutation.mutate()}
                   disabled={claimMutation.isPending}
-                  className="w-full cursor-pointer rounded-md bg-primary px-4 py-2.5 text-[13px] font-semibold text-primary-foreground transition-colors disabled:opacity-50"
+                  className="flex h-9 w-full cursor-pointer items-center justify-center gap-[7px] rounded-[9px] bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong disabled:cursor-not-allowed disabled:opacity-50"
                 >
+                  <Check className="size-4" aria-hidden="true" />
                   {t.splitbill.publicClaimButton}
                 </button>
-                <div className="text-center text-[11px] text-muted-foreground">
+                <div className="text-center text-[11.5px] text-muted-foreground">
                   {t.splitbill.publicClaimDisclaimer}
                 </div>
               </div>
@@ -278,12 +303,12 @@ export function SplitShareView({ shareToken }: { shareToken: string }) {
             )}
           </>
         )}
+      </SectionCard>
 
-        <div className="mt-6 border-t pt-4 text-center text-[11px] text-muted-foreground">
-          {t.splitbill.publicFooterPrefix}{" "}
-          <span className="font-bold text-primary">WealthMe</span>{" "}
-          {t.splitbill.publicFooterSuffix}
-        </div>
+      <div className="w-full max-w-[440px] text-center text-[11.5px] text-muted-foreground">
+        {t.splitbill.publicFooterPrefix}{" "}
+        <span className="font-bold text-primary">WealthMe</span>{" "}
+        {t.splitbill.publicFooterSuffix}
       </div>
     </div>
   );

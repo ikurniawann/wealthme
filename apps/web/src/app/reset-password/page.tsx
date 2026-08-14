@@ -3,16 +3,30 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Check, Eye, EyeOff, Lock } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
+import { SectionCard } from "@/components/wm";
 
-// EPIC-025 N3-H4 — live rule checklist ported from
-// docs/prototype/pages/reset-password.html, pure client-side UI. Trimmed to
-// ONLY the rules `doReset` (below) and the backend actually enforce (min 8
-// chars + confirmation match) — the prototype's extra uppercase/number/
-// symbol rules aren't checked by better-auth's password policy here, so
-// showing them would be a fake requirement (honest-UI mandate).
+// EPIC-026 Wave 7 — markup rebuilt from
+// docs/prototype/pages/reset-password.html (token-based `.auth` layout per
+// EPIC-025-N3-translation-table.md). NOT ported, per J2: the prototype's
+// "semua sesi aktif di perangkat lain akan keluar" notice — session/device
+// revocation on password reset is promised in copy but not implemented, so
+// the reassuring copy stays out until it is built. The prototype's sub-text
+// also shows the account email, which the token-only reset flow cannot know
+// client-side — omitted rather than faked. Reset logic is untouched.
+
+const INPUT_CLASS =
+  "w-full rounded-[9px] border bg-background px-3 py-[9px] text-[13.5px] text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-primary focus-visible:bg-card focus-visible:ring-[3px] focus-visible:ring-primary/20";
+const LABEL_CLASS = "mb-[5px] block text-[12.5px] font-semibold";
+
+// EPIC-025 N3-H4 — live rule checklist ported from the prototype, pure
+// client-side UI. Trimmed to ONLY the rules `doReset` (below) and the
+// backend actually enforce (min 8 chars + confirmation match) — the
+// prototype's extra uppercase/number/symbol rules aren't checked by
+// better-auth's password policy here, so showing them would be a fake
+// requirement (honest-UI mandate).
 function PasswordRules({
   password,
   confirm,
@@ -28,17 +42,15 @@ function PasswordRules({
     },
   ];
   return (
-    <div className="mb-4 space-y-1.5">
+    <div className="mt-4 space-y-1.5">
       {rules.map((rule) => (
         <div
           key={rule.label}
           className={`flex items-center gap-2 text-[12px] ${
-            rule.ok ? "text-success" : "text-slate-400"
+            rule.ok ? "text-success" : "text-muted-foreground"
           }`}
         >
-          <Check
-            className={`size-3 shrink-0 ${rule.ok ? "opacity-100" : "opacity-30"}`}
-          />
+          <span aria-hidden="true">{rule.ok ? "✓" : "○"}</span>
           {rule.label}
         </div>
       ))}
@@ -60,12 +72,12 @@ function ResetPasswordForm() {
   if (!token) {
     return (
       <div className="text-center">
-        <p className="mb-4 text-sm text-red-500">
+        <p className="mb-4 text-[12.5px] font-semibold text-destructive">
           Link reset password tidak valid atau sudah kadaluarsa.
         </p>
         <Link
           href="/lupa-password"
-          className="text-sm font-semibold text-primary hover:text-primary-strong transition-colors"
+          className="text-[12.5px] font-bold text-primary transition-colors hover:text-primary-strong"
         >
           Minta link baru
         </Link>
@@ -107,10 +119,10 @@ function ResetPasswordForm() {
 
   return (
     <>
-      <h1 className="text-center text-[22px] font-extrabold text-slate-900">
+      <h1 className="mt-3.5 text-center text-[16px] font-extrabold">
         Reset Password
       </h1>
-      <p className="mb-7 text-center text-[13px] text-slate-400">
+      <p className="mt-1 mb-[18px] text-center text-[11.5px] text-muted-foreground">
         Masukkan password baru Anda
       </p>
 
@@ -120,76 +132,81 @@ function ResetPasswordForm() {
           void doReset();
         }}
       >
-        <label
-          htmlFor="password"
-          className="mb-1.5 block text-xs font-semibold text-slate-600"
-        >
-          Password Baru
-        </label>
-        <div className="relative mb-4">
-          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-            <Lock className="size-3.5" />
-          </span>
-          <input
-            id="password"
-            type={showPassword ? "text" : "password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Min. 8 karakter"
-            className="w-full rounded-md border-[1.5px] border-slate-200 bg-white py-2.5 pl-[38px] pr-10 text-sm text-slate-900 placeholder-slate-400 outline-none transition-colors focus:border-primary"
-          />
-          <button
-            type="button"
-            aria-label={showPassword ? "Sembunyikan" : "Tampilkan"}
-            onClick={() => setShowPassword((s) => !s)}
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary"
-          >
-            {showPassword ? (
-              <EyeOff className="size-3.5" />
-            ) : (
-              <Eye className="size-3.5" />
-            )}
-          </button>
+        <div>
+          <label htmlFor="password" className={LABEL_CLASS}>
+            Password Baru
+          </label>
+          <div className="relative">
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Min. 8 karakter"
+              className={`${INPUT_CLASS} pr-10`}
+            />
+            <button
+              type="button"
+              aria-label={showPassword ? "Sembunyikan" : "Tampilkan"}
+              aria-pressed={showPassword}
+              onClick={() => setShowPassword((s) => !s)}
+              className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-primary"
+            >
+              {showPassword ? (
+                <EyeOff className="size-3.5" />
+              ) : (
+                <Eye className="size-3.5" />
+              )}
+            </button>
+          </div>
         </div>
 
-        <label
-          htmlFor="confirm"
-          className="mb-1.5 block text-xs font-semibold text-slate-600"
-        >
-          Konfirmasi Password
-        </label>
-        <div className="relative mb-6">
-          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-            <Lock className="size-3.5" />
-          </span>
-          <input
-            id="confirm"
-            type={showConfirm ? "text" : "password"}
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            placeholder="Ulangi password baru"
-            className="w-full rounded-md border-[1.5px] border-slate-200 bg-white py-2.5 pl-[38px] pr-10 text-sm text-slate-900 placeholder-slate-400 outline-none transition-colors focus:border-primary"
-          />
-          <button
-            type="button"
-            aria-label={showConfirm ? "Sembunyikan" : "Tampilkan"}
-            onClick={() => setShowConfirm((s) => !s)}
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary"
-          >
-            {showConfirm ? (
-              <EyeOff className="size-3.5" />
-            ) : (
-              <Eye className="size-3.5" />
-            )}
-          </button>
+        <div className="mt-3">
+          <label htmlFor="confirm" className={LABEL_CLASS}>
+            Konfirmasi Password
+          </label>
+          <div className="relative">
+            <input
+              id="confirm"
+              type={showConfirm ? "text" : "password"}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              placeholder="Ulangi password baru"
+              className={`${INPUT_CLASS} pr-10`}
+            />
+            <button
+              type="button"
+              aria-label={showConfirm ? "Sembunyikan" : "Tampilkan"}
+              aria-pressed={showConfirm}
+              onClick={() => setShowConfirm((s) => !s)}
+              className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-primary"
+            >
+              {showConfirm ? (
+                <EyeOff className="size-3.5" />
+              ) : (
+                <Eye className="size-3.5" />
+              )}
+            </button>
+          </div>
+          {confirm.length > 0 && password !== confirm && (
+            <p className="mt-[5px] text-[11.5px] font-semibold text-destructive">
+              Password tidak cocok
+            </p>
+          )}
         </div>
 
         <PasswordRules password={password} confirm={confirm} />
 
+        {/* EPIC-025 N3-H4 (J2) — the prototype's "semua sesi aktif di
+            perangkat lain akan keluar" warning notice is NOT ported:
+            session/device revocation on password reset is not implemented,
+            and porting the reassuring copy before it exists would be a
+            false security promise. */}
+
         <button
           type="submit"
           disabled={loading}
-          className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-3 text-sm font-bold text-white transition-all hover:-translate-y-px hover:bg-primary-strong hover:shadow-[0_4px_16px_rgba(79,70,229,0.4)] disabled:opacity-60 disabled:cursor-not-allowed"
+          className="mt-4 flex h-9 w-full items-center justify-center gap-[7px] rounded-[9px] bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? "Menyimpan…" : "Simpan Password Baru"}
         </button>
@@ -200,37 +217,45 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <div
-      className="relative flex min-h-screen items-center justify-center p-5"
-      style={{
-        backgroundImage:
-          "linear-gradient(135deg, var(--primary-strong) 0%, var(--primary) 55%, color-mix(in oklab, var(--primary) 70%, white) 100%)",
-      }}
-    >
-      <div className="w-full max-w-[420px] rounded-3xl bg-white/[0.97] p-10 shadow-[0_32px_80px_rgba(0,0,0,0.3)]">
-        <Link
-          href="/login"
-          className="mb-5 flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary-strong transition-colors"
-        >
-          <ArrowLeft className="size-4" /> Kembali ke Login
-        </Link>
-
-        <div className="mb-7 flex items-center justify-center gap-2.5">
-          <div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl font-extrabold tracking-tighter text-white">
+    <div className="grid min-h-screen place-items-center bg-background px-4 py-6">
+      <div className="w-full max-w-[420px]">
+        <div className="mb-[18px] flex items-center justify-center gap-2.5">
+          <div className="gradient-wealth grid size-[34px] place-items-center rounded-[9px] text-[15px] font-extrabold text-white">
             W
           </div>
-          <div className="text-[22px] font-extrabold text-slate-900">
-            Wealth<span className="text-primary">Me</span>
+          <div className="text-[18px] font-extrabold tracking-tight">
+            WealthMe
           </div>
         </div>
 
-        <Suspense
-          fallback={
-            <div className="text-center text-sm text-slate-400">Memuat…</div>
-          }
-        >
-          <ResetPasswordForm />
-        </Suspense>
+        <SectionCard>
+          <Link
+            href="/login"
+            className="text-[12.5px] font-bold text-primary transition-colors hover:text-primary-strong"
+          >
+            ← Kembali ke Login
+          </Link>
+
+          <Suspense
+            fallback={
+              <div className="py-6 text-center text-[12.5px] text-muted-foreground">
+                Memuat…
+              </div>
+            }
+          >
+            <ResetPasswordForm />
+          </Suspense>
+        </SectionCard>
+
+        <div className="mt-3.5 text-center text-[11.5px] text-muted-foreground">
+          Link kedaluwarsa?{" "}
+          <Link
+            href="/lupa-password"
+            className="text-[12.5px] font-bold text-primary transition-colors hover:text-primary-strong"
+          >
+            Minta link baru
+          </Link>
+        </div>
       </div>
     </div>
   );

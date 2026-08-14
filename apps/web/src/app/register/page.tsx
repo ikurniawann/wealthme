@@ -3,15 +3,28 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, Lock, Mail, User, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Info } from "lucide-react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
+import { SectionCard } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
+
+// EPIC-026 Wave 7 — markup rebuilt from docs/prototype/pages/register.html
+// (token-based `.auth` layout per EPIC-025-N3-translation-table.md). Cut
+// per J1: the consent checkbox (nothing records it). Ported from the
+// prototype: the "Tidak ada rekening yang dibuat otomatis" notice (accurate
+// — EPIC-024 item 11 removed the auto-created "Akun Utama") and the
+// "Anggota keluarga tidak mendaftar sendiri" footer (accurate — the family
+// head creates member accounts directly). Registration logic is untouched.
+
+const INPUT_CLASS =
+  "w-full rounded-[9px] border bg-background px-3 py-[9px] text-[13.5px] text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-primary focus-visible:bg-card focus-visible:ring-[3px] focus-visible:ring-primary/20";
+const LABEL_CLASS = "mb-[5px] block text-[12.5px] font-semibold";
+const ERROR_CLASS = "mt-[5px] text-[11.5px] font-semibold text-destructive";
 
 // EPIC-025 N3-H2 — password-strength meter ported from
 // docs/prototype/pages/register.html. Pure client-side UI, no backend
-// involved — kept as-is (unlike the consent checkbox, which the current
-// register form never had, so there is nothing to cut there).
+// involved.
 type StrengthLevel = { label: string; colorClass: string; fill: number };
 
 const STRENGTH_LEVELS: StrengthLevel[] = [
@@ -34,22 +47,21 @@ function PasswordStrengthMeter({ password }: { password: string }) {
   if (!password) return null;
   const level = STRENGTH_LEVELS[scorePassword(password) - 1];
   return (
-    <div className="mb-4 -mt-2.5">
-      <div className="flex gap-1.5">
+    <div aria-hidden="true">
+      <div className="mt-2 flex gap-[5px]">
         {STRENGTH_LEVELS.map((_, i) => (
           <span
             key={i}
-            className={`h-1 flex-1 rounded-full ${
+            className={`h-[5px] flex-1 rounded-full ${
               i < level.fill ? level.colorClass : "bg-secondary"
             }`}
           />
         ))}
       </div>
-      <p className="mt-1.5 text-[11.5px] text-slate-400">
-        Kekuatan password:{" "}
-        <strong className="text-slate-600">{level.label}</strong> ·{" "}
-        {password.length} karakter
-      </p>
+      <div className="mt-[5px] text-[11.5px] text-muted-foreground">
+        Kekuatan password: <strong>{level.label}</strong> · {password.length}{" "}
+        karakter
+      </div>
     </div>
   );
 }
@@ -135,269 +147,255 @@ export default function RegisterPage() {
   };
 
   return (
-    <div
-      className="relative flex min-h-screen items-center justify-center p-5"
-      style={{
-        backgroundImage:
-          "linear-gradient(135deg, var(--primary-strong) 0%, var(--primary) 55%, color-mix(in oklab, var(--primary) 70%, white) 100%)",
-      }}
-    >
-      <div className="w-full max-w-[420px] rounded-3xl bg-white/[0.97] p-10 shadow-[0_32px_80px_rgba(0,0,0,0.3)]">
-        <Link
-          href="/login"
-          className="mb-5 flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary-strong transition-colors"
-        >
-          <ArrowLeft className="size-4" /> Kembali
-        </Link>
-
-        <div className="mb-4 flex items-center justify-center gap-2.5">
-          <div className="flex size-11 items-center justify-center rounded-xl bg-primary text-xl font-extrabold tracking-tighter text-white">
+    <div className="grid min-h-screen place-items-center bg-background px-4 py-6">
+      <div className="w-full max-w-[420px]">
+        <div className="mb-[18px] flex items-center justify-center gap-2.5">
+          <div className="gradient-wealth grid size-[34px] place-items-center rounded-[9px] text-[15px] font-extrabold text-white">
             W
           </div>
-          <div className="text-[22px] font-extrabold text-slate-900">
-            Wealth<span className="text-primary">Me</span>
+          <div className="text-[18px] font-extrabold tracking-tight">
+            WealthMe
           </div>
         </div>
 
-        {/* Language choice — persists via setLocale() and applies app-wide.
-            EPIC-022 Group G (G3) — text label, not a flag emoji: 🇮🇩/🇬🇧
-            render as tofu boxes on systems without an emoji-flag font. */}
-        <div className="mx-auto mb-6 flex w-fit items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
-          <button
-            type="button"
-            onClick={() => setLocale("id")}
-            aria-pressed={locale === "id"}
-            className={`rounded-md px-3 py-1 text-xs font-semibold transition-colors ${
-              locale === "id"
-                ? "bg-white text-primary shadow-sm"
-                : "text-slate-400"
-            }`}
-          >
-            <span className="mr-1 font-black tracking-tight">ID</span>
-            Indonesia
-          </button>
-          <button
-            type="button"
-            onClick={() => setLocale("en")}
-            aria-pressed={locale === "en"}
-            className={`rounded-md px-3 py-1 text-xs font-semibold transition-colors ${
-              locale === "en"
-                ? "bg-white text-primary shadow-sm"
-                : "text-slate-400"
-            }`}
-          >
-            <span className="mr-1 font-black tracking-tight">EN</span>
-            English
-          </button>
-        </div>
-
-        <h1 className="text-center text-[22px] font-extrabold text-slate-900">
-          Buat Akun Baru 🚀
-        </h1>
-        <p className="mb-7 text-center text-[13px] text-slate-400">
-          Mulai kelola keuangan Anda hari ini
-        </p>
-
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void doRegister();
-          }}
-        >
-          <label
-            htmlFor="name"
-            className="mb-1.5 block text-xs font-semibold text-slate-600"
-          >
-            Nama Lengkap
-          </label>
-          <InputWrap icon={<User className="size-3.5" />}>
-            <input
-              id="name"
-              type="text"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (errors.name) setErrors({ ...errors, name: "" });
-              }}
-              placeholder="Jane Doe"
-              aria-invalid={!!errors.name}
-              aria-describedby={errors.name ? "name-error" : undefined}
-              className="w-full rounded-md border-[1.5px] border-slate-200 bg-white py-2.5 pl-[38px] pr-3.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition-colors focus:border-primary"
-            />
-          </InputWrap>
-          {errors.name && (
-            <p
-              id="name-error"
-              role="alert"
-              className="mb-3 text-xs text-red-500"
-            >
-              {errors.name}
-            </p>
-          )}
-
-          <label
-            htmlFor="email"
-            className="mb-1.5 block text-xs font-semibold text-slate-600"
-          >
-            Email
-          </label>
-          <InputWrap icon={<Mail className="size-3.5" />}>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (errors.email) setErrors({ ...errors, email: "" });
-              }}
-              placeholder="user@example.com"
-              aria-invalid={!!errors.email}
-              aria-describedby={errors.email ? "email-error" : undefined}
-              className="w-full rounded-md border-[1.5px] border-slate-200 bg-white py-2.5 pl-[38px] pr-3.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition-colors focus:border-primary"
-            />
-          </InputWrap>
-          {errors.email && (
-            <p
-              id="email-error"
-              role="alert"
-              className="mb-3 text-xs text-red-500"
-            >
-              {errors.email}
-            </p>
-          )}
-
-          <label
-            htmlFor="password"
-            className="mb-1.5 block text-xs font-semibold text-slate-600"
-          >
-            Password
-          </label>
-          <InputWrap icon={<Lock className="size-3.5" />}>
-            <input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                if (errors.password) setErrors({ ...errors, password: "" });
-              }}
-              placeholder="Min. 8 karakter"
-              aria-invalid={!!errors.password}
-              aria-describedby={errors.password ? "password-error" : undefined}
-              className="w-full rounded-md border-[1.5px] border-slate-200 bg-white py-2.5 pl-[38px] pr-10 text-sm text-slate-900 placeholder-slate-400 outline-none transition-colors focus:border-primary"
-            />
-            <button
-              type="button"
-              aria-label={
-                showPassword ? "Sembunyikan password" : "Tampilkan password"
-              }
-              aria-pressed={showPassword}
-              onClick={() => setShowPassword((s) => !s)}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary"
-            >
-              {showPassword ? (
-                <EyeOff className="size-3.5" />
-              ) : (
-                <Eye className="size-3.5" />
-              )}
-            </button>
-          </InputWrap>
-          <PasswordStrengthMeter password={password} />
-          {errors.password && (
-            <p
-              id="password-error"
-              role="alert"
-              className="mb-3 text-xs text-red-500"
-            >
-              {errors.password}
-            </p>
-          )}
-
-          <label
-            htmlFor="confirmPassword"
-            className="mb-1.5 block text-xs font-semibold text-slate-600"
-          >
-            Konfirmasi Password
-          </label>
-          <InputWrap icon={<Lock className="size-3.5" />}>
-            <input
-              id="confirmPassword"
-              type={showConfirm ? "text" : "password"}
-              value={confirmPassword}
-              onChange={(e) => {
-                setConfirmPassword(e.target.value);
-                if (errors.confirmPassword)
-                  setErrors({ ...errors, confirmPassword: "" });
-              }}
-              placeholder="Ulang password Anda"
-              aria-invalid={!!errors.confirmPassword}
-              aria-describedby={
-                errors.confirmPassword ? "confirmPassword-error" : undefined
-              }
-              className="w-full rounded-md border-[1.5px] border-slate-200 bg-white py-2.5 pl-[38px] pr-10 text-sm text-slate-900 placeholder-slate-400 outline-none transition-colors focus:border-primary"
-            />
-            <button
-              type="button"
-              aria-label={
-                showConfirm ? "Sembunyikan password" : "Tampilkan password"
-              }
-              aria-pressed={showConfirm}
-              onClick={() => setShowConfirm((s) => !s)}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary"
-            >
-              {showConfirm ? (
-                <EyeOff className="size-3.5" />
-              ) : (
-                <Eye className="size-3.5" />
-              )}
-            </button>
-          </InputWrap>
-          {errors.confirmPassword && (
-            <p
-              id="confirmPassword-error"
-              role="alert"
-              className="mb-3 text-xs text-red-500"
-            >
-              {errors.confirmPassword}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-3 text-sm font-bold text-white transition-all hover:-translate-y-px hover:bg-primary-strong hover:shadow-[0_4px_16px_rgba(79,70,229,0.4)] disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {loading ? "Membuat Akun…" : "Daftar"}
-          </button>
-        </form>
-
-        <div className="mt-5 text-center text-xs text-slate-400">
-          Sudah punya akun?{" "}
+        <SectionCard>
           <Link
             href="/login"
-            className="font-semibold text-primary hover:text-primary-strong transition-colors"
+            className="text-[12.5px] font-bold text-primary transition-colors hover:text-primary-strong"
           >
-            Masuk Sekarang
+            ← Kembali ke Masuk
           </Link>
+
+          <h1 className="mt-3.5 text-center text-[16px] font-extrabold">
+            Buat Akun Baru 🚀
+          </h1>
+          <p className="mt-1 mb-4 text-center text-[11.5px] text-muted-foreground">
+            Mulai kelola keuangan Anda hari ini
+          </p>
+
+          {/* Language choice — persists via setLocale() and applies
+              app-wide. EPIC-022 Group G (G3) — text label, not a flag
+              emoji: 🇮🇩/🇬🇧 render as tofu boxes on systems without an
+              emoji-flag font. */}
+          <div
+            role="tablist"
+            className="mx-auto mb-4 flex w-fit gap-0.5 rounded-[10px] bg-secondary p-[3px]"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={locale === "id"}
+              onClick={() => setLocale("id")}
+              className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                locale === "id"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground"
+              }`}
+            >
+              ID Indonesia
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={locale === "en"}
+              onClick={() => setLocale("en")}
+              className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                locale === "en"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground"
+              }`}
+            >
+              EN English
+            </button>
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void doRegister();
+            }}
+          >
+            <div>
+              <label htmlFor="name" className={LABEL_CLASS}>
+                Nama Lengkap
+              </label>
+              <input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (errors.name) setErrors({ ...errors, name: "" });
+                }}
+                placeholder="cth: Budi Santoso"
+                aria-invalid={!!errors.name}
+                aria-describedby={errors.name ? "name-error" : undefined}
+                className={INPUT_CLASS}
+              />
+              {errors.name && (
+                <p id="name-error" role="alert" className={ERROR_CLASS}>
+                  {errors.name}
+                </p>
+              )}
+            </div>
+
+            <div className="mt-3">
+              <label htmlFor="email" className={LABEL_CLASS}>
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errors.email) setErrors({ ...errors, email: "" });
+                }}
+                placeholder="user@example.com"
+                aria-invalid={!!errors.email}
+                aria-describedby={errors.email ? "email-error" : undefined}
+                className={INPUT_CLASS}
+              />
+              {errors.email && (
+                <p id="email-error" role="alert" className={ERROR_CLASS}>
+                  {errors.email}
+                </p>
+              )}
+            </div>
+
+            <div className="mt-3">
+              <label htmlFor="password" className={LABEL_CLASS}>
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (errors.password) setErrors({ ...errors, password: "" });
+                  }}
+                  placeholder="Min. 8 karakter"
+                  aria-invalid={!!errors.password}
+                  aria-describedby={
+                    errors.password ? "password-error" : undefined
+                  }
+                  className={`${INPUT_CLASS} pr-10`}
+                />
+                <button
+                  type="button"
+                  aria-label={
+                    showPassword ? "Sembunyikan password" : "Tampilkan password"
+                  }
+                  aria-pressed={showPassword}
+                  onClick={() => setShowPassword((s) => !s)}
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-primary"
+                >
+                  {showPassword ? (
+                    <EyeOff className="size-3.5" />
+                  ) : (
+                    <Eye className="size-3.5" />
+                  )}
+                </button>
+              </div>
+              <PasswordStrengthMeter password={password} />
+              {errors.password && (
+                <p id="password-error" role="alert" className={ERROR_CLASS}>
+                  {errors.password}
+                </p>
+              )}
+            </div>
+
+            <div className="mt-3">
+              <label htmlFor="confirmPassword" className={LABEL_CLASS}>
+                Konfirmasi Password
+              </label>
+              <div className="relative">
+                <input
+                  id="confirmPassword"
+                  type={showConfirm ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    if (errors.confirmPassword)
+                      setErrors({ ...errors, confirmPassword: "" });
+                  }}
+                  placeholder="Ulangi password Anda"
+                  aria-invalid={!!errors.confirmPassword}
+                  aria-describedby={
+                    errors.confirmPassword ? "confirmPassword-error" : undefined
+                  }
+                  className={`${INPUT_CLASS} pr-10`}
+                />
+                <button
+                  type="button"
+                  aria-label={
+                    showConfirm ? "Sembunyikan password" : "Tampilkan password"
+                  }
+                  aria-pressed={showConfirm}
+                  onClick={() => setShowConfirm((s) => !s)}
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-primary"
+                >
+                  {showConfirm ? (
+                    <EyeOff className="size-3.5" />
+                  ) : (
+                    <Eye className="size-3.5" />
+                  )}
+                </button>
+              </div>
+              {errors.confirmPassword && (
+                <p
+                  id="confirmPassword-error"
+                  role="alert"
+                  className={ERROR_CLASS}
+                >
+                  {errors.confirmPassword}
+                </p>
+              )}
+            </div>
+
+            {/* EPIC-024 item 11 — no auto-created "Akun Utama" anymore;
+                the prototype records this real behavior, so it is ported. */}
+            <div className="mt-3.5 flex items-start gap-2.5 rounded-[11px] border border-primary/25 bg-accent p-3 text-[12.5px] text-accent-foreground">
+              <Info className="mt-0.5 size-4 shrink-0" />
+              <span>
+                <strong>Tidak ada rekening yang dibuat otomatis.</strong>{" "}
+                Setelah mendaftar, kamu menambahkan sendiri rekening pertamamu
+                (bank, e-wallet, atau tunai) — WealthMe tidak lagi membuat
+                &ldquo;Akun Utama&rdquo; berisi{" "}
+                <span className="mono">Rp 0</span> yang harus kamu hapus.
+              </span>
+            </div>
+
+            {/* EPIC-025 N3-H2 (J1) — the prototype's consent checkbox is cut:
+                nothing records it, so it would be a dead control. */}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="mt-4 flex h-9 w-full items-center justify-center gap-[7px] rounded-[9px] bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loading ? "Membuat Akun…" : "Daftar"}
+            </button>
+          </form>
+
+          <div className="mt-4 text-center text-[11.5px] text-muted-foreground">
+            Sudah punya akun?{" "}
+            <Link
+              href="/login"
+              className="text-[12.5px] font-bold text-primary transition-colors hover:text-primary-strong"
+            >
+              Masuk Sekarang
+            </Link>
+          </div>
+        </SectionCard>
+
+        <div className="mt-3.5 text-center text-[11.5px] text-muted-foreground">
+          Anggota keluarga tidak mendaftar sendiri — akun mereka dibuat oleh
+          kepala keluarga.
         </div>
       </div>
-    </div>
-  );
-}
-
-function InputWrap({
-  icon,
-  children,
-}: {
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="relative mb-4">
-      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-        {icon}
-      </span>
-      {children}
     </div>
   );
 }
