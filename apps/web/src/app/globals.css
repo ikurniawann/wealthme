@@ -1,6 +1,16 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/*
+ * The prototype's real component layer (`docs/prototype/assets/app.css`).
+ * Imported AFTER tailwindcss so Tailwind's own `@layer components/utilities`
+ * declarations exist first; `design-system.css` wraps itself in
+ * `@layer components`, so Tailwind utilities still win the two class-name
+ * collisions (.grid / .table) while every other prototype class applies.
+ * See that file's header for the full rationale.
+ */
+@import "./design-system.css";
+
 /* next-themes toggles `.dark` on <html>; make the dark: variant class-based. */
 @custom-variant dark (&:is(.dark *));
 
