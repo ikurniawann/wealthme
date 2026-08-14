@@ -710,14 +710,20 @@ export default function DonationPage() {
                 >
                   {DONATION_TYPE_ICON[d.type] ?? "🤲"}
                 </div>
-                <div className="flex-1">
-                  <div className="text-[13.5px] font-semibold">
+                {/* UI/UX audit fix (docs/uiux-beda) — flex-1 without min-w-0
+                    lets this column's content dictate its width, so a long
+                    date · account · receipt line pushes the row wider than
+                    the card on narrow viewports instead of wrapping. */}
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[13.5px] font-semibold">
                     {t.donation.typeLabels[d.type as DonationType] ?? d.type} —{" "}
                     {d.recipient}
                   </div>
                   <div className="text-[11.5px] text-muted-foreground">
-                    {formatLocaleDate(d.donatedAt, locale)}
-                    {accountLabel && ` · ${accountLabel}`}
+                    <span className="break-words">
+                      {formatLocaleDate(d.donatedAt, locale)}
+                      {accountLabel && ` · ${accountLabel}`}
+                    </span>
                     {d.receiptUrl && (
                       <>
                         {" · "}
