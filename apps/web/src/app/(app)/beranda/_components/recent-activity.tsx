@@ -112,9 +112,15 @@ export function RecentActivity({
                     description-less card purchase rendered a blank row. */}
                 <span className="list-row__title">
                   {tx.description ?? tx.accountName ?? "—"}
-                </span>
+                </span>{" "}
                 {/* EPIC-026 Wave 3 — prototype's `.list-row__sub` is a single
-                    "account · category · date" line. */}
+                    "account · category · date" line, rendered INLINE after the
+                    title (both are spans and `.list-row__body` sets no
+                    display). The prototype's HTML gets its separating space
+                    for free from the newline between the two tags; JSX strips
+                    that, so the explicit {" "} above is what stops the title
+                    and subtitle from running together
+                    ("Bunga Kartu Kredit BCABCA Tahapan ···9010"). */}
                 <span className="list-row__sub">
                   {[
                     tx.accountName,
