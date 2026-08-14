@@ -1098,6 +1098,13 @@ export default function AsuransiPage() {
   // same lightweight picker.
   const [payPolicyPicker, setPayPolicyPicker] = useState(false);
   const [beneficiaryPolicyPicker, setBeneficiaryPolicyPicker] = useState(false);
+  // EPIC-026 Wave 5 — the prototype's beneficiary table has a per-row
+  // delete action; implemented against the real API below (see
+  // `removeBeneficiaryMutation`).
+  const [deleteBeneficiaryTarget, setDeleteBeneficiaryTarget] = useState<{
+    policy: InsuranceDto;
+    beneficiary: InsuranceDto["beneficiaries"][number];
+  } | null>(null);
 
   // EPIC-023 E2 — source-account picker for the real premium payment.
   const { data: accounts = [] } = useQuery<AccountDto[]>({
@@ -1200,6 +1207,44 @@ export default function AsuransiPage() {
     },
     onError: (err: { message?: string }) => {
       toast.error(err.message ?? t.asuransi.toastDeleteFailed);
+    },
+  });
+
+  // EPIC-026 Wave 5 — real per-row beneficiary removal: the API's
+  // `UpdateInsuranceDto.beneficiaries` REPLACES the policy's beneficiary
+  // rows wholesale (insurances.service.ts `runUpdate` does deleteMany +
+  // create), so deleting one row = PATCH with the remaining rows mapped
+  // back to `CreateInsuranceBeneficiaryDto`.
+  const removeBeneficiaryMutation = useMutation({
+    mutationFn: (params: { policy: InsuranceDto; beneficiaryId: string }) =>
+      apiFetch<InsuranceDto>(
+        `/family-groups/${familyGroupId}/insurances/${params.policy.id}`,
+        {
+          method: "PATCH",
+          token,
+          body: JSON.stringify({
+            beneficiaries: params.policy.beneficiaries
+              .filter((b) => b.id !== params.beneficiaryId)
+              .map((b) => ({
+                name: b.name,
+                relationship: b.relationship,
+                sharePercent: Number(b.sharePercent),
+                ...(b.memberUserId && { memberUserId: b.memberUserId }),
+              })),
+          }),
+        },
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.insurances.all(familyGroupId ?? ""),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.insurances.summary(familyGroupId ?? ""),
+      });
+      toast.success("Ahli waris dihapus");
+    },
+    onError: (err: { message?: string }) => {
+      toast.error(err.message ?? t.asuransi.toastUpdateFailed);
     },
   });
 
@@ -1480,9 +1525,10 @@ export default function AsuransiPage() {
                   <th className="pb-2 pr-3 font-semibold">
                     {t.asuransi.beneficiaryTableHeaderPercent}
                   </th>
-                  <th className="pb-2 font-semibold">
+                  <th className="pb-2 pr-3 font-semibold">
                     {t.asuransi.beneficiaryTableHeaderBenefit}
                   </th>
+                  <th className="pb-2" />
                 </tr>
               </thead>
               <tbody>
@@ -1549,10 +1595,26 @@ export default function AsuransiPage() {
                             </span>
                           </div>
                         </td>
-                        <td className="mono py-2.5">
+                        <td className="mono py-2.5 pr-3">
                           {estimatedBenefit !== null
                             ? formatRupiah(Number(estimatedBenefit))
                             : "—"}
+                        </td>
+                        <td className="py-2.5">
+                          <button
+                            type="button"
+                            aria-label={`${t.asuransi.removeBeneficiaryAriaLabel} ${beneficiary.name}`}
+                            disabled={removeBeneficiaryMutation.isPending}
+                            onClick={() =>
+                              setDeleteBeneficiaryTarget({
+                                policy,
+                                beneficiary,
+                              })
+                            }
+                            className="flex size-7 items-center justify-center rounded-full text-destructive hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
                         </td>
                       </tr>
                     );
@@ -1591,6 +1653,23 @@ export default function AsuransiPage() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => {
           if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+        }}
+      />
+      {/* EPIC-026 Wave 5 — per-row beneficiary delete confirmation. */}
+      <ConfirmDeleteDialog
+        label={
+          deleteBeneficiaryTarget
+            ? `"${deleteBeneficiaryTarget.beneficiary.name}"`
+            : null
+        }
+        onClose={() => setDeleteBeneficiaryTarget(null)}
+        onConfirm={() => {
+          if (deleteBeneficiaryTarget) {
+            removeBeneficiaryMutation.mutate({
+              policy: deleteBeneficiaryTarget.policy,
+              beneficiaryId: deleteBeneficiaryTarget.beneficiary.id,
+            });
+          }
         }}
       />
       <PayInsuranceDialog

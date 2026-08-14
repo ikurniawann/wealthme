@@ -133,6 +133,56 @@ function computeAmortisationPreview(
   return { monthlyInterest, monthlyPrincipal, months };
 }
 
+// EPIC-026 Wave 5 — the prototype's Detail dialog shows a "Jadwal
+// Amortisasi (6 angsuran berikutnya)" table. Pure client-side roll-forward
+// of the SAME preview math as `computeAmortisationPreview`, month by month,
+// labeled with the same estimate disclaimer already shown in the dialog —
+// no official schedule is persisted server-side, so this never pretends to
+// be one. Unlike the prototype's absolute installment numbers (95, 96, …
+// — unknowable without a persisted schedule), rows are numbered 1..N
+// relative to today.
+interface AmortisationScheduleRow {
+  index: number;
+  date: Date;
+  principal: number;
+  interest: number;
+  remaining: number;
+}
+
+function computeAmortisationSchedule(
+  remainingBalance: number,
+  monthlyPaymentAmount: number,
+  annualRatePercent: number,
+  firstDueDate: Date,
+  count = 6,
+): AmortisationScheduleRow[] {
+  const rows: AmortisationScheduleRow[] = [];
+  let balance = remainingBalance;
+  for (let i = 0; i < count && balance > 0; i += 1) {
+    const { monthlyInterest, monthlyPrincipal } = computeAmortisationPreview(
+      balance,
+      monthlyPaymentAmount,
+      annualRatePercent,
+    );
+    balance = Math.max(0, balance - monthlyPrincipal);
+    rows.push({
+      index: i + 1,
+      date: new Date(
+        firstDueDate.getFullYear(),
+        firstDueDate.getMonth() + i,
+        firstDueDate.getDate(),
+      ),
+      principal: monthlyPrincipal,
+      interest: monthlyInterest,
+      remaining: balance,
+    });
+    // Payment doesn't cover the interest — the balance never decreases;
+    // one row says everything, repeating it 6× would only imply progress.
+    if (monthlyPrincipal <= 0) break;
+  }
+  return rows;
+}
+
 /**
  * EPIC-025 N3-F4 (J3 — payoff projection, FOLD): pure client-side 6-month
  * roll-forward of the SAME amortisation preview math as
@@ -193,6 +243,15 @@ function formatLocaleDate(iso: string, locale: Locale): string {
   return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
     day: "numeric",
     month: "short",
+  });
+}
+
+// Amortisation-schedule rows include the year (prototype: "25 Agu 2026").
+function formatScheduleDate(date: Date, locale: Locale): string {
+  return date.toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
   });
 }
 
@@ -895,6 +954,17 @@ function LiabilityDetailDialog({
     minimumPayment,
     interestRatePercent,
   );
+  // EPIC-026 Wave 5 — 6-installment schedule (see
+  // `computeAmortisationSchedule` above). Anchored on the next due date
+  // when set, today otherwise.
+  const schedule = item
+    ? computeAmortisationSchedule(
+        remaining,
+        minimumPayment,
+        interestRatePercent,
+        item.dueDate ? new Date(item.dueDate) : new Date(),
+      )
+    : [];
 
   return (
     <Dialog open={item !== null} onOpenChange={(open) => !open && onClose()}>
@@ -1019,6 +1089,59 @@ function LiabilityDetailDialog({
                       {t.liabilitas.amortisationNoPayoffNote}
                     </div>
                   )}
+                  {preview.monthlyPrincipal > 0 && schedule.length > 0 && (
+                    <div className="mt-3">
+                      <div className="mb-1.5 text-[12px] font-bold">
+                        Jadwal Amortisasi ({schedule.length} angsuran
+                        berikutnya)
+                      </div>
+                      <div className="w-full overflow-x-auto">
+                        <table className="w-full min-w-[360px] text-[11.5px]">
+                          <thead>
+                            <tr className="border-b text-left text-[10.5px] text-muted-foreground">
+                              <th className="py-1.5 pr-2 font-semibold">Ke-</th>
+                              <th className="py-1.5 pr-2 font-semibold">
+                                Tanggal
+                              </th>
+                              <th className="py-1.5 pr-2 text-right font-semibold">
+                                Pokok
+                              </th>
+                              <th className="py-1.5 pr-2 text-right font-semibold">
+                                Bunga
+                              </th>
+                              <th className="py-1.5 text-right font-semibold">
+                                {t.liabilitas.loanRemainingPrincipalLabel}
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {schedule.map((row) => (
+                              <tr
+                                key={row.index}
+                                className="border-b last:border-0"
+                              >
+                                <td className="mono py-1.5 pr-2">
+                                  {row.index}
+                                </td>
+                                <td className="py-1.5 pr-2 whitespace-nowrap">
+                                  {formatScheduleDate(row.date, locale)}
+                                </td>
+                                <td className="mono py-1.5 pr-2 text-right whitespace-nowrap">
+                                  {formatRupiah(row.principal)}
+                                </td>
+                                <td className="mono py-1.5 pr-2 text-right whitespace-nowrap">
+                                  {formatRupiah(row.interest)}
+                                </td>
+                                <td className="mono py-1.5 text-right whitespace-nowrap">
+                                  {formatRupiah(row.remaining)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
                   <div className="mt-2 text-[11px] text-muted-foreground">
                     {t.liabilitas.amortisationDisclaimer}
                   </div>
@@ -1130,6 +1253,21 @@ function PayLiabilityDialog({
                   >
                     {formatRupiah(preview.monthlyInterest)}
                   </div>
+                </div>
+                {/* EPIC-026 Wave 5 — prototype's split-preview also shows
+                    the remaining principal after this payment; same
+                    client-side PREVIEW caveat as the split above. */}
+                <div className="col-span-2 text-[11px] text-muted-foreground">
+                  Sisa pokok setelah bayar:{" "}
+                  <span className="mono font-semibold text-foreground">
+                    {formatRupiah(
+                      Math.max(
+                        0,
+                        Number(BigInt(item.remainingBalance)) -
+                          preview.monthlyPrincipal,
+                      ),
+                    )}
+                  </span>
                 </div>
               </div>
             )}

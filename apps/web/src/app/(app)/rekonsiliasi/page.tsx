@@ -19,6 +19,10 @@ import {
   X,
   ChevronRight,
 } from "lucide-react";
+// EPIC-026 Wave 5 note — the prototype's rekonsiliasi page mounts NO chart
+// at all (its <script> block loads only shell.js); the composition card is
+// a hand-rolled stacked bar. The DonutChart previously rendered here was an
+// invention relative to the prototype and has been replaced by that bar.
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -28,11 +32,9 @@ import {
   ProgressBar,
   CardLink,
 } from "@/components/wm";
-import { DonutChart } from "@/components/charts/apex-presets";
-import type { DonutSegment } from "@/components/charts/donut";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
-import { formatAmountInput, parseRupiah } from "@/lib/format";
+import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 
 /* ─────────────────────────── Types ─────────────────────────── */
@@ -1354,26 +1356,30 @@ export default function RekonsiliasiPage() {
     (e) => e.reconStatus === "unmatched",
   ).length;
 
-  // EPIC-025 N3-F5 — "Komposisi Hasil" donut (FOLD): same
-  // matched/suggested/unmatched counts the stat row above already computes
-  // from `entries`, no new fetch.
-  const compositionSegments: DonutSegment[] = [
-    {
-      label: t.rekonsiliasi.matchedStatLabel,
-      value: matchedCount,
-      color: "var(--success)",
-    },
-    {
-      label: t.rekonsiliasi.needsReviewStatLabel,
-      value: suggestedCount,
-      color: "var(--warning)",
-    },
-    {
-      label: t.rekonsiliasi.notMatchedStatLabel,
-      value: unmatchedCount,
-      color: "var(--destructive)",
-    },
-  ].filter((seg) => seg.value > 0);
+  // EPIC-026 Wave 5 (prototype parity) — composition percentages + the
+  // matched-amount sum for the prototype's `.card stat` summary cards and
+  // its stacked `.recon-composition` bar. All derived from the SAME fetched
+  // `entries` list; amounts use the SAME /100 display scale as the match
+  // table's rows (see the scale note on `formatEntryAmount`).
+  const numLocale = locale === "en" ? "en-US" : "id-ID";
+  const txTypeLabelsPage = t.rekonsiliasi.txTypeLabels as Record<
+    string,
+    string
+  >;
+  const totalEntriesCount = entries.length;
+  const matchedPct =
+    totalEntriesCount > 0 ? (matchedCount / totalEntriesCount) * 100 : 0;
+  const suggestedPct =
+    totalEntriesCount > 0 ? (suggestedCount / totalEntriesCount) * 100 : 0;
+  const unmatchedPct =
+    totalEntriesCount > 0 ? (unmatchedCount / totalEntriesCount) * 100 : 0;
+  const matchedPctDisplay = matchedPct.toLocaleString(numLocale, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+  const matchedAmountSum = entries
+    .filter((e) => e.reconStatus === "matched")
+    .reduce((sum, e) => sum + Math.abs(parseInt(e.amount, 10) / 100), 0);
 
   return (
     <div>
@@ -1846,46 +1852,126 @@ export default function RekonsiliasiPage() {
           });
           return (
             <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-2.5">
-                <div className="flex flex-col items-center gap-0.5 rounded-lg bg-success-soft py-3 text-emerald-700 dark:text-emerald-300">
-                  <div className="text-[22px] font-black">{matchedCount}</div>
-                  <div className="text-[11px] font-semibold">
-                    {t.rekonsiliasi.matchedStatLabel}
+              {/* EPIC-026 Wave 5 (prototype parity) — the prototype's
+                  summary section: three `.card stat` cards (icon chip +
+                  label + mono count + delta line) beside a "Komposisi
+                  Hasil" card whose composition is a stacked BAR + legend
+                  — not a chart (see the import-side note: this page has no
+                  chart mount in the prototype). Delta lines are real: the
+                  matched Rp sum is computed from the same entries the
+                  table shows, at the same display scale. */}
+              <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+                  <div className="rounded-[14px] border bg-card p-4">
+                    <div className="mb-2 flex size-9 items-center justify-center rounded-[10px] bg-success-soft text-[16px]">
+                      ✅
+                    </div>
+                    <div className="text-[11.5px] font-bold text-muted-foreground">
+                      {t.rekonsiliasi.matchedSummaryLabel}
+                    </div>
+                    <div className="mono text-[20px] font-extrabold">
+                      {matchedCount}
+                    </div>
+                    <div className="mt-0.5 text-[11px] font-semibold text-success">
+                      {formatRupiah(matchedAmountSum)} tercocokkan
+                    </div>
+                  </div>
+                  <div className="rounded-[14px] border bg-card p-4">
+                    <div className="mb-2 flex size-9 items-center justify-center rounded-[10px] bg-warning-soft text-[16px]">
+                      ⚠️
+                    </div>
+                    <div className="text-[11.5px] font-bold text-muted-foreground">
+                      {t.rekonsiliasi.needsReviewSummaryLabel}
+                    </div>
+                    <div className="mono text-[20px] font-extrabold">
+                      {suggestedCount}
+                    </div>
+                    <div className="mt-0.5 text-[11px] font-semibold text-warning">
+                      Tersarankan, menunggu konfirmasi
+                    </div>
+                  </div>
+                  <div className="rounded-[14px] border bg-card p-4">
+                    <div className="mb-2 flex size-9 items-center justify-center rounded-[10px] bg-destructive/10 text-[16px]">
+                      ❌
+                    </div>
+                    <div className="text-[11.5px] font-bold text-muted-foreground">
+                      {t.rekonsiliasi.notMatchedSummaryLabel}
+                    </div>
+                    <div className="mono text-[20px] font-extrabold">
+                      {unmatchedCount}
+                    </div>
+                    <div className="mt-0.5 text-[11px] font-semibold text-destructive">
+                      Belum ada transaksi padanan
+                    </div>
                   </div>
                 </div>
-                <div className="flex flex-col items-center gap-0.5 rounded-lg bg-warning-soft py-3 text-amber-700 dark:text-amber-300">
-                  <div className="text-[22px] font-black">{suggestedCount}</div>
-                  <div className="text-[11px] font-semibold">
-                    {t.rekonsiliasi.needsReviewStatLabel}
-                  </div>
-                </div>
-                <div className="flex flex-col items-center gap-0.5 rounded-lg bg-red-100 py-3 text-red-700 dark:bg-red-950 dark:text-red-300">
-                  <div className="text-[22px] font-black">{unmatchedCount}</div>
-                  <div className="text-[11px] font-semibold">
-                    {t.rekonsiliasi.notMatchedStatLabel}
-                  </div>
-                </div>
-              </div>
 
-              {/* EPIC-025 N3-F5 — composition donut (FOLD), same counts as the
-              stat row above. */}
-              {compositionSegments.length > 0 && (
                 <SectionCard
                   title={t.rekonsiliasi.compositionTitle}
                   action={
                     <StatusBadge variant="gray">
                       {entries.length}
-                      {t.rekonsiliasi.transactionsCountBadgeSuffix}
+                      {t.rekonsiliasi.matchResultsFooterSuffix}
                     </StatusBadge>
                   }
                 >
-                  <DonutChart
-                    segments={compositionSegments}
-                    height={200}
-                    ariaLabel={`${t.rekonsiliasi.compositionTitle}: ${compositionSegments.map((s) => `${s.label} ${s.value}`).join(", ")}`}
-                  />
+                  <div className="mb-2 flex items-center justify-between text-[11.5px]">
+                    <span className="text-muted-foreground">
+                      Cocok otomatis
+                    </span>
+                    <strong className="mono text-[13px]">
+                      {matchedPctDisplay}%
+                    </strong>
+                  </div>
+                  <div
+                    role="img"
+                    aria-label={`${matchedCount} baris cocok, ${suggestedCount} perlu review, dan ${unmatchedCount} tidak cocok dari total ${entries.length} baris`}
+                    className="flex h-3 w-full overflow-hidden rounded-full bg-muted"
+                  >
+                    {matchedCount > 0 && (
+                      <span
+                        className="h-full bg-success"
+                        style={{ width: `${matchedPct}%` }}
+                      />
+                    )}
+                    {suggestedCount > 0 && (
+                      <span
+                        className="h-full bg-warning"
+                        style={{ width: `${suggestedPct}%` }}
+                      />
+                    )}
+                    {unmatchedCount > 0 && (
+                      <span
+                        className="h-full bg-destructive"
+                        style={{ width: `${unmatchedPct}%` }}
+                      />
+                    )}
+                  </div>
+                  <div className="mt-3 space-y-1.5 text-[12px]">
+                    <div className="flex items-center gap-2">
+                      <span className="size-2 shrink-0 rounded-full bg-success" />
+                      <span className="flex-1 text-muted-foreground">
+                        {t.rekonsiliasi.matchedSummaryLabel}
+                      </span>
+                      <strong className="mono">{matchedCount}</strong>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="size-2 shrink-0 rounded-full bg-warning" />
+                      <span className="flex-1 text-muted-foreground">
+                        {t.rekonsiliasi.needsReviewSummaryLabel}
+                      </span>
+                      <strong className="mono">{suggestedCount}</strong>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="size-2 shrink-0 rounded-full bg-destructive" />
+                      <span className="flex-1 text-muted-foreground">
+                        {t.rekonsiliasi.notMatchedSummaryLabel}
+                      </span>
+                      <strong className="mono">{unmatchedCount}</strong>
+                    </div>
+                  </div>
                 </SectionCard>
-              )}
+              </div>
 
               <SectionCard
                 title={t.rekonsiliasi.matchResultsTitle}
@@ -1899,7 +1985,11 @@ export default function RekonsiliasiPage() {
                 {/* Restructure (prototype parity) — segmented filter narrows
                 the already-fetched `entries` list client-side; it does not
                 change the stat counts or re-fetch. */}
-                <div className="mb-3 inline-flex rounded-lg border p-0.5">
+                <div
+                  className="mb-3 inline-flex rounded-lg border p-0.5"
+                  role="group"
+                  aria-label="Filter rekonsiliasi"
+                >
                   {(
                     [
                       ["all", t.rekonsiliasi.matchFilterAll],
@@ -1910,6 +2000,7 @@ export default function RekonsiliasiPage() {
                     <button
                       key={value}
                       type="button"
+                      aria-pressed={entryFilter === value}
                       onClick={() => setEntryFilter(value)}
                       className={`rounded-md px-3 py-1.5 text-[11.5px] font-semibold transition-colors ${
                         entryFilter === value
@@ -1920,15 +2011,6 @@ export default function RekonsiliasiPage() {
                       {label}
                     </button>
                   ))}
-                </div>
-
-                {/* Header */}
-                <div className="mb-2 flex text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
-                  <div className="flex-1 px-3">
-                    {t.rekonsiliasi.colBankStatement}
-                  </div>
-                  <div className="w-9" />
-                  <div className="flex-1 px-3">{t.rekonsiliasi.colStatus}</div>
                 </div>
 
                 {entriesQuery.isLoading && (
@@ -1951,168 +2033,215 @@ export default function RekonsiliasiPage() {
                     </div>
                   )}
 
-                <div className="space-y-2">
-                  {filteredEntries.map((entry) => {
-                    const status = entryStatus(entry.reconStatus);
-                    const amtNum = parseInt(entry.amount, 10) / 100;
-                    const amtFormatted = new Intl.NumberFormat(
-                      locale === "en" ? "en-US" : "id-ID",
-                      {
-                        style: "currency",
-                        currency: entry.currency || "IDR",
-                        minimumFractionDigits: 0,
-                      },
-                    ).format(Math.abs(amtNum));
-                    const amtDisplay =
-                      amtNum < 0 ? `-${amtFormatted}` : `+${amtFormatted}`;
-                    const amtClass =
-                      amtNum < 0 ? "text-destructive" : "text-success";
-                    const entryDate = new Date(entry.date).toLocaleDateString(
-                      locale === "en" ? "en-US" : "id-ID",
-                      {
-                        day: "numeric",
-                        month: "short",
-                      },
-                    );
-                    // EPIC-021 Group C (#9) — detail-trigger is keyboard-operable
-                    // (Enter/Space), mirroring the `/transaksi` TxRow convention.
-                    // The Confirm/Pecah buttons below render as SIBLINGS of this
-                    // role="button" element (not nested inside it) so neither a
-                    // click nor a keydown on those buttons bubbles up and
-                    // re-triggers this row's own handler.
-                    const openDetail = () => setDetailEntry(entry);
-                    const handleRowKeyDown = (
-                      e: React.KeyboardEvent<HTMLDivElement>,
-                    ) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        openDetail();
-                      }
-                    };
-
-                    return (
-                      <div key={entry.id} className="flex items-stretch">
-                        <div
-                          role="button"
-                          tabIndex={0}
-                          onClick={openDetail}
-                          onKeyDown={handleRowKeyDown}
-                          aria-label={`${t.rekonsiliasi.entryDetailAriaLabelPrefix} ${entry.description}, ${amtDisplay}`}
-                          className="flex-1 cursor-pointer rounded-lg border bg-card px-3 py-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                        >
-                          <div className="text-[11px] text-muted-foreground">
-                            {entryDate} · {entry.description}
-                          </div>
-                          <div className={`text-[13px] font-bold ${amtClass}`}>
-                            {amtDisplay}
-                          </div>
-                        </div>
-                        <MatchIcon status={status} />
-                        <div
-                          className={[
-                            "flex flex-1 items-center rounded-lg border bg-card px-3 py-2",
-                            status === "warn"
-                              ? "bg-warning-soft border-amber-300"
-                              : status === "err"
-                                ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900"
-                                : "",
-                          ].join(" ")}
-                        >
-                          {status === "ok" && (
-                            <div>
-                              <div className="text-[11px] text-muted-foreground">
-                                {t.rekonsiliasi.matchedLabel}
-                              </div>
-                              <div
-                                className={`text-[13px] font-bold ${amtClass}`}
+                {/* Restructure (EPIC-026 Wave 5, prototype parity) — the
+                    prototype renders results as a 6-column TABLE (Tanggal /
+                    Rekening Koran / Jumlah / Transaksi WealthMe / Status /
+                    Aksi), not the previous two-panel row layout. Only
+                    actions with a real backend render: Detail (detail
+                    dialog — keeps the old row-click affordance as an
+                    explicit, keyboard-focusable button), Konfirmasi
+                    (PATCH …/match) and Pecah (split dialog). The
+                    prototype's "Abaikan" and "Buat Transaksi" buttons have
+                    no backing endpoint (no ignored state, no
+                    create-transaction-from-entry route) — cut per the
+                    honest-UI rule rather than shipped dead. */}
+                {filteredEntries.length > 0 && (
+                  <div className="w-full overflow-x-auto">
+                    <table className="w-full min-w-[860px] border-collapse text-[12.5px]">
+                      <thead>
+                        <tr className="border-b text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+                          <th className="py-2.5 pr-3 font-semibold">
+                            {t.rekonsiliasi.detailDateLabel}
+                          </th>
+                          <th className="py-2.5 pr-3 font-semibold">
+                            {t.rekonsiliasi.colBankStatement}
+                          </th>
+                          <th className="py-2.5 pr-3 font-semibold">
+                            {t.rekonsiliasi.detailAmountLabel}
+                          </th>
+                          <th className="py-2.5 pr-3 font-semibold">
+                            Transaksi WealthMe
+                          </th>
+                          <th className="py-2.5 pr-3 font-semibold">
+                            {t.rekonsiliasi.colStatus}
+                          </th>
+                          <th className="py-2.5 font-semibold">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredEntries.map((entry) => {
+                          const status = entryStatus(entry.reconStatus);
+                          // Same /100 display scale as before the rebuild
+                          // (see `formatEntryAmount`'s scale note — this
+                          // table shows the CSV-upload path's entries).
+                          const amtNum = parseInt(entry.amount, 10) / 100;
+                          const amtFormatted = new Intl.NumberFormat(
+                            numLocale,
+                            {
+                              style: "currency",
+                              currency: entry.currency || "IDR",
+                              minimumFractionDigits: 0,
+                            },
+                          ).format(Math.abs(amtNum));
+                          const amtDisplay =
+                            amtNum < 0
+                              ? `-${amtFormatted}`
+                              : `+${amtFormatted}`;
+                          const amtClass =
+                            amtNum < 0 ? "text-destructive" : "text-success";
+                          const entryDate = new Date(
+                            entry.date,
+                          ).toLocaleDateString(numLocale);
+                          const tx = entry.matchedTransaction;
+                          const statusVariant =
+                            status === "ok"
+                              ? "success"
+                              : status === "warn"
+                                ? "warning"
+                                : "danger";
+                          const statusLabel =
+                            status === "ok"
+                              ? t.rekonsiliasi.matchedLabel
+                              : status === "warn"
+                                ? t.rekonsiliasi.suggestedLabel
+                                : t.rekonsiliasi.notFoundLabel;
+                          return (
+                            <tr
+                              key={entry.id}
+                              className="border-b last:border-0"
+                            >
+                              <td className="mono py-3 pr-3 text-[12px] whitespace-nowrap">
+                                {entryDate}
+                              </td>
+                              <td className="py-3 pr-3">
+                                <div className="font-semibold">
+                                  {entry.description}
+                                </div>
+                              </td>
+                              <td
+                                className={`mono py-3 pr-3 font-bold whitespace-nowrap ${amtClass}`}
                               >
                                 {amtDisplay}
-                              </div>
-                            </div>
-                          )}
-                          {status === "warn" && (
-                            <div className="flex w-full items-center justify-between gap-2">
-                              <div className="text-[11px] text-warning">
-                                {t.rekonsiliasi.suggestedLabel}
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  disabled={confirmMutation.isPending}
-                                  onClick={() => {
-                                    if (entry.suggestedTxId) {
-                                      confirmMutation.mutate({
-                                        entryId: entry.id,
-                                        transactionId: entry.suggestedTxId,
-                                      });
-                                    }
-                                  }}
-                                  className="rounded-md bg-primary px-2.5 py-1 text-[11px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
-                                >
-                                  {t.rekonsiliasi.confirmButton}
-                                </button>
-                                <button
-                                  type="button"
-                                  aria-label={`${t.rekonsiliasi.splitButtonAriaLabelPrefix} ${entry.description}`}
-                                  onClick={() => setSplitEntryTarget(entry)}
-                                  className="flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-bold transition-colors hover:bg-accent"
-                                >
-                                  <Scissors className="size-3" />
-                                  {t.rekonsiliasi.splitButton}
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                          {status === "err" && (
-                            <div className="flex w-full items-center justify-between gap-2">
-                              <div className="text-[11px] text-destructive">
-                                {t.rekonsiliasi.notFoundLabel}
-                              </div>
-                              <button
-                                type="button"
-                                aria-label={`${t.rekonsiliasi.splitButtonAriaLabelPrefix} ${entry.description}`}
-                                onClick={() => setSplitEntryTarget(entry)}
-                                className="flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-bold transition-colors hover:bg-accent"
-                              >
-                                <Scissors className="size-3" />
-                                {t.rekonsiliasi.splitButton}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {!entriesQuery.isLoading && entries.length > 0 && (
-                  <div className="mt-3 text-[11.5px] text-muted-foreground">
-                    {t.rekonsiliasi.matchResultsFooterPrefix}
-                    {filteredEntries.length}
-                    {t.rekonsiliasi.matchResultsFooterMid}
-                    {entries.length}
-                    {t.rekonsiliasi.matchResultsFooterSuffix}
+                              </td>
+                              <td className="py-3 pr-3">
+                                {tx ? (
+                                  <>
+                                    <div>
+                                      {tx.description ??
+                                        txTypeLabelsPage[tx.type] ??
+                                        tx.type}
+                                    </div>
+                                    <div className="text-[11px] text-muted-foreground">
+                                      {[
+                                        tx.accountName,
+                                        tx.categoryName,
+                                        new Date(
+                                          tx.occurredAt,
+                                        ).toLocaleDateString(numLocale, {
+                                          day: "numeric",
+                                          month: "short",
+                                        }),
+                                      ]
+                                        .filter(Boolean)
+                                        .join(" · ")}
+                                    </div>
+                                  </>
+                                ) : status === "warn" ? (
+                                  <span className="text-muted-foreground">
+                                    {t.rekonsiliasi.suggestedLabel}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground">
+                                    {t.rekonsiliasi.detailNoMatchedTx}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-3 pr-3">
+                                <StatusBadge variant={statusVariant}>
+                                  {statusLabel}
+                                </StatusBadge>
+                              </td>
+                              <td className="py-3">
+                                <div className="flex items-center gap-1.5">
+                                  {status === "warn" && entry.suggestedTxId && (
+                                    <button
+                                      type="button"
+                                      disabled={confirmMutation.isPending}
+                                      onClick={() => {
+                                        if (entry.suggestedTxId) {
+                                          confirmMutation.mutate({
+                                            entryId: entry.id,
+                                            transactionId: entry.suggestedTxId,
+                                          });
+                                        }
+                                      }}
+                                      className="rounded-md bg-primary px-2.5 py-1 text-[11px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                                    >
+                                      {t.rekonsiliasi.confirmButton}
+                                    </button>
+                                  )}
+                                  {status !== "ok" && (
+                                    <button
+                                      type="button"
+                                      aria-label={`${t.rekonsiliasi.splitButtonAriaLabelPrefix} ${entry.description}`}
+                                      onClick={() => setSplitEntryTarget(entry)}
+                                      className="flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-bold transition-colors hover:bg-accent"
+                                    >
+                                      <Scissors className="size-3" />
+                                      {t.rekonsiliasi.splitButton}
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    aria-label={`${t.rekonsiliasi.entryDetailAriaLabelPrefix} ${entry.description}, ${amtDisplay}`}
+                                    onClick={() => setDetailEntry(entry)}
+                                    className="rounded-md px-2.5 py-1 text-[11px] font-bold text-muted-foreground transition-colors hover:bg-accent"
+                                  >
+                                    Detail
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
-              </SectionCard>
 
-              <div className="flex gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => goto(1)}
-                  className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border-[1.5px] bg-background px-4 py-2.5 text-[13.5px] font-bold transition-colors hover:bg-accent"
-                >
-                  <ArrowLeft className="size-4" /> {t.rekonsiliasi.backButton}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => goto(4)}
-                  className="flex flex-[2] cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-bold text-white transition-opacity hover:opacity-90"
-                >
-                  <Save className="size-4" />{" "}
-                  {t.rekonsiliasi.saveReconciliationButton}
-                </button>
-              </div>
+                {/* Restructure (EPIC-026 Wave 5, prototype parity) — the
+                    prototype puts the count + Kembali + Simpan footer INSIDE
+                    the results card. Same goto(1)/goto(4) actions as the
+                    previous outside-the-card button row. */}
+                <div className="mt-3.5 flex flex-wrap items-center gap-2">
+                  {!entriesQuery.isLoading && entries.length > 0 && (
+                    <span className="text-[11.5px] text-muted-foreground">
+                      {t.rekonsiliasi.matchResultsFooterPrefix}
+                      {filteredEntries.length}
+                      {t.rekonsiliasi.matchResultsFooterMid}
+                      {entries.length}
+                      {t.rekonsiliasi.matchResultsFooterSuffix}
+                    </span>
+                  )}
+                  <span className="flex-1" />
+                  <button
+                    type="button"
+                    onClick={() => goto(1)}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg border-[1.5px] bg-background px-4 py-2 text-[12.5px] font-bold transition-colors hover:bg-accent"
+                  >
+                    <ArrowLeft className="size-3.5" />{" "}
+                    {t.rekonsiliasi.backButton}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => goto(4)}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-4 py-2 text-[12.5px] font-bold text-white transition-opacity hover:opacity-90"
+                  >
+                    <Save className="size-3.5" />{" "}
+                    {t.rekonsiliasi.saveReconciliationButton}
+                  </button>
+                </div>
+              </SectionCard>
             </div>
           );
         })()}

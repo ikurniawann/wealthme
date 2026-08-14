@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  Calculator,
   Eye,
   EyeOff,
   Plus,
@@ -241,6 +242,29 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
       toast.error(t.aset.toastAddFailed);
     },
   });
+
+  // EPIC-026 Wave 5: the prototype dialog shows a live "Proyeksi 5 tahun"
+  // notice computed from the entered value + change mode. Reproduced
+  // honestly here with the backend's own linear approximation
+  // (assets.service.ts `computeEstimatedValue`): value × (1 + rate/100 × 5)
+  // for percent mode, value + amount × 5 for fixed mode, floored at 0 —
+  // anchored at the acquisition date exactly like the server's
+  // compute-on-read estimate.
+  const projectedIn5Years = (() => {
+    const digits = value.replace(/\D/g, "");
+    if (!digits) return null;
+    const base = parseInt(digits, 10);
+    if (valueChangeMode === "percent") {
+      const rate = parseFloat(valueChangeRatePct);
+      if (!Number.isFinite(rate) || rate === 0) return null;
+      return Math.max(Math.round(base * (1 + (rate / 100) * 5)), 0);
+    }
+    const amountDigits = valueChangeAmount.replace(/[^-\d]/g, "");
+    if (!amountDigits || amountDigits === "-") return null;
+    const amount = parseInt(amountDigits, 10);
+    if (!Number.isFinite(amount) || amount === 0) return null;
+    return Math.max(Math.round(base + amount * 5), 0);
+  })();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -508,6 +532,20 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
               onChange={(e) => setNotes(e.target.value)}
             />
           </div>
+
+          {projectedIn5Years !== null && (
+            <div className="flex items-center gap-2.5 rounded-[11px] border border-primary/25 bg-accent p-3 text-[12.5px] text-accent-foreground">
+              <Calculator className="size-4 shrink-0" aria-hidden="true" />
+              <span>
+                Proyeksi 5 tahun:{" "}
+                <strong className="wm-money mono">
+                  {formatRupiah(projectedIn5Years)}
+                </strong>{" "}
+                — dihitung dari nilai tercatat, mode perubahan, dan tanggal
+                perolehan.
+              </span>
+            </div>
+          )}
 
           <Button
             type="submit"
