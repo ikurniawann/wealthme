@@ -3395,9 +3395,28 @@
        first: nothing in the app reads `window.scrollY` / `scrollTo` /
        `scrollIntoView`, and `.topbar` is `position: sticky` rather than fixed,
        so it simply becomes a static row above the new scrollport. */
-    .app {
-      height: 100vh; /* fallback for engines without dvh */
+    /* The document itself is locked, not just `.app`. Locking only `.app` was
+       the hole that made the HEADER disappear on real phones: `100dvh`/`100vh`
+       can resolve to the LARGE viewport (browser UI hidden) while less than
+       that is actually visible, so `.app` overflowed `body`, the document
+       became scrollable by the height of the browser UI, and scrolling carried
+       the whole shell — topbar included — up out of view. A Chromium emulator
+       never showed it because there `100dvh === innerHeight` exactly, so
+       nothing overflowed.
+       With `overflow: hidden` on html AND body the document cannot scroll on
+       any engine, whatever the viewport units resolve to. The worst remaining
+       case is a few clipped pixels at the BOTTOM — never a lost header. */
+    html,
+    body {
+      height: 100%; /* fallback for engines without dvh */
       height: 100dvh;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+    .app {
+      /* Inherits the locked box above rather than re-deriving a viewport unit
+         that may disagree with it. */
+      height: 100%;
       overflow: hidden;
     }
     .main {
@@ -3431,9 +3450,10 @@
       /* Keeps a scroll that reaches the end from chaining out to the document
          (which would reintroduce the bounce this change exists to remove). */
       overscroll-behavior: contain;
-      /* Clears the fixed bottom bar plus the home-indicator inset — the same
-         68px `.main` used to reserve, now scrolled past rather than cut off. */
-      padding-bottom: calc(68px + env(safe-area-inset-bottom));
+      /* Clears the fixed bottom bar plus the home-indicator inset — scrolled
+         past rather than cut off. 92px matches the value the ≤640px block
+         already used, so there is one reserve figure, not two. */
+      padding-bottom: calc(92px + env(safe-area-inset-bottom));
     }
     .value-strip {
       grid-template-columns: minmax(0, 1fr);
@@ -3565,7 +3585,13 @@
     }
 
     .main {
-      padding-bottom: calc(92px + env(safe-area-inset-bottom));
+      /* Was `padding-bottom: calc(92px + …)`, which this narrower media query
+         re-applied AFTER the ≤768px block had deliberately zeroed it — so the
+         space was reserved twice (92px here shortening the shell, plus 92px
+         inside the scrolling `.page`), leaving `.page` 92px short and content
+         ending ~119px above the bar. The reserve belongs only on the scrolling
+         element, where content passes under the bar instead of stopping early. */
+      padding-bottom: 0;
     }
 
     .page {
