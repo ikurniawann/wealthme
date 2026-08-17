@@ -1364,6 +1364,7 @@ export type I18nDictionary = {
     manageApiKeyButton: string;
     changeApiKeyLink: string;
     providerLabels: Record<"claude" | "openai" | "gemini", string>;
+    chatCardTitle: string;
     newConversationButton: string;
     /** Saved-session history panel. Sessions are stored server-side per
      * member (see the API's AiConversationService), so these survive a

@@ -1408,6 +1408,7 @@ export const en = {
       openai: "OpenAI",
       gemini: "Gemini (Google)",
     },
+    chatCardTitle: "Conversation",
     newConversationButton: "New Chat",
     historyTitle: "Chat History",
     historyEmpty: "No saved conversations yet.",

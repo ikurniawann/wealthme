@@ -504,7 +504,13 @@ export default function AiPage() {
         <div className="lg:col-span-8">
           {/* Chat */}
           <div className="flex flex-col overflow-hidden rounded-[14px] border bg-card">
-            <div className="flex items-center justify-end border-b px-3 py-2">
+            {/* Prototype parity (docs/prototype/pages/ai.html): the chat card
+                carries a "Percakapan" title. The app rendered a bare row with
+                only the reset button, so the card had no heading at all —
+                found by the text-presence parity audit, not by the earlier
+                selector-based one, which reported it as present. */}
+            <div className="row--between flex items-center border-b px-3 py-2">
+              <h2 className="card__title">{t.ai.chatCardTitle}</h2>
               <button
                 type="button"
                 onClick={handleNewConversation}

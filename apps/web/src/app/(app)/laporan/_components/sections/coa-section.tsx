@@ -21,43 +21,13 @@ import type { CoaAccountOption } from "../types";
 
 const COA_MATRIX_YEAR_WINDOW = 6;
 
-function buildDemoCoaMatrix(coaAccountId: string, year: number): CoaMatrixDto {
-  const cells: CoaMatrixDto["cells"] = {};
-  const entries = [
-    [1, 1, 9_000_000, "Gaji bulanan"],
-    [1, 7, 155_000, "Belanja rumah"],
-    [2, 2, 330_000, "Transportasi"],
-    [3, 4, 470_000, "Makan & minum"],
-    [4, 1, 280_000, "Tagihan utilitas"],
-    [4, 8, 80_000, "Parkir dan tol"],
-    [5, 3, 125_000, "Kopi & snack"],
-    [6, 2, 860_000, "Belanja bulanan"],
-    [7, 1, 8_750_000, "Bonus proyek"],
-    [7, 11, 1_070_000, "Cicilan"],
-    [8, 4, 515_000, "Kebutuhan anak"],
-    [9, 1, 430_000, "Perawatan rumah"],
-    [10, 1, 290_000, "Langganan"],
-    [11, 6, 475_000, "Asuransi"],
-    [12, 7, 1_000_000, "Dana liburan"],
-  ] as const;
-
-  for (const [month, day, amount, description] of entries) {
-    cells[month] ??= {};
-    cells[month][day] ??= [];
-    cells[month][day].push({
-      txId: `demo-${month}-${day}`,
-      amount,
-      description,
-    });
-  }
-
-  return {
-    coaAccountId,
-    year,
-    total: entries.reduce((sum, [, , amount]) => sum + amount, 0),
-    cells,
-  };
-}
+// NOTE: a `buildDemoCoaMatrix` used to live here, fabricating 15 transactions
+// with plausible Indonesian descriptions and amounts ("Gaji bulanan"
+// Rp 9.000.000, "Cicilan" Rp 1.070.000, ~Rp 24 jt in total) whenever the API
+// returned an empty matrix. It was rendered inside a FINANCIAL REPORT, next to
+// real figures, in the same styling — a warning notice above it did not undo
+// that. Invented money in a report is worse than an empty report, so the
+// fallback is gone and an empty matrix now says it is empty.
 
 export function CoaSection({
   coaAccounts,
@@ -90,12 +60,14 @@ export function CoaSection({
   );
 
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
-  const selectedAccountId = coaAccountId || coaAccounts[0]?.id || "demo-coa";
-  const hasApiCells = matrix ? Object.keys(matrix.cells).length > 0 : false;
-  const displayMatrix: CoaMatrixDto =
-    matrix && hasApiCells
-      ? matrix
-      : buildDemoCoaMatrix(selectedAccountId, year);
+  const selectedAccountId = coaAccountId || coaAccounts[0]?.id || "";
+  // The server's matrix, or an empty one. Never a stand-in.
+  const displayMatrix: CoaMatrixDto = matrix ?? {
+    coaAccountId: selectedAccountId,
+    year,
+    total: 0,
+    cells: {},
+  };
   const hasCells = Object.keys(displayMatrix.cells).length > 0;
   const [fullscreen, setFullscreen] = useState(false);
   // The prototype's "N transaksi" counter — every stacked amount in every
@@ -226,13 +198,6 @@ export function CoaSection({
           <div className="hint" style={{ marginTop: 10 }}>
             {t.laporan.coa.matrixHint}
           </div>
-
-          {!hasApiCells && (
-            <div className="notice notice--warning" style={{ marginTop: 10 }}>
-              Data contoh ditampilkan karena matrix COA dari server masih
-              kosong.
-            </div>
-          )}
         </div>
       </article>
 

@@ -1440,6 +1440,7 @@ export const id = {
       openai: "OpenAI",
       gemini: "Gemini (Google)",
     },
+    chatCardTitle: "Percakapan",
     newConversationButton: "Mulai Baru",
     historyTitle: "Riwayat Chat",
     historyEmpty: "Belum ada percakapan tersimpan.",
