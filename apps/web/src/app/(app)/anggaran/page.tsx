@@ -29,9 +29,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/hooks/use-locale";
-// EPIC-025 N3-E1 — J3 FOLD: "Terpakai per Kategori" budget-vs-actual bars,
-// derived from the already-fetched budgets list — no new backend endpoint.
-import { HBarChart } from "@/components/charts/apex-presets";
 import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -104,6 +101,160 @@ function budgetAmountsLabel(
 }
 
 const ICON_OPTIONS = ["🎓", "🎨", "🎁", "🐶", "👶", "📚", "💪", "🙏"];
+
+function BudgetUsageList({ budgets }: { budgets: BudgetDto[] }) {
+  const maxSpent = Math.max(...budgets.map((budget) => budget.spentAmount), 1);
+
+  return (
+    <div className="space-y-3">
+      {budgets.map((budget) => {
+        const usagePct = budget.usagePercent ?? 0;
+        const barWidth =
+          budget.spentAmount > 0
+            ? Math.max(4, Math.round((budget.spentAmount / maxSpent) * 100))
+            : 0;
+        const color = budgetBarColor(budget);
+
+        return (
+          <div
+            key={budget.id}
+            className="rounded-[11px] border bg-secondary/25 px-3 py-2.5"
+          >
+            <div className="flex min-w-0 items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="truncate text-[12.5px] font-semibold">
+                  {budget.categoryName}
+                </div>
+                <div className="mt-0.5 text-[11.5px] text-muted-foreground">
+                  {usagePct}% dari {formatRupiah(budget.limitAmount)}
+                </div>
+              </div>
+              <div className="mono shrink-0 text-right text-[12.5px] font-semibold text-foreground">
+                {formatRupiah(budget.spentAmount)}
+              </div>
+            </div>
+            <div className="mt-2 h-[7px] overflow-hidden rounded-full bg-secondary">
+              {barWidth > 0 && (
+                <div
+                  className="h-full rounded-full transition-[width] duration-700"
+                  style={{
+                    width: `${Math.min(100, barWidth)}%`,
+                    background: color,
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function BudgetTypeSummary({
+  rows,
+  totalSpent,
+  totalLimit,
+  totalRemaining,
+  overBudgetCount,
+  nearLimitCount,
+  t,
+}: {
+  rows: TypeBreakdownRow[];
+  totalSpent: number;
+  totalLimit: number;
+  totalRemaining: number;
+  overBudgetCount: number;
+  nearLimitCount: number;
+  t: ReturnType<typeof useLocale>["t"];
+}) {
+  const totalPct =
+    totalLimit > 0 ? Math.round((totalSpent / totalLimit) * 100) : 0;
+  const totalColor =
+    totalSpent > totalLimit
+      ? "var(--destructive)"
+      : totalPct >= 80
+        ? "var(--warning)"
+        : "var(--success)";
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-[12px] border bg-secondary/25 p-3">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <div>
+            <div className="text-[11.5px] text-muted-foreground">
+              Total tipe aktif
+            </div>
+            <div className="text-[14px] font-semibold">{rows.length} tipe</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[11.5px] text-muted-foreground">
+              Terpakai
+            </div>
+            <div
+              className="mono text-[14px] font-semibold"
+              style={{ color: totalColor }}
+            >
+              {totalPct}%
+            </div>
+          </div>
+        </div>
+        <AnimatedProgress value={Math.min(totalPct, 100)} color={totalColor} />
+        <div className="mt-2 flex items-center justify-between gap-3 text-[11.5px] text-muted-foreground">
+          <span>{formatRupiah(totalSpent)} dipakai</span>
+          <span>{formatRupiah(totalLimit)} rencana</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-[10px] border bg-card p-2.5">
+          <div className="text-[11px] text-muted-foreground">Sisa budget</div>
+          <div className="mono mt-1 text-[13px] font-semibold">
+            {formatRupiah(totalRemaining)}
+          </div>
+        </div>
+        <div className="rounded-[10px] border bg-card p-2.5">
+          <div className="text-[11px] text-muted-foreground">
+            Perlu perhatian
+          </div>
+          <div className="mt-1 text-[13px] font-semibold">
+            {overBudgetCount + nearLimitCount} kategori
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-2.5">
+        {rows.map((row) => {
+          const pct =
+            row.limit > 0 ? Math.round((row.spent / row.limit) * 100) : 0;
+          const color =
+            row.spent > row.limit
+              ? "var(--destructive)"
+              : pct >= 80
+                ? "var(--warning)"
+                : "var(--success)";
+          return (
+            <div key={row.key}>
+              <div className="mb-1.5 flex items-center gap-2 text-[12.5px]">
+                <StatusBadge variant="gray">
+                  {t.anggaran.budgetTypeLabels[row.key]}
+                </StatusBadge>
+                <span className="text-[11.5px] text-muted-foreground">
+                  {row.count}
+                  {t.anggaran.categoriesSuffix}
+                </span>
+                <span className="ml-auto font-semibold" style={{ color }}>
+                  {pct}%
+                </span>
+              </div>
+              <AnimatedProgress value={Math.min(pct, 100)} color={color} />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function BudgetItem({ dto, index }: { dto: BudgetDto; index: number }) {
   const { t } = useLocale();
@@ -739,10 +890,9 @@ export default function AnggaranPage() {
   // spentAmount desc like the prototype's `hbar()` mount, over the same
   // already-fetched budgets list.
   const categoryBarBudgets = (budgets ?? [])
+    .filter((budget) => budget.spentAmount > 0)
     .slice()
     .sort((a, b) => b.spentAmount - a.spentAmount);
-  const categoryBarCategories = categoryBarBudgets.map((b) => b.categoryName);
-  const categoryBarData = categoryBarBudgets.map((b) => b.spentAmount);
   const totalRemaining = Math.max(0, totalLimit - totalSpent);
   const overBudgetItems = budgets?.filter((b) => b.isOverBudget) ?? [];
   const nearLimitItems = budgets?.filter((b) => b.isNearLimit) ?? [];
@@ -964,68 +1114,27 @@ export default function AnggaranPage() {
           halves. */}
       {(categoryBarBudgets.length > 0 || typeBreakdown.length > 0) && (
         <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          {/* EPIC-025 N3-E1 — J3 FOLD: "Terpakai per Kategori" HBarChart,
-              same data `BudgetItem` rows above already render, sliced
-              differently (sorted by spentAmount desc, like the prototype). */}
           <SectionCard title={t.anggaran.categoryBarChartTitle}>
             {categoryBarBudgets.length === 0 ? (
               <div className="py-4 text-center text-[13px] text-muted-foreground">
                 {t.anggaran.emptyCategoryBarChart}
               </div>
             ) : (
-              <HBarChart
-                categories={categoryBarCategories}
-                data={categoryBarData}
-                color="var(--primary)"
-                ariaLabel={`${t.anggaran.categoryBarChartTitle}: ${categoryBarBudgets
-                  .map(
-                    (b) => `${b.categoryName} ${formatRupiah(b.spentAmount)}`,
-                  )
-                  .join(", ")}`}
-              />
+              <BudgetUsageList budgets={categoryBarBudgets} />
             )}
           </SectionCard>
 
           {typeBreakdown.length > 0 && (
-            <SectionCard
-              title={t.anggaran.typeBreakdownTitle}
-              bodyClassName="-mt-1 space-y-3"
-            >
-              {typeBreakdown.map((row) => {
-                const pct =
-                  row.limit > 0 ? Math.round((row.spent / row.limit) * 100) : 0;
-                const color =
-                  row.spent > row.limit
-                    ? "var(--destructive)"
-                    : pct >= 80
-                      ? "var(--warning)"
-                      : "var(--success)";
-                return (
-                  <div key={row.key}>
-                    <div className="mb-1.5 flex items-center gap-2 text-[13px]">
-                      <StatusBadge variant="gray">
-                        {t.anggaran.budgetTypeLabels[row.key]}
-                      </StatusBadge>
-                      <span className="text-[11.5px] text-muted-foreground">
-                        {row.count}
-                        {t.anggaran.categoriesSuffix}
-                      </span>
-                      <span className="ml-auto font-semibold" style={{ color }}>
-                        {pct}%
-                      </span>
-                    </div>
-                    <div className="mb-1 text-[11.5px] text-muted-foreground">
-                      {formatRupiah(row.spent)}
-                      {t.anggaran.amountsMidDari}
-                      {formatRupiah(row.limit)}
-                    </div>
-                    <AnimatedProgress
-                      value={Math.min(pct, 100)}
-                      color={color}
-                    />
-                  </div>
-                );
-              })}
+            <SectionCard title={t.anggaran.typeBreakdownTitle}>
+              <BudgetTypeSummary
+                rows={typeBreakdown}
+                totalSpent={totalSpent}
+                totalLimit={totalLimit}
+                totalRemaining={totalRemaining}
+                overBudgetCount={overBudgetItems.length}
+                nearLimitCount={nearLimitItems.length}
+                t={t}
+              />
             </SectionCard>
           )}
         </div>

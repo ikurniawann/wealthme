@@ -547,8 +547,8 @@ export function LaporanInner() {
             {t.laporan.filterCard.appliesAllTabsCaption}
           </span>
         </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="flex min-w-[200px] flex-col gap-1">
+        <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
+          <div className="flex min-w-0 flex-col gap-1">
             <label className="text-[11px] font-semibold text-muted-foreground">
               {t.laporan.filterCard.periodeLabel}
             </label>
@@ -558,7 +558,7 @@ export function LaporanInner() {
             <RangePresetSelect preset={rangePreset} onChange={setRangePreset} />
           </div>
           {rangePreset === "custom" && (
-            <div className="flex min-w-[220px] flex-col gap-1">
+            <div className="flex min-w-0 flex-col gap-1">
               <label className="text-[11px] font-semibold text-muted-foreground">
                 {t.laporan.filterCard.dateRangeLabel}
               </label>

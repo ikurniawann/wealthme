@@ -30,7 +30,7 @@ export function HealthScoreCard({ data }: { data: RingkasanData }) {
       <div className="card__header">
         <h2 className="card__title">{t.ringkasan.healthScoreTitle}</h2>
       </div>
-      <div className="card__body">
+      <div className="card__body mx-auto flex max-w-[360px] flex-col justify-center">
         <div className="chart">
           <RadialChart
             value={score}

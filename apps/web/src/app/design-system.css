@@ -104,7 +104,8 @@
   }
 
   .mono {
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum" 1;
   }
 
@@ -432,6 +433,11 @@
     font-size: 13px;
     cursor: pointer;
     box-shadow: inset 0 1px 0 color-mix(in oklab, white 28%, transparent);
+  }
+
+  .topbar__txn {
+    gap: 7px;
+    white-space: nowrap;
   }
 
   .kbd {
@@ -791,6 +797,37 @@
        shorter card just ends higher, never with blank space inside it. */
     align-items: start;
   }
+
+  /* Symmetric dashboard bands. When a grid is clearly a collection of cards,
+     stats, or hero panels, every peer should share the same row height. Plain
+     form/filter grids keep the default content-sized alignment above. */
+  .grid:has(> .card),
+  .grid:has(> .stat),
+  .grid:has(> .hero) {
+    align-items: stretch;
+  }
+
+  .grid:has(> .card) > .card,
+  .grid:has(> .hero) > .hero {
+    display: flex;
+    height: 100%;
+    min-width: 0;
+    flex-direction: column;
+  }
+
+  .grid:has(> .card) > .card > .card__body {
+    flex: 1;
+  }
+
+  .grid:has(> .stat) > .stat {
+    height: 100%;
+    min-width: 0;
+  }
+
+  .grid:has(> .stat) > .stat .stat__delta {
+    margin-top: auto;
+  }
+
   .grid--2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -810,6 +847,19 @@
        leaves a dead block of empty space below the shorter column. Size each
        column to its own content instead. */
     align-items: start;
+  }
+
+  .grid--sidebar:has(> .card),
+  .grid--sidebar:has(> .hero),
+  .grid--sidebar:has(> .stack) {
+    align-items: stretch;
+  }
+
+  .grid--sidebar:has(> .card) > .card,
+  .grid--sidebar:has(> .hero) > .hero,
+  .grid--sidebar:has(> .stack) > .stack {
+    height: 100%;
+    min-width: 0;
   }
 
   /* Opt-in row equality for dashboard groups whose cards are meant to read as
@@ -1369,6 +1419,7 @@
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
     grid-auto-flow: dense;
+    grid-auto-rows: minmax(0, auto);
     gap: 14px;
     align-items: stretch;
   }
@@ -1377,6 +1428,7 @@
   .bento-dashboard > .hero {
     min-width: 0;
     margin: 0;
+    height: 100%;
   }
 
   .bento-hero {
@@ -1385,15 +1437,23 @@
   }
   .bento-snapshot {
     grid-column: span 5;
+    min-height: 232px;
+    display: flex;
+    flex-direction: column;
   }
   .bento-stat {
     grid-column: span 3;
   }
   .bento-chart {
     grid-column: span 7;
+    display: flex;
+    flex-direction: column;
   }
   .bento-allocation {
     grid-column: span 5;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
   }
   .bento-transactions {
     grid-column: span 7;
@@ -1450,7 +1510,12 @@
 
   .bento-snapshot .card__body {
     display: grid;
+    flex: 1;
     gap: 12px;
+    grid-template-rows: repeat(3, minmax(0, auto));
+    align-content: stretch;
+    min-height: 0;
+    height: 100%;
   }
   .snapshot-row {
     display: flex;
@@ -1486,6 +1551,131 @@
     font-size: 16px;
     font-weight: 800;
     letter-spacing: -0.02em;
+  }
+
+  .bento-allocation .card__body {
+    display: grid;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    align-items: center;
+    padding-block: 12px 14px;
+  }
+
+  .allocation-card__body {
+    width: 100%;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-content: center;
+    gap: 12px;
+  }
+
+  .allocation-card__donut {
+    min-height: 164px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .bento-allocation .apexcharts-canvas {
+    margin-inline: auto;
+  }
+
+  .allocation-card__list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    align-content: start;
+  }
+
+  .allocation-row {
+    min-width: 0;
+    display: grid;
+    gap: 7px;
+    padding: 9px 10px;
+    border: 1px solid color-mix(in oklab, var(--border) 78%, transparent);
+    border-radius: 12px;
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in oklab, var(--secondary) 68%, transparent),
+        color-mix(in oklab, var(--secondary) 38%, transparent)
+      );
+  }
+
+  .allocation-row__top,
+  .allocation-row__meta {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .allocation-row__label {
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--muted-foreground);
+    font-size: 11.5px;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .allocation-row__dot {
+    width: 9px;
+    height: 9px;
+    flex: 0 0 9px;
+    border-radius: 999px;
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--card) 82%, transparent);
+  }
+
+  .allocation-row__value {
+    color: var(--foreground);
+    min-width: 0;
+    max-width: min(112px, 64%);
+    overflow: hidden;
+    text-align: right;
+    text-overflow: ellipsis;
+    font-size: 13px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .allocation-row__meta {
+    color: var(--muted-foreground);
+    font-size: 10.5px;
+    font-weight: 600;
+    align-items: center;
+    line-height: 1.2;
+  }
+
+  .allocation-row__meta > span:last-child {
+    min-width: 0;
+    overflow: hidden;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .allocation-row__track {
+    height: 5px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--muted) 72%, transparent);
+  }
+
+  .allocation-row__bar {
+    display: block;
+    height: 100%;
+    min-width: 3px;
+    border-radius: inherit;
   }
 
   .bento-stat {
@@ -1544,11 +1734,15 @@
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+    .allocation-card__list {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
   }
 
   @media (max-width: 768px) {
     .bento-dashboard {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-auto-rows: auto;
     }
     .bento-hero,
     .bento-snapshot,
@@ -1563,6 +1757,21 @@
     }
     .bento-hero__footer {
       grid-template-columns: 1fr;
+    }
+    .bento-snapshot,
+    .bento-allocation {
+      min-height: 0;
+    }
+    .bento-snapshot .card__body,
+    .bento-allocation .card__body {
+      height: auto;
+    }
+    .allocation-card__body {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto;
+    }
+    .allocation-card__list {
+      align-content: start;
     }
   }
 
@@ -1582,6 +1791,12 @@
     .bento-side,
     .bento-goal-list {
       grid-template-columns: minmax(0, 1fr);
+    }
+    .allocation-card__list {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .allocation-row__value {
+      max-width: none;
     }
   }
 
@@ -2457,7 +2672,19 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
     gap: 14px;
-    align-items: start;
+    align-items: stretch;
+  }
+
+  .bento-auto > .card,
+  .bento-auto > .hero {
+    display: flex;
+    height: 100%;
+    min-width: 0;
+    flex-direction: column;
+  }
+
+  .bento-auto > .card > .card__body {
+    flex: 1;
   }
   .bento-filter {
     display: grid;
@@ -3186,21 +3413,7 @@
     }
 
     .mobile-fab {
-      position: fixed;
-      left: 50%;
-      bottom: calc(34px + env(safe-area-inset-bottom));
-      z-index: 55;
-      display: grid;
-      width: 52px;
-      height: 52px;
-      place-items: center;
-      border: 1px solid color-mix(in oklab, var(--primary) 42%, var(--border));
-      border-radius: 999px;
-      background: var(--primary);
-      color: var(--primary-foreground);
-      box-shadow: 0 16px 32px -16px
-        color-mix(in oklab, var(--primary) 70%, black);
-      transform: translateX(-50%);
+      display: none;
     }
 
     .mobile-nav__item {
@@ -3763,6 +3976,114 @@
       justify-content: flex-start;
       text-align: left;
     }
+  }
+
+  /* Global readability pass: keep financial figures consistent and calm. */
+  .wm-money,
+  .mono,
+  .stat__value,
+  .hero__value,
+  .metric-value,
+  .money-value,
+  .table td,
+  .table th,
+  .table-wrap td,
+  .table-wrap th,
+  .list-row__amount,
+  .budget-summary-card .mono,
+  .card .font-bold,
+  .card .font-extrabold,
+  .card .font-black {
+    letter-spacing: 0 !important;
+    font-family: var(--font-sans) !important;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  .wm-money,
+  .table .mono,
+  .table-wrap .mono,
+  .list-row__amount.mono,
+  .budget-summary-card .mono,
+  .card .text-xs.mono,
+  .card .text-sm.mono,
+  .card .t-xs.mono,
+  .card .t-sm.mono,
+  .card .mono.font-bold,
+  .card .mono.font-extrabold,
+  .card .mono.font-black,
+  .table .font-bold,
+  .table .font-extrabold,
+  .table .font-black,
+  .table-wrap .font-bold,
+  .table-wrap .font-extrabold,
+  .table-wrap .font-black,
+  td.mono,
+  dd.mono {
+    font-weight: 500 !important;
+  }
+
+  .card .text-base.mono,
+  .card .text-lg.mono,
+  .card .text-xl.mono,
+  .stat__value,
+  .metric-value,
+  .money-value {
+    font-weight: 600 !important;
+  }
+
+  .hero .mono,
+  .hero__value,
+  .gradient-wealth .mono,
+  .gradient-profile .mono {
+    font-weight: 700 !important;
+  }
+
+  .apexcharts-text,
+  .apexcharts-title-text,
+  .apexcharts-subtitle-text,
+  .apexcharts-xaxis-label,
+  .apexcharts-yaxis-label,
+  .apexcharts-datalabel,
+  .apexcharts-datalabel-value,
+  .apexcharts-datalabel-label,
+  .apexcharts-legend-text {
+    color: var(--foreground) !important;
+    fill: var(--foreground) !important;
+    font-family: var(--font-sans) !important;
+    font-weight: 500 !important;
+  }
+
+  .apexcharts-datalabel-label,
+  .apexcharts-legend-text {
+    color: var(--muted-foreground) !important;
+    fill: var(--muted-foreground) !important;
+  }
+
+  .apexcharts-canvas foreignObject {
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .apexcharts-canvas,
+  .apexcharts-svg {
+    max-width: 100%;
+  }
+
+  .card__body:has(.apexcharts-canvas) {
+    overflow: hidden;
+  }
+
+  .card__body > .chart:only-child,
+  .card__body > [role="img"]:only-child {
+    min-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .card__body > .chart:only-child > [role="img"] {
+    width: 100%;
   }
 
   @media (prefers-reduced-motion: reduce) {

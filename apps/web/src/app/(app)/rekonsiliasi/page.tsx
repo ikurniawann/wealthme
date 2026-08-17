@@ -16,7 +16,6 @@ import {
   Save,
   Scissors,
   Bot,
-  X,
   ChevronRight,
   CheckCheck,
   ReceiptText,
@@ -218,32 +217,6 @@ function StepCards({ step }: { step: number }) {
           </div>
         );
       })}
-    </div>
-  );
-}
-
-/* ─────────────────────────── Status icon ─────────────────────────── */
-
-function MatchIcon({ status }: { status: MatchStatus }) {
-  const cls =
-    status === "ok"
-      ? "bg-success"
-      : status === "warn"
-        ? "bg-warning"
-        : "bg-destructive";
-  return (
-    <div className="flex w-9 flex-shrink-0 items-center justify-center">
-      <div
-        className={`flex size-6 items-center justify-center rounded-full ${cls}`}
-      >
-        {status === "ok" && <Check className="size-[13px] text-white" />}
-        {status === "warn" && (
-          <span className="text-[12px] font-bold leading-none text-white">
-            !
-          </span>
-        )}
-        {status === "err" && <X className="size-[13px] text-white" />}
-      </div>
     </div>
   );
 }

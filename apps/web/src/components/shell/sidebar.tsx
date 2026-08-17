@@ -1,11 +1,10 @@
 "use client";
 
-import { ChevronLeft, Plus } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { useLocale } from "@/hooks/use-locale";
 import { SidebarBrand } from "./sidebar-brand";
 import { SidebarFooter } from "./sidebar-footer";
 import { SidebarSections } from "./sidebar-sections";
-import { useShell } from "./shell-context";
 
 /**
  * EPIC-026 shell migration — the fixed desktop `.sidebar`. `design-system.css`
@@ -19,7 +18,6 @@ export function SidebarNav({
   collapsed?: boolean;
   onToggleCollapse?: () => void;
 }) {
-  const { setTxnOpen } = useShell();
   const { t } = useLocale();
 
   return (
@@ -27,24 +25,6 @@ export function SidebarNav({
       <SidebarBrand
         action={
           <>
-            {/* EPIC-023 Task H3 (D22) — reviewed foundation exception: this file
-                is protected per WM_CONVENTIONS.md, but its `data-tour` markers
-                (here and on the nav Link below) were only ever DOM anchors for
-                the old button-spotlight tour, which components/onboarding
-                replaces with a guided setup that writes through real endpoints
-                instead of clicking into real pages — nothing queries these
-                selectors anymore, so they're dead attributes, not live markup. */}
-            {!collapsed && (
-              <button
-                type="button"
-                onClick={() => setTxnOpen(true)}
-                title={t.shell.addTransactionTooltip}
-                aria-label={t.shell.addTransaction}
-                className="btn btn--primary btn--sm btn--icon"
-              >
-                <Plus className="size-[15px]" aria-hidden="true" />
-              </button>
-            )}
             {onToggleCollapse && (
               <button
                 type="button"

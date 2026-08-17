@@ -153,7 +153,7 @@ describe("TransactionDialog — credit-card tab and transfer category removal (E
     await user.click(await screen.findByRole("tab", { name: /Kartu Kredit/ }));
 
     // Amount.
-    const amountInput = screen.getByPlaceholderText("0");
+    const amountInput = screen.getByPlaceholderText("250.000");
     await user.type(amountInput, "150000");
 
     // Pick the credit card (liability), NOT an account — `Field` now
@@ -164,7 +164,7 @@ describe("TransactionDialog — credit-card tab and transfer category removal (E
     });
     await user.selectOptions(cardSelect, "liab-card-1");
 
-    await user.click(screen.getByRole("button", { name: "Simpan Transaksi" }));
+    await user.click(screen.getByRole("button", { name: "Simpan" }));
 
     await waitFor(() => {
       expect(mockApiFetch).toHaveBeenCalledWith(
@@ -198,12 +198,12 @@ describe("TransactionDialog — credit-card tab and transfer category removal (E
     const invalidateSpy = jest.spyOn(queryClient, "invalidateQueries");
 
     await user.click(await screen.findByRole("tab", { name: /Kartu Kredit/ }));
-    await user.type(screen.getByPlaceholderText("0"), "150000");
+    await user.type(screen.getByPlaceholderText("250.000"), "150000");
     const cardSelect = await screen.findByRole("combobox", {
       name: "Kartu Kredit",
     });
     await user.selectOptions(cardSelect, "liab-card-1");
-    await user.click(screen.getByRole("button", { name: "Simpan Transaksi" }));
+    await user.click(screen.getByRole("button", { name: "Simpan" }));
 
     await waitFor(() => {
       expect(invalidateSpy).toHaveBeenCalledWith(
@@ -219,14 +219,14 @@ describe("TransactionDialog — credit-card tab and transfer category removal (E
     const { queryClient } = render(<TransactionDialog />);
     const invalidateSpy = jest.spyOn(queryClient, "invalidateQueries");
 
-    // Default tab is Income; switch to Expense (2nd tab).
+    // The prototype opens on Expense by default.
     await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
-    await user.type(screen.getByPlaceholderText("0"), "50000");
+    await user.type(screen.getByPlaceholderText("250.000"), "50000");
     const accountSelect = await screen.findByRole("combobox", {
       name: "Akun",
     });
     await user.selectOptions(accountSelect, "acc-1");
-    await user.click(screen.getByRole("button", { name: "Simpan Transaksi" }));
+    await user.click(screen.getByRole("button", { name: "Simpan" }));
 
     await waitFor(() => {
       expect(invalidateSpy).toHaveBeenCalledWith(
@@ -295,7 +295,7 @@ describe("TransactionDialog — attachment upload (EPIC-024 Task L3, US-TXN-9)",
     render(<TransactionDialog />);
 
     await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
-    await user.type(screen.getByPlaceholderText("0"), "50000");
+    await user.type(screen.getByPlaceholderText("250.000"), "50000");
     const accountSelect = await screen.findByRole("combobox", {
       name: "Akun",
     });
@@ -306,7 +306,7 @@ describe("TransactionDialog — attachment upload (EPIC-024 Task L3, US-TXN-9)",
     selectFile(fileInput, file);
     expect(screen.getByText(/struk\.jpg/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Simpan Transaksi" }));
+    await user.click(screen.getByRole("button", { name: "Simpan" }));
 
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalledWith(
@@ -337,7 +337,7 @@ describe("TransactionDialog — attachment upload (EPIC-024 Task L3, US-TXN-9)",
     render(<TransactionDialog />);
 
     await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
-    await user.type(screen.getByPlaceholderText("0"), "50000");
+    await user.type(screen.getByPlaceholderText("250.000"), "50000");
     const accountSelect = await screen.findByRole("combobox", {
       name: "Akun",
     });
@@ -346,7 +346,7 @@ describe("TransactionDialog — attachment upload (EPIC-024 Task L3, US-TXN-9)",
     const file = makeFile("struk.jpg", "image/jpeg", 1024);
     selectFile(screen.getByTestId("attachment-file-input"), file);
 
-    await user.click(screen.getByRole("button", { name: "Simpan Transaksi" }));
+    await user.click(screen.getByRole("button", { name: "Simpan" }));
 
     // The transaction itself still reports success…
     await waitFor(() => {
@@ -377,7 +377,7 @@ describe("TransactionDialog — attachment upload (EPIC-024 Task L3, US-TXN-9)",
     );
     expect(screen.queryByText(/virus\.exe/)).not.toBeInTheDocument();
     expect(
-      screen.getByText("Pilih file (JPG, PNG, WEBP, atau PDF, maks 5MB)"),
+      screen.getByText("Unggah foto struk atau PDF — maks 5 MB"),
     ).toBeInTheDocument();
   });
 

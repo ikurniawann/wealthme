@@ -66,6 +66,7 @@ export function CashflowChart({
       <div role="img" aria-label={ariaLabel ?? "Grafik arus kas"}>
         <ApexChart
           type="bar"
+          width="100%"
           height={height}
           options={options}
           series={series}
@@ -100,6 +101,7 @@ export function TrendChart({
       <div role="img" aria-label={ariaLabel ?? "Grafik tren"}>
         <ApexChart
           type="area"
+          width="100%"
           height={height}
           options={built.options}
           series={built.series}
@@ -121,7 +123,7 @@ type DonutChartProps = {
 export function DonutChart({
   segments,
   centerLabel = "Total",
-  height = 268,
+  height = 232,
   ariaLabel,
 }: DonutChartProps) {
   const rebuildToken = useThemeRebuildToken();
@@ -135,6 +137,7 @@ export function DonutChart({
       <div role="img" aria-label={ariaLabel ?? "Grafik donat"}>
         <ApexChart
           type="donut"
+          width="100%"
           height={height}
           options={options}
           series={series}
@@ -169,6 +172,7 @@ export function SparklineChart({
       <div role="img" aria-label={ariaLabel ?? "Sparkline"}>
         <ApexChart
           type="area"
+          width="100%"
           height={height}
           options={options}
           series={series}
@@ -182,6 +186,8 @@ type HBarChartProps = {
   categories: string[];
   data: number[];
   color?: string;
+  height?: number;
+  showXAxisLabels?: boolean;
   ariaLabel?: string;
 };
 
@@ -190,21 +196,24 @@ export function HBarChart({
   categories,
   data,
   color,
+  height,
+  showXAxisLabels,
   ariaLabel,
 }: HBarChartProps) {
   const rebuildToken = useThemeRebuildToken();
+  const chartHeight = height ?? Math.max(190, categories.length * 38 + 34);
   const built = useMemo(
-    () => buildHBarOptions(categories, data, color),
+    () => buildHBarOptions(categories, data, color, height, { showXAxisLabels }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuildToken forces a recompute on theme flip; the builder re-reads cssVar() internally rather than referencing it directly.
-    [categories, data, color, rebuildToken],
+    [categories, data, color, height, showXAxisLabels, rebuildToken],
   );
-  const height = Math.max(180, categories.length * 38);
   return (
     <ChartErrorBoundary label="Grafik batang">
       <div role="img" aria-label={ariaLabel ?? "Grafik batang"}>
         <ApexChart
           type="bar"
-          height={height}
+          width="100%"
+          height={chartHeight}
           options={built.options}
           series={built.series}
         />
@@ -238,6 +247,7 @@ export function RadialChart({
       <div role="img" aria-label={ariaLabel ?? "Grafik radial"}>
         <ApexChart
           type="radialBar"
+          width="100%"
           height={height}
           options={built.options}
           series={built.series}

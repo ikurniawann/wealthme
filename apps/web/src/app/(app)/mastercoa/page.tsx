@@ -555,14 +555,19 @@ export default function MasterCoaPage() {
                 groupedRows.map((group) => (
                   <Fragment key={group.groupNum}>
                     <tr className="bg-secondary">
-                      <td className="py-2 font-mono text-[12px] font-bold">
-                        {group.groupNum}
-                      </td>
-                      <td colSpan={5} className="py-2 text-[12.5px] font-bold">
-                        {t.mastercoa.groupHeaderLabels[group.groupNum]}
-                        {" · "}
-                        {group.items.length}
-                        {t.mastercoa.accountsCountSuffix}
+                      <td colSpan={6} className="px-3 py-2">
+                        <div className="flex items-center gap-2 text-[12.5px] font-semibold">
+                          <span className="mono inline-flex h-5 min-w-5 items-center justify-center rounded bg-card px-1.5 text-[11px] text-muted-foreground">
+                            {group.groupNum}
+                          </span>
+                          <span>
+                            {t.mastercoa.groupHeaderLabels[group.groupNum]}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {group.items.length}
+                            {t.mastercoa.accountsCountSuffix}
+                          </span>
+                        </div>
                       </td>
                     </tr>
                     {group.items.map((a) => (

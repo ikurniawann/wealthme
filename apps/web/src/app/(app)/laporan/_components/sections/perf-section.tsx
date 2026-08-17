@@ -33,11 +33,11 @@ export function PerfSection({
             section does not fetch — the radial gauges the savings rate,
             the same indicator the first row below tracks. */}
         {savingsRate !== null && (
-          <div className="mb-3.5">
+          <div className="mb-3.5 mx-auto max-w-[260px]">
             <RadialChart
               value={Math.max(0, Math.min(100, savingsRate))}
               label={t.laporan.savingsRateLabel}
-              height={200}
+              height={180}
               ariaLabel={`${t.laporan.performa.savingsRateTargetLabel}: ${savingsRate}%`}
             />
           </div>

@@ -357,19 +357,21 @@ export function useLaporanReportQueries({
     staleTime: 60_000,
   });
 
+  const activeCoaAccountId = coaAccountId || coaAccounts[0]?.id || "";
+
   const { data: coaMatrix, isLoading: isCoaMatrixLoading } =
     useQuery<CoaMatrixDto>({
       queryKey: queryKeys.reports.coaMatrix(
         familyGroupId,
-        coaAccountId,
+        activeCoaAccountId,
         coaYear,
       ),
       queryFn: () =>
         apiFetch<CoaMatrixDto>(
-          `/family-groups/${familyGroupId}/reports/coa-matrix?coaAccountId=${coaAccountId}&year=${coaYear}`,
+          `/family-groups/${familyGroupId}/reports/coa-matrix?coaAccountId=${activeCoaAccountId}&year=${coaYear}`,
           { token },
         ),
-      enabled: enabled && tab === "rcoa" && Boolean(coaAccountId),
+      enabled: enabled && tab === "rcoa" && Boolean(activeCoaAccountId),
       staleTime: 60_000,
     });
 
@@ -410,7 +412,7 @@ export function useLaporanReportQueries({
     isAnnualLoading,
     pph21,
     isPph21Loading,
-    coaAccountId,
+    coaAccountId: activeCoaAccountId,
     setCoaAccountId,
     coaYear,
     setCoaYear,

@@ -281,6 +281,10 @@ export default function DonationPage() {
   const titheBase = parseRupiah(titheIncome) + parseRupiah(titheOther);
   const tithe = titheBase * (titheRateNum / 100);
   const canPayPerpuluhanNow = tithe > 0;
+  const showPerpuluhanPrototypeCalculator =
+    !isReligionLoading &&
+    !isReligionError &&
+    (religion === "kristen" || religion === null);
 
   // Donation modal state
   const [open, setOpen] = useState(false);
@@ -600,7 +604,7 @@ export default function DonationPage() {
           Perpuluhan"): its own arithmetic (income + other income) × an
           adjustable rate, not zakat relabelled (US-DON-6). Pure client-side
           math — no backend round-trip needed for a percentage calculation. */}
-      {!isReligionLoading && !isReligionError && religion === "kristen" && (
+      {showPerpuluhanPrototypeCalculator && (
         <SectionCard
           title={t.donation.perpuluhanCalculatorTitle}
           action={
@@ -623,7 +627,7 @@ export default function DonationPage() {
               value={titheOther}
               onChange={setTitheOther}
             />
-            <div>
+            <div className="md:col-span-2">
               <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
                 {t.donation.fieldRateLabel}
               </label>

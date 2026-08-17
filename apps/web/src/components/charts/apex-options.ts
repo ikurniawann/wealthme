@@ -83,7 +83,7 @@ export function buildTrendOptions(
 export function buildDonutOptions(
   segments: DonutSegment[],
   centerLabel = "Total",
-  height = 268,
+  height = 232,
 ): ChartBuild {
   const labels = segments.map((s) => s.label);
   const series = segments.map((s) => s.value);
@@ -99,10 +99,14 @@ export function buildDonutOptions(
           size: "72%",
           labels: {
             show: true,
-            name: { fontSize: "12px", fontWeight: 600 },
+            name: {
+              fontSize: "12px",
+              fontWeight: 500,
+              color: cssVar("--muted-foreground"),
+            },
             value: {
               fontSize: "18px",
-              fontWeight: 800,
+              fontWeight: 650,
               color: cssVar("--foreground"),
               formatter: (v: string) => formatRupiahCompact(Number(v)),
             },
@@ -110,7 +114,7 @@ export function buildDonutOptions(
               show: true,
               label: centerLabel,
               fontSize: "12px",
-              fontWeight: 600,
+              fontWeight: 500,
               color: cssVar("--muted-foreground"),
               formatter: (w: { globals: { seriesTotals: number[] } }) =>
                 formatRupiahCompact(
@@ -143,17 +147,29 @@ export function buildSparklineOptions(
 }
 
 /** HBarChart — horizontal bars for category breakdowns. Ports `hbar()`. */
+export type HBarOptionsConfig = {
+  showXAxisLabels?: boolean;
+};
+
+function compactCategoryLabel(value: unknown): string {
+  const label = String(value);
+  return label.length > 22 ? `${label.slice(0, 19)}...` : label;
+}
+
 export function buildHBarOptions(
   categories: string[],
   data: number[],
   color?: string,
+  chartHeight?: number,
+  config: HBarOptionsConfig = {},
 ): ChartBuild {
-  const height = Math.max(180, categories.length * 38);
+  const height = chartHeight ?? Math.max(190, categories.length * 38 + 34);
+  const showXAxisLabels = config.showXAxisLabels ?? false;
   const options = mergeChartOptions(baseChartOptions(), {
-    chart: { type: "bar", height },
+    chart: { type: "bar", height, parentHeightOffset: 0 },
     colors: [color ?? cssVar("--chart-1")],
     plotOptions: {
-      bar: { horizontal: true, borderRadius: 5, barHeight: "58%" },
+      bar: { horizontal: true, borderRadius: 5, barHeight: "56%" },
     },
     // A horizontal Apex bar puts the numeric scale on x and category names
     // on y — the base yaxis formatter is currency, which would format
@@ -161,7 +177,8 @@ export function buildHBarOptions(
     xaxis: {
       categories,
       labels: {
-        style: { fontSize: "11.5px", fontWeight: 600 },
+        show: showXAxisLabels,
+        style: { fontSize: "11.5px", fontWeight: 500 },
         formatter: (v: number) => formatRupiahCompact(Number(v)),
       },
     },
@@ -171,14 +188,18 @@ export function buildHBarOptions(
       // widened (unknown) parameter type — Apex calls this with a string at
       // runtime despite the library's own numeric-only type signature.
       labels: {
-        formatter: (value: unknown) => String(value),
-        style: { fontSize: "11.5px", fontWeight: 600 },
+        formatter: compactCategoryLabel,
+        minWidth: 130,
+        maxWidth: 150,
+        style: { fontSize: "11.5px", fontWeight: 500 },
       },
     },
     grid: {
-      xaxis: { lines: { show: true } },
+      xaxis: { lines: { show: showXAxisLabels } },
       yaxis: { lines: { show: false } },
+      padding: { left: 0, right: 10, top: 0, bottom: showXAxisLabels ? 6 : -6 },
     },
+    tooltip: { y: { formatter: (v: number) => formatRupiah(v) } },
   });
   return { options, series: [{ name: "Jumlah", data }] };
 }

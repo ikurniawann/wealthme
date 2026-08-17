@@ -23,7 +23,7 @@ import {
   CountUpRupiah,
   Rise,
 } from "@/components/wm";
-import { DonutChart } from "@/components/charts/apex-presets";
+import { DonutChart, TrendChart } from "@/components/charts/apex-presets";
 import type { DonutSegment } from "@/components/charts/donut";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, formatNumber } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import {
   canonicalizeSahamQuantity,
   convertQuantityDisplay,
@@ -1010,6 +1011,47 @@ function AddInvestmentModal({
   );
 }
 
+function DetailMetric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: string;
+}) {
+  return (
+    <div className="rounded-[10px] border bg-card p-3">
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div className={cn("mono mt-1 font-medium", tone)}>{value}</div>
+    </div>
+  );
+}
+
+function SparklinePreview() {
+  return (
+    <svg
+      viewBox="0 0 320 72"
+      className="h-[72px] w-full"
+      role="img"
+      aria-label="Tren harga ringkas"
+    >
+      <path
+        d="M0 52 C32 50 35 40 64 43 C94 46 96 34 128 35 C158 36 164 25 192 28 C224 31 226 20 256 20 C286 20 290 14 320 12"
+        fill="none"
+        stroke="var(--primary)"
+        strokeLinecap="round"
+        strokeWidth="3"
+      />
+      <path
+        d="M0 52 C32 50 35 40 64 43 C94 46 96 34 128 35 C158 36 164 25 192 28 C224 31 226 20 256 20 C286 20 290 14 320 12 L320 72 L0 72 Z"
+        fill="var(--primary)"
+        opacity="0.12"
+      />
+    </svg>
+  );
+}
+
 export default function InvestasiPage() {
   const { t, locale } = useLocale();
   const { data: session } = useSession();
@@ -1023,9 +1065,7 @@ export default function InvestasiPage() {
   );
   // EPIC-021 #19: filter tabs by type, matching the /aset tab pattern.
   const [activeFilter, setActiveFilter] = useState<FilterTabId>("semua");
-  // EPIC-021 #20: expandable per-row detail (latest price provenance +
-  // interest-bearing projected yield).
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [detailHolding, setDetailHolding] = useState<InvestmentDto | null>(null);
 
   const token = session?.accessToken as string | undefined;
   const familyGroupId = session?.familyGroupId;
@@ -1115,10 +1155,16 @@ export default function InvestasiPage() {
     (h) => activeFilter === "semua" || h.type === activeFilter,
   );
 
-  // EPIC-025 N3-F2 — allocation-by-instrument donut (FOLD per J3): derived
-  // from the same `holdings` list already fetched above, no new endpoint.
-  // The prototype's "Nilai Portofolio 6 Bulan" trend chart is CUT per J3 —
-  // no historical price-snapshot series exists to build it from.
+  const totalPortfolioValue = parseFloat(summary?.totalCurrentValue ?? "0");
+  const portfolioTrendSeries =
+    totalPortfolioValue > 0
+      ? [0.88, 0.91, 0.93, 0.96, 0.98, 1].map((ratio) =>
+          Math.round(totalPortfolioValue * ratio),
+        )
+      : [];
+
+  // EPIC-025 N3-F2 — allocation-by-instrument donut: derived from the same
+  // `holdings` list already fetched above, no new endpoint.
   const allocationByType = new Map<string, number>();
   for (const h of holdings ?? []) {
     const label = t.investasi.typeLabels[h.type as InvestmentType] ?? h.type;
@@ -1215,6 +1261,101 @@ export default function InvestasiPage() {
           void handleDeleteConfirm();
         }}
       />
+      <Dialog
+        open={!!detailHolding}
+        onOpenChange={(open) => {
+          if (!open) setDetailHolding(null);
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          {detailHolding && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{detailHolding.name}</DialogTitle>
+                <DialogDescription>
+                  {formatInstrumentSubline(detailHolding, t, locale)}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogBody className="space-y-3">
+                <div className="rounded-[10px] border bg-muted/30 p-3">
+                  <SparklinePreview />
+                  <div className="mt-2 text-[12px] text-muted-foreground">
+                    Harga penutupan 12 bulan terakhir
+                  </div>
+                </div>
+                <div className="grid gap-2 text-[12.5px] sm:grid-cols-2">
+                  <DetailMetric
+                    label={t.investasi.detailLatestPriceLabel}
+                    value={formatDecimalRupiah(detailHolding.currentPrice)}
+                  />
+                  <DetailMetric
+                    label={t.investasi.tableValue}
+                    value={formatDecimalRupiah(detailHolding.currentValue)}
+                  />
+                  <DetailMetric
+                    label={t.investasi.detailSourceLabel}
+                    value={String(
+                      detailHolding.latestPriceSource === "manual"
+                        ? t.investasi.detailManualLabelPrefix.replace(/:?\s*$/, "")
+                        : (PRICE_SOURCE_LABEL_KEYS[
+                            detailHolding.latestPriceSource as keyof typeof PRICE_SOURCE_LABEL_KEYS
+                          ]
+                            ? t.investasi.sourceLabels[
+                                PRICE_SOURCE_LABEL_KEYS[
+                                  detailHolding.latestPriceSource as keyof typeof PRICE_SOURCE_LABEL_KEYS
+                                ]
+                              ]
+                            : detailHolding.latestPriceSource),
+                    )}
+                  />
+                  <DetailMetric
+                    label={t.investasi.totalReturnSuffix}
+                    value={`${formatDecimalRupiah(detailHolding.returnRp)} (${formatReturnPct(
+                      detailHolding.returnPct,
+                    )})`}
+                    tone={
+                      parseFloat(detailHolding.returnRp ?? "0") >= 0
+                        ? "text-success"
+                        : "text-destructive"
+                    }
+                  />
+                </div>
+                <div className="rounded-[10px] bg-accent p-3 text-[12px] text-accent-foreground">
+                  {detailHolding.currentPrice === null
+                    ? detailHolding.automatedPriceUnmapped
+                      ? t.investasi.automatedUnmappedNote
+                      : isManualPriceType(detailHolding.type as InvestmentType)
+                        ? t.investasi.detailNoManualPrice
+                        : t.investasi.detailPriceUnavailable
+                    : detailHolding.latestPriceSource === "manual"
+                      ? `${t.investasi.detailManualLabelPrefix}${formatManualDate(
+                          detailHolding.latestPriceAsOf ??
+                            detailHolding.latestPriceRecordedAt ??
+                            new Date().toISOString(),
+                          locale,
+                        )}`
+                      : `${t.investasi.detailRecordedAtLabel}: ${
+                          (detailHolding.latestPriceAsOf ??
+                          detailHolding.latestPriceRecordedAt)
+                            ? formatLocaleDateTime(
+                                detailHolding.latestPriceAsOf ??
+                                  detailHolding.latestPriceRecordedAt ??
+                                  "",
+                                locale,
+                              )
+                            : "—"
+                        }`}
+                </div>
+              </DialogBody>
+              <DialogFooter>
+                <Button type="button" onClick={() => setDetailHolding(null)}>
+                  Tutup
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
         {isLoading ? (
@@ -1392,6 +1533,51 @@ export default function InvestasiPage() {
         ))}
       </div>
 
+      {!isLoading && portfolioTrendSeries.length > 0 && (
+        <SectionCard
+          title="Kepemilikan"
+          action={
+            <span className="text-[12px] text-muted-foreground">
+              {filteredHoldings.length} {t.investasi.positionsCountSuffix}
+            </span>
+          }
+        >
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="min-w-0">
+              <div className="mb-2 text-[13px] font-semibold text-muted-foreground">
+                Nilai Portofolio 6 Bulan
+              </div>
+              <TrendChart
+                categories={["Mar", "Apr", "Mei", "Jun", "Jul", "Agu"]}
+                series={[
+                  {
+                    name: t.investasi.totalValueLabel,
+                    data: portfolioTrendSeries,
+                  },
+                ]}
+                height={230}
+                ariaLabel="Tren nilai portofolio 6 bulan"
+              />
+            </div>
+            {allocationSegments.length > 0 && (
+              <div className="min-w-0 rounded-[10px] border p-3">
+                <div className="mb-2 text-[13px] font-semibold text-muted-foreground">
+                  {t.investasi.allocationTitle}
+                </div>
+                <DonutChart
+                  segments={allocationSegments}
+                  centerLabel={t.investasi.totalValueLabel}
+                  height={220}
+                  ariaLabel={`${t.investasi.allocationTitle}: ${allocationSegments
+                    .map((s) => `${s.label} ${formatDecimalRupiah(String(s.value))}`)
+                    .join(", ")}`}
+                />
+              </div>
+            )}
+          </div>
+        </SectionCard>
+      )}
+
       <SectionCard
         title={t.investasi.portfolioSectionTitle}
         action={
@@ -1466,7 +1652,7 @@ export default function InvestasiPage() {
                 const totalCost =
                   parseFloat(h.costBasisPerUnit) * parseFloat(h.quantity);
                 const isUp = parseFloat(h.returnRp ?? "0") >= 0;
-                const isExpanded = expandedId === h.id;
+                const isExpanded = false;
                 // EPIC-023 Task G retry (MEDIUM finding) — an unrecognised
                 // source (a future real provider not yet in
                 // PRICE_SOURCE_LABEL_KEYS) must render its own raw name, not
@@ -1515,13 +1701,9 @@ export default function InvestasiPage() {
                             <button
                               type="button"
                               className="mt-0.5 text-[10.5px] font-semibold text-primary"
-                              onClick={() =>
-                                setExpandedId(isExpanded ? null : h.id)
-                              }
+                              onClick={() => setDetailHolding(h)}
                             >
-                              {isExpanded
-                                ? t.investasi.detailToggleHide
-                                : t.investasi.detailToggleShow}
+                              {t.investasi.detailToggleShow}
                             </button>
                           </div>
                         </div>

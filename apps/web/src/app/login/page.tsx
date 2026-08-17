@@ -1,17 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, Info, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { SectionCard } from "@/components/wm";
-import { DeviceUnlockPad } from "@/components/auth/device-unlock-pad";
-import {
-  readAnyStoredDevice,
-  type StoredDevice,
-} from "@/components/auth/device-storage";
 
 // EPIC-026 Wave 7 — markup rebuilt from docs/prototype/pages/login.html
 // (token-based `.auth` layout: brand above a `.card`, `.input`/`.btn`/
@@ -64,23 +59,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // EPIC-023 D2 (US-FAM-13, D7) — "PIN thereafter, a new device needs the
-  // password again". `storedDevice` starts `undefined` (not yet checked, so
-  // the PIN pad never flashes before the check runs) and resolves to either
-  // a `StoredDevice` (show the pad) or `null` (no binding on this browser —
-  // show the normal password form, unchanged default behavior).
-  const [storedDevice, setStoredDevice] = useState<
-    StoredDevice | null | undefined
-  >(undefined);
-
-  // localStorage is only reachable client-side (SSR has no window), so this
-  // genuinely needs a mount-time effect, not a derivable render value —
-  // matches the codebase's existing mount-detection pattern (see
-  // components/shell/theme-toggle.tsx).
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setStoredDevice(readAnyStoredDevice());
-  }, []);
+  // PIN unlock is temporarily disabled until the device-unlock flow is stable.
+  // The normal email/username password login remains the only active path.
 
   const doLogin = async () => {
     setError("");
@@ -141,33 +121,6 @@ export default function LoginPage() {
       callbackURL: "/beranda",
     });
   };
-
-  // EPIC-023 D2 (US-FAM-13, D7) — a device with a stored deviceSecret gets
-  // the PIN pad instead of the password form. "Use password instead" always
-  // falls through to the normal form below (never trapped on the pad).
-  // (The pad's own internals live in the shared
-  // components/auth/device-unlock-pad.tsx, which is not page-local and
-  // contains auth logic — out of this wave's scope.)
-  if (storedDevice) {
-    return (
-      <div className="grid min-h-screen place-items-center bg-background px-4 py-6">
-        <div className="w-full max-w-[420px]">
-          <AuthBrand />
-          <DeviceUnlockPad
-            device={storedDevice}
-            onUnlocked={() => {
-              // Hard navigation — same reasoning as doUsernameLogin above:
-              // the session cookie was just set server-side by the route
-              // handler, so the app's session store needs a fresh load to
-              // pick it up.
-              window.location.href = "/beranda";
-            }}
-            onUsePassword={() => setStoredDevice(null)}
-          />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="grid min-h-screen place-items-center bg-background px-4 py-6">

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, LogOut, Search } from "lucide-react";
+import { Bell, LogOut, Plus, Search } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery } from "@tanstack/react-query";
 import { isPageTitleId } from "@/lib/nav";
@@ -32,7 +32,7 @@ function usePageTitle(t: I18nDictionary): string {
 export function Topbar() {
   const { t } = useLocale();
   const title = usePageTitle(t);
-  const { setSearchOpen } = useShell();
+  const { setSearchOpen, setTxnOpen } = useShell();
   const { logout } = useAuth();
   const router = useRouter();
   const { data: session } = useSession();
@@ -71,6 +71,15 @@ export function Topbar() {
         <Search className="size-[15px] shrink-0" aria-hidden="true" />
         <span>{t.shell.searchPlaceholder}</span>
         <span className="kbd">⌘K</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => setTxnOpen(true)}
+        className="btn btn--primary btn--sm topbar__txn"
+        aria-label={t.shell.addTransaction}
+      >
+        <Plus className="size-[15px] shrink-0" aria-hidden="true" />
+        <span>{t.shell.addTransaction}</span>
       </button>
       <ThemeToggle />
       <Link

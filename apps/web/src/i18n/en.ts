@@ -141,6 +141,7 @@ export const en = {
       quickinput: "Quick Input",
       mastercoa: "Master COA",
       masterdata: "Master Data Setup",
+      iam: "IAM Roles",
       panduan: "Feature Guide",
     },
     reportTabs: {
@@ -189,6 +190,8 @@ export const en = {
       quickinput: "Quick Input",
       mastercoa: "Master COA",
       masterdata: "Master Data Setup",
+      iam: "IAM Roles",
+      "akses-saya": "My Access",
       panduan: "Feature Guide",
     },
     mobileNav: {

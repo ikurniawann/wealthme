@@ -284,7 +284,7 @@ export function RingkasanSection({
           </div>
         </SectionCard>
         <SectionCard title={t.laporan.ringkasan.expenseAllocTitle}>
-          <div className="flex flex-wrap items-center gap-3.5">
+          <div className="grid items-center gap-4 md:grid-cols-[220px_minmax(0,1fr)]">
             {expenseDonut.length > 0 ? (
               <>
                 {/* EPIC-025 N3-G2 — Donut → DonutChart (Apex). Same segments
@@ -295,10 +295,10 @@ export function RingkasanSection({
                 <DonutChart
                   segments={expenseDonutAmounts}
                   centerLabel={t.common.total}
-                  height={220}
+                  height={190}
                   ariaLabel={expenseDonutAriaLabel}
                 />
-                <div className="min-w-[120px] flex-1 space-y-1.5">
+                <div className="space-y-2">
                   {expenseDonut.map((seg) => (
                     <div
                       key={seg.label}
@@ -308,10 +308,10 @@ export function RingkasanSection({
                         className="size-2 shrink-0 rounded-full"
                         style={{ background: seg.color }}
                       />
-                      <span className="flex-1 text-muted-foreground">
+                      <span className="min-w-0 flex-1 truncate text-muted-foreground">
                         {seg.label}
                       </span>
-                      <span className="font-bold">{seg.value}%</span>
+                      <span className="mono font-medium">{seg.value}%</span>
                     </div>
                   ))}
                 </div>
@@ -390,7 +390,7 @@ export function RingkasanSection({
       </SectionCard>
 
       <SectionCard title={t.laporan.ringkasan.wealthAllocTitle}>
-        <div className="flex flex-wrap items-center gap-3.5">
+        <div className="grid items-center gap-4 md:grid-cols-[220px_minmax(0,1fr)]">
           {wealthAlloc.length > 0 ? (
             <>
               {/* EPIC-025 N3-G2 — Donut → DonutChart (Apex). Same segments
@@ -401,10 +401,10 @@ export function RingkasanSection({
               <DonutChart
                 segments={wealthAllocAmounts}
                 centerLabel={t.common.total}
-                height={220}
+                height={190}
                 ariaLabel={wealthAllocAriaLabel}
               />
-              <div className="min-w-[120px] flex-1 space-y-1.5">
+              <div className="space-y-2">
                 {wealthAlloc.map((seg) => (
                   <div
                     key={seg.label}
@@ -414,10 +414,10 @@ export function RingkasanSection({
                       className="size-2 shrink-0 rounded-full"
                       style={{ background: seg.color }}
                     />
-                    <span className="flex-1 text-muted-foreground">
+                    <span className="min-w-0 flex-1 truncate text-muted-foreground">
                       {seg.label}
                     </span>
-                    <span className="font-bold">{seg.value}%</span>
+                    <span className="mono font-medium">{seg.value}%</span>
                   </div>
                 ))}
               </div>

@@ -10,6 +10,7 @@ import { DonutChart } from "@/components/charts/apex-presets";
 import type { DonutSegment } from "@/components/charts/donut";
 import { CardLink, SectionCard } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
+import { formatRupiah, formatRupiahCompact } from "@/lib/format";
 import type { AllocationItem } from "./use-beranda-data";
 
 /**
@@ -47,12 +48,24 @@ export function AllocationCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuildToken forces a re-read of the CSS chart tokens on a theme flip.
   }, [allocation, rebuildToken]);
 
+  const total = allocation.reduce((sum, item) => sum + item.amount, 0);
+
   const donutAriaLabel =
     allocation.length > 0
       ? `${t.beranda.wealthBreakdown}: ${allocation
-          .map((a) => `${a.label} ${a.percent}%`)
+          .map((a) => {
+            const percent =
+              total > 0 ? Math.round((a.amount / total) * 1000) / 10 : 0;
+            return `${a.label} ${percent}%`;
+          })
           .join(", ")}`
       : t.beranda.wealthBreakdown;
+
+  const breakdown = allocation.map((item, i) => ({
+    ...item,
+    color: segments[i]?.color ?? item.apiColor,
+    percent: total > 0 ? Math.round((item.amount / total) * 1000) / 10 : 0,
+  }));
 
   return (
     <SectionCard
@@ -71,15 +84,53 @@ export function AllocationCard({
           {isLoading ? t.common.loading : t.common.noData}
         </div>
       ) : (
-        // Prototype parity (beranda.html:255-260): `WMCharts.donut()` passes
-        // "Kekayaan" as the center label and renders no itemized legend list.
-        <div className="chart">
-          <DonutChart
-            segments={segments}
-            centerLabel={t.beranda.donutCenterLabel}
-            height={220}
-            ariaLabel={donutAriaLabel}
-          />
+        <div className="allocation-card__body">
+          <div className="allocation-card__donut">
+            <DonutChart
+              segments={segments}
+              centerLabel={t.beranda.donutCenterLabel}
+              height={188}
+              ariaLabel={donutAriaLabel}
+            />
+          </div>
+          <div
+            className="allocation-card__list"
+            aria-label={t.beranda.wealthBreakdown}
+          >
+            {breakdown.map((item) => (
+              <div className="allocation-row" key={item.label}>
+                <div className="allocation-row__top">
+                  <span className="allocation-row__label">
+                    <span
+                      className="allocation-row__dot"
+                      style={{ backgroundColor: item.color }}
+                      aria-hidden="true"
+                    />
+                    {item.label}
+                  </span>
+                  <span
+                    className="allocation-row__value"
+                    title={formatRupiah(item.amount)}
+                  >
+                    {formatRupiahCompact(item.amount)}
+                  </span>
+                </div>
+                <div className="allocation-row__meta">
+                  <span>{item.percent}%</span>
+                  <span>{formatRupiah(item.amount)}</span>
+                </div>
+                <span className="allocation-row__track" aria-hidden="true">
+                  <span
+                    className="allocation-row__bar"
+                    style={{
+                      width: `${Math.min(100, Math.max(0, item.percent))}%`,
+                      backgroundColor: item.color,
+                    }}
+                  />
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </SectionCard>

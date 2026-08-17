@@ -91,7 +91,7 @@ describe("buildDonutOptions", () => {
     expect(options.labels).toEqual(["Tabungan", "Investasi"]);
     expect(series).toEqual([60, 40]);
     expect(options.colors).toEqual(["#4f46e5", "#10b981"]);
-    expect(options.chart).toMatchObject({ type: "donut", height: 268 });
+    expect(options.chart).toMatchObject({ type: "donut", height: 232 });
   });
 
   it("applies a custom center label and height", () => {
@@ -129,15 +129,15 @@ describe("buildSparklineOptions", () => {
 });
 
 describe("buildHBarOptions", () => {
-  it("scales height by category count with a floor of 180", () => {
+  it("scales height by category count with a compact floor", () => {
     const short = buildHBarOptions(["A", "B"], [10, 20]);
-    expect(short.options.chart?.height).toBe(180);
+    expect(short.options.chart?.height).toBe(190);
 
     const long = buildHBarOptions(
       ["A", "B", "C", "D", "E", "F", "G", "H"],
       [1, 2, 3, 4, 5, 6, 7, 8],
     );
-    expect(long.options.chart?.height).toBe(8 * 38);
+    expect(long.options.chart?.height).toBe(8 * 38 + 34);
   });
 
   it("makes the bar horizontal and puts categories on the x axis", () => {
@@ -160,6 +160,42 @@ describe("buildHBarOptions", () => {
       | ((value: string) => string)
       | undefined;
     expect(asStringFormatter?.("Belanja Harian")).toBe("Belanja Harian");
+  });
+
+  it("reserves label width so long category names do not overlap bars", () => {
+    const { options } = buildHBarOptions(["Tabungan & Investasi"], [500]);
+    const yaxis = options.yaxis && !Array.isArray(options.yaxis)
+      ? options.yaxis
+      : undefined;
+    expect(yaxis?.labels).toMatchObject({ minWidth: 130, maxWidth: 150 });
+  });
+
+  it("hides the numeric x-axis by default for compact cards", () => {
+    const { options } = buildHBarOptions(["Belanja"], [500]);
+    expect(options.xaxis?.labels?.show).toBe(false);
+    expect(options.grid?.xaxis?.lines?.show).toBe(false);
+  });
+
+  it("can show the numeric x-axis for expanded charts", () => {
+    const { options } = buildHBarOptions(["Belanja"], [500], undefined, undefined, {
+      showXAxisLabels: true,
+    });
+    expect(options.xaxis?.labels?.show).toBe(true);
+    expect(options.grid?.xaxis?.lines?.show).toBe(true);
+  });
+
+  it("truncates long category labels before they reach the bars", () => {
+    const { options } = buildHBarOptions(["Tabungan & Investasi"], [500]);
+    const yaxis = options.yaxis && !Array.isArray(options.yaxis)
+      ? options.yaxis
+      : undefined;
+    const formatter = yaxis?.labels?.formatter as unknown as
+      | ((value: string) => string)
+      | undefined;
+    expect(formatter?.("Tabungan & Investasi")).toBe("Tabungan & Investasi");
+    expect(formatter?.("Tabungan & Investasi Jangka Panjang")).toBe(
+      "Tabungan & Investas...",
+    );
   });
 });
 

@@ -887,21 +887,21 @@ export default function RekeningPage() {
           N3-D3 adds "Bersama" per the prototype's 3-tab filter). Restyled
           (N3 audit) to the epic's translation-table mapping for `.tabs`/
           `.tab` — role="tablist"/"tab" + aria-selected, same logic. Only
-          meaningful once at least one account has an owner; harmless (no-op
-          filter) otherwise. */}
-      {!isLoading && scopedAccounts.some((a) => a.ownerUserId) && (
-        <div className="flex flex-wrap items-center gap-2">
+          meaningful once at least one account has an owner; still rendered
+          on shared-only demo data so the page matches the prototype controls. */}
+      {!isLoading && (
+        <div className="flex min-w-0 items-center gap-2">
           <div
             role="tablist"
             aria-label={t.rekening.filterGroupLabel}
-            className="flex flex-wrap gap-1.5"
+            className="hide-scrollbar flex min-w-0 flex-1 gap-1.5 overflow-x-auto"
           >
             <button
               type="button"
               role="tab"
               aria-selected={ownerFilter === "all"}
               onClick={() => setOwnerFilter("all")}
-              className={`rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
                 ownerFilter === "all"
                   ? "border-primary bg-primary text-primary-foreground"
                   : "bg-card text-muted-foreground hover:border-primary/50"
@@ -914,7 +914,7 @@ export default function RekeningPage() {
               role="tab"
               aria-selected={ownerFilter === "mine"}
               onClick={() => setOwnerFilter("mine")}
-              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+              className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
                 ownerFilter === "mine"
                   ? "border-primary bg-primary text-primary-foreground"
                   : "bg-card text-muted-foreground hover:border-primary/50"
@@ -927,7 +927,7 @@ export default function RekeningPage() {
               role="tab"
               aria-selected={ownerFilter === "shared"}
               onClick={() => setOwnerFilter("shared")}
-              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+              className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
                 ownerFilter === "shared"
                   ? "border-primary bg-primary text-primary-foreground"
                   : "bg-card text-muted-foreground hover:border-primary/50"
@@ -936,7 +936,7 @@ export default function RekeningPage() {
               <Users className="size-3" /> {t.rekening.filterSharedLabel}
             </button>
           </div>
-          <span className="ml-auto text-[11.5px] text-muted-foreground">
+          <span className="hidden shrink-0 text-[11.5px] text-muted-foreground md:inline">
             {t.rekening.filterNoteText}
           </span>
         </div>

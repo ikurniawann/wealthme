@@ -3,7 +3,7 @@
 // EPIC-026 — prototype `ringkasan.html` block 5b: the "Top Pengeluaran" card,
 // whose `#c-topexp` mount is an hbar chart (`WMCharts.hbar(..., cssVar(
 // "--destructive"))`) with a "Laporan" card link — not a hand-rolled list.
-// The chart's own height is `max(180, n * 38)` inside `HBarChart`, matching
+// The chart's own height is managed inside `HBarChart`, matching
 // the prototype preset.
 
 import { useRouter } from "next/navigation";
@@ -49,6 +49,7 @@ export function TopExpensesCard({ data }: { data: RingkasanData }) {
               categories={topExpenseCategories}
               data={topExpenseData}
               color="var(--destructive)"
+              showXAxisLabels={false}
               ariaLabel={topExpenseAriaLabel}
             />
           </div>

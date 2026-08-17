@@ -3,6 +3,7 @@
 import {
   useState,
   useEffect,
+  useRef,
   Suspense,
   type ChangeEvent,
   type KeyboardEvent,
@@ -11,15 +12,15 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
-  ChevronDown,
+  CalendarRange,
   ArrowDownLeft,
   CreditCard,
   ArrowLeftRight,
   FileText,
   Filter,
   Image as ImageIcon,
+  ImagePlus,
   Lock,
-  Paperclip,
   Pencil,
   Scale,
   Sparkles,
@@ -202,6 +203,281 @@ function formatMonthYear(dateStr: string, locale: Locale): string {
     month: "long",
     year: "numeric",
   });
+}
+
+function formatDateRangeLabel(from: string, to: string, locale: Locale): string {
+  if (!from && !to) return locale === "en" ? "All dates" : "Semua tanggal";
+
+  if (!from) {
+    return `${locale === "en" ? "Until" : "Sampai"} ${formatFullDate(to, locale)}`;
+  }
+
+  if (!to) {
+    return `${locale === "en" ? "From" : "Mulai"} ${formatFullDate(from, locale)}`;
+  }
+
+  const [fromYear, fromMonth, fromDay] = from.split("-");
+  const [toYear, toMonth, toDay] = to.split("-");
+  const sameMonth = fromYear === toYear && fromMonth === toMonth;
+
+  if (sameMonth) {
+    const monthYear = formatMonthYear(from, locale);
+    return `${Number(fromDay)} – ${Number(toDay)} ${monthYear}`;
+  }
+
+  return `${formatFullDate(from, locale)} – ${formatFullDate(to, locale)}`;
+}
+
+function parseDateParts(value: string): { year: number; month: number; day: number } {
+  const [year, month, day] = value.split("-").map(Number);
+  return { year, month: month - 1, day };
+}
+
+function toDateIso(year: number, month: number, day: number): string {
+  return [
+    String(year).padStart(4, "0"),
+    String(month + 1).padStart(2, "0"),
+    String(day).padStart(2, "0"),
+  ].join("-");
+}
+
+function getDaysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+function getMonthTitle(year: number, month: number, locale: Locale): string {
+  return new Date(year, month, 1).toLocaleDateString(
+    locale === "en" ? "en-US" : "id-ID",
+    { month: "long", year: "numeric" },
+  );
+}
+
+function getDayLabels(locale: Locale): string[] {
+  return locale === "en"
+    ? ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
+    : ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+}
+
+function DateRangeFilterField({
+  from,
+  to,
+  locale,
+  label,
+  cancelLabel,
+  applyLabel,
+  onApply,
+}: {
+  from: string;
+  to: string;
+  locale: Locale;
+  label: string;
+  cancelLabel: string;
+  applyLabel: string;
+  onApply: (from: string, to: string) => void;
+}) {
+  const today = new Date();
+  const initialView = parseDateParts(to || from || today.toISOString().slice(0, 10));
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState({ from, to });
+  const [awaitingEnd, setAwaitingEnd] = useState(false);
+  const [view, setView] = useState({
+    year: initialView.year,
+    month: initialView.month,
+  });
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
+  const openPicker = () => {
+    const nextView = parseDateParts(to || from || today.toISOString().slice(0, 10));
+    setDraft({ from, to });
+    setAwaitingEnd(false);
+    setView({ year: nextView.year, month: nextView.month });
+    setOpen((current) => !current);
+  };
+
+  const goToMonth = (offset: number) => {
+    setView((current) => {
+      const next = new Date(current.year, current.month + offset, 1);
+      return { year: next.getFullYear(), month: next.getMonth() };
+    });
+  };
+
+  const selectDay = (iso: string) => {
+    if (!awaitingEnd) {
+      setDraft({ from: iso, to: iso });
+      setAwaitingEnd(true);
+      return;
+    }
+
+    setDraft((current) =>
+      iso < current.from
+        ? { from: iso, to: current.from }
+        : { from: current.from, to: iso },
+    );
+    setAwaitingEnd(false);
+  };
+
+  const applyDraft = () => {
+    if (awaitingEnd || !draft.from || !draft.to) return;
+    onApply(draft.from, draft.to);
+    setOpen(false);
+  };
+
+  const cancelDraft = () => {
+    setDraft({ from, to });
+    setAwaitingEnd(false);
+    setOpen(false);
+  };
+
+  const cells: Array<{ key: string; day: number; iso?: string; muted?: boolean; trail?: boolean }> = [];
+  const firstWeekday = new Date(view.year, view.month, 1).getDay();
+  const daysThisMonth = getDaysInMonth(view.year, view.month);
+  const daysPrevMonth = getDaysInMonth(view.year, view.month - 1);
+
+  for (let index = firstWeekday - 1; index >= 0; index -= 1) {
+    const day = daysPrevMonth - index;
+    cells.push({ key: `prev-${day}`, day, muted: true });
+  }
+
+  for (let day = 1; day <= daysThisMonth; day += 1) {
+    cells.push({
+      key: `day-${day}`,
+      day,
+      iso: toDateIso(view.year, view.month, day),
+    });
+  }
+
+  while (cells.length % 7 !== 0) {
+    cells.push({ key: `trail-${cells.length}`, day: 0, muted: true, trail: true });
+  }
+
+  const rangeFrom = draft.from && draft.to && draft.from > draft.to ? draft.to : draft.from;
+  const rangeTo = draft.from && draft.to && draft.from > draft.to ? draft.from : draft.to;
+  const footerLabel =
+    awaitingEnd && draft.from
+      ? `${formatFullDate(draft.from, locale)} — ${locale === "en" ? "choose end date" : "pilih tanggal akhir"}`
+      : draft.from && draft.to
+        ? formatDateRangeLabel(rangeFrom, rangeTo, locale)
+        : locale === "en"
+          ? "Choose start date"
+          : "Pilih tanggal mulai";
+
+  return (
+    <div ref={rootRef} className="field date-range">
+      <span className="label">{label}</span>
+      <button
+        type="button"
+        className="date-range__trigger"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={openPicker}
+      >
+        <CalendarRange className="size-[15px] shrink-0" />
+        <span className="date-range__label">
+          {formatDateRangeLabel(from, to, locale)}
+        </span>
+      </button>
+      <div
+        className="date-range__pop"
+        data-open={open ? "true" : undefined}
+        role="dialog"
+        aria-label={label}
+      >
+        <div className="dr-head">
+          <button
+            type="button"
+            className="btn btn--ghost btn--icon btn--sm"
+            aria-label={locale === "en" ? "Previous month" : "Bulan sebelumnya"}
+            onClick={() => goToMonth(-1)}
+          >
+            ‹
+          </button>
+          <span className="t-sm t-bold">{getMonthTitle(view.year, view.month, locale)}</span>
+          <button
+            type="button"
+            className="btn btn--ghost btn--icon btn--sm"
+            aria-label={locale === "en" ? "Next month" : "Bulan berikutnya"}
+            onClick={() => goToMonth(1)}
+          >
+            ›
+          </button>
+        </div>
+        <div className="dr-grid dr-grid--head">
+          {getDayLabels(locale).map((day) => (
+            <span key={day}>{day}</span>
+          ))}
+        </div>
+        <div className="dr-grid">
+          {cells.map((cell) => {
+            if (cell.muted || !cell.iso) {
+              return (
+                <span key={cell.key} className="dr-day dr-day--muted">
+                  {cell.trail ? "" : cell.day}
+                </span>
+              );
+            }
+
+            const isEdge = cell.iso === rangeFrom || cell.iso === rangeTo;
+            const isInRange = !!rangeFrom && !!rangeTo && cell.iso > rangeFrom && cell.iso < rangeTo;
+
+            return (
+              <button
+                key={cell.key}
+                type="button"
+                className={[
+                  "dr-day",
+                  isEdge ? "dr-day--edge" : "",
+                  isInRange ? "dr-day--in-range" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                onClick={() => selectDay(cell.iso!)}
+              >
+                {cell.day}
+              </button>
+            );
+          })}
+        </div>
+        <div className="dr-foot">
+          <span className="t-xs t-muted mono">{footerLabel}</span>
+          <div className="row">
+            <button
+              type="button"
+              className="btn btn--outline btn--sm"
+              onClick={cancelDraft}
+            >
+              {cancelLabel}
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary btn--sm"
+              disabled={awaitingEnd || !draft.from || !draft.to}
+              onClick={applyDraft}
+            >
+              {applyLabel}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 const PAGE_SIZE = 10;
@@ -580,12 +856,22 @@ function InsightPill({
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function DetailRow({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b py-2 last:border-b-0">
-      <span className="text-[12px] text-muted-foreground">{label}</span>
-      <span className="text-right text-[13px] font-medium">{value}</span>
-    </div>
+    <tr>
+      <td className="t-xs t-muted">{label}</td>
+      <td className={cn("t-sm t-bold text-right", mono && "mono")}>
+        {value}
+      </td>
+    </tr>
   );
 }
 
@@ -685,16 +971,21 @@ export function AttachmentList({
   if (!open) return null;
 
   return (
-    <div className="pt-2">
-      {/* EPIC-026 Wave 8 — prototype's attachment block heading inside
-          #dlg-tx-detail is a `t-sm t-bold` line ("Lampiran"), not a muted
-          caption. Its "+ Tambah Lampiran" card-link is deliberately NOT
-          reproduced: this app only uploads an attachment while the
-          transaction is being created (the shell dialog's Lampiran field),
-          so a button here would have nothing honest to do. */}
-      <div className="mb-2 flex items-center gap-1.5 text-[13px] font-bold">
-        <Paperclip className="size-3.5" />
-        {t.transaksi.attachmentsSectionLabel}
+    <div className="mt-4">
+      {/* Prototype #dlg-tx-detail uses a simple heading row plus a card-link
+          affordance. Upload is still routed through the create/edit flows, so
+          this card-link only gives the same informational cue as the HTML
+          prototype instead of pretending this read-only detail view can mutate
+          attachments directly. */}
+      <div className="row row--between mb-2">
+        <span className="t-sm t-bold">{t.transaksi.attachmentsSectionLabel}</span>
+        <button
+          type="button"
+          className="card-link"
+          onClick={() => toast("Pilih file struk untuk diunggah")}
+        >
+          + Tambah Lampiran
+        </button>
       </div>
 
       {isLoading && (
@@ -708,12 +999,21 @@ export function AttachmentList({
         </p>
       )}
       {!isLoading && !isError && attachments.length === 0 && (
-        <p className="text-[12px] text-muted-foreground">
-          {t.transaksi.attachmentsEmptyLabel}
-        </p>
+        <button
+          type="button"
+          className="empty min-h-[78px] w-full cursor-pointer rounded-[11px] border border-dashed bg-transparent px-[18px] py-2.5"
+          onClick={() => toast("Pilih file struk untuk diunggah")}
+        >
+          <span className="empty__icon text-[20px]">
+            <ImagePlus className="size-5" aria-hidden="true" />
+          </span>
+          <span className="t-xs t-muted">
+            {t.transaksi.attachmentsEmptyLabel}
+          </span>
+        </button>
       )}
 
-      <div className="space-y-1.5">
+      <div className="row row--wrap gap-2.5">
         {attachments.map((att) => {
           const isImage = att.mimeType.startsWith("image/");
           const AttIcon = isImage ? ImageIcon : FileText;
@@ -723,19 +1023,19 @@ export function AttachmentList({
           return (
             <div
               key={att.id}
-              className="flex items-center gap-2.5 rounded-md border bg-card px-2.5 py-2"
+              className="row min-w-[220px] flex-1 cursor-pointer gap-2.5 rounded-[11px] border bg-card p-2 text-left"
             >
               <IconChip
                 icon={AttIcon}
                 className="bg-secondary text-muted-foreground"
-                size={28}
-                rounded="rounded-md"
+                size={54}
+                rounded="rounded-[11px]"
               />
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[12.5px] font-medium">
+                <div className="list-row__title truncate">
                   {label}
                 </div>
-                <div className="truncate text-[11px] text-muted-foreground">
+                <div className="list-row__sub mono truncate">
                   {formatFileSize(att.size)} ·{" "}
                   {formatDetailDateTime(att.createdAt, locale)}
                 </div>
@@ -744,7 +1044,7 @@ export function AttachmentList({
                 type="button"
                 onClick={() => void handleView(att.id)}
                 disabled={pendingViewId === att.id}
-                className="rounded-md border px-2 py-1 text-[11.5px] font-semibold disabled:opacity-50"
+                className="btn btn--outline btn--sm"
               >
                 {t.transaksi.attachmentViewButton}
               </button>
@@ -752,7 +1052,7 @@ export function AttachmentList({
                 type="button"
                 onClick={() => setDeleteTarget(att.id)}
                 aria-label={t.transaksi.attachmentDeleteButton}
-                className="rounded-md border p-1.5 text-destructive"
+                className="btn btn--ghost btn--icon text-destructive"
               >
                 <Trash2 className="size-3.5" />
               </button>
@@ -803,7 +1103,6 @@ export function TransactionDetailDialog({
   const isIncome = tx.type === "income";
   const amount = parseFloat(tx.amount);
   const amountStr = (isIncome ? "+" : "-") + formatRupiah(amount);
-  const txIcon = TX_ICON[tx.type] ?? TX_ICON.expense;
   const typeLabel = t.transaksi.typeLabels[tx.type] ?? tx.type;
   // C4 (group E retry round 4) — mirrors TxRow's own guard: the detail
   // view's own Edit/Hapus buttons must be honest too.
@@ -824,42 +1123,43 @@ export function TransactionDetailDialog({
         {/* Prototype `.dialog__desc` (transaksi.html:437); amount is
             `t-xl t-black mono`. */}
         <DialogDescription>{t.transaksi.detailDialogDesc}</DialogDescription>
-        <DialogBody className="space-y-1">
-          <div className="mb-3 flex items-center justify-between">
-            <span
-              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${txIcon.chip}`}
-            >
+        <DialogBody>
+          <div className="row row--between mb-3">
+            <span className={cn("badge", isIncome ? "badge--success" : "badge--danger")}>
               {typeLabel}
             </span>
-            <span
-              className={
-                "mono text-[20px] font-black " +
-                (isIncome ? "text-success" : "text-destructive")
-              }
-            >
+            <span className={cn("t-xl t-black mono", isIncome ? "t-success" : "t-danger")}>
               {amountStr}
             </span>
           </div>
-          <DetailRow
-            label={t.transaksi.detailCategoryLabel}
-            value={tx.categoryName ?? "—"}
-          />
-          <DetailRow
-            label={t.transaksi.detailAccountLabel}
-            value={tx.accountName ?? "—"}
-          />
-          <DetailRow
-            label={t.transaksi.detailDateTimeLabel}
-            value={formatDetailDateTime(tx.occurredAt, locale)}
-          />
-          <DetailRow
-            label={t.transaksi.fieldDescLabel}
-            value={tx.description ?? "—"}
-          />
-          <DetailRow
-            label={t.transaksi.detailCreatedAtLabel}
-            value={formatDetailDateTime(tx.createdAt, locale)}
-          />
+          <div className="table-wrap">
+            <table className="table min-w-0">
+              <tbody>
+                <DetailRow
+                  label={t.transaksi.detailCategoryLabel}
+                  value={tx.categoryName ?? "—"}
+                />
+                <DetailRow
+                  label={t.transaksi.detailAccountLabel}
+                  value={tx.accountName ?? "—"}
+                />
+                <DetailRow
+                  label={t.transaksi.detailDateTimeLabel}
+                  value={formatDetailDateTime(tx.occurredAt, locale)}
+                  mono
+                />
+                <DetailRow
+                  label={t.transaksi.fieldDescLabel}
+                  value={tx.description ?? "—"}
+                />
+                <DetailRow
+                  label={t.transaksi.detailCreatedAtLabel}
+                  value={formatDetailDateTime(tx.createdAt, locale)}
+                  mono
+                />
+              </tbody>
+            </table>
+          </div>
           {isObligationLinked && (
             <p className="pt-2 text-[11.5px] text-muted-foreground">
               {t.transaksi.obligationLockedTooltip}
@@ -1325,34 +1625,19 @@ function TransaksiPageInner() {
         }
       >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <label className="block">
-            <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
-              {t.transaksi.dateRangeLabel}
-            </span>
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => {
-                  setDateFrom(e.target.value);
-                  setPage(1);
-                }}
-                aria-label={t.transaksi.dateFromAriaLabel}
-                className="input"
-              />
-              <span className="text-[12px] text-muted-foreground">–</span>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => {
-                  setDateTo(e.target.value);
-                  setPage(1);
-                }}
-                aria-label={t.transaksi.dateToAriaLabel}
-                className="input"
-              />
-            </div>
-          </label>
+          <DateRangeFilterField
+            from={dateFrom}
+            to={dateTo}
+            locale={locale}
+            label={t.transaksi.dateRangeLabel}
+            cancelLabel={locale === "en" ? "Cancel" : "Batal"}
+            applyLabel={locale === "en" ? "Apply" : "Terapkan"}
+            onApply={(nextFrom, nextTo) => {
+              setDateFrom(nextFrom);
+              setDateTo(nextTo);
+              setPage(1);
+            }}
+          />
           <label className="block">
             <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
               {t.transaksi.accountFilterFieldLabel}
@@ -1422,9 +1707,10 @@ function TransaksiPageInner() {
             ))}
           </div>
 
-          {/* Sort control — styled native select per WM conventions for simplicity */}
-          <div className="relative flex items-center">
-            <span className="pointer-events-none absolute left-3 text-[12px] text-muted-foreground select-none">
+          {/* Sort control mirrors the prototype: a small label followed by the
+              normal design-system select, with no custom text offset. */}
+          <label className="row transaction-filter-sort gap-[7px]">
+            <span className="t-xs t-muted whitespace-nowrap">
               {t.transaksi.sortByLabel}
             </span>
             <select
@@ -1433,7 +1719,7 @@ function TransaksiPageInner() {
                 setSortOrder(e.target.value as SortOrder);
                 setPage(1);
               }}
-              className="appearance-none rounded-lg border bg-card py-1.5 pl-[68px] pr-7 text-[13px] font-semibold text-foreground outline-none transition-colors focus:border-primary cursor-pointer"
+              className="select !w-auto min-w-[118px] py-1.5"
               aria-label={t.transaksi.sortAriaLabel}
             >
               {SORT_VALUES.map((value) => (
@@ -1442,8 +1728,7 @@ function TransaksiPageInner() {
                 </option>
               ))}
             </select>
-            <ChevronDown className="pointer-events-none absolute right-2 size-3.5 text-muted-foreground" />
-          </div>
+          </label>
         </div>
       </SectionCard>
 

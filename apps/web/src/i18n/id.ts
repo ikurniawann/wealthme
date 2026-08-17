@@ -141,6 +141,7 @@ export const id = {
       quickinput: "Quick Input",
       mastercoa: "Master COA",
       masterdata: "Setup Master Data",
+      iam: "IAM Roles",
       panduan: "Panduan Fitur",
     },
     reportTabs: {
@@ -189,6 +190,8 @@ export const id = {
       quickinput: "Quick Input",
       mastercoa: "Master COA",
       masterdata: "Setup Master Data",
+      iam: "IAM Roles",
+      "akses-saya": "Akses Saya",
       panduan: "Panduan Fitur",
     },
     mobileNav: {

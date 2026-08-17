@@ -23,7 +23,7 @@ export function PeriodFilter({
   const maxDay = daysInMonth(period.year, period.month);
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
       <select
         aria-label={t.laporan.periodFilter.yearAriaLabel}
         value={period.year}
@@ -34,7 +34,7 @@ export function PeriodFilter({
             : null;
           onChange({ ...period, year, day });
         }}
-        className="select"
+        className="select w-full"
       >
         {years.map((y) => (
           <option key={y} value={y}>
@@ -52,7 +52,7 @@ export function PeriodFilter({
             : null;
           onChange({ ...period, month, day });
         }}
-        className="select"
+        className="select w-full"
       >
         {t.laporan.months.map((label, i) => (
           <option key={label} value={i + 1}>
@@ -67,7 +67,7 @@ export function PeriodFilter({
           const value = e.target.value;
           onChange({ ...period, day: value === "" ? null : Number(value) });
         }}
-        className="select"
+        className="select w-full"
       >
         <option value="">{t.laporan.periodFilter.allDatesOption}</option>
         {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
@@ -130,7 +130,7 @@ export function RangePresetSelect({
       aria-label={t.laporan.periodFilter.presetAriaLabel}
       value={preset}
       onChange={(e) => onChange(e.target.value as ReportRangePreset)}
-      className="select"
+      className="select w-full"
     >
       {RANGE_PRESET_IDS.map((id) => (
         <option key={id} value={id}>

@@ -147,6 +147,10 @@ const OCR_ITEMS = [
 
 type View = "form" | "ocr-scan" | "ocr-result";
 
+function stripLeadingIcon(value: string): string {
+  return value.replace(/^[^A-Za-zÀ-ÿ0-9]+/u, "").trim();
+}
+
 export function TransactionDialog() {
   const { txnOpen, setTxnOpen } = useShell();
   const { t } = useLocale();
@@ -157,7 +161,7 @@ export function TransactionDialog() {
     t.shell.transactionDialog.tabCreditCard,
   ];
   const [view, setView] = useState<View>("form");
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState(1);
   const [amount, setAmount] = useState("");
   const [accountId, setAccountId] = useState("");
   const [toAccountId, setToAccountId] = useState("");
@@ -378,6 +382,7 @@ export function TransactionDialog() {
     if (!open) {
       clearTimers();
       setView("form");
+      setTab(1);
       setShowReceipt(false);
       setShowItems(false);
       resetForm();
@@ -546,13 +551,10 @@ export function TransactionDialog() {
           global, frequently-opened dialog to be exempt from the fix. */}
       <DialogContent
         showCloseButton={view === "form"}
-        className="overflow-x-hidden p-0"
+        className={view === "form" ? undefined : "overflow-x-hidden p-0"}
       >
         {view === "form" && (
-          // The `p-0` on DialogContent is deliberate — the OCR views below
-          // are full-bleed — so the form view restores the prototype
-          // `.dialog`'s own 20px padding itself.
-          <div className="p-5">
+          <>
             <DialogTitle>{t.shell.transactionDialog.title}</DialogTitle>
             {/* EPIC-026 Wave 8 — prototype `.dialog__desc` on #dlg-transaksi
                 (docs/prototype/assets/shell.js). */}
@@ -560,106 +562,60 @@ export function TransactionDialog() {
               {t.shell.transactionDialog.dialogDesc}
             </DialogDescription>
 
-            {/* Manual vs Scan-Struk mode switch. Not in the prototype's own
-                #dlg-transaksi (its scan lives inside the Lampiran field), but
-                this app has a real second view for it — kept, and moved onto
-                the prototype's `.segmented` control so it stops being a
-                bespoke pair of bordered buttons. */}
-            <div className="mt-4">
-              <div
-                className="segmented max-w-full flex-wrap"
-                role="tablist"
-                aria-label={t.shell.transactionDialog.modeSwitchLabel}
-              >
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected
-                  className="segmented__item inline-flex items-center gap-1.5"
-                >
-                  <SquarePen className="size-4" aria-hidden="true" />
-                  {t.shell.transactionDialog.manualInput}
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={false}
-                  onClick={startOcr}
-                  className="segmented__item inline-flex items-center gap-1.5"
-                >
-                  <Camera className="size-4" aria-hidden="true" />
-                  {t.shell.transactionDialog.scanReceipt}
-                  <span className="rounded-full bg-success px-1.5 py-0.5 text-[9px] font-bold text-white">
-                    {t.shell.transactionDialog.newBadge}
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {/* Prototype's 4-way type switch — `.segmented` / `.segmented__item`
-                with `role="tablist"`/`role="tab"` (shell.js:531-535). */}
-            <div
-              className="segmented mt-3.5 max-w-full flex-wrap"
-              role="tablist"
-              aria-label={t.shell.transactionDialog.typeSwitchLabel}
-            >
-              {TABS.map((tabLabel, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === i}
-                  className="segmented__item"
-                  onClick={() => {
-                    setTab(i);
-                    // EPIC-023 Task E retry (MEDIUM 10) — deliberate split,
-                    // not an oversight: only the fields whose MEANING is
-                    // tab-specific are cleared (a category id, an account
-                    // id, a liability id, or an admin fee are only valid
-                    // relative to the tab that produced them, and a stale
-                    // one could silently reference a now-wrong target).
-                    // `amount`/`description`/`date` answer "how much /
-                    // what / when", which stay meaningful across every
-                    // tab, so they're kept as a convenience — switching
-                    // Expense -> Kartu Kredit to record the same purchase
-                    // differently shouldn't force retyping the amount.
-                    setCategoryId("");
-                    setToAccountId("");
-                    setAdminFee("");
-                    setAccountId("");
-                    setLiabilityId("");
-                  }}
-                >
-                  {tabLabel}
-                </button>
-              ))}
-            </div>
-
-            {/* Prototype field order (shell.js:536-570): Jumlah → Akun →
-                Kategori → [Tanggal | Deskripsi] → Lampiran. */}
+            {/* Prototype field order (shell.js:536-570): type switch → Jumlah
+                → Akun → Kategori → [Tanggal | Deskripsi] → Lampiran. */}
             <DialogBody>
+              {/* Prototype's 4-way type switch — `.segmented` /
+                `.segmented__item` with `role="tablist"`/`role="tab"`
+                (shell.js:531-535). */}
+              <div
+                className="segmented mb-[14px] max-w-full flex-wrap"
+                role="tablist"
+                aria-label={t.shell.transactionDialog.typeSwitchLabel}
+              >
+                {TABS.map((tabLabel, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === i}
+                    className="segmented__item"
+                    onClick={() => {
+                      setTab(i);
+                      // EPIC-023 Task E retry (MEDIUM 10) — deliberate split,
+                      // not an oversight: only the fields whose MEANING is
+                      // tab-specific are cleared (a category id, an account
+                      // id, a liability id, or an admin fee are only valid
+                      // relative to the tab that produced them, and a stale
+                      // one could silently reference a now-wrong target).
+                      // `amount`/`description`/`date` answer "how much /
+                      // what / when", which stay meaningful across every
+                      // tab, so they're kept as a convenience — switching
+                      // Expense -> Kartu Kredit to record the same purchase
+                      // differently shouldn't force retyping the amount.
+                      setCategoryId("");
+                      setToAccountId("");
+                      setAdminFee("");
+                      setAccountId("");
+                      setLiabilityId("");
+                    }}
+                  >
+                    {stripLeadingIcon(tabLabel)}
+                  </button>
+                ))}
+              </div>
               <Field
                 label={t.shell.transactionDialog.amountLabel}
                 htmlFor={amountFieldId}
               >
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
-                    Rp
-                  </span>
-                  <input
-                    id={amountFieldId}
-                    inputMode="numeric"
-                    value={amount}
-                    onChange={(e) =>
-                      setAmount(formatAmountInput(e.target.value))
-                    }
-                    placeholder="0"
-                    className={cn(
-                      "input",
-                      "pl-[38px] text-xl font-extrabold placeholder:text-base placeholder:font-normal placeholder:text-muted-foreground",
-                    )}
-                  />
-                </div>
+                <input
+                  id={amountFieldId}
+                  inputMode="numeric"
+                  value={amount}
+                  onChange={(e) => setAmount(formatAmountInput(e.target.value))}
+                  placeholder="250.000"
+                  className="input mono"
+                />
               </Field>
 
               {tabKind === "card" ? (
@@ -785,8 +741,11 @@ export function TransactionDialog() {
                         {a.name}
                         {a.institution ? ` — ${a.institution}` : ""}
                       </option>
-                    ))}
+                      ))}
                   </select>
+                  <span className="hint">
+                    Master &amp; co-master melihat seluruh rekening keluarga.
+                  </span>
                 </Field>
               )}
 
@@ -824,10 +783,11 @@ export function TransactionDialog() {
 
               {/* Prototype pairs Tanggal and Deskripsi 2-up in a
                 `.field-row` (shell.js:558-568). */}
-              <div className="field-row">
+              <div className="field-row mt-3">
                 <Field
                   label={t.shell.transactionDialog.dateLabel}
                   htmlFor={dateFieldId}
+                  className="!mt-0"
                 >
                   <input
                     id={dateFieldId}
@@ -848,16 +808,16 @@ export function TransactionDialog() {
                     </>
                   }
                   htmlFor={descriptionFieldId}
+                  className="!mt-0"
                 >
-                  <textarea
+                  <input
                     id={descriptionFieldId}
-                    rows={2}
                     placeholder={
                       t.shell.transactionDialog.descriptionPlaceholder
                     }
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    className="textarea resize-none"
+                    className="input"
                   />
                 </Field>
               </div>
@@ -868,49 +828,61 @@ export function TransactionDialog() {
                 transactionId to attach the file to (see the mutation's own
                 doc comment above). */}
               {tabKind !== "card" && (
-                <Field
-                  label={
-                    <>
-                      {t.shell.transactionDialog.attachmentLabel}{" "}
-                      <span className="font-normal text-muted-foreground">
-                        {t.shell.transactionDialog.optionalSuffix}
-                      </span>
-                    </>
-                  }
-                  htmlFor={attachmentFieldId}
-                >
-                  <label
-                    htmlFor={attachmentFieldId}
-                    className={cn(
-                      "input",
-                      "flex cursor-pointer items-center gap-2 text-muted-foreground",
-                    )}
-                  >
-                    <Paperclip className="size-4 shrink-0" />
-                    <span className="truncate">
-                      {attachmentFile
-                        ? `${t.shell.transactionDialog.attachmentSelected}${attachmentFile.name}`
-                        : t.shell.transactionDialog.attachmentPlaceholder}
+                <div className="field">
+                  <span className="label">
+                    {t.shell.transactionDialog.attachmentLabel}{" "}
+                    <span className="t-muted font-medium">
+                      {t.shell.transactionDialog.optionalSuffix}
                     </span>
-                  </label>
-                  <input
-                    id={attachmentFieldId}
-                    data-testid="attachment-file-input"
-                    type="file"
-                    accept={ATTACHMENT_ACCEPTED_MIME_TYPES.join(",")}
-                    onChange={handleAttachmentChange}
-                    className="sr-only"
-                  />
-                </Field>
+                  </span>
+                  <div className="row row--wrap gap-2">
+                    <label
+                      htmlFor={attachmentFieldId}
+                      className="notice m-0 min-h-[48px] min-w-[150px] flex-1 cursor-pointer items-center text-left"
+                    >
+                      <Paperclip
+                        className="size-4 shrink-0"
+                        aria-hidden="true"
+                      />
+                      <span className="min-w-0 leading-tight">
+                        {attachmentFile
+                          ? `${t.shell.transactionDialog.attachmentSelected}${attachmentFile.name}`
+                          : "Unggah foto struk atau PDF — maks 5 MB"}
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={startOcr}
+                      className="notice notice--info m-0 min-h-[48px] min-w-[150px] flex-1 cursor-pointer items-center text-left"
+                    >
+                      <Camera
+                        className="size-4 shrink-0"
+                        aria-hidden="true"
+                      />
+                      <span>
+                        Scan Struk (Kamera) — nominal &amp; tanggal terisi
+                        otomatis
+                      </span>
+                    </button>
+                    <input
+                      id={attachmentFieldId}
+                      data-testid="attachment-file-input"
+                      type="file"
+                      accept={ATTACHMENT_ACCEPTED_MIME_TYPES.join(",")}
+                      onChange={handleAttachmentChange}
+                      className="sr-only"
+                    />
+                  </div>
+                  <span className="hint">
+                    Scan struk memakai kamera perangkat; OCR nyata menyusul di
+                    implementasi produksi.
+                  </span>
+                </div>
               )}
             </DialogBody>
 
             {/* Prototype `.dialog__footer` — outline Batal on the left,
-                primary Simpan on the right (shell.js:590-595). "Simpan &
-                Tambah Lagi" has no prototype counterpart but is a real,
-                working feature of this dialog (it saves and resets instead
-                of closing), so it is kept as a ghost button between the two
-                rather than deleted to chase the mock. */}
+                primary Simpan on the right (shell.js:590-595). */}
             <DialogFooter>
               <button
                 type="button"
@@ -921,25 +893,14 @@ export function TransactionDialog() {
               </button>
               <button
                 type="button"
-                onClick={() => saveTxn(true)}
-                disabled={isSaving}
-                className="btn btn--ghost"
-              >
-                {t.shell.transactionDialog.saveAndAddMore}
-              </button>
-              <button
-                type="button"
                 onClick={() => saveTxn()}
                 disabled={isSaving}
                 className="btn btn--primary"
               >
-                <Save className="size-4" aria-hidden="true" />
-                {isSaving
-                  ? t.shell.transactionDialog.saving
-                  : t.shell.transactionDialog.saveTransaction}
+                {isSaving ? t.shell.transactionDialog.saving : "Simpan"}
               </button>
             </DialogFooter>
-          </div>
+          </>
         )}
 
         {view === "ocr-scan" && (
@@ -1124,10 +1085,12 @@ export function TransactionDialog() {
 function Field({
   label,
   htmlFor,
+  className,
   children,
 }: {
   label: React.ReactNode;
   htmlFor: string;
+  className?: string;
   children: React.ReactNode;
 }) {
   // EPIC-026 Wave 8 — the prototype's `<label class="field"><span
@@ -1135,7 +1098,7 @@ function Field({
   // a wrapping `<label>`) so the HIGH-3 label/control association above
   // stays explicit and `.field-row` can pair two of these 2-up.
   return (
-    <div className="field">
+    <div className={cn("field", className)}>
       <label htmlFor={htmlFor} className="label">
         {label}
       </label>

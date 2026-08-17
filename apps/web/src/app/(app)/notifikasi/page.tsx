@@ -13,17 +13,41 @@ import { queryKeys } from "@/lib/query-keys";
 
 import type { NotificationDto } from "@wealthme/contracts";
 
-// Prototype structural port (EPIC-025 N3-B1) — the prototype groups
-// notifications by "Hari Ini / Minggu Ini / Lebih Lama" in separate `.card`
-// sections and offers a filter. `NotificationDto` has no category field
-// (only title/body/icon/isRead/createdAt), so only the two filters
-// derivable from real data are ported (Semua / Belum dibaca) — the
-// prototype's Transaksi/Anggaran/Persetujuan tabs would require guessing a
-// category from free-text title/body, which is not honest filtering. The
-// prototype's notification-detail and settings dialogs are NOT ported: they
-// have no backing API (no per-notification detail endpoint, no settings
-// persistence) — porting them would be a dead/mocked control (Honest UI).
-type Filter = "semua" | "belum-dibaca";
+type Filter =
+  | "semua"
+  | "belum-dibaca"
+  | "transaksi"
+  | "anggaran"
+  | "persetujuan"
+  | "jatuh-tempo"
+  | "sistem";
+
+const FILTERS: { id: Filter; label: string }[] = [
+  { id: "semua", label: "Semua" },
+  { id: "belum-dibaca", label: "Belum dibaca" },
+  { id: "transaksi", label: "Transaksi" },
+  { id: "anggaran", label: "Anggaran" },
+  { id: "persetujuan", label: "Persetujuan" },
+  { id: "jatuh-tempo", label: "Jatuh Tempo" },
+  { id: "sistem", label: "Sistem" },
+];
+
+function inferNotificationFilter(n: NotificationDto): Exclude<Filter, "semua" | "belum-dibaca"> {
+  const text = `${n.title} ${n.body} ${n.icon ?? ""}`.toLowerCase();
+  if (/(setuju|approval|persetujuan|request|permintaan)/.test(text)) {
+    return "persetujuan";
+  }
+  if (/(jatuh tempo|tempo|tagihan|cicilan|premi|renewal)/.test(text)) {
+    return "jatuh-tempo";
+  }
+  if (/(budget|anggaran|limit|kategori)/.test(text)) {
+    return "anggaran";
+  }
+  if (/(login|password|pin|akun|sistem|keamanan|device)/.test(text)) {
+    return "sistem";
+  }
+  return "transaksi";
+}
 
 function formatRelativeTime(
   iso: string,
@@ -217,7 +241,9 @@ export default function NotifikasiPage() {
 
   const filtered = useMemo(() => {
     const all = notifications ?? [];
-    return filter === "belum-dibaca" ? all.filter((n) => !n.isRead) : all;
+    if (filter === "semua") return all;
+    if (filter === "belum-dibaca") return all.filter((n) => !n.isRead);
+    return all.filter((n) => inferNotificationFilter(n) === filter);
   }, [notifications, filter]);
 
   const { today, thisWeek, older } = groupByRecency(filtered);
@@ -262,31 +288,33 @@ export default function NotifikasiPage() {
         </CardLink>
       </section>
 
-      <section className="flex flex-wrap items-center gap-3">
+      <section className="flex min-w-0 items-center gap-3">
         <div
           role="group"
           aria-label={t.notifikasi.title}
-          className="inline-flex gap-0.5 rounded-[10px] bg-secondary p-[3px]"
+          className="hide-scrollbar flex min-w-0 flex-1 gap-1 overflow-x-auto rounded-[12px] bg-secondary p-[3px]"
         >
-          {(["semua", "belum-dibaca"] as Filter[]).map((f) => (
+          {FILTERS.map((item) => (
             <button
-              key={f}
+              key={item.id}
               type="button"
-              aria-pressed={filter === f}
-              onClick={() => setFilter(f)}
+              aria-pressed={filter === item.id}
+              onClick={() => setFilter(item.id)}
               className={cn(
-                "rounded-lg px-3 py-1.5 text-[12.5px] font-semibold text-muted-foreground transition-colors",
-                filter === f && "bg-card text-foreground shadow-sm",
+                "shrink-0 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold text-muted-foreground transition-colors",
+                filter === item.id && "bg-card text-foreground shadow-sm",
               )}
             >
-              {f === "semua"
+              {item.id === "semua"
                 ? t.notifikasi.filterAll
-                : t.notifikasi.filterUnread}
+                : item.id === "belum-dibaca"
+                  ? t.notifikasi.filterUnread
+                  : item.label}
             </button>
           ))}
         </div>
         {!isLoading && !isError && (
-          <span className="ml-auto text-xs text-muted-foreground">
+          <span className="shrink-0 text-xs text-muted-foreground">
             {filtered.length}
             {t.notifikasi.metaCountSuffix}
           </span>

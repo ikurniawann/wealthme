@@ -21,6 +21,44 @@ import type { CoaAccountOption } from "../types";
 
 const COA_MATRIX_YEAR_WINDOW = 6;
 
+function buildDemoCoaMatrix(coaAccountId: string, year: number): CoaMatrixDto {
+  const cells: CoaMatrixDto["cells"] = {};
+  const entries = [
+    [1, 1, 9_000_000, "Gaji bulanan"],
+    [1, 7, 155_000, "Belanja rumah"],
+    [2, 2, 330_000, "Transportasi"],
+    [3, 4, 470_000, "Makan & minum"],
+    [4, 1, 280_000, "Tagihan utilitas"],
+    [4, 8, 80_000, "Parkir dan tol"],
+    [5, 3, 125_000, "Kopi & snack"],
+    [6, 2, 860_000, "Belanja bulanan"],
+    [7, 1, 8_750_000, "Bonus proyek"],
+    [7, 11, 1_070_000, "Cicilan"],
+    [8, 4, 515_000, "Kebutuhan anak"],
+    [9, 1, 430_000, "Perawatan rumah"],
+    [10, 1, 290_000, "Langganan"],
+    [11, 6, 475_000, "Asuransi"],
+    [12, 7, 1_000_000, "Dana liburan"],
+  ] as const;
+
+  for (const [month, day, amount, description] of entries) {
+    cells[month] ??= {};
+    cells[month][day] ??= [];
+    cells[month][day].push({
+      txId: `demo-${month}-${day}`,
+      amount,
+      description,
+    });
+  }
+
+  return {
+    coaAccountId,
+    year,
+    total: entries.reduce((sum, [, , amount]) => sum + amount, 0),
+    cells,
+  };
+}
+
 export function CoaSection({
   coaAccounts,
   coaAccountId,
@@ -52,10 +90,16 @@ export function CoaSection({
   );
 
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
-  const hasCells = matrix ? Object.keys(matrix.cells).length > 0 : false;
+  const selectedAccountId = coaAccountId || coaAccounts[0]?.id || "demo-coa";
+  const hasApiCells = matrix ? Object.keys(matrix.cells).length > 0 : false;
+  const displayMatrix: CoaMatrixDto =
+    matrix && hasApiCells
+    ? matrix
+    : buildDemoCoaMatrix(selectedAccountId, year);
+  const hasCells = Object.keys(displayMatrix.cells).length > 0;
   const activeCellTxs =
-    matrix && activeCell
-      ? (matrix.cells[activeCell.month]?.[activeCell.day] ?? [])
+    activeCell
+      ? (displayMatrix.cells[activeCell.month]?.[activeCell.day] ?? [])
       : [];
 
   return (
@@ -112,7 +156,7 @@ export function CoaSection({
         </div>
       </div>
 
-      {!coaAccountId ? (
+      {!selectedAccountId ? (
         <SectionCard>
           <div className="py-8 text-center text-[13px] text-muted-foreground">
             {t.laporan.coa.emptyAccount}
@@ -123,8 +167,13 @@ export function CoaSection({
           <SectionCard>
             <MoneyStat
               label={t.laporan.coa.totalLabel}
-              value={formatRupiah(matrix?.total ?? 0)}
+              value={formatRupiah(displayMatrix.total)}
             />
+            {!hasApiCells && (
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                Data contoh ditampilkan karena matrix COA dari server masih kosong.
+              </div>
+            )}
           </SectionCard>
 
           <SectionCard>
@@ -158,7 +207,8 @@ export function CoaSection({
                         </td>
                         {Array.from({ length: 12 }, (_, i) => i + 1).map(
                           (month) => {
-                            const cellTxs = matrix?.cells[month]?.[day] ?? [];
+                            const cellTxs =
+                              displayMatrix.cells[month]?.[day] ?? [];
                             if (cellTxs.length === 0) {
                               return (
                                 <td

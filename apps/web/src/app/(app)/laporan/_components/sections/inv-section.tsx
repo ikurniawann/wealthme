@@ -126,7 +126,7 @@ export function InvSection({
       </div>
       <SectionCard title={t.laporan.investasi.portfolioByTypeTitle}>
         {typeRows.length > 0 ? (
-          <div className="flex flex-col gap-3.5">
+          <div className="grid items-center gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
             {/* EPIC-026 Wave 3 — prototype's `#c-rinv` mount is the Apex
                 donut preset (J3 FOLD), over the SAME by-type totals the
                 allocation rows below already sum; the rows stay, matching
@@ -140,13 +140,13 @@ export function InvSection({
                   color: row.color,
                 }))}
                 centerLabel={t.laporan.investasi.totalPortfolioLabel}
-                height={230}
+                height={190}
                 ariaLabel={`${t.laporan.investasi.portfolioByTypeTitle}: ${typeRows
                   .map((row) => `${row.label} ${row.pct}%`)
                   .join(", ")}`}
               />
             </div>
-            <div className="flex flex-col gap-2.5">
+            <div className="flex min-w-0 flex-col gap-2.5">
               {typeRows.map((row) => (
                 <BarRow
                   key={row.label}

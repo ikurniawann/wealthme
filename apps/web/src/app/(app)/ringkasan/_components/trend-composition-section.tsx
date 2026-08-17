@@ -16,6 +16,7 @@ import type { TrendRangeKey } from "./use-ringkasan-data";
 // Prototype chart heights (`docs/prototype/assets/charts.js` + the
 // `ringkasan.html` call sites): trend 280, donut 268.
 const TREND_HEIGHT = 280;
+const EMPTY_TREND_HEIGHT = 168;
 const DONUT_HEIGHT = 268;
 
 export function TrendCompositionSection({
@@ -66,12 +67,12 @@ export function TrendCompositionSection({
           {isNetWorthHistoryLoading ? (
             <div
               className="animate-pulse rounded-md bg-muted"
-              style={{ height: TREND_HEIGHT }}
+              style={{ height: EMPTY_TREND_HEIGHT }}
             />
           ) : netWorthTrendValues.length < 2 ? (
             <div
-              className="flex items-center justify-center t-sm t-muted"
-              style={{ height: TREND_HEIGHT }}
+              className="flex items-center justify-center rounded-lg border border-dashed border-border/80 bg-muted/20 t-sm t-muted"
+              style={{ height: EMPTY_TREND_HEIGHT }}
             >
               {t.ringkasan.emptyNetWorthTrend}
             </div>
