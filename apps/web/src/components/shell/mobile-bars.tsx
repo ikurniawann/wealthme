@@ -7,6 +7,7 @@ import { mobileNavForRole } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/hooks/use-locale";
 import { useMyRole } from "@/hooks/use-my-role";
+import { useVisualViewportInset } from "@/hooks/use-visual-viewport-inset";
 import { useShell } from "./shell-context";
 
 /**
@@ -20,6 +21,10 @@ export function MobileNav() {
   const { setTxnOpen } = useShell();
   const { t } = useLocale();
   const { myRole } = useMyRole();
+  // Keeps both bars pinned to the visual viewport while a mobile browser's URL
+  // bar collapses/expands — see the hook for why `position: fixed` alone is
+  // not enough on a real phone.
+  useVisualViewportInset();
 
   return (
     <>

@@ -31,6 +31,16 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: "#4f46e5",
+  // `env(safe-area-inset-*)` evaluates to 0 unless the viewport opts into the
+  // display cutout area, and the mobile shell already relies on those insets
+  // (`.mobile-nav` bottom padding, `.topbar` top padding, `.mobile-fab`
+  // offset). Without this they were computing against zero, so on a notched
+  // iPhone the bottom bar sat under the home indicator.
+  viewportFit: "cover",
+  // Keyboard opens: resize the CONTENT rather than shrink the visual viewport
+  // out from under fixed elements. Without it, focusing an input on iOS
+  // Safari leaves `position: fixed` bars floating over the keyboard.
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({

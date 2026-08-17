@@ -3419,6 +3419,15 @@
       background: color-mix(in oklab, var(--card) 92%, transparent);
       backdrop-filter: blur(10px);
       border-top: 1px solid var(--border);
+      /* `position: fixed` anchors to the LAYOUT viewport, which on a phone is
+         not what the user sees while the URL bar collapses or the page
+         rubber-bands — the bar then rides up and down with the scroll.
+         `--vv-bottom` (set by useVisualViewportInset) is the gap between the
+         two viewports' bottom edges; correcting by it pins the bar to the
+         visual viewport. Unset everywhere else, so this is a no-op on
+         desktop. A transform is used rather than adjusting `bottom` because
+         it composites without forcing layout on every scroll event. */
+      transform: translateY(calc(-1 * var(--vv-bottom, 0px)));
     }
 
     /* The prototype's round "Tambah transaksi" FAB, floating above the bottom
@@ -3441,7 +3450,11 @@
       color: var(--primary-foreground);
       box-shadow: 0 16px 32px -16px
         color-mix(in oklab, var(--primary) 70%, black);
-      transform: translateX(-50%);
+      /* translateX(-50%) is the centring half (paired with `left: 50%`) and
+         must survive; translateY is the visual-viewport correction described
+         on `.mobile-nav` above. Setting `transform` alone here would have
+         knocked the FAB off centre. */
+      transform: translateX(-50%) translateY(calc(-1 * var(--vv-bottom, 0px)));
     }
 
     .mobile-nav__item {
@@ -3468,7 +3481,12 @@
     }
 
     body {
-      overscroll-behavior-y: contain;
+      /* `contain` stops scroll CHAINING but still permits iOS rubber-band
+         overscroll, during which the page rides past its bounds and every
+         `position: fixed` bar visibly drifts with it. `none` suppresses the
+         bounce itself, which is the half that was actually causing the bottom
+         nav to travel up and down while scrolling on a real phone. */
+      overscroll-behavior-y: none;
     }
 
     .topbar {
