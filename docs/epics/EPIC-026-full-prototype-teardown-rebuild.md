@@ -124,6 +124,69 @@ top-level layout — `118088a`'s lesson: partial ports still count as
 
 ## Automation Log
 
+- 2026-08-17 `/nerve "commit, finish the rest, push and deploy to wealthme.demo-wit.id"`
+  → PASS. Deployed and verified live; two findings changed the plan on the way.
+  **Finding 1 — CI was red, which made the deploy impossible, not merely
+  untidy.** `build-and-push-images` has `needs: ci`, and CI runs
+  `turbo run lint build test`; the two long-standing `login/page.test.tsx`
+  failures therefore meant NO GHCR image had been published since #298
+  (2026-08-14), and `deploy-dev.sh` (DEPLOY_MODE=pull) can only ship what is in
+  GHCR. The commit before this one (`4de0bc4`) is on record as a CI failure for
+  exactly that reason. Those tests asserted a PIN pad `page.tsx` deliberately
+  no longer renders, so they were rewritten to pin what ships (a stored device
+  binding is ignored; the password form stays reachable; no dead "Buka"
+  control) with the original assertions kept as `it.skip` for when PIN unlock
+  returns. Suite: 48/48, 451 passed, 2 skipped.
+  **Finding 2 — this workstation is not the dev server.** Established by
+  evidence before touching anything: the new endpoint answered 404 through the
+  domain but 401 locally, domain API uptime was ~3 days vs ~29 minutes locally,
+  no web/api/tunnel containers ran here, no cloudflared process, nothing
+  listening on :80/:443. Deploying here would have collided with `pnpm dev` on
+  :3000/:4000 and changed nothing publicly. Real host: `wit@wit-hq
+/home/wit/WORK/vibes/wealthme-web` (cloudflared + nginx + web/api containers,
+  GHCR login already present).
+  **Migration verification went past the log line.** `migrate` logged both new
+  migrations applied, but the DB was checked directly: `ai_conversations` and
+  `ai_messages` exist, `notifications.userId` exists and is nullable, 34
+  household rows carry NULL. A count of `_prisma_migrations` rows with
+  `finished_at IS NULL` returned 2, which looked like failed migrations — it is
+  not: both carry `rolled_back_at` (2026-08-05/06, already resolved) AND each
+  has a second, finished row, so the schema is complete and future
+  `migrate deploy` runs are not blocked. My first query label ("FAILED") was
+  misleading and is corrected here.
+  **Also shipped in the same window:** the fabricated COA figures were deleted
+  (`buildDemoCoaMatrix`, ~Rp 24 jt of invented transactions rendered inside a
+  financial report); the never-individually-audited pages were re-audited by
+  TEXT PRESENCE after the selector-based pass produced mostly false positives,
+  yielding one real gap (`/ai` lacked the prototype's "Percakapan" card title —
+  fixed) and one deliberate non-gap (`/rekening`'s "Tren Saldo Bank 6 Bulan"
+  stays cut: `NetWorthSnapshot` stores only `totalCash`, bank + cash + e-wallet
+  combined, so labelling it "bank" would misreport e-wallet balances — the same
+  reasoning Wave 1 recorded for dana's trend).
+  **Mobile bottom bar** (`fdcd57f`): three independent mechanisms, not one —
+  `--vv-bottom` visual-viewport correction via transform, the entirely missing
+  `viewport-fit=cover` (every `env(safe-area-inset-*)` in the shell had been
+  resolving to 0), and `overscroll-behavior-y: none` in place of `contain`.
+  Honest limit: the real-device symptom is not reproducible headless (an
+  emulated iPhone has no URL bar, so `visualViewport.height === innerHeight` at
+  every scroll offset); what was verified is no regression — identity transform
+  in the emulator, nav pinned across a 1586px scroll, FAB still centred at
+  195/390.
+  **Deploy verified from outside, not from the script's own exit code:** running
+  web/api container digests both equal the `:dev` tag, server HEAD `fdcd57f`,
+  `migrate` "No pending migrations to apply" + "Seed complete", served HTML
+  carries `viewport-fit=cover, interactive-widget=resizes-content`, the served
+  CSS chunk (HTTP 200, 178KB) contains `vv-bottom` ×2, and through the domain:
+  AI conversations 200, child notifications 200 (403 before), COA accounts
+  expose `direction`, a contradictory expense→INCOME category mapping is
+  rejected 400.
+  Caveats recorded for the operator: the seed clears `baSession`, so every
+  deploy logs users out; `family_ai_keys` is EMPTY on the server, so the AI
+  advisor shows its not-configured panel there until a key is set (the key used
+  during development was local only); a browser smoke test through Cloudflare
+  could not complete because bot protection blocks headless Chromium — the
+  API-level checks above stand in for it.
+
 - 2026-08-17 `/nerve "budget dialog: free icon picker + unify with COA category;
 same for master-data add category"` → PASS, verified end-to-end.
   Two readings of the request were materially different, so both were asked
