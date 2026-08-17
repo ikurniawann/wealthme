@@ -3376,9 +3376,39 @@
     .topbar__menu-btn {
       display: flex;
     }
+    /* ── Why the shell stops scrolling the window on a phone ──────────────
+       The bottom bar and FAB are `position: fixed`, and the whole problem is
+       that the WINDOW was the scroll container. Every mobile browser ties its
+       URL-bar collapse and its rubber-band overscroll to window scrolling, and
+       each does it differently — Safari in particular does not repaint fixed
+       elements until the scroll settles, which no amount of JavaScript can
+       compensate for, because the script runs after the frame is already
+       wrong. That is why the earlier `--vv-bottom` correction (kept below as a
+       second layer, for the keyboard case) fixed Chrome and left other
+       browsers untouched.
+       So: make the shell exactly one viewport tall and non-scrolling, and move
+       the scroll inside `.page`. With no window-level scroll there is no
+       URL-bar collapse and no rubber-band, and the fixed bar has nothing left
+       to drift against — in every engine, without feature detection.
+       Trade-off, accepted deliberately: the URL bar no longer auto-hides on
+       scroll, so a phone shows slightly less content at once. Verified safe
+       first: nothing in the app reads `window.scrollY` / `scrollTo` /
+       `scrollIntoView`, and `.topbar` is `position: sticky` rather than fixed,
+       so it simply becomes a static row above the new scrollport. */
+    .app {
+      height: 100vh; /* fallback for engines without dvh */
+      height: 100dvh;
+      overflow: hidden;
+    }
     .main {
       margin-left: 0;
-      padding-bottom: 68px;
+      /* min-height:0 lets this flex child actually shrink, without which the
+         inner scrollport below can never be shorter than its content. */
+      min-height: 0;
+      /* The 68px reserve moves onto `.page` — as padding on the scrolling
+         element it scrolls content clear of the bar, whereas here it would
+         permanently shorten the shell instead. */
+      padding-bottom: 0;
     }
     .topbar__search {
       min-width: 0;
@@ -3392,6 +3422,18 @@
     }
     .page {
       padding: 14px;
+      /* The scrollport. */
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      /* Momentum scrolling inside a nested scroller on older iOS. */
+      -webkit-overflow-scrolling: touch;
+      /* Keeps a scroll that reaches the end from chaining out to the document
+         (which would reintroduce the bounce this change exists to remove). */
+      overscroll-behavior: contain;
+      /* Clears the fixed bottom bar plus the home-indicator inset — the same
+         68px `.main` used to reserve, now scrolled past rather than cut off. */
+      padding-bottom: calc(68px + env(safe-area-inset-bottom));
     }
     .value-strip {
       grid-template-columns: minmax(0, 1fr);
