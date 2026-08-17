@@ -132,7 +132,7 @@ export function InvSection({
                 allocation rows below already sum; the rows stay, matching
                 the prototype's donut + allocation-row pairing. Legend
                 hidden — the rows below are the one legend for this card. */}
-            <div className="[&_.apexcharts-legend]:hidden">
+            <div className="[&_.apexcharts-legend]:hidden!">
               <DonutChart
                 segments={typeRows.map((row) => ({
                   label: row.label,

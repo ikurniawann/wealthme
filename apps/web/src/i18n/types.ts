@@ -338,6 +338,13 @@ export type I18nDictionary = {
     evening: string;
   };
   common: {
+    /** Searchable emoji picker (components/wm/emoji-picker.tsx) — shared by
+     *  the CRUD modal's `iconpick` field and the budget dialog, which used to
+     *  ship two different fixed emoji grids. */
+    emojiSearchPlaceholder: string;
+    emojiNoResults: string;
+    emojiLoading: string;
+    emojiGroupAriaLabel: string;
     balance: string;
     income: string;
     expense: string;
@@ -1341,6 +1348,11 @@ export type I18nDictionary = {
     errorKeyCorrupted: string;
     errorAuthFailed: string;
     errorRateLimited: string;
+    /** Rate-limit variants. The generic `errorRateLimited` says "try again in a
+     *  moment", which is wrong for a per-day quota — the user retried in a loop
+     *  and learned nothing. `{seconds}` / `{model}` are substituted. */
+    errorRateLimitedRetryIn: string;
+    errorRateLimitedDaily: string;
     errorTimeout: string;
     /** Restructure (prototype parity) — status/provider/context surfaces on
      * the configured-chat view, built only from real fields already
@@ -1353,11 +1365,31 @@ export type I18nDictionary = {
     changeApiKeyLink: string;
     providerLabels: Record<"claude" | "openai" | "gemini", string>;
     newConversationButton: string;
+    /** Saved-session history panel. Sessions are stored server-side per
+     * member (see the API's AiConversationService), so these survive a
+     * reload and a device change — not a browser-local list. */
+    historyTitle: string;
+    historyEmpty: string;
+    historyLoading: string;
+    historyError: string;
+    historyMessageCount: string;
+    historyDeleteAriaLabel: string;
+    historyDeleteConfirm: string;
+    historyDeleted: string;
+    historyDeleteFailed: string;
+    historyLoadFailed: string;
+    historyCurrentBadge: string;
     dataReadTitle: string;
     dataReadNetWorth: string;
     dataReadCashflow: string;
     dataReadCategories: string;
+    dataReadLiabilities: string;
+    dataReadBalances: string;
+    dataReadGoals: string;
     dataReadTransactions: string;
+    /** Split out of the old "Nomor rekening & saldo per akun" row: per-account
+     *  balances ARE sent now, account numbers still are not. One row claiming
+     *  both were withheld became false the moment row detail shipped. */
     dataReadAccountNumbers: string;
     yesLabel: string;
     noLabel: string;
@@ -2522,6 +2554,11 @@ export type I18nDictionary = {
     tipsSavingLink: string;
     modalAddTitle: string;
     fieldCategoryNameLabel: string;
+    fieldKindLabel: string;
+    fieldCoaLabel: string;
+    coaAutoOptionLabel: string;
+    fieldPrivateLabel: string;
+    fieldPrivateHint: string;
     fieldCategoryNamePlaceholder: string;
     iconGroupAriaLabel: string;
     iconLabel: string;
@@ -3389,6 +3426,14 @@ export type I18nDictionary = {
     };
     // EPIC-024 Task M (M2, D16, US-RPT-14) — Laporan COA yearly matrix tab.
     coa: {
+      cardTitle: string;
+      newBadge: string;
+      totalYearLabel: string;
+      txCountSuffix: string;
+      matrixHint: string;
+      scrollHint: string;
+      expandButton: string;
+      expandAriaLabel: string;
       title: string;
       accountLabel: string;
       accountPlaceholder: string;

@@ -11,6 +11,7 @@ import { buildAdvisorSystemPrompt } from "./advisor-prompt.util";
 import {
   AiAdvisorAuthError,
   AiAdvisorRateLimitError,
+  type RateLimitScope,
 } from "./ai-advisor-provider.error";
 import { AiAdvisorPort } from "./ai-advisor.port";
 import { consumeSseStream } from "./sse.util";
@@ -21,7 +22,85 @@ import type {
   AdvisorMessage,
 } from "./ai-advisor.port";
 
-const GEMINI_MODEL = "gemini-2.0-flash" as const;
+// Google retires model IDs out from under callers: `gemini-2.0-flash` started
+// answering every request with a 404 ("This model ... is no longer available.
+// Please update your code to use models/gemini-3.6-flash"), which surfaced in
+// the UI as a chat that never started even with a perfectly valid API key.
+// `GEMINI_MODEL` overrides the default so the next retirement is an env change,
+// not a redeploy.
+//
+// The default is NOT the model Google's own error message named. Taking that
+// advice moved the advisor onto a free tier of **20 requests per day**
+// (verified from the 429 payload: `quotaId:
+// GenerateRequestsPerDayPerProjectPerModel-FreeTier, quotaValue: 20`), which a
+// single afternoon of use exhausts — every suggestion chip then answered with a
+// rate-limit notice. Google gives the newest model the tightest free quota, so
+// the default is a generation-older GA model instead; a probe against the same
+// streaming endpoint confirmed 2.5/3.5 flash and the lite variants all still
+// answer while 3.6 is exhausted. Set `GEMINI_MODEL=gemini-3.6-flash` to go back
+// on a paid plan.
+const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
+
+/**
+ * Turns Google's 429 body into an error that can say something useful.
+ *
+ * Shape (trimmed):
+ *   { error: { message, details: [
+ *       { "@type": ".../QuotaFailure", violations: [{ quotaId, quotaValue }] },
+ *       { "@type": ".../RetryInfo", retryDelay: "23s" } ] } }
+ *
+ * Parsed defensively — a body that is empty, truncated, or reshaped by Google
+ * must still yield a plain rate-limit error rather than throwing a
+ * `SyntaxError` from inside an error path, which would surface to the user as
+ * an unclassified failure instead of "rate limited".
+ */
+export function parseGeminiRateLimit(body: string): AiAdvisorRateLimitError {
+  let scope: RateLimitScope | undefined;
+  let retryAfterSeconds: number | undefined;
+  let detail: string | undefined;
+
+  try {
+    const parsed = JSON.parse(body) as {
+      error?: {
+        message?: string;
+        details?: Array<{
+          "@type"?: string;
+          retryDelay?: string;
+          violations?: Array<{ quotaId?: string }>;
+        }>;
+      };
+    };
+    detail = parsed.error?.message;
+
+    for (const item of parsed.error?.details ?? []) {
+      // Match on the quota id rather than the human-readable message, which is
+      // prose Google is free to reword.
+      for (const violation of item.violations ?? []) {
+        if (violation.quotaId?.includes("PerDay")) scope = "daily";
+        else if (violation.quotaId) scope ??= "short";
+      }
+      if (item.retryDelay) {
+        const seconds = Number.parseFloat(item.retryDelay.replace(/s$/, ""));
+        if (Number.isFinite(seconds) && seconds > 0) {
+          retryAfterSeconds = Math.ceil(seconds);
+        }
+      }
+    }
+  } catch {
+    // Leave everything undefined — the generic message still applies.
+  }
+
+  // Google sends a short `retryDelay` (e.g. 23s) even for a PER-DAY cap — it
+  // describes its token bucket, not when the day resets. Passing it on would
+  // reproduce the exact lie this function exists to remove, so a daily cap
+  // reports no retry delay at all.
+  return new AiAdvisorRateLimitError(
+    "Gemini",
+    scope,
+    scope === "daily" ? undefined : retryAfterSeconds,
+    detail,
+  );
+}
 const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
 // EPIC-023 Task G retry (HIGH five-reviewer finding) — bounds the whole
 // streamed request so a stalled connection cannot hang the chat request
@@ -104,7 +183,10 @@ export class GeminiAdvisorService extends AiAdvisorPort {
           throw new AiAdvisorAuthError("Gemini");
         }
         if (res.status === 429) {
-          throw new AiAdvisorRateLimitError("Gemini");
+          // `body` was already read above and used to be discarded here.
+          // Google puts the useful part in it: which quota ran out and when
+          // to retry. See parseGeminiRateLimit.
+          throw parseGeminiRateLimit(body);
         }
         throw new Error(
           `Gemini request failed (${res.status}): ${body.slice(0, 300)}`,

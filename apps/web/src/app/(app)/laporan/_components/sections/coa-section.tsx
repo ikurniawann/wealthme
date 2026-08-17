@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MoneyStat, SectionCard } from "@/components/wm";
+import { Maximize2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -94,163 +94,197 @@ export function CoaSection({
   const hasApiCells = matrix ? Object.keys(matrix.cells).length > 0 : false;
   const displayMatrix: CoaMatrixDto =
     matrix && hasApiCells
-    ? matrix
-    : buildDemoCoaMatrix(selectedAccountId, year);
+      ? matrix
+      : buildDemoCoaMatrix(selectedAccountId, year);
   const hasCells = Object.keys(displayMatrix.cells).length > 0;
-  const activeCellTxs =
-    activeCell
-      ? (displayMatrix.cells[activeCell.month]?.[activeCell.day] ?? [])
-      : [];
+  const [fullscreen, setFullscreen] = useState(false);
+  // The prototype's "N transaksi" counter — every stacked amount in every
+  // cell, not the number of filled cells (a day can hold several).
+  const txCount = Object.values(displayMatrix.cells).reduce(
+    (sum, byDay) =>
+      sum + Object.values(byDay).reduce((n, txs) => n + txs.length, 0),
+    0,
+  );
+
+  const activeCellTxs = activeCell
+    ? (displayMatrix.cells[activeCell.month]?.[activeCell.day] ?? [])
+    : [];
+
+  // Prototype parity (docs/prototype/pages/laporan.html, panel rcoa): the
+  // matrix table is rendered once and reused inside the fullscreen dialog the
+  // "Perbesar" button opens, so the two can never drift apart.
+  const matrixTable = (
+    <table className="coa-matrix">
+      <thead>
+        <tr>
+          <th className="coa-date">{t.laporan.coa.colTanggal}</th>
+          {monthShortLabels.map((label) => (
+            <th key={label}>{label}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+          <tr key={day}>
+            <td className="coa-date">{day}</td>
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => {
+              const cellTxs = displayMatrix.cells[month]?.[day] ?? [];
+              if (cellTxs.length === 0) {
+                return <td key={month} className="coa-cell" />;
+              }
+              return (
+                <td
+                  key={month}
+                  className="coa-cell coa-cell--filled"
+                  onClick={() => setActiveCell({ month, day })}
+                >
+                  {/* The prototype stacks EVERY amount in the cell rather than
+                      collapsing them to one sum with an "(3x)" suffix — one
+                      `.coa-amt` line per transaction. */}
+                  {cellTxs.map((tx) => (
+                    <span key={tx.txId} className="coa-amt mono">
+                      {formatJuta(tx.amount)}
+                    </span>
+                  ))}
+                </td>
+              );
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+
+  const selectedAccount =
+    coaAccounts.find((a) => a.id === selectedAccountId) ?? coaAccounts[0];
+  const matrixTitle = selectedAccount
+    ? `${selectedAccount.code} · ${selectedAccount.name} — ${year}`
+    : `${t.laporan.coa.title} — ${year}`;
 
   return (
-    <div className={"space-y-3.5 " + loadingClass}>
-      <div className="text-[15px] font-bold">{t.laporan.coa.title}</div>
-
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex min-w-[220px] flex-1 flex-col gap-1">
-          <label
-            htmlFor="coa-matrix-account"
-            className="text-[11.5px] font-semibold text-muted-foreground"
-          >
-            {t.laporan.coa.accountLabel}
-          </label>
-          <select
-            id="coa-matrix-account"
-            className="w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card"
-            value={coaAccountId}
-            onChange={(e) => {
-              onCoaAccountIdChange(e.target.value);
-              setActiveCell(null);
-            }}
-          >
-            <option value="">{t.laporan.coa.accountPlaceholder}</option>
-            {coaAccounts.map((acc) => (
-              <option key={acc.id} value={acc.id}>
-                {acc.code} — {acc.name}
-              </option>
-            ))}
-          </select>
+    <div className={"stack " + loadingClass}>
+      {/* ── Card 1: filters + yearly total + hint ───────────────────────── */}
+      <article className="card">
+        <div className="card__header">
+          <h2 className="card__title">{t.laporan.coa.cardTitle}</h2>
+          <span className="card__action badge badge--purple">
+            {t.laporan.coa.newBadge}
+          </span>
         </div>
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="coa-matrix-year"
-            className="text-[11.5px] font-semibold text-muted-foreground"
+        <div className="card__body">
+          <div
+            className="row row--wrap"
+            style={{ gap: 12, alignItems: "flex-end" }}
           >
-            {t.laporan.coa.yearLabel}
-          </label>
-          <select
-            id="coa-matrix-year"
-            className="rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card"
-            value={year}
-            onChange={(e) => {
-              onYearChange(Number(e.target.value));
-              setActiveCell(null);
-            }}
-          >
-            {yearOptions.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {!selectedAccountId ? (
-        <SectionCard>
-          <div className="py-8 text-center text-[13px] text-muted-foreground">
-            {t.laporan.coa.emptyAccount}
-          </div>
-        </SectionCard>
-      ) : (
-        <>
-          <SectionCard>
-            <MoneyStat
-              label={t.laporan.coa.totalLabel}
-              value={formatRupiah(displayMatrix.total)}
-            />
-            {!hasApiCells && (
-              <div className="mt-1 text-[11px] text-muted-foreground">
-                Data contoh ditampilkan karena matrix COA dari server masih kosong.
+            <label className="field" style={{ minWidth: 260 }}>
+              <span className="label">{t.laporan.coa.accountLabel}</span>
+              <select
+                className="select"
+                value={coaAccountId}
+                onChange={(e) => {
+                  onCoaAccountIdChange(e.target.value);
+                  setActiveCell(null);
+                }}
+              >
+                <option value="">{t.laporan.coa.accountPlaceholder}</option>
+                {coaAccounts.map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.code} · {acc.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field" style={{ minWidth: 130 }}>
+              <span className="label">{t.laporan.coa.yearLabel}</span>
+              <select
+                className="select"
+                value={year}
+                onChange={(e) => {
+                  onYearChange(Number(e.target.value));
+                  setActiveCell(null);
+                }}
+              >
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="spacer" />
+            <div style={{ textAlign: "right" }}>
+              <div className="t-xs t-muted">{t.laporan.coa.totalYearLabel}</div>
+              <div className="stat__value mono t-primary">
+                {formatRupiah(displayMatrix.total)}
               </div>
-            )}
-          </SectionCard>
+              <div className="t-xs t-muted">
+                {txCount} {t.laporan.coa.txCountSuffix}
+              </div>
+            </div>
+          </div>
 
-          <SectionCard>
+          <div className="hint" style={{ marginTop: 10 }}>
+            {t.laporan.coa.matrixHint}
+          </div>
+
+          {!hasApiCells && (
+            <div className="notice notice--warning" style={{ marginTop: 10 }}>
+              Data contoh ditampilkan karena matrix COA dari server masih
+              kosong.
+            </div>
+          )}
+        </div>
+      </article>
+
+      {/* ── Card 2: the matrix itself ───────────────────────────────────── */}
+      {!selectedAccountId ? (
+        <article className="card">
+          <div className="card__body">
+            <div className="empty t-sm t-muted">
+              {t.laporan.coa.emptyAccount}
+            </div>
+          </div>
+        </article>
+      ) : (
+        <article className="card">
+          <div className="card__header row--between">
+            <div className="row" style={{ gap: 10, minWidth: 0 }}>
+              <h2 className="card__title">{matrixTitle}</h2>
+              <span className="card__action t-xs t-muted">
+                {t.laporan.coa.scrollHint}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="btn btn--outline btn--sm"
+              onClick={() => setFullscreen(true)}
+              aria-label={t.laporan.coa.expandAriaLabel}
+            >
+              <Maximize2 size={15} />
+              {t.laporan.coa.expandButton}
+            </button>
+          </div>
+          <div className="card__body">
             {!hasCells ? (
-              <div className="py-8 text-center text-[13px] text-muted-foreground">
+              <div className="empty t-sm t-muted">
                 {t.laporan.coa.emptyMatrix}
               </div>
             ) : (
-              <div className="w-full overflow-x-auto [mask-image:linear-gradient(to_left,transparent,black_24px)]">
-                <table className="w-full min-w-[900px] text-[11px]">
-                  <thead>
-                    <tr className="border-b text-left text-muted-foreground">
-                      <th className="sticky left-0 bg-card py-2 pr-2 font-semibold">
-                        {t.laporan.coa.colTanggal}
-                      </th>
-                      {monthShortLabels.map((label) => (
-                        <th
-                          key={label}
-                          className="px-1.5 py-2 text-right font-semibold"
-                        >
-                          {label}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                      <tr key={day} className="border-b last:border-0">
-                        <td className="mono sticky left-0 bg-card py-1.5 pr-2 font-semibold">
-                          {day}
-                        </td>
-                        {Array.from({ length: 12 }, (_, i) => i + 1).map(
-                          (month) => {
-                            const cellTxs =
-                              displayMatrix.cells[month]?.[day] ?? [];
-                            if (cellTxs.length === 0) {
-                              return (
-                                <td
-                                  key={month}
-                                  className="px-1.5 py-1.5 text-right text-muted-foreground"
-                                >
-                                  —
-                                </td>
-                              );
-                            }
-                            const cellTotal = cellTxs.reduce(
-                              (s, c) => s + c.amount,
-                              0,
-                            );
-                            return (
-                              <td
-                                key={month}
-                                className="px-1.5 py-1.5 text-right"
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => setActiveCell({ month, day })}
-                                  className="mono w-full rounded px-1 py-0.5 text-right font-semibold text-primary hover:bg-accent"
-                                >
-                                  {formatJuta(cellTotal)}
-                                  {cellTxs.length > 1
-                                    ? ` (${cellTxs.length}x)`
-                                    : ""}
-                                </button>
-                              </td>
-                            );
-                          },
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <div className="coa-table-wrap">{matrixTable}</div>
             )}
-          </SectionCard>
-        </>
+          </div>
+        </article>
       )}
+
+      {/* ── "Perbesar" fullscreen view ──────────────────────────────────── */}
+      <Dialog open={fullscreen} onOpenChange={setFullscreen}>
+        <DialogContent className="dialog--fullscreen min-[769px]:w-[min(1200px,calc(100%-2rem))]">
+          <DialogTitle>{matrixTitle}</DialogTitle>
+          <div className="coa-table-wrap" style={{ maxHeight: "70dvh" }}>
+            {matrixTable}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={activeCell !== null}

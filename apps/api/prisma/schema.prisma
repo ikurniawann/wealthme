@@ -215,6 +215,16 @@ enum AllowanceRequestStatus {
 
 // EPIC-023 G3 (D16) — bring-your-own AI provider. Provider-agnostic: a
 // family picks exactly one at a time and supplies its own key.
+// Only the two roles a stored transcript can contain. The provider adapters
+// map this onto their own vocabulary ("model" for Gemini, "assistant"
+// elsewhere); no system turn is persisted because the system prompt is rebuilt
+// from live family data on every request, so storing a stale copy would let an
+// old session answer from outdated figures.
+enum AiMessageRole {
+  user
+  assistant
+}
+
 enum AiProvider {
   claude
   openai
@@ -304,6 +314,11 @@ model User {
   // EPIC-023 D2 (US-FAM-13, D7) — devices this user has registered for PIN
   // unlock. A PIN alone never authenticates; see Device below.
   devices                  Device[]
+  // This user's own saved AI advisor sessions, never another member's.
+  aiConversations          AiConversation[]
+  // Notifications addressed to this user specifically (household-wide ones
+  // carry a null userId and belong to no one) — see Notification.userId.
+  notifications            Notification[]
 
   @@map("users")
 }
@@ -434,6 +449,8 @@ model FamilyGroup {
   // family (nullable relation); the key itself is never stored plaintext
   // (see FamilyAiKey.encryptedKey).
   aiKey                   FamilyAiKey?
+  // Saved advisor sessions for this family (per-member — see AiConversation).
+  aiConversations         AiConversation[]
   // EPIC-024 Task J (D14, US-MD-1) — the seven reference-list groups (bank,
   // e-wallet, transaction type, investment type, donation institution, asset
   // category, insurance type).
@@ -849,14 +866,39 @@ model Goal {
 model Notification {
   id            String      @id @default(uuid())
   familyGroupId String
+  // Recipient. `null` = addressed to the household (budget thresholds, goal
+  // progress, due-date reminders — everything that is genuinely everyone's
+  // business, and every row that existed before this column).
+  //
+  // Set = addressed to ONE member. This column is why it exists: a funding
+  // request's approve/reject notification is news for the person who asked,
+  // and `notifyRequesterOfDecision` used to create a family-wide row that
+  // the requester could not read at all — `dependant`/`operational`, the
+  // only roles that ever request funds, have no CASL grant on Notification,
+  // so the decision landed exclusively in the owner's list. Meanwhile every
+  // trusted member saw "Bibi May meminta Rp 100000", which is not their
+  // business either.
+  //
+  // Row-scoped roles are shown ONLY their own targeted rows — never the
+  // `null` household ones, which carry the whole-family figures
+  // `assertHouseholdWideReadAllowed` denies them everywhere else.
+  userId        String?
   title         String
   body          String
   icon          String?
+  // Single shared flag, deliberately not per-user: a targeted row has one
+  // reader so it is exact, but two members marking a household row read still
+  // share the state. Per-recipient read tracking would need its own join
+  // table; recorded as a known limitation rather than half-built here.
   isRead        Boolean     @default(false)
   createdAt     DateTime    @default(now())
   familyGroup   FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  user          User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([familyGroupId])
+  // Serves the only list query there is: household rows plus this viewer's
+  // own, newest first.
+  @@index([familyGroupId, userId, createdAt])
   @@map("notifications")
 }
 
@@ -1313,6 +1355,60 @@ model ReconciliationTemplate {
 // `keyHint` is a display-safe fragment (last 4 chars) only, never enough to
 // reconstruct the key. One row per family (@unique) — switching provider
 // overwrites the existing row rather than accumulating stale keys.
+// Saved AI advisor sessions. Before these, "Mulai Baru" wiped the transcript
+// with nothing behind it — the chat endpoint is stateless (the web app resent
+// the whole history each turn and held it in React state), so closing the tab
+// lost the conversation outright and there was no such thing as a previous
+// session to go back to.
+//
+// Scoped by BOTH familyGroupId and userId: a family shares one AI key and one
+// financial picture, but not each other's conversations. Every query filters
+// on the pair, so one member can never list or open another's session even
+// inside the same family.
+//
+// On storage: `AiMessage.content` is plaintext, unlike User.birthDate /
+// monthlyIncome (AES-256-GCM via CryptoService). A transcript restates figures
+// — net worth, monthly income, balances — that already sit unencrypted in
+// `transactions`, `accounts`, and `assets`, so encrypting it would not raise
+// the bar against anyone who can already read this database, while making the
+// rows unsearchable. If that trade is ever revisited, the encryption belongs
+// in AiConversationService, not the controller.
+model AiConversation {
+  id            String        @id @default(uuid())
+  familyGroupId String
+  userId        String
+  // Derived from the first user turn (truncated), never model-authored — a
+  // title generated by a second provider call would cost a request and could
+  // fail independently of the chat that produced it.
+  title         String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  familyGroup   FamilyGroup   @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages      AiMessage[]
+
+  // Serves the only list query there is: this user's sessions in this family,
+  // newest activity first.
+  @@index([familyGroupId, userId, updatedAt])
+  @@map("ai_conversations")
+}
+
+model AiMessage {
+  id             String         @id @default(uuid())
+  conversationId String
+  role           AiMessageRole
+  content        String
+  // Mirrors the SSE `truncated` flag so a reopened session still shows the
+  // "answer was cut off" notice instead of silently presenting a partial
+  // answer as complete.
+  truncated      Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("ai_messages")
+}
+
 model FamilyAiKey {
   id            String      @id @default(uuid())
   familyGroupId String      @unique

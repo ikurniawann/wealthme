@@ -128,7 +128,7 @@ export function TrendCompositionSection({
               {/* The labelled `.progress` list below is the ONE legend for
                   this card, exactly as in the prototype — Apex's own donut
                   legend is hidden so it isn't duplicated. */}
-              <div className="chart private [&_.apexcharts-legend]:hidden">
+              <div className="chart private [&_.apexcharts-legend]:hidden!">
                 <DonutChart
                   segments={donutSegments}
                   centerLabel={t.ringkasan.totalAssetsLabel}

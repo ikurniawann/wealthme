@@ -23,17 +23,17 @@ import {
   resolvePreset,
   type ReportPeriodSelection,
   type ReportRangePreset,
+  wibDateOf,
 } from "@/lib/laporan-period";
 import type { InvestmentDto, InvestmentType } from "@wealthme/contracts";
-import { localeTag } from "./date-helpers";
 import { useExportJob, ExportSection } from "./export-section";
 import { useLaporanReportQueries } from "./use-laporan-report-queries";
 import { InvestmentDialogs } from "./investment-dialogs";
+import { RangePresetSelect } from "./period-filter";
 import {
-  buildRangePresetLabels,
-  PeriodFilter,
-  RangePresetSelect,
-} from "./period-filter";
+  DateRangeFilterField,
+  formatDateRangeLabel,
+} from "@/components/wm/date-range-field";
 import { RingkasanSection } from "./sections/ringkasan-section";
 import { HarianSection } from "./sections/harian-section";
 import { BulananSection } from "./sections/bulanan-section";
@@ -81,7 +81,12 @@ export function LaporanInner() {
   // anything else overrides `rangeStart`/`rangeEnd` below. `now` is frozen
   // per preset selection (not recomputed every render) so the derived
   // query keys stay stable instead of refetching on every re-render.
-  const [rangePreset, setRangePreset] = useState<ReportRangePreset>("custom");
+  // Prototype default is "Bulan Ini" (`<option value="bulan-ini" selected>`),
+  // not "Custom" — with "custom" the filter opened on the year/month/day
+  // selects and `presetRange` was null, so every trend query silently fell
+  // back to the month anchor instead of an explicit range.
+  const [rangePreset, setRangePreset] =
+    useState<ReportRangePreset>("thisMonth");
   // EPIC-023 Task B retry (MEDIUM) — the "to-date" presets (This Month/
   // Year, Last N Months) end at `now`, frozen at the moment `resolvePreset`
   // last ran. Recompute it when the tab regains focus/visibility so a long-
@@ -104,11 +109,28 @@ export function LaporanInner() {
   // `focusTick` is an intentional recompute trigger (not a value
   // `resolvePreset` itself reads), so it is force-included in the deps
   // array below to invalidate the memo on focus/visibility change.
-  const presetRange = useMemo(
-    () => (rangePreset === "custom" ? null : resolvePreset(rangePreset)),
+  // Prototype parity: "Rentang Tanggal" is a real date-range PICKER that is
+  // always visible, and applying one flips Periode to "Custom" (see
+  // docs/prototype/pages/laporan.html — `WM.mountDateRange`'s `onApply` sets
+  // `#f-preset` to `custom`). Custom therefore now resolves to a real range
+  // through `resolvePreset`'s own WIB-pinned `custom` branch, instead of
+  // returning null and falling back to the year/month/day selects.
+  const [customRange, setCustomRange] = useState<{
+    from: string;
+    to: string;
+  } | null>(null);
+
+  const presetRange = useMemo(() => {
+    if (rangePreset !== "custom") return resolvePreset(rangePreset);
+    if (!customRange) return null; // nothing applied yet — keep today's fallback
+    const [fy, fm, fd] = customRange.from.split("-").map(Number);
+    const [ty, tm, td] = customRange.to.split("-").map(Number);
+    return resolvePreset("custom", new Date(), {
+      start: { year: fy, month: fm, day: fd },
+      end: { year: ty, month: tm, day: td },
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rangePreset, focusTick],
-  );
+  }, [rangePreset, customRange, focusTick]);
 
   // Range-style sections (Bank/Detail/PNL/Cashflow/Aliran Dana, Balance
   // Sheet's as-of date, and the Reconciliation Bridge) narrow to a single
@@ -126,8 +148,20 @@ export function LaporanInner() {
     month: period.month,
     day: null,
   });
-  // Tahunan re-queries the same trend anchored at the selected year's end.
-  const { endDate: yearAnchorEnd } = getYearDateRange(period.year);
+  // Tahunan re-queries the same trend anchored at the selected year's end —
+  // but for the current (or a future) year, "the selected year's end" is
+  // Dec 31, a date that hasn't happened yet. Anchoring a trailing-3-month
+  // query there pulls Oct/Nov/Dec of a year still in progress, i.e. three
+  // empty future months (bug: "Laporan Tahunan" showing Rp 0 / an empty
+  // chart every August). Clamp to "today" whenever the calendar year-end is
+  // still in the future, matching every other trend-style anchor's "never
+  // query past today" contract (see `resolvePreset`'s to-date presets).
+  // `focusTick`-scoped so "today" stays a stable string across renders (not
+  // a fresh `new Date()` every render, which would thrash the query key).
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- focusTick is an intentional recompute trigger (not a value the callback itself reads), same as presetRange above.
+  const todayIso = useMemo(() => new Date().toISOString(), [focusTick]);
+  const { endDate: yearEndRaw } = getYearDateRange(period.year);
+  const yearAnchorEnd = yearEndRaw < todayIso ? yearEndRaw : todayIso;
   // EPIC-023 Task B retry (HIGH) — B1 previously only drove
   // rbank/rdetail/rpnl/rbalance/rasl/rcashflow/raliran via `rangeStart`/
   // `rangeEnd`; rsum/rbulanan/rkas/rperf/rtahunan/rpajak still anchored on
@@ -138,28 +172,20 @@ export function LaporanInner() {
   // year/month/day filter's anchor for "custom".
   const summaryAnchorEnd = presetRange ? rangeEnd : monthAnchorEnd;
   const tahunanAnchorEnd = presetRange ? rangeEnd : yearAnchorEnd;
-  const presetLabels = buildRangePresetLabels(t);
   // Human-readable caption for the range-based sections (Aliran Dana/PNL/
   // Cashflow) so their heading always matches the period actually queried —
   // the active preset's own label when one is selected, else the year/
   // month/day filter's period.
-  const periodLabel =
-    rangePreset !== "custom"
-      ? presetLabels[rangePreset]
-      : period.day
-        ? new Date(
-            period.year,
-            period.month - 1,
-            period.day,
-          ).toLocaleDateString(localeTag(locale), {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })
-        : new Date(period.year, period.month - 1, 1).toLocaleDateString(
-            localeTag(locale),
-            { month: "long", year: "numeric" },
-          );
+  // The prototype's `#lbl-periode` is always a date RANGE ("1 – 31 Agustus
+  // 2026") — every PRESETS entry carries one, and applying a custom range
+  // copies the picker's own label into it. It never shows a preset's NAME.
+  // Derived from the same bounds the queries use, so the disclosure and the
+  // data can never disagree.
+  const periodLabel = formatDateRangeLabel(
+    wibDateOf(rangeStart),
+    wibDateOf(rangeEnd),
+    locale,
+  );
 
   // EPIC-026 file-split — every report `useQuery` extracted verbatim into
   // `useLaporanReportQueries` so this file stays under the size convention;
@@ -538,70 +564,84 @@ export function LaporanInner() {
       {/* Filter Laporan card (gap 2) — wraps the existing preset/period
           selectors; logic is unchanged, only the presentation moved into a
           proper card matching the prototype. */}
-      <div className="rounded-[12px] border bg-card p-4">
-        <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
-          <div className="text-[13px] font-bold">
-            {t.laporan.filterCard.title}
-          </div>
-          <span className="text-[11px] text-muted-foreground">
+      {/* Filter Laporan — prototype `section.card.report-filter-card`
+          (docs/prototype/pages/laporan.html): `.card__header` with title +
+          "Berlaku untuk semua tab" action, then a `.bento-filter` holding
+          exactly TWO fields — the Periode preset select and an always-visible
+          date-range picker. The app previously rendered a bespoke Tailwind box
+          whose second field was three year/month/day selects that only
+          appeared once "Custom" was chosen, i.e. four controls instead of two. */}
+      <section className="card report-filter-card">
+        <div className="card__header">
+          <h2 className="card__title">{t.laporan.filterCard.title}</h2>
+          <span className="card__action t-xs t-muted">
             {t.laporan.filterCard.appliesAllTabsCaption}
           </span>
         </div>
-        <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
-          <div className="flex min-w-0 flex-col gap-1">
-            <label className="text-[11px] font-semibold text-muted-foreground">
-              {t.laporan.filterCard.periodeLabel}
-            </label>
-            {/* EPIC-023 Task B (B1, US-RPT-12) — quick-range presets applied
-                across every /laporan sub-view. "Custom" hands control back
-                to the year/month/day filter below it. */}
-            <RangePresetSelect preset={rangePreset} onChange={setRangePreset} />
+        <div className="card__body" style={{ paddingTop: 16 }}>
+          <div className="bento-filter">
+            <div className="field" style={{ minWidth: 210 }}>
+              <span className="label">{t.laporan.filterCard.periodeLabel}</span>
+              <RangePresetSelect
+                preset={rangePreset}
+                onChange={setRangePreset}
+              />
+            </div>
+            <DateRangeFilterField
+              label={t.laporan.filterCard.dateRangeLabel}
+              /* wibDateOf, never `.slice(0,10)`: these bounds are WIB-pinned,
+                 so slicing the ISO instant would show the previous UTC day
+                 (1 Aug 00:00 WIB is 31 Jul 17:00 UTC). */
+              from={wibDateOf(rangeStart)}
+              to={wibDateOf(rangeEnd)}
+              locale={locale}
+              cancelLabel={t.common.cancel}
+              applyLabel={t.common.save}
+              onApply={(from, to) => {
+                setCustomRange({ from, to });
+                setRangePreset("custom");
+              }}
+            />
+            <div className="bento-filter__actions" />
           </div>
-          {rangePreset === "custom" && (
-            <div className="flex min-w-0 flex-col gap-1">
-              <label className="text-[11px] font-semibold text-muted-foreground">
-                {t.laporan.filterCard.dateRangeLabel}
-              </label>
-              <PeriodFilter period={period} onChange={setPeriod} />
+
+          {/* EPIC-022 B7 — report boundaries are pinned to WIB (never the
+              viewer's local offset); disclose the pin instead of leaving it
+              silent. Not in the prototype, deliberately kept. */}
+          <div className="t-xs t-muted" style={{ marginTop: 8 }}>
+            {t.laporan.periodFilter.timezoneNotePrefix}
+            {REPORT_TIMEZONE_LABEL}
+            {t.laporan.periodFilter.timezoneNoteSuffix}
+          </div>
+
+          {/* EPIC-023 Task B retry (HIGH) — rfamily (roster + net worth) and
+              rinv (current holdings) have no period semantics to filter by;
+              say so plainly instead of implying the selector does something. */}
+          {(tab === "rfamily" || tab === "rinv") && (
+            <div
+              className="t-xs"
+              style={{ marginTop: 4, color: "var(--warning)" }}
+            >
+              {t.laporan.periodFilter.periodNotApplicableNote}
             </div>
           )}
-        </div>
-        {/* EPIC-022 B7 — report boundaries are pinned to WIB (never the
-            viewer's local offset); disclose the pin instead of leaving it
-            silent. */}
-        <div className="mt-2 text-[10.5px] text-muted-foreground">
-          {t.laporan.periodFilter.timezoneNotePrefix}
-          {REPORT_TIMEZONE_LABEL}
-          {t.laporan.periodFilter.timezoneNoteSuffix}
-        </div>
-        {/* EPIC-023 Task B retry (HIGH) — rfamily (roster + net worth)
-            and rinv (current holdings) have no period semantics to
-            filter by (see the query comments above); say so plainly
-            instead of rendering a selector that silently does nothing. */}
-        {(tab === "rfamily" || tab === "rinv") && (
-          <div className="mt-1 text-[10.5px] text-warning">
-            {t.laporan.periodFilter.periodNotApplicableNote}
-          </div>
-        )}
 
-        {/* Cash-basis disclosure callout (gap 3) — active period rendered
+          {/* Cash-basis disclosure callout (gap 3) — active period rendered
             from the real `periodLabel` derivation above, not a static
             string. */}
-        <div className="mt-3.5 flex items-start gap-2.5 rounded-md border border-primary/20 bg-accent/50 p-3 text-[12px] text-muted-foreground">
-          <Info className="mt-0.5 size-4 shrink-0 text-primary" />
-          <span>
-            <strong className="text-foreground">
-              {t.laporan.cashBasisNotice.title}
-            </strong>{" "}
-            {t.laporan.cashBasisNotice.body}{" "}
-            {t.laporan.cashBasisNotice.activePeriodPrefix}{" "}
-            <span className="mono font-semibold text-foreground">
-              {periodLabel}
+          {/* Prototype `.notice.notice--info` with the lucide info icon and the
+              active period in `.mono` — was a bespoke Tailwind callout. */}
+          <div className="notice notice--info" style={{ marginTop: 14 }}>
+            <Info className="size-4 shrink-0" />
+            <span>
+              <strong>{t.laporan.cashBasisNotice.title}</strong>{" "}
+              {t.laporan.cashBasisNotice.body}{" "}
+              {t.laporan.cashBasisNotice.activePeriodPrefix}{" "}
+              <span className="mono">{periodLabel}</span>.
             </span>
-            .
-          </span>
+          </div>
         </div>
-      </div>
+      </section>
 
       {/* Pill tab strip with scroll arrows (gap 4) — a single mounted panel
           per active tab (SPA pattern), so `role="tabpanel"` targets the one

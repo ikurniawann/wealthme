@@ -383,6 +383,10 @@ export class AllowanceRequestsService {
       await this.prisma.notification.create({
         data: {
           familyGroupId,
+          // Left household-wide (`userId` unset) on purpose: any approver may
+          // act on it, and addressing it to one of them would hide it from
+          // the rest. Row-scoped roles never see household rows, so this does
+          // not show one member's request to another child.
           title: "Permintaan dana baru",
           body: `${requesterName} meminta Rp ${request.amount.toString()} untuk ${targetName}.`,
           icon: "🙏",
@@ -404,6 +408,13 @@ export class AllowanceRequestsService {
       await this.prisma.notification.create({
         data: {
           familyGroupId,
+          // The point of this notification, and for a long time the one thing
+          // it failed to do: address it to the person who asked. As a
+          // family-wide row it landed only in the owner's list, because the
+          // roles that request funds (`dependant`/`operational`) had no CASL
+          // grant on Notification at all — so the requester was the single
+          // member who never learned the outcome.
+          userId: request.requesterUserId,
           title: approved
             ? "Permintaan dana disetujui"
             : "Permintaan dana ditolak",

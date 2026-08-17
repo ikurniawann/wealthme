@@ -2,11 +2,15 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
 import { useAiKeyStatus, type AiProvider } from "@/hooks/use-ai-key";
+import { useAiConversations } from "@/hooks/use-ai-conversations";
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah } from "@/lib/format";
+
+import { MarkdownMessage } from "./markdown-message";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -39,6 +43,9 @@ type Msg = {
 function errorMessageForCode(
   code: string | undefined,
   t: ReturnType<typeof useLocale>["t"],
+  // Only meaningful for AI_RATE_LIMITED; the server sends them alongside the
+  // code so the message can say WHICH quota ran out.
+  rateLimit?: { scope?: string; retryAfterSeconds?: number },
 ): string {
   switch (code) {
     case "AI_NOT_CONFIGURED":
@@ -48,6 +55,16 @@ function errorMessageForCode(
     case "AI_AUTH_FAILED":
       return t.ai.errorAuthFailed;
     case "AI_RATE_LIMITED":
+      // A per-day cap is the case the old single message got badly wrong: it
+      // said "try again in a moment" about something that does not reset for
+      // hours, so every suggestion chip produced the same useless notice.
+      if (rateLimit?.scope === "daily") return t.ai.errorRateLimitedDaily;
+      if (rateLimit?.retryAfterSeconds) {
+        return t.ai.errorRateLimitedRetryIn.replace(
+          "{seconds}",
+          String(rateLimit.retryAfterSeconds),
+        );
+      }
       return t.ai.errorRateLimited;
     case "AI_TIMEOUT":
       return t.ai.errorTimeout;
@@ -165,6 +182,15 @@ export default function AiPage() {
     return () => ctrl.abort();
   }, [familyGroupId, token]);
 
+  const {
+    conversations,
+    isLoading: isHistoryLoading,
+    isError: isHistoryError,
+    deleteConversation,
+    fetchConversation,
+    refresh: refreshConversations,
+  } = useAiConversations();
+
   const [messages, setMessages] = React.useState<Msg[]>([
     {
       id: 0,
@@ -174,6 +200,13 @@ export default function AiPage() {
   ]);
   const [input, setInput] = React.useState("");
   const [isStreaming, setIsStreaming] = React.useState(false);
+  // Which saved session the transcript on screen belongs to. `null` means
+  // "not filed yet" — either a fresh page load or right after "Mulai Baru";
+  // the server creates the session on the first successful turn and returns
+  // its id on the `done` frame, which is what sets this.
+  const [conversationId, setConversationId] = React.useState<string | null>(
+    null,
+  );
   const idRef = React.useRef(1);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const abortRef = React.useRef<AbortController | null>(null);
@@ -220,6 +253,9 @@ export default function AiPage() {
           },
           body: JSON.stringify({
             messages: [...history, { role: "user", content: trimmed }],
+            // Omitted on the first turn — the server then creates the
+            // session and names it after this question.
+            ...(conversationId ? { conversationId } : {}),
           }),
           signal: ctrl.signal,
         },
@@ -251,8 +287,11 @@ export default function AiPage() {
               token?: string;
               done?: boolean;
               truncated?: boolean;
+              conversationId?: string;
               error?: string;
               code?: string;
+              scope?: string;
+              retryAfterSeconds?: number;
             };
             if (parsed.token) {
               setMessages((prev) =>
@@ -265,7 +304,10 @@ export default function AiPage() {
               // EPIC-023 G3 (D16) / Task G retry (MEDIUM finding) — every
               // failure kind gets its own message instead of one generic
               // toast for auth failure, rate limit, and timeout alike.
-              const text = errorMessageForCode(parsed.code, t);
+              const text = errorMessageForCode(parsed.code, t, {
+                scope: parsed.scope,
+                retryAfterSeconds: parsed.retryAfterSeconds,
+              });
               setMessages((prev) =>
                 prev.map((m) => (m.id === aiMsgId ? { ...m, text } : m)),
               );
@@ -289,6 +331,13 @@ export default function AiPage() {
                     m.id === aiMsgId ? { ...m, truncated: true } : m,
                   ),
                 );
+              }
+              // The exchange was filed. Absent on a turn the server could
+              // not store — the answer above is still valid, this one just
+              // won't appear in history, and the next turn starts a session.
+              if (parsed.conversationId) {
+                setConversationId(parsed.conversationId);
+                refreshConversations();
               }
               break;
             }
@@ -316,16 +365,60 @@ export default function AiPage() {
     setInput("");
   }
 
-  /** Restructure (prototype parity) — "Mulai Baru": aborts any in-flight
-   * stream and resets the transcript to the same greeting the page mounts
-   * with. No server-side conversation record exists to delete — the chat
-   * endpoint is stateless per-request (the full history is resent each
-   * turn) — so this is purely a client-side reset. */
+  /** "Mulai Baru": aborts any in-flight stream and resets the transcript to
+   * the greeting the page mounts with.
+   *
+   * This used to be the whole story — the chat endpoint was stateless and
+   * the conversation lived only in React state, so pressing this button (or
+   * reloading the tab) destroyed it. Now every completed exchange is already
+   * filed server-side, so the reset leaves the old session sitting in the
+   * history panel: clearing `conversationId` starts a NEW session on the
+   * next turn rather than deleting the previous one. */
   function handleNewConversation() {
     abortRef.current?.abort();
     setIsStreaming(false);
     idRef.current = 1;
+    setConversationId(null);
     setMessages([{ id: 0, role: "assistant", text: t.ai.initialMessage }]);
+  }
+
+  /** Reopens a saved session: the greeting stays as the first bubble (it is
+   * page copy, not a stored turn), followed by the transcript as filed. */
+  async function handleOpenConversation(id: string) {
+    if (isStreaming) return;
+    try {
+      const detail = await fetchConversation(id);
+      abortRef.current?.abort();
+      setMessages([
+        { id: 0, role: "assistant", text: t.ai.initialMessage },
+        ...detail.messages.map((m, index) => ({
+          id: index + 1,
+          role: m.role,
+          text: m.content,
+          truncated: m.truncated || undefined,
+        })),
+      ]);
+      // Continue numbering past the loaded turns so a follow-up in this
+      // session cannot collide with a restored message's React key.
+      idRef.current = detail.messages.length + 1;
+      setConversationId(detail.id);
+    } catch {
+      toast.error(t.ai.historyLoadFailed);
+    }
+  }
+
+  async function handleDeleteConversation(id: string) {
+    if (!window.confirm(t.ai.historyDeleteConfirm)) return;
+    try {
+      await deleteConversation(id);
+      // Deleting the session currently on screen detaches the transcript
+      // rather than clearing it: the answers on screen are still the user's
+      // to read, they just no longer belong to a stored session.
+      if (id === conversationId) setConversationId(null);
+      toast.success(t.ai.historyDeleted);
+    } catch {
+      toast.error(t.ai.historyDeleteFailed);
+    }
   }
 
   const providerLabel = aiProvider
@@ -421,9 +514,19 @@ export default function AiPage() {
                 {t.ai.newConversationButton}
               </button>
             </div>
+            {/* The transcript used to sit at a fixed `min-h-[200px]
+                max-h-[440px]`, which on a 900px-tall desktop left ~324px of
+                empty viewport below the card while the conversation scrolled
+                inside a letterbox. It now grows downward into that space:
+                400px is the measured chrome above and below it (page header +
+                chip strip + card header + composer + bottom gutter), the
+                320px floor keeps it usable on a short window, and the 760px
+                cap stops the line length from sprawling on a tall monitor.
+                On mobile the page scrolls anyway, so the taller panel simply
+                shows more of the conversation. */}
             <div
               ref={scrollRef}
-              className="hide-scrollbar flex min-h-[200px] max-h-[440px] flex-col gap-4 overflow-y-auto p-4"
+              className="hide-scrollbar flex h-[clamp(320px,calc(100dvh_-_400px),760px)] flex-col gap-4 overflow-y-auto p-4"
             >
               {messages.map((msg) =>
                 msg.role === "assistant" ? (
@@ -439,11 +542,16 @@ export default function AiPage() {
                     distinct element below the bubble, not text appended
                     into it (which collapsed into one run-on sentence and
                     read as though the model wrote the caveat itself).
-                    `whitespace-pre-wrap` also lets the model's own
-                    intentional line breaks render instead of collapsing. */}
+                    The bubble no longer sets `whitespace-pre-wrap`: the
+                    answer is markdown, and `MarkdownMessage` produces real
+                    block elements whose own margins handle the spacing —
+                    keeping pre-wrap would additionally honour the source's
+                    newlines and double every gap. */}
                     <div className="flex max-w-[78%] flex-col gap-1">
-                      <div className="whitespace-pre-wrap rounded-2xl rounded-tl-sm bg-secondary px-3.5 py-2.5 text-[13px] leading-relaxed text-secondary-foreground">
-                        {msg.text || (
+                      <div className="rounded-2xl rounded-tl-sm bg-secondary px-3.5 py-2.5 text-[13px] leading-relaxed text-secondary-foreground">
+                        {msg.text ? (
+                          <MarkdownMessage text={msg.text} />
+                        ) : (
                           <span className="animate-pulse text-muted-foreground">
                             ●●●
                           </span>
@@ -508,6 +616,69 @@ export default function AiPage() {
             invented model name, "Diatur oleh" person, or on/off demo
             toggle — none of those are real fields on `AiKeyStatusDto`. */}
         <aside className="flex flex-col gap-3.5 lg:col-span-4">
+          {/* Saved sessions. Sits above the informational cards because it
+              is the only interactive one — the rest are read-only context. */}
+          <div className="rounded-[14px] border bg-card p-4">
+            <div className="mb-2 text-[13.5px] font-bold text-muted-foreground">
+              {t.ai.historyTitle}
+            </div>
+            {isHistoryLoading ? (
+              <p className="text-[12.5px] text-muted-foreground">
+                {t.ai.historyLoading}
+              </p>
+            ) : isHistoryError ? (
+              <p className="text-[12.5px] text-destructive">
+                {t.ai.historyError}
+              </p>
+            ) : conversations.length === 0 ? (
+              <p className="text-[12.5px] text-muted-foreground">
+                {t.ai.historyEmpty}
+              </p>
+            ) : (
+              <ul className="hide-scrollbar -mx-1 max-h-[280px] space-y-0.5 overflow-y-auto px-1">
+                {conversations.map((c) => {
+                  const isCurrent = c.id === conversationId;
+                  return (
+                    <li key={c.id} className="group flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => void handleOpenConversation(c.id)}
+                        disabled={isStreaming}
+                        aria-current={isCurrent ? "true" : undefined}
+                        className={`min-w-0 flex-1 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-accent disabled:opacity-50 ${
+                          isCurrent ? "bg-accent" : ""
+                        }`}
+                      >
+                        <span className="block truncate text-[12.5px] font-medium text-foreground">
+                          {c.title}
+                        </span>
+                        <span className="block text-[11px] text-muted-foreground">
+                          {isCurrent
+                            ? t.ai.historyCurrentBadge
+                            : t.ai.historyMessageCount.replace(
+                                "{count}",
+                                String(c.messageCount),
+                              )}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteConversation(c.id)}
+                        aria-label={`${t.ai.historyDeleteAriaLabel}: ${c.title}`}
+                        // Always in the DOM and reachable by keyboard; only
+                        // its opacity is hover-gated, so the row stays tidy
+                        // without the control being touch- or a11y-hostile.
+                        className="flex size-7 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100 max-[1024px]:opacity-100"
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
           <div className="rounded-[14px] border bg-card p-4">
             <div className="mb-1 text-[13.5px] font-bold text-muted-foreground">
               {t.ai.dataReadTitle}
@@ -531,11 +702,34 @@ export default function AiPage() {
               noLabel={t.ai.noLabel}
             />
             <DataReadRow
+              label={t.ai.dataReadLiabilities}
+              read
+              yesLabel={t.ai.yesLabel}
+              noLabel={t.ai.noLabel}
+            />
+            <DataReadRow
+              label={t.ai.dataReadBalances}
+              read
+              yesLabel={t.ai.yesLabel}
+              noLabel={t.ai.noLabel}
+            />
+            <DataReadRow
+              label={t.ai.dataReadGoals}
+              read
+              yesLabel={t.ai.yesLabel}
+              noLabel={t.ai.noLabel}
+            />
+            <DataReadRow
               label={t.ai.dataReadTransactions}
               read={false}
               yesLabel={t.ai.yesLabel}
               noLabel={t.ai.noLabel}
             />
+            {/* Split out of the old combined "Nomor rekening & saldo per
+                akun" row. Balances are now sent (see the row above), account
+                numbers still are not — `Account.maskedNumber` is encrypted at
+                rest and `buildContext` deliberately never selects it. Leaving
+                the two claims fused would have made this card lie. */}
             <DataReadRow
               label={t.ai.dataReadAccountNumbers}
               read={false}

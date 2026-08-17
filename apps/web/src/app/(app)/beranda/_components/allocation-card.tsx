@@ -85,7 +85,7 @@ export function AllocationCard({
         </div>
       ) : (
         <div className="allocation-card__body">
-          <div className="allocation-card__donut">
+          <div className="allocation-card__donut [&_.apexcharts-legend]:hidden!">
             <DonutChart
               segments={segments}
               centerLabel={t.beranda.donutCenterLabel}

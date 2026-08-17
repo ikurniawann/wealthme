@@ -120,6 +120,26 @@ export type ReportRangePreset =
   | "lastYear"
   | "custom";
 
+/**
+ * The WIB (UTC+7) calendar date an instant falls on, as `YYYY-MM-DD`.
+ *
+ * Needed because slicing an ISO instant (`iso.slice(0, 10)`) yields its **UTC**
+ * date, and every bound this module produces is WIB-pinned: 1 August 00:00 WIB
+ * is 31 July 17:00 UTC, so a naive slice reports the previous day. Callers that
+ * display a stored bound (e.g. /laporan's date-range picker) must go through
+ * this rather than re-deriving the +7h shift themselves.
+ */
+export function wibDateOf(instant: Date | string): string {
+  const parts = wibCalendarParts(
+    typeof instant === "string" ? new Date(instant) : instant,
+  );
+  return [
+    String(parts.year).padStart(4, "0"),
+    String(parts.month).padStart(2, "0"),
+    String(parts.day).padStart(2, "0"),
+  ].join("-");
+}
+
 /** One endpoint of an explicit `custom` preset range. */
 export interface CustomPresetBound {
   year: number;

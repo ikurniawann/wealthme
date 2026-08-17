@@ -705,9 +705,11 @@ function AssetRow({
           <div className="flex items-center justify-between gap-2">
             <span
               className={`inline-flex items-center rounded-full px-2.5 py-[3px] text-[11px] font-semibold ${
-                hasProjectionDrift ? isAppreciating : isPositiveValueChangeInfo
-                  ? "bg-success-soft text-emerald-700 dark:text-emerald-300"
-                  : "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
+                hasProjectionDrift
+                  ? isAppreciating
+                  : isPositiveValueChangeInfo
+                    ? "bg-success-soft text-emerald-700 dark:text-emerald-300"
+                    : "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
               }`}
             >
               {rateBadgeText}
@@ -1491,7 +1493,7 @@ export default function AsetPage() {
             // `components/charts/*`) doesn't expose a legend toggle, so the
             // default ApexCharts bottom legend is hidden here, page-locally,
             // via a Tailwind arbitrary-variant selector instead.
-            <div className="rounded-[14px] border bg-card p-4 lg:col-span-1 [&_.apexcharts-legend]:hidden">
+            <div className="rounded-[14px] border bg-card p-4 lg:col-span-1 [&_.apexcharts-legend]:hidden!">
               <div className="mb-2 text-[13.5px] font-bold">
                 {t.aset.allocationTitle}
               </div>

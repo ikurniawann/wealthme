@@ -118,6 +118,22 @@ export class ReportsService {
      */
     anchor: Date = new Date(),
   ): Promise<ReportSummaryDto> {
+    // `period: "yearly"` used to be accepted and stored on the response but
+    // never actually changed the bucketing below — every period bucketed by
+    // MONTH regardless, so "Laporan Tahunan" (a chart literally titled "Tren
+    // Pemasukan per Tahun" — income trend BY YEAR) rendered 3 individual
+    // months mislabeled as years. Route it to real calendar-year buckets
+    // instead; `months` is reinterpreted as "years back" for this period
+    // only (the controller already clamps it to [1, 24], so at most 24
+    // years — plenty for "per tahun").
+    if (period === "yearly") {
+      return this.getYearlySummary(
+        familyGroupId,
+        months,
+        canSeePrivate,
+        anchor,
+      );
+    }
     const now = anchor;
     const startDate = new Date(
       now.getFullYear(),
@@ -231,6 +247,119 @@ export class ReportsService {
 
     return {
       period,
+      points,
+      totalIncome,
+      totalExpense,
+      netSavings,
+      savingsRate,
+      topIncomeCategories: buildCategoryBreakdown(
+        incomeByCat,
+        totalIncome,
+      ).slice(0, 5),
+      topExpenseCategories: buildCategoryBreakdown(
+        expenseByCat,
+        totalExpense,
+      ).slice(0, 5),
+    };
+  }
+
+  /** `getSummary`'s calendar-year-bucketed counterpart — see the comment at
+   * its `period === "yearly"` branch for why this exists as a separate
+   * method instead of a month/year switch woven through the same loop
+   * (the month-key and year-key bucketing differ enough — `MONTH_LABELS`
+   * lookup vs. a plain year number — that sharing one function would need
+   * more branching than just keeping them apart). `years` mirrors `months`'
+   * existing [1, 24] clamp from the controller. */
+  private async getYearlySummary(
+    familyGroupId: string,
+    years: number,
+    canSeePrivate: boolean,
+    anchor: Date,
+  ): Promise<ReportSummaryDto> {
+    const endYear = anchor.getFullYear();
+    const startYear = endYear - (years - 1);
+    const startDate = new Date(startYear, 0, 1, 0, 0, 0, 0);
+    const endDate = new Date(anchor);
+    endDate.setHours(23, 59, 59, 999);
+
+    const transactions = await this.prisma.transaction.findMany({
+      where: {
+        familyGroupId,
+        occurredAt: { gte: startDate, lte: endDate },
+        ...transactionPrivacyWhere(canSeePrivate),
+      },
+      select: {
+        amount: true,
+        type: true,
+        occurredAt: true,
+        category: {
+          select: {
+            name: true,
+            color: true,
+            coaAccount: { select: { direction: true } },
+          },
+        },
+      },
+    });
+
+    const yearKeys: number[] = [];
+    for (let y = startYear; y <= endYear; y += 1) yearKeys.push(y);
+
+    const incomeByYear = new Map<number, number>(yearKeys.map((y) => [y, 0]));
+    const expenseByYear = new Map<number, number>(yearKeys.map((y) => [y, 0]));
+    const incomeByCat = new Map<
+      string,
+      { amount: number; color: string | null }
+    >();
+    const expenseByCat = new Map<
+      string,
+      { amount: number; color: string | null }
+    >();
+
+    for (const tx of transactions) {
+      const year = tx.occurredAt.getFullYear();
+      const amount = Number(tx.amount);
+      const catName = tx.category?.name ?? "Lainnya";
+      const catColor = tx.category?.color ?? null;
+      const dir = txCoaDirection(tx);
+
+      if (dir === CoaDirection.INCOME) {
+        incomeByYear.set(year, (incomeByYear.get(year) ?? 0) + amount);
+        const existing = incomeByCat.get(catName) ?? {
+          amount: 0,
+          color: catColor,
+        };
+        incomeByCat.set(catName, {
+          amount: existing.amount + amount,
+          color: catColor,
+        });
+      } else if (dir === CoaDirection.EXPENSE) {
+        expenseByYear.set(year, (expenseByYear.get(year) ?? 0) + amount);
+        const existing = expenseByCat.get(catName) ?? {
+          amount: 0,
+          color: catColor,
+        };
+        expenseByCat.set(catName, {
+          amount: existing.amount + amount,
+          color: catColor,
+        });
+      }
+    }
+
+    const points: PeriodPoint[] = yearKeys.map((y) => {
+      const income = incomeByYear.get(y) ?? 0;
+      const expense = expenseByYear.get(y) ?? 0;
+      return { label: String(y), income, expense, net: income - expense };
+    });
+
+    const totalIncome = points.reduce((s, p) => s + p.income, 0);
+    const totalExpense = points.reduce((s, p) => s + p.expense, 0);
+    const netSavings = totalIncome - totalExpense;
+    const savingsRate =
+      totalIncome > 0 ? Math.round((netSavings / totalIncome) * 100) : 0;
+
+    return {
+      period: "yearly",
       points,
       totalIncome,
       totalExpense,

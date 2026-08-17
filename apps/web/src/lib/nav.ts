@@ -115,6 +115,102 @@ export type NavItem = {
   ownerOnly?: boolean;
 };
 
+/**
+ * Nav items a ROW-SCOPED role (`dependant` = "Anak", `operational` =
+ * "Staff Operasional") may see. Everything not listed here is hidden.
+ *
+ * This is an allowlist, not a denylist, and it is derived from what the API
+ * actually grants those two roles — not from a guess about what looks
+ * child-appropriate:
+ *
+ *   - `casl-ability.factory.ts` grants BOTH roles only: read Account,
+ *     create/read AllowanceRequest, read FamilyGroup, create/read
+ *     Transaction — plus read Inheritance for `dependant` alone. No Asset,
+ *     Liability, Investment, Budget, Goal, Insurance, Donation, TaxRecord,
+ *     CoaAccount, Member, Reconciliation or AiKey grant exists for either.
+ *   - `assertHouseholdWideReadAllowed` (privacy.util.ts) hard-denies both
+ *     roles with 403 on /reports (ringkasan + laporan), /exports,
+ *     /ai-advisor, and the dashboard's net-worth-trend route.
+ *   - `/dashboard/summary` (beranda) is NOT 403 — verified live, it answers
+ *     200 — but every figure comes back zero, because it is row-scoped and
+ *     these roles own nothing household-wide. That is arguably worse than a
+ *     refusal: a wall of "Rp 0" reads as "this family has no money" rather
+ *     than "you cannot see this", so beranda is hidden too.
+ *
+ * So before this filter existed, a child signed in and saw ~31 of 34 menu
+ * entries, nearly all of which answer 403 the moment they are opened. The
+ * prototype's own permission matrix (docs/prototype/pages/iam.html) says the
+ * same thing in product terms: Anak and Staff get "Tidak ada" on family
+ * wealth, approvals, and IAM/master data.
+ *
+ * `akses-saya` is the prototype's designated landing page for these roles
+ * ("Preview Anak / Staff" in iam.html) — it is the one surface built to
+ * explain what they can and cannot reach.
+ */
+const ROW_SCOPED_NAV_ALLOWLIST: Record<
+  "dependant" | "operational",
+  readonly NavItemId[]
+> = {
+  // read Inheritance is granted to `dependant` only, hence `warisan` here
+  // and not in `operational` below.
+  dependant: [
+    "transaksi",
+    "dana",
+    "rekening",
+    "warisan",
+    "notifikasi",
+    "quickinput",
+    "panduan",
+  ],
+  operational: [
+    "transaksi",
+    "dana",
+    "rekening",
+    "notifikasi",
+    "quickinput",
+    "panduan",
+  ],
+};
+
+/** `dependant`/`operational` — the two roles CASL scopes to their own rows. */
+export function isRowScopedRole(
+  role: string | null | undefined,
+): role is "dependant" | "operational" {
+  return role === "dependant" || role === "operational";
+}
+
+/** Whether `role` sees `id` in the sidebar. Unknown/trusted roles keep today's behaviour. */
+export function isNavItemVisibleForRole(
+  item: Pick<NavItem, "id" | "ownerOnly">,
+  role: string | null | undefined,
+): boolean {
+  if (isRowScopedRole(role)) {
+    return ROW_SCOPED_NAV_ALLOWLIST[role].includes(item.id);
+  }
+  return !item.ownerOnly || role === "owner";
+}
+
+/**
+ * Routes a row-scoped role may open directly, beyond its sidebar allowlist:
+ * `akses-saya` (their landing page) and `akun` (own profile) are reachable
+ * from the shell chrome rather than the nav list, so neither appears in
+ * `ROW_SCOPED_NAV_ALLOWLIST` yet both must stay open — otherwise the guard
+ * would bounce them off their own home in a loop.
+ */
+const ROW_SCOPED_EXTRA_ROUTES: readonly string[] = ["akses-saya", "akun"];
+
+/** Whether a row-scoped role may open `pathname`. Trusted roles: always true. */
+export function isRouteAllowedForRole(
+  pathname: string,
+  role: string | null | undefined,
+): boolean {
+  if (!isRowScopedRole(role)) return true;
+  const seg = pathname.split("/").filter(Boolean)[0];
+  if (!seg) return false; // "/" → send them to their own landing page
+  if (ROW_SCOPED_EXTRA_ROUTES.includes(seg)) return true;
+  return (ROW_SCOPED_NAV_ALLOWLIST[role] as readonly string[]).includes(seg);
+}
+
 export type NavSection = { headerKey?: NavSectionHeaderKey; items: NavItem[] };
 
 export const NAV_SECTIONS: NavSection[] = [
@@ -218,6 +314,11 @@ export const MOBILE_NAV_IDS = [
   "transaksi",
   "laporan",
   "akun",
+  "notifikasi",
+  // Row-scoped roles get this in place of beranda/laporan — see
+  // `mobileNavForRole`. Both of those call household-wide endpoints that
+  // `assertHouseholdWideReadAllowed` denies outright for dependant/operational.
+  "akses-saya",
 ] as const;
 
 export type MobileNavId = (typeof MOBILE_NAV_IDS)[number];
@@ -234,3 +335,28 @@ export const MOBILE_NAV: MobileNavItem[] = [
   { id: "laporan", href: "/laporan", icon: LineChart },
   { id: "akun", href: "/akun", icon: User },
 ];
+
+/**
+ * The bottom bar a row-scoped role gets: `beranda` (dashboard) and `laporan`
+ * (reports) are replaced by `akses-saya`, because both of the former call
+ * endpoints `assertHouseholdWideReadAllowed` denies for dependant/operational
+ * — leaving them in the bar would give a child two of four buttons that only
+ * ever lead to a 403. Trusted roles keep `MOBILE_NAV` unchanged.
+ */
+export function mobileNavForRole(
+  role: string | null | undefined,
+): MobileNavItem[] {
+  if (role !== "dependant" && role !== "operational") return MOBILE_NAV;
+  // FOUR items, deliberately — the same count the trusted bar uses. The
+  // round "Tambah transaksi" FAB is centred at `left: 50%` over this bar
+  // (design-system.css), which lands in the GAP between items 2 and 3 only
+  // when the count is even; with three items dead centre is the middle
+  // item itself and the FAB covers it. `notifikasi` fills the slot and is
+  // already in this role's sidebar allowlist, so it grants nothing new.
+  return [
+    { id: "akses-saya", href: "/akses-saya", icon: Home },
+    { id: "transaksi", href: "/transaksi", icon: ArrowUpDown },
+    { id: "notifikasi", href: "/notifikasi", icon: Bell },
+    { id: "akun", href: "/akun", icon: User },
+  ];
+}

@@ -14,6 +14,11 @@ const CONTEXT = {
   totalAssets: 0n,
   totalLiabilities: 0n,
   topCategories: [],
+  liabilities: [],
+  assets: [],
+  accounts: [],
+  goals: [],
+  truncatedLists: false,
 };
 
 function sseBody(lines: string[]): ReadableStream<Uint8Array> {

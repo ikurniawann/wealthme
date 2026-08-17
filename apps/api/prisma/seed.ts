@@ -86,6 +86,65 @@ export async function main(): Promise<void> {
     },
   });
 
+  // ── Demo child member (dependant) ─────────────────────────────────────────────
+  // The seed used to create exactly ONE member (the owner), so every
+  // role-scoped surface — the reduced sidebar, /akses-saya, the IAM roster —
+  // had nothing to demonstrate, and the inheritance heirs below invented two
+  // children who existed nowhere else in the data. This is a real `dependant`
+  // so the demo family is internally consistent, and the heir record links to
+  // it by `memberUserId`.
+  //
+  // Signs in with USERNAME (no email), like every head-created dependant:
+  //   ana_demo / demo1234 . `mustChangePassword` stays false on purpose —
+  //   the forced-change flow is exercised by accounts created through
+  //   POST /members/dependant, not by this ready-to-use demo login.
+  const childUser = await prisma.user.upsert({
+    where: { id: "6f2a1d54-9c3b-4f7e-9a10-2b8c5d4e1f03" },
+    update: { name: "Ana Demo", avatarInitials: "AD" },
+    create: {
+      id: "6f2a1d54-9c3b-4f7e-9a10-2b8c5d4e1f03",
+      // `User.email` is NOT nullable, so a username-only account still needs
+      // one. Uses the same synthetic, non-routable domain the production path
+      // uses (SYNTHETIC_EMAIL_DOMAIN in family-groups.service.ts) — fixed here
+      // rather than randomUUID()'d so re-seeding stays idempotent.
+      email: "ana-demo@members.internal.wealthme.invalid",
+      emailVerified: false,
+      username: "ana_demo",
+      displayUsername: "ana_demo",
+      name: "Ana Demo",
+      avatarInitials: "AD",
+      passwordHash,
+    },
+  });
+
+  await prisma.baAccount.upsert({
+    where: { id: "1c7e4b90-5a62-4d3f-8e11-7f0a9b2c6d54" },
+    update: { password: passwordHash },
+    create: {
+      id: "1c7e4b90-5a62-4d3f-8e11-7f0a9b2c6d54",
+      accountId: "ana_demo",
+      providerId: "credential",
+      userId: childUser.id,
+      password: passwordHash,
+    },
+  });
+
+  await prisma.baSession.deleteMany({ where: { userId: childUser.id } });
+
+  await prisma.member.upsert({
+    where: {
+      userId_familyGroupId: { userId: childUser.id, familyGroupId: family.id },
+    },
+    update: { role: "dependant", relationship: "anak" },
+    create: {
+      id: "b3d8f1a2-7e45-4c96-a0b3-1d5e8c7f2a94",
+      userId: childUser.id,
+      familyGroupId: family.id,
+      role: "dependant",
+      relationship: "anak",
+    },
+  });
+
   // ── Accounts ──────────────────────────────────────────────────────────────────
 
   const acBCA = await prisma.account.upsert({
@@ -1679,27 +1738,34 @@ export async function main(): Promise<void> {
       notes: "Rumah utama keluarga. Sertifikat SHM atas nama Demo User.",
     },
   });
+  // ONE heir at 100%, linked to the real `dependant` member seeded above.
+  // This used to be two invented children ("Anak Pertama"/"Anak Kedua", 50%
+  // each) with `memberUserId` unset — a split that contradicted a family
+  // whose roster held no children at all, and read as a bug ("the family has
+  // one child, why is it 50/50?"). `memberUserId` is what ties an heir to an
+  // actual member; free-text heirs remain valid for beneficiaries who have no
+  // app account, which is why the column stays optional.
   await prisma.inheritanceHeir.upsert({
     where: { id: "93274005-21f6-4fd7-8ab8-8e06ddd1e68e" },
-    update: {},
+    update: {
+      name: "Ana Demo",
+      relationship: "Anak Kandung",
+      sharePercent: 100,
+      memberUserId: childUser.id,
+    },
     create: {
       id: "93274005-21f6-4fd7-8ab8-8e06ddd1e68e",
       inheritanceAssetId: inh1.id,
-      name: "Anak Pertama",
+      name: "Ana Demo",
       relationship: "Anak Kandung",
-      sharePercent: 50,
+      sharePercent: 100,
+      memberUserId: childUser.id,
     },
   });
-  await prisma.inheritanceHeir.upsert({
+  // The second seeded heir is removed rather than left orphaned, so re-seeding
+  // an existing database converges on the same single-heir state.
+  await prisma.inheritanceHeir.deleteMany({
     where: { id: "aa5ca34b-8a30-43f1-a81b-6580c880c87b" },
-    update: {},
-    create: {
-      id: "aa5ca34b-8a30-43f1-a81b-6580c880c87b",
-      inheritanceAssetId: inh1.id,
-      name: "Anak Kedua",
-      relationship: "Anak Kandung",
-      sharePercent: 50,
-    },
   });
 
   await prisma.inheritanceAsset.upsert({
@@ -2628,7 +2694,7 @@ export async function main(): Promise<void> {
   }
 
   process.stdout.write(
-    `\nSeed complete — demo@wealthme.id / demo1234\n` +
+    `\nSeed complete — demo@wealthme.id / demo1234 · anak: ana_demo / demo1234\n` +
       `  FamilyGroup : ${family.name} (${family.id})\n` +
       `  Accounts    : BCA, Mandiri, BNI, GoPay, OVO, Kas Tunai\n` +
       `  Categories  : ${5} income + ${10} expense\n` +
@@ -2640,7 +2706,7 @@ export async function main(): Promise<void> {
       `  Investments : BBCA, TLKM, reksa dana + harga terkini\n` +
       `  Insurances  : jiwa, kesehatan, kendaraan\n` +
       `  Split Bills : 2 (1 open, 1 settled)\n` +
-      `  Inheritance : 2 aset + 2 ahli waris\n` +
+      `  Inheritance : 2 aset + 1 ahli waris (Ana Demo, 100%)\n` +
       `  Donations   : 4 (zakat, infaq, sedekah, wakaf)\n` +
       `  Tax Records : 2024 (sudah lapor), 2025 (belum lapor)\n` +
       `  Notifications: 4\n` +

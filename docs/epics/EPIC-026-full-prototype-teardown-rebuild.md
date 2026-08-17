@@ -124,6 +124,271 @@ top-level layout — `118088a`'s lesson: partial ports still count as
 
 ## Automation Log
 
+- 2026-08-17 `/nerve "budget dialog: free icon picker + unify with COA category;
+same for master-data add category"` → PASS, verified end-to-end.
+  Two readings of the request were materially different, so both were asked
+  before building. User chose: **full searchable emoji picker** (not a wider
+  fixed grid), and **the budget dialog gains Tipe + Akun COA** (rather than
+  reducing it to picking an existing category).
+  **Why the "unify with COA" ask was well-founded:** `Budget` has no fields of
+  its own beyond amount + period — icon, kind and `coaAccountId` all live on
+  the `Category` it belongs to, and the dialog was already creating that
+  Category silently, always as `kind: "expense"` with whatever COA account the
+  server defaulted to and never private. Those three decisions are now the
+  user's.
+  **Emoji picker** (`components/wm/emoji-picker.tsx`): replaces two different
+  hardcoded grids — 10 emoji in `crud-config.ts`'s `mdkategori`, a different 8
+  in the budget dialog — so a category whose icon is a violin or a boat was
+  simply not expressible. `unicode-emoji-json` (data only, 1,914 entries) is
+  **dynamically imported**, so ~840KB never enters the bundle of every page
+  with a form; the UI is ours, because a packaged picker would bring its own
+  visual language to fight the prototype design system. Measured in-browser:
+  1,926 buttons render in **13ms**, so no virtualisation was warranted.
+  **Indonesian search aliases** are included deliberately: the dataset's names
+  are English, so in an Indonesian app "rumah"/"obat"/"sekolah" would return
+  nothing and read as a broken search. Verified: "rumah" → house/houses/house
+  with garden, "sekolah" → school/backpack/graduation cap, "musik" →
+  note/notes/guitar/violin.
+  **Layout note:** `iconpick` used to be pulled into a 2-up `field-row` beside
+  the following select (prototype's small grid next to "Tipe"). A search field
+  plus a scrolling grid is several times taller, so it now takes the full row —
+  a deliberate divergence from the prototype, since squeezing both into half
+  the dialog width left neither usable.
+  **Defect I introduced, caught by checking my own test data, then fixed.**
+  Offering a free COA choice in the budget dialog made a pairing reachable that
+  auto-derivation had always prevented: I saved an `expense` category onto
+  `10001 — Gaji` (an INCOME account) and the API accepted it —
+  `resolveCoaAccountId` validated tenant scope only, never direction. Reports
+  group by `direction`, so that silently misfiles money.
+  **The obvious rule would have been wrong.** Before adding one I checked the
+  seeded data: 3 of 16 categories cross direction, and 2 are intentional —
+  "Cicilan KPR" and "Tabungan & Investasi" are `expense` categories on TRANSFER
+  accounts, because paying down principal is spending in cashflow terms but a
+  balance-sheet transfer, not a P&L line. A `direction === kind` rule would
+  reject real, correct data. So only the DIRECT contradiction
+  (income↔EXPENSE, expense↔INCOME) is refused; TRANSFER stays valid for both.
+  Enforced server-side in `categories.service.ts` and made unpickable in the
+  budget dialog's dropdown (changing Tipe resets a now-invalid selection).
+  **Asymmetry worth knowing:** the master-data dialog's COA list is NOT
+  filtered by the selected Tipe — `CrudModal` owns its form state and
+  `dynamicOptions` is computed by the page, so it cannot react to the in-modal
+  selection without lifting state. There the server rejection is the guarantee.
+  **Live verification, then reverted:** created "TEST Les Musik" through the
+  real dialog with a searched icon and an explicitly chosen COA account;
+  confirmed in the database as `icon: "🎻"`, `coaAccount: 10001 — Gaji`, budget
+  Rp 450.000/monthly — then deleted it (family back to 15 categories, 8
+  budgets).
+  Gates: api tsc/eslint clean, jest 1188/1188 (+6 new); web tsc/eslint clean,
+  jest 449/451 (pre-existing `login/page.test.tsx` baseline).
+
+- 2026-08-17 `/nerve "every suggestion chip now fails to prompt"` → PASS,
+  verified end-to-end. **This was my own regression, two steps back.**
+  **Root cause, from Google's own 429 payload** (fetched directly with the
+  family's decrypted key): `quotaId:
+GenerateRequestsPerDayPerProjectPerModel-FreeTier`, `quotaValue: "20"`,
+  `model: gemini-3.6-flash`. The free tier for that model is **20 requests per
+  day**. Earlier today I moved the default off the retired `gemini-2.0-flash`
+  to `gemini-3.6-flash` because Google's 404 message named it — taking that
+  advice landed the advisor on a quota a single afternoon exhausts, and every
+  suggestion chip then answered with a rate-limit notice. Naming the newest
+  model is not the same as naming a usable one.
+  **Fix 1 — default model.** `gemini-2.5-flash` (GA, a generation older;
+  Google gives the newest model the tightest free quota). Probed all candidates
+  against the SAME streaming endpoint the app uses: `3.6-flash` 429s while
+  `3.5-flash`, `3.5-flash-lite`, `2.5-flash`, `2.5-flash-lite`, and
+  `flash-lite-latest` all answer. `GEMINI_MODEL` still overrides, so a paid
+  plan can go back to 3.6. **Not verified:** 2.5-flash's exact daily limit —
+  measuring it means exhausting it, so the claim is only "it works while 3.6 is
+  exhausted", not a number.
+  **Fix 2 — the error message was lying, independently of the model.** The
+  adapter read Google's 429 body and threw it away, so the UI said "coba lagi
+  sebentar lagi" about a cap that does not reset for hours; the user clicked
+  five chips and got the same useless line five times. `parseGeminiRateLimit`
+  now reads the `QuotaFailure`/`RetryInfo` details and `AiAdvisorRateLimitError`
+  carries `scope` (`short`/`daily`), `retryAfterSeconds`, and the provider's own
+  sentence (logged server-side only — it is English and links billing pages).
+  The SSE error frame forwards scope + delay, and the UI renders "coba lagi
+  dalam N detik" or "kuota harian … habis, coba besok atau ganti model".
+  **Deliberate subtlety:** Google sends `retryDelay: 23s` even for a PER-DAY
+  cap — that describes its token bucket, not when the day resets. A daily scope
+  therefore reports NO retry delay, or the fix would rebuild the exact lie it
+  removes. Pinned by test.
+  Parsing is defensive (empty / non-JSON / reshaped body still yields a plain
+  rate-limit error) — an error path that throws its own SyntaxError would
+  surface as an unclassified failure instead of "rate limited".
+  **Verified:** with the new default, the question that failed twice now
+  answers correctly — "Tagihan kartu kredit BCA Anda saat ini adalah **Rp
+  8.500.000**" — which also closes the previously-UNVERIFIED item from the
+  earlier row-detail entry above.
+  Gates: api tsc/eslint clean, jest 1182/1182 (+6 new); web tsc/eslint clean,
+  jest 449/451 (pre-existing `login/page.test.tsx` baseline).
+
+- 2026-08-17 `/nerve "funding-request notification should reach the requester too"`
+  → PASS, verified end-to-end.
+  **The report was right, but for the opposite reason than assumed.** It was
+  not that the notification went only to the master by design — `Notification`
+  had **no recipient column at all**. `notifyRequesterOfDecision()` (a method
+  whose name was simply false) created a family-wide row, and the only roles
+  that ever request funds — `dependant`/`operational` — had **no CASL grant on
+  Notification whatsoever**, so `GET .../notifications` answered them 403.
+  Confirmed live before changing anything: logged in as `ana_demo` (dependant)
+  → 403. The requester was the one member structurally guaranteed never to
+  learn the outcome.
+  **Fix: `Notification.userId String?`** (migration `20260817121953`, additive
+  — nullable column + index + FK, so every pre-existing row defaults to NULL,
+  which is exactly right since they are all budget/goal/due-date system
+  notifications). `null` = household, set = addressed to one member.
+  - The approve/reject row is now addressed to `request.requesterUserId`.
+  - The new-request row stays household (`userId` unset): any approver may act
+    on it, and addressing it to one would hide it from the rest.
+  - `dependant`/`operational` gained `read` + `update` on Notification, and
+    the mark-read route's check moved from `manage` to `update` — `manage`
+    still satisfies it, so no role lost anything.
+    **Visibility is enforced in the service, not by the subject grant.** One
+    `visibilityWhere` feeds list, unread-count, and mark-read, so they cannot
+    disagree (a mismatch would show a badge counting rows the list refuses to
+    render). Row-scoped roles get `{familyGroupId, userId}` only — **never** the
+    `null` household rows, which carry whole-family net worth, KPR due dates,
+    budget thresholds, and other members' requests, i.e. exactly the surface
+    `assertHouseholdWideReadAllowed` denies them in reports. Trusted roles get
+    household rows plus their own.
+    **Behavioural change worth knowing:** the approver no longer receives a copy
+    of the decision they themselves made — that row now belongs to the
+    requester. Verified: after an approve, the child's list held exactly one row
+    ("Permintaan dana Rp 77000 … telah disetujui") and nothing else, while the
+    owner's list gained only the household "Ana Demo meminta Rp 77000".
+    **Known limitation, deliberately NOT half-fixed:** `isRead` is a single
+    shared column. Targeted rows have one reader so they are exact, but two
+    trusted members still share read state on household rows — one pressing
+    "Tandai semua dibaca" marks them for everyone. Per-recipient read tracking
+    needs its own join table; recorded rather than partially built.
+    **Live verification, then reverted.** Gave a test dependant an owned
+    account, filed a real Rp 77.000 funding request, approved it as owner, and
+    compared both lists. The approve executed a real transfer, so cleanup
+    reversed it precisely: Rp 77.000 restored to `BCA Tahapan`
+    (back to 128.350.000), test transaction/request/notifications/account
+    deleted, family back to 8 accounts and 8 notifications.
+    Gates: api tsc/eslint clean, jest 1176/1176 (+10 new); web tsc clean, jest
+    449/451 (pre-existing `login/page.test.tsx` baseline). No frontend change
+    needed — endpoint shapes are unchanged, and the topbar unread badge now
+    works for row-scoped roles instead of 403ing.
+
+- 2026-08-17 `/nerve "AI advisor: where does it read data from, is it locked per-user"` →
+  PASS (code + tests); one claim left UNVERIFIED end-to-end, see below.
+  **Investigation.** The advisor could not answer "berapa tagihan kartu kredit
+  BCA?" because `buildContext` sent six aggregates and nothing else —
+  `liability.aggregate({_sum: {remainingBalance}})` only. The row was never in
+  the prompt. Worse, the model **invented a reason** ("no real-time access to
+  your bank account, for security and privacy"), which is not how the app
+  works; users were being misinformed about their own product.
+  **Isolation verified by attack, not by reading.** Created a throwaway second
+  family with a marker liability (Rp 987.654.321), then with the demo user's
+  token: `POST .../test-iso-fg/ai-advisor/chat` → 403, `GET
+.../conversations` → 403, `GET .../liabilities` → 403, and a prompt-injection
+  turn demanding the marker figure leaked nothing. The control is `TenantGuard`
+  (global `APP_GUARD`), which resolves `Member` by (JWT userId, URL
+  familyGroupId) and 403s on miss. Throwaway family deleted afterwards.
+  **Recorded for the record:** the model's refusal is NOT the control — the
+  other family's data was never in the prompt, so there was nothing to leak
+  even had it complied. Never treat model compliance as a security boundary.
+  **Latent privacy defect found and fixed.** `buildContext` took only a
+  familyGroupId and applied NO `isPrivate` filter, while reports.service.ts
+  carefully excludes private accounts/categories for the roles that may not
+  see them. Not exploited (demo family has no private rows; owner/spouse/
+  admin_staff may see them anyway), but a plain `member` would have received
+  totals the reports UI hides — and row detail would have made it an outright
+  disclosure. `buildContext(familyGroupId, viewerRole)` now applies
+  `transactionPrivacyWhere`/`accountPrivacyWhere`/`categoryPrivacyWhere`;
+  an omitted role defaults to the MOST restricted case so a forgetful caller
+  under-shares.
+  **Decision (user's, asked explicitly): send full per-row context** —
+  liabilities, assets, accounts, goals, capped at 25 rows each with a
+  `truncatedLists` flag so a capped list is never presented as complete.
+  Summary figures stay rounded to `jt`; rows use exact rupiah, because
+  answering "Rp 8,50 jt" to a precise question is a worse answer and makes the
+  model's arithmetic drift.
+  **Two separate account-number leaks had to be closed for one disclosure to
+  be true.** Excluding the encrypted `Account.maskedNumber` column was not
+  enough: accounts here are conventionally NAMED with the suffix baked in
+  ("Mandiri ···5586"), so the digits reached the provider via `name`. Added
+  `stripMaskedNumber`, narrow by design — it strips a trailing mask-run +
+  digits only, so "BCA Tahapan 2" and "Rekening 2024" survive intact.
+  **Prompt honesty rule added:** the model is told the context is the only
+  data it has, to say "angka itu tidak ada di data yang saya terima" when
+  something is missing, and explicitly NOT to invent real-time-access or
+  privacy excuses or send the user to a bank call centre.
+  **Disclosure card corrected.** The `/ai` sidebar claimed "Nomor rekening &
+  saldo per akun: Tidak". Balances are now sent, so that one row was split
+  into "Saldo per rekening & rincian aset: Ya" and "Nomor rekening: Tidak",
+  plus new rows for liability detail and goals. An inaccurate privacy
+  disclosure is worse than none.
+  **Checked and found NOT a bug:** the Rp 371.352.599 total in the user's
+  screenshot vs Rp 423.500.000 in the context — `/liabilities/summary` returns
+  423500000 today, matching the context exactly. The screenshot predates this
+  session's re-seed.
+  **`eslint --fix` caused a regression and was reverted by hand:** it rewrote
+  `import { PrismaService }` to `import { type PrismaService }` — precisely the
+  boot-breaking change this file's own comment warns about (reflect-metadata
+  cannot resolve an erased constructor param). Tests and tsc both pass with
+  the broken form, so only a real container boot catches it; verified
+  `GET /health` → 200 after fixing. Import order was then satisfied manually.
+  Gates: api tsc/eslint clean, jest 1166/1166 (+9 new); web tsc/eslint clean,
+  jest 449/451 (the 2 are the pre-existing `login/page.test.tsx` baseline).
+  **UNVERIFIED:** the model's actual answer under the new prompt. Gemini
+  returned `AI_RATE_LIMITED` on every attempt (free-tier daily quota,
+  exhausted by this session's own testing). What IS verified is the rendered
+  system prompt, printed from the real database through the real code path,
+  containing `Kartu Kredit BCA (BCA) [kartu_kredit]: sisa Rp 8.500.000,
+minimum bayar Rp 425.000, bunga 2.25%, jatuh tempo 2026-09-01`. Re-ask the
+  question once the quota resets before calling this done.
+
+- 2026-08-17 `/nerve "AI advisor: markdown replies + chat history"` → PASS.
+  Two user-reported gaps on `/ai`, both fixed and verified live.
+  **(1) Markdown.** Assistant answers were printed verbatim inside a
+  `whitespace-pre-wrap` div, so a structured reply reached the user as a wall
+  of `### **Kondisi Keuangan:**`. Added `react-markdown` + `remark-gfm` behind
+  a page-local `MarkdownMessage` with an explicit component map scaled to the
+  13px bubble. **Deliberately no `rehype-raw`** — provider output is escaped,
+  so a model emitting `<img onerror=…>` renders as text and cannot inject into
+  the family's own dashboard; a regression test asserts this. Jest needed
+  `transformIgnorePatterns` widened (the unified/remark chain is ESM-only);
+  next/jest overwrites that key, so `jest.config.ts` now post-processes the
+  generated config rather than setting it — the alternative, stubbing
+  react-markdown, would have kept suites green while deleting the rendering
+  they exist to check.
+  **(2) Session history.** "Mulai Baru" used to destroy the conversation:
+  the chat endpoint is stateless and the transcript lived only in React
+  state, so a reload lost it. Added `AiConversation` + `AiMessage`
+  (migration `20260817114033`, purely additive — two tables, one enum, no
+  ALTER on existing tables) and `AiConversationService`, with
+  `GET/DELETE .../ai-advisor/conversations[/:id]`. **Decision: scoped by
+  `familyGroupId` AND `userId`, never by id alone** — a family shares one AI
+  key and one financial picture but not each other's transcripts, and
+  filtering on an unguessable uuid alone would make the id itself the
+  authorisation. A foreign id returns 404, not 403, so the response cannot
+  confirm the row exists. The three history routes carry the same
+  `assertHouseholdWideReadAllowed` gate as `chat`, since a transcript
+  restates whole-family net worth. **Decision: message content stored
+  plaintext**, unlike `User.monthlyIncome` — the same figures already sit
+  unencrypted in `transactions`/`accounts`/`assets`, so encrypting would not
+  raise the bar against anyone who can read this DB while making rows
+  unsearchable; revisit inside the service, not the controller.
+  **Decision: persist only completed exchanges** — a failed or aborted turn
+  stores nothing, so no empty session appears and no question sits in history
+  with no answer under it; the cost is that a stream that died mid-answer is
+  not recorded even though the user saw partial text. A storage failure never
+  breaks the stream (the answer is already delivered and billed) — it just
+  omits `conversationId` from the `done` frame.
+  Gates: api tsc/eslint clean, jest 1157/1157 (+14 new); web tsc/eslint
+  clean, jest 449/451 — the 2 failures are the pre-existing
+  `login/page.test.tsx` baseline, unrelated. Security gate FAILS on
+  pre-existing transitive advisories (nanoid via next, js-yaml via jest,
+  uuid via exceljs, form-data via @types/supertest); confirmed via
+  `pnpm audit --json` that neither new dependency contributes an advisory.
+  Verified live with Playwright: 0 literal markdown markers in a rendered
+  answer (2 headings / 12 bold / 7 lists), and a session survives
+  "Mulai Baru" then reopens with its turns and truncation notice intact.
+
 - 2026-08-13 — Epic created via `/nerve` after the user explicitly chose
   full teardown-and-rebuild twice, across two rounds of evidence
   (EPIC-025/024 both `ready-for-qa`; DEV containers 7 days stale; `118088a`

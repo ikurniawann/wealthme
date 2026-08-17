@@ -190,11 +190,30 @@ export class CategoriesService {
     if (provided) {
       const coa = await this.prisma.coaAccount.findFirst({
         where: { id: provided, familyGroupId },
-        select: { id: true },
+        select: { id: true, direction: true },
       });
       if (!coa) {
         throw new BadRequestException(
           "coaAccountId does not belong to this family group",
+        );
+      }
+      // Only the DIRECT contradiction is rejected — an expense category on an
+      // INCOME account, or an income category on an EXPENSE one. That pairing
+      // has no reading under which it is correct, and reports group by
+      // `direction`, so it silently misfiles money.
+      //
+      // TRANSFER is deliberately allowed for both, because the seeded chart
+      // relies on it: "Cicilan KPR" and "Tabungan & Investasi" are `expense`
+      // categories mapped to TRANSFER accounts (50002, 30001) — paying down
+      // principal or moving cash to savings is spending from a cashflow view
+      // but a balance-sheet transfer, not a P&L line. A stricter
+      // "direction must equal kind" rule would reject that real data.
+      const contradictory =
+        (kind === "income" && coa.direction === "EXPENSE") ||
+        (kind === "expense" && coa.direction === "INCOME");
+      if (contradictory) {
+        throw new BadRequestException(
+          `A ${kind} category cannot be mapped to a ${coa.direction} COA account`,
         );
       }
       return coa.id;

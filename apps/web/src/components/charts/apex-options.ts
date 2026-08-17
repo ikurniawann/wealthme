@@ -149,6 +149,8 @@ export function buildSparklineOptions(
 /** HBarChart — horizontal bars for category breakdowns. Ports `hbar()`. */
 export type HBarOptionsConfig = {
   showXAxisLabels?: boolean;
+  /** One color per category (same order as `categories`/`data`) — overrides `color`. */
+  colors?: string[];
 };
 
 function compactCategoryLabel(value: unknown): string {
@@ -165,17 +167,39 @@ export function buildHBarOptions(
 ): ChartBuild {
   const height = chartHeight ?? Math.max(190, categories.length * 38 + 34);
   const showXAxisLabels = config.showXAxisLabels ?? false;
+  // `colors` (one per category) takes priority over the single `color` —
+  // lets a caller mixing categorically different data in one hbar (e.g.
+  // assets vs. liabilities) color each bar by what it actually is instead
+  // of one flat hue that makes a debt look identical to a saving. Apex only
+  // honors a per-point palette in `distributed` mode.
+  const perBarColors = config.colors;
   const options = mergeChartOptions(baseChartOptions(), {
     chart: { type: "bar", height, parentHeightOffset: 0 },
-    colors: [color ?? cssVar("--chart-1")],
+    colors: perBarColors ?? [color ?? cssVar("--chart-1")],
+    // The y-axis category labels already name every bar — Apex's own
+    // legend would either repeat "Jumlah" once (uninformative) or, in
+    // `distributed` mode, one entry per bar (redundant with the axis).
+    legend: { show: false },
     plotOptions: {
-      bar: { horizontal: true, borderRadius: 5, barHeight: "56%" },
+      bar: {
+        horizontal: true,
+        borderRadius: 5,
+        barHeight: "56%",
+        distributed: Boolean(perBarColors),
+      },
     },
     // A horizontal Apex bar puts the numeric scale on x and category names
     // on y — the base yaxis formatter is currency, which would format
     // category names ("Belanja Harian") as "Rp NaN"; override both axes.
     xaxis: {
       categories,
+      // Apex's default tick count packs ~7-9 ticks across the axis; with
+      // full Rupiah labels ("Rp 1,90 M") that overruns the available width
+      // and the labels overprint each other into an unreadable smear.
+      // 4 ticks is the most that fits at this font size on a card-width
+      // chart, and is plenty for reading a bar's rough magnitude — the
+      // exact figure is one hover away in the tooltip.
+      tickAmount: 4,
       labels: {
         show: showXAxisLabels,
         style: { fontSize: "11.5px", fontWeight: 500 },

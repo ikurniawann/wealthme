@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import {
   SectionCard,
   CardLink,
+  EmojiPicker,
   HeroCard,
   AnimatedProgress,
   Rise,
@@ -28,6 +29,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { useLocale } from "@/hooks/use-locale";
 import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
 import { apiFetch } from "@/lib/api-client";
@@ -188,9 +190,7 @@ function BudgetTypeSummary({
             <div className="text-[14px] font-semibold">{rows.length} tipe</div>
           </div>
           <div className="text-right">
-            <div className="text-[11.5px] text-muted-foreground">
-              Terpakai
-            </div>
+            <div className="text-[11.5px] text-muted-foreground">Terpakai</div>
             <div
               className="mono text-[14px] font-semibold"
               style={{ color: totalColor }}
@@ -770,6 +770,15 @@ export default function AnggaranPage() {
   const [icon, setIcon] = useState(ICON_OPTIONS[0] ?? "🎓");
   const [amount, setAmount] = useState("");
   const [period, setPeriod] = useState<BudgetPeriod>("monthly");
+  // A budget has no fields of its own beyond amount + period: the icon, the
+  // kind and the COA mapping all live on the Category it belongs to, and this
+  // dialog was already creating that Category silently — as `kind: "expense"`
+  // with whatever COA account the server defaulted to. These make that
+  // creation explicit, so "add a budget" and "add a COA category" are the same
+  // act rather than one quietly implying the other.
+  const [kind, setKind] = useState<"income" | "expense">("expense");
+  const [coaAccountId, setCoaAccountId] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
 
   const {
     data: budgets,
@@ -787,12 +796,43 @@ export default function AnggaranPage() {
     enabled: !!token && !!familyGroupId,
   });
 
+  // Same query key as /mastercoa and /masterdata so the cache is shared —
+  // this dialog now offers the same COA account list those pages do.
+  const { data: coaAccounts } = useQuery<
+    Array<{ id: string; code: string; name: string; direction: string }>
+  >({
+    queryKey: ["coa-accounts", familyGroupId],
+    queryFn: () =>
+      apiFetch<
+        Array<{ id: string; code: string; name: string; direction: string }>
+      >(`/family-groups/${familyGroupId}/coa-accounts`, { token }),
+    enabled: !!token && !!familyGroupId,
+    staleTime: 60_000,
+  });
+
+  // Offering every account here would let the user pick the one pairing that
+  // is never right — an expense category on an INCOME account (or the
+  // reverse), which reports then group under the wrong direction. The API
+  // rejects it too (categories.service.ts), but a dropdown that cannot make
+  // the mistake beats an error after pressing Save.
+  //
+  // TRANSFER accounts stay available for BOTH types on purpose: the seeded
+  // chart maps "Cicilan KPR" and "Tabungan & Investasi" — both `expense` — to
+  // TRANSFER accounts, because paying down principal is spending in cashflow
+  // terms but a balance-sheet transfer, not a P&L line.
+  const selectableCoaAccounts = (coaAccounts ?? []).filter((a) =>
+    kind === "income" ? a.direction !== "EXPENSE" : a.direction !== "INCOME",
+  );
+
   const createMutation = useMutation({
     mutationFn: async (payload: {
       name: string;
       icon: string;
       limitAmount: number;
       period: BudgetPeriod;
+      kind: "income" | "expense";
+      coaAccountId: string;
+      isPrivate: boolean;
     }) => {
       if (!familyGroupId) throw new Error("familyGroupId missing");
 
@@ -805,8 +845,14 @@ export default function AnggaranPage() {
             token,
             body: JSON.stringify({
               name: payload.name,
-              kind: "expense",
+              kind: payload.kind,
               icon: payload.icon,
+              isPrivate: payload.isPrivate,
+              // "" means "let the server default by kind" — omitted rather
+              // than sent as an empty string, which the uuid validator rejects.
+              ...(payload.coaAccountId
+                ? { coaAccountId: payload.coaAccountId }
+                : {}),
             }),
           },
         );
@@ -815,7 +861,7 @@ export default function AnggaranPage() {
         const apiErr = err as { status?: number; message?: string };
         if (apiErr.status === 409) {
           const cats = await apiFetch<Array<{ id: string; name: string }>>(
-            `/family-groups/${familyGroupId}/categories?kind=expense`,
+            `/family-groups/${familyGroupId}/categories?kind=${payload.kind}`,
             { token },
           );
           const match = cats.find(
@@ -863,6 +909,9 @@ export default function AnggaranPage() {
     setIcon(ICON_OPTIONS[0] ?? "🎓");
     setAmount("");
     setPeriod("monthly");
+    setKind("expense");
+    setCoaAccountId("");
+    setIsPrivate(false);
   }
 
   function handleSave() {
@@ -880,7 +929,15 @@ export default function AnggaranPage() {
       toast.error(t.anggaran.toastNoFamilyGroup);
       return;
     }
-    createMutation.mutate({ name: trimmed, icon, limitAmount, period });
+    createMutation.mutate({
+      name: trimmed,
+      icon,
+      limitAmount,
+      period,
+      kind,
+      coaAccountId,
+      isPrivate,
+    });
   }
 
   const totalLimit = budgets?.reduce((s, b) => s + b.limitAmount, 0) ?? 0;
@@ -1167,29 +1224,76 @@ export default function AnggaranPage() {
                 className="input"
               />
             </div>
+            {/* The fixed 8-emoji grid that used to live here is gone: a
+                category whose icon is a boat or a violin was simply not
+                expressible. Same component the master-data category dialog
+                uses, so the two no longer disagree about what an icon is. */}
+            <EmojiPicker
+              label={t.anggaran.iconLabel}
+              value={icon}
+              onChange={setIcon}
+              searchPlaceholder={t.common.emojiSearchPlaceholder}
+              noResultsLabel={t.common.emojiNoResults}
+              loadingLabel={t.common.emojiLoading}
+              ariaLabel={t.anggaran.iconGroupAriaLabel}
+            />
+            {/* The category half of the form. These were previously decided
+                for the user — always `expense`, always the server's default
+                COA account, never private — even though the budget's whole
+                identity comes from the category it creates. */}
+            <div className="field field-row">
+              <div className="field mt-0">
+                <label className="label" htmlFor="budget-kind">
+                  {t.anggaran.fieldKindLabel}
+                </label>
+                <select
+                  id="budget-kind"
+                  value={kind}
+                  onChange={(e) => {
+                    setKind(e.target.value as "income" | "expense");
+                    // The previously chosen account may not be offered for the
+                    // new type; fall back to "Otomatis" rather than silently
+                    // submitting a value no longer in the list.
+                    setCoaAccountId("");
+                  }}
+                  className="select"
+                >
+                  <option value="expense">{t.common.expense}</option>
+                  <option value="income">{t.common.income}</option>
+                </select>
+              </div>
+              <div className="field mt-0">
+                <label className="label" htmlFor="budget-coa">
+                  {t.anggaran.fieldCoaLabel}
+                </label>
+                <select
+                  id="budget-coa"
+                  value={coaAccountId}
+                  onChange={(e) => setCoaAccountId(e.target.value)}
+                  className="select"
+                >
+                  <option value="">{t.anggaran.coaAutoOptionLabel}</option>
+                  {selectableCoaAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.code} — {a.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <div className="field">
-              <span className="label">{t.anggaran.iconLabel}</span>
-              <div
-                role="group"
-                aria-label={t.anggaran.iconGroupAriaLabel}
-                className="row row--wrap gap-2"
-              >
-                {ICON_OPTIONS.map((opt) => (
-                  <Button
-                    key={opt}
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    aria-label={`${t.anggaran.iconAriaLabelPrefix}${opt}`}
-                    aria-pressed={icon === opt}
-                    onClick={() => setIcon(opt)}
-                    className={
-                      icon === opt ? "border-primary bg-accent" : undefined
-                    }
-                  >
-                    {opt}
-                  </Button>
-                ))}
+              <div className="row items-center justify-between gap-3">
+                <div>
+                  <span className="label">{t.anggaran.fieldPrivateLabel}</span>
+                  <span className="hint block">
+                    {t.anggaran.fieldPrivateHint}
+                  </span>
+                </div>
+                <Switch
+                  checked={isPrivate}
+                  onCheckedChange={setIsPrivate}
+                  aria-label={t.anggaran.fieldPrivateLabel}
+                />
               </div>
             </div>
             {/* EPIC-026 Wave 4 — prototype puts amount + periode side by

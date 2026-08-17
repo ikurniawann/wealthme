@@ -155,18 +155,33 @@ export function RingkasanSection({
   const wealthAlloc = balanceSheet
     ? balanceSheetToWealthAlloc(balanceSheet.assets, balanceSheet.totalAssets)
     : [];
+  /**
+   * `BalanceSheetDto.assets[].category` is the raw Prisma `Asset.type` enum
+   * for the physical-asset buckets ("properti", "kendaraan", …) — see
+   * `computeLiveBalanceSheet`, which groups by that code verbatim — while
+   * the snapshot-sourced buckets ("Kas & Setara Kas", "Investasi") already
+   * arrive human-readable. Map through the same `assetTypeLabels` dictionary
+   * `/aset` uses for these exact codes, falling back to the raw string for
+   * the already-labeled buckets. AslSection does the same for its own chart.
+   *
+   * Display only — the raw `seg.label` stays the lookup key below, since
+   * that is what `assets[].category` actually equals.
+   */
+  const assetCategoryLabel = (raw: string): string =>
+    t.aset.assetTypeLabels[raw as keyof typeof t.aset.assetTypeLabels] ?? raw;
+
   // EPIC-025 N3-G2 — same amount-vs-percentage fix as `expenseDonutAmounts`,
   // matched back to the real amount by `category` label (order/color stay
   // identical to `wealthAlloc`, which the legend below still renders).
   const wealthAllocAmounts: DonutSegment[] = wealthAlloc.map((seg) => ({
-    label: seg.label,
+    label: assetCategoryLabel(seg.label),
     value:
       balanceSheet?.assets.find((a) => a.category === seg.label)?.amount ?? 0,
     color: seg.color,
   }));
   const wealthAllocAriaLabel =
     wealthAlloc.length > 0
-      ? `${t.laporan.ringkasan.wealthAllocTitle}: ${wealthAlloc.map((s) => `${s.label} ${s.value}%`).join(", ")}`
+      ? `${t.laporan.ringkasan.wealthAllocTitle}: ${wealthAlloc.map((s) => `${assetCategoryLabel(s.label)} ${s.value}%`).join(", ")}`
       : t.laporan.ringkasan.wealthAllocTitle;
 
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
@@ -284,7 +299,7 @@ export function RingkasanSection({
           </div>
         </SectionCard>
         <SectionCard title={t.laporan.ringkasan.expenseAllocTitle}>
-          <div className="grid items-center gap-4 md:grid-cols-[220px_minmax(0,1fr)]">
+          <div className="grid items-center gap-4 md:grid-cols-[220px_minmax(0,1fr)] [&_.apexcharts-legend]:hidden!">
             {expenseDonut.length > 0 ? (
               <>
                 {/* EPIC-025 N3-G2 — Donut → DonutChart (Apex). Same segments
@@ -390,7 +405,7 @@ export function RingkasanSection({
       </SectionCard>
 
       <SectionCard title={t.laporan.ringkasan.wealthAllocTitle}>
-        <div className="grid items-center gap-4 md:grid-cols-[220px_minmax(0,1fr)]">
+        <div className="grid items-center gap-4 md:grid-cols-[220px_minmax(0,1fr)] [&_.apexcharts-legend]:hidden!">
           {wealthAlloc.length > 0 ? (
             <>
               {/* EPIC-025 N3-G2 — Donut → DonutChart (Apex). Same segments
@@ -415,7 +430,7 @@ export function RingkasanSection({
                       style={{ background: seg.color }}
                     />
                     <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                      {seg.label}
+                      {assetCategoryLabel(seg.label)}
                     </span>
                     <span className="mono font-medium">{seg.value}%</span>
                   </div>

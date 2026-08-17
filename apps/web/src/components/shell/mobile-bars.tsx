@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Plus } from "lucide-react";
-import { MOBILE_NAV } from "@/lib/nav";
+import { mobileNavForRole } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/hooks/use-locale";
+import { useMyRole } from "@/hooks/use-my-role";
 import { useShell } from "./shell-context";
 
 /**
@@ -18,6 +19,7 @@ export function MobileNav() {
   const pathname = usePathname();
   const { setTxnOpen } = useShell();
   const { t } = useLocale();
+  const { myRole } = useMyRole();
 
   return (
     <>
@@ -30,7 +32,7 @@ export function MobileNav() {
         <Plus className="size-5" aria-hidden="true" />
       </button>
       <nav className="mobile-nav" aria-label={t.shell.mobileNavTitle}>
-        {MOBILE_NAV.map((item) => {
+        {mobileNavForRole(myRole).map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href;
           return (

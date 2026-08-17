@@ -5,6 +5,7 @@ import { PrismaModule } from "../prisma/prisma.module";
 import { AiAdvisorFactory } from "./ai-advisor-factory.service";
 import { AiAdvisorController } from "./ai-advisor.controller";
 import { AiAdvisorService } from "./ai-advisor.service";
+import { AiConversationService } from "./ai-conversation.service";
 import { AiKeyController } from "./ai-key.controller";
 import { AiKeyService } from "./ai-key.service";
 
@@ -21,6 +22,11 @@ import { AiKeyService } from "./ai-key.service";
 @Module({
   imports: [PrismaModule],
   controllers: [AiAdvisorController, AiKeyController],
-  providers: [AiAdvisorService, AiKeyService, AiAdvisorFactory],
+  providers: [
+    AiAdvisorService,
+    AiConversationService,
+    AiKeyService,
+    AiAdvisorFactory,
+  ],
 })
 export class AiAdvisorModule {}

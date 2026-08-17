@@ -186,6 +186,8 @@ type HBarChartProps = {
   categories: string[];
   data: number[];
   color?: string;
+  /** One color per category (same order as `categories`/`data`) — overrides `color`. */
+  colors?: string[];
   height?: number;
   showXAxisLabels?: boolean;
   ariaLabel?: string;
@@ -196,6 +198,7 @@ export function HBarChart({
   categories,
   data,
   color,
+  colors,
   height,
   showXAxisLabels,
   ariaLabel,
@@ -203,9 +206,13 @@ export function HBarChart({
   const rebuildToken = useThemeRebuildToken();
   const chartHeight = height ?? Math.max(190, categories.length * 38 + 34);
   const built = useMemo(
-    () => buildHBarOptions(categories, data, color, height, { showXAxisLabels }),
+    () =>
+      buildHBarOptions(categories, data, color, height, {
+        showXAxisLabels,
+        colors,
+      }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuildToken forces a recompute on theme flip; the builder re-reads cssVar() internally rather than referencing it directly.
-    [categories, data, color, height, showXAxisLabels, rebuildToken],
+    [categories, data, color, colors, height, showXAxisLabels, rebuildToken],
   );
   return (
     <ChartErrorBoundary label="Grafik batang">

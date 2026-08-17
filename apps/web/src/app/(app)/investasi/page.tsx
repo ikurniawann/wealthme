@@ -1065,7 +1065,9 @@ export default function InvestasiPage() {
   );
   // EPIC-021 #19: filter tabs by type, matching the /aset tab pattern.
   const [activeFilter, setActiveFilter] = useState<FilterTabId>("semua");
-  const [detailHolding, setDetailHolding] = useState<InvestmentDto | null>(null);
+  const [detailHolding, setDetailHolding] = useState<InvestmentDto | null>(
+    null,
+  );
 
   const token = session?.accessToken as string | undefined;
   const familyGroupId = session?.familyGroupId;
@@ -1296,16 +1298,19 @@ export default function InvestasiPage() {
                     label={t.investasi.detailSourceLabel}
                     value={String(
                       detailHolding.latestPriceSource === "manual"
-                        ? t.investasi.detailManualLabelPrefix.replace(/:?\s*$/, "")
-                        : (PRICE_SOURCE_LABEL_KEYS[
-                            detailHolding.latestPriceSource as keyof typeof PRICE_SOURCE_LABEL_KEYS
-                          ]
-                            ? t.investasi.sourceLabels[
-                                PRICE_SOURCE_LABEL_KEYS[
-                                  detailHolding.latestPriceSource as keyof typeof PRICE_SOURCE_LABEL_KEYS
-                                ]
+                        ? t.investasi.detailManualLabelPrefix.replace(
+                            /:?\s*$/,
+                            "",
+                          )
+                        : PRICE_SOURCE_LABEL_KEYS[
+                              detailHolding.latestPriceSource as keyof typeof PRICE_SOURCE_LABEL_KEYS
+                            ]
+                          ? t.investasi.sourceLabels[
+                              PRICE_SOURCE_LABEL_KEYS[
+                                detailHolding.latestPriceSource as keyof typeof PRICE_SOURCE_LABEL_KEYS
                               ]
-                            : detailHolding.latestPriceSource),
+                            ]
+                          : detailHolding.latestPriceSource,
                     )}
                   />
                   <DetailMetric
@@ -1569,7 +1574,10 @@ export default function InvestasiPage() {
                   centerLabel={t.investasi.totalValueLabel}
                   height={220}
                   ariaLabel={`${t.investasi.allocationTitle}: ${allocationSegments
-                    .map((s) => `${s.label} ${formatDecimalRupiah(String(s.value))}`)
+                    .map(
+                      (s) =>
+                        `${s.label} ${formatDecimalRupiah(String(s.value))}`,
+                    )
                     .join(", ")}`}
                 />
               </div>
@@ -1885,7 +1893,7 @@ export default function InvestasiPage() {
           `DonutChart` itself is protected and exposes no legend toggle, so
           the default ApexCharts legend is hidden page-locally). */}
       {!isLoading && allocationSegments.length > 0 && (
-        <div className="max-w-md [&_.apexcharts-legend]:hidden">
+        <div className="max-w-md [&_.apexcharts-legend]:hidden!">
           <SectionCard title={t.investasi.allocationTitle}>
             <DonutChart
               segments={allocationSegments}

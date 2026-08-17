@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useLocale } from "@/hooks/use-locale";
+import { EmojiPicker } from "@/components/wm";
 import { CRUD_CONFIG, type CrudEntity, type CrudField } from "./crud-config";
 
 export type CrudMode = "add" | "edit";
@@ -101,17 +102,12 @@ function groupFieldsIntoRows(fields: CrudField[]): CrudField[][] {
   const consumed = new Set<number>();
   fields.forEach((field, i) => {
     if (consumed.has(i)) return;
-    if (field.type === "iconpick") {
-      const partnerIndex = fields.findIndex(
-        (candidate, j) =>
-          j > i && !consumed.has(j) && candidate.type === "select",
-      );
-      if (partnerIndex !== -1) {
-        consumed.add(partnerIndex);
-        rows.push([field, fields[partnerIndex]]);
-        return;
-      }
-    }
+    // NOTE: `iconpick` used to be pulled into a 2-up `field-row` beside the
+    // following select, mirroring the prototype's small 10-emoji grid sitting
+    // next to "Tipe". The picker is now a search field plus a scrolling
+    // result grid — several times taller — so squeezing it into half the
+    // dialog width would leave both controls cramped. It takes the full row;
+    // every other entity's grouping is untouched.
     rows.push([field]);
   });
   return rows;
@@ -268,27 +264,23 @@ function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
     // The icon picker is a button group, which cannot live inside a
     // `<label>` — it keeps a `<div class="field">` plus a `<span
     // class="label">`, exactly as the prototype's own icon picker does.
+    //
+    // `f.options` is no longer the choice set: the picker searches the full
+    // emoji list, so the ten hardcoded emoji in `crud-config.ts` stopped being
+    // a limit. The field's `options` are left in place there because
+    // `initialValuesFor` still reads `options[0]` as the default selection.
     if (f.type === "iconpick") {
       return (
         <div key={f.key} className={fieldClass}>
-          <span className="label">{f.label}</span>
-          <div className="flex flex-wrap gap-1.5">
-            {(f.options ?? []).map((o) => (
-              <button
-                key={o}
-                type="button"
-                aria-pressed={values[f.key] === o}
-                onClick={() => setField(f.key, o)}
-                className={`flex size-9 items-center justify-center rounded-lg border text-[16px] transition-colors ${
-                  values[f.key] === o
-                    ? "border-primary bg-accent"
-                    : "bg-background hover:border-primary/50"
-                }`}
-              >
-                {o}
-              </button>
-            ))}
-          </div>
+          <EmojiPicker
+            label={f.label}
+            value={values[f.key] ?? ""}
+            onChange={(emoji) => setField(f.key, emoji)}
+            searchPlaceholder={t.common.emojiSearchPlaceholder}
+            noResultsLabel={t.common.emojiNoResults}
+            loadingLabel={t.common.emojiLoading}
+            ariaLabel={t.common.emojiGroupAriaLabel}
+          />
           {hint && <span className="hint block">{hint}</span>}
         </div>
       );

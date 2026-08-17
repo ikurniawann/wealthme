@@ -23,7 +23,17 @@ import { CheckAbility } from "../common/decorators/check-ability.decorator";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AllowanceRequestsService } from "./allowance-requests.service";
 import { AllowanceRequestResponseDto } from "./dto/allowance-request-response.dto";
-import { type ApproveAllowanceRequestDto } from "./dto/approve-allowance-request.dto";
+// NOT a `type`-only import. `@Body() dto: ApproveAllowanceRequestDto` below
+// relies on the emitted `design:paramtypes` metadata to tell ValidationPipe
+// which class to validate against, and a type-only import is erased at
+// compile time — leaving no runtime class. The global pipe
+// (`whitelist: true`, main.ts) then sees a body with no validation metadata
+// and strips EVERY property, so `dto.fromAccountId` arrived `undefined` no
+// matter what the client sent and `approve()` always answered
+// "fromAccountId is required to approve a funding request" — the funding
+// approval path was completely unusable.
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { ApproveAllowanceRequestDto } from "./dto/approve-allowance-request.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateAllowanceRequestDto } from "./dto/create-allowance-request.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports

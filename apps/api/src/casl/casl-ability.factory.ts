@@ -240,6 +240,15 @@ export class CaslAbilityFactory {
         // PII); read-only for every role, same grant every other role gets.
         can("read", "FamilyGroup");
         can("read", "Inheritance");
+        // Notifications addressed to THEM specifically — a request they filed
+        // being approved or rejected. Read + update (to mark their own read),
+        // never `manage`. The subject-level grant is not the whole control:
+        // NotificationsService restricts these roles to rows carrying their
+        // own userId, so the household-wide rows (net worth, KPR, budgets,
+        // other members' requests) stay out of reach exactly as
+        // `assertHouseholdWideReadAllowed` keeps them out of reports.
+        can("read", "Notification");
+        can("update", "Notification");
         can("create", "Transaction");
         can("read", "Transaction");
         break;
@@ -254,6 +263,15 @@ export class CaslAbilityFactory {
         can("read", "AllowanceRequest");
         // EPIC-023 F2 (D20) — same read-only grant every other role gets.
         can("read", "FamilyGroup");
+        // Notifications addressed to THEM specifically — a request they filed
+        // being approved or rejected. Read + update (to mark their own read),
+        // never `manage`. The subject-level grant is not the whole control:
+        // NotificationsService restricts these roles to rows carrying their
+        // own userId, so the household-wide rows (net worth, KPR, budgets,
+        // other members' requests) stay out of reach exactly as
+        // `assertHouseholdWideReadAllowed` keeps them out of reports.
+        can("read", "Notification");
+        can("update", "Notification");
         can("create", "Transaction");
         can("read", "Transaction");
         break;

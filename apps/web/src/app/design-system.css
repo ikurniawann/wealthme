@@ -1597,12 +1597,11 @@
     padding: 9px 10px;
     border: 1px solid color-mix(in oklab, var(--border) 78%, transparent);
     border-radius: 12px;
-    background:
-      linear-gradient(
-        180deg,
-        color-mix(in oklab, var(--secondary) 68%, transparent),
-        color-mix(in oklab, var(--secondary) 38%, transparent)
-      );
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--secondary) 68%, transparent),
+      color-mix(in oklab, var(--secondary) 38%, transparent)
+    );
   }
 
   .allocation-row__top,
@@ -2031,18 +2030,28 @@
     white-space: nowrap;
   }
 
-  .table .row-actions .btn,
-  .table tbody td:last-child .btn {
-    opacity: 0;
-    transform: translateX(2px);
-  }
+  /* Row actions fade in on row hover (the prototype's behaviour). Scoped to
+     `hover: hover` so it applies ONLY to pointers that can actually hover:
+     a touch device has no hover state, so without this guard the buttons sit
+     at `opacity: 0` permanently and the row's only controls — "Ubah Role",
+     "Hapus" — are invisible and undiscoverable on a phone. (They stay
+     clickable, which is worse than absent: an invisible tap target.)
+     Desktop rendering is byte-for-byte unchanged; coarse pointers simply get
+     the buttons shown from the start. */
+  @media (hover: hover) and (pointer: fine) {
+    .table .row-actions .btn,
+    .table tbody td:last-child .btn {
+      opacity: 0;
+      transform: translateX(2px);
+    }
 
-  .table tbody tr:hover .row-actions .btn,
-  .table .row-actions .btn:focus-visible,
-  .table tbody tr:hover td:last-child .btn,
-  .table tbody td:last-child .btn:focus-visible {
-    opacity: 1;
-    transform: none;
+    .table tbody tr:hover .row-actions .btn,
+    .table .row-actions .btn:focus-visible,
+    .table tbody tr:hover td:last-child .btn,
+    .table tbody td:last-child .btn:focus-visible {
+      opacity: 1;
+      transform: none;
+    }
   }
 
   .table--investments tbody td:last-child .btn {
@@ -3412,8 +3421,27 @@
       border-top: 1px solid var(--border);
     }
 
+    /* The prototype's round "Tambah transaksi" FAB, floating above the bottom
+       bar (its z-index 55 vs the bar's 50). The port had this as
+       `display: none` here as well as in the base rule, so on a phone there
+       was NO way to add a transaction at all — the topbar's button is
+       desktop-only. Values copied from docs/prototype/assets/app.css. */
     .mobile-fab {
-      display: none;
+      position: fixed;
+      left: 50%;
+      bottom: calc(34px + env(safe-area-inset-bottom));
+      z-index: 55;
+      display: grid;
+      width: 52px;
+      height: 52px;
+      place-items: center;
+      border: 1px solid color-mix(in oklab, var(--primary) 42%, var(--border));
+      border-radius: 999px;
+      background: var(--primary);
+      color: var(--primary-foreground);
+      box-shadow: 0 16px 32px -16px
+        color-mix(in oklab, var(--primary) 70%, black);
+      transform: translateX(-50%);
     }
 
     .mobile-nav__item {
@@ -4084,6 +4112,115 @@
 
   .card__body > .chart:only-child > [role="img"] {
     width: 100%;
+  }
+
+  /* ─────────────────────── COA matrix (Ringkasan COA) ───────────────────────
+     Ported verbatim from docs/prototype/pages/laporan.html, which keeps these
+     rules page-local ("13-column × 31-row grid with a frozen date column and
+     multiple amounts stacked inside one cell. Nothing in app.css expresses
+     that"). They live here instead because this app has no page-local <style>
+     mechanism, and the behaviour — sticky header AND sticky first column, with
+     the corner cell above both — depends on a z-index ladder that is far more
+     legible as real CSS than as stacked Tailwind arbitrary variants. */
+  .coa-matrix {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 11.5px;
+    line-height: 1.35;
+  }
+  .coa-matrix th,
+  .coa-matrix td {
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid color-mix(in oklab, var(--border) 72%, transparent);
+    padding: 5px 10px;
+    white-space: nowrap;
+    vertical-align: top;
+  }
+  .coa-matrix th:last-child,
+  .coa-matrix td:last-child {
+    border-right: 0;
+  }
+  .coa-matrix thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--card);
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted-foreground);
+    text-align: right;
+  }
+  .coa-date {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    width: 52px;
+    min-width: 52px;
+    text-align: center;
+    background: var(--card);
+    font-weight: 700;
+    color: var(--muted-foreground);
+    border-right: 1px solid var(--border);
+  }
+  /* The corner cell sits above both sticky axes. */
+  .coa-matrix thead .coa-date {
+    z-index: 4;
+    text-align: center;
+  }
+  .coa-cell {
+    min-width: 106px;
+    text-align: right;
+    color: var(--foreground);
+    font-variant-numeric: tabular-nums;
+  }
+  .coa-cell--filled {
+    cursor: pointer;
+    background: color-mix(in oklab, var(--primary) 4%, transparent);
+  }
+  .coa-cell--filled:hover {
+    background: var(--accent);
+  }
+  .coa-amt {
+    display: block;
+    line-height: 1.55;
+    font-weight: 500;
+    color: color-mix(in oklab, var(--foreground) 88%, var(--muted-foreground));
+  }
+  .coa-table-wrap {
+    max-height: 620px;
+    overflow: auto;
+  }
+  .dialog--fullscreen .coa-matrix {
+    font-size: 12px;
+  }
+  .dialog--fullscreen .coa-matrix th,
+  .dialog--fullscreen .coa-matrix td {
+    padding: 6px 12px;
+  }
+
+  /* The flex centering above makes the chart div a flex ITEM, whose base
+     width is its (initially empty) content — i.e. 0. ApexCharts resolves
+     `chart.width: "100%"` by measuring that parent at init, reads 0, and
+     falls back to its hardcoded 300px default, which it then writes as an
+     inline width and never revisits (a later window resize does NOT
+     recover it — verified in a browser). Any chart that is its card body's
+     ONLY child therefore rendered 300px wide inside a ~1118px card:
+     /laporan's "Tren 6 Bulan" and "Aset & Liabilitas" both did. Charts
+     with a sibling (donut + legend grid on /beranda, /ringkasan) never
+     matched `:only-child`, so they were always fine — which is why this
+     looked like a per-page quirk rather than one CSS rule.
+
+     Giving the item an explicit 100% basis makes that measurement resolve
+     to the real card width. This mirrors the `.chart:only-child > [role="img"]`
+     rule directly above; the `[role="img"]:only-child` branch simply never
+     got its own equivalent. */
+  .card__body > [role="img"]:only-child > * {
+    width: 100%;
+    min-width: 0;
   }
 
   @media (prefers-reduced-motion: reduce) {

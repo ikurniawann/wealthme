@@ -119,6 +119,97 @@ describe("CategoriesService", () => {
 
       expect(prisma.category.create).not.toHaveBeenCalled();
     });
+
+    // Direction validation. Only the DIRECT contradiction is refused; the
+    // picker in the budget dialog made this reachable, where the mapping used
+    // to be auto-derived from the kind and therefore always coherent.
+    it.each([
+      ["expense", "INCOME"],
+      ["income", "EXPENSE"],
+    ] as const)(
+      "refuses a %s category on a %s COA account — reports group by direction, so it would misfile the money",
+      async (kind, direction) => {
+        prisma.coaAccount.findFirst.mockResolvedValueOnce({
+          id: "coa-1",
+          direction,
+        });
+
+        await expect(
+          service.create(FAMILY_GROUP_ID, {
+            name: "Wrong",
+            kind,
+            coaAccountId: "coa-1",
+          }),
+        ).rejects.toThrow(/cannot be mapped/);
+
+        expect(prisma.category.create).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(["income", "expense"] as const)(
+      "ALLOWS a %s category on a TRANSFER account — the seeded chart depends on it",
+      async (kind) => {
+        // "Cicilan KPR" and "Tabungan & Investasi" are seeded `expense`
+        // categories on TRANSFER accounts: paying down principal is spending
+        // in cashflow terms but a balance-sheet transfer, not a P&L line. A
+        // strict direction===kind rule would reject real, correct data.
+        prisma.coaAccount.findFirst.mockResolvedValueOnce({
+          id: "coa-transfer",
+          direction: "TRANSFER",
+        });
+        prisma.category.create.mockResolvedValueOnce({
+          id: "cat-new",
+          familyGroupId: FAMILY_GROUP_ID,
+          name: "ok",
+          kind,
+          color: null,
+          icon: null,
+          isPrivate: false,
+          coaAccountId: "coa-1",
+          createdAt: new Date(),
+        });
+
+        await service.create(FAMILY_GROUP_ID, {
+          name: "Tabungan",
+          kind,
+          coaAccountId: "coa-transfer",
+        });
+
+        expect(prisma.category.create).toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      ["income", "INCOME"],
+      ["expense", "EXPENSE"],
+    ] as const)(
+      "allows the matching %s / %s pairing",
+      async (kind, direction) => {
+        prisma.coaAccount.findFirst.mockResolvedValueOnce({
+          id: "coa-1",
+          direction,
+        });
+        prisma.category.create.mockResolvedValueOnce({
+          id: "cat-new",
+          familyGroupId: FAMILY_GROUP_ID,
+          name: "ok",
+          kind,
+          color: null,
+          icon: null,
+          isPrivate: false,
+          coaAccountId: "coa-1",
+          createdAt: new Date(),
+        });
+
+        await service.create(FAMILY_GROUP_ID, {
+          name: "Fine",
+          kind,
+          coaAccountId: "coa-1",
+        });
+
+        expect(prisma.category.create).toHaveBeenCalled();
+      },
+    );
   });
 
   describe("update", () => {

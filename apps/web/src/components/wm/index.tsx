@@ -16,3 +16,6 @@ export { HeroCard, HeroLabel, HeroValue } from "./hero-card";
 // Design-system enhancement layer (EPIC-013)
 export * from "./motion";
 export { IconChip } from "./icon-chip";
+// Searchable emoji picker — replaces the fixed 8/10-emoji grids that used to
+// stand in for an icon chooser in the budget and category dialogs.
+export { EmojiPicker } from "./emoji-picker";

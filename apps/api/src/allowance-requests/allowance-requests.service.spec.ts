@@ -126,7 +126,17 @@ describe("AllowanceRequestsService", () => {
           }),
         }),
       );
-      expect(prisma.notification.create).toHaveBeenCalled();
+      // The NEW-request notification stays household-wide (no userId): any
+      // approver may act on it, so addressing it to one would hide it from
+      // the rest. Row-scoped roles never see household rows, so this still
+      // does not show one child another child's request.
+      const newRequestData = (
+        prisma.notification.create.mock.calls[0][0] as {
+          data: Record<string, unknown>;
+        }
+      ).data;
+      expect(newRequestData.title).toBe("Permintaan dana baru");
+      expect(newRequestData.userId).toBeUndefined();
       expect(result.status).toBe("pending");
       expect(result.amount).toBe("100000");
     });
@@ -330,7 +340,17 @@ describe("AllowanceRequestsService", () => {
           type: "transfer",
         }),
       );
-      expect(prisma.notification.create).toHaveBeenCalled();
+      // The decision must be ADDRESSED to the person who asked. It used to be
+      // a family-wide row, and the requester's own role (dependant/
+      // operational) had no CASL grant on Notification at all — so the one
+      // member who needed to know was the only one who never saw it.
+      expect(prisma.notification.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          familyGroupId: FAMILY_GROUP_ID,
+          userId: MEMBER_USER_ID,
+          title: "Permintaan dana disetujui",
+        }),
+      });
       expect(result.status).toBe("approved");
     });
 
@@ -579,7 +599,13 @@ describe("AllowanceRequestsService", () => {
           decidedByUserId: OWNER_USER_ID,
         }),
       });
-      expect(prisma.notification.create).toHaveBeenCalled();
+      // A rejection is news for the requester just as much as an approval.
+      expect(prisma.notification.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          userId: MEMBER_USER_ID,
+          title: "Permintaan dana ditolak",
+        }),
+      });
       expect(result.status).toBe("rejected");
     });
 
