@@ -65,13 +65,13 @@ on the server but is faked on the client.
 Seven PR-sized task groups, dependency-ordered. Group letters below map back
 to the A/B numbering used in the Decisions table.
 
-### 1 — IAM role truth: matrix, cards, dead buttons
+### 1 — IAM role truth: matrix, cards, dead buttons ✅
 
-- [ ] A1 — Matrix row "Kelola IAM roles" → Ya for Co-Master; card copy corrected
-- [ ] A2 — Cards + matrix reduced to Master / Anak / Staff; stop counting `member`/`admin_staff` as Co-Master
-- [ ] A3 — Remove the "Preview Anak / Staff" button (leave `/akses-saya` and its guard untouched)
-- [ ] A4 — Remove the "Assign Akses" button (hero add + per-row "Ubah Role" cover it)
-- [ ] A6 — "Cakupan akses terbatas" gauge computed as row-scoped members ÷ total members
+- [x] A1 — Matrix row "Kelola IAM roles" → Ya for Co-Master; card copy corrected
+- [x] A2 — Cards + matrix reduced to Master / Anak / Staff; stop counting `member`/`admin_staff` as Co-Master
+- [x] A3 — Remove the "Preview Anak / Staff" button (leave `/akses-saya` and its guard untouched)
+- [x] A4 — Remove the "Assign Akses" button (hero add + per-row "Ubah Role" cover it)
+- [x] A6 — "Cakupan akses terbatas" gauge computed as row-scoped members ÷ total members
 
 ### 2 — Member management consolidated on /iam
 
@@ -131,6 +131,15 @@ Both groups merged to `development` with gates green; this file's Automation Log
 
 ## Automation Log
 
+- 2026-08-18 /epic-loop EPIC-027 #1 "IAM role truth: matrix, cards, dead
+  buttons" → PASS (attempts: 1). Review gate: `ecc:react-reviewer` PASS with
+  one MEDIUM (the "Export laporan" row is enforced by
+  `assertHouseholdWideReadAllowed` in reports.controller.ts, not by CASL —
+  the factory declares a `Report` subject it grants to nobody) and one LOW
+  (dead per-role `members` literals); both fixed before commit. QA gate PASS,
+  tests 442/442, tsc clean. Security gate reports pre-existing transitive
+  advisories (`deepmerge-ts` via prisma/better-auth) unrelated to this diff,
+  which adds no dependencies — recorded, not treated as this task's failure.
 - 2026-08-18 — Epic created from a `/grilling` session. Fourteen decisions
   recorded above (D1–D14) with the user; D11 supersedes an earlier
   "family key first, env fallback" answer after the AI Advisor module was
