@@ -1,0 +1,13 @@
+diff --git a/lib/stream/xlsx/workbook-reader.js b/lib/stream/xlsx/workbook-reader.js
+index 0d3afd62a54ebc566ac430a0741c9d51f8b12888..8b75f2bfb8ab599fd4aa5e2bd1ee644d8e4aedf2 100644
+--- a/lib/stream/xlsx/workbook-reader.js
++++ b/lib/stream/xlsx/workbook-reader.js
+@@ -300,7 +300,7 @@ class WorkbookReader extends EventEmitter {
+     });
+ 
+     const matchingRel = (this.workbookRels || []).find(rel => rel.Target === `worksheets/sheet${sheetNo}.xml`);
+-    const matchingSheet = matchingRel && (this.model.sheets || []).find(sheet => sheet.rId === matchingRel.Id);
++    const matchingSheet = matchingRel && ((this.model && this.model.sheets) || []).find(sheet => sheet.rId === matchingRel.Id);
+     if (matchingSheet) {
+       worksheetReader.id = matchingSheet.id;
+       worksheetReader.name = matchingSheet.name;
