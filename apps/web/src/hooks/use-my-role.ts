@@ -31,8 +31,15 @@ export function useMyRole() {
     staleTime: 60_000,
   });
 
-  const myRole =
-    familyGroups?.find((g) => g.id === familyGroupId)?.myRole ?? null;
+  // EPIC-027 A10 (D6) — three states, not two. `undefined` = still resolving;
+  // `null` = resolved and this user belongs to NO family group, which after
+  // the soft-delete work means they were removed from theirs. The nav gate
+  // treats those two very differently (loading must not flash a stripped-down
+  // menu at an owner, and a removed member must not be handed a trusted one),
+  // so they can no longer both collapse to `null`.
+  const myRole = isLoading
+    ? undefined
+    : (familyGroups?.find((g) => g.id === familyGroupId)?.myRole ?? null);
 
   return {
     myRole,

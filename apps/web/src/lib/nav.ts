@@ -179,11 +179,26 @@ export function isRowScopedRole(
   return role === "dependant" || role === "operational";
 }
 
-/** Whether `role` sees `id` in the sidebar. Unknown/trusted roles keep today's behaviour. */
+/**
+ * Whether `role` sees `id` in the sidebar.
+ *
+ * EPIC-027 A10 (D6) — `null` (resolved: this user has NO active membership)
+ * is now the most restricted state, not the most permissive one. It used to
+ * fall through to the trusted branch, so a member removed from their family
+ * still signed in and drew a near-full menu — the "user yang dihapus tetap
+ * bisa login dan menjadi master akun yang lain" report. They get nothing;
+ * the shell's own links to /akun and /akses-saya remain their only surfaces.
+ *
+ * `undefined` means the role is still resolving and keeps the permissive
+ * behaviour, so an owner never sees their menu collapse for a frame mid-load.
+ * The API is the real boundary either way — login itself now refuses a
+ * family-less user (AuthService#assertHasActiveMembership).
+ */
 export function isNavItemVisibleForRole(
   item: Pick<NavItem, "id" | "ownerOnly">,
   role: string | null | undefined,
 ): boolean {
+  if (role === null) return false;
   if (isRowScopedRole(role)) {
     return ROW_SCOPED_NAV_ALLOWLIST[role].includes(item.id);
   }

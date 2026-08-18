@@ -231,7 +231,34 @@ export class AuthService {
       throw new UnauthorizedException("Invalid credentials");
     }
 
+    await this.assertHasActiveMembership(user.id);
+
     return this.issueTokens(user.id, user.email);
+  }
+
+  /**
+   * EPIC-027 A10 (D6) — refuse a session to a user who belongs to no family
+   * group. Registration always creates a group and an owner membership, and a
+   * head-created dependant/operational account only ever exists inside one, so
+   * "zero active memberships" means exactly one thing: this account was
+   * removed from its family. Before this check such a user still authenticated
+   * fine — and the web shell, seeing no role, treated them as TRUSTED and drew
+   * a near-full menu (`isNavItemVisibleForRole` only restricts the two
+   * row-scoped roles).
+   *
+   * The count goes through `prisma.member`, so the soft-delete extension
+   * excludes removed memberships automatically.
+   *
+   * The message deliberately does not say "you were removed" — that is family
+   * information, and this endpoint is reachable by anyone with a password.
+   */
+  private async assertHasActiveMembership(userId: string): Promise<void> {
+    const memberships = await this.prisma.member.count({ where: { userId } });
+    if (memberships === 0) {
+      throw new UnauthorizedException(
+        "Akun ini tidak terhubung ke keluarga mana pun. Hubungi pemilik akun keluarga.",
+      );
+    }
   }
 
   async logout(userId: string): Promise<void> {

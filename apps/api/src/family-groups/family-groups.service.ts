@@ -21,6 +21,8 @@ import {
 } from "../notifications/notification-sender.port";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { RedisService } from "../redis/redis.service";
 
 import type { Env } from "../config/env";
 import type { CreateDependantMemberDto } from "./dto/create-dependant-member.dto";
@@ -84,6 +86,7 @@ export class FamilyGroupsService {
     @Inject(NOTIFICATION_SENDER_PORT)
     private readonly notificationSender: NotificationSenderPort,
     private readonly config: ConfigService<Env, true>,
+    private readonly redis: RedisService,
   ) {}
 
   async findMine(userId: string): Promise<FamilyGroupResponseDto[]> {
@@ -299,6 +302,37 @@ export class FamilyGroupsService {
         data: { deletedAt: new Date() },
       }),
     ]);
+
+    await this.revokeSessions(member.userId);
+  }
+
+  /**
+   * EPIC-027 A9 (D7) — a removed member may be holding a live session right
+   * now. Soft-deleting the membership stops the NEXT request from resolving a
+   * family group, but an already-issued access token keeps working until it
+   * expires, so tear the credentials down explicitly:
+   *
+   *  - the Redis refresh key, so no new access token can be minted (same key
+   *    shape `logout()` deletes);
+   *  - every better-auth session row for that user, which is what the web app
+   *    actually authenticates with.
+   *
+   * Deliberately best-effort: the member IS already removed at this point, and
+   * throwing here would turn a completed removal into a 500 that invites the
+   * operator to retry an operation that already succeeded. A revocation
+   * failure is logged for follow-up instead.
+   */
+  private async revokeSessions(userId: string): Promise<void> {
+    try {
+      await this.redis.del(`refresh:${userId}`);
+      await this.prisma.baSession.deleteMany({ where: { userId } });
+    } catch (err: unknown) {
+      this.logger.error(
+        `Failed to revoke sessions for removed user ${userId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
   }
 
   /**
