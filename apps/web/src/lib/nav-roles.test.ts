@@ -134,3 +134,23 @@ describe("mobileNavForRole", () => {
     expect(mobileNavForRole(null)).toBe(MOBILE_NAV);
   });
 });
+
+// EPIC-027 A10 (D6) — a user with no active membership (i.e. removed from
+// their family) used to fall through to the TRUSTED branch here and get a
+// near-full menu. `null` is now the most restricted state; `undefined` still
+// means "resolving" so an owner's menu never collapses mid-load.
+describe("isNavItemVisibleForRole — no active membership (EPIC-027)", () => {
+  it("hides every nav item from a resolved-but-family-less user", () => {
+    for (const id of ["beranda", "transaksi", "laporan", "iam", "akses-saya"]) {
+      expect(isNavItemVisibleForRole(item(id), null)).toBe(false);
+      expect(isNavItemVisibleForRole(item(id, true), null)).toBe(false);
+    }
+  });
+
+  it("keeps the permissive behaviour while the role is still resolving", () => {
+    expect(isNavItemVisibleForRole(item("beranda"), undefined)).toBe(true);
+    expect(isNavItemVisibleForRole(item("transaksi"), undefined)).toBe(true);
+    // owner-only entries stay hidden until we know the role is owner
+    expect(isNavItemVisibleForRole(item("iam", true), undefined)).toBe(false);
+  });
+});

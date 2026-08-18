@@ -246,6 +246,51 @@ export class FamilyGroupsController {
     );
   }
 
+  /**
+   * EPIC-027 A8 (D5) — the two halves of "Anggota Nonaktif". Both are
+   * `manage Member` (owner-only, same as removal) AND re-checked by
+   * `assertOwner` in the service: seeing who was removed, and undoing it, are
+   * exactly as sensitive as the removal itself.
+   *
+   * The route is `/members/removed`, a literal segment that must not be
+   * shadowed by a `/members/:memberId` parameter route.
+   */
+  @Get(":familyGroupId/members/removed")
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Member"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiOperation({ summary: "List removed (soft-deleted) members (owner only)" })
+  @ApiResponse({ status: 200, type: [MemberResponseDto] })
+  listRemovedMembers(
+    @Request() req: AuthRequest,
+    @Param("familyGroupId") familyGroupId: string,
+  ): Promise<MemberResponseDto[]> {
+    return this.familyGroupsService.listRemovedMembers(
+      familyGroupId,
+      req.user.sub,
+    );
+  }
+
+  @Post(":familyGroupId/members/:memberId/restore")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Member"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "memberId", type: String })
+  @ApiOperation({
+    summary: "Restore a previously removed member (owner only)",
+  })
+  @ApiResponse({ status: 204 })
+  restoreMember(
+    @Request() req: AuthRequest,
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("memberId") memberId: string,
+  ): Promise<void> {
+    return this.familyGroupsService.restoreMember(
+      familyGroupId,
+      memberId,
+      req.user.sub,
+    );
+  }
+
   @Post(":familyGroupId/invitations")
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiOperation({

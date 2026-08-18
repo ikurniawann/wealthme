@@ -73,22 +73,22 @@ to the A/B numbering used in the Decisions table.
 - [x] A4 — Remove the "Assign Akses" button (hero add + per-row "Ubah Role" cover it)
 - [x] A6 — "Cakupan akses terbatas" gauge computed as row-scoped members ÷ total members
 
-### 2 — Member management consolidated on /iam
+### 2 — Member management consolidated on /iam ✅
 
-- [ ] A5 — Move the complete add-member dialog (incl. Istri/Co-Master, show-password, relationship lock) to /iam; Profile family section → read-only + link to /iam
+- [x] A5 — Move the complete add-member dialog (incl. Istri/Co-Master, show-password, relationship lock) to /iam; Profile family section → read-only + link to /iam
 
-### 3 — Member soft-delete + global query filter
+### 3 — Member soft-delete + global query filter ✅
 
-- [ ] A7 — `Member.deletedAt` + migration; Prisma `$extends` global filter excluding soft-deleted members from every read
+- [x] A7 — `Member.deletedAt` + migration; Prisma `$extends` global filter excluding soft-deleted members from every read
 
-### 4 — Access revocation on removal
+### 4 — Access revocation on removal ✅
 
-- [ ] A9 — Revoke Redis refresh key + better-auth sessions on removal
-- [ ] A10 — Block family-less users at login/`/auth/me`; `isNavItemVisibleForRole(item, null)` → restricted
+- [x] A9 — Revoke Redis refresh key + better-auth sessions on removal
+- [x] A10 — Block family-less users at login/`/auth/me`; `isNavItemVisibleForRole(item, null)` → restricted
 
-### 5 — Anggota Nonaktif + restore
+### 5 — Anggota Nonaktif + restore ✅
 
-- [ ] A8 — "Anggota Nonaktif" section on /iam + restore endpoint (depends on group 3)
+- [x] A8 — "Anggota Nonaktif" section on /iam + restore endpoint (depends on group 3)
 
 ### 6 — OCR provider factory on the family AI key
 
@@ -131,6 +131,42 @@ Both groups merged to `development` with gates green; this file's Automation Log
 
 ## Automation Log
 
+- 2026-08-18 /epic-loop EPIC-027 #3–#5 → PASS, PR #299.
+  **The security gate earned its keep.** Group 3's whole design rested on a
+  Prisma `$extends` filter catching every Member read; `ecc:security-reviewer`
+  returned FAIL with a CRITICAL: extension query hooks intercept only
+  TOP-LEVEL operations, so a `memberships` relation loaded through
+  include/select is resolved inside the parent request and never reaches the
+  member hook. `getMe` would have kept returning a removed member's old
+  familyGroupId and role — the exact reported bug. Four nested reads now
+  filter explicitly: auth.service.ts PROFILE_DETAIL_SELECT and getMe, both
+  family-groups `_count` aggregates, and `apps/web/src/lib/auth.ts`
+  session.create.before (a SEPARATE better-auth Prisma client the API's
+  extension can never reach — reviewed foundation exception to a protected
+  lib/\* path). Also fixed: the `"deletedAt" in where` opt-out was a footgun
+  (`{deletedAt: undefined}` satisfies `in`, Prisma then drops the key, leaving
+  NO filter) → now `!== undefined`. Re-review PASS, no bypass remaining.
+  Group 4 adds session revocation on removal (Redis refresh key +
+  better-auth rows, best-effort so a revocation failure cannot fail a
+  completed removal), a login refusal for users with zero active memberships,
+  and flips the nav gate so a resolved `null` role is the MOST restricted
+  state instead of the most permissive. `useMyRole` now returns `undefined`
+  while loading so the stricter gate never flashes a stripped menu at an
+  owner. Group 5 adds the Anggota Nonaktif panel + restore.
+  Gates: API 1217/1217, web 451/451, tsc clean both apps, eslint clean.
+  Security script still red on pre-existing `deepmerge-ts` advisories
+  (transitive via prisma/better-auth); no dependency changed in these diffs.
+- 2026-08-18 /epic-loop EPIC-027 #2 "Member management consolidated on /iam"
+  → PASS (attempts: 1), PR: https://github.com/andrsrjld/wealthme-web/pull/299
+  (same branch as #1 — group 2 edits the same files, so a separate branch
+  would only have stacked conflicts). The complete dialog moved from
+  akun/page.tsx to iam/\_components/add-member-dialog.tsx; /iam's lesser copy
+  (no Istri/Co-Master option, no show-password, no relationship lock) is
+  gone, and the profile page links to /iam instead. Review gate:
+  `ecc:react-reviewer` PASS with 1 MEDIUM (dead `addDependantButton` i18n
+  key) + 2 LOW (stale comments, indentation), all fixed before commit. tsc
+  clean, eslint clean, tests 451/451. Side effect: akun/page.tsx drops ~300
+  lines, which helps EPIC-028 group D.
 - 2026-08-18 /epic-loop EPIC-027 #1 "IAM role truth: matrix, cards, dead
   buttons" → PASS (attempts: 1). Review gate: `ecc:react-reviewer` PASS with
   one MEDIUM (the "Export laporan" row is enforced by

@@ -27,7 +27,8 @@ const mockPrisma = {
     update: jest.fn(),
   },
   familyGroup: { create: jest.fn() },
-  member: { create: jest.fn() },
+  // EPIC-027 A10 — login() now counts active memberships.
+  member: { create: jest.fn(), count: jest.fn() },
   category: { createMany: jest.fn() },
   // EPIC-017: register() provisions the generic COA chart, then links categories.
   coaAccount: { createMany: jest.fn(), findMany: jest.fn() },
@@ -189,6 +190,7 @@ describe("AuthService", () => {
         email: "user@example.com",
         passwordHash: "$argon2id$hashed",
       });
+      mockPrisma.member.count.mockResolvedValue(1);
       mockJwt.sign
         .mockReturnValueOnce("access-token")
         .mockReturnValueOnce("refresh-token");
@@ -205,6 +207,31 @@ describe("AuthService", () => {
         accessToken: "access-token",
         refreshToken: "refresh-token",
       });
+    });
+
+    // EPIC-027 A10 (D6) — a member removed from their family keeps a valid
+    // password: the User row and its credential survive a removal by design
+    // (their recorded transactions must keep an author). Zero active
+    // memberships is therefore the signal that this account no longer belongs
+    // anywhere, and it must not receive a session — before this, such a user
+    // signed in fine and the web shell drew them a trusted menu.
+    it("EPIC-027 A10 — refuses a user with no active membership", async () => {
+      const argon2 = jest.requireMock<{ verify: jest.Mock }>("argon2");
+      argon2.verify.mockResolvedValue(true);
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: "user-removed",
+        email: "removed@example.com",
+        passwordHash: "$argon2id$hashed",
+      });
+      mockPrisma.member.count.mockResolvedValue(0);
+
+      await expect(
+        service.login({
+          email: "removed@example.com",
+          password: "correctPassword",
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(mockRedis.set).not.toHaveBeenCalled();
     });
 
     it("throws UnauthorizedException for wrong password", async () => {
@@ -306,6 +333,13 @@ describe("AuthService", () => {
           avatarInitials: true,
           createdAt: true,
           memberships: {
+            // EPIC-027 A7 (security gate, CRITICAL) — a nested membership read
+            // is NOT covered by the member-soft-delete Prisma extension (query
+            // hooks only intercept top-level `prisma.member.*`), so getMe must
+            // exclude removed members itself. Without this, a removed member
+            // keeps resolving to the familyGroupId and role they were removed
+            // from. Asserted here so the filter cannot quietly disappear.
+            where: { deletedAt: null },
             // EPIC-024 A3 (Evidence #1) — "oldest membership wins",
             // unified with auth.ts (web) and family-groups.service.ts.
             orderBy: { createdAt: "asc" },

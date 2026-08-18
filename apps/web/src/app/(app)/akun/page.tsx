@@ -5,9 +5,9 @@ import {
   isValidElement,
   useEffect,
   useId,
-  useRef,
   useState,
 } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useSession } from "@/lib/auth-compat";
@@ -57,10 +57,7 @@ import {
   FileText,
   Scale,
   UserCog,
-  Crown,
   Target,
-  Eye,
-  EyeOff,
   Gauge,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -85,12 +82,10 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 
-import { MemberRelationshipSchema } from "@wealthme/contracts";
 import type {
   AccountDto,
   CategoryDto,
   MemberCategoryAllowanceDto,
-  MemberRelationship,
   Role,
 } from "@wealthme/contracts";
 
@@ -2175,7 +2170,6 @@ function memberInitials(name: string): string {
 }
 
 function FamilyBody({
-  onAddDependant,
   name,
   email,
   initials,
@@ -2185,7 +2179,6 @@ function FamilyBody({
   familyGroupId,
   token,
 }: {
-  onAddDependant: () => void;
   name: string;
   email: string;
   initials: string;
@@ -2283,7 +2276,7 @@ function FamilyBody({
                 {/* EPIC-023 Task D (D3/D9, US-FAM-14) — only a row-scoped
                     role (dependant/operational) can be gated by a
                     threshold; owner-only (NOT isElevated), matching
-                    addDependantButton above — the backend endpoint that
+                    the /iam link above — the backend endpoint that
                     sets it requires "manage Member", which per D2 is
                     owner-only, never spouse. */}
                 {group?.myRole === "owner" &&
@@ -2308,24 +2301,24 @@ function FamilyBody({
         )}
         {/* EPIC-024 A2 (D2, item 18) — "Undang Anggota" (email invite-link)
             removed; family members are added directly (see
-            addDependantButton below, which now also covers istri as a
-            second owner per A1). Backend invitation endpoints are
+            the /iam link below; /iam's add-member dialog covers istri as
+            a second owner per A1). Backend invitation endpoints are
             untouched. */}
-        {/* EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/
-            operational member (no email). FIX 3 (MEDIUM, three-way
-            consensus) — the backend route requires `can("manage", "Member")`,
-            which per casl-ability.factory.ts and D2 ("spouse gets full money
-            CRUD WITHOUT member management") spouse never holds — only
-            `read Member`. Gated owner-only (NOT `isElevated`, which also
-            includes spouse) so a spouse never sees a button that always
-            403s. */}
+        {/* EPIC-027 group 2 (D3) — this page no longer adds members; it links
+            to /iam, which owns member management. The gate is unchanged and
+            still owner-only (NOT `isElevated`): the backend route requires
+            `can("manage", "Member")`, which per casl-ability.factory.ts and
+            D2 ("spouse gets full money CRUD WITHOUT member management")
+            spouse never holds — only `read Member`. /iam is itself
+            `ownerOnly` in lib/nav.ts, so the link never leads anywhere a
+            spouse could act. */}
         {group?.myRole === "owner" && (
-          <button
+          <Link
+            href="/iam"
             className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-dashed border-primary bg-card px-4 py-2.5 text-[13.5px] font-semibold text-primary"
-            onClick={onAddDependant}
           >
-            <UserCog className="size-4" /> {t.akun.family.addDependantButton}
-          </button>
+            <UserCog className="size-4" /> {t.akun.family.manageOnIamLink}
+          </Link>
         )}
       </SetSection>
       <SetSection>
@@ -2714,299 +2707,11 @@ export function ThresholdForm({
   );
 }
 
-// EPIC-024 A2 (D2, item 18) — `AddAdminDialog` (email invite-link UI)
-// removed. Backend invitation endpoints stay untouched
-// (`FamilyGroupsService#createInvitation`); members are now added directly
-// via `AddDependantMemberDialog` below (istri as a second owner per A1,
-// dependant/operational unchanged).
-
-// EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/operational
-// member: name + username + initial password, no email; forced password
-// change at first login (ForcePasswordChangeGuard on the API side).
-function AddDependantMemberDialog({
-  open,
-  onOpenChange,
-  familyGroupId,
-  token,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  familyGroupId: string | null;
-  token: string | undefined;
-}) {
-  const { t } = useLocale();
-  const queryClient = useQueryClient();
-  // EPIC-026 Wave 3 — this dialog composes the prototype's `.field` markup
-  // directly (label + control + `.hint`) instead of the `Field` helper,
-  // because `Field` only wires `htmlFor` when the control is its single
-  // child — the hint-bearing fields here previously lost that association.
-  const fieldId = useId();
-  const nameRef = useRef<HTMLInputElement>(null);
-  const usernameRef = useRef<HTMLInputElement>(null);
-  const passwordRef = useRef<HTMLInputElement>(null);
-  // EPIC-024 A1 (D1) — "owner" is reachable ONLY through this dialog's
-  // "Istri (Co-Master)" option (below), which forces `relationship: istri`
-  // in lockstep — the API independently re-enforces that pairing
-  // (FamilyGroupsService#createDependantMember), so this is UX
-  // convenience, not the only guard.
-  const [role, setRole] = useState<"dependant" | "operational" | "owner">(
-    "dependant",
-  );
-  const [relationship, setRelationship] = useState<MemberRelationship | "">("");
-  const isIstriCoMaster = role === "owner";
-  // FIX 2 (HIGH, react-reviewer + security-reviewer) — show/hide toggle so
-  // the head can verify the initial password before handing it over, same
-  // pattern as login/page.tsx, without it being permanently plaintext.
-  const [showPassword, setShowPassword] = useState(false);
-
-  const { mutate: createMember, isPending } = useMutation({
-    mutationFn: (vars: {
-      name: string;
-      username: string;
-      initialPassword: string;
-      role: "dependant" | "operational" | "owner";
-      relationship?: MemberRelationship;
-    }) =>
-      apiFetch<{ username: string }>(
-        `/family-groups/${familyGroupId}/members/dependant`,
-        {
-          method: "POST",
-          token,
-          body: JSON.stringify(vars),
-        },
-      ),
-    onSuccess: (created) => {
-      onOpenChange(false);
-      // FIX 5 (MEDIUM, react-reviewer) — this dialog is mounted once at the
-      // page level; only the Base UI portal content unmounts on close, so
-      // `role`/`relationship` state (unlike the ref-based inputs, which
-      // reset with the portal) silently persisted across reopens. Reset
-      // alongside closing so the next member starts from the defaults.
-      setRole("dependant");
-      setRelationship("");
-      setShowPassword(false);
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.familyGroups.members(familyGroupId ?? ""),
-      });
-      toast.success(t.akun.addDependant.toastCreated, {
-        description: `${t.akun.addDependant.toastCreatedDesc} (${created.username})`,
-        duration: 10000,
-      });
-    },
-    onError: (err) => {
-      toast.error(
-        extractApiErrorMessage(err, t.akun.addDependant.toastCreateFailed),
-      );
-    },
-  });
-
-  function handleCreate() {
-    const name = nameRef.current?.value?.trim() ?? "";
-    const username = usernameRef.current?.value?.trim() ?? "";
-    const initialPassword = passwordRef.current?.value ?? "";
-    if (!name || !username || !initialPassword || !familyGroupId) return;
-    // EPIC-024 A1 — the istri co-master path always sends
-    // relationship: "istri" regardless of what the (disabled) relationship
-    // picker shows, so the role/relationship pairing the API requires is
-    // never accidentally desynced from the UI's own lockstep behaviour.
-    const effectiveRelationship = isIstriCoMaster ? "istri" : relationship;
-    createMember({
-      name,
-      username,
-      initialPassword,
-      role,
-      ...(effectiveRelationship ? { relationship: effectiveRelationship } : {}),
-    });
-  }
-
-  // FIX 5 follow-up (react-reviewer round 2) — onSuccess resets role/
-  // relationship/showPassword on submit, but the dialog's own close paths
-  // (X, Escape, overlay click) skip that reset entirely, so cancelling
-  // without submitting leaves stale values for the next open. Reset on
-  // every close, not just a successful submit.
-  function handleOpenChange(next: boolean) {
-    if (!next) {
-      setRole("dependant");
-      setRelationship("");
-      setShowPassword(false);
-    }
-    onOpenChange(next);
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      {/* EPIC-026 Wave 3 — prototype `dlg-tambah-anggota`
-          (docs/prototype/pages/akun.html). Field order, hints, the
-          Co-Master `.notice--warning`, and the two-button footer are the
-          prototype's; only the fields the API actually persists are
-          rendered (see the omission note on "Rekening yang ditugaskan"
-          below). Default 480px width, as in the prototype. */}
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t.akun.addDependant.dialogTitle}</DialogTitle>
-          <DialogDescription>
-            {t.akun.addDependant.dialogDesc}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogBody>
-          {/* Prototype order: Hubungan → Nama → Username → Password Awal →
-              Peran. The prototype autofills Peran from Hubungan; this app
-              runs the lockstep the other way (Peran "Istri (Co-Master)"
-              forces relationship "istri", which the API independently
-              re-enforces), so the Co-Master notice below stays attached to
-              the control that actually triggers it. */}
-          <div className="field">
-            <label className="label" htmlFor={`${fieldId}-relationship`}>
-              {t.akun.addDependant.relationshipLabel}
-            </label>
-            <select
-              id={`${fieldId}-relationship`}
-              className="select"
-              value={relationship}
-              disabled={isIstriCoMaster}
-              onChange={(e) =>
-                setRelationship(e.target.value as MemberRelationship | "")
-              }
-            >
-              <option value="">
-                {t.akun.addDependant.relationshipNoneOption}
-              </option>
-              {MemberRelationshipSchema.options.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label className="label" htmlFor={`${fieldId}-name`}>
-              {t.akun.addDependant.nameLabel}
-            </label>
-            <input
-              id={`${fieldId}-name`}
-              ref={nameRef}
-              className="input"
-              placeholder={t.akun.addDependant.namePlaceholder}
-              type="text"
-            />
-          </div>
-          <div className="field">
-            <label className="label" htmlFor={`${fieldId}-username`}>
-              {t.akun.addDependant.usernameLabel}
-            </label>
-            <input
-              id={`${fieldId}-username`}
-              ref={usernameRef}
-              className="input"
-              placeholder={t.akun.addDependant.usernamePlaceholder}
-              type="text"
-            />
-            <p className="hint">{t.akun.addDependant.usernameHint}</p>
-          </div>
-          <div className="field">
-            <label className="label" htmlFor={`${fieldId}-password`}>
-              {t.akun.addDependant.passwordLabel}
-            </label>
-            <div className="relative">
-              <input
-                id={`${fieldId}-password`}
-                ref={passwordRef}
-                className="input pr-10"
-                placeholder={t.akun.addDependant.passwordPlaceholder}
-                type={showPassword ? "text" : "password"}
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                aria-label={
-                  showPassword
-                    ? t.akun.addDependant.hidePassword
-                    : t.akun.addDependant.showPassword
-                }
-                aria-pressed={showPassword}
-                onClick={() => setShowPassword((s) => !s)}
-                // UI/UX audit fix (docs/uiux-beda) — muted-foreground on the
-                // dark-theme input background reads as near-invisible; bump
-                // to foreground/70 (still a subtle icon, but findable) and
-                // give it a visible hit target background on hover/focus.
-                className="absolute right-3 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-foreground/70 transition-colors hover:bg-accent hover:text-primary focus-visible:bg-accent focus-visible:text-primary focus-visible:outline-none"
-              >
-                {showPassword ? (
-                  <EyeOff className="size-3.5" />
-                ) : (
-                  <Eye className="size-3.5" />
-                )}
-              </button>
-            </div>
-            <p className="hint">{t.akun.addDependant.passwordHint}</p>
-          </div>
-          <div className="field">
-            <label className="label" htmlFor={`${fieldId}-role`}>
-              {t.akun.addDependant.roleLabel}
-            </label>
-            <select
-              id={`${fieldId}-role`}
-              className="select"
-              value={role}
-              onChange={(e) => {
-                const next = e.target.value as
-                  | "dependant"
-                  | "operational"
-                  | "owner";
-                setRole(next);
-                // EPIC-024 A1 — selecting "Istri (Co-Master)" locks the
-                // relationship picker above to "istri" (the API rejects any
-                // other pairing with role owner); switching away clears it
-                // back to editable.
-                setRelationship(next === "owner" ? "istri" : "");
-              }}
-            >
-              <option value="dependant">
-                {t.akun.addDependant.roleOptions.dependant}
-              </option>
-              <option value="operational">
-                {t.akun.addDependant.roleOptions.operational}
-              </option>
-              <option value="owner">
-                {t.akun.addDependant.roleOptions.istriCoMaster}
-              </option>
-            </select>
-          </div>
-          {isIstriCoMaster && (
-            <div className="notice notice--warning mt-2.5">
-              <Crown className="size-4 shrink-0" aria-hidden />
-              <span>{t.akun.addDependant.istriCoMasterHint}</span>
-            </div>
-          )}
-          {/* Honest UI — the prototype's "Rekening yang ditugaskan
-              (opsional)" select is omitted: POST
-              /family-groups/:id/members/dependant accepts only
-              name/username/initialPassword/role/relationship, so an account
-              picker here would silently drop the operator's choice. */}
-        </DialogBody>
-        <DialogFooter>
-          <button
-            type="button"
-            className="btn btn--outline"
-            onClick={() => handleOpenChange(false)}
-          >
-            {t.common.cancel}
-          </button>
-          <button
-            type="button"
-            disabled={isPending || !familyGroupId}
-            className="btn btn--primary disabled:opacity-60"
-            onClick={handleCreate}
-          >
-            {isPending
-              ? t.akun.addDependant.creating
-              : t.akun.addDependant.createButton}
-          </button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
+// EPIC-027 group 2 (D3) — `AddDependantMemberDialog` moved to
+// `app/(app)/iam/_components/add-member-dialog.tsx`. Member management now
+// lives only on /iam: the API requires `manage Member`, which only an owner
+// holds, and /iam is already the owner-only surface for it. This page links
+// there instead of carrying a second copy of the form.
 
 /* ─────────────────────────── Menu row ─────────────────────────── */
 
@@ -3057,7 +2762,6 @@ export default function AkunPage() {
   const queryClient = useQueryClient();
   const { startTour } = useShell();
   const [subpage, setSubpage] = useState<SubPageId | null>(null);
-  const [addDependantOpen, setAddDependantOpen] = useState(false);
   const [crud, setCrud] = useState<CrudModalState | null>(null);
   // EPIC-026 Wave 2 — the members table's Aksi column reuses the exact
   // member controls FamilyBody already had (category-limit + threshold
@@ -3258,10 +2962,6 @@ export default function AkunPage() {
             myUserId={myUserId}
             familyGroupId={familyGroupId}
             token={token}
-            onAddDependant={() => {
-              closeSheet();
-              setAddDependantOpen(true);
-            }}
           />
         );
     }
@@ -3415,13 +3115,14 @@ export default function AkunPage() {
         title={`${t.akun.family.membersSectionTitle} (${(familyMembers ?? []).filter((m) => m.role !== "admin_staff").length})`}
         action={
           primaryGroup?.myRole === "owner" ? (
-            <button
-              type="button"
-              onClick={() => setAddDependantOpen(true)}
+            /* EPIC-027 group 2 (D3) — links to /iam instead of opening a
+               second copy of the add-member form. */
+            <Link
+              href="/iam"
               className="flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-[11.5px] font-semibold text-white"
             >
-              <UserCog className="size-3" /> {t.akun.family.addDependantButton}
-            </button>
+              <UserCog className="size-3" /> {t.akun.family.manageOnIamLink}
+            </Link>
           ) : undefined
         }
       >
@@ -3670,12 +3371,6 @@ export default function AkunPage() {
         </SheetContent>
       </Sheet>
 
-      <AddDependantMemberDialog
-        open={addDependantOpen}
-        onOpenChange={setAddDependantOpen}
-        familyGroupId={primaryGroup?.id ?? null}
-        token={token}
-      />
       {/* EPIC-026 Wave 2 — dialogs backing the members table's Aksi column
           (same components FamilyBody mounts for the sheet variant). */}
       <CategoryLimitDialog

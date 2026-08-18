@@ -682,7 +682,7 @@ export const en = {
       thresholdSaving: "Saving...",
       thresholdSaved: "Threshold saved.",
       thresholdSaveFailed: "Failed to save the threshold. Try again.",
-      addDependantButton: "Add Child / Operational",
+      manageOnIamLink: "Manage members on IAM Roles",
     },
     addDependant: {
       dialogTitle: "Add Child / Operational",

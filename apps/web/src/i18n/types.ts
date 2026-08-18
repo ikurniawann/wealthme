@@ -876,7 +876,7 @@ export type I18nDictionary = {
       thresholdSaveFailed: string;
       // EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/
       // operational member (name + username + initial password, no email).
-      addDependantButton: string;
+      manageOnIamLink: string;
     };
     // EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/
     // operational member: no email, username + initial password instead.

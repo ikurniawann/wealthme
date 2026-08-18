@@ -21,6 +21,8 @@ import {
 } from "../notifications/notification-sender.port";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { RedisService } from "../redis/redis.service";
 
 import type { Env } from "../config/env";
 import type { CreateDependantMemberDto } from "./dto/create-dependant-member.dto";
@@ -84,6 +86,7 @@ export class FamilyGroupsService {
     @Inject(NOTIFICATION_SENDER_PORT)
     private readonly notificationSender: NotificationSenderPort,
     private readonly config: ConfigService<Env, true>,
+    private readonly redis: RedisService,
   ) {}
 
   async findMine(userId: string): Promise<FamilyGroupResponseDto[]> {
@@ -95,7 +98,11 @@ export class FamilyGroupsService {
       where: { userId },
       include: {
         familyGroup: {
-          include: { _count: { select: { members: true } } },
+          include: {
+            // EPIC-027 A7 — nested aggregate; the soft-delete extension does not
+            // reach it, so removed members would still be counted.
+            _count: { select: { members: { where: { deletedAt: null } } } },
+          },
         },
       },
       orderBy: { createdAt: "asc" },
@@ -121,7 +128,11 @@ export class FamilyGroupsService {
           create: { userId, role: Role.owner },
         },
       },
-      include: { _count: { select: { members: true } } },
+      include: {
+        // EPIC-027 A7 — nested aggregate; the soft-delete extension does not
+        // reach it, so removed members would still be counted.
+        _count: { select: { members: { where: { deletedAt: null } } } },
+      },
     });
 
     return {
@@ -275,13 +286,105 @@ export class FamilyGroupsService {
     // would otherwise dangle (the user row itself may still exist — they can
     // belong to other family groups). Revert those accounts to
     // family-shared in the SAME transaction as the member removal.
+    // EPIC-027 A7 (D4) — soft delete, not `member.delete`. The row survives
+    // with `deletedAt` set: every read path already ignores it (the
+    // member-soft-delete Prisma extension), the member's recorded transactions
+    // keep their author, and the head can restore them from /iam. Hard-deleting
+    // here while the User + credential rows lived on is exactly what let a
+    // removed child keep signing in.
     await this.prisma.$transaction([
       this.prisma.account.updateMany({
         where: { familyGroupId, ownerUserId: member.userId },
         data: { ownerUserId: null },
       }),
-      this.prisma.member.delete({ where: { id: memberId } }),
+      this.prisma.member.update({
+        where: { id: memberId },
+        data: { deletedAt: new Date() },
+      }),
     ]);
+
+    await this.revokeSessions(member.userId);
+  }
+
+  /**
+   * EPIC-027 A9 (D7) — a removed member may be holding a live session right
+   * now. Soft-deleting the membership stops the NEXT request from resolving a
+   * family group, but an already-issued access token keeps working until it
+   * expires, so tear the credentials down explicitly:
+   *
+   *  - the Redis refresh key, so no new access token can be minted (same key
+   *    shape `logout()` deletes);
+   *  - every better-auth session row for that user, which is what the web app
+   *    actually authenticates with.
+   *
+   * Deliberately best-effort: the member IS already removed at this point, and
+   * throwing here would turn a completed removal into a 500 that invites the
+   * operator to retry an operation that already succeeded. A revocation
+   * failure is logged for follow-up instead.
+   */
+  private async revokeSessions(userId: string): Promise<void> {
+    try {
+      await this.redis.del(`refresh:${userId}`);
+      await this.prisma.baSession.deleteMany({ where: { userId } });
+    } catch (err: unknown) {
+      this.logger.error(
+        `Failed to revoke sessions for removed user ${userId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+
+  /**
+   * EPIC-027 A8 (D5) — undo a removal. Restoring is the only way to bring a
+   * removed member back: their `User` row still holds the username, so
+   * re-creating them under the same username would 409, and the
+   * `@@unique([userId, familyGroupId])` constraint counts the soft-deleted row.
+   */
+  async restoreMember(
+    familyGroupId: string,
+    memberId: string,
+    requesterId: string,
+  ): Promise<void> {
+    await this.assertOwner(familyGroupId, requesterId);
+
+    // The extension hides removed rows from every read, so ask for one
+    // explicitly — `deletedAt: { not: null }` is the documented opt-out.
+    const member = await this.prisma.member.findFirst({
+      where: { id: memberId, familyGroupId, deletedAt: { not: null } },
+    });
+    if (!member) throw new NotFoundException("Removed member not found");
+
+    await this.prisma.member.update({
+      where: { id: memberId },
+      data: { deletedAt: null },
+    });
+  }
+
+  /** EPIC-027 A8 — the "Anggota Nonaktif" panel on /iam. */
+  async listRemovedMembers(
+    familyGroupId: string,
+    requesterId: string,
+  ): Promise<MemberResponseDto[]> {
+    await this.assertOwner(familyGroupId, requesterId);
+
+    const members = await this.prisma.member.findMany({
+      where: { familyGroupId, deletedAt: { not: null } },
+      include: { user: { select: { name: true, email: true } } },
+      orderBy: { deletedAt: "desc" },
+    });
+
+    return members.map((m) => ({
+      id: m.id,
+      userId: m.userId,
+      familyGroupId: m.familyGroupId,
+      role: m.role,
+      relationship: m.relationship,
+      name: m.user.name,
+      email: m.user.email,
+      createdAt: m.createdAt.toISOString(),
+      largeTxnThreshold: m.largeTxnThreshold?.toString() ?? null,
+    }));
   }
 
   async createInvitation(

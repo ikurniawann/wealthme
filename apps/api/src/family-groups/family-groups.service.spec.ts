@@ -10,6 +10,7 @@ import * as argon2 from "argon2";
 
 import { NOTIFICATION_SENDER_PORT } from "../notifications/notification-sender.port";
 import { PrismaService } from "../prisma/prisma.service";
+import { RedisService } from "../redis/redis.service";
 
 import { FamilyGroupsService } from "./family-groups.service";
 
@@ -17,6 +18,10 @@ const FAMILY_GROUP_ID = "fg-1";
 const MEMBER_ID = "member-1";
 const REQUESTER_ID = "user-owner";
 const MEMBER_USER_ID = "user-member";
+
+function makeRedis() {
+  return { del: jest.fn(), get: jest.fn(), set: jest.fn() };
+}
 
 function makePrisma() {
   const prisma = {
@@ -29,6 +34,8 @@ function makePrisma() {
       create: jest.fn(),
     },
     account: { updateMany: jest.fn() },
+    // EPIC-027 A9 — removal revokes better-auth sessions.
+    baSession: { deleteMany: jest.fn() },
     familyGroup: { findUnique: jest.fn(), update: jest.fn() },
     invitation: {
       create: jest.fn(),
@@ -53,9 +60,11 @@ function makePrisma() {
 describe("FamilyGroupsService.removeMember", () => {
   let service: FamilyGroupsService;
   let prisma: ReturnType<typeof makePrisma>;
+  let redis: ReturnType<typeof makeRedis>;
 
   beforeEach(async () => {
     prisma = makePrisma();
+    redis = makeRedis();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         FamilyGroupsService,
@@ -65,6 +74,7 @@ describe("FamilyGroupsService.removeMember", () => {
           useValue: { sendEmail: jest.fn() },
         },
         { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: RedisService, useValue: redis },
       ],
     }).compile();
     service = module.get(FamilyGroupsService);
@@ -118,6 +128,164 @@ describe("FamilyGroupsService.removeMember", () => {
     });
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
   });
+
+  // EPIC-027 A7 (D4) — the removal used to be `member.delete`, which left the
+  // User row and its credential behind: the removed member kept signing in,
+  // and with no membership left the web shell treated them as trusted. These
+  // assertions are the regression guard for that.
+  it("EPIC-027 A7 — soft-deletes the member instead of destroying the row", async () => {
+    prisma.member.findUnique.mockResolvedValue({ role: "owner" });
+    prisma.member.findFirst.mockResolvedValue({
+      id: MEMBER_ID,
+      role: "dependant",
+      userId: MEMBER_USER_ID,
+    });
+
+    await service.removeMember(FAMILY_GROUP_ID, MEMBER_ID, REQUESTER_ID);
+
+    expect(prisma.member.delete).not.toHaveBeenCalled();
+    expect(prisma.member.update).toHaveBeenCalledWith({
+      where: { id: MEMBER_ID },
+      data: { deletedAt: expect.any(Date) },
+    });
+  });
+
+  // EPIC-027 A9 (D7) — soft-deleting the membership only stops the NEXT
+  // request from resolving a family group; a token already in hand keeps
+  // working until it expires. Removal must tear the credentials down.
+  it("EPIC-027 A9 — revokes the removed member's refresh key and sessions", async () => {
+    prisma.member.findUnique.mockResolvedValue({ role: "owner" });
+    prisma.member.findFirst.mockResolvedValue({
+      id: MEMBER_ID,
+      role: "dependant",
+      userId: MEMBER_USER_ID,
+    });
+
+    await service.removeMember(FAMILY_GROUP_ID, MEMBER_ID, REQUESTER_ID);
+
+    expect(redis.del).toHaveBeenCalledWith(`refresh:${MEMBER_USER_ID}`);
+    expect(prisma.baSession.deleteMany).toHaveBeenCalledWith({
+      where: { userId: MEMBER_USER_ID },
+    });
+  });
+
+  it("EPIC-027 A9 — a revocation failure does not undo or fail the removal", async () => {
+    prisma.member.findUnique.mockResolvedValue({ role: "owner" });
+    prisma.member.findFirst.mockResolvedValue({
+      id: MEMBER_ID,
+      role: "dependant",
+      userId: MEMBER_USER_ID,
+    });
+    redis.del.mockRejectedValue(new Error("redis down"));
+
+    await expect(
+      service.removeMember(FAMILY_GROUP_ID, MEMBER_ID, REQUESTER_ID),
+    ).resolves.toBeUndefined();
+    expect(prisma.member.update).toHaveBeenCalled();
+  });
+});
+
+describe("FamilyGroupsService — removed members (EPIC-027 A8)", () => {
+  let service: FamilyGroupsService;
+  let prisma: ReturnType<typeof makePrisma> & {
+    member: ReturnType<typeof makePrisma>["member"] & { findMany: jest.Mock };
+  };
+
+  beforeEach(async () => {
+    prisma = {
+      ...makePrisma(),
+      member: { ...makePrisma().member, findMany: jest.fn() },
+    };
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        FamilyGroupsService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { sendEmail: jest.fn() },
+        },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: RedisService, useValue: makeRedis() },
+      ],
+    }).compile();
+    service = module.get(FamilyGroupsService);
+  });
+
+  it("restores a removed member by clearing deletedAt", async () => {
+    prisma.member.findUnique.mockResolvedValue({ role: "owner" });
+    prisma.member.findFirst.mockResolvedValue({ id: MEMBER_ID });
+
+    await service.restoreMember(FAMILY_GROUP_ID, MEMBER_ID, REQUESTER_ID);
+
+    // The soft-delete extension hides removed rows from every read, so the
+    // lookup MUST opt out explicitly or it can never find its own target.
+    expect(prisma.member.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: MEMBER_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        deletedAt: { not: null },
+      },
+    });
+    expect(prisma.member.update).toHaveBeenCalledWith({
+      where: { id: MEMBER_ID },
+      data: { deletedAt: null },
+    });
+  });
+
+  it("refuses to restore a member that was never removed", async () => {
+    prisma.member.findUnique.mockResolvedValue({ role: "owner" });
+    prisma.member.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.restoreMember(FAMILY_GROUP_ID, MEMBER_ID, REQUESTER_ID),
+    ).rejects.toThrow(NotFoundException);
+    expect(prisma.member.update).not.toHaveBeenCalled();
+  });
+
+  it("refuses to restore for a non-owner", async () => {
+    prisma.member.findUnique.mockResolvedValue({ role: "member" });
+
+    await expect(
+      service.restoreMember(FAMILY_GROUP_ID, MEMBER_ID, REQUESTER_ID),
+    ).rejects.toThrow("Only owners can perform this action");
+  });
+
+  it("lists only removed members", async () => {
+    prisma.member.findUnique.mockResolvedValue({ role: "owner" });
+    prisma.member.findMany.mockResolvedValue([
+      {
+        id: MEMBER_ID,
+        userId: MEMBER_USER_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        role: Role.dependant,
+        relationship: MemberRelationship.anak,
+        largeTxnThreshold: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        user: { name: "Aisyah", email: "member-x@members.invalid" },
+      },
+    ]);
+
+    const result = await service.listRemovedMembers(
+      FAMILY_GROUP_ID,
+      REQUESTER_ID,
+    );
+
+    expect(prisma.member.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { familyGroupId: FAMILY_GROUP_ID, deletedAt: { not: null } },
+      }),
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0]?.name).toBe("Aisyah");
+  });
+
+  it("refuses to list removed members for a non-owner", async () => {
+    prisma.member.findUnique.mockResolvedValue({ role: "dependant" });
+
+    await expect(
+      service.listRemovedMembers(FAMILY_GROUP_ID, REQUESTER_ID),
+    ).rejects.toThrow("Only owners can perform this action");
+  });
 });
 
 // EPIC-024 A3 (Evidence #1) — this is the reference implementation the
@@ -145,6 +313,7 @@ describe("FamilyGroupsService.findMine (EPIC-024 A3)", () => {
           useValue: { sendEmail: jest.fn() },
         },
         { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: RedisService, useValue: makeRedis() },
       ],
     }).compile();
     service = module.get(FamilyGroupsService);
@@ -229,6 +398,7 @@ describe("FamilyGroupsService.createInvitation — invitation email (QA-sweep #4
         { provide: PrismaService, useValue: prisma },
         { provide: NOTIFICATION_SENDER_PORT, useValue: sender },
         { provide: ConfigService, useValue: config },
+        { provide: RedisService, useValue: makeRedis() },
       ],
     }).compile();
     service = module.get(FamilyGroupsService);
@@ -279,6 +449,7 @@ describe("FamilyGroupsService gold price", () => {
           useValue: { sendEmail: jest.fn() },
         },
         { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: RedisService, useValue: makeRedis() },
       ],
     }).compile();
     service = module.get(FamilyGroupsService);
@@ -388,6 +559,7 @@ describe("FamilyGroupsService religion", () => {
           useValue: { sendEmail: jest.fn() },
         },
         { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: RedisService, useValue: makeRedis() },
       ],
     }).compile();
     service = module.get(FamilyGroupsService);
@@ -490,6 +662,7 @@ describe("FamilyGroupsService.updateMemberRole — relationship (EPIC-023 Task C
           useValue: { sendEmail: jest.fn() },
         },
         { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: RedisService, useValue: makeRedis() },
       ],
     }).compile();
     service = module.get(FamilyGroupsService);
@@ -572,6 +745,7 @@ describe("FamilyGroupsService.updateMemberRole — max-1-istri guard (review-fix
           useValue: { sendEmail: jest.fn() },
         },
         { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: RedisService, useValue: makeRedis() },
       ],
     }).compile();
     service = module.get(FamilyGroupsService);
@@ -710,6 +884,7 @@ describe("FamilyGroupsService.acceptInvitation — relationship carried through 
           useValue: { sendEmail: jest.fn() },
         },
         { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: RedisService, useValue: makeRedis() },
       ],
     }).compile();
     service = module.get(FamilyGroupsService);
@@ -752,6 +927,7 @@ describe("FamilyGroupsService.updateMemberRole — largeTxnThreshold (EPIC-023 T
           useValue: { sendEmail: jest.fn() },
         },
         { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: RedisService, useValue: makeRedis() },
       ],
     }).compile();
     service = module.get(FamilyGroupsService);
@@ -884,6 +1060,7 @@ describe("FamilyGroupsService.createDependantMember (EPIC-023 D1)", () => {
           useValue: { sendEmail: jest.fn() },
         },
         { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: RedisService, useValue: makeRedis() },
       ],
     }).compile();
     service = module.get(FamilyGroupsService);
@@ -1169,6 +1346,7 @@ describe("FamilyGroupsService.createDependantMember — istri as second owner (E
           useValue: { sendEmail: jest.fn() },
         },
         { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: RedisService, useValue: makeRedis() },
       ],
     }).compile();
     service = module.get(FamilyGroupsService);
