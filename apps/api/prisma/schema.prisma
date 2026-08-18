@@ -526,6 +526,18 @@ model Member {
   // adjusts THEIR "large transaction" notification cutoff (see
   // TransactionsService.notifyTransaction), never a hold.
   largeTxnThreshold  BigInt?
+  // EPIC-027 A7 (D4) — soft delete. Removing a member used to hard-delete this
+  // row while leaving the User + credential intact, so a removed child kept
+  // signing in by username and, with no membership left, was treated as a
+  // trusted role by the web shell. The row now survives with `deletedAt` set:
+  // access is gone (every read is filtered by the Prisma extension in
+  // prisma/member-soft-delete.extension.ts), history is intact, and the head
+  // can restore the member from /iam.
+  //
+  // NOTE the `@@unique([userId, familyGroupId])` below still counts a
+  // soft-deleted row. That is deliberate: the same user cannot be re-added to
+  // the same family as a duplicate row — they are restored instead.
+  deletedAt          DateTime?
   createdAt          DateTime                  @default(now())
   user               User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
   familyGroup        FamilyGroup               @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
@@ -535,6 +547,9 @@ model Member {
 
   @@unique([userId, familyGroupId])
   @@index([familyGroupId])
+  // EPIC-027 A7 — every read now carries `deletedAt: null` alongside the
+  // family filter; the familyGroupId-only index would still scan removed rows.
+  @@index([familyGroupId, deletedAt])
   @@map("members")
 }
 

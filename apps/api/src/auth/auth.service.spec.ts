@@ -306,6 +306,13 @@ describe("AuthService", () => {
           avatarInitials: true,
           createdAt: true,
           memberships: {
+            // EPIC-027 A7 (security gate, CRITICAL) — a nested membership read
+            // is NOT covered by the member-soft-delete Prisma extension (query
+            // hooks only intercept top-level `prisma.member.*`), so getMe must
+            // exclude removed members itself. Without this, a removed member
+            // keeps resolving to the familyGroupId and role they were removed
+            // from. Asserted here so the filter cannot quietly disappear.
+            where: { deletedAt: null },
             // EPIC-024 A3 (Evidence #1) — "oldest membership wins",
             // unified with auth.ts (web) and family-groups.service.ts.
             orderBy: { createdAt: "asc" },

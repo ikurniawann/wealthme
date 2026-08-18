@@ -177,8 +177,14 @@ export const auth = betterAuth({
           // FIRST family group — normally created at their own
           // registration — is the stable, deterministic "home" group; a
           // later invite/add should never silently switch it.
+          // EPIC-027 A7 (security gate, CRITICAL) — reviewed foundation change
+          // to a protected `lib/*` file. This is a SEPARATE Prisma client (the
+          // better-auth adapter's), so the API's member-soft-delete extension
+          // never applies here. Without `deletedAt: null` a removed member's
+          // stale membership would still stamp a familyGroupId onto every new
+          // session, handing them back the group they were removed from.
           const member = await prisma.member.findFirst({
-            where: { userId: session.userId },
+            where: { userId: session.userId, deletedAt: null },
             orderBy: { createdAt: "asc" },
             select: { familyGroupId: true },
           });

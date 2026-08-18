@@ -118,6 +118,129 @@ describe("FamilyGroupsService.removeMember", () => {
     });
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
   });
+
+  // EPIC-027 A7 (D4) — the removal used to be `member.delete`, which left the
+  // User row and its credential behind: the removed member kept signing in,
+  // and with no membership left the web shell treated them as trusted. These
+  // assertions are the regression guard for that.
+  it("EPIC-027 A7 — soft-deletes the member instead of destroying the row", async () => {
+    prisma.member.findUnique.mockResolvedValue({ role: "owner" });
+    prisma.member.findFirst.mockResolvedValue({
+      id: MEMBER_ID,
+      role: "dependant",
+      userId: MEMBER_USER_ID,
+    });
+
+    await service.removeMember(FAMILY_GROUP_ID, MEMBER_ID, REQUESTER_ID);
+
+    expect(prisma.member.delete).not.toHaveBeenCalled();
+    expect(prisma.member.update).toHaveBeenCalledWith({
+      where: { id: MEMBER_ID },
+      data: { deletedAt: expect.any(Date) },
+    });
+  });
+});
+
+describe("FamilyGroupsService — removed members (EPIC-027 A8)", () => {
+  let service: FamilyGroupsService;
+  let prisma: ReturnType<typeof makePrisma> & {
+    member: ReturnType<typeof makePrisma>["member"] & { findMany: jest.Mock };
+  };
+
+  beforeEach(async () => {
+    prisma = {
+      ...makePrisma(),
+      member: { ...makePrisma().member, findMany: jest.fn() },
+    };
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        FamilyGroupsService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { sendEmail: jest.fn() },
+        },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+      ],
+    }).compile();
+    service = module.get(FamilyGroupsService);
+  });
+
+  it("restores a removed member by clearing deletedAt", async () => {
+    prisma.member.findUnique.mockResolvedValue({ role: "owner" });
+    prisma.member.findFirst.mockResolvedValue({ id: MEMBER_ID });
+
+    await service.restoreMember(FAMILY_GROUP_ID, MEMBER_ID, REQUESTER_ID);
+
+    // The soft-delete extension hides removed rows from every read, so the
+    // lookup MUST opt out explicitly or it can never find its own target.
+    expect(prisma.member.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: MEMBER_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        deletedAt: { not: null },
+      },
+    });
+    expect(prisma.member.update).toHaveBeenCalledWith({
+      where: { id: MEMBER_ID },
+      data: { deletedAt: null },
+    });
+  });
+
+  it("refuses to restore a member that was never removed", async () => {
+    prisma.member.findUnique.mockResolvedValue({ role: "owner" });
+    prisma.member.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.restoreMember(FAMILY_GROUP_ID, MEMBER_ID, REQUESTER_ID),
+    ).rejects.toThrow(NotFoundException);
+    expect(prisma.member.update).not.toHaveBeenCalled();
+  });
+
+  it("refuses to restore for a non-owner", async () => {
+    prisma.member.findUnique.mockResolvedValue({ role: "member" });
+
+    await expect(
+      service.restoreMember(FAMILY_GROUP_ID, MEMBER_ID, REQUESTER_ID),
+    ).rejects.toThrow("Only owners can perform this action");
+  });
+
+  it("lists only removed members", async () => {
+    prisma.member.findUnique.mockResolvedValue({ role: "owner" });
+    prisma.member.findMany.mockResolvedValue([
+      {
+        id: MEMBER_ID,
+        userId: MEMBER_USER_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        role: Role.dependant,
+        relationship: MemberRelationship.anak,
+        largeTxnThreshold: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        user: { name: "Aisyah", email: "member-x@members.invalid" },
+      },
+    ]);
+
+    const result = await service.listRemovedMembers(
+      FAMILY_GROUP_ID,
+      REQUESTER_ID,
+    );
+
+    expect(prisma.member.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { familyGroupId: FAMILY_GROUP_ID, deletedAt: { not: null } },
+      }),
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0]?.name).toBe("Aisyah");
+  });
+
+  it("refuses to list removed members for a non-owner", async () => {
+    prisma.member.findUnique.mockResolvedValue({ role: "dependant" });
+
+    await expect(
+      service.listRemovedMembers(FAMILY_GROUP_ID, REQUESTER_ID),
+    ).rejects.toThrow("Only owners can perform this action");
+  });
 });
 
 // EPIC-024 A3 (Evidence #1) — this is the reference implementation the

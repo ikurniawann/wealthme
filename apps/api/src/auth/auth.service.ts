@@ -96,7 +96,16 @@ const PROFILE_DETAIL_SELECT = {
   // happened to return rows in (not guaranteed stable) — a third,
   // independent way of picking "the active group" from the two already
   // documented in the Evidence section.
+  // EPIC-027 A7 (security gate, CRITICAL) — this `where` is NOT redundant with
+  // the member-soft-delete Prisma extension. Extension `query` hooks only
+  // intercept TOP-LEVEL operations (`prisma.member.*`); a relation pulled
+  // through `include`/`select` on another model is resolved by the query
+  // engine as part of the PARENT request and never passes through the member
+  // hook. Without this filter a removed member keeps resolving to their old
+  // familyGroupId and role here — precisely the bug the soft delete exists to
+  // fix. Every nested membership read must carry it explicitly.
   memberships: {
+    where: { deletedAt: null },
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
@@ -246,7 +255,11 @@ export class AuthService {
         // PROFILE_DETAIL_SELECT above; getMe() keeps its own separate
         // select (minimal fields) but must resolve familyGroupId the same
         // deterministic way.
+        // EPIC-027 A7 (security gate, CRITICAL) — see PROFILE_DETAIL_SELECT:
+        // a nested membership read is not covered by the soft-delete
+        // extension and must filter removed members itself.
         memberships: {
+          where: { deletedAt: null },
           orderBy: { createdAt: "asc" },
           select: {
             id: true,
