@@ -8,7 +8,6 @@ import {
   Lock,
   Plus,
   ShieldCheck,
-  UserRoundPlus,
   WalletCards,
 } from "lucide-react";
 import { useState } from "react";
@@ -28,12 +27,25 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+/**
+ * EPIC-027 group 1 (D1/D2) — these cards used to advertise a "Co-Master" role
+ * that cannot manage IAM. It can: a co-master is created by
+ * `createDependantMember` as `role: owner` paired with `relationship: istri`
+ * (EPIC-024 A1), and `owner` holds `manage Member` in casl-ability.factory.ts.
+ * The app was right and this screen was lying, so Co-Master is folded into the
+ * Master card rather than given a column that contradicts the ability factory.
+ *
+ * Only the three roles an owner can actually create are shown. `spouse`,
+ * `member` and `admin_staff` still exist in the schema and still render with
+ * their own labels in the roster below; they are surfaced here by the
+ * "Lainnya" card only when a family actually has one, instead of being
+ * silently counted as Co-Masters the way they were before.
+ */
 const roles = [
   {
     name: "Master",
     description:
-      "Pemilik utama keluarga, akses penuh ke data, role, dan audit.",
-    members: 1,
+      "Pemilik utama keluarga — termasuk Co-Master (istri). Akses penuh ke data, role, dan audit.",
     icon: Crown,
     tone: "success",
     permissions: [
@@ -44,19 +56,9 @@ const roles = [
     ],
   },
   {
-    name: "Co-Master",
-    description:
-      "Pasangan atau orang tepercaya yang bisa ikut mengatur keluarga.",
-    members: 1,
-    icon: ShieldCheck,
-    tone: "info",
-    permissions: ["Lihat semua", "Setujui dana", "Kelola anggota"],
-  },
-  {
     name: "Anak",
     description:
       "Akses terbatas untuk tabungan, tujuan, dan edukasi finansial.",
-    members: 2,
     icon: Eye,
     tone: "purple",
     permissions: ["Saldo sendiri", "Tujuan pribadi", "Tidak bisa hapus"],
@@ -65,7 +67,6 @@ const roles = [
     name: "Staff Operasional",
     description:
       "Asisten, supir, atau admin yang hanya mencatat transaksi tertentu.",
-    members: 1,
     icon: WalletCards,
     tone: "warning",
     permissions: [
@@ -74,15 +75,37 @@ const roles = [
       "Tanpa saldo keluarga",
     ],
   },
+  /* Legacy roles (`spouse` / `member` / `admin_staff`) — no form creates one,
+     so this card is rendered only when the roster actually contains one. */
+  {
+    name: "Lainnya",
+    description:
+      "Role lama (pasangan, anggota, admin pembukuan) yang tidak bisa dibuat lagi dari form mana pun.",
+    icon: ShieldCheck,
+    tone: "info",
+    permissions: ["Lihat data keluarga", "Tanpa kelola role"],
+  },
 ] as const;
 
+/**
+ * Mirrors casl-ability.factory.ts for the three roles shown above. Master =
+ * `owner` (which is what a Co-Master is). Verified per row against the
+ * factory's grants, not against the prototype's picture of them.
+ *
+ * Exception, called out so a future reader does not check the wrong file:
+ * the LAST row is not CASL-derived. The factory declares a `Report` subject
+ * but grants it to nobody; report/export access is enforced by
+ * `assertHouseholdWideReadAllowed()` in reports.controller.ts. The values
+ * below match that function — if real `Report` grants are ever added to the
+ * factory, this row must be re-checked against both.
+ */
 const permissionRows = [
-  ["Lihat kekayaan keluarga", "Ya", "Ya", "Tidak", "Tidak"],
-  ["Kelola rekening & saldo", "Ya", "Terbatas", "Tidak", "Tidak"],
-  ["Input transaksi", "Ya", "Ya", "Terbatas", "Ya"],
-  ["Setujui permintaan dana", "Ya", "Ya", "Tidak", "Tidak"],
-  ["Kelola IAM roles", "Ya", "Tidak", "Tidak", "Tidak"],
-  ["Export laporan", "Ya", "Ya", "Tidak", "Tidak"],
+  ["Lihat kekayaan keluarga", "Ya", "Tidak", "Tidak"],
+  ["Kelola rekening & saldo", "Ya", "Tidak", "Tidak"],
+  ["Input transaksi", "Ya", "Terbatas", "Terbatas"],
+  ["Setujui permintaan dana", "Ya", "Tidak", "Tidak"],
+  ["Kelola IAM roles", "Ya", "Tidak", "Tidak"],
+  ["Export laporan", "Ya", "Tidak", "Tidak"], // ← assertHouseholdWideReadAllowed, not CASL
 ] as const;
 
 const roleToneClass = {
@@ -272,18 +295,21 @@ export default function IamRolesPage() {
       toast.error(e.message ?? "Gagal menghapus anggota"),
   });
 
-  // Role-card counts, counted off the real roster instead of the literals
-  // 1/1/2/1 the mock shipped with. `spouse` is folded into Co-Master and
-  // `member`/`admin_staff` into Master's card only for the COUNT — the
-  // descriptive copy above each card is unchanged.
+  // Role-card counts, counted off the real roster. EPIC-027 group 1: a
+  // `member` or `admin_staff` is no longer counted as a "Co-Master" — a
+  // co-master IS an owner (D1), and the legacy roles get their own card,
+  // rendered only when the family actually has one.
   const countByRole = (roles: readonly string[]) =>
     (members ?? []).filter((m) => roles.includes(m.role)).length;
   const roleCounts: Record<string, number> = {
     Master: countByRole(["owner"]),
-    "Co-Master": countByRole(["spouse", "member", "admin_staff"]),
     Anak: countByRole(["dependant"]),
     "Staff Operasional": countByRole(["operational"]),
+    Lainnya: countByRole(["spouse", "member", "admin_staff"]),
   };
+  const visibleRoles = roles.filter(
+    (role) => role.name !== "Lainnya" || (roleCounts["Lainnya"] ?? 0) > 0,
+  );
 
   // A row-scoped role only ever sees its own rows (privacy.util.ts's
   // `isRowScopedRole`); every trusted role sees the whole household. That is
@@ -294,6 +320,19 @@ export default function IamRolesPage() {
       : "Semua data keluarga";
   const isRestricted = (role: string) =>
     role === "dependant" || role === "operational";
+
+  // EPIC-027 group 1 (A6) — this gauge used to be a hardcoded 82% computed
+  // from nothing. It is the share of the roster that is row-scoped, which is
+  // exactly what "cakupan akses terbatas" claims to measure.
+  const totalMembers = (members ?? []).length;
+  const restrictedShare =
+    totalMembers === 0
+      ? 0
+      : Math.round(
+          ((members ?? []).filter((m) => isRestricted(m.role)).length /
+            totalMembers) *
+            100,
+        );
 
   return (
     <div className="page stack">
@@ -307,13 +346,13 @@ export default function IamRolesPage() {
               data keluarga.
             </p>
           </div>
+          {/* EPIC-027 group 1 (A3) — the "Preview Anak / Staff" link is gone.
+              It opened /akses-saya as the SIGNED-IN OWNER, so it showed the
+              owner's own data on the child's page rather than simulating the
+              child's view. /akses-saya itself is untouched: it remains the
+              landing page for row-scoped roles and the redirect target of
+              RowScopedRouteGuard. */}
           <div className="row">
-            <a
-              className="btn btn--outline border-white/40 text-white hover:bg-white/15"
-              href="/akses-saya"
-            >
-              Preview Anak / Staff
-            </a>
             <button
               className="btn bg-white text-slate-900 hover:bg-white/90"
               type="button"
@@ -327,7 +366,7 @@ export default function IamRolesPage() {
       </section>
 
       <section className="auto-grid auto-grid--wide">
-        {roles.map((role) => (
+        {visibleRoles.map((role) => (
           <RoleCard
             key={role.name}
             role={role}
@@ -362,26 +401,21 @@ export default function IamRolesPage() {
                   <tr>
                     <th>Permission</th>
                     <th>Master</th>
-                    <th>Co-Master</th>
                     <th>Anak</th>
                     <th>Staff</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {permissionRows.map(
-                    ([permission, master, coMaster, child, staff]) => (
-                      <tr key={permission}>
-                        <td className="font-semibold">{permission}</td>
-                        {[master, coMaster, child, staff].map(
-                          (value, index) => (
-                            <td key={`${permission}-${index}`}>
-                              <PermissionValue value={value} />
-                            </td>
-                          ),
-                        )}
-                      </tr>
-                    ),
-                  )}
+                  {permissionRows.map(([permission, master, child, staff]) => (
+                    <tr key={permission}>
+                      <td className="font-semibold">{permission}</td>
+                      {[master, child, staff].map((value, index) => (
+                        <td key={`${permission}-${index}`}>
+                          <PermissionValue value={value} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -404,9 +438,9 @@ export default function IamRolesPage() {
                   <span className="t-sm font-semibold">
                     Cakupan akses terbatas
                   </span>
-                  <span className="mono t-sm">82%</span>
+                  <span className="mono t-sm">{restrictedShare}%</span>
                 </div>
-                <ProgressBar value={82} />
+                <ProgressBar value={restrictedShare} />
               </div>
             </div>
           </article>
@@ -433,14 +467,9 @@ export default function IamRolesPage() {
               Pantau role, cakupan data, dan aktivitas login terakhir.
             </p>
           </div>
-          <button
-            className="btn btn--primary"
-            type="button"
-            onClick={() => setAddOpen(true)}
-          >
-            <UserRoundPlus size={16} />
-            Assign Akses
-          </button>
+          {/* EPIC-027 group 1 (A4) — "Assign Akses" opened the very same
+              add-member dialog as the hero button. Two controls, one action:
+              the hero adds, the per-row "Ubah Role" assigns. */}
         </div>
         <div className="card__body">
           <div className="table-wrap">
