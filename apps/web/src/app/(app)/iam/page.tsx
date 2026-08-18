@@ -210,10 +210,48 @@ export default function IamRolesPage() {
     staleTime: 60_000,
   });
 
-  const invalidateMembers = () =>
-    queryClient.invalidateQueries({
+  const invalidateMembers = async () => {
+    await queryClient.invalidateQueries({
       queryKey: queryKeys.familyGroups.members(familyGroupId ?? ""),
     });
+    // EPIC-027 A8 — removing/restoring moves a row between the two lists, so
+    // both have to be refetched or one of them shows the member twice (or not
+    // at all) until the next reload.
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.familyGroups.removedMembers(familyGroupId ?? ""),
+    });
+  };
+
+  /**
+   * EPIC-027 A8 (D5) — removed members are soft-deleted, so they can be put
+   * back. Restoring is in fact the ONLY way back: their User row still holds
+   * the username, so re-creating them under it would 409, and the
+   * (userId, familyGroupId) unique constraint counts the removed row.
+   */
+  const { data: removedMembers } = useQuery<MemberRow[]>({
+    queryKey: queryKeys.familyGroups.removedMembers(familyGroupId ?? ""),
+    queryFn: ({ signal }) =>
+      apiFetch<MemberRow[]>(`/family-groups/${familyGroupId}/members/removed`, {
+        token,
+        signal,
+      }),
+    enabled: Boolean(token) && Boolean(familyGroupId),
+    staleTime: 60_000,
+  });
+
+  const restoreMember = useMutation({
+    mutationFn: (m: MemberRow) =>
+      apiFetch(`/family-groups/${familyGroupId}/members/${m.id}/restore`, {
+        token,
+        method: "POST",
+      }),
+    onSuccess: async () => {
+      await invalidateMembers();
+      toast.success("Anggota diaktifkan kembali");
+    },
+    onError: (e: { message?: string }) =>
+      toast.error(e.message ?? "Gagal mengaktifkan anggota"),
+  });
 
   // ── Add member ────────────────────────────────────────────────────────
   const [addOpen, setAddOpen] = useState(false);
@@ -529,6 +567,61 @@ export default function IamRolesPage() {
           </div>
         </div>
       </section>
+
+      {/* ── Anggota Nonaktif ──────────────────────────────────────────
+          Only rendered when the family actually has removed members, so a
+          family that has never removed anyone is not shown an empty panel
+          implying it should have. */}
+      {(removedMembers ?? []).length > 0 && (
+        <section className="card">
+          <div className="card__header">
+            <div>
+              <h2>Anggota Nonaktif</h2>
+              <p className="text-muted-foreground">
+                Sudah dihapus dari keluarga dan tidak bisa login. Data dan
+                transaksi mereka tetap tersimpan.
+              </p>
+            </div>
+          </div>
+          <div className="card__body">
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Nama</th>
+                    <th>Role Sebelumnya</th>
+                    <th style={{ textAlign: "right" }}>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(removedMembers ?? []).map((member) => (
+                    <tr key={member.id}>
+                      <td className="font-semibold">{member.name}</td>
+                      <td>
+                        <StatusBadge variant="gray">
+                          {t.common.roleLabels[
+                            member.role as keyof typeof t.common.roleLabels
+                          ] ?? member.role}
+                        </StatusBadge>
+                      </td>
+                      <td style={{ textAlign: "right" }}>
+                        <button
+                          type="button"
+                          className="btn btn--ghost btn--sm"
+                          disabled={restoreMember.isPending}
+                          onClick={() => restoreMember.mutate(member)}
+                        >
+                          Aktifkan Kembali
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      )}
 
       <div className="notice notice--success">
         <CheckCircle2 size={16} />

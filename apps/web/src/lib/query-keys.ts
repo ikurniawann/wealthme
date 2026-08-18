@@ -8,6 +8,9 @@ export const queryKeys = {
     mine: () => ["familyGroups", "mine"] as const,
     detail: (id: string) => ["familyGroups", id] as const,
     members: (id: string) => ["familyGroups", id, "members"] as const,
+    // EPIC-027 A8 — the "Anggota Nonaktif" panel on /iam.
+    removedMembers: (id: string) =>
+      ["familyGroups", id, "members", "removed"] as const,
   },
   transactions: {
     all: (familyGroupId: string) => ["transactions", familyGroupId] as const,
