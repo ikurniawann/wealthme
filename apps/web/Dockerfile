@@ -19,7 +19,11 @@ WORKDIR /build
 
 # Copy manifests for workspace graph resolution.
 # Include apps/api/package.json because web's prisma schema points to api/prisma.
+# EPIC-027 — `patchedDependencies` in package.json points at patches/
+# (exceljs@4.4.0.patch). pnpm reads it during install, so the directory must be
+# present BEFORE `pnpm install` or the install fails with exit code 254.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY patches/ ./patches/
 COPY packages/config/package.json ./packages/config/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY apps/web/package.json ./apps/web/
@@ -42,6 +46,7 @@ WORKDIR /build
 COPY --from=deps /build/node_modules ./node_modules
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY patches/ ./patches/
 COPY packages/ ./packages/
 COPY apps/web/ ./apps/web/
 # Copy apps/api/package.json and prisma so the generate step resolves correctly.
