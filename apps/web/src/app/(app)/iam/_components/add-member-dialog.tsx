@@ -1,0 +1,327 @@
+"use client";
+
+import { useId, useRef, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Crown, Eye, EyeOff } from "lucide-react";
+import { toast } from "sonner";
+
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useLocale } from "@/hooks/use-locale";
+import { apiFetch } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
+import { MemberRelationshipSchema } from "@wealthme/contracts";
+import type { MemberRelationship } from "@wealthme/contracts";
+
+/**
+ * EPIC-027 group 2 (D3) — moved here verbatim from `akun/page.tsx`, which used
+ * to carry a SECOND, lesser copy of this dialog: /iam had its own hand-written
+ * version with no Istri/Co-Master option, no show-password toggle and no
+ * relationship<->role locking, even though both posted to the same endpoint.
+ * Member management now lives only on /iam (the API already requires
+ * `manage Member`, which only an owner holds), and the profile page links here.
+ *
+ * Same page-local helper as mastercoa/page.tsx: surfaces the API's own message
+ * ("username taken", "keluarga ini sudah memiliki istri") instead of a generic
+ * toast.
+ */
+function extractApiErrorMessage(err: unknown, fallback: string): string {
+  return err && typeof err === "object" && "message" in err
+    ? String((err as { message: unknown }).message)
+    : fallback;
+}
+
+// EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/operational
+// member: name + username + initial password, no email; forced password
+// change at first login (ForcePasswordChangeGuard on the API side).
+export function AddMemberDialog({
+  open,
+  onOpenChange,
+  familyGroupId,
+  token,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  familyGroupId: string | null;
+  token: string | undefined;
+}) {
+  const { t } = useLocale();
+  const queryClient = useQueryClient();
+  // EPIC-026 Wave 3 — this dialog composes the prototype's `.field` markup
+  // directly (label + control + `.hint`) instead of the `Field` helper,
+  // because `Field` only wires `htmlFor` when the control is its single
+  // child — the hint-bearing fields here previously lost that association.
+  const fieldId = useId();
+  const nameRef = useRef<HTMLInputElement>(null);
+  const usernameRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  // EPIC-024 A1 (D1) — "owner" is reachable ONLY through this dialog's
+  // "Istri (Co-Master)" option (below), which forces `relationship: istri`
+  // in lockstep — the API independently re-enforces that pairing
+  // (FamilyGroupsService#createDependantMember), so this is UX
+  // convenience, not the only guard.
+  const [role, setRole] = useState<"dependant" | "operational" | "owner">(
+    "dependant",
+  );
+  const [relationship, setRelationship] = useState<MemberRelationship | "">("");
+  const isIstriCoMaster = role === "owner";
+  // FIX 2 (HIGH, react-reviewer + security-reviewer) — show/hide toggle so
+  // the head can verify the initial password before handing it over, same
+  // pattern as login/page.tsx, without it being permanently plaintext.
+  const [showPassword, setShowPassword] = useState(false);
+
+  const { mutate: createMember, isPending } = useMutation({
+    mutationFn: (vars: {
+      name: string;
+      username: string;
+      initialPassword: string;
+      role: "dependant" | "operational" | "owner";
+      relationship?: MemberRelationship;
+    }) =>
+      apiFetch<{ username: string }>(
+        `/family-groups/${familyGroupId}/members/dependant`,
+        {
+          method: "POST",
+          token,
+          body: JSON.stringify(vars),
+        },
+      ),
+    onSuccess: (created) => {
+      onOpenChange(false);
+      // FIX 5 (MEDIUM, react-reviewer) — this dialog is mounted once at the
+      // page level; only the Base UI portal content unmounts on close, so
+      // `role`/`relationship` state (unlike the ref-based inputs, which
+      // reset with the portal) silently persisted across reopens. Reset
+      // alongside closing so the next member starts from the defaults.
+      setRole("dependant");
+      setRelationship("");
+      setShowPassword(false);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.familyGroups.members(familyGroupId ?? ""),
+      });
+      toast.success(t.akun.addDependant.toastCreated, {
+        description: `${t.akun.addDependant.toastCreatedDesc} (${created.username})`,
+        duration: 10000,
+      });
+    },
+    onError: (err) => {
+      toast.error(
+        extractApiErrorMessage(err, t.akun.addDependant.toastCreateFailed),
+      );
+    },
+  });
+
+  function handleCreate() {
+    const name = nameRef.current?.value?.trim() ?? "";
+    const username = usernameRef.current?.value?.trim() ?? "";
+    const initialPassword = passwordRef.current?.value ?? "";
+    if (!name || !username || !initialPassword || !familyGroupId) return;
+    // EPIC-024 A1 — the istri co-master path always sends
+    // relationship: "istri" regardless of what the (disabled) relationship
+    // picker shows, so the role/relationship pairing the API requires is
+    // never accidentally desynced from the UI's own lockstep behaviour.
+    const effectiveRelationship = isIstriCoMaster ? "istri" : relationship;
+    createMember({
+      name,
+      username,
+      initialPassword,
+      role,
+      ...(effectiveRelationship ? { relationship: effectiveRelationship } : {}),
+    });
+  }
+
+  // FIX 5 follow-up (react-reviewer round 2) — onSuccess resets role/
+  // relationship/showPassword on submit, but the dialog's own close paths
+  // (X, Escape, overlay click) skip that reset entirely, so cancelling
+  // without submitting leaves stale values for the next open. Reset on
+  // every close, not just a successful submit.
+  function handleOpenChange(next: boolean) {
+    if (!next) {
+      setRole("dependant");
+      setRelationship("");
+      setShowPassword(false);
+    }
+    onOpenChange(next);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      {/* EPIC-026 Wave 3 — prototype `dlg-tambah-anggota`
+          (docs/prototype/pages/akun.html). Field order, hints, the
+          Co-Master `.notice--warning`, and the two-button footer are the
+          prototype's; only the fields the API actually persists are
+          rendered (see the omission note on "Rekening yang ditugaskan"
+          below). Default 480px width, as in the prototype. */}
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t.akun.addDependant.dialogTitle}</DialogTitle>
+          <DialogDescription>
+            {t.akun.addDependant.dialogDesc}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody>
+          {/* Prototype order: Hubungan → Nama → Username → Password Awal →
+              Peran. The prototype autofills Peran from Hubungan; this app
+              runs the lockstep the other way (Peran "Istri (Co-Master)"
+              forces relationship "istri", which the API independently
+              re-enforces), so the Co-Master notice below stays attached to
+              the control that actually triggers it. */}
+          <div className="field">
+            <label className="label" htmlFor={`${fieldId}-relationship`}>
+              {t.akun.addDependant.relationshipLabel}
+            </label>
+            <select
+              id={`${fieldId}-relationship`}
+              className="select"
+              value={relationship}
+              disabled={isIstriCoMaster}
+              onChange={(e) =>
+                setRelationship(e.target.value as MemberRelationship | "")
+              }
+            >
+              <option value="">
+                {t.akun.addDependant.relationshipNoneOption}
+              </option>
+              {MemberRelationshipSchema.options.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label className="label" htmlFor={`${fieldId}-name`}>
+              {t.akun.addDependant.nameLabel}
+            </label>
+            <input
+              id={`${fieldId}-name`}
+              ref={nameRef}
+              className="input"
+              placeholder={t.akun.addDependant.namePlaceholder}
+              type="text"
+            />
+          </div>
+          <div className="field">
+            <label className="label" htmlFor={`${fieldId}-username`}>
+              {t.akun.addDependant.usernameLabel}
+            </label>
+            <input
+              id={`${fieldId}-username`}
+              ref={usernameRef}
+              className="input"
+              placeholder={t.akun.addDependant.usernamePlaceholder}
+              type="text"
+            />
+            <p className="hint">{t.akun.addDependant.usernameHint}</p>
+          </div>
+          <div className="field">
+            <label className="label" htmlFor={`${fieldId}-password`}>
+              {t.akun.addDependant.passwordLabel}
+            </label>
+            <div className="relative">
+              <input
+                id={`${fieldId}-password`}
+                ref={passwordRef}
+                className="input pr-10"
+                placeholder={t.akun.addDependant.passwordPlaceholder}
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                aria-label={
+                  showPassword
+                    ? t.akun.addDependant.hidePassword
+                    : t.akun.addDependant.showPassword
+                }
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword((s) => !s)}
+                // UI/UX audit fix (docs/uiux-beda) — muted-foreground on the
+                // dark-theme input background reads as near-invisible; bump
+                // to foreground/70 (still a subtle icon, but findable) and
+                // give it a visible hit target background on hover/focus.
+                className="absolute right-3 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-foreground/70 transition-colors hover:bg-accent hover:text-primary focus-visible:bg-accent focus-visible:text-primary focus-visible:outline-none"
+              >
+                {showPassword ? (
+                  <EyeOff className="size-3.5" />
+                ) : (
+                  <Eye className="size-3.5" />
+                )}
+              </button>
+            </div>
+            <p className="hint">{t.akun.addDependant.passwordHint}</p>
+          </div>
+          <div className="field">
+            <label className="label" htmlFor={`${fieldId}-role`}>
+              {t.akun.addDependant.roleLabel}
+            </label>
+            <select
+              id={`${fieldId}-role`}
+              className="select"
+              value={role}
+              onChange={(e) => {
+                const next = e.target.value as
+                  | "dependant"
+                  | "operational"
+                  | "owner";
+                setRole(next);
+                // EPIC-024 A1 — selecting "Istri (Co-Master)" locks the
+                // relationship picker above to "istri" (the API rejects any
+                // other pairing with role owner); switching away clears it
+                // back to editable.
+                setRelationship(next === "owner" ? "istri" : "");
+              }}
+            >
+              <option value="dependant">
+                {t.akun.addDependant.roleOptions.dependant}
+              </option>
+              <option value="operational">
+                {t.akun.addDependant.roleOptions.operational}
+              </option>
+              <option value="owner">
+                {t.akun.addDependant.roleOptions.istriCoMaster}
+              </option>
+            </select>
+          </div>
+          {isIstriCoMaster && (
+            <div className="notice notice--warning mt-2.5">
+              <Crown className="size-4 shrink-0" aria-hidden />
+              <span>{t.akun.addDependant.istriCoMasterHint}</span>
+            </div>
+          )}
+          {/* Honest UI — the prototype's "Rekening yang ditugaskan
+              (opsional)" select is omitted: POST
+              /family-groups/:id/members/dependant accepts only
+              name/username/initialPassword/role/relationship, so an account
+              picker here would silently drop the operator's choice. */}
+        </DialogBody>
+        <DialogFooter>
+          <button
+            type="button"
+            className="btn btn--outline"
+            onClick={() => handleOpenChange(false)}
+          >
+            {t.common.cancel}
+          </button>
+          <button
+            type="button"
+            disabled={isPending || !familyGroupId}
+            className="btn btn--primary disabled:opacity-60"
+            onClick={handleCreate}
+          >
+            {isPending
+              ? t.akun.addDependant.creating
+              : t.akun.addDependant.createButton}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

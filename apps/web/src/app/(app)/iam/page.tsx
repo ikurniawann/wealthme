@@ -26,6 +26,7 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { AddMemberDialog } from "./_components/add-member-dialog";
 
 /**
  * EPIC-027 group 1 (D1/D2) — these cards used to advertise a "Co-Master" role
@@ -186,19 +187,10 @@ const ASSIGNABLE_ROLES = [
   "operational",
 ] as const;
 
-/** Roles `POST /members/dependant` accepts — it mints username accounts, which only these two use. */
-const CREATABLE_ROLES = ["dependant", "operational"] as const;
-
-const RELATIONSHIPS = [
-  "istri",
-  "anak",
-  "kakek",
-  "nenek",
-  "bibi",
-  "supir",
-  "sekretaris",
-  "bendahara",
-] as const;
+/* The creatable roles and the relationship list now live with the dialog that
+   uses them (`_components/add-member-dialog.tsx`), which sources relationships
+   from `MemberRelationshipSchema` in @wealthme/contracts rather than a
+   hand-copied literal. */
 
 export default function IamRolesPage() {
   const { t } = useLocale();
@@ -225,36 +217,6 @@ export default function IamRolesPage() {
 
   // ── Add member ────────────────────────────────────────────────────────
   const [addOpen, setAddOpen] = useState(false);
-  const [addForm, setAddForm] = useState({
-    name: "",
-    username: "",
-    initialPassword: "",
-    role: "dependant" as (typeof CREATABLE_ROLES)[number],
-    relationship: "anak" as (typeof RELATIONSHIPS)[number],
-  });
-
-  const addMember = useMutation({
-    mutationFn: () =>
-      apiFetch(`/family-groups/${familyGroupId}/members/dependant`, {
-        token,
-        method: "POST",
-        body: JSON.stringify(addForm),
-      }),
-    onSuccess: async () => {
-      await invalidateMembers();
-      setAddOpen(false);
-      setAddForm({
-        name: "",
-        username: "",
-        initialPassword: "",
-        role: "dependant",
-        relationship: "anak",
-      });
-      toast.success("Anggota berhasil ditambahkan");
-    },
-    onError: (e: { message?: string }) =>
-      toast.error(e.message ?? "Gagal menambahkan anggota"),
-  });
 
   // ── Change role ───────────────────────────────────────────────────────
   const [editing, setEditing] = useState<MemberRow | null>(null);
@@ -574,118 +536,16 @@ export default function IamRolesPage() {
         halaman anak / staff.
       </div>
 
-      {/* ── Tambah anggota ─────────────────────────────────────────────
-          Posts to `/members/dependant`, which mints a USERNAME account (no
-          email) and forces a password change at first login — hence the
-          initial-password field and the notice below it. Only the two
-          row-scoped roles can be created this way; a spouse/bookkeeper still
-          arrives through `/invitations` by email. */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent>
-          <DialogTitle>Tambah Anggota</DialogTitle>
-          <DialogDescription>
-            Membuat akun login untuk anak atau staff. Mereka wajib mengganti
-            password saat pertama kali masuk.
-          </DialogDescription>
-          <DialogBody>
-            <label className="field">
-              <span className="label">Nama</span>
-              <input
-                className="input"
-                value={addForm.name}
-                onChange={(e) =>
-                  setAddForm({ ...addForm, name: e.target.value })
-                }
-                placeholder="Aisyah Arsandi"
-              />
-            </label>
-            <label className="field">
-              <span className="label">Username</span>
-              <input
-                className="input"
-                value={addForm.username}
-                onChange={(e) =>
-                  setAddForm({ ...addForm, username: e.target.value })
-                }
-                placeholder="aisyah_kecil"
-              />
-            </label>
-            <label className="field">
-              <span className="label">Password Awal</span>
-              <input
-                className="input"
-                type="password"
-                value={addForm.initialPassword}
-                onChange={(e) =>
-                  setAddForm({ ...addForm, initialPassword: e.target.value })
-                }
-                placeholder="Minimal 8 karakter"
-              />
-            </label>
-            <label className="field">
-              <span className="label">Role</span>
-              <select
-                className="select"
-                value={addForm.role}
-                onChange={(e) =>
-                  setAddForm({
-                    ...addForm,
-                    role: e.target.value as (typeof CREATABLE_ROLES)[number],
-                  })
-                }
-              >
-                {CREATABLE_ROLES.map((r) => (
-                  <option key={r} value={r}>
-                    {t.common.roleLabels[r]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span className="label">Hubungan</span>
-              <select
-                className="select"
-                value={addForm.relationship}
-                onChange={(e) =>
-                  setAddForm({
-                    ...addForm,
-                    relationship: e.target
-                      .value as (typeof RELATIONSHIPS)[number],
-                  })
-                }
-              >
-                {RELATIONSHIPS.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </DialogBody>
-          <DialogFooter>
-            <button
-              type="button"
-              className="btn btn--outline"
-              onClick={() => setAddOpen(false)}
-            >
-              Batal
-            </button>
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={
-                addMember.isPending ||
-                !addForm.name.trim() ||
-                addForm.username.trim().length < 3 ||
-                addForm.initialPassword.length < 8
-              }
-              onClick={() => addMember.mutate()}
-            >
-              {addMember.isPending ? "Menyimpan…" : "Tambah"}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* EPIC-027 group 2 (D3) — /iam used to carry its own, lesser copy of
+          this dialog: no Istri/Co-Master option, no show-password toggle, no
+          relationship<->role locking, despite posting to the same endpoint as
+          the profile page's version. Both are now the one component below. */}
+      <AddMemberDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        familyGroupId={familyGroupId ?? null}
+        token={token}
+      />
 
       {/* ── Ubah role ──────────────────────────────────────────────────── */}
       <Dialog

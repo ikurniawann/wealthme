@@ -685,7 +685,7 @@ export const id = {
       thresholdSaving: "Menyimpan...",
       thresholdSaved: "Batas transaksi berhasil disimpan.",
       thresholdSaveFailed: "Gagal menyimpan batas transaksi. Coba lagi.",
-      addDependantButton: "Tambah Anak / Operasional",
+      manageOnIamLink: "Kelola anggota di IAM Roles",
     },
     addDependant: {
       dialogTitle: "Tambah Anak / Operasional",
