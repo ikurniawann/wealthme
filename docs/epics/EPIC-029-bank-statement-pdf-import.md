@@ -77,7 +77,7 @@ number on a money row_, not a crash. Every decision below is shaped by it.
 - [ ] E3c — `/rekonsiliasi` preview UI: rows, skipped rows with reasons, the totals verdict, and an explicit confirm
 - [ ] E3d — Replace the "PDF ditolak — ini disengaja" callout with copy that tells the truth about the new flow and its AI-key requirement
 
-### 4 — Encrypted XLSX + password-protected ZIP (decrypted client-side) ✅ ✅
+### 4 — Encrypted XLSX + password-protected ZIP (decrypted client-side) ✅
 
 Ships value on its own: both decrypt to real bytes, so the plaintext file goes
 to the UNCHANGED server parser and reconciliation works end to end without any
@@ -126,88 +126,6 @@ the extractor (see E4a, moved into group 1).
 Merged to `development` with gates green; this file's Automation Log records the outcome per group.
 
 ## Automation Log
-
-- 2026-08-24 /nerve EPIC-029 #4 "Encrypted XLSX + password-protected ZIP"
-  → PASS (attempts: 3), PR: <PR_URL>.
-  Reordered before building: this group was originally "all password-protected
-  statements". XLSX and ZIP decrypt to real bytes, so the plaintext goes to the
-  UNCHANGED server parser and reconciliation works end to end with none of
-  groups 1-3. A decrypted PDF is useless until group 1 can extract from it, and
-  its password is just a `getDocument` option — E4a moved to group 1.
-  **The named package does not work in a browser.** The epic specified
-  `office-crypto` on the strength of "zero runtime dependencies". True of its
-  package.json, false of its runtime: `dist/index.js:809` imports Node's
-  `crypto` synchronously, there is no `browser` field and no browser build, so
-  using it means bundling `crypto-browserify`'s transitive tree — the exact
-  growth E8 and this repo's already-red advisory list argue against.
-  `officecrypto-tool` is worse (same hard require plus `cfb`, `crypto-js`,
-  `xml2js`). Verified independently with `npm pack` rather than taken on trust.
-  ECMA-376 **agile** encryption needs only SHA-512 and AES-256-CBC, both native
-  in `crypto.subtle`, so the decryptor is hand-written: a CFB/OLE reader, agile
-  key derivation, verifier, and segmented decryption. Standard (AES-**ECB**,
-  which WebCrypto deliberately does not expose), RC4 and extensible schemes are
-  detected from the version words BEFORE any password work and refused as
-  `unsupported-encryption` — never mis-reported as a wrong password.
-  **Hand-written crypto earned an adversarial pass, and it found two
-  CRITICALs that every functional test passed straight through.**
-  (1) `concatSectors` allocated the directory entry's attacker-controlled
-  `streamSize` BEFORE walking the FAT to see whether that many bytes exist —
-  a ~2 KB crafted container declaring `0xFFFFFFFE` requested ~4.3 GB, and
-  `parseCfb` runs before any password is entered. The reviewer built a working
-  PoC. Tellingly the clamp already existed for the root stream and was missing
-  in `read()`: an oversight, not a decision. Both bounds now live inside
-  `concatSectors` so every caller gets them by construction, and the regression
-  test instruments `Uint8Array` via a Proxy to assert the largest allocation
-  actually _requested_ — with a positive control proving the spy sees real
-  allocations, so the assertions cannot pass vacuously.
-  (2) Agile encryption's `dataIntegrity` HMAC was never verified. Segments are
-  plain AES-256-CBC and the manufactured-padding trick can never throw on
-  tampered input, so CBC bit-flipping silently rewrote plaintext: anyone able
-  to alter the file between the bank and the upload could change specific
-  transaction amounts, the real password still worked, no error surfaced, and
-  the result landed in the ledger as pristine. HMAC-SHA512 is now computed over
-  the whole `EncryptedPackage` INCLUDING its 8-byte length header (covering the
-  header is what stops a truncation posing as a shorter workbook), after the
-  password verifier so a mistyped password is still reported as such, and
-  before any plaintext is produced. A missing `<dataIntegrity>` is REFUSED with
-  its own `integrity-missing` reason: accepting-when-absent is not a fallback,
-  it is a bypass, since whoever can alter the package can delete one XML
-  element. Excel has emitted it since 2010, so the expected real cost is zero —
-  and a distinct reason means a bank whose generator omits it produces a
-  specific report rather than a silent tamper.
-  Also fixed: `MAX_SPIN_COUNT` 1,000,000 → 200,000 (Office's default is
-  100,000) with a real macrotask yield every 4096 iterations so an untrusted
-  file cannot freeze the tab; `keyBits` routed through the bounded helper the
-  rest of the file already used; unmapped errors now log `err.name` ONLY (not
-  `constructor.name`, which minifiers mangle) so a genuine defect stops
-  presenting to every user as "file rusak" forever.
-  ZIP: multiple statement entries are REFUSED, never guessed — silently
-  reconciling the wrong month is the failure class this epic exists to prevent.
-  The real bound is a counting `WritableStream` that throws inside `write()`,
-  because `zip-bounds.util.ts`'s header records declared sizes being defeated
-  twice; tested against an entry that under-declares by 4 bytes then writes
-  25 KB. `@zip.js/zip.js` added via its `index-native.js` subpath so no WASM is
-  bundled; zero dependencies, advisory list unmoved.
-  E4e: 232 KiB of decryptor stays off first paint — `/rekonsiliasi` initial JS
-  moved 1419.6 → 1428.1 KiB (+8.5 KiB, +0.6 %), same 22 chunks.
-  E4d is proven at two layers: the module test instruments `fetch`,
-  `XMLHttpRequest`, `sendBeacon`, every `console.*` and `Storage.setItem` and
-  serialises thrown values including own properties; the page test renders the
-  REAL page and serialises the actual `fetch` — URL, headers, every FormData
-  part including the uploaded bytes — asserting the password appears nowhere,
-  with guards in both directions so it cannot pass vacuously.
-  Gates: qa.sh 0, test.sh 0, web 55 suites / 673 tests (671 passed, 2 skipped;
-  was 51/573), API 108/1296 untouched, tsc + eslint clean, advisory list
-  unchanged.
-  **Not yet proven, and this is the one that matters:** no file from real
-  Microsoft Excel or a real Indonesian bank has been through this. The fixture
-  is built with `node:crypto` from the same reading of [MS-OFFCRYPTO] as the
-  implementation — it validates internal consistency, NOT interoperability. If
-  Excel deviates in any detail, including the HMAC derivation, every test here
-  still passes. One genuine locked statement is the check that counts.
-  Also unverified: whether Indonesian banks emit standard (AES-ECB) rather than
-  agile — if any do they hit `unsupported-encryption`, an honest refusal but a
-  non-working case. Bytes 0-3 of the `EncryptionInfo` stream answer it cheaply.
 
 - 2026-08-24 /nerve EPIC-029 #4 "Encrypted XLSX + password-protected ZIP"
   → PASS (attempts: 3), PR: https://github.com/andrsrjld/wealthme-web/pull/309. Requested directly by the user:
