@@ -62,6 +62,10 @@ export const STATEMENT_MAX_FILE_BYTES = 20 * 1024 * 1024;
 const HEAD_BYTES = 64 * 1024;
 
 const CFB_MAGIC = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1] as const;
+/** `%PDF-` — EPIC-029 group 1. Recognised by its own magic bytes rather than
+ * its extension so a `.pdf` that is really a CSV, or a PDF saved as `.txt`,
+ * is routed by what it IS. */
+const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46, 0x2d] as const;
 const ZIP_LOCAL_HEADER = [0x50, 0x4b, 0x03, 0x04] as const;
 const OOXML_CONTENT_TYPES = "[Content_Types].xml";
 /** General-purpose bit 0 — the entry is encrypted. */
@@ -85,7 +89,18 @@ export type StatementFileKind =
   /** A ZIP whose entries are encrypted. */
   | "encrypted-zip"
   /** A ZIP that is a container (not an OOXML package) but is not encrypted. */
-  | "zip";
+  | "zip"
+  /**
+   * EPIC-029 group 1 — a PDF. Handled by `statement-pdf.ts`, NOT by
+   * `prepareStatementFile`: a PDF never becomes a plaintext file to upload,
+   * because `pdfjs-dist` decrypts for reading only. Its text layer is
+   * extracted in the tab and only that text is posted (E9).
+   *
+   * Deliberately not `needsPassword`: most statement PDFs carry only an
+   * owner/permissions lock and open with no password at all, and finding
+   * that out costs one `getDocument` call (E11).
+   */
+  | "pdf";
 
 /** True when the kind cannot proceed without the user typing something. */
 export function needsPassword(kind: StatementFileKind): boolean {
@@ -135,7 +150,14 @@ export type StatementFileFailure =
    */
   | "xlsx-repackage-failed"
   /** Rewriting the container would expand it past the extraction budget. */
-  | "xlsx-expansion-too-large";
+  | "xlsx-expansion-too-large"
+  /**
+   * A PDF reached `prepareStatementFile`, which cannot produce one — PDFs go
+   * through `statement-pdf.ts`. A guard against a future caller wiring the
+   * two paths together by accident and silently uploading a PDF the server
+   * would refuse; it is not a state a user can reach from the page today.
+   */
+  | "pdf-not-a-file-upload";
 
 export class StatementFileError extends Error {
   constructor(readonly reason: StatementFileFailure) {
@@ -191,6 +213,7 @@ export function readBlobBytes(blob: Blob): Promise<Uint8Array> {
  */
 export function classifyStatementBytes(head: Uint8Array): StatementFileKind {
   if (startsWith(head, CFB_MAGIC)) return "encrypted-xlsx";
+  if (startsWith(head, PDF_MAGIC)) return "pdf";
   if (!startsWith(head, ZIP_LOCAL_HEADER)) return "plain";
 
   // Local file header: bit 0 of the general-purpose flags means "this entry
@@ -331,6 +354,8 @@ export async function prepareStatementFile(
   const maxFileBytes = seams.maxFileBytes ?? STATEMENT_MAX_FILE_BYTES;
   const kind = await inspectStatementFile(file);
   if (kind === "plain") return file;
+  // A PDF has no plaintext form to upload; see `pdf-not-a-file-upload`.
+  if (kind === "pdf") throw new StatementFileError("pdf-not-a-file-upload");
 
   if (needsPassword(kind) && !password) {
     throw new StatementFileError("password-required");
@@ -538,6 +563,8 @@ export function statementFileErrorMessage(
       return dict.protectedErrorXlsxRepackageFailed;
     case "xlsx-expansion-too-large":
       return dict.protectedErrorXlsxExpansionTooLarge;
+    case "pdf-not-a-file-upload":
+      return dict.pdfErrorNotAFileUpload;
     default: {
       // Compile-time exhaustiveness, for the reason recorded in
       // `receiptFileErrorMessage`: a `default` that silently swallows a

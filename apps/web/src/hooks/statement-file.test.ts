@@ -716,6 +716,7 @@ describe("statementFileErrorMessage", () => {
     "decrypted-too-large": true,
     "xlsx-repackage-failed": true,
     "xlsx-expansion-too-large": true,
+    "pdf-not-a-file-upload": true,
   } satisfies Record<StatementFileFailure, true>) as StatementFileFailure[];
 
   it("gives every reason its own distinct, non-empty message in both locales", () => {

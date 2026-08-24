@@ -477,9 +477,17 @@ export function parseStatementAmount(raw: string): bigint {
     ? withoutMarker.slice(1, -1).trim()
     : withoutMarker;
   const explicitlyNegative = wrappedInParens || unwrapped.startsWith("-");
-  const numericPart = unwrapped.startsWith("-")
-    ? unwrapped.slice(1)
-    : unwrapped;
+  // EPIC-029 — an EXPLICIT "+" is accepted alongside "-", and the space some
+  // banks put between the sign and the digits is dropped.
+  //
+  // This is not tidying: Mandiri's e-statement prints its own summary as
+  // "Dana Masuk : + 15.630.000,00" and its incoming rows as "+4.350.000,00".
+  // Without this, `/^[\d.,]+$/` below rejected both — so every incoming row
+  // on a real statement was skipped as unparseable, and the totals gate had
+  // nothing to check against. A leading "+" cannot mean anything other than
+  // "positive", so accepting it narrows nothing.
+  const signed = /^[+-]/.test(unwrapped);
+  const numericPart = signed ? unwrapped.slice(1).trim() : unwrapped;
 
   if (
     !numericPart ||

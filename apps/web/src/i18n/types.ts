@@ -2954,6 +2954,66 @@ export type I18nDictionary = {
     formatCalloutBody: string;
     pdfCalloutTitle: string;
     pdfCalloutBody: string;
+    /**
+     * EPIC-029 groups 1-3 — statement PDF read on the family's own AI key.
+     * `pdfCallout*` replaces the old "PDF is rejected — on purpose" copy;
+     * `pdfError*` is the closed client-side failure taxonomy in
+     * `hooks/statement-pdf.ts` (one message per reason, enforced by a
+     * `never` exhaustiveness check); `pdfPreview*` is the mandatory
+     * review screen (E3c); `uploadErrorStatement*` are the API's stable
+     * error codes.
+     */
+    pdfCalloutScanNote: string;
+    pdfReadingLabel: string;
+    pdfAnalyzingLabel: string;
+    protectedDialogDescPdf: string;
+    pdfErrorPasswordRequired: string;
+    pdfErrorWrongPassword: string;
+    pdfErrorTooManyPages: string;
+    pdfErrorTextTooLarge: string;
+    pdfErrorNoTextLayer: string;
+    pdfErrorCorrupt: string;
+    pdfErrorNotAFileUpload: string;
+    pdfPreviewTitle: string;
+    pdfPreviewSubtitle: string;
+    pdfPreviewRowsSuffix: string;
+    pdfPreviewDateCol: string;
+    pdfPreviewDescCol: string;
+    pdfPreviewAmountCol: string;
+    pdfPreviewSkippedTitle: string;
+    pdfPreviewSkippedMorePrefix: string;
+    pdfPreviewSkippedMoreSuffix: string;
+    pdfPreviewLinePrefix: string;
+    pdfPreviewTotalsTitleVerified: string;
+    pdfPreviewTotalsTitleMismatch: string;
+    pdfPreviewTotalsTitleUnverified: string;
+    pdfPreviewTotalsMatched: string;
+    pdfPreviewTotalsMismatch: string;
+    pdfPreviewTotalsUnavailable: string;
+    pdfPreviewUnverifiedConfirmNote: string;
+    pdfPreviewConfirmButtonUnverified: string;
+    pdfPreviewTotalsOpeningToClosing: string;
+    pdfPreviewTotalsCredit: string;
+    pdfPreviewTotalsDebit: string;
+    pdfPreviewExpectedLabel: string;
+    pdfPreviewActualLabel: string;
+    pdfPreviewDifferenceLabel: string;
+    pdfPreviewConfirmButton: string;
+    pdfPreviewCancelButton: string;
+    pdfPreviewImportingLabel: string;
+    uploadErrorStatementAiNotConfigured: string;
+    uploadErrorStatementAiKeyCorrupted: string;
+    uploadErrorStatementAiAuth: string;
+    uploadErrorStatementAiRateLimited: string;
+    uploadErrorStatementAiTimeout: string;
+    uploadErrorStatementAiParseFailed: string;
+    uploadErrorStatementAiUpstreamFailed: string;
+    uploadErrorStatementTextTooLarge: string;
+    uploadErrorStatementNoTextLayer: string;
+    uploadErrorStatementNoRows: string;
+    uploadErrorStatementZeroValidRows: string;
+    uploadErrorStatementColumnMappingMismatch: string;
+    uploadErrorStatementTotalsMismatch: string;
     mappingSectionTitle: string;
     mappingSectionHint: string;
     matchFilterAll: string;
@@ -2968,7 +3028,6 @@ export type I18nDictionary = {
     dragDropLabel: string;
     orLabel: string;
     chooseFileButton: string;
-    supportedFormatsLabel: string;
     maxFileSizeLabel: string;
     supportedBanksTitle: string;
     viewAllLink: string;
@@ -3053,6 +3112,7 @@ export type I18nDictionary = {
     notMatchedSummaryLabel: string;
     newReconciliationButton: string;
     toastUploaded: string;
+    toastUploadedUnverified: string;
     toastUploadedPartialPrefix: string;
     toastUploadedPartialSuffix: string;
     skippedRowsTitleSuffix: string;

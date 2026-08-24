@@ -44,6 +44,17 @@ function makeTransactionsService() {
   return { create: jest.fn() };
 }
 
+/** EPIC-029 E5 — the family AI key + the statement reader it builds. Both are
+ *  mocked here; the PDF path has its own suite in
+ *  `reconciliation.service.statement-pdf.spec.ts`. */
+function makeAiKeyService() {
+  return { resolveDecryptedKey: jest.fn().mockResolvedValue(null) };
+}
+
+function makeStatementReaderFactory() {
+  return { create: jest.fn() };
+}
+
 function buildTransferResponse(
   overrides: Partial<TransactionResponseDto> = {},
 ): TransactionResponseDto {
@@ -94,6 +105,10 @@ describe("ReconciliationService", () => {
       prisma as any,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       transactionsService as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      makeAiKeyService() as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      makeStatementReaderFactory() as any,
     );
   });
 

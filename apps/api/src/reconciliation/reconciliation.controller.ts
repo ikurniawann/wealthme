@@ -6,6 +6,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   Param,
   Patch,
   Post,
@@ -21,13 +22,18 @@ import {
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
+import { Throttle } from "@nestjs/throttler";
 import { memoryStorage } from "multer";
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { CommitStatementDraftDto } from "./dto/commit-statement-draft.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { MatchEntryDto } from "./dto/match-entry.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { ReadStatementPdfDto } from "./dto/read-statement-pdf.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { SplitEntryDto } from "./dto/split-entry.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -38,6 +44,7 @@ import { UploadSyncDto } from "./dto/upload-sync.dto";
 import { UpsertReconciliationTemplateDto } from "./dto/upsert-reconciliation-template.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ReconciliationService } from "./reconciliation.service";
+import { toStatementReaderHttpException } from "./statement-reader/statement-reader-http-error.util";
 
 import type {
   AutoMatchResultDto,
@@ -45,6 +52,7 @@ import type {
   BankSyncEntryDto,
   ParsedRow,
   ReconciliationTemplateDto,
+  StatementPreviewDto,
 } from "./reconciliation.service";
 
 /** 20 MiB — matches the pre-existing "Maksimal ukuran file: 20MB" copy on
@@ -57,6 +65,8 @@ const MAX_STATEMENT_FILE_BYTES = 20 * 1024 * 1024;
 @ApiBearerAuth()
 @Controller("family-groups/:familyGroupId/reconciliation")
 export class ReconciliationController {
+  private readonly logger = new Logger(ReconciliationController.name);
+
   constructor(private readonly reconciliationService: ReconciliationService) {}
 
   // EPIC-023 Task C retry (HIGH six-reviewer finding) — this whole controller
@@ -124,6 +134,83 @@ export class ReconciliationController {
       file,
       dto.bankCode,
     );
+  }
+
+  /* ───────── EPIC-029 groups 1-3 — statement PDF on the family AI key ───────── */
+
+  // Same "create Reconciliation" gate as every other import route. Stated
+  // explicitly because `AbilitiesGuard` waves through any route that carries
+  // no `@CheckAbility` at all — an ungated route here would be open to
+  // `dependant` and `operational`, who are refused everywhere else on this
+  // controller.
+  //
+  // The 5/min `@Throttle` is tighter than the scan's 10/min: this call bills
+  // the FAMILY's own AI key for a whole statement, not one receipt.
+  @Post("statement-pdf")
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @CheckAbility((ab: AppAbility) => ab.can("create", "Reconciliation"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiOperation({
+    summary:
+      "Read an already-extracted statement PDF text layer with the family's own AI key and return a PREVIEW. Nothing is stored (EPIC-029 E3a). The PDF file and its password never reach this endpoint (E8/E9/E10) — pdfjs decrypts and extracts in the browser.",
+  })
+  @ApiResponse({ status: 200, description: "Preview — nothing persisted" })
+  @ApiResponse({
+    status: 412,
+    description:
+      "code=STATEMENT_AI_NOT_CONFIGURED — the family has no AI provider key (E5: no server-key or mock fallback)",
+  })
+  @ApiResponse({
+    status: 409,
+    description: "code=AI_KEY_CORRUPTED — re-enter the key in Pengaturan",
+  })
+  @ApiResponse({
+    status: 422,
+    description:
+      "code=STATEMENT_TEXT_TOO_LARGE | STATEMENT_NO_TEXT_LAYER | STATEMENT_NO_ROWS | STATEMENT_ZERO_VALID_ROWS | STATEMENT_COLUMN_MAPPING_MISMATCH",
+  })
+  @ApiResponse({
+    status: 502,
+    description:
+      "code=STATEMENT_AI_AUTH | STATEMENT_AI_PARSE_FAILED | STATEMENT_AI_UPSTREAM_FAILED",
+  })
+  @ApiResponse({ status: 429, description: "code=STATEMENT_AI_RATE_LIMITED" })
+  @ApiResponse({ status: 504, description: "code=STATEMENT_AI_TIMEOUT" })
+  async readStatementPdf(
+    @Param("familyGroupId") familyGroupId: string,
+    @Body() dto: ReadStatementPdfDto,
+  ): Promise<StatementPreviewDto> {
+    try {
+      return await this.reconciliationService.readStatementPdf(
+        familyGroupId,
+        dto,
+      );
+    } catch (err: unknown) {
+      throw toStatementReaderHttpException(err, this.logger);
+    }
+  }
+
+  // The confirm half. No AI call, so no extra throttle beyond the global
+  // one — and no second charge to the family for pressing "import".
+  @Post("statement-pdf/confirm")
+  @CheckAbility((ab: AppAbility) => ab.can("create", "Reconciliation"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiOperation({
+    summary:
+      "Confirm a statement-PDF preview. Re-parses the SAME raw draft server-side (every amount through parseStatementAmount) and re-runs the totals gate before storing anything.",
+  })
+  @ApiResponse({ status: 201, description: "BankSync created" })
+  @ApiResponse({
+    status: 422,
+    description:
+      "code=STATEMENT_TOTALS_MISMATCH — the extracted rows disagree with the statement's own totals; the import is refused (E7), with the discrepancy in the body",
+  })
+  confirmStatementPdf(
+    @Param("familyGroupId") familyGroupId: string,
+    @Body() dto: CommitStatementDraftDto,
+  ): Promise<BankSyncDto> {
+    return this.reconciliationService.commitStatementDraft(familyGroupId, dto);
   }
 
   // EPIC-023 G2 (D17) — column-mapping templates are a saved-configuration

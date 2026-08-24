@@ -3120,9 +3120,97 @@ export const id = {
     formatCalloutTitle: "Format yang didukung: CSV dan Excel (.xlsx).",
     formatCalloutBody:
       "Kolom minimal yang dibutuhkan: tanggal, keterangan, dan jumlah (atau pasangan debit/kredit).",
-    pdfCalloutTitle: "PDF ditolak — ini disengaja.",
+    // EPIC-029 groups 1-3 — the callout that used to read "PDF ditolak —
+    // ini disengaja". PDF is supported now, so the copy says what actually
+    // happens, including the two things the user has to know up front: it
+    // needs the family's own AI key, and a scan will still be refused.
+    pdfCalloutTitle: "PDF didukung — dibaca AI, lalu Anda yang menyetujui.",
     pdfCalloutBody:
-      "Statement PDF tidak bisa diproses secara otomatis: tata letaknya berbeda tiap bank dan angka hasil pembacaan sering meleset tanpa ketahuan. Ekspor mutasi rekening sebagai CSV dari aplikasi/situs bank Anda, lalu unggah file CSV tersebut.",
+      "Teks di dalam PDF dibaca langsung di browser Anda — file dan password-nya tidak pernah dikirim ke server. Tabelnya lalu dirapikan memakai API key penyedia AI keluarga Anda sendiri, jadi key AI harus sudah diisi di Pengaturan. AI tidak pernah menghitung angka: setiap nominal diparse ulang oleh server dan totalnya dicocokkan dengan total yang tertulis di statement — kalau tidak cocok, impor dibatalkan.",
+    pdfCalloutScanNote:
+      "PDF hasil scan atau foto (tanpa lapisan teks) belum didukung, dan akan ditolak dengan alasan yang jelas — bukan diimpor sebagai nol baris.",
+    pdfReadingLabel: "Membaca PDF di browser...",
+    pdfAnalyzingLabel: "AI sedang merapikan tabel transaksi...",
+    protectedDialogDescPdf:
+      "PDF ini terkunci password. Password diproses di browser Anda dan tidak pernah dikirim ke server.",
+    pdfErrorPasswordRequired:
+      "PDF ini terkunci password. Masukkan password statement dari bank Anda.",
+    pdfErrorWrongPassword:
+      "Password PDF salah — coba lagi. Biasanya tanggal lahir (DDMMYYYY), nomor kartu, atau nomor rekening.",
+    pdfErrorTooManyPages:
+      "PDF ini terlalu banyak halaman untuk dibaca sekaligus (maksimal 40 halaman). Unduh statement untuk periode yang lebih pendek.",
+    pdfErrorTextTooLarge:
+      "Teks di PDF ini terlalu panjang untuk dibaca sekaligus. Unduh statement untuk periode yang lebih pendek, atau ekspor mutasi sebagai CSV/Excel.",
+    pdfErrorNoTextLayer:
+      "PDF ini tidak punya lapisan teks — kemungkinan hasil scan atau foto. Unduh e-statement asli dari aplikasi bank, atau ekspor mutasi sebagai CSV/Excel.",
+    pdfErrorCorrupt:
+      "File PDF ini tidak bisa dibuka. Pastikan file tidak rusak dan terunduh lengkap.",
+    pdfErrorNotAFileUpload:
+      "File PDF perlu dipilih ulang dari halaman ini supaya teksnya bisa dibaca di browser.",
+    pdfPreviewTitle: "Tinjau hasil pembacaan",
+    pdfPreviewSubtitle:
+      "Belum ada yang disimpan. Periksa baris di bawah, lalu tekan Impor untuk menyimpannya.",
+    pdfPreviewRowsSuffix: " baris terbaca",
+    pdfPreviewDateCol: "Tanggal",
+    pdfPreviewDescCol: "Keterangan",
+    pdfPreviewAmountCol: "Nominal",
+    pdfPreviewSkippedTitle: "Baris yang dilewati",
+    pdfPreviewSkippedMorePrefix: "dan ",
+    pdfPreviewSkippedMoreSuffix: " baris lain",
+    pdfPreviewLinePrefix: "Baris ",
+    // Security review (non-blocking) — "tidak ada total untuk dicocokkan" is
+    // NOT the same claim as "cocok", and must never read like it. The
+    // verified and unverified cases get different HEADINGS, a different
+    // confirm button, and a different success toast, because after the import
+    // the toast is the only thing left on screen.
+    pdfPreviewTotalsTitleVerified: "Pemeriksaan total: cocok",
+    pdfPreviewTotalsTitleMismatch: "Pemeriksaan total: TIDAK cocok",
+    pdfPreviewTotalsTitleUnverified:
+      "Belum terverifikasi — tidak ada total untuk dicocokkan",
+    pdfPreviewTotalsMatched:
+      "Cocok dengan total yang tertulis di statement — tidak ada baris yang hilang.",
+    pdfPreviewTotalsMismatch:
+      "TIDAK cocok dengan total yang tertulis di statement. Impor dibatalkan supaya tidak ada baris yang diam-diam hilang atau salah.",
+    pdfPreviewTotalsUnavailable:
+      "Statement ini tidak mencantumkan saldo awal/akhir maupun total dana masuk/keluar, jadi tidak ada angka untuk mencocokkan hasil pembacaan. Baris di bawah BELUM diperiksa terhadap apa pun — kalau ada baris yang terlewat, tidak ada yang bisa mendeteksinya selain Anda. Cocokkan sendiri dengan PDF aslinya sebelum mengimpor.",
+    pdfPreviewUnverifiedConfirmNote:
+      "Dengan menekan tombol di bawah, Anda mengimpor baris yang belum dicocokkan dengan total mana pun.",
+    pdfPreviewConfirmButtonUnverified: "Impor tanpa pemeriksaan total",
+    pdfPreviewTotalsOpeningToClosing: "Saldo awal → saldo akhir",
+    pdfPreviewTotalsCredit: "Total dana masuk",
+    pdfPreviewTotalsDebit: "Total dana keluar",
+    pdfPreviewExpectedLabel: "Statement",
+    pdfPreviewActualLabel: "Hasil baca",
+    pdfPreviewDifferenceLabel: "Selisih",
+    pdfPreviewConfirmButton: "Impor baris ini",
+    pdfPreviewCancelButton: "Batal",
+    pdfPreviewImportingLabel: "Mengimpor...",
+    uploadErrorStatementAiNotConfigured:
+      "PDF dibaca memakai API key penyedia AI keluarga Anda sendiri, dan key itu belum diisi. Tambahkan di Pengaturan, atau ekspor mutasi sebagai CSV/Excel.",
+    uploadErrorStatementAiKeyCorrupted:
+      "API key AI keluarga tersimpan tapi tidak bisa dibuka. Masukkan ulang key-nya di Pengaturan.",
+    uploadErrorStatementAiAuth:
+      "Penyedia AI menolak API key keluarga ini — periksa kembali key di Pengaturan.",
+    uploadErrorStatementAiRateLimited:
+      "Penyedia AI sedang membatasi permintaan atau kuotanya habis — coba lagi nanti.",
+    uploadErrorStatementAiTimeout:
+      "Pembacaan statement terlalu lama diproses — coba lagi, atau unggah periode yang lebih pendek.",
+    uploadErrorStatementAiParseFailed:
+      "AI tidak mengembalikan tabel yang bisa dipakai — coba lagi, atau ekspor mutasi sebagai CSV/Excel dari aplikasi bank Anda.",
+    uploadErrorStatementAiUpstreamFailed:
+      "Pembacaan statement gagal — coba lagi sebentar lagi.",
+    uploadErrorStatementTextTooLarge:
+      "Statement ini terlalu panjang untuk dibaca sekaligus. Unggah periode yang lebih pendek, atau ekspor sebagai CSV/Excel.",
+    uploadErrorStatementNoTextLayer:
+      "PDF ini tidak punya lapisan teks yang bisa dibaca (kemungkinan hasil scan). Unduh e-statement asli dari aplikasi bank, atau ekspor mutasi sebagai CSV/Excel.",
+    uploadErrorStatementNoRows:
+      "Tidak ada baris transaksi yang bisa dibaca dari PDF ini. Pastikan file adalah mutasi rekening, bukan ringkasan atau surat pemberitahuan.",
+    uploadErrorStatementZeroValidRows:
+      "Tidak ada baris valid dari hasil pembacaan PDF ini — coba lagi, atau ekspor mutasi sebagai CSV/Excel.",
+    uploadErrorStatementColumnMappingMismatch:
+      "Hasil pembacaan PDF tidak bisa dipetakan ke kolom tanggal/keterangan/nominal — coba lagi, atau ekspor mutasi sebagai CSV/Excel.",
+    uploadErrorStatementTotalsMismatch:
+      "Total hasil pembacaan tidak cocok dengan total yang tertulis di statement — impor dibatalkan.",
     mappingSectionTitle: "Pemetaan Kolom",
     mappingSectionHint:
       "Cocokkan nama kolom di file bank dengan kolom WealthMe. Simpan sekali sebagai template, dan setiap unggahan berikutnya dari bank yang sama otomatis memakainya.",
@@ -3138,8 +3226,6 @@ export const id = {
     dragDropLabel: "Seret & lepas file di sini",
     orLabel: "atau",
     chooseFileButton: "Pilih File",
-    supportedFormatsLabel:
-      "Format yang didukung: CSV, Excel (.xlsx). PDF akan ditolak — ekspor sebagai CSV dari aplikasi bank Anda.",
     maxFileSizeLabel: "Maksimal ukuran file: 20MB",
     supportedBanksTitle: "Bank yang Didukung",
     viewAllLink: "Lihat semua",
@@ -3220,6 +3306,8 @@ export const id = {
     notMatchedSummaryLabel: "Tidak Cocok",
     newReconciliationButton: "Rekon Baru",
     toastUploaded: "File berhasil diunggah!",
+    toastUploadedUnverified:
+      "Baris diimpor — tapi belum dicocokkan dengan total statement (statement ini tidak mencantumkan total).",
     toastUploadedPartialPrefix: "File diunggah, tapi ",
     toastUploadedPartialSuffix:
       " baris tidak bisa diimpor — lihat detail di bawah.",
@@ -3232,7 +3320,7 @@ export const id = {
     // error unggahan yang stabil dari API (mirror bahasa Indonesia dari
     // pesan API — dipertahankan agar konsisten dengan pesan asli).
     uploadErrorPdfUnsupported:
-      "Statement PDF tidak bisa diproses secara otomatis. Silakan ekspor mutasi rekening sebagai CSV dari aplikasi/situs bank Anda, lalu unggah file CSV tersebut.",
+      "File PDF tidak diunggah lewat jalur ini. Pilih ulang file PDF dari halaman ini — teksnya dibaca langsung di browser, lalu ditinjau sebelum diimpor.",
     uploadErrorXlsUnsupported:
       "Format .xls (Excel 97-2003) lama tidak didukung. Simpan ulang sebagai .xlsx, atau ekspor sebagai CSV dari aplikasi/situs bank Anda.",
     uploadErrorUnsupportedFormat:

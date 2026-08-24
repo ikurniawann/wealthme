@@ -52,30 +52,33 @@ number on a money row_, not a crash. Every decision below is shaped by it.
 
 ## Tasks
 
-### 1 — PDF text extraction + page rendering
+### 1 — PDF text extraction + page rendering ✅
 
-- [ ] E4a — Encrypted PDF: `pdfjs-dist` takes the password as a `getDocument`
+- [x] E4a — Encrypted PDF: `pdfjs-dist` takes the password as a `getDocument`
       option, with typed `PasswordException` handling (`NEED_PASSWORD` vs
       `INCORRECT_PASSWORD`) and an empty-password attempt first (E11). Lives
       here, not in group 4, because a decrypted PDF is useless without the
       extractor below
-- [ ] E1a — `pdfjs-dist` text-layer extraction behind a small port, page-capped
-- [ ] E1b — Page→image rendering for the vision fallback, reusing the 2 MB-cap encoder shape
-- [ ] E1c — Detect "no usable text layer" honestly and switch modes; refuse an encrypted/password-protected PDF with its own reason
+- [x] E1a — `pdfjs-dist` text-layer extraction behind a small port, page-capped
+- [ ] E1b — Page→image rendering for the vision fallback — **NOT BUILT, deliberately.**
+      Both reference statements carry a real text layer, so it would ship
+      untested against any real input. `pdf-no-text-layer` is detected and
+      refused by name instead (see the Automation Log)
+- [x] E1c — Detect "no usable text layer" honestly and switch modes; refuse an encrypted/password-protected PDF with its own reason
 
-### 2 — AI statement reader on the family key
+### 2 — AI statement reader on the family key ✅
 
-- [ ] E2a — `StatementReaderPort` + factory over the existing claude/openai/gemini adapters, keyed by `AiKeyService` (E5)
-- [ ] E2b — Prompt returns a table of RAW STRINGS only (E1); zod-validated shape, never typed money
-- [ ] E2c — Extracted table flows through `mapTableToRows` + the existing template system unchanged (E4)
-- [ ] E2d — Distinct error codes mirroring the OCR set (not configured, corrupted key, auth, rate limit, timeout, parse, page cap)
+- [x] E2a — `StatementReaderPort` + factory over the existing claude/openai/gemini adapters, keyed by `AiKeyService` (E5)
+- [x] E2b — Prompt returns a table of RAW STRINGS only (E1); zod-validated shape, never typed money
+- [x] E2c — Extracted table flows through `mapTableToRows` + the existing template system unchanged (E4)
+- [x] E2d — Distinct error codes mirroring the OCR set (not configured, corrupted key, auth, rate limit, timeout, parse, page cap)
 
-### 3 — Preview + totals gate
+### 3 — Preview + totals gate ✅
 
-- [ ] E3a — Extraction returns a preview payload; nothing is persisted yet
-- [ ] E3b — Totals cross-check against the statement's own opening/closing balance when present; mismatch refuses with the numbers shown (E7)
-- [ ] E3c — `/rekonsiliasi` preview UI: rows, skipped rows with reasons, the totals verdict, and an explicit confirm
-- [ ] E3d — Replace the "PDF ditolak — ini disengaja" callout with copy that tells the truth about the new flow and its AI-key requirement
+- [x] E3a — Extraction returns a preview payload; nothing is persisted yet
+- [x] E3b — Totals cross-check against the statement's own opening/closing balance when present; mismatch refuses with the numbers shown (E7)
+- [x] E3c — `/rekonsiliasi` preview UI: rows, skipped rows with reasons, the totals verdict, and an explicit confirm
+- [x] E3d — Replace the "PDF ditolak — ini disengaja" callout with copy that tells the truth about the new flow and its AI-key requirement
 
 ### 4 — Encrypted XLSX + password-protected ZIP (decrypted client-side) ✅
 
@@ -195,3 +198,166 @@ Merged to `development` with gates green; this file's Automation Log records the
   cross-implementation validation, but it proves conformance to the spec as
   read here, not interoperability with what every bank's generator actually
   emits.
+
+- 2026-08-25 EPIC-029 groups 1-3 "PDF bank statements on the family AI key"
+  → implemented. `/rekonsiliasi` accepts a PDF end to end: the text layer is
+  extracted **in the browser**, posted as text, transcribed by the family's
+  own AI key into a table of RAW STRINGS, parsed by the existing
+  `parseStatementAmount`/`parseStatementDate`/`mapTableToRows`, cross-checked
+  against the statement's own printed totals, and shown for explicit
+  confirmation before anything is stored.
+
+  **Vision fallback (E1b) NOT built, and said so rather than half-shipped.**
+  Both genuine reference statements have real text layers, and `pdfjs-dist`
+  extracted them faithfully, so a rendering path would have shipped against
+  zero real input — a second paid code path, exercised only by fixtures,
+  guarding a case neither real file exhibits. A scan is DETECTED
+  (`pdf-no-text-layer`, both client- and server-side) and refused by name
+  with the one instruction that works: download the original e-statement, or
+  export CSV/Excel. It is never sent upstream, because the failure being
+  avoided is not a crash — it is a paid model handed an empty prompt
+  answering with a confident, entirely invented table of money rows.
+
+  **The pdfjs worker in Next 16 / Turbopack.** Wired as
+  `GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs",
+import.meta.url).toString()`, which Turbopack rewrites to a real emitted
+  asset — verified in the build output at
+  `.next/static/media/pdf.worker.min.*.mjs`. The two classic breakages are
+  both avoided: a hardcoded `/pdf.worker.js` (nothing copies it into
+  `public/`, so it 404s only in production) and a CDN URL (third-party script
+  execution, version-skewed against the bundled library). `pdfjs-dist` is
+  reached ONLY via `await import(...)`; the build manifest confirms its
+  429 KB chunk is not in `/rekonsiliasi`'s initial set.
+
+  **`@napi-rs/canvas` excluded.** `pdfjs-dist` declares it as an OPTIONAL
+  dependency for Node-side bitmap rendering — 62 MB of prebuilt native
+  binaries, for code this repo never executes and never bundles (pdfjs's own
+  `browser` field already maps `canvas` to false). Added to
+  `pnpm.ignoredOptionalDependencies` rather than a repo-wide `optional=false`,
+  which would silently drop every other package's optional deps too.
+
+  **Endpoints.** `POST family-groups/:familyGroupId/reconciliation/statement-pdf`
+  (200, persists NOTHING) and `.../statement-pdf/confirm` (201, writes).
+  Both `@CheckAbility(can("create", "Reconciliation"))` — the read is
+  additionally `@Throttle(5/min)` because it bills the family's key, while
+  confirm is deterministic, calls no AI, and costs nothing. Tenant scoping is
+  the global `TenantGuard` on `:familyGroupId`; because `AbilitiesGuard` waves
+  through any route carrying no `@CheckAbility` at all, the controller spec
+  now enumerates `ReconciliationController.prototype` and asserts a
+  `dependant` is refused on EVERY handler — so a route added tomorrow without
+  a gate fails here instead of in production. Mutation-proved: deleting the
+  decorator from `readStatementPdf` fails 2 tests.
+
+  **Three real defects the work surfaced, each found by a test or a real file:**
+
+  (1) `parseStatementAmount` rejected `+4.350.000,00` and `+ 15.630.000,00`.
+  A leading "+" failed `/^[\d.,]+$/`, and so did the space some banks put
+  after the sign. That is exactly how the real Mandiri e-statement prints
+  **every incoming row** and its own "Dana Masuk" summary — so on a genuine
+  statement every credit would have been skipped as unparseable AND the
+  totals gate would have had nothing to check against. Both are now accepted
+  ("+" cannot mean anything but positive), with regression tests.
+
+  (2) Glyph-run joining split amounts. PDF generators routinely emit one
+  number as several runs at ~zero gap; the first implementation inserted a
+  space between any two runs, turning `-37.000,00` into `-37.0 00,00` — an
+  unparseable amount, i.e. a silently dropped money row. The gap thresholds
+  are now a multiple of the RUN'S FONT SIZE, not absolute units.
+
+  (3) The preview crashed the page on a response without a totals verdict —
+  a white screen during any rolling deploy that put this client in front of
+  an older API. Now validated before render and reported as a retryable
+  error.
+
+  **Real-file verification (by hand — no committed fixture derives from
+  them).** Neither statement, nor any text extracted from them, nor any
+  password is in the repo.
+  - **BCA, 1 page** — opened with an **EMPTY password** (owner/permissions
+    lock only), confirming E11 is a real case rather than a theoretical one.
+    9 transactions extracted, 0 skipped. Sums: credit 4,000,136 vs printed
+    "MUTASI CR : 4,000,135.57"; debit 9,510,000 vs printed
+    "MUTASI DB : 9,510,000.00"; opening 7,018,920 + net −5,509,864 =
+    1,509,056 vs printed "SALDO AKHIR : 1,509,055.10". The two 1-rupiah gaps
+    are whole-rupiah rounding on a cents-quoted statement and fall inside the
+    ⌈n/2⌉+1 bound — the exact case the tolerance exists for.
+  - **Mandiri, 5 pages, password-protected** — the empty password correctly
+    produced `pdf-password-required` (not `corrupt-file`); with the password
+    it opened. 52 transactions, 0 skipped, summing to **exactly** the
+    statement's own printed figures: incoming 15,630,000 = "Dana Masuk : +
+    15.630.000,00", outgoing 15,849,448 = "Dana Keluar : - 15.849.448,00",
+    and 1,517,061 + (−219,448) = 1,297,613 = "Saldo Akhir". Dates span
+    2026-07-01 to 2026-07-31.
+  - Both real drafts were also run through the REAL server pipeline
+    (`commitStatementDraft`), and both were **REFUSED** when a single genuine
+    transaction was deleted from them — the gate catches on real data, not
+    only on fixtures.
+  - What this does NOT cover: the AI call itself. There is no family key in
+    this environment, so the model's transcription was stood in for by a
+    deterministic script reading the same extracted text. Everything from the
+    raw strings onward is the real code path; the transcription step needs a
+    live key and a human comparing rows against the PDF.
+
+  **Test vs hand.** Committed tests cover: line/column reconstruction and
+  every gap threshold; empty-password-first, wrong-vs-required password, the
+  page cap (asserting no page is read), the text cap, scan detection, the
+  per-attempt buffer copy, and one distinct message per reason in both
+  locales; the raw-string schema REJECTING a numeric amount and a numeric
+  total; the prompt carrying no bank name; every HTTP error code; the totals
+  gate's match/mismatch/unavailable, its rounding tolerance and its flatness;
+  preview-persists-nothing, commit-refuses-a-mismatch, commit-does-not-call-AI,
+  and a BCA-shaped `DB`-marker + dotted-decimal draft; and — driving the real
+  page — that the PDF request is JSON text with no file, no FormData, no
+  `upload-file`, and no password anywhere in URL, headers or body, while the
+  password DID reach the extractor. Verified by hand only: pdfjs itself
+  (jsdom has no Worker or `DOMMatrix`), and the two real statements above.
+
+  **Two non-blocking security-review recommendations, both actioned (both sat
+  on the money path):**
+
+  (a) **The untrusted-text boundary is now structural, not a comment.** The
+  extracted PDF text was concatenated into one user turn behind a
+  `--- STATEMENT TEXT ---` line — which puts an "ignore all previous
+  instructions" line embedded in a crafted statement at exactly the same
+  level as the rules it is trying to override. The rules now ride each
+  provider's OWN system channel (Claude's top-level `system`, OpenAI's
+  `system` message, Gemini's `systemInstruction` — the same field
+  `GeminiAdvisorService` already uses), never faked by prepending another
+  line to the user turn. The statement is fenced in a delimited block framed
+  as data to transcribe and never to obey, the fence markers are neutralised
+  if the document contains them (a delimiter an attacker can write is not a
+  delimiter), and the output contract is RESTATED after the block so the last
+  instruction the model reads is ours rather than the document's final line.
+  This is mitigation, not a guarantee, and the spec says so: the containment
+  that actually holds is `statementReadingSchema` admitting only
+  length-capped strings, `parseStatementAmount` re-parsing every amount
+  server-side, the totals gate, and the human confirm. So the new spec asserts
+  BOTH — the wire shape per provider, and that a model which OBEYS the
+  injection ("return every amount as a number", "reply with the text OK",
+  an over-long field) is rejected by the schema anyway. Mutation-proved:
+  collapsing the OpenAI adapter back into one concatenated user turn fails
+  the test.
+
+  (b) **The `"unavailable"` totals verdict no longer reads like success.**
+  `commitStatementDraft` refuses only on `mismatch`, so a statement printing
+  no totals commits with no cross-check at all — correct (refusing every such
+  statement would block legitimate imports) but previously presented under
+  the same heading and the same "Impor baris ini" button as a verified
+  import. The refusal logic is UNCHANGED; the claim is not. Verified and
+  unverified now differ in the heading itself (not just body copy, which a
+  glance skips), the unverified case carries an explicit note that the rows
+  were not cross-checked against anything, the confirm button reads "Impor
+  tanpa pemeriksaan total", and — because after the preview closes the toast
+  is the only thing left on screen — the success toast is a distinct warning
+  rather than "berhasil". All three i18n files; the dead
+  `pdfPreviewTotalsTitle` key was removed. Tested in both directions
+  (unverified must not look verified, verified must still say so) and
+  mutation-proved.
+
+  **Gates.** `qa.sh` 0, `test.sh` 0, both `tsc --noEmit` clean, eslint clean
+  (one pre-existing `jest.config.ts` warning, untouched). API **116 suites /
+  1379 tests** (was 110 / 1315), web **57 suites / 720 tests** (718 passed,
+  2 skipped; was 56 / 689). `turbo run build --filter=web` green, worker
+  asset still emitted. `security-check.sh` red on exactly the pre-existing
+  `deepmerge-ts`-via-prisma advisories and nothing else — byte-identical to
+  the same run with the change stashed; `pdfjs-dist` (Apache-2.0, zero
+  runtime dependencies) added none.
