@@ -557,6 +557,9 @@ export type I18nDictionary = {
       scanErrorTimeout: string;
       scanErrorParseFailed: string;
       scanErrorUpstream: string;
+      /** 413 from the API's body-parser limit (code PAYLOAD_TOO_LARGE) —
+       * a size problem the user can act on, not a failed scan. */
+      scanErrorPayloadTooLarge: string;
       // EPIC-024 Task L3 (US-TXN-9) — receipt/photo attachment on the
       // manual-entry form (income/expense/transfer tabs only; the card tab
       // posts through liabilities.purchase(), which returns no

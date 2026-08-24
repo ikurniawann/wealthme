@@ -339,6 +339,8 @@ export const id = {
       scanErrorParseFailed:
         "Struk tidak bisa dibaca — coba foto ulang dengan pencahayaan yang lebih baik.",
       scanErrorUpstream: "Scan struk gagal — coba lagi sebentar lagi.",
+      scanErrorPayloadTooLarge:
+        "Foto struk terlalu besar untuk dikirim — foto ulang atau pilih gambar yang lebih kecil, lalu coba lagi.",
       attachmentLabel: "Lampiran",
       attachmentPlaceholder: "Pilih file (JPG, PNG, WEBP, atau PDF, maks 5MB)",
       attachmentSelected: "File dipilih: ",

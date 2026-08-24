@@ -20,10 +20,51 @@ describe("scanErrorMessage", () => {
     ["OCR_TIMEOUT", dict.scanErrorTimeout],
     ["OCR_PARSE_FAILED", dict.scanErrorParseFailed],
     ["OCR_UPSTREAM_FAILED", dict.scanErrorUpstream],
+    ["PAYLOAD_TOO_LARGE", dict.scanErrorPayloadTooLarge],
   ])("maps %s to its own message", (code, expected) => {
     expect(
       scanErrorMessage({ status: 502, message: "x", code }, dictionary),
     ).toBe(expected);
+  });
+
+  /**
+   * The API's body-parser limit rejects an oversize scan body with a real
+   * 413 + `PAYLOAD_TOO_LARGE` (all-exceptions.filter.ts). It used to arrive
+   * as an unmapped 500, so the user was told "scan gagal" and sent back to
+   * retry the identical too-big image. Assert the actionable message AND
+   * that it is nothing like the generic failure.
+   */
+  it("tells the user the image is too big rather than that the scan failed", () => {
+    const message = scanErrorMessage(
+      {
+        status: 413,
+        message: "Data yang dikirim terlalu besar",
+        code: "PAYLOAD_TOO_LARGE",
+      },
+      dictionary,
+    );
+
+    expect(message).toBe(dict.scanErrorPayloadTooLarge);
+    expect(message).not.toBe(dict.scanErrorUpstream);
+    expect(message).toMatch(/besar/i);
+  });
+
+  it("gives every scan code a DISTINCT message — no two collapse into one", () => {
+    const codes = [
+      "OCR_NOT_CONFIGURED",
+      "AI_KEY_CORRUPTED",
+      "OCR_AUTH",
+      "OCR_TIMEOUT",
+      "OCR_PARSE_FAILED",
+      "OCR_UPSTREAM_FAILED",
+      "PAYLOAD_TOO_LARGE",
+    ] as const;
+    const messages = codes.map((code) =>
+      scanErrorMessage({ status: 502, message: "x", code }, dictionary),
+    );
+    // The two rate-limit variants share `OCR_RATE_LIMITED` and are covered
+    // separately below; every other code must stand on its own.
+    expect(new Set(messages).size).toBe(codes.length);
   });
 
   it("distinguishes a daily quota from a short-term throttle", () => {

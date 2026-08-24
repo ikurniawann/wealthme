@@ -680,6 +680,13 @@ describe("TransactionDialog — receipt scan (EPIC-027 B1-B4)", () => {
       { code: "OCR_RATE_LIMITED", scope: "daily" },
       mockDictionary.shell.transactionDialog.scanErrorRateLimitedDaily,
     ],
+    // Not an OCR failure: the API's body-parser limit rejected the request
+    // before the scan ever ran. Told as a size problem, not "scan gagal".
+    [
+      413,
+      { code: "PAYLOAD_TOO_LARGE" },
+      mockDictionary.shell.transactionDialog.scanErrorPayloadTooLarge,
+    ],
   ])(
     "B2: a %i failure renders the message for its own code, never one generic failure",
     async (status, body, expected) => {

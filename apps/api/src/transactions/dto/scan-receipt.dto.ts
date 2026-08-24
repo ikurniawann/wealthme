@@ -1,10 +1,16 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsString, Matches, MaxLength, MinLength } from "class-validator";
 
+import { MAX_SCAN_IMAGE_BASE64_CHARS } from "../../common/http/body-limits";
+
 // A receipt photo is never a handful of bytes; this only rejects the
 // obviously-empty/placeholder payload, well below any real JPEG.
 const MIN_BASE64_LENGTH = 32;
-const MAX_BASE64_LENGTH = 2_097_152;
+// Single source of truth, shared with the Express body-parser limit that has
+// to be big enough to actually deliver a payload this size — they used to be
+// declared independently and the transport one (100 kb, Express' default) was
+// 20x smaller, so this bound was never reachable.
+const MAX_BASE64_LENGTH = MAX_SCAN_IMAGE_BASE64_CHARS;
 
 /**
  * EPIC-027 group 6 review (MEDIUM) — an empty or non-base64 string used to
