@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type ChangeEvent } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ChangeEvent,
+} from "react";
 import Link from "next/link";
-import { Camera, Check, Paperclip, RotateCcw } from "lucide-react";
+import { Camera, Check, Paperclip, RotateCcw, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -21,6 +28,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
 import { useAiKeyStatus } from "@/hooks/use-ai-key";
 import {
+  isCameraSupported,
   useReceiptCamera,
   type CameraErrorCode,
 } from "@/hooks/use-receipt-camera";
@@ -29,6 +37,10 @@ import {
   base64ToJpegFile,
   captureVideoFrameBase64,
 } from "@/hooks/receipt-image";
+import {
+  encodeReceiptFileWithinCap,
+  receiptFileErrorMessage,
+} from "@/hooks/receipt-file";
 import {
   isoToDateInputValue,
   postScanReceipt,
@@ -158,6 +170,11 @@ const CAMERA_ERROR_MESSAGES: Record<
   unknown: (t) => t.shell.transactionDialog.cameraErrorUnknown,
 };
 
+/** EPIC-027 B11 — a never-changing external "store" (see `cameraSupported`). */
+function subscribeToNothing(): () => void {
+  return () => undefined;
+}
+
 function stripLeadingIcon(value: string): string {
   return value.replace(/^[^A-Za-zÀ-ÿ0-9]+/u, "").trim();
 }
@@ -200,6 +217,25 @@ export function TransactionDialog() {
   // post-create attachment flow (`attachmentFile`) once the user confirms.
   const [capturedFile, setCapturedFile] = useState<File | null>(null);
   const [scanErrorText, setScanErrorText] = useState<string | null>(null);
+  // EPIC-027 group 8 review (HIGH) — cancellation guard for the SCAN chain,
+  // the same class of bug `generationRef` already guards inside
+  // `use-receipt-camera.ts`, and for the same reason: the user can outlive
+  // the async work. Decoding an 8 MP upload takes real time, and the scan
+  // request takes longer still; if the user closes the dialog or backs out
+  // of the scanner meanwhile, the promise still resolves and the
+  // mutation's `onSuccess` would set a result and force the view to
+  // "ocr-result" — so reopening the dialog would drop them onto a review
+  // screen for a scan they abandoned. Nothing is ever created (D9 holds
+  // either way), but the dialog's state must not be moved behind the
+  // user's back. Every abandonment path runs `resetScan()`, so the counter
+  // is bumped there, captured when the work starts, and re-checked before
+  // any state is written — on BOTH the upload and the camera path.
+  const scanGenerationRef = useRef(0);
+  // EPIC-027 B9 — decoding + re-encoding a picked file is async and can take
+  // a moment on a large photo, so the scan view says so instead of looking
+  // frozen.
+  const [uploadDecoding, setUploadDecoding] = useState(false);
+
   // EPIC-027 group 7 review (HIGH) — focus management across the three
   // views. Each swap unmounts the currently-focused control, which drops
   // focus to `<body>`: inside a modal that strands keyboard and
@@ -210,6 +246,19 @@ export function TransactionDialog() {
   const scanHeadingRef = useRef<HTMLDivElement | null>(null);
   const resultHeadingRef = useRef<HTMLDivElement | null>(null);
   const restoreScanTriggerFocusRef = useRef(false);
+  // EPIC-027 B11 — does this device have a camera the browser will give us?
+  // Read through `useSyncExternalStore` rather than during render: the
+  // server has no `navigator`, so the server snapshot is a flat `false` and
+  // the real answer arrives right after hydration. (A plain `useState`
+  // initializer would produce a hydration mismatch; a `setState` in an
+  // effect is what `react-hooks/set-state-in-effect` exists to stop.) The
+  // subscribe callback is a no-op — hardware presence does not change
+  // within a page's lifetime in any way this dialog needs to react to.
+  const cameraSupported = useSyncExternalStore(
+    subscribeToNothing,
+    isCameraSupported,
+    () => false,
+  );
   const {
     videoRef: cameraVideoRef,
     status: cameraStatus,
@@ -241,6 +290,7 @@ export function TransactionDialog() {
   const scanHintId = `${uid}-scan-hint`;
   const scanStatusId = `${uid}-scan-status`;
   const scanAlertId = `${uid}-scan-alert`;
+  const scanUploadFieldId = `${uid}-scan-upload`;
 
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
@@ -371,10 +421,18 @@ export function TransactionDialog() {
   // rather than `apiFetch` because the latter discards the response body's
   // `code`/`scope`, which is precisely what distinguishes "no key
   // configured" from "daily quota exhausted" (see hooks/receipt-scan.ts).
+  // The request carries the generation it was started in (see
+  // `scanGenerationRef`): a response that arrives after the user walked away
+  // is dropped instead of steering the dialog.
   const scanMutation = useMutation({
-    mutationFn: (imageBase64: string) =>
-      postScanReceipt({ familyGroupId: fgId, imageBase64, token }),
-    onSuccess: (result) => {
+    mutationFn: ({
+      imageBase64,
+    }: {
+      imageBase64: string;
+      generation: number;
+    }) => postScanReceipt({ familyGroupId: fgId, imageBase64, token }),
+    onSuccess: (result, variables) => {
+      if (variables.generation !== scanGenerationRef.current) return;
       setScanErrorText(null);
       setScanResult(result);
       // The preview has done its job; releasing the tracks here is what
@@ -382,7 +440,8 @@ export function TransactionDialog() {
       stopCamera();
       setView("ocr-result");
     },
-    onError: (err) => {
+    onError: (err, variables) => {
+      if (variables.generation !== scanGenerationRef.current) return;
       setScanErrorText(scanErrorMessage(err, t));
     },
   });
@@ -445,6 +504,8 @@ export function TransactionDialog() {
   };
 
   const resetScan = () => {
+    // Supersedes any in-flight decode/scan (see `scanGenerationRef`).
+    scanGenerationRef.current += 1;
     setScanResult(null);
     setCapturedFile(null);
     setScanErrorText(null);
@@ -485,11 +546,17 @@ export function TransactionDialog() {
   // stream silently. React now guarantees the stop on view change and on
   // unmount. The explicit `stopCamera()` calls below are kept as well —
   // belt and braces is the right posture for a hardware resource.
+  //
+  // EPIC-027 B11 — and it does NOT start at all when `getUserMedia` is
+  // absent (desktop without a webcam, an embedded WebView, plain HTTP).
+  // Provoking a camera error there and calling that the scan screen is what
+  // used to dead-end the whole feature; the upload path below is offered
+  // directly instead.
   useEffect(() => {
-    if (view !== "ocr-scan") return;
+    if (view !== "ocr-scan" || !cameraSupported) return;
     void startCamera();
     return stopCamera;
-  }, [view, startCamera, stopCamera]);
+  }, [view, cameraSupported, startCamera, stopCamera]);
 
   useEffect(() => {
     if (view === "ocr-scan") {
@@ -509,6 +576,7 @@ export function TransactionDialog() {
   const captureAndScan = () => {
     const video = cameraVideoRef.current;
     if (!video) return;
+    const generation = scanGenerationRef.current;
     setScanErrorText(null);
     let imageBase64: string;
     try {
@@ -521,7 +589,61 @@ export function TransactionDialog() {
       return;
     }
     setCapturedFile(base64ToJpegFile(imageBase64, `struk-${Date.now()}.jpg`));
-    scanMutation.mutate(imageBase64);
+    scanMutation.mutate({ imageBase64, generation });
+  };
+
+  // EPIC-027 B9/B10 — the upload path. Everything after the decode is the
+  // SAME code the camera runs: the same cap-fitting encode, the same
+  // request, the same review screen, the same "Gunakan" prefill, the same
+  // post-create attachment (D9/D10). The only fork is how the pixels are
+  // obtained.
+  //
+  // `scanAvailable` is re-checked here, not just on the disabled button:
+  // uploading a file must never become a way around a family with no AI key
+  // (D11) — the server refuses it anyway, this just avoids a pointless call.
+  const handleReceiptUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const generation = scanGenerationRef.current;
+    // Cleared immediately so picking the SAME file again still fires
+    // `change` after a failed attempt.
+    e.target.value = "";
+    if (!file || !scanAvailable || scanMutation.isPending || uploadDecoding) {
+      return;
+    }
+    setScanErrorText(null);
+    let imageBase64: string;
+    setUploadDecoding(true);
+    try {
+      // Always re-encoded to JPEG, even when the user picked a JPEG: the
+      // original can exceed the 2 MB base64 cap, and all three vision
+      // adapters send the image declared as `image/jpeg`.
+      imageBase64 = await encodeReceiptFileWithinCap(file);
+    } catch (err) {
+      // A failure the user already walked away from is not worth an alert
+      // on a screen they are no longer looking at.
+      if (generation !== scanGenerationRef.current) return;
+      // One message per reason — a HEIC from an iPhone is not "file rusak".
+      setScanErrorText(receiptFileErrorMessage(err, t));
+      return;
+    } finally {
+      setUploadDecoding(false);
+    }
+    // Decoding a large photo is the longest window in this flow — re-check
+    // before writing anything, or an abandoned upload posts and then
+    // hijacks the dialog when it answers.
+    if (generation !== scanGenerationRef.current) return;
+    // D10 — the RE-ENCODED JPEG is what gets attached, not the original.
+    // Two reasons, neither of which is "the original would be rejected" —
+    // a PNG or WEBP original would pass the attachment endpoint's
+    // magic-byte check (`file-signature.util.ts`) unchanged: (1) the stored
+    // receipt is then exactly the bytes OCR read, so a later dispute over
+    // the amount is checked against the same image the model saw, and
+    // (2) it is already downscaled under the 2 MB cap, where a raw 8 MP
+    // original could exceed the 5 MB attachment limit. Formats that
+    // sniffing DOES reject (HEIC, AVIF) are covered by the same conversion
+    // rather than needing a separate branch.
+    setCapturedFile(base64ToJpegFile(imageBase64, `struk-${Date.now()}.jpg`));
+    scanMutation.mutate({ imageBase64, generation });
   };
 
   // EPIC-027 B3 (D9) — "Gunakan" NEVER saves. It fills the ordinary form and
@@ -1080,7 +1202,12 @@ export function TransactionDialog() {
                   {t.shell.transactionDialog.scanTitle}
                 </DialogTitle>
                 <div className="mt-0.5 text-[11.5px] text-muted-foreground">
-                  {t.shell.transactionDialog.scanSubtitle}
+                  {/* B11 — "point the camera at the receipt" is untrue on a
+                      device that has none; the header says what this screen
+                      can actually do here. */}
+                  {cameraSupported
+                    ? t.shell.transactionDialog.scanSubtitle
+                    : t.shell.transactionDialog.scanNoCamera}
                 </div>
               </div>
               <button
@@ -1094,15 +1221,25 @@ export function TransactionDialog() {
             <div className="relative m-[18px] flex aspect-[3/4] items-center justify-center overflow-hidden rounded-[14px] bg-slate-950">
               {/* EPIC-027 B1 (D8) — a real getUserMedia preview, not a
                   native `<input capture>`. `muted` + `playsInline` are what
-                  let iOS Safari autoplay it inline at all. */}
-              <video
-                ref={cameraVideoRef}
-                data-testid="scan-camera-preview"
-                autoPlay
-                muted
-                playsInline
-                className="absolute inset-0 size-full object-cover"
-              />
+                  let iOS Safari autoplay it inline at all.
+                  B11 — rendered only where a camera can actually exist; on a
+                  desktop without one the frame holds the upload affordance
+                  instead of a permanently black video and an error. */}
+              {cameraSupported ? (
+                <video
+                  ref={cameraVideoRef}
+                  data-testid="scan-camera-preview"
+                  autoPlay
+                  muted
+                  playsInline
+                  className="absolute inset-0 size-full object-cover"
+                />
+              ) : (
+                <Upload
+                  className="absolute size-10 text-white/40"
+                  aria-hidden="true"
+                />
+              )}
               <Corner className="left-5 top-5 rounded-tl border-l-[3px] border-t-[3px]" />
               <Corner className="right-5 top-5 rounded-tr border-r-[3px] border-t-[3px]" />
               <Corner className="bottom-5 left-5 rounded-bl border-b-[3px] border-l-[3px]" />
@@ -1139,32 +1276,93 @@ export function TransactionDialog() {
                    Struk" trigger already gives its own disabled reason. */
                 <div
                   id={scanStatusId}
+                  // EPIC-027 group 8 review (MEDIUM) — announced when it
+                  // changes, not only when focus happens to sit on the
+                  // control that `aria-describedby`s it. "Membaca file
+                  // struk..." and "Membaca struk..." are progress the user
+                  // is waiting on; errors keep their own `role="alert"`.
+                  aria-live="polite"
                   className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-slate-900/85 px-4 py-2 text-xs font-semibold text-white backdrop-blur"
                 >
                   <span className="size-2 animate-pulse rounded-full bg-green-400" />
                   {scanMutation.isPending
                     ? t.shell.transactionDialog.scanGuidanceScanning
-                    : cameraStatus === "ready"
-                      ? t.shell.transactionDialog.scanGuidanceReady
-                      : t.shell.transactionDialog.scanStarting}
+                    : uploadDecoding
+                      ? t.shell.transactionDialog.scanUploadReading
+                      : !cameraSupported
+                        ? t.shell.transactionDialog.scanUploadGuidance
+                        : cameraStatus === "ready"
+                          ? t.shell.transactionDialog.scanGuidanceReady
+                          : t.shell.transactionDialog.scanStarting}
                 </div>
               )}
             </div>
             <div className="flex flex-col gap-2 px-[18px] pb-4">
-              <button
-                type="button"
-                onClick={captureAndScan}
-                disabled={cameraStatus !== "ready" || scanMutation.isPending}
+              {/* B11 — the capture button only exists where a camera does.
+                  Everything else on this screen stays reachable. */}
+              {cameraSupported && (
+                <button
+                  type="button"
+                  onClick={captureAndScan}
+                  disabled={
+                    cameraStatus !== "ready" ||
+                    scanMutation.isPending ||
+                    uploadDecoding
+                  }
+                  aria-describedby={
+                    cameraErrorText || scanErrorText
+                      ? scanAlertId
+                      : scanStatusId
+                  }
+                  className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong disabled:opacity-60"
+                >
+                  <Camera className="size-4" aria-hidden="true" />
+                  {scanMutation.isPending
+                    ? t.shell.transactionDialog.scanGuidanceScanning
+                    : t.shell.transactionDialog.scanCapture}
+                </button>
+              )}
+              {/* EPIC-027 B9 (US: "tambah button untuk unggah file struk") —
+                  the upload path. Rendered on EVERY device, camera or not,
+                  and styled as the primary action when there is no camera to
+                  compete with. A `<label>` drives the hidden input so it
+                  stays keyboard- and AT-reachable. */}
+              <label
+                htmlFor={scanUploadFieldId}
                 aria-describedby={
                   cameraErrorText || scanErrorText ? scanAlertId : scanStatusId
                 }
-                className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong disabled:opacity-60"
+                className={cn(
+                  "flex w-full cursor-pointer items-center justify-center gap-2 rounded-md py-2.5 text-[13.5px] font-bold transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary",
+                  cameraSupported
+                    ? "text-primary hover:bg-accent"
+                    : "bg-primary text-white hover:bg-primary-strong",
+                  scanMutation.isPending || uploadDecoding
+                    ? "pointer-events-none opacity-60"
+                    : undefined,
+                )}
               >
-                <Camera className="size-4" aria-hidden="true" />
-                {scanMutation.isPending
-                  ? t.shell.transactionDialog.scanGuidanceScanning
-                  : t.shell.transactionDialog.scanCapture}
-              </button>
+                <Upload className="size-4" aria-hidden="true" />
+                {uploadDecoding
+                  ? t.shell.transactionDialog.scanUploadReading
+                  : t.shell.transactionDialog.scanUpload}
+                {/* The input lives INSIDE its label so the visible control
+                    can render a focus ring for the (visually hidden but
+                    focusable) input a keyboard user actually lands on. */}
+                <input
+                  id={scanUploadFieldId}
+                  data-testid="scan-upload-input"
+                  type="file"
+                  // `.heic`/`.heif` spelled out as well: several Android and
+                  // desktop pickers do not match them against `image/*`.
+                  accept="image/*,.heic,.heif"
+                  disabled={
+                    !scanAvailable || scanMutation.isPending || uploadDecoding
+                  }
+                  onChange={(e) => void handleReceiptUpload(e)}
+                  className="sr-only"
+                />
+              </label>
             </div>
           </div>
         )}
