@@ -3232,6 +3232,10 @@ export const en = {
       "The contents of this ZIP are too large once extracted — upload the statement file directly, or pick a shorter period.",
     protectedErrorDecryptedTooLarge:
       "Once unlocked, the file is larger than the 20MB limit — download the statement for a shorter period.",
+    protectedErrorXlsxRepackageFailed:
+      "This Excel file's structure couldn't be rewritten into a readable form. Open it in Excel or Google Sheets, re-save it as .xlsx (or export it as CSV), then upload it again.",
+    protectedErrorXlsxExpansionTooLarge:
+      "This Excel file's contents are too large once opened — download the statement for a shorter period, or export it as CSV.",
     toastScanFailedDefault: "Failed to scan entries",
     toastConfirmed: "Entry confirmed successfully!",
     toastConfirmFailedDefault: "Failed to confirm",

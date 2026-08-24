@@ -30,8 +30,30 @@ import type { CellValue } from "exceljs";
 export type TemplateMapping = {
   dateColumn: string;
   descriptionColumn: string;
+  /** A single, signed amount column. Empty string when the file instead
+   * carries a `creditColumn`/`debitColumn` pair (see `CREDIT_ALIASES`). */
   amountColumn: string;
   dateFormat?: string | null;
+  /**
+   * EPIC-029 — the money-in / money-out column pair used by the Mandiri and
+   * BCA e-statement exports, which have no signed amount column at all.
+   *
+   * Optional and additive: a saved per-bank template (which persists only
+   * date/description/amount) never sets them, so the template path is
+   * untouched. Both must be present together, or neither.
+   */
+  creditColumn?: string | null;
+  debitColumn?: string | null;
+};
+
+/** Where the header is, and where the data underneath it begins — the two
+ * facts `mapTableToRows` cannot assume for a real bank export. */
+export type DetectedTableMapping = {
+  mapping: TemplateMapping;
+  /** 0-based row index of the header row the mapping was read from. */
+  headerIndex: number;
+  /** 0-based row index of the first DATA row (past any bilingual twin). */
+  dataStartIndex: number;
 };
 
 export type ParsedStatementRow = {
@@ -60,7 +82,12 @@ export type MapTableResult = {
 export class ExcelLimitExceededError extends Error {}
 
 /** Header aliases used when no saved template applies — matches common
- * Indonesian and English bank-statement export headers. */
+ * Indonesian and English bank-statement export headers.
+ *
+ * Matching is EXACT against the normalised label (see `normaliseLabel`), not
+ * a substring test: a preamble line such as "Periode Tanggal: 01 Agu - 23
+ * Agu" must never read as a date header, and a substring test would make it
+ * one. */
 const DATE_ALIASES = ["tanggal", "date", "tgl"];
 const DESCRIPTION_ALIASES = [
   "keterangan",
@@ -68,8 +95,83 @@ const DESCRIPTION_ALIASES = [
   "description",
   "uraian",
   "narasi",
+  "remarks",
 ];
+/** A single, SIGNED amount column. Kept deliberately separate from the
+ * money-in/money-out pair below: a file that has both an "in" and an "out"
+ * column has no single signed column, and picking either one of them as
+ * "the amount" would import half the statement with the right sign and drop
+ * the other half silently. */
 const AMOUNT_ALIASES = ["jumlah", "nominal", "amount", "mutasi"];
+
+/**
+ * EPIC-029 — money-in / money-out column pairs.
+ *
+ * The Mandiri and BCA e-statement exports do not carry a signed amount at
+ * all; they carry two columns ("Dana Masuk (IDR)" / "Dana Keluar (IDR)",
+ * and their English twins), with the unused one left blank or zero. Both
+ * halves are required before either is used — a lone "Dana Masuk" with no
+ * matching outgoing column tells us nothing about how outgoing money is
+ * represented, so it is refused rather than assumed to be all-positive.
+ */
+const CREDIT_ALIASES = [
+  "dana masuk",
+  "incoming transactions",
+  "kredit",
+  "credit",
+  "pemasukan",
+];
+const DEBIT_ALIASES = [
+  "dana keluar",
+  "outgoing transactions",
+  "debet",
+  "debit",
+  "pengeluaran",
+];
+/** Never mapped to anything — a running balance is not a transaction amount.
+ * Used only as evidence when scoring which row is the header. */
+const BALANCE_ALIASES = ["saldo", "balance"];
+
+/**
+ * Normalises a header cell for alias matching: case-folded, whitespace runs
+ * (including the newlines and non-breaking spaces these exports are full of)
+ * collapsed to one space, and a single trailing parenthesised qualifier
+ * dropped so "Dana Masuk (IDR)" and "Saldo (IDR)" match the same aliases as
+ * their unqualified forms.
+ */
+function normaliseLabel(cell: string): string {
+  return cell
+    .replace(/[\s\u00a0]+/g, " ")
+    .trim()
+    .toLowerCase()
+    .replace(/\s*\([^)]*\)$/, "")
+    .trim();
+}
+
+/**
+ * Every column whose label matches one of `aliases`.
+ *
+ * Returns ALL matches, not the first: two columns matching the same category
+ * is an ambiguity the caller must refuse (see `buildRowMapping`). Picking the
+ * first would silently decide, for example, which of two date-ish columns the
+ * whole import is keyed on.
+ */
+function matchingColumns(
+  header: readonly string[],
+  aliases: string[],
+): number[] {
+  const found: number[] = [];
+  header.forEach((cell, index) => {
+    if (aliases.includes(normaliseLabel(cell))) found.push(index);
+  });
+  return found;
+}
+
+/** The one matching column, or -1 when there is none or more than one. */
+function singleColumn(header: readonly string[], aliases: string[]): number {
+  const found = matchingColumns(header, aliases);
+  return found.length === 1 ? (found[0] ?? -1) : -1;
+}
 
 /** Parses one CSV line into fields, honouring RFC4180-style quoting: a
  * quoted field may contain commas, and `""` inside a quoted field is an
@@ -502,9 +604,57 @@ export function parseStatementDate(raw: string, format?: string | null): Date {
     return parseExplicitSlashDate(trimmed, inferredFormat, raw);
   }
 
+  return parseFallbackDate(trimmed, raw);
+}
+
+/** Matches an ISO date with no time part — `2026-08-01`. JS already parses
+ *  this as UTC midnight per spec, unlike every other date-only shape. */
+const ISO_DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** True when the string carries a clock time and/or an explicit zone, e.g.
+ *  `2026-08-01T09:30:00Z` or `01 Aug 2026 14:46`. Such a value names a real
+ *  instant, so it must be preserved rather than flattened to midnight. */
+const HAS_TIME_OR_ZONE_RE = /\d:\d|[zZ]$|[+-]\d{2}:?\d{2}$/;
+
+/**
+ * Last-resort date parsing, for the shapes the explicit-format and Excel-serial
+ * paths above do not claim — most importantly `01 Aug 2026`, which is what
+ * Indonesian bank exports use.
+ *
+ * EPIC-029 — this used to be a bare `new Date(trimmed)`, which builds a
+ * **local**-midnight Date while `parseExplicitSlashDate` and
+ * `parseExcelSerialDate` both build UTC midnight. Two of the three paths
+ * agreed and this one did not, so a statement in this format imported every
+ * transaction one day early once read as a UTC date (`01 Aug 2026` under
+ * `TZ=Asia/Jakarta` is `2026-07-31T17:00:00.000Z`). Reconciliation matches
+ * bank rows to transactions by date, so that is wrong and missed matches on
+ * real money, not a display quirk.
+ *
+ * The bug was unreachable until the ZIP-normalisation work in this same
+ * change made these files parseable at all.
+ */
+function parseFallbackDate(trimmed: string, raw: string): Date {
+  // Already UTC midnight by specification — do not re-derive it, because
+  // reading local Y/M/D off it shifts the day for any zone behind UTC.
+  if (ISO_DATE_ONLY_RE.test(trimmed)) {
+    const isoParsed = new Date(trimmed);
+    assertPlausibleYear(isoParsed, raw);
+    return isoParsed;
+  }
+
   const parsed = new Date(trimmed);
   assertPlausibleYear(parsed, raw);
-  return parsed;
+
+  // Carries a real instant (time and/or zone) — keep it verbatim.
+  if (HAS_TIME_OR_ZONE_RE.test(trimmed)) return parsed;
+
+  // A date-only value in any other shape parsed as LOCAL midnight, so its
+  // local calendar fields are exactly the date a human read off the
+  // statement. Rebuild that same calendar date at UTC midnight so this path
+  // agrees with the other two regardless of the server's timezone.
+  return new Date(
+    Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()),
+  );
 }
 
 /**
@@ -552,44 +702,236 @@ export function inferDateFormatFromValues(
   return inferred;
 }
 
-/** Case-insensitive header-alias auto-detection, used only when no saved
- * bank template applies. Returns null (never throws) so the caller can
- * surface a clear "create a template" error instead of a stack trace. */
-export function detectMapping(header: string[]): TemplateMapping | null {
-  const find = (aliases: string[]): string | undefined =>
-    header.find((h) => aliases.includes(h.trim().toLowerCase()));
+type RowMapping = {
+  mapping: TemplateMapping;
+  /** The resolved column indices, kept so two candidate header rows can be
+   * compared by what they POINT AT rather than by their label text. */
+  columns: number[];
+};
 
-  const dateColumn = find(DATE_ALIASES);
-  const descriptionColumn = find(DESCRIPTION_ALIASES);
-  const amountColumn = find(AMOUNT_ALIASES);
+/**
+ * Builds a mapping out of one candidate header row, or returns null.
+ *
+ * Every refusal here is deliberate. A wrong column mapping on a financial
+ * import does not fail loudly — it books the balance as the amount, or the
+ * outgoing column as income, and the user has no way to see it. So anything
+ * short of an unambiguous read returns null, and the caller falls back to the
+ * explicit per-bank template.
+ */
+function buildRowMapping(header: readonly string[]): RowMapping | null {
+  const dateIdx = singleColumn(header, DATE_ALIASES);
+  const descIdx = singleColumn(header, DESCRIPTION_ALIASES);
+  if (dateIdx === -1 || descIdx === -1) return null;
 
-  if (!dateColumn || !descriptionColumn || !amountColumn) return null;
-  return { dateColumn, descriptionColumn, amountColumn, dateFormat: null };
+  const amountIdx = singleColumn(header, AMOUNT_ALIASES);
+  const creditIdx = singleColumn(header, CREDIT_ALIASES);
+  const debitIdx = singleColumn(header, DEBIT_ALIASES);
+
+  // A signed amount column wins when one exists — the pre-EPIC-029 behaviour,
+  // unchanged. Only a file with NO signed column falls through to the pair.
+  const columns =
+    amountIdx !== -1
+      ? [dateIdx, descIdx, amountIdx]
+      : creditIdx !== -1 && debitIdx !== -1
+        ? [dateIdx, descIdx, creditIdx, debitIdx]
+        : null;
+  if (!columns) return null;
+  // Two logical fields resolving to one physical column can only be a
+  // mis-read, never a real statement.
+  if (new Set(columns).size !== columns.length) return null;
+
+  const mapping: TemplateMapping =
+    amountIdx !== -1
+      ? {
+          dateColumn: header[dateIdx] ?? "",
+          descriptionColumn: header[descIdx] ?? "",
+          amountColumn: header[amountIdx] ?? "",
+          dateFormat: null,
+        }
+      : {
+          dateColumn: header[dateIdx] ?? "",
+          descriptionColumn: header[descIdx] ?? "",
+          amountColumn: "",
+          dateFormat: null,
+          creditColumn: header[creditIdx] ?? "",
+          debitColumn: header[debitIdx] ?? "",
+        };
+
+  return { mapping, columns };
+}
+
+/** How strongly a row reads as a header: how many of its cells are labels we
+ * recognise at all (including the balance column, which is never mapped but
+ * is strong evidence that this row — not the one above it — is the header). */
+function headerScore(row: readonly string[]): number {
+  return (
+    matchingColumns(row, DATE_ALIASES).length +
+    matchingColumns(row, DESCRIPTION_ALIASES).length +
+    matchingColumns(row, AMOUNT_ALIASES).length +
+    matchingColumns(row, CREDIT_ALIASES).length +
+    matchingColumns(row, DEBIT_ALIASES).length +
+    matchingColumns(row, BALANCE_ALIASES).length
+  );
 }
 
 /**
- * Maps a parsed table (first row = header) to `ParsedStatementRow[]` using
- * `mapping`. Rows with a missing date/amount, or one that fails to parse,
- * are SKIPPED (not fatal) — a statement with one malformed line should
- * still import the rest — but every skip is reported back with its line
- * number and reason (never silent) so a partial import cannot be mistaken
- * for a complete one. The caller is responsible for rejecting a zero-row
- * result (see reconciliation.service.ts#uploadFile) — this function alone
- * cannot distinguish "empty file" from "every row skipped", so it never
- * decides that policy itself.
+ * How many leading rows are searched for the header.
+ *
+ * A real e-statement puts an account block above the table — bank name,
+ * account holder, account number, period, currency, address — before the
+ * column labels. The Mandiri export this bound was sized against carries its
+ * header on the 10th and 11th rows; 25 leaves headroom for a longer preamble
+ * (or a bank that adds a logo/disclaimer row) while staying small enough that
+ * a row deep inside the DATA cannot be mistaken for the header — which is the
+ * real risk of an unbounded scan, since it would silently discard every row
+ * above the impostor.
+ */
+export const MAX_HEADER_SCAN_ROWS = 25;
+
+/**
+ * Finds the header row in a parsed table and reads a mapping from it.
+ *
+ * Three properties of real exports this handles, none of which the original
+ * "row 0 is the header" assumption did:
+ *
+ *  1. **The header is not row 0.** Rows are scored by how many known column
+ *     labels they carry, within `MAX_HEADER_SCAN_ROWS`; the best-scoring row
+ *     wins.
+ *  2. **Labels are not adjacent.** Merged cells leave empty placeholders
+ *     between the labels, so only a label's column INDEX matters — never its
+ *     neighbour.
+ *  3. **The header is bilingual and occupies two rows.** Mandiri writes the
+ *     Indonesian labels on one row and the English labels for the SAME
+ *     columns on the next. Those two rows tie on score, so the tie is broken
+ *     deterministically: the topmost row supplies the mapping, and a tied row
+ *     is treated as part of the header (not as data) only when it is
+ *     CONSECUTIVE with it and resolves to the IDENTICAL column indices. A tie
+ *     between rows that disagree about which columns to use is a genuine
+ *     ambiguity and returns null.
+ */
+export function detectTableMapping(
+  table: readonly string[][],
+): DetectedTableMapping | null {
+  const candidates: Array<RowMapping & { index: number; score: number }> = [];
+
+  const limit = Math.min(table.length, MAX_HEADER_SCAN_ROWS);
+  for (let index = 0; index < limit; index++) {
+    const row = table[index] ?? [];
+    const built = buildRowMapping(row);
+    if (!built) continue;
+    candidates.push({ ...built, index, score: headerScore(row) });
+  }
+  if (candidates.length === 0) return null;
+
+  const best = Math.max(...candidates.map((c) => c.score));
+  const tied = candidates.filter((c) => c.score === best);
+  const first = tied[0];
+  const last = tied[tied.length - 1];
+  if (!first || !last) return null;
+
+  const sameColumns = (other: RowMapping): boolean =>
+    other.columns.length === first.columns.length &&
+    other.columns.every((col, i) => col === first.columns[i]);
+
+  for (let i = 1; i < tied.length; i++) {
+    // Consecutive AND pointing at the same columns ⇒ a bilingual twin of the
+    // first row. Anything else is two different candidate headers, which we
+    // refuse rather than pick between.
+    const twin = tied[i];
+    if (!twin || twin.index !== first.index + i || !sameColumns(twin)) {
+      return null;
+    }
+  }
+
+  return {
+    mapping: first.mapping,
+    headerIndex: first.index,
+    dataStartIndex: last.index + 1,
+  };
+}
+
+/** Case-insensitive header-alias auto-detection for a single, known header
+ * row. Returns null (never throws) so the caller can surface a clear "create
+ * a template" error instead of a stack trace. Prefer `detectTableMapping`,
+ * which does not assume the header is the first row. */
+export function detectMapping(header: string[]): TemplateMapping | null {
+  return buildRowMapping(header)?.mapping ?? null;
+}
+
+/**
+ * Reads one side of a money-in/money-out column pair.
+ *
+ * Returns null when the cell is genuinely EMPTY of value — blank, "-", or a
+ * plain zero. The unused half of a debit/credit pair is written as "0.00" at
+ * least as often as it is left blank, and treating that as a real zero-rupiah
+ * amount would make every row look like it had both sides filled.
+ *
+ * A cell that contains a non-zero digit but still rounds to zero rupiah is
+ * NOT absent — it is a corrupted or sub-unit cell, and throws, exactly as in
+ * the single-column path.
+ */
+function readMoneySide(raw: string | undefined): bigint | null {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed || trimmed === "-") return null;
+  const value = parseStatementAmount(trimmed);
+  if (value === 0n) {
+    if (/[1-9]/.test(trimmed)) {
+      throw new Error(
+        `Amount "${trimmed}" rounds to zero whole rupiah — check the source file.`,
+      );
+    }
+    return null;
+  }
+  // The column decides the sign, so the cell's own sign is discarded: a bank
+  // that writes its outgoing column as "-150.000" and one that writes
+  // "150.000" must import identically.
+  return value < 0n ? -value : value;
+}
+
+/**
+ * Maps a parsed table to `ParsedStatementRow[]` using `mapping`.
+ *
+ * `options.headerIndex` / `options.dataStartIndex` default to 0 / 1 — the
+ * "first row is the header" shape every saved template still assumes. They
+ * are supplied by `detectTableMapping` for a real bank export, whose header
+ * sits several rows down and may occupy two rows (see that function).
+ *
+ * Rows with a missing date/amount, or one that fails to parse, are SKIPPED
+ * (not fatal) — a statement with one malformed line should still import the
+ * rest — but every skip is reported back with its line number and reason
+ * (never silent) so a partial import cannot be mistaken for a complete one.
+ * The caller is responsible for rejecting a zero-row result (see
+ * reconciliation.service.ts#uploadFile) — this function alone cannot
+ * distinguish "empty file" from "every row skipped", so it never decides that
+ * policy itself.
  */
 export function mapTableToRows(
   table: string[][],
   mapping: TemplateMapping,
+  options: { headerIndex?: number; dataStartIndex?: number } = {},
 ): MapTableResult {
-  const [header, ...dataRows] = table;
+  const headerIndex = options.headerIndex ?? 0;
+  const dataStartIndex = options.dataStartIndex ?? headerIndex + 1;
+  const header = table[headerIndex];
   if (!header) return { rows: [], skipped: [] };
+  const dataRows = table.slice(dataStartIndex);
 
   const dateIdx = findColumnIndex(header, mapping.dateColumn);
   const descIdx = findColumnIndex(header, mapping.descriptionColumn);
-  const amountIdx = findColumnIndex(header, mapping.amountColumn);
+  const isPair = Boolean(mapping.creditColumn && mapping.debitColumn);
+  const amountIdx = isPair ? -1 : findColumnIndex(header, mapping.amountColumn);
+  const creditIdx = isPair
+    ? findColumnIndex(header, mapping.creditColumn as string)
+    : -1;
+  const debitIdx = isPair
+    ? findColumnIndex(header, mapping.debitColumn as string)
+    : -1;
 
-  if (dateIdx === -1 || descIdx === -1 || amountIdx === -1) {
+  const resolved = isPair
+    ? [dateIdx, descIdx, creditIdx, debitIdx]
+    : [dateIdx, descIdx, amountIdx];
+
+  if (resolved.some((idx) => idx === -1)) {
     throw new Error(
       "Column mapping does not match this file's header row — check the saved template or column names.",
     );
@@ -600,7 +942,7 @@ export function mapTableToRows(
   // bank reorders its export's columns, two logical fields could silently
   // resolve to the SAME column index (e.g. date and amount both "2").
   // Refuse rather than import with a field silently mapped wrong.
-  if (new Set([dateIdx, descIdx, amountIdx]).size !== 3) {
+  if (new Set(resolved).size !== resolved.length) {
     throw new Error(
       "Column mapping resolves more than one field to the same column — check the saved template or column names.",
     );
@@ -613,28 +955,20 @@ export function mapTableToRows(
   // resolves on its own via `parseStatementDate`'s own logic either way.
   const effectiveDateFormat = mapping.dateFormat ?? null;
 
-  const rows: ParsedStatementRow[] = [];
-  const skipped: SkippedRow[] = [];
+  /** True when the row carries anything at all in its amount column(s). Kept
+   * separate from parsing so an empty amount is reported as "Missing amount"
+   * rather than as a date/parse failure, as it always has been. */
+  const hasAmountCell = (row: string[]): boolean =>
+    isPair
+      ? Boolean(row[creditIdx]?.trim() || row[debitIdx]?.trim())
+      : Boolean(row[amountIdx]);
 
-  dataRows.forEach((row, index) => {
-    // +2: 1-indexed, plus the header row itself occupying line 1.
-    const line = index + 2;
-    const rawDate = row[dateIdx];
-    const rawDesc = row[descIdx] ?? "";
-    const rawAmount = row[amountIdx];
-
-    if (!rawDate || !rawAmount) {
-      skipped.push({
-        line,
-        reason: !rawDate ? "Missing date" : "Missing amount",
-      });
-      return;
-    }
-
-    try {
-      const date = parseStatementDate(rawDate, effectiveDateFormat);
+  /** The row's signed amount, or null when both sides of a pair turned out to
+   * be placeholder zeroes. */
+  const readAmount = (row: string[]): bigint | null => {
+    if (!isPair) {
+      const rawAmount = row[amountIdx] ?? "";
       const amount = parseStatementAmount(rawAmount);
-
       // EPIC-023 Task G retry (MEDIUM five-reviewer finding) — a raw amount
       // that contains a non-zero digit (e.g. "0,49") but rounds DOWN to
       // zero whole rupiah is a corrupted/sub-unit cell, not a legitimate
@@ -644,6 +978,45 @@ export function mapTableToRows(
         throw new Error(
           `Amount "${rawAmount}" rounds to zero whole rupiah — check the source file.`,
         );
+      }
+      return amount;
+    }
+    const incoming = readMoneySide(row[creditIdx]);
+    const outgoing = readMoneySide(row[debitIdx]);
+    if (incoming !== null && outgoing !== null) {
+      throw new Error(
+        "Both the incoming and outgoing amount columns hold a value on this row — cannot tell which one is the transaction amount.",
+      );
+    }
+    if (incoming !== null) return incoming;
+    if (outgoing !== null) return -outgoing;
+    return null;
+  };
+
+  const rows: ParsedStatementRow[] = [];
+  const skipped: SkippedRow[] = [];
+
+  dataRows.forEach((row, index) => {
+    // The table row's own 1-indexed line number, so a reported skip points at
+    // the line the user sees in Excel even when the header is not row 1.
+    const line = dataStartIndex + index + 1;
+    const rawDate = row[dateIdx];
+    const rawDesc = row[descIdx] ?? "";
+
+    if (!rawDate || !hasAmountCell(row)) {
+      skipped.push({
+        line,
+        reason: !rawDate ? "Missing date" : "Missing amount",
+      });
+      return;
+    }
+
+    try {
+      const date = parseStatementDate(rawDate, effectiveDateFormat);
+      const amount = readAmount(row);
+      if (amount === null) {
+        skipped.push({ line, reason: "Missing amount" });
+        return;
       }
 
       rows.push({ date, description: rawDesc.trim(), amount });

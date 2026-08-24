@@ -3293,6 +3293,10 @@ export const id = {
       "Isi ZIP ini terlalu besar setelah diekstrak — unggah file statement-nya langsung, atau pilih periode yang lebih pendek.",
     protectedErrorDecryptedTooLarge:
       "Setelah dibuka, ukuran file melebihi batas 20MB — unduh statement per periode yang lebih pendek.",
+    protectedErrorXlsxRepackageFailed:
+      "Struktur file Excel ini tidak bisa kami rapikan agar terbaca. Buka file di Excel atau Google Sheets, lalu simpan ulang sebagai .xlsx (atau ekspor sebagai CSV), kemudian unggah lagi.",
+    protectedErrorXlsxExpansionTooLarge:
+      "Isi file Excel ini terlalu besar saat dibuka — unduh statement per periode yang lebih pendek, atau ekspor sebagai CSV.",
     toastScanFailedDefault: "Gagal memindai entri",
     toastConfirmed: "Entri berhasil dikonfirmasi!",
     toastConfirmFailedDefault: "Gagal mengkonfirmasi",

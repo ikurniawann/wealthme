@@ -83,16 +83,34 @@ function concat(...parts: Uint8Array[]): Uint8Array {
   return out;
 }
 
-/** A ZIP local file header for `name`, with the encryption flag optionally set. */
-function zipLocalHeader(name: string, encrypted: boolean): Uint8Array {
+/** A ZIP local file header for `name`, with the encryption (bit 0) and
+ * data-descriptor (bit 3) general-purpose flags optionally set. */
+function zipLocalHeader(
+  name: string,
+  encrypted: boolean,
+  dataDescriptor = false,
+): Uint8Array {
   const header = new Uint8Array(30 + name.length);
   const view = new DataView(header.buffer);
   view.setUint32(0, 0x04034b50, true);
   view.setUint16(4, 20, true);
-  view.setUint16(6, encrypted ? 0x0001 : 0x0000, true);
+  view.setUint16(
+    6,
+    (encrypted ? 0x0001 : 0) | (dataDescriptor ? 0x0008 : 0),
+    true,
+  );
   view.setUint16(26, name.length, true);
   header.set(ascii(name), 30);
   return header;
+}
+
+/** The head of a workbook written in streaming mode — the shape a real
+ * Mandiri e-statement has, which the server's parser cannot read. */
+function streamedWorkbook(): Uint8Array {
+  return concat(
+    zipLocalHeader("[Content_Types].xml", false, true),
+    ascii("<Types/>"),
+  );
 }
 
 function fileFrom(bytes: Uint8Array, name: string): File {
@@ -162,7 +180,12 @@ describe("classifyStatementBytes", () => {
     expect(classifyStatementBytes(head)).toBe("encrypted-zip");
   });
 
+  it("recognises a streaming-written workbook as needing its container rewritten", () => {
+    expect(classifyStatementBytes(streamedWorkbook())).toBe("xlsx-streamed");
+  });
+
   it("only asks for a password for the encrypted kinds", () => {
+    expect(needsPassword("xlsx-streamed")).toBe(false);
     expect(needsPassword("plain")).toBe(false);
     expect(needsPassword("zip")).toBe(false);
     expect(needsPassword("encrypted-xlsx")).toBe(true);
@@ -691,6 +714,8 @@ describe("statementFileErrorMessage", () => {
     "zip-multiple-statements": true,
     "zip-entry-too-large": true,
     "decrypted-too-large": true,
+    "xlsx-repackage-failed": true,
+    "xlsx-expansion-too-large": true,
   } satisfies Record<StatementFileFailure, true>) as StatementFileFailure[];
 
   it("gives every reason its own distinct, non-empty message in both locales", () => {
@@ -753,5 +778,123 @@ describe("statementFileErrorMessage", () => {
     expect(statementFileErrorMessage(new Error("boom"), dictionary)).toBe(
       dictionary.rekonsiliasi.protectedErrorCorruptFile,
     );
+  });
+});
+
+/* ─────────────────── container normalisation (group A) ─────────────────── */
+
+describe("prepareStatementFile — streaming-written workbooks", () => {
+  it("rewrites the container of a workbook that needs it, and prompts for nothing", async () => {
+    const normalizeOoxmlPackage = jest
+      .fn()
+      .mockResolvedValue(ascii("NORMALISED"));
+    const prepared = await prepareStatementFile(
+      fileFrom(streamedWorkbook(), "mutasi.xlsx"),
+      undefined,
+      { normalizeOoxmlPackage, decryptOoxml: jest.fn(), openZip: jest.fn() },
+    );
+    expect(normalizeOoxmlPackage).toHaveBeenCalledTimes(1);
+    expect(await textOf(prepared)).toBe("NORMALISED");
+    expect(prepared.name).toBe("mutasi.xlsx");
+  });
+
+  it("leaves a conventional workbook completely alone", async () => {
+    const normalizeOoxmlPackage = jest.fn();
+    const file = fileFrom(
+      concat(zipLocalHeader("[Content_Types].xml", false), ascii("<Types/>")),
+      "mutasi.xlsx",
+    );
+    const prepared = await prepareStatementFile(file, undefined, {
+      normalizeOoxmlPackage,
+    });
+    expect(normalizeOoxmlPackage).not.toHaveBeenCalled();
+    expect(prepared).toBe(file);
+  });
+
+  it("rewrites the container of a DECRYPTED workbook too", async () => {
+    // The real file is both: encrypted, and streaming-written inside. Fixing
+    // only the unencrypted path would leave the actual statement broken.
+    const decryptOoxml = jest.fn().mockResolvedValue(streamedWorkbook());
+    const normalizeOoxmlPackage = jest
+      .fn()
+      .mockResolvedValue(ascii("NORMALISED"));
+    const prepared = await prepareStatementFile(
+      fileFrom(concat(CFB_HEADER, new Uint8Array(64)), "e.xlsx"),
+      "rahasia",
+      { decryptOoxml, normalizeOoxmlPackage },
+    );
+    expect(normalizeOoxmlPackage).toHaveBeenCalledTimes(1);
+    expect(await textOf(prepared)).toBe("NORMALISED");
+  });
+
+  it("rewrites the container of a workbook extracted from a ZIP too", async () => {
+    const normalizeOoxmlPackage = jest
+      .fn()
+      .mockResolvedValue(ascii("NORMALISED"));
+    const prepared = await prepareStatementFile(
+      fileFrom(
+        concat(zipLocalHeader("mutasi.xlsx", true), ascii("x")),
+        "a.zip",
+      ),
+      "rahasia",
+      {
+        openZip: openerFor([
+          zipEntry({
+            filename: "mutasi.xlsx",
+            encrypted: true,
+            extractTo: async (sink) => {
+              const writer = sink.getWriter();
+              await writer.write(streamedWorkbook());
+              await writer.close();
+            },
+          }),
+        ]),
+        normalizeOoxmlPackage,
+      },
+    );
+    expect(normalizeOoxmlPackage).toHaveBeenCalledTimes(1);
+    expect(await textOf(prepared)).toBe("NORMALISED");
+  });
+
+  it("does not touch a CSV extracted from a ZIP", async () => {
+    const normalizeOoxmlPackage = jest.fn();
+    await prepareStatementFile(
+      fileFrom(concat(zipLocalHeader("mutasi.csv", true), ascii("x")), "a.zip"),
+      "rahasia",
+      {
+        openZip: openerFor([zipEntry({ encrypted: true })]),
+        normalizeOoxmlPackage,
+      },
+    );
+    expect(normalizeOoxmlPackage).not.toHaveBeenCalled();
+  });
+
+  it("gives a failed rewrite its own actionable reason, not corrupt-file", async () => {
+    const err = await prepareStatementFile(
+      fileFrom(streamedWorkbook(), "mutasi.xlsx"),
+      undefined,
+      {
+        normalizeOoxmlPackage: jest
+          .fn()
+          .mockRejectedValue({ reason: "repackage-failed" }),
+      },
+    ).catch((e) => e);
+    expect(err).toMatchObject({ reason: "xlsx-repackage-failed" });
+    expect(statementFileErrorMessage(err, dictionary)).not.toBe(
+      dictionary.rekonsiliasi.protectedErrorCorruptFile,
+    );
+  });
+
+  it("maps an over-budget rewrite to its own reason", async () => {
+    const err = await prepareStatementFile(
+      fileFrom(streamedWorkbook(), "mutasi.xlsx"),
+      undefined,
+      {
+        normalizeOoxmlPackage: jest
+          .fn()
+          .mockRejectedValue({ reason: "package-too-large" }),
+      },
+    ).catch((e) => e);
+    expect(err).toMatchObject({ reason: "xlsx-expansion-too-large" });
   });
 });

@@ -64,10 +64,22 @@ const HEAD_BYTES = 64 * 1024;
 const CFB_MAGIC = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1] as const;
 const ZIP_LOCAL_HEADER = [0x50, 0x4b, 0x03, 0x04] as const;
 const OOXML_CONTENT_TYPES = "[Content_Types].xml";
+/** General-purpose bit 0 — the entry is encrypted. */
+const FLAG_ENCRYPTED = 0x0001;
+/** General-purpose bit 3 — the entry's CRC and sizes are zero here and live
+ * in a data descriptor after the payload. See `statement-ooxml-zip.ts`. */
+const FLAG_DATA_DESCRIPTOR = 0x0008;
 
 export type StatementFileKind =
   /** Upload as picked — not encrypted, not a container. */
   | "plain"
+  /**
+   * An unencrypted OOXML workbook whose entries are written in streaming
+   * mode (general-purpose bit 3). Readable by every central-directory
+   * reader, unreadable by the server's forward-streaming one — so its
+   * container is rewritten here first. See `statement-ooxml-zip.ts`.
+   */
+  | "xlsx-streamed"
   /** An OLE/CFB-wrapped, password-protected OOXML workbook. */
   | "encrypted-xlsx"
   /** A ZIP whose entries are encrypted. */
@@ -114,7 +126,16 @@ export type StatementFileFailure =
   /** An entry expands past the extraction budget: a zip bomb. */
   | "zip-entry-too-large"
   /** Decryption succeeded but the result is over the API's 20 MB ceiling. */
-  | "decrypted-too-large";
+  | "decrypted-too-large"
+  /**
+   * The workbook's container is written in streaming mode and could not be
+   * rewritten into the conventional form the server parser needs. Its own
+   * reason, never `corrupt-file`: the file is not damaged, and telling the
+   * user to re-download it would send them in a circle.
+   */
+  | "xlsx-repackage-failed"
+  /** Rewriting the container would expand it past the extraction budget. */
+  | "xlsx-expansion-too-large";
 
 export class StatementFileError extends Error {
   constructor(readonly reason: StatementFileFailure) {
@@ -177,13 +198,27 @@ export function classifyStatementBytes(head: Uint8Array): StatementFileKind {
   // archive's entry NAMES may still be readable and would otherwise let a
   // crafted `[Content_Types].xml` name masquerade as a plain workbook.
   const flags = head.length >= 8 ? head[6] | (head[7] << 8) : 0;
-  if ((flags & 0x0001) !== 0) return "encrypted-zip";
+  if ((flags & FLAG_ENCRYPTED) !== 0) return "encrypted-zip";
 
   // An unencrypted `.xlsx` is a ZIP too. The thing that distinguishes an
   // OOXML package from an archive that merely CONTAINS a statement is the
   // mandatory `[Content_Types].xml` part, so look for it rather than
   // trusting the extension.
-  return indexOfAscii(head, OOXML_CONTENT_TYPES) === -1 ? "zip" : "plain";
+  if (indexOfAscii(head, OOXML_CONTENT_TYPES) === -1) return "zip";
+
+  // A workbook is normalised ONLY when it needs it — when the FIRST local
+  // file header announces a data descriptor. The alternative (rewriting
+  // every workbook unconditionally) is simpler, but it would re-deflate every
+  // upload that works today and put a brand-new code path in front of them,
+  // to fix a file shape none of them have. Detecting first keeps the working
+  // path byte-identical to what it is now.
+  //
+  // The first header, not all of them: a local header carrying bit 3 does not
+  // say how long its payload is, so the next header cannot be found without
+  // decompressing — and a generator streams every entry or none (the real
+  // file sets bit 3 on all 14). A missed mixed archive would simply behave as
+  // it does today, i.e. be refused by the server, never be mis-parsed.
+  return (flags & FLAG_DATA_DESCRIPTOR) !== 0 ? "xlsx-streamed" : "plain";
 }
 
 /**
@@ -230,6 +265,7 @@ export type StatementFileSeams = {
     maxPlaintextBytes: number,
   ) => Promise<Uint8Array>;
   openZip?: ZipArchiveOpener;
+  normalizeOoxmlPackage?: (bytes: Uint8Array) => Promise<Uint8Array>;
   maxFileBytes?: number;
 };
 
@@ -246,6 +282,15 @@ async function loadZipOpener(): Promise<ZipArchiveOpener> {
   return mod.openZipWithZipJs;
 }
 
+async function loadPackageNormalizer(): Promise<
+  (bytes: Uint8Array) => Promise<Uint8Array>
+> {
+  // E4e — the container rewriter (and the `zip.js` it reaches for) is a
+  // separate chunk, fetched only for a workbook that actually needs it.
+  const mod = await import("./statement-ooxml-zip");
+  return mod.normalizeOoxmlPackage;
+}
+
 const ZIP_REASONS: Record<string, StatementFileFailure> = {
   "password-required": "password-required",
   "wrong-password": "wrong-password",
@@ -253,6 +298,11 @@ const ZIP_REASONS: Record<string, StatementFileFailure> = {
   "multiple-statements": "zip-multiple-statements",
   "entry-too-large": "zip-entry-too-large",
   "corrupt-file": "corrupt-file",
+};
+
+const OOXML_PACKAGE_REASONS: Record<string, StatementFileFailure> = {
+  "package-too-large": "xlsx-expansion-too-large",
+  "repackage-failed": "xlsx-repackage-failed",
 };
 
 const OOXML_REASONS: Record<string, StatementFileFailure> = {
@@ -287,15 +337,51 @@ export async function prepareStatementFile(
   }
 
   const prepared =
-    kind === "encrypted-xlsx"
-      ? await decryptWorkbook(file, password ?? "", maxFileBytes, seams)
-      : await extractFromArchive(file, password, seams);
+    kind === "xlsx-streamed"
+      ? await normalizeWorkbook(file, seams)
+      : kind === "encrypted-xlsx"
+        ? await decryptWorkbook(file, password ?? "", maxFileBytes, seams)
+        : await extractFromArchive(file, password, seams);
 
   if (prepared.size === 0) throw new StatementFileError("corrupt-file");
   if (prepared.size > maxFileBytes) {
     throw new StatementFileError("decrypted-too-large");
   }
   return prepared;
+}
+
+/**
+ * Rewrites a streaming-written workbook's container, leaving its parts
+ * untouched. A no-op for anything else — the check is on the bytes\' own
+ * local file header, so a CSV, or a workbook that is already conventional,
+ * passes straight through unchanged.
+ */
+async function normalizeIfStreamed(
+  bytes: Uint8Array,
+  seams: StatementFileSeams,
+): Promise<Uint8Array> {
+  const head = bytes.subarray(0, Math.min(HEAD_BYTES, bytes.length));
+  if (classifyStatementBytes(head) !== "xlsx-streamed") return bytes;
+  const normalize =
+    seams.normalizeOoxmlPackage ?? (await loadPackageNormalizer());
+  try {
+    return await normalize(bytes);
+  } catch (err) {
+    throw new StatementFileError(reasonFrom(err, OOXML_PACKAGE_REASONS));
+  }
+}
+
+async function normalizeWorkbook(
+  file: File,
+  seams: StatementFileSeams,
+): Promise<File> {
+  const source = await readBlobBytes(file);
+  const normalized = await normalizeIfStreamed(source, seams);
+  return toFile(
+    normalized,
+    file.name,
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  );
 }
 
 async function decryptWorkbook(
@@ -314,8 +400,11 @@ async function decryptWorkbook(
   const source = await readBlobBytes(file);
   try {
     const plain = await decrypt(source, password, maxFileBytes);
+    // The decrypted payload is the bank's own workbook, streaming container
+    // and all — the identical failure, just one layer down.
+    const normalized = await normalizeIfStreamed(plain, seams);
     return toFile(
-      plain,
+      normalized,
       replaceExtension(file.name, "xlsx"),
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
@@ -339,8 +428,11 @@ async function extractFromArchive(
   }
   const base = extracted.filename.split("/").pop() || "statement.csv";
   const isCsv = base.toLowerCase().endsWith(".csv");
+  // A workbook inside a ZIP is written by the same generator as one sent on
+  // its own, so it needs the same container rewrite.
+  const bytes = await normalizeIfStreamed(extracted.bytes, seams);
   return toFile(
-    extracted.bytes,
+    bytes,
     base,
     isCsv
       ? "text/csv"
@@ -442,6 +534,10 @@ export function statementFileErrorMessage(
       return dict.protectedErrorZipEntryTooLarge;
     case "decrypted-too-large":
       return dict.protectedErrorDecryptedTooLarge;
+    case "xlsx-repackage-failed":
+      return dict.protectedErrorXlsxRepackageFailed;
+    case "xlsx-expansion-too-large":
+      return dict.protectedErrorXlsxExpansionTooLarge;
     default: {
       // Compile-time exhaustiveness, for the reason recorded in
       // `receiptFileErrorMessage`: a `default` that silently swallows a

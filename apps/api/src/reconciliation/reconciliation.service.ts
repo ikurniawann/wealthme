@@ -13,7 +13,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { TransactionsService } from "../transactions/transactions.service";
 
 import {
-  detectMapping,
+  detectTableMapping,
   ExcelLimitExceededError,
   mapTableToRows,
   parseCsv,
@@ -23,7 +23,10 @@ import { ZipExpansionExceededError } from "./zip-bounds.util";
 
 import type { SplitEntryDto } from "./dto/split-entry.dto";
 import type { UpsertReconciliationTemplateDto } from "./dto/upsert-reconciliation-template.dto";
-import type { TemplateMapping } from "./reconciliation-parsers";
+import type {
+  DetectedTableMapping,
+  TemplateMapping,
+} from "./reconciliation-parsers";
 import type { TransactionResponseDto } from "../transactions/dto/transaction-response.dto";
 
 /** Structural subset of Express.Multer.File — kept narrow so this service
@@ -414,14 +417,29 @@ export class ReconciliationService {
       );
     }
 
-    const mapping = bankCode
-      ? await this.resolveTemplateMapping(familyGroupId, bankCode)
-      : this.autoDetectMapping(table[0] ?? []);
+    // EPIC-029 — auto-detection no longer assumes the header is row 1. A real
+    // e-statement carries an account block above the table, and Mandiri
+    // repeats the header in English on the row below it; `detectTableMapping`
+    // finds the header and reports where the DATA starts. The saved-template
+    // path is unchanged and still reads row 1.
+    const detected = bankCode ? null : this.autoDetectMapping(table);
+    const mapping = detected
+      ? detected.mapping
+      : await this.resolveTemplateMapping(familyGroupId, bankCode as string);
 
     let rows: ParsedRow[];
     let skipped: SkippedRowDto[];
     try {
-      ({ rows, skipped } = mapTableToRows(table, mapping));
+      ({ rows, skipped } = mapTableToRows(
+        table,
+        mapping,
+        detected
+          ? {
+              headerIndex: detected.headerIndex,
+              dataStartIndex: detected.dataStartIndex,
+            }
+          : undefined,
+      ));
     } catch (err) {
       throw new BadRequestException(
         withCode(
@@ -470,9 +488,9 @@ export class ReconciliationService {
       : sync;
   }
 
-  private autoDetectMapping(header: string[]): TemplateMapping {
-    const mapping = detectMapping(header);
-    if (!mapping) {
+  private autoDetectMapping(table: string[][]): DetectedTableMapping {
+    const detected = detectTableMapping(table);
+    if (!detected) {
       throw new BadRequestException(
         withCode(
           "Tidak bisa mendeteksi kolom tanggal/keterangan/jumlah secara otomatis. Simpan template pemetaan kolom untuk bank ini terlebih dahulu, atau pilih bank saat mengunggah.",
@@ -480,7 +498,7 @@ export class ReconciliationService {
         ),
       );
     }
-    return mapping;
+    return detected;
   }
 
   private async resolveTemplateMapping(

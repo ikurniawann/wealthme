@@ -3100,6 +3100,8 @@ export type I18nDictionary = {
     protectedErrorZipMultipleStatements: string;
     protectedErrorZipEntryTooLarge: string;
     protectedErrorDecryptedTooLarge: string;
+    protectedErrorXlsxRepackageFailed: string;
+    protectedErrorXlsxExpansionTooLarge: string;
     toastScanFailedDefault: string;
     toastConfirmed: string;
     toastConfirmFailedDefault: string;
