@@ -99,6 +99,17 @@ COPY --from=build /build/packages ./packages
 
 EXPOSE 4000
 
+# StorageDiskService writes attachments under STORAGE_DIR (/data/storage, a
+# named volume — see docker-compose.yml). Create and chown it HERE, while we
+# are still root: Docker auto-creates a missing mountpoint as root:root, and a
+# fresh named volume inherits the ownership of the image directory it covers.
+# Without this the API runs as appuser(999) against a root-owned 755 directory
+# and EVERY upload fails with EACCES — silently, since the volume starts empty
+# and nothing else touches it. An existing volume created before this line
+# keeps its old ownership and needs a one-time
+# `docker compose exec -u root api chown -R 999:999 /data/storage`.
+RUN mkdir -p /data/storage && chown -R appuser:appgroup /data/storage
+
 # Run from apps/api so relative imports in dist/main.js resolve correctly.
 WORKDIR /app/apps/api
 
