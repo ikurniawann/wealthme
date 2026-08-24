@@ -231,7 +231,6 @@ export const id = {
       // pending the head's approval. Must never read as a success.
       heldToast:
         "Pengeluaran melebihi batas — menunggu persetujuan kepala keluarga, belum dicatat.",
-      ocrSavedToast: "Transaksi Alfamart Rp 58.000 berhasil disimpan!",
       title: "Tambah Transaksi",
       manualInput: "Input Manual",
       scanReceipt: "Scan Struk",
@@ -261,20 +260,59 @@ export const id = {
       saveAndAddMore: "Simpan & Tambah Lagi",
       scanTitle: "Scan Struk / Bon",
       scanSubtitle: "Arahkan kamera ke struk belanja",
-      flashToast: "Flash: Auto",
-      autoButton: "⚡ Auto",
       scanGuidanceReady: "Pastikan semua teks terlihat jelas",
-      scanGuidanceScanning: "Memindai struk...",
+      scanGuidanceScanning: "Membaca struk...",
       resultTitle: "✨ Hasil Pindai",
-      resultSubtitle: "Periksa dan edit data jika diperlukan",
-      editManualToast: "Mode edit manual",
-      editManual: "Edit Manual",
+      resultSubtitle: "Periksa hasilnya sebelum mengisi formulir",
       merchantLabel: "Merchant",
       totalLabel: "Total",
       detectedBadge: "Terdeteksi",
-      detailItemLabel: "Detail Item",
-      saveToTransaction: "Simpan ke Transaksi",
       scanAgain: "Pindai Ulang",
+      // EPIC-027 B1–B4 — real camera + real OCR. Every string below
+      // describes something that actually happens; nothing here promises a
+      // capability the app does not have.
+      scanCapture: "Ambil Foto",
+      scanStarting: "Menyiapkan kamera...",
+      scanUse: "Gunakan",
+      scanPrefilledToast:
+        "Data struk dimasukkan ke formulir — periksa lalu simpan.",
+      scanHint:
+        "Scan struk memakai kamera perangkat dan API key AI keluarga. Hasilnya mengisi formulir; transaksi baru tersimpan setelah kamu menekan Simpan.",
+      scanUnavailable:
+        "Scan struk butuh API key AI keluarga dari penyedia yang mendukung gambar.",
+      scanUnavailableLink: "Atur di Pengaturan",
+      categoryUnmatched: "Tidak cocok dengan kategori keluarga",
+      // Camera failures — each one needs its own fix, so each one gets its
+      // own message (a denied permission must not look like a broken app).
+      cameraErrorInsecure:
+        "Kamera hanya bisa dipakai lewat koneksi aman. Buka aplikasi ini dengan alamat https:// (atau localhost) lalu coba lagi.",
+      cameraErrorUnsupported:
+        "Browser atau perangkat ini tidak mendukung akses kamera.",
+      cameraErrorPermission:
+        "Izin kamera ditolak. Aktifkan izin kamera untuk situs ini di pengaturan browser, lalu coba lagi.",
+      cameraErrorNotFound: "Tidak ada kamera yang terdeteksi di perangkat ini.",
+      cameraErrorInUse:
+        "Kamera sedang dipakai aplikasi lain — tutup aplikasi tersebut lalu coba lagi.",
+      cameraErrorUnknown: "Kamera tidak bisa dibuka — coba lagi.",
+      cameraRetry: "Coba lagi",
+      captureFailed: "Foto struk gagal diambil — coba lagi.",
+      // Scan failures — one per `code` from ocr-http-error.util.ts.
+      scanErrorNotConfigured:
+        "Scan struk butuh API key AI keluarga. Master atau co-master bisa mengaturnya di Pengaturan.",
+      scanErrorKeyCorrupted:
+        "API key AI keluarga tidak bisa dibaca — masukkan ulang di Pengaturan.",
+      scanErrorAuth:
+        "Penyedia AI menolak API key keluarga ini — periksa kembali key di Pengaturan.",
+      scanErrorRateLimited:
+        "Penyedia AI sedang membatasi permintaan — coba lagi sebentar lagi.",
+      scanErrorRateLimitedRetryIn:
+        "Penyedia AI sedang membatasi permintaan — coba lagi dalam {seconds} detik.",
+      scanErrorRateLimitedDaily:
+        "Kuota harian penyedia AI sudah habis — scan bisa dipakai lagi besok atau setelah kuota ditambah.",
+      scanErrorTimeout: "Scan struk terlalu lama diproses — coba lagi.",
+      scanErrorParseFailed:
+        "Struk tidak bisa dibaca — coba foto ulang dengan pencahayaan yang lebih baik.",
+      scanErrorUpstream: "Scan struk gagal — coba lagi sebentar lagi.",
       attachmentLabel: "Lampiran",
       attachmentPlaceholder: "Pilih file (JPG, PNG, WEBP, atau PDF, maks 5MB)",
       attachmentSelected: "File dipilih: ",

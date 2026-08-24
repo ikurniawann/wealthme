@@ -228,7 +228,6 @@ export const en = {
       // pending the head's approval. Must never read as a success.
       heldToast:
         "Expense exceeds the threshold — held pending the head's approval, not recorded yet.",
-      ocrSavedToast: "Alfamart transaction Rp 58.000 saved successfully!",
       title: "Add Transaction",
       manualInput: "Manual Input",
       scanReceipt: "Scan Receipt",
@@ -258,20 +257,58 @@ export const en = {
       saveAndAddMore: "Save & Add Another",
       scanTitle: "Scan Receipt / Bill",
       scanSubtitle: "Point the camera at your receipt",
-      flashToast: "Flash: Auto",
-      autoButton: "⚡ Auto",
       scanGuidanceReady: "Make sure all text is clearly visible",
-      scanGuidanceScanning: "Scanning receipt...",
+      scanGuidanceScanning: "Reading the receipt...",
       resultTitle: "✨ Scan Result",
-      resultSubtitle: "Review and edit the data if needed",
-      editManualToast: "Manual edit mode",
-      editManual: "Edit Manually",
+      resultSubtitle: "Check the result before it fills the form",
       merchantLabel: "Merchant",
       totalLabel: "Total",
       detectedBadge: "Detected",
-      detailItemLabel: "Item Details",
-      saveToTransaction: "Save to Transaction",
       scanAgain: "Scan Again",
+      // EPIC-027 B1–B4 — real camera + real OCR. Every string below
+      // describes something that actually happens.
+      scanCapture: "Take Photo",
+      scanStarting: "Preparing the camera...",
+      scanUse: "Use",
+      scanPrefilledToast:
+        "Receipt data filled into the form — review it, then save.",
+      scanHint:
+        "Scanning uses the device camera and the family AI provider key. The result fills this form; nothing is recorded until you press Save.",
+      scanUnavailable:
+        "Receipt scanning needs a family AI provider key from a provider that supports images.",
+      scanUnavailableLink: "Set it up in Settings",
+      categoryUnmatched: "No matching family category",
+      // Camera failures — each one needs its own fix, so each one gets its
+      // own message.
+      cameraErrorInsecure:
+        "The camera only works over a secure connection. Open this app on an https:// address (or localhost) and try again.",
+      cameraErrorUnsupported:
+        "This browser or device does not support camera access.",
+      cameraErrorPermission:
+        "Camera permission was denied. Allow camera access for this site in your browser settings, then try again.",
+      cameraErrorNotFound: "No camera was detected on this device.",
+      cameraErrorInUse:
+        "The camera is in use by another app — close it and try again.",
+      cameraErrorUnknown: "The camera could not be opened — try again.",
+      cameraRetry: "Try again",
+      captureFailed: "Could not capture the receipt photo — try again.",
+      // Scan failures — one per `code` from ocr-http-error.util.ts.
+      scanErrorNotConfigured:
+        "Receipt scanning needs a family AI provider key. A master or co-master can set one up in Settings.",
+      scanErrorKeyCorrupted:
+        "The family AI provider key could not be read — enter it again in Settings.",
+      scanErrorAuth:
+        "The AI provider rejected this family's API key — check the key in Settings.",
+      scanErrorRateLimited:
+        "The AI provider is rate limiting requests — try again shortly.",
+      scanErrorRateLimitedRetryIn:
+        "The AI provider is rate limiting requests — try again in {seconds} seconds.",
+      scanErrorRateLimitedDaily:
+        "The AI provider's daily quota is used up — scanning works again tomorrow, or once the quota is raised.",
+      scanErrorTimeout: "The receipt scan took too long — try again.",
+      scanErrorParseFailed:
+        "The receipt could not be read — retake the photo with better lighting.",
+      scanErrorUpstream: "The receipt scan failed — try again shortly.",
       attachmentLabel: "Attachment",
       attachmentPlaceholder: "Choose file (JPG, PNG, WEBP, or PDF, max 5MB)",
       attachmentSelected: "File selected: ",

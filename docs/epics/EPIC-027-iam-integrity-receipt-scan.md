@@ -97,12 +97,12 @@ to the A/B numbering used in the Decisions table.
 - [x] B7 — `categoryHint` → real Category id server-side; blank when no match
 - [x] B8 — Scan-path equivalents of `AiKeyCorruptedError` / `AiAdvisorNotConfiguredError`
 
-### 7 — Camera capture, review prefill, attachment
+### 7 — Camera capture, review prefill, attachment ✅
 
-- [ ] B1 — `getUserMedia` live camera preview in the transaction dialog (HTTPS required on a real device; `localhost` is a secure context)
-- [ ] B2 — Capture → downscale to fit the 2 MB base64 cap → `POST /transactions/:familyGroupId/scan` (the param stops being ignored)
-- [ ] B3 — Real OCR result on the review screen → "Gunakan" prefills the form → user confirms → Simpan
-- [ ] B4 — Captured JPEG auto-attached via the existing post-create attachment flow
+- [x] B1 — `getUserMedia` live camera preview in the transaction dialog (HTTPS required on a real device; `localhost` is a secure context)
+- [x] B2 — Capture → downscale to fit the 2 MB base64 cap → `POST /transactions/:familyGroupId/scan` (the param stops being ignored)
+- [x] B3 — Real OCR result on the review screen → "Gunakan" prefills the form → user confirms → Simpan
+- [x] B4 — Captured JPEG auto-attached via the existing post-create attachment flow
 
 ## Acceptance Criteria
 
@@ -130,6 +130,60 @@ to the A/B numbering used in the Decisions table.
 Both groups merged to `development` with gates green; this file's Automation Log records the outcome per group.
 
 ## Automation Log
+
+- 2026-08-24 /task-work EPIC-027 #7 "Camera capture, review prefill, attachment"
+  → PASS (attempts: 2), PR: <PR_URL>. Stacked on the group 6 branch, since
+  it consumes that endpoint contract.
+  **The button was lying twice.** `startOcr` was two `setTimeout`s (2200 ms,
+  3400 ms) over a hardcoded Indomaret receipt with no network call at all —
+  and `saveOcr` closed the dialog with a success toast **without creating any
+  transaction**, so a user was told their money record was saved when nothing
+  was written. Both are deleted, along with `OCR_ITEMS`, the timers, and the
+  "OCR nyata menyusul" copy. Also removed: a ⚡Auto flash button that only
+  toasted "Flash: Auto" and did nothing.
+  Real flow now: `getUserMedia` rear-camera preview (D8) → canvas capture →
+  `encodeWithinCap` steps dimensions and JPEG quality over a bounded 20
+  iterations until the base64 fits the server's 2 MB cap, measured on the
+  actual encoded string rather than estimated → `POST /transactions/:id/scan`
+  → review screen → "Gunakan" prefills the form → the user confirms through
+  the ordinary create mutation (D9). Nothing is written before that; a test
+  asserts no POST fires from the review screen. The captured JPEG rides the
+  existing `attachmentFile` state into the existing post-create upload (D10),
+  not a second mechanism. Camera/downscale/scan logic lives in three new
+  `hooks/*` modules; the protected dialog only mounts and orchestrates.
+  Two reviewers independently found the same CRITICAL: `start()` had no
+  cancellation guard across `await getUserMedia`, so cancelling during the
+  permission prompt let the stream arrive afterwards, get adopted, and never
+  be stopped — the device camera light stays on after the user turned it off.
+  Fixed with a generation counter checked after the await on both the resolve
+  and reject paths. The implementer proved the fix by deleting both guards and
+  confirming the two new tests fail, then restoring. Two HIGHs also fixed: the
+  camera effect had no cleanup function (correctness depended on every call
+  site remembering to call `stopCamera` — now React guarantees it), and no
+  focus management across view swaps left keyboard/AT users on `<body>`.
+  Sharpest catch was a MEDIUM on the TEST, not the code: the new UTC-date
+  regression test was itself timezone-coupled, so under `TZ=UTC` — the default
+  on most CI runners — local and UTC getters are identical and the test passed
+  against the reintroduced bug. `jest.config.ts` now pins `TZ=Asia/Jakarta`
+  before the workers fork. Verified by mutation: with the old local-getter
+  implementation restored and `TZ=UTC` forced externally, the boundary test
+  now fails where it used to pass silently.
+  Deliberate deviation: the scan request does not use `apiFetch`. Protected
+  `lib/api-client.ts` keeps only `{status, message}` and drops `code`/`scope`/
+  `retryAfterSeconds`, which is exactly what distinguishes seven OCR failures —
+  three of which share HTTP 502. `postScanReceipt` mirrors it locally
+  (`uploadAttachment` precedent in the same file). Accepted cost: a scan-time
+  401 shows the server message instead of the sign-out redirect; the next
+  `apiFetch` call still redirects.
+  Gates: qa.sh exit 0, test.sh exit 0, API 107 suites / 1278 tests, web 50
+  suites / 505 tests (503 passed, 2 skipped, was 48/455), tsc + eslint +
+  prettier + web build clean. Security gate PASS; script still red only on the
+  pre-existing `deepmerge-ts` advisories, no dependency changed.
+  **Needs manual on-device verification** (cannot run in CI): real camera over
+  HTTPS incl. the indicator light going off after Gunakan/Batal/close; a real
+  ~4032×3024 frame landing under 2 MB and still legible; an end-to-end scan of
+  a real Indonesian receipt on each of claude/openai/gemini; the plain-HTTP
+  insecure-context message; and iOS Safari inline autoplay + permission flow.
 
 - 2026-08-24 /task-work EPIC-027 #6 "OCR provider factory on the family AI key"
   → PASS (attempts: 1), PR: https://github.com/andrsrjld/wealthme-web/pull/303.

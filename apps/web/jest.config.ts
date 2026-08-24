@@ -1,6 +1,17 @@
 import type { Config } from "jest";
 import nextJest from "next/jest.js";
 
+// EPIC-027 group 7 — pin the suite's timezone. `isoToDateInputValue`
+// (hooks/receipt-scan.ts) converts a UTC instant from the scan endpoint into
+// a date-input value, and its regression tests only expose a local-vs-UTC
+// getter mix-up when the host zone is NOT UTC. Most CI runners default to
+// UTC, where local and UTC getters are identical — the guard would silently
+// pass against a reintroduced bug. Jakarta is east of UTC and is the app's
+// actual user base, so the boundary cases stay meaningful everywhere.
+// Set here rather than in jest.setup.ts: this file is evaluated before the
+// workers are forked, so they inherit the value.
+process.env.TZ = "Asia/Jakarta";
+
 const createJestConfig = nextJest({
   // Provide the path to the Next.js app to load next.config.js and .env files.
   dir: "./",

@@ -1,16 +1,8 @@
 "use client";
 
-import { useId, useRef, useState, type ChangeEvent } from "react";
-import {
-  Camera,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Paperclip,
-  RotateCcw,
-  Save,
-  SquarePen,
-} from "lucide-react";
+import { useEffect, useId, useRef, useState, type ChangeEvent } from "react";
+import Link from "next/link";
+import { Camera, Check, Paperclip, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -23,10 +15,26 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { formatAmountInput, parseRupiah } from "@/lib/format";
+import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
 import { apiFetch, type ApiError } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
+import { useAiKeyStatus } from "@/hooks/use-ai-key";
+import {
+  useReceiptCamera,
+  type CameraErrorCode,
+} from "@/hooks/use-receipt-camera";
+import type { I18nDictionary } from "@/i18n/types";
+import {
+  base64ToJpegFile,
+  captureVideoFrameBase64,
+} from "@/hooks/receipt-image";
+import {
+  isoToDateInputValue,
+  postScanReceipt,
+  scanErrorMessage,
+  type ScanReceiptResult,
+} from "@/hooks/receipt-scan";
 import {
   ATTACHMENT_ACCEPTED_MIME_TYPES,
   ATTACHMENT_MAX_FILE_BYTES,
@@ -133,19 +141,22 @@ function extractApiErrorMessage(err: unknown, fallback: string): string {
     : fallback;
 }
 
-// Simulated scanned-receipt content (merchant name/address, item list, OCR
-// "detected" values) — this represents what the camera would read off a real
-// (Indonesian) receipt, not app UI chrome, so it intentionally stays
-// hardcoded in Indonesian regardless of the active locale (EPIC-018 A1).
-const OCR_ITEMS = [
-  ["AQUA 600ML", "Rp 5.000"],
-  ["INDOMIE GORENG", "Rp 3.500"],
-  ["ROTI TAWAR SARI ROTI", "Rp 12.500"],
-  ["TELUR AYAM 10'S", "Rp 20.000"],
-  ["MINYAK GORENG BIMOLI 1L", "Rp 17.000"],
-];
-
 type View = "form" | "ocr-scan" | "ocr-result";
+
+// EPIC-027 B1 — one message per camera failure. A denied permission, a
+// device with no camera, plain HTTP and "another app already has it" each
+// need a different action from the user, so none of them share a message.
+const CAMERA_ERROR_MESSAGES: Record<
+  CameraErrorCode,
+  (t: I18nDictionary) => string
+> = {
+  "insecure-context": (t) => t.shell.transactionDialog.cameraErrorInsecure,
+  unsupported: (t) => t.shell.transactionDialog.cameraErrorUnsupported,
+  "permission-denied": (t) => t.shell.transactionDialog.cameraErrorPermission,
+  "not-found": (t) => t.shell.transactionDialog.cameraErrorNotFound,
+  "in-use": (t) => t.shell.transactionDialog.cameraErrorInUse,
+  unknown: (t) => t.shell.transactionDialog.cameraErrorUnknown,
+};
 
 function stripLeadingIcon(value: string): string {
   return value.replace(/^[^A-Za-zÀ-ÿ0-9]+/u, "").trim();
@@ -176,9 +187,36 @@ export function TransactionDialog() {
   const [liabilityId, setLiabilityId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [description, setDescription] = useState("");
-  const [showReceipt, setShowReceipt] = useState(false);
-  const [showItems, setShowItems] = useState(false);
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // EPIC-027 B1-B4 (D8/D9/D10) — reviewed foundation exception, same basis
+  // as the E3/E4 and held-expense comments in this file. What used to live
+  // here was a simulation: two `setTimeout`s and a hardcoded Alfamart
+  // receipt, plus a "save" button that closed the dialog and toasted
+  // success WITHOUT creating any transaction. All of it is gone. The camera,
+  // the downscaler and the scan request live in `hooks/use-receipt-camera`,
+  // `hooks/receipt-image` and `hooks/receipt-scan`; this file only mounts
+  // and orchestrates them.
+  const [scanResult, setScanResult] = useState<ScanReceiptResult | null>(null);
+  // D10 — the exact frame that was OCR'd, kept so it can ride the EXISTING
+  // post-create attachment flow (`attachmentFile`) once the user confirms.
+  const [capturedFile, setCapturedFile] = useState<File | null>(null);
+  const [scanErrorText, setScanErrorText] = useState<string | null>(null);
+  // EPIC-027 group 7 review (HIGH) — focus management across the three
+  // views. Each swap unmounts the currently-focused control, which drops
+  // focus to `<body>`: inside a modal that strands keyboard and
+  // screen-reader users, and some ATs read it as the dialog having closed.
+  // Entering a view focuses its heading; returning to the form restores
+  // focus to the control that opened the scanner.
+  const scanTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const scanHeadingRef = useRef<HTMLDivElement | null>(null);
+  const resultHeadingRef = useRef<HTMLDivElement | null>(null);
+  const restoreScanTriggerFocusRef = useRef(false);
+  const {
+    videoRef: cameraVideoRef,
+    status: cameraStatus,
+    errorCode: cameraErrorCode,
+    start: startCamera,
+    stop: stopCamera,
+  } = useReceiptCamera();
 
   // EPIC-023 Task E retry (HIGH 3) — reviewed foundation exception, same
   // basis as the E3/E4 comment above `TAB_KINDS`: this dialog is a
@@ -200,10 +238,18 @@ export function TransactionDialog() {
   const dateFieldId = `${uid}-date`;
   const descriptionFieldId = `${uid}-description`;
   const attachmentFieldId = `${uid}-attachment`;
+  const scanHintId = `${uid}-scan-hint`;
+  const scanStatusId = `${uid}-scan-status`;
+  const scanAlertId = `${uid}-scan-alert`;
 
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
   const queryClient = useQueryClient();
+  // EPIC-027 B1 (D11) — receipt OCR runs on the family's own AI provider
+  // key, and only providers with a vision adapter can do it. When this is
+  // false the scan control is disabled WITH the reason and a link to
+  // Pengaturan — never a fabricated result.
+  const { scanAvailable } = useAiKeyStatus();
 
   const { data: me } = useQuery<MeResponse>({
     queryKey: [...queryKeys.auth.me(), token],
@@ -243,6 +289,12 @@ export function TransactionDialog() {
   const relevantCategories = categories.filter(
     (c) => c.kind === CATEGORY_KIND_BY_TAB[tabKind] || c.kind === "both",
   );
+  // EPIC-027 B3 (D13) — the review screen shows the family category the
+  // SERVER matched, resolved to its own name/icon. A null `categoryId` is
+  // never re-guessed from `categoryHint` here; that matching already ran.
+  const scanCategory = scanResult?.categoryId
+    ? (categories.find((c) => c.id === scanResult.categoryId) ?? null)
+    : null;
 
   const createMutation = useMutation({
     mutationFn: (dto: CreateTransactionInput) =>
@@ -315,6 +367,26 @@ export function TransactionDialog() {
     },
   });
 
+  // EPIC-027 B2 — the real scan call. `postScanReceipt` is a local `fetch`
+  // rather than `apiFetch` because the latter discards the response body's
+  // `code`/`scope`, which is precisely what distinguishes "no key
+  // configured" from "daily quota exhausted" (see hooks/receipt-scan.ts).
+  const scanMutation = useMutation({
+    mutationFn: (imageBase64: string) =>
+      postScanReceipt({ familyGroupId: fgId, imageBase64, token }),
+    onSuccess: (result) => {
+      setScanErrorText(null);
+      setScanResult(result);
+      // The preview has done its job; releasing the tracks here is what
+      // turns the device's camera light back off.
+      stopCamera();
+      setView("ocr-result");
+    },
+    onError: (err) => {
+      setScanErrorText(scanErrorMessage(err, t));
+    },
+  });
+
   // EPIC-023 Task E3 (D12) — a card purchase posts through the liability's
   // OWN endpoint, never `POST .../transactions`: it raises the card's debt
   // and never debits any account. Invalidates the same query keys a normal
@@ -360,11 +432,6 @@ export function TransactionDialog() {
     },
   });
 
-  const clearTimers = () => {
-    timers.current.forEach(clearTimeout);
-    timers.current = [];
-  };
-
   const resetForm = () => {
     setAmount("");
     setAccountId("");
@@ -377,25 +444,114 @@ export function TransactionDialog() {
     setAttachmentFile(null);
   };
 
+  const resetScan = () => {
+    setScanResult(null);
+    setCapturedFile(null);
+    setScanErrorText(null);
+  };
+
   const handleOpenChange = (open: boolean) => {
     setTxnOpen(open);
     if (!open) {
-      clearTimers();
+      // EPIC-027 B1 — closing the dialog must stop every track. A leaked
+      // MediaStream leaves the device's camera light on.
+      stopCamera();
+      resetScan();
       setView("form");
       setTab(1);
-      setShowReceipt(false);
-      setShowItems(false);
       resetForm();
     }
   };
 
-  const startOcr = () => {
-    clearTimers();
+  const startScan = () => {
+    resetScan();
     setView("ocr-scan");
-    setShowReceipt(false);
-    timers.current.push(setTimeout(() => setShowReceipt(true), 2200));
-    timers.current.push(setTimeout(() => setView("ocr-result"), 3400));
   };
+
+  const leaveScanView = () => {
+    stopCamera();
+    resetScan();
+    restoreScanTriggerFocusRef.current = true;
+    setView("form");
+  };
+
+  // The `<video>` element only exists once the scan view has rendered, so
+  // the camera is started from an effect rather than from the click handler.
+  //
+  // EPIC-027 group 7 review (HIGH) — the effect RETURNS `stopCamera`. It
+  // previously relied on every call site that moves `view` away from
+  // "ocr-scan" remembering to stop the camera first, which is an unenforced
+  // invariant: the next code path that sets `view` without it would leak the
+  // stream silently. React now guarantees the stop on view change and on
+  // unmount. The explicit `stopCamera()` calls below are kept as well —
+  // belt and braces is the right posture for a hardware resource.
+  useEffect(() => {
+    if (view !== "ocr-scan") return;
+    void startCamera();
+    return stopCamera;
+  }, [view, startCamera, stopCamera]);
+
+  useEffect(() => {
+    if (view === "ocr-scan") {
+      scanHeadingRef.current?.focus();
+      return;
+    }
+    if (view === "ocr-result") {
+      resultHeadingRef.current?.focus();
+      return;
+    }
+    if (restoreScanTriggerFocusRef.current) {
+      restoreScanTriggerFocusRef.current = false;
+      scanTriggerRef.current?.focus();
+    }
+  }, [view]);
+
+  const captureAndScan = () => {
+    const video = cameraVideoRef.current;
+    if (!video) return;
+    setScanErrorText(null);
+    let imageBase64: string;
+    try {
+      // B2 — downscales/re-encodes until the payload fits the API's 2 MB
+      // base64 cap, and returns it WITHOUT the `data:image/jpeg;base64,`
+      // prefix (`ScanReceiptDto` rejects the prefix by design).
+      imageBase64 = captureVideoFrameBase64(video);
+    } catch {
+      setScanErrorText(t.shell.transactionDialog.captureFailed);
+      return;
+    }
+    setCapturedFile(base64ToJpegFile(imageBase64, `struk-${Date.now()}.jpg`));
+    scanMutation.mutate(imageBase64);
+  };
+
+  // EPIC-027 B3 (D9) — "Gunakan" NEVER saves. It fills the ordinary form and
+  // hands control back to the user, who confirms through the existing create
+  // path (with its own validation, its own held-for-approval 202 handling,
+  // and its own attachment upload). There is no save-from-OCR shortcut.
+  const useScanResult = () => {
+    if (!scanResult) return;
+    // A receipt is a purchase, so the result lands on the Expense tab —
+    // where the category field (and the attachment field) actually exist.
+    setTab(1);
+    setAmount(formatAmountInput(String(Math.round(scanResult.amount))));
+    setDate(isoToDateInputValue(scanResult.occurredAt, date));
+    setDescription(scanResult.description);
+    // D13 — `categoryId` was matched against the family's REAL categories
+    // server-side. No match means blank; the raw `categoryHint` is never
+    // re-guessed client-side.
+    setCategoryId(scanResult.categoryId ?? "");
+    // D10 — the captured frame joins the existing post-create attachment
+    // flow instead of a second upload mechanism.
+    if (capturedFile) setAttachmentFile(capturedFile);
+    stopCamera();
+    restoreScanTriggerFocusRef.current = true;
+    setView("form");
+    toast(t.shell.transactionDialog.scanPrefilledToast);
+  };
+
+  const cameraErrorText = cameraErrorCode
+    ? CAMERA_ERROR_MESSAGES[cameraErrorCode](t)
+    : null;
 
   const isSaving = createMutation.isPending || purchaseMutation.isPending;
 
@@ -535,11 +691,6 @@ export function TransactionDialog() {
         },
       },
     );
-  };
-
-  const saveOcr = () => {
-    handleOpenChange(false);
-    toast.success(t.shell.transactionDialog.ocrSavedToast);
   };
 
   return (
@@ -741,7 +892,7 @@ export function TransactionDialog() {
                         {a.name}
                         {a.institution ? ` — ${a.institution}` : ""}
                       </option>
-                      ))}
+                    ))}
                   </select>
                   <span className="hint">
                     Master &amp; co-master melihat seluruh rekening keluarga.
@@ -850,19 +1001,26 @@ export function TransactionDialog() {
                           : "Unggah foto struk atau PDF — maks 5 MB"}
                       </span>
                     </label>
+                    {/* EPIC-027 B1 — gated on `scanAvailable` (a family AI
+                        key from a vision-capable provider). Disabled with
+                        the reason and a link to Pengaturan rather than
+                        offered and then failing: a control either does what
+                        it implies or says plainly that it can't. */}
                     <button
                       type="button"
-                      onClick={startOcr}
-                      className="notice notice--info m-0 min-h-[48px] min-w-[150px] flex-1 cursor-pointer items-center text-left"
+                      ref={scanTriggerRef}
+                      onClick={startScan}
+                      disabled={!scanAvailable}
+                      aria-describedby={scanHintId}
+                      className={cn(
+                        "notice notice--info m-0 min-h-[48px] min-w-[150px] flex-1 items-center text-left",
+                        scanAvailable
+                          ? "cursor-pointer"
+                          : "cursor-not-allowed opacity-60",
+                      )}
                     >
-                      <Camera
-                        className="size-4 shrink-0"
-                        aria-hidden="true"
-                      />
-                      <span>
-                        Scan Struk (Kamera) — nominal &amp; tanggal terisi
-                        otomatis
-                      </span>
+                      <Camera className="size-4 shrink-0" aria-hidden="true" />
+                      <span>{t.shell.transactionDialog.scanReceipt}</span>
                     </button>
                     <input
                       id={attachmentFieldId}
@@ -873,9 +1031,17 @@ export function TransactionDialog() {
                       className="sr-only"
                     />
                   </div>
-                  <span className="hint">
-                    Scan struk memakai kamera perangkat; OCR nyata menyusul di
-                    implementasi produksi.
+                  <span className="hint" id={scanHintId}>
+                    {scanAvailable ? (
+                      t.shell.transactionDialog.scanHint
+                    ) : (
+                      <>
+                        {t.shell.transactionDialog.scanUnavailable}{" "}
+                        <Link href="/akun" className="font-bold text-primary">
+                          {t.shell.transactionDialog.scanUnavailableLink}
+                        </Link>
+                      </>
+                    )}
                   </span>
                 </div>
               )}
@@ -906,7 +1072,10 @@ export function TransactionDialog() {
         {view === "ocr-scan" && (
           <div>
             <div className="flex items-center justify-between border-b px-[18px] py-4">
-              <div>
+              {/* Focus target on entering the scan view (see the focus
+                  effect above) — `tabIndex={-1}` makes it programmatically
+                  focusable without adding a tab stop. */}
+              <div ref={scanHeadingRef} tabIndex={-1} className="outline-none">
                 <DialogTitle className="text-[17px] font-extrabold">
                   {t.shell.transactionDialog.scanTitle}
                 </DialogTitle>
@@ -915,64 +1084,102 @@ export function TransactionDialog() {
                 </div>
               </div>
               <button
-                onClick={() => toast(t.shell.transactionDialog.flashToast)}
+                type="button"
+                onClick={leaveScanView}
                 className="rounded-md bg-slate-900/85 px-3 py-1.5 text-xs font-bold text-white"
               >
-                {t.shell.transactionDialog.autoButton}
+                {t.common.cancel}
               </button>
             </div>
             <div className="relative m-[18px] flex aspect-[3/4] items-center justify-center overflow-hidden rounded-[14px] bg-slate-950">
+              {/* EPIC-027 B1 (D8) — a real getUserMedia preview, not a
+                  native `<input capture>`. `muted` + `playsInline` are what
+                  let iOS Safari autoplay it inline at all. */}
+              <video
+                ref={cameraVideoRef}
+                data-testid="scan-camera-preview"
+                autoPlay
+                muted
+                playsInline
+                className="absolute inset-0 size-full object-cover"
+              />
               <Corner className="left-5 top-5 rounded-tl border-l-[3px] border-t-[3px]" />
               <Corner className="right-5 top-5 rounded-tr border-r-[3px] border-t-[3px]" />
               <Corner className="bottom-5 left-5 rounded-bl border-b-[3px] border-l-[3px]" />
               <Corner className="bottom-5 right-5 rounded-br border-b-[3px] border-r-[3px]" />
-              {!showReceipt && (
+              {scanMutation.isPending && (
                 <div className="animate-scan absolute left-5 right-5 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent" />
               )}
-              {showReceipt && (
-                <div className="mono w-[68%] rounded-lg bg-white p-4 text-[10px] leading-relaxed text-slate-800 shadow-2xl">
-                  <div className="text-center text-[13px] font-extrabold">
-                    Alfamart
-                  </div>
-                  <div className="text-center text-[10px]">
-                    ALFAMART PAHLAWAN
-                  </div>
-                  <div className="mb-1.5 text-center text-[10px] text-slate-500">
-                    Jl. Pahlawan Seribu No. 123
-                    <br />
-                    BSD City, Tangerang Selatan
-                  </div>
-                  <div className="my-1.5 border-t border-dashed border-slate-300" />
-                  <div>18/05/2025 14:32:15</div>
-                  <div>No. Struk: 250518143215</div>
-                  <div className="my-1.5 border-t border-dashed border-slate-300" />
-                  {OCR_ITEMS.map(([n, p]) => (
-                    <div key={n} className="flex justify-between">
-                      <span className="truncate pr-1">{n}</span>
-                      <span>{p.replace("Rp ", "")}</span>
-                    </div>
-                  ))}
-                  <div className="my-1.5 border-t border-dashed border-slate-300" />
-                  <div className="flex justify-between font-extrabold text-[11px]">
-                    <span>Total Belanja</span>
-                    <span>58.000</span>
-                  </div>
+              {(cameraErrorText || scanErrorText) && (
+                <div
+                  role="alert"
+                  id={scanAlertId}
+                  className="relative z-10 mx-6 rounded-lg bg-slate-900/90 p-4 text-center text-[12.5px] font-semibold leading-relaxed text-white backdrop-blur"
+                >
+                  {cameraErrorText ?? scanErrorText}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      cameraErrorText
+                        ? void startCamera()
+                        : setScanErrorText(null)
+                    }
+                    className="mt-3 block w-full rounded-md bg-white/15 py-2 text-xs font-bold"
+                  >
+                    {t.shell.transactionDialog.cameraRetry}
+                  </button>
                 </div>
               )}
-              <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-slate-900/85 px-4 py-2 text-xs font-semibold text-white backdrop-blur">
-                <span className="size-2 animate-pulse rounded-full bg-green-400" />
-                {showReceipt
-                  ? t.shell.transactionDialog.scanGuidanceReady
-                  : t.shell.transactionDialog.scanGuidanceScanning}
-              </div>
+              {!cameraErrorText && !scanErrorText && (
+                /* EPIC-027 group 7 review (MEDIUM) — the capture button is
+                   disabled while the camera is starting and while the scan
+                   is in flight. `aria-describedby` points at this pill so a
+                   screen-reader user hears WHY, instead of "button, dimmed"
+                   and an unassociated sibling — same treatment the "Scan
+                   Struk" trigger already gives its own disabled reason. */
+                <div
+                  id={scanStatusId}
+                  className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-slate-900/85 px-4 py-2 text-xs font-semibold text-white backdrop-blur"
+                >
+                  <span className="size-2 animate-pulse rounded-full bg-green-400" />
+                  {scanMutation.isPending
+                    ? t.shell.transactionDialog.scanGuidanceScanning
+                    : cameraStatus === "ready"
+                      ? t.shell.transactionDialog.scanGuidanceReady
+                      : t.shell.transactionDialog.scanStarting}
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col gap-2 px-[18px] pb-4">
+              <button
+                type="button"
+                onClick={captureAndScan}
+                disabled={cameraStatus !== "ready" || scanMutation.isPending}
+                aria-describedby={
+                  cameraErrorText || scanErrorText ? scanAlertId : scanStatusId
+                }
+                className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong disabled:opacity-60"
+              >
+                <Camera className="size-4" aria-hidden="true" />
+                {scanMutation.isPending
+                  ? t.shell.transactionDialog.scanGuidanceScanning
+                  : t.shell.transactionDialog.scanCapture}
+              </button>
             </div>
           </div>
         )}
 
-        {view === "ocr-result" && (
+        {/* EPIC-027 B3 (D9) — the REAL scan response. Reviewed, then used to
+            prefill the ordinary form; the user still confirms with Simpan.
+            Nothing is written from this screen. */}
+        {view === "ocr-result" && scanResult && (
           <div>
             <div className="flex items-center justify-between border-b px-[18px] py-3.5">
-              <div>
+              <div
+                ref={resultHeadingRef}
+                tabIndex={-1}
+                className="outline-none"
+              >
                 <DialogTitle className="text-sm font-extrabold">
                   {t.shell.transactionDialog.resultTitle}
                 </DialogTitle>
@@ -980,43 +1187,44 @@ export function TransactionDialog() {
                   {t.shell.transactionDialog.resultSubtitle}
                 </div>
               </div>
-              <button
-                onClick={() => toast(t.shell.transactionDialog.editManualToast)}
-                className="flex items-center gap-1.5 text-[12.5px] font-bold text-primary"
-              >
-                <SquarePen className="size-3.5" />{" "}
-                {t.shell.transactionDialog.editManual}
-              </button>
             </div>
             <div>
               <OcrRow
                 icon="📅"
                 label={t.shell.transactionDialog.dateLabel}
-                value="18 Mei 2025, 14:32"
-                trailing={
-                  <ChevronRight className="size-3 text-muted-foreground" />
-                }
+                value={isoToDateInputValue(scanResult.occurredAt, date)}
               />
               <OcrRow
                 icon="🏬"
                 label={t.shell.transactionDialog.merchantLabel}
-                value="Alfamart Pahlawan"
-                trailing={
-                  <ChevronRight className="size-3 text-muted-foreground" />
-                }
+                value={scanResult.description}
               />
               <OcrRow
                 icon="🏷️"
                 label={t.shell.transactionDialog.categoryLabel}
-                value="🛒 Belanja"
-                trailing={
-                  <ChevronRight className="size-3 text-muted-foreground" />
+                value={
+                  scanCategory ? (
+                    <>
+                      {scanCategory.icon ? `${scanCategory.icon} ` : ""}
+                      {scanCategory.name}
+                    </>
+                  ) : (
+                    <span className="font-medium text-muted-foreground">
+                      {scanResult.categoryHint
+                        ? `${scanResult.categoryHint} — ${t.shell.transactionDialog.categoryUnmatched}`
+                        : t.shell.transactionDialog.categoryUnmatched}
+                    </span>
+                  )
                 }
               />
               <OcrRow
                 icon="💵"
                 label={t.shell.transactionDialog.totalLabel}
-                value={<span className="text-destructive">Rp 58.000</span>}
+                value={
+                  <span className="text-destructive">
+                    {formatRupiah(scanResult.amount)}
+                  </span>
+                }
                 trailing={
                   <span className="flex items-center gap-1 rounded-full bg-success-soft px-2 py-[3px] text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
                     <Check className="size-3" />{" "}
@@ -1024,51 +1232,22 @@ export function TransactionDialog() {
                   </span>
                 }
               />
-              <button
-                onClick={() => setShowItems((s) => !s)}
-                className="w-full text-left"
-              >
-                <OcrRow
-                  icon="📋"
-                  label={t.shell.transactionDialog.detailItemLabel}
-                  value="5 item"
-                  trailing={
-                    <ChevronDown
-                      className={cn(
-                        "size-3 text-muted-foreground transition-transform",
-                        showItems && "rotate-180",
-                      )}
-                    />
-                  }
-                />
-              </button>
-              {showItems && (
-                <div className="bg-secondary px-4 pb-2.5">
-                  {OCR_ITEMS.map(([n, p]) => (
-                    <div
-                      key={n}
-                      className="flex justify-between border-b py-1 text-xs last:border-0"
-                    >
-                      <span>{n}</span>
-                      <span className="font-bold">{p}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
             <div className="flex flex-col gap-2 px-[18px] py-4">
               <button
-                onClick={saveOcr}
+                type="button"
+                onClick={useScanResult}
                 className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong"
               >
-                <Save className="size-4" />{" "}
-                {t.shell.transactionDialog.saveToTransaction}
+                <Check className="size-4" aria-hidden="true" />{" "}
+                {t.shell.transactionDialog.scanUse}
               </button>
               <button
-                onClick={startOcr}
+                type="button"
+                onClick={startScan}
                 className="flex w-full items-center justify-center gap-2 rounded-md py-2.5 text-[13.5px] font-bold text-primary transition-colors hover:bg-accent"
               >
-                <RotateCcw className="size-4" />{" "}
+                <RotateCcw className="size-4" aria-hidden="true" />{" "}
                 {t.shell.transactionDialog.scanAgain}
               </button>
             </div>
