@@ -292,6 +292,33 @@ export const en = {
       cameraErrorUnknown: "The camera could not be opened — try again.",
       cameraRetry: "Try again",
       captureFailed: "Could not capture the receipt photo — try again.",
+      // EPIC-027 B9–B11 — the upload path. One message per cause: what the
+      // user has to do about it differs each time.
+      scanUpload: "Upload Receipt",
+      scanUploadReading: "Reading the receipt file...",
+      scanNoCamera:
+        "No camera is available on this device — upload a photo of the receipt instead.",
+      scanUploadGuidance: "Pick a clear, uncropped photo of the receipt",
+      uploadErrorEmpty:
+        "The receipt file is empty (0 bytes) — pick another file.",
+      uploadErrorFileTooLarge:
+        "That file is too large (max 20 MB) — pick a smaller photo of the receipt.",
+      uploadErrorPdf:
+        "PDF files cannot be scanned yet. Save the receipt as an image (JPG or PNG) and upload it again.",
+      uploadErrorNotImage:
+        "That file is not an image — upload a receipt photo as JPG, PNG, or WEBP.",
+      uploadErrorHeic:
+        "This browser cannot read the iPhone HEIC format. Share or save the receipt photo as JPG, then upload it again.",
+      uploadErrorNoCanvas:
+        "This browser cannot process images — try a different browser.",
+      uploadErrorTooSmall:
+        "The image is too small to read — upload a higher-resolution photo of the receipt.",
+      uploadErrorTooLarge:
+        "The receipt image is still too large after shrinking — retake it or upload a different image.",
+      uploadErrorDecodeFailed:
+        "The image file could not be opened — it may be corrupt or still downloading.",
+      uploadErrorDimensions:
+        "The image resolution is too large for the browser to process — resize it and upload again.",
       // Scan failures — one per `code` from ocr-http-error.util.ts.
       scanErrorNotConfigured:
         "Receipt scanning needs a family AI provider key. A master or co-master can set one up in Settings.",

@@ -51,6 +51,25 @@ export function mapCameraError(err: unknown): CameraErrorCode {
   }
 }
 
+/**
+ * EPIC-027 B11 — is a camera even reachable here? A desktop browser with no
+ * webcam, an embedded WebView with no media permissions, or a page served
+ * over plain HTTP all leave `getUserMedia` unusable, and the scan surface
+ * used to dead-end on a camera error there. The dialog asks this BEFORE
+ * entering the scan view so it can offer the upload path directly instead of
+ * provoking an error first.
+ *
+ * `isSecureContext` is part of the answer: `getUserMedia` is only exposed in
+ * a secure context, and `localhost` counts as one.
+ */
+export function isCameraSupported(): boolean {
+  if (typeof navigator === "undefined") return false;
+  if (typeof window !== "undefined" && window.isSecureContext === false) {
+    return false;
+  }
+  return typeof navigator.mediaDevices?.getUserMedia === "function";
+}
+
 export type ReceiptCamera = {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   status: CameraStatus;

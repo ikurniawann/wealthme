@@ -530,6 +530,23 @@ export type I18nDictionary = {
       cameraErrorUnknown: string;
       cameraRetry: string;
       captureFailed: string;
+      // EPIC-027 B9-B11 — the upload path next to the camera. Each rejection
+      // has its own message: a HEIC from an iPhone, a PDF, a 30 MB video and
+      // a truncated PNG need four different actions from the user.
+      scanUpload: string;
+      scanUploadReading: string;
+      scanNoCamera: string;
+      scanUploadGuidance: string;
+      uploadErrorEmpty: string;
+      uploadErrorFileTooLarge: string;
+      uploadErrorPdf: string;
+      uploadErrorNotImage: string;
+      uploadErrorHeic: string;
+      uploadErrorNoCanvas: string;
+      uploadErrorTooSmall: string;
+      uploadErrorTooLarge: string;
+      uploadErrorDecodeFailed: string;
+      uploadErrorDimensions: string;
       /** One message per `code` from apps/api/.../ocr-http-error.util.ts. */
       scanErrorNotConfigured: string;
       scanErrorKeyCorrupted: string;

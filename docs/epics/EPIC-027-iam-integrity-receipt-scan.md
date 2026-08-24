@@ -104,6 +104,17 @@ to the A/B numbering used in the Decisions table.
 - [x] B3 — Real OCR result on the review screen → "Gunakan" prefills the form → user confirms → Simpan
 - [x] B4 — Captured JPEG auto-attached via the existing post-create attachment flow
 
+### 8 — Upload a receipt file for OCR (not only the camera)
+
+- [x] B9 — "Unggah Struk" alongside the camera in the scan view: pick an image
+      file, decode it, reuse `encodeWithinCap` to fit the 2 MB base64 cap, and
+      post it to the same scan endpoint
+- [x] B10 — Uploaded file flows through the SAME review → "Gunakan" → prefill →
+      user-confirms path as a capture (D9); the picked file is auto-attached to
+      the created transaction (D10)
+- [x] B11 — Desktop/no-camera reachability: the scan surface is usable when
+      `getUserMedia` is unavailable, instead of dead-ending on a camera error
+
 ## Acceptance Criteria
 
 - The permission matrix agrees with `casl-ability.factory.ts` for every role it displays.
@@ -130,6 +141,64 @@ to the A/B numbering used in the Decisions table.
 Both groups merged to `development` with gates green; this file's Automation Log records the outcome per group.
 
 ## Automation Log
+
+- 2026-08-24 /nerve EPIC-027 #8 "Upload a receipt file for OCR (not only the
+  camera)" → PASS (attempts: 3), PR: https://github.com/andrsrjld/wealthme-web/pull/307. Requested directly by the user
+  alongside the attachment bug: a button to upload a receipt file so OCR reads
+  it and fills the amount.
+  Camera-only scanning was unreachable on desktop and useless for a photo
+  already in the gallery. `receipt-file.ts` adds the upload pipeline;
+  everything after the decode is literally the camera's code — same
+  `encodeWithinCap`, same `postScanReceipt`, same review screen, same
+  `useScanResult` prefill, same `attachmentFile` → upload. One path, so the
+  202 held-expense handling cannot diverge (asserted by a test driven through
+  the upload trigger, not the camera).
+  The attachment stores the **re-encoded JPEG**, not the picked file: it is
+  exactly the bytes OCR read, so a later dispute is checked against the image
+  the model saw, and it is already under the 2 MB cap where a raw 8 MP original
+  could exceed the 5 MB attachment limit. HEIC/AVIF fall out of the same
+  conversion instead of needing a branch.
+  HEIC is deliberately NOT blocked up front — Safari decodes it, and refusing
+  it there would break the one platform where it works. It is allowed through
+  and only a _subsequent_ decode failure is reported as HEIC-specific; a
+  corrupt JPEG with the identical rejection gets its own message.
+  Three review rounds, every finding real. CRITICAL-adjacent HIGH: no
+  cancellation guard on the upload→scan chain, so abandoning a slow 8 MP decode
+  and reopening the dialog landed the user on a stale review screen for a scan
+  they cancelled. Fixed with a generation counter bumped inside `resetScan()` —
+  the one funnel every abandonment path already uses, so no call site has to
+  remember. HIGH: `receiptFileErrorMessage` used a `default` catch-all, so a
+  10th failure reason would silently show the wrong message; now `never`-checked
+  (proved by adding a literal and watching TS2322). MEDIUM from the security
+  gate: the 20 MB ceiling bounds FILE size, not PIXEL dimensions, and the code's
+  own comment claimed otherwise — a ~300 KB PNG declaring 30000×30000 asks for
+  ~3.6 GB. Now a 40 MP budget checked from the `<img>` intrinsic size before any
+  rasterisation, `createImageBitmap` given aspect-preserving `resizeWidth`/
+  `resizeHeight` so the full surface is never materialised, plus a pipeline
+  backstop. `bitmapResizeOptions` bounds the LONGEST edge — the obvious reading
+  (`resizeWidth` alone) would have left a 1000×100000 bomb at 256 MP.
+  **Two tests were caught passing for the wrong reason and rewritten**, which is
+  the part worth remembering: the `onError` cancellation test passed without its
+  guard until it was rebuilt around the genuinely observable case (back out,
+  REOPEN, then let the old request fail — painting the previous scan's error on
+  a fresh screen); and a group-7 test had left a `mockImplementation` in place
+  that `jest.clearAllMocks()` does not reset, so later tests silently saw a held
+  response. Reviewers traced the file order and confirmed no group-7 assertion
+  was actually vacuous, but the leak would have broken group 8's tests.
+  Residual, recorded honestly: reading `naturalWidth` without rasterising holds
+  on Chromium/Firefox/WebKit (dimensions sit in container headers) but is
+  implementation-defined, not guaranteed, and jsdom cannot test it. Worst case
+  on a divergent engine is the documented ~160 MB ceiling, not unbounded. A
+  browser smoke test would close it.
+  Gates: qa.sh 0, test.sh 0, API 107 suites / 1278 tests, web 51 suites / 569
+  tests (567 passed, 2 skipped — was 505 at the group-7 baseline), suite green
+  under `TZ=UTC` forced externally, `receipt-file.test.ts` green in isolation
+  (44) as well as in the full run.
+  **Needs manual device verification:** a real iPhone HEIC on iOS Safari (should
+  decode) vs desktop Chrome/Firefox (should show the HEIC message); a real
+  ~4032×3024 upload landing under 2 MB and still legible on each of
+  claude/openai/gemini; a PNG screenshot end to end; and the
+  desktop-without-webcam path in a real browser.
 
 - 2026-08-24 /task-work EPIC-027 #7 "Camera capture, review prefill, attachment"
   → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/304,

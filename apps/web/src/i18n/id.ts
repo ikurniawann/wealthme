@@ -296,6 +296,32 @@ export const id = {
       cameraErrorUnknown: "Kamera tidak bisa dibuka — coba lagi.",
       cameraRetry: "Coba lagi",
       captureFailed: "Foto struk gagal diambil — coba lagi.",
+      // EPIC-027 B9–B11 — unggah file struk. Satu pesan per penyebab: yang
+      // perlu dilakukan pengguna berbeda-beda.
+      scanUpload: "Unggah Struk",
+      scanUploadReading: "Membaca file struk...",
+      scanNoCamera:
+        "Kamera tidak tersedia di perangkat ini — unggah foto struk dari file.",
+      scanUploadGuidance: "Pilih foto struk yang jelas dan tidak terpotong",
+      uploadErrorEmpty: "File struk kosong (0 byte) — pilih file lain.",
+      uploadErrorFileTooLarge:
+        "Ukuran file terlalu besar (maks 20 MB) — pilih foto struk yang lebih kecil.",
+      uploadErrorPdf:
+        "File PDF belum bisa dipindai. Simpan struk sebagai gambar (JPG atau PNG) lalu unggah lagi.",
+      uploadErrorNotImage:
+        "File ini bukan gambar — unggah foto struk berformat JPG, PNG, atau WEBP.",
+      uploadErrorHeic:
+        "Format HEIC dari iPhone tidak bisa dibaca browser ini. Bagikan atau simpan foto struk sebagai JPG lalu unggah lagi.",
+      uploadErrorNoCanvas:
+        "Browser ini tidak bisa memproses gambar — coba browser lain.",
+      uploadErrorTooSmall:
+        "Gambar terlalu kecil untuk dibaca — unggah foto struk dengan resolusi lebih besar.",
+      uploadErrorTooLarge:
+        "Gambar struk tetap terlalu besar setelah dikecilkan — foto ulang atau unggah gambar lain.",
+      uploadErrorDecodeFailed:
+        "File gambar tidak bisa dibuka — mungkin rusak atau belum selesai diunduh.",
+      uploadErrorDimensions:
+        "Resolusi gambar terlalu besar untuk diproses browser — kecilkan gambarnya lalu unggah lagi.",
       // Scan failures — one per `code` from ocr-http-error.util.ts.
       scanErrorNotConfigured:
         "Scan struk butuh API key AI keluarga. Master atau co-master bisa mengaturnya di Pengaturan.",

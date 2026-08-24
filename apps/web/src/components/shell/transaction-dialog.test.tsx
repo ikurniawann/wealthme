@@ -100,31 +100,37 @@ let aiKeyStatus = {
   scanAvailable: false,
 };
 
-const mockApiFetch = jest.fn(
-  (url: string, options?: { method?: string; body?: string }) => {
-    const method = options?.method ?? "GET";
-    if (url === "/auth/me") {
-      return Promise.resolve({ familyGroupId: FAMILY_GROUP_ID });
-    }
-    if (url.endsWith("/ai-key")) return Promise.resolve(aiKeyStatus);
-    if (url === "/family-groups/mine") {
-      return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
-    }
-    if (url.endsWith("/accounts")) return Promise.resolve(ACCOUNTS);
-    if (url.endsWith("/categories")) return Promise.resolve(CATEGORIES);
-    if (url.endsWith("/liabilities")) return Promise.resolve(LIABILITIES);
-    if (method === "POST" && url.includes("/purchase")) {
-      return Promise.resolve({
-        id: "liab-card-1",
-        remainingBalance: "150000",
-      });
-    }
-    if (method === "POST" && url.endsWith("/transactions")) {
-      return Promise.resolve({ id: "tx-1" });
-    }
-    return Promise.resolve({});
-  },
-);
+// EPIC-027 group 8 — hoisted out of the `jest.fn(...)` call so a test that
+// overrides it (the held-expense branches call `mockImplementation`) can be
+// undone: `jest.clearAllMocks()` clears CALLS, not implementations, so the
+// override used to leak into every test that ran after it.
+const defaultApiFetch = (
+  url: string,
+  options?: { method?: string; body?: string },
+) => {
+  const method = options?.method ?? "GET";
+  if (url === "/auth/me") {
+    return Promise.resolve({ familyGroupId: FAMILY_GROUP_ID });
+  }
+  if (url.endsWith("/ai-key")) return Promise.resolve(aiKeyStatus);
+  if (url === "/family-groups/mine") {
+    return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
+  }
+  if (url.endsWith("/accounts")) return Promise.resolve(ACCOUNTS);
+  if (url.endsWith("/categories")) return Promise.resolve(CATEGORIES);
+  if (url.endsWith("/liabilities")) return Promise.resolve(LIABILITIES);
+  if (method === "POST" && url.includes("/purchase")) {
+    return Promise.resolve({
+      id: "liab-card-1",
+      remainingBalance: "150000",
+    });
+  }
+  if (method === "POST" && url.endsWith("/transactions")) {
+    return Promise.resolve({ id: "tx-1" });
+  }
+  return Promise.resolve({});
+};
+const mockApiFetch = jest.fn(defaultApiFetch);
 jest.mock("../../lib/api-client", () => ({
   apiFetch: (...args: Parameters<typeof mockApiFetch>) => mockApiFetch(...args),
 }));
@@ -139,6 +145,25 @@ jest.mock("../../hooks/receipt-image", () => ({
     () => "Y2FwdHVyZWRSZWNlaXB0Qnl0ZXNGb3JUZXN0aW5nMTIzNDU2Nzg5",
   ),
 }));
+
+// EPIC-027 B9 — jsdom decodes no images and offers no 2D canvas context, so
+// the real decode/encode steps can never run here. Only those two are
+// injected; the pipeline AROUND them (the metadata refusals, the HEIC
+// classification, the cap-fitting loop, the reason→message mapping) is the
+// real code, and keeps its own unit coverage in `hooks/receipt-file.test.ts`.
+const mockUploadDecode = jest.fn();
+const mockUploadEncode = jest.fn();
+jest.mock("../../hooks/receipt-file", () => {
+  const actual = jest.requireActual("../../hooks/receipt-file");
+  return {
+    ...actual,
+    encodeReceiptFileWithinCap: (file: File) =>
+      actual.encodeReceiptFileWithinCap(file, {
+        decode: mockUploadDecode,
+        encoderFor: () => mockUploadEncode,
+      }),
+  };
+});
 
 import { captureVideoFrameBase64 } from "../../hooks/receipt-image";
 import { isoToDateInputValue } from "../../hooks/receipt-scan";
@@ -170,6 +195,7 @@ function render(ui: ReactElement) {
 describe("TransactionDialog — credit-card tab and transfer category removal (EPIC-023 E3/E4)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockApiFetch.mockImplementation(defaultApiFetch);
     aiKeyStatus = {
       configured: false,
       provider: null,
@@ -295,6 +321,7 @@ describe("TransactionDialog — credit-card tab and transfer category removal (E
 describe("TransactionDialog — attachment upload (EPIC-024 Task L3, US-TXN-9)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockApiFetch.mockImplementation(defaultApiFetch);
     aiKeyStatus = {
       configured: false,
       provider: null,
@@ -522,6 +549,7 @@ describe("TransactionDialog — receipt scan (EPIC-027 B1-B4)", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockApiFetch.mockImplementation(defaultApiFetch);
     aiKeyStatus = {
       configured: true,
       provider: "claude",
@@ -1043,6 +1071,824 @@ describe("TransactionDialog — receipt scan (EPIC-027 B1-B4)", () => {
     await openScanView(user);
     unmount();
     tracks.forEach((track) => expect(track.stop).toHaveBeenCalled());
+
+    fetchSpy.mockRestore();
+  });
+});
+
+/**
+ * EPIC-027 group 8 (B9/B10/B11) — "saat scan struk belanja, tambah button
+ * untuk unggah file struk agar langsung dibaca OCR dan input nominal
+ * transaksi".
+ *
+ * The upload path is asserted to be the SAME path as the camera, not a
+ * parallel one: same endpoint, same review screen, same confirm-before-save
+ * (D9), same post-create attachment (D10). And each decode failure keeps its
+ * own message — a HEIC from an iPhone is a different problem from a corrupt
+ * file, and telling the user the wrong one wastes their time.
+ */
+describe("TransactionDialog — receipt upload (EPIC-027 B9-B11)", () => {
+  const SCAN_RESULT = {
+    amount: 58000,
+    description: "Alfamart Pahlawan",
+    occurredAt: "2025-05-18T07:32:15.000Z",
+    categoryHint: "belanja",
+    categoryId: "cat-1",
+  };
+  const SCAN_URL = `/family-groups/${FAMILY_GROUP_ID}/transactions/scan`;
+  /** Mirrors `ScanReceiptDto`'s `@Matches` on the API. */
+  const DTO_BASE64_SHAPE = /^[A-Za-z0-9+/_-]+={0,2}$/;
+
+  const dict = mockDictionary.shell.transactionDialog;
+
+  function pickFile(name: string, type: string, sizeBytes = 2048): void {
+    const file = new File(["receipt-bytes"], name, { type });
+    Object.defineProperty(file, "size", { value: sizeBytes });
+    fireEvent.change(screen.getByTestId("scan-upload-input"), {
+      target: { files: [file] },
+    });
+  }
+
+  function setScanResponse(response: Partial<Response>) {
+    return jest
+      .spyOn(global, "fetch")
+      .mockImplementation((input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/transactions/scan")) {
+          return Promise.resolve(response as Response);
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({}),
+        } as Response);
+      });
+  }
+
+  function okScan(body: unknown = SCAN_RESULT) {
+    return { ok: true, json: () => Promise.resolve(body) } as Partial<Response>;
+  }
+
+  function scanCallsOf(fetchSpy: jest.SpyInstance) {
+    return fetchSpy.mock.calls.filter(([url]) =>
+      String(url).includes("/transactions/scan"),
+    );
+  }
+
+  /** Opens the scan view without assuming a camera exists (B11). */
+  async function openScanView(user: ReturnType<typeof userEvent.setup>) {
+    const trigger = await screen.findByRole("button", {
+      name: dict.scanReceipt,
+    });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await screen.findByTestId("scan-upload-input");
+  }
+
+  let mockGetUserMedia: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockApiFetch.mockImplementation(defaultApiFetch);
+    // jsdom's environment exposes no `fetch`, and `jest.spyOn` refuses to
+    // stub a property that does not exist — same guard the Task L3 describe
+    // above uses, repeated here so this block passes when run in isolation
+    // (`-t`) instead of depending on an earlier describe having run.
+    if (!global.fetch) {
+      global.fetch = jest.fn();
+    }
+    aiKeyStatus = {
+      configured: true,
+      provider: "claude",
+      keyHint: "sk-...abcd",
+      scanAvailable: true,
+    };
+    Object.defineProperty(window, "isSecureContext", {
+      value: true,
+      configurable: true,
+    });
+    jest
+      .spyOn(HTMLMediaElement.prototype, "play")
+      .mockImplementation(() => Promise.resolve());
+    mockGetUserMedia = jest.fn(() =>
+      Promise.resolve({
+        getTracks: () => [{ stop: jest.fn() }],
+      } as unknown as MediaStream),
+    );
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: { getUserMedia: mockGetUserMedia },
+      configurable: true,
+    });
+    // A decodable 1200x900 image and a JPEG encoder whose payload grows with
+    // the pixel count, exactly like `canvas.toDataURL("image/jpeg")`.
+    mockUploadDecode.mockResolvedValue({
+      source: {},
+      width: 1200,
+      height: 900,
+      release: jest.fn(),
+    });
+    mockUploadEncode.mockImplementation(
+      ({
+        width,
+        height,
+        quality,
+      }: {
+        width: number;
+        height: number;
+        quality: number;
+      }) =>
+        `data:image/jpeg;base64,${"A".repeat(
+          Math.max(64, Math.round(width * height * quality * 0.02)),
+        )}`,
+    );
+  });
+
+  it("B9: posts an uploaded PNG to the same scan endpoint, re-encoded to a payload the DTO accepts", async () => {
+    const fetchSpy = setScanResponse(okScan());
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    await openScanView(user);
+    pickFile("struk-belanja.png", "image/png");
+
+    await waitFor(() =>
+      expect(
+        fetchSpy.mock.calls.some(([url]) => String(url).includes(SCAN_URL)),
+      ).toBe(true),
+    );
+    const [, options] = scanCallsOf(fetchSpy)[0] as [string, RequestInit];
+    const posted = JSON.parse(String(options.body)) as { imageBase64: string };
+
+    // A PNG screenshot of a receipt reaches the vision adapters as JPEG
+    // base64 — never relabelled, never sent with its data-URL prefix.
+    expect(posted.imageBase64.startsWith("data:")).toBe(false);
+    expect(posted.imageBase64).toMatch(DTO_BASE64_SHAPE);
+    expect(posted.imageBase64.length).toBeGreaterThanOrEqual(32);
+    expect(posted.imageBase64.length).toBeLessThanOrEqual(2_097_152);
+    // The camera was never involved.
+    expect(captureVideoFrameBase64).not.toHaveBeenCalled();
+  });
+
+  it("B9: an 8 MP phone photo is shrunk to fit the cap instead of being rejected", async () => {
+    mockUploadDecode.mockResolvedValue({
+      source: {},
+      width: 4032,
+      height: 3024,
+      release: jest.fn(),
+    });
+    // ~20x heavier per pixel: the first candidates blow past the cap.
+    mockUploadEncode.mockImplementation(
+      ({
+        width,
+        height,
+        quality,
+      }: {
+        width: number;
+        height: number;
+        quality: number;
+      }) =>
+        `data:image/jpeg;base64,${"A".repeat(
+          Math.max(64, Math.round(width * height * quality * 1.4)),
+        )}`,
+    );
+    const fetchSpy = setScanResponse(okScan());
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    await openScanView(user);
+    pickFile("IMG_2201.jpg", "image/jpeg", 4 * 1024 * 1024);
+
+    await waitFor(() => expect(scanCallsOf(fetchSpy)).toHaveLength(1));
+    const [, options] = scanCallsOf(fetchSpy)[0] as [string, RequestInit];
+    const posted = JSON.parse(String(options.body)) as { imageBase64: string };
+    expect(posted.imageBase64.length).toBeLessThanOrEqual(2_097_152);
+  });
+
+  it.each([
+    [
+      "an iPhone HEIC this browser cannot decode",
+      "IMG_0042.HEIC",
+      "",
+      () => mockUploadDecode.mockRejectedValue(new Error("cannot decode")),
+      dict.uploadErrorHeic,
+    ],
+    [
+      "a corrupt image",
+      "rusak.jpg",
+      "image/jpeg",
+      () => mockUploadDecode.mockRejectedValue(new Error("cannot decode")),
+      dict.uploadErrorDecodeFailed,
+    ],
+    [
+      "a non-image file",
+      "laporan.docx",
+      "application/msword",
+      () => undefined,
+      dict.uploadErrorNotImage,
+    ],
+    [
+      "a PDF",
+      "struk.pdf",
+      "application/pdf",
+      () => undefined,
+      dict.uploadErrorPdf,
+    ],
+  ])(
+    "B9: %s gets its own message and never reaches the scan endpoint",
+    async (_label, name, type, arrange, expected) => {
+      arrange();
+      const fetchSpy = setScanResponse(okScan());
+      const user = userEvent.setup();
+      render(<TransactionDialog />);
+
+      await openScanView(user);
+      pickFile(name, type);
+
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent(expected);
+      expect(scanCallsOf(fetchSpy)).toHaveLength(0);
+      // No fabricated result either.
+      expect(screen.queryByText(dict.scanUse)).not.toBeInTheDocument();
+    },
+  );
+
+  it("B9: a zero-byte file says so, and is never decoded", async () => {
+    const fetchSpy = setScanResponse(okScan());
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    await openScanView(user);
+    pickFile("kosong.jpg", "image/jpeg", 0);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      dict.uploadErrorEmpty,
+    );
+    expect(mockUploadDecode).not.toHaveBeenCalled();
+    expect(scanCallsOf(fetchSpy)).toHaveLength(0);
+  });
+
+  it("B9: a small file declaring enormous dimensions is refused, and never reaches the network", async () => {
+    // EPIC-027 group 8 security review (MEDIUM) — a 300 KB PNG can declare
+    // 30000x30000 and clear the byte ceiling; rasterising it is ~3.6 GB.
+    mockUploadDecode.mockResolvedValue({
+      source: {},
+      width: 30_000,
+      height: 30_000,
+      release: jest.fn(),
+    });
+    const fetchSpy = setScanResponse(okScan());
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    await openScanView(user);
+    pickFile("bom.png", "image/png", 300 * 1024);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      dict.uploadErrorDimensions,
+    );
+    expect(mockUploadEncode).not.toHaveBeenCalled();
+    expect(scanCallsOf(fetchSpy)).toHaveLength(0);
+
+    fetchSpy.mockRestore();
+  });
+
+  it("B9: a 50 MB file is refused BEFORE decoding, so the tab never locks up", async () => {
+    const fetchSpy = setScanResponse(okScan());
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    await openScanView(user);
+    pickFile("besar.jpg", "image/jpeg", 50 * 1024 * 1024);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      dict.uploadErrorFileTooLarge,
+    );
+    expect(mockUploadDecode).not.toHaveBeenCalled();
+    expect(scanCallsOf(fetchSpy)).toHaveLength(0);
+  });
+
+  it("B10 (D9): an uploaded receipt lands on the same review screen and creates nothing until the user confirms", async () => {
+    const fetchSpy = setScanResponse(okScan());
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    await openScanView(user);
+    pickFile("struk.png", "image/png");
+
+    // The SAME review screen the camera produces.
+    expect(await screen.findByText("Alfamart Pahlawan")).toBeInTheDocument();
+    expect(screen.getByText("Rp 58.000")).toBeInTheDocument();
+
+    const created = () =>
+      mockApiFetch.mock.calls.some(
+        ([url, opts]) =>
+          opts?.method === "POST" && String(url).endsWith("/transactions"),
+      );
+    expect(created()).toBe(false);
+
+    await user.click(screen.getByRole("button", { name: dict.scanUse }));
+
+    // Still nothing written — only the ordinary form is filled in.
+    expect(created()).toBe(false);
+    expect(screen.getByPlaceholderText("250.000")).toHaveValue("58.000");
+    expect(
+      await screen.findByRole("combobox", { name: "Kategori" }),
+    ).toHaveValue("cat-1");
+    expect(screen.getByLabelText(dict.dateLabel)).toHaveValue(
+      isoToDateInputValue(SCAN_RESULT.occurredAt, ""),
+    );
+
+    fetchSpy.mockRestore();
+  });
+
+  it("B10 (D13): an uploaded receipt with no category match leaves the category blank", async () => {
+    const fetchSpy = setScanResponse(
+      okScan({ ...SCAN_RESULT, categoryId: null }),
+    );
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    await openScanView(user);
+    pickFile("struk.png", "image/png");
+
+    expect(
+      await screen.findByText(new RegExp(dict.categoryUnmatched)),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: dict.scanUse }));
+    expect(
+      await screen.findByRole("combobox", { name: "Kategori" }),
+    ).toHaveValue("");
+
+    fetchSpy.mockRestore();
+  });
+
+  it("B10 (D10): the RE-ENCODED JPEG — not the picked PNG — is attached after the transaction is created", async () => {
+    const fetchSpy = setScanResponse(okScan());
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    await openScanView(user);
+    pickFile("struk-belanja.png", "image/png");
+    await user.click(await screen.findByRole("button", { name: dict.scanUse }));
+
+    // Queued on the ORDINARY attachment field, as a JPEG.
+    expect(await screen.findByText(/struk-\d+\.jpg/)).toBeInTheDocument();
+
+    await user.selectOptions(
+      await screen.findByRole("combobox", { name: "Akun" }),
+      "acc-1",
+    );
+    await user.click(screen.getByRole("button", { name: "Simpan" }));
+
+    await waitFor(() =>
+      expect(
+        fetchSpy.mock.calls.some(([url]) =>
+          String(url).includes(`/transactions/tx-1/attachments`),
+        ),
+      ).toBe(true),
+    );
+    const uploadCall = fetchSpy.mock.calls.find(([url]) =>
+      String(url).includes("/attachments"),
+    ) as [string, RequestInit];
+    const uploaded = (uploadCall[1].body as FormData).get("file") as File;
+    // JPEG is what the vision adapters read AND what the attachment
+    // endpoint's magic-byte sniffing accepts — the original PNG name/type
+    // never reaches storage.
+    expect(uploaded.type).toBe("image/jpeg");
+    expect(uploaded.name).toMatch(/^struk-\d+\.jpg$/);
+    expect(uploaded.name).not.toContain("struk-belanja.png");
+
+    fetchSpy.mockRestore();
+  });
+
+  it("B10: a 202 held expense from an uploaded receipt is never reported as saved and uploads no attachment", async () => {
+    mockApiFetch.mockImplementation(
+      (url: string, options?: { method?: string; body?: string }) => {
+        const method = options?.method ?? "GET";
+        if (url === "/auth/me") {
+          return Promise.resolve({ familyGroupId: FAMILY_GROUP_ID });
+        }
+        if (url.endsWith("/ai-key")) return Promise.resolve(aiKeyStatus);
+        if (url === "/family-groups/mine") {
+          return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
+        }
+        if (url.endsWith("/accounts")) return Promise.resolve(ACCOUNTS);
+        if (url.endsWith("/categories")) return Promise.resolve(CATEGORIES);
+        if (url.endsWith("/liabilities")) return Promise.resolve(LIABILITIES);
+        if (method === "POST" && url.endsWith("/transactions")) {
+          return Promise.resolve({ held: true });
+        }
+        return Promise.resolve({});
+      },
+    );
+    const fetchSpy = setScanResponse(okScan());
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    await openScanView(user);
+    pickFile("struk.png", "image/png");
+    await user.click(await screen.findByRole("button", { name: dict.scanUse }));
+    await user.selectOptions(
+      await screen.findByRole("combobox", { name: "Akun" }),
+      "acc-1",
+    );
+    await user.click(screen.getByRole("button", { name: "Simpan" }));
+
+    await waitFor(() =>
+      expect(mockToastSuccess).toHaveBeenCalledWith(dict.heldToast),
+    );
+    expect(mockToastSuccess).not.toHaveBeenCalledWith(dict.savedToast);
+    expect(
+      fetchSpy.mock.calls.some(([url]) => String(url).includes("/attachments")),
+    ).toBe(false);
+
+    fetchSpy.mockRestore();
+  });
+
+  it("B11: with no getUserMedia at all, upload is reachable and the camera is never started", async () => {
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: undefined,
+      configurable: true,
+    });
+    const fetchSpy = setScanResponse(okScan());
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    await openScanView(user);
+
+    // No dead end: no camera preview, no camera error, and the screen says
+    // what it can actually do here.
+    expect(screen.queryByTestId("scan-camera-preview")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: dict.scanCapture }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByText(dict.scanNoCamera)).toBeInTheDocument();
+    expect(mockGetUserMedia).not.toHaveBeenCalled();
+
+    // And the upload still runs the whole flow.
+    pickFile("struk.png", "image/png");
+    expect(await screen.findByText("Alfamart Pahlawan")).toBeInTheDocument();
+    expect(scanCallsOf(fetchSpy)).toHaveLength(1);
+
+    fetchSpy.mockRestore();
+  });
+
+  it("B11: a denied camera permission still leaves the upload control usable", async () => {
+    mockGetUserMedia.mockRejectedValue(
+      Object.assign(new Error("denied"), { name: "NotAllowedError" }),
+    );
+    const fetchSpy = setScanResponse(okScan());
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    await openScanView(user);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      dict.cameraErrorPermission,
+    );
+
+    pickFile("struk.png", "image/png");
+    expect(await screen.findByText("Alfamart Pahlawan")).toBeInTheDocument();
+    expect(scanCallsOf(fetchSpy)).toHaveLength(1);
+
+    fetchSpy.mockRestore();
+  });
+
+  it("B9 (D11): with no vision-capable family key, neither camera nor upload can start a scan", async () => {
+    aiKeyStatus = {
+      configured: true,
+      provider: "claude",
+      keyHint: "sk-...abcd",
+      scanAvailable: false,
+    };
+    const fetchSpy = setScanResponse(okScan());
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    const trigger = await screen.findByRole("button", {
+      name: dict.scanReceipt,
+    });
+    await waitFor(() => expect(trigger).toBeDisabled());
+    await user.click(trigger);
+
+    // The scan surface never opens, so there is no upload control to abuse…
+    expect(screen.queryByTestId("scan-upload-input")).not.toBeInTheDocument();
+    expect(mockGetUserMedia).not.toHaveBeenCalled();
+    expect(scanCallsOf(fetchSpy)).toHaveLength(0);
+
+    fetchSpy.mockRestore();
+  });
+});
+
+/**
+ * EPIC-027 group 8 review (HIGH) — the abandonment race on the SCAN chain.
+ *
+ * Both halves are slow enough for the user to outlive: decoding an 8 MP
+ * upload, then the OCR round trip. `use-receipt-camera.ts` already guards
+ * the stream with a generation counter; nothing guarded the scan itself, so
+ * a result arriving after the user backed out would set `scanResult` and
+ * force `view` to "ocr-result" — dropping them onto a review screen for a
+ * receipt they abandoned. Nothing is ever CREATED (D9 holds regardless);
+ * what these assert is that the dialog's state is not moved behind the
+ * user's back.
+ */
+describe("TransactionDialog — abandoned scan never steers the dialog (EPIC-027 group 8 review)", () => {
+  const SCAN_RESULT = {
+    amount: 58000,
+    description: "Alfamart Pahlawan",
+    occurredAt: "2025-05-18T07:32:15.000Z",
+    categoryHint: "belanja",
+    categoryId: "cat-1",
+  };
+  const dict = mockDictionary.shell.transactionDialog;
+
+  let mockGetUserMedia: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockApiFetch.mockImplementation(defaultApiFetch);
+    if (!global.fetch) {
+      global.fetch = jest.fn();
+    }
+    aiKeyStatus = {
+      configured: true,
+      provider: "claude",
+      keyHint: "sk-...abcd",
+      scanAvailable: true,
+    };
+    Object.defineProperty(window, "isSecureContext", {
+      value: true,
+      configurable: true,
+    });
+    jest
+      .spyOn(HTMLMediaElement.prototype, "play")
+      .mockImplementation(() => Promise.resolve());
+    mockGetUserMedia = jest.fn(() =>
+      Promise.resolve({
+        getTracks: () => [{ stop: jest.fn() }],
+      } as unknown as MediaStream),
+    );
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: { getUserMedia: mockGetUserMedia },
+      configurable: true,
+    });
+    mockUploadDecode.mockResolvedValue({
+      source: {},
+      width: 1200,
+      height: 900,
+      release: jest.fn(),
+    });
+    mockUploadEncode.mockImplementation(
+      ({
+        width,
+        height,
+        quality,
+      }: {
+        width: number;
+        height: number;
+        quality: number;
+      }) =>
+        `data:image/jpeg;base64,${"A".repeat(
+          Math.max(64, Math.round(width * height * quality * 0.02)),
+        )}`,
+    );
+  });
+
+  function expectNoReviewScreen() {
+    expect(screen.queryByText("Alfamart Pahlawan")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: dict.scanUse }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(dict.resultTitle)).not.toBeInTheDocument();
+  }
+
+  it("a DECODE that finishes after the user backs out never opens the review screen", async () => {
+    // The decode is parked: this is the 8 MP-photo window, the longest in
+    // the whole flow.
+    let finishDecode: (image: unknown) => void = () => {};
+    mockUploadDecode.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishDecode = resolve;
+        }),
+    );
+    const fetchSpy = jest.spyOn(global, "fetch").mockImplementation(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(SCAN_RESULT),
+      } as Response),
+    );
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    const trigger = await screen.findByRole("button", {
+      name: dict.scanReceipt,
+    });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    const file = new File(["receipt-bytes"], "struk.png", {
+      type: "image/png",
+    });
+    Object.defineProperty(file, "size", { value: 2048 });
+    fireEvent.change(screen.getByTestId("scan-upload-input"), {
+      target: { files: [file] },
+    });
+
+    // The user gives up while it is still decoding.
+    await user.click(screen.getByRole("button", { name: "Batal" }));
+    expect(screen.getByPlaceholderText("250.000")).toBeInTheDocument();
+
+    // …and only THEN does the decode land.
+    await act(async () => {
+      finishDecode({
+        source: {},
+        width: 1200,
+        height: 900,
+        release: jest.fn(),
+      });
+    });
+
+    // The abandoned upload is dropped: no request, no review screen, and
+    // the ordinary form is still what the user is looking at.
+    expect(
+      fetchSpy.mock.calls.some(([url]) =>
+        String(url).includes("/transactions/scan"),
+      ),
+    ).toBe(false);
+    expectNoReviewScreen();
+    expect(screen.getByPlaceholderText("250.000")).toBeInTheDocument();
+
+    fetchSpy.mockRestore();
+  });
+
+  it("a SCAN RESPONSE that arrives after the user backs out never opens the review screen (upload path)", async () => {
+    let finishScan: (res: Response) => void = () => {};
+    const fetchSpy = jest
+      .spyOn(global, "fetch")
+      .mockImplementation((input: RequestInfo | URL) => {
+        if (String(input).includes("/transactions/scan")) {
+          return new Promise<Response>((resolve) => {
+            finishScan = resolve;
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({}),
+        } as Response);
+      });
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    const trigger = await screen.findByRole("button", {
+      name: dict.scanReceipt,
+    });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    const file = new File(["receipt-bytes"], "struk.png", {
+      type: "image/png",
+    });
+    Object.defineProperty(file, "size", { value: 2048 });
+    fireEvent.change(screen.getByTestId("scan-upload-input"), {
+      target: { files: [file] },
+    });
+    await waitFor(() =>
+      expect(
+        fetchSpy.mock.calls.some(([url]) =>
+          String(url).includes("/transactions/scan"),
+        ),
+      ).toBe(true),
+    );
+
+    // The request is in flight; the user backs out.
+    await user.click(screen.getByRole("button", { name: "Batal" }));
+    expect(screen.getByPlaceholderText("250.000")).toBeInTheDocument();
+
+    await act(async () => {
+      finishScan({
+        ok: true,
+        json: () => Promise.resolve(SCAN_RESULT),
+      } as Response);
+    });
+
+    expectNoReviewScreen();
+    // And no transaction was created by any of it.
+    expect(
+      mockApiFetch.mock.calls.some(
+        ([url, opts]) =>
+          opts?.method === "POST" && String(url).endsWith("/transactions"),
+      ),
+    ).toBe(false);
+
+    fetchSpy.mockRestore();
+  });
+
+  it("a SCAN RESPONSE that arrives after the user backs out never opens the review screen (camera path)", async () => {
+    let finishScan: (res: Response) => void = () => {};
+    const fetchSpy = jest
+      .spyOn(global, "fetch")
+      .mockImplementation((input: RequestInfo | URL) => {
+        if (String(input).includes("/transactions/scan")) {
+          return new Promise<Response>((resolve) => {
+            finishScan = resolve;
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({}),
+        } as Response);
+      });
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    const trigger = await screen.findByRole("button", {
+      name: dict.scanReceipt,
+    });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: dict.scanCapture }),
+      ).toBeEnabled(),
+    );
+    await user.click(screen.getByRole("button", { name: dict.scanCapture }));
+    await waitFor(() =>
+      expect(
+        fetchSpy.mock.calls.some(([url]) =>
+          String(url).includes("/transactions/scan"),
+        ),
+      ).toBe(true),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Batal" }));
+
+    await act(async () => {
+      finishScan({
+        ok: true,
+        json: () => Promise.resolve(SCAN_RESULT),
+      } as Response);
+    });
+
+    expectNoReviewScreen();
+
+    fetchSpy.mockRestore();
+  });
+
+  it("an ERROR that arrives after the user backs out does not alert on a screen they left", async () => {
+    let failScan: (res: Response) => void = () => {};
+    const fetchSpy = jest
+      .spyOn(global, "fetch")
+      .mockImplementation((input: RequestInfo | URL) => {
+        if (String(input).includes("/transactions/scan")) {
+          return new Promise<Response>((resolve) => {
+            failScan = resolve;
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({}),
+        } as Response);
+      });
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    const trigger = await screen.findByRole("button", {
+      name: dict.scanReceipt,
+    });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await user.click(trigger);
+    const file = new File(["receipt-bytes"], "struk.png", {
+      type: "image/png",
+    });
+    Object.defineProperty(file, "size", { value: 2048 });
+    fireEvent.change(screen.getByTestId("scan-upload-input"), {
+      target: { files: [file] },
+    });
+    await waitFor(() =>
+      expect(
+        fetchSpy.mock.calls.some(([url]) =>
+          String(url).includes("/transactions/scan"),
+        ),
+      ).toBe(true),
+    );
+
+    // The user backs out and then opens the scanner AGAIN — a fresh attempt,
+    // which is when a stale failure is actually visible: `resetScan()` on
+    // re-entry clears the error, so an unguarded `onError` firing AFTER that
+    // paints the old scan's failure onto the new screen.
+    await user.click(screen.getByRole("button", { name: "Batal" }));
+    await user.click(screen.getByRole("button", { name: dict.scanReceipt }));
+    await screen.findByTestId("scan-upload-input");
+
+    await act(async () => {
+      failScan({
+        ok: false,
+        status: 504,
+        statusText: "Gateway Timeout",
+        json: () => Promise.resolve({ code: "OCR_TIMEOUT" }),
+      } as Response);
+    });
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByText(dict.scanErrorTimeout)).not.toBeInTheDocument();
 
     fetchSpy.mockRestore();
   });
