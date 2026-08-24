@@ -6,7 +6,10 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 
-import { AllExceptionsFilter } from "./all-exceptions.filter";
+import {
+  AllExceptionsFilter,
+  PAYLOAD_TOO_LARGE_CODE,
+} from "./all-exceptions.filter";
 
 import type { ArgumentsHost } from "@nestjs/common";
 
@@ -117,6 +120,78 @@ describe("AllExceptionsFilter — the real HTTP response body, not the exception
     const { host, statusMock, jsonMock } = buildHost();
 
     filter.catch(new Error("some internal detail"), host);
+
+    expect(statusMock).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+    const body = jsonMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(body).not.toHaveProperty("code");
+    expect(body.message).toBe("Internal server error");
+  });
+
+  /**
+   * Body-parser's own error shape. Reproduced literally (a plain Error with
+   * `status`/`statusCode`/`type`, NOT an HttpException) rather than mocked
+   * through the filter's helper, because the shape is exactly what the
+   * filter used to miss — it fell through to the generic 500 branch and the
+   * client showed "something went wrong" for "your file is too big".
+   */
+  function payloadTooLargeError(): Error {
+    return Object.assign(new Error("request entity too large"), {
+      status: 413,
+      statusCode: 413,
+      type: "entity.too.large",
+      expose: true,
+      length: 3_000_000,
+      limit: 2_113_536,
+    });
+  }
+
+  it("maps body-parser's PayloadTooLargeError to a real 413 with a stable code", () => {
+    const { host, statusMock, jsonMock } = buildHost();
+
+    filter.catch(payloadTooLargeError(), host);
+
+    expect(statusMock).toHaveBeenCalledWith(HttpStatus.PAYLOAD_TOO_LARGE);
+    const body = jsonMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(body.statusCode).toBe(413);
+    expect(body.code).toBe(PAYLOAD_TOO_LARGE_CODE);
+  });
+
+  it("maps it on `type` alone, in case a parser version omits the status fields", () => {
+    const { host, statusMock } = buildHost();
+
+    filter.catch(
+      Object.assign(new Error("request entity too large"), {
+        type: "entity.too.large",
+      }),
+      host,
+    );
+
+    expect(statusMock).toHaveBeenCalledWith(HttpStatus.PAYLOAD_TOO_LARGE);
+  });
+
+  it("never leaks the parser's internals on the 413 body", () => {
+    const { host, jsonMock } = buildHost();
+
+    filter.catch(payloadTooLargeError(), host);
+
+    const body = jsonMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    const serialized = JSON.stringify(body);
+    expect(serialized).not.toMatch(/entity\.too\.large/i);
+    expect(serialized).not.toMatch(/entity too large/i);
+    // Our own configured limit is not a thing a client needs (or is told).
+    expect(serialized).not.toContain("2113536");
+    expect(body.message).toBe(
+      "Data yang dikirim terlalu besar — kecilkan ukuran file atau foto lalu coba lagi.",
+    );
+  });
+
+  it("leaves an unrelated non-HttpException error on the generic 500 path", () => {
+    const { host, statusMock, jsonMock } = buildHost();
+
+    filter.catch(
+      Object.assign(new Error("boom"), { type: "entity.parse.failed" }),
+      host,
+    );
 
     expect(statusMock).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
     const body = jsonMock.mock.calls[0]?.[0] as Record<string, unknown>;

@@ -46,11 +46,62 @@ function extractCode(exception: HttpException): string | undefined {
   return undefined;
 }
 
+/**
+ * Stable `code` for a body that exceeded the transport limit. Mirrored in
+ * `apps/web/src/hooks/receipt-scan.ts` so the client can say "the image is
+ * too large" instead of a generic failure — rename on one side only and the
+ * web falls back to the generic branch.
+ */
+export const PAYLOAD_TOO_LARGE_CODE = "PAYLOAD_TOO_LARGE";
+
+/**
+ * Body-parser rejects an oversized body with a `PayloadTooLargeError`: a
+ * plain `Error`, NOT an `HttpException`, carrying `status`/`statusCode` 413
+ * and `type: "entity.too.large"`. This filter only reads `getStatus()` off a
+ * real `HttpException`, so every one of those used to be reported as a
+ * generic 500 — the client showed "something went wrong" for what is really
+ * "your file is too big, send a smaller one".
+ *
+ * Normalized into a genuine 413 `HttpException` here, with a `code` the web
+ * app can branch on, following the same convention `toScanHttpException`
+ * already uses. The message is written for a user: no path, no parser
+ * internals, no byte counts of our own configuration.
+ */
+function asPayloadTooLarge(exception: unknown): HttpException | undefined {
+  if (exception instanceof HttpException) return undefined;
+  if (!exception || typeof exception !== "object") return undefined;
+
+  const candidate = exception as {
+    type?: unknown;
+    status?: unknown;
+    statusCode?: unknown;
+  };
+  const isTooLarge =
+    candidate.type === "entity.too.large" ||
+    candidate.status === HttpStatus.PAYLOAD_TOO_LARGE ||
+    candidate.statusCode === HttpStatus.PAYLOAD_TOO_LARGE;
+  if (!isTooLarge) return undefined;
+
+  return new HttpException(
+    {
+      statusCode: HttpStatus.PAYLOAD_TOO_LARGE,
+      code: PAYLOAD_TOO_LARGE_CODE,
+      message:
+        "Data yang dikirim terlalu besar — kecilkan ukuran file atau foto lalu coba lagi.",
+    },
+    HttpStatus.PAYLOAD_TOO_LARGE,
+  );
+}
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
 
-  catch(exception: unknown, host: ArgumentsHost): void {
+  catch(rawException: unknown, host: ArgumentsHost): void {
+    // A body-parser overflow arrives as a bare Error; everything below treats
+    // it as the 413 HttpException it should have been all along.
+    const exception = asPayloadTooLarge(rawException) ?? rawException;
+
     const ctx = host.switchToHttp();
     const request = ctx.getRequest<Request>();
     const response = ctx.getResponse<Response>();

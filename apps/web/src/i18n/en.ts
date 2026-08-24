@@ -336,6 +336,8 @@ export const en = {
       scanErrorParseFailed:
         "The receipt could not be read — retake the photo with better lighting.",
       scanErrorUpstream: "The receipt scan failed — try again shortly.",
+      scanErrorPayloadTooLarge:
+        "The photo is too large to send — retake it or pick a smaller image, then try again.",
       attachmentLabel: "Attachment",
       attachmentPlaceholder: "Choose file (JPG, PNG, WEBP, or PDF, max 5MB)",
       attachmentSelected: "File selected: ",

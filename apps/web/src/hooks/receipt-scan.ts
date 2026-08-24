@@ -100,6 +100,15 @@ export function scanErrorMessage(err: unknown, t: I18nDictionary): string {
       return dict.scanErrorParseFailed;
     case "OCR_UPSTREAM_FAILED":
       return dict.scanErrorUpstream;
+    // Not from `ocr-http-error.util.ts` — this one comes from the API's
+    // global filter when the JSON body exceeds the transport limit
+    // (`PAYLOAD_TOO_LARGE_CODE` in all-exceptions.filter.ts). Defensive:
+    // `encodeWithinCap` in `receipt-image.ts` already downscales below the
+    // 2 MiB cap, so a well-behaved client never sends one. If it happens
+    // anyway, "scan gagal" would send the user back to retry the exact
+    // same too-big image forever — say what is actually wrong instead.
+    case "PAYLOAD_TOO_LARGE":
+      return dict.scanErrorPayloadTooLarge;
     default:
       // No recognised code (a 401, a network failure, a proxy error page):
       // show whatever the server said rather than inventing a cause.
