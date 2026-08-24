@@ -128,7 +128,7 @@ Merged to `development` with gates green; this file's Automation Log records the
 ## Automation Log
 
 - 2026-08-24 /nerve EPIC-029 #4 "Encrypted XLSX + password-protected ZIP"
-  → PASS (attempts: 3), PR: <PR_URL>. Requested directly by the user:
+  → PASS (attempts: 3), PR: https://github.com/andrsrjld/wealthme-web/pull/309. Requested directly by the user:
   "kebanyakan bank e-statement di protect password".
   Sequenced first, ahead of groups 1-3, because both formats decrypt to real
   bytes and go straight to the UNCHANGED server parser — reconciliation works
