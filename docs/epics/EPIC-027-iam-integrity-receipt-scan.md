@@ -132,7 +132,7 @@ Both groups merged to `development` with gates green; this file's Automation Log
 ## Automation Log
 
 - 2026-08-24 /task-work EPIC-027 #6 "OCR provider factory on the family AI key"
-  → PASS (attempts: 1), PR: <PR_URL>.
+  → PASS (attempts: 1), PR: https://github.com/andrsrjld/wealthme-web/pull/303.
   **The scan path was answering with `Math.random()`.** `TransactionsModule`
   bound `OCR_PORT` from `ANTHROPIC_API_KEY` and fell back to
   `MockOcrService` when unset — the exact mock-answer-as-truth mode D16
