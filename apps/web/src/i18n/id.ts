@@ -3250,6 +3250,49 @@ export const id = {
       "Tidak bisa mendeteksi kolom tanggal/keterangan/jumlah secara otomatis. Simpan template pemetaan kolom untuk bank ini terlebih dahulu, atau pilih bank saat mengunggah.",
     uploadErrorNoSavedTemplate:
       "Belum ada template pemetaan kolom untuk bank ini — buat template terlebih dahulu.",
+    protectedDialogTitle: "File ini terkunci password",
+    protectedDialogDescXlsx:
+      "File Excel ini dilindungi password. Masukkan password statement dari bank Anda — password diproses di perangkat ini saja dan tidak pernah dikirim ke server.",
+    protectedDialogDescZip:
+      "File ZIP ini dilindungi password. Masukkan password statement dari bank Anda — password diproses di perangkat ini saja dan tidak pernah dikirim ke server.",
+    protectedPasswordLabel: "Password file",
+    protectedPasswordPlaceholder: "Password dari bank",
+    protectedPasswordHint:
+      "Biasanya tanggal lahir, nomor kartu, atau nomor rekening sesuai instruksi di email bank Anda.",
+    protectedShowPassword: "Tampilkan password",
+    protectedHidePassword: "Sembunyikan password",
+    protectedSubmitButton: "Buka File",
+    protectedCancelButton: "Batal",
+    protectedUnlockingLabel: "Membuka file…",
+    protectedCalloutTitle: "File terkunci password?",
+    protectedCalloutBody:
+      "File Excel (.xlsx) dan ZIP yang dikunci password bisa langsung diunggah — kami akan meminta passwordnya dan membukanya di perangkat Anda. Passwordnya tidak pernah dikirim ke server kami.",
+    protectedErrorEmptyFile:
+      "File ini kosong (0 byte) — coba unduh ulang dari aplikasi/situs bank Anda.",
+    protectedErrorFileTooLarge:
+      "Ukuran file melebihi 20MB — unduh statement per periode yang lebih pendek.",
+    protectedErrorPasswordRequired:
+      "File ini terkunci password — masukkan password statement Anda untuk membukanya.",
+    protectedErrorWrongPassword:
+      "Password salah — file tidak bisa dibuka. Periksa kembali instruksi password di email bank Anda, lalu coba lagi.",
+    protectedErrorUnsupportedEncryption:
+      "Jenis enkripsi file ini belum didukung. Buka file di Excel, lalu simpan ulang sebagai .xlsx tanpa password (atau ekspor sebagai CSV).",
+    protectedErrorCryptoUnavailable:
+      "Browser ini tidak menyediakan fungsi kriptografi yang dibutuhkan (biasanya karena halaman dibuka tanpa HTTPS). Buka aplikasi lewat alamat HTTPS, lalu coba lagi.",
+    protectedErrorCorruptFile:
+      "File ini tidak bisa dibaca — kemungkinan rusak atau belum selesai terunduh. Unduh ulang dari aplikasi/situs bank Anda.",
+    protectedErrorIntegrityFailure:
+      "Password benar, tetapi isi file tidak cocok dengan tanda keasliannya — file kemungkinan berubah atau rusak setelah diterbitkan bank. Demi keamanan, file ini tidak kami proses. Unduh ulang langsung dari aplikasi/situs bank Anda.",
+    protectedErrorIntegrityMissing:
+      "File ini tidak menyertakan tanda keaslian, jadi kami tidak bisa memastikan isinya belum diubah. Demi keamanan, file ini tidak kami proses. Unduh ulang langsung dari aplikasi/situs bank Anda, atau ekspor mutasi sebagai CSV.",
+    protectedErrorZipNoStatement:
+      "Tidak ada file .csv atau .xlsx di dalam ZIP ini — pastikan Anda mengunggah arsip statement dari bank.",
+    protectedErrorZipMultipleStatements:
+      "ZIP ini berisi lebih dari satu file statement. Ekstrak dulu, lalu unggah satu file saja agar tidak salah periode.",
+    protectedErrorZipEntryTooLarge:
+      "Isi ZIP ini terlalu besar setelah diekstrak — unggah file statement-nya langsung, atau pilih periode yang lebih pendek.",
+    protectedErrorDecryptedTooLarge:
+      "Setelah dibuka, ukuran file melebihi batas 20MB — unduh statement per periode yang lebih pendek.",
     toastScanFailedDefault: "Gagal memindai entri",
     toastConfirmed: "Entri berhasil dikonfirmasi!",
     toastConfirmFailedDefault: "Gagal mengkonfirmasi",

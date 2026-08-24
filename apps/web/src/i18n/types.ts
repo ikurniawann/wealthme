@@ -3070,6 +3070,36 @@ export type I18nDictionary = {
     uploadErrorZeroValidRows: string;
     uploadErrorNoAutoDetectMapping: string;
     uploadErrorNoSavedTemplate: string;
+    /* EPIC-029 group 4 — client-side decryption of a password-protected
+       statement (E4b/E4c). Every failure reason gets its own actionable
+       sentence; `protectedErrorWrongPassword` in particular must never
+       collapse into the corrupt-file message. */
+    protectedDialogTitle: string;
+    protectedDialogDescXlsx: string;
+    protectedDialogDescZip: string;
+    protectedPasswordLabel: string;
+    protectedPasswordPlaceholder: string;
+    protectedPasswordHint: string;
+    protectedShowPassword: string;
+    protectedHidePassword: string;
+    protectedSubmitButton: string;
+    protectedCancelButton: string;
+    protectedUnlockingLabel: string;
+    protectedCalloutTitle: string;
+    protectedCalloutBody: string;
+    protectedErrorEmptyFile: string;
+    protectedErrorFileTooLarge: string;
+    protectedErrorPasswordRequired: string;
+    protectedErrorWrongPassword: string;
+    protectedErrorUnsupportedEncryption: string;
+    protectedErrorCryptoUnavailable: string;
+    protectedErrorCorruptFile: string;
+    protectedErrorIntegrityFailure: string;
+    protectedErrorIntegrityMissing: string;
+    protectedErrorZipNoStatement: string;
+    protectedErrorZipMultipleStatements: string;
+    protectedErrorZipEntryTooLarge: string;
+    protectedErrorDecryptedTooLarge: string;
     toastScanFailedDefault: string;
     toastConfirmed: string;
     toastConfirmFailedDefault: string;
