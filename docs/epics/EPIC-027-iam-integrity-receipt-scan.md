@@ -132,7 +132,7 @@ Both groups merged to `development` with gates green; this file's Automation Log
 ## Automation Log
 
 - 2026-08-24 /task-work EPIC-027 #7 "Camera capture, review prefill, attachment"
-  → PASS (attempts: 2), PR: <PR_URL>. Stacked on the group 6 branch, since
+  → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/304. Stacked on the group 6 branch, since
   it consumes that endpoint contract.
   **The button was lying twice.** `startOcr` was two `setTimeout`s (2200 ms,
   3400 ms) over a hardcoded Indomaret receipt with no network call at all —
