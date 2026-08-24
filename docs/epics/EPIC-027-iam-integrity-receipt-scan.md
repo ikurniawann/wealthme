@@ -132,8 +132,21 @@ Both groups merged to `development` with gates green; this file's Automation Log
 ## Automation Log
 
 - 2026-08-24 /task-work EPIC-027 #7 "Camera capture, review prefill, attachment"
-  → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/304. Stacked on the group 6 branch, since
-  it consumes that endpoint contract.
+  → PASS (attempts: 2), PR: https://github.com/andrsrjld/wealthme-web/pull/304,
+  re-landed on `development` via
+  https://github.com/andrsrjld/wealthme-web/pull/305. Stacked on the group 6
+  branch, since it consumes that endpoint contract.
+  **Stacking hazard, recorded so it is not repeated.** #303 and #304 were
+  merged 13 seconds apart. GitHub retargets a stacked PR's base only when that
+  base branch is DELETED, so #304 merged into `feat/epic-027-task-6-…` rather
+  than `development` — both PRs reported MERGED with green checks while
+  `development` held the backend alone (`git ls-tree origin/development
+apps/web/src/hooks/` returned no `receipt-*` files). Deploying at that point
+  would have shipped a real OCR backend behind a still-simulated button. Fixed
+  by #305, whose only conflict was this Automation Log — #303 squash-merged, so
+  the group 6 content is on `development` without its commits, and the residual
+  code diff was group 7 alone. Merge stacked PRs one at a time and confirm the
+  child's base flipped to `development` before merging it.
   **The button was lying twice.** `startOcr` was two `setTimeout`s (2200 ms,
   3400 ms) over a hardcoded Indomaret receipt with no network call at all —
   and `saveOcr` closed the dialog with a success toast **without creating any
