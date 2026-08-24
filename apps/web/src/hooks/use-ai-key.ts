@@ -20,6 +20,14 @@ export type AiKeyStatusDto = {
   configured: boolean;
   provider: AiProvider | null;
   keyHint: string | null;
+  // EPIC-027 B5/B1 (D11) — "a key is configured AND its provider has a
+  // vision adapter". Receipt OCR runs on this same family key, so the scan
+  // control is gated on this rather than on `configured` alone (a provider
+  // without a vision adapter would fail at the API with
+  // OCR_NOT_CONFIGURED). Optional here so an older API response, which
+  // predates the field, degrades to "scan unavailable" instead of `undefined`
+  // being read as truthy.
+  scanAvailable?: boolean;
 };
 
 type FamilyGroupMine = { id: string; myRole: string };
@@ -79,6 +87,7 @@ export function useAiKeyStatus() {
         configured: false,
         provider: null,
         keyHint: null,
+        scanAvailable: false,
       } satisfies AiKeyStatusDto);
     },
   });
@@ -87,6 +96,9 @@ export function useAiKeyStatus() {
     configured: data?.configured ?? false,
     provider: data?.provider ?? null,
     keyHint: data?.keyHint ?? null,
+    // EPIC-027 B1 — receipt scanning needs a vision-capable provider, which
+    // is a strictly narrower condition than `configured`.
+    scanAvailable: data?.scanAvailable ?? false,
     canManage,
     isLoading,
     isError,

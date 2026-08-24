@@ -474,7 +474,6 @@ export type I18nDictionary = {
       // EPIC-023 Task D (D3/D9, US-FAM-14) — held pending approval, not a
       // success.
       heldToast: string;
-      ocrSavedToast: string;
       title: string;
       manualInput: string;
       scanReceipt: string;
@@ -504,20 +503,43 @@ export type I18nDictionary = {
       saveAndAddMore: string;
       scanTitle: string;
       scanSubtitle: string;
-      flashToast: string;
-      autoButton: string;
       scanGuidanceReady: string;
       scanGuidanceScanning: string;
       resultTitle: string;
       resultSubtitle: string;
-      editManualToast: string;
-      editManual: string;
       merchantLabel: string;
       totalLabel: string;
       detectedBadge: string;
-      detailItemLabel: string;
-      saveToTransaction: string;
       scanAgain: string;
+      // EPIC-027 B1-B4 (D8/D9/D10) — real getUserMedia capture, real OCR
+      // result, review-then-prefill. The simulated receipt (and the keys
+      // that only existed to narrate it) is gone.
+      scanCapture: string;
+      scanStarting: string;
+      scanUse: string;
+      scanPrefilledToast: string;
+      scanHint: string;
+      scanUnavailable: string;
+      scanUnavailableLink: string;
+      categoryUnmatched: string;
+      cameraErrorInsecure: string;
+      cameraErrorUnsupported: string;
+      cameraErrorPermission: string;
+      cameraErrorNotFound: string;
+      cameraErrorInUse: string;
+      cameraErrorUnknown: string;
+      cameraRetry: string;
+      captureFailed: string;
+      /** One message per `code` from apps/api/.../ocr-http-error.util.ts. */
+      scanErrorNotConfigured: string;
+      scanErrorKeyCorrupted: string;
+      scanErrorAuth: string;
+      scanErrorRateLimited: string;
+      scanErrorRateLimitedRetryIn: string;
+      scanErrorRateLimitedDaily: string;
+      scanErrorTimeout: string;
+      scanErrorParseFailed: string;
+      scanErrorUpstream: string;
       // EPIC-024 Task L3 (US-TXN-9) — receipt/photo attachment on the
       // manual-entry form (income/expense/transfer tabs only; the card tab
       // posts through liabilities.purchase(), which returns no
