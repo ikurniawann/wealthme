@@ -3189,6 +3189,49 @@ export const en = {
       "Couldn't auto-detect the date/description/amount columns. Save a column-mapping template for this bank first, or pick a bank when uploading.",
     uploadErrorNoSavedTemplate:
       "There's no saved column-mapping template for this bank yet — create one first.",
+    protectedDialogTitle: "This file is password-protected",
+    protectedDialogDescXlsx:
+      "This Excel file is password-protected. Enter the statement password from your bank — it is processed on this device only and is never sent to our server.",
+    protectedDialogDescZip:
+      "This ZIP file is password-protected. Enter the statement password from your bank — it is processed on this device only and is never sent to our server.",
+    protectedPasswordLabel: "File password",
+    protectedPasswordPlaceholder: "Password from your bank",
+    protectedPasswordHint:
+      "Usually your date of birth, card number, or account number, per the instructions in your bank's email.",
+    protectedShowPassword: "Show password",
+    protectedHidePassword: "Hide password",
+    protectedSubmitButton: "Unlock File",
+    protectedCancelButton: "Cancel",
+    protectedUnlockingLabel: "Unlocking file…",
+    protectedCalloutTitle: "File locked with a password?",
+    protectedCalloutBody:
+      "Password-protected Excel (.xlsx) and ZIP files can be uploaded directly — we'll ask for the password and unlock the file on your device. The password is never sent to our server.",
+    protectedErrorEmptyFile:
+      "This file is empty (0 bytes) — try downloading it again from your bank's app or site.",
+    protectedErrorFileTooLarge:
+      "The file is larger than 20MB — download the statement for a shorter period.",
+    protectedErrorPasswordRequired:
+      "This file is password-protected — enter your statement password to open it.",
+    protectedErrorWrongPassword:
+      "Wrong password — the file could not be opened. Check the password instructions in your bank's email and try again.",
+    protectedErrorUnsupportedEncryption:
+      "This file's encryption type isn't supported yet. Open it in Excel and re-save it as .xlsx without a password (or export it as CSV).",
+    protectedErrorCryptoUnavailable:
+      "This browser doesn't expose the cryptography it needs (usually because the page was opened without HTTPS). Open the app over HTTPS and try again.",
+    protectedErrorCorruptFile:
+      "This file can't be read — it's likely damaged or incompletely downloaded. Download it again from your bank's app or site.",
+    protectedErrorIntegrityFailure:
+      "The password was correct, but the file's contents don't match its integrity signature — it was likely altered or damaged after your bank issued it. We won't process it. Download it again directly from your bank's app or site.",
+    protectedErrorIntegrityMissing:
+      "This file carries no integrity signature, so we can't confirm its contents haven't been changed. We won't process it. Download it again directly from your bank's app or site, or export the statement as CSV.",
+    protectedErrorZipNoStatement:
+      "There's no .csv or .xlsx inside this ZIP — make sure you're uploading the statement archive from your bank.",
+    protectedErrorZipMultipleStatements:
+      "This ZIP contains more than one statement file. Extract it first and upload a single file, so the wrong period can't be imported.",
+    protectedErrorZipEntryTooLarge:
+      "The contents of this ZIP are too large once extracted — upload the statement file directly, or pick a shorter period.",
+    protectedErrorDecryptedTooLarge:
+      "Once unlocked, the file is larger than the 20MB limit — download the statement for a shorter period.",
     toastScanFailedDefault: "Failed to scan entries",
     toastConfirmed: "Entry confirmed successfully!",
     toastConfirmFailedDefault: "Failed to confirm",

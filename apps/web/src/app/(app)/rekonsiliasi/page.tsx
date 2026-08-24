@@ -20,6 +20,9 @@ import {
   CheckCheck,
   ReceiptText,
   TriangleAlert,
+  Lock,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 // EPIC-026 Wave 5 note — the prototype's rekonsiliasi page mounts NO chart
 // at all (its <script> block loads only shell.js); the composition card is
@@ -43,6 +46,17 @@ import {
   CardLink,
 } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
+// EPIC-029 group 4 — client-side unlock of a password-protected statement.
+// Only the taxonomy/orchestration module is imported statically; both
+// decryptors sit behind `await import(...)` inside it (E4e).
+import {
+  StatementFileError,
+  inspectStatementFile,
+  needsPassword,
+  prepareStatementFile,
+  statementFileErrorMessage,
+  type StatementFileKind,
+} from "@/hooks/statement-file";
 import { apiFetch } from "@/lib/api-client";
 import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
@@ -1089,6 +1103,20 @@ export default function RekonsiliasiPage() {
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  /* ─── EPIC-029 group 4 (E4b/E4c/E4d) — password-protected statements ───
+     The password lives HERE and nowhere else: component state, cleared the
+     moment the prompt closes, the file changes, or the upload succeeds. It
+     is never persisted, never logged, and never added to a request — what
+     the upload mutation receives is the DECRYPTED file (E8/E10). */
+  const [protectedFile, setProtectedFile] = React.useState<{
+    file: File;
+    kind: StatementFileKind;
+  } | null>(null);
+  const [filePassword, setFilePassword] = React.useState("");
+  const [showFilePassword, setShowFilePassword] = React.useState(false);
+  const [unlockError, setUnlockError] = React.useState<string | null>(null);
+  const [unlocking, setUnlocking] = React.useState(false);
+
   // EPIC-023 G2 (D17) — column-mapping templates: read is available to
   // whoever can already upload/reconcile (member+); the manager dialog
   // (create/update/delete) is owner/admin_staff/spouse-level, mirroring
@@ -1197,15 +1225,80 @@ export default function RekonsiliasiPage() {
     },
   });
 
+  /** E4d — the single place the password is discarded. Called on cancel, on
+   *  a new pick, and on a successful unlock, so it never outlives the one
+   *  upload it was typed for. */
+  const clearPasswordState = React.useCallback(() => {
+    setProtectedFile(null);
+    setFilePassword("");
+    setShowFilePassword(false);
+    setUnlockError(null);
+    setUnlocking(false);
+  }, []);
+
+  /**
+   * Decrypt/extract client-side if needed, then upload the PLAINTEXT result
+   * through the unchanged mutation. `password` is passed by value and is
+   * never stored anywhere by `prepareStatementFile`.
+   */
+  const runUpload = React.useCallback(
+    async (file: File, password: string | undefined) => {
+      setLastUploadSkippedRows([]);
+      setLastUploadSkippedRowsTotal(0);
+      setUnlockError(null);
+      setUnlocking(true);
+      setUploading(true);
+      let prepared: File;
+      try {
+        prepared = await prepareStatementFile(file, password);
+      } catch (err) {
+        setUnlocking(false);
+        setUploading(false);
+        const message = statementFileErrorMessage(err, t);
+        const reason =
+          err instanceof StatementFileError ? err.reason : "corrupt-file";
+        if (password !== undefined || reason === "password-required") {
+          // The prompt is open (or must open): keep it open and say
+          // precisely what went wrong, so a wrong password is retryable
+          // without re-picking the file.
+          setUnlockError(message);
+          return;
+        }
+        toast.error(message);
+        return;
+      }
+      setUnlocking(false);
+      clearPasswordState();
+      uploadMutation.mutate(prepared, {
+        onSettled: () => setUploading(false),
+      });
+    },
+    [clearPasswordState, t, uploadMutation],
+  );
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    // Reset the input so re-picking the SAME file after a wrong password
+    // still fires `change`.
+    e.target.value = "";
     if (!file) return;
-    setUploading(true);
-    setLastUploadSkippedRows([]);
-    setLastUploadSkippedRowsTotal(0);
-    uploadMutation.mutate(file, {
-      onSettled: () => setUploading(false),
-    });
+    clearPasswordState();
+    void (async () => {
+      let kind: StatementFileKind;
+      try {
+        kind = await inspectStatementFile(file);
+      } catch (err) {
+        toast.error(statementFileErrorMessage(err, t));
+        return;
+      }
+      // E4b/E4c — prompt ONLY when the file's own magic bytes say it is
+      // encrypted. An ordinary CSV/XLSX is never asked for a password.
+      if (needsPassword(kind)) {
+        setProtectedFile({ file, kind });
+        return;
+      }
+      await runUpload(file, undefined);
+    })();
   }
 
   function handleUploadAreaClick() {
@@ -1488,7 +1581,7 @@ export default function RekonsiliasiPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv,.xlsx,.pdf"
+                accept=".csv,.xlsx,.pdf,.zip"
                 className="sr-only"
                 onChange={handleFileChange}
               />
@@ -1521,6 +1614,9 @@ export default function RekonsiliasiPage() {
                   <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
                     XLSX
                   </span>
+                  <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                    ZIP
+                  </span>
                 </div>
               </button>
 
@@ -1534,6 +1630,18 @@ export default function RekonsiliasiPage() {
                   {t.rekonsiliasi.formatCalloutTitle}
                 </span>{" "}
                 {t.rekonsiliasi.formatCalloutBody}
+              </div>
+              {/* EPIC-029 group 4 — the password story, stated up front so a
+                  locked file does not look like a rejected one. The PDF
+                  callout below is deliberately untouched: group 1 owns it. */}
+              <div className="mt-2 flex items-start gap-2 rounded-lg border border-primary/30 bg-accent/50 px-3.5 py-3 text-[12px] text-primary-strong">
+                <Lock className="mt-0.5 size-3.5 shrink-0" />
+                <div>
+                  <span className="font-bold">
+                    {t.rekonsiliasi.protectedCalloutTitle}
+                  </span>{" "}
+                  {t.rekonsiliasi.protectedCalloutBody}
+                </div>
               </div>
               <div className="mt-2 rounded-lg border border-destructive/30 bg-red-50 px-3.5 py-3 text-[12px] text-red-800 dark:bg-red-950/30 dark:text-red-300">
                 <span className="font-bold">
@@ -2333,6 +2441,101 @@ export default function RekonsiliasiPage() {
         onClose={() => setSplitEntryTarget(null)}
         onSuccess={handleSplitSuccess}
       />
+
+      {/* EPIC-029 group 4 (E4d) — the password prompt. Everything typed
+          here stays in `filePassword` and dies with `clearPasswordState`;
+          the form has no `action`, the input has no `name`, and nothing
+          here is ever serialised into a request. */}
+      <Dialog
+        open={!!protectedFile}
+        onOpenChange={(open) => {
+          if (!open) clearPasswordState();
+        }}
+      >
+        <DialogContent className="dialog--sm">
+          <DialogTitle>{t.rekonsiliasi.protectedDialogTitle}</DialogTitle>
+          <DialogDescription>
+            {protectedFile?.kind === "encrypted-zip"
+              ? t.rekonsiliasi.protectedDialogDescZip
+              : t.rekonsiliasi.protectedDialogDescXlsx}
+          </DialogDescription>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!protectedFile || unlocking) return;
+              void runUpload(protectedFile.file, filePassword);
+            }}
+          >
+            <DialogBody>
+              <label className="field">
+                <span className="label">
+                  {t.rekonsiliasi.protectedPasswordLabel}
+                </span>
+                <div className="relative">
+                  <input
+                    className="input pr-10"
+                    type={showFilePassword ? "text" : "password"}
+                    value={filePassword}
+                    autoFocus
+                    autoComplete="off"
+                    // Off for every assistant that might otherwise store it:
+                    // this secret belongs to the bank file, not to the user's
+                    // password manager or the browser's form cache.
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    data-1p-ignore
+                    data-lpignore="true"
+                    placeholder={t.rekonsiliasi.protectedPasswordPlaceholder}
+                    onChange={(e) => {
+                      setFilePassword(e.target.value);
+                      setUnlockError(null);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground"
+                    aria-label={
+                      showFilePassword
+                        ? t.rekonsiliasi.protectedHidePassword
+                        : t.rekonsiliasi.protectedShowPassword
+                    }
+                    onClick={() => setShowFilePassword((v) => !v)}
+                  >
+                    {showFilePassword ? (
+                      <EyeOff className="size-4" />
+                    ) : (
+                      <Eye className="size-4" />
+                    )}
+                  </button>
+                </div>
+              </label>
+              <p className="mt-2 text-[11.5px] text-muted-foreground">
+                {t.rekonsiliasi.protectedPasswordHint}
+              </p>
+              {unlockError && (
+                <p role="alert" className="error-text mt-2">
+                  {unlockError}
+                </p>
+              )}
+            </DialogBody>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={clearPasswordState}
+              >
+                {t.rekonsiliasi.protectedCancelButton}
+              </Button>
+              <Button type="submit" disabled={unlocking || !filePassword}>
+                {unlocking
+                  ? t.rekonsiliasi.protectedUnlockingLabel
+                  : t.rekonsiliasi.protectedSubmitButton}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
