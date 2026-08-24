@@ -53,6 +53,9 @@ describe("AiKeyService", () => {
         configured: false,
         provider: null,
         keyHint: null,
+        // EPIC-027 B5 (D11) — receipt OCR runs on this same family key, so
+        // "no key" also means "no scanning".
+        scanAvailable: false,
       });
     });
 
@@ -68,6 +71,7 @@ describe("AiKeyService", () => {
         configured: true,
         provider: "claude",
         keyHint: "••••ab12",
+        scanAvailable: true,
       });
       // The select projection must never request encryptedKey for a status
       // read — this call shape is the actual guarantee, not just the
@@ -97,6 +101,7 @@ describe("AiKeyService", () => {
         configured: true,
         provider: "openai",
         keyHint: "••••wxyz",
+        scanAvailable: true,
       });
 
       const upsertArg = prisma.familyAiKey.upsert.mock.calls[0]?.[0];

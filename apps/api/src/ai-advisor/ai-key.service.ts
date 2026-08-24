@@ -9,6 +9,7 @@ import { type AiProvider } from "@prisma/client";
 import { CryptoService } from "../crypto/crypto.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
+import { supportsVisionOcr } from "../transactions/ocr/ocr-provider-support";
 
 import { AiKeyCorruptedError } from "./ai-key-corrupted.error";
 
@@ -20,6 +21,13 @@ export type AiKeyStatusDto = {
   configured: boolean;
   provider: AiProvider | null;
   keyHint: string | null;
+  /**
+   * EPIC-027 B5 (D11) — whether receipt scanning can actually work: a key
+   * is configured AND its provider has a vision adapter. Receipt OCR runs
+   * on this same family key, so the client must be able to ask BEFORE it
+   * offers a camera button, instead of showing one that always fails.
+   */
+  scanAvailable: boolean;
 };
 
 export type ResolvedAiKey = {
@@ -54,8 +62,20 @@ export class AiKeyService {
       where: { familyGroupId },
       select: { provider: true, keyHint: true },
     });
-    if (!row) return { configured: false, provider: null, keyHint: null };
-    return { configured: true, provider: row.provider, keyHint: row.keyHint };
+    if (!row) {
+      return {
+        configured: false,
+        provider: null,
+        keyHint: null,
+        scanAvailable: false,
+      };
+    }
+    return {
+      configured: true,
+      provider: row.provider,
+      keyHint: row.keyHint,
+      scanAvailable: supportsVisionOcr(row.provider),
+    };
   }
 
   async setKey(
@@ -83,7 +103,12 @@ export class AiKeyService {
       select: { provider: true, keyHint: true },
     });
 
-    return { configured: true, provider: row.provider, keyHint: row.keyHint };
+    return {
+      configured: true,
+      provider: row.provider,
+      keyHint: row.keyHint,
+      scanAvailable: supportsVisionOcr(row.provider),
+    };
   }
 
   async deleteKey(familyGroupId: string): Promise<void> {
@@ -99,9 +124,13 @@ export class AiKeyService {
 
   /**
    * Internal-only — returns the DECRYPTED key. Never call this from a
-   * controller; it exists solely for AiAdvisorService to build a per-request
-   * provider adapter (D16: resolved per family, per request — never a
-   * process-wide DI binding, and never a fallback to a shared server key).
+   * controller; it exists solely so a SERVICE can build a per-request
+   * provider adapter — today `AiAdvisorService.streamChat` (advisor chat)
+   * and `TransactionsService.scanReceipt` (EPIC-027 D11, receipt OCR on the
+   * same family key). Both follow the same rule (D16): resolved per family,
+   * per request — never a process-wide DI binding, and never a fallback to a
+   * shared server key. The decrypted key is never returned to an HTTP
+   * response, never logged, and never included in an error message.
    */
   async resolveDecryptedKey(
     familyGroupId: string,

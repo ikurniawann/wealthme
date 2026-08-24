@@ -1,24 +1,34 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Injectable } from "@nestjs/common";
-import { z } from "zod";
+
+import {
+  AiAdvisorAuthError,
+  AiAdvisorRateLimitError,
+} from "../../ai-advisor/ai-advisor-provider.error";
+import { ExternalRequestTimeoutError } from "../../common/utils/external-fetch.util";
+
+import { OCR_EXTRACTION_PROMPT, parseOcrResponseText } from "./ocr-prompt.util";
 
 import type { OcrPort, OcrResult } from "./ocr.port";
 
 const CLAUDE_OCR_MODEL = "claude-haiku-4-5-20251001" as const;
+const MAX_TOKENS = 512;
+// EPIC-027 D11 — a single JSON extraction, not a chat: bound it so a stalled
+// upstream cannot hold the scan request (and its throttle slot) open.
+const CLAUDE_OCR_TIMEOUT_MS = 45_000;
 
-const ocrResultSchema = z.object({
-  amount: z.number().finite(),
-  description: z.string().max(500),
-  occurredAt: z.string().datetime({ offset: true }).or(z.string().min(1)),
-  categoryHint: z.string().max(100),
-});
-
+/**
+ * EPIC-027 D11/D12 — Claude vision adapter, built PER REQUEST from the
+ * family's own decrypted AI key by `OcrFactory` (never a boot-time DI
+ * binding on a server env var). Shares `OCR_EXTRACTION_PROMPT` and
+ * `ocrResultSchema` with the OpenAI and Gemini adapters.
+ */
 @Injectable()
 export class ClaudeVisionOcrAdapter implements OcrPort {
   private readonly client: Anthropic;
 
   constructor(apiKey: string) {
-    this.client = new Anthropic({ apiKey });
+    this.client = new Anthropic({ apiKey, timeout: CLAUDE_OCR_TIMEOUT_MS });
   }
 
   async extractTransaction(imageBase64: string): Promise<OcrResult> {
@@ -26,7 +36,7 @@ export class ClaudeVisionOcrAdapter implements OcrPort {
     try {
       message = await this.client.messages.create({
         model: CLAUDE_OCR_MODEL,
-        max_tokens: 512,
+        max_tokens: MAX_TOKENS,
         messages: [
           {
             role: "user",
@@ -39,44 +49,30 @@ export class ClaudeVisionOcrAdapter implements OcrPort {
                   data: imageBase64,
                 },
               },
-              {
-                type: "text",
-                text: `Extract transaction data from this receipt image. Return ONLY a JSON object with these fields:
-{
-  "amount": <number in IDR, integers only>,
-  "description": "<merchant or store name>",
-  "occurredAt": "<ISO 8601 datetime>",
-  "categoryHint": "<Indonesian category: Makanan & Minuman | Belanja | Transportasi | Hiburan | Kesehatan | Pendidikan | Tagihan | Lainnya>"
-}`,
-              },
+              { type: "text", text: OCR_EXTRACTION_PROMPT },
             ],
           },
         ],
       });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      throw new Error(`OCR upstream error: ${msg}`);
+      // EPIC-027 B8 — typed failures, mirroring ClaudeAdvisorService, so the
+      // controller can tell "your key was rejected" from "rate limited" from
+      // "took too long". The SDK's own error text (which can quote request
+      // bodies) never becomes the client-facing message.
+      if (err instanceof Anthropic.APIConnectionTimeoutError) {
+        throw new ExternalRequestTimeoutError("Claude OCR request");
+      }
+      if (err instanceof Anthropic.AuthenticationError) {
+        throw new AiAdvisorAuthError("Claude");
+      }
+      if (err instanceof Anthropic.RateLimitError) {
+        throw new AiAdvisorRateLimitError("Claude");
+      }
+      throw err;
     }
 
     const text =
       message.content[0]?.type === "text" ? message.content[0].text : "";
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error(`OCR parse failed: ${text}`);
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(jsonMatch[0]);
-    } catch {
-      throw new Error(`OCR JSON parse failed: ${text.slice(0, 200)}`);
-    }
-
-    const validated = ocrResultSchema.safeParse(parsed);
-    if (!validated.success) {
-      throw new Error(
-        `OCR response schema invalid: ${validated.error.message}`,
-      );
-    }
-
-    return validated.data;
+    return parseOcrResponseText(text);
   }
 }

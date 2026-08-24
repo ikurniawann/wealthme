@@ -28,5 +28,10 @@ import { AiKeyService } from "./ai-key.service";
     AiKeyService,
     AiAdvisorFactory,
   ],
+  // EPIC-027 B5 (D11) — TransactionsModule resolves the family AI key for
+  // receipt OCR through this same service. Exported (rather than
+  // re-provided there) so both paths share ONE instance and one contract
+  // about where the decrypted key may go.
+  exports: [AiKeyService],
 })
 export class AiAdvisorModule {}
