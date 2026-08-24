@@ -143,7 +143,7 @@ Both groups merged to `development` with gates green; this file's Automation Log
 ## Automation Log
 
 - 2026-08-24 /nerve EPIC-027 #8 "Upload a receipt file for OCR (not only the
-  camera)" → PASS (attempts: 3), PR: <PR_URL>. Requested directly by the user
+  camera)" → PASS (attempts: 3), PR: https://github.com/andrsrjld/wealthme-web/pull/307. Requested directly by the user
   alongside the attachment bug: a button to upload a receipt file so OCR reads
   it and fills the amount.
   Camera-only scanning was unreachable on desktop and useless for a photo
