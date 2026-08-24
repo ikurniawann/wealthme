@@ -6,11 +6,12 @@ import {
 import { Test, type TestingModule } from "@nestjs/testing";
 import { Role } from "@prisma/client";
 
+import { AiKeyService } from "../ai-advisor/ai-key.service";
 import { CATEGORIZATION_PORT } from "../categorization/categorization.port";
 import { NOTIFICATION_SENDER_PORT } from "../notifications/notification-sender.port";
 import { PrismaService } from "../prisma/prisma.service";
 
-import { OCR_PORT } from "./ocr/ocr.port";
+import { OcrFactory } from "./ocr/ocr.factory";
 import { TransactionsService } from "./transactions.service";
 
 const FAMILY_GROUP_ID = "fg-test-uuid";
@@ -19,6 +20,17 @@ const TO_ACCOUNT_ID = "acc-dest-uuid";
 
 const mockAccount = { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID };
 const mockToAccount = { id: TO_ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID };
+
+// EPIC-027 B5 (D11) — scanning now resolves the family's own AI key and
+// builds a vision adapter per request, so the service takes AiKeyService +
+// OcrFactory instead of a process-wide OCR_PORT binding.
+function makeAiKeyService() {
+  return { resolveDecryptedKey: jest.fn().mockResolvedValue(null) };
+}
+
+function makeOcrFactory() {
+  return { create: jest.fn() };
+}
 
 function makePrisma() {
   return {
@@ -79,7 +91,8 @@ describe("TransactionsService", () => {
       providers: [
         TransactionsService,
         { provide: PrismaService, useValue: prisma },
-        { provide: OCR_PORT, useValue: { extractFromBase64: jest.fn() } },
+        { provide: AiKeyService, useValue: makeAiKeyService() },
+        { provide: OcrFactory, useValue: makeOcrFactory() },
         {
           provide: CATEGORIZATION_PORT,
           useValue: { suggest: jest.fn().mockResolvedValue(null) },
@@ -2018,7 +2031,8 @@ describe("TransactionsService.findAll privacy enforcement", () => {
       providers: [
         TransactionsService,
         { provide: PrismaService, useValue: prisma },
-        { provide: OCR_PORT, useValue: { extractFromBase64: jest.fn() } },
+        { provide: AiKeyService, useValue: makeAiKeyService() },
+        { provide: OcrFactory, useValue: makeOcrFactory() },
         {
           provide: CATEGORIZATION_PORT,
           useValue: { suggest: jest.fn().mockResolvedValue(null) },
@@ -2117,7 +2131,8 @@ describe("TransactionsService.update/remove privacy enforcement (EPIC-022 A6 fol
       providers: [
         TransactionsService,
         { provide: PrismaService, useValue: prisma },
-        { provide: OCR_PORT, useValue: { extractFromBase64: jest.fn() } },
+        { provide: AiKeyService, useValue: makeAiKeyService() },
+        { provide: OcrFactory, useValue: makeOcrFactory() },
         {
           provide: CATEGORIZATION_PORT,
           useValue: { suggest: jest.fn().mockResolvedValue(null) },
@@ -2279,7 +2294,8 @@ describe("TransactionsService row-scoped viewer (dependant/operational)", () => 
       providers: [
         TransactionsService,
         { provide: PrismaService, useValue: prisma },
-        { provide: OCR_PORT, useValue: { extractFromBase64: jest.fn() } },
+        { provide: AiKeyService, useValue: makeAiKeyService() },
+        { provide: OcrFactory, useValue: makeOcrFactory() },
         {
           provide: CATEGORIZATION_PORT,
           useValue: { suggest: jest.fn().mockResolvedValue(null) },
@@ -2370,7 +2386,8 @@ describe("TransactionsService.create — row-scoped roles and createdByUserId (E
       providers: [
         TransactionsService,
         { provide: PrismaService, useValue: prisma },
-        { provide: OCR_PORT, useValue: { extractFromBase64: jest.fn() } },
+        { provide: AiKeyService, useValue: makeAiKeyService() },
+        { provide: OcrFactory, useValue: makeOcrFactory() },
         {
           provide: CATEGORIZATION_PORT,
           useValue: { suggest: jest.fn().mockResolvedValue(null) },
@@ -2497,7 +2514,8 @@ describe("TransactionsService.create — large-transaction threshold hold (EPIC-
       providers: [
         TransactionsService,
         { provide: PrismaService, useValue: prisma },
-        { provide: OCR_PORT, useValue: { extractFromBase64: jest.fn() } },
+        { provide: AiKeyService, useValue: makeAiKeyService() },
+        { provide: OcrFactory, useValue: makeOcrFactory() },
         {
           provide: CATEGORIZATION_PORT,
           useValue: { suggest: jest.fn().mockResolvedValue(null) },
@@ -2753,7 +2771,8 @@ describe("TransactionsService.notifyTransaction — per-member threshold (EPIC-0
       providers: [
         TransactionsService,
         { provide: PrismaService, useValue: prisma },
-        { provide: OCR_PORT, useValue: { extractFromBase64: jest.fn() } },
+        { provide: AiKeyService, useValue: makeAiKeyService() },
+        { provide: OcrFactory, useValue: makeOcrFactory() },
         {
           provide: CATEGORIZATION_PORT,
           useValue: { suggest: jest.fn().mockResolvedValue(null) },
@@ -2830,7 +2849,8 @@ describe("TransactionsService — allowance-approval scenario (EPIC-023 Task C r
       providers: [
         TransactionsService,
         { provide: PrismaService, useValue: prisma },
-        { provide: OCR_PORT, useValue: { extractFromBase64: jest.fn() } },
+        { provide: AiKeyService, useValue: makeAiKeyService() },
+        { provide: OcrFactory, useValue: makeOcrFactory() },
         {
           provide: CATEGORIZATION_PORT,
           useValue: { suggest: jest.fn().mockResolvedValue(null) },

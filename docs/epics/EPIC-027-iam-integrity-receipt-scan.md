@@ -90,12 +90,12 @@ to the A/B numbering used in the Decisions table.
 
 - [x] A8 — "Anggota Nonaktif" section on /iam + restore endpoint (depends on group 3)
 
-### 6 — OCR provider factory on the family AI key
+### 6 — OCR provider factory on the family AI key ✅
 
-- [ ] B5 — OCR key resolution via `AiKeyService`; `scanAvailable` flag; drop the env binding and the runtime mock
-- [ ] B6 — `OcrFactory` + vision adapters for Claude, OpenAI and Gemini
-- [ ] B7 — `categoryHint` → real Category id server-side; blank when no match
-- [ ] B8 — Scan-path equivalents of `AiKeyCorruptedError` / `AiAdvisorNotConfiguredError`
+- [x] B5 — OCR key resolution via `AiKeyService`; `scanAvailable` flag; drop the env binding and the runtime mock
+- [x] B6 — `OcrFactory` + vision adapters for Claude, OpenAI and Gemini
+- [x] B7 — `categoryHint` → real Category id server-side; blank when no match
+- [x] B8 — Scan-path equivalents of `AiKeyCorruptedError` / `AiAdvisorNotConfiguredError`
 
 ### 7 — Camera capture, review prefill, attachment
 
@@ -130,6 +130,56 @@ to the A/B numbering used in the Decisions table.
 Both groups merged to `development` with gates green; this file's Automation Log records the outcome per group.
 
 ## Automation Log
+
+- 2026-08-24 /task-work EPIC-027 #6 "OCR provider factory on the family AI key"
+  → PASS (attempts: 1), PR: <PR_URL>.
+  **The scan path was answering with `Math.random()`.** `TransactionsModule`
+  bound `OCR_PORT` from `ANTHROPIC_API_KEY` and fell back to
+  `MockOcrService` when unset — the exact mock-answer-as-truth mode D16
+  removed from the advisor, still live on a path that writes a money field.
+  `MockOcrService` is deleted, `OCR_PORT` is gone, and `scanReceipt` now
+  takes the route `familyGroupId` (previously `_familyGroupId`, ignored) and
+  resolves a per-request adapter from the family's own encrypted key via
+  `AiKeyService.resolveDecryptedKey` — `AiAdvisorModule` exports the service,
+  no cycle, one instance. `OcrFactory` covers claude/openai/gemini with one
+  shared prompt (`ocr-prompt.util.ts`) and one shared zod schema so the three
+  providers cannot drift. `scanAvailable` on the AI-key status is derived
+  from "key configured AND provider has a vision adapter", not "a key row
+  exists". B7 matches `categoryHint` against real `Category` rows scoped to
+  `{ familyGroupId, kind: "expense" }`, exact-match first with a substring
+  fallback gated at 5 chars so "Lain" cannot swallow everything; no match →
+  null, never auto-created. B8 maps six typed errors to distinct codes
+  (`OCR_NOT_CONFIGURED` 412, `AI_KEY_CORRUPTED` 409, `OCR_AUTH` 502,
+  `OCR_RATE_LIMITED` 429, `OCR_TIMEOUT` 504, `OCR_PARSE_FAILED` 502,
+  generic `OCR_UPSTREAM_FAILED` 502) with the provider body logged
+  server-side only.
+  Security gate confirmed the boundary rather than assuming it: `TenantGuard`
+  is a global `APP_GUARD` running BEFORE `AbilitiesGuard` and resolves
+  membership by `userId_familyGroupId`, so passing another family's id to
+  `POST /transactions/:familyGroupId/scan` fails closed and cannot spend
+  their key — `@CheckAbility` is the second layer, not the only one. The
+  decrypted key reaches only the SDK constructor, `Authorization: Bearer`,
+  and Gemini's `x-goog-api-key` HEADER (not a query string, which would land
+  in upstream access logs); both new adapter specs seed the mocked upstream
+  failure with the key itself and assert it never appears in a thrown
+  message. Review gate raised one HIGH — "scanReceipt has zero coverage" —
+  which was FALSE: the reviewer read only `transactions.service.spec.ts` and
+  missed `transactions-scan-receipt.spec.ts`. Dismissed, no duplicate tests
+  added. Two MEDIUMs were real and fixed: Claude/Gemini adapters had no
+  specs, and `ScanReceiptDto.imageBase64` accepted an empty string straight
+  through to a paid upstream (now `@MinLength(32)` + a base64-shape
+  `@Matches`, which also rejects a still-attached `data:image/jpeg;base64,`
+  prefix — group 7 must post the raw payload with the prefix stripped).
+  Gates: qa.sh exit 0, test.sh exit 0, API 107 suites / 1278 tests, web
+  untouched (455 total — the epic's earlier 451 baseline had drifted on
+  `development`, not from this diff), tsc + eslint + nest build clean.
+  Security script still red only on the pre-existing `deepmerge-ts`
+  advisories via `@prisma/config`/better-auth; `git diff` on package.json +
+  lockfile is empty, so no dependency changed here.
+  **Left for group 7:** the web is entirely untouched — `transaction-dialog`
+  still runs its two `setTimeout`s and a hardcoded receipt, and
+  `use-ai-key.ts` does not yet read `scanAvailable` (additive field, nothing
+  broken).
 
 - 2026-08-18 /epic-loop EPIC-027 #3–#5 → PASS, PR #299.
   **The security gate earned its keep.** Group 3's whole design rested on a

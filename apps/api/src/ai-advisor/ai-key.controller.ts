@@ -43,6 +43,8 @@ export class AiKeyController {
   @ApiOperation({
     summary:
       "Get whether an AI provider key is configured (never the key itself)",
+    description:
+      "EPIC-027 B5 (D11) — also reports `scanAvailable`: receipt OCR runs on this same family key, so the client checks this before offering a scan button.",
   })
   getStatus(
     @Param("familyGroupId") familyGroupId: string,

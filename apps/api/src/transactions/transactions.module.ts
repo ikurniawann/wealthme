@@ -1,32 +1,27 @@
 import { Module } from "@nestjs/common";
-import { ConfigModule, ConfigService } from "@nestjs/config";
 
+import { AiAdvisorModule } from "../ai-advisor/ai-advisor.module";
 import { CategorizationModule } from "../categorization/categorization.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 
-import { ClaudeVisionOcrAdapter } from "./ocr/claude-vision-ocr.adapter";
-import { MockOcrService } from "./ocr/mock-ocr.service";
-import { OCR_PORT } from "./ocr/ocr.port";
+import { OcrFactory } from "./ocr/ocr.factory";
 import { TransactionsController } from "./transactions.controller";
 import { TransactionsService } from "./transactions.service";
 
-import type { Env } from "../config/env";
-
+/**
+ * EPIC-027 B5 (D11) — the `OCR_PORT` binding is gone. It read
+ * `ANTHROPIC_API_KEY` once at boot (one server key billed for every
+ * family) and fell back to `MockOcrService`, so a server without that env
+ * var answered receipt scans with `Math.random()` amounts. Scanning now
+ * resolves the caller's OWN family AI key per request via `AiKeyService`
+ * (imported from `AiAdvisorModule`, which exports it, rather than
+ * re-provided here — a second provider entry would be a second instance)
+ * and builds the adapter with `OcrFactory`.
+ */
 @Module({
-  imports: [ConfigModule, CategorizationModule, NotificationsModule],
+  imports: [AiAdvisorModule, CategorizationModule, NotificationsModule],
   controllers: [TransactionsController],
-  providers: [
-    TransactionsService,
-    {
-      provide: OCR_PORT,
-      useFactory: (config: ConfigService<Env, true>) => {
-        const apiKey = config.get("ANTHROPIC_API_KEY", { infer: true });
-        if (apiKey) return new ClaudeVisionOcrAdapter(apiKey);
-        return new MockOcrService();
-      },
-      inject: [ConfigService],
-    },
-  ],
+  providers: [TransactionsService, OcrFactory],
   // EPIC-021 Group C (#29) — ReconciliationModule reuses TransactionsService
   // directly (transfer + linked admin-fee creation) instead of re-deriving
   // that logic, so it must be exported for cross-module injection.

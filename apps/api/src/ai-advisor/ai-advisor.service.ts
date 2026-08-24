@@ -249,8 +249,9 @@ export class AiAdvisorService {
    * builds the matching provider adapter fresh each call. Throws
    * AiAdvisorNotConfiguredError when no key is set — there is deliberately
    * NO fallback to a shared/server-wide key (ANTHROPIC_API_KEY remains
-   * configured for the unrelated OCR/categorization feature, but is never
-   * read here): a silent server-key fallback would mean one family paying
+   * configured for the unrelated auto-categorization feature — EPIC-027 D11
+   * moved receipt OCR onto this same family key — but is never read here):
+   * a silent server-key fallback would mean one family paying
    * for another's usage, which D16 rules out. There is also no mock
    * fallback — MockAdvisorService is not wired into this path at all.
    */

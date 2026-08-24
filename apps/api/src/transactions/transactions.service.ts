@@ -9,6 +9,8 @@ import {
 } from "@nestjs/common";
 import { Role } from "@prisma/client";
 
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { AiKeyService } from "../ai-advisor/ai-key.service";
 import {
   CATEGORIZATION_PORT,
   type CategorizationPort,
@@ -26,7 +28,10 @@ import {
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
-import { OCR_PORT, type OcrPort, type OcrResult } from "./ocr/ocr.port";
+import { matchCategoryId } from "./ocr/category-match.util";
+import { OcrNotConfiguredError } from "./ocr/ocr-not-configured.error";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { OcrFactory } from "./ocr/ocr.factory";
 import {
   checkBudgetAlert,
   checkCashFlowAlert,
@@ -35,6 +40,7 @@ import {
 
 import type { CreateTransactionDto } from "./dto/create-transaction.dto";
 import type { ListTransactionsQueryDto } from "./dto/list-transactions-query.dto";
+import type { ScanReceiptResponseDto } from "./dto/scan-receipt-response.dto";
 import type {
   HeldExpenseResponseDto,
   TransactionListResponseDto,
@@ -65,7 +71,8 @@ export class TransactionsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(OCR_PORT) private readonly ocrPort: OcrPort,
+    private readonly aiKeyService: AiKeyService,
+    private readonly ocrFactory: OcrFactory,
     @Inject(CATEGORIZATION_PORT)
     private readonly categorizationPort: CategorizationPort,
     @Inject(NOTIFICATION_SENDER_PORT)
@@ -743,8 +750,56 @@ export class TransactionsService {
     );
   }
 
-  async scanReceipt(imageBase64: string): Promise<OcrResult> {
-    return this.ocrPort.extractTransaction(imageBase64);
+  /**
+   * EPIC-027 B5/B7 (D11/D13) — scanning runs on the family's OWN AI Advisor
+   * key, resolved per request and never on a server-wide env key: there is
+   * no `ANTHROPIC_API_KEY` fallback and no mock provider, so a family
+   * without a key gets an actionable error instead of a fabricated amount.
+   * `resolveDecryptedKey` throws `AiKeyCorruptedError` for an unreadable
+   * stored key; that propagates untouched (the controller maps it).
+   */
+  async scanReceipt(
+    familyGroupId: string,
+    imageBase64: string,
+  ): Promise<ScanReceiptResponseDto> {
+    const resolvedKey =
+      await this.aiKeyService.resolveDecryptedKey(familyGroupId);
+    if (!resolvedKey) {
+      throw new OcrNotConfiguredError();
+    }
+
+    const ocr = this.ocrFactory.create(
+      resolvedKey.provider,
+      resolvedKey.apiKey,
+    );
+    const result = await ocr.extractTransaction(imageBase64);
+
+    return {
+      ...result,
+      categoryId: await this.resolveScannedCategoryId(
+        familyGroupId,
+        result.categoryHint,
+      ),
+    };
+  }
+
+  /**
+   * EPIC-027 D13 — resolves the model's free-text hint against this
+   * family's real expense categories. Scoped to `familyGroupId` (the tenant
+   * boundary) and read-only: no match means a blank category, never an
+   * auto-created one and never a second AI call.
+   */
+  private async resolveScannedCategoryId(
+    familyGroupId: string,
+    categoryHint: string,
+  ): Promise<string | null> {
+    if (!categoryHint.trim()) return null;
+
+    const categories = await this.prisma.category.findMany({
+      where: { familyGroupId, kind: "expense" },
+      select: { id: true, name: true },
+    });
+    return matchCategoryId(categoryHint, categories);
   }
 
   private buildWhere(

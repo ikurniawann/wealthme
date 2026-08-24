@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   Param,
   Patch,
   Post,
@@ -29,6 +30,7 @@ import { canSeePrivateItems } from "../common/utils/privacy.util";
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ListTransactionsQueryDto } from "./dto/list-transactions-query.dto";
+import { ScanReceiptResponseDto } from "./dto/scan-receipt-response.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ScanReceiptDto } from "./dto/scan-receipt.dto";
 import {
@@ -39,6 +41,7 @@ import {
 } from "./dto/transaction-response.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateTransactionDto } from "./dto/update-transaction.dto";
+import { toScanHttpException } from "./ocr/ocr-http-error.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { TransactionsService } from "./transactions.service";
 
@@ -48,6 +51,8 @@ import type { Request, Response } from "express";
 @ApiBearerAuth()
 @Controller("family-groups/:familyGroupId/transactions")
 export class TransactionsController {
+  private readonly logger = new Logger(TransactionsController.name);
+
   constructor(private readonly transactionsService: TransactionsService) {}
 
   @Get("summary")
@@ -103,12 +108,38 @@ export class TransactionsController {
   @ApiOperation({
     summary: "Scan a receipt image and extract transaction data",
   })
-  @ApiResponse({ status: 201 })
-  scan(
-    @Param("familyGroupId") _familyGroupId: string,
+  @ApiResponse({ status: 201, type: ScanReceiptResponseDto })
+  @ApiResponse({
+    status: 412,
+    description:
+      "code=OCR_NOT_CONFIGURED — the family has no AI provider key (EPIC-027 D11: no server-key or mock fallback)",
+  })
+  @ApiResponse({
+    status: 409,
+    description:
+      "code=AI_KEY_CORRUPTED — the stored key could not be decrypted; re-enter it in Pengaturan",
+  })
+  @ApiResponse({
+    status: 502,
+    description: "code=OCR_AUTH | OCR_PARSE_FAILED | OCR_UPSTREAM_FAILED",
+  })
+  @ApiResponse({ status: 429, description: "code=OCR_RATE_LIMITED" })
+  @ApiResponse({ status: 504, description: "code=OCR_TIMEOUT" })
+  async scan(
+    @Param("familyGroupId") familyGroupId: string,
     @Body() dto: ScanReceiptDto,
-  ) {
-    return this.transactionsService.scanReceipt(dto.imageBase64);
+  ): Promise<ScanReceiptResponseDto> {
+    // EPIC-027 D14 — anyone who may create a Transaction may scan; the
+    // 10/min @Throttle above is the guard on a paid upstream call, not a
+    // tighter ability check.
+    try {
+      return await this.transactionsService.scanReceipt(
+        familyGroupId,
+        dto.imageBase64,
+      );
+    } catch (err: unknown) {
+      throw toScanHttpException(err, this.logger);
+    }
   }
 
   @Post()
