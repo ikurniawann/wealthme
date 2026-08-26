@@ -40,6 +40,18 @@ if (typeof globalThis.TextDecoder === "undefined") {
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+/**
+ * These specs each mount the whole /rekonsiliasi page, which is the dominant
+ * cost: ~600ms per render locally, and the shared CI runner is ~5x slower
+ * under worker contention — enough to blow Jest's 5s default on the two
+ * heaviest cases. Measured, not guessed: `userEvent.setup({ delay: null })`
+ * changes nothing here (688ms vs 623ms), so the typing is not the cost and
+ * the usual keystroke-delay trick would be a placebo. The headroom below is
+ * for runner variance only; nothing in these tests waits on a real timer, so
+ * a genuine hang still fails, just later.
+ */
+jest.setTimeout(20_000);
+
 const FAMILY_GROUP_ID = "fg-1";
 const TOKEN = "test-token";
 /** Shaped like a real one: bank passwords are DOB/KTP/account digits. */
