@@ -208,6 +208,15 @@ function formatShortDate(dateStr: string, locale: Locale): string {
 
 const PAGE_SIZE = 10;
 
+/** Server page size when collecting the full list. 100 is the API's own
+ *  `@Max(100)` ceiling, so this is the fewest round trips it allows. */
+const FETCH_PAGE_SIZE = 100;
+
+/** Hard ceiling on how many transactions the page will pull in one go. Ten
+ *  requests is already far past any real family's history; beyond this the
+ *  UI says so rather than pretending the list is complete. */
+const MAX_FETCHED_TRANSACTIONS = 1000;
+
 const TX_ICON: Record<string, { icon: LucideIcon; chip: string }> = {
   income: { icon: ArrowDownLeft, chip: "bg-green-100 text-green-600" },
   expense: { icon: CreditCard, chip: "bg-red-100 text-red-600" },
@@ -1150,16 +1159,60 @@ function TransaksiPageInner() {
       dateFrom,
       dateTo,
     ],
-    queryFn: () => {
-      const params = new URLSearchParams({ limit: "50" });
-      if (accountId) params.set("accountId", accountId);
-      if (categoryFilter) params.set("categoryId", categoryFilter);
-      if (dateFrom) params.set("from", dateFrom);
-      if (dateTo) params.set("to", dateTo);
-      return apiFetch<TransactionListResponse>(
-        `/family-groups/${familyGroupId}/transactions?${params.toString()}`,
+    queryFn: async () => {
+      // Fetch EVERY page, not just the first.
+      //
+      // This asked for `limit=50` and never sent `page`, while the table
+      // paginated CLIENT-side over whatever came back — so "Semua transaksi"
+      // silently showed the newest 50 and the page buttons only walked those.
+      // An imported bank statement is 45+ rows in one month, which pushed
+      // everything older out of the window; filtering by month brought the
+      // same rows back, because the narrower filter fit under the cap. Rows
+      // that exist and are quietly not shown are worse than slow.
+      //
+      // Both remaining client-side filters need the WHOLE set to be correct:
+      // the type chips, and "Kartu Kredit", which is derived from liability
+      // ids the API cannot filter on. So the pages are collected here and the
+      // existing filter/sort/paginate chain below is left untouched.
+      const buildParams = (page: number) => {
+        const params = new URLSearchParams({
+          limit: String(FETCH_PAGE_SIZE),
+          page: String(page),
+        });
+        if (accountId) params.set("accountId", accountId);
+        if (categoryFilter) params.set("categoryId", categoryFilter);
+        if (dateFrom) params.set("from", dateFrom);
+        if (dateTo) params.set("to", dateTo);
+        return params;
+      };
+
+      const first = await apiFetch<TransactionListResponse>(
+        `/family-groups/${familyGroupId}/transactions?${buildParams(1).toString()}`,
         { token },
       );
+
+      const total = first.meta?.total ?? first.data.length;
+      const rows = [...first.data];
+      // Bounded so a pathological account cannot spawn unbounded requests.
+      // Whatever is dropped is REPORTED (see `truncated` below) rather than
+      // silently missing, which is the bug this replaces.
+      const maxPages = Math.ceil(MAX_FETCHED_TRANSACTIONS / FETCH_PAGE_SIZE);
+      const pagesNeeded = Math.min(
+        Math.ceil(total / FETCH_PAGE_SIZE),
+        maxPages,
+      );
+
+      for (let page = 2; page <= pagesNeeded; page += 1) {
+        const next = await apiFetch<TransactionListResponse>(
+          `/family-groups/${familyGroupId}/transactions?${buildParams(page).toString()}`,
+          { token },
+        );
+        rows.push(...next.data);
+        // A shorter page than asked for means the server has no more.
+        if (next.data.length < FETCH_PAGE_SIZE) break;
+      }
+
+      return { ...first, data: rows };
     },
     enabled: !!token && !!familyGroupId,
   });
@@ -1230,6 +1283,9 @@ function TransaksiPageInner() {
   );
 
   const transactions = data?.data ?? [];
+  /** True when the hard fetch ceiling cut the list short. Says so out loud —
+   *  a list that is quietly incomplete is exactly the bug this replaces. */
+  const truncated = (data?.meta?.total ?? 0) > transactions.length;
   const summary = data?.summary;
 
   // Apply filter
@@ -1550,6 +1606,13 @@ function TransaksiPageInner() {
           </div>
         )}
 
+        {truncated && (
+          <div className="mb-3 rounded-lg border border-amber-400/40 bg-amber-50 px-3.5 py-2.5 text-[12px] text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+            {t.transaksi.listTruncatedNote
+              .replace("{shown}", String(transactions.length))
+              .replace("{total}", String(data?.meta?.total ?? 0))}
+          </div>
+        )}
         {!isLoading && sorted.length > 0 && (
           <>
             {/* UI/UX parity fix (docs/uiux-beda audit) — the prototype's
