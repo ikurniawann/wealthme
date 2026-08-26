@@ -361,3 +361,69 @@ import.meta.url).toString()`, which Turbopack rewrites to a real emitted
   `deepmerge-ts`-via-prisma advisories and nothing else — byte-identical to
   the same run with the change stashed; `pdfjs-dist` (Apache-2.0, zero
   runtime dependencies) added none.
+
+### 2026-08-26 — PR #310 merged into `development`
+
+PR [#310](https://github.com/andrsrjld/wealthme-web/pull/310) (parts A+B in
+`975f9d3`, part C in `02b2e14`) merged as `6366618`, base `development`.
+Verified by content, not by status: the merge commit is an ancestor of
+`origin/development` and `statement-ooxml-zip.ts`,
+`statement-reader/statement-reader.port.ts`, and `jest.global-setup.js` all
+resolve there. That check exists because #303/#304 both showed MERGED and green
+while `development` held only the backend half — a stacked PR merged into its
+parent branch, not into `development`.
+
+**One CI-only failure, fixed in `d42bbaa`.** `password-upload.test.tsx` blew
+Jest's 5s default on the wrong-password retry spec — green locally, red on CI,
+no logic bug. Every spec there mounts the whole `/rekonsiliasi` page (~600ms per
+render) and the shared runner is ~5x slower (suite 20.4s on CI vs 3.9s local).
+
+The repo's usual remedy would have been wrong: `userEvent.setup({ delay: null })`
+(the idiom used 9x in `guided-setup.test.tsx`) moved the spec from 623ms to
+688ms — i.e. nothing, because the cost is the render, not the typing. Reverted
+and fixed the real thing with a file-scoped `jest.setTimeout(20_000)`, its
+reasoning written into the file. Proved it binds by mutation: at
+`jest.setTimeout(1)` the specs fail with "Exceeded timeout of 1 ms". Nothing in
+these specs waits on a real timer, so a genuine hang still fails, just later.
+
+**Gates after the fix.** `qa.sh` 0, `test.sh` 0 — API 116/1379, web 57/720
+(718 passed, 2 skipped). CI run `32942303811` green, with
+`PASS src/app/(app)/rekonsiliasi/password-upload.test.tsx (20.423 s)`.
+
+`security-check.sh` remains red, and it is **not** this branch's doing:
+`pnpm audit --audit-level high` flags `nanoid` (via better-auth→next) and
+`deepmerge-ts` (via prisma), and `development`'s own lockfile already pins those
+exact vulnerable versions (`nanoid@3.3.17`, `deepmerge-ts@7.1.5`). No advisory
+names `pdfjs-dist` or anything else this epic added. Worth its own upgrade PR;
+it is not a signal about this work.
+
+**DEV deploy blocked on a host credential, not on the code.** CI run
+`32942868550` on `development` is green and pushed
+`ghcr.io/andrsrjld/wealthme-web-{api,web}:dev`, but `scripts/deploy-dev.sh`
+refuses on the pull:
+
+```
+Error response from daemon: error from registry: unauthorized
+[deploy] REFUSED: image pull failed.
+```
+
+The dev host has no `ghcr.io` entry in `~/.docker/config.json`, and the packages
+are private — an anonymous token request returns `UNAUTHORIZED` and the manifest
+`403`. The `gh` CLI token on this host carries `repo, read:org, gist,
+admin:public_key` but **not** `read:packages`, so it cannot stand in. Needs a
+human, once:
+
+```bash
+gh auth refresh -s read:packages
+gh auth token | docker login ghcr.io -u andrsrjld --password-stdin
+bash scripts/deploy-dev.sh
+```
+
+`DEPLOY_MODE=build` is the documented fallback but the script's own header warns
+local builds on this host fail randomly (a hardware symptom), so it is a last
+resort. Containers still serve the 39h-old images until this runs.
+
+**Remember on the next deploy:** `docker compose restart nginx`. `wealthme-nginx`
+has been up 45h and caches the web container's IP; every recreate moves that IP
+and nginx 502s until restarted. This has bitten every deploy so far and is not
+yet automated in the compose recreate set.
