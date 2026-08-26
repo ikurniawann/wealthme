@@ -8,6 +8,11 @@ import {
 
 import { buildAdvisorSystemPrompt } from "./advisor-prompt.util";
 import {
+  ADVISOR_MAX_TOOL_ROUNDS,
+  ADVISOR_TOOL_DECLARATION,
+  type AdvisorToolRunner,
+} from "./advisor-tools";
+import {
   AiAdvisorAuthError,
   AiAdvisorRateLimitError,
 } from "./ai-advisor-provider.error";
@@ -19,6 +24,15 @@ import type {
   AdvisorContext,
   AdvisorMessage,
 } from "./ai-advisor.port";
+
+/** One turn of the OpenAI conversation, including the tool shapes the plain
+ *  message mapping never produces. */
+type OpenAiMessage = {
+  role: string;
+  content?: string | null;
+  tool_calls?: unknown;
+  tool_call_id?: string;
+};
 
 const OPENAI_CHAT_COMPLETIONS_URL =
   "https://api.openai.com/v1/chat/completions";
@@ -75,11 +89,101 @@ export class OpenAiAdvisorService extends AiAdvisorPort {
     this.model = chosenModel?.trim() || MODEL;
   }
 
+  /**
+   * Tool rounds, before a single token is shown. Bounded by
+   * `ADVISOR_MAX_TOOL_ROUNDS`: after that the model answers with what it has,
+   * because an unbounded loop is a model deciding how much of the family's
+   * quota to spend.
+   */
+  private async runToolRounds(
+    convo: OpenAiMessage[],
+    runTool: AdvisorToolRunner,
+  ): Promise<void> {
+    for (let round = 0; round < ADVISOR_MAX_TOOL_ROUNDS; round += 1) {
+      const res = await fetchWithTimeout(
+        OPENAI_CHAT_COMPLETIONS_URL,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: this.model,
+            max_tokens: MAX_TOKENS,
+            messages: convo,
+            tools: [{ type: "function", function: ADVISOR_TOOL_DECLARATION }],
+          }),
+        },
+        OPENAI_REQUEST_TIMEOUT_MS,
+        "OpenAI tool request",
+      );
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        if (res.status === 401 || res.status === 403)
+          throw new AiAdvisorAuthError("OpenAI");
+        // Same classification as the streaming path below, so a tool round
+        // that hits the quota surfaces as a rate limit rather than a generic
+        // failure the UI cannot explain.
+        if (res.status === 429) throw new AiAdvisorRateLimitError("OpenAI");
+        throw new Error(
+          `OpenAI tool request failed (${res.status}): ${body.slice(0, 300)}`,
+        );
+      }
+
+      const payload = (await res.json()) as {
+        choices?: {
+          message?: {
+            content?: string | null;
+            tool_calls?: {
+              id: string;
+              function?: { name?: string; arguments?: string };
+            }[];
+          };
+        }[];
+      };
+      const message = payload.choices?.[0]?.message;
+      const calls = message?.tool_calls ?? [];
+      // Nothing to fetch — let the streaming turn write the answer, so the
+      // user still sees it arrive live.
+      if (calls.length === 0) return;
+
+      convo.push({
+        role: "assistant",
+        content: message?.content ?? null,
+        tool_calls: calls,
+      });
+      for (const call of calls) {
+        // Arguments arrive as a JSON STRING; a model that emits malformed
+        // JSON must get a tool result it can react to, not an exception that
+        // fails the user's whole question.
+        let args: unknown = {};
+        try {
+          args = JSON.parse(call.function?.arguments || "{}");
+        } catch {
+          args = { __invalid: true };
+        }
+        convo.push({
+          role: "tool",
+          tool_call_id: call.id,
+          content: await runTool(call.function?.name ?? "", args),
+        });
+      }
+    }
+  }
+
   async chat(
     context: AdvisorContext,
     messages: AdvisorMessage[],
     onToken: (token: string) => void,
+    runTool?: AdvisorToolRunner,
   ): Promise<AdvisorChatResult> {
+    const convo: OpenAiMessage[] = [
+      { role: "system", content: buildAdvisorSystemPrompt(context) },
+      ...messages.map((m) => ({ role: m.role, content: m.content })),
+    ];
+    if (runTool) await this.runToolRounds(convo, runTool);
     // EPIC-023 Task G retry (HIGH five-reviewer finding, round 2) — the
     // whole request (fetch AND the streamed body) is wrapped, not just the
     // initial `fetchWithTimeout` call: `fetchWithTimeout`'s own AbortSignal
@@ -101,10 +205,9 @@ export class OpenAiAdvisorService extends AiAdvisorPort {
             model: this.model,
             stream: true,
             max_tokens: MAX_TOKENS,
-            messages: [
-              { role: "system", content: buildAdvisorSystemPrompt(context) },
-              ...messages.map((m) => ({ role: m.role, content: m.content })),
-            ],
+            // Tools are deliberately NOT offered on this turn: it exists to
+            // answer, and a tool call mid-stream could not be serviced.
+            messages: convo,
           }),
         },
         OPENAI_REQUEST_TIMEOUT_MS,

@@ -46,6 +46,13 @@ export function stripMaskedNumber(name: string): string {
 // (Pre-existing since EPIC-023 group G; caught by the group-D DEV deploy —
 // unit tests mock the factory and tsc accepts a type import, so only a real
 // container boot surfaces it.)
+import {
+  ADVISOR_TOOL_MAX_ROWS,
+  ADVISOR_TOOL_MAX_SCANNED_ROWS,
+  ADVISOR_TOOL_NAME,
+  advisorToolArgsSchema,
+  type AdvisorToolRunner,
+} from "./advisor-tools";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AiAdvisorFactory } from "./ai-advisor-factory.service";
 import { AiAdvisorNotConfiguredError } from "./ai-advisor-not-configured.error";
@@ -66,6 +73,148 @@ export class AiAdvisorService {
     private readonly aiKeyService: AiKeyService,
     private readonly advisorFactory: AiAdvisorFactory,
   ) {}
+
+  /**
+   * Builds a tool runner bound to THIS family and THIS viewer.
+   *
+   * The binding is the security property. The model names a period and a
+   * direction; it never names a family, a user or a role — those are closed
+   * over from the authenticated request, so a model that invents a
+   * `familyGroupId` cannot reach another family's money. The same privacy
+   * filter the advisor context uses is applied again here, so a viewer who
+   * cannot see private rows cannot see them through a tool either.
+   */
+  buildToolRunner(
+    familyGroupId: string,
+    viewerRole: Role | null | undefined,
+  ): AdvisorToolRunner {
+    const canSeePrivate = canSeePrivateItems(viewerRole);
+    const txPrivacy = transactionPrivacyWhere(canSeePrivate);
+
+    return async (name: string, rawArgs: unknown): Promise<string> => {
+      if (name !== ADVISOR_TOOL_NAME) {
+        // Answered rather than thrown: a wrong tool name is the model's
+        // mistake to correct on the next round, not a request failure.
+        return JSON.stringify({ error: `Unknown tool: ${name}` });
+      }
+
+      const parsed = advisorToolArgsSchema.safeParse(rawArgs ?? {});
+      if (!parsed.success) {
+        return JSON.stringify({
+          error: "Invalid arguments",
+          detail: parsed.error.issues.map((i) => i.message).join("; "),
+        });
+      }
+      const args = parsed.data;
+
+      const where = {
+        familyGroupId,
+        ...(args.type ? { type: args.type } : {}),
+        ...(args.from || args.to
+          ? {
+              occurredAt: {
+                ...(args.from
+                  ? { gte: new Date(`${args.from}T00:00:00Z`) }
+                  : {}),
+                // Inclusive `to`: the model asks for a month end and means
+                // that whole day, so the bound is the next midnight.
+                ...(args.to
+                  ? {
+                      lt: new Date(
+                        new Date(`${args.to}T00:00:00Z`).getTime() + 86_400_000,
+                      ),
+                    }
+                  : {}),
+              },
+            }
+          : {}),
+        ...txPrivacy,
+      };
+
+      const [byType, byMonth, rows] = await Promise.all([
+        this.prisma.transaction.groupBy({
+          by: ["type"],
+          where,
+          _sum: { amount: true },
+          _count: { _all: true },
+        }),
+        // Per-month totals. Aggregated in JS rather than SQL because the
+        // privacy filter is a Prisma `where` fragment — reproducing it in
+        // raw SQL would be a second implementation of the rule that decides
+        // who may see which rows, and the two would drift.
+        this.prisma.transaction.findMany({
+          where,
+          orderBy: { occurredAt: "asc" },
+          take: ADVISOR_TOOL_MAX_SCANNED_ROWS,
+          select: { occurredAt: true, type: true, amount: true },
+        }),
+        args.includeRows
+          ? this.prisma.transaction.findMany({
+              where,
+              orderBy: { amount: "desc" },
+              take: ADVISOR_TOOL_MAX_ROWS,
+              select: {
+                occurredAt: true,
+                description: true,
+                amount: true,
+                type: true,
+                category: { select: { name: true } },
+              },
+            })
+          : Promise.resolve([]),
+      ]);
+      const months = new Map<string, Record<string, bigint>>();
+      for (const row of byMonth) {
+        const key = row.occurredAt.toISOString().slice(0, 7);
+        const bucket = months.get(key) ?? {};
+        bucket[row.type] = (bucket[row.type] ?? 0n) + row.amount;
+        months.set(key, bucket);
+      }
+
+      const totals = Object.fromEntries(
+        byType.map((g) => [
+          g.type,
+          {
+            total: (g._sum.amount ?? 0n).toString(),
+            count: g._count._all,
+          },
+        ]),
+      );
+
+      return JSON.stringify({
+        period: { from: args.from ?? null, to: args.to ?? null },
+        totals,
+        // The month-by-month shape is what makes "bandingkan Maret dengan
+        // April" answerable without a second call.
+        months: [...months.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([month, byKind]) => ({
+            month,
+            income: (byKind.income ?? 0n).toString(),
+            expense: (byKind.expense ?? 0n).toString(),
+          })),
+        // Said out loud: a period wider than the scan bound is reported as
+        // partial rather than quietly summarised from a slice of itself.
+        ...(byMonth.length >= ADVISOR_TOOL_MAX_SCANNED_ROWS
+          ? {
+              warning: `Only the first ${ADVISOR_TOOL_MAX_SCANNED_ROWS} transactions of this period were counted. Ask for a narrower range for exact figures.`,
+            }
+          : {}),
+        ...(args.includeRows
+          ? {
+              rows: rows.map((r) => ({
+                date: r.occurredAt.toISOString().slice(0, 10),
+                description: r.description,
+                amount: r.amount.toString(),
+                type: r.type,
+                category: r.category?.name ?? null,
+              })),
+              rowsTruncatedAt: ADVISOR_TOOL_MAX_ROWS,
+            }
+          : {}),
+      });
+    };
+  }
 
   /**
    * Builds the financial context the model is given.
@@ -278,6 +427,14 @@ export class AiAdvisorService {
       // WealthMe default.
       resolvedKey.model,
     );
-    return advisor.chat(context, messages, onToken);
+    // The runner is bound to THIS family and THIS viewer — see
+    // `buildToolRunner`. The model chooses the period; it never chooses whose
+    // money it reads.
+    return advisor.chat(
+      context,
+      messages,
+      onToken,
+      this.buildToolRunner(familyGroupId, viewerRole ?? null),
+    );
   }
 }

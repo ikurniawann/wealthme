@@ -63,6 +63,8 @@ export type AdvisorMessage = {
  * the controller/UI needs this flag to say so explicitly instead of
  * quietly ending the sentence mid-thought.
  */
+import type { AdvisorToolRunner } from "./advisor-tools";
+
 export type AdvisorChatResult = {
   truncated: boolean;
 };
@@ -72,9 +74,16 @@ export type AdvisorChatResult = {
 // removed) because the adapter is now built per request from the caller's
 // own decrypted family key — see AiAdvisorFactory.
 export abstract class AiAdvisorPort {
+  /**
+   * `runTool` lets the model FETCH what the prompt does not carry — history
+   * beyond the current month, and individual rows — instead of every message
+   * paying for a context wide enough to answer any question. Optional so an
+   * adapter (or a caller) without tools behaves exactly as before.
+   */
   abstract chat(
     context: AdvisorContext,
     messages: AdvisorMessage[],
     onToken: (token: string) => void,
+    runTool?: AdvisorToolRunner,
   ): Promise<AdvisorChatResult>;
 }
