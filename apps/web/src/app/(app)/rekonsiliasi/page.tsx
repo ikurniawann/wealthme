@@ -23,6 +23,7 @@ import {
   Lock,
   Eye,
   EyeOff,
+  Plus,
 } from "lucide-react";
 // EPIC-026 Wave 5 note — the prototype's rekonsiliasi page mounts NO chart
 // at all (its <script> block loads only shell.js); the composition card is
@@ -118,6 +119,16 @@ type StatementTotalsVerdictDto = {
   status: "matched" | "mismatch" | "unavailable";
   tolerance: string;
   checks: StatementTotalsCheckDto[];
+};
+
+/** What a bulk import did. `skippedTotal` can exceed `skipped.length` (the
+ *  list is capped server-side), and `remaining` is what is still unimported —
+ *  both exist so a partial run cannot be reported as a clean success. */
+type ImportEntriesResultDto = {
+  imported: number;
+  skipped: { description: string; reason: string }[];
+  skippedTotal: number;
+  remaining: number;
 };
 
 type StatementDraftRow = { date: string; description: string; amount: string };
@@ -1855,6 +1866,104 @@ export default function RekonsiliasiPage() {
     enabled: step === 3 && !!familyGroupId && !!token,
   });
 
+  /**
+   * Turning bank lines into transactions.
+   *
+   * Reconciliation could only ever MATCH a line against a transaction that
+   * already existed, so with nothing to match against every line read "Tidak
+   * Ditemukan" and an imported statement never reached /transaksi. These two
+   * mutations are the missing direction.
+   *
+   * The destination account is asked for once, defaulting to the family's
+   * first account — the upload step only records a bank CODE, never an
+   * account, so there is nothing better to inherit and the user must be able
+   * to see and change it. Category is left empty on purpose: a statement
+   * description is not a category, and inventing one would write a wrong
+   * number into every budget that reads it.
+   */
+  const [importAccountId, setImportAccountId] = React.useState<string>("");
+  const accountsList = accountsQuery.data ?? [];
+  const resolvedImportAccountId = importAccountId || accountsList[0]?.id || "";
+
+  const invalidateAfterImport = React.useCallback(() => {
+    if (!familyGroupId) return;
+    // The imported rows are transactions now, so every view that counts money
+    // is stale — not just this page's entry list.
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.transactions.all(familyGroupId),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.accounts.all(familyGroupId),
+    });
+    if (syncId) {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.reconciliation.entries(familyGroupId, syncId),
+      });
+    }
+  }, [familyGroupId, queryClient, syncId]);
+
+  const importEntryMutation = useMutation({
+    mutationFn: ({ entryId }: { entryId: string }) =>
+      apiFetch<BankSyncEntryDto>(
+        `/family-groups/${familyGroupId}/reconciliation/${syncId}/entries/${entryId}/import`,
+        {
+          method: "POST",
+          token,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accountId: resolvedImportAccountId }),
+        },
+      ),
+    onSuccess: () => {
+      invalidateAfterImport();
+      toast.success(t.rekonsiliasi.toastEntryImported);
+    },
+    onError: (err: unknown) => {
+      toast.error(
+        (err instanceof Error && err.message.trim()) ||
+          t.rekonsiliasi.toastImportFailedDefault,
+      );
+    },
+  });
+
+  const importAllMutation = useMutation({
+    mutationFn: () =>
+      apiFetch<ImportEntriesResultDto>(
+        `/family-groups/${familyGroupId}/reconciliation/${syncId}/import-unmatched`,
+        {
+          method: "POST",
+          token,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accountId: resolvedImportAccountId }),
+        },
+      ),
+    onSuccess: (result) => {
+      invalidateAfterImport();
+      // Say what actually happened. "Berhasil" over a run that skipped nine
+      // rows is the kind of half-truth that gets found weeks later, when the
+      // balance does not agree with the bank.
+      if (result.skippedTotal > 0) {
+        toast.warning(
+          t.rekonsiliasi.toastEntriesImportedPartial
+            .replace("{imported}", String(result.imported))
+            .replace("{skipped}", String(result.skippedTotal)),
+        );
+      } else {
+        toast.success(
+          t.rekonsiliasi.toastEntriesImported.replace(
+            "{imported}",
+            String(result.imported),
+          ),
+        );
+      }
+    },
+    onError: (err: unknown) => {
+      toast.error(
+        (err instanceof Error && err.message.trim()) ||
+          t.rekonsiliasi.toastImportFailedDefault,
+      );
+    },
+  });
+
   /** The split endpoint creates real Transactions (a transfer + linked
    * admin-fee expense) — refresh every view those balances/reports feed,
    * mirroring the invalidation set in `components/shell/transaction-dialog.tsx`'s
@@ -2600,6 +2709,12 @@ export default function RekonsiliasiPage() {
       {/* ─── Step 3: Matching ─── */}
       {step === 3 &&
         (() => {
+          // Lines with no LINKED transaction — not "unmatched" by status: a
+          // "suggested" line is unconfirmed too, and importing it would be
+          // just as new.
+          const unimportedCount = entries.filter(
+            (entry) => !entry.matchedTxId,
+          ).length;
           const filteredEntries = entries.filter((entry) => {
             if (entryFilter === "all") return true;
             return entryStatus(entry.reconStatus) === entryFilter;
@@ -2767,6 +2882,61 @@ export default function RekonsiliasiPage() {
                   ))}
                 </div>
 
+                {/* Turning bank lines into transactions. Matching alone
+                    could only ever LINK a line to a transaction that already
+                    existed, so a family importing a statement before typing
+                    anything in saw every line red and nothing on /transaksi.
+                    The account is asked for here because the bank line does
+                    not carry one; the direction is not asked for, because the
+                    sign on the line already decides it. */}
+                {unimportedCount > 0 && (
+                  <div className="mb-3 flex flex-wrap items-end gap-3 rounded-[12px] border bg-accent/30 p-3">
+                    <label className="field mb-0 min-w-[200px] flex-1">
+                      <span className="label">
+                        {t.rekonsiliasi.importAccountLabel}
+                      </span>
+                      <select
+                        className="select"
+                        value={resolvedImportAccountId}
+                        onChange={(event) =>
+                          setImportAccountId(event.target.value)
+                        }
+                        disabled={
+                          accountsList.length === 0 ||
+                          importAllMutation.isPending ||
+                          importEntryMutation.isPending
+                        }
+                      >
+                        {accountsList.map((account) => (
+                          <option key={account.id} value={account.id}>
+                            {account.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => importAllMutation.mutate()}
+                      disabled={
+                        !resolvedImportAccountId ||
+                        importAllMutation.isPending ||
+                        importEntryMutation.isPending
+                      }
+                      className="btn btn--primary"
+                    >
+                      {importAllMutation.isPending
+                        ? t.rekonsiliasi.importAllPendingLabel
+                        : t.rekonsiliasi.importAllButton.replace(
+                            "{count}",
+                            String(unimportedCount),
+                          )}
+                    </button>
+                    <p className="w-full text-[11.5px] text-muted-foreground">
+                      {t.rekonsiliasi.importHelpText}
+                    </p>
+                  </div>
+                )}
+
                 {entriesQuery.isLoading && (
                   <div className="py-8 text-center text-[13px] text-muted-foreground">
                     {t.rekonsiliasi.loadingEntries}
@@ -2932,6 +3102,26 @@ export default function RekonsiliasiPage() {
                                       className="rounded-md bg-primary px-2.5 py-1 text-[11px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
                                     >
                                       {t.rekonsiliasi.confirmButton}
+                                    </button>
+                                  )}
+                                  {!entry.matchedTxId && (
+                                    <button
+                                      type="button"
+                                      aria-label={`${t.rekonsiliasi.importEntryAriaLabelPrefix} ${entry.description}`}
+                                      disabled={
+                                        importEntryMutation.isPending ||
+                                        importAllMutation.isPending ||
+                                        !resolvedImportAccountId
+                                      }
+                                      onClick={() =>
+                                        importEntryMutation.mutate({
+                                          entryId: entry.id,
+                                        })
+                                      }
+                                      className="flex items-center gap-1 rounded-md border border-primary/40 bg-accent/40 px-2.5 py-1 text-[11px] font-bold text-primary-strong transition-colors hover:bg-accent disabled:opacity-60"
+                                    >
+                                      <Plus className="size-3" />
+                                      {t.rekonsiliasi.importEntryButton}
                                     </button>
                                   )}
                                   {status !== "ok" && (

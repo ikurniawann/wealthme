@@ -3236,6 +3236,20 @@ export const en = {
     suggestedLabel: "Suggested",
     confirmButton: "Confirm",
     notFoundLabel: "Not Found",
+    importAccountLabel: "Import into account",
+    importEntryButton: "Create transaction",
+    importEntryAriaLabelPrefix: "Create a transaction for",
+    importAllButton: "Create transactions for all ({count})",
+    importAllPendingLabel: "Creating transactions...",
+    importHelpText:
+      "The direction follows the sign on the statement: minus becomes an expense, plus becomes income. Category is left empty and can be filled in later on the Transactions page.",
+    toastEntryImported: "Statement line turned into a transaction.",
+    toastEntriesImported:
+      "{imported} statement lines turned into transactions.",
+    toastEntriesImportedPartial:
+      "{imported} lines turned into transactions, {skipped} skipped.",
+    toastImportFailedDefault:
+      "Could not turn the statement lines into transactions.",
     backButton: "Back",
     saveReconciliationButton: "Save Reconciliation Results",
     doneTitle: "Reconciliation Complete!",
