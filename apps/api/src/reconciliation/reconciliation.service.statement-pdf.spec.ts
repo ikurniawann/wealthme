@@ -350,3 +350,99 @@ describe("commitStatementDraft", () => {
     ).resolves.toMatchObject({ rowCount: 1 });
   });
 });
+
+/**
+ * The per-page split.
+ *
+ * Reading a whole statement in one call could not work in production: a
+ * 5-page statement outran the reader's budget while nginx cut the upstream
+ * at 60s and Cloudflare capped the request at ~100s, so the browser only
+ * ever saw a dead connection. Pages are read one at a time now, merged in
+ * the browser, and parsed by a single free call.
+ */
+describe("readStatementPdfPage — one page, raw strings only", () => {
+  const pageDto = (text: string, pageIndex = 0) => ({
+    fileName: "e-statement.pdf",
+    pageCount: 3,
+    pageIndex,
+    text,
+  });
+
+  it("returns the model's RAW cells, with nothing parsed into money", async () => {
+    const { service, readStatement } = build(MANDIRI_READING);
+
+    const read = await service.readStatementPdfPage(
+      FAMILY_GROUP_ID,
+      pageDto(PAGE, 1),
+    );
+
+    expect(readStatement).toHaveBeenCalledWith(PAGE);
+    expect(read.pageIndex).toBe(1);
+    // Byte-for-byte what the model said. A page read that quietly returned a
+    // number here would let the model's own arithmetic become a stored
+    // amount without ever passing `parseStatementAmount` (E1).
+    expect(read.rows).toEqual(MANDIRI_READING.rows);
+    for (const row of read.rows) expect(typeof row.amount).toBe("string");
+  });
+
+  it("refuses a page with no text layer WITHOUT spending the family's key", async () => {
+    const { service, readStatement } = build(MANDIRI_READING);
+
+    await expect(
+      service.readStatementPdfPage(FAMILY_GROUP_ID, pageDto("  \n \n ")),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    // The point of the check: a near-empty prompt is exactly what makes a
+    // model invent a confident table of money rows, so the paid call is not
+    // made at all.
+    expect(readStatement).not.toHaveBeenCalled();
+  });
+
+  it("refuses when the family has no AI key, before any call", async () => {
+    const { service, readStatement } = build(MANDIRI_READING, null);
+
+    await expect(
+      service.readStatementPdfPage(FAMILY_GROUP_ID, pageDto(PAGE)),
+    ).rejects.toBeInstanceOf(StatementReaderNotConfiguredError);
+    expect(readStatement).not.toHaveBeenCalled();
+  });
+});
+
+describe("previewStatementDraft — parse and gate the merged pages, no AI", () => {
+  const draftFrom = (reading: StatementReading) => ({
+    fileName: "e-statement.pdf",
+    pageCount: 3,
+    rows: reading.rows,
+    totals: reading.totals,
+  });
+
+  it("parses the merged rows and cross-checks the statement's own totals", async () => {
+    const { service, readStatement } = build();
+
+    const preview = service.previewStatementDraft(
+      draftFrom(MANDIRI_READING) as never,
+    );
+
+    // Free and repeatable: confirming or re-previewing must not re-charge
+    // the family for a read it already paid for.
+    expect(readStatement).not.toHaveBeenCalled();
+    expect(preview.rowCount).toBe(MANDIRI_READING.rows.length);
+    expect(preview.totals.status).toBe("matched");
+    // The raw draft rides back out untouched, so the confirm step can post
+    // the same strings for the server to re-parse.
+    expect(preview.draft.rows).toEqual(MANDIRI_READING.rows);
+  });
+
+  it("reports a mismatch rather than quietly previewing a short statement", async () => {
+    const { service } = build();
+    const short = {
+      ...MANDIRI_READING,
+      rows: MANDIRI_READING.rows.slice(0, -1),
+    };
+
+    const preview = service.previewStatementDraft(draftFrom(short) as never);
+
+    // A dropped row is invisible on a review screen; the statement's own
+    // arithmetic is the only thing that catches it.
+    expect(preview.totals.status).toBe("mismatch");
+  });
+});

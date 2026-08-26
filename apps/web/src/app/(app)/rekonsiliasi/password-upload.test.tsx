@@ -192,6 +192,44 @@ function previewResponse(
   };
 }
 
+/**
+ * One page's RAW reading, as `POST statement-pdf/page` answers it.
+ *
+ * A statement is now read a page at a time: the single whole-file call could
+ * not finish inside the request path (a 5-page statement outran the reader
+ * budget, nginx's 60s upstream timeout and Cloudflare's ~100s cap), so the
+ * browser only ever saw a dead connection.
+ */
+function pageReadResponse(pageIndex = 0) {
+  return {
+    pageIndex,
+    rows: [
+      {
+        date: "2026-07-01",
+        description: "Pembayaran QR ke TOKO",
+        amount: "-37.000,00",
+      },
+    ],
+    totals: {
+      openingBalance: null,
+      closingBalance: null,
+      totalCredit: null,
+      totalDebit: "-37.000,00",
+    },
+  };
+}
+
+/** The three statement endpoints, answered by URL. */
+function statementResponseFor(
+  url: string,
+  status: "matched" | "mismatch" | "unavailable" = "matched",
+) {
+  if (url.endsWith("/confirm"))
+    return { id: "sync-1", rowCount: 1, skippedRows: [] };
+  if (url.endsWith("/page")) return pageReadResponse();
+  return previewResponse(status);
+}
+
 function encryptedWorkbookFile(): File {
   const bytes = new Uint8Array(256);
   bytes.set(CFB_MAGIC, 0);
@@ -444,7 +482,7 @@ describe("/rekonsiliasi — a statement PDF (EPIC-029 E9/E10)", () => {
       return {
         ok: true,
         status: 200,
-        json: async () => previewResponse(),
+        json: async () => statementResponseFor(String(url)),
       } as unknown as Response;
     }) as typeof fetch;
 
@@ -469,7 +507,8 @@ describe("/rekonsiliasi — a statement PDF (EPIC-029 E9/E10)", () => {
       }),
     );
 
-    await waitFor(() => expect(captured).toHaveLength(1));
+    // Two calls now: the per-page read, then the free parse + totals gate.
+    await waitFor(() => expect(captured).toHaveLength(2));
 
     // Non-vacuous: the password really did reach the extractor.
     expect(extractStatementPdfText).toHaveBeenLastCalledWith(
@@ -485,12 +524,19 @@ describe("/rekonsiliasi — a statement PDF (EPIC-029 E9/E10)", () => {
     // And the FILE itself never travelled: this is a JSON body, not a
     // multipart upload, and it carries text rather than bytes.
     expect(captured[0].init?.body).toEqual(expect.any(String));
+    expect(captured[0].url).toContain("statement-pdf/page");
     const body = JSON.parse(captured[0].init?.body as string) as {
-      pages: string[];
+      text: string;
+      pageIndex: number;
       pageCount: number;
     };
-    expect(body.pages).toEqual(PDF_PAGES);
+    expect(body.text).toBe(PDF_PAGES[0]);
+    expect(body.pageIndex).toBe(0);
     expect(body.pageCount).toBe(1);
+    // The second call carries the merged RAW rows for parsing — still no
+    // file, still no password.
+    expect(captured[1].url).toContain("statement-pdf/preview");
+    expect(await serialiseRequest(captured[1])).not.toContain(PASSWORD);
   });
 
   it("shows the preview without storing anything, and confirms on a separate call", async () => {
@@ -505,10 +551,7 @@ describe("/rekonsiliasi — a statement PDF (EPIC-029 E9/E10)", () => {
       return {
         ok: true,
         status: 200,
-        json: async () =>
-          String(url).endsWith("/confirm")
-            ? { id: "sync-1", rowCount: 1, skippedRows: [] }
-            : previewResponse(),
+        json: async () => statementResponseFor(String(url)),
       } as unknown as Response;
     }) as typeof fetch;
 
@@ -518,8 +561,10 @@ describe("/rekonsiliasi — a statement PDF (EPIC-029 E9/E10)", () => {
 
     await screen.findByText(dictionary.rekonsiliasi.pdfPreviewTitle);
     await screen.findByText("Pembayaran QR ke TOKO");
-    // Exactly one request so far: the read. Nothing has been imported.
-    expect(captured).toHaveLength(1);
+    // The read (one page) and the parse. Nothing has been imported yet.
+    expect(captured).toHaveLength(2);
+    expect(captured[0].url).toContain("statement-pdf/page");
+    expect(captured[1].url).toContain("statement-pdf/preview");
 
     await user.click(
       screen.getByRole("button", {
@@ -527,9 +572,9 @@ describe("/rekonsiliasi — a statement PDF (EPIC-029 E9/E10)", () => {
       }),
     );
 
-    await waitFor(() => expect(captured).toHaveLength(2));
-    expect(captured[1].url).toContain("statement-pdf/confirm");
-    const draft = JSON.parse(captured[1].init?.body as string) as {
+    await waitFor(() => expect(captured).toHaveLength(3));
+    expect(captured[2].url).toContain("statement-pdf/confirm");
+    const draft = JSON.parse(captured[2].init?.body as string) as {
       rows: { amount: string }[];
     };
     // The RAW printed string goes back, not the parsed number — the server
@@ -557,7 +602,9 @@ describe("/rekonsiliasi — a statement PDF (EPIC-029 E9/E10)", () => {
         json: async () =>
           String(url).endsWith("/confirm")
             ? { id: "sync-1", rowCount: 1, skippedRows: [] }
-            : unavailable,
+            : String(url).endsWith("/page")
+              ? pageReadResponse()
+              : unavailable,
       } as unknown as Response;
     }) as typeof fetch;
 
@@ -592,8 +639,9 @@ describe("/rekonsiliasi — a statement PDF (EPIC-029 E9/E10)", () => {
 
     // It still commits — the refusal logic is unchanged.
     await user.click(confirm);
-    await waitFor(() => expect(captured).toHaveLength(2));
-    expect(captured[1].url).toContain("statement-pdf/confirm");
+    // Page read, parse, then the confirm.
+    await waitFor(() => expect(captured).toHaveLength(3));
+    expect(captured[2].url).toContain("statement-pdf/confirm");
 
     // And the toast left behind after the preview closes does not claim
     // success it cannot vouch for.
@@ -615,10 +663,7 @@ describe("/rekonsiliasi — a statement PDF (EPIC-029 E9/E10)", () => {
       return {
         ok: true,
         status: 200,
-        json: async () =>
-          String(url).endsWith("/confirm")
-            ? { id: "sync-1", rowCount: 1, skippedRows: [] }
-            : previewResponse(),
+        json: async () => statementResponseFor(String(url)),
       } as unknown as Response;
     }) as typeof fetch;
 
@@ -659,7 +704,7 @@ describe("/rekonsiliasi — a statement PDF (EPIC-029 E9/E10)", () => {
       return {
         ok: true,
         status: 200,
-        json: async () => previewResponse("mismatch"),
+        json: async () => statementResponseFor(String(url), "mismatch"),
       } as unknown as Response;
     }) as typeof fetch;
 
@@ -674,8 +719,8 @@ describe("/rekonsiliasi — a statement PDF (EPIC-029 E9/E10)", () => {
     expect(confirm).toBeDisabled();
 
     await user.click(confirm);
-    // Still just the read — nothing was imported.
-    expect(captured).toHaveLength(1);
+    // Still just the read and the parse — nothing was imported.
+    expect(captured).toHaveLength(2);
   });
 
   it("refuses to render a preview an older API answered without a totals verdict", async () => {
@@ -736,7 +781,7 @@ describe("/rekonsiliasi — a statement PDF (EPIC-029 E9/E10)", () => {
       return {
         ok: true,
         status: 200,
-        json: async () => previewResponse(),
+        json: async () => statementResponseFor(String(url)),
       } as unknown as Response;
     }) as typeof fetch;
     const user = userEvent.setup();
@@ -748,5 +793,161 @@ describe("/rekonsiliasi — a statement PDF (EPIC-029 E9/E10)", () => {
       expect(req.url).not.toContain("upload-file");
       expect(req.init?.body).not.toBeInstanceOf(FormData);
     }
+  });
+
+  it("reads a multi-page statement one page at a time and merges the rows", async () => {
+    // The whole-file call could not finish inside the request path: a 5-page
+    // statement outran the reader budget, nginx's 60s upstream timeout and
+    // Cloudflare's ~100s cap, so the browser saw a dead connection. Each
+    // page is its own short call now.
+    const pages = [
+      "01 Jul 2026 | Pembayaran QR ke TOKO A | -37.000,00 | 1.480.061,00",
+      "02 Jul 2026 | Pembayaran QR ke TOKO B | -21.000,00 | 1.459.061,00",
+      "03 Jul 2026 | Transfer masuk GAJI | +4.350.000,00 | 5.809.061,00",
+    ];
+    extractStatementPdfText.mockResolvedValue({ pageCount: 3, pages });
+    globalThis.fetch = jest.fn(async (url: unknown, init?: RequestInit) => {
+      captured.push({ url: String(url), init });
+      const href = String(url);
+      const body = href.endsWith("/page")
+        ? (JSON.parse(init?.body as string) as { pageIndex: number })
+        : null;
+      return {
+        ok: true,
+        status: 200,
+        json: async () =>
+          body
+            ? {
+                pageIndex: body.pageIndex,
+                rows: [
+                  {
+                    date: `2026-07-0${body.pageIndex + 1}`,
+                    description: `BARIS ${body.pageIndex}`,
+                    amount: "-37.000,00",
+                  },
+                ],
+                // Only the LAST page prints the totals, as a real statement
+                // does — the merge must not lose them behind earlier nulls.
+                totals:
+                  body.pageIndex === 2
+                    ? {
+                        openingBalance: "1.517.061,00",
+                        closingBalance: "5.809.061,00",
+                        totalCredit: "+4.350.000,00",
+                        totalDebit: "-58.000,00",
+                      }
+                    : {
+                        openingBalance: null,
+                        closingBalance: null,
+                        totalCredit: null,
+                        totalDebit: null,
+                      },
+              }
+            : previewResponse(),
+      } as unknown as Response;
+    }) as typeof fetch;
+
+    const user = userEvent.setup();
+    const { container } = render(<RekonsiliasiPage />);
+    await user.upload(fileInputOf(container), pdfFile());
+
+    await waitFor(() => expect(captured).toHaveLength(4));
+    // One call per page, in page order, then exactly one parse.
+    expect(captured.slice(0, 3).map((req) => req.url)).toEqual([
+      expect.stringContaining("statement-pdf/page"),
+      expect.stringContaining("statement-pdf/page"),
+      expect.stringContaining("statement-pdf/page"),
+    ]);
+    expect(
+      captured
+        .slice(0, 3)
+        .map(
+          (req) =>
+            (JSON.parse(req.init?.body as string) as { pageIndex: number })
+              .pageIndex,
+        ),
+    ).toEqual([0, 1, 2]);
+    expect(captured[3].url).toContain("statement-pdf/preview");
+
+    const parsed = JSON.parse(captured[3].init?.body as string) as {
+      rows: { description: string }[];
+      totals: { closingBalance: string | null; totalCredit: string | null };
+      pageCount: number;
+    };
+    // Every page's rows arrive, in order, in ONE parse call.
+    expect(parsed.rows.map((row) => row.description)).toEqual([
+      "BARIS 0",
+      "BARIS 1",
+      "BARIS 2",
+    ]);
+    expect(parsed.pageCount).toBe(3);
+    // And the totals printed on the last page survived the merge.
+    expect(parsed.totals.closingBalance).toBe("5.809.061,00");
+    expect(parsed.totals.totalCredit).toBe("+4.350.000,00");
+  });
+
+  it("spends nothing on a page with no text on it", async () => {
+    // A cover page or a divider is not worth a paid call, and the server
+    // refuses near-empty text anyway.
+    extractStatementPdfText.mockResolvedValue({
+      pageCount: 2,
+      pages: ["   \n  \n ", PDF_PAGES[0]],
+    });
+    globalThis.fetch = jest.fn(async (url: unknown, init?: RequestInit) => {
+      captured.push({ url: String(url), init });
+      return {
+        ok: true,
+        status: 200,
+        json: async () => statementResponseFor(String(url)),
+      } as unknown as Response;
+    }) as typeof fetch;
+
+    const user = userEvent.setup();
+    const { container } = render(<RekonsiliasiPage />);
+    await user.upload(fileInputOf(container), pdfFile());
+
+    await waitFor(() => expect(captured).toHaveLength(2));
+    const reads = captured.filter((req) => req.url.endsWith("/page"));
+    expect(reads).toHaveLength(1);
+    // The page that WAS read is the one with text — index 1, not 0.
+    expect(
+      (JSON.parse(reads[0].init?.body as string) as { pageIndex: number })
+        .pageIndex,
+    ).toBe(1);
+  });
+
+  it("never shows an error toast with nothing in it", async () => {
+    // The bug this replaces: in production nginx timed the read out at 60s
+    // and answered with its own HTML, so `res.json()` failed and the message
+    // fell back to `res.statusText` — which over HTTP/2 is ALWAYS the empty
+    // string, because h2 carries no reason phrase. The user saw a toast with
+    // no text and had no idea what had gone wrong.
+    extractStatementPdfText.mockResolvedValue({
+      pageCount: 1,
+      pages: PDF_PAGES,
+    });
+    globalThis.fetch = jest.fn(async (url: unknown, init?: RequestInit) => {
+      captured.push({ url: String(url), init });
+      return {
+        ok: false,
+        status: 504,
+        statusText: "", // exactly what fetch reports over HTTP/2
+        json: async () => {
+          throw new SyntaxError("Unexpected token < in JSON at position 0");
+        },
+      } as unknown as Response;
+    }) as typeof fetch;
+
+    const user = userEvent.setup();
+    const { container } = render(<RekonsiliasiPage />);
+    await user.upload(fileInputOf(container), pdfFile());
+
+    await waitFor(() => expect(toastError).toHaveBeenCalled());
+    const [message] = toastError.mock.calls.at(-1) as [unknown];
+    expect(typeof message).toBe("string");
+    expect((message as string).trim()).not.toBe("");
+    // And it names the status, so a gateway timeout is distinguishable from
+    // a refusal the API actually authored.
+    expect(message).toContain("504");
   });
 });

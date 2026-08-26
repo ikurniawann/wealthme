@@ -120,16 +120,33 @@ type StatementTotalsVerdictDto = {
   checks: StatementTotalsCheckDto[];
 };
 
+type StatementDraftRow = { date: string; description: string; amount: string };
+
+type StatementDraftTotals = {
+  openingBalance: string | null;
+  closingBalance: string | null;
+  totalCredit: string | null;
+  totalDebit: string | null;
+};
+
 type StatementDraftDto = {
   fileName: string;
-  rows: { date: string; description: string; amount: string }[];
-  totals: {
-    openingBalance: string | null;
-    closingBalance: string | null;
-    totalCredit: string | null;
-    totalDebit: string | null;
-  };
+  rows: StatementDraftRow[];
+  totals: StatementDraftTotals;
 };
+
+/** One page's RAW reading, merged in the browser before the single parse +
+ *  totals-gate call. Strings only, like every other statement payload. */
+type StatementPageRead = {
+  pageIndex: number;
+  rows: StatementDraftRow[];
+  totals: StatementDraftTotals;
+};
+
+/** Mirrors MIN_STATEMENT_PAGE_TEXT_CHARS server-side. A page under this is a
+ *  cover or a divider: skipping it locally saves the family a paid call the
+ *  server would refuse anyway. */
+const MIN_PAGE_TEXT_CHARS = 40;
 
 type StatementPreviewDto = {
   fileName: string;
@@ -1075,8 +1092,12 @@ async function uploadReconciliationFile(
       message?: string;
       code?: string;
     };
+    // Same trap as `postStatementJson`: when the response does not come from
+    // the API (an nginx 413 or 504 page), `res.json()` fails and
+    // `res.statusText` is the empty string over HTTP/2, which renders as a
+    // toast with no text in it. The status code is the last resort.
     throw new ReconciliationUploadError(
-      body.message ?? res.statusText,
+      body.message?.trim() || res.statusText.trim() || `HTTP ${res.status}`,
       body.code,
     );
   }
@@ -1130,11 +1151,16 @@ async function postStatementJson<T>(
       code?: string;
       totals?: StatementTotalsVerdictDto;
     };
-    throw new StatementReadError(
-      payload.message ?? res.statusText,
-      payload.code,
-      payload.totals,
-    );
+    // This threw an EMPTY message in production and the failure was
+    // completely silent. When the response does not come from the API at all
+    // — an nginx 504 page, a Cloudflare error — `res.json()` fails and the
+    // fallback was `res.statusText`, which over HTTP/2 is ALWAYS the empty
+    // string (h2 carries no reason phrase). `toast.error("")` renders a toast
+    // with no text in it. So the status code is the last resort here, and it
+    // is never blank.
+    const message =
+      payload.message?.trim() || res.statusText.trim() || `HTTP ${res.status}`;
+    throw new StatementReadError(message, payload.code, payload.totals);
   }
   return res.json() as Promise<T>;
 }
@@ -1305,6 +1331,12 @@ export default function RekonsiliasiPage() {
      round-trip on the family's own key. */
   const [pdfPreview, setPdfPreview] =
     React.useState<StatementPreviewDto | null>(null);
+  /** Which page the AI is on, so a multi-page read shows progress instead of
+   *  one spinner that used to end in nothing at all. */
+  const [pdfProgress, setPdfProgress] = React.useState<{
+    page: number;
+    total: number;
+  } | null>(null);
   const [pdfBusy, setPdfBusy] = React.useState<"reading" | "analyzing" | null>(
     null,
   );
@@ -1522,14 +1554,87 @@ export default function RekonsiliasiPage() {
         return;
       }
       try {
+        // Read PAGE BY PAGE rather than the whole statement in one call.
+        //
+        // The single call could not work in production: a 5-page statement
+        // ran past the reader's 120s budget, while nginx cuts an idle
+        // upstream at 60s and Cloudflare caps a request at ~100s. The request
+        // was simply longer than the path allows, so the browser saw a dead
+        // connection and (because HTTP/2 carries no reason phrase) an empty
+        // error message. A page is roughly ten rows and finishes in seconds.
+        //
+        // A blank page is skipped without spending anything: the server
+        // refuses near-empty text anyway, and a cover page is not worth a
+        // paid call.
+        const merged: StatementDraftRow[] = [];
+        const mergedTotals: StatementDraftTotals = {
+          openingBalance: null,
+          closingBalance: null,
+          totalCredit: null,
+          totalDebit: null,
+        };
+        const readablePages = extraction.pages
+          .map((text, index) => ({ text, index }))
+          .filter(
+            (page) =>
+              page.text.replace(/\s+/g, "").length >= MIN_PAGE_TEXT_CHARS,
+          );
+
+        if (readablePages.length === 0) {
+          throw new StatementReadError("", "STATEMENT_NO_TEXT_LAYER");
+        }
+
+        for (const [position, page] of readablePages.entries()) {
+          setPdfProgress({ page: position + 1, total: readablePages.length });
+          const read = await postStatementJson<StatementPageRead>(
+            familyGroupId,
+            token,
+            "statement-pdf/page",
+            {
+              fileName: file.name,
+              pageCount: extraction.pageCount,
+              pageIndex: page.index,
+              text: page.text,
+            },
+          );
+          // Same reason `isStatementPreview` exists: during a rolling deploy
+          // this client can meet an API that answers a shape it does not
+          // expect. Spreading a missing `rows` would throw a raw TypeError
+          // and surface as a stack-trace message instead of the retryable,
+          // localized error the user should see.
+          if (!Array.isArray(read?.rows)) {
+            throw new StatementReadError("", "STATEMENT_AI_UPSTREAM_FAILED");
+          }
+          merged.push(...read.rows);
+          // Statements print their totals on one page (usually the summary),
+          // so the first non-null wins and a later page cannot overwrite a
+          // figure with a null. Two pages disagreeing would be a statement
+          // bug; the totals gate is what catches that, not this merge.
+          for (const key of Object.keys(
+            mergedTotals,
+          ) as (keyof StatementDraftTotals)[]) {
+            mergedTotals[key] ??= read.totals?.[key] ?? null;
+          }
+        }
+        setPdfProgress(null);
+
+        if (merged.length === 0) {
+          throw new StatementReadError("", "STATEMENT_NO_ROWS");
+        }
+
+        // Parsing and the totals gate run server-side over the merged set —
+        // no AI call, so this is free and retryable. The commit re-runs the
+        // very same pipeline before it writes, which is what makes a
+        // client-merged draft safe to send.
         const preview = await postStatementJson<StatementPreviewDto>(
           familyGroupId,
           token,
-          "statement-pdf",
+          "statement-pdf/preview",
           {
             fileName: file.name,
             pageCount: extraction.pageCount,
-            pages: extraction.pages,
+            rows: merged,
+            totals: mergedTotals,
           },
         );
         // Validated before it is rendered. Not defensive decoration: during a
@@ -1542,14 +1647,18 @@ export default function RekonsiliasiPage() {
         setPdfPreview(preview);
       } catch (err) {
         const code = err instanceof StatementReadError ? err.code : undefined;
+        // Every branch must end in visible text. A blank string here is what
+        // made this failure invisible once already, so an empty message falls
+        // through to the generic one rather than being rendered as nothing.
+        const raw = err instanceof Error ? err.message.trim() : "";
         toast.error(
-          statementErrorMessageForCode(code, t) ??
-            (err instanceof Error
-              ? err.message
-              : t.rekonsiliasi.toastUploadFailedDefault),
+          statementErrorMessageForCode(code, t) ||
+            raw ||
+            t.rekonsiliasi.toastUploadFailedDefault,
         );
       } finally {
         setPdfBusy(null);
+        setPdfProgress(null);
       }
     },
     [clearPasswordState, familyGroupId, t, token],
@@ -1936,7 +2045,11 @@ export default function RekonsiliasiPage() {
                   {pdfBusy === "reading"
                     ? t.rekonsiliasi.pdfReadingLabel
                     : pdfBusy === "analyzing"
-                      ? t.rekonsiliasi.pdfAnalyzingLabel
+                      ? pdfProgress
+                        ? t.rekonsiliasi.pdfAnalyzingPageLabel
+                            .replace("{page}", String(pdfProgress.page))
+                            .replace("{total}", String(pdfProgress.total))
+                        : t.rekonsiliasi.pdfAnalyzingLabel
                       : uploading || uploadMutation.isPending
                         ? t.rekonsiliasi.uploadingLabel
                         : t.rekonsiliasi.dragDropLabel}

@@ -23,10 +23,21 @@ const CLAUDE_STATEMENT_MODEL = "claude-haiku-4-5-20251001" as const;
  * tokens would truncate it into a silently short statement. Sized for
  * `MAX_STATEMENT_ROWS` worth of compact JSON rows. */
 const MAX_TOKENS = 16_000;
-/** Longer than the 45s OCR budget — this is a whole statement, not one
- * receipt — but still bounded so a stalled upstream cannot hold the request
- * (and its throttle slot) open indefinitely. */
-export const STATEMENT_READER_TIMEOUT_MS = 120_000;
+/**
+ * Sized to the REQUEST PATH, not to what the model might want.
+ *
+ * This was 120s, which could never work: nginx cuts an idle upstream at 60s
+ * by default and Cloudflare caps a single request at ~100s, so the API's own
+ * carefully-coded `504 STATEMENT_AI_TIMEOUT` was raised a full minute after
+ * the browser had already been disconnected. The user saw nothing at all.
+ *
+ * A budget only helps if it expires BEFORE the proxies give up, so this sits
+ * under the tightest of them. Reads are per page now (see
+ * `ReadStatementPdfPageDto`), which is roughly ten rows and finishes far
+ * inside this — the budget is a backstop for a stalled upstream, not the
+ * normal case.
+ */
+export const STATEMENT_READER_TIMEOUT_MS = 55_000;
 
 /**
  * EPIC-029 E5 — Claude statement reader, built PER REQUEST from the family's

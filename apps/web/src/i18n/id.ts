@@ -3131,6 +3131,9 @@ export const id = {
       "PDF hasil scan atau foto (tanpa lapisan teks) belum didukung, dan akan ditolak dengan alasan yang jelas — bukan diimpor sebagai nol baris.",
     pdfReadingLabel: "Membaca PDF di browser...",
     pdfAnalyzingLabel: "AI sedang merapikan tabel transaksi...",
+    /** Per-page progress. A statement is read one page at a time, so the
+     *  label says which page rather than spinning silently. */
+    pdfAnalyzingPageLabel: "AI membaca halaman {page} dari {total}...",
     protectedDialogDescPdf:
       "PDF ini terkunci password. Password diproses di browser Anda dan tidak pernah dikirim ke server.",
     pdfErrorPasswordRequired:

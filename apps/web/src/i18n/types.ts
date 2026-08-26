@@ -2966,6 +2966,8 @@ export type I18nDictionary = {
     pdfCalloutScanNote: string;
     pdfReadingLabel: string;
     pdfAnalyzingLabel: string;
+    /** Carries `{page}` and `{total}` placeholders. */
+    pdfAnalyzingPageLabel: string;
     protectedDialogDescPdf: string;
     pdfErrorPasswordRequired: string;
     pdfErrorWrongPassword: string;
