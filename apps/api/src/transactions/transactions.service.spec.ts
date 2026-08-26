@@ -968,6 +968,35 @@ describe("TransactionsService", () => {
       expect(result.id).toBe("tx-guard-1");
     });
 
+    it("skips the guard entirely when the caller passes enforceBankFloor: false (reconciliation backfill)", async () => {
+      // Same shape as the very first test in this block — an expense that
+      // would take the bank account below zero — but this time the caller
+      // says the debit is confirmed history (a reconciliation import), not
+      // a fresh spend. Must succeed instead of throwing.
+      mockAccountsById({
+        [ACCOUNT_ID]: { type: "bank", balance: BigInt(30000) },
+      });
+      mockCreate();
+
+      const result = await service.create(
+        FAMILY_GROUP_ID,
+        {
+          accountId: ACCOUNT_ID,
+          amount: 50000,
+          type: "expense",
+          occurredAt: now.toISOString(),
+        },
+        undefined,
+        { enforceBankFloor: false },
+      );
+
+      expect(result.id).toBe("tx-guard-1");
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { balance: { increment: BigInt(-50000) } },
+      });
+    });
+
     it("delete-reversal is never blocked, even when it takes a bank account below zero", async () => {
       // The destination bank account has since been spent down to a low
       // balance; reversing the original 200.000 credit that funded it would

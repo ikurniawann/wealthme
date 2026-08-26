@@ -1496,3 +1496,35 @@ does not exist`, which the agent then diagnosed as a pre-existing broken
   build output as meaningless: always rebuild from `src`. A wrong `dist`
   surfaces as an unreadable SIGTRAP in the Next type-checker, never as a type
   error, so nothing downstream would have caught it.
+- 2026-08-26 — Fixed: `assertBankNotOverdrawn` (#22) rejected reconciliation's
+  "Jadikan transaksi" ("Baris ini gagal jadi transaksi: Saldo rekening bank ...
+  tidak boleh memiliki saldo minus.") on real bank-line imports, not just
+  overspend. Root cause: `#22`'s floor guards a FRESH, user-initiated debit,
+  but reconciliation is backfilling CONFIRMED history from the family's own
+  statement — and the account's WealthMe balance structurally lags the
+  statement, because the opening-balance ("SALDO AWAL") row is refused as
+  `ENTRY_ZERO_AMOUNT` (bd4435d) and a single-row import has no ordering
+  guarantee over the rest of the statement (only the bulk import sorts by
+  date). Any first-time reconciliation of a bank account can trip this.
+  Fix: `TransactionsService.create()` takes a 4th, DTO-external `options?:
+{ enforceBankFloor?: boolean }` (default `true`, unchanged for every other
+  caller) so the invariant can't be waived by a client request field.
+  `ReconciliationService.createTransactionFromEntry` and `.splitEntry` both
+  pass `{ enforceBankFloor: false }` — a bank line is confirmed money
+  movement, not a fresh spend. Regression tests: a bank-overdraft-guard case
+  in `transactions.service.spec.ts` proving the same expense that #22 still
+  rejects by default succeeds with the option set, plus an assertion in
+  `reconciliation-import-entries.spec.ts` that `importEntry` always passes
+  it. Gates: qa.sh 0 errors, test.sh — API 120 suites/1462 tests, web 58
+  suites/725 tests (2 pre-existing skips), typecheck clean. (`pnpm audit`
+  flags a pre-existing `deepmerge-ts`/prisma transitive advisory, unrelated
+  to this diff — no dependency changed.)
+  **Diagnosed via `/mattpocock-skills:diagnosing-bugs`**: the first error the
+  user hit ("Gagal menjadikan mutasi sebagai transaksi.") was a RED HERRING —
+  `apiFetch` throws a plain `{status,message}` object, not an `Error`, so
+  every `err instanceof Error` guard on `rekonsiliasi/page.tsx` (8 sites)
+  silently drops the server's real reason and shows the generic fallback
+  instead. That swallowing bug is real and still open (not fixed here — out
+  of the user's chosen scope this round); it just wasn't THIS bug. Only
+  asking the user to paste the raw network response body (not the toast)
+  surfaced the actual overdraft error and the real root cause.

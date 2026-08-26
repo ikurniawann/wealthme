@@ -106,17 +106,39 @@ describe("importEntry — one bank line becomes one transaction", () => {
       accountId: ACCOUNT_ID,
     });
 
-    expect(create).toHaveBeenCalledWith(FAMILY_GROUP_ID, {
-      accountId: ACCOUNT_ID,
-      // Sign is dropped: the DTO takes a positive magnitude plus a type.
-      amount: 37_000,
-      type: "expense",
-      description: "Pembayaran QR ke TOKO",
-      occurredAt: "2026-07-01T00:00:00.000Z",
-    });
+    expect(create).toHaveBeenCalledWith(
+      FAMILY_GROUP_ID,
+      {
+        accountId: ACCOUNT_ID,
+        // Sign is dropped: the DTO takes a positive magnitude plus a type.
+        amount: 37_000,
+        type: "expense",
+        description: "Pembayaran QR ke TOKO",
+        occurredAt: "2026-07-01T00:00:00.000Z",
+      },
+      undefined,
+      { enforceBankFloor: false },
+    );
     // And the line is now linked, so it stops reading "Tidak Ditemukan".
     expect(rows[0].reconStatus).toBe("matched");
     expect(rows[0].matchedTxId).toBe("tx-1");
+  });
+
+  it("never applies the live-overdraft floor — a bank line is confirmed history, not a fresh spend", async () => {
+    // EPIC-021 #22 blocks a FRESH debit from pushing a bank account
+    // negative. A reconciliation import is the opposite: the family's own
+    // statement already confirms this money moved. The account can only
+    // look "insufficient" here because the WealthMe balance hasn't caught
+    // up with the rest of the statement yet (the opening-balance row is
+    // never importable, and one row can be imported before an earlier
+    // credit) — that must never block importing real history.
+    const { service, create } = build([makeEntry()]);
+
+    await service.importEntry(FAMILY_GROUP_ID, SYNC_ID, "entry-1", {
+      accountId: ACCOUNT_ID,
+    });
+
+    expect(create.mock.calls[0][3]).toEqual({ enforceBankFloor: false });
   });
 
   it("imports a credit as INCOME — the sign decides, not the caller", async () => {
@@ -131,6 +153,8 @@ describe("importEntry — one bank line becomes one transaction", () => {
     expect(create).toHaveBeenCalledWith(
       FAMILY_GROUP_ID,
       expect.objectContaining({ type: "income", amount: 4_350_000 }),
+      undefined,
+      { enforceBankFloor: false },
     );
   });
 

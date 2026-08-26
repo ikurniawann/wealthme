@@ -174,7 +174,21 @@ export class TransactionsService {
     familyGroupId: string,
     dto: CreateTransactionDto,
     actingMember?: ActingMember,
+    // EPIC-023 (rekonsiliasi) — internal-only, never on the DTO: exposing
+    // this as a request field would let any client waive the overdraft
+    // floor on a live expense. Reconciliation is the one caller allowed to
+    // pass `enforceBankFloor: false`, because a bank-line import is not a
+    // "fresh, user-initiated debit" in EPIC-021 #22's sense — it is
+    // recording money that ALREADY moved, verified against the family's own
+    // statement. The account's WealthMe balance lags the real one until
+    // enough of the statement has been converted (the opening-balance row
+    // is never importable, and a single-row import has no ordering
+    // guarantee), so the live-overspend guard produces false positives on
+    // real history. See bank-overdraft.util.ts's own doc for the invariant
+    // this option is deliberately allowed to skip.
+    options?: { enforceBankFloor?: boolean },
   ): Promise<TransactionResponseDto | HeldExpenseResponseDto> {
+    const enforceBankFloor = options?.enforceBankFloor ?? true;
     const account = await this.prisma.account.findUnique({
       where: { id: dto.accountId, familyGroupId },
     });
@@ -312,9 +326,10 @@ export class TransactionsService {
 
       if (toAccount) {
         // Real two-sided transfer: debit source, credit destination
-        // atomically within this same $transaction. `enforceBankFloor: true`
-        // — this is a fresh, user-initiated debit of the SOURCE account
-        // (EPIC-021 #22); the destination's credit leg is never guarded.
+        // atomically within this same $transaction. Guards the SOURCE
+        // account's debit leg with the caller's `enforceBankFloor` (EPIC-021
+        // #22, true by default); the destination's credit leg is never
+        // guarded.
         await this.applyTransferBalanceDelta(
           prisma,
           familyGroupId,
@@ -322,7 +337,7 @@ export class TransactionsService {
           toAccount.id,
           BigInt(dto.amount),
           "add",
-          true,
+          enforceBankFloor,
         );
 
         // #28 — e-wallet top-up admin fee: the destination is credited the
@@ -348,9 +363,9 @@ export class TransactionsService {
               createdByUserId: actingMember?.userId ?? null,
             },
           });
-          // EPIC-021 #22 — admin fee is itself a fresh debit against the
-          // (bank) destination account, guarded the same as any other
-          // user-initiated expense.
+          // EPIC-021 #22 — admin fee is itself a debit against the (bank)
+          // destination account, guarded the same as the transfer's own
+          // source debit above (same `enforceBankFloor`, same caller).
           await this.applyBalanceDelta(
             prisma,
             familyGroupId,
@@ -358,12 +373,13 @@ export class TransactionsService {
             toAccount.id,
             BigInt(dto.adminFee),
             "add",
-            true,
+            enforceBankFloor,
           );
         }
       } else {
-        // EPIC-021 #22 — fresh, user-initiated debit (income is a no-op for
-        // the guard; see applyBalanceDelta's early income return).
+        // EPIC-021 #22 — guarded per the caller's `enforceBankFloor` (income
+        // is a no-op for the guard either way; see applyBalanceDelta's early
+        // income return).
         await this.applyBalanceDelta(
           prisma,
           familyGroupId,
@@ -371,7 +387,7 @@ export class TransactionsService {
           dto.accountId,
           BigInt(dto.amount),
           "add",
-          true,
+          enforceBankFloor,
         );
       }
 
