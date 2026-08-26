@@ -8,22 +8,42 @@ import {
 } from "@nestjs/common";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { PrismaService } from "../prisma/prisma.service";
+import { AiKeyService } from "../ai-advisor/ai-key.service";
+import { type PrismaService } from "../prisma/prisma.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { TransactionsService } from "../transactions/transactions.service";
 
 import {
+  MAX_STATEMENT_PDF_TEXT_CHARS,
+  type ReadStatementPdfDto,
+} from "./dto/read-statement-pdf.dto";
+import {
   detectMapping,
+  detectTableMapping,
   ExcelLimitExceededError,
   mapTableToRows,
   parseCsv,
   parseExcelBuffer,
 } from "./reconciliation-parsers";
+import { StatementReaderNotConfiguredError } from "./statement-reader/statement-reader-not-configured.error";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { StatementReaderFactory } from "./statement-reader/statement-reader.factory";
+import { checkStatementTotals } from "./statement-totals.util";
 import { ZipExpansionExceededError } from "./zip-bounds.util";
 
+import type { CommitStatementDraftDto } from "./dto/commit-statement-draft.dto";
 import type { SplitEntryDto } from "./dto/split-entry.dto";
 import type { UpsertReconciliationTemplateDto } from "./dto/upsert-reconciliation-template.dto";
-import type { TemplateMapping } from "./reconciliation-parsers";
+import type {
+  DetectedTableMapping,
+  MapTableResult,
+  TemplateMapping,
+} from "./reconciliation-parsers";
+import type {
+  StatementRawRow,
+  StatementRawTotals,
+} from "./statement-reader/statement-reader.port";
+import type { TotalsVerdict } from "./statement-totals.util";
 import type { TransactionResponseDto } from "../transactions/dto/transaction-response.dto";
 
 /** Structural subset of Express.Multer.File — kept narrow so this service
@@ -54,6 +74,33 @@ function withCode(
  * comment and `BankSyncDto.skippedRowsTotal`). A file with thousands of
  * skipped rows produced an unbounded, multi-hundred-KB response otherwise. */
 export const MAX_SKIPPED_ROWS_RETURNED = 200;
+
+/**
+ * EPIC-029 E2c — the header the AI's raw rows are laid out under before
+ * they reach `mapTableToRows`. Every label is one the existing alias
+ * detection already knows (`DATE_ALIASES` / `DESCRIPTION_ALIASES` /
+ * `AMOUNT_ALIASES`), so this reuses the real mapping machinery rather than
+ * hand-rolling a second one for PDFs.
+ */
+const STATEMENT_DRAFT_HEADER = ["Tanggal", "Keterangan", "Jumlah"] as const;
+
+/** Mirrors `PDF_MIN_TEXT_CHARS` in the web app's `statement-pdf.ts`: below
+ * this there is no text layer to read, only a scan. */
+const MIN_STATEMENT_TEXT_CHARS = 200;
+
+function toTotalsVerdictDto(verdict: TotalsVerdict): StatementTotalsVerdictDto {
+  return {
+    status: verdict.status,
+    tolerance: verdict.tolerance.toString(),
+    checks: verdict.checks.map((check) => ({
+      label: check.label,
+      expected: check.expected.toString(),
+      actual: check.actual.toString(),
+      difference: check.difference.toString(),
+      matched: check.matched,
+    })),
+  };
+}
 
 export type ParsedRow = {
   date: Date;
@@ -93,6 +140,57 @@ type BankSyncEntryRow = {
 export type SkippedRowDto = {
   line: number;
   reason: string;
+};
+
+/* ─────────── EPIC-029 groups 2-3 — statement PDF read + preview ─────────── */
+
+/**
+ * One cross-check of the extracted rows against a figure the statement
+ * printed itself. `bigint` fields are serialised as decimal strings on the
+ * wire (`toStatementPreviewDto`) — `JSON.stringify` throws on a `bigint`,
+ * and a `number` would reintroduce float rounding into a money field.
+ */
+export type StatementTotalsCheckDto = {
+  label: "opening-to-closing" | "total-credit" | "total-debit";
+  expected: string;
+  actual: string;
+  difference: string;
+  matched: boolean;
+};
+
+export type StatementTotalsVerdictDto = {
+  status: "matched" | "mismatch" | "unavailable";
+  tolerance: string;
+  checks: StatementTotalsCheckDto[];
+};
+
+/**
+ * The raw, unparsed reading the AI produced — echoed back to the client so
+ * the confirm step can post it unchanged. It carries STRINGS only; the
+ * server re-parses them on commit, so nothing here can become a stored
+ * amount without passing `parseStatementAmount` (E1).
+ */
+export type StatementDraftDto = {
+  fileName: string;
+  rows: StatementRawRow[];
+  totals: StatementRawTotals;
+};
+
+/**
+ * EPIC-029 E3a — what a statement read returns. NOTHING IS PERSISTED at
+ * this point: there is no `BankSync`, no `BankSyncEntry`, and no id. The
+ * user reviews this and explicitly confirms, which is what actually writes.
+ */
+export type StatementPreviewDto = {
+  fileName: string;
+  pageCount: number;
+  rowCount: number;
+  /** Parsed and normalised, for display: ISO date + whole-rupiah string. */
+  rows: { date: string; description: string; amount: string }[];
+  skippedRows: SkippedRowDto[];
+  skippedRowsTotal: number;
+  totals: StatementTotalsVerdictDto;
+  draft: StatementDraftDto;
 };
 
 export type BankSyncDto = {
@@ -291,6 +389,11 @@ export class ReconciliationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly transactionsService: TransactionsService,
+    // EPIC-029 E5 — the family's OWN AI key, resolved per request, exactly
+    // as receipt OCR does it. There is no server key to fall back to and no
+    // mock to answer with, by design.
+    private readonly aiKeyService: AiKeyService,
+    private readonly statementReaderFactory: StatementReaderFactory,
   ) {}
 
   async upload(
@@ -345,9 +448,19 @@ export class ReconciliationService {
     const ext = extname(file.originalname).toLowerCase();
 
     if (ext === ".pdf") {
+      // EPIC-029 — a PDF is now supported, but NOT here and not as a file.
+      // `pdfjs-dist` decrypts for reading only and cannot emit a decrypted
+      // PDF, so the text layer is extracted in the BROWSER and posted to
+      // `POST statement-pdf` instead — which is what keeps the statement's
+      // password inside the tab (E8/E9/E10).
+      //
+      // The refusal stays, rather than becoming a server-side PDF parser,
+      // because uploading the file is genuinely still unsupported: this
+      // route has no way to read one, and answering it with zero rows or a
+      // guess is the failure this whole epic is written against.
       throw new UnprocessableEntityException(
         withCode(
-          "Statement PDF tidak bisa diproses secara otomatis. Silakan ekspor mutasi rekening sebagai CSV dari aplikasi/situs bank Anda, lalu unggah file CSV tersebut.",
+          "Statement PDF tidak diunggah lewat jalur ini. Pilih file PDF dari halaman Rekonsiliasi — teksnya dibaca langsung di browser (password tidak pernah dikirim ke server), lalu ditinjau sebelum diimpor.",
           "PDF_UNSUPPORTED",
         ),
       );
@@ -414,14 +527,29 @@ export class ReconciliationService {
       );
     }
 
-    const mapping = bankCode
-      ? await this.resolveTemplateMapping(familyGroupId, bankCode)
-      : this.autoDetectMapping(table[0] ?? []);
+    // EPIC-029 — auto-detection no longer assumes the header is row 1. A real
+    // e-statement carries an account block above the table, and Mandiri
+    // repeats the header in English on the row below it; `detectTableMapping`
+    // finds the header and reports where the DATA starts. The saved-template
+    // path is unchanged and still reads row 1.
+    const detected = bankCode ? null : this.autoDetectMapping(table);
+    const mapping = detected
+      ? detected.mapping
+      : await this.resolveTemplateMapping(familyGroupId, bankCode as string);
 
     let rows: ParsedRow[];
     let skipped: SkippedRowDto[];
     try {
-      ({ rows, skipped } = mapTableToRows(table, mapping));
+      ({ rows, skipped } = mapTableToRows(
+        table,
+        mapping,
+        detected
+          ? {
+              headerIndex: detected.headerIndex,
+              dataStartIndex: detected.dataStartIndex,
+            }
+          : undefined,
+      ));
     } catch (err) {
       throw new BadRequestException(
         withCode(
@@ -470,9 +598,208 @@ export class ReconciliationService {
       : sync;
   }
 
-  private autoDetectMapping(header: string[]): TemplateMapping {
-    const mapping = detectMapping(header);
+  /* ───────── EPIC-029 groups 2-3 — statement PDF, read on the family key ───────── */
+
+  /**
+   * Reads a statement PDF's already-extracted text with the family's own AI
+   * key and returns a PREVIEW. Nothing is stored (E3a).
+   *
+   * What arrives here is TEXT, not a file and not a password: `pdfjs-dist`
+   * decrypts for reading only, so the extraction happens in the browser and
+   * the password never leaves the tab (E8/E9/E10). See
+   * `ReadStatementPdfDto`.
+   *
+   * The model's answer is a table of RAW STRINGS. It is turned into money by
+   * `mapTableToRows` → `parseStatementAmount`/`parseStatementDate` — the
+   * same, already-hardened code path the CSV and XLSX imports use — and then
+   * cross-checked against the statement's own printed totals (E7).
+   */
+  async readStatementPdf(
+    familyGroupId: string,
+    dto: ReadStatementPdfDto,
+  ): Promise<StatementPreviewDto> {
+    const statementText = dto.pages.join("\n\n");
+    if (statementText.length > MAX_STATEMENT_PDF_TEXT_CHARS) {
+      throw new UnprocessableEntityException(
+        withCode(
+          "Statement ini terlalu panjang untuk dibaca sekaligus. Unggah per periode yang lebih pendek, atau ekspor mutasi sebagai CSV/Excel.",
+          "STATEMENT_TEXT_TOO_LARGE",
+        ),
+      );
+    }
+    // E1c, re-checked server-side. The browser already refuses a scan, but a
+    // near-empty prompt is exactly what makes a model invent a confident
+    // table of money rows — so the paid call is not made on one.
+    if (statementText.replace(/\s+/g, "").length < MIN_STATEMENT_TEXT_CHARS) {
+      throw new UnprocessableEntityException(
+        withCode(
+          "PDF ini tidak punya lapisan teks yang bisa dibaca (kemungkinan hasil scan/foto). Unduh ulang e-statement asli dari aplikasi bank, atau ekspor mutasi sebagai CSV/Excel.",
+          "STATEMENT_NO_TEXT_LAYER",
+        ),
+      );
+    }
+
+    // E5 — the family's own key, per request. No env key, no fallback, no
+    // mock: "no key configured" is a real, actionable state.
+    const resolvedKey =
+      await this.aiKeyService.resolveDecryptedKey(familyGroupId);
+    if (!resolvedKey) throw new StatementReaderNotConfiguredError();
+
+    const reader = this.statementReaderFactory.create(
+      resolvedKey.provider,
+      resolvedKey.apiKey,
+    );
+    const reading = await reader.readStatement(statementText);
+
+    if (reading.rows.length === 0) {
+      throw new UnprocessableEntityException(
+        withCode(
+          "Tidak ada baris transaksi yang bisa dibaca dari PDF ini. Pastikan file adalah mutasi rekening, bukan ringkasan atau surat pemberitahuan.",
+          "STATEMENT_NO_ROWS",
+        ),
+      );
+    }
+
+    const draft: StatementDraftDto = {
+      fileName: dto.fileName,
+      rows: reading.rows,
+      totals: reading.totals,
+    };
+    const { mapped, verdict } = this.parseStatementDraft(draft);
+
+    return {
+      fileName: dto.fileName,
+      pageCount: dto.pageCount,
+      rowCount: mapped.rows.length,
+      rows: mapped.rows.map((row) => ({
+        date: row.date.toISOString(),
+        description: row.description,
+        amount: row.amount.toString(),
+      })),
+      skippedRows: mapped.skipped.slice(0, MAX_SKIPPED_ROWS_RETURNED),
+      skippedRowsTotal: mapped.skipped.length,
+      totals: toTotalsVerdictDto(verdict),
+      draft,
+    };
+  }
+
+  /**
+   * EPIC-029 E3a/E7 — the confirm step: re-parses the SAME raw draft the
+   * preview returned and stores it.
+   *
+   * Deliberately re-runs everything rather than trusting the preview:
+   *
+   *  - the AI is not called again, so confirming is free;
+   *  - every amount passes `parseStatementAmount` again, on this request;
+   *  - the totals gate is enforced on the request that WRITES, so a client
+   *    that never rendered the preview (or edited it) is refused identically.
+   */
+  async commitStatementDraft(
+    familyGroupId: string,
+    dto: CommitStatementDraftDto,
+  ): Promise<BankSyncDto> {
+    const draft: StatementDraftDto = {
+      fileName: dto.fileName,
+      rows: dto.rows.map((row) => ({
+        date: row.date,
+        description: row.description,
+        amount: row.amount,
+      })),
+      totals: {
+        openingBalance: dto.totals.openingBalance ?? null,
+        closingBalance: dto.totals.closingBalance ?? null,
+        totalCredit: dto.totals.totalCredit ?? null,
+        totalDebit: dto.totals.totalDebit ?? null,
+      },
+    };
+
+    const { mapped, verdict } = this.parseStatementDraft(draft);
+
+    // E7 — a mismatch REFUSES. It is never imported "mostly right" behind a
+    // warning: a row that silently went missing is invisible on a review
+    // screen, because there is nothing there to look at.
+    if (verdict.status === "mismatch") {
+      throw new UnprocessableEntityException({
+        message:
+          "Total transaksi hasil pembacaan tidak cocok dengan total yang tertulis di statement — impor dibatalkan supaya tidak ada baris yang diam-diam hilang atau salah.",
+        code: "STATEMENT_TOTALS_MISMATCH",
+        totals: toTotalsVerdictDto(verdict),
+      });
+    }
+
+    const rows: ParsedRow[] = mapped.rows.map((row) => ({
+      date: row.date,
+      description: row.description,
+      amount: row.amount,
+    }));
+    const sync = await this.upload(familyGroupId, draft.fileName, rows);
+
+    return mapped.skipped.length > 0
+      ? {
+          ...sync,
+          skippedRows: mapped.skipped.slice(0, MAX_SKIPPED_ROWS_RETURNED),
+          skippedRowsTotal: mapped.skipped.length,
+        }
+      : sync;
+  }
+
+  /**
+   * The deterministic half of the PDF path, shared by preview and commit so
+   * the two can never disagree about what the same draft means.
+   *
+   * E2c/E4 — the model's raw strings are laid out as an ordinary three-column
+   * table and handed to the SAME `detectMapping` + `mapTableToRows` the CSV
+   * and XLSX uploads use. There is no PDF-specific amount or date parsing
+   * anywhere, and no per-bank branch: a BCA "3,000,000.00 DB" and a Mandiri
+   * "-37.000,00" are already understood by `parseStatementAmount`.
+   */
+  private parseStatementDraft(draft: StatementDraftDto): {
+    mapped: MapTableResult;
+    verdict: TotalsVerdict;
+  } {
+    const table = [
+      [...STATEMENT_DRAFT_HEADER],
+      ...draft.rows.map((row) => [row.date, row.description, row.amount]),
+    ];
+    const mapping = detectMapping([...STATEMENT_DRAFT_HEADER]);
+    /* istanbul ignore next -- the header is a constant in this file; if
+       alias detection ever stops recognising it that is a bug here, not a
+       user-facing state. */
     if (!mapping) {
+      throw new Error("Statement draft header is no longer auto-detectable");
+    }
+
+    let mapped: MapTableResult;
+    try {
+      mapped = mapTableToRows(table, mapping);
+    } catch (err) {
+      throw new UnprocessableEntityException(
+        withCode(
+          err instanceof Error ? err.message : "Gagal memetakan hasil bacaan.",
+          "STATEMENT_COLUMN_MAPPING_MISMATCH",
+        ),
+      );
+    }
+
+    if (mapped.rows.length === 0) {
+      const reasons = new Set(mapped.skipped.map((skip) => skip.reason));
+      const sharedReason = reasons.size === 1 ? [...reasons][0] : undefined;
+      throw new UnprocessableEntityException(
+        withCode(
+          sharedReason
+            ? `Tidak ada baris valid dari hasil pembacaan PDF ini. ${sharedReason}`
+            : "Tidak ada baris valid dari hasil pembacaan PDF ini — coba lagi, atau ekspor mutasi sebagai CSV/Excel.",
+          "STATEMENT_ZERO_VALID_ROWS",
+        ),
+      );
+    }
+
+    return { mapped, verdict: checkStatementTotals(mapped.rows, draft.totals) };
+  }
+
+  private autoDetectMapping(table: string[][]): DetectedTableMapping {
+    const detected = detectTableMapping(table);
+    if (!detected) {
       throw new BadRequestException(
         withCode(
           "Tidak bisa mendeteksi kolom tanggal/keterangan/jumlah secara otomatis. Simpan template pemetaan kolom untuk bank ini terlebih dahulu, atau pilih bank saat mengunggah.",
@@ -480,7 +807,7 @@ export class ReconciliationService {
         ),
       );
     }
-    return mapping;
+    return detected;
   }
 
   private async resolveTemplateMapping(

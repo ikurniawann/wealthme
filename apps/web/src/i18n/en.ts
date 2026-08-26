@@ -3059,9 +3059,95 @@ export const en = {
     formatCalloutTitle: "Supported formats: CSV and Excel (.xlsx).",
     formatCalloutBody:
       "Minimum required columns: date, description, and amount (or a debit/credit pair).",
-    pdfCalloutTitle: "PDF is rejected — on purpose.",
+    // EPIC-029 groups 1-3 — replaces the "PDF is rejected — on purpose."
+    // callout. PDF is supported now, so the copy states what actually
+    // happens, including the family-AI-key requirement and the scan refusal.
+    pdfCalloutTitle: "PDF is supported — read by AI, approved by you.",
     pdfCalloutBody:
-      "PDF statements can't be processed automatically: layouts differ per bank and OCR numbers can silently drift. Export your statement as CSV from your bank's app/site, then upload that CSV file.",
+      "The text inside the PDF is read in your browser — neither the file nor its password ever reaches the server. The table is then tidied up using your family's own AI provider API key, so that key must already be set in Settings. The AI never does arithmetic: every amount is re-parsed by the server and the totals are checked against the statement's own printed totals — if they disagree, the import is cancelled.",
+    pdfCalloutScanNote:
+      "Scanned or photographed PDFs (no text layer) are not supported yet, and are refused with a clear reason rather than imported as zero rows.",
+    pdfReadingLabel: "Reading the PDF in your browser...",
+    pdfAnalyzingLabel: "AI is tidying up the transaction table...",
+    protectedDialogDescPdf:
+      "This PDF is password-protected. The password is processed in your browser and never sent to the server.",
+    pdfErrorPasswordRequired:
+      "This PDF is password-protected. Enter the statement password from your bank.",
+    pdfErrorWrongPassword:
+      "Wrong PDF password — try again. It is usually your date of birth (DDMMYYYY), card number, or account number.",
+    pdfErrorTooManyPages:
+      "This PDF has too many pages to read in one go (40 maximum). Download the statement for a shorter period.",
+    pdfErrorTextTooLarge:
+      "The text in this PDF is too long to read in one go. Download the statement for a shorter period, or export it as CSV/Excel.",
+    pdfErrorNoTextLayer:
+      "This PDF has no text layer — it is probably a scan or a photo. Download the original e-statement from your bank app, or export the transactions as CSV/Excel.",
+    pdfErrorCorrupt:
+      "This PDF could not be opened. Check that the file is not damaged and downloaded completely.",
+    pdfErrorNotAFileUpload:
+      "Pick the PDF again from this page so its text can be read in the browser.",
+    pdfPreviewTitle: "Review what was read",
+    pdfPreviewSubtitle:
+      "Nothing has been saved yet. Check the rows below, then press Import to store them.",
+    pdfPreviewRowsSuffix: " rows read",
+    pdfPreviewDateCol: "Date",
+    pdfPreviewDescCol: "Description",
+    pdfPreviewAmountCol: "Amount",
+    pdfPreviewSkippedTitle: "Skipped rows",
+    pdfPreviewSkippedMorePrefix: "and ",
+    pdfPreviewSkippedMoreSuffix: " more",
+    pdfPreviewLinePrefix: "Row ",
+    // Security review (non-blocking) — "there was nothing to check against"
+    // is NOT the same claim as "it checked out", and must never read like it.
+    // The verified and unverified cases get different HEADINGS, a different
+    // confirm button, and a different success toast, because after the import
+    // the toast is the only thing left on screen.
+    pdfPreviewTotalsTitleVerified: "Totals check: verified",
+    pdfPreviewTotalsTitleMismatch: "Totals check: does NOT agree",
+    pdfPreviewTotalsTitleUnverified: "Unverified — no totals to check against",
+    pdfPreviewTotalsMatched:
+      "Agrees with the statement's own totals — no row went missing.",
+    pdfPreviewTotalsMismatch:
+      "Does NOT agree with the statement's own totals. The import is cancelled so no row can go silently missing or wrong.",
+    pdfPreviewTotalsUnavailable:
+      "This statement prints no opening/closing balance and no incoming/outgoing totals, so there is no figure to check the reading against. The rows below have NOT been verified against anything — if one was missed, nothing but you can detect it. Compare them with the original PDF before importing.",
+    pdfPreviewUnverifiedConfirmNote:
+      "Pressing the button below imports rows that have not been cross-checked against any total.",
+    pdfPreviewConfirmButtonUnverified: "Import without a totals check",
+    pdfPreviewTotalsOpeningToClosing: "Opening → closing balance",
+    pdfPreviewTotalsCredit: "Total money in",
+    pdfPreviewTotalsDebit: "Total money out",
+    pdfPreviewExpectedLabel: "Statement",
+    pdfPreviewActualLabel: "Read",
+    pdfPreviewDifferenceLabel: "Difference",
+    pdfPreviewConfirmButton: "Import these rows",
+    pdfPreviewCancelButton: "Cancel",
+    pdfPreviewImportingLabel: "Importing...",
+    uploadErrorStatementAiNotConfigured:
+      "PDFs are read using your family's own AI provider API key, and that key is not set yet. Add it in Settings, or export the transactions as CSV/Excel.",
+    uploadErrorStatementAiKeyCorrupted:
+      "The stored family AI key could not be decrypted. Re-enter it in Settings.",
+    uploadErrorStatementAiAuth:
+      "The AI provider rejected this family's API key — check the key in Settings.",
+    uploadErrorStatementAiRateLimited:
+      "The AI provider is rate-limiting requests, or the quota ran out — try again later.",
+    uploadErrorStatementAiTimeout:
+      "Reading the statement took too long — try again, or upload a shorter period.",
+    uploadErrorStatementAiParseFailed:
+      "The AI did not return a usable table — try again, or export the transactions as CSV/Excel from your bank app.",
+    uploadErrorStatementAiUpstreamFailed:
+      "Reading the statement failed — try again shortly.",
+    uploadErrorStatementTextTooLarge:
+      "This statement is too long to read in one go. Upload a shorter period, or export it as CSV/Excel.",
+    uploadErrorStatementNoTextLayer:
+      "This PDF has no readable text layer (probably a scan). Download the original e-statement from your bank app, or export the transactions as CSV/Excel.",
+    uploadErrorStatementNoRows:
+      "No transaction rows could be read from this PDF. Check that it is an account statement, not a summary or a notice.",
+    uploadErrorStatementZeroValidRows:
+      "No valid rows came out of reading this PDF — try again, or export the transactions as CSV/Excel.",
+    uploadErrorStatementColumnMappingMismatch:
+      "What was read from the PDF could not be mapped to date/description/amount columns — try again, or export as CSV/Excel.",
+    uploadErrorStatementTotalsMismatch:
+      "The totals of what was read disagree with the statement's own totals — the import was cancelled.",
     mappingSectionTitle: "Column Mapping",
     mappingSectionHint:
       "Match your bank file's column names to WealthMe's columns. Save it once as a template, and every later upload from the same bank uses it automatically.",
@@ -3077,8 +3163,6 @@ export const en = {
     dragDropLabel: "Drag & drop a file here",
     orLabel: "or",
     chooseFileButton: "Choose File",
-    supportedFormatsLabel:
-      "Supported formats: CSV, Excel (.xlsx). PDF will be refused — export as CSV from your bank's app instead.",
     maxFileSizeLabel: "Maximum file size: 20MB",
     supportedBanksTitle: "Supported Banks",
     viewAllLink: "View all",
@@ -3159,6 +3243,8 @@ export const en = {
     notMatchedSummaryLabel: "Not Matched",
     newReconciliationButton: "New Reconciliation",
     toastUploaded: "File uploaded successfully!",
+    toastUploadedUnverified:
+      "Rows imported — but not cross-checked against any statement total (this statement prints none).",
     toastUploadedPartialPrefix: "File uploaded, but ",
     toastUploadedPartialSuffix:
       " row(s) could not be imported — see details below.",
@@ -3171,7 +3257,7 @@ export const en = {
     // stable upload-refusal error code the API can return, so an
     // English-locale user never sees the raw Indonesian API message.
     uploadErrorPdfUnsupported:
-      "A statement PDF can't be processed automatically. Export the statement as CSV from your bank's app/site instead, then upload the CSV file.",
+      "A PDF isn't uploaded through this route. Pick the PDF again from this page — its text is read in your browser, then reviewed before import.",
     uploadErrorXlsUnsupported:
       "The old .xls (Excel 97-2003) format isn't supported. Save it as .xlsx, or export as CSV from your bank's app/site.",
     uploadErrorUnsupportedFormat:
@@ -3232,6 +3318,10 @@ export const en = {
       "The contents of this ZIP are too large once extracted — upload the statement file directly, or pick a shorter period.",
     protectedErrorDecryptedTooLarge:
       "Once unlocked, the file is larger than the 20MB limit — download the statement for a shorter period.",
+    protectedErrorXlsxRepackageFailed:
+      "This Excel file's structure couldn't be rewritten into a readable form. Open it in Excel or Google Sheets, re-save it as .xlsx (or export it as CSV), then upload it again.",
+    protectedErrorXlsxExpansionTooLarge:
+      "This Excel file's contents are too large once opened — download the statement for a shorter period, or export it as CSV.",
     toastScanFailedDefault: "Failed to scan entries",
     toastConfirmed: "Entry confirmed successfully!",
     toastConfirmFailedDefault: "Failed to confirm",

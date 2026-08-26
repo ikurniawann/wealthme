@@ -53,6 +53,29 @@ describe("parseCsvLine / parseCsv — quoted fields containing commas", () => {
 });
 
 describe("parseStatementAmount — no ×100 multiplication (whole rupiah, exact)", () => {
+  // EPIC-029 — the shapes a real Mandiri e-statement actually prints. Before
+  // these were accepted, every INCOMING row on that statement ("+4.350.000,00")
+  // was skipped as unparseable, and its "Dana Masuk : + 15.630.000,00" summary
+  // could not be read either — so the totals gate had nothing to check.
+  it("accepts an explicit leading plus as positive", () => {
+    expect(parseStatementAmount("+4.350.000,00")).toBe(4_350_000n);
+  });
+
+  it("accepts a space between the sign and the digits, on both signs", () => {
+    expect(parseStatementAmount("+ 15.630.000,00")).toBe(15_630_000n);
+    expect(parseStatementAmount("- 15.849.448,00")).toBe(-15_849_448n);
+  });
+
+  it("still refuses a bare sign with no digits", () => {
+    expect(() => parseStatementAmount("+")).toThrow();
+    expect(() => parseStatementAmount("+ ")).toThrow();
+  });
+
+  it("still refuses a doubled sign", () => {
+    expect(() => parseStatementAmount("++1000")).toThrow();
+    expect(() => parseStatementAmount("+-1000")).toThrow();
+  });
+
   it("parses a plain whole-rupiah amount unchanged", () => {
     expect(parseStatementAmount("150000")).toBe(150_000n);
   });

@@ -57,6 +57,14 @@ import {
   statementFileErrorMessage,
   type StatementFileKind,
 } from "@/hooks/statement-file";
+// EPIC-029 group 1 — PDF text extraction. Only the taxonomy/orchestration
+// module is imported statically; `pdfjs-dist` itself sits behind an
+// `await import(...)` inside it, so it costs nothing on first paint.
+import {
+  StatementPdfError,
+  extractStatementPdfText,
+  statementPdfErrorMessage,
+} from "@/hooks/statement-pdf";
 import { apiFetch } from "@/lib/api-client";
 import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
@@ -94,6 +102,46 @@ const MAX_SKIPPED_ROWS_RENDERED = 50;
  * (mirrors `apps/api/src/reconciliation/reconciliation.service.ts`'s
  * `MatchedTransactionSummaryDto`).
  */
+/* ── EPIC-029 groups 2-3 — statement PDF preview, mirroring the API's
+      StatementPreviewDto / StatementTotalsVerdictDto. Amounts are decimal
+      STRINGS on the wire: they are whole-rupiah `bigint` server-side, and a
+      JSON number would reintroduce float rounding into money. ── */
+type StatementTotalsCheckDto = {
+  label: "opening-to-closing" | "total-credit" | "total-debit";
+  expected: string;
+  actual: string;
+  difference: string;
+  matched: boolean;
+};
+
+type StatementTotalsVerdictDto = {
+  status: "matched" | "mismatch" | "unavailable";
+  tolerance: string;
+  checks: StatementTotalsCheckDto[];
+};
+
+type StatementDraftDto = {
+  fileName: string;
+  rows: { date: string; description: string; amount: string }[];
+  totals: {
+    openingBalance: string | null;
+    closingBalance: string | null;
+    totalCredit: string | null;
+    totalDebit: string | null;
+  };
+};
+
+type StatementPreviewDto = {
+  fileName: string;
+  pageCount: number;
+  rowCount: number;
+  rows: { date: string; description: string; amount: string }[];
+  skippedRows: SkippedRowDto[];
+  skippedRowsTotal: number;
+  totals: StatementTotalsVerdictDto;
+  draft: StatementDraftDto;
+};
+
 type MatchedTransactionSummaryDto = {
   id: string;
   // EPIC-023 Task E retry (MEDIUM 6) — widened to match the API's real
@@ -1035,6 +1083,137 @@ async function uploadReconciliationFile(
   return res.json() as Promise<BankSyncDto>;
 }
 
+/**
+ * EPIC-029 groups 2-3 — the two statement-PDF calls.
+ *
+ * A page-local fetch rather than `apiFetch` for the same reason
+ * `uploadReconciliationFile` is one: `lib/api-client.ts` is protected and
+ * discards the API's stable error `code`, which every refusal on this path
+ * depends on to render its own localized message (and, for a totals
+ * mismatch, the numbers).
+ */
+class StatementReadError extends Error {
+  code?: string;
+  totals?: StatementTotalsVerdictDto;
+  constructor(
+    message: string,
+    code?: string,
+    totals?: StatementTotalsVerdictDto,
+  ) {
+    super(message);
+    this.name = "StatementReadError";
+    this.code = code;
+    this.totals = totals;
+  }
+}
+
+async function postStatementJson<T>(
+  familyGroupId: string,
+  token: string,
+  path: string,
+  body: unknown,
+): Promise<T> {
+  const res = await fetch(
+    `${API_BASE}/family-groups/${familyGroupId}/reconciliation/${path}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    },
+  );
+  if (!res.ok) {
+    const payload = (await res.json().catch(() => ({}))) as {
+      message?: string;
+      code?: string;
+      totals?: StatementTotalsVerdictDto;
+    };
+    throw new StatementReadError(
+      payload.message ?? res.statusText,
+      payload.code,
+      payload.totals,
+    );
+  }
+  return res.json() as Promise<T>;
+}
+
+/** The shape check `runPdfRead` applies before rendering a preview. Narrow on
+ *  purpose: it asserts the fields the preview UI dereferences, nothing more. */
+function isStatementPreview(value: unknown): value is StatementPreviewDto {
+  const preview = value as StatementPreviewDto | null;
+  return (
+    !!preview &&
+    Array.isArray(preview.rows) &&
+    Array.isArray(preview.skippedRows) &&
+    typeof preview.totals?.status === "string" &&
+    Array.isArray(preview.totals.checks) &&
+    Array.isArray(preview.draft?.rows)
+  );
+}
+
+/** EPIC-029 E3b — one label per totals check. Kept beside the preview so a
+ *  newly-added check cannot render as a bare enum string. */
+function totalsCheckLabel(
+  label: StatementTotalsCheckDto["label"],
+  t: ReturnType<typeof useLocale>["t"],
+): string {
+  switch (label) {
+    case "opening-to-closing":
+      return t.rekonsiliasi.pdfPreviewTotalsOpeningToClosing;
+    case "total-credit":
+      return t.rekonsiliasi.pdfPreviewTotalsCredit;
+    case "total-debit":
+      return t.rekonsiliasi.pdfPreviewTotalsDebit;
+    default: {
+      const _exhaustive: never = label;
+      void _exhaustive;
+      return "";
+    }
+  }
+}
+
+/** EPIC-029 E2d — one localized message per stable API error code, so an
+ *  English-locale user does not get the API's Indonesian text. Returns
+ *  undefined for an unrecognised code so the caller falls back to the raw
+ *  message rather than showing nothing. */
+function statementErrorMessageForCode(
+  code: string | undefined,
+  t: ReturnType<typeof useLocale>["t"],
+): string | undefined {
+  switch (code) {
+    case "STATEMENT_AI_NOT_CONFIGURED":
+      return t.rekonsiliasi.uploadErrorStatementAiNotConfigured;
+    case "AI_KEY_CORRUPTED":
+      return t.rekonsiliasi.uploadErrorStatementAiKeyCorrupted;
+    case "STATEMENT_AI_AUTH":
+      return t.rekonsiliasi.uploadErrorStatementAiAuth;
+    case "STATEMENT_AI_RATE_LIMITED":
+      return t.rekonsiliasi.uploadErrorStatementAiRateLimited;
+    case "STATEMENT_AI_TIMEOUT":
+      return t.rekonsiliasi.uploadErrorStatementAiTimeout;
+    case "STATEMENT_AI_PARSE_FAILED":
+      return t.rekonsiliasi.uploadErrorStatementAiParseFailed;
+    case "STATEMENT_AI_UPSTREAM_FAILED":
+      return t.rekonsiliasi.uploadErrorStatementAiUpstreamFailed;
+    case "STATEMENT_TEXT_TOO_LARGE":
+      return t.rekonsiliasi.uploadErrorStatementTextTooLarge;
+    case "STATEMENT_NO_TEXT_LAYER":
+      return t.rekonsiliasi.uploadErrorStatementNoTextLayer;
+    case "STATEMENT_NO_ROWS":
+      return t.rekonsiliasi.uploadErrorStatementNoRows;
+    case "STATEMENT_ZERO_VALID_ROWS":
+      return t.rekonsiliasi.uploadErrorStatementZeroValidRows;
+    case "STATEMENT_COLUMN_MAPPING_MISMATCH":
+      return t.rekonsiliasi.uploadErrorStatementColumnMappingMismatch;
+    case "STATEMENT_TOTALS_MISMATCH":
+      return t.rekonsiliasi.uploadErrorStatementTotalsMismatch;
+    default:
+      return undefined;
+  }
+}
+
 /** EPIC-023 Task G retry (MEDIUM finding) — maps the backend's stable error
  * code to a localized message; returns `undefined` for a code it doesn't
  * recognise so the caller falls back to the raw (Indonesian) API message
@@ -1116,6 +1295,20 @@ export default function RekonsiliasiPage() {
   const [showFilePassword, setShowFilePassword] = React.useState(false);
   const [unlockError, setUnlockError] = React.useState<string | null>(null);
   const [unlocking, setUnlocking] = React.useState(false);
+
+  /* ─── EPIC-029 groups 1-3 — statement PDF ───
+     `pdfPreview` is the ONLY thing a successful read produces: nothing is
+     stored until the user presses confirm (E3a). `pdfBusy` names which of
+     the two phases is running, because they fail for entirely different
+     reasons and take very different amounts of time — "Membaca PDF di
+     browser" is local and instant, "AI sedang merapikan" is a paid network
+     round-trip on the family's own key. */
+  const [pdfPreview, setPdfPreview] =
+    React.useState<StatementPreviewDto | null>(null);
+  const [pdfBusy, setPdfBusy] = React.useState<"reading" | "analyzing" | null>(
+    null,
+  );
+  const [pdfConfirming, setPdfConfirming] = React.useState(false);
 
   // EPIC-023 G2 (D17) — column-mapping templates: read is available to
   // whoever can already upload/reconcile (member+); the manager dialog
@@ -1276,6 +1469,143 @@ export default function RekonsiliasiPage() {
     [clearPasswordState, t, uploadMutation],
   );
 
+  /**
+   * EPIC-029 groups 1-3 — the PDF path. Extract the text layer HERE, in the
+   * tab, then post only that text (E8/E9/E10: the file and the password
+   * never leave the browser).
+   *
+   * `password` is `undefined` on the first attempt, and
+   * `extractStatementPdfText` tries the EMPTY password before reporting
+   * `pdf-password-required` (E11) — most bank PDFs carry only an
+   * owner/permissions lock and open with none, so most users are never
+   * asked for anything.
+   */
+  const runPdfRead = React.useCallback(
+    async (file: File, password: string | undefined) => {
+      setLastUploadSkippedRows([]);
+      setLastUploadSkippedRowsTotal(0);
+      setPdfPreview(null);
+      setUnlockError(null);
+      setUnlocking(true);
+      setPdfBusy("reading");
+
+      let extraction: Awaited<ReturnType<typeof extractStatementPdfText>>;
+      try {
+        extraction = await extractStatementPdfText(file, password);
+      } catch (err) {
+        setUnlocking(false);
+        setPdfBusy(null);
+        const message = statementPdfErrorMessage(err, t);
+        const reason =
+          err instanceof StatementPdfError ? err.reason : "pdf-corrupt";
+        // Keep the prompt open (or open it) so a wrong password is
+        // retryable without re-picking the file.
+        if (password !== undefined || reason === "pdf-password-required") {
+          setProtectedFile({ file, kind: "pdf" });
+          setUnlockError(message);
+          return;
+        }
+        toast.error(message);
+        return;
+      }
+
+      setUnlocking(false);
+      // The password (if any) has done its only job and is dropped BEFORE
+      // the network call — there is nothing left in state to leak into the
+      // request that follows.
+      clearPasswordState();
+      setPdfBusy("analyzing");
+
+      if (!familyGroupId || !token) {
+        setPdfBusy(null);
+        toast.error(t.rekonsiliasi.errorSessionInactive);
+        return;
+      }
+      try {
+        const preview = await postStatementJson<StatementPreviewDto>(
+          familyGroupId,
+          token,
+          "statement-pdf",
+          {
+            fileName: file.name,
+            pageCount: extraction.pageCount,
+            pages: extraction.pages,
+          },
+        );
+        // Validated before it is rendered. Not defensive decoration: during a
+        // rolling deploy this client can meet an older API, and a preview
+        // missing its totals verdict would throw inside render and take the
+        // whole page down — a white screen instead of a retryable error.
+        if (!isStatementPreview(preview)) {
+          throw new StatementReadError("", "STATEMENT_AI_UPSTREAM_FAILED");
+        }
+        setPdfPreview(preview);
+      } catch (err) {
+        const code = err instanceof StatementReadError ? err.code : undefined;
+        toast.error(
+          statementErrorMessageForCode(code, t) ??
+            (err instanceof Error
+              ? err.message
+              : t.rekonsiliasi.toastUploadFailedDefault),
+        );
+      } finally {
+        setPdfBusy(null);
+      }
+    },
+    [clearPasswordState, familyGroupId, t, token],
+  );
+
+  /**
+   * E3a/E7 — the explicit confirm. Posts the SAME raw draft back; the server
+   * re-parses every amount through `parseStatementAmount` and re-runs the
+   * totals gate before it writes anything, so this button cannot smuggle a
+   * number past the parser.
+   */
+  const confirmPdfPreview = React.useCallback(async () => {
+    if (!pdfPreview || !familyGroupId || !token) return;
+    setPdfConfirming(true);
+    try {
+      const sync = await postStatementJson<BankSyncDto>(
+        familyGroupId,
+        token,
+        "statement-pdf/confirm",
+        pdfPreview.draft,
+      );
+      setPdfPreview(null);
+      setSyncId(sync.id);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.reconciliation.list(familyGroupId),
+      });
+      const skipped = sync.skippedRows ?? [];
+      const skippedTotal = sync.skippedRowsTotal ?? skipped.length;
+      setLastUploadSkippedRows(skipped);
+      setLastUploadSkippedRowsTotal(skippedTotal);
+      if (skippedTotal > 0) {
+        toast.warning(
+          `${t.rekonsiliasi.toastUploadedPartialPrefix}${skippedTotal}${t.rekonsiliasi.toastUploadedPartialSuffix}`,
+        );
+      } else if (pdfPreview.totals.status === "unavailable") {
+        // Once the preview closes this toast is the ONLY thing left on
+        // screen, so an unqualified "berhasil" here would quietly upgrade
+        // "nothing was checked" into "it checked out".
+        toast.warning(t.rekonsiliasi.toastUploadedUnverified);
+      } else {
+        toast.success(t.rekonsiliasi.toastUploaded);
+      }
+      goto(2);
+    } catch (err) {
+      const code = err instanceof StatementReadError ? err.code : undefined;
+      toast.error(
+        statementErrorMessageForCode(code, t) ??
+          (err instanceof Error
+            ? err.message
+            : t.rekonsiliasi.toastUploadFailedDefault),
+      );
+    } finally {
+      setPdfConfirming(false);
+    }
+  }, [familyGroupId, goto, pdfPreview, queryClient, t, token]);
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     // Reset the input so re-picking the SAME file after a wrong password
@@ -1283,12 +1613,19 @@ export default function RekonsiliasiPage() {
     e.target.value = "";
     if (!file) return;
     clearPasswordState();
+    setPdfPreview(null);
     void (async () => {
       let kind: StatementFileKind;
       try {
         kind = await inspectStatementFile(file);
       } catch (err) {
         toast.error(statementFileErrorMessage(err, t));
+        return;
+      }
+      // EPIC-029 group 1 — a PDF never becomes an uploaded file: its text is
+      // extracted here and only the text is posted.
+      if (kind === "pdf") {
+        await runPdfRead(file, undefined);
         return;
       }
       // E4b/E4c — prompt ONLY when the file's own magic bytes say it is
@@ -1589,16 +1926,20 @@ export default function RekonsiliasiPage() {
               <button
                 type="button"
                 onClick={handleUploadAreaClick}
-                disabled={uploading || uploadMutation.isPending}
+                disabled={uploading || uploadMutation.isPending || !!pdfBusy}
                 className="w-full cursor-pointer rounded-[14px] border-2 border-dashed border-primary/40 bg-accent/40 px-5 py-8 text-center transition-colors hover:border-primary hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full bg-accent">
                   <CloudUpload className="size-7 text-primary" />
                 </div>
                 <div className="mb-1.5 text-[15px] font-bold text-primary-strong">
-                  {uploading || uploadMutation.isPending
-                    ? t.rekonsiliasi.uploadingLabel
-                    : t.rekonsiliasi.dragDropLabel}
+                  {pdfBusy === "reading"
+                    ? t.rekonsiliasi.pdfReadingLabel
+                    : pdfBusy === "analyzing"
+                      ? t.rekonsiliasi.pdfAnalyzingLabel
+                      : uploading || uploadMutation.isPending
+                        ? t.rekonsiliasi.uploadingLabel
+                        : t.rekonsiliasi.dragDropLabel}
                 </div>
                 <div className="mb-4 text-[12.5px] text-muted-foreground">
                   {t.rekonsiliasi.orLabel}
@@ -1616,6 +1957,9 @@ export default function RekonsiliasiPage() {
                   </span>
                   <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
                     ZIP
+                  </span>
+                  <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                    PDF
                   </span>
                 </div>
               </button>
@@ -1643,13 +1987,200 @@ export default function RekonsiliasiPage() {
                   {t.rekonsiliasi.protectedCalloutBody}
                 </div>
               </div>
-              <div className="mt-2 rounded-lg border border-destructive/30 bg-red-50 px-3.5 py-3 text-[12px] text-red-800 dark:bg-red-950/30 dark:text-red-300">
+              {/* EPIC-029 groups 1-3 — this used to be a red "PDF ditolak — ini
+                  disengaja" refusal. PDF works now, so the callout states the
+                  three things that decide whether it will work for THIS user:
+                  the text is read in the browser, it needs the family's own AI
+                  key, and a scan is still refused. */}
+              <div className="mt-2 rounded-lg border border-primary/30 bg-accent/50 px-3.5 py-3 text-[12px] text-primary-strong">
                 <span className="font-bold">
                   {t.rekonsiliasi.pdfCalloutTitle}
                 </span>{" "}
                 {t.rekonsiliasi.pdfCalloutBody}
+                <div className="mt-1.5 text-muted-foreground">
+                  {t.rekonsiliasi.pdfCalloutScanNote}
+                </div>
               </div>
             </SectionCard>
+
+            {/* EPIC-029 E3c — the mandatory review screen. Nothing has been
+                stored at this point: `pdfPreview` came back from a read that
+                deliberately persists nothing, and the confirm button below is
+                the only thing that writes. */}
+            {pdfPreview && (
+              <SectionCard
+                action={
+                  <span className="text-[11px] font-semibold text-muted-foreground">
+                    {pdfPreview.rowCount}
+                    {t.rekonsiliasi.pdfPreviewRowsSuffix}
+                  </span>
+                }
+              >
+                <div className="mb-1 text-[15px] font-extrabold">
+                  {t.rekonsiliasi.pdfPreviewTitle}
+                </div>
+                <div className="mb-3 text-[12.5px] text-muted-foreground">
+                  {t.rekonsiliasi.pdfPreviewSubtitle}
+                </div>
+
+                {/* E3b/E7 — the totals verdict, stated before the rows. A
+                    mismatch is not a warning banner over an import that
+                    happened anyway: the confirm button below is disabled and
+                    the server refuses the same draft independently. */}
+                <div
+                  className={`mb-3 rounded-lg border px-3.5 py-3 text-[12px] ${
+                    pdfPreview.totals.status === "matched"
+                      ? "border-success/30 bg-success-soft text-emerald-800 dark:text-emerald-300"
+                      : pdfPreview.totals.status === "mismatch"
+                        ? "border-destructive/40 bg-red-50 text-red-800 dark:bg-red-950/30 dark:text-red-300"
+                        : "border-amber-400/40 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"
+                  }`}
+                >
+                  {/* The HEADING differs, not just the body. "unavailable"
+                      means nothing was checked — a strictly weaker claim than
+                      "matched" — and a shared title would let a glance read
+                      the two as the same outcome. */}
+                  <div className="font-bold">
+                    {pdfPreview.totals.status === "matched"
+                      ? t.rekonsiliasi.pdfPreviewTotalsTitleVerified
+                      : pdfPreview.totals.status === "mismatch"
+                        ? t.rekonsiliasi.pdfPreviewTotalsTitleMismatch
+                        : t.rekonsiliasi.pdfPreviewTotalsTitleUnverified}
+                  </div>
+                  <div className="mt-0.5">
+                    {pdfPreview.totals.status === "matched"
+                      ? t.rekonsiliasi.pdfPreviewTotalsMatched
+                      : pdfPreview.totals.status === "mismatch"
+                        ? t.rekonsiliasi.pdfPreviewTotalsMismatch
+                        : t.rekonsiliasi.pdfPreviewTotalsUnavailable}
+                  </div>
+                  {pdfPreview.totals.checks.map((check) => (
+                    <div
+                      key={check.label}
+                      className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5"
+                    >
+                      <span className="font-semibold">
+                        {totalsCheckLabel(check.label, t)}
+                      </span>
+                      <span>
+                        {t.rekonsiliasi.pdfPreviewExpectedLabel}:{" "}
+                        {formatRupiah(Number(check.expected))}
+                      </span>
+                      <span>
+                        {t.rekonsiliasi.pdfPreviewActualLabel}:{" "}
+                        {formatRupiah(Number(check.actual))}
+                      </span>
+                      {!check.matched && (
+                        <span className="font-bold">
+                          {t.rekonsiliasi.pdfPreviewDifferenceLabel}:{" "}
+                          {formatRupiah(Number(check.difference))}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="max-h-80 overflow-auto rounded-lg border">
+                  <table className="w-full text-[12px]">
+                    <thead className="sticky top-0 bg-muted">
+                      <tr>
+                        <th className="px-2.5 py-2 text-left font-bold">
+                          {t.rekonsiliasi.pdfPreviewDateCol}
+                        </th>
+                        <th className="px-2.5 py-2 text-left font-bold">
+                          {t.rekonsiliasi.pdfPreviewDescCol}
+                        </th>
+                        <th className="px-2.5 py-2 text-right font-bold">
+                          {t.rekonsiliasi.pdfPreviewAmountCol}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pdfPreview.rows.map((row, index) => {
+                        const amount = Number(row.amount);
+                        return (
+                          <tr key={`${row.date}-${index}`} className="border-t">
+                            <td className="whitespace-nowrap px-2.5 py-1.5">
+                              {row.date.slice(0, 10)}
+                            </td>
+                            <td className="px-2.5 py-1.5">{row.description}</td>
+                            <td
+                              className={`whitespace-nowrap px-2.5 py-1.5 text-right font-semibold ${
+                                amount < 0 ? "text-destructive" : "text-success"
+                              }`}
+                            >
+                              {formatRupiah(amount)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* A partial read must never read as a complete one — every
+                    dropped row is listed with the reason it was dropped. */}
+                {pdfPreview.skippedRowsTotal > 0 && (
+                  <div className="mt-3 rounded-lg border border-amber-400/40 bg-amber-50 px-3.5 py-3 text-[12px] text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                    <div className="font-bold">
+                      {t.rekonsiliasi.pdfPreviewSkippedTitle} (
+                      {pdfPreview.skippedRowsTotal})
+                    </div>
+                    <ul className="mt-1 space-y-0.5">
+                      {pdfPreview.skippedRows.map((skip) => (
+                        <li key={skip.line}>
+                          {t.rekonsiliasi.pdfPreviewLinePrefix}
+                          {skip.line}: {skip.reason}
+                        </li>
+                      ))}
+                    </ul>
+                    {pdfPreview.skippedRowsTotal >
+                      pdfPreview.skippedRows.length && (
+                      <div className="mt-1">
+                        {t.rekonsiliasi.pdfPreviewSkippedMorePrefix}
+                        {pdfPreview.skippedRowsTotal -
+                          pdfPreview.skippedRows.length}
+                        {t.rekonsiliasi.pdfPreviewSkippedMoreSuffix}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* E7 still lets an "unavailable" verdict commit — refusing
+                    every statement that prints no totals would block
+                    legitimate imports. But the confirm must not be WORDED as
+                    though something was verified, so it names what is being
+                    accepted instead. */}
+                {pdfPreview.totals.status === "unavailable" && (
+                  <div className="mt-3 text-[11.5px] font-semibold text-amber-700 dark:text-amber-300">
+                    {t.rekonsiliasi.pdfPreviewUnverifiedConfirmNote}
+                  </div>
+                )}
+                <div className="mt-3.5 flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setPdfPreview(null)}
+                    disabled={pdfConfirming}
+                  >
+                    {t.rekonsiliasi.pdfPreviewCancelButton}
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => void confirmPdfPreview()}
+                    disabled={
+                      pdfConfirming || pdfPreview.totals.status === "mismatch"
+                    }
+                  >
+                    {pdfConfirming
+                      ? t.rekonsiliasi.pdfPreviewImportingLabel
+                      : pdfPreview.totals.status === "unavailable"
+                        ? t.rekonsiliasi.pdfPreviewConfirmButtonUnverified
+                        : t.rekonsiliasi.pdfPreviewConfirmButton}
+                  </Button>
+                </div>
+              </SectionCard>
+            )}
 
             {/* EPIC-023 G2 (D17) — bank picker: selecting a bank applies its
                 saved column-mapping template; leaving it unselected falls
@@ -2455,15 +2986,19 @@ export default function RekonsiliasiPage() {
         <DialogContent className="dialog--sm">
           <DialogTitle>{t.rekonsiliasi.protectedDialogTitle}</DialogTitle>
           <DialogDescription>
-            {protectedFile?.kind === "encrypted-zip"
-              ? t.rekonsiliasi.protectedDialogDescZip
-              : t.rekonsiliasi.protectedDialogDescXlsx}
+            {protectedFile?.kind === "pdf"
+              ? t.rekonsiliasi.protectedDialogDescPdf
+              : protectedFile?.kind === "encrypted-zip"
+                ? t.rekonsiliasi.protectedDialogDescZip
+                : t.rekonsiliasi.protectedDialogDescXlsx}
           </DialogDescription>
           <form
             onSubmit={(e) => {
               e.preventDefault();
               if (!protectedFile || unlocking) return;
-              void runUpload(protectedFile.file, filePassword);
+              void (protectedFile.kind === "pdf"
+                ? runPdfRead(protectedFile.file, filePassword)
+                : runUpload(protectedFile.file, filePassword));
             }}
           >
             <DialogBody>

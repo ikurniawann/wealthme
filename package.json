@@ -8,6 +8,10 @@
     "node": ">=20"
   },
   "pnpm": {
+    "_ignoredOptionalDependenciesNote": "EPIC-029 — pdfjs-dist declares @napi-rs/canvas as an OPTIONAL dependency, for rendering pages to a bitmap in Node. WealthMe only reads the text layer, in the browser, and never renders (see hooks/statement-pdf.ts). Left alone it pulls ~62 MB of prebuilt native binaries into every install, CI run and Docker layer for code that is never executed and never bundled — pdfjs's own `browser` field already maps `canvas` to false. Excluded here rather than repo-wide via `optional=false`, which would silently drop every other package's optional deps too.",
+    "ignoredOptionalDependencies": [
+      "@napi-rs/canvas"
+    ],
     "overrides": {
       "multer": "2.2.0",
       "ws": "8.21.0",

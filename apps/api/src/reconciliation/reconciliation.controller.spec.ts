@@ -72,6 +72,14 @@ describe("ReconciliationController (real AbilitiesGuard + CaslAbilityFactory)", 
     "getEntries",
     "matchEntry",
     "autoMatch",
+    // EPIC-029 groups 1-3 — the statement-PDF routes. Included in the SAME
+    // lists as every other import route because `AbilitiesGuard` waves
+    // through any handler carrying no `@CheckAbility`: an ungated route here
+    // would be open to `dependant`/`operational`, who are refused everywhere
+    // else on this controller. The denial case below is what proves the
+    // decorator is actually present.
+    "readStatementPdf",
+    "confirmStatementPdf",
   ] as const;
 
   // EPIC-023 G2 (D17) — column-mapping templates are a saved-configuration
@@ -131,6 +139,28 @@ describe("ReconciliationController (real AbilitiesGuard + CaslAbilityFactory)", 
       expect(guard.canActivate(buildContext(controller, handler, owner))).toBe(
         true,
       );
+    }
+  });
+
+  /**
+   * EPIC-029 — the guard against the failure mode this repo has a documented
+   * history of: a NEW route added without `@CheckAbility` is not refused by
+   * `AbilitiesGuard`, it is waved through for every role. Enumerating the
+   * controller's own handlers means a route added tomorrow is caught here
+   * rather than by whoever finds it in production.
+   */
+  it("DENIAL — dependant is refused EVERY route on this controller, enumerated from the class", () => {
+    const handlers = Object.getOwnPropertyNames(
+      ReconciliationController.prototype,
+    ).filter(
+      (name) => name !== "constructor",
+    ) as (keyof ReconciliationController)[];
+
+    expect(handlers.length).toBeGreaterThan(readOrCreateRoutes.length);
+    for (const handler of handlers) {
+      expect(() =>
+        guard.canActivate(buildContext(controller, handler, dependant)),
+      ).toThrow(ForbiddenException);
     }
   });
 
