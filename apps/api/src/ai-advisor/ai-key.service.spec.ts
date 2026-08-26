@@ -56,6 +56,9 @@ describe("AiKeyService", () => {
         // EPIC-027 B5 (D11) — receipt OCR runs on this same family key, so
         // "no key" also means "no scanning".
         scanAvailable: false,
+        // No key means no model choice and no default to report either.
+        model: null,
+        defaultModel: null,
       });
     });
 
@@ -63,6 +66,7 @@ describe("AiKeyService", () => {
       prisma.familyAiKey.findUnique.mockResolvedValue({
         provider: "claude",
         keyHint: "••••ab12",
+        model: null,
       });
 
       const status = await service.getStatus(FAMILY_GROUP_ID);
@@ -72,13 +76,17 @@ describe("AiKeyService", () => {
         provider: "claude",
         keyHint: "••••ab12",
         scanAvailable: true,
+        model: null,
+        // Reported even when nothing is chosen, so the UI can name what is
+        // actually running instead of showing an empty select.
+        defaultModel: "claude-haiku-4-5-20251001",
       });
       // The select projection must never request encryptedKey for a status
       // read — this call shape is the actual guarantee, not just the
       // returned object shape.
       expect(prisma.familyAiKey.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({
-          select: { provider: true, keyHint: true },
+          select: { provider: true, keyHint: true, model: true },
         }),
       );
     });
@@ -89,6 +97,10 @@ describe("AiKeyService", () => {
       prisma.familyAiKey.upsert.mockResolvedValue({
         provider: "openai",
         keyHint: "••••wxyz",
+        // Prisma returns every selected field, so a selected-but-unset column
+        // comes back as null. Omitting it here would let the service return
+        // `undefined` in a test while returning null in production.
+        model: null,
       });
 
       const result = await service.setKey(FAMILY_GROUP_ID, {
@@ -102,6 +114,8 @@ describe("AiKeyService", () => {
         provider: "openai",
         keyHint: "••••wxyz",
         scanAvailable: true,
+        model: null,
+        defaultModel: "gpt-4o-mini",
       });
 
       const upsertArg = prisma.familyAiKey.upsert.mock.calls[0]?.[0];
@@ -110,6 +124,9 @@ describe("AiKeyService", () => {
       // output — never as a bare create/update field value of its own.
       expect(upsertArg.create.encryptedKey).not.toBe("sk-abcdwxyz");
       expect(upsertArg.update.encryptedKey).not.toBe("sk-abcdwxyz");
+      // Writing a key CLEARS the model choice: a model id belongs to one
+      // provider, and a stale one would 404 every call on the new key.
+      expect(upsertArg.update.model).toBeNull();
     });
 
     it("upserts keyed by familyGroupId — switching provider overwrites, not accumulates", async () => {

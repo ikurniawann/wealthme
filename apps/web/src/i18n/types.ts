@@ -767,6 +767,14 @@ export type I18nDictionary = {
       aiKeyInputPlaceholder: string;
       aiKeySaveButton: string;
       aiKeyRemoveButton: string;
+      aiModelLabel: string;
+      /** Carries a `{model}` placeholder. */
+      aiModelDefaultOption: string;
+      aiModelDefaultOptionPlain: string;
+      aiModelDefaultSuffix: string;
+      aiModelLoading: string;
+      aiModelHint: string;
+      aiModelLoadFailed: string;
       aiKeyOwnerOnlyNote: string;
       aiKeyNotConfiguredLabel: string;
       toastAiKeySaved: string;

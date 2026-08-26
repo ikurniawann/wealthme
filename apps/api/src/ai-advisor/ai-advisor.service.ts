@@ -274,6 +274,9 @@ export class AiAdvisorService {
     const advisor = this.advisorFactory.create(
       resolvedKey.provider,
       resolvedKey.apiKey,
+      // The family's chosen model from Pengaturan; null falls back to the
+      // WealthMe default.
+      resolvedKey.model,
     );
     return advisor.chat(context, messages, onToken);
   }

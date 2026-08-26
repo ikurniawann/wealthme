@@ -1,5 +1,4 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { Injectable } from "@nestjs/common";
 
 import {
   AiAdvisorAuthError,
@@ -23,11 +22,21 @@ const CLAUDE_OCR_TIMEOUT_MS = 45_000;
  * binding on a server env var). Shares `OCR_EXTRACTION_PROMPT` and
  * `ocrResultSchema` with the OpenAI and Gemini adapters.
  */
-@Injectable()
+/**
+ * NOT `@Injectable()`, deliberately. This is built by hand, per request, from
+ * the family's own decrypted key — it is never registered as a provider and
+ * Nest could not construct it anyway (its constructor takes a runtime string).
+ * Carrying the decorator claimed the opposite, and made `di-paramtypes.spec.ts`
+ * police a class the container never touches.
+ */
 export class ClaudeVisionOcrAdapter implements OcrPort {
   private readonly client: Anthropic;
 
-  constructor(apiKey: string) {
+  /** The family's chosen model, or the WealthMe default when unset. */
+  private readonly model: string;
+
+  constructor(apiKey: string, chosenModel?: string | null) {
+    this.model = chosenModel?.trim() || CLAUDE_OCR_MODEL;
     this.client = new Anthropic({ apiKey, timeout: CLAUDE_OCR_TIMEOUT_MS });
   }
 
@@ -35,7 +44,7 @@ export class ClaudeVisionOcrAdapter implements OcrPort {
     let message: Anthropic.Message;
     try {
       message = await this.client.messages.create({
-        model: CLAUDE_OCR_MODEL,
+        model: this.model,
         max_tokens: MAX_TOKENS,
         messages: [
           {

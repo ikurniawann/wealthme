@@ -28,6 +28,19 @@ export type AiKeyStatusDto = {
   // predates the field, degrades to "scan unavailable" instead of `undefined`
   // being read as truthy.
   scanAvailable?: boolean;
+  /** The family's chosen model, null when they are on the default. */
+  model?: string | null;
+  /** What runs when nothing is chosen, so the UI never implies "no model". */
+  defaultModel?: string | null;
+};
+
+/** One entry of the provider's own catalogue — see provider-models.util.ts.
+ *  Fetched with the family's key rather than hardcoded, because a baked-in
+ *  list is wrong the moment a model ships or is retired. */
+export type ProviderModel = {
+  id: string;
+  label: string;
+  isDefault: boolean;
 };
 
 type FamilyGroupMine = { id: string; myRole: string };
@@ -73,6 +86,45 @@ export function useAiKeyStatus() {
       }),
     onSuccess: (updated) => {
       queryClient.setQueryData(aiKeyQueryKey, updated);
+      // A new key means a different catalogue — and the server clears the
+      // model choice, because a model id belongs to one provider. Keeping the
+      // old list cached would offer models this key cannot use.
+      void queryClient.invalidateQueries({
+        queryKey: [...aiKeyQueryKey, "models"],
+      });
+    },
+  });
+
+  /**
+   * The catalogue is fetched ON DEMAND, not with the status.
+   *
+   * It costs a round trip to the provider on the family's key, so it is not
+   * worth paying on every page load that merely wants to know whether a key
+   * exists. `enabled` is passed by the caller when the picker is actually
+   * shown.
+   */
+  const modelsQuery = useQuery<ProviderModel[]>({
+    queryKey: [...aiKeyQueryKey, "models"],
+    queryFn: () =>
+      apiFetch<ProviderModel[]>(
+        `/family-groups/${familyGroupId}/ai-key/models`,
+        { token },
+      ),
+    enabled:
+      Boolean(familyGroupId) && Boolean(token) && Boolean(data?.configured),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+
+  const { mutate: setModel, isPending: isSettingModel } = useMutation({
+    mutationFn: (model: string | null) =>
+      apiFetch<AiKeyStatusDto>(`/family-groups/${familyGroupId}/ai-key/model`, {
+        method: "PATCH",
+        token,
+        body: JSON.stringify({ model }),
+      }),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(aiKeyQueryKey, updated);
     },
   });
 
@@ -88,7 +140,10 @@ export function useAiKeyStatus() {
         provider: null,
         keyHint: null,
         scanAvailable: false,
+        model: null,
+        defaultModel: null,
       } satisfies AiKeyStatusDto);
+      queryClient.removeQueries({ queryKey: [...aiKeyQueryKey, "models"] });
     },
   });
 
@@ -99,6 +154,15 @@ export function useAiKeyStatus() {
     // EPIC-027 B1 — receipt scanning needs a vision-capable provider, which
     // is a strictly narrower condition than `configured`.
     scanAvailable: data?.scanAvailable ?? false,
+    model: data?.model ?? null,
+    defaultModel: data?.defaultModel ?? null,
+    models: modelsQuery.data ?? [],
+    isLoadingModels: modelsQuery.isLoading,
+    // Surfaced so the UI can say the list could not be loaded rather than
+    // rendering an empty select that reads as "no models exist".
+    modelsError: modelsQuery.isError,
+    setModel,
+    isSettingModel,
     canManage,
     isLoading,
     isError,

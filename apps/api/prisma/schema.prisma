@@ -1430,6 +1430,12 @@ model FamilyAiKey {
   provider      AiProvider
   encryptedKey  String
   keyHint       String?
+  /// The provider model this family chose, e.g. `gemini-2.5-flash-lite`.
+  /// NULL means "whatever the code defaults to", which is what every family
+  /// had before the picker existed — so an unset value must keep working.
+  /// Cleared whenever the PROVIDER changes: an OpenAI model id is meaningless
+  /// to Gemini, and carrying one across would 404 every call.
+  model         String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   familyGroup   FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)

@@ -1241,6 +1241,13 @@ export function PengaturanBody() {
     configured: aiKeyConfigured,
     provider: aiKeyProvider,
     keyHint: aiKeyHint,
+    model: aiModel,
+    defaultModel: aiDefaultModel,
+    models: aiModels,
+    isLoadingModels: isLoadingAiModels,
+    modelsError: aiModelsError,
+    setModel: setAiModel,
+    isSettingModel: isSettingAiModel,
     canManage: canManageAiKey,
     setKey: setAiKey,
     isSettingKey: isSettingAiKey,
@@ -1483,6 +1490,55 @@ export function PengaturanBody() {
                 </button>
               </div>
             </Field>
+            {/* The model picker only exists once a key does: the catalogue is
+                fetched FROM the provider with that key, so there is nothing
+                to offer before one is saved. The list is never hardcoded —
+                a baked-in list is wrong the moment a model ships or is
+                retired, and would not reflect what this key can use. */}
+            {aiKeyConfigured && (
+              <Field label={t.akun.pengaturan.aiModelLabel}>
+                {aiModelsError ? (
+                  <div className="text-[12px] text-destructive">
+                    {t.akun.pengaturan.aiModelLoadFailed}
+                  </div>
+                ) : (
+                  <>
+                    <select
+                      className="select"
+                      value={aiModel ?? ""}
+                      disabled={isLoadingAiModels || isSettingAiModel}
+                      onChange={(e) =>
+                        setAiModel(e.target.value ? e.target.value : null)
+                      }
+                    >
+                      {/* An explicit "use the default" entry, so a family can
+                          undo a choice without deleting their key. */}
+                      <option value="">
+                        {aiDefaultModel
+                          ? t.akun.pengaturan.aiModelDefaultOption.replace(
+                              "{model}",
+                              aiDefaultModel,
+                            )
+                          : t.akun.pengaturan.aiModelDefaultOptionPlain}
+                      </option>
+                      {aiModels.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.label}
+                          {m.isDefault
+                            ? ` ${t.akun.pengaturan.aiModelDefaultSuffix}`
+                            : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="mt-1.5 text-[11.5px] text-muted-foreground">
+                      {isLoadingAiModels
+                        ? t.akun.pengaturan.aiModelLoading
+                        : t.akun.pengaturan.aiModelHint}
+                    </div>
+                  </>
+                )}
+              </Field>
+            )}
             {aiKeyConfigured && (
               <button
                 type="button"

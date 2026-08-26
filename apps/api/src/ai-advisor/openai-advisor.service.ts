@@ -1,4 +1,3 @@
-import { Injectable } from "@nestjs/common";
 import { z } from "zod";
 
 import {
@@ -55,10 +54,25 @@ const chatCompletionChunkSchema = z.object({
  * endpoint (`stream: true`) directly via `fetch` — SSE frames of
  * `data: {...}` chunks, terminated by a literal `data: [DONE]` line.
  */
-@Injectable()
+/**
+ * NOT `@Injectable()`, deliberately. This is built by hand, per request, from
+ * the family's own decrypted key — it is never registered as a provider and
+ * Nest could not construct it anyway (its constructor takes a runtime string).
+ * Carrying the decorator claimed the opposite, and made `di-paramtypes.spec.ts`
+ * police a class the container never touches.
+ */
 export class OpenAiAdvisorService extends AiAdvisorPort {
-  constructor(private readonly apiKey: string) {
+  /** The family's chosen model, or the WealthMe default when they have not
+   *  chosen one. Resolved per instance because the adapter is built per
+   *  request from that family's own key. */
+  private readonly model: string;
+
+  constructor(
+    private readonly apiKey: string,
+    chosenModel?: string | null,
+  ) {
     super();
+    this.model = chosenModel?.trim() || MODEL;
   }
 
   async chat(
@@ -84,7 +98,7 @@ export class OpenAiAdvisorService extends AiAdvisorPort {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: MODEL,
+            model: this.model,
             stream: true,
             max_tokens: MAX_TOKENS,
             messages: [

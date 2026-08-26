@@ -1,5 +1,4 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { Injectable } from "@nestjs/common";
 
 import { ExternalRequestTimeoutError } from "../common/utils/external-fetch.util";
 
@@ -22,12 +21,24 @@ const MODEL = "claude-sonnet-4-6" as const;
 // enough that a stalled connection cannot hang the chat request forever.
 const CLAUDE_REQUEST_TIMEOUT_MS = 60_000;
 
-@Injectable()
+/**
+ * NOT `@Injectable()`, deliberately. This is built by hand, per request, from
+ * the family's own decrypted key — it is never registered as a provider and
+ * Nest could not construct it anyway (its constructor takes a runtime string).
+ * Carrying the decorator claimed the opposite, and made `di-paramtypes.spec.ts`
+ * police a class the container never touches.
+ */
 export class ClaudeAdvisorService extends AiAdvisorPort {
   private readonly client: Anthropic;
 
-  constructor(apiKey: string) {
+  /** The family's chosen model, or the WealthMe default when they have not
+   *  chosen one. Resolved per instance because the adapter is built per
+   *  request from that family's own key. */
+  private readonly model: string;
+
+  constructor(apiKey: string, chosenModel?: string | null) {
     super();
+    this.model = chosenModel?.trim() || MODEL;
     this.client = new Anthropic({ apiKey });
   }
 
@@ -39,7 +50,7 @@ export class ClaudeAdvisorService extends AiAdvisorPort {
     try {
       const stream = this.client.messages.stream(
         {
-          model: MODEL,
+          model: this.model,
           max_tokens: 1024,
           system: buildAdvisorSystemPrompt(context),
           messages: messages.map((m) => ({ role: m.role, content: m.content })),

@@ -715,6 +715,9 @@ export class ReconciliationService {
     const reader = this.statementReaderFactory.create(
       resolvedKey.provider,
       resolvedKey.apiKey,
+      // The family's chosen model from Pengaturan; null falls back to the
+      // WealthMe default.
+      resolvedKey.model,
     );
     const reading = await reader.readStatement(statementText);
 
@@ -771,6 +774,9 @@ export class ReconciliationService {
     const reader = this.statementReaderFactory.create(
       resolvedKey.provider,
       resolvedKey.apiKey,
+      // The family's chosen model from Pengaturan; null falls back to the
+      // WealthMe default.
+      resolvedKey.model,
     );
 
     // The read used to be entirely unobservable: when it hung in production

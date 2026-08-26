@@ -73,6 +73,9 @@ describe("TransactionsService.scanReceipt (EPIC-027 B5/B7)", () => {
     aiKeyService.resolveDecryptedKey.mockResolvedValue({
       provider: "openai",
       apiKey: "sk-family",
+      // The family picked a model in Pengaturan; it must reach the adapter,
+      // or the picker would appear to work while changing nothing.
+      model: "gpt-4.1-mini",
     });
     prisma.category.findMany.mockResolvedValue([
       { id: "cat-food", name: "Makanan & Minuman" },
@@ -83,7 +86,11 @@ describe("TransactionsService.scanReceipt (EPIC-027 B5/B7)", () => {
     expect(aiKeyService.resolveDecryptedKey).toHaveBeenCalledWith(
       FAMILY_GROUP_ID,
     );
-    expect(ocrFactory.create).toHaveBeenCalledWith("openai", "sk-family");
+    expect(ocrFactory.create).toHaveBeenCalledWith(
+      "openai",
+      "sk-family",
+      "gpt-4.1-mini",
+    );
     expect(extractTransaction).toHaveBeenCalledWith(IMAGE);
     expect(result).toEqual({ ...OCR_RESULT, categoryId: "cat-food" });
   });

@@ -1,4 +1,3 @@
-import { Injectable } from "@nestjs/common";
 import { z } from "zod";
 
 import {
@@ -41,9 +40,23 @@ const chatCompletionSchema = z.object({
 
 /** EPIC-029 E5 — OpenAI statement reader. Non-streaming Chat Completions:
  * this is a single JSON extraction, so there is nothing to stream. */
-@Injectable()
+/**
+ * NOT `@Injectable()`, deliberately. This is built by hand, per request, from
+ * the family's own decrypted key — it is never registered as a provider and
+ * Nest could not construct it anyway (its constructor takes a runtime string).
+ * Carrying the decorator claimed the opposite, and made `di-paramtypes.spec.ts`
+ * police a class the container never touches.
+ */
 export class OpenAiStatementReaderAdapter implements StatementReaderPort {
-  constructor(private readonly apiKey: string) {}
+  /** The family's chosen model, or the WealthMe default when unset. */
+  private readonly model: string;
+
+  constructor(
+    private readonly apiKey: string,
+    chosenModel?: string | null,
+  ) {
+    this.model = chosenModel?.trim() || MODEL;
+  }
 
   async readStatement(statementText: string): Promise<StatementReading> {
     let res: Response;
@@ -57,7 +70,7 @@ export class OpenAiStatementReaderAdapter implements StatementReaderPort {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: MODEL,
+            model: this.model,
             max_tokens: MAX_TOKENS,
             // Two turns, two roles: the rules are a `system` message, the
             // untrusted statement is the user message. See the prompt util.

@@ -553,6 +553,15 @@ export const en = {
       aiKeyInputPlaceholder: "Paste your API key here",
       aiKeySaveButton: "Save",
       aiKeyRemoveButton: "Remove Key",
+      aiModelLabel: "AI model",
+      aiModelDefaultOption: "WealthMe default ({model})",
+      aiModelDefaultOptionPlain: "WealthMe default",
+      aiModelDefaultSuffix: "(default)",
+      aiModelLoading: "Fetching the model list from the provider...",
+      aiModelHint:
+        "The list comes straight from the provider using the family's API key, so it always matches what that key can actually use. Lighter models usually carry a larger free quota.",
+      aiModelLoadFailed:
+        "Could not fetch the model list. Check the API key and try again.",
       aiKeyOwnerOnlyNote:
         "Only the family owner or spouse can manage the AI key.",
       aiKeyNotConfiguredLabel: "No API key connected yet.",

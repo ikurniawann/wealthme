@@ -66,6 +66,46 @@ async function captureRequest(): Promise<GeminiBody> {
   ) as GeminiBody;
 }
 
+describe("the family's chosen model reaches the provider", () => {
+  it("uses the chosen model in the request URL, not the default", async () => {
+    // Without this the picker in Pengaturan would appear to work while
+    // changing nothing at all — the worst kind of setting.
+    const fetchMock = jest.fn().mockResolvedValue(
+      jsonResponse({
+        candidates: [{ content: { parts: [{ text: VALID_ANSWER }] } }],
+      }),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await new GeminiStatementReaderAdapter(
+      "k",
+      "gemini-2.5-flash-lite",
+    ).readStatement("01 Jul | X | -1");
+
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toContain("gemini-2.5-flash-lite:generateContent");
+    expect(url).not.toContain("/gemini-2.5-flash:generateContent");
+  });
+
+  it("falls back to the default when the family has chosen nothing", async () => {
+    const fetchMock = jest.fn().mockResolvedValue(
+      jsonResponse({
+        candidates: [{ content: { parts: [{ text: VALID_ANSWER }] } }],
+      }),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    // null is what the column holds for every family that predates the
+    // picker; it must keep working exactly as before.
+    await new GeminiStatementReaderAdapter("k", null).readStatement(
+      "01 Jul | X | -1",
+    );
+
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toContain("gemini-2.5-flash:generateContent");
+  });
+});
+
 describe("Gemini statement request — bounded generation", () => {
   const MODEL_ENV = process.env.GEMINI_STATEMENT_MODEL;
 
