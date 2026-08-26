@@ -9,7 +9,14 @@ import {
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AiKeyService } from "../ai-advisor/ai-key.service";
-import { type PrismaService } from "../prisma/prisma.service";
+// VALUE import, deliberately. A `type` import is erased at runtime, so
+// `design:paramtypes[0]` degrades to `Function` and Nest cannot resolve it:
+// "Nest can't resolve dependencies of the ReconciliationService (?, ...)".
+// `eslint --fix` rewrote this line during a commit hook and took the whole API
+// down — the same accident already documented in ai-advisor.service.ts. The
+// three deps below carry the same guard for the same reason; do not let it.
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { PrismaService } from "../prisma/prisma.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { TransactionsService } from "../transactions/transactions.service";
 
