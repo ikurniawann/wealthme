@@ -2889,6 +2889,8 @@ export const id = {
     addTransactionButton: "Tambah Transaksi",
     totalIncomeLabel: "Total Pemasukan",
     totalExpenseLabel: "Total Pengeluaran",
+    listTruncatedNote:
+      "Menampilkan {shown} dari {total} transaksi. Persempit dengan filter tanggal untuk melihat sisanya.",
     differenceLabel: "Selisih",
     sortByLabel: "Urutkan:",
     sortAriaLabel: "Urutan transaksi",

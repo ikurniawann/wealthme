@@ -2675,6 +2675,8 @@ export type I18nDictionary = {
     addTransactionButton: string;
     totalIncomeLabel: string;
     totalExpenseLabel: string;
+    /** Carries `{shown}` and `{total}` placeholders. */
+    listTruncatedNote: string;
     differenceLabel: string;
     sortByLabel: string;
     sortAriaLabel: string;

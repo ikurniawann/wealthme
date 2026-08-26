@@ -2835,6 +2835,8 @@ export const en = {
     addTransactionButton: "Add Transaction",
     totalIncomeLabel: "Total Income",
     totalExpenseLabel: "Total Expenses",
+    listTruncatedNote:
+      "Showing {shown} of {total} transactions. Narrow the date filter to see the rest.",
     differenceLabel: "Difference",
     sortByLabel: "Sort:",
     sortAriaLabel: "Transaction order",
