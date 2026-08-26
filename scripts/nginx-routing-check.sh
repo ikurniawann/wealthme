@@ -155,6 +155,26 @@ expect_route "attachments/ -> api (stripped)" POST "/api/family-groups/fg-1/tran
 expect_route "upload-file/ -> api (stripped)" POST "/api/family-groups/fg-1/reconciliation/upload-file/" \
   "api POST /family-groups/fg-1/reconciliation/upload-file/"
 
+echo "[nginx-check] routing — the AI statement routes keep their own longer read timeout:"
+# A regex location wins over `location /api/` regardless of prefix length, so
+# these four must land on the api upstream path-stripped exactly like the
+# generic block would have — the only difference being proxy_read_timeout.
+expect_route "statement-pdf         -> api (stripped)" POST "/api/family-groups/fg-1/reconciliation/statement-pdf" \
+  "api POST /family-groups/fg-1/reconciliation/statement-pdf"
+expect_route "statement-pdf/page    -> api (stripped)" POST "/api/family-groups/fg-1/reconciliation/statement-pdf/page" \
+  "api POST /family-groups/fg-1/reconciliation/statement-pdf/page"
+expect_route "statement-pdf/preview -> api (stripped)" POST "/api/family-groups/fg-1/reconciliation/statement-pdf/preview" \
+  "api POST /family-groups/fg-1/reconciliation/statement-pdf/preview"
+expect_route "statement-pdf/confirm -> api (stripped)" POST "/api/family-groups/fg-1/reconciliation/statement-pdf/confirm" \
+  "api POST /family-groups/fg-1/reconciliation/statement-pdf/confirm"
+expect_route "statement-pdf/page/   -> api (stripped)" POST "/api/family-groups/fg-1/reconciliation/statement-pdf/page/" \
+  "api POST /family-groups/fg-1/reconciliation/statement-pdf/page/"
+# The regex is anchored, so a route that merely STARTS with the same text
+# must fall through to the generic block rather than silently inheriting the
+# longer timeout.
+expect_route "statement-pdfx        -> api (generic block)" POST "/api/family-groups/fg-1/reconciliation/statement-pdfx" \
+  "api POST /family-groups/fg-1/reconciliation/statement-pdfx"
+
 echo "[nginx-check] body-size ceilings — narrow, not global:"
 expect_status "public calculator refuses 2 MB (stays at the 1m default)" \
   "/api/calculators/zakat" 2000000 413

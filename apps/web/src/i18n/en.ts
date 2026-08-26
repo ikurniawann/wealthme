@@ -3069,6 +3069,9 @@ export const en = {
       "Scanned or photographed PDFs (no text layer) are not supported yet, and are refused with a clear reason rather than imported as zero rows.",
     pdfReadingLabel: "Reading the PDF in your browser...",
     pdfAnalyzingLabel: "AI is tidying up the transaction table...",
+    /** Per-page progress. A statement is read one page at a time, so the
+     *  label says which page rather than spinning silently. */
+    pdfAnalyzingPageLabel: "AI is reading page {page} of {total}...",
     protectedDialogDescPdf:
       "This PDF is password-protected. The password is processed in your browser and never sent to the server.",
     pdfErrorPasswordRequired:

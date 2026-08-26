@@ -101,7 +101,14 @@ async function fetchAttachmentBlob(
     { headers: token ? { Authorization: `Bearer ${token}` } : undefined },
   );
   if (!res.ok) {
-    throw new AttachmentFetchError(res.status, res.statusText);
+    // `res.statusText` is the empty string over HTTP/2 (h2 carries no reason
+    // phrase), and `extractApiErrorMessage` passes an empty message straight
+    // through — which renders a toast with no text in it. Same silent
+    // failure that hid a gateway timeout on /rekonsiliasi.
+    throw new AttachmentFetchError(
+      res.status,
+      res.statusText.trim() || `HTTP ${res.status}`,
+    );
   }
   return res.blob();
 }

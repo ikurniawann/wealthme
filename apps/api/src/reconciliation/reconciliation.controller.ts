@@ -33,7 +33,20 @@ import { CommitStatementDraftDto } from "./dto/commit-statement-draft.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { MatchEntryDto } from "./dto/match-entry.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { ReadStatementPdfDto } from "./dto/read-statement-pdf.dto";
+import { PreviewStatementDraftDto } from "./dto/preview-statement-draft.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { ReadStatementPdfPageDto } from "./dto/read-statement-pdf-page.dto";
+// VALUE import, and the eslint-disable is load-bearing: Nest reads the
+// `@Body()` DTO class off `design:paramtypes`, so a `type` import erases it
+// and ValidationPipe silently stops validating the body — every
+// class-validator bound on the DTO would just stop applying. `--fix` wants
+// to rewrite this line; do not let it. (`MAX_STATEMENT_PDF_PAGES` is a real
+// value too, used in the throttle limit below.)
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import {
+  MAX_STATEMENT_PDF_PAGES,
+  ReadStatementPdfDto,
+} from "./dto/read-statement-pdf.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { SplitEntryDto } from "./dto/split-entry.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -52,6 +65,7 @@ import type {
   BankSyncEntryDto,
   ParsedRow,
   ReconciliationTemplateDto,
+  StatementPageReadDto,
   StatementPreviewDto,
 } from "./reconciliation.service";
 
@@ -189,6 +203,81 @@ export class ReconciliationController {
     } catch (err: unknown) {
       throw toStatementReaderHttpException(err, this.logger);
     }
+  }
+
+  /**
+   * EPIC-029 follow-up — read ONE page.
+   *
+   * The whole-statement route above cannot finish inside the request path in
+   * production: a 5-page statement ran past 120s, nginx cuts an idle
+   * upstream at 60s and Cloudflare caps a request at ~100s, so the browser
+   * only ever saw a dead connection. A page at a time fits with room to
+   * spare and gives the UI something honest to show while it works.
+   *
+   * The throttle is per page rather than per statement, so a 40-page
+   * statement is not refused halfway through: the limit is sized to the page
+   * cap, not to the old one-call-per-statement shape.
+   */
+  @Post("statement-pdf/page")
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60000, limit: MAX_STATEMENT_PDF_PAGES + 5 } })
+  @CheckAbility((ab: AppAbility) => ab.can("create", "Reconciliation"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiOperation({
+    summary:
+      "Read ONE page of an already-extracted statement PDF with the family's own AI key. Returns RAW strings; nothing is parsed or stored. The file and its password never reach this endpoint (E8/E9/E10).",
+  })
+  @ApiResponse({ status: 200, description: "Raw rows for this page" })
+  @ApiResponse({
+    status: 412,
+    description: "code=STATEMENT_AI_NOT_CONFIGURED",
+  })
+  @ApiResponse({ status: 409, description: "code=AI_KEY_CORRUPTED" })
+  @ApiResponse({ status: 422, description: "code=STATEMENT_NO_TEXT_LAYER" })
+  @ApiResponse({
+    status: 502,
+    description:
+      "code=STATEMENT_AI_AUTH | STATEMENT_AI_PARSE_FAILED | STATEMENT_AI_UPSTREAM_FAILED",
+  })
+  @ApiResponse({ status: 429, description: "code=STATEMENT_AI_RATE_LIMITED" })
+  @ApiResponse({ status: 504, description: "code=STATEMENT_AI_TIMEOUT" })
+  async readStatementPdfPage(
+    @Param("familyGroupId") familyGroupId: string,
+    @Body() dto: ReadStatementPdfPageDto,
+  ): Promise<StatementPageReadDto> {
+    try {
+      return await this.reconciliationService.readStatementPdfPage(
+        familyGroupId,
+        dto,
+      );
+    } catch (err: unknown) {
+      throw toStatementReaderHttpException(err, this.logger);
+    }
+  }
+
+  /**
+   * EPIC-029 follow-up — parse the merged per-page reading and run the
+   * totals gate. No AI call, so no throttle beyond the global one and no
+   * second charge to the family.
+   */
+  @Post("statement-pdf/preview")
+  @HttpCode(HttpStatus.OK)
+  @CheckAbility((ab: AppAbility) => ab.can("create", "Reconciliation"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiOperation({
+    summary:
+      "Parse a merged statement draft and cross-check it against the statement's own printed totals. Nothing is persisted (E3a) — the confirm step writes, and re-runs this same pipeline.",
+  })
+  @ApiResponse({ status: 200, description: "Preview — nothing persisted" })
+  @ApiResponse({
+    status: 422,
+    description:
+      "code=STATEMENT_ZERO_VALID_ROWS | STATEMENT_COLUMN_MAPPING_MISMATCH",
+  })
+  previewStatementDraft(
+    @Body() dto: PreviewStatementDraftDto,
+  ): StatementPreviewDto {
+    return this.reconciliationService.previewStatementDraft(dto);
   }
 
   // The confirm half. No AI call, so no extra throttle beyond the global

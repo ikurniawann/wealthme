@@ -3,6 +3,7 @@ import { extname } from "node:path";
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
@@ -20,6 +21,8 @@ import { PrismaService } from "../prisma/prisma.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { TransactionsService } from "../transactions/transactions.service";
 
+import { type PreviewStatementDraftDto } from "./dto/preview-statement-draft.dto";
+import { type ReadStatementPdfPageDto } from "./dto/read-statement-pdf-page.dto";
 import {
   MAX_STATEMENT_PDF_TEXT_CHARS,
   type ReadStatementPdfDto,
@@ -94,6 +97,10 @@ const STATEMENT_DRAFT_HEADER = ["Tanggal", "Keterangan", "Jumlah"] as const;
 /** Mirrors `PDF_MIN_TEXT_CHARS` in the web app's `statement-pdf.ts`: below
  * this there is no text layer to read, only a scan. */
 const MIN_STATEMENT_TEXT_CHARS = 200;
+/** The same guard applied to a single page, which legitimately carries less
+ *  text than a whole statement. A summary-only last page still clears this;
+ *  a scanned page with no text layer does not. */
+const MIN_STATEMENT_PAGE_TEXT_CHARS = 40;
 
 function toTotalsVerdictDto(verdict: TotalsVerdict): StatementTotalsVerdictDto {
   return {
@@ -188,6 +195,15 @@ export type StatementDraftDto = {
  * this point: there is no `BankSync`, no `BankSyncEntry`, and no id. The
  * user reviews this and explicitly confirms, which is what actually writes.
  */
+/** EPIC-029 follow-up — one page's RAW reading, merged client-side and sent
+ *  back to `previewStatementDraft`. Strings only, like every other statement
+ *  payload: nothing here has been through `parseStatementAmount` yet. */
+export type StatementPageReadDto = {
+  pageIndex: number;
+  rows: StatementRawRow[];
+  totals: StatementRawTotals;
+};
+
 export type StatementPreviewDto = {
   fileName: string;
   pageCount: number;
@@ -393,6 +409,10 @@ function toBankSyncEntryDto(
 
 @Injectable()
 export class ReconciliationService {
+  /** Statement reads were entirely unobservable when one hung in production
+   *  — no provider, no duration, no outcome. See `readStatementPdfPage`. */
+  private readonly logger = new Logger(ReconciliationService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly transactionsService: TransactionsService,
@@ -667,16 +687,119 @@ export class ReconciliationService {
       );
     }
 
+    return this.toStatementPreview(
+      { fileName: dto.fileName, rows: reading.rows, totals: reading.totals },
+      dto.pageCount,
+    );
+  }
+
+  /**
+   * EPIC-029 follow-up — reads ONE page with the family's key.
+   *
+   * Why not the whole statement in one call: in production a 5-page
+   * statement ran past 120s, while nginx cuts an idle upstream at 60s and
+   * Cloudflare caps a request at ~100s. The browser never saw the timeout
+   * the API raised — it saw a dead connection. A page at a time is roughly
+   * ten rows, which finishes well inside every ceiling.
+   *
+   * Returns the model's RAW strings. No parsing, no totals gate, nothing
+   * stored: the merged result goes to `previewStatementDraft`, and the
+   * numbers only become money there and again on commit.
+   */
+  async readStatementPdfPage(
+    familyGroupId: string,
+    dto: ReadStatementPdfPageDto,
+  ): Promise<StatementPageReadDto> {
+    // E1c, per page. A near-empty prompt is exactly what makes a model
+    // invent a confident table of money rows, so the paid call is not made
+    // on one. The floor is lower than the whole-document floor because a
+    // single page legitimately carries less text; the browser skips blank
+    // pages entirely and never sends them.
+    if (dto.text.replace(/\s+/g, "").length < MIN_STATEMENT_PAGE_TEXT_CHARS) {
+      throw new UnprocessableEntityException(
+        withCode(
+          "Halaman ini tidak punya lapisan teks yang bisa dibaca (kemungkinan hasil scan/foto). Unduh ulang e-statement asli dari aplikasi bank, atau ekspor mutasi sebagai CSV/Excel.",
+          "STATEMENT_NO_TEXT_LAYER",
+        ),
+      );
+    }
+
+    const resolvedKey =
+      await this.aiKeyService.resolveDecryptedKey(familyGroupId);
+    if (!resolvedKey) throw new StatementReaderNotConfiguredError();
+
+    const reader = this.statementReaderFactory.create(
+      resolvedKey.provider,
+      resolvedKey.apiKey,
+    );
+
+    // The read used to be entirely unobservable: when it hung in production
+    // there was no provider, no duration and no outcome in the log, so the
+    // cause had to be inferred from nginx's abort timing. One line per call
+    // fixes that. It carries no statement text and no key — only what is
+    // needed to tell "slow model" from "wrong key" from "no rows".
+    const startedAt = Date.now();
+    try {
+      const reading = await reader.readStatement(dto.text);
+      this.logger.log(
+        `statement page read: provider=${resolvedKey.provider} page=${
+          dto.pageIndex + 1
+        }/${dto.pageCount} rows=${reading.rows.length} ms=${
+          Date.now() - startedAt
+        }`,
+      );
+      return {
+        pageIndex: dto.pageIndex,
+        rows: reading.rows,
+        totals: reading.totals,
+      };
+    } catch (err: unknown) {
+      this.logger.warn(
+        `statement page read FAILED: provider=${resolvedKey.provider} page=${
+          dto.pageIndex + 1
+        }/${dto.pageCount} ms=${Date.now() - startedAt} err=${
+          err instanceof Error ? err.name : typeof err
+        }`,
+      );
+      throw err;
+    }
+  }
+
+  /**
+   * EPIC-029 follow-up — turns the merged per-page reading into a preview.
+   *
+   * No AI call, so this costs the family nothing and can be retried freely.
+   * It runs the same deterministic pipeline the commit runs, which is what
+   * makes a client-merged draft safe to accept: the totals gate that
+   * actually protects the import is enforced on the request that WRITES.
+   */
+  previewStatementDraft(dto: PreviewStatementDraftDto): StatementPreviewDto {
     const draft: StatementDraftDto = {
       fileName: dto.fileName,
-      rows: reading.rows,
-      totals: reading.totals,
+      rows: dto.rows.map((row) => ({
+        date: row.date,
+        description: row.description,
+        amount: row.amount,
+      })),
+      totals: {
+        openingBalance: dto.totals.openingBalance ?? null,
+        closingBalance: dto.totals.closingBalance ?? null,
+        totalCredit: dto.totals.totalCredit ?? null,
+        totalDebit: dto.totals.totalDebit ?? null,
+      },
     };
-    const { mapped, verdict } = this.parseStatementDraft(draft);
+    return this.toStatementPreview(draft, dto.pageCount);
+  }
 
+  /** The preview body shared by the one-shot read and the merged read. */
+  private toStatementPreview(
+    draft: StatementDraftDto,
+    pageCount: number,
+  ): StatementPreviewDto {
+    const { mapped, verdict } = this.parseStatementDraft(draft);
     return {
-      fileName: dto.fileName,
-      pageCount: dto.pageCount,
+      fileName: draft.fileName,
+      pageCount,
       rowCount: mapped.rows.length,
       rows: mapped.rows.map((row) => ({
         date: row.date.toISOString(),
