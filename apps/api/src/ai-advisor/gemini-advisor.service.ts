@@ -1,4 +1,3 @@
-import { Injectable } from "@nestjs/common";
 import { z } from "zod";
 
 import {
@@ -133,10 +132,25 @@ const geminiStreamChunkSchema = z.object({
  * `data: {...}` SSE events (no DONE sentinel — the stream simply ends).
  * Gemini's roles are "user"/"model" (not "assistant"), mapped below.
  */
-@Injectable()
+/**
+ * NOT `@Injectable()`, deliberately. This is built by hand, per request, from
+ * the family's own decrypted key — it is never registered as a provider and
+ * Nest could not construct it anyway (its constructor takes a runtime string).
+ * Carrying the decorator claimed the opposite, and made `di-paramtypes.spec.ts`
+ * police a class the container never touches.
+ */
 export class GeminiAdvisorService extends AiAdvisorPort {
-  constructor(private readonly apiKey: string) {
+  /** The family's chosen model, or the WealthMe default when they have not
+   *  chosen one. Resolved per instance because the adapter is built per
+   *  request from that family's own key. */
+  private readonly model: string;
+
+  constructor(
+    private readonly apiKey: string,
+    chosenModel?: string | null,
+  ) {
     super();
+    this.model = chosenModel?.trim() || GEMINI_MODEL;
   }
 
   async chat(
@@ -144,7 +158,7 @@ export class GeminiAdvisorService extends AiAdvisorPort {
     messages: AdvisorMessage[],
     onToken: (token: string) => void,
   ): Promise<AdvisorChatResult> {
-    const url = `${GEMINI_API_BASE}/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse`;
+    const url = `${GEMINI_API_BASE}/models/${this.model}:streamGenerateContent?alt=sse`;
 
     // EPIC-023 Task G retry (HIGH five-reviewer finding, round 2) — the
     // whole request (fetch AND the streamed body) is wrapped, not just the

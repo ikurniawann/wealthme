@@ -17,14 +17,18 @@ import type { OcrPort } from "./ocr.port";
  */
 @Injectable()
 export class OcrFactory {
-  create(provider: AiProvider, apiKey: string): OcrPort {
+  /**
+   * `model` is the family's choice from Pengaturan; omitted or null falls
+   * back to the WealthMe default.
+   */
+  create(provider: AiProvider, apiKey: string, model?: string | null): OcrPort {
     switch (provider) {
       case "claude":
-        return new ClaudeVisionOcrAdapter(apiKey);
+        return new ClaudeVisionOcrAdapter(apiKey, model);
       case "openai":
-        return new OpenAiVisionOcrAdapter(apiKey);
+        return new OpenAiVisionOcrAdapter(apiKey, model);
       case "gemini":
-        return new GeminiVisionOcrAdapter(apiKey);
+        return new GeminiVisionOcrAdapter(apiKey, model);
       default: {
         const _exhaustiveCheck: never = provider;
         throw new Error(`Unknown AI provider: ${String(_exhaustiveCheck)}`);

@@ -1,4 +1,3 @@
-import { Injectable } from "@nestjs/common";
 import { z } from "zod";
 
 import {
@@ -39,9 +38,23 @@ const chatCompletionSchema = z.object({
  * an `image_url` content part carrying a base64 data URL: this is a single
  * JSON extraction, so there is nothing to stream.
  */
-@Injectable()
+/**
+ * NOT `@Injectable()`, deliberately. This is built by hand, per request, from
+ * the family's own decrypted key — it is never registered as a provider and
+ * Nest could not construct it anyway (its constructor takes a runtime string).
+ * Carrying the decorator claimed the opposite, and made `di-paramtypes.spec.ts`
+ * police a class the container never touches.
+ */
 export class OpenAiVisionOcrAdapter implements OcrPort {
-  constructor(private readonly apiKey: string) {}
+  /** The family's chosen model, or the WealthMe default when unset. */
+  private readonly model: string;
+
+  constructor(
+    private readonly apiKey: string,
+    chosenModel?: string | null,
+  ) {
+    this.model = chosenModel?.trim() || MODEL;
+  }
 
   async extractTransaction(imageBase64: string): Promise<OcrResult> {
     let res: Response;
@@ -55,7 +68,7 @@ export class OpenAiVisionOcrAdapter implements OcrPort {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: MODEL,
+            model: this.model,
             max_tokens: MAX_TOKENS,
             messages: [
               {

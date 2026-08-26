@@ -16,14 +16,22 @@ import type { StatementReaderPort } from "./statement-reader.port";
  */
 @Injectable()
 export class StatementReaderFactory {
-  create(provider: AiProvider, apiKey: string): StatementReaderPort {
+  /**
+   * `model` is the family's choice from Pengaturan; omitted or null falls
+   * back to the WealthMe default.
+   */
+  create(
+    provider: AiProvider,
+    apiKey: string,
+    model?: string | null,
+  ): StatementReaderPort {
     switch (provider) {
       case "claude":
-        return new ClaudeStatementReaderAdapter(apiKey);
+        return new ClaudeStatementReaderAdapter(apiKey, model);
       case "openai":
-        return new OpenAiStatementReaderAdapter(apiKey);
+        return new OpenAiStatementReaderAdapter(apiKey, model);
       case "gemini":
-        return new GeminiStatementReaderAdapter(apiKey);
+        return new GeminiStatementReaderAdapter(apiKey, model);
       default: {
         const _exhaustiveCheck: never = provider;
         throw new Error(`Unknown AI provider: ${String(_exhaustiveCheck)}`);

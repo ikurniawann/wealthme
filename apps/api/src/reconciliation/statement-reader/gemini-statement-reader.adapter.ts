@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Logger } from "@nestjs/common";
 import { z } from "zod";
 
 import { AiAdvisorAuthError } from "../../ai-advisor/ai-advisor-provider.error";
@@ -65,14 +65,28 @@ const geminiResponseSchema = z.object({
  * `x-goog-api-key` header rather than the query string so it cannot land in
  * proxy/access logs (same reasoning as GeminiAdvisorService).
  */
-@Injectable()
+/**
+ * NOT `@Injectable()`, deliberately. This is built by hand, per request, from
+ * the family's own decrypted key — it is never registered as a provider and
+ * Nest could not construct it anyway (its constructor takes a runtime string).
+ * Carrying the decorator claimed the opposite, and made `di-paramtypes.spec.ts`
+ * police a class the container never touches.
+ */
 export class GeminiStatementReaderAdapter implements StatementReaderPort {
   private readonly logger = new Logger(GeminiStatementReaderAdapter.name);
 
-  constructor(private readonly apiKey: string) {}
+  /** The family's chosen model, or the WealthMe default when unset. */
+  private readonly model: string;
+
+  constructor(
+    private readonly apiKey: string,
+    chosenModel?: string | null,
+  ) {
+    this.model = chosenModel?.trim() || GEMINI_STATEMENT_MODEL;
+  }
 
   async readStatement(statementText: string): Promise<StatementReading> {
-    const url = `${GEMINI_API_BASE}/models/${GEMINI_STATEMENT_MODEL}:generateContent`;
+    const url = `${GEMINI_API_BASE}/models/${this.model}:generateContent`;
 
     let res: Response;
     try {
@@ -111,7 +125,7 @@ export class GeminiStatementReaderAdapter implements StatementReaderPort {
               // outright — 2.5 Pro rejects `thinkingBudget: 0` with a 400 —
               // and the model id is env-overridable, so this is applied by
               // name rather than assumed.
-              ...(/^gemini-2\.5-flash/.test(GEMINI_STATEMENT_MODEL)
+              ...(/^gemini-2\.5-flash/.test(this.model)
                 ? { thinkingConfig: { thinkingBudget: 0 } }
                 : {}),
               // Ask for JSON directly instead of hoping prose does not appear
@@ -165,7 +179,7 @@ export class GeminiStatementReaderAdapter implements StatementReaderPort {
     const usage = parsed.success ? parsed.data.usageMetadata : undefined;
     if (usage) {
       this.logger.log(
-        `gemini statement usage: model=${GEMINI_STATEMENT_MODEL} prompt=${
+        `gemini statement usage: model=${this.model} prompt=${
           usage.promptTokenCount ?? "?"
         } output=${usage.candidatesTokenCount ?? "?"} thoughts=${
           usage.thoughtsTokenCount ?? 0

@@ -1,4 +1,3 @@
-import { Injectable } from "@nestjs/common";
 import { z } from "zod";
 
 import { AiAdvisorAuthError } from "../../ai-advisor/ai-advisor-provider.error";
@@ -45,12 +44,26 @@ const geminiResponseSchema = z.object({
  * `x-goog-api-key` header rather than the query string so it cannot land in
  * proxy/access logs (same reasoning as GeminiAdvisorService).
  */
-@Injectable()
+/**
+ * NOT `@Injectable()`, deliberately. This is built by hand, per request, from
+ * the family's own decrypted key — it is never registered as a provider and
+ * Nest could not construct it anyway (its constructor takes a runtime string).
+ * Carrying the decorator claimed the opposite, and made `di-paramtypes.spec.ts`
+ * police a class the container never touches.
+ */
 export class GeminiVisionOcrAdapter implements OcrPort {
-  constructor(private readonly apiKey: string) {}
+  /** The family's chosen model, or the WealthMe default when unset. */
+  private readonly model: string;
+
+  constructor(
+    private readonly apiKey: string,
+    chosenModel?: string | null,
+  ) {
+    this.model = chosenModel?.trim() || GEMINI_OCR_MODEL;
+  }
 
   async extractTransaction(imageBase64: string): Promise<OcrResult> {
-    const url = `${GEMINI_API_BASE}/models/${GEMINI_OCR_MODEL}:generateContent`;
+    const url = `${GEMINI_API_BASE}/models/${this.model}:generateContent`;
 
     let res: Response;
     try {

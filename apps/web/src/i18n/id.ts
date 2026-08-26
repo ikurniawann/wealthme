@@ -554,6 +554,15 @@ export const id = {
       aiKeyInputPlaceholder: "Tempel API key di sini",
       aiKeySaveButton: "Simpan",
       aiKeyRemoveButton: "Hapus Key",
+      aiModelLabel: "Model AI",
+      aiModelDefaultOption: "Default WealthMe ({model})",
+      aiModelDefaultOptionPlain: "Default WealthMe",
+      aiModelDefaultSuffix: "(default)",
+      aiModelLoading: "Mengambil daftar model dari penyedia...",
+      aiModelHint:
+        "Daftar diambil langsung dari penyedia memakai API key keluarga, jadi selalu sesuai dengan yang tersedia untuk key tersebut. Model yang lebih ringan biasanya punya kuota gratis lebih besar.",
+      aiModelLoadFailed:
+        "Gagal mengambil daftar model. Periksa API key, lalu coba lagi.",
       aiKeyOwnerOnlyNote:
         "Hanya pemilik keluarga (owner) atau pasangan yang dapat mengatur API key AI.",
       aiKeyNotConfiguredLabel: "Belum ada API key yang terhubung.",

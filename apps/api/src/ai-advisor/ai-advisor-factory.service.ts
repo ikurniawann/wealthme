@@ -14,14 +14,23 @@ import { OpenAiAdvisorService } from "./openai-advisor.service";
  */
 @Injectable()
 export class AiAdvisorFactory {
-  create(provider: AiProvider, apiKey: string): AiAdvisorPort {
+  /**
+   * `model` is the family's choice from Pengaturan; omitted or null means the
+   * adapter falls back to the WealthMe default, which is what every family
+   * had before the picker existed.
+   */
+  create(
+    provider: AiProvider,
+    apiKey: string,
+    model?: string | null,
+  ): AiAdvisorPort {
     switch (provider) {
       case "claude":
-        return new ClaudeAdvisorService(apiKey);
+        return new ClaudeAdvisorService(apiKey, model);
       case "openai":
-        return new OpenAiAdvisorService(apiKey);
+        return new OpenAiAdvisorService(apiKey, model);
       case "gemini":
-        return new GeminiAdvisorService(apiKey);
+        return new GeminiAdvisorService(apiKey, model);
       default: {
         const _exhaustiveCheck: never = provider;
         throw new Error(`Unknown AI provider: ${String(_exhaustiveCheck)}`);

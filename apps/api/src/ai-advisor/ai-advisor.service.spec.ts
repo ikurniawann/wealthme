@@ -70,6 +70,9 @@ describe("AiAdvisorService.streamChat", () => {
     aiKeyService.resolveDecryptedKey.mockResolvedValue({
       provider: "openai",
       apiKey: "sk-family-own-key",
+      // The family picked a model in Pengaturan; it must reach the adapter,
+      // or the picker would appear to work while changing nothing.
+      model: "gpt-4.1-mini",
     });
     const advisor = { chat: jest.fn().mockResolvedValue(undefined) };
     factory.create.mockReturnValue(advisor);
@@ -81,7 +84,11 @@ describe("AiAdvisorService.streamChat", () => {
       onToken,
     );
 
-    expect(factory.create).toHaveBeenCalledWith("openai", "sk-family-own-key");
+    expect(factory.create).toHaveBeenCalledWith(
+      "openai",
+      "sk-family-own-key",
+      "gpt-4.1-mini",
+    );
     expect(advisor.chat).toHaveBeenCalledWith(
       expect.objectContaining({ familyGroupId: FAMILY_GROUP_ID }),
       [{ role: "user", content: "Halo" }],
