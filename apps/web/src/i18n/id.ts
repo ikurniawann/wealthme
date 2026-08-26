@@ -3299,6 +3299,18 @@ export const id = {
     suggestedLabel: "Tersarankan",
     confirmButton: "Konfirmasi",
     notFoundLabel: "Tidak Ditemukan",
+    importAccountLabel: "Masukkan ke rekening",
+    importEntryButton: "Jadikan transaksi",
+    importEntryAriaLabelPrefix: "Jadikan transaksi untuk",
+    importAllButton: "Jadikan transaksi semua ({count})",
+    importAllPendingLabel: "Membuat transaksi...",
+    importHelpText:
+      "Arah transaksi mengikuti tanda pada mutasi: minus jadi pengeluaran, plus jadi pemasukan. Kategori dibiarkan kosong dan bisa diisi nanti di halaman Transaksi.",
+    toastEntryImported: "Baris mutasi dijadikan transaksi.",
+    toastEntriesImported: "{imported} baris mutasi dijadikan transaksi.",
+    toastEntriesImportedPartial:
+      "{imported} baris dijadikan transaksi, {skipped} baris dilewati.",
+    toastImportFailedDefault: "Gagal menjadikan mutasi sebagai transaksi.",
     backButton: "Kembali",
     saveReconciliationButton: "Simpan Hasil Rekonsiliasi",
     doneTitle: "Rekonsiliasi Selesai!",

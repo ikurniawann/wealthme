@@ -3104,6 +3104,19 @@ export type I18nDictionary = {
     suggestedLabel: string;
     confirmButton: string;
     notFoundLabel: string;
+    importAccountLabel: string;
+    importEntryButton: string;
+    importEntryAriaLabelPrefix: string;
+    /** Carries a `{count}` placeholder. */
+    importAllButton: string;
+    importAllPendingLabel: string;
+    importHelpText: string;
+    toastEntryImported: string;
+    /** Carries an `{imported}` placeholder. */
+    toastEntriesImported: string;
+    /** Carries `{imported}` and `{skipped}` placeholders. */
+    toastEntriesImportedPartial: string;
+    toastImportFailedDefault: string;
     backButton: string;
     saveReconciliationButton: string;
     doneTitle: string;

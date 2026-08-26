@@ -21,6 +21,7 @@ import { PrismaService } from "../prisma/prisma.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { TransactionsService } from "../transactions/transactions.service";
 
+import { type ImportEntriesDto } from "./dto/import-entries.dto";
 import { type PreviewStatementDraftDto } from "./dto/preview-statement-draft.dto";
 import { type ReadStatementPdfPageDto } from "./dto/read-statement-pdf-page.dto";
 import {
@@ -84,6 +85,11 @@ function withCode(
  * comment and `BankSyncDto.skippedRowsTotal`). A file with thousands of
  * skipped rows produced an unbounded, multi-hundred-KB response otherwise. */
 export const MAX_SKIPPED_ROWS_RETURNED = 200;
+/** Bulk-import ceiling per request. A personal statement is ~50 lines; this
+ *  is 20x that, and bounds one request's write volume (and its wall-clock)
+ *  without ever silently truncating in the normal case — whatever is left is
+ *  reported in `remaining`, not hidden. */
+export const MAX_ENTRIES_IMPORTED_PER_CALL = 1000;
 
 /**
  * EPIC-029 E2c — the header the AI's raw rows are laid out under before
@@ -156,6 +162,23 @@ export type SkippedRowDto = {
   reason: string;
 };
 
+/**
+ * The human-readable half of a refusal.
+ *
+ * `withCode` puts the message inside the exception BODY, so `err.message` on
+ * a Nest HttpException is the generic "Bad Request Exception" — reporting
+ * that back would tell the user nothing about which line failed or why.
+ */
+function refusalMessage(err: unknown): string {
+  const response = (err as { response?: unknown })?.response;
+  if (response && typeof response === "object" && "message" in response) {
+    const message = (response as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  if (err instanceof Error && err.message.trim()) return err.message;
+  return "Baris tidak bisa diimpor.";
+}
+
 /* ─────────── EPIC-029 groups 2-3 — statement PDF read + preview ─────────── */
 
 /**
@@ -214,6 +237,23 @@ export type StatementPreviewDto = {
   skippedRowsTotal: number;
   totals: StatementTotalsVerdictDto;
   draft: StatementDraftDto;
+};
+
+/** What a bulk import did, said plainly: how many rows became transactions,
+ *  which ones could not and why, and how many are still unimported (a cap
+ *  was hit, or some rows failed). */
+export type SkippedImportDto = {
+  /** The bank line's own description — this is what the user sees on screen,
+   *  and unlike a row NUMBER it survives sorting and paging. */
+  description: string;
+  reason: string;
+};
+
+export type ImportEntriesResultDto = {
+  imported: number;
+  skipped: SkippedImportDto[];
+  skippedTotal: number;
+  remaining: number;
 };
 
 export type BankSyncDto = {
@@ -1208,6 +1248,178 @@ export class ReconciliationService {
       updated,
       transactionResponseToMatchedSummary(transfer),
     );
+  }
+
+  /**
+   * Turns ONE unmatched bank line into a real Transaction.
+   *
+   * Until now reconciliation could only match a line against a transaction
+   * the family had already typed in. With nothing to match against, every
+   * line read "Tidak Ditemukan" and an imported statement never reached
+   * `/transaksi` at all — there was no code path that could put it there.
+   *
+   * Direction comes from the SIGN on the bank line, never from the caller: a
+   * statement is the authority on which way its own money moved.
+   *
+   * Not fully atomic, the same way `splitEntry` is not:
+   * `transactionsService.create` commits its own `$transaction` and this
+   * method then records the link. If that second write fails the Transaction
+   * exists while the entry still reads unmatched — recoverable (the line can
+   * be matched by hand) and strictly better than the reverse, which would
+   * mark a line imported with no money behind it.
+   */
+  async importEntry(
+    familyGroupId: string,
+    syncId: string,
+    entryId: string,
+    dto: ImportEntriesDto,
+  ): Promise<BankSyncEntryDto> {
+    const sync = await this.prisma.bankSync.findUnique({
+      where: { id: syncId, familyGroupId },
+    });
+    if (!sync) throw new NotFoundException("BankSync not found");
+
+    const entry = await this.prisma.bankSyncEntry.findUnique({
+      where: { id: entryId, bankSyncId: syncId },
+    });
+    if (!entry) throw new NotFoundException("BankSyncEntry not found");
+
+    // Idempotency, and the whole reason this check is here: pressing the
+    // button twice — or a retried request — must not create the same
+    // transaction again. A duplicated expense is silent money damage.
+    if (entry.matchedTxId) {
+      throw new BadRequestException(
+        withCode(
+          "Baris ini sudah terhubung ke sebuah transaksi.",
+          "ENTRY_ALREADY_MATCHED",
+        ),
+      );
+    }
+
+    const created = await this.createTransactionFromEntry(
+      familyGroupId,
+      entry,
+      dto,
+    );
+    const updated = await this.prisma.bankSyncEntry.update({
+      where: { id: entryId },
+      data: { reconStatus: "matched", matchedTxId: created.id },
+    });
+    return toBankSyncEntryDto(
+      updated,
+      transactionResponseToMatchedSummary(created),
+    );
+  }
+
+  /**
+   * The bulk half — imports every still-unmatched line on a sync.
+   *
+   * A real statement is 50+ lines; doing this one press at a time is not a
+   * feature, it is a chore. Each row is created independently so one bad
+   * line (a zero amount, an amount beyond safe-integer range) cannot abort
+   * the rest, and the caller is TOLD what was skipped rather than being left
+   * to infer it from a count that quietly does not add up.
+   */
+  async importUnmatchedEntries(
+    familyGroupId: string,
+    syncId: string,
+    dto: ImportEntriesDto,
+  ): Promise<ImportEntriesResultDto> {
+    const sync = await this.prisma.bankSync.findUnique({
+      where: { id: syncId, familyGroupId },
+    });
+    if (!sync) throw new NotFoundException("BankSync not found");
+
+    // `matchedTxId: null` rather than `reconStatus: "unmatched"`: a
+    // "suggested" line has not been confirmed either, and the link is what
+    // actually decides whether importing would duplicate money.
+    const entries = await this.prisma.bankSyncEntry.findMany({
+      where: { bankSyncId: syncId, matchedTxId: null },
+      orderBy: { date: "asc" },
+      take: MAX_ENTRIES_IMPORTED_PER_CALL,
+    });
+
+    const skipped: SkippedImportDto[] = [];
+    let imported = 0;
+
+    for (const entry of entries) {
+      try {
+        const created = await this.createTransactionFromEntry(
+          familyGroupId,
+          entry,
+          dto,
+        );
+        await this.prisma.bankSyncEntry.update({
+          where: { id: entry.id },
+          data: { reconStatus: "matched", matchedTxId: created.id },
+        });
+        imported += 1;
+      } catch (err: unknown) {
+        // One unusable line must not cost the family the other fifty.
+        skipped.push({
+          description: entry.description,
+          reason: refusalMessage(err),
+        });
+      }
+    }
+
+    const remaining = await this.prisma.bankSyncEntry.count({
+      where: { bankSyncId: syncId, matchedTxId: null },
+    });
+
+    return {
+      imported,
+      skipped: skipped.slice(0, MAX_SKIPPED_ROWS_RETURNED),
+      skippedTotal: skipped.length,
+      remaining,
+    };
+  }
+
+  /** Shared by the single and bulk imports so they cannot drift apart. */
+  private async createTransactionFromEntry(
+    familyGroupId: string,
+    entry: { amount: bigint; date: Date; description: string },
+    dto: ImportEntriesDto,
+  ): Promise<TransactionResponseDto> {
+    if (entry.amount === 0n) {
+      throw new BadRequestException(
+        withCode(
+          "Baris dengan nominal 0 tidak bisa dijadikan transaksi.",
+          "ENTRY_ZERO_AMOUNT",
+        ),
+      );
+    }
+
+    const magnitude = entry.amount < 0n ? -entry.amount : entry.amount;
+    // `CreateTransactionDto.amount` is a JSON number. Rupiah are stored as
+    // whole-unit `bigint` precisely so nothing rounds, so a value that cannot
+    // survive the conversion is refused rather than silently rounded into a
+    // different amount.
+    if (magnitude > BigInt(Number.MAX_SAFE_INTEGER)) {
+      throw new BadRequestException(
+        withCode(
+          "Nominal baris ini terlalu besar untuk diimpor.",
+          "ENTRY_AMOUNT_OUT_OF_RANGE",
+        ),
+      );
+    }
+
+    const result = await this.transactionsService.create(familyGroupId, {
+      accountId: dto.accountId,
+      ...(dto.categoryId ? { categoryId: dto.categoryId } : {}),
+      amount: Number(magnitude),
+      // The statement's own sign decides the direction.
+      type: entry.amount < 0n ? "expense" : "income",
+      description: entry.description,
+      occurredAt: entry.date.toISOString(),
+    });
+    // Same defensive narrowing as `splitEntry`: no actingMember is passed on
+    // an internal call, so the hold gate cannot fire — but a future signature
+    // change should fail loudly rather than be cast away.
+    if ("held" in result) {
+      throw new Error("Unexpected held expense from a reconciliation import");
+    }
+    return result;
   }
 
   async autoMatch(

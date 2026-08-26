@@ -31,6 +31,8 @@ import { CheckAbility } from "../common/decorators/check-ability.decorator";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CommitStatementDraftDto } from "./dto/commit-statement-draft.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { ImportEntriesDto } from "./dto/import-entries.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { MatchEntryDto } from "./dto/match-entry.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PreviewStatementDraftDto } from "./dto/preview-statement-draft.dto";
@@ -64,6 +66,7 @@ import type {
   BankSyncDto,
   BankSyncEntryDto,
   ParsedRow,
+  ImportEntriesResultDto,
   ReconciliationTemplateDto,
   StatementPageReadDto,
   StatementPreviewDto,
@@ -387,6 +390,74 @@ export class ReconciliationController {
       syncId,
       entryId,
       dto.transactionId,
+    );
+  }
+
+  /**
+   * Turn ONE bank line into a real Transaction.
+   *
+   * `match` above links a line to a transaction that already EXISTS. If the
+   * family never typed it in there was nothing to link to, so every line
+   * stayed "Tidak Ditemukan" and an imported statement never appeared on
+   * /transaksi. This is the missing direction.
+   */
+  @Post(":syncId/entries/:entryId/import")
+  @HttpCode(HttpStatus.OK)
+  @CheckAbility((ab: AppAbility) => ab.can("create", "Reconciliation"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "syncId", type: String })
+  @ApiParam({ name: "entryId", type: String })
+  @ApiOperation({
+    summary:
+      "Create a Transaction from an unmatched bank sync entry and link the two. Direction comes from the sign on the bank line.",
+  })
+  @ApiResponse({ status: 200, description: "Updated BankSyncEntry" })
+  @ApiResponse({
+    status: 400,
+    description:
+      "code=ENTRY_ALREADY_MATCHED | ENTRY_ZERO_AMOUNT | ENTRY_AMOUNT_OUT_OF_RANGE",
+  })
+  importEntry(
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("syncId") syncId: string,
+    @Param("entryId") entryId: string,
+    @Body() dto: ImportEntriesDto,
+  ): Promise<BankSyncEntryDto> {
+    return this.reconciliationService.importEntry(
+      familyGroupId,
+      syncId,
+      entryId,
+      dto,
+    );
+  }
+
+  /**
+   * The bulk half. A real statement is 50+ lines, so importing them one press
+   * at a time is a chore, not a feature. Rows that cannot be imported are
+   * REPORTED rather than silently dropped.
+   */
+  @Post(":syncId/import-unmatched")
+  @HttpCode(HttpStatus.OK)
+  @CheckAbility((ab: AppAbility) => ab.can("create", "Reconciliation"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "syncId", type: String })
+  @ApiOperation({
+    summary:
+      "Create a Transaction for every still-unlinked entry on this sync. Idempotent: a line already linked to a transaction is never imported twice.",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "How many were imported, what was skipped, what remains",
+  })
+  importUnmatchedEntries(
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("syncId") syncId: string,
+    @Body() dto: ImportEntriesDto,
+  ): Promise<ImportEntriesResultDto> {
+    return this.reconciliationService.importUnmatchedEntries(
+      familyGroupId,
+      syncId,
+      dto,
     );
   }
 
