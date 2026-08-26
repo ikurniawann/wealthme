@@ -93,6 +93,9 @@ describe("AiAdvisorService.streamChat", () => {
       expect.objectContaining({ familyGroupId: FAMILY_GROUP_ID }),
       [{ role: "user", content: "Halo" }],
       onToken,
+      // The tool runner, bound to this family and viewer. Passing it is what
+      // lets the model reach months the prompt does not carry.
+      expect.any(Function),
     );
   });
 

@@ -8,6 +8,11 @@ import {
 
 import { buildAdvisorSystemPrompt } from "./advisor-prompt.util";
 import {
+  ADVISOR_MAX_TOOL_ROUNDS,
+  ADVISOR_TOOL_DECLARATION,
+  type AdvisorToolRunner,
+} from "./advisor-tools";
+import {
   AiAdvisorAuthError,
   AiAdvisorRateLimitError,
   type RateLimitScope,
@@ -100,6 +105,14 @@ export function parseGeminiRateLimit(body: string): AiAdvisorRateLimitError {
     detail,
   );
 }
+/** One turn of the Gemini conversation: plain text, a tool call, or a tool
+ *  result. Typed here because the tool rounds append shapes the plain
+ *  message mapping never produced. */
+type GeminiContent = {
+  role: "user" | "model";
+  parts: Record<string, unknown>[];
+};
+
 const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
 // EPIC-023 Task G retry (HIGH five-reviewer finding) — bounds the whole
 // streamed request so a stalled connection cannot hang the chat request
@@ -153,12 +166,105 @@ export class GeminiAdvisorService extends AiAdvisorPort {
     this.model = chosenModel?.trim() || GEMINI_MODEL;
   }
 
+  /**
+   * Lets the model fetch what the prompt does not carry, before it answers.
+   *
+   * Bounded on purpose: `ADVISOR_MAX_TOOL_ROUNDS` calls, then the model must
+   * answer with what it has. An unbounded loop would be a model deciding how
+   * much of the family's quota to spend.
+   */
+  private async runToolRounds(
+    contents: GeminiContent[],
+    systemInstruction: { parts: { text: string }[] },
+    runTool: AdvisorToolRunner,
+  ): Promise<void> {
+    const url = `${GEMINI_API_BASE}/models/${this.model}:generateContent`;
+
+    for (let round = 0; round < ADVISOR_MAX_TOOL_ROUNDS; round += 1) {
+      const res = await fetchWithTimeout(
+        url,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": this.apiKey,
+          },
+          body: JSON.stringify({
+            systemInstruction,
+            contents,
+            tools: [{ functionDeclarations: [ADVISOR_TOOL_DECLARATION] }],
+          }),
+        },
+        GEMINI_REQUEST_TIMEOUT_MS,
+        "Gemini tool request",
+      );
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        if (res.status === 401 || res.status === 403)
+          throw new AiAdvisorAuthError("Gemini");
+        if (res.status === 429) throw parseGeminiRateLimit(body);
+        throw new Error(
+          `Gemini tool request failed (${res.status}): ${body.slice(0, 300)}`,
+        );
+      }
+
+      const payload = (await res.json()) as {
+        candidates?: {
+          content?: {
+            parts?: { functionCall?: { name?: string; args?: unknown } }[];
+          };
+        }[];
+      };
+      const parts = payload.candidates?.[0]?.content?.parts ?? [];
+      const calls = parts.filter((p) => p.functionCall?.name);
+      // No call means the model is ready to answer — leave the streaming
+      // turn to produce the text, so the user still sees it arrive live.
+      if (calls.length === 0) return;
+
+      contents.push({
+        role: "model",
+        parts: calls.map((p) => ({ functionCall: p.functionCall })),
+      });
+      const responses = await Promise.all(
+        calls.map(async (p) => ({
+          functionResponse: {
+            name: p.functionCall!.name!,
+            response: {
+              content: await runTool(
+                p.functionCall!.name!,
+                p.functionCall!.args,
+              ),
+            },
+          },
+        })),
+      );
+      contents.push({ role: "user", parts: responses });
+    }
+  }
+
   async chat(
     context: AdvisorContext,
     messages: AdvisorMessage[],
     onToken: (token: string) => void,
+    runTool?: AdvisorToolRunner,
   ): Promise<AdvisorChatResult> {
     const url = `${GEMINI_API_BASE}/models/${this.model}:streamGenerateContent?alt=sse`;
+    const systemInstruction = {
+      parts: [{ text: buildAdvisorSystemPrompt(context) }],
+    };
+
+    // Tool rounds run NON-streaming and finish before a single token is
+    // shown. Streaming a partial answer and then discovering the model wants
+    // data would mean either abandoning what the user already read, or
+    // answering from figures it never fetched.
+    const contents: GeminiContent[] = messages.map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
+    if (runTool) {
+      await this.runToolRounds(contents, systemInstruction, runTool);
+    }
 
     // EPIC-023 Task G retry (HIGH five-reviewer finding, round 2) — the
     // whole request (fetch AND the streamed body) is wrapped, not just the
@@ -178,13 +284,11 @@ export class GeminiAdvisorService extends AiAdvisorPort {
             "x-goog-api-key": this.apiKey,
           },
           body: JSON.stringify({
-            systemInstruction: {
-              parts: [{ text: buildAdvisorSystemPrompt(context) }],
-            },
-            contents: messages.map((m) => ({
-              role: m.role === "assistant" ? "model" : "user",
-              parts: [{ text: m.content }],
-            })),
+            systemInstruction,
+            // Tools are deliberately NOT offered here. This turn exists to
+            // answer; leaving them on invites another tool call mid-stream,
+            // which this call has no way to service.
+            contents,
           }),
         },
         GEMINI_REQUEST_TIMEOUT_MS,

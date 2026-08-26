@@ -4,6 +4,11 @@ import { ExternalRequestTimeoutError } from "../common/utils/external-fetch.util
 
 import { buildAdvisorSystemPrompt } from "./advisor-prompt.util";
 import {
+  ADVISOR_MAX_TOOL_ROUNDS,
+  ADVISOR_TOOL_DECLARATION,
+  type AdvisorToolRunner,
+} from "./advisor-tools";
+import {
   AiAdvisorAuthError,
   AiAdvisorRateLimitError,
 } from "./ai-advisor-provider.error";
@@ -42,18 +47,78 @@ export class ClaudeAdvisorService extends AiAdvisorPort {
     this.client = new Anthropic({ apiKey });
   }
 
+  /**
+   * Tool rounds, before a single token is shown. Bounded by
+   * `ADVISOR_MAX_TOOL_ROUNDS`: after that the model answers with what it has,
+   * because an unbounded loop is a model deciding how much of the family's
+   * quota to spend.
+   */
+  private async runToolRounds(
+    convo: Anthropic.MessageParam[],
+    system: string,
+    runTool: AdvisorToolRunner,
+  ): Promise<void> {
+    for (let round = 0; round < ADVISOR_MAX_TOOL_ROUNDS; round += 1) {
+      const reply = await this.client.messages.create(
+        {
+          model: this.model,
+          max_tokens: 1024,
+          system,
+          messages: convo,
+          tools: [
+            {
+              name: ADVISOR_TOOL_DECLARATION.name,
+              description: ADVISOR_TOOL_DECLARATION.description,
+              input_schema:
+                ADVISOR_TOOL_DECLARATION.parameters as Anthropic.Tool["input_schema"],
+            },
+          ],
+        },
+        { timeout: CLAUDE_REQUEST_TIMEOUT_MS },
+      );
+
+      const calls = reply.content.filter(
+        (block): block is Anthropic.ToolUseBlock => block.type === "tool_use",
+      );
+      // Nothing to fetch — let the streaming turn write the answer, so the
+      // user still sees it arrive live.
+      if (calls.length === 0) return;
+
+      convo.push({ role: "assistant", content: reply.content });
+      convo.push({
+        role: "user",
+        content: await Promise.all(
+          calls.map(async (call) => ({
+            type: "tool_result" as const,
+            tool_use_id: call.id,
+            content: await runTool(call.name, call.input),
+          })),
+        ),
+      });
+    }
+  }
+
   async chat(
     context: AdvisorContext,
     messages: AdvisorMessage[],
     onToken: (token: string) => void,
+    runTool?: AdvisorToolRunner,
   ): Promise<AdvisorChatResult> {
+    const system = buildAdvisorSystemPrompt(context);
+    const convo: Anthropic.MessageParam[] = messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
     try {
+      if (runTool) await this.runToolRounds(convo, system, runTool);
       const stream = this.client.messages.stream(
         {
           model: this.model,
           max_tokens: 1024,
-          system: buildAdvisorSystemPrompt(context),
-          messages: messages.map((m) => ({ role: m.role, content: m.content })),
+          system,
+          // Tools are deliberately NOT offered on this turn: it exists to
+          // answer, and a tool call mid-stream could not be serviced.
+          messages: convo,
         },
         { timeout: CLAUDE_REQUEST_TIMEOUT_MS },
       );
