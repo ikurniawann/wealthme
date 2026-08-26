@@ -187,6 +187,33 @@ beforeEach(() => {
   routeApiFetch();
 });
 
+describe("/rekonsiliasi — the amounts on screen are the statement's amounts", () => {
+  it("shows the FULL rupiah amount, not a hundredth of it", async () => {
+    // The table divided by 100 for years, on the belief that the CSV path
+    // stored cents. It does not — every path stores whole rupiah — so a real
+    // statement line of Rp 38.500 rendered as Rp 385, and nothing on screen
+    // agreed with the PDF the user was holding. Cross-checked against a
+    // genuine 5-page Mandiri statement: all 52 stored amounts equal their
+    // printed values and reconstruct the printed closing balance exactly, so
+    // the parser was never the problem — the display was.
+    routeApiFetch([{ ...UNMATCHED_ENTRY, amount: "-38500" }]);
+    const user = userEvent.setup();
+    await reachEntriesTable(user);
+
+    const cells = screen.getAllByText((_, node) =>
+      (node?.textContent ?? "").replace(/\s/g, "").includes("38.500"),
+    );
+    expect(cells.length).toBeGreaterThan(0);
+    // The hundredth-scale figure must appear nowhere at all.
+    expect(
+      screen.queryAllByText((_, node) => {
+        const text = (node?.textContent ?? "").replace(/\s/g, "");
+        return /(^|[^.\d])385([^.\d]|$)/.test(text) && !text.includes("38.500");
+      }),
+    ).toHaveLength(0);
+  });
+});
+
 describe("/rekonsiliasi — turning bank lines into transactions", () => {
   it("posts the chosen account, and the direction is NOT sent (the sign decides)", async () => {
     const user = userEvent.setup();

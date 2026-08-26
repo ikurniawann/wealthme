@@ -321,13 +321,15 @@ function entryStatus(reconStatus: string): MatchStatus {
  * EPIC-021 Group C (#9/#29) — `BankSyncEntry.amount` matches
  * `Transaction.amount`'s plain-Rupiah scale (confirmed by the seed data and
  * by `ReconciliationService.autoMatch`, which compares the two directly with
- * no scaling). This deliberately does NOT reuse the Step-3 row's existing
- * `/100` display division below — that division only makes sense for the
- * CSV-upload path's amount parsing and does not match real (seeded) entries;
- * fixing that pre-existing display quirk is out of scope here. Both new
- * dialogs below need the un-scaled value: the detail view to show it
- * correctly, and the split dialog because its principal+fee sum is
- * validated server-side against the raw, un-scaled `entry.amount`.
+ * no scaling).
+ *
+ * The Step-3 table and the "tercocokkan" summary card used to divide by 100
+ * instead, on the belief that the CSV path stored cents — so they showed every
+ * figure a hundred times too small while these dialogs showed it correctly.
+ * EPIC-021 spotted that disagreement and deferred it; importing a real
+ * statement is what made it matter, because the numbers on screen no longer
+ * matched the PDF in the user's hand. Both use THIS function now, so there is
+ * one scale and one formatter.
  */
 function formatEntryAmount(
   entry: Pick<BankSyncEntryDto, "amount" | "currency">,
@@ -2009,8 +2011,8 @@ export default function RekonsiliasiPage() {
   // EPIC-026 Wave 5 (prototype parity) — composition percentages + the
   // matched-amount sum for the prototype's `.card stat` summary cards and
   // its stacked `.recon-composition` bar. All derived from the SAME fetched
-  // `entries` list; amounts use the SAME /100 display scale as the match
-  // table's rows (see the scale note on `formatEntryAmount`).
+  // `entries` list, at the SAME unscaled whole-rupiah scale as the table's
+  // rows (see the scale note on `formatEntryAmount`).
   const numLocale = locale === "en" ? "en-US" : "id-ID";
   const txTypeLabelsPage = t.rekonsiliasi.txTypeLabels as Record<
     string,
@@ -2027,9 +2029,12 @@ export default function RekonsiliasiPage() {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   });
+  // Whole rupiah, NOT cents — see the note on `formatEntryAmount`. Divided by
+  // 100, this card claimed "Rp 156.300 tercocokkan" for a statement that had
+  // matched Rp 15.630.000.
   const matchedAmountSum = entries
     .filter((e) => e.reconStatus === "matched")
-    .reduce((sum, e) => sum + Math.abs(parseInt(e.amount, 10) / 100), 0);
+    .reduce((sum, e) => sum + Math.abs(parseInt(e.amount, 10)), 0);
 
   return (
     <div>
@@ -2995,24 +3000,20 @@ export default function RekonsiliasiPage() {
                       <tbody>
                         {filteredEntries.map((entry) => {
                           const status = entryStatus(entry.reconStatus);
-                          // Same /100 display scale as before the rebuild
-                          // (see `formatEntryAmount`'s scale note — this
-                          // table shows the CSV-upload path's entries).
-                          const amtNum = parseInt(entry.amount, 10) / 100;
-                          const amtFormatted = new Intl.NumberFormat(
-                            numLocale,
-                            {
-                              style: "currency",
-                              currency: entry.currency || "IDR",
-                              minimumFractionDigits: 0,
-                            },
-                          ).format(Math.abs(amtNum));
-                          const amtDisplay =
-                            amtNum < 0
-                              ? `-${amtFormatted}`
-                              : `+${amtFormatted}`;
-                          const amtClass =
-                            amtNum < 0 ? "text-destructive" : "text-success";
+                          // This divided by 100 for years, on the belief that
+                          // the CSV path stored cents. It does not: every path
+                          // — CSV, XLSX, statement PDF and the seed data —
+                          // stores WHOLE RUPIAH, which is also why `autoMatch`
+                          // compares `entry.amount` with `Transaction.amount`
+                          // and applies no scaling at all. The table showed
+                          // Rp 38.500 as Rp 385: every figure a hundred times
+                          // too small, and none of them agreeing with the
+                          // statement in the user's hand.
+                          const {
+                            display: amtDisplay,
+                            className: amtClass,
+                            magnitude: amtNum,
+                          } = formatEntryAmount(entry, numLocale);
                           const entryDate = new Date(
                             entry.date,
                           ).toLocaleDateString(numLocale);
