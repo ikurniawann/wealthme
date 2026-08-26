@@ -14,6 +14,7 @@ import { useEffect } from "react";
 import type { ReactElement, ReactNode } from "react";
 import {
   act,
+  configure,
   fireEvent,
   render as rtlRender,
   screen,
@@ -24,6 +25,24 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { id as mockDictionary } from "../../i18n/id";
 import { queryKeys } from "../../lib/query-keys";
+
+/**
+ * `waitFor` defaults to ONE second, and the receipt-upload specs sit right on
+ * that line in CI. B9 drives the real shrink loop, whose encoder fixture
+ * builds a multi-megabyte string per candidate on purpose (the cap under test
+ * is 2 MiB, so the early candidates must genuinely exceed it). That costs
+ * ~266ms locally, and the shared runner is roughly 5x slower — the suite takes
+ * 8s here and 64s there — which is how it failed CI while passing every local
+ * run:
+ *
+ *     ● B9: an 8 MP phone photo is shrunk to fit the cap instead of being rejected
+ *       Expected length: 1   Received length: 0
+ *
+ * Raised for THIS suite only, deliberately. A global bump would hide genuinely
+ * slow code everywhere, and the point of the default is to catch that. Nothing
+ * here waits on a real timer, so a true hang still fails — just later.
+ */
+configure({ asyncUtilTimeout: 5_000 });
 
 // jsdom has no PointerEvent — Base UI's Dialog primitives read pointer-event
 // fields internally (same fix as dana/rekening/liabilitas tests). Needed
