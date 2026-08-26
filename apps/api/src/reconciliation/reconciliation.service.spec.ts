@@ -265,6 +265,10 @@ describe("ReconciliationService", () => {
           type: "transfer",
           description: "Top up GoPay",
         }),
+        undefined,
+        // A split entry is confirmed history from the bank statement too —
+        // never a fresh, user-initiated debit (EPIC-021 #22 doesn't apply).
+        { enforceBankFloor: false },
       );
       expect(prisma.bankSyncEntry.update).toHaveBeenCalledWith({
         where: { id: ENTRY_ID },

@@ -1233,6 +1233,13 @@ export class ReconciliationService {
         description: dto.description,
         occurredAt: entry.date.toISOString(),
       },
+      undefined,
+      // EPIC-021 #22's overdraft floor guards a FRESH, user-initiated debit
+      // — this is the opposite: `entry` is a bank line the family's own
+      // statement already confirms happened, and the source account's
+      // WealthMe balance may simply not have caught up to that statement
+      // yet (see create()'s own doc on this option).
+      { enforceBankFloor: false },
     );
     // EPIC-023 Task D (D3/D9) — this internal call never passes an
     // actingMember, so TransactionsService.create's hold gate (row-scoped
@@ -1410,15 +1417,29 @@ export class ReconciliationService {
       );
     }
 
-    const result = await this.transactionsService.create(familyGroupId, {
-      accountId: dto.accountId,
-      ...(dto.categoryId ? { categoryId: dto.categoryId } : {}),
-      amount: Number(magnitude),
-      // The statement's own sign decides the direction.
-      type: entry.amount < 0n ? "expense" : "income",
-      description: entry.description,
-      occurredAt: entry.date.toISOString(),
-    });
+    const result = await this.transactionsService.create(
+      familyGroupId,
+      {
+        accountId: dto.accountId,
+        ...(dto.categoryId ? { categoryId: dto.categoryId } : {}),
+        amount: Number(magnitude),
+        // The statement's own sign decides the direction.
+        type: entry.amount < 0n ? "expense" : "income",
+        description: entry.description,
+        occurredAt: entry.date.toISOString(),
+      },
+      undefined,
+      // EPIC-021 #22's floor guards a FRESH, user-initiated debit. A
+      // reconciliation import is the opposite — `entry` is a line the
+      // family's own bank statement already confirms happened. The account
+      // can look "insufficient" here only because its WealthMe balance
+      // hasn't caught up to the statement yet (the opening-balance row is
+      // never importable, and a single-row import has no ordering
+      // guarantee over the rest of the statement) — a false positive on
+      // real history, not a real overdraft. See create()'s own doc on this
+      // option.
+      { enforceBankFloor: false },
+    );
     // Same defensive narrowing as `splitEntry`: no actingMember is passed on
     // an internal call, so the hold gate cannot fire — but a future signature
     // change should fail loudly rather than be cast away.
