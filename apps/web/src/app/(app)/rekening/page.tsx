@@ -36,9 +36,15 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { CrudModal, ConfirmDeleteDialog, RowActions } from "@/components/crud";
+import {
+  CrudModal,
+  ConfirmDeleteDialog,
+  RowActions,
+  CRUD_CONFIG,
+} from "@/components/crud";
 import type { CrudModalState } from "@/components/crud";
 import { useLocale } from "@/hooks/use-locale";
+import { useCanManage } from "@/hooks/use-role-permissions";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, parseRupiah, formatAmountInput } from "@/lib/format";
@@ -112,6 +118,11 @@ type AccountCard = {
   // EPIC-019 Task A — per-member ownership; null = family-shared (unchanged).
   ownerUserId: string | null;
   ownerName: string | null;
+  // F6 — the raw (unformatted) institution + account number, so `openEdit`
+  // can prefill "Nama Bank"/"Nomor Rekening" instead of always defaulting to
+  // the select's first option / a blank field regardless of the real data.
+  institution: string | null;
+  rawMaskedNumber: string | null;
 };
 
 // Minimal shape — mirrors the FamilyMember type on /akun.
@@ -208,6 +219,8 @@ function toCardData(
     isPrivate: account.isPrivate,
     ownerUserId: account.ownerUserId,
     ownerName: account.ownerName,
+    institution: account.institution ?? null,
+    rawMaskedNumber: safeMaskedNumber(account.maskedNumber),
   };
 }
 
@@ -221,6 +234,7 @@ interface AccountCardItemProps {
   onEdit: (account: AccountCard) => void;
   onDelete: () => void;
   onMintaDana: () => void;
+  canManage: boolean;
 }
 
 function AccountCardItem({
@@ -229,6 +243,7 @@ function AccountCardItem({
   onEdit,
   onDelete,
   onMintaDana,
+  canManage,
 }: AccountCardItemProps) {
   const router = useRouter();
   const { t } = useLocale();
@@ -286,13 +301,20 @@ function AccountCardItem({
             >
               {t.rekening.viewMutationMenuItem}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onEdit(account)}>
-              {t.rekening.editMenuItem}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={onDelete}>
-              {t.rekening.deleteMenuItem}
-            </DropdownMenuItem>
+            {/* F3 — CASL grants "manage Account" only to owner/spouse; every
+                other role (including the account's own "isMine" owner, if a
+                plain member) gets 403 on edit/delete. */}
+            {canManage && (
+              <>
+                <DropdownMenuItem onClick={() => onEdit(account)}>
+                  {t.rekening.editMenuItem}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" onClick={onDelete}>
+                  {t.rekening.deleteMenuItem}
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -338,7 +360,9 @@ function AccountCardItem({
         >
           <List className="size-3.5" /> {t.rekening.mutasiFooterButton}
         </button>
-        <RowActions onEdit={() => onEdit(account)} onDelete={onDelete} />
+        {canManage && (
+          <RowActions onEdit={() => onEdit(account)} onDelete={onDelete} />
+        )}
       </div>
       {/* EPIC-019 Task B/D — a member requests funding for their OWN
           account; the owner approves via /akun (family section). */}
@@ -437,8 +461,8 @@ function MintaDanaForm({
       });
       toast.success(t.rekening.mintaDanaSuccessToast);
       onClose();
-    } catch {
-      toast.error(t.rekening.mintaDanaFailToast);
+    } catch (err: unknown) {
+      toast.error(extractApiErrorMessage(err, t.rekening.mintaDanaFailToast));
     } finally {
       setIsSaving(false);
     }
@@ -610,6 +634,7 @@ export default function RekeningPage() {
   ).size;
 
   const queryClient = useQueryClient();
+  const { canManage } = useCanManage("Account");
   const [crudState, setCrudState] = useState<CrudModalState | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<AccountCard | null>(null);
@@ -644,11 +669,27 @@ export default function RekeningPage() {
       });
       return;
     }
+    // F6 — "Nama Bank"/"Nomor Rekening" used to render un-prefilled (the
+    // select silently defaulting to its first option, the text input
+    // blank) regardless of the account's real data, and neither was sent
+    // back in the PATCH below — any edit to either field was silently
+    // dropped. `bank` falls back to "Bank Lainnya" (the config's own
+    // catch-all option) when the stored institution isn't one of the six
+    // named banks, rather than mis-selecting a random one.
+    const bankOptions = CRUD_CONFIG.rekening.fields.find(
+      (f) => f.key === "bank",
+    )?.options;
+    const bank =
+      account.institution && bankOptions?.includes(account.institution)
+        ? account.institution
+        : (bankOptions?.[bankOptions.length - 1] ?? "");
     setCrudState({
       entity: "rekening",
       mode: "edit",
       initialValues: {
+        bank,
         nama: account.name,
+        norek: account.rawMaskedNumber ?? "",
         saldo: String(account.rawBalance),
         isPrivate: String(account.isPrivate),
         ownerUserId: account.ownerUserId ?? "",
@@ -689,7 +730,11 @@ export default function RekeningPage() {
         toast.success(t.rekening.toastUpdated);
         await invalidateAccounts();
       } catch (err: unknown) {
+        // F2 — rethrow so CrudModal's `await onSubmit(...)` rejects and
+        // skips its own `onClose()`; a failed save must not discard the
+        // user's input by closing the modal as if it had succeeded.
         toast.error(extractApiErrorMessage(err, t.rekening.toastSaveFailed));
+        throw err;
       }
       return;
     }
@@ -707,6 +752,11 @@ export default function RekeningPage() {
             method: "PATCH",
             body: JSON.stringify({
               name: values.nama,
+              // F6 — "Nama Bank"/"Nomor Rekening" used to be dropped here
+              // entirely: an edit to either field was accepted by the form
+              // and silently discarded on save.
+              institution: values.bank || undefined,
+              maskedNumber: values.norek || undefined,
               balance,
               isPrivate,
               ownerUserId,
@@ -732,7 +782,9 @@ export default function RekeningPage() {
       }
       await invalidateAccounts();
     } catch (err: unknown) {
+      // F2 — same rethrow as the cash branch above.
       toast.error(extractApiErrorMessage(err, t.rekening.toastSaveFailed));
+      throw err;
     }
   }
 
@@ -745,8 +797,8 @@ export default function RekeningPage() {
       );
       toast.success(t.rekening.toastDeleted);
       await invalidateAccounts();
-    } catch {
-      toast.error(t.rekening.toastDeleteFailed);
+    } catch (err: unknown) {
+      toast.error(extractApiErrorMessage(err, t.rekening.toastDeleteFailed));
     } finally {
       setDeleting(null);
     }
@@ -793,9 +845,11 @@ export default function RekeningPage() {
               <HandCoins className="size-4" /> {t.rekening.mintaDanaButtonLabel}
             </Button>
           )}
-          <Button type="button" onClick={openAdd}>
-            <Plus className="size-4" /> {t.rekening.addButton}
-          </Button>
+          {canManage && (
+            <Button type="button" onClick={openAdd}>
+              <Plus className="size-4" /> {t.rekening.addButton}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -955,13 +1009,15 @@ export default function RekeningPage() {
       {!isLoading && !isError && scopedAccounts.length === 0 && (
         <div className="rounded-lg border border-dashed p-8 text-center text-[13px] text-muted-foreground">
           {t.rekening.emptyStatePrefix}
-          <button
-            type="button"
-            className="font-semibold text-primary"
-            onClick={openAdd}
-          >
-            {t.rekening.addNowButton}
-          </button>
+          {canManage && (
+            <button
+              type="button"
+              className="font-semibold text-primary"
+              onClick={openAdd}
+            >
+              {t.rekening.addNowButton}
+            </button>
+          )}
         </div>
       )}
 
@@ -985,10 +1041,11 @@ export default function RekeningPage() {
               onEdit={openEdit}
               onDelete={() => setDeleting(card)}
               onMintaDana={() => setRequesting(card)}
+              canManage={!!canManage}
             />
           );
         })}
-        {!isLoading && !isError && (
+        {!isLoading && !isError && canManage && (
           <button
             type="button"
             onClick={openAdd}

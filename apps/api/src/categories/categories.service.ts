@@ -78,12 +78,20 @@ export class CategoriesService {
     });
     if (!existing) throw new NotFoundException("Category not found");
 
+    // F7 — this used to only re-validate kind/direction when `coaAccountId`
+    // was ALSO part of the patch: a PATCH that changes only `kind` (leaving
+    // `coaAccountId` untouched) skipped `resolveCoaAccountId` entirely and
+    // happily flipped an "income" category onto its existing EXPENSE-direction
+    // COA account — the exact contradiction `create()` already refuses, just
+    // reachable through `update()` instead. Whenever `kind` is changing, the
+    // EXISTING coaAccountId is re-checked against the new kind too (falling
+    // back to it as the "provided" id when the patch doesn't send a new one).
     const coaAccountId =
-      dto.coaAccountId !== undefined
+      dto.coaAccountId !== undefined || dto.kind !== undefined
         ? await this.resolveCoaAccountId(
             familyGroupId,
             dto.kind ?? existing.kind,
-            dto.coaAccountId,
+            dto.coaAccountId ?? existing.coaAccountId,
           )
         : undefined;
 

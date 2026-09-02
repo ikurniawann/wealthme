@@ -24,6 +24,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { useLocale } from "@/hooks/use-locale";
+import { useCanManage } from "@/hooks/use-role-permissions";
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
@@ -31,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { IconChip, CountUpRupiah, Rise } from "@/components/wm";
 import { DonutChart, TrendChart } from "@/components/charts/apex-presets";
 import type { DonutSegment } from "@/components/charts/donut";
+import { RowActions, ConfirmDeleteDialog } from "@/components/crud";
 
 import { DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT } from "@wealthme/contracts";
 import type {
@@ -174,27 +176,48 @@ function wibTodayDateString(): string {
 interface AddAssetModalProps {
   familyGroupId: string;
   onClose: () => void;
+  // EPIC-022 D5 — when set, the modal edits this asset (PATCH) instead of
+  // creating a new one (POST); every field is pre-filled from its current
+  // value, matching the AddInvestmentModal edit pattern.
+  editing?: AssetDto | null;
 }
 
-function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
+function AddAssetModal({
+  familyGroupId,
+  onClose,
+  editing,
+}: AddAssetModalProps) {
   const { t } = useLocale();
   const queryClient = useQueryClient();
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
-  const [name, setName] = useState("");
-  const [type, setType] = useState<AssetTypeId>("properti");
-  const [value, setValue] = useState("");
-  const [notes, setNotes] = useState("");
-  const [valueChangeRatePct, setValueChangeRatePct] = useState("");
+  const [name, setName] = useState(editing?.name ?? "");
+  const [type, setType] = useState<AssetTypeId>(
+    (editing?.type as AssetTypeId) ?? "properti",
+  );
+  const [value, setValue] = useState(
+    editing ? Number(BigInt(editing.currentValue)).toLocaleString("id-ID") : "",
+  );
+  const [notes, setNotes] = useState(editing?.notes ?? "");
+  const [valueChangeRatePct, setValueChangeRatePct] = useState(
+    editing?.valueChangeRatePct ?? "",
+  );
   // D2/US-ASSET-6: mode toggle — "percent" reuses the rate field above,
   // "fixed" swaps in a signed Rp/year amount field instead.
-  const [valueChangeMode, setValueChangeMode] =
-    useState<AssetValueChangeMode>("percent");
-  const [valueChangeAmount, setValueChangeAmount] = useState("");
-  const [categoryId, setCategoryId] = useState("");
+  const [valueChangeMode, setValueChangeMode] = useState<AssetValueChangeMode>(
+    editing?.valueChangeMode ?? "percent",
+  );
+  const [valueChangeAmount, setValueChangeAmount] = useState(
+    editing?.valueChangeAmount
+      ? Number(BigInt(editing.valueChangeAmount)).toLocaleString("id-ID")
+      : "",
+  );
+  const [categoryId, setCategoryId] = useState(editing?.categoryId ?? "");
   // EPIC-023 D19/US-ASSET-4: elapsed-time anchor for currentEstimatedValue,
   // falls back to createdAt server-side when left blank.
-  const [acquisitionDate, setAcquisitionDate] = useState("");
+  const [acquisitionDate, setAcquisitionDate] = useState(
+    editing?.acquisitionDate ? editing.acquisitionDate.slice(0, 10) : "",
+  );
 
   // EPIC-021 #16: real master-data categories for the optional category
   // select (same query key/cache as /masterdata).
@@ -222,8 +245,11 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
       if (!token || !familyGroupId) {
         return Promise.reject(new Error("Not authenticated"));
       }
-      return apiFetch<AssetDto>(`/family-groups/${familyGroupId}/assets`, {
-        method: "POST",
+      const path = editing
+        ? `/family-groups/${familyGroupId}/assets/${editing.id}`
+        : `/family-groups/${familyGroupId}/assets`;
+      return apiFetch<AssetDto>(path, {
+        method: editing ? "PATCH" : "POST",
         token,
         body: JSON.stringify(body),
       });
@@ -235,11 +261,11 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.netWorth.summary(familyGroupId),
       });
-      toast.success(t.aset.toastAdded);
+      toast.success(editing ? t.aset.toastUpdated : t.aset.toastAdded);
       onClose();
     },
     onError: () => {
-      toast.error(t.aset.toastAddFailed);
+      toast.error(editing ? t.aset.toastUpdateFailed : t.aset.toastAddFailed);
     },
   });
 
@@ -306,7 +332,9 @@ function AddAssetModal({ familyGroupId, onClose }: AddAssetModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-5 flex items-center justify-between">
-          <span className="text-[15px] font-bold">{t.aset.modalTitle}</span>
+          <span className="text-[15px] font-bold">
+            {editing ? t.aset.modalTitleEdit : t.aset.modalTitle}
+          </span>
           <button
             type="button"
             onClick={onClose}
@@ -568,6 +596,11 @@ interface AssetRowProps {
   token: string | undefined;
   subtitle: string;
   index: number;
+  // EPIC-022 D5 — edit/delete UI (previously entirely missing for physical
+  // assets). Omitted when the current role has no `manage Asset` grant.
+  canManage: boolean | undefined;
+  onEdit: () => void;
+  onDelete: () => void;
 }
 
 /**
@@ -595,6 +628,9 @@ function AssetRow({
   token,
   subtitle,
   index,
+  canManage,
+  onEdit,
+  onDelete,
 }: AssetRowProps) {
   const { t } = useLocale();
   const queryClient = useQueryClient();
@@ -674,6 +710,9 @@ function AssetRow({
               {subtitle}
             </div>
           </div>
+          {/* EPIC-022 D5 — this page had NO edit/delete UI at all for
+              physical assets; the API's PATCH/DELETE already existed. */}
+          {canManage && <RowActions onEdit={onEdit} onDelete={onDelete} />}
         </div>
 
         <div
@@ -738,6 +777,9 @@ interface AssetGroupCardProps {
   categoryNameById: Record<string, string>;
   familyGroupId: string;
   token: string | undefined;
+  canManage: boolean | undefined;
+  onEditAsset: (asset: AssetDto) => void;
+  onDeleteAsset: (asset: AssetDto) => void;
 }
 
 function AssetGroupCard({
@@ -745,6 +787,9 @@ function AssetGroupCard({
   categoryNameById,
   familyGroupId,
   token,
+  canManage,
+  onEditAsset,
+  onDeleteAsset,
 }: AssetGroupCardProps) {
   const { t } = useLocale();
   // EPIC-023 D19/US-ASSET-4: currentValue (recorded) is authoritative for
@@ -790,6 +835,9 @@ function AssetGroupCard({
               token={token}
               subtitle={subtitle}
               index={i}
+              canManage={canManage}
+              onEdit={() => onEditAsset(asset)}
+              onDelete={() => onDeleteAsset(asset)}
             />
           );
         })}
@@ -1069,13 +1117,50 @@ function AssetStatCard({
 
 export default function AsetPage() {
   const { t, locale } = useLocale();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
+  // EPIC-022 D5 — edit/delete UI for physical assets.
+  const [editingAsset, setEditingAsset] = useState<AssetDto | null>(null);
+  const [deletingAsset, setDeletingAsset] = useState<AssetDto | null>(null);
+  const { canManage } = useCanManage("Asset");
 
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
   const familyGroupId = session?.familyGroupId;
   const userId = session?.userId;
+
+  const deleteMutation = useMutation({
+    // The id is passed explicitly to mutate() (below) rather than read from
+    // `deletingAsset` inside this closure — matches the established pattern
+    // on other pages (liabilitas/transaksi/asuransi), and avoids depending
+    // on exactly when the `onClose()`-triggered state update lands relative
+    // to `mutate()`'s own closure capture.
+    mutationFn: (id: string) => {
+      if (!token || !familyGroupId) {
+        return Promise.reject(new Error("Not authenticated"));
+      }
+      return apiFetch(`/family-groups/${familyGroupId}/assets/${id}`, {
+        method: "DELETE",
+        token,
+      });
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.assets.all(familyGroupId ?? ""),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.netWorth.summary(familyGroupId ?? ""),
+      });
+      toast.success(t.aset.toastDeleted);
+    },
+    onError: () => {
+      toast.error(t.aset.toastDeleteFailed);
+    },
+    onSettled: () => {
+      setDeletingAsset(null);
+    },
+  });
 
   // D1/US-ASSET-5: privacy eye toggle — blurs every amount on the page.
   // Loaded per-user from localStorage on mount once the userId is known, so
@@ -1558,18 +1643,37 @@ export default function AsetPage() {
               categoryNameById={categoryNameById}
               familyGroupId={familyGroupId ?? ""}
               token={token}
+              canManage={canManage}
+              onEditAsset={setEditingAsset}
+              onDeleteAsset={setDeletingAsset}
             />
           )}
         </>
       )}
 
-      {/* Add Modal */}
-      {showAddModal && familyGroupId && (
+      {/* Add/Edit Modal */}
+      {(showAddModal || editingAsset) && familyGroupId && (
         <AddAssetModal
+          key={editingAsset?.id ?? "add"}
           familyGroupId={familyGroupId}
-          onClose={() => setShowAddModal(false)}
+          editing={editingAsset}
+          onClose={() => {
+            setShowAddModal(false);
+            setEditingAsset(null);
+          }}
         />
       )}
+
+      {/* EPIC-022 D5 — delete confirmation, matching the RowActions/
+          ConfirmDeleteDialog pattern already used on /investasi. */}
+      <ConfirmDeleteDialog
+        label={deletingAsset ? `"${deletingAsset.name}"` : null}
+        body={t.aset.deleteDialogBody}
+        onClose={() => setDeletingAsset(null)}
+        onConfirm={() => {
+          if (deletingAsset) deleteMutation.mutate(deletingAsset.id);
+        }}
+      />
     </div>
   );
 }

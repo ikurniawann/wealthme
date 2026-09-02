@@ -39,6 +39,8 @@ import {
 import { RowActions, ConfirmDeleteDialog } from "@/components/crud";
 import { formatManualDate } from "@/components/consolidated-total-card";
 import { useLocale } from "@/hooks/use-locale";
+import { useApiError } from "@/hooks/use-api-error";
+import { useCanManage } from "@/hooks/use-role-permissions";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, formatNumber } from "@/lib/format";
@@ -50,7 +52,12 @@ import {
 } from "./quantity-conversion";
 
 import type { Locale } from "@/i18n";
-import type { InvestmentDto, InvestmentSummaryDto } from "@wealthme/contracts";
+import type {
+  InvestmentDto,
+  InvestmentSummaryDto,
+  InvestmentTransactionDto,
+  InvestmentTxType,
+} from "@wealthme/contracts";
 import type { QuantityUnit } from "./quantity-conversion";
 
 const TYPE_BADGE_VARIANT: Record<
@@ -438,6 +445,7 @@ function AddInvestmentModal({
 }) {
   const { t } = useLocale();
   const queryClient = useQueryClient();
+  const { handleError } = useApiError();
   const [submitting, setSubmitting] = useState(false);
   // Stable ids so each `investment-form__section` can be labelled by its own
   // heading (prototype uses `aria-labelledby` on every section).
@@ -485,6 +493,13 @@ function AddInvestmentModal({
   const isDeposito = form.type === "deposito";
   const isManual =
     (isManualPriceType(form.type) && !isDeposito) || isAutomatedUnmapped;
+  // EPIC-022 D2 — closing the "edit silently overwrites quantity/cost with
+  // no trace" defect: once a holding exists, quantity/cost basis can only
+  // change through a recorded Beli/Jual transaction (weighted-average cost,
+  // realized P/L), never through this generic edit form. Deposito is
+  // exempt — it has no lot/buy-sell concept, and its "costBasisPerUnit" is
+  // really just the nominal, correctable like any other typo.
+  const isEditingLots = Boolean(editing) && !isDeposito;
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -532,9 +547,17 @@ function AddInvestmentModal({
         ticker: form.ticker,
         name: form.name,
         type: form.type,
-        quantity: canonicalQuantity,
-        costBasisPerUnit: form.costBasisPerUnit,
       };
+      // EPIC-022 D2 retry (HIGH) — the server now REJECTS an update that
+      // touches quantity/costBasisPerUnit for a lot-tracked holding (they
+      // only change through a recorded Beli/Jual transaction). These
+      // inputs are already disabled in edit mode for that case
+      // (`isEditingLots`) — omit them from the payload entirely rather
+      // than send an unchanged value the API would 400 on.
+      if (!isEditingLots) {
+        body["quantity"] = canonicalQuantity;
+        body["costBasisPerUnit"] = form.costBasisPerUnit;
+      }
       if (form.interestRatePct.trim()) {
         body["interestRatePct"] = form.interestRatePct.trim();
       }
@@ -558,10 +581,10 @@ function AddInvestmentModal({
           token,
           body: JSON.stringify(body),
         });
-      } catch {
-        toast.error(
-          editing ? t.investasi.toastUpdateFailed : t.investasi.toastAddFailed,
-        );
+      } catch (err) {
+        // F1 — surface the server's real message (e.g. a validation reason)
+        // instead of a generic constant.
+        handleError(err);
         return;
       }
 
@@ -817,6 +840,7 @@ function AddInvestmentModal({
                       step="any"
                       value={form.quantity}
                       onChange={handleChange}
+                      disabled={isEditingLots}
                       placeholder={
                         form.type === "kripto"
                           ? t.investasi.fieldQuantityKriptoPlaceholder
@@ -826,11 +850,16 @@ function AddInvestmentModal({
                               ? t.investasi.fieldQuantityLembarPlaceholder
                               : t.investasi.fieldQuantityPlaceholder
                       }
-                      className="input mono"
+                      className="input mono disabled:cursor-not-allowed disabled:opacity-60"
                     />
-                    {form.type === "saham" && (
+                    {form.type === "saham" && !isEditingLots && (
                       <div className="hint">
                         {t.investasi.hintLotConversion}
+                      </div>
+                    )}
+                    {isEditingLots && (
+                      <div className="hint">
+                        {t.investasi.hintQuantityLocked}
                       </div>
                     )}
                   </div>
@@ -851,13 +880,19 @@ function AddInvestmentModal({
                     step="any"
                     value={form.costBasisPerUnit}
                     onChange={handleChange}
+                    disabled={isEditingLots}
                     placeholder={
                       isDeposito
                         ? t.investasi.fieldDepositoNominalPlaceholder
                         : t.investasi.fieldCostBasisPlaceholder
                     }
-                    className="input mono"
+                    className="input mono disabled:cursor-not-allowed disabled:opacity-60"
                   />
+                  {isEditingLots && (
+                    <div className="hint">
+                      {t.investasi.hintCostBasisLocked}
+                    </div>
+                  )}
                 </div>
 
                 {INTEREST_BEARING_TYPES.includes(form.type) && (
@@ -1011,6 +1046,185 @@ function AddInvestmentModal({
   );
 }
 
+/**
+ * EPIC-022 D2 — the replacement for editing quantity/costBasisPerUnit
+ * directly: a BUY grows the position (weighted-average cost, recomputed
+ * server-side); a SELL shrinks it and books a realized P/L for the sold
+ * portion. Every submission POSTs to `.../investments/:id/transactions`,
+ * which is also the real history this dialog used to have none of.
+ */
+function BuySellModal({
+  open,
+  onClose,
+  familyGroupId,
+  token,
+  holding,
+}: {
+  open: boolean;
+  onClose: () => void;
+  familyGroupId: string;
+  token: string;
+  holding: InvestmentDto | null;
+}) {
+  const { t } = useLocale();
+  const queryClient = useQueryClient();
+  const { handleError } = useApiError();
+  const [txType, setTxType] = useState<InvestmentTxType>("buy");
+  const [quantity, setQuantity] = useState("");
+  const [pricePerUnit, setPricePerUnit] = useState("");
+  const [occurredAt, setOccurredAt] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!holding) return;
+    setSubmitting(true);
+    try {
+      const created = await apiFetch<InvestmentTransactionDto>(
+        `/family-groups/${familyGroupId}/investments/${holding.id}/transactions`,
+        {
+          method: "POST",
+          token,
+          body: JSON.stringify({
+            type: txType,
+            quantity,
+            pricePerUnit,
+            occurredAt: new Date(occurredAt).toISOString(),
+          }),
+        },
+      );
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.investments.all(familyGroupId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["investments", familyGroupId, holding.id, "transactions"],
+      });
+      if (txType === "sell" && created.realizedPnl) {
+        toast.success(
+          t.investasi.toastSellSuccessTemplate.replace(
+            "{pnl}",
+            formatDecimalRupiah(created.realizedPnl),
+          ),
+        );
+      } else {
+        toast.success(t.investasi.toastBuySuccess);
+      }
+      onClose();
+    } catch (err) {
+      handleError(err);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) onClose();
+      }}
+    >
+      <DialogContent className="dialog--sm">
+        <DialogHeader>
+          <DialogTitle>
+            {txType === "buy"
+              ? t.investasi.buySellModalTitleBuy
+              : t.investasi.buySellModalTitleSell}
+          </DialogTitle>
+          <DialogDescription>{holding?.name}</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={(e) => void handleSubmit(e)}>
+          <DialogBody className="space-y-3">
+            <div
+              className="segmented"
+              role="tablist"
+              aria-label={t.investasi.buySellButtonLabel}
+            >
+              {(["buy", "sell"] as const).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  role="tab"
+                  className="segmented__item"
+                  aria-selected={txType === type}
+                  onClick={() => setTxType(type)}
+                >
+                  {type === "buy"
+                    ? t.investasi.buySellTypeBuyLabel
+                    : t.investasi.buySellTypeSellLabel}
+                </button>
+              ))}
+            </div>
+            <div className="field">
+              <label className="label" htmlFor="tx-quantity">
+                {t.investasi.buySellFieldQuantityLabel}
+              </label>
+              <input
+                id="tx-quantity"
+                type="number"
+                required
+                min="0"
+                step="any"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                className="input mono"
+              />
+            </div>
+            <div className="field">
+              <label className="label" htmlFor="tx-price">
+                {t.investasi.buySellFieldPriceLabel}
+              </label>
+              <input
+                id="tx-price"
+                type="number"
+                required
+                min="0"
+                step="any"
+                value={pricePerUnit}
+                onChange={(e) => setPricePerUnit(e.target.value)}
+                className="input mono"
+              />
+            </div>
+            <div className="field">
+              <label className="label" htmlFor="tx-date">
+                {t.investasi.buySellFieldDateLabel}
+              </label>
+              <input
+                id="tx-date"
+                type="date"
+                required
+                value={occurredAt}
+                onChange={(e) => setOccurredAt(e.target.value)}
+                className="input"
+              />
+            </div>
+          </DialogBody>
+          <DialogFooter>
+            <button
+              type="button"
+              className="btn btn--outline"
+              onClick={onClose}
+            >
+              {t.common.cancel}
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="btn btn--primary"
+            >
+              {submitting
+                ? t.investasi.buySellSaving
+                : t.investasi.buySellSaveButton}
+            </button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function DetailMetric({
   label,
   value,
@@ -1056,6 +1270,8 @@ export default function InvestasiPage() {
   const { t, locale } = useLocale();
   const { data: session } = useSession();
   const queryClient = useQueryClient();
+  const { handleError } = useApiError();
+  const { canManage } = useCanManage("Investment");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingHolding, setEditingHolding] = useState<InvestmentDto | null>(
     null,
@@ -1066,6 +1282,11 @@ export default function InvestasiPage() {
   // EPIC-021 #19: filter tabs by type, matching the /aset tab pattern.
   const [activeFilter, setActiveFilter] = useState<FilterTabId>("semua");
   const [detailHolding, setDetailHolding] = useState<InvestmentDto | null>(
+    null,
+  );
+  // EPIC-022 D2 — Beli/Jual is the only path to change quantity/cost once a
+  // holding exists (see isEditingLots in AddInvestmentModal).
+  const [buySellHolding, setBuySellHolding] = useState<InvestmentDto | null>(
     null,
   );
 
@@ -1091,19 +1312,40 @@ export default function InvestasiPage() {
     enabled: !!token && !!familyGroupId,
   });
 
-  const { data: summary, isLoading: summaryLoading } =
-    useQuery<InvestmentSummaryDto>({
-      queryKey: [
-        ...queryKeys.investments.summary(familyGroupId ?? ""),
-        token ?? "",
-      ],
-      queryFn: () =>
-        apiFetch<InvestmentSummaryDto>(
-          `/family-groups/${familyGroupId}/investments/summary`,
-          { token },
-        ),
-      enabled: !!token && !!familyGroupId,
-    });
+  const {
+    data: summary,
+    isLoading: summaryLoading,
+    isError: summaryError,
+  } = useQuery<InvestmentSummaryDto>({
+    queryKey: [
+      ...queryKeys.investments.summary(familyGroupId ?? ""),
+      token ?? "",
+    ],
+    queryFn: () =>
+      apiFetch<InvestmentSummaryDto>(
+        `/family-groups/${familyGroupId}/investments/summary`,
+        { token },
+      ),
+    enabled: !!token && !!familyGroupId,
+  });
+
+  // EPIC-022 D2 — the buy/sell history for the currently-open detail
+  // dialog; only fetched while that dialog is open (no reason to fetch
+  // every holding's history for a page that shows it one at a time).
+  const { data: detailTransactions } = useQuery<InvestmentTransactionDto[]>({
+    queryKey: [
+      "investments",
+      familyGroupId ?? "",
+      detailHolding?.id ?? "",
+      "transactions",
+    ],
+    queryFn: () =>
+      apiFetch<InvestmentTransactionDto[]>(
+        `/family-groups/${familyGroupId}/investments/${detailHolding?.id}/transactions`,
+        { token },
+      ),
+    enabled: !!token && !!familyGroupId && !!detailHolding,
+  });
 
   // Live price updates via Socket.io — join family-group room for tenant isolation
   useEffect(() => {
@@ -1144,14 +1386,17 @@ export default function InvestasiPage() {
         queryKey: queryKeys.investments.all(familyGroupId),
       });
       toast.success(t.investasi.toastDeleted);
-    } catch {
-      toast.error(t.investasi.toastDeleteFailed);
+    } catch (err) {
+      handleError(err);
     } finally {
       setDeletingHolding(null);
     }
   }
 
   const isLoading = holdingsLoading || summaryLoading;
+  // F5 — a failed fetch must not render as an honest "no investments yet"
+  // empty state; combines both queries this page depends on for its totals.
+  const isPageError = holdingsError || summaryError;
 
   const filteredHoldings = (holdings ?? []).filter(
     (h) => activeFilter === "semua" || h.type === activeFilter,
@@ -1236,10 +1481,12 @@ export default function InvestasiPage() {
           >
             <RefreshCw className="size-3.5" /> {t.investasi.refreshPriceButton}
           </Button>
-          <Button type="button" size="sm" onClick={() => setModalOpen(true)}>
-            <Plus className="size-3.5" />{" "}
-            {t.investasi.addInvestmentHeaderButton}
-          </Button>
+          {canManage && (
+            <Button type="button" size="sm" onClick={() => setModalOpen(true)}>
+              <Plus className="size-3.5" />{" "}
+              {t.investasi.addInvestmentHeaderButton}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -1252,6 +1499,16 @@ export default function InvestasiPage() {
             setModalOpen(false);
             setEditingHolding(null);
           }}
+          familyGroupId={familyGroupId}
+          token={token}
+        />
+      )}
+      {familyGroupId && token && (
+        <BuySellModal
+          key={buySellHolding?.id ?? "none"}
+          open={!!buySellHolding}
+          holding={buySellHolding}
+          onClose={() => setBuySellHolding(null)}
           familyGroupId={familyGroupId}
           token={token}
         />
@@ -1324,6 +1581,21 @@ export default function InvestasiPage() {
                         : "text-destructive"
                     }
                   />
+                  {/* EPIC-022 D2 — realized P/L, the sum of every SELL ever
+                      recorded against this holding. Null (never a
+                      fabricated "0") until a sell has been recorded. */}
+                  <DetailMetric
+                    label={t.investasi.detailRealizedPnlLabel}
+                    value={formatDecimalRupiah(detailHolding.realizedPnlRp)}
+                    tone={
+                      detailHolding.realizedPnlRp &&
+                      parseFloat(detailHolding.realizedPnlRp) >= 0
+                        ? "text-success"
+                        : detailHolding.realizedPnlRp
+                          ? "text-destructive"
+                          : undefined
+                    }
+                  />
                 </div>
                 <div className="rounded-[10px] bg-accent p-3 text-[12px] text-accent-foreground">
                   {detailHolding.currentPrice === null
@@ -1351,6 +1623,74 @@ export default function InvestasiPage() {
                             : "—"
                         }`}
                 </div>
+                {/* EPIC-022 D2 — the real buy/sell history a whole-record
+                    "edit" used to destroy with no trace. */}
+                <div>
+                  <div className="mb-1.5 text-[12px] font-semibold text-muted-foreground">
+                    {t.investasi.historySectionTitle}
+                  </div>
+                  {(detailTransactions ?? []).length === 0 ? (
+                    <div className="text-[12px] text-muted-foreground">
+                      {t.investasi.historyEmptyLabel}
+                    </div>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {(detailTransactions ?? []).map((tx) => (
+                        <li
+                          key={tx.id}
+                          className="flex items-center justify-between gap-2 rounded-[8px] border p-2 text-[11.5px]"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <StatusBadge
+                              variant={tx.type === "buy" ? "info" : "warning"}
+                            >
+                              {tx.type === "buy"
+                                ? t.investasi.historyBuyLabel
+                                : t.investasi.historySellLabel}
+                            </StatusBadge>
+                            <span className="mono">
+                              {formatNumber(parseFloat(tx.quantity))} @{" "}
+                              {formatDecimalRupiah(tx.pricePerUnit)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            {tx.realizedPnl && (
+                              <span
+                                className={cn(
+                                  "mono",
+                                  parseFloat(tx.realizedPnl) >= 0
+                                    ? "text-success"
+                                    : "text-destructive",
+                                )}
+                              >
+                                {t.investasi.historyRealizedPnlTemplate.replace(
+                                  "{pnl}",
+                                  formatDecimalRupiah(tx.realizedPnl),
+                                )}
+                              </span>
+                            )}
+                            <span>
+                              {formatManualDate(tx.occurredAt, locale)}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                {canManage && detailHolding.type !== "deposito" && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setBuySellHolding(detailHolding);
+                      setDetailHolding(null);
+                    }}
+                  >
+                    {t.investasi.buySellButtonLabel}
+                  </Button>
+                )}
               </DialogBody>
               <DialogFooter>
                 <Button type="button" onClick={() => setDetailHolding(null)}>
@@ -1361,6 +1701,12 @@ export default function InvestasiPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {!isLoading && isPageError && (
+        <div className="rounded-[14px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive">
+          {t.investasi.errorLoad}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
         {isLoading ? (
@@ -1639,7 +1985,7 @@ export default function InvestasiPage() {
                       className="py-8 text-center text-[13px] text-muted-foreground"
                     >
                       {t.investasi.emptyState}{" "}
-                      {(holdings?.length ?? 0) === 0 && (
+                      {(holdings?.length ?? 0) === 0 && canManage && (
                         <button
                           type="button"
                           className="font-semibold text-primary"
@@ -1749,13 +2095,17 @@ export default function InvestasiPage() {
                         </div>
                       </td>
                       <td className="py-3">
-                        <RowActions
-                          onEdit={() => {
-                            setEditingHolding(h);
-                            setModalOpen(true);
-                          }}
-                          onDelete={() => setDeletingHolding(h)}
-                        />
+                        {/* F3 — CASL grants "manage Investment" only to
+                            owner/spouse/member; admin_staff is read-only. */}
+                        {canManage && (
+                          <RowActions
+                            onEdit={() => {
+                              setEditingHolding(h);
+                              setModalOpen(true);
+                            }}
+                            onDelete={() => setDeletingHolding(h)}
+                          />
+                        )}
                       </td>
                     </tr>
                     {isExpanded && (

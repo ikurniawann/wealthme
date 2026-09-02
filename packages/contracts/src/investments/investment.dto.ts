@@ -61,8 +61,33 @@ export interface InvestmentDto {
   // EPIC-024 C2/C3 (D10) — deposito's jatuh tempo; null for every other
   // type and for a deposito that hasn't had one set yet.
   maturityDate: string | null;
+  // EPIC-022 D2 — sum of `realizedPnl` across every SELL transaction ever
+  // recorded against this holding (see InvestmentTransactionDto). Null when
+  // no sell has ever been recorded (never a fabricated "0" — distinct from
+  // "sold at exactly break-even").
+  realizedPnlRp: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+// EPIC-022 D2 — the only two investment-transaction kinds. Buy grows the
+// position and recomputes a weighted-average costBasisPerUnit; sell shrinks
+// it and books a realized P/L for the sold portion.
+export type InvestmentTxType = "buy" | "sell";
+
+// EPIC-022 D2 — one buy or sell event, the real history a whole-record
+// "edit" used to silently overwrite with no trace. `quantity`/`pricePerUnit`
+// are this EVENT's own terms, never the holding's post-transaction state.
+// `realizedPnl` is set only for a sell (null for every buy).
+export interface InvestmentTransactionDto {
+  id: string;
+  investmentId: string;
+  type: InvestmentTxType;
+  quantity: string;
+  pricePerUnit: string;
+  occurredAt: string;
+  realizedPnl: string | null;
+  createdAt: string;
 }
 
 export interface InvestmentSummaryDto {

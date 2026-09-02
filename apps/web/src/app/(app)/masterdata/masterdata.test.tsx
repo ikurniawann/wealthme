@@ -135,6 +135,12 @@ describe("MasterDataPage — category delete surfaces the real server message (E
   it("surfaces the API's 409 message instead of the generic delete-failed toast", async () => {
     mockApiFetch.mockImplementation((path: string, options?: RequestInit) => {
       if (path.includes("/coa-accounts")) return Promise.resolve([]);
+      // F3 — `useCanManage("Category")` resolves the signed-in role via
+      // this endpoint; an "owner" role keeps the edit/delete affordances
+      // this suite asserts on visible.
+      if (path.endsWith("/family-groups/mine")) {
+        return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
+      }
       if (options?.method === "DELETE") {
         return Promise.reject({
           status: 409,
@@ -176,6 +182,12 @@ describe("MasterDataPage — reference items are real API-backed data (EPIC-024 
   function stubApiFetch(referenceItems: ReferenceItemDto[]) {
     mockApiFetch.mockImplementation((path: string, options?: RequestInit) => {
       if (path.includes("/coa-accounts")) return Promise.resolve([]);
+      // F3 — `useCanManage("Category"/"ReferenceItem")` resolves the role
+      // via this endpoint; an "owner" role keeps the add/delete affordances
+      // this suite asserts on visible.
+      if (path.endsWith("/family-groups/mine")) {
+        return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
+      }
       if (path.includes("/reference-items")) {
         if (options?.method === "POST") {
           return Promise.resolve(
@@ -224,8 +236,12 @@ describe("MasterDataPage — reference items are real API-backed data (EPIC-024 
 
     await screen.findByText("🏦 Bank");
     // Render order is Kategori, then Bank (first of the seven reference
-    // groups) — "+ Tambah" (index 1) opens the Bank add modal.
-    const addButtons = screen.getAllByRole("button", { name: "+ Tambah" });
+    // groups) — "+ Tambah" (index 1) opens the Bank add modal. `findAllByRole`
+    // (not `getAllByRole`) — F3 role-gating hides these links until
+    // `useCanManage`'s own role fetch resolves (mocked "owner" above).
+    const addButtons = await screen.findAllByRole("button", {
+      name: "+ Tambah",
+    });
     await user.click(addButtons[1]);
 
     const dialog = await screen.findByRole("dialog");

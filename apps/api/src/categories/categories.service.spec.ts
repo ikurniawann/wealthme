@@ -265,6 +265,64 @@ describe("CategoriesService", () => {
         data: { name: "Renamed" },
       });
     });
+
+    // F7 — a PATCH that changes only `kind` (not `coaAccountId`) used to
+    // skip `resolveCoaAccountId` entirely, so it could flip a category onto
+    // a contradictory direction for its EXISTING (untouched) COA account —
+    // the exact mismatch `create()` already refuses. reports then group the
+    // category's transactions under the wrong direction.
+    it("rejects flipping kind to contradict the EXISTING coaAccountId's direction, even when coaAccountId isn't in the patch", async () => {
+      // A category correctly created as "income" on an INCOME-direction COA
+      // account — then patched to "expense" without ever touching
+      // coaAccountId. The existing INCOME account now contradicts the new
+      // "expense" kind exactly like create()'s own guard would refuse.
+      prisma.category.findUnique.mockResolvedValue({
+        id: CATEGORY_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        kind: "income",
+        coaAccountId: "coa-income",
+      });
+      prisma.coaAccount.findFirst.mockResolvedValueOnce({
+        id: "coa-income",
+        direction: "INCOME",
+      });
+
+      await expect(
+        service.update(FAMILY_GROUP_ID, CATEGORY_ID, { kind: "expense" }),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(prisma.category.update).not.toHaveBeenCalled();
+    });
+
+    it("allows flipping kind when the EXISTING coaAccountId's direction still matches", async () => {
+      prisma.category.findUnique.mockResolvedValue({
+        id: CATEGORY_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        kind: "expense",
+        coaAccountId: "coa-transfer",
+      });
+      prisma.coaAccount.findFirst.mockResolvedValueOnce({
+        id: "coa-transfer",
+        direction: "TRANSFER",
+      });
+      prisma.category.update.mockResolvedValue({
+        id: CATEGORY_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        name: "Cicilan",
+        kind: "income",
+        color: null,
+        icon: null,
+        isPrivate: false,
+        coaAccountId: "coa-transfer",
+        createdAt: new Date(),
+      });
+
+      await service.update(FAMILY_GROUP_ID, CATEGORY_ID, { kind: "income" });
+
+      expect(prisma.category.update).toHaveBeenCalledWith({
+        where: { id: CATEGORY_ID, familyGroupId: FAMILY_GROUP_ID },
+        data: { kind: "income", coaAccountId: "coa-transfer" },
+      });
+    });
   });
 
   describe("remove (EPIC-022 A5 — dependant guard)", () => {

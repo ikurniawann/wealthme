@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
+import { useCanManage } from "@/hooks/use-role-permissions";
 import { apiFetch } from "@/lib/api-client";
 import {
   SectionCard,
@@ -177,7 +178,11 @@ export default function MasterCoaPage() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const { data: accounts = [], isLoading } = useQuery<CoaAccount[]>({
+  const {
+    data: accounts = [],
+    isLoading,
+    isError,
+  } = useQuery<CoaAccount[]>({
     queryKey: ["coa-accounts", familyGroupId],
     queryFn: ({ signal }) =>
       apiFetch<CoaAccount[]>(`/family-groups/${familyGroupId}/coa-accounts`, {
@@ -186,6 +191,11 @@ export default function MasterCoaPage() {
       }),
     enabled: Boolean(familyGroupId) && Boolean(token),
   });
+
+  // F3 — CASL only grants "manage CoaAccount" to owner/spouse; every other
+  // role gets 403 on create/edit/delete, so those controls are hidden
+  // instead of inviting a submit-then-fail round trip.
+  const { canManage } = useCanManage("CoaAccount");
 
   // App categories — used to show which COA accounts are already connected to
   // the kategori master data that transactions actually use.
@@ -380,13 +390,15 @@ export default function MasterCoaPage() {
             >
               <Database className="size-3.5" /> {t.mastercoa.masterDataButton}
             </button>
-            <button
-              onClick={openAdd}
-              disabled={!familyGroupId}
-              className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-            >
-              <Plus className="size-3.5" /> {t.mastercoa.addAccountButton}
-            </button>
+            {canManage === true && (
+              <button
+                onClick={openAdd}
+                disabled={!familyGroupId}
+                className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+              >
+                <Plus className="size-3.5" /> {t.mastercoa.addAccountButton}
+              </button>
+            )}
           </div>
         </div>
       </section>
@@ -413,11 +425,15 @@ export default function MasterCoaPage() {
                   size={34}
                 />
                 <div>
-                  <div className="text-2xl font-extrabold">
-                    {accounts.length}
+                  <div
+                    className={`text-2xl font-extrabold ${isError ? "text-destructive" : ""}`}
+                  >
+                    {isError ? "—" : accounts.length}
                   </div>
                   <div className="text-[11px] text-muted-foreground">
-                    {t.mastercoa.sixGroupsLabel}
+                    {isError
+                      ? t.mastercoa.errorRow
+                      : t.mastercoa.sixGroupsLabel}
                   </div>
                 </div>
               </div>
@@ -542,6 +558,15 @@ export default function MasterCoaPage() {
                     {t.mastercoa.loadingRow}
                   </td>
                 </tr>
+              ) : isError ? (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="py-8 text-center text-[13px] text-destructive"
+                  >
+                    {t.mastercoa.errorRow}
+                  </td>
+                </tr>
               ) : filtered.length === 0 ? (
                 <tr>
                   <td
@@ -619,22 +644,24 @@ export default function MasterCoaPage() {
                           )}
                         </td>
                         <td className="py-2.5 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => openEdit(a)}
-                              className="rounded p-1 text-muted-foreground hover:text-primary hover:bg-accent transition-colors"
-                              title={t.mastercoa.editTitle}
-                            >
-                              <Pencil className="size-3.5" />
-                            </button>
-                            <button
-                              onClick={() => setDeleteId(a.id)}
-                              className="rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                              title={t.common.delete}
-                            >
-                              <Trash2 className="size-3.5" />
-                            </button>
-                          </div>
+                          {canManage === true && (
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => openEdit(a)}
+                                className="rounded p-1 text-muted-foreground hover:text-primary hover:bg-accent transition-colors"
+                                title={t.mastercoa.editTitle}
+                              >
+                                <Pencil className="size-3.5" />
+                              </button>
+                              <button
+                                onClick={() => setDeleteId(a.id)}
+                                className="rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                title={t.common.delete}
+                              >
+                                <Trash2 className="size-3.5" />
+                              </button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))}

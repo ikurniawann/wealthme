@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
 import { useShell } from "@/components/shell/shell-context";
 import { useLocale } from "@/hooks/use-locale";
+import { useApiError } from "@/hooks/use-api-error";
 import { apiFetch } from "@/lib/api-client";
 import { parseRupiah, formatRupiah } from "@/lib/format";
 import { buildGoalBody } from "@/lib/goals-utils";
@@ -285,6 +286,7 @@ export default function QuickInputPage() {
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId;
   const token = session?.accessToken;
+  const { handleError } = useApiError();
   const [crud, setCrud] = useState<CrudModalState | null>(null);
 
   // Prototype structural port (EPIC-025 N3-B4) — the prototype's "Entri
@@ -338,8 +340,12 @@ export default function QuickInputPage() {
         queryKey: [req.queryKey, familyGroupId],
       });
       toast.success(t.quickinput.toastSaved);
-    } catch {
-      toast.error(t.quickinput.toastSaveFailed);
+    } catch (err) {
+      // F1/F2 — surface the server's real message and rethrow so
+      // CrudModal's `await onSubmit(...)` rejects and skips `onClose()`;
+      // a failed save must not discard what the user entered.
+      handleError(err);
+      throw err;
     }
   }
 

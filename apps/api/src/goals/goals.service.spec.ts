@@ -19,7 +19,12 @@ interface FakeGoal {
   autoDebitAmount: bigint | null;
   status: PrismaGoalStatus;
   lastAutoDebitAt: Date | null;
+  createdAt: Date;
 }
+
+// Far enough in the past that a goal with no explicit `createdAt` override
+// never gets mistaken for "brand new" by the C7 elapsed-pace heuristic.
+const OLD_CREATED_AT = new Date("2020-01-01T00:00:00Z");
 
 function makeGoal(overrides: Partial<FakeGoal> = {}): FakeGoal {
   return {
@@ -33,6 +38,7 @@ function makeGoal(overrides: Partial<FakeGoal> = {}): FakeGoal {
     autoDebitAmount: 500_000n,
     status: PrismaGoalStatus.on_track,
     lastAutoDebitAt: null,
+    createdAt: OLD_CREATED_AT,
     ...overrides,
   };
 }
@@ -49,6 +55,7 @@ function makePrisma() {
       findMany: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      create: jest.fn(),
     },
     member: {
       // Default: no stored prefs → `resolveNotifPrefs(null)` defaults, which
@@ -242,6 +249,52 @@ describe("GoalsService.update — currentAmount vs targetAmount (EPIC-022 A4 fol
     expect(result.status).toBe("achieved");
   });
 
+  it("(C8) uses the provided currentAmount at creation instead of discarding it to 0", async () => {
+    prisma.goal.create.mockImplementation(
+      ({
+        data,
+      }: {
+        data: {
+          currentAmount: bigint;
+          targetAmount: bigint;
+          targetDate: Date | null;
+          createdAt: Date;
+          status: PrismaGoalStatus;
+        };
+      }) =>
+        Promise.resolve(
+          makeGoal({
+            currentAmount: data.currentAmount,
+            targetAmount: data.targetAmount,
+          }),
+        ),
+    );
+
+    const result = await service.create(FAMILY_GROUP_ID, {
+      name: "Dana Darurat",
+      targetAmount: 20_000_000,
+      currentAmount: 5_000_000,
+    });
+
+    expect(result.currentAmount).toBe(5_000_000);
+    expect(prisma.goal.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ currentAmount: 5_000_000n }),
+      }),
+    );
+  });
+
+  it("(C8) rejects an initial currentAmount above targetAmount", async () => {
+    await expect(
+      service.create(FAMILY_GROUP_ID, {
+        name: "Dana Darurat",
+        targetAmount: 1_000_000,
+        currentAmount: 2_000_000,
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(prisma.goal.create).not.toHaveBeenCalled();
+  });
+
   it("allows an unrelated edit (name only) that never touches either amount", async () => {
     prisma.goal.findUnique.mockResolvedValue(
       makeGoal({ currentAmount: 2_000_000n, targetAmount: 10_000_000n }),
@@ -260,5 +313,114 @@ describe("GoalsService.update — currentAmount vs targetAmount (EPIC-022 A4 fol
 
     expect(result.name).toBe("Renamed");
     expect(prisma.goal.update).toHaveBeenCalled();
+  });
+});
+
+/**
+ * EPIC-022 C7 — status is recomputed on EVERY read from the live
+ * currentAmount/targetDate/createdAt, never trusted from the stored `status`
+ * column (which is only ever refreshed by a write). These exercise
+ * `findAll` directly against a fake `goal.findMany` whose stored `status`
+ * deliberately DISAGREES with what a live recomputation would say, so the
+ * test fails if `toDto` ever goes back to trusting the stored column.
+ */
+describe("GoalsService.findAll recomputes status on read (EPIC-022 C7)", () => {
+  let service: GoalsService;
+  let prisma: ReturnType<typeof makePrisma>;
+
+  beforeEach(async () => {
+    prisma = makePrisma();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [GoalsService, { provide: PrismaService, useValue: prisma }],
+    }).compile();
+    service = module.get(GoalsService);
+  });
+
+  it("an overdue, under-funded goal reads at_risk even though its stored status says on_track", async () => {
+    prisma.goal.findMany.mockResolvedValue([
+      makeGoal({
+        currentAmount: 1_000_000n,
+        targetAmount: 10_000_000n,
+        // The deadline has already passed.
+        targetDate: new Date("2020-06-01T00:00:00Z"),
+        createdAt: new Date("2020-01-01T00:00:00Z"),
+        status: PrismaGoalStatus.on_track, // stale, stored the day it was saved
+      }),
+    ]);
+
+    const [result] = await service.findAll(FAMILY_GROUP_ID);
+
+    expect(result!.status).toBe("at_risk");
+  });
+
+  it("a brand-new, long-horizon goal with 0 saved is on_track, not at_risk", async () => {
+    const now = new Date("2026-06-15T00:00:00Z");
+    jest.useFakeTimers().setSystemTime(now);
+    try {
+      prisma.goal.findMany.mockResolvedValue([
+        makeGoal({
+          currentAmount: 0n,
+          targetAmount: 100_000_000n,
+          // A 10-year horizon, created moments ago.
+          targetDate: new Date("2036-06-15T00:00:00Z"),
+          createdAt: now,
+          status: PrismaGoalStatus.on_track,
+        }),
+      ]);
+
+      const [result] = await service.findAll(FAMILY_GROUP_ID);
+
+      expect(result!.status).toBe("on_track");
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("a goal already meeting or beating its expected pace reads on_track", async () => {
+    const createdAt = new Date("2026-01-01T00:00:00Z");
+    const targetDate = new Date("2026-07-01T00:00:00Z"); // 6 months total
+    const now = new Date("2026-04-01T00:00:00Z"); // 3 months elapsed = 50%
+    jest.useFakeTimers().setSystemTime(now);
+    try {
+      prisma.goal.findMany.mockResolvedValue([
+        makeGoal({
+          currentAmount: 5_000_000n, // 50% of target — right on pace
+          targetAmount: 10_000_000n,
+          targetDate,
+          createdAt,
+          status: PrismaGoalStatus.at_risk, // stale
+        }),
+      ]);
+
+      const [result] = await service.findAll(FAMILY_GROUP_ID);
+
+      expect(result!.status).toBe("on_track");
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("a goal well behind its expected pace reads needs_boost or at_risk, not achieved's neighbor on_track", async () => {
+    const createdAt = new Date("2026-01-01T00:00:00Z");
+    const targetDate = new Date("2026-07-01T00:00:00Z");
+    const now = new Date("2026-04-01T00:00:00Z"); // 50% elapsed
+    jest.useFakeTimers().setSystemTime(now);
+    try {
+      prisma.goal.findMany.mockResolvedValue([
+        makeGoal({
+          currentAmount: 1_000_000n, // 10% of target, way behind the 50% pace
+          targetAmount: 10_000_000n,
+          targetDate,
+          createdAt,
+          status: PrismaGoalStatus.on_track, // stale
+        }),
+      ]);
+
+      const [result] = await service.findAll(FAMILY_GROUP_ID);
+
+      expect(["needs_boost", "at_risk"]).toContain(result!.status);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

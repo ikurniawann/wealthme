@@ -926,7 +926,7 @@ export const en = {
       },
       investasi: {
         title: "Investments",
-        desc: 'Click "+ Add Investment", choose the asset type (stocks, mutual funds, gold, crypto) — price & profit/loss update in real time.',
+        desc: 'Click "+ Add Investment", choose the asset type (stocks, mutual funds, gold, crypto) — stocks & crypto get automated (delayed) prices, everything else you enter manually; profit/loss is computed automatically from whatever price is available.',
       },
       aset: {
         title: "Assets",
@@ -1195,6 +1195,10 @@ export const en = {
     allocationFullyAllocated: "Fully allocated (100%)",
     validationSharePercentExceeded:
       "Total beneficiary share cannot exceed 100%",
+    validationBeneficiaryNameRequired:
+      "A beneficiary with a share percentage needs a name — fill it in or remove this row",
+    validationShareUnderAllocated:
+      "Only {pct}% is allocated — the remainder isn't recorded for any beneficiary (this may be intentional, e.g. the remainder goes to the estate)",
     beneficiaryMemberPickerUnavailable:
       "The family member list isn't available for your role — enter the name manually.",
     coverageAllocationTitle: "Coverage by Type",
@@ -1680,6 +1684,29 @@ export const en = {
     hintName: "The full name shown in your holdings list.",
     hintPurchaseDate: "Used to calculate how long you have held the position.",
     hintLotConversion: "1 lot = 100 shares (IDX rule).",
+    hintQuantityLocked:
+      'Quantity can only change via "Buy More" / "Sell" — not here.',
+    hintCostBasisLocked:
+      "Average cost is computed automatically from buy/sell history — not here.",
+    buySellButtonLabel: "Buy / Sell",
+    buySellModalTitleBuy: "Record a Purchase",
+    buySellModalTitleSell: "Record a Sale",
+    buySellTypeBuyLabel: "Buy",
+    buySellTypeSellLabel: "Sell",
+    buySellFieldQuantityLabel: "Quantity",
+    buySellFieldPriceLabel: "Price per Unit (Rp)",
+    buySellFieldDateLabel: "Transaction Date",
+    buySellSaveButton: "Save Transaction",
+    buySellSaving: "Saving...",
+    toastBuySuccess: "Purchase recorded — average cost updated.",
+    toastSellSuccessTemplate: "Sale recorded — realized P/L {pnl}.",
+    toastBuySellFailed: "Failed to record the transaction. Try again.",
+    detailRealizedPnlLabel: "Realized P/L",
+    historySectionTitle: "Buy/Sell History",
+    historyEmptyLabel: "No buy/sell transactions recorded yet.",
+    historyBuyLabel: "Buy",
+    historySellLabel: "Sell",
+    historyRealizedPnlTemplate: "P/L: {pnl}",
   },
   aset: {
     tabs: {
@@ -1720,7 +1747,13 @@ export const en = {
     errorLoad: "Failed to load some asset data. Please refresh the page.",
     toastAdded: "Asset added successfully",
     toastAddFailed: "Failed to add asset. Please try again.",
+    toastUpdated: "Asset updated successfully",
+    toastUpdateFailed: "Failed to update asset. Please try again.",
+    toastDeleted: "Asset deleted",
+    toastDeleteFailed: "Failed to delete asset. Please try again.",
+    deleteDialogBody: "This asset's value history will also be deleted.",
     modalTitle: "Add Physical Asset",
+    modalTitleEdit: "Edit Physical Asset",
     fieldNameLabel: "Asset Name",
     fieldNamePlaceholder: "e.g. Kelapa Gading Apartment",
     fieldCategoryLabel: "Category",
@@ -2026,6 +2059,7 @@ export const en = {
     colAction: "Action",
     loadingRow: "Loading data...",
     emptyRow: "No COA accounts yet",
+    errorRow: "Failed to load COA accounts. Please refresh the page.",
     editTitle: "Edit",
     modalTitleEdit: "Edit COA Account",
     modalTitleAdd: "Add COA Account",
@@ -2782,6 +2816,11 @@ export const en = {
     toastAmountInvalid: "Budget must be greater than Rp 0",
     toastNoFamilyGroup: "Please join a Family Group first",
     errorCategoryNotFoundAfterConflict: "Category not found after conflict",
+    errorCategoryRequired: "Please choose an existing category",
+    fieldExistingCategoryLabel: "Category",
+    existingCategoryPlaceholder: "Choose a category",
+    existingCategoryEmptyOption:
+      "No categories of this type yet — ask the owner to add one",
     obligationsSectionTitle: "This Period's Obligations",
     obligationsDueBadge: "Not Paid",
     obligationsPaidBadge: "Paid",
@@ -2810,6 +2849,18 @@ export const en = {
     obligationsPayDialogDesc:
       "Paying records a transaction and reduces the source account balance.",
     obligationsDueDateNoticePrefix: "Due ",
+    editAriaLabelPrefix: "Edit budget ",
+    deleteAriaLabelPrefix: "Delete budget ",
+    modalEditTitle: "Edit Budget",
+    modalEditDesc: "Change this budget's limit or period.",
+    saveChangesButton: "Save Changes",
+    toastUpdated: "Budget updated",
+    toastUpdateFailedDefault: "Failed to update budget",
+    deleteDialogTitle: "Delete Budget?",
+    deleteDialogBody: "A deleted budget cannot be recovered.",
+    deleteDialogConfirm: "Yes, Delete",
+    toastDeleted: "Budget deleted",
+    toastDeleteFailedDefault: "Failed to delete budget",
   },
   transaksi: {
     typeLabels: {

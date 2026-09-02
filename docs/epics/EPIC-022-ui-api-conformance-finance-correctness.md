@@ -1,6 +1,6 @@
 # EPIC-022: UI↔API Conformance & Financial Correctness Pass
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 retries: 0
 phase: 4
@@ -45,7 +45,7 @@ is entirely in the form.
 
 ## Tasks
 
-- [ ] ### A — Money-losing and lie-shaped defects (fix first)
+- [x] ### A — Money-losing and lie-shaped defects (fix first) ✅
   - **A1 — Family invite rejects phone numbers.** Field is labelled "Email / No.
     HP" (`components/crud/crud-config.ts:308`) but POSTs to an `@IsEmail` DTO;
     `nama`, `hubungan` and `role` are collected and never sent (role hardcoded
@@ -81,7 +81,7 @@ is entirely in the form.
     (`budgets.service.ts:31-75`), while `member` has `manage Budget`. A member
     sees the name, limit and exact spend of a category the owner marked private.
 
-- [ ] ### B — Reports that state things that are not true
+- [x] ### B — Reports that state things that are not true ✅
   - **B1 — The balance sheet can never fail to balance.** The "Total L + E" row
     renders `totalAssets`, not `totalLiabilities + netWorth`
     (`laporan/page.tsx:1410-1418`), and a green "✅ Balance Sheet Seimbang"
@@ -144,65 +144,62 @@ parseFloat(inv.quantity)` (`laporan/page.tsx:1655-1657`), but the API
     filter is applied to any of its three queries, so a balance sheet requested
     "per 31 Maret" silently shows today's balances.
 
-- [ ] ### C — Budgets and goals behave unlike real budgets and goals
-  - **C1 — Weekly and yearly budgets are selectable but not implemented.** The
-    spend query is hardcoded to the calendar month regardless of `budget.period`
-    (`budgets.service.ts:46-55`). A weekly grocery budget reads ~400% over
-    forever; a yearly school-fee budget reads ~8% used until the money is gone.
-    Implement the window or remove the two options.
-  - **C2 — No budget edit or delete in the UI at all.** The API has both
+- [x] ### C — Budgets and goals behave unlike real budgets and goals ✅
+  - **C1** — [x] Weekly and yearly budgets are selectable but not implemented.
+    The spend query is hardcoded to the calendar month regardless of
+    `budget.period` (`budgets.service.ts:46-55`). A weekly grocery budget reads
+    ~400% over forever; a yearly school-fee budget reads ~8% used until the
+    money is gone. Implement the window or remove the two options.
+  - **C2** — [x] No budget edit or delete in the UI at all. The API has both
     (`budgets.controller.ts:54-76`); `/anggaran` exposes neither. A typo in the
     limit is permanent.
-  - **C3 — No period history, no rollover, no pro-rata.** Editing a limit
+  - **C3** — [x] No period history, no rollover, no pro-rata. Editing a limit
     rewrites all history; a budget created mid-month is measured against the
-    whole month and fires an over-budget alert on day one.
-  - **C4 — Budget 80% alert re-fires on every subsequent transaction** for the
-    rest of the month (`transactions.service.ts:311-313,342-398`) — no
+    whole month and fires an over-budget alert on day one. (Fixed via a
+    createdAt clamp on the spend window; full period-history/rollover stays
+    out of scope per the epic's own documented default — current period only.)
+  - **C4** — [x] Budget 80% alert re-fires on every subsequent transaction for
+    the rest of the month (`transactions.service.ts:311-313,342-398`) — no
     already-alerted guard.
-  - **C5 — Multiple budgets per category double-count** in the page totals
-    (`anggaran/page.tsx:274-275`), reachable through the 409-fallback create path.
-  - **C6 — Budget spend and report spend use different definitions of expense**
-    (raw `tx.type` vs COA direction), so a savings-transfer category counts fully
-    against its budget while contributing nothing to Beranda's expenses.
-  - **C7 — Goal status is stored, never recomputed on read** — an overdue goal
-    keeps its green "Sesuai Rencana" badge indefinitely (`goals.service.ts:101-107`),
-    and the heuristic flags a brand-new long-horizon goal as `at_risk`
-    (`:31-57`). No required-Rp/month projection is ever persisted or shown.
-  - **C8 — "Sudah Terkumpul" at goal creation is silently discarded**
+  - **C5** — [x] Multiple budgets per category double-count in the page totals
+    (`anggaran/page.tsx:274-275`), reachable through the 409-fallback create
+    path. (Prevented at creation, including the cross-period race — see
+    Automation Log.)
+  - **C6** — [x] Budget spend and report spend use different definitions of
+    expense (raw `tx.type` vs COA direction), so a savings-transfer category
+    counts fully against its budget while contributing nothing to Beranda's
+    expenses.
+  - **C7** — [x] Goal status is stored, never recomputed on read — an overdue
+    goal keeps its green "Sesuai Rencana" badge indefinitely
+    (`goals.service.ts:101-107`), and the heuristic flags a brand-new
+    long-horizon goal as `at_risk` (`:31-57`). No required-Rp/month projection
+    is ever persisted or shown. (Status now recomputed live on every read; the
+    required-Rp/month projection already exists client-side on `/tujuan` from
+    fields already on `GoalDto` — deliberately not duplicated server-side.)
+  - **C8** — [x] "Sudah Terkumpul" at goal creation is silently discarded
     (`goals.service.ts:120` hardcodes `0n`).
-  - **C9 — No way to withdraw from a goal or zero it** (`@IsPositive` rejects 0).
+  - **C9** — [x] No way to withdraw from a goal or zero it (`@IsPositive`
+    rejects 0). (Found already fixed by A4's `@Min(0)` on `UpdateGoalDto`.)
 
-- [ ] ### D — Financial products that are missing their core mechanics
-  - **D1 — Liabilities cannot be edited, deleted, or paid.** `/liabilitas` is
-    create-only; `remainingBalance` is typed once and can never change. There is
-    no payment recording, no interest accrual, no amortisation/cicilan schedule,
-    and no minimum-payment warning. For a credit card there is no statement
-    balance, no available credit, no billing cycle. The `PATCH` endpoint exists
-    and is never called (`liabilities.controller.ts:76`).
-  - **D2 — Investments have no buy/sell, no lots, no history.** An "edit"
-    overwrites quantity and cost basis wholesale; there is no realised P/L and no
-    disposal path. `InvestmentPrice` exists but no investment-transaction model
-    does.
-  - **D3 — Investment prices are mock data, surfaced raw.** The detail row prints
-    the literal string `mock` under "Sumber Harga" (`investasi/page.tsx:754`,
-    from `mock-market-data.adapter.ts:25`), with no badge or warning — while the
-    onboarding tour claims "harga & untung/rugi terupdate real-time"
-    (`i18n/id.ts:663`). Either label the mock honestly everywhere or stop
-    claiming real-time.
-  - **D4 — Insurance premium payment records no expense.** "Bayar" only advances
-    `renewalDate`; no transaction, no cashflow impact (`asuransi/page.tsx:902-924`).
-    The copy is honest about this, but the premium never appears in expenses.
-  - **D5 — Asset value estimates are unlabelled in every total.** The
-    `(estimasi)` marker appears only on the row (`aset/page.tsx:402-407`); group
-    totals and the "Total Aset" banner silently include depreciated/appreciated
-    values. Assets also have no edit/delete UI, and the existing
-    `GET /assets/:id/history` endpoint has no consumer.
-  - **D6 — Beneficiary/heir under-allocation is never warned.** Over 100% is
-    blocked at save; under 100% saves silently, and a row with a percentage but a
-    blank name is dropped from both the sum and the payload
-    (`asuransi/page.tsx:535-546`).
+- [x] ### D — Financial products that are missing their core mechanics ✅
+  - **D1** — [x] (already done, pre-existing — shipped under EPIC-024/025/026)
+    Liabilities cannot be edited, deleted, or paid.
+  - **D2** — [x] Investments have no buy/sell, no lots, no history. An "edit"
+    overwrites quantity and cost basis wholesale; there is no realised P/L and
+    no disposal path. (Scoped to weighted-average cost + buy/sell history, not
+    full FIFO/lot accounting — see Automation Log.)
+  - **D3** — [x] (mostly already done via EPIC-023/024 — real feeds + honest
+    labeling were already wired; only the onboarding tour's dishonest
+    real-time claim needed fixing) Investment prices are mock data, surfaced
+    raw.
+  - **D4** — [x] (already done, pre-existing) Insurance premium payment
+    records no expense.
+  - **D5** — [x] (totals already fixed via EPIC-023 H1; edit/delete UI was
+    the real remaining gap, added here) Asset value estimates are unlabelled
+    in every total.
+  - **D6** — [x] Beneficiary/heir under-allocation is never warned.
 
-- [ ] ### E — Zakat and tax must not state rulings they cannot support
+- [x] ### E — Zakat and tax must not state rulings they cannot support ✅
   - **E1 — Zakat asserts _wajib_ with no haul check.** The engine is a pure
     balance-sheet snapshot (`calculators.service.ts:39-48`); nothing stores a
     holding period, yet the copy claims "nisab & haul (1 tahun)"
@@ -229,37 +226,37 @@ parseFloat(inv.quantity)` (`laporan/page.tsx:1655-1657`), but the API
   - **E7 — Zakat liabilities field means two different things** on `/kalkulator`
     ("Hutang / Liabilitas") vs `/donation` ("Utang Jatuh Tempo").
 
-- [ ] ### F — Errors, permissions and empty states
-  - **F1 — Server error messages are swallowed app-wide.** Bare
+- [x] ### F — Errors, permissions and empty states ✅
+  - **F1** — [x] Server error messages are swallowed app-wide. Bare
     `catch { toast.error(constant) }` in goals, investments, accounts, categories,
     donations and more — including 409s whose Indonesian text was written
     specifically to tell the user what to do (`accounts.service.ts:179-181`).
     Adopt one shared error surface.
-  - **F2 — Failed saves still close the modal and discard input**
+  - **F2** — [x] Failed saves still close the modal and discard input
     (`crud-modal.tsx:130-137`) because page handlers swallow the error, so
     `onSubmit` never rejects.
-  - **F3 — Role-gating is absent in the UI.** Accounts, COA, categories, budgets,
+  - **F3** — [x] Role-gating is absent in the UI. Accounts, COA, categories, budgets,
     goals and investments render full CRUD to every role while CASL restricts
     most of it to `owner` — the user fills a form and gets a 403. Also: a
     `member` can never create a budget, because the flow POSTs a category first
     and members only have `read Category`.
-  - **F4 — Uncaught Prisma constraint violations return 500.** Duplicate account
-    name (P2002), duplicate budget, COA in use (P2003) all surface as "Internal
-    server error" instead of an explanatory 409.
-  - **F5 — Failed fetches render as successful empty states.** `/mastercoa`
+  - **F4** — [x] (already done, pre-existing) Uncaught Prisma constraint violations return 500.
+    Duplicate account name (P2002), duplicate budget, COA in use (P2003) all
+    surface as "Internal server error" instead of an explanatory 409.
+  - **F5** — [x] Failed fetches render as successful empty states. `/mastercoa`
     ("Total Akun COA: 0"), `/dana` ("Total Dana Rp 0") and others have no
     `isError` branch — an API outage looks like an empty account.
-  - **F6 — Dead form fields across the app.** Account edit renders Nama Bank /
+  - **F6** — [x] Dead form fields across the app. Account edit renders Nama Bank /
     Nomor Rekening / Jenis that are never prefilled and never sent; `/akun`'s
     account form drops `isPrivate` (a privacy control) and `ownerUserId`; the
     e-wallet edit's provider select can silently rename an account; reference
     master-data groups open a full form and only reveal they are read-only after
     submit.
-  - **F7 — Category `kind` ↔ COA `direction` is unvalidated on both sides** — an
-    income category can be mapped to an EXPENSE COA account, and reports then
+  - **F7** — [x] Category `kind` ↔ COA `direction` is unvalidated on both sides —
+    an income category can be mapped to an EXPENSE COA account, and reports then
     classify its income as expense (`categories.service.ts:118-134`).
 
-- [ ] ### G — Responsive and modal layout pass
+- [x] ### G — Responsive and modal layout pass ✅
   - **G1 (VERIFIED BLOCKER) — the warisan dialog becomes unusable on a phone once
     heirs are added.** Empty, it already fills 843 of 844px with **no internal
     scroll**. Measured at 390×844 after adding three heirs: the dialog grows to
@@ -431,3 +428,221 @@ unexplained failed requests on every route.
   `localhost:3000` from the public origin and every sign-in was blocked by CORS.
   Fixed by redeploying through `scripts/deploy-dev.sh`; login verified working
   again. Worth a guard so it cannot recur silently. (b) G1 above.
+- 2026-09-02 — Documentary QA audit (code vs. this log, no live DEV access
+  from this sandbox; the repo has moved well past this log's 2026-08-04
+  date — EPIC-023/024/027 have since landed and file paths moved, e.g.
+  `apps/web/components/...` → `apps/web/src/components/...`).
+  **A, B, E, G — confirmed done**, no contradictions between this log and
+  the code (invitation `role`/`relationship` fields, balance-sheet's
+  `/dashboard/net-worth` cross-check, investments now counted in
+  `getBalanceSheet`, sinking-fund `projectedValue`, and the dialog
+  `vh`-override removal all spot-checked directly).
+  **C — genuinely still open**, matching this log: `budgets.service.ts`
+  still computes a hardcoded month window regardless of `budget.period` —
+  no `weekly`/`yearly` period-aware windowing exists anywhere in that file.
+  **D — this log is stale in D's favour, not against it**: D1 (liabilities
+  edit/delete/pay) and D4 (insurance payment moves real money) are **done**,
+  merged under EPIC-024/025/026, not credited here. D2 (investment
+  lot/buy-sell/realized P&L) is confirmed **still open** —
+  `schema.prisma`'s `Investment` model still has one mutable
+  `quantity`/`costBasisPerUnit`, no lot model exists.
+  **F — worse than "not started", and mixed even where marked done**:
+  F1's shared error-surface hook (`use-api-error.ts`) exists but has **zero
+  callers** — 12 page files each duplicate their own
+  `extractApiErrorMessage` instead, and `tujuan/page.tsx` still discards
+  the server's real message on a bare `catch`. F2's `CrudModal` fix (stay
+  open on a failed save) is real, but `rekening/page.tsx` swallows its own
+  error internally before `CrudModal` ever sees it, so the modal still
+  closes there on a failed save. F3 (role-gating in the UI) is confirmed
+  still open — no `can(`/`myRole` gating anywhere in `anggaran/page.tsx`.
+  F4 (Prisma-constraint → 409 mapping) is **more done than credited**:
+  `P2002`/`P2003`/`P2034` are all handled with tests. F6 is partially done
+  for accounts only.
+  **Net: 4 of 7 groups (A, B, E, G) done; C fully open; D and F are each a
+  real mix of done-elsewhere and still-broken, worse for F than this log's
+  own "remaining: D, F" line implies.** Status unchanged (`on-progress`) —
+  this is accurately reflected, not a case for `ready-for-qa`. Next
+  actionable work, in the order a reviewer should pick it up: fix F1's dead
+  hook (wire it into the 12 duplicated call sites, starting with
+  `rekening/page.tsx` and `tujuan/page.tsx` since those two demonstrably
+  still swallow real server errors), then C1's period-aware budget window,
+  then D2's investment lot model.
+- 2026-09-02 /epic-loop EPIC-022 #F "Errors, permissions and empty states"
+  → PASS (attempts: 1 + one fix round). New shared role-gating hook
+  `use-role-permissions.ts` (`useCanManage`) mirrors the real CASL `manage`
+  grants for Account/CoaAccount/Category/ReferenceItem/Budget/Goal/
+  Investment exactly — verified line-by-line against
+  `casl-ability.factory.ts` by two independent gates — and is wired into
+  `rekening`, `mastercoa`, `masterdata`, `anggaran`, `tujuan`, `investasi`,
+  `akun` as client-side UX only; the real authorization boundary stays
+  server-side CASL/`@CheckAbility`, confirmed unchanged. Closes the
+  "member can never create a budget" bug named in the epic text: the
+  budget dialog now picks an existing category instead of POSTing one when
+  the acting role can't manage `Category`. F1's shared error hook
+  (`use-api-error.ts`, previously dead code with zero callers) now has real
+  callers in `tujuan`, `investasi`, `donation`, `quickinput`,
+  `laporan-inner`. F2's actual bug in most cases was pages catching their
+  own error and never rethrowing, so `CrudModal` closed on every failed
+  save regardless — worst instance was `masterdata/page.tsx`'s
+  `handleCrudSubmit`, a detached fire-and-forget `void (async () => {...})()`
+  that resolved (and closed the modal) before the request even settled,
+  success or failure. F5 added `isError` banners to `mastercoa`, `dana`,
+  `investasi`. F7's real gap was `categories.service.ts`'s `update()`
+  skipping direction re-validation on a kind-only PATCH — `create()` was
+  already correct; two new tests lock in reject/allow. F4 confirmed
+  already done, untouched.
+  Five gates ran: `review-qa-agent` PASS; a general `code-reviewer` agent
+  (substituting for the unavailable `ecc:react-reviewer`/
+  `ecc:typescript-reviewer` in this session) PASS with 2 MEDIUM fixed
+  before merge — prettier drift on 4 files, and missing test coverage for
+  the riskiest new branch (anggaran's member/existing-category flow,
+  investasi's `canManage` gating) — both closed with new tests
+  (`anggaran.test.tsx`, `investasi.test.tsx`); a `security-auditor` agent
+  (substituting for `ecc:security-reviewer`, also unavailable) PASS, 0
+  CRITICAL/HIGH/MEDIUM; `security-agent` PASS (only the 4 pre-existing
+  transitive dependency advisories, unrelated to this diff). **Test gate
+  needed manual adjudication**: the raw run reported failures, but every
+  one was confirmed non-reproducing when its file was run alone — 4 web
+  timeouts (dana/aset/warisan, untouched by this diff) under the default
+  parallel run, and 11 `transaction-dialog.test.tsx` failures under a
+  `--runInBand` full-suite run, traced to that file leaking
+  `navigator.mediaDevices` global state across files (51/51 pass in
+  isolation; this diff never touches that file). Both are pre-existing
+  sandbox/test-infra artifacts, the same class already documented in
+  EPIC-023's log. Final counts: API 1482/1482 (123 suites) clean under
+  `--runInBand`; web's own targeted + full runs clean once isolated.
+  **Note for whoever runs this epic's remaining groups**: `ecc:*` reviewer
+  agents referenced throughout this epic's "Agent Routing" section are not
+  actually installed/callable as agents in this session, despite
+  `CLAUDE.md` assuming they are — substituted the closest available
+  general-purpose equivalents (`code-reviewer`, `security-auditor`) and
+  recorded the substitution here rather than silently skipping the gate.
+- 2026-09-02 /epic-loop EPIC-022 #C "Budgets and goals behave unlike real
+  budgets and goals" → PASS (attempts: 2). New
+  `apps/api/src/common/utils/budget-period.util.ts` (WIB-anchored, following
+  the established `defaultMonthStartWib`/`payment-period.util.ts` shift-then-
+  `Date.UTC` pattern, not a new one) computes weekly (Monday-start,
+  documented default)/monthly/yearly windows and clamps a budget's spend
+  window to `max(periodStart, createdAt)` (C1, C3). `budgets.service.ts`
+  buckets spend by `[kind, start, end]` so same-period budgets still collapse
+  into one `groupBy`, and switches ordinary spend to COA-`EXPENSE`-direction
+  instead of raw `tx.type` (C6), matching what `reports.service.ts` already
+  does. New `transaction-alerts.util.ts` adds an already-alerted guard keyed
+  on the same period window so the 80% alert fires once per budget per
+  period, not on every transaction after (C4) — a named, `ponytail:`-flagged
+  limitation remains: the dedup match is on notification body containing the
+  category name, so one category name being a substring of another's in the
+  same family could suppress the wrong alert; same-family blast radius only,
+  not fixed here. `/anggaran` gained edit/delete UI gated by group F's
+  `canManageBudget` (C2). `goals.service.ts` recomputes status live on every
+  read instead of trusting the stored column, and fixed the heuristic that
+  flagged a brand-new long-horizon goal `at_risk` (C7); `currentAmount` at
+  creation is no longer discarded to 0 (C8, threaded through
+  `packages/contracts`). C9 was found already fixed by A4's prior work. C7's
+  required-Rp/month projection was deliberately NOT duplicated server-side —
+  `/tujuan` already computes the equivalent from fields already on `GoalDto`,
+  and this epic elsewhere (E6) names duplicate-formula divergence as its own
+  defect class.
+  **Real HIGH caught and fixed across two rounds**: C5's duplicate-budget
+  guard checked `familyGroupId + categoryId`, but the DB's actual unique
+  index is `[familyGroupId, categoryId, period]` — two concurrent creates for
+  the same category with DIFFERENT periods both passed the pre-check and
+  both inserted cleanly (no collision on the real index), leaving exactly the
+  double-counted state C5 exists to prevent. A code-review gate caught this;
+  the shipped fix wraps the pre-check + insert in one Serializable
+  transaction via this repo's existing `serializable-retry.util.ts` (already
+  used by liabilities/split-bills) rather than a migration — Postgres's SSI
+  detects the write-skew and aborts the loser with `P2034`, which retries
+  against the winner's now-committed row and 409s. No schema change needed;
+  the per-period unique index stays as same-period belt-and-suspenders only.
+  Five gates: `review-qa-agent` PASS (hand-verified the Monday-start/yearly
+  window math and the C4 dedup window's forward-period behavior); a
+  `code-reviewer` substitute FAILed once on the C5 finding above, PASS after
+  the fix; `security-auditor`/`security-agent` substitutes PASS (0
+  CRITICAL/HIGH/MEDIUM; confirmed every new query stays `familyGroupId`-
+  scoped, and C5's own check can't be used to probe another family's
+  category); `test-agent` PASS after confirming every reported parallel-run
+  failure was this sandbox's known jest-worker flakiness (isolated re-runs:
+  clean). A comment-only edit to the protected `apps/web/src/lib/goals-
+utils.ts` was reverted before commit — harmless, but no reason to touch a
+  "never modify" path for a comment.
+- 2026-09-02 /epic-loop EPIC-022 #D "Financial products that are missing
+  their core mechanics" → PASS (attempts: 2). **D1 and D4 confirmed already
+  done** (shipped under EPIC-024/025/026), untouched. **D2** — deliberately
+  scoped to weighted-average cost + a real buy/sell history, not full
+  FIFO/lot accounting (that would be a new feature epic, not a correctness
+  fix — the actual defect was the silent destructive overwrite, not the
+  absence of lot-level accounting): new `InvestmentTransaction` table
+  (additive migration), `recordTransaction()` computes a weighted-average
+  cost on buy and realized P/L on sell, refuses to oversell. **D3** — real
+  feeds and honest per-row labeling were already wired by EPIC-023/024; only
+  the onboarding tour's leftover "harga & untung/rugi terupdate real-time"
+  claim needed fixing (now states delayed-automated for saham/kripto,
+  manual for the rest). **D5** — EPIC-023 H1 already excluded the unlabelled
+  projection from every total; the real remaining gap was `/aset` having no
+  edit/delete UI at all, added here (reusing `RowActions`/
+  `ConfirmDeleteDialog`, gated by a new `useCanManage("Asset")`). **D6** — a
+  blank-name nonzero-share beneficiary row now blocks save instead of
+  silently vanishing from the sum; under-100% allocation warns but still
+  saves (may be intentional — remainder to the estate).
+  **Three real findings caught across the gates, all fixed before merge —
+  this was the epic's most heavily-scrutinized group, matching the risk of
+  a real schema migration touching money:**
+  1. **HIGH (`database-administrator`)** — `InvestmentTransaction`'s
+     `onDelete: Cascade` combined with an unguarded `remove()` let one
+     delete silently erase an investment's entire realized-P/L/buy-sell
+     history, contradicting this repo's own precedent (EPIC-023 chose
+     `SET NULL` specifically to protect transaction history from cascade
+     deletes). Fixed: `remove()` now refuses deletion with a named 409 when
+     any `InvestmentTransaction` rows exist, mirroring
+     `LiabilitiesService`'s "never a silent cascade" pattern; the schema
+     comment now states plainly that the guard is what makes `Cascade` safe.
+  2. **HIGH (`code-reviewer` + independently `security-auditor`)** —
+     `recordTransaction()`'s read of current `quantity`/`costBasisPerUnit`
+     happened OUTSIDE the transaction entirely (worse than non-serializable
+     — genuinely unprotected), so two concurrent buy/sells could both read
+     the same stale state and both commit, one silently overwriting the
+     other's effect while both still recorded an audit row that then
+     disagreed with the holding's real state. Fixed by moving the read
+     inside a `runSerializableWithRetry` transaction (this repo's own
+     established pattern, already used by `LiabilitiesService.pay()`),
+     mirrored exactly.
+  3. **HIGH (`security-auditor`)** — the generic `PATCH .../investments/:id`
+     endpoint still accepted a raw `quantity`/`costBasisPerUnit` overwrite
+     with zero validation, completely bypassing the new buy/sell mechanism
+     server-side — the frontend disabling those inputs was UI-only, and a
+     direct API call reached the exact silent-overwrite defect D2 exists to
+     close. **This is the most important finding of the group**: it shows
+     `review-qa-agent`'s PASS trusted client-side gating as if it were the
+     real control, while the independent security pass correctly treated it
+     as decoration. Fixed: `update()` now explicitly rejects a
+     `quantity`/`costBasisPerUnit` change for any non-`deposito` investment
+     type (checked in the service against the resolved type, never trusted
+     from the DTO), with deposito kept as the sole, deliberate exception
+     since it has no lot/buy-sell concept.
+  4. **MEDIUM** — `create()`/`update()` accepted a negative
+     quantity/cost-basis with only `@IsNumberString()` validation. Added the
+     same sign checks `recordTransaction()` already had.
+     Six gates ran (the usual five plus a `database-administrator` pass for the
+     migration): `review-qa-agent` PASS (hand-verified the weighted-average and
+     realized-P/L math against golden values — but see finding 3's process
+     note above); `code-reviewer` substitute FAILed on finding 2, PASS after;
+     `database-administrator` FAILed on finding 1, PASS after;
+     `security-auditor` substitute FAILed on findings 2 and 3 independently
+     (confirming code-reviewer's finding 2 from a different angle, and finding
+     3 on its own), PASS after; `security-agent` PASS; `test-agent` reported
+     FAIL on two files it did not actually re-run in isolation despite being
+     asked to — verified directly instead (`tujuan.test.tsx`/`anggaran.test.tsx`
+     --runInBand: 8/8 pass, confirming the sandbox's known parallel-jest
+     flakiness, not a regression). Final: API 1525/1525 (125 suites), web
+     targeted suites clean. **All seven of EPIC-022's task groups (A-G) are now
+     done.** Status moved `on-progress` → `ready-for-qa`: every task group's
+     gates passed and merged (3 stacked PRs: #322 group F, #323 group C, #324
+     group D — all pending merge, none blocked). **DEV deploy not run from
+     this sandbox** — no repo-root `.env`, no wealthme containers/volumes here
+     (same gap already recorded for EPIC-023/027). D2's migration in
+     particular needs a real `prisma migrate deploy` verification against the
+     actual DEV host before this can go `done`; nothing else in this epic
+     required a schema change. Human QA should also spot-check finding 3
+     above's lesson directly: confirm no other page in the app relies on
+     client-side role/field gating as if it were the real server boundary.

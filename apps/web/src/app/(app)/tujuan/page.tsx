@@ -17,6 +17,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { useLocale } from "@/hooks/use-locale";
+import { useApiError } from "@/hooks/use-api-error";
+import { useCanManage } from "@/hooks/use-role-permissions";
 import type { Locale } from "@/i18n";
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah } from "@/lib/format";
@@ -158,6 +160,7 @@ interface GoalCardProps {
   goal: GoalDto;
   onEdit: (goal: GoalDto) => void;
   onDelete: (goal: GoalDto) => void;
+  canManage: boolean;
 }
 
 function isEducationGoal(goal: GoalDto): boolean {
@@ -165,7 +168,7 @@ function isEducationGoal(goal: GoalDto): boolean {
   return name.includes("pendidikan") || name.includes("education");
 }
 
-function GoalCard({ goal, onEdit, onDelete }: GoalCardProps) {
+function GoalCard({ goal, onEdit, onDelete, canManage }: GoalCardProps) {
   const { t, locale } = useLocale();
   const { label, variant, color, stripColor, iconBg } = statusToBadge(
     goal.status,
@@ -277,20 +280,24 @@ function GoalCard({ goal, onEdit, onDelete }: GoalCardProps) {
           </div>
         )}
 
-        <div className="mt-2.5 grid grid-cols-2 gap-1.5">
-          <button
-            onClick={() => onEdit(goal)}
-            className="flex items-center justify-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[11px] font-semibold transition-colors hover:bg-accent"
-          >
-            <Pencil className="size-[13px]" /> {t.tujuan.editButton}
-          </button>
-          <button
-            onClick={() => onDelete(goal)}
-            className="flex items-center justify-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[11px] font-semibold text-destructive transition-colors hover:bg-destructive/5"
-          >
-            <Trash2 className="size-[13px]" /> {t.tujuan.deleteButton}
-          </button>
-        </div>
+        {/* F3 — CASL grants "manage Goal" only to owner/spouse/member;
+            admin_staff/dependant/operational get 403 on edit/delete. */}
+        {canManage && (
+          <div className="mt-2.5 grid grid-cols-2 gap-1.5">
+            <button
+              onClick={() => onEdit(goal)}
+              className="flex items-center justify-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[11px] font-semibold transition-colors hover:bg-accent"
+            >
+              <Pencil className="size-[13px]" /> {t.tujuan.editButton}
+            </button>
+            <button
+              onClick={() => onDelete(goal)}
+              className="flex items-center justify-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[11px] font-semibold text-destructive transition-colors hover:bg-destructive/5"
+            >
+              <Trash2 className="size-[13px]" /> {t.tujuan.deleteButton}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -302,6 +309,8 @@ export default function TujuanPage() {
   const token = session?.accessToken;
   const familyGroupId = session?.familyGroupId;
   const queryClient = useQueryClient();
+  const { handleError } = useApiError();
+  const { canManage } = useCanManage("Goal");
 
   const [crud, setCrud] = useState<CrudModalState | null>(null);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
@@ -402,8 +411,13 @@ export default function TujuanPage() {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.goals.all(familyGroupId),
       });
-    } catch {
-      toast.error(t.tujuan.toastSaveFailed);
+    } catch (err) {
+      // F1/F2 — surface the server's real message (e.g. a validation reason)
+      // instead of a generic constant, AND rethrow so CrudModal's own
+      // `await onSubmit(...)` rejects and skips its `onClose()` — a failed
+      // save must not discard what the user typed.
+      handleError(err);
+      throw err;
     }
   }
 
@@ -418,8 +432,8 @@ export default function TujuanPage() {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.goals.all(familyGroupId),
       });
-    } catch {
-      toast.error(t.tujuan.toastDeleteFailed);
+    } catch (err) {
+      handleError(err);
     } finally {
       setDeletingGoal(null);
     }
@@ -446,13 +460,15 @@ export default function TujuanPage() {
             {t.tujuan.trackerDisclaimer}
           </div>
         </div>
-        <Button
-          onClick={() => setCrud({ entity: "tujuan", mode: "add" })}
-          disabled={!familyGroupId}
-          className="h-auto px-[18px] py-2.5"
-        >
-          <Plus className="size-4" /> {t.tujuan.addGoalButton}
-        </Button>
+        {canManage && (
+          <Button
+            onClick={() => setCrud({ entity: "tujuan", mode: "add" })}
+            disabled={!familyGroupId}
+            className="h-auto px-[18px] py-2.5"
+          >
+            <Plus className="size-4" /> {t.tujuan.addGoalButton}
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
@@ -568,6 +584,7 @@ export default function TujuanPage() {
                   goal={g}
                   onEdit={handleEdit}
                   onDelete={setDeletingGoal}
+                  canManage={!!canManage}
                 />
               </Rise>
             ))}
@@ -576,7 +593,7 @@ export default function TujuanPage() {
             {t.tujuan.emptyState}
           </div>
         )}
-        {!isLoading && !isError && (
+        {!isLoading && !isError && canManage && (
           <button
             type="button"
             onClick={() => setCrud({ entity: "tujuan", mode: "add" })}

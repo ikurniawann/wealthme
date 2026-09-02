@@ -15,6 +15,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
+import { useApiError } from "@/hooks/use-api-error";
 import { REPORT_TABS } from "@/lib/nav";
 import {
   getPeriodDateRange,
@@ -259,6 +260,7 @@ export function LaporanInner() {
   }
 
   const queryClient = useQueryClient();
+  const { handleError } = useApiError();
   const [showAddInv, setShowAddInv] = useState(false);
   const [editingInv, setEditingInv] = useState<InvestmentDto | null>(null);
   const [deletingInv, setDeletingInv] = useState<InvestmentDto | null>(null);
@@ -316,10 +318,8 @@ export function LaporanInner() {
       );
       setShowAddInv(false);
       setEditingInv(null);
-    } catch {
-      toast.error(
-        isEdit ? t.investasi.toastUpdateFailed : t.investasi.toastAddFailed,
-      );
+    } catch (err) {
+      handleError(err);
     } finally {
       setInvSubmitting(false);
     }
@@ -344,8 +344,8 @@ export function LaporanInner() {
       });
       toast.success(t.laporan.investasi.toastDeleted);
       setDeletingInv(null);
-    } catch {
-      toast.error(t.laporan.investasi.toastDeleteFailed);
+    } catch (err) {
+      handleError(err);
     } finally {
       setInvSubmitting(false);
     }

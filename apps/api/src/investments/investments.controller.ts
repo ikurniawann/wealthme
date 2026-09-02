@@ -20,11 +20,14 @@ import {
   type InvestmentDto,
   type InvestmentPriceDto,
   type InvestmentSummaryDto,
+  type InvestmentTransactionDto,
 } from "@wealthme/contracts";
 import { type Request as ExpressRequest } from "express";
 
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { CreateInvestmentTransactionDto } from "./dto/create-investment-transaction.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateInvestmentDto } from "./dto/create-investment.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -111,6 +114,39 @@ export class InvestmentsController {
       req.params.familyGroupId,
       id,
       dto,
+    );
+  }
+
+  @Post(":id/transactions")
+  @CheckAbility((ab) => ab.can("manage", "Investment"))
+  @ApiOperation({
+    summary:
+      "Record a buy or sell against a holding (EPIC-022 D2) — replaces the old silent quantity/costBasisPerUnit overwrite with a real, append-only history",
+  })
+  @ApiResponse({ status: 201, description: "Created InvestmentTransaction" })
+  recordTransaction(
+    @Request() req: ExpressRequest & { params: { familyGroupId: string } },
+    @Param("id") id: string,
+    @Body() dto: CreateInvestmentTransactionDto,
+  ): Promise<InvestmentTransactionDto> {
+    return this.investmentsService.recordTransaction(
+      req.params.familyGroupId,
+      id,
+      dto,
+    );
+  }
+
+  @Get(":id/transactions")
+  @CheckAbility((ab) => ab.can("read", "Investment"))
+  @ApiOperation({ summary: "List the buy/sell history for one holding" })
+  @ApiResponse({ status: 200, description: "Array of InvestmentTransaction" })
+  findTransactions(
+    @Request() req: ExpressRequest & { params: { familyGroupId: string } },
+    @Param("id") id: string,
+  ): Promise<InvestmentTransactionDto[]> {
+    return this.investmentsService.findTransactions(
+      req.params.familyGroupId,
+      id,
     );
   }
 }
