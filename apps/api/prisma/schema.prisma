@@ -99,6 +99,13 @@ enum InvestmentType {
   deposito
 }
 
+// EPIC-022 D2 — the only two investment-transaction kinds: adding to a
+// position (buy, weighted-average cost) or reducing it (sell, realized P/L).
+enum InvestmentTxType {
+  buy
+  sell
+}
+
 enum LiabilityType {
   kartu_kredit
   pinjaman_pribadi
@@ -1019,9 +1026,42 @@ model Investment {
   updatedAt        DateTime          @updatedAt
   familyGroup      FamilyGroup       @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
   prices           InvestmentPrice[]
+  // EPIC-022 D2 — real buy/sell history, the honest counterpart to the
+  // generic "edit" that used to silently overwrite quantity/costBasisPerUnit
+  // with no trace of what changed or any realized P/L.
+  transactions     InvestmentTransaction[]
 
   @@index([familyGroupId])
   @@map("investments")
+}
+
+// EPIC-022 D2 — one buy or sell event against an Investment. `quantity` and
+// `pricePerUnit` are the transaction's own terms (never the holding's
+// post-transaction state); `realizedPnl` is set ONLY for a sell
+// ((pricePerUnit - costBasisPerUnit at the time of sale) × quantity) and is
+// always null for a buy. Additive/append-only: nothing here is ever
+// mutated or deleted by later transactions — this table IS the history the
+// old whole-record "edit" destroyed.
+model InvestmentTransaction {
+  id           String           @id @default(uuid())
+  investmentId String
+  type         InvestmentTxType
+  quantity     Decimal          @db.Decimal(18, 8)
+  pricePerUnit Decimal          @db.Decimal(18, 2)
+  occurredAt   DateTime
+  realizedPnl  Decimal?         @db.Decimal(18, 2)
+  createdAt    DateTime         @default(now())
+  // HIGH (EPIC-022 D2 retry) — `onDelete: Cascade` here is safe ONLY
+  // because `InvestmentsService.remove()` refuses to delete an Investment
+  // while any InvestmentTransaction row references it (mirrors
+  // `LiabilitiesService.remove()`'s budget-line guard). If that
+  // service-level guard is ever removed, this FK will silently cascade-
+  // delete a holding's entire realized buy/sell/P-L history — do not trust
+  // this comment over the actual state of `InvestmentsService.remove()`.
+  investment   Investment       @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+
+  @@index([investmentId, occurredAt])
+  @@map("investment_transactions")
 }
 
 model InvestmentPrice {

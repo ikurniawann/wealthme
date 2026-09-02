@@ -181,35 +181,23 @@ parseFloat(inv.quantity)` (`laporan/page.tsx:1655-1657`), but the API
   - **C9** — [x] No way to withdraw from a goal or zero it (`@IsPositive`
     rejects 0). (Found already fixed by A4's `@Min(0)` on `UpdateGoalDto`.)
 
-- [ ] ### D — Financial products that are missing their core mechanics
-  - **D1 — Liabilities cannot be edited, deleted, or paid.** `/liabilitas` is
-    create-only; `remainingBalance` is typed once and can never change. There is
-    no payment recording, no interest accrual, no amortisation/cicilan schedule,
-    and no minimum-payment warning. For a credit card there is no statement
-    balance, no available credit, no billing cycle. The `PATCH` endpoint exists
-    and is never called (`liabilities.controller.ts:76`).
-  - **D2 — Investments have no buy/sell, no lots, no history.** An "edit"
-    overwrites quantity and cost basis wholesale; there is no realised P/L and no
-    disposal path. `InvestmentPrice` exists but no investment-transaction model
-    does.
-  - **D3 — Investment prices are mock data, surfaced raw.** The detail row prints
-    the literal string `mock` under "Sumber Harga" (`investasi/page.tsx:754`,
-    from `mock-market-data.adapter.ts:25`), with no badge or warning — while the
-    onboarding tour claims "harga & untung/rugi terupdate real-time"
-    (`i18n/id.ts:663`). Either label the mock honestly everywhere or stop
-    claiming real-time.
-  - **D4 — Insurance premium payment records no expense.** "Bayar" only advances
-    `renewalDate`; no transaction, no cashflow impact (`asuransi/page.tsx:902-924`).
-    The copy is honest about this, but the premium never appears in expenses.
-  - **D5 — Asset value estimates are unlabelled in every total.** The
-    `(estimasi)` marker appears only on the row (`aset/page.tsx:402-407`); group
-    totals and the "Total Aset" banner silently include depreciated/appreciated
-    values. Assets also have no edit/delete UI, and the existing
-    `GET /assets/:id/history` endpoint has no consumer.
-  - **D6 — Beneficiary/heir under-allocation is never warned.** Over 100% is
-    blocked at save; under 100% saves silently, and a row with a percentage but a
-    blank name is dropped from both the sum and the payload
-    (`asuransi/page.tsx:535-546`).
+- [x] ### D — Financial products that are missing their core mechanics ✅
+  - **D1** — [x] (already done, pre-existing — shipped under EPIC-024/025/026)
+    Liabilities cannot be edited, deleted, or paid.
+  - **D2** — [x] Investments have no buy/sell, no lots, no history. An "edit"
+    overwrites quantity and cost basis wholesale; there is no realised P/L and
+    no disposal path. (Scoped to weighted-average cost + buy/sell history, not
+    full FIFO/lot accounting — see Automation Log.)
+  - **D3** — [x] (mostly already done via EPIC-023/024 — real feeds + honest
+    labeling were already wired; only the onboarding tour's dishonest
+    real-time claim needed fixing) Investment prices are mock data, surfaced
+    raw.
+  - **D4** — [x] (already done, pre-existing) Insurance premium payment
+    records no expense.
+  - **D5** — [x] (totals already fixed via EPIC-023 H1; edit/delete UI was
+    the real remaining gap, added here) Asset value estimates are unlabelled
+    in every total.
+  - **D6** — [x] Beneficiary/heir under-allocation is never warned.
 
 - [x] ### E — Zakat and tax must not state rulings they cannot support ✅
   - **E1 — Zakat asserts _wajib_ with no haul check.** The engine is a pure
@@ -578,3 +566,74 @@ unexplained failed requests on every route.
   clean). A comment-only edit to the protected `apps/web/src/lib/goals-
 utils.ts` was reverted before commit — harmless, but no reason to touch a
   "never modify" path for a comment.
+- 2026-09-02 /epic-loop EPIC-022 #D "Financial products that are missing
+  their core mechanics" → PASS (attempts: 2). **D1 and D4 confirmed already
+  done** (shipped under EPIC-024/025/026), untouched. **D2** — deliberately
+  scoped to weighted-average cost + a real buy/sell history, not full
+  FIFO/lot accounting (that would be a new feature epic, not a correctness
+  fix — the actual defect was the silent destructive overwrite, not the
+  absence of lot-level accounting): new `InvestmentTransaction` table
+  (additive migration), `recordTransaction()` computes a weighted-average
+  cost on buy and realized P/L on sell, refuses to oversell. **D3** — real
+  feeds and honest per-row labeling were already wired by EPIC-023/024; only
+  the onboarding tour's leftover "harga & untung/rugi terupdate real-time"
+  claim needed fixing (now states delayed-automated for saham/kripto,
+  manual for the rest). **D5** — EPIC-023 H1 already excluded the unlabelled
+  projection from every total; the real remaining gap was `/aset` having no
+  edit/delete UI at all, added here (reusing `RowActions`/
+  `ConfirmDeleteDialog`, gated by a new `useCanManage("Asset")`). **D6** — a
+  blank-name nonzero-share beneficiary row now blocks save instead of
+  silently vanishing from the sum; under-100% allocation warns but still
+  saves (may be intentional — remainder to the estate).
+  **Three real findings caught across the gates, all fixed before merge —
+  this was the epic's most heavily-scrutinized group, matching the risk of
+  a real schema migration touching money:**
+  1. **HIGH (`database-administrator`)** — `InvestmentTransaction`'s
+     `onDelete: Cascade` combined with an unguarded `remove()` let one
+     delete silently erase an investment's entire realized-P/L/buy-sell
+     history, contradicting this repo's own precedent (EPIC-023 chose
+     `SET NULL` specifically to protect transaction history from cascade
+     deletes). Fixed: `remove()` now refuses deletion with a named 409 when
+     any `InvestmentTransaction` rows exist, mirroring
+     `LiabilitiesService`'s "never a silent cascade" pattern; the schema
+     comment now states plainly that the guard is what makes `Cascade` safe.
+  2. **HIGH (`code-reviewer` + independently `security-auditor`)** —
+     `recordTransaction()`'s read of current `quantity`/`costBasisPerUnit`
+     happened OUTSIDE the transaction entirely (worse than non-serializable
+     — genuinely unprotected), so two concurrent buy/sells could both read
+     the same stale state and both commit, one silently overwriting the
+     other's effect while both still recorded an audit row that then
+     disagreed with the holding's real state. Fixed by moving the read
+     inside a `runSerializableWithRetry` transaction (this repo's own
+     established pattern, already used by `LiabilitiesService.pay()`),
+     mirrored exactly.
+  3. **HIGH (`security-auditor`)** — the generic `PATCH .../investments/:id`
+     endpoint still accepted a raw `quantity`/`costBasisPerUnit` overwrite
+     with zero validation, completely bypassing the new buy/sell mechanism
+     server-side — the frontend disabling those inputs was UI-only, and a
+     direct API call reached the exact silent-overwrite defect D2 exists to
+     close. **This is the most important finding of the group**: it shows
+     `review-qa-agent`'s PASS trusted client-side gating as if it were the
+     real control, while the independent security pass correctly treated it
+     as decoration. Fixed: `update()` now explicitly rejects a
+     `quantity`/`costBasisPerUnit` change for any non-`deposito` investment
+     type (checked in the service against the resolved type, never trusted
+     from the DTO), with deposito kept as the sole, deliberate exception
+     since it has no lot/buy-sell concept.
+  4. **MEDIUM** — `create()`/`update()` accepted a negative
+     quantity/cost-basis with only `@IsNumberString()` validation. Added the
+     same sign checks `recordTransaction()` already had.
+     Six gates ran (the usual five plus a `database-administrator` pass for the
+     migration): `review-qa-agent` PASS (hand-verified the weighted-average and
+     realized-P/L math against golden values — but see finding 3's process
+     note above); `code-reviewer` substitute FAILed on finding 2, PASS after;
+     `database-administrator` FAILed on finding 1, PASS after;
+     `security-auditor` substitute FAILed on findings 2 and 3 independently
+     (confirming code-reviewer's finding 2 from a different angle, and finding
+     3 on its own), PASS after; `security-agent` PASS; `test-agent` reported
+     FAIL on two files it did not actually re-run in isolation despite being
+     asked to — verified directly instead (`tujuan.test.tsx`/`anggaran.test.tsx`
+     --runInBand: 8/8 pass, confirming the sandbox's known parallel-jest
+     flakiness, not a regression). Final: API 1525/1525 (125 suites), web
+     targeted suites clean. **All seven of EPIC-022's task groups (A-G) are now
+     done.**

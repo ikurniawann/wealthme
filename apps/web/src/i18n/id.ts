@@ -931,7 +931,7 @@ export const id = {
       },
       investasi: {
         title: "Investasi",
-        desc: 'Klik "+ Tambah Investasi", pilih jenis aset (saham, reksa dana, emas, kripto) — harga & untung/rugi terupdate real-time.',
+        desc: 'Klik "+ Tambah Investasi", pilih jenis aset (saham, reksa dana, emas, kripto) — saham & kripto dapat harga otomatis (delayed), lainnya kamu isi manual; untung/rugi terhitung otomatis dari harga yang tersedia.',
       },
       aset: {
         title: "Aset",
@@ -1202,6 +1202,10 @@ export const id = {
     allocationFullyAllocated: "Teralokasi penuh (100%)",
     validationSharePercentExceeded:
       "Total persentase ahli waris tidak boleh lebih dari 100%",
+    validationBeneficiaryNameRequired:
+      "Ahli waris dengan persentase harus punya nama — isi nama atau hapus baris ini",
+    validationShareUnderAllocated:
+      "Baru {pct}% dialokasikan — sisanya tidak tercatat ke ahli waris manapun (mungkin memang disengaja, misalnya sisa ke ahli waris sesuai hukum waris)",
     beneficiaryMemberPickerUnavailable:
       "Daftar anggota keluarga tidak tersedia untuk peran Anda — isi nama secara manual.",
     coverageAllocationTitle: "Uang Pertanggungan per Jenis",
@@ -1712,6 +1716,29 @@ export const id = {
     hintName: "Nama lengkap yang akan tampil di daftar kepemilikan.",
     hintPurchaseDate: "Dipakai untuk menghitung lama kepemilikan.",
     hintLotConversion: "1 lot = 100 lembar (aturan IDX).",
+    hintQuantityLocked:
+      'Jumlah hanya bisa berubah lewat "Beli Lagi" / "Jual" — bukan dari sini.',
+    hintCostBasisLocked:
+      "Harga rata-rata dihitung otomatis dari riwayat beli/jual — bukan dari sini.",
+    buySellButtonLabel: "Beli / Jual",
+    buySellModalTitleBuy: "Catat Pembelian",
+    buySellModalTitleSell: "Catat Penjualan",
+    buySellTypeBuyLabel: "Beli",
+    buySellTypeSellLabel: "Jual",
+    buySellFieldQuantityLabel: "Jumlah",
+    buySellFieldPriceLabel: "Harga per Unit (Rp)",
+    buySellFieldDateLabel: "Tanggal Transaksi",
+    buySellSaveButton: "Simpan Transaksi",
+    buySellSaving: "Menyimpan...",
+    toastBuySuccess: "Pembelian dicatat — harga rata-rata diperbarui.",
+    toastSellSuccessTemplate: "Penjualan dicatat — P/L terealisasi {pnl}.",
+    toastBuySellFailed: "Gagal mencatat transaksi. Coba lagi.",
+    detailRealizedPnlLabel: "P/L Terealisasi",
+    historySectionTitle: "Riwayat Beli/Jual",
+    historyEmptyLabel: "Belum ada transaksi beli/jual tercatat.",
+    historyBuyLabel: "Beli",
+    historySellLabel: "Jual",
+    historyRealizedPnlTemplate: "P/L: {pnl}",
   },
   aset: {
     tabs: {
@@ -1752,7 +1779,13 @@ export const id = {
     errorLoad: "Gagal memuat sebagian data aset. Silakan refresh halaman.",
     toastAdded: "Aset berhasil ditambahkan",
     toastAddFailed: "Gagal menambahkan aset. Silakan coba lagi.",
+    toastUpdated: "Aset berhasil diperbarui",
+    toastUpdateFailed: "Gagal memperbarui aset. Silakan coba lagi.",
+    toastDeleted: "Aset dihapus",
+    toastDeleteFailed: "Gagal menghapus aset. Silakan coba lagi.",
+    deleteDialogBody: "Riwayat nilai aset ini juga akan dihapus.",
     modalTitle: "Tambah Aset Fisik",
+    modalTitleEdit: "Edit Aset Fisik",
     fieldNameLabel: "Nama Aset",
     fieldNamePlaceholder: "cth. Apartemen Kelapa Gading",
     fieldCategoryLabel: "Kategori",

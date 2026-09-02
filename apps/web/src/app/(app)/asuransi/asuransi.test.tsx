@@ -149,3 +149,93 @@ describe("AsuransiPage — beneficiary picker (EPIC-023 F1)", () => {
     expect(nameInput).not.toBeDisabled();
   });
 });
+
+// EPIC-022 D6 — a beneficiary row with a nonzero share but a blank name
+// used to be silently dropped from BOTH the sum and the payload; and
+// under-allocation saved with no warning at all.
+describe("AsuransiPage — beneficiary allocation validation (EPIC-022 D6)", () => {
+  const toastWarning = jest.requireMock("sonner").toast.warning as jest.Mock;
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    queryClient.clear();
+    toastWarning.mockClear();
+
+    mockUseSessionAuth.mockReturnValue({
+      data: {
+        session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
+        user: { id: "user-1", name: "Test User", email: "user@example.com" },
+      },
+      isPending: false,
+    });
+  });
+
+  async function fillBasePolicyFields(
+    user: ReturnType<typeof userEvent.setup>,
+  ) {
+    await user.type(screen.getByLabelText(/nama asuransi/i), "Asuransi Jiwa");
+    await user.type(screen.getByLabelText(/premi \(rp\)/i), "100000");
+  }
+
+  it("blocks save when a beneficiary row has a share percentage but a blank name", async () => {
+    mockApiFetchDefault("ok");
+    render(<AsuransiPage />);
+    const user = await openBeneficiaryEditor();
+    await fillBasePolicyFields(user);
+
+    await user.type(screen.getByPlaceholderText(/persentase/i), "50");
+    await user.click(screen.getByRole("button", { name: /simpan asuransi/i }));
+
+    expect(toastWarning).toHaveBeenCalledWith(expect.stringMatching(/nama/i));
+    // The save must not have gone through — no POST fired.
+    expect(mockApiFetch).not.toHaveBeenCalledWith(
+      `/family-groups/${FAMILY_GROUP_ID}/insurances`,
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("warns (but still saves) when total allocation is under 100%", async () => {
+    mockApiFetch.mockImplementation(
+      (url: string, options?: { method?: string }) => {
+        if (
+          url === `/family-groups/${FAMILY_GROUP_ID}/insurances` &&
+          options?.method === "POST"
+        ) {
+          return Promise.resolve({ id: "ins-1" });
+        }
+        if (url === `/family-groups/${FAMILY_GROUP_ID}/insurances`) {
+          return Promise.resolve([]);
+        }
+        if (url === `/family-groups/${FAMILY_GROUP_ID}/insurances/summary`) {
+          return Promise.resolve({
+            activePolicies: 0,
+            totalMonthlyPremium: "0",
+            currency: "IDR",
+          });
+        }
+        if (url === `/family-groups/${FAMILY_GROUP_ID}/members`) {
+          return Promise.resolve(MEMBER_LIST);
+        }
+        return Promise.reject(new Error(`unexpected url: ${url}`));
+      },
+    );
+    render(<AsuransiPage />);
+    const user = await openBeneficiaryEditor();
+    await fillBasePolicyFields(user);
+
+    await user.type(
+      screen.getByPlaceholderText(/siti arsandi/i),
+      "Siti Arsandi",
+    );
+    await user.type(screen.getByPlaceholderText(/persentase/i), "50");
+    await user.click(screen.getByRole("button", { name: /simpan asuransi/i }));
+
+    expect(toastWarning).toHaveBeenCalledWith(expect.stringMatching(/50%/));
+    // Unlike the blank-name case, the save DOES proceed (this is a warning,
+    // not a block — under-allocation may be intentional).
+    expect(mockApiFetch).toHaveBeenCalledWith(
+      `/family-groups/${FAMILY_GROUP_ID}/insurances`,
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+});

@@ -13,6 +13,7 @@ import { useMyRole } from "./use-my-role";
 
 type ManagedSubject =
   | "Account"
+  | "Asset"
   | "CoaAccount"
   | "Category"
   | "ReferenceItem"
@@ -25,6 +26,9 @@ type ManagedSubject =
 // subject and must not be offered create/edit/delete for it.
 const MANAGE_ROLES: Record<ManagedSubject, ReadonlySet<string>> = {
   Account: new Set(["owner", "spouse"]),
+  // EPIC-022 D5 — matches casl-ability.factory.ts's `can("manage", "Asset")`
+  // grants (owner/spouse/member; admin_staff only has "read").
+  Asset: new Set(["owner", "spouse", "member"]),
   CoaAccount: new Set(["owner", "spouse"]),
   Category: new Set(["owner", "spouse"]),
   ReferenceItem: new Set(["owner", "spouse"]),

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Inject,
   Injectable,
   Logger,
@@ -7,20 +8,24 @@ import {
 } from "@nestjs/common";
 import { Decimal } from "@prisma/client/runtime/library";
 
+import { runSerializableWithRetry } from "../common/utils/serializable-retry.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
 import { UnmappedTickerError } from "./coingecko-market-data.adapter";
 import { isAutomatedPriceType, MARKET_DATA_PORT } from "./market-data.port";
 
+import type { CreateInvestmentTransactionDto } from "./dto/create-investment-transaction.dto";
 import type { CreateInvestmentDto } from "./dto/create-investment.dto";
 import type { SetManualPriceDto } from "./dto/set-manual-price.dto";
 import type { UpdateInvestmentDto } from "./dto/update-investment.dto";
 import type { MarketDataPort } from "./market-data.port";
+import type { TxClient } from "../common/utils/serializable-retry.util";
 import type {
   InvestmentDto,
   InvestmentPriceDto,
   InvestmentSummaryDto,
+  InvestmentTransactionDto,
 } from "@wealthme/contracts";
 
 const ZERO = new Decimal(0);
@@ -35,6 +40,13 @@ function startOfDay(date: Date): Date {
 
 function decimalToString(d: Decimal | null): string {
   return d?.toString() ?? "0";
+}
+
+/** Unlike decimalToString, never fabricates "0" — null stays null (e.g. "no
+ * sell has ever been recorded" must read differently from "sold at exactly
+ * break-even"). */
+function decimalToStringOrNull(d: Decimal | null): string | null {
+  return d ? d.toString() : null;
 }
 
 /**
@@ -127,6 +139,24 @@ export class InvestmentsService {
     });
 
     const today = startOfDay(new Date());
+
+    // EPIC-022 D2 — realized P/L per holding: sum of `realizedPnl` across
+    // every SELL ever recorded against it. One grouped query for the whole
+    // page rather than N+1 per-holding queries.
+    const realizedTotals =
+      investments.length > 0
+        ? await this.prisma.investmentTransaction.groupBy({
+            by: ["investmentId"],
+            where: {
+              investmentId: { in: investments.map((inv) => inv.id) },
+              type: "sell",
+            },
+            _sum: { realizedPnl: true },
+          })
+        : [];
+    const realizedPnlByInvestment = new Map(
+      realizedTotals.map((r) => [r.investmentId, r._sum.realizedPnl]),
+    );
 
     const results = await Promise.all(
       investments.map(async (inv) => {
@@ -272,6 +302,9 @@ export class InvestmentsService {
             : null,
           purchasedAt: inv.purchasedAt?.toISOString() ?? null,
           maturityDate: inv.maturityDate?.toISOString() ?? null,
+          realizedPnlRp: decimalToStringOrNull(
+            realizedPnlByInvestment.get(inv.id) ?? null,
+          ),
           createdAt: inv.createdAt.toISOString(),
           updatedAt: inv.updatedAt.toISOString(),
         } satisfies InvestmentDto;
@@ -322,6 +355,8 @@ export class InvestmentsService {
     dto: CreateInvestmentDto,
   ): Promise<InvestmentDto> {
     this.assertValidInterestRatePct(dto.interestRatePct);
+    this.assertValidQuantity(dto.quantity);
+    this.assertValidCostBasis(dto.costBasisPerUnit);
 
     const investment = await this.prisma.investment.create({
       data: {
@@ -367,6 +402,7 @@ export class InvestmentsService {
       projectedAnnualYield: null,
       purchasedAt: investment.purchasedAt?.toISOString() ?? null,
       maturityDate: investment.maturityDate?.toISOString() ?? null,
+      realizedPnlRp: null,
       createdAt: investment.createdAt.toISOString(),
       updatedAt: investment.updatedAt.toISOString(),
     };
@@ -385,6 +421,32 @@ export class InvestmentsService {
     }
 
     this.assertValidInterestRatePct(dto.interestRatePct);
+
+    // Security review HIGH (EPIC-022 D2 retry) — `quantity`/`costBasisPerUnit`
+    // must NEVER be settable through this generic edit endpoint for a
+    // lot-tracked holding: that's exactly the silent, unvalidated,
+    // un-audited overwrite `recordTransaction()` was built to replace, and
+    // the frontend disabling those inputs is UI-only (a direct API call
+    // bypasses it entirely). Deposito is the sole exception — it has no
+    // lot/buy-sell concept and its "costBasisPerUnit" is just a
+    // typo-correctable nominal — and even then the value must still be
+    // positive/non-negative (see assertValidQuantity/assertValidCostBasis).
+    // Gated on the type explicitly here, never trusted from the DTO alone.
+    const effectiveType = dto.type ?? existing.type;
+    if (
+      (dto.quantity !== undefined || dto.costBasisPerUnit !== undefined) &&
+      effectiveType !== "deposito"
+    ) {
+      throw new BadRequestException(
+        "quantity and costBasisPerUnit can only be changed via a buy/sell transaction (POST .../investments/:id/transactions) for this investment type",
+      );
+    }
+    if (dto.quantity !== undefined) {
+      this.assertValidQuantity(dto.quantity);
+    }
+    if (dto.costBasisPerUnit !== undefined) {
+      this.assertValidCostBasis(dto.costBasisPerUnit);
+    }
 
     const updated = await this.prisma.investment.update({
       where: { id, familyGroupId },
@@ -437,9 +499,29 @@ export class InvestmentsService {
       projectedAnnualYield: null,
       purchasedAt: updated.purchasedAt?.toISOString() ?? null,
       maturityDate: updated.maturityDate?.toISOString() ?? null,
+      realizedPnlRp: null,
       createdAt: updated.createdAt.toISOString(),
       updatedAt: updated.updatedAt.toISOString(),
     };
+  }
+
+  /** MEDIUM (EPIC-022 D2 retry) — mirrors recordTransaction()'s own guard:
+   * class-validator's @IsNumberString() accepts a negative sign, so a sign
+   * check must happen here too for whatever path still writes quantity. */
+  private assertValidQuantity(value: string): void {
+    const q = new Decimal(value);
+    if (!q.greaterThan(0)) {
+      throw new BadRequestException("quantity must be greater than 0");
+    }
+  }
+
+  /** MEDIUM (EPIC-022 D2 retry) — same reasoning as assertValidQuantity(),
+   * for costBasisPerUnit (allowed to be exactly 0, never negative). */
+  private assertValidCostBasis(value: string): void {
+    const c = new Decimal(value);
+    if (c.lessThan(0)) {
+      throw new BadRequestException("costBasisPerUnit must not be negative");
+    }
   }
 
   /** 0..100 inclusive; class-validator only checks the string format. */
@@ -457,6 +539,14 @@ export class InvestmentsService {
     }
   }
 
+  /**
+   * HIGH (EPIC-022 D2 retry) — refuses deletion while any InvestmentTransaction
+   * exists, mirroring `LiabilitiesService.remove()`'s "never a silent
+   * cascade" rule for a liability with a budget line still attached. The
+   * schema's `onDelete: Cascade` on `InvestmentTransaction.investmentId` is
+   * only safe BECAUSE this guard makes that cascade unreachable in
+   * practice — see the doc comment on that FK.
+   */
   async remove(familyGroupId: string, id: string): Promise<void> {
     const existing = await this.prisma.investment.findUnique({
       where: { id, familyGroupId },
@@ -464,6 +554,16 @@ export class InvestmentsService {
     if (!existing) {
       throw new NotFoundException("Investment not found");
     }
+
+    const txCount = await this.prisma.investmentTransaction.count({
+      where: { investmentId: id },
+    });
+    if (txCount > 0) {
+      throw new ConflictException(
+        `Tidak dapat menghapus "${existing.name}" — riwayat transaksi (beli/jual) sudah ada dan tidak boleh dihapus diam-diam`,
+      );
+    }
+
     await this.prisma.investment.delete({ where: { id, familyGroupId } });
   }
 
@@ -506,5 +606,167 @@ export class InvestmentsService {
       delayed: created.delayed,
       recordedAt: created.recordedAt.toISOString(),
     };
+  }
+
+  /**
+   * EPIC-022 D2 — the honest replacement for editing quantity/costBasisPerUnit
+   * directly: a BUY grows the position and recomputes a weighted-average
+   * cost (`newAvgCost = (oldQty*oldAvgCost + addedQty*addedCost) /
+   * (oldQty+addedQty)`); a SELL shrinks it, books a realized P/L for the
+   * sold portion (`(sellPrice - costBasisPerUnit) × soldQty`), and — the
+   * disposal-path guard — refuses to sell more than is currently held.
+   * Every call appends one InvestmentTransaction row: this table is the
+   * real history the old whole-record overwrite destroyed.
+   *
+   * CRITICAL/HIGH (EPIC-022 D2 retry) — the current `quantity`/
+   * `costBasisPerUnit` are read and the guards evaluated INSIDE the
+   * Serializable transaction (`runRecordTransaction`), never outside it:
+   * two concurrent buy/sell calls against the same holding would otherwise
+   * both read the same starting state, both pass their own guards
+   * (including the oversell guard) independently, and both commit —
+   * silently losing one call's effect while still recording its
+   * InvestmentTransaction audit row. `runSerializableWithRetry` (the same
+   * helper `LiabilitiesService.pay()` uses for the identical read-then-
+   * write-a-balance shape) runs this at Serializable isolation so Postgres
+   * itself catches the conflicting concurrent write and the loser retries
+   * against the winner's committed state.
+   */
+  async recordTransaction(
+    familyGroupId: string,
+    id: string,
+    dto: CreateInvestmentTransactionDto,
+  ): Promise<InvestmentTransactionDto> {
+    const qty = new Decimal(dto.quantity);
+    // NOTE: Decimal#isPositive() treats 0 as positive (sign bit only) — use
+    // an explicit `> 0` comparison so a zero quantity is correctly rejected.
+    if (!qty.greaterThan(0)) {
+      throw new BadRequestException("quantity must be greater than 0");
+    }
+    const price = new Decimal(dto.pricePerUnit);
+    if (price.lessThan(0)) {
+      throw new BadRequestException("pricePerUnit must not be negative");
+    }
+    const occurredAt = dto.occurredAt ? new Date(dto.occurredAt) : new Date();
+
+    const created = await runSerializableWithRetry(this.prisma, (tx) =>
+      this.runRecordTransaction(
+        tx,
+        familyGroupId,
+        id,
+        dto.type,
+        qty,
+        price,
+        occurredAt,
+      ),
+    );
+
+    this.logger.log(
+      `Recorded ${dto.type} of ${qty.toString()} unit(s) for investment ${id}`,
+    );
+
+    return {
+      id: created.id,
+      investmentId: created.investmentId,
+      type: created.type,
+      quantity: decimalToString(created.quantity),
+      pricePerUnit: decimalToString(created.pricePerUnit),
+      occurredAt: created.occurredAt.toISOString(),
+      realizedPnl: decimalToStringOrNull(created.realizedPnl),
+      createdAt: created.createdAt.toISOString(),
+    };
+  }
+
+  /** The tx-scoped body of recordTransaction() — see that method's doc
+   * comment for why the read + guards must live inside the Serializable
+   * transaction rather than before it. */
+  private async runRecordTransaction(
+    tx: TxClient,
+    familyGroupId: string,
+    id: string,
+    type: CreateInvestmentTransactionDto["type"],
+    qty: Decimal,
+    price: Decimal,
+    occurredAt: Date,
+  ) {
+    const existing = await tx.investment.findUnique({
+      where: { id, familyGroupId },
+    });
+    if (!existing) {
+      throw new NotFoundException("Investment not found");
+    }
+
+    const oldQty = existing.quantity;
+    const oldAvgCost = existing.costBasisPerUnit;
+
+    let newQty: Decimal;
+    let newAvgCost: Decimal;
+    let realizedPnl: Decimal | null = null;
+
+    if (type === "buy") {
+      newQty = oldQty.plus(qty);
+      newAvgCost = oldQty
+        .times(oldAvgCost)
+        .plus(qty.times(price))
+        .dividedBy(newQty);
+    } else {
+      // Disposal-path guard — never let a sell drive the position negative.
+      // Re-checked against the tx-scoped `oldQty` on every retry, so a
+      // concurrent sell that already committed is reflected here.
+      if (qty.greaterThan(oldQty)) {
+        throw new BadRequestException(
+          `Cannot sell ${qty.toString()} unit(s) — only ${oldQty.toString()} currently held`,
+        );
+      }
+      newQty = oldQty.minus(qty);
+      // Remaining lots keep the SAME average cost — a sale never changes
+      // what the still-held units cost, only the realized result of the
+      // portion sold.
+      newAvgCost = oldAvgCost;
+      realizedPnl = price.minus(oldAvgCost).times(qty);
+    }
+
+    await tx.investment.update({
+      where: { id, familyGroupId },
+      data: { quantity: newQty, costBasisPerUnit: newAvgCost },
+    });
+    return tx.investmentTransaction.create({
+      data: {
+        investmentId: id,
+        type,
+        quantity: qty,
+        pricePerUnit: price,
+        occurredAt,
+        realizedPnl,
+      },
+    });
+  }
+
+  /** EPIC-022 D2 — the real buy/sell history for one holding, most recent first. */
+  async findTransactions(
+    familyGroupId: string,
+    id: string,
+  ): Promise<InvestmentTransactionDto[]> {
+    const existing = await this.prisma.investment.findUnique({
+      where: { id, familyGroupId },
+    });
+    if (!existing) {
+      throw new NotFoundException("Investment not found");
+    }
+
+    const rows = await this.prisma.investmentTransaction.findMany({
+      where: { investmentId: id },
+      orderBy: { occurredAt: "desc" },
+    });
+
+    return rows.map((r) => ({
+      id: r.id,
+      investmentId: r.investmentId,
+      type: r.type,
+      quantity: decimalToString(r.quantity),
+      pricePerUnit: decimalToString(r.pricePerUnit),
+      occurredAt: r.occurredAt.toISOString(),
+      realizedPnl: decimalToStringOrNull(r.realizedPnl),
+      createdAt: r.createdAt.toISOString(),
+    }));
   }
 }

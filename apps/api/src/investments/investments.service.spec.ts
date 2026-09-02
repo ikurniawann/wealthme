@@ -1,4 +1,6 @@
+import { BadRequestException, ConflictException } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
+import { Prisma } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 
 import { PrismaService } from "../prisma/prisma.service";
@@ -18,6 +20,20 @@ const mockPrisma = {
   investmentPrice: {
     create: jest.fn(),
   },
+  // EPIC-022 D2 — buy/sell history. `groupBy` defaults to "no sells yet"
+  // so every pre-existing findAll()-based test above keeps passing
+  // unmodified (realizedPnlRp: null everywhere, not a fabricated "0").
+  investmentTransaction: {
+    groupBy: jest.fn().mockResolvedValue([]),
+    create: jest.fn(),
+    findMany: jest.fn(),
+    // EPIC-022 D2 retry (HIGH) — remove() guard: defaults to "no history"
+    // so every pre-existing remove()-adjacent test keeps passing.
+    count: jest.fn().mockResolvedValue(0),
+  },
+  $transaction: jest.fn(
+    async (cb: (tx: typeof mockPrisma) => Promise<unknown>) => cb(mockPrisma),
+  ),
 };
 
 const mockMarketData = {
@@ -789,6 +805,412 @@ describe("InvestmentsService P&L", () => {
         service.setManualPrice("fg-1", "not-mine", { price: "100" }),
       ).rejects.toThrow();
       expect(mockPrisma.investmentPrice.create).not.toHaveBeenCalled();
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────
+  // EPIC-022 D2 — buy/sell replaces the silent whole-record overwrite.
+  // Test-first, hand-computed golden values (Definition of Done — money
+  // math).
+  // ──────────────────────────────────────────────────────────────
+
+  describe("recordTransaction() — buy: weighted-average cost", () => {
+    it("GOLDEN VALUE: 10 units @ 9.500 + buy 10 units @ 10.500 → qty 20 @ avg 10.000", async () => {
+      // Hand computation: (10×9500 + 10×10500) / 20 = (95000+105000)/20
+      // = 200000/20 = 10000.
+      mockPrisma.investment.findUnique.mockResolvedValue({
+        id: "inv-1",
+        familyGroupId: "fg-1",
+        ticker: "BBCA",
+        quantity: new Decimal("10"),
+        costBasisPerUnit: new Decimal("9500"),
+      });
+      mockPrisma.investmentTransaction.create.mockResolvedValue({
+        id: "tx-1",
+        investmentId: "inv-1",
+        type: "buy",
+        quantity: new Decimal("10"),
+        pricePerUnit: new Decimal("10500"),
+        occurredAt: new Date("2026-08-01T00:00:00.000Z"),
+        realizedPnl: null,
+        createdAt: new Date("2026-08-01T00:00:00.000Z"),
+      });
+
+      const result = await service.recordTransaction("fg-1", "inv-1", {
+        type: "buy",
+        quantity: "10",
+        pricePerUnit: "10500",
+        occurredAt: "2026-08-01T00:00:00.000Z",
+      });
+
+      expect(mockPrisma.investment.update).toHaveBeenCalledTimes(1);
+      const updateCall = mockPrisma.investment.update.mock.calls[0]?.[0] as {
+        where: { id: string; familyGroupId: string };
+        data: { quantity: Decimal; costBasisPerUnit: Decimal };
+      };
+      expect(updateCall.where).toEqual({ id: "inv-1", familyGroupId: "fg-1" });
+      expect(updateCall.data.quantity.toString()).toBe("20");
+      expect(updateCall.data.costBasisPerUnit.toString()).toBe("10000");
+      expect(result.realizedPnl).toBeNull();
+    });
+  });
+
+  describe("recordTransaction() — sell: realized P/L + disposal guard", () => {
+    it("GOLDEN VALUE: sell 5 of 10 units held @ costBasis 9.500 at 12.000 → realized P/L = 12.500", async () => {
+      // Hand computation: (12000 - 9500) × 5 = 2500 × 5 = 12500.
+      mockPrisma.investment.findUnique.mockResolvedValue({
+        id: "inv-1",
+        familyGroupId: "fg-1",
+        ticker: "BBCA",
+        quantity: new Decimal("10"),
+        costBasisPerUnit: new Decimal("9500"),
+      });
+      mockPrisma.investmentTransaction.create.mockResolvedValue({
+        id: "tx-2",
+        investmentId: "inv-1",
+        type: "sell",
+        quantity: new Decimal("5"),
+        pricePerUnit: new Decimal("12000"),
+        occurredAt: new Date("2026-08-02T00:00:00.000Z"),
+        realizedPnl: new Decimal("12500"),
+        createdAt: new Date("2026-08-02T00:00:00.000Z"),
+      });
+
+      const result = await service.recordTransaction("fg-1", "inv-1", {
+        type: "sell",
+        quantity: "5",
+        pricePerUnit: "12000",
+        occurredAt: "2026-08-02T00:00:00.000Z",
+      });
+
+      const updateCall = mockPrisma.investment.update.mock.calls[0]?.[0] as {
+        data: { quantity: Decimal; costBasisPerUnit: Decimal };
+      };
+      // Remaining lot keeps the SAME average cost — a sale never reprices
+      // what is still held.
+      expect(updateCall.data.quantity.toString()).toBe("5");
+      expect(updateCall.data.costBasisPerUnit.toString()).toBe("9500");
+      expect(result.realizedPnl).toBe("12500");
+    });
+
+    it("refuses to sell more than the current quantity (disposal-path guard)", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue({
+        id: "inv-1",
+        familyGroupId: "fg-1",
+        ticker: "BBCA",
+        quantity: new Decimal("10"),
+        costBasisPerUnit: new Decimal("9500"),
+      });
+
+      await expect(
+        service.recordTransaction("fg-1", "inv-1", {
+          type: "sell",
+          quantity: "11",
+          pricePerUnit: "12000",
+        }),
+      ).rejects.toThrow();
+      expect(mockPrisma.investmentTransaction.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects a non-positive quantity", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue({
+        id: "inv-1",
+        familyGroupId: "fg-1",
+        ticker: "BBCA",
+        quantity: new Decimal("10"),
+        costBasisPerUnit: new Decimal("9500"),
+      });
+
+      await expect(
+        service.recordTransaction("fg-1", "inv-1", {
+          type: "buy",
+          quantity: "0",
+          pricePerUnit: "12000",
+        }),
+      ).rejects.toThrow();
+      expect(mockPrisma.investmentTransaction.create).not.toHaveBeenCalled();
+    });
+
+    it("throws NotFoundException for an investment outside the family group", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.recordTransaction("fg-1", "not-mine", {
+          type: "buy",
+          quantity: "1",
+          pricePerUnit: "100",
+        }),
+      ).rejects.toThrow();
+      expect(mockPrisma.investmentTransaction.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("findAll() — realizedPnlRp rollup", () => {
+    it("sums realizedPnl across sells for the holding and stays null with no sells", async () => {
+      mockPrisma.investment.findMany.mockResolvedValue([
+        {
+          id: "inv-1",
+          familyGroupId: "fg-1",
+          ticker: "BBCA",
+          name: "Bank BCA",
+          type: "saham",
+          quantity: new Decimal("5"),
+          costBasisPerUnit: new Decimal("9500"),
+          currency: "IDR",
+          notes: null,
+          interestRatePct: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          prices: [],
+        },
+        {
+          id: "inv-2",
+          familyGroupId: "fg-1",
+          ticker: "TLKM",
+          name: "Telkom",
+          type: "saham",
+          quantity: new Decimal("20"),
+          costBasisPerUnit: new Decimal("4000"),
+          currency: "IDR",
+          notes: null,
+          interestRatePct: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          prices: [],
+        },
+      ]);
+      mockPrisma.investmentTransaction.groupBy.mockResolvedValueOnce([
+        { investmentId: "inv-1", _sum: { realizedPnl: new Decimal("12500") } },
+      ]);
+
+      const results = await service.findAll("fg-1");
+
+      expect(results.find((r) => r.id === "inv-1")?.realizedPnlRp).toBe(
+        "12500",
+      );
+      expect(results.find((r) => r.id === "inv-2")?.realizedPnlRp).toBeNull();
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────
+  // Review retry (HIGH #1) — quantity/costBasisPerUnit must ONLY change
+  // through recordTransaction() for a lot-tracked type; a direct PATCH is
+  // the exact "raw, unvalidated overwrite" this epic set out to close.
+  // ──────────────────────────────────────────────────────────────
+
+  describe("update() — quantity/costBasisPerUnit lot-tracking guard", () => {
+    const sahamInvestment = {
+      id: "inv-saham",
+      familyGroupId: "fg-1",
+      ticker: "BBCA",
+      name: "Bank BCA",
+      type: "saham",
+      quantity: new Decimal("10"),
+      costBasisPerUnit: new Decimal("9500"),
+      currency: "IDR",
+      notes: null,
+      interestRatePct: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const depositoInvestment = {
+      ...sahamInvestment,
+      id: "inv-depo",
+      type: "deposito",
+    };
+
+    it("rejects a direct quantity overwrite for a non-deposito holding, even a negative one", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue(sahamInvestment);
+
+      await expect(
+        service.update("fg-1", "inv-saham", { quantity: "-999999" }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockPrisma.investment.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects a direct costBasisPerUnit overwrite for a non-deposito holding", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue(sahamInvestment);
+
+      await expect(
+        service.update("fg-1", "inv-saham", { costBasisPerUnit: "1" }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockPrisma.investment.update).not.toHaveBeenCalled();
+    });
+
+    it("still allows editing name/ticker/notes on a non-deposito holding without touching quantity/cost", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue(sahamInvestment);
+      mockPrisma.investment.update.mockResolvedValue({
+        ...sahamInvestment,
+        name: "Bank Central Asia Tbk",
+      });
+
+      await expect(
+        service.update("fg-1", "inv-saham", { name: "Bank Central Asia Tbk" }),
+      ).resolves.toBeDefined();
+      expect(mockPrisma.investment.update).toHaveBeenCalled();
+    });
+
+    it("allows quantity/costBasisPerUnit edits for deposito (a typo-correctable nominal, not a lot)", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue(depositoInvestment);
+      mockPrisma.investment.update.mockResolvedValue({
+        ...depositoInvestment,
+        costBasisPerUnit: new Decimal("105000000"),
+      });
+
+      await expect(
+        service.update("fg-1", "inv-depo", { costBasisPerUnit: "105000000" }),
+      ).resolves.toBeDefined();
+      expect(mockPrisma.investment.update).toHaveBeenCalled();
+    });
+
+    it("still rejects a negative quantity/cost for deposito (MEDIUM — sign check applies regardless of type)", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue(depositoInvestment);
+
+      await expect(
+        service.update("fg-1", "inv-depo", { quantity: "-1" }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockPrisma.investment.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────
+  // Review retry (MEDIUM #4) — create() rejects a negative/zero quantity
+  // or a negative costBasisPerUnit (class-validator's @IsNumberString()
+  // alone accepts a leading "-").
+  // ──────────────────────────────────────────────────────────────
+
+  describe("create() — quantity/costBasisPerUnit sign validation", () => {
+    it("rejects a non-positive quantity", async () => {
+      await expect(
+        service.create("fg-1", {
+          ticker: "BBCA",
+          name: "Bank BCA",
+          type: "saham",
+          quantity: "0",
+          costBasisPerUnit: "9500",
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockPrisma.investment.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects a negative costBasisPerUnit", async () => {
+      await expect(
+        service.create("fg-1", {
+          ticker: "BBCA",
+          name: "Bank BCA",
+          type: "saham",
+          quantity: "10",
+          costBasisPerUnit: "-1",
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockPrisma.investment.create).not.toHaveBeenCalled();
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────
+  // Review retry (CRITICAL/HIGH #2) — TOCTOU fix: the current state must
+  // be read (and re-read on retry) INSIDE the Serializable transaction,
+  // never before it. Mirrors LiabilitiesService.pay()'s own retry test.
+  // ──────────────────────────────────────────────────────────────
+
+  describe("recordTransaction() — Serializable retry (TOCTOU fix)", () => {
+    it("runs at Serializable isolation and recomputes off the re-read state on a P2034 retry", async () => {
+      // Attempt 1 reads qty=10 (and, per real Postgres semantics, its
+      // statements DO run against that snapshot); the conflict is only
+      // detected at commit. Attempt 2 (the retry) re-reads and sees
+      // qty=7 — as if a concurrent sell of 3 units won the race and
+      // committed first. The retry's write must reflect 7, not the
+      // stale 10 a TOCTOU bug would have used.
+      let findUniqueCalls = 0;
+      mockPrisma.investment.findUnique.mockImplementation(() => {
+        findUniqueCalls += 1;
+        return Promise.resolve({
+          id: "inv-1",
+          familyGroupId: "fg-1",
+          ticker: "BBCA",
+          quantity: new Decimal(findUniqueCalls === 1 ? "10" : "7"),
+          costBasisPerUnit: new Decimal("9500"),
+        });
+      });
+      mockPrisma.investmentTransaction.create.mockResolvedValue({
+        id: "tx-3",
+        investmentId: "inv-1",
+        type: "buy",
+        quantity: new Decimal("2"),
+        pricePerUnit: new Decimal("10000"),
+        occurredAt: new Date("2026-08-03T00:00:00.000Z"),
+        realizedPnl: null,
+        createdAt: new Date("2026-08-03T00:00:00.000Z"),
+      });
+
+      let transactionCalls = 0;
+      mockPrisma.$transaction.mockImplementation(
+        async (cb: (tx: typeof mockPrisma) => Promise<unknown>) => {
+          transactionCalls += 1;
+          const result = await cb(mockPrisma);
+          if (transactionCalls === 1) {
+            throw new Prisma.PrismaClientKnownRequestError("conflict", {
+              code: "P2034",
+              clientVersion: "test",
+            });
+          }
+          return result;
+        },
+      );
+
+      const result = await service.recordTransaction("fg-1", "inv-1", {
+        type: "buy",
+        quantity: "2",
+        pricePerUnit: "10000",
+        occurredAt: "2026-08-03T00:00:00.000Z",
+      });
+
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(2);
+      expect(mockPrisma.$transaction.mock.calls[0]?.[1]).toEqual({
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      });
+      expect(mockPrisma.investment.findUnique).toHaveBeenCalledTimes(2);
+      // Second (winning) attempt computed off the re-read qty=7 → newQty=9,
+      // NOT 12 (which is what a stale qty=10 read would have produced).
+      const secondUpdateCall = mockPrisma.investment.update.mock
+        .calls[1]?.[0] as { data: { quantity: Decimal } };
+      expect(secondUpdateCall.data.quantity.toString()).toBe("9");
+      expect(result.id).toBe("tx-3");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────
+  // Review retry (HIGH #3) — deleting an Investment must never silently
+  // cascade-delete its InvestmentTransaction history (every buy/sell,
+  // every realized P/L ever recorded). Mirrors LiabilitiesService.remove().
+  // ──────────────────────────────────────────────────────────────
+
+  describe("remove() — refuses deletion while transaction history exists", () => {
+    const investment = {
+      id: "inv-1",
+      familyGroupId: "fg-1",
+      name: "Bank BCA",
+    };
+
+    it("refuses to delete when InvestmentTransaction rows exist", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue(investment);
+      mockPrisma.investmentTransaction.count.mockResolvedValue(2);
+
+      await expect(service.remove("fg-1", "inv-1")).rejects.toThrow(
+        ConflictException,
+      );
+      expect(mockPrisma.investment.delete).not.toHaveBeenCalled();
+    });
+
+    it("still deletes when no transaction history exists", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue(investment);
+      mockPrisma.investmentTransaction.count.mockResolvedValue(0);
+      mockPrisma.investment.delete.mockResolvedValue(investment);
+
+      await expect(service.remove("fg-1", "inv-1")).resolves.toBeUndefined();
+      expect(mockPrisma.investment.delete).toHaveBeenCalledWith({
+        where: { id: "inv-1", familyGroupId: "fg-1" },
+      });
     });
   });
 });

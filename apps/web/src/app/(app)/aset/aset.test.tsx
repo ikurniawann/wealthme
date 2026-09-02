@@ -90,6 +90,11 @@ const mockApiFetch = jest.fn(
     if (url.includes("/accounts")) return Promise.resolve([]);
     if (url.includes("/investments")) return Promise.resolve([]);
     if (url.includes("/categories")) return Promise.resolve([]);
+    // EPIC-022 D5 — useCanManage("Asset") now runs on this page (RowActions
+    // edit/delete gating); it depends on useMyRole's `/family-groups/mine`.
+    if (url.includes("/family-groups/mine")) {
+      return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
+    }
     return Promise.resolve({});
   },
 );
@@ -331,6 +336,60 @@ describe("AddAssetModal (EPIC-023 Task H1 review, MEDIUM fix 4)", () => {
     const parsedBody = JSON.parse(postCall[1].body) as Record<string, unknown>;
     expect(parsedBody.valueChangeAmount).toBe("-20000000");
     expect(parsedBody.valueChangeRatePct).toBeUndefined();
+  });
+});
+
+// EPIC-022 D5 — /aset had NO edit/delete UI at all for physical assets; the
+// API's PATCH/DELETE endpoints already existed. Locks in: an owner sees
+// Edit/Hapus on a physical-asset row, editing PATCHes the existing asset
+// (not a new POST), and deleting calls DELETE on that asset's id.
+describe("/aset — physical asset edit/delete (EPIC-022 D5)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    toastSuccess.mockClear();
+    toastError.mockClear();
+    queryClient.clear();
+    assetsFixture = [baseAsset({ id: "a1", name: "Rumah Kelapa Gading" })];
+  });
+
+  it("edits an existing asset via PATCH instead of creating a new one", async () => {
+    const user = userEvent.setup();
+    render(<AsetPage />);
+
+    await screen.findByText("Rumah Kelapa Gading");
+    await user.click(screen.getByRole("button", { name: /^edit$/i }));
+
+    const nameInput = await screen.findByDisplayValue("Rumah Kelapa Gading");
+    await user.clear(nameInput);
+    await user.type(nameInput, "Rumah Direnovasi");
+
+    await user.click(screen.getByRole("button", { name: /simpan aset/i }));
+
+    await waitFor(() => {
+      expect(mockApiFetch).toHaveBeenCalledWith(
+        `/family-groups/${FAMILY_GROUP_ID}/assets/a1`,
+        expect.objectContaining({ method: "PATCH" }),
+      );
+    });
+  });
+
+  it("deletes an asset after confirmation", async () => {
+    const user = userEvent.setup();
+    render(<AsetPage />);
+
+    await screen.findByText("Rumah Kelapa Gading");
+    await user.click(screen.getByRole("button", { name: /^hapus$/i }));
+    const confirmButton = await screen.findByRole("button", {
+      name: /ya, hapus/i,
+    });
+    await user.click(confirmButton);
+
+    await waitFor(() => {
+      expect(mockApiFetch).toHaveBeenCalledWith(
+        `/family-groups/${FAMILY_GROUP_ID}/assets/a1`,
+        expect.objectContaining({ method: "DELETE" }),
+      );
+    });
   });
 });
 

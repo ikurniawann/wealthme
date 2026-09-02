@@ -655,6 +655,18 @@ function InsuranceModal({
       return;
     }
 
+    // EPIC-022 D6 — a row with a nonzero percentage but a blank name used to
+    // be silently dropped from BOTH the sum and the payload: the allocation
+    // bar looked accurate, but the money it represented vanished with no
+    // warning. Block save instead — a real allocation needs a real name.
+    const blankNamedWithShare = beneficiaries.find(
+      (b) => !b.name.trim() && (parseFloat(b.sharePercent) || 0) > 0,
+    );
+    if (blankNamedWithShare) {
+      toast.warning(t.asuransi.validationBeneficiaryNameRequired);
+      return;
+    }
+
     const beneficiaryDtos: CreateInsuranceBeneficiaryDto[] = beneficiaries
       .filter((b) => b.name.trim())
       .map((b) => ({
@@ -663,9 +675,24 @@ function InsuranceModal({
         sharePercent: parseFloat(b.sharePercent) || 0,
         ...(b.memberUserId && { memberUserId: b.memberUserId }),
       }));
-    if (beneficiaryDtos.reduce((sum, b) => sum + b.sharePercent, 0) > 100) {
+    const totalSharePercent = beneficiaryDtos.reduce(
+      (sum, b) => sum + b.sharePercent,
+      0,
+    );
+    if (totalSharePercent > 100) {
       toast.warning(t.asuransi.validationSharePercentExceeded);
       return;
+    }
+    // EPIC-022 D6 — under-allocation used to save silently. It may be
+    // intentional (the remainder goes to the estate), so this is a warning,
+    // not a block — the save still proceeds.
+    if (beneficiaryDtos.length > 0 && totalSharePercent < 100) {
+      toast.warning(
+        t.asuransi.validationShareUnderAllocated.replace(
+          "{pct}",
+          String(totalSharePercent),
+        ),
+      );
     }
 
     const dto: CreateInsuranceDto = {

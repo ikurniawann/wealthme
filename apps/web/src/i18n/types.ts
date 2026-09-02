@@ -1125,6 +1125,12 @@ export type I18nDictionary = {
     allocationUnallocatedSuffix: string;
     allocationFullyAllocated: string;
     validationSharePercentExceeded: string;
+    // EPIC-022 D6 — a nonzero-share row needs a real name (was silently
+    // dropped from both the sum and the payload); under-allocation now
+    // warns (not blocks) at save time instead of saving silently.
+    validationBeneficiaryNameRequired: string;
+    /** Template with a `{pct}` placeholder. */
+    validationShareUnderAllocated: string;
     /** EPIC-023 F1 (D14) — honest-UI note shown instead of a silently empty
      * picker when the member list failed to load (e.g. a dependant/
      * operational role has no "read Member" ability). */
@@ -1616,6 +1622,31 @@ export type I18nDictionary = {
     hintName: string;
     hintPurchaseDate: string;
     hintLotConversion: string;
+    // EPIC-022 D2 — quantity/cost basis can no longer be silently overwritten
+    // via the generic edit form; a Beli/Jual transaction is the only path.
+    hintQuantityLocked: string;
+    hintCostBasisLocked: string;
+    buySellButtonLabel: string;
+    buySellModalTitleBuy: string;
+    buySellModalTitleSell: string;
+    buySellTypeBuyLabel: string;
+    buySellTypeSellLabel: string;
+    buySellFieldQuantityLabel: string;
+    buySellFieldPriceLabel: string;
+    buySellFieldDateLabel: string;
+    buySellSaveButton: string;
+    buySellSaving: string;
+    toastBuySuccess: string;
+    /** Template with a `{pnl}` placeholder. */
+    toastSellSuccessTemplate: string;
+    toastBuySellFailed: string;
+    detailRealizedPnlLabel: string;
+    historySectionTitle: string;
+    historyEmptyLabel: string;
+    historyBuyLabel: string;
+    historySellLabel: string;
+    /** Template with a `{pnl}` placeholder. */
+    historyRealizedPnlTemplate: string;
   };
   /** EPIC-018 Task A5 — `/aset` (consolidated assets) page copy. */
   aset: {
@@ -1631,7 +1662,15 @@ export type I18nDictionary = {
     errorLoad: string;
     toastAdded: string;
     toastAddFailed: string;
+    // EPIC-022 D5 — edit/delete UI for physical assets (previously
+    // create-only; the API's PATCH/DELETE endpoints already existed).
+    toastUpdated: string;
+    toastUpdateFailed: string;
+    toastDeleted: string;
+    toastDeleteFailed: string;
+    deleteDialogBody: string;
     modalTitle: string;
+    modalTitleEdit: string;
     fieldNameLabel: string;
     fieldNamePlaceholder: string;
     fieldCategoryLabel: string;
