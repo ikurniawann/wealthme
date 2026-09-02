@@ -30,7 +30,7 @@ ringkasan: [`../BACKLOG.md`](../BACKLOG.md) · arsitektur: [`../WealthMe_Backend
 | [EPIC-022](EPIC-022-ui-api-conformance-finance-correctness.md)          | Phase 4 | UI↔API Conformance & Financial Correctness Pass    | P0        | on-progress  |
 | [EPIC-023](EPIC-023-family-roles-money-mechanics-report-correctness.md) | Phase 4 | Family Roles, Money Mechanics & Report Correctness | P0        | ready-for-qa |
 | [EPIC-024](EPIC-024-client-revisions-aug2026.md)                        | Phase 4 | Client Revision Punch-List (revisi.txt Aug 2026)   | P0        | ready-for-qa |
-| [EPIC-027](EPIC-027-iam-integrity-receipt-scan.md)                      | Phase 4 | IAM Integrity (soft-delete, roles) + Scan Struk    | P0        | on-progress  |
+| [EPIC-027](EPIC-027-iam-integrity-receipt-scan.md)                      | Phase 4 | IAM Integrity (soft-delete, roles) + Scan Struk    | P0        | ready-for-qa |
 | [EPIC-028](EPIC-028-pdfcn-export-frontend-structure.md)                 | Phase 4 | PDF Export on pdfcn + Frontend Structure Refactor  | P1        | backlog      |
 | [EPIC-029](EPIC-029-bank-statement-pdf-import.md)                       | Phase 4 | Bank Statement PDF Import via Family AI Key        | P1        | on-progress  |
 
