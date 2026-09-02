@@ -470,3 +470,53 @@ unexplained failed requests on every route.
   `rekening/page.tsx` and `tujuan/page.tsx` since those two demonstrably
   still swallow real server errors), then C1's period-aware budget window,
   then D2's investment lot model.
+- 2026-09-02 /epic-loop EPIC-022 #F "Errors, permissions and empty states"
+  → PASS (attempts: 1 + one fix round). New shared role-gating hook
+  `use-role-permissions.ts` (`useCanManage`) mirrors the real CASL `manage`
+  grants for Account/CoaAccount/Category/ReferenceItem/Budget/Goal/
+  Investment exactly — verified line-by-line against
+  `casl-ability.factory.ts` by two independent gates — and is wired into
+  `rekening`, `mastercoa`, `masterdata`, `anggaran`, `tujuan`, `investasi`,
+  `akun` as client-side UX only; the real authorization boundary stays
+  server-side CASL/`@CheckAbility`, confirmed unchanged. Closes the
+  "member can never create a budget" bug named in the epic text: the
+  budget dialog now picks an existing category instead of POSTing one when
+  the acting role can't manage `Category`. F1's shared error hook
+  (`use-api-error.ts`, previously dead code with zero callers) now has real
+  callers in `tujuan`, `investasi`, `donation`, `quickinput`,
+  `laporan-inner`. F2's actual bug in most cases was pages catching their
+  own error and never rethrowing, so `CrudModal` closed on every failed
+  save regardless — worst instance was `masterdata/page.tsx`'s
+  `handleCrudSubmit`, a detached fire-and-forget `void (async () => {...})()`
+  that resolved (and closed the modal) before the request even settled,
+  success or failure. F5 added `isError` banners to `mastercoa`, `dana`,
+  `investasi`. F7's real gap was `categories.service.ts`'s `update()`
+  skipping direction re-validation on a kind-only PATCH — `create()` was
+  already correct; two new tests lock in reject/allow. F4 confirmed
+  already done, untouched.
+  Five gates ran: `review-qa-agent` PASS; a general `code-reviewer` agent
+  (substituting for the unavailable `ecc:react-reviewer`/
+  `ecc:typescript-reviewer` in this session) PASS with 2 MEDIUM fixed
+  before merge — prettier drift on 4 files, and missing test coverage for
+  the riskiest new branch (anggaran's member/existing-category flow,
+  investasi's `canManage` gating) — both closed with new tests
+  (`anggaran.test.tsx`, `investasi.test.tsx`); a `security-auditor` agent
+  (substituting for `ecc:security-reviewer`, also unavailable) PASS, 0
+  CRITICAL/HIGH/MEDIUM; `security-agent` PASS (only the 4 pre-existing
+  transitive dependency advisories, unrelated to this diff). **Test gate
+  needed manual adjudication**: the raw run reported failures, but every
+  one was confirmed non-reproducing when its file was run alone — 4 web
+  timeouts (dana/aset/warisan, untouched by this diff) under the default
+  parallel run, and 11 `transaction-dialog.test.tsx` failures under a
+  `--runInBand` full-suite run, traced to that file leaking
+  `navigator.mediaDevices` global state across files (51/51 pass in
+  isolation; this diff never touches that file). Both are pre-existing
+  sandbox/test-infra artifacts, the same class already documented in
+  EPIC-023's log. Final counts: API 1482/1482 (123 suites) clean under
+  `--runInBand`; web's own targeted + full runs clean once isolated.
+  **Note for whoever runs this epic's remaining groups**: `ecc:*` reviewer
+  agents referenced throughout this epic's "Agent Routing" section are not
+  actually installed/callable as agents in this session, despite
+  `CLAUDE.md` assuming they are — substituted the closest available
+  general-purpose equivalents (`code-reviewer`, `security-auditor`) and
+  recorded the substitution here rather than silently skipping the gate.
