@@ -2924,6 +2924,12 @@ export default function AkunPage() {
     if (!familyGroupId || !token) return;
     try {
       if (entity === "rekening" || entity === "ewallet") {
+        // F6 — this quick-add form used to drop `isPrivate`/`ownerUserId`
+        // entirely: both fields render (crud-config's shared "rekening"
+        // entity), the user can toggle/pick them, and the save silently
+        // discarded both. Mirrors `/rekening`'s own create branch.
+        const isPrivate = values.isPrivate === "true";
+        const ownerUserId = values.ownerUserId || undefined;
         await apiFetch(`/family-groups/${familyGroupId}/accounts`, {
           token,
           method: "POST",
@@ -2937,6 +2943,8 @@ export default function AkunPage() {
             institution: entity === "rekening" ? values.bank : values.nama,
             maskedNumber: values.norek || values.phone || undefined,
             balance: parseRupiah(values.saldo ?? "0"),
+            isPrivate,
+            ...(ownerUserId ? { ownerUserId } : {}),
           }),
         });
         await queryClient.invalidateQueries({
@@ -3448,6 +3456,15 @@ export default function AkunPage() {
         state={crud}
         onClose={() => setCrud(null)}
         onSubmit={handleCrudSubmit}
+        dynamicOptions={{
+          ownerUserId: [
+            { value: "", label: t.rekening.ownerSelectFamilyLabel },
+            ...(familyMembers ?? []).map((m) => ({
+              value: m.userId,
+              label: m.name,
+            })),
+          ],
+        }}
       />
     </div>
   );

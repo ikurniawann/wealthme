@@ -12,6 +12,7 @@ import type {
 } from "@wealthme/contracts";
 import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
+import { useCanManage } from "@/hooks/use-role-permissions";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { SectionCard, CardLink, StatusBadge } from "@/components/wm";
@@ -73,6 +74,10 @@ export default function MasterDataPage() {
 
   const queryClient = useQueryClient();
   const router = useRouter();
+  // F3 — CASL grants "manage Category"/"manage ReferenceItem" only to
+  // owner/spouse; member/admin_staff have read-only access to both.
+  const { canManage: canManageCategory } = useCanManage("Category");
+  const { canManage: canManageReferenceItem } = useCanManage("ReferenceItem");
 
   const { data: categories, isLoading: isCategoriesLoading } = useQuery<
     CategoryDto[]
@@ -144,27 +149,36 @@ export default function MasterDataPage() {
 
   // Real category create/update via the categories API; real reference-item
   // add via the reference-items API for the other six groups.
-  const handleCrudSubmit = (
+  //
+  // F2 fix — this used to be a plain (non-async) function that fired an
+  // internal `void (async () => {...})()` IIFE and returned `undefined`
+  // synchronously. `CrudModal`'s `await onSubmit(...)` therefore resolved
+  // immediately and called `onClose()` before the POST/PATCH had even
+  // settled — the modal closed (discarding a failed save AND racing ahead
+  // of a successful one) every single time, unconditionally. Making this
+  // `async` and awaiting/rethrowing both branches lets `CrudModal` actually
+  // wait for the real result and only close on real success.
+  const handleCrudSubmit = async (
     entity: CrudEntity,
     mode: CrudMode,
     values: Record<string, string>,
-  ) => {
+  ): Promise<void> => {
     const refGroup = REFERENCE_GROUP_ENTITIES.find(
       (g) => g.entity === entity,
     )?.group;
     if (refGroup) {
-      handleReferenceItemCreate(refGroup, values.nama?.trim());
+      await handleReferenceItemCreate(refGroup, values.nama?.trim());
       return;
     }
     if (entity !== "mdkategori") return;
     if (!enabled) {
       toast.error(t.masterdata.toastInvalidSession);
-      return;
+      throw new Error(t.masterdata.toastInvalidSession);
     }
     const name = values.nama?.trim();
     if (!name) {
       toast.error(t.masterdata.toastNameRequired);
-      return;
+      throw new Error(t.masterdata.toastNameRequired);
     }
     // Values matched against the shared, untranslated `crud-config.ts`
     // `mdkategori.tipe` select options — these stay "Pemasukan"/"Pengeluaran"
@@ -176,7 +190,7 @@ export default function MasterDataPage() {
     const kind = kindMap[values.tipe];
     if (!kind) {
       toast.error(t.masterdata.toastInvalidType);
-      return;
+      throw new Error(t.masterdata.toastInvalidType);
     }
     const icon = values.icon || undefined;
     const isPrivate = values.isPrivate === "true";
@@ -185,74 +199,75 @@ export default function MasterDataPage() {
     const coaAccountId = values.coaAccountId || undefined;
     const coaPatch = coaAccountId ? { coaAccountId } : {};
 
-    void (async () => {
-      try {
-        if (mode === "edit" && editingCategoryId) {
-          await apiFetch(
-            `/family-groups/${familyGroupId}/categories/${editingCategoryId}`,
-            {
-              method: "PATCH",
-              token,
-              body: JSON.stringify({
-                name,
-                kind,
-                icon,
-                isPrivate,
-                ...coaPatch,
-              }),
-            },
-          );
-          toast.success(t.masterdata.toastCategoryUpdated);
-        } else {
-          await apiFetch(`/family-groups/${familyGroupId}/categories`, {
-            method: "POST",
+    try {
+      if (mode === "edit" && editingCategoryId) {
+        await apiFetch(
+          `/family-groups/${familyGroupId}/categories/${editingCategoryId}`,
+          {
+            method: "PATCH",
             token,
-            body: JSON.stringify({ name, kind, icon, isPrivate, ...coaPatch }),
-          });
-          toast.success(t.masterdata.toastCategoryAdded);
-        }
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.categories.all(familyGroupId),
+            body: JSON.stringify({
+              name,
+              kind,
+              icon,
+              isPrivate,
+              ...coaPatch,
+            }),
+          },
+        );
+        toast.success(t.masterdata.toastCategoryUpdated);
+      } else {
+        await apiFetch(`/family-groups/${familyGroupId}/categories`, {
+          method: "POST",
+          token,
+          body: JSON.stringify({ name, kind, icon, isPrivate, ...coaPatch }),
         });
-      } catch {
-        toast.error(
+        toast.success(t.masterdata.toastCategoryAdded);
+      }
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.categories.all(familyGroupId),
+      });
+    } catch (err) {
+      // F1 — surface the server's real message (e.g. F7's kind/direction
+      // mismatch) instead of a generic constant.
+      toast.error(
+        extractApiErrorMessage(
+          err,
           mode === "edit"
             ? t.masterdata.toastCategoryUpdateFailed
             : t.masterdata.toastCategoryAddFailed,
-        );
-      }
-    })();
+        ),
+      );
+      throw err;
+    }
   };
 
-  const handleReferenceItemCreate = (
+  const handleReferenceItemCreate = async (
     group: ReferenceItemGroup,
     label: string | undefined,
-  ) => {
+  ): Promise<void> => {
     if (!enabled) {
       toast.error(t.masterdata.toastInvalidSession);
-      return;
+      throw new Error(t.masterdata.toastInvalidSession);
     }
     if (!label) {
       toast.error(t.masterdata.toastNameRequired);
-      return;
+      throw new Error(t.masterdata.toastNameRequired);
     }
-    void (async () => {
-      try {
-        await apiFetch(`/family-groups/${familyGroupId}/reference-items`, {
-          method: "POST",
-          token,
-          body: JSON.stringify({ group, label }),
-        });
-        toast.success(t.masterdata.toastItemAdded);
-        void queryClient.invalidateQueries({
-          queryKey: referenceItemsQueryKey,
-        });
-      } catch (err) {
-        toast.error(
-          extractApiErrorMessage(err, t.masterdata.toastItemAddFailed),
-        );
-      }
-    })();
+    try {
+      await apiFetch(`/family-groups/${familyGroupId}/reference-items`, {
+        method: "POST",
+        token,
+        body: JSON.stringify({ group, label }),
+      });
+      toast.success(t.masterdata.toastItemAdded);
+      void queryClient.invalidateQueries({
+        queryKey: referenceItemsQueryKey,
+      });
+    } catch (err) {
+      toast.error(extractApiErrorMessage(err, t.masterdata.toastItemAddFailed));
+      throw err;
+    }
   };
 
   const handleReferenceItemDelete = (item: ReferenceItemDto) => {
@@ -374,14 +389,16 @@ export default function MasterDataPage() {
               <CardLink onClick={() => router.push("/mastercoa")}>
                 {t.masterdata.masterCoaLink}
               </CardLink>
-              <CardLink
-                onClick={() => {
-                  setEditingCategoryId(null);
-                  setCrud({ entity: "mdkategori", mode: "add" });
-                }}
-              >
-                {t.masterdata.addLink}
-              </CardLink>
+              {canManageCategory && (
+                <CardLink
+                  onClick={() => {
+                    setEditingCategoryId(null);
+                    setCrud({ entity: "mdkategori", mode: "add" });
+                  }}
+                >
+                  {t.masterdata.addLink}
+                </CardLink>
+              )}
             </span>
           }
         >
@@ -423,22 +440,26 @@ export default function MasterDataPage() {
                       {t.masterdata.privateLabel}
                     </StatusBadge>
                   )}
-                  <button
-                    type="button"
-                    aria-label={`${t.masterdata.editAriaPrefix}${cat.name}`}
-                    onClick={() => openEditCategory(cat)}
-                    className="inline-flex size-4 items-center justify-center rounded-full text-[11px] leading-none text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`${t.masterdata.deleteAriaPrefix}${cat.name}`}
-                    onClick={() => setPendingCatDelete(cat)}
-                    className="inline-flex size-4 items-center justify-center rounded-full text-[15px] leading-none text-muted-foreground transition-colors hover:bg-destructive hover:text-white"
-                  >
-                    ×
-                  </button>
+                  {canManageCategory && (
+                    <>
+                      <button
+                        type="button"
+                        aria-label={`${t.masterdata.editAriaPrefix}${cat.name}`}
+                        onClick={() => openEditCategory(cat)}
+                        className="inline-flex size-4 items-center justify-center rounded-full text-[11px] leading-none text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`${t.masterdata.deleteAriaPrefix}${cat.name}`}
+                        onClick={() => setPendingCatDelete(cat)}
+                        className="inline-flex size-4 items-center justify-center rounded-full text-[15px] leading-none text-muted-foreground transition-colors hover:bg-destructive hover:text-white"
+                      >
+                        ×
+                      </button>
+                    </>
+                  )}
                 </span>
               ))}
             </div>
@@ -461,9 +482,11 @@ export default function MasterDataPage() {
                   .title
               }
               action={
-                <CardLink onClick={() => setCrud({ entity, mode: "add" })}>
-                  {t.masterdata.addLink}
-                </CardLink>
+                canManageReferenceItem && (
+                  <CardLink onClick={() => setCrud({ entity, mode: "add" })}>
+                    {t.masterdata.addLink}
+                  </CardLink>
+                )
               }
             >
               <div className="flex flex-wrap">
@@ -487,7 +510,7 @@ export default function MasterDataPage() {
                           {t.masterdata.systemBadge}
                         </StatusBadge>
                       )}
-                      {!item.isSystem && (
+                      {!item.isSystem && canManageReferenceItem && (
                         <button
                           type="button"
                           aria-label={`${t.masterdata.deleteAriaPrefix}${item.label}`}

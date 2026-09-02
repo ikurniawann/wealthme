@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { formatManualDate } from "@/components/consolidated-total-card";
+import { useApiError } from "@/hooks/use-api-error";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
   useFamilyReligion,
@@ -164,6 +165,7 @@ export default function DonationPage() {
   const { t, locale } = useLocale();
   const { data: session } = useSession();
   const queryClient = useQueryClient();
+  const { handleError } = useApiError();
   const fgId = session?.familyGroupId ?? undefined;
   const token = session?.accessToken;
 
@@ -342,8 +344,9 @@ export default function DonationPage() {
       setOpen(false);
       toast.success(t.donation.toastSaved);
     },
-    onError: () => {
-      toast.error(t.donation.toastSaveFailed);
+    onError: (err) => {
+      // F1 — surface the server's real message instead of a generic constant.
+      handleError(err);
     },
   });
 

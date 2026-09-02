@@ -229,34 +229,34 @@ parseFloat(inv.quantity)` (`laporan/page.tsx:1655-1657`), but the API
   - **E7 — Zakat liabilities field means two different things** on `/kalkulator`
     ("Hutang / Liabilitas") vs `/donation` ("Utang Jatuh Tempo").
 
-- [ ] ### F — Errors, permissions and empty states
-  - **F1 — Server error messages are swallowed app-wide.** Bare
+- [x] ### F — Errors, permissions and empty states ✅
+  - **F1** — [x] Server error messages are swallowed app-wide. Bare
     `catch { toast.error(constant) }` in goals, investments, accounts, categories,
     donations and more — including 409s whose Indonesian text was written
     specifically to tell the user what to do (`accounts.service.ts:179-181`).
     Adopt one shared error surface.
-  - **F2 — Failed saves still close the modal and discard input**
+  - **F2** — [x] Failed saves still close the modal and discard input
     (`crud-modal.tsx:130-137`) because page handlers swallow the error, so
     `onSubmit` never rejects.
-  - **F3 — Role-gating is absent in the UI.** Accounts, COA, categories, budgets,
+  - **F3** — [x] Role-gating is absent in the UI. Accounts, COA, categories, budgets,
     goals and investments render full CRUD to every role while CASL restricts
     most of it to `owner` — the user fills a form and gets a 403. Also: a
     `member` can never create a budget, because the flow POSTs a category first
     and members only have `read Category`.
-  - **F4 — Uncaught Prisma constraint violations return 500.** Duplicate account
-    name (P2002), duplicate budget, COA in use (P2003) all surface as "Internal
-    server error" instead of an explanatory 409.
-  - **F5 — Failed fetches render as successful empty states.** `/mastercoa`
+  - **F4** — [x] (already done, pre-existing) Uncaught Prisma constraint violations return 500.
+    Duplicate account name (P2002), duplicate budget, COA in use (P2003) all
+    surface as "Internal server error" instead of an explanatory 409.
+  - **F5** — [x] Failed fetches render as successful empty states. `/mastercoa`
     ("Total Akun COA: 0"), `/dana` ("Total Dana Rp 0") and others have no
     `isError` branch — an API outage looks like an empty account.
-  - **F6 — Dead form fields across the app.** Account edit renders Nama Bank /
+  - **F6** — [x] Dead form fields across the app. Account edit renders Nama Bank /
     Nomor Rekening / Jenis that are never prefilled and never sent; `/akun`'s
     account form drops `isPrivate` (a privacy control) and `ownerUserId`; the
     e-wallet edit's provider select can silently rename an account; reference
     master-data groups open a full form and only reveal they are read-only after
     submit.
-  - **F7 — Category `kind` ↔ COA `direction` is unvalidated on both sides** — an
-    income category can be mapped to an EXPENSE COA account, and reports then
+  - **F7** — [x] Category `kind` ↔ COA `direction` is unvalidated on both sides —
+    an income category can be mapped to an EXPENSE COA account, and reports then
     classify its income as expense (`categories.service.ts:118-134`).
 
 - [ ] ### G — Responsive and modal layout pass

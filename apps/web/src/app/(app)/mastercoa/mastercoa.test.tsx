@@ -124,6 +124,12 @@ function mockCoaRoutes(accounts: CoaAccountFixture[]) {
       if (path.endsWith("/categories")) {
         return Promise.resolve([]);
       }
+      // F3 — `useCanManage("CoaAccount")` resolves the signed-in role via
+      // this endpoint; an "owner" role keeps the add/edit/delete
+      // affordances this suite asserts on visible.
+      if (path.endsWith("/family-groups/mine")) {
+        return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
+      }
       if (path.endsWith("/coa-accounts") && method === "GET") {
         return Promise.resolve(accounts);
       }
@@ -235,6 +241,9 @@ describe("MasterCoaPage — COA code auto-gen + editable (EPIC-021 #4)", () => {
       (path: string, options?: RequestInit & { method?: string }) => {
         const method = options?.method ?? "GET";
         if (path.endsWith("/categories")) return Promise.resolve([]);
+        if (path.endsWith("/family-groups/mine")) {
+          return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
+        }
         if (path.endsWith("/coa-accounts") && method === "GET") {
           return Promise.resolve([buildAccount()]);
         }

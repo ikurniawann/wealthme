@@ -380,6 +380,13 @@ export default function DanaPage() {
             // doesn't otherwise touch `type`.
             body: JSON.stringify({
               name: values.nama,
+              // F6 — `nama` on the e-wallet form IS the provider select
+              // (GoPay/OVO/...), exactly like at create time; only sending
+              // `name` here let a provider change desync `name` from the
+              // account's real `institution`, and any picker keyed off
+              // `institution` (e.g. rekening's brand logo lookup) kept
+              // showing the OLD provider after the "rename".
+              ...(danaEntity === "ewallet" ? { institution: values.nama } : {}),
               balance,
               type: danaEntity,
             }),
@@ -464,9 +471,13 @@ export default function DanaPage() {
       <HeroCard className="gradient-emerald">
         <div className="mb-1 text-xs opacity-80">{t.dana.totalLabel}</div>
         <div className="text-[28px] font-black">
-          {isLoading ? t.dana.loadingLabel : formatRupiah(totalBalance)}
+          {isLoading
+            ? t.dana.loadingLabel
+            : isError
+              ? "—"
+              : formatRupiah(totalBalance)}
         </div>
-        {!isLoading && (
+        {!isLoading && !isError && (
           <div className="mt-1.5 text-xs text-[#86EFAC]">
             {danaAccounts.length}
             {t.dana.accountsConnectedSuffix}

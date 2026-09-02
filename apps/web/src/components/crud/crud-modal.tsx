@@ -160,12 +160,28 @@ function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
     try {
       await onSubmit(state.entity, state.mode, values);
       onClose();
+    } catch {
+      // EPIC-022 F2 — a rejected `onSubmit` is exactly what keeps this
+      // dialog open (skipping `onClose()` above) instead of discarding the
+      // user's input on a failed save; every `onSubmit` implementation
+      // already shows its own error toast before rethrowing (see e.g.
+      // rekening/page.tsx, tujuan/page.tsx). Catching here only stops that
+      // already-handled rejection from also becoming an "Uncaught (in
+      // promise)" console error, since this `onClick` handler's returned
+      // promise is never awaited by the caller.
     } finally {
       setIsSaving(false);
     }
   };
 
-  const rows = groupFieldsIntoRows(config.fields);
+  // F6 — a field with no real backing data on edit (e.g. `rekening.jenis`,
+  // see its own `hideOnEdit` doc comment) is dropped from the edit form
+  // entirely instead of rendering pre-filled-wrong and silently discarded.
+  const visibleFields =
+    state.mode === "edit"
+      ? config.fields.filter((f) => !f.hideOnEdit)
+      : config.fields;
+  const rows = groupFieldsIntoRows(visibleFields);
 
   const renderControl = (f: CrudField) => {
     if (f.type === "select") {

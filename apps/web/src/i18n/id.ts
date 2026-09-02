@@ -2064,6 +2064,7 @@ export const id = {
     colAction: "Aksi",
     loadingRow: "Memuat data...",
     emptyRow: "Belum ada akun COA",
+    errorRow: "Gagal memuat akun COA. Silakan refresh halaman.",
     editTitle: "Edit",
     modalTitleEdit: "Edit Akun COA",
     modalTitleAdd: "Tambah Akun COA",
@@ -2833,6 +2834,11 @@ export const id = {
     toastNoFamilyGroup: "Silakan bergabung ke Family Group terlebih dahulu",
     errorCategoryNotFoundAfterConflict:
       "Kategori tidak ditemukan setelah konflik",
+    errorCategoryRequired: "Silakan pilih kategori yang sudah ada",
+    fieldExistingCategoryLabel: "Kategori",
+    existingCategoryPlaceholder: "Pilih kategori",
+    existingCategoryEmptyOption:
+      "Belum ada kategori jenis ini — minta pemilik keluarga menambahkannya",
     obligationsSectionTitle: "Kewajiban Periode Ini",
     obligationsDueBadge: "Belum Dibayar",
     obligationsPaidBadge: "Sudah Dibayar",

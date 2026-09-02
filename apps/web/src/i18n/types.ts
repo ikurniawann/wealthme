@@ -1908,6 +1908,7 @@ export type I18nDictionary = {
     colAction: string;
     loadingRow: string;
     emptyRow: string;
+    errorRow: string;
     editTitle: string;
     modalTitleEdit: string;
     modalTitleAdd: string;
@@ -2625,6 +2626,12 @@ export type I18nDictionary = {
     toastAmountInvalid: string;
     toastNoFamilyGroup: string;
     errorCategoryNotFoundAfterConflict: string;
+    /** EPIC-022 F3 — a member picking from existing categories left the
+     * picker on its placeholder option. */
+    errorCategoryRequired: string;
+    fieldExistingCategoryLabel: string;
+    existingCategoryPlaceholder: string;
+    existingCategoryEmptyOption: string;
     /** EPIC-023 E2 — "this period's obligations" Pay list (D11, US-LIAB-3). */
     obligationsSectionTitle: string;
     obligationsDueBadge: string;

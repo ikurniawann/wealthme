@@ -31,6 +31,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useLocale } from "@/hooks/use-locale";
+import { useCanManage } from "@/hooks/use-role-permissions";
 import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -779,6 +780,17 @@ export default function AnggaranPage() {
   const [kind, setKind] = useState<"income" | "expense">("expense");
   const [coaAccountId, setCoaAccountId] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
+  // F3 — CASL only grants "manage Category" to owner/spouse; a `member` has
+  // "manage Budget" but only "read Category". The dialog used to always
+  // create a brand-new Category first regardless of role, so a member could
+  // never finish adding a budget (403 on the category POST). When the
+  // signed-in role can't create a category, this flow instead requires
+  // picking one of the family's EXISTING categories of the chosen kind.
+  const { canManage: canManageCategory } = useCanManage("Category");
+  const [existingCategoryId, setExistingCategoryId] = useState("");
+  // F3 — CASL grants "manage Budget" to owner/spouse/member; admin_staff
+  // (and any role without a Budget grant at all) is read-only.
+  const { canManage: canManageBudget } = useCanManage("Budget");
 
   const {
     data: budgets,
@@ -824,6 +836,26 @@ export default function AnggaranPage() {
     kind === "income" ? a.direction !== "EXPENSE" : a.direction !== "INCOME",
   );
 
+  // F3 fix — a member (manage Budget, read-only Category) picks from the
+  // family's EXISTING categories instead of the create-a-category flow
+  // below. Same query key as /masterdata and /mastercoa so the cache (and
+  // any category just added there) is shared.
+  const { data: allCategories } = useQuery<
+    Array<{ id: string; name: string; kind: "income" | "expense" }>
+  >({
+    queryKey: ["categories", familyGroupId],
+    queryFn: () =>
+      apiFetch<Array<{ id: string; name: string; kind: "income" | "expense" }>>(
+        `/family-groups/${familyGroupId}/categories`,
+        { token },
+      ),
+    enabled: !!token && !!familyGroupId && canManageCategory === false,
+    staleTime: 60_000,
+  });
+  const selectableCategories = (allCategories ?? []).filter(
+    (c) => c.kind === kind,
+  );
+
   const createMutation = useMutation({
     mutationFn: async (payload: {
       name: string;
@@ -833,45 +865,55 @@ export default function AnggaranPage() {
       kind: "income" | "expense";
       coaAccountId: string;
       isPrivate: boolean;
+      existingCategoryId: string;
     }) => {
       if (!familyGroupId) throw new Error("familyGroupId missing");
 
       let categoryId: string;
-      try {
-        const cat = await apiFetch<{ id: string }>(
-          `/family-groups/${familyGroupId}/categories`,
-          {
-            method: "POST",
-            token,
-            body: JSON.stringify({
-              name: payload.name,
-              kind: payload.kind,
-              icon: payload.icon,
-              isPrivate: payload.isPrivate,
-              // "" means "let the server default by kind" — omitted rather
-              // than sent as an empty string, which the uuid validator rejects.
-              ...(payload.coaAccountId
-                ? { coaAccountId: payload.coaAccountId }
-                : {}),
-            }),
-          },
-        );
-        categoryId = cat.id;
-      } catch (err) {
-        const apiErr = err as { status?: number; message?: string };
-        if (apiErr.status === 409) {
-          const cats = await apiFetch<Array<{ id: string; name: string }>>(
-            `/family-groups/${familyGroupId}/categories?kind=${payload.kind}`,
-            { token },
+      if (canManageCategory === false) {
+        // Member flow — never POST /categories (403s on "manage Category");
+        // the picker above already restricts this to an existing category.
+        if (!payload.existingCategoryId) {
+          throw new Error(t.anggaran.errorCategoryRequired);
+        }
+        categoryId = payload.existingCategoryId;
+      } else {
+        try {
+          const cat = await apiFetch<{ id: string }>(
+            `/family-groups/${familyGroupId}/categories`,
+            {
+              method: "POST",
+              token,
+              body: JSON.stringify({
+                name: payload.name,
+                kind: payload.kind,
+                icon: payload.icon,
+                isPrivate: payload.isPrivate,
+                // "" means "let the server default by kind" — omitted rather
+                // than sent as an empty string, which the uuid validator rejects.
+                ...(payload.coaAccountId
+                  ? { coaAccountId: payload.coaAccountId }
+                  : {}),
+              }),
+            },
           );
-          const match = cats.find(
-            (c) => c.name.toLowerCase() === payload.name.toLowerCase(),
-          );
-          if (!match)
-            throw new Error(t.anggaran.errorCategoryNotFoundAfterConflict);
-          categoryId = match.id;
-        } else {
-          throw err;
+          categoryId = cat.id;
+        } catch (err) {
+          const apiErr = err as { status?: number; message?: string };
+          if (apiErr.status === 409) {
+            const cats = await apiFetch<Array<{ id: string; name: string }>>(
+              `/family-groups/${familyGroupId}/categories?kind=${payload.kind}`,
+              { token },
+            );
+            const match = cats.find(
+              (c) => c.name.toLowerCase() === payload.name.toLowerCase(),
+            );
+            if (!match)
+              throw new Error(t.anggaran.errorCategoryNotFoundAfterConflict);
+            categoryId = match.id;
+          } else {
+            throw err;
+          }
         }
       }
 
@@ -912,11 +954,18 @@ export default function AnggaranPage() {
     setKind("expense");
     setCoaAccountId("");
     setIsPrivate(false);
+    setExistingCategoryId("");
   }
 
   function handleSave() {
-    const trimmed = name.trim();
-    if (!trimmed) {
+    // F3 fix — a member picks an existing category instead of naming a new
+    // one; the create-a-category fields below don't apply to that flow.
+    if (canManageCategory === false) {
+      if (!existingCategoryId) {
+        toast.warning(t.anggaran.errorCategoryRequired);
+        return;
+      }
+    } else if (!name.trim()) {
       toast.warning(t.anggaran.toastNameRequired);
       return;
     }
@@ -930,13 +979,14 @@ export default function AnggaranPage() {
       return;
     }
     createMutation.mutate({
-      name: trimmed,
+      name: name.trim(),
       icon,
       limitAmount,
       period,
       kind,
       coaAccountId,
       isPrivate,
+      existingCategoryId,
     });
   }
 
@@ -989,13 +1039,15 @@ export default function AnggaranPage() {
             )}
           </div>
         </div>
-        <Button
-          onClick={() => setOpen(true)}
-          disabled={!familyGroupId}
-          className="h-auto px-[18px] py-2.5"
-        >
-          <Plus className="size-4" /> {t.anggaran.addCategoryButton}
-        </Button>
+        {canManageBudget && (
+          <Button
+            onClick={() => setOpen(true)}
+            disabled={!familyGroupId}
+            className="h-auto px-[18px] py-2.5"
+          >
+            <Plus className="size-4" /> {t.anggaran.addCategoryButton}
+          </Button>
+        )}
       </div>
 
       {/* EPIC-025 N3 rework — prototype's `budget-summary-grid`: a gradient
@@ -1140,9 +1192,11 @@ export default function AnggaranPage() {
       <SectionCard
         title={t.anggaran.categoryBreakdownTitle}
         action={
-          <CardLink onClick={() => setOpen(true)}>
-            {t.anggaran.categoryAddAction}
-          </CardLink>
+          canManageBudget && (
+            <CardLink onClick={() => setOpen(true)}>
+              {t.anggaran.categoryAddAction}
+            </CardLink>
+          )
         }
         bodyClassName="-mt-1"
       >
@@ -1211,37 +1265,49 @@ export default function AnggaranPage() {
           <DialogTitle>{t.anggaran.modalAddTitle}</DialogTitle>
           <DialogDescription>{t.anggaran.modalAddDesc}</DialogDescription>
           <DialogBody>
-            <div className="field">
-              <label className="label" htmlFor="budget-name">
-                {t.anggaran.fieldCategoryNameLabel}
-              </label>
-              <input
-                id="budget-name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t.anggaran.fieldCategoryNamePlaceholder}
-                className="input"
-              />
-            </div>
+            {/* F3 fix — a member can "manage Budget" but only "read
+                Category": the create-a-category fields below would 403 on
+                submit, so a member instead picks an existing category of
+                the chosen kind (see `existingCategoryId` above). */}
+            {canManageCategory !== false && (
+              <div className="field">
+                <label className="label" htmlFor="budget-name">
+                  {t.anggaran.fieldCategoryNameLabel}
+                </label>
+                <input
+                  id="budget-name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={t.anggaran.fieldCategoryNamePlaceholder}
+                  className="input"
+                />
+              </div>
+            )}
             {/* The fixed 8-emoji grid that used to live here is gone: a
                 category whose icon is a boat or a violin was simply not
                 expressible. Same component the master-data category dialog
                 uses, so the two no longer disagree about what an icon is. */}
-            <EmojiPicker
-              label={t.anggaran.iconLabel}
-              value={icon}
-              onChange={setIcon}
-              searchPlaceholder={t.common.emojiSearchPlaceholder}
-              noResultsLabel={t.common.emojiNoResults}
-              loadingLabel={t.common.emojiLoading}
-              ariaLabel={t.anggaran.iconGroupAriaLabel}
-            />
+            {canManageCategory !== false && (
+              <EmojiPicker
+                label={t.anggaran.iconLabel}
+                value={icon}
+                onChange={setIcon}
+                searchPlaceholder={t.common.emojiSearchPlaceholder}
+                noResultsLabel={t.common.emojiNoResults}
+                loadingLabel={t.common.emojiLoading}
+                ariaLabel={t.anggaran.iconGroupAriaLabel}
+              />
+            )}
             {/* The category half of the form. These were previously decided
                 for the user — always `expense`, always the server's default
                 COA account, never private — even though the budget's whole
                 identity comes from the category it creates. */}
-            <div className="field field-row">
+            <div
+              className={
+                canManageCategory !== false ? "field field-row" : "field"
+              }
+            >
               <div className="field mt-0">
                 <label className="label" htmlFor="budget-kind">
                   {t.anggaran.fieldKindLabel}
@@ -1251,10 +1317,11 @@ export default function AnggaranPage() {
                   value={kind}
                   onChange={(e) => {
                     setKind(e.target.value as "income" | "expense");
-                    // The previously chosen account may not be offered for the
-                    // new type; fall back to "Otomatis" rather than silently
-                    // submitting a value no longer in the list.
+                    // The previously chosen account/category may not be
+                    // offered for the new kind; fall back rather than
+                    // silently submitting a value no longer in the list.
                     setCoaAccountId("");
+                    setExistingCategoryId("");
                   }}
                   className="select"
                 >
@@ -1262,40 +1329,73 @@ export default function AnggaranPage() {
                   <option value="income">{t.common.income}</option>
                 </select>
               </div>
-              <div className="field mt-0">
-                <label className="label" htmlFor="budget-coa">
-                  {t.anggaran.fieldCoaLabel}
+              {canManageCategory !== false && (
+                <div className="field mt-0">
+                  <label className="label" htmlFor="budget-coa">
+                    {t.anggaran.fieldCoaLabel}
+                  </label>
+                  <select
+                    id="budget-coa"
+                    value={coaAccountId}
+                    onChange={(e) => setCoaAccountId(e.target.value)}
+                    className="select"
+                  >
+                    <option value="">{t.anggaran.coaAutoOptionLabel}</option>
+                    {selectableCoaAccounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.code} — {a.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+            {canManageCategory === false && (
+              <div className="field">
+                <label className="label" htmlFor="budget-existing-category">
+                  {t.anggaran.fieldExistingCategoryLabel}
                 </label>
                 <select
-                  id="budget-coa"
-                  value={coaAccountId}
-                  onChange={(e) => setCoaAccountId(e.target.value)}
+                  id="budget-existing-category"
+                  value={existingCategoryId}
+                  onChange={(e) => setExistingCategoryId(e.target.value)}
                   className="select"
                 >
-                  <option value="">{t.anggaran.coaAutoOptionLabel}</option>
-                  {selectableCoaAccounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.code} — {a.name}
+                  <option value="">
+                    {t.anggaran.existingCategoryPlaceholder}
+                  </option>
+                  {selectableCategories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
                     </option>
                   ))}
                 </select>
-              </div>
-            </div>
-            <div className="field">
-              <div className="row items-center justify-between gap-3">
-                <div>
-                  <span className="label">{t.anggaran.fieldPrivateLabel}</span>
+                {selectableCategories.length === 0 && (
                   <span className="hint block">
-                    {t.anggaran.fieldPrivateHint}
+                    {t.anggaran.existingCategoryEmptyOption}
                   </span>
-                </div>
-                <Switch
-                  checked={isPrivate}
-                  onCheckedChange={setIsPrivate}
-                  aria-label={t.anggaran.fieldPrivateLabel}
-                />
+                )}
               </div>
-            </div>
+            )}
+            {canManageCategory !== false && (
+              <div className="field">
+                <div className="row items-center justify-between gap-3">
+                  <div>
+                    <span className="label">
+                      {t.anggaran.fieldPrivateLabel}
+                    </span>
+                    <span className="hint block">
+                      {t.anggaran.fieldPrivateHint}
+                    </span>
+                  </div>
+                  <Switch
+                    checked={isPrivate}
+                    onCheckedChange={setIsPrivate}
+                    aria-label={t.anggaran.fieldPrivateLabel}
+                  />
+                </div>
+              </div>
+            )}
             {/* EPIC-026 Wave 4 — prototype puts amount + periode side by
                 side in a `field-row` (anggaran.html:410). */}
             <div className="field field-row">

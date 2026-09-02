@@ -39,6 +39,8 @@ import {
 import { RowActions, ConfirmDeleteDialog } from "@/components/crud";
 import { formatManualDate } from "@/components/consolidated-total-card";
 import { useLocale } from "@/hooks/use-locale";
+import { useApiError } from "@/hooks/use-api-error";
+import { useCanManage } from "@/hooks/use-role-permissions";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, formatNumber } from "@/lib/format";
@@ -438,6 +440,7 @@ function AddInvestmentModal({
 }) {
   const { t } = useLocale();
   const queryClient = useQueryClient();
+  const { handleError } = useApiError();
   const [submitting, setSubmitting] = useState(false);
   // Stable ids so each `investment-form__section` can be labelled by its own
   // heading (prototype uses `aria-labelledby` on every section).
@@ -558,10 +561,10 @@ function AddInvestmentModal({
           token,
           body: JSON.stringify(body),
         });
-      } catch {
-        toast.error(
-          editing ? t.investasi.toastUpdateFailed : t.investasi.toastAddFailed,
-        );
+      } catch (err) {
+        // F1 — surface the server's real message (e.g. a validation reason)
+        // instead of a generic constant.
+        handleError(err);
         return;
       }
 
@@ -1056,6 +1059,8 @@ export default function InvestasiPage() {
   const { t, locale } = useLocale();
   const { data: session } = useSession();
   const queryClient = useQueryClient();
+  const { handleError } = useApiError();
+  const { canManage } = useCanManage("Investment");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingHolding, setEditingHolding] = useState<InvestmentDto | null>(
     null,
@@ -1091,19 +1096,22 @@ export default function InvestasiPage() {
     enabled: !!token && !!familyGroupId,
   });
 
-  const { data: summary, isLoading: summaryLoading } =
-    useQuery<InvestmentSummaryDto>({
-      queryKey: [
-        ...queryKeys.investments.summary(familyGroupId ?? ""),
-        token ?? "",
-      ],
-      queryFn: () =>
-        apiFetch<InvestmentSummaryDto>(
-          `/family-groups/${familyGroupId}/investments/summary`,
-          { token },
-        ),
-      enabled: !!token && !!familyGroupId,
-    });
+  const {
+    data: summary,
+    isLoading: summaryLoading,
+    isError: summaryError,
+  } = useQuery<InvestmentSummaryDto>({
+    queryKey: [
+      ...queryKeys.investments.summary(familyGroupId ?? ""),
+      token ?? "",
+    ],
+    queryFn: () =>
+      apiFetch<InvestmentSummaryDto>(
+        `/family-groups/${familyGroupId}/investments/summary`,
+        { token },
+      ),
+    enabled: !!token && !!familyGroupId,
+  });
 
   // Live price updates via Socket.io — join family-group room for tenant isolation
   useEffect(() => {
@@ -1144,14 +1152,17 @@ export default function InvestasiPage() {
         queryKey: queryKeys.investments.all(familyGroupId),
       });
       toast.success(t.investasi.toastDeleted);
-    } catch {
-      toast.error(t.investasi.toastDeleteFailed);
+    } catch (err) {
+      handleError(err);
     } finally {
       setDeletingHolding(null);
     }
   }
 
   const isLoading = holdingsLoading || summaryLoading;
+  // F5 — a failed fetch must not render as an honest "no investments yet"
+  // empty state; combines both queries this page depends on for its totals.
+  const isPageError = holdingsError || summaryError;
 
   const filteredHoldings = (holdings ?? []).filter(
     (h) => activeFilter === "semua" || h.type === activeFilter,
@@ -1236,10 +1247,12 @@ export default function InvestasiPage() {
           >
             <RefreshCw className="size-3.5" /> {t.investasi.refreshPriceButton}
           </Button>
-          <Button type="button" size="sm" onClick={() => setModalOpen(true)}>
-            <Plus className="size-3.5" />{" "}
-            {t.investasi.addInvestmentHeaderButton}
-          </Button>
+          {canManage && (
+            <Button type="button" size="sm" onClick={() => setModalOpen(true)}>
+              <Plus className="size-3.5" />{" "}
+              {t.investasi.addInvestmentHeaderButton}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -1361,6 +1374,12 @@ export default function InvestasiPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {!isLoading && isPageError && (
+        <div className="rounded-[14px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive">
+          {t.investasi.errorLoad}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
         {isLoading ? (
@@ -1639,7 +1658,7 @@ export default function InvestasiPage() {
                       className="py-8 text-center text-[13px] text-muted-foreground"
                     >
                       {t.investasi.emptyState}{" "}
-                      {(holdings?.length ?? 0) === 0 && (
+                      {(holdings?.length ?? 0) === 0 && canManage && (
                         <button
                           type="button"
                           className="font-semibold text-primary"
@@ -1749,13 +1768,17 @@ export default function InvestasiPage() {
                         </div>
                       </td>
                       <td className="py-3">
-                        <RowActions
-                          onEdit={() => {
-                            setEditingHolding(h);
-                            setModalOpen(true);
-                          }}
-                          onDelete={() => setDeletingHolding(h)}
-                        />
+                        {/* F3 — CASL grants "manage Investment" only to
+                            owner/spouse/member; admin_staff is read-only. */}
+                        {canManage && (
+                          <RowActions
+                            onEdit={() => {
+                              setEditingHolding(h);
+                              setModalOpen(true);
+                            }}
+                            onDelete={() => setDeletingHolding(h)}
+                          />
+                        )}
                       </td>
                     </tr>
                     {isExpanded && (

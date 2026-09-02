@@ -123,6 +123,13 @@ function mockApiRoutes(accounts: AccountDto[]) {
       if (path.startsWith("/fx/rates")) {
         return Promise.resolve({ base: "IDR", rates: {} });
       }
+      // F3 — `useCanManage`/`useMyRole` resolve the signed-in role via this
+      // endpoint; an "owner" role keeps every create/edit/delete affordance
+      // this suite already asserts on visible (CASL grants owner "manage
+      // Account" — see casl-ability.factory.ts).
+      if (path.endsWith("/family-groups/mine")) {
+        return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
+      }
       return Promise.resolve(accounts);
     },
   );

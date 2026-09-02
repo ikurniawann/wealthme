@@ -48,6 +48,16 @@ export interface CrudField {
    * Every other "amount" field keeps stripping "-" like before.
    */
   allowNegative?: boolean;
+  /**
+   * EPIC-022 F6 — `rekening.jenis` ("Tabungan"/"Giro"/"Deposito") has no
+   * backing `Account` column: it only ever fed the auto-generated display
+   * name at CREATE time (`${bank} ${jenis}`), so on EDIT it was rendered
+   * pre-filled to its first option regardless of the account's real data
+   * and silently dropped from every PATCH — a dead field with nothing real
+   * behind it. Rather than fabricate a persisted value, it's hidden once
+   * there's nothing for it to represent.
+   */
+  hideOnEdit?: boolean;
 }
 
 export interface CrudEntityConfig {
@@ -109,6 +119,7 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         label: "Jenis",
         type: "select",
         options: ["Tabungan", "Giro", "Deposito"],
+        hideOnEdit: true,
       },
       {
         key: "isPrivate",
