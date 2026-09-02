@@ -2816,6 +2816,18 @@ export const en = {
     obligationsPayDialogDesc:
       "Paying records a transaction and reduces the source account balance.",
     obligationsDueDateNoticePrefix: "Due ",
+    editAriaLabelPrefix: "Edit budget ",
+    deleteAriaLabelPrefix: "Delete budget ",
+    modalEditTitle: "Edit Budget",
+    modalEditDesc: "Change this budget's limit or period.",
+    saveChangesButton: "Save Changes",
+    toastUpdated: "Budget updated",
+    toastUpdateFailedDefault: "Failed to update budget",
+    deleteDialogTitle: "Delete Budget?",
+    deleteDialogBody: "A deleted budget cannot be recovered.",
+    deleteDialogConfirm: "Yes, Delete",
+    toastDeleted: "Budget deleted",
+    toastDeleteFailedDefault: "Failed to delete budget",
   },
   transaksi: {
     typeLabels: {

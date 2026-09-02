@@ -1,11 +1,15 @@
 import {
+  ConflictException,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
+import { CoaDirection, Prisma } from "@prisma/client";
 
+import { budgetSpendWindow } from "../common/utils/budget-period.util";
 import { effectiveBudgetType } from "../common/utils/effective-budget-type.util";
 import { categoryPrivacyWhere } from "../common/utils/privacy.util";
+import { runSerializableWithRetry } from "../common/utils/serializable-retry.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -19,6 +23,7 @@ type BudgetWithCategory = {
   categoryId: string;
   period: string;
   limitAmount: bigint;
+  createdAt: Date;
   // EPIC-023 group E retry round 3 (MEDIUM 12 / CRITICAL 5) — used to tell
   // apart a liability's own principal category (whose spend is posted as
   // `type: "transfer"`, E1) from every other budget's category (`toDto`
@@ -30,6 +35,22 @@ type BudgetWithCategory = {
     icon: string | null;
     coaAccount: { budgetType: CoaBudgetType | null };
   };
+};
+
+/**
+ * EPIC-022 group C (C1/C3/C6) — one bucket of budgets whose spend can be
+ * summed with a SINGLE `groupBy` query: same spend-kind (ordinary
+ * COA-EXPENSE-direction vs. a liability's own transfer-posted principal
+ * line, E1/C5) and the SAME computed [start, end] window. Most families'
+ * budgets are monthly and predate the current period, so they collapse into
+ * one bucket per kind; a budget created mid-period (C3's own clamp) gets its
+ * own bucket because its `start` is unique to it.
+ */
+type SpendBucket = {
+  kind: "ordinary" | "liability";
+  start: Date;
+  end: Date;
+  categoryIds: string[];
 };
 
 @Injectable()
@@ -64,80 +85,100 @@ export class BudgetsService {
     });
 
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthEnd = new Date(
-      now.getFullYear(),
-      now.getMonth() + 1,
-      0,
-      23,
-      59,
-      59,
-    );
-
-    // EPIC-023 group E retry round 4 (C5) — a liability's OWN principal
-    // budget line (`Budget.liabilityId` set, HIGH 4/E2) posts its spend as
-    // `type: "transfer"` (E1 — a principal payment moves cash into paying
-    // down debt, not a P&L expense), so grouping on `type: "expense"` alone
-    // left `spentAmount` at 0 forever for every such line, however many
-    // payments were made. Split into two disjoint queries: ordinary/
-    // insurance-premium categories still require `type: "expense"` exactly
-    // as before (insurance premiums post as "expense", unaffected); a
-    // liability's own category — EXCLUSIVE to that one liability since the
-    // HIGH 4 redesign, never shared — is instead summed by `type:
-    // "transfer"`, the only type `LiabilitiesService.pay()` ever posts
-    // against it. Neither bucket can leak into the other's total.
-    const ordinaryCategoryIds = budgets
-      .filter((b) => !b.liabilityId)
-      .map((b) => b.categoryId);
-    const liabilityCategoryIds = budgets
-      .filter((b) => b.liabilityId)
-      .map((b) => b.categoryId);
-
-    const [expenseSpending, transferSpending] = await Promise.all([
-      ordinaryCategoryIds.length > 0
-        ? this.prisma.transaction.groupBy({
-            by: ["categoryId"],
-            where: {
-              familyGroupId,
-              type: "expense",
-              occurredAt: { gte: monthStart, lte: monthEnd },
-              categoryId: { in: ordinaryCategoryIds },
-              // EPIC-022 A6 — belt-and-suspenders: `budgets` above is
-              // already privacy-filtered, so `categoryId: { in: ... }`
-              // already excludes private categories' spend; this repeats
-              // the same filter directly on the spend query so it stays
-              // correct even if the `in` list above is ever computed
-              // differently.
-              category: categoryPrivacyWhere(canSeePrivate),
-            },
-            _sum: { amount: true },
-          })
-        : Promise.resolve([]),
-      liabilityCategoryIds.length > 0
-        ? this.prisma.transaction.groupBy({
-            by: ["categoryId"],
-            where: {
-              familyGroupId,
-              type: "transfer",
-              occurredAt: { gte: monthStart, lte: monthEnd },
-              categoryId: { in: liabilityCategoryIds },
-              category: categoryPrivacyWhere(canSeePrivate),
-            },
-            _sum: { amount: true },
-          })
-        : Promise.resolve([]),
-    ]);
-
-    const spendingMap = new Map(
-      [...expenseSpending, ...transferSpending].map((s) => [
-        s.categoryId,
-        Number(s._sum.amount ?? 0),
-      ]),
+    const spendingMap = await this.computeSpendingMap(
+      familyGroupId,
+      budgets,
+      canSeePrivate,
+      now,
     );
 
     return budgets.map((b) =>
       this.toDto(b, spendingMap.get(b.categoryId) ?? 0),
     );
+  }
+
+  /**
+   * C1 (Open Design Decision #2, DECIDED: implement) — the spend window
+   * follows each budget's OWN `period` (weekly/monthly/yearly), not a
+   * hardcoded calendar month. C3 — the window's START is additionally
+   * clamped to the budget's `createdAt`, so a budget created mid-period does
+   * not read spend from before it existed. C6 — an ordinary budget's spend
+   * is defined by the category's COA direction (matches every report), not
+   * the transaction's raw `type`; a liability's own principal line keeps its
+   * `type: "transfer"` definition (E1), unrelated to C6's fix.
+   */
+  private async computeSpendingMap(
+    familyGroupId: string,
+    budgets: BudgetWithCategory[],
+    canSeePrivate: boolean,
+    now: Date,
+  ): Promise<Map<string, number>> {
+    const buckets = new Map<string, SpendBucket>();
+    for (const b of budgets) {
+      const { start, end } = budgetSpendWindow(
+        b.period as BudgetPeriod,
+        b.createdAt,
+        now,
+      );
+      const kind: SpendBucket["kind"] = b.liabilityId
+        ? "liability"
+        : "ordinary";
+      const key = `${kind}|${start.getTime()}|${end.getTime()}`;
+      const bucket = buckets.get(key);
+      if (bucket) bucket.categoryIds.push(b.categoryId);
+      else buckets.set(key, { kind, start, end, categoryIds: [b.categoryId] });
+    }
+
+    const results = await Promise.all(
+      [...buckets.values()].map((bucket) =>
+        this.prisma.transaction.groupBy({
+          by: ["categoryId"],
+          where:
+            bucket.kind === "liability"
+              ? {
+                  familyGroupId,
+                  type: "transfer",
+                  occurredAt: { gte: bucket.start, lte: bucket.end },
+                  categoryId: { in: bucket.categoryIds },
+                  // EPIC-022 A6 — belt-and-suspenders, same as the ordinary
+                  // branch below: `budgets` is already privacy-filtered, so
+                  // `categoryId: { in: ... }` already excludes private
+                  // categories' spend; repeated directly on the spend query
+                  // so it stays correct even if that list is ever computed
+                  // differently.
+                  category: categoryPrivacyWhere(canSeePrivate),
+                }
+              : {
+                  familyGroupId,
+                  occurredAt: { gte: bucket.start, lte: bucket.end },
+                  categoryId: { in: bucket.categoryIds },
+                  // C6 — COA-direction-based expense definition (matches
+                  // reports.service.ts's `txCoaDirection`), not raw
+                  // `type: "expense"`: a category mapped to a
+                  // TRANSFER-direction COA account (e.g. a savings/
+                  // investment transfer) must not count against a budget
+                  // the way it doesn't count against Beranda's expenses.
+                  category: {
+                    ...categoryPrivacyWhere(canSeePrivate),
+                    coaAccount: { direction: CoaDirection.EXPENSE },
+                  },
+                },
+          _sum: { amount: true },
+        }),
+      ),
+    );
+
+    const spendingMap = new Map<string, number>();
+    for (const rows of results) {
+      for (const row of rows) {
+        // `categoryId: { in: bucket.categoryIds }` above guarantees this is
+        // never null at runtime; the guard only satisfies the nullable
+        // Prisma field type on `groupBy`'s result.
+        if (!row.categoryId) continue;
+        spendingMap.set(row.categoryId, Number(row._sum.amount ?? 0));
+      }
+    }
+    return spendingMap;
   }
 
   async create(
@@ -163,24 +204,84 @@ export class BudgetsService {
       );
     }
 
-    const budget = await this.prisma.budget.create({
-      data: {
-        familyGroupId,
-        categoryId: dto.categoryId,
-        period: dto.period,
-        limitAmount: BigInt(dto.limitAmount),
-      },
-      include: {
-        category: {
-          select: {
-            name: true,
-            icon: true,
-            coaAccount: { select: { budgetType: true } },
+    // C5 (review round, TOCTOU fix) — a category may hold only ONE budget,
+    // regardless of period. The DB's real unique index
+    // (`@@unique([familyGroupId, categoryId, period])`) only rejects a
+    // collision on the SAME period, so a plain pre-check + create (even
+    // wrapped in a try/catch on P2002) left a race window open: two
+    // concurrent `create()` calls for the SAME category but DIFFERENT
+    // periods (e.g. one weekly, one monthly — reachable through the UI's
+    // 409-fallback create path) both pass the `findFirst` pre-check before
+    // either commits, and neither insert collides with the narrower index —
+    // both succeed, leaving the category double-budgeted, exactly what C5
+    // exists to prevent.
+    //
+    // Fix: run the pre-check + insert inside ONE Serializable transaction
+    // (this repo's established pattern for read-then-write races, see
+    // `serializable-retry.util.ts`, used by liabilities/split-bills). The
+    // pre-check's read predicate is `familyGroupId + categoryId` (no
+    // `period`), so it overlaps with BOTH transactions' inserts regardless
+    // of which period each one picks. Under Postgres's Serializable
+    // Snapshot Isolation, two concurrent transactions where each one reads
+    // a predicate the other's write falls into is a write-skew anomaly —
+    // SSI detects the rw-conflict cycle and aborts the loser with a
+    // serialization failure (P2034), which `runSerializableWithRetry`
+    // catches and retries in a fresh transaction. The retry's pre-check now
+    // reads the winner's already-committed row and throws the 409 below
+    // instead of inserting a second budget. This closes the gap for ANY
+    // period combination, not just the identical-period case the unique
+    // index alone catches — no schema/migration change needed. A
+    // liability/insurance's own auto-created line uses its own EXCLUSIVE
+    // category and `tx.budget.upsert` directly, never this method, so it
+    // can never collide with this check.
+    return runSerializableWithRetry(this.prisma, async (tx) => {
+      const existing = await tx.budget.findFirst({
+        where: { familyGroupId, categoryId: dto.categoryId },
+        select: { id: true },
+      });
+      if (existing) {
+        throw new ConflictException(
+          "A budget already exists for this category",
+        );
+      }
+
+      try {
+        const budget = await tx.budget.create({
+          data: {
+            familyGroupId,
+            categoryId: dto.categoryId,
+            period: dto.period,
+            limitAmount: BigInt(dto.limitAmount),
           },
-        },
-      },
+          include: {
+            category: {
+              select: {
+                name: true,
+                icon: true,
+                coaAccount: { select: { budgetType: true } },
+              },
+            },
+          },
+        });
+        return this.toDto(budget, 0);
+      } catch (err) {
+        // Belt-and-suspenders for the identical-period case: the DB's own
+        // `@@unique([familyGroupId, categoryId, period])` still fires a
+        // P2002 if two same-period creates somehow reach the insert without
+        // SSI catching them first (e.g. a lower isolation level in a future
+        // refactor). The different-period race is closed above by SSI, not
+        // by this index.
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === "P2002"
+        ) {
+          throw new ConflictException(
+            "A budget already exists for this category",
+          );
+        }
+        throw err;
+      }
     });
-    return this.toDto(budget, 0);
   }
 
   async update(

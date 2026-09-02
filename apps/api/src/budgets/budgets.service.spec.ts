@@ -1,8 +1,17 @@
 import { Test, type TestingModule } from "@nestjs/testing";
+import { Prisma } from "@prisma/client";
 
 import { PrismaService } from "../prisma/prisma.service";
 
 import { BudgetsService } from "./budgets.service";
+
+/** Mirrors liabilities.service.spec.ts's helper for constructing Prisma errors. */
+function serializationFailure() {
+  return new Prisma.PrismaClientKnownRequestError(
+    "Transaction failed due to a write conflict or a deadlock. Please retry your transaction",
+    { code: "P2034", clientVersion: "test" },
+  );
+}
 
 const FAMILY_GROUP_ID = "fg-1";
 const PUBLIC_BUDGET_ID = "budget-public";
@@ -15,11 +24,17 @@ const LIABILITY_BUDGET_ID = "budget-liability";
 const LIABILITY_CATEGORY_ID = "cat-liability-own";
 const LIABILITY_ID = "liab-1";
 
+const NOW = new Date("2026-06-15T12:00:00+07:00");
+// Well before the current monthly/weekly period start, so `budgetSpendWindow`
+// resolves to the plain period start (no C3 clamp) unless a test overrides it.
+const OLD_CREATED_AT = new Date("2020-01-01T00:00:00Z");
+
 interface FakeBudgetRow {
   id: string;
   categoryId: string;
   period: string;
   limitAmount: bigint;
+  createdAt: Date;
   liabilityId?: string | null;
   // C2 (group E retry round 4) — production ALWAYS writes this column
   // (`syncPrincipalBudgetLine`/`syncPremiumBudgetLine` both set
@@ -49,6 +64,7 @@ function buildBudgetRows(): FakeBudgetRow[] {
       categoryId: PUBLIC_CATEGORY_ID,
       period: "monthly",
       limitAmount: 1_000_000n,
+      createdAt: OLD_CREATED_AT,
       category: {
         name: "Belanja",
         icon: "🛒",
@@ -61,6 +77,7 @@ function buildBudgetRows(): FakeBudgetRow[] {
       categoryId: PRIVATE_CATEGORY_ID,
       period: "monthly",
       limitAmount: 2_000_000n,
+      createdAt: OLD_CREATED_AT,
       category: {
         name: "Personal",
         icon: "🔒",
@@ -106,7 +123,7 @@ function makePrisma() {
       (r) => r.id === id && r.categoryId && familyGroupId === FAMILY_GROUP_ID,
     ) ?? null;
 
-  return {
+  const prisma = {
     budget: {
       findMany: jest.fn(
         ({ where }: { where: { category?: { isPrivate?: boolean } } }) => {
@@ -117,6 +134,7 @@ function makePrisma() {
           return Promise.resolve(filtered);
         },
       ),
+      findFirst: jest.fn(() => Promise.resolve(null)),
       findUnique: jest.fn(
         ({ where }: { where: { id: string; familyGroupId: string } }) => {
           const row = findBudget(where.id, where.familyGroupId);
@@ -158,6 +176,9 @@ function makePrisma() {
             categoryId: data.categoryId,
             period: data.period,
             limitAmount: data.limitAmount,
+            createdAt: new Date(),
+            liabilityId: null,
+            budgetType: null,
             category: {
               name: category?.name ?? "Unknown",
               icon: category?.icon ?? null,
@@ -183,8 +204,19 @@ function makePrisma() {
         return Promise.resolve([]);
       }),
     },
+    // C5 TOCTOU fix — `create()` now runs its pre-check + insert through
+    // `runSerializableWithRetry`, which calls `$transaction(fn, { isolationLevel })`.
+    // `mockImplementation` is wired below (mirrors liabilities.service.spec.ts /
+    // split-bills.service.spec.ts): the callback runs against the SAME mocked
+    // client so `budget.findFirst`/`budget.create` assertions above still
+    // work unchanged.
+    $transaction: jest.fn(),
     __groupByCalls: groupByCalls,
   };
+  prisma.$transaction.mockImplementation(
+    (fn: (tx: typeof prisma) => Promise<unknown>) => fn(prisma),
+  );
+  return prisma;
 }
 
 describe("BudgetsService.findAll privacy enforcement (EPIC-022 A6)", () => {
@@ -219,12 +251,15 @@ describe("BudgetsService.findAll privacy enforcement (EPIC-022 A6)", () => {
     );
   });
 
-  it("applies the same category privacy filter to the spend groupBy query", async () => {
+  it("applies the same category privacy filter to the spend groupBy query (plus the C6 COA-direction filter)", async () => {
     await service.findAll(FAMILY_GROUP_ID, false);
     const call = prisma.__groupByCalls[0] as {
       where: { category?: { isPrivate?: boolean } };
     };
-    expect(call.where.category).toEqual({ isPrivate: false });
+    expect(call.where.category).toEqual({
+      isPrivate: false,
+      coaAccount: { direction: "EXPENSE" },
+    });
   });
 
   it("does not restrict the spend groupBy query for a viewer who can see private categories", async () => {
@@ -232,7 +267,9 @@ describe("BudgetsService.findAll privacy enforcement (EPIC-022 A6)", () => {
     const call = prisma.__groupByCalls[0] as {
       where: { category?: { isPrivate?: boolean } };
     };
-    expect(call.where.category).toEqual({});
+    expect(call.where.category).toEqual({
+      coaAccount: { direction: "EXPENSE" },
+    });
   });
 });
 
@@ -254,6 +291,7 @@ function makePrismaWithTransactions() {
       categoryId: PUBLIC_CATEGORY_ID,
       period: "monthly",
       limitAmount: 1_000_000n,
+      createdAt: OLD_CREATED_AT,
       liabilityId: null,
       category: {
         name: "Belanja",
@@ -267,6 +305,7 @@ function makePrismaWithTransactions() {
       categoryId: LIABILITY_CATEGORY_ID,
       period: "monthly",
       limitAmount: 5_000_000n,
+      createdAt: OLD_CREATED_AT,
       liabilityId: LIABILITY_ID,
       category: {
         name: "Cicilan Pokok KPR",
@@ -304,13 +343,24 @@ function makePrismaWithTransactions() {
         ({
           where,
         }: {
-          where: { type: string; categoryId: { in: string[] } };
+          where: {
+            type?: string;
+            categoryId: { in: string[] };
+            category?: { coaAccount?: { direction?: string } };
+          };
         }) => {
-          const matching = transactionRows.filter(
-            (t) =>
-              t.type === where.type &&
-              where.categoryId.in.includes(t.categoryId),
-          );
+          // The ordinary bucket no longer filters by `type` directly (C6) —
+          // it relies on the (fixed) COA-direction filter to select
+          // EXPENSE-classified categories; the liability bucket still
+          // filters by `type: "transfer"` explicitly (unrelated to C6).
+          const matching = transactionRows.filter((t) => {
+            if (!where.categoryId.in.includes(t.categoryId)) return false;
+            if (where.type) return t.type === where.type;
+            // Ordinary bucket: every category in this fake fixture that
+            // ISN'T the liability's own is COA-EXPENSE-direction and
+            // posts as `type: "expense"` — mirrors the real join.
+            return t.type === "expense";
+          });
           const byCategory = new Map<string, bigint>();
           for (const t of matching) {
             byCategory.set(
@@ -375,6 +425,7 @@ function makePrismaWithBudgetOwnType() {
       categoryId: "cat-liability-own",
       period: "monthly",
       limitAmount: 2_083_000n,
+      createdAt: OLD_CREATED_AT,
       liabilityId: "liab-1",
       budgetType: "FIXED",
       category: {
@@ -402,6 +453,164 @@ describe("BudgetsService.findAll budgetType resolution (EPIC-023 group E retry r
     const [result] = await service.findAll(FAMILY_GROUP_ID, true);
 
     expect(result.budgetType).toBe("FIXED");
+  });
+});
+
+/**
+ * EPIC-022 C1/C3 — the spend window follows `budget.period`, not a
+ * hardcoded calendar month, and its START is clamped to the budget's own
+ * `createdAt` so a mid-period create doesn't read spend from before it
+ * existed. Uses a real `Date.now()` fake so the assertions aren't sensitive
+ * to whichever day the suite happens to run on.
+ */
+describe("BudgetsService.findAll period-aware spend window (EPIC-022 C1/C3)", () => {
+  beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(NOW);
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  function makePrismaCapturingWindow(budgetRows: FakeBudgetRow[]) {
+    const groupByCalls: Array<{
+      where: { occurredAt: { gte: Date; lte: Date } };
+    }> = [];
+    return {
+      budget: { findMany: jest.fn(() => Promise.resolve(budgetRows)) },
+      transaction: {
+        groupBy: jest.fn((args: (typeof groupByCalls)[number]) => {
+          groupByCalls.push(args);
+          return Promise.resolve([]);
+        }),
+      },
+      __groupByCalls: groupByCalls,
+    };
+  }
+
+  it("uses a weekly window (not the calendar month) for a weekly budget", async () => {
+    const prisma = makePrismaCapturingWindow([
+      {
+        id: "budget-weekly",
+        categoryId: "cat-weekly",
+        period: "weekly",
+        limitAmount: 500_000n,
+        createdAt: OLD_CREATED_AT,
+        category: {
+          name: "Belanja Mingguan",
+          icon: null,
+          isPrivate: false,
+          coaAccount: { budgetType: null },
+        },
+      },
+    ]);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [BudgetsService, { provide: PrismaService, useValue: prisma }],
+    }).compile();
+    const service = module.get(BudgetsService);
+
+    await service.findAll(FAMILY_GROUP_ID, true);
+
+    const { gte, lte } = prisma.__groupByCalls[0]!.where.occurredAt;
+    // 2026-06-15 is a Monday — the weekly window must be exactly that week,
+    // not the whole of June (the pre-fix hardcoded calendar-month bug).
+    const spanMs = lte.getTime() - gte.getTime();
+    expect(spanMs).toBeLessThan(8 * 24 * 60 * 60_000);
+    expect(spanMs).toBeGreaterThan(6 * 24 * 60 * 60_000);
+  });
+
+  it("uses a yearly window for a yearly budget", async () => {
+    const prisma = makePrismaCapturingWindow([
+      {
+        id: "budget-yearly",
+        categoryId: "cat-yearly",
+        period: "yearly",
+        limitAmount: 12_000_000n,
+        createdAt: OLD_CREATED_AT,
+        category: {
+          name: "SPP Tahunan",
+          icon: null,
+          isPrivate: false,
+          coaAccount: { budgetType: null },
+        },
+      },
+    ]);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [BudgetsService, { provide: PrismaService, useValue: prisma }],
+    }).compile();
+    const service = module.get(BudgetsService);
+
+    await service.findAll(FAMILY_GROUP_ID, true);
+
+    const { gte, lte } = prisma.__groupByCalls[0]!.where.occurredAt;
+    const spanDays = (lte.getTime() - gte.getTime()) / (24 * 60 * 60_000);
+    expect(spanDays).toBeGreaterThan(360);
+  });
+
+  it("clamps the window start to createdAt for a budget created mid-period (C3)", async () => {
+    const createdAt = new Date("2026-06-10T00:00:00+07:00");
+    const prisma = makePrismaCapturingWindow([
+      {
+        id: "budget-mid-period",
+        categoryId: "cat-mid-period",
+        period: "monthly",
+        limitAmount: 1_000_000n,
+        createdAt,
+        category: {
+          name: "Baru Dibuat",
+          icon: null,
+          isPrivate: false,
+          coaAccount: { budgetType: null },
+        },
+      },
+    ]);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [BudgetsService, { provide: PrismaService, useValue: prisma }],
+    }).compile();
+    const service = module.get(BudgetsService);
+
+    await service.findAll(FAMILY_GROUP_ID, true);
+
+    const { gte } = prisma.__groupByCalls[0]!.where.occurredAt;
+    expect(gte).toEqual(createdAt);
+  });
+
+  it("buckets two same-period budgets predating the period start into ONE groupBy call", async () => {
+    const prisma = makePrismaCapturingWindow([
+      {
+        id: "budget-a",
+        categoryId: "cat-a",
+        period: "monthly",
+        limitAmount: 1_000_000n,
+        createdAt: OLD_CREATED_AT,
+        category: {
+          name: "A",
+          icon: null,
+          isPrivate: false,
+          coaAccount: { budgetType: null },
+        },
+      },
+      {
+        id: "budget-b",
+        categoryId: "cat-b",
+        period: "monthly",
+        limitAmount: 1_000_000n,
+        createdAt: OLD_CREATED_AT,
+        category: {
+          name: "B",
+          icon: null,
+          isPrivate: false,
+          coaAccount: { budgetType: null },
+        },
+      },
+    ]);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [BudgetsService, { provide: PrismaService, useValue: prisma }],
+    }).compile();
+    const service = module.get(BudgetsService);
+
+    await service.findAll(FAMILY_GROUP_ID, true);
+
+    expect(prisma.__groupByCalls.length).toBe(1);
   });
 });
 
@@ -450,6 +659,111 @@ describe("BudgetsService.create privacy enforcement (EPIC-022 A6 follow-up)", ()
     expect(result.categoryId).toBe(PUBLIC_CATEGORY_ID);
   });
 });
+
+/**
+ * EPIC-022 C5 — a category may hold only ONE budget, regardless of period.
+ * Without this, the UI's 409-fallback create path (retry with the resolved
+ * existing category, a different period) could leave the SAME category with
+ * both a weekly AND a monthly budget, double-counting its spend in the page
+ * totals.
+ */
+describe("BudgetsService.create rejects a second budget for the same category (EPIC-022 C5)", () => {
+  it("409s when a budget already exists for the category, in ANY period", async () => {
+    const prisma = makePrisma();
+    prisma.budget.findFirst = jest
+      .fn()
+      .mockResolvedValue({ id: PUBLIC_BUDGET_ID });
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [BudgetsService, { provide: PrismaService, useValue: prisma }],
+    }).compile();
+    const service = module.get(BudgetsService);
+
+    await expect(
+      service.create(
+        FAMILY_GROUP_ID,
+        { categoryId: PUBLIC_CATEGORY_ID, period: "weekly", limitAmount: 100 },
+        true,
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(prisma.budget.create).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Review round (TOCTOU fix) — proves the mechanism that closes the
+ * concurrent-DIFFERENT-period race, not just the serial case the test above
+ * already covers. A real two-request race can't be reproduced against this
+ * in-memory fake (there is only one Postgres and one SSI conflict detector),
+ * so this proves the two halves of the argument at the code level instead:
+ * (1) `create()` genuinely runs inside `runSerializableWithRetry` — a P2034
+ * (the error Postgres's SSI raises for exactly this kind of write-skew, see
+ * the method's comment) is transparently retried rather than surfacing as a
+ * 500, mirroring liabilities.service.spec.ts's identical proof for its own
+ * read-then-write race; and (2) once retried, the pre-check re-reads
+ * whatever the winning transaction already committed and 409s instead of
+ * inserting a duplicate — which is the behavior that makes the retry safe
+ * regardless of which period either side picked.
+ */
+describe("BudgetsService.create closes the cross-period race (TOCTOU fix)", () => {
+  it("retries once on a P2034 serialization failure and still succeeds", async () => {
+    const prisma = makePrisma();
+    // First attempt: SSI aborts the transaction (simulates two concurrent
+    // creates for the same category racing each other, whichever period).
+    prisma.$transaction.mockImplementationOnce(() =>
+      Promise.reject(serializationFailure()),
+    );
+
+    const result = await service_create(prisma, {
+      categoryId: PUBLIC_CATEGORY_ID,
+      period: "weekly",
+      limitAmount: 100,
+    });
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+    expect(result.categoryId).toBe(PUBLIC_CATEGORY_ID);
+  });
+
+  it("409s on retry instead of inserting a duplicate once the pre-check sees the winner's committed row", async () => {
+    const prisma = makePrisma();
+    // Attempt 1 loses the SSI race (aborted before its own insert commits).
+    prisma.$transaction.mockImplementationOnce(() =>
+      Promise.reject(serializationFailure()),
+    );
+    // Attempt 2 re-enters the transaction and now reads the OTHER
+    // transaction's already-committed row — e.g. it won with a "monthly"
+    // budget while this caller asked for "weekly" — proving the guard
+    // still fires across different periods, not only the identical-period
+    // case the DB's own unique index also catches.
+    prisma.budget.findFirst = jest
+      .fn()
+      .mockResolvedValue({ id: "budget-won-the-race" });
+
+    await expect(
+      service_create(prisma, {
+        categoryId: PUBLIC_CATEGORY_ID,
+        period: "weekly",
+        limitAmount: 100,
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(prisma.budget.create).not.toHaveBeenCalled();
+  });
+});
+
+/** Builds a fresh service bound to `prisma` and calls `create()` on it. */
+async function service_create(
+  prisma: ReturnType<typeof makePrisma>,
+  dto: {
+    categoryId: string;
+    period: "monthly" | "weekly" | "yearly";
+    limitAmount: number;
+  },
+) {
+  const module: TestingModule = await Test.createTestingModule({
+    providers: [BudgetsService, { provide: PrismaService, useValue: prisma }],
+  }).compile();
+  const service = module.get(BudgetsService);
+  return service.create(FAMILY_GROUP_ID, dto, true);
+}
 
 describe("BudgetsService.update privacy enforcement (EPIC-022 A6 follow-up)", () => {
   let service: BudgetsService;

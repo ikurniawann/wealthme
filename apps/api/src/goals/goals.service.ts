@@ -27,46 +27,61 @@ export interface GoalDto {
   remainingAmount: number;
 }
 
-const MS_PER_DAY = 86_400_000;
-
+/**
+ * EPIC-022 C7 — judges progress against how much is EXPECTED by now given a
+ * straight-line pace from `createdAt` to `targetDate`, not against a fixed
+ * "days remaining" tier alone. The old tiers flagged ANY brand-new goal with
+ * 0 saved as `at_risk` the instant a long horizon (>=90 days remaining) put
+ * it in the most lenient tier, because even that tier's floor (25% of
+ * target) exceeds a fresh goal's 0% progress — a 10-year education fund
+ * one day old was immediately "at risk". Comparing against elapsed-time
+ * pace fixes this: a brand-new goal has elapsed ≈ 0, so its expected
+ * progress is also ≈ 0, and 0 vs 0 is on pace.
+ */
 function computeStatus(
   currentAmount: bigint,
   targetAmount: bigint,
   targetDate: Date | null,
+  createdAt: Date,
+  now: Date = new Date(),
 ): PrismaGoalStatus {
   if (currentAmount >= targetAmount) return PrismaGoalStatus.achieved;
   if (!targetDate) return PrismaGoalStatus.on_track;
 
-  const now = Date.now();
+  const nowMs = now.getTime();
   const targetMs = targetDate.getTime();
-  const totalMs = targetMs - now;
+  if (targetMs <= nowMs) return PrismaGoalStatus.at_risk;
 
-  if (totalMs <= 0) return PrismaGoalStatus.at_risk;
-
-  const daysRemaining = totalMs / MS_PER_DAY;
   const progressPct =
     targetAmount > 0n
       ? (Number(currentAmount) / Number(targetAmount)) * 100
       : 0;
 
-  const urgencyFactor =
-    daysRemaining < 30 ? 0.9 : daysRemaining < 90 ? 0.7 : 0.5;
+  const totalMs = targetMs - createdAt.getTime();
+  const elapsedMs = nowMs - createdAt.getTime();
+  const elapsedFraction =
+    totalMs > 0 ? Math.min(1, Math.max(0, elapsedMs / totalMs)) : 1;
+  const expectedPct = elapsedFraction * 100;
+  const deficit = expectedPct - progressPct;
 
-  if (progressPct < urgencyFactor * 50) return PrismaGoalStatus.at_risk;
-  if (progressPct < urgencyFactor * 80) return PrismaGoalStatus.needs_boost;
+  if (deficit > 25) return PrismaGoalStatus.at_risk;
+  if (deficit > 10) return PrismaGoalStatus.needs_boost;
   return PrismaGoalStatus.on_track;
 }
 
-function toDto(goal: {
-  id: string;
-  name: string;
-  icon: string | null;
-  targetAmount: bigint;
-  currentAmount: bigint;
-  targetDate: Date | null;
-  autoDebitAmount: bigint | null;
-  status: PrismaGoalStatus;
-}): GoalDto {
+function toDto(
+  goal: {
+    id: string;
+    name: string;
+    icon: string | null;
+    targetAmount: bigint;
+    currentAmount: bigint;
+    targetDate: Date | null;
+    autoDebitAmount: bigint | null;
+    createdAt: Date;
+  },
+  now: Date = new Date(),
+): GoalDto {
   const targetAmount = Number(goal.targetAmount);
   const currentAmount = Number(goal.currentAmount);
   const progressPercent =
@@ -80,6 +95,21 @@ function toDto(goal: {
     [PrismaGoalStatus.at_risk]: "at_risk",
   };
 
+  // EPIC-022 C7 — recomputed on EVERY read, not trusted from the row's
+  // stored `status` column: that column is only ever refreshed by a WRITE
+  // (create/update/runAutoDebit), so an overdue goal nobody has touched
+  // since keeps whatever status it had the day it was last saved — a
+  // months-overdue goal could keep a green "Sesuai Rencana" badge
+  // indefinitely. The stored column is left in place (informational only,
+  // still refreshed on write) but is never read here.
+  const status = computeStatus(
+    goal.currentAmount,
+    goal.targetAmount,
+    goal.targetDate,
+    goal.createdAt,
+    now,
+  );
+
   return {
     id: goal.id,
     name: goal.name,
@@ -89,7 +119,7 @@ function toDto(goal: {
     targetDate: goal.targetDate ? goal.targetDate.toISOString() : null,
     autoDebitAmount:
       goal.autoDebitAmount !== null ? Number(goal.autoDebitAmount) : null,
-    status: statusMap[goal.status],
+    status: statusMap[status],
     progressPercent,
     remainingAmount,
   };
@@ -104,13 +134,28 @@ export class GoalsService {
       where: { familyGroupId },
       orderBy: { createdAt: "asc" },
     });
-    return goals.map(toDto);
+    // C7 — one shared `now` for the whole list, so two goals in the SAME
+    // response can't straddle a status-relevant instant against each other.
+    const now = new Date();
+    return goals.map((g) => toDto(g, now));
   }
 
   async create(familyGroupId: string, dto: CreateGoalDto): Promise<GoalDto> {
     const targetAmount = BigInt(dto.targetAmount);
     const autoDebitAmount =
       dto.autoDebitAmount != null ? BigInt(dto.autoDebitAmount) : null;
+    // C8 — the "Sudah Terkumpul" (already collected) amount the create form
+    // collects was silently discarded to `0n`; a family starting a goal with
+    // existing savings had that progress erased the moment they saved it.
+    const currentAmount =
+      dto.currentAmount != null ? BigInt(dto.currentAmount) : 0n;
+    if (currentAmount > targetAmount) {
+      throw new BadRequestException(
+        "Sudah Terkumpul tidak boleh melebihi Target Jumlah",
+      );
+    }
+    const targetDate = dto.targetDate ? new Date(dto.targetDate) : null;
+    const createdAt = new Date();
 
     const goal = await this.prisma.goal.create({
       data: {
@@ -118,10 +163,16 @@ export class GoalsService {
         name: dto.name,
         icon: dto.icon ?? null,
         targetAmount,
-        currentAmount: 0n,
-        targetDate: dto.targetDate ? new Date(dto.targetDate) : null,
+        currentAmount,
+        targetDate,
         autoDebitAmount,
-        status: PrismaGoalStatus.on_track,
+        status: computeStatus(
+          currentAmount,
+          targetAmount,
+          targetDate,
+          createdAt,
+        ),
+        createdAt,
       },
     });
     return toDto(goal);
@@ -173,7 +224,12 @@ export class GoalsService {
       );
     }
 
-    const status = computeStatus(currentAmount, targetAmount, targetDate);
+    const status = computeStatus(
+      currentAmount,
+      targetAmount,
+      targetDate,
+      existing.createdAt,
+    );
 
     const updated = await this.prisma.goal.update({
       where: { id, familyGroupId },
@@ -255,6 +311,8 @@ export class GoalsService {
         newCurrent,
         goal.targetAmount,
         goal.targetDate,
+        goal.createdAt,
+        now,
       );
 
       const notifPrefs = await ownerNotifPrefs(this.prisma, goal.familyGroupId);

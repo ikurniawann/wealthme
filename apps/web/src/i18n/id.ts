@@ -2870,6 +2870,18 @@ export const id = {
     obligationsPayDialogDesc:
       "Pembayaran akan mencatat transaksi dan mengurangi saldo rekening sumber.",
     obligationsDueDateNoticePrefix: "Jatuh tempo ",
+    editAriaLabelPrefix: "Edit anggaran ",
+    deleteAriaLabelPrefix: "Hapus anggaran ",
+    modalEditTitle: "Edit Anggaran",
+    modalEditDesc: "Ubah batas atau periode anggaran ini.",
+    saveChangesButton: "Simpan Perubahan",
+    toastUpdated: "Anggaran diperbarui",
+    toastUpdateFailedDefault: "Gagal memperbarui anggaran",
+    deleteDialogTitle: "Hapus Anggaran?",
+    deleteDialogBody: "Anggaran yang dihapus tidak bisa dikembalikan.",
+    deleteDialogConfirm: "Ya, Hapus",
+    toastDeleted: "Anggaran dihapus",
+    toastDeleteFailedDefault: "Gagal menghapus anggaran",
   },
   transaksi: {
     typeLabels: {

@@ -61,7 +61,25 @@ function render(ui: ReactElement) {
   return rtlRender(ui, { wrapper: Providers });
 }
 
-function mockSession(role: string) {
+const EXISTING_BUDGET = {
+  id: "budget-1",
+  categoryId: EXISTING_CATEGORY.id,
+  categoryName: EXISTING_CATEGORY.name,
+  categoryIcon: "🛒",
+  period: "monthly",
+  limitAmount: 500_000,
+  spentAmount: 100_000,
+  remainingAmount: 400_000,
+  usagePercent: 20,
+  isOverBudget: false,
+  isNearLimit: false,
+  budgetType: null,
+};
+
+function mockSession(
+  role: string,
+  { withExistingBudget = false }: { withExistingBudget?: boolean } = {},
+) {
   mockUseSessionAuth.mockReturnValue({
     data: {
       session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
@@ -72,6 +90,17 @@ function mockSession(role: string) {
   mockApiFetch.mockImplementation((path: string, options?: RequestInit) => {
     if (path.endsWith("/family-groups/mine")) {
       return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: role }]);
+    }
+    if (path.endsWith(`/budgets/${EXISTING_BUDGET.id}`)) {
+      if (options?.method === "PATCH") {
+        return Promise.resolve({
+          ...EXISTING_BUDGET,
+          ...JSON.parse((options.body as string) ?? "{}"),
+        });
+      }
+      if (options?.method === "DELETE") {
+        return Promise.resolve(undefined);
+      }
     }
     if (path.endsWith("/budgets")) {
       if (options?.method === "POST") {
@@ -90,7 +119,7 @@ function mockSession(role: string) {
           budgetType: null,
         });
       }
-      return Promise.resolve([]);
+      return Promise.resolve(withExistingBudget ? [EXISTING_BUDGET] : []);
     }
     if (path.endsWith("/coa-accounts")) {
       return Promise.resolve([]);
@@ -176,5 +205,84 @@ describe("AnggaranPage — owner still creates a new category (regression guard)
     await within(dialog).findByLabelText("Nama Kategori");
 
     expect(within(dialog).queryByLabelText("Kategori")).not.toBeInTheDocument();
+  }, 10000);
+});
+
+describe("AnggaranPage — edit and delete a budget (EPIC-022 C2)", () => {
+  it("an owner can edit an existing budget's limit and period via PATCH", async () => {
+    mockSession("owner", { withExistingBudget: true });
+    const user = userEvent.setup();
+    render(<AnggaranPage />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: `Edit anggaran ${EXISTING_CATEGORY.name}`,
+      }),
+    );
+    const dialog = await screen.findByRole("dialog", { name: "Edit Anggaran" });
+    const amountInput = within(dialog).getByLabelText("Budget per Bulan (Rp)");
+    await user.clear(amountInput);
+    await user.type(amountInput, "750000");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Simpan Perubahan" }),
+    );
+
+    await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled());
+
+    const patchCalls = mockApiFetch.mock.calls.filter(
+      ([path, options]) =>
+        typeof path === "string" &&
+        path.endsWith(`/budgets/${EXISTING_BUDGET.id}`) &&
+        (options as RequestInit | undefined)?.method === "PATCH",
+    );
+    expect(patchCalls).toHaveLength(1);
+    const body = JSON.parse((patchCalls[0]?.[1] as RequestInit).body as string);
+    expect(body.limitAmount).toBe(750000);
+    expect(body.period).toBe("monthly");
+  }, 10000);
+
+  it("an owner can delete an existing budget via DELETE, after confirming", async () => {
+    mockSession("owner", { withExistingBudget: true });
+    const user = userEvent.setup();
+    render(<AnggaranPage />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: `Hapus anggaran ${EXISTING_CATEGORY.name}`,
+      }),
+    );
+    const confirmDialog = await screen.findByRole("dialog", {
+      name: "Hapus Anggaran?",
+    });
+    await user.click(
+      within(confirmDialog).getByRole("button", { name: "Ya, Hapus" }),
+    );
+
+    await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled());
+
+    const deleteCalls = mockApiFetch.mock.calls.filter(
+      ([path, options]) =>
+        typeof path === "string" &&
+        path.endsWith(`/budgets/${EXISTING_BUDGET.id}`) &&
+        (options as RequestInit | undefined)?.method === "DELETE",
+    );
+    expect(deleteCalls).toHaveLength(1);
+  }, 10000);
+
+  it("a role without manage Budget sees no edit/delete controls", async () => {
+    mockSession("admin_staff", { withExistingBudget: true });
+    render(<AnggaranPage />);
+
+    await screen.findAllByText(EXISTING_CATEGORY.name);
+    expect(
+      screen.queryByRole("button", {
+        name: `Edit anggaran ${EXISTING_CATEGORY.name}`,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: `Hapus anggaran ${EXISTING_CATEGORY.name}`,
+      }),
+    ).not.toBeInTheDocument();
   }, 10000);
 });

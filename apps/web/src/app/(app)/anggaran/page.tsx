@@ -7,6 +7,8 @@ import {
   TrendingDown,
   Calendar,
   TriangleAlert,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -28,6 +30,7 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ConfirmDeleteDialog } from "@/components/crud/confirm-delete-dialog";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useLocale } from "@/hooks/use-locale";
@@ -41,6 +44,7 @@ import type {
   BudgetPeriod,
   BudgetType,
   CreateBudgetDto,
+  UpdateBudgetDto,
   LiabilityDto,
   LiabilityType,
   InsuranceDto,
@@ -257,7 +261,19 @@ function BudgetTypeSummary({
   );
 }
 
-function BudgetItem({ dto, index }: { dto: BudgetDto; index: number }) {
+function BudgetItem({
+  dto,
+  index,
+  canManage,
+  onEdit,
+  onDelete,
+}: {
+  dto: BudgetDto;
+  index: number;
+  canManage: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const { t } = useLocale();
   const color = budgetBarColor(dto);
   const icon = dto.categoryIcon ?? "📦";
@@ -291,6 +307,28 @@ function BudgetItem({ dto, index }: { dto: BudgetDto; index: number }) {
           <div className="text-[13px] font-bold" style={{ color }}>
             {budgetPctLabel(dto)}
           </div>
+          {/* EPIC-022 C2 — the API already had PATCH/DELETE for a budget;
+              this was the only surface with no way to reach either. */}
+          {canManage && (
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={onEdit}
+                aria-label={`${t.anggaran.editAriaLabelPrefix}${dto.categoryName}`}
+                className="flex size-[26px] items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <Pencil className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={onDelete}
+                aria-label={`${t.anggaran.deleteAriaLabelPrefix}${dto.categoryName}`}
+                className="flex size-[26px] items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </div>
+          )}
         </div>
         <AnimatedProgress
           value={Math.min(dto.usagePercent, 100)}
@@ -771,6 +809,12 @@ export default function AnggaranPage() {
   const [icon, setIcon] = useState(ICON_OPTIONS[0] ?? "🎓");
   const [amount, setAmount] = useState("");
   const [period, setPeriod] = useState<BudgetPeriod>("monthly");
+  // EPIC-022 C2 — the API already exposed PATCH/DELETE for a budget;
+  // `editing`/`deletingBudget` drive the two dialogs that finally reach them.
+  const [editing, setEditing] = useState<BudgetDto | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editPeriod, setEditPeriod] = useState<BudgetPeriod>("monthly");
+  const [deletingBudget, setDeletingBudget] = useState<BudgetDto | null>(null);
   // A budget has no fields of its own beyond amount + period: the icon, the
   // kind and the COA mapping all live on the Category it belongs to, and this
   // dialog was already creating that Category silently — as `kind: "expense"`
@@ -945,6 +989,76 @@ export default function AnggaranPage() {
       toast.error(apiErr.message ?? t.anggaran.toastSaveFailedDefault);
     },
   });
+
+  // EPIC-022 C2 — edit an existing budget's limit/period. The category
+  // itself is not editable here (the API's `UpdateBudgetDto` has no
+  // `categoryId` field — a budget belongs to the category it was created
+  // for), matching `/anggaran`'s own model of "one budget per category".
+  const updateMutation = useMutation({
+    mutationFn: async (payload: {
+      id: string;
+      limitAmount: number;
+      period: BudgetPeriod;
+    }) => {
+      if (!familyGroupId) throw new Error("familyGroupId missing");
+      const dto: UpdateBudgetDto = {
+        limitAmount: payload.limitAmount,
+        period: payload.period,
+      };
+      return apiFetch<BudgetDto>(
+        `/family-groups/${familyGroupId}/budgets/${payload.id}`,
+        { method: "PATCH", token, body: JSON.stringify(dto) },
+      );
+    },
+    onSuccess: () => {
+      if (familyGroupId) {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.budgets.all(familyGroupId),
+        });
+      }
+      setEditing(null);
+      toast.success(t.anggaran.toastUpdated);
+    },
+    onError: (err: unknown) => {
+      const apiErr = err as { message?: string };
+      toast.error(apiErr.message ?? t.anggaran.toastUpdateFailedDefault);
+    },
+  });
+
+  function openEdit(budget: BudgetDto) {
+    setEditing(budget);
+    setEditAmount(formatAmountInput(String(budget.limitAmount)));
+    setEditPeriod(budget.period);
+  }
+
+  function handleSaveEdit() {
+    if (!editing) return;
+    const limitAmount = parseRupiah(editAmount);
+    if (limitAmount <= 0) {
+      toast.warning(t.anggaran.toastAmountInvalid);
+      return;
+    }
+    updateMutation.mutate({ id: editing.id, limitAmount, period: editPeriod });
+  }
+
+  async function handleDeleteBudget() {
+    if (!familyGroupId || !token || !deletingBudget) return;
+    try {
+      await apiFetch(
+        `/family-groups/${familyGroupId}/budgets/${deletingBudget.id}`,
+        { token, method: "DELETE" },
+      );
+      toast.success(t.anggaran.toastDeleted);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.budgets.all(familyGroupId),
+      });
+    } catch (err: unknown) {
+      const apiErr = err as { message?: string };
+      toast.error(apiErr.message ?? t.anggaran.toastDeleteFailedDefault);
+    } finally {
+      setDeletingBudget(null);
+    }
+  }
 
   function resetForm() {
     setName("");
@@ -1214,7 +1328,14 @@ export default function AnggaranPage() {
         {!isLoading && !isError && budgets && budgets.length > 0 && (
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
             {budgets.map((b, i) => (
-              <BudgetItem key={b.id} dto={b} index={i} />
+              <BudgetItem
+                key={b.id}
+                dto={b}
+                index={i}
+                canManage={!!canManageBudget}
+                onEdit={() => openEdit(b)}
+                onDelete={() => setDeletingBudget(b)}
+              />
             ))}
           </div>
         )}
@@ -1452,6 +1573,98 @@ export default function AnggaranPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* EPIC-022 C2 — edit an existing budget's limit/period. Only the
+          fields `UpdateBudgetDto` actually accepts are offered — the
+          category name/icon/kind belong to the Category this budget was
+          created for and are read-only here, same restriction the API
+          itself enforces. */}
+      <Dialog
+        open={editing !== null}
+        onOpenChange={(nextOpen) => !nextOpen && setEditing(null)}
+      >
+        <DialogContent>
+          <DialogTitle>{t.anggaran.modalEditTitle}</DialogTitle>
+          <DialogDescription>{t.anggaran.modalEditDesc}</DialogDescription>
+          {editing && (
+            <DialogBody>
+              <div className="field">
+                <span className="label">
+                  {t.anggaran.fieldCategoryNameLabel}
+                </span>
+                <div className="flex items-center gap-2 text-[13.5px] font-semibold">
+                  <span>{editing.categoryIcon ?? "📦"}</span>
+                  <span>{editing.categoryName}</span>
+                </div>
+              </div>
+              <div className="field field-row">
+                <div className="field mt-0">
+                  <label className="label" htmlFor="budget-edit-amount">
+                    {t.anggaran.fieldAmountLabel}
+                  </label>
+                  <input
+                    id="budget-edit-amount"
+                    type="text"
+                    inputMode="numeric"
+                    value={editAmount}
+                    onChange={(e) =>
+                      setEditAmount(formatAmountInput(e.target.value))
+                    }
+                    placeholder="0"
+                    className="input mono"
+                  />
+                </div>
+                <div className="field mt-0">
+                  <label className="label" htmlFor="budget-edit-period">
+                    {t.anggaran.fieldPeriodLabel}
+                  </label>
+                  <select
+                    id="budget-edit-period"
+                    value={editPeriod}
+                    onChange={(e) =>
+                      setEditPeriod(e.target.value as BudgetPeriod)
+                    }
+                    className="select"
+                  >
+                    <option value="monthly">
+                      {t.anggaran.periodLabels.monthly}
+                    </option>
+                    <option value="weekly">
+                      {t.anggaran.periodLabels.weekly}
+                    </option>
+                    <option value="yearly">
+                      {t.anggaran.periodLabels.yearly}
+                    </option>
+                  </select>
+                </div>
+              </div>
+            </DialogBody>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>
+              {t.common.cancel}
+            </Button>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={updateMutation.isPending}
+            >
+              <Save className="size-[14px]" />
+              {updateMutation.isPending
+                ? t.anggaran.savingLabel
+                : t.anggaran.saveChangesButton}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDeleteDialog
+        label={deletingBudget ? `"${deletingBudget.categoryName}"` : null}
+        title={t.anggaran.deleteDialogTitle}
+        body={t.anggaran.deleteDialogBody}
+        confirmLabel={t.anggaran.deleteDialogConfirm}
+        onClose={() => setDeletingBudget(null)}
+        onConfirm={handleDeleteBudget}
+      />
     </div>
   );
 }

@@ -727,6 +727,7 @@ interface CreateGoalDto {
     name: string;
     icon?: string;
     targetAmount: number;
+    currentAmount?: number;
     targetDate?: string;
     autoDebitAmount?: number;
 }

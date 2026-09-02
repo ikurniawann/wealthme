@@ -35,7 +35,13 @@ function makePrisma(transactionsByType: Record<string, bigint>) {
     category: {
       findUnique: jest.fn().mockResolvedValue({ name: "Cicilan Pokok KPR" }),
     },
-    notification: { create: jest.fn().mockResolvedValue({}) },
+    // EPIC-022 C4 — the "already alerted this period" guard queries for a
+    // prior matching Notification; `null` (no prior alert) so these
+    // pre-existing tests keep exercising the "alert fires" path unchanged.
+    notification: {
+      create: jest.fn().mockResolvedValue({}),
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
@@ -51,6 +57,8 @@ describe("checkBudgetAlert spend-type resolution (EPIC-023 group E retry round 4
       id: "budget-liability",
       limitAmount: BigInt(1_500_000),
       liabilityId: "liab-1",
+      period: "monthly",
+      createdAt: new Date("2020-01-01T00:00:00Z"),
     });
     const sender = makeNotificationSender();
 
@@ -72,6 +80,8 @@ describe("checkBudgetAlert spend-type resolution (EPIC-023 group E retry round 4
       id: "budget-ordinary",
       limitAmount: BigInt(1_000_000),
       liabilityId: null,
+      period: "monthly",
+      createdAt: new Date("2020-01-01T00:00:00Z"),
     });
     const sender = makeNotificationSender();
 
@@ -94,6 +104,8 @@ describe("checkBudgetAlert spend-type resolution (EPIC-023 group E retry round 4
       id: "budget-liability",
       limitAmount: BigInt(1_500_000),
       liabilityId: "liab-1",
+      period: "monthly",
+      createdAt: new Date("2020-01-01T00:00:00Z"),
     });
     const sender = makeNotificationSender();
 
@@ -102,5 +114,45 @@ describe("checkBudgetAlert spend-type resolution (EPIC-023 group E retry round 4
     // If this fails, the fix regressed back to summing `expense` (always 0
     // for this category) and the alert would never have fired.
     expect(prisma.notification.create).toHaveBeenCalled();
+  });
+});
+
+describe("checkBudgetAlert already-alerted guard (EPIC-022 C4)", () => {
+  it("does not re-fire when a matching alert already exists for the current period", async () => {
+    const prisma = makePrisma({ expense: BigInt(900_000) });
+    prisma.budget.findFirst.mockResolvedValue({
+      id: "budget-ordinary",
+      limitAmount: BigInt(1_000_000),
+      liabilityId: null,
+      period: "monthly",
+      createdAt: new Date("2020-01-01T00:00:00Z"),
+    });
+    // A prior 80%/100% alert for this exact category already exists within
+    // the current period — this is the state C4 exists to detect.
+    prisma.notification.findFirst.mockResolvedValue({ id: "notif-1" });
+    const sender = makeNotificationSender();
+
+    await checkBudgetAlert(prisma, sender, "fg-1", "cat-ordinary");
+
+    expect(prisma.notification.create).not.toHaveBeenCalled();
+    expect(sender.sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("still fires when usage is over 80% and no prior alert exists this period", async () => {
+    const prisma = makePrisma({ expense: BigInt(900_000) });
+    prisma.budget.findFirst.mockResolvedValue({
+      id: "budget-ordinary",
+      limitAmount: BigInt(1_000_000),
+      liabilityId: null,
+      period: "monthly",
+      createdAt: new Date("2020-01-01T00:00:00Z"),
+    });
+    prisma.notification.findFirst.mockResolvedValue(null);
+    const sender = makeNotificationSender();
+
+    await checkBudgetAlert(prisma, sender, "fg-1", "cat-ordinary");
+
+    expect(prisma.notification.create).toHaveBeenCalled();
+    expect(sender.sendEmail).toHaveBeenCalled();
   });
 });

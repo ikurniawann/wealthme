@@ -1,5 +1,6 @@
 import { Logger } from "@nestjs/common";
 
+import { budgetSpendWindow } from "../common/utils/budget-period.util";
 import {
   ownerNotifPrefs,
   resolveNotifPrefs,
@@ -7,6 +8,7 @@ import {
 
 import type { NotificationSenderPort } from "../notifications/notification-sender.port";
 import type { PrismaService } from "../prisma/prisma.service";
+import type { BudgetPeriod } from "@wealthme/contracts";
 
 /**
  * EPIC-023 group E retry (HIGH 3) — extracted from `TransactionsService` so
@@ -40,13 +42,25 @@ export async function checkBudgetAlert(
   try {
     const budget = await prisma.budget.findFirst({
       where: { familyGroupId, categoryId },
-      select: { id: true, limitAmount: true, liabilityId: true },
+      select: {
+        id: true,
+        limitAmount: true,
+        liabilityId: true,
+        period: true,
+        createdAt: true,
+      },
     });
     if (!budget || budget.limitAmount <= BigInt(0)) return;
 
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    // EPIC-022 C1/C3 — the spend window follows the budget's OWN `period`
+    // (weekly/monthly/yearly), clamped to its `createdAt` (C3), instead of a
+    // hardcoded calendar month — same window `BudgetsService.findAll` uses,
+    // so the /anggaran page and this alert never disagree about "how over
+    // budget" a category is.
+    const { start, end } = budgetSpendWindow(
+      budget.period as BudgetPeriod,
+      budget.createdAt,
+    );
 
     // H5 (group E retry round 4) — a liability's OWN principal budget line
     // (`Budget.liabilityId` set, HIGH 4/E2) posts its spend as `type:
@@ -63,7 +77,7 @@ export async function checkBudgetAlert(
         familyGroupId,
         categoryId,
         type: spendType,
-        occurredAt: { gte: monthStart, lt: nextMonthStart },
+        occurredAt: { gte: start, lte: end },
       },
       _sum: { amount: true },
     });
@@ -72,20 +86,38 @@ export async function checkBudgetAlert(
     const usagePct = Number((spent * BigInt(100)) / budget.limitAmount);
     if (usagePct < 80) return;
 
-    const [owner, category] = await Promise.all([
-      prisma.member.findFirst({
-        where: { familyGroupId, role: "owner" },
-        include: {
-          user: {
-            select: { email: true, name: true, notificationPrefs: true },
-          },
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId, familyGroupId },
+      select: { name: true },
+    });
+    const rawName = category?.name ?? "kategori ini";
+
+    // C4 — fire the 80%/100% alert ONCE per budget per period, not on every
+    // subsequent transaction for the rest of the period. No `Notification.
+    // budgetId` column exists (adding one is a migration, out of scope for
+    // C1-C9) so this matches the exact icon + category-name substring this
+    // function itself writes below, scoped to the current window's start.
+    // ponytail: a category name that is a substring of another category's
+    // name could false-dedupe two DIFFERENT budgets' alerts; add a real
+    // `budgetId` column on Notification if that collision ever matters.
+    const alreadyAlerted = await prisma.notification.findFirst({
+      where: {
+        familyGroupId,
+        icon: "💸",
+        body: { contains: rawName },
+        createdAt: { gte: start },
+      },
+    });
+    if (alreadyAlerted) return;
+
+    const owner = await prisma.member.findFirst({
+      where: { familyGroupId, role: "owner" },
+      include: {
+        user: {
+          select: { email: true, name: true, notificationPrefs: true },
         },
-      }),
-      prisma.category.findUnique({
-        where: { id: categoryId, familyGroupId },
-        select: { name: true },
-      }),
-    ]);
+      },
+    });
     if (!owner) return;
     if (!resolveNotifPrefs(owner.user.notificationPrefs).budget80) return;
 
@@ -95,7 +127,6 @@ export async function checkBudgetAlert(
     // EMAIL body only; reusing it for the in-app title/body previously made
     // "Makan & Minum" literally display as "Makan &amp; Minum" in
     // /notifikasi (found during EPIC-025 N3 fidelity audit).
-    const rawName = category?.name ?? "kategori ini";
     const safeName = escapeHtml(rawName);
     const subject =
       usagePct >= 100

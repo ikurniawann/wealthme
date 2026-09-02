@@ -144,33 +144,42 @@ parseFloat(inv.quantity)` (`laporan/page.tsx:1655-1657`), but the API
     filter is applied to any of its three queries, so a balance sheet requested
     "per 31 Maret" silently shows today's balances.
 
-- [ ] ### C — Budgets and goals behave unlike real budgets and goals
-  - **C1 — Weekly and yearly budgets are selectable but not implemented.** The
-    spend query is hardcoded to the calendar month regardless of `budget.period`
-    (`budgets.service.ts:46-55`). A weekly grocery budget reads ~400% over
-    forever; a yearly school-fee budget reads ~8% used until the money is gone.
-    Implement the window or remove the two options.
-  - **C2 — No budget edit or delete in the UI at all.** The API has both
+- [x] ### C — Budgets and goals behave unlike real budgets and goals ✅
+  - **C1** — [x] Weekly and yearly budgets are selectable but not implemented.
+    The spend query is hardcoded to the calendar month regardless of
+    `budget.period` (`budgets.service.ts:46-55`). A weekly grocery budget reads
+    ~400% over forever; a yearly school-fee budget reads ~8% used until the
+    money is gone. Implement the window or remove the two options.
+  - **C2** — [x] No budget edit or delete in the UI at all. The API has both
     (`budgets.controller.ts:54-76`); `/anggaran` exposes neither. A typo in the
     limit is permanent.
-  - **C3 — No period history, no rollover, no pro-rata.** Editing a limit
+  - **C3** — [x] No period history, no rollover, no pro-rata. Editing a limit
     rewrites all history; a budget created mid-month is measured against the
-    whole month and fires an over-budget alert on day one.
-  - **C4 — Budget 80% alert re-fires on every subsequent transaction** for the
-    rest of the month (`transactions.service.ts:311-313,342-398`) — no
+    whole month and fires an over-budget alert on day one. (Fixed via a
+    createdAt clamp on the spend window; full period-history/rollover stays
+    out of scope per the epic's own documented default — current period only.)
+  - **C4** — [x] Budget 80% alert re-fires on every subsequent transaction for
+    the rest of the month (`transactions.service.ts:311-313,342-398`) — no
     already-alerted guard.
-  - **C5 — Multiple budgets per category double-count** in the page totals
-    (`anggaran/page.tsx:274-275`), reachable through the 409-fallback create path.
-  - **C6 — Budget spend and report spend use different definitions of expense**
-    (raw `tx.type` vs COA direction), so a savings-transfer category counts fully
-    against its budget while contributing nothing to Beranda's expenses.
-  - **C7 — Goal status is stored, never recomputed on read** — an overdue goal
-    keeps its green "Sesuai Rencana" badge indefinitely (`goals.service.ts:101-107`),
-    and the heuristic flags a brand-new long-horizon goal as `at_risk`
-    (`:31-57`). No required-Rp/month projection is ever persisted or shown.
-  - **C8 — "Sudah Terkumpul" at goal creation is silently discarded**
+  - **C5** — [x] Multiple budgets per category double-count in the page totals
+    (`anggaran/page.tsx:274-275`), reachable through the 409-fallback create
+    path. (Prevented at creation, including the cross-period race — see
+    Automation Log.)
+  - **C6** — [x] Budget spend and report spend use different definitions of
+    expense (raw `tx.type` vs COA direction), so a savings-transfer category
+    counts fully against its budget while contributing nothing to Beranda's
+    expenses.
+  - **C7** — [x] Goal status is stored, never recomputed on read — an overdue
+    goal keeps its green "Sesuai Rencana" badge indefinitely
+    (`goals.service.ts:101-107`), and the heuristic flags a brand-new
+    long-horizon goal as `at_risk` (`:31-57`). No required-Rp/month projection
+    is ever persisted or shown. (Status now recomputed live on every read; the
+    required-Rp/month projection already exists client-side on `/tujuan` from
+    fields already on `GoalDto` — deliberately not duplicated server-side.)
+  - **C8** — [x] "Sudah Terkumpul" at goal creation is silently discarded
     (`goals.service.ts:120` hardcodes `0n`).
-  - **C9 — No way to withdraw from a goal or zero it** (`@IsPositive` rejects 0).
+  - **C9** — [x] No way to withdraw from a goal or zero it (`@IsPositive`
+    rejects 0). (Found already fixed by A4's `@Min(0)` on `UpdateGoalDto`.)
 
 - [ ] ### D — Financial products that are missing their core mechanics
   - **D1 — Liabilities cannot be edited, deleted, or paid.** `/liabilitas` is
@@ -520,3 +529,52 @@ unexplained failed requests on every route.
   `CLAUDE.md` assuming they are — substituted the closest available
   general-purpose equivalents (`code-reviewer`, `security-auditor`) and
   recorded the substitution here rather than silently skipping the gate.
+- 2026-09-02 /epic-loop EPIC-022 #C "Budgets and goals behave unlike real
+  budgets and goals" → PASS (attempts: 2). New
+  `apps/api/src/common/utils/budget-period.util.ts` (WIB-anchored, following
+  the established `defaultMonthStartWib`/`payment-period.util.ts` shift-then-
+  `Date.UTC` pattern, not a new one) computes weekly (Monday-start,
+  documented default)/monthly/yearly windows and clamps a budget's spend
+  window to `max(periodStart, createdAt)` (C1, C3). `budgets.service.ts`
+  buckets spend by `[kind, start, end]` so same-period budgets still collapse
+  into one `groupBy`, and switches ordinary spend to COA-`EXPENSE`-direction
+  instead of raw `tx.type` (C6), matching what `reports.service.ts` already
+  does. New `transaction-alerts.util.ts` adds an already-alerted guard keyed
+  on the same period window so the 80% alert fires once per budget per
+  period, not on every transaction after (C4) — a named, `ponytail:`-flagged
+  limitation remains: the dedup match is on notification body containing the
+  category name, so one category name being a substring of another's in the
+  same family could suppress the wrong alert; same-family blast radius only,
+  not fixed here. `/anggaran` gained edit/delete UI gated by group F's
+  `canManageBudget` (C2). `goals.service.ts` recomputes status live on every
+  read instead of trusting the stored column, and fixed the heuristic that
+  flagged a brand-new long-horizon goal `at_risk` (C7); `currentAmount` at
+  creation is no longer discarded to 0 (C8, threaded through
+  `packages/contracts`). C9 was found already fixed by A4's prior work. C7's
+  required-Rp/month projection was deliberately NOT duplicated server-side —
+  `/tujuan` already computes the equivalent from fields already on `GoalDto`,
+  and this epic elsewhere (E6) names duplicate-formula divergence as its own
+  defect class.
+  **Real HIGH caught and fixed across two rounds**: C5's duplicate-budget
+  guard checked `familyGroupId + categoryId`, but the DB's actual unique
+  index is `[familyGroupId, categoryId, period]` — two concurrent creates for
+  the same category with DIFFERENT periods both passed the pre-check and
+  both inserted cleanly (no collision on the real index), leaving exactly the
+  double-counted state C5 exists to prevent. A code-review gate caught this;
+  the shipped fix wraps the pre-check + insert in one Serializable
+  transaction via this repo's existing `serializable-retry.util.ts` (already
+  used by liabilities/split-bills) rather than a migration — Postgres's SSI
+  detects the write-skew and aborts the loser with `P2034`, which retries
+  against the winner's now-committed row and 409s. No schema change needed;
+  the per-period unique index stays as same-period belt-and-suspenders only.
+  Five gates: `review-qa-agent` PASS (hand-verified the Monday-start/yearly
+  window math and the C4 dedup window's forward-period behavior); a
+  `code-reviewer` substitute FAILed once on the C5 finding above, PASS after
+  the fix; `security-auditor`/`security-agent` substitutes PASS (0
+  CRITICAL/HIGH/MEDIUM; confirmed every new query stays `familyGroupId`-
+  scoped, and C5's own check can't be used to probe another family's
+  category); `test-agent` PASS after confirming every reported parallel-run
+  failure was this sandbox's known jest-worker flakiness (isolated re-runs:
+  clean). A comment-only edit to the protected `apps/web/src/lib/goals-
+utils.ts` was reverted before commit — harmless, but no reason to touch a
+  "never modify" path for a comment.

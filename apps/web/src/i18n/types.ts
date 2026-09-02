@@ -2669,6 +2669,19 @@ export type I18nDictionary = {
     modalAddDesc: string;
     obligationsPayDialogDesc: string;
     obligationsDueDateNoticePrefix: string;
+    /** EPIC-022 C2 — budget edit/delete UI (the API already had both). */
+    editAriaLabelPrefix: string;
+    deleteAriaLabelPrefix: string;
+    modalEditTitle: string;
+    modalEditDesc: string;
+    saveChangesButton: string;
+    toastUpdated: string;
+    toastUpdateFailedDefault: string;
+    deleteDialogTitle: string;
+    deleteDialogBody: string;
+    deleteDialogConfirm: string;
+    toastDeleted: string;
+    toastDeleteFailedDefault: string;
   };
   /** EPIC-018 Task A6 — `/transaksi` (transactions list) page copy. */
   transaksi: {
