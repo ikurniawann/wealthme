@@ -1,6 +1,6 @@
 # EPIC-023: Family Roles, Money Mechanics & Report Correctness
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 retries: 0
 phase: 4
@@ -1528,3 +1528,38 @@ does not exist`, which the agent then diagnosed as a pre-existing broken
   of the user's chosen scope this round); it just wasn't THIS bug. Only
   asking the user to paste the raw network response body (not the toast)
   surfaced the actual overdraft error and the real root cause.
+- 2026-09-02 /epic-loop EPIC-023 — convergence pass, no unchecked task groups
+  remained. Verified against GitHub rather than trusting the checklist marks:
+  all nine groups' PRs (A #236, B #240, C #237, D #244, E #245, F #246, G
+  #238, H #247, H1 #242, I #239) show `MERGED`. No code work left to route to
+  `code-agent`.
+  **Deploy step not run**: this session's sandbox has no repo-root `.env` and
+  no wealthme containers or volumes (`docker ps -a`, `docker volume ls` show
+  nothing for this project) — it is not the persistent DEV host the earlier
+  entries describe, and fabricating an `.env` here is exactly the mistake the
+  2026-08-06 log entry above already paid for once. Last confirmed-healthy
+  deploy of this epic's code remains the 2026-08-06 entries (group D and
+  group E DEV-deploys, both PASS). A real `deploy-dev.sh` run against the
+  actual DEV host is still needed to confirm the cumulative state (all nine
+  groups plus the unrelated Aug-26 overdraft fix, PR #318) is what is
+  actually running.
+  **Permanently missed, not silently dropped**: the pre/post-migration P&L
+  and balance-sheet capture for the demo family, called for before A1's COA
+  migration reached DEV, was never done — every entry above that mentions it
+  says "still outstanding." The migration has since shipped and DEV has been
+  redeployed healthy multiple times since, so there is no "before" left to
+  capture; this safeguard's window has closed without ever running.
+  **Checklist not ticked without evidence**: "Each new test fails against
+  pre-fix code" is well evidenced (A2, B3, D1, D2, E all record red-then-green
+  test-first work). "Historical report changes from A1 are announced
+  in-product before they land" and "Every new user-visible string exists in
+  both locales" have no corresponding evidence in nine groups of log
+  entries — no in-product announcement feature is mentioned anywhere, and
+  locale coverage was checked ad hoc per group, never audited whole. Left
+  unchecked deliberately.
+  Status moved `on-progress` → `ready-for-qa`: every task group's gates
+  passed and merged, which is what the status means; the DEV-deploy
+  confirmation and the two unticked checklist items are exactly what human
+  QA against the Done Signal (a family with a spouse, a child, a driver, a
+  mortgage and a credit card, one month of history reconciling through the
+  bridge) should now check.
