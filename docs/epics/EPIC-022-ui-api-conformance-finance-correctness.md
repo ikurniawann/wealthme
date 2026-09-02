@@ -45,7 +45,7 @@ is entirely in the form.
 
 ## Tasks
 
-- [ ] ### A — Money-losing and lie-shaped defects (fix first)
+- [x] ### A — Money-losing and lie-shaped defects (fix first) ✅
   - **A1 — Family invite rejects phone numbers.** Field is labelled "Email / No.
     HP" (`components/crud/crud-config.ts:308`) but POSTs to an `@IsEmail` DTO;
     `nama`, `hubungan` and `role` are collected and never sent (role hardcoded
@@ -81,7 +81,7 @@ is entirely in the form.
     (`budgets.service.ts:31-75`), while `member` has `manage Budget`. A member
     sees the name, limit and exact spend of a category the owner marked private.
 
-- [ ] ### B — Reports that state things that are not true
+- [x] ### B — Reports that state things that are not true ✅
   - **B1 — The balance sheet can never fail to balance.** The "Total L + E" row
     renders `totalAssets`, not `totalLiabilities + netWorth`
     (`laporan/page.tsx:1410-1418`), and a green "✅ Balance Sheet Seimbang"
@@ -202,7 +202,7 @@ parseFloat(inv.quantity)` (`laporan/page.tsx:1655-1657`), but the API
     blank name is dropped from both the sum and the payload
     (`asuransi/page.tsx:535-546`).
 
-- [ ] ### E — Zakat and tax must not state rulings they cannot support
+- [x] ### E — Zakat and tax must not state rulings they cannot support ✅
   - **E1 — Zakat asserts _wajib_ with no haul check.** The engine is a pure
     balance-sheet snapshot (`calculators.service.ts:39-48`); nothing stores a
     holding period, yet the copy claims "nisab & haul (1 tahun)"
@@ -259,7 +259,7 @@ parseFloat(inv.quantity)` (`laporan/page.tsx:1655-1657`), but the API
     income category can be mapped to an EXPENSE COA account, and reports then
     classify its income as expense (`categories.service.ts:118-134`).
 
-- [ ] ### G — Responsive and modal layout pass
+- [x] ### G — Responsive and modal layout pass ✅
   - **G1 (VERIFIED BLOCKER) — the warisan dialog becomes unusable on a phone once
     heirs are added.** Empty, it already fills 843 of 844px with **no internal
     scroll**. Measured at 390×844 after adding three heirs: the dialog grows to
