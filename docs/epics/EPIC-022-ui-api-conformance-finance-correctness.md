@@ -1,6 +1,6 @@
 # EPIC-022: UI↔API Conformance & Financial Correctness Pass
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 retries: 0
 phase: 4
@@ -636,4 +636,13 @@ utils.ts` was reverted before commit — harmless, but no reason to touch a
      --runInBand: 8/8 pass, confirming the sandbox's known parallel-jest
      flakiness, not a regression). Final: API 1525/1525 (125 suites), web
      targeted suites clean. **All seven of EPIC-022's task groups (A-G) are now
-     done.**
+     done.** Status moved `on-progress` → `ready-for-qa`: every task group's
+     gates passed and merged (3 stacked PRs: #322 group F, #323 group C, #324
+     group D — all pending merge, none blocked). **DEV deploy not run from
+     this sandbox** — no repo-root `.env`, no wealthme containers/volumes here
+     (same gap already recorded for EPIC-023/027). D2's migration in
+     particular needs a real `prisma migrate deploy` verification against the
+     actual DEV host before this can go `done`; nothing else in this epic
+     required a schema change. Human QA should also spot-check finding 3
+     above's lesson directly: confirm no other page in the app relies on
+     client-side role/field gating as if it were the real server boundary.

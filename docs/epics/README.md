@@ -27,7 +27,7 @@ ringkasan: [`../BACKLOG.md`](../BACKLOG.md) · arsitektur: [`../WealthMe_Backend
 | [EPIC-019](EPIC-019-family-subaccounts-allowances.md)                   | Phase 5 | Family Sub-Accounts & Allowances                   | P2        | done         |
 | [EPIC-020](EPIC-020-txn-detail-report-filters-pdf.md)                   | Phase 4 | Txn Detail, Report Filters, Real PDF Export        | P1        | done         |
 | [EPIC-021](EPIC-021-client-revisions-230720236.md)                      | Phase 4 | Client Revision Punch-List (30 items)              | P1        | done         |
-| [EPIC-022](EPIC-022-ui-api-conformance-finance-correctness.md)          | Phase 4 | UI↔API Conformance & Financial Correctness Pass    | P0        | on-progress  |
+| [EPIC-022](EPIC-022-ui-api-conformance-finance-correctness.md)          | Phase 4 | UI↔API Conformance & Financial Correctness Pass    | P0        | ready-for-qa |
 | [EPIC-023](EPIC-023-family-roles-money-mechanics-report-correctness.md) | Phase 4 | Family Roles, Money Mechanics & Report Correctness | P0        | ready-for-qa |
 | [EPIC-024](EPIC-024-client-revisions-aug2026.md)                        | Phase 4 | Client Revision Punch-List (revisi.txt Aug 2026)   | P0        | ready-for-qa |
 | [EPIC-027](EPIC-027-iam-integrity-receipt-scan.md)                      | Phase 4 | IAM Integrity (soft-delete, roles) + Scan Struk    | P0        | ready-for-qa |
