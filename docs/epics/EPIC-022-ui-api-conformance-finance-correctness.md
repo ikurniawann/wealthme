@@ -45,7 +45,7 @@ is entirely in the form.
 
 ## Tasks
 
-- [ ] ### A — Money-losing and lie-shaped defects (fix first)
+- [x] ### A — Money-losing and lie-shaped defects (fix first) ✅
   - **A1 — Family invite rejects phone numbers.** Field is labelled "Email / No.
     HP" (`components/crud/crud-config.ts:308`) but POSTs to an `@IsEmail` DTO;
     `nama`, `hubungan` and `role` are collected and never sent (role hardcoded
@@ -81,7 +81,7 @@ is entirely in the form.
     (`budgets.service.ts:31-75`), while `member` has `manage Budget`. A member
     sees the name, limit and exact spend of a category the owner marked private.
 
-- [ ] ### B — Reports that state things that are not true
+- [x] ### B — Reports that state things that are not true ✅
   - **B1 — The balance sheet can never fail to balance.** The "Total L + E" row
     renders `totalAssets`, not `totalLiabilities + netWorth`
     (`laporan/page.tsx:1410-1418`), and a green "✅ Balance Sheet Seimbang"
@@ -202,7 +202,7 @@ parseFloat(inv.quantity)` (`laporan/page.tsx:1655-1657`), but the API
     blank name is dropped from both the sum and the payload
     (`asuransi/page.tsx:535-546`).
 
-- [ ] ### E — Zakat and tax must not state rulings they cannot support
+- [x] ### E — Zakat and tax must not state rulings they cannot support ✅
   - **E1 — Zakat asserts _wajib_ with no haul check.** The engine is a pure
     balance-sheet snapshot (`calculators.service.ts:39-48`); nothing stores a
     holding period, yet the copy claims "nisab & haul (1 tahun)"
@@ -259,7 +259,7 @@ parseFloat(inv.quantity)` (`laporan/page.tsx:1655-1657`), but the API
     an income category can be mapped to an EXPENSE COA account, and reports then
     classify its income as expense (`categories.service.ts:118-134`).
 
-- [ ] ### G — Responsive and modal layout pass
+- [x] ### G — Responsive and modal layout pass ✅
   - **G1 (VERIFIED BLOCKER) — the warisan dialog becomes unusable on a phone once
     heirs are added.** Empty, it already fills 843 of 844px with **no internal
     scroll**. Measured at 390×844 after adding three heirs: the dialog grows to
@@ -431,3 +431,42 @@ unexplained failed requests on every route.
   `localhost:3000` from the public origin and every sign-in was blocked by CORS.
   Fixed by redeploying through `scripts/deploy-dev.sh`; login verified working
   again. Worth a guard so it cannot recur silently. (b) G1 above.
+- 2026-09-02 — Documentary QA audit (code vs. this log, no live DEV access
+  from this sandbox; the repo has moved well past this log's 2026-08-04
+  date — EPIC-023/024/027 have since landed and file paths moved, e.g.
+  `apps/web/components/...` → `apps/web/src/components/...`).
+  **A, B, E, G — confirmed done**, no contradictions between this log and
+  the code (invitation `role`/`relationship` fields, balance-sheet's
+  `/dashboard/net-worth` cross-check, investments now counted in
+  `getBalanceSheet`, sinking-fund `projectedValue`, and the dialog
+  `vh`-override removal all spot-checked directly).
+  **C — genuinely still open**, matching this log: `budgets.service.ts`
+  still computes a hardcoded month window regardless of `budget.period` —
+  no `weekly`/`yearly` period-aware windowing exists anywhere in that file.
+  **D — this log is stale in D's favour, not against it**: D1 (liabilities
+  edit/delete/pay) and D4 (insurance payment moves real money) are **done**,
+  merged under EPIC-024/025/026, not credited here. D2 (investment
+  lot/buy-sell/realized P&L) is confirmed **still open** —
+  `schema.prisma`'s `Investment` model still has one mutable
+  `quantity`/`costBasisPerUnit`, no lot model exists.
+  **F — worse than "not started", and mixed even where marked done**:
+  F1's shared error-surface hook (`use-api-error.ts`) exists but has **zero
+  callers** — 12 page files each duplicate their own
+  `extractApiErrorMessage` instead, and `tujuan/page.tsx` still discards
+  the server's real message on a bare `catch`. F2's `CrudModal` fix (stay
+  open on a failed save) is real, but `rekening/page.tsx` swallows its own
+  error internally before `CrudModal` ever sees it, so the modal still
+  closes there on a failed save. F3 (role-gating in the UI) is confirmed
+  still open — no `can(`/`myRole` gating anywhere in `anggaran/page.tsx`.
+  F4 (Prisma-constraint → 409 mapping) is **more done than credited**:
+  `P2002`/`P2003`/`P2034` are all handled with tests. F6 is partially done
+  for accounts only.
+  **Net: 4 of 7 groups (A, B, E, G) done; C fully open; D and F are each a
+  real mix of done-elsewhere and still-broken, worse for F than this log's
+  own "remaining: D, F" line implies.** Status unchanged (`on-progress`) —
+  this is accurately reflected, not a case for `ready-for-qa`. Next
+  actionable work, in the order a reviewer should pick it up: fix F1's dead
+  hook (wire it into the 12 duplicated call sites, starting with
+  `rekening/page.tsx` and `tujuan/page.tsx` since those two demonstrably
+  still swallow real server errors), then C1's period-aware budget window,
+  then D2's investment lot model.

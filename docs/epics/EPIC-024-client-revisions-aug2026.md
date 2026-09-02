@@ -283,16 +283,17 @@ One task group = one branch = one PR to `development`. Execution order is in
   - **A7** — [x] Domain docs: `CONTEXT-MAP.md` + `apps/web/CONTEXT.md`
     (glossary) and `docs/adr/0001-istri-as-second-owner.md` created.
 
-- [ ] ### B — PIN/buka cepat nginx routes + error surfacing (items 3, 10)
+- [x] ### B — PIN/buka cepat nginx routes + error surfacing (items 3, 10) ✅
   - **B1** — [x] Add `devices(?:/.*)?` to the nginx auth-route allowlist regex
     (`deploy/nginx/default.conf:54`) and a dedicated location proxying
     `/api/device-unlock` to web:3000 (it is a Next BFF route, not NestJS).
   - **B2** — [x] Error surfacing: `quick-unlock-prompt.tsx:64` and
     `device-unlock-pad.tsx` distinguish 401/403/404/network from "PIN salah".
     Validate `API_URL` in `apps/web/src/lib/env.ts`. (US-AUTH-10/11)
-  - **B3** — [ ] Deploy smoke on DEV: register device, set PIN, log out, PIN
+  - **B3** — [x] Deploy smoke on DEV: register device, set PIN, log out, PIN
     unlock — **must** be verified through nginx, the bug lives there. (pending
-    epic-wide DEV deploy after all groups land)
+    epic-wide DEV deploy after all groups land) — closed 2026-08-12, verified
+    live through nginx (see Automation Log).
 
 - [x] ### C — Investasi: live prices, lot/lembar, koin, deposito, tanggal beli, quickinput fix (items 6, 7, 31) ✅
   - **C1** — [x] `USE_REAL_MARKET_DATA=true` across `.env*` +
@@ -900,3 +901,26 @@ the N1 prototype has an approval recorded in the Automation Log.
     closed** — verified live through nginx, not just deployed. Remaining human
     gates unchanged: (1) A3 migration owner announcement, (3) owner's 27-item
     walkthrough.
+- 2026-09-02 — Documentary QA audit (code vs. this log, no live DEV access
+  from this sandbox). Group B's checklist was stale — `[ ]` on the group
+  and on B3 despite the log above already recording B3 closed on 2026-08-12
+  — corrected to `[x]`/✅ to match. Every other spot-checked technical claim
+  (group resolution, max-1-istri lock, A4's deny+allow test, nginx regex,
+  signed cookie, eye toggle, quickinput routing, liabilities wiring,
+  Prisma-constraint 409 mapping) matched the code exactly; no further
+  contradictions found. Confirmed still open, exactly as this log already
+  said: (1) A3's istri-owner-backfill migration is still file-only
+  (`docs/migrations/epic-024-a3-istri-owner-backfill.sql`), no owner
+  announcement or apply recorded since; (2) the owner's 27-item verbatim
+  DEV walkthrough has no recorded run. Additionally found, not previously
+  logged: no committed Playwright E2E spec exists for 6 of the 7 flows this
+  epic's own Test Plan lists (istri creation/login/picker, `/persetujuan`
+  approve/reject, liabilitas detail/edit/pay/delete, lampiran upload+view,
+  COA matrix tab) — only the PIN and split-link journeys were ever
+  exercised, and only as an ad-hoc deploy-smoke run, not a repo-committed
+  spec. The Honesty/DoD checklist's three boxes ("every new string in both
+  locales," "qa/test/security-check green per PR," "each new test fails
+  pre-fix") remain unticked with no evidence gathered either way this
+  session — left as-is rather than ticked without proof. Status unchanged
+  (`ready-for-qa` — correct, since the code-level work is solid and what
+  remains is exactly the human/QA layer this status names).

@@ -4,34 +4,35 @@ Detail pekerjaan per epic (selaras GitHub Project "WealthMe Roadmap" & milestone
 Sumber backlog: [`../../scripts/backlog.json`](../../scripts/backlog.json) ·
 ringkasan: [`../BACKLOG.md`](../BACKLOG.md) · arsitektur: [`../WealthMe_Backend_Plan.md`](../WealthMe_Backend_Plan.md).
 
-| Epic                                                                    | Fase    | Fokus                                              | Prioritas | Status      |
-| ----------------------------------------------------------------------- | ------- | -------------------------------------------------- | --------- | ----------- |
-| [EPIC-000](EPIC-000-foundation-infra.md)                                | Phase 0 | Foundation & Infra                                 | P0        | done        |
-| [EPIC-001](EPIC-001-backend-foundation.md)                              | Phase 1 | Backend Foundation (auth/RBAC/DB)                  | P0        | done        |
-| [EPIC-002](EPIC-002-core-money-tracking.md)                             | Phase 2 | Core Money Tracking (**MVP**)                      | P0        | done        |
-| [EPIC-003](EPIC-003-wealth.md)                                          | Phase 3 | Wealth (investasi/aset/liabilitas)                 | P1        | done        |
-| [EPIC-004](EPIC-004-reports-calculators.md)                             | Phase 4 | Reports & Calculators                              | P1        | done        |
-| [EPIC-005](EPIC-005-family-tools.md)                                    | Phase 5 | Family & Tools                                     | P1        | done        |
-| [EPIC-006](EPIC-006-integrations-ai.md)                                 | Phase 6 | Integrations & AI                                  | P2        | done        |
-| [EPIC-007](EPIC-007-hardening-launch.md)                                | Phase 7 | Hardening & Launch                                 | P2        | done        |
-| [EPIC-008](EPIC-008-bug-fix-500-api-errors.md)                          | Phase 3 | 500 API Errors & Data Load Failures                | P0        | done        |
-| [EPIC-009](EPIC-009-missing-pages-mvp.md)                               | Phase 3 | Missing Pages MVP                                  | P1        | done        |
-| [EPIC-010](EPIC-010-frontend-shadcn-theming.md)                         | Phase 3 | Frontend shadcn Theming                            | P1        | done        |
-| [EPIC-011](EPIC-011-dockerized-dev-stack-demo-seed.md)                  | Phase 7 | Dockerized DEV Stack + Demo Seed                   | P1        | done        |
-| [EPIC-012](EPIC-012-master-coa.md)                                      | Phase 4 | Master COA (Chart of Accounts)                     | P2        | done        |
-| [EPIC-014](EPIC-014-feature-maximizers.md)                              | Phase 4 | Feature Maximizers (Wealth Intel)                  | P1        | done        |
-| [EPIC-015](EPIC-015-product-integrity.md)                               | Phase 4 | Product Integrity & Trust Pass                     | P0        | done        |
-| [EPIC-016](EPIC-016-ui-integrity-akun-and-actions.md)                   | Phase 4 | UI Integrity — Non-Functional Actions & Fake Data  | P0        | done        |
-| [EPIC-017](EPIC-017-master-coa-integration.md)                          | Phase 4 | Master COA Integration — CoA as Real Backbone      | P2        | done        |
-| [EPIC-018](EPIC-018-member-model-i18n-responsive.md)                    | Phase 4 | Per-Member Finances, i18n Coverage & Responsive UI | P2        | done        |
-| [EPIC-019](EPIC-019-family-subaccounts-allowances.md)                   | Phase 5 | Family Sub-Accounts & Allowances                   | P2        | done        |
-| [EPIC-020](EPIC-020-txn-detail-report-filters-pdf.md)                   | Phase 4 | Txn Detail, Report Filters, Real PDF Export        | P1        | done        |
-| [EPIC-021](EPIC-021-client-revisions-230720236.md)                      | Phase 4 | Client Revision Punch-List (30 items)              | P1        | done        |
-| [EPIC-022](EPIC-022-ui-api-conformance-finance-correctness.md)          | Phase 4 | UI↔API Conformance & Financial Correctness Pass    | P0        | on-progress |
-| [EPIC-023](EPIC-023-family-roles-money-mechanics-report-correctness.md) | Phase 4 | Family Roles, Money Mechanics & Report Correctness | P0        | backlog     |
-| [EPIC-024](EPIC-024-client-revisions-aug2026.md)                        | Phase 4 | Client Revision Punch-List (revisi.txt Aug 2026)   | P0        | backlog     |
-| [EPIC-027](EPIC-027-iam-integrity-receipt-scan.md)                      | Phase 4 | IAM Integrity (soft-delete, roles) + Scan Struk    | P0        | on-progress |
-| [EPIC-028](EPIC-028-pdfcn-export-frontend-structure.md)                 | Phase 4 | PDF Export on pdfcn + Frontend Structure Refactor  | P1        | backlog     |
+| Epic                                                                    | Fase    | Fokus                                              | Prioritas | Status       |
+| ----------------------------------------------------------------------- | ------- | -------------------------------------------------- | --------- | ------------ |
+| [EPIC-000](EPIC-000-foundation-infra.md)                                | Phase 0 | Foundation & Infra                                 | P0        | done         |
+| [EPIC-001](EPIC-001-backend-foundation.md)                              | Phase 1 | Backend Foundation (auth/RBAC/DB)                  | P0        | done         |
+| [EPIC-002](EPIC-002-core-money-tracking.md)                             | Phase 2 | Core Money Tracking (**MVP**)                      | P0        | done         |
+| [EPIC-003](EPIC-003-wealth.md)                                          | Phase 3 | Wealth (investasi/aset/liabilitas)                 | P1        | done         |
+| [EPIC-004](EPIC-004-reports-calculators.md)                             | Phase 4 | Reports & Calculators                              | P1        | done         |
+| [EPIC-005](EPIC-005-family-tools.md)                                    | Phase 5 | Family & Tools                                     | P1        | done         |
+| [EPIC-006](EPIC-006-integrations-ai.md)                                 | Phase 6 | Integrations & AI                                  | P2        | done         |
+| [EPIC-007](EPIC-007-hardening-launch.md)                                | Phase 7 | Hardening & Launch                                 | P2        | done         |
+| [EPIC-008](EPIC-008-bug-fix-500-api-errors.md)                          | Phase 3 | 500 API Errors & Data Load Failures                | P0        | done         |
+| [EPIC-009](EPIC-009-missing-pages-mvp.md)                               | Phase 3 | Missing Pages MVP                                  | P1        | done         |
+| [EPIC-010](EPIC-010-frontend-shadcn-theming.md)                         | Phase 3 | Frontend shadcn Theming                            | P1        | done         |
+| [EPIC-011](EPIC-011-dockerized-dev-stack-demo-seed.md)                  | Phase 7 | Dockerized DEV Stack + Demo Seed                   | P1        | done         |
+| [EPIC-012](EPIC-012-master-coa.md)                                      | Phase 4 | Master COA (Chart of Accounts)                     | P2        | done         |
+| [EPIC-014](EPIC-014-feature-maximizers.md)                              | Phase 4 | Feature Maximizers (Wealth Intel)                  | P1        | done         |
+| [EPIC-015](EPIC-015-product-integrity.md)                               | Phase 4 | Product Integrity & Trust Pass                     | P0        | done         |
+| [EPIC-016](EPIC-016-ui-integrity-akun-and-actions.md)                   | Phase 4 | UI Integrity — Non-Functional Actions & Fake Data  | P0        | done         |
+| [EPIC-017](EPIC-017-master-coa-integration.md)                          | Phase 4 | Master COA Integration — CoA as Real Backbone      | P2        | done         |
+| [EPIC-018](EPIC-018-member-model-i18n-responsive.md)                    | Phase 4 | Per-Member Finances, i18n Coverage & Responsive UI | P2        | done         |
+| [EPIC-019](EPIC-019-family-subaccounts-allowances.md)                   | Phase 5 | Family Sub-Accounts & Allowances                   | P2        | done         |
+| [EPIC-020](EPIC-020-txn-detail-report-filters-pdf.md)                   | Phase 4 | Txn Detail, Report Filters, Real PDF Export        | P1        | done         |
+| [EPIC-021](EPIC-021-client-revisions-230720236.md)                      | Phase 4 | Client Revision Punch-List (30 items)              | P1        | done         |
+| [EPIC-022](EPIC-022-ui-api-conformance-finance-correctness.md)          | Phase 4 | UI↔API Conformance & Financial Correctness Pass    | P0        | on-progress  |
+| [EPIC-023](EPIC-023-family-roles-money-mechanics-report-correctness.md) | Phase 4 | Family Roles, Money Mechanics & Report Correctness | P0        | ready-for-qa |
+| [EPIC-024](EPIC-024-client-revisions-aug2026.md)                        | Phase 4 | Client Revision Punch-List (revisi.txt Aug 2026)   | P0        | ready-for-qa |
+| [EPIC-027](EPIC-027-iam-integrity-receipt-scan.md)                      | Phase 4 | IAM Integrity (soft-delete, roles) + Scan Struk    | P0        | ready-for-qa |
+| [EPIC-028](EPIC-028-pdfcn-export-frontend-structure.md)                 | Phase 4 | PDF Export on pdfcn + Frontend Structure Refactor  | P1        | backlog      |
+| [EPIC-029](EPIC-029-bank-statement-pdf-import.md)                       | Phase 4 | Bank Statement PDF Import via Family AI Key        | P1        | on-progress  |
 
 ## Archived (done + human QA signed off)
 

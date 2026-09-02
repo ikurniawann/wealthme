@@ -1,6 +1,6 @@
 # EPIC-027: IAM integrity + Scan Struk
 
-status: on-progress
+status: ready-for-qa
 environment: dev
 retries: 0
 
@@ -104,7 +104,7 @@ to the A/B numbering used in the Decisions table.
 - [x] B3 — Real OCR result on the review screen → "Gunakan" prefills the form → user confirms → Simpan
 - [x] B4 — Captured JPEG auto-attached via the existing post-create attachment flow
 
-### 8 — Upload a receipt file for OCR (not only the camera)
+### 8 — Upload a receipt file for OCR (not only the camera) ✅
 
 - [x] B9 — "Unggah Struk" alongside the camera in the scan view: pick an image
       file, decode it, reuse `encodeWithinCap` to fit the 2 MB base64 cap, and
@@ -366,3 +366,19 @@ apps/web/src/hooks/` returned no `receipt-*` files). Deploying at that point
   recorded above (D1–D14) with the user; D11 supersedes an earlier
   "family key first, env fallback" answer after the AI Advisor module was
   found to have deliberately removed env-based key binding (EPIC-023 D16).
+- 2026-09-02 — Documentary QA audit (code vs. this log, no live DEV access
+  from this sandbox). All 8 task groups verified `MERGED` (PRs #299, #300,
+  #303, #304, #305, #307) and spot-checked against real source — 5 checks
+  (OCR factory, camera capture, nav null-role gate, member soft-delete
+  columns/migration, receipt-file upload hook) all confirmed, no
+  contradictions between this log's claims and the code. Group 8's heading
+  was missing its ✅ despite every sub-item being done — corrected. All 14
+  decisions (D1–D14) map to task groups that are done and merged; none are
+  still open as decisions. **Status moved `on-progress` → `ready-for-qa`**:
+  every task group's gates passed and merged. What remains is the manual
+  device/browser verification this log's own group 6/7/8 entries already
+  flag as never executed — real iPhone HEIC in Safari, a real ~4000×3000
+  photo staying under 2 MB and legible on each of Claude/OpenAI/Gemini, a
+  PNG screenshot end to end, desktop-without-webcam, and the camera
+  indicator-light-off behaviour on-device — exactly the human QA layer this
+  status exists for.

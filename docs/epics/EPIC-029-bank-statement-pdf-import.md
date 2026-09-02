@@ -427,3 +427,30 @@ resort. Containers still serve the 39h-old images until this runs.
 has been up 45h and caches the web container's IP; every recreate moves that IP
 and nginx 502s until restarted. This has bitten every deploy so far and is not
 yet automated in the compose recreate set.
+
+- 2026-09-02 — Documentary QA audit (code vs. this log, no live DEV access
+  from this sandbox). All 4 task groups' items are `[x]` except E1b (PDF
+  page→image rendering for the vision fallback), which is marked
+  **deliberately not built** — confirmed still absent in code, this is not
+  a gap, it's a recorded scope decision.
+  Spot-checked and confirmed real: the four `statement-pdf` endpoints, the
+  Mandiri "+15.630.000,00" sign-parsing fix, the statement-reader
+  port/factory/adapters (claude/openai/gemini), and the client-side
+  OOXML/ZIP decryption hooks with their tests.
+  **Deploy blocker confirmed still open, first-hand**: `gh auth status` on
+  this machine shows scopes `admin:public_key, gist, read:org, repo` — no
+  `read:packages`; `~/.docker/config.json` has no `ghcr.io` entry at all.
+  Nothing in git history since this log's last entry records the
+  remediation (`gh auth refresh -s read:packages` + `docker login ghcr.io`)
+  having run. Still needs a human with interactive GitHub OAuth — not
+  automatable.
+  **This log is stale relative to `development`**: 9 PRs merged after this
+  log's last entry touch the exact reconciliation/statement code this epic
+  covers (#311 DI fix, #312 page-by-page read + timeout fixes, #313
+  bank-line→Transaction conversion, #314 Gemini thinking-budget fix, #316
+  a ÷100 display-amount fix, #318 the overdraft-floor waiver for bank-line
+  imports) — none recorded here. Not fixing that drift now (out of this
+  audit's scope), flagging it so the next person updating this file knows
+  to reconcile against `git log`, not just this file's own history.
+  Status unchanged (`on-progress`) — accurate: real code work remains
+  blocked on a human-only step, and E1b's omission is by design.
