@@ -136,7 +136,15 @@ export function useLaporanReportQueries({
           `/family-groups/${familyGroupId}/reports/detail?startDate=${rangeStart}&endDate=${rangeEnd}`,
           { token },
         ),
-      enabled: enabled && tab === "rdetail",
+      // rsum's headline stat cards (Total Pemasukan/Pengeluaran) need this
+      // query too — it's the only one scoped to the EXACT selected
+      // rangeStart/rangeEnd. `summary` above is always a fixed trailing
+      // SUMMARY_MONTHS window regardless of the filter (intentional for the
+      // trend charts Bulanan/Arus Kas/Performa share), so it silently
+      // ignores a "Bulan Ini"/"3 Bulan Terakhir"/etc selection for the
+      // headline totals — reusing this already-fetched exact-range report
+      // instead of adding a second fixed-month query.
+      enabled: enabled && (tab === "rdetail" || tab === "rsum"),
       staleTime: 60_000,
     });
 

@@ -1796,6 +1796,13 @@ interface FakeCategory {
   id: string;
   name: string;
   isPrivate: boolean;
+  /**
+   * The direction of the COA account this category maps to — what
+   * `computeSummary` now buckets by (see `txCoaDirection`). Every real
+   * Category is COA-linked; fixtures that predate this default to EXPENSE,
+   * the direction a plain spending category carries.
+   */
+  coaDirection?: "INCOME" | "EXPENSE" | "TRANSFER";
 }
 
 interface FakeTx {
@@ -1823,9 +1830,13 @@ interface TxWhereFragment {
   accountId?: null;
   account?: { isPrivate?: boolean; ownerUserId?: string };
   categoryId?: null;
-  category?: { isPrivate?: boolean };
+  category?: { isPrivate?: boolean; coaAccount?: { direction: string } } | null;
   createdByUserId?: string;
   toAccount?: { ownerUserId?: string };
+  // `computeSummary`'s direction buckets carry a nested `type` next to
+  // `category: null` (the category-less fallback), so the evaluator has to
+  // understand it inside a fragment and not only at the top level.
+  type?: string | { notIn: string[] };
   OR?: TxWhereFragment[];
   AND?: TxWhereFragment[];
 }
@@ -1880,8 +1891,24 @@ function makeFakePrivacyPrisma(
           return t.categoryId === null;
         case "category": {
           const cat = t.categoryId ? categoryById.get(t.categoryId) : undefined;
-          const cond = value as { isPrivate?: boolean };
-          return !!cat && cat.isPrivate === cond.isPrivate;
+          // `category: null` — the category-LESS half of a direction bucket.
+          if (value === null) return !cat;
+          const cond = value as {
+            isPrivate?: boolean;
+            coaAccount?: { direction: string };
+          };
+          if (!cat) return false;
+          if (cond.coaAccount) {
+            return (
+              (cat.coaDirection ?? "EXPENSE") === cond.coaAccount.direction
+            );
+          }
+          return cat.isPrivate === cond.isPrivate;
+        }
+        case "type": {
+          if (typeof value === "string") return t.type === value;
+          const cond = value as { notIn?: string[] };
+          return cond.notIn ? !cond.notIn.includes(t.type) : true;
         }
         case "createdByUserId":
           return t.createdByUserId === value;
@@ -2102,6 +2129,95 @@ describe("TransactionsService.findAll privacy enforcement", () => {
     expect(result.data.map((t) => t.id).sort()).toEqual(
       ["tx-private-account", "tx-private-category", "tx-visible"].sort(),
     );
+  });
+});
+
+/**
+ * The summary buckets by the category's COA direction — the same rule
+ * `txCoaDirection` gives /laporan and /beranda. A wealth-allocation row
+ * (an investment purchase, a debt principal payment) is stored as
+ * `type: "expense"` but mapped to a TRANSFER account, and must NOT be
+ * counted as spending, or /transaksi reports a bigger "Pengeluaran" than
+ * every other screen for the identical period.
+ */
+describe("TransactionsService.findAll summary — COA direction bucketing", () => {
+  const accounts: FakeAccount[] = [{ id: "acc-1", isPrivate: false }];
+  const categories: FakeCategory[] = [
+    {
+      id: "cat-salary",
+      name: "Gaji",
+      isPrivate: false,
+      coaDirection: "INCOME",
+    },
+    {
+      id: "cat-food",
+      name: "Makan",
+      isPrivate: false,
+      coaDirection: "EXPENSE",
+    },
+    {
+      id: "cat-invest",
+      name: "Beli Saham",
+      isPrivate: false,
+      coaDirection: "TRANSFER",
+    },
+  ];
+  const now = new Date();
+  const tx = (
+    id: string,
+    categoryId: string | null,
+    amount: bigint,
+    type: FakeTx["type"],
+  ): FakeTx => ({
+    id,
+    familyGroupId: FAMILY_GROUP_ID,
+    accountId: "acc-1",
+    categoryId,
+    amount,
+    type,
+    description: null,
+    occurredAt: now,
+    createdAt: now,
+  });
+  const transactions: FakeTx[] = [
+    tx("tx-salary", "cat-salary", 1000n, "income"),
+    tx("tx-food", "cat-food", 200n, "expense"),
+    // The row that used to inflate "Pengeluaran".
+    tx("tx-buy-stock", "cat-invest", 500n, "expense"),
+    // Category-less rows fall back to their own type.
+    tx("tx-uncategorized-expense", null, 30n, "expense"),
+    tx("tx-uncategorized-transfer", null, 700n, "transfer"),
+  ];
+
+  async function buildService() {
+    const prisma = makeFakePrivacyPrisma(accounts, categories, transactions);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        TransactionsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: AiKeyService, useValue: makeAiKeyService() },
+        { provide: OcrFactory, useValue: makeOcrFactory() },
+        {
+          provide: CATEGORIZATION_PORT,
+          useValue: { suggest: jest.fn().mockResolvedValue(null) },
+        },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { send: jest.fn(), sendEmail: jest.fn() },
+        },
+      ],
+    }).compile();
+    return module.get<TransactionsService>(TransactionsService);
+  }
+
+  it("excludes TRANSFER-mapped rows from totalExpense and counts type-fallbacks", async () => {
+    const service = await buildService();
+    const { summary } = await service.findAll(FAMILY_GROUP_ID, {});
+    expect(summary.totalIncome).toBe("1000");
+    // 200 (food) + 30 (uncategorized expense) — NOT the 500 stock purchase
+    // and NOT the 700 uncategorized transfer.
+    expect(summary.totalExpense).toBe("230");
+    expect(summary.netBalance).toBe("770");
   });
 });
 

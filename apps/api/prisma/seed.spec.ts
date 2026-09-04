@@ -17,11 +17,21 @@ const mockDeleteMany = jest.fn().mockResolvedValue({ count: 0 });
 // EPIC-017: seed now reads back the generic chart to link demo categories.
 // Resolved value is set in beforeEach to avoid a module-init TDZ on the import.
 const mockFindMany = jest.fn();
+// Stale-heir/stale-category self-healing cleanup (see seed.ts's
+// `inheritanceHeir.deleteMany`/`category.findUnique` comments) — default to
+// "nothing stale found" (null / count 0) so these mocks exercise the same
+// no-op path a freshly-seeded database takes.
+const mockFindUnique = jest.fn().mockResolvedValue(null);
+const mockCount = jest.fn().mockResolvedValue(0);
+const mockDelete = jest.fn().mockResolvedValue({ id: "mock-id" });
 const makeModel = () => ({
   upsert: mockUpsert,
   create: mockCreate,
   deleteMany: mockDeleteMany,
   findMany: mockFindMany,
+  findUnique: mockFindUnique,
+  count: mockCount,
+  delete: mockDelete,
 });
 
 jest.mock("@prisma/client", () => ({

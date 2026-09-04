@@ -9,7 +9,7 @@
 
 - Pages: `src/app/(app)/[page-id]/page.tsx` — `"use client"` at top; inner content only
 - **Never modify**: `globals.css`, `lib/*`, `components/ui/*`, `components/wm/*`, `components/charts/*`, `components/shell/*`, `layout.tsx`
-- Reuse primitives: `@/components/wm`, `@/components/charts`, `@/lib/format`, `@/lib/data`
+- Reuse primitives: `@/components/wm`, `@/components/charts`, `@/lib/format`
 
 ---
 

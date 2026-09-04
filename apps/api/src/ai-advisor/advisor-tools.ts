@@ -43,8 +43,6 @@ export const advisorToolArgsSchema = z.object({
   includeRows: z.boolean().optional(),
 });
 
-export type AdvisorToolArgs = z.infer<typeof advisorToolArgsSchema>;
-
 /**
  * The declaration, in the neutral shape every provider can be built from.
  * Kept in ONE place so Claude, OpenAI and Gemini cannot describe the same

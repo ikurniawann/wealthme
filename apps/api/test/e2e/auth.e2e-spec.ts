@@ -1,6 +1,7 @@
-import * as request from "supertest";
+import request from "supertest";
 
 import { createTestApp } from "./helpers/app.helper";
+import { registerAndAuthenticate } from "./helpers/auth.helper";
 import { cleanDatabase } from "./helpers/db.helper";
 
 import type { PrismaService } from "../../src/prisma/prisma.service";
@@ -95,20 +96,23 @@ describe("Auth Flow (E2E)", () => {
   });
 
   describe("GET /auth/me", () => {
-    let accessToken: string;
+    // A session token, not the JWT `/auth/register` returns: `BetterAuthGuard`
+    // is the only thing guarding this route and it resolves the bearer token
+    // against the `session` table. See helpers/auth.helper.ts.
+    let sessionToken: string;
 
     beforeEach(async () => {
-      const registerRes = await request(app.getHttpServer())
-        .post("/auth/register")
-        .send(testUser);
-
-      accessToken = registerRes.body.accessToken as string;
+      ({ token: sessionToken } = await registerAndAuthenticate(
+        app,
+        prisma,
+        testUser,
+      ));
     });
 
     it("returns 200 with user info when Bearer token is valid", async () => {
       const response = await request(app.getHttpServer())
         .get("/auth/me")
-        .set("Authorization", `Bearer ${accessToken}`);
+        .set("Authorization", `Bearer ${sessionToken}`);
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("id");
@@ -142,9 +146,13 @@ describe("Auth Flow (E2E)", () => {
     });
 
     it("returns 200 with new token pair when refreshToken is valid", async () => {
+      // `JwtRefreshStrategy` extracts the token from the `refreshToken` BODY
+      // field (`ExtractJwt.fromBodyField`), never from the Authorization
+      // header — sending it as a bearer produced a 401 that looked like a
+      // rejected token rather than a token the route never even read.
       const response = await request(app.getHttpServer())
         .post("/auth/refresh")
-        .set("Authorization", `Bearer ${refreshToken}`);
+        .send({ refreshToken });
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("accessToken");
@@ -159,20 +167,20 @@ describe("Auth Flow (E2E)", () => {
   });
 
   describe("POST /auth/logout", () => {
-    let accessToken: string;
+    let sessionToken: string;
 
     beforeEach(async () => {
-      const registerRes = await request(app.getHttpServer())
-        .post("/auth/register")
-        .send(testUser);
-
-      accessToken = registerRes.body.accessToken as string;
+      ({ token: sessionToken } = await registerAndAuthenticate(
+        app,
+        prisma,
+        testUser,
+      ));
     });
 
     it("returns 204 when logout is successful", async () => {
       const response = await request(app.getHttpServer())
         .post("/auth/logout")
-        .set("Authorization", `Bearer ${accessToken}`);
+        .set("Authorization", `Bearer ${sessionToken}`);
 
       expect(response.status).toBe(204);
     });

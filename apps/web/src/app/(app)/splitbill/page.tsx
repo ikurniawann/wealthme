@@ -29,6 +29,7 @@ import { queryKeys } from "@/lib/query-keys";
 import {
   amountsMatchTotal,
   computeRemainder,
+  splitEqually,
   splitRemainderEvenly,
   type CustomAmounts,
 } from "./split-math";
@@ -98,8 +99,8 @@ export default function SplitBillPage() {
   const [method, setMethod] = useState<"equal" | "custom">("equal");
   // NOTE: "Andi"/"Budi"/"Citra" are example seed names for the participant
   // rows (freely editable by the user before creating the split), not UI
-  // chrome — kept as-is in both locales like the `USER` mock profile name,
-  // matching the value-locked example-data convention.
+  // chrome — kept as-is in both locales, matching the value-locked
+  // example-data convention.
   const [participants, setParticipants] = useState<LocalParticipant[]>(() => [
     makeParticipant("Andi"),
     makeParticipant("Budi"),
@@ -117,10 +118,15 @@ export default function SplitBillPage() {
     () => participants.map((p) => p.localId),
     [participants],
   );
-  const perPerson = useMemo(() => {
-    if (participants.length === 0 || method !== "equal") return 0;
-    return Math.round(totalNum / participants.length);
-  }, [totalNum, participants.length, method]);
+  // One exact share per participant (see `splitEqually`) — an uneven bill
+  // leaves the first few people paying Rp 1 more, which is why each row shows
+  // its OWN share rather than one rounded figure repeated down the list.
+  const equalShares = useMemo(
+    () =>
+      method === "equal" ? splitEqually(totalNum, participants.length) : [],
+    [totalNum, participants.length, method],
+  );
+  const perPerson = equalShares[equalShares.length - 1] ?? 0;
   // Live remainder for the custom-split calculator (item #10) — how much of
   // the total is still unallocated across the per-person amount inputs.
   const customRemainder = useMemo(
@@ -394,9 +400,9 @@ export default function SplitBillPage() {
 
     let participantDtos: CreateSplitBillDto["participants"];
     if (method === "equal") {
-      participantDtos = participants.map((p) => ({
+      participantDtos = participants.map((p, i) => ({
         name: p.name.trim() || t.splitbill.defaultParticipantName,
-        amountOwed: perPerson,
+        amountOwed: equalShares[i] ?? 0,
       }));
     } else {
       participantDtos = participants.map((p) => ({
@@ -753,7 +759,7 @@ export default function SplitBillPage() {
                 {t.splitbill.fieldParticipantsLabel} ({participants.length})
               </span>
               <div className="space-y-2">
-                {participants.map((p) => (
+                {participants.map((p, i) => (
                   <div
                     key={p.localId}
                     className="flex flex-wrap items-center gap-2"
@@ -770,7 +776,7 @@ export default function SplitBillPage() {
                     <div className="ml-auto flex shrink-0 items-center gap-2">
                       {method === "equal" ? (
                         <span className="mono text-right text-[12.5px] font-semibold whitespace-nowrap text-primary">
-                          {formatRupiah(perPerson)}
+                          {formatRupiah(equalShares[i] ?? 0)}
                         </span>
                       ) : (
                         <input

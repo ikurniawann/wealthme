@@ -2155,6 +2155,7 @@ export const en = {
     subtitleSuffix: ", due-date reminders, and approval requests.",
     processing: "Processing...",
     markAllRead: "Mark all as read",
+    markAllReadFailed: "Could not mark the notifications as read. Try again.",
     errorLoad: "Failed to load notifications. Please try again.",
     emptyState: "No notifications yet.",
     unreadBadge: "New",
@@ -2209,7 +2210,7 @@ export const en = {
       " A cash account can be negative (e.g. a driver's fuel advance not yet reimbursed). ",
     infoNoticeLinkLabel: "Bank & Account",
     infoNoticeSuffix:
-      " balances may not — use a liability to record a bank shortfall.",
+      " balances can't be debited into the negative — if one already is (e.g. an old transaction), use a liability to record the shortfall.",
     mutationsSectionTitle: "Recent Cash & E-Wallet Movement",
     mutationsViewAllLabel: "View All",
     mutationsEmptyLabel: "No cash/e-wallet movement yet.",
@@ -2550,7 +2551,7 @@ export const en = {
     insightPrivacyLabel: "Privacy",
     insightPrivacyValue: "Private balances stay segmented",
     filterNoteText:
-      "Bank balances may not go negative — a shortfall is recorded as a liability.",
+      "A bank account can't be debited into the negative — an already-negative balance is recorded as a liability.",
     addCardTitle: "Add a new account",
     addCardSubtitle: "Connect a bank account and assign its owner.",
     addCardButton: "Add Account",
@@ -2821,7 +2822,7 @@ export const en = {
     existingCategoryPlaceholder: "Choose a category",
     existingCategoryEmptyOption:
       "No categories of this type yet — ask the owner to add one",
-    obligationsSectionTitle: "This Period's Obligations",
+    obligationsSectionTitle: "Unpaid Obligations",
     obligationsDueBadge: "Not Paid",
     obligationsPaidBadge: "Paid",
     obligationsPayButton: "Pay",

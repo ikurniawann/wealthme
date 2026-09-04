@@ -33,5 +33,5 @@ Key reminders:
 - Interactive app pages start with `"use client";`.
 - Page files render inner content only; the route group provides shell, padding,
   sidebar, topbar, and mobile navigation.
-- Reuse `@/components/wm`, `@/components/charts`, `@/lib/format`, and
-  `@/lib/data` before creating local replacements.
+- Reuse `@/components/wm`, `@/components/charts`, and `@/lib/format` before
+  creating local replacements.

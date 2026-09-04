@@ -402,7 +402,7 @@ export class AiAdvisorService {
    * moved receipt OCR onto this same family key — but is never read here):
    * a silent server-key fallback would mean one family paying
    * for another's usage, which D16 rules out. There is also no mock
-   * fallback — MockAdvisorService is not wired into this path at all.
+   * fallback — the unused `MockAdvisorService` double was deleted outright.
    */
   async streamChat(
     familyGroupId: string,

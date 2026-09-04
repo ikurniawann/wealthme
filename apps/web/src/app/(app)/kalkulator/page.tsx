@@ -36,8 +36,8 @@ import type {
   ZakatResultDto,
 } from "@wealthme/contracts";
 
-// Sample participant names for the Split Group calculator preview — mock
-// data (like `lib/data`'s USER name), not translatable UI copy.
+// Sample participant names for the Split Group calculator preview —
+// example data the user overwrites, not translatable UI copy.
 const GROUP_NAMES = [
   "Andi",
   "Budi",

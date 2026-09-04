@@ -2196,6 +2196,7 @@ export const id = {
     subtitleSuffix: ", pengingat jatuh tempo, dan permintaan persetujuan.",
     processing: "Memproses...",
     markAllRead: "Tandai semua dibaca",
+    markAllReadFailed: "Gagal menandai notifikasi. Coba lagi.",
     errorLoad: "Gagal memuat notifikasi. Silakan coba lagi.",
     emptyState: "Tidak ada notifikasi.",
     unreadBadge: "Baru",
@@ -2254,7 +2255,7 @@ export const id = {
       " Kas tunai bisa bernilai negatif (mis. talangan supir yang belum diganti). Saldo ",
     infoNoticeLinkLabel: "Bank & Account",
     infoNoticeSuffix:
-      " tidak boleh minus — gunakan liabilitas untuk mencatat kekurangan dana bank.",
+      " tidak bisa didebit sampai minus — kalau sudah minus (mis. dari transaksi lama), gunakan liabilitas untuk mencatat kekurangannya.",
     mutationsSectionTitle: "Mutasi Tunai & E-Wallet Terakhir",
     mutationsViewAllLabel: "Lihat Semua",
     mutationsEmptyLabel: "Belum ada mutasi tunai/e-wallet.",
@@ -2598,7 +2599,7 @@ export const id = {
     insightPrivacyLabel: "Privasi",
     insightPrivacyValue: "Saldo pribadi tetap tersegmentasi",
     filterNoteText:
-      "Saldo bank tidak boleh minus — kekurangan dana dicatat sebagai liabilitas.",
+      "Rekening bank tidak bisa didebit sampai minus — saldo yang sudah minus dicatat sebagai liabilitas.",
     addCardTitle: "Tambah rekening baru",
     addCardSubtitle: "Hubungkan rekening bank dan tetapkan pemiliknya.",
     addCardButton: "Tambah Rekening",
@@ -2872,7 +2873,15 @@ export const id = {
     existingCategoryPlaceholder: "Pilih kategori",
     existingCategoryEmptyOption:
       "Belum ada kategori jenis ini — minta pemilik keluarga menambahkannya",
-    obligationsSectionTitle: "Kewajiban Periode Ini",
+    // "Kewajiban Periode Ini" (This Period's Obligations) implied every row
+    // fell within the current month — but a row's date is its REAL next
+    // due/renewal date (deliberately not fabricated into a fake "this
+    // month" date, see `toObligations` in anggaran/page.tsx), which for a
+    // yearly-premium policy can be many months out even while its current
+    // payment period is genuinely still unpaid. Renamed to describe what
+    // the list actually is: every currently-unpaid recurring obligation,
+    // regardless of how far off its listed due/renewal date is.
+    obligationsSectionTitle: "Kewajiban Belum Dibayar",
     obligationsDueBadge: "Belum Dibayar",
     obligationsPaidBadge: "Sudah Dibayar",
     obligationsPayButton: "Bayar",

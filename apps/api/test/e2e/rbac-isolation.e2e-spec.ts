@@ -1,6 +1,7 @@
-import * as request from "supertest";
+import request from "supertest";
 
 import { createTestApp } from "./helpers/app.helper";
+import { registerAndAuthenticate } from "./helpers/auth.helper";
 import { cleanDatabase } from "./helpers/db.helper";
 
 import type { PrismaService } from "../../src/prisma/prisma.service";
@@ -36,16 +37,16 @@ describe("RBAC / Tenant Isolation (E2E)", () => {
     await cleanDatabase(prisma);
   });
 
-  async function registerAndLogin(
-    user: typeof userA,
-  ): Promise<{ accessToken: string }> {
-    await request(app.getHttpServer()).post("/auth/register").send(user);
-
-    const loginRes = await request(app.getHttpServer())
-      .post("/auth/login")
-      .send({ email: user.email, password: user.password });
-
-    return { accessToken: loginRes.body.accessToken as string };
+  /**
+   * Returns the credential the guards actually accept — a `session` row's
+   * token, not the JWT `/auth/login` hands back. With the JWT, every request
+   * below was refused by `BetterAuthGuard` before tenancy was ever consulted,
+   * so a spec asserting "userB is denied" passed for the wrong reason and its
+   * "userA is allowed" counterpart failed outright.
+   */
+  async function signIn(user: typeof userA): Promise<{ accessToken: string }> {
+    const { token } = await registerAndAuthenticate(app, prisma, user);
+    return { accessToken: token };
   }
 
   async function createFamilyGroup(
@@ -63,8 +64,8 @@ describe("RBAC / Tenant Isolation (E2E)", () => {
 
   describe("cross-tenant family group access", () => {
     it("userB cannot list accounts in userA's family group", async () => {
-      const { accessToken: tokenA } = await registerAndLogin(userA);
-      const { accessToken: tokenB } = await registerAndLogin(userB);
+      const { accessToken: tokenA } = await signIn(userA);
+      const { accessToken: tokenB } = await signIn(userB);
 
       const groupAId = await createFamilyGroup(tokenA, "Family Group A");
 
@@ -76,8 +77,8 @@ describe("RBAC / Tenant Isolation (E2E)", () => {
     });
 
     it("userB cannot create an account in userA's family group", async () => {
-      const { accessToken: tokenA } = await registerAndLogin(userA);
-      const { accessToken: tokenB } = await registerAndLogin(userB);
+      const { accessToken: tokenA } = await signIn(userA);
+      const { accessToken: tokenB } = await signIn(userB);
 
       const groupAId = await createFamilyGroup(tokenA, "Family Group A");
 
@@ -85,7 +86,7 @@ describe("RBAC / Tenant Isolation (E2E)", () => {
         .post(`/family-groups/${groupAId}/accounts`)
         .set("Authorization", `Bearer ${tokenB}`)
         .send({
-          type: "BANK",
+          type: "bank",
           name: "Stolen Account",
           balance: 0,
           currency: "IDR",
@@ -95,8 +96,8 @@ describe("RBAC / Tenant Isolation (E2E)", () => {
     });
 
     it("userB cannot list transactions in userA's family group", async () => {
-      const { accessToken: tokenA } = await registerAndLogin(userA);
-      const { accessToken: tokenB } = await registerAndLogin(userB);
+      const { accessToken: tokenA } = await signIn(userA);
+      const { accessToken: tokenB } = await signIn(userB);
 
       const groupAId = await createFamilyGroup(tokenA, "Family Group A");
 
@@ -108,8 +109,8 @@ describe("RBAC / Tenant Isolation (E2E)", () => {
     });
 
     it("userB cannot create a transaction in userA's family group", async () => {
-      const { accessToken: tokenA } = await registerAndLogin(userA);
-      const { accessToken: tokenB } = await registerAndLogin(userB);
+      const { accessToken: tokenA } = await signIn(userA);
+      const { accessToken: tokenB } = await signIn(userB);
 
       const groupAId = await createFamilyGroup(tokenA, "Family Group A");
 
@@ -119,7 +120,7 @@ describe("RBAC / Tenant Isolation (E2E)", () => {
         .send({
           accountId: "00000000-0000-0000-0000-000000000000",
           amount: 1000,
-          type: "EXPENSE",
+          type: "expense",
           occurredAt: new Date().toISOString(),
         });
 
@@ -127,8 +128,8 @@ describe("RBAC / Tenant Isolation (E2E)", () => {
     });
 
     it("userB cannot list members of userA's family group", async () => {
-      const { accessToken: tokenA } = await registerAndLogin(userA);
-      const { accessToken: tokenB } = await registerAndLogin(userB);
+      const { accessToken: tokenA } = await signIn(userA);
+      const { accessToken: tokenB } = await signIn(userB);
 
       const groupAId = await createFamilyGroup(tokenA, "Family Group A");
 
@@ -140,8 +141,8 @@ describe("RBAC / Tenant Isolation (E2E)", () => {
     });
 
     it("userB cannot view dashboard summary of userA's family group", async () => {
-      const { accessToken: tokenA } = await registerAndLogin(userA);
-      const { accessToken: tokenB } = await registerAndLogin(userB);
+      const { accessToken: tokenA } = await signIn(userA);
+      const { accessToken: tokenB } = await signIn(userB);
 
       const groupAId = await createFamilyGroup(tokenA, "Family Group A");
 
@@ -155,7 +156,7 @@ describe("RBAC / Tenant Isolation (E2E)", () => {
 
   describe("own family group remains accessible", () => {
     it("userA can list accounts in their own family group", async () => {
-      const { accessToken: tokenA } = await registerAndLogin(userA);
+      const { accessToken: tokenA } = await signIn(userA);
       const groupAId = await createFamilyGroup(tokenA, "Family Group A");
 
       const response = await request(app.getHttpServer())
@@ -166,7 +167,7 @@ describe("RBAC / Tenant Isolation (E2E)", () => {
     });
 
     it("userA can list transactions in their own family group", async () => {
-      const { accessToken: tokenA } = await registerAndLogin(userA);
+      const { accessToken: tokenA } = await signIn(userA);
       const groupAId = await createFamilyGroup(tokenA, "Family Group A");
 
       const response = await request(app.getHttpServer())
@@ -177,7 +178,7 @@ describe("RBAC / Tenant Isolation (E2E)", () => {
     });
 
     it("userA can view dashboard summary of their own family group", async () => {
-      const { accessToken: tokenA } = await registerAndLogin(userA);
+      const { accessToken: tokenA } = await signIn(userA);
       const groupAId = await createFamilyGroup(tokenA, "Family Group A");
 
       const response = await request(app.getHttpServer())
@@ -190,10 +191,10 @@ describe("RBAC / Tenant Isolation (E2E)", () => {
 
   describe("intra-group member role restrictions", () => {
     it("userB (MEMBER) cannot change member roles in userA's family group", async () => {
-      const { accessToken: tokenA } = await registerAndLogin(userA);
+      const { accessToken: tokenA } = await signIn(userA);
       const groupAId = await createFamilyGroup(tokenA, "Family Group A");
 
-      const { accessToken: tokenB } = await registerAndLogin(userB);
+      const { accessToken: tokenB } = await signIn(userB);
 
       // userA invites userB
       const inviteRes = await request(app.getHttpServer())
@@ -214,16 +215,16 @@ describe("RBAC / Tenant Isolation (E2E)", () => {
       const changeRoleRes = await request(app.getHttpServer())
         .patch(`/family-groups/${groupAId}/members/${memberBId}`)
         .set("Authorization", `Bearer ${tokenB}`)
-        .send({ role: "OWNER" });
+        .send({ role: "owner" });
 
       expect([403, 404]).toContain(changeRoleRes.status);
     });
 
     it("userB (MEMBER) cannot remove members from userA's family group", async () => {
-      const { accessToken: tokenA } = await registerAndLogin(userA);
+      const { accessToken: tokenA } = await signIn(userA);
       const groupAId = await createFamilyGroup(tokenA, "Family Group A");
 
-      const { accessToken: tokenB } = await registerAndLogin(userB);
+      const { accessToken: tokenB } = await signIn(userB);
 
       // userA invites userB
       const inviteRes = await request(app.getHttpServer())

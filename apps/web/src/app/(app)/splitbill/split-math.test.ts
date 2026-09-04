@@ -1,9 +1,42 @@
 import {
   amountsMatchTotal,
   computeRemainder,
+  splitEqually,
   splitRemainderEvenly,
   sumCustomAmounts,
 } from "./split-math";
+
+describe("splitEqually", () => {
+  it("gives everyone the same share when the total divides evenly", () => {
+    expect(splitEqually(90_000, 3)).toEqual([30_000, 30_000, 30_000]);
+  });
+
+  it("reconciles to the total exactly when it does not divide evenly", () => {
+    const shares = splitEqually(8_500_000, 3);
+
+    // The API rejects a split whose amounts do not sum to the total, so this
+    // is the property that matters — not the individual values.
+    expect(shares.reduce((a, b) => a + b, 0)).toBe(8_500_000);
+    expect(shares).toEqual([2_833_334, 2_833_333, 2_833_333]);
+  });
+
+  it("keeps every share within Rp 1 of every other", () => {
+    for (const [total, count] of [
+      [100, 3],
+      [8_500_000, 7],
+      [1, 2],
+      [999_999, 4],
+    ] as const) {
+      const shares = splitEqually(total, count);
+      expect(shares.reduce((a, b) => a + b, 0)).toBe(total);
+      expect(Math.max(...shares) - Math.min(...shares)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("returns an empty list for no participants", () => {
+    expect(splitEqually(50_000, 0)).toEqual([]);
+  });
+});
 
 describe("sumCustomAmounts", () => {
   it("sums parsed amounts across the listed participants", () => {

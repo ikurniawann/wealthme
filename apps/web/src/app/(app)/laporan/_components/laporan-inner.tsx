@@ -511,9 +511,10 @@ export function LaporanInner() {
           <RingkasanSection
             go={go}
             summary={summary}
+            detailReport={detailReport}
             invSummary={invSummary}
             balanceSheet={balanceSheet}
-            isLoading={isSummaryLoading}
+            isLoading={isSummaryLoading || isDetailLoading}
             chartSummary={ringkasanChartSummary}
             isChartLoading={isRingkasanChartLoading}
             chartRange={ringkasanChartRange}

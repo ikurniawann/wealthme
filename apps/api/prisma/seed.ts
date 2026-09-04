@@ -404,6 +404,33 @@ export async function main(): Promise<void> {
       color: "#f97316",
     },
   });
+  // A demo DB seeded before this category was renamed to "Makan & Minum"
+  // can still carry the old plain "Makan" row alongside it — two expense
+  // categories mapped to the same COA account, confusing at pick-time and
+  // splitting what should be one "Makan & Minum" total in Setup Master
+  // Data/reports. Only removed when nothing references it (Transaction sets
+  // categoryId to null on delete, but Budget CASCADEs — never risk taking
+  // an active budget down with it); otherwise it's left in place rather
+  // than silently orphaning real user data.
+  const staleMakan = await prisma.category.findUnique({
+    where: {
+      familyGroupId_name_kind: {
+        familyGroupId: FG,
+        name: "Makan",
+        kind: "expense",
+      },
+    },
+    select: { id: true },
+  });
+  if (staleMakan) {
+    const [txCount, budgetCount] = await Promise.all([
+      prisma.transaction.count({ where: { categoryId: staleMakan.id } }),
+      prisma.budget.count({ where: { categoryId: staleMakan.id } }),
+    ]);
+    if (txCount === 0 && budgetCount === 0) {
+      await prisma.category.delete({ where: { id: staleMakan.id } });
+    }
+  }
   const catTransport = await prisma.category.upsert({
     where: {
       familyGroupId_name_kind: {
@@ -1204,6 +1231,16 @@ export async function main(): Promise<void> {
     },
   ];
 
+  // Backdated to the start of the seeded transaction history on purpose:
+  // `budgetSpendWindow` clamps a budget's spend window to its own `createdAt`
+  // (a budget created mid-period must not claim spend from before it existed
+  // — EPIC-023 C3). Left at the default `now()`, every seeded budget was
+  // younger than every seeded transaction, so /anggaran opened with all eight
+  // budgets reading "Rp 0 terpakai · 0%" on a database that clearly has
+  // spending in it. Set on `update` too, so re-seeding heals a demo database
+  // that was created before this line.
+  const budgetsCreatedAt = monthsAgo(6);
+
   for (const b of budgets) {
     await prisma.budget.upsert({
       where: {
@@ -1213,13 +1250,14 @@ export async function main(): Promise<void> {
           period: "monthly",
         },
       },
-      update: { limitAmount: b.limit },
+      update: { limitAmount: b.limit, createdAt: budgetsCreatedAt },
       create: {
         id: b.id,
         familyGroupId: FG,
         categoryId: b.categoryId,
         period: "monthly",
         limitAmount: b.limit,
+        createdAt: budgetsCreatedAt,
       },
     });
   }
@@ -1762,13 +1800,26 @@ export async function main(): Promise<void> {
       memberUserId: childUser.id,
     },
   });
-  // The second seeded heir is removed rather than left orphaned, so re-seeding
-  // an existing database converges on the same single-heir state.
+  // Any OTHER heir row on this asset is stale — not just the one known
+  // "aa5ca34b…" id above. A demo DB seeded before this single-heir cleanup
+  // (e.g. an even older revision that additionally split the house 50/50
+  // between two invented "hima"/"anak2" heirs) leaves those rows behind
+  // forever, since a `deleteMany` scoped to one hardcoded id never touches
+  // them: they'd keep stacking on top of "Ana Demo · 100%" — the sum of
+  // sharePercent exceeding 100% while the UI still reads "Teralokasi penuh
+  // (100%)", and every allocation total downstream (Warisan's own
+  // "Alokasi Ahli Waris" card) overcounting by whatever those stale rows
+  // add up to. Deleting by "not this asset's one intended heir" instead of
+  // one specific id makes re-seeding self-healing regardless of how old the
+  // database's last seed run was.
   await prisma.inheritanceHeir.deleteMany({
-    where: { id: "aa5ca34b-8a30-43f1-a81b-6580c880c87b" },
+    where: {
+      inheritanceAssetId: inh1.id,
+      id: { not: "93274005-21f6-4fd7-8ab8-8e06ddd1e68e" },
+    },
   });
 
-  await prisma.inheritanceAsset.upsert({
+  const inh2 = await prisma.inheritanceAsset.upsert({
     where: { id: "0d3e5b4d-b872-4e53-aad1-b1decfd6da2a" },
     update: {},
     create: {
@@ -1780,6 +1831,13 @@ export async function main(): Promise<void> {
       visibility: "heirs_only",
       notes: "Saham BBCA, reksa dana, tabungan BCA & Mandiri.",
     },
+  });
+  // This asset is seeded with no heirs at all — same reasoning as above:
+  // clear whatever a stale pre-cleanup seed run left on it (e.g. the
+  // "hima 70% / anak2 30%" split observed in a live demo whose DB predated
+  // this fix), so the intended zero-heir state actually holds.
+  await prisma.inheritanceHeir.deleteMany({
+    where: { inheritanceAssetId: inh2.id },
   });
 
   // ── Donations ─────────────────────────────────────────────────────────────────
@@ -2693,6 +2751,13 @@ export async function main(): Promise<void> {
     });
   }
 
+  // Counted, not `coaSeeds.length`: the demo family also carries every
+  // GENERIC_COA_CHART account (upserted near the top of this file), so the
+  // local array alone under-reported the real chart size by ~26 accounts.
+  const coaCount = await prisma.coaAccount.count({
+    where: { familyGroupId: family.id },
+  });
+
   process.stdout.write(
     `\nSeed complete — demo@wealthme.id / demo1234 · anak: ana_demo / demo1234\n` +
       `  FamilyGroup : ${family.name} (${family.id})\n` +
@@ -2711,7 +2776,7 @@ export async function main(): Promise<void> {
       `  Tax Records : 2024 (sudah lapor), 2025 (belum lapor)\n` +
       `  Notifications: 4\n` +
       `  Bank Syncs  : 2 uploads (BCA Mei: 8 entries, Mandiri Apr: 5 entries)\n` +
-      `  COA Accounts: ${coaSeeds.length} (6 grup)\n`,
+      `  COA Accounts: ${coaCount} (6 grup)\n`,
   );
 }
 

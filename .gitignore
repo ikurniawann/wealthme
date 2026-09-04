@@ -32,6 +32,10 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...except the committed templates (.env.example, apps/api/.env.test.example).
+# They were force-added before; the negation keeps a new one from silently
+# not being tracked.
+!.env*.example
 
 # vercel
 .vercel

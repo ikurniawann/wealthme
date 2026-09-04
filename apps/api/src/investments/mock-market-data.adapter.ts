@@ -23,9 +23,16 @@ export class MockMarketDataAdapter implements MarketDataPort {
     ticker: string,
     _type: InvestmentType,
   ): Promise<MarketDataQuote> {
-    const base = deterministicBasePrice(ticker);
-    const fluctuation = (Math.random() - 0.5) * 0.04; // ±2%
-    const price = Math.round(base * (1 + fluctuation) * 100) / 100;
+    // No `Math.random()` jitter. `PriceRefreshScheduler` re-quotes every
+    // instrument once a minute, so a ±2% wobble per call meant a dev or demo
+    // instance (anything without USE_REAL_MARKET_DATA=true) redrew a
+    // different portfolio value — and therefore a different net worth,
+    // "Total Aset" and allocation split — every 60 seconds while the user did
+    // nothing. Same reasoning that removed the `Math.random()` receipt-scan
+    // amounts (see ocr.factory.ts): a fabricated number that MOVES is worse
+    // than a fabricated number that holds still, because only the moving one
+    // looks like the ledger is broken.
+    const price = deterministicBasePrice(ticker);
     return { price, source: "mock", asOf: new Date(), delayed: false };
   }
 }
