@@ -85,6 +85,12 @@ const envSchema = z.object({
     .optional()
     .transform((v) => v?.trim() || undefined)
     .pipe(z.string().email().optional()),
+  // Set to "disabled" to run WITHOUT any email sender on purpose — the only
+  // way a production deployment may start with no SENDGRID_API_KEY. Every
+  // email it would have sent is logged at WARN instead (see
+  // notifications.module.ts and disabled-notification-sender.service.ts).
+  // In-app notifications are unaffected.
+  NOTIFICATION_EMAIL_SENDER: z.enum(["disabled"]).optional(),
   // Observability — optional; Sentry error tracking.
   // Empty string (from .env placeholder) is treated as unset.
   SENTRY_DSN: z
