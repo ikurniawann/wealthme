@@ -66,12 +66,35 @@ export function formatAmountInput(value: string): string {
   return parseInt(digits, 10).toLocaleString("id-ID");
 }
 
-/** Compact Rupiah for tight UI, e.g. 25850000 -> "Rp 25,85 jt" */
+/**
+ * Compact Rupiah for tight UI, e.g. 25850000 -> "Rp 25,85 jt".
+ *
+ * The thresholds are the value at which the SMALLER unit's own rounding would
+ * overflow into four digits, not a round power of ten: 999.999.999 divided
+ * into "jt" and shown at two decimals is 1000,00 — so it belongs in "M"
+ * (1,00 M), and 999.999 shown as "rb" at zero decimals is 1000 rb, so it
+ * belongs in "jt". Bucketing on 1e9/1e6/1e3 instead printed "Rp 1000,00 jt"
+ * and "Rp 1000 rb".
+ *
+ * A negative value keeps its sign and its unit ("-Rp 1,23 M"); the original
+ * `value >= …` comparisons sent every negative straight to the full
+ * `formatRupiah`, which is exactly the long string the compact form exists to
+ * avoid, in the tight spots (deltas, a negative net worth) where it appears.
+ */
+const COMPACT_M_MIN = 999_995_000;
+const COMPACT_JT_MIN = 999_500;
+
 export function formatRupiahCompact(value: number): string {
-  if (value >= 1_000_000_000)
-    return "Rp " + (value / 1_000_000_000).toFixed(2).replace(".", ",") + " M";
-  if (value >= 1_000_000)
-    return "Rp " + (value / 1_000_000).toFixed(2).replace(".", ",") + " jt";
-  if (value >= 1_000) return "Rp " + (value / 1_000).toFixed(0) + " rb";
-  return formatRupiah(value);
+  const sign = value < 0 ? "-" : "";
+  const abs = Math.abs(value);
+  const unit = (divisor: number, decimals: number, suffix: string): string =>
+    `${sign}Rp ` +
+    (abs / divisor).toFixed(decimals).replace(".", ",") +
+    " " +
+    suffix;
+
+  if (abs >= COMPACT_M_MIN) return unit(1_000_000_000, 2, "M");
+  if (abs >= COMPACT_JT_MIN) return unit(1_000_000, 2, "jt");
+  if (abs >= 1_000) return unit(1_000, 0, "rb");
+  return sign + formatRupiah(abs);
 }

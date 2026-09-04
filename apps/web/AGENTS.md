@@ -16,6 +16,6 @@ Hard defaults:
 - Interactive pages start with `"use client";`.
 - Render inner page content only; the `(app)` route group owns shell, sidebar,
   topbar, mobile navigation, and outer padding.
-- Reuse `@/components/wm`, `@/components/charts`, `@/lib/format`, and
-  `@/lib/data` before creating page-local replacements.
+- Reuse `@/components/wm`, `@/components/charts`, and `@/lib/format` before
+  creating page-local replacements.
 - Base UI shadcn triggers use `render={<el/>}`, not `asChild`.

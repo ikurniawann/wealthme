@@ -1519,7 +1519,17 @@ export default function LiabilitasPage() {
     },
   });
 
-  const assetsTotal = netWorthData ? Number(netWorthData.assetsTotal) : 0;
+  // "Rasio Utang terhadap Aset" needs TOTAL assets. `NetWorthDto.assetsTotal`
+  // is only the physical/Asset-table slice (rumah, kendaraan, …) — cash and
+  // investments are separate fields — so using it alone inflated the ratio by
+  // whatever share of the family's wealth sits in accounts and portfolio
+  // (37.6% instead of 17.7% on the demo data). Same three-part sum /aset and
+  // the balance sheet report as "Total Aset".
+  const assetsTotal = netWorthData
+    ? Number(netWorthData.accountsTotal) +
+      Number(netWorthData.investmentsTotal) +
+      Number(netWorthData.assetsTotal)
+    : 0;
   const liabilitiesTotal = netWorthData
     ? Number(netWorthData.liabilitiesTotal)
     : 0;

@@ -42,11 +42,24 @@ export const auth = betterAuth({
         argon2.verify(hash, password).catch(() => false),
     },
     sendResetPassword: async ({ user, url }) => {
-      console.log(`[reset-password] URL for ${user.email}: ${url}`);
       const apiKey = process.env.SENDGRID_API_KEY;
       const fromEmail =
         process.env.NOTIFICATION_FROM_EMAIL ?? "noreply@wealthme.id";
-      if (!apiKey) return;
+      if (!apiKey) {
+        // Dev-only escape hatch so a local run without SendGrid can still
+        // finish a reset. NEVER in production: this URL is a bearer
+        // credential — anyone who can read the container logs or the log
+        // aggregator could take over the account it belongs to, and the
+        // line leaked the account's email address alongside it.
+        if (process.env.NODE_ENV !== "production") {
+          console.log(`[reset-password] URL for ${user.email}: ${url}`);
+        } else {
+          console.error(
+            "[reset-password] SENDGRID_API_KEY is unset — no reset email was sent.",
+          );
+        }
+        return;
+      }
       await fetch("https://api.sendgrid.com/v3/mail/send", {
         method: "POST",
         headers: {

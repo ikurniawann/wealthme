@@ -2009,6 +2009,7 @@ export type I18nDictionary = {
     subtitleSuffix: string;
     processing: string;
     markAllRead: string;
+    markAllReadFailed: string;
     errorLoad: string;
     emptyState: string;
     unreadBadge: string;
@@ -2842,8 +2843,7 @@ export type I18nDictionary = {
   /**
    * EPIC-018 Task A6 — `/splitbill` (split bill) page copy. The seed
    * participant example names ("Andi"/"Budi"/"Citra") stay untranslated in
-   * the page — example data, not UI chrome, same convention as the `USER`
-   * mock profile name.
+   * the page — example data the user overwrites, not UI chrome.
    */
   splitbill: {
     pageTitle: string;

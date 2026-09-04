@@ -10,6 +10,7 @@ import { formatRupiah } from "@/lib/format";
 import { useLocale } from "@/hooks/use-locale";
 import type {
   BalanceSheetDto,
+  DetailReportDto,
   InvestmentSummaryDto,
   ReportSummaryDto,
 } from "@wealthme/contracts";
@@ -26,6 +27,7 @@ import { RingkasanStatCard } from "../atoms";
 export function RingkasanSection({
   go,
   summary,
+  detailReport,
   invSummary,
   balanceSheet,
   isLoading,
@@ -37,6 +39,12 @@ export function RingkasanSection({
 }: {
   go: (id: string) => void;
   summary?: ReportSummaryDto;
+  /** Same rangeStart/rangeEnd every other tab queries — unlike `summary`
+   * (a fixed trailing-months window, shared with Bulanan/Arus Kas/Performa),
+   * this is scoped to exactly the selected period filter. The headline stat
+   * cards below read their totals from here so "Bulan Ini"/"3 Bulan
+   * Terakhir"/etc actually changes what "Total Pemasukan" shows. */
+  detailReport?: DetailReportDto;
   invSummary?: InvestmentSummaryDto;
   balanceSheet?: BalanceSheetDto;
   isLoading?: boolean;
@@ -69,6 +77,15 @@ export function RingkasanSection({
   // is the active period, the one before it is "last month". No delta is
   // rendered when there is no real previous point to compare against (a
   // dashed placeholder would be more misleading than nothing).
+  // Headline totals for the exact selected period (see `detailReport`'s
+  // prop comment) — `summary` stays the fixed trailing-months window used
+  // only for the delta-vs-previous-month labels and the trend chart below.
+  const headlineIncome = detailReport?.totalIncome ?? 0;
+  const headlineExpense = detailReport?.totalExpense ?? 0;
+  const headlineNet = headlineIncome - headlineExpense;
+  const headlineSavingsRate =
+    headlineIncome > 0 ? Math.round((headlineNet / headlineIncome) * 100) : 0;
+
   const points = summary?.points ?? [];
   const currentPoint = points[points.length - 1];
   const previousPoint =
@@ -196,7 +213,7 @@ export function RingkasanSection({
           iconBg="var(--success-soft)"
           iconColor="var(--success)"
           label={t.laporan.totalIncomeLabel}
-          value={summary ? formatRupiah(summary.totalIncome) : "Rp —"}
+          value={detailReport ? formatRupiah(headlineIncome) : "Rp —"}
           valueClass="text-success"
           delta={incomeDeltaLabel}
           deltaClass={
@@ -210,7 +227,7 @@ export function RingkasanSection({
           iconBg="color-mix(in oklab, var(--destructive) 14%, transparent)"
           iconColor="var(--destructive)"
           label={t.laporan.totalExpenseLabel}
-          value={summary ? formatRupiah(summary.totalExpense) : "Rp —"}
+          value={detailReport ? formatRupiah(headlineExpense) : "Rp —"}
           valueClass="text-destructive"
           delta={expenseDeltaLabel}
           deltaClass={
@@ -224,9 +241,9 @@ export function RingkasanSection({
           iconBg="var(--accent)"
           iconColor="var(--accent-foreground)"
           label={t.laporan.ringkasan.statNetCashflowLabel}
-          value={summary ? formatSignedRupiah(summary.netSavings) : "Rp —"}
+          value={detailReport ? formatSignedRupiah(headlineNet) : "Rp —"}
           valueClass={
-            summary && summary.netSavings >= 0
+            detailReport && headlineNet >= 0
               ? "text-success"
               : "text-destructive"
           }
@@ -237,10 +254,10 @@ export function RingkasanSection({
           iconBg="var(--brand-purple-soft)"
           iconColor="var(--brand-purple)"
           label={t.laporan.ringkasan.statSavingsRatioLabel}
-          value={summary ? `${summary.savingsRate}%` : "—"}
+          value={detailReport ? `${headlineSavingsRate}%` : "—"}
           delta={savingsRatioDeltaLabel}
           deltaClass={
-            summary && summary.savingsRate >= SAVINGS_TARGET_PCT
+            detailReport && headlineSavingsRate >= SAVINGS_TARGET_PCT
               ? "text-success"
               : "text-warning"
           }

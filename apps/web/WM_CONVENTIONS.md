@@ -20,10 +20,13 @@ Preserve ALL Indonesian copy, numbers, emoji, and structure exactly. This is a f
 - `parseRupiah("1.256.780")` → number
 - `formatAmountInput(str)` → live-format a numeric input (use in onChange for Rp inputs)
 
-## Shared data — `import { ... } from "@/lib/data"`
+## Shared data — there is none; fetch it
 
-`USER` ({name:"Irfan Arsandi", email, initials:"IA", family:"Arsandi Family"}), `NET_WORTH` (1256780000),
-`CASHFLOW` ({months,income,expense,max}), `SPARKLINE_POINTS`, `SEARCH_DATA`, `AI_RESPONSES`, `AI_CHIPS`, `resolveAiResponse(text)`.
+`@/lib/data` (the prototype's hardcoded `USER` / `NET_WORTH` / `CASHFLOW` /
+`SEARCH_DATA` / `AI_RESPONSES` mocks) was deleted once EPIC-026 finished
+porting every page onto the real API — nothing imported it any more. Every
+page gets its numbers from the backend through TanStack Query; never
+re-introduce a hardcoded figure as a stand-in.
 
 ## Reusable components — `import { ... } from "@/components/wm"`
 

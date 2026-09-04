@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
@@ -32,7 +33,9 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: "sistem", label: "Sistem" },
 ];
 
-function inferNotificationFilter(n: NotificationDto): Exclude<Filter, "semua" | "belum-dibaca"> {
+function inferNotificationFilter(
+  n: NotificationDto,
+): Exclude<Filter, "semua" | "belum-dibaca"> {
   const text = `${n.title} ${n.body} ${n.icon ?? ""}`.toLowerCase();
   if (/(setuju|approval|persetujuan|request|permintaan)/.test(text)) {
     return "persetujuan";
@@ -236,6 +239,14 @@ export default function NotifikasiPage() {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.notifications.unreadCount(fgId),
       });
+    },
+    // Without this the request could fail and the only thing the user saw was
+    // the button leaving its "Memproses..." state with every notification
+    // still unread — a silent no-op that reads as "the button is broken".
+    onError: (err: unknown) => {
+      toast.error(
+        (err as { message?: string }).message ?? t.notifikasi.markAllReadFailed,
+      );
     },
   });
 

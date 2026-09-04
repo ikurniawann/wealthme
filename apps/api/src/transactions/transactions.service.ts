@@ -7,7 +7,7 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { Role } from "@prisma/client";
+import { CoaDirection, Role } from "@prisma/client";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AiKeyService } from "../ai-advisor/ai-key.service";
@@ -878,13 +878,43 @@ export class TransactionsService {
       viewerUserId,
     );
 
+    // EPIC-017 parity: classify by the category's COA direction, exactly like
+    // `txCoaDirection` (coa-classify.util.ts) — which /laporan and /beranda
+    // both use — and fall back to `type` only for a category-less row. Summing
+    // raw `type` here instead counted every wealth-allocation row (an
+    // investment purchase, a debt principal payment: `type: "expense"` mapped
+    // to a TRANSFER COA account) as spending, so /transaksi's "Pengeluaran"
+    // read Rp 64,9 jt against Rp 21,7 jt on the dashboard and every report for
+    // the very same six months.
+    const directionWhere = (
+      direction: CoaDirection,
+      fallbackType: Prisma.TransactionWhereInput["type"],
+    ): Prisma.TransactionWhereInput => ({
+      ...where,
+      AND: [
+        ...(Array.isArray(where.AND)
+          ? where.AND
+          : where.AND
+            ? [where.AND]
+            : []),
+        {
+          OR: [
+            { category: { coaAccount: { direction } } },
+            { category: null, type: fallbackType },
+          ],
+        },
+      ],
+    });
+
     const [incomeAgg, expenseAgg] = await Promise.all([
       this.prisma.transaction.aggregate({
-        where: { ...where, type: "income" },
+        where: directionWhere(CoaDirection.INCOME, "income"),
         _sum: { amount: true },
       }),
       this.prisma.transaction.aggregate({
-        where: { ...where, type: "expense" },
+        where: directionWhere(CoaDirection.EXPENSE, {
+          notIn: ["income", "transfer"],
+        }),
         _sum: { amount: true },
       }),
     ]);

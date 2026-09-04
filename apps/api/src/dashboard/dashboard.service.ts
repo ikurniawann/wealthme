@@ -120,15 +120,37 @@ export class DashboardService {
       total,
     }));
 
-    const totalBalance = netWorth === 0 ? 1 : netWorth;
-    const allocation: AllocationItemDto[] = accountSummary
-      .filter((s) => s.total > 0)
-      .map((s) => ({
-        label: s.label,
-        value: Math.round((s.total / totalBalance) * 100),
-        amount: s.total,
-        color: ACCOUNT_TYPE_CONFIG[s.type]?.color ?? "#6B7280",
-      }));
+    // "Alokasi Kekayaan" covers the whole balance sheet, not just the cash
+    // accounts: Investment and Asset rows are separate models that never
+    // surface as an `account.type`, so an accounts-only breakdown claimed the
+    // family's entire wealth was Rp 252 jt of bank/e-wallet/cash while the
+    // hero above it read Rp 2,39 M. `value` is each slice's share of that same
+    // three-part total — the old denominator was `netWorth` (assets MINUS
+    // liabilities), which made the percentages sum to 13% instead of 100%.
+    // Merged BY TYPE, not concatenated: an Account whose own type is already
+    // "investment"/"property" shares a slice with the Investment/Asset rows
+    // below it, and two entries with the same label would render as duplicate
+    // donut segments (and a duplicate React key on the client).
+    const allocationByType = new Map(byType);
+    const addToType = (type: string, total: number): void => {
+      allocationByType.set(type, (allocationByType.get(type) ?? 0) + total);
+    };
+    addToType("investment", Number(netWorthBreakdown.totalInvestments));
+    addToType("property", assetsTotal);
+
+    const allocationBase = Array.from(allocationByType.entries()).filter(
+      ([, total]) => total > 0,
+    );
+    const allocationTotal =
+      allocationBase.reduce((sum, [, total]) => sum + total, 0) || 1;
+    const allocation: AllocationItemDto[] = allocationBase.map(
+      ([type, total]) => ({
+        label: ACCOUNT_TYPE_CONFIG[type]?.label ?? type,
+        value: Math.round((total / allocationTotal) * 100),
+        amount: total,
+        color: ACCOUNT_TYPE_CONFIG[type]?.color ?? "#6B7280",
+      }),
+    );
 
     const sixMonthsAgo = new Date(now);
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);

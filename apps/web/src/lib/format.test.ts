@@ -14,7 +14,7 @@
  * replaces a dead `format.test.mjs` that Jest's default testMatch never picked up.
  */
 
-import { formatRupiah } from "./format";
+import { formatRupiah, formatRupiahCompact } from "./format";
 
 describe("formatRupiah", () => {
   it("single-arg call: regression — exact byte-for-byte output unchanged", () => {
@@ -113,5 +113,32 @@ describe("formatRupiah", () => {
     expect(result).toMatch(/\$|USD/);
     // Decimal precision should be 2 for USD regardless of magnitude
     expect(result).toMatch(/\d\.\d{2}$/);
+  });
+});
+
+describe("formatRupiahCompact", () => {
+  it("formats the common magnitudes", () => {
+    expect(formatRupiahCompact(25_850_000)).toBe("Rp 25,85 jt");
+    expect(formatRupiahCompact(1_256_780_000)).toBe("Rp 1,26 M");
+    expect(formatRupiahCompact(45_000)).toBe("Rp 45 rb");
+    expect(formatRupiahCompact(750)).toBe("Rp 750");
+    expect(formatRupiahCompact(0)).toBe("Rp 0");
+  });
+
+  it("promotes a value whose smaller unit would round to four digits", () => {
+    // 999.999.999 / 1e6 is 1000,00 — that belongs in "M", not "jt".
+    expect(formatRupiahCompact(999_999_999)).toBe("Rp 1,00 M");
+    // 999.999 / 1e3 is 1000 — that belongs in "jt", not "rb".
+    expect(formatRupiahCompact(999_999)).toBe("Rp 1,00 jt");
+    // Just below each boundary the smaller unit still fits.
+    expect(formatRupiahCompact(994_999_999)).toBe("Rp 995,00 jt");
+    expect(formatRupiahCompact(999_499)).toBe("Rp 999 rb");
+  });
+
+  it("keeps the sign and the unit for negatives", () => {
+    expect(formatRupiahCompact(-1_256_780_000)).toBe("-Rp 1,26 M");
+    expect(formatRupiahCompact(-25_850_000)).toBe("-Rp 25,85 jt");
+    expect(formatRupiahCompact(-45_000)).toBe("-Rp 45 rb");
+    expect(formatRupiahCompact(-750)).toBe("-Rp 750");
   });
 });

@@ -195,7 +195,18 @@ export function useBerandaData(period: BerandaPeriod) {
     [summary],
   );
 
-  const assetsTotal = summary?.assetsTotal ?? 0;
+  // `summary.assetsTotal`/`accountSummary` are built server-side purely
+  // from the `Account` table — Investment holdings live in a separate
+  // model and never appear as an `account.type`, so grouping by
+  // `accountSummary` alone silently drops them (the Investasi stat tile
+  // read Rp 0 and "Total Aset" undercounted by the whole portfolio value).
+  // `/dashboard/net-worth` (already fetched above for `totalLiabilities`)
+  // carries the correct, investment-inclusive totals used by
+  // /ringkasan and /aset — reuse those instead of re-deriving here.
+  const investasiTotal = Number(netWorthData?.investmentsTotal ?? 0);
+  const cashAccountsTotal = Number(netWorthData?.accountsTotal ?? 0);
+  const physicalAssetsTotal = Number(netWorthData?.assetsTotal ?? 0);
+  const assetsTotal = cashAccountsTotal + investasiTotal + physicalAssetsTotal;
   const totalLiabilities = Number(netWorthData?.liabilitiesTotal ?? 0);
 
   const sumOf = (matches: (type: string) => boolean): number =>
@@ -204,7 +215,13 @@ export function useBerandaData(period: BerandaPeriod) {
       .reduce((a, s) => a + s.total, 0);
 
   const liquidTotal = sumOf((type) => LIQUID_TYPES.has(type));
-  const nonLiquidTotal = sumOf((type) => !LIQUID_TYPES.has(type));
+  // Everything that is not a liquid account: non-liquid accounts, the
+  // investment portfolio AND the physical assets (rumah, kendaraan, …).
+  // Deriving it as a remainder rather than re-summing `accountSummary` is
+  // what keeps `liquidPct + nonLiquidPct` at exactly 100% — the two rows sit
+  // side by side under one "Total Aset", so any slice missed here shows up as
+  // a snapshot that visibly fails to add up.
+  const nonLiquidTotal = assetsTotal - liquidTotal;
   const pctOfAssets = (part: number): number =>
     assetsTotal > 0 ? Math.round((part / assetsTotal) * 1000) / 10 : 0;
 
@@ -216,7 +233,6 @@ export function useBerandaData(period: BerandaPeriod) {
     (type) => type === "cash" || type === "ewallet",
   );
   const bankTotal = sumOf((type) => type === "bank");
-  const investasiTotal = sumOf((type) => type === "investment");
 
   // Real wealth trend from persisted snapshots; falls back to the 30-day
   // transaction-flow proxy until enough snapshots accumulate.

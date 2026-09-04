@@ -43,6 +43,25 @@ export function amountsMatchTotal(
 }
 
 /**
+ * "Bagi rata" — one exact Rupiah share per participant, in order.
+ *
+ * Rupiah has no fractional unit, so `total / count` almost never divides
+ * evenly: a Rp 8.500.000 bill across 3 people is Rp 2.833.333,33 each. Giving
+ * everyone the same rounded number left the shares summing to Rp 8.499.999 (or
+ * Rp 8.500.002 rounding the other way), and the API rejects any split whose
+ * participant amounts do not add up to the total EXACTLY — so "Bagi rata" on
+ * such a bill failed to save at all. The leftover Rupiah (always fewer than
+ * `count` of them) go one each to the participants at the front of the list,
+ * so every share is within Rp 1 of every other and the sum reconciles.
+ */
+export function splitEqually(total: number, count: number): number[] {
+  if (count <= 0) return [];
+  const base = Math.floor(total / count);
+  const leftover = total - base * count;
+  return Array.from({ length: count }, (_, i) => base + (i < leftover ? 1 : 0));
+}
+
+/**
  * "Bagi rata sisa" — split the remaining (unallocated) amount evenly across
  * participants who have not yet entered a value (blank or "0"); participants
  * who already have a value are left untouched. Any leftover from integer
