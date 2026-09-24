@@ -4,6 +4,7 @@ import {
   type CanActivate,
   type ExecutionContext,
 } from "@nestjs/common";
+import { canAccessPage } from "@wealthme/contracts";
 
 import {
   MEMBER_ACCESS_SELECT,
@@ -64,6 +65,10 @@ export class TenantGuard implements CanActivate {
         familyGroupId: member.familyGroupId,
         role: member.role,
         rowScoped: access.dataScope === "own",
+        // Family-shared bank/cash accounts stay visible to an "own data"
+        // member who has either account page (read-only; writes stay own).
+        seesSharedAccounts:
+          canAccessPage(access, "rekening") || canAccessPage(access, "dana"),
       },
       access,
     };

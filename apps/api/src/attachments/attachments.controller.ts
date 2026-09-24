@@ -81,6 +81,7 @@ export class AttachmentsController {
             userId: req.tenantContext.member.userId,
             role: req.tenantContext.member.role,
             rowScoped: req.tenantContext.member.rowScoped,
+            seesSharedAccounts: req.tenantContext.member.seesSharedAccounts,
           }
         : null,
     );
@@ -105,6 +106,7 @@ export class AttachmentsController {
             userId: req.tenantContext.member.userId,
             role: req.tenantContext.member.role,
             rowScoped: req.tenantContext.member.rowScoped,
+            seesSharedAccounts: req.tenantContext.member.seesSharedAccounts,
           }
         : null,
     );
@@ -134,6 +136,7 @@ export class AttachmentsController {
             userId: req.tenantContext.member.userId,
             role: req.tenantContext.member.role,
             rowScoped: req.tenantContext.member.rowScoped,
+            seesSharedAccounts: req.tenantContext.member.seesSharedAccounts,
           }
         : null,
     );
@@ -188,6 +191,7 @@ export class AttachmentsController {
             userId: req.tenantContext.member.userId,
             role: req.tenantContext.member.role,
             rowScoped: req.tenantContext.member.rowScoped,
+            seesSharedAccounts: req.tenantContext.member.seesSharedAccounts,
           }
         : null,
     );

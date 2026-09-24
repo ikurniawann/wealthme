@@ -156,6 +156,30 @@ describe("RekeningPage — cash-account negative balance (EPIC-022 A2)", () => {
     });
   });
 
+  // Revisi — a family-shared account is labelled "Bersama"; an owned one
+  // shows its owner instead.
+  it("labels a family-shared account 'Bersama' and an owned one by owner", async () => {
+    mockApiRoutes([
+      buildAccount({ id: "acc-shared", name: "Tabungan Keluarga" }),
+      buildAccount({
+        id: "acc-owned",
+        name: "Rekening Adit",
+        ownerUserId: "user-2",
+        ownerName: "Adit",
+      }),
+    ]);
+    render(<RekeningPage />);
+    await screen.findByText("Tabungan Keluarga");
+    const sharedCard = screen
+      .getByText("Tabungan Keluarga")
+      .closest("article, li, div.card, [class*='card']") as HTMLElement;
+    expect(within(sharedCard).getByText("👥 Bersama")).toBeInTheDocument();
+    const ownedCard = screen
+      .getByText("Rekening Adit")
+      .closest("article, li, div.card, [class*='card']") as HTMLElement;
+    expect(within(ownedCard).queryByText("👥 Bersama")).not.toBeInTheDocument();
+  });
+
   it("preserves an already-negative cash balance across an unrelated edit (no sign-flip regression)", async () => {
     // Arrange — this cash account already went negative (e.g. an
     // over-budget expense debited it below zero).

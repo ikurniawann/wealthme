@@ -114,19 +114,24 @@ function resolveWalletBg(item: AccountDto): string {
  * "Kas pribadi"-style description the API doesn't actually expose
  * (AccountDto has no notes/description field), only real owner + masked
  * number + last-updated fields. */
+/** Family-shared (ownerUserId null) wallets/cash — visible to every member with this page. */
+const SHARED_LABEL = "👥 Bersama";
+
 function buildWalletMeta(
   item: AccountDto,
   t: ReturnType<typeof useLocale>["t"],
   locale: Locale,
 ): string {
   if (EWALLET_TYPES.has(item.type)) {
-    const parts = [safeMaskedNumber(item.maskedNumber), item.ownerName].filter(
-      (v): v is string => !!v,
-    );
+    const parts = [
+      safeMaskedNumber(item.maskedNumber),
+      item.ownerName ?? (item.ownerUserId ? null : SHARED_LABEL),
+    ].filter((v): v is string => !!v);
     return parts.length > 0 ? parts.join(" · ") : (item.institution ?? "—");
   }
   const parts: string[] = [];
   if (item.ownerName) parts.push(item.ownerName);
+  else if (!item.ownerUserId) parts.push(SHARED_LABEL);
   parts.push(
     `${t.dana.updatedPrefix}${formatShortDate(item.updatedAt, locale)}`,
   );

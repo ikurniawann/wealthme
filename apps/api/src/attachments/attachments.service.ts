@@ -37,6 +37,7 @@ export type ActingMember = {
   role: Role;
   /** EPIC-030 — effective data scope; defaults to the role rule when absent. */
   rowScoped?: boolean;
+  seesSharedAccounts?: boolean;
 } | null;
 
 export type AttachmentFileInput = {
@@ -96,6 +97,7 @@ export class AttachmentsService {
                   rowScoped:
                     actingMember.rowScoped ??
                     isRowScopedRole(actingMember.role),
+                  seesSharedAccounts: actingMember.seesSharedAccounts,
                 }
               : null,
             actingMember?.userId,
