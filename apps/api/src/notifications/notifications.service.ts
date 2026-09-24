@@ -69,13 +69,15 @@ export class NotificationsService {
         title: true,
         body: true,
         icon: true,
-        isRead: true,
         createdAt: true,
+        // Read state is per member: only THIS viewer's receipt counts.
+        reads: { where: { userId: viewerUserId }, select: { userId: true } },
       },
     });
 
-    return rows.map((row) => ({
+    return rows.map(({ reads, ...row }) => ({
       ...row,
+      isRead: reads.length > 0,
       createdAt: row.createdAt.toISOString(),
     }));
   }
@@ -88,34 +90,42 @@ export class NotificationsService {
     const count = await this.prisma.notification.count({
       where: {
         ...visibilityWhere(familyGroupId, viewerUserId, role),
-        isRead: false,
+        reads: { none: { userId: viewerUserId } },
       },
     });
     return { count };
   }
 
+  /**
+   * Marks notifications read FOR THE CALLER ONLY (a NotificationRead
+   * receipt), so a household notification one member has read stays unread
+   * for the others. `ids` narrows to specific rows; omitted = everything
+   * unread. The visibility clause is what stops either form from reaching
+   * rows the caller cannot see — including, for a row-scoped role, every
+   * household row in the family.
+   */
   async markRead(
     familyGroupId: string,
     viewerUserId: string,
     role: ScopeSubject,
     dto: MarkReadDto,
   ): Promise<{ updated: number }> {
-    // The visibility clause is what stops "mark all read" from reaching rows
-    // the caller cannot see — including, for a row-scoped role, every
-    // household row in the family.
-    const visible = visibilityWhere(familyGroupId, viewerUserId, role);
+    const unread = await this.prisma.notification.findMany({
+      where: {
+        ...visibilityWhere(familyGroupId, viewerUserId, role),
+        reads: { none: { userId: viewerUserId } },
+        ...(dto.ids && dto.ids.length > 0 ? { id: { in: dto.ids } } : {}),
+      },
+      select: { id: true },
+    });
+    if (unread.length === 0) return { updated: 0 };
 
-    if (dto.ids && dto.ids.length > 0) {
-      const result = await this.prisma.notification.updateMany({
-        where: { ...visible, id: { in: dto.ids }, isRead: false },
-        data: { isRead: true },
-      });
-      return { updated: result.count };
-    }
-
-    const result = await this.prisma.notification.updateMany({
-      where: { ...visible, isRead: false },
-      data: { isRead: true },
+    const result = await this.prisma.notificationRead.createMany({
+      data: unread.map((n) => ({
+        notificationId: n.id,
+        userId: viewerUserId,
+      })),
+      skipDuplicates: true,
     });
     return { updated: result.count };
   }

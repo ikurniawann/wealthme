@@ -2160,6 +2160,7 @@ export const en = {
     errorLoad: "Failed to load notifications. Please try again.",
     emptyState: "No notifications yet.",
     unreadBadge: "New",
+    markOneRead: "Mark as read",
     groupUnreadSuffix: " unread",
     metaCountSuffix: " notifications",
     relativeJustNow: "Just now",

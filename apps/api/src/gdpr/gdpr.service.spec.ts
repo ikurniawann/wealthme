@@ -196,8 +196,9 @@ describe("GdprService.exportUserData", () => {
             id: "notif-owner",
             title: "Anggaran",
             body: "Transaksi keluar Rp 2000000 — Belanja",
-            isRead: false,
             createdAt: new Date("2026-06-01T00:00:00.000Z"),
+            // Per-member read receipts (NotificationRead) — none for this user.
+            reads: [],
           },
         ]);
       },
@@ -208,6 +209,8 @@ describe("GdprService.exportUserData", () => {
     // PERMISSION half — the owner membership's goal/notification survive.
     expect(result.goals.map((g) => g.id)).toEqual(["goal-owner"]);
     expect(result.notifications.map((n) => n.id)).toEqual(["notif-owner"]);
+    expect(result.notifications[0]).toMatchObject({ isRead: false });
+    expect(result.notifications[0]).not.toHaveProperty("reads");
   });
 
   it("caps the merged transaction export at 500, keeping the most recent across ALL family groups combined (not 500 per group)", async () => {

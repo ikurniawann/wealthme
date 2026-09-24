@@ -109,16 +109,38 @@ function NotifRow({
   n,
   t,
   locale,
+  onMarkRead,
 }: {
   n: NotificationDto;
   t: ReturnType<typeof useLocale>["t"];
   locale: Locale;
+  onMarkRead: (id: string) => void;
 }) {
+  // Opening (clicking) an unread notification marks it read for THIS member
+  // only — the server keeps a per-member receipt, so other family members
+  // still see it as new until they read it themselves.
+  const markRead = () => {
+    if (!n.isRead) onMarkRead(n.id);
+  };
   return (
     <div
+      role={n.isRead ? undefined : "button"}
+      tabIndex={n.isRead ? undefined : 0}
+      aria-label={
+        n.isRead ? undefined : `${n.title} — ${t.notifikasi.markOneRead}`
+      }
+      onClick={markRead}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          markRead();
+        }
+      }}
       className={cn(
         "flex items-start gap-3 border-b py-3.5 last:border-b-0",
-        n.isRead && "opacity-60",
+        n.isRead
+          ? "opacity-60"
+          : "cursor-pointer rounded-md transition-colors hover:bg-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
       )}
     >
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-[18px]">
@@ -136,9 +158,14 @@ function NotifRow({
         </div>
       </div>
       {!n.isRead && (
-        <StatusBadge variant="success" className="text-[10px]">
-          {t.notifikasi.unreadBadge}
-        </StatusBadge>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <StatusBadge variant="success" className="text-[10px]">
+            {t.notifikasi.unreadBadge}
+          </StatusBadge>
+          <span className="text-[10.5px] font-semibold text-primary">
+            {t.notifikasi.markOneRead}
+          </span>
+        </div>
       )}
     </div>
   );
@@ -149,11 +176,13 @@ function NotifGroup({
   items,
   t,
   locale,
+  onMarkRead,
 }: {
   title: string;
   items: NotificationDto[];
   t: ReturnType<typeof useLocale>["t"];
   locale: Locale;
+  onMarkRead: (id: string) => void;
 }) {
   if (items.length === 0) return null;
   const unreadCount = items.filter((n) => !n.isRead).length;
@@ -170,7 +199,13 @@ function NotifGroup({
       }
     >
       {items.map((n) => (
-        <NotifRow key={n.id} n={n} t={t} locale={locale} />
+        <NotifRow
+          key={n.id}
+          n={n}
+          t={t}
+          locale={locale}
+          onMarkRead={onMarkRead}
+        />
       ))}
     </SectionCard>
   );
@@ -247,6 +282,48 @@ export default function NotifikasiPage() {
       toast.error(
         (err as { message?: string }).message ?? t.notifikasi.markAllReadFailed,
       );
+    },
+  });
+
+  // Mark ONE notification read. Optimistic: the "Baru" badge and the unread
+  // counters drop immediately, and roll back if the server refuses.
+  const markOneRead = useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<{ updated: number }>(
+        `/family-groups/${familyGroupId}/notifications/mark-read`,
+        { method: "PATCH", token, body: JSON.stringify({ ids: [id] }) },
+      ),
+    onMutate: async (id: string) => {
+      const listKey = queryKeys.notifications.all(familyGroupId ?? "");
+      const countKey = queryKeys.notifications.unreadCount(familyGroupId ?? "");
+      await queryClient.cancelQueries({ queryKey: listKey });
+      await queryClient.cancelQueries({ queryKey: countKey });
+      const prevList = queryClient.getQueryData<NotificationDto[]>(listKey);
+      const prevCount = queryClient.getQueryData<{ count: number }>(countKey);
+      queryClient.setQueryData<NotificationDto[]>(listKey, (old) =>
+        old?.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
+      );
+      queryClient.setQueryData<{ count: number }>(countKey, (old) =>
+        old ? { count: Math.max(0, old.count - 1) } : old,
+      );
+      return { prevList, prevCount };
+    },
+    onError: (err: unknown, _id, ctx) => {
+      const listKey = queryKeys.notifications.all(familyGroupId ?? "");
+      const countKey = queryKeys.notifications.unreadCount(familyGroupId ?? "");
+      if (ctx?.prevList) queryClient.setQueryData(listKey, ctx.prevList);
+      if (ctx?.prevCount) queryClient.setQueryData(countKey, ctx.prevCount);
+      toast.error(
+        (err as { message?: string }).message ?? t.notifikasi.markAllReadFailed,
+      );
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.notifications.all(familyGroupId ?? ""),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.notifications.unreadCount(familyGroupId ?? ""),
+      });
     },
   });
 
@@ -361,18 +438,21 @@ export default function NotifikasiPage() {
             items={today}
             t={t}
             locale={locale}
+            onMarkRead={(id) => familyGroupId && markOneRead.mutate(id)}
           />
           <NotifGroup
             title={t.notifikasi.groupThisWeek}
             items={thisWeek}
             t={t}
             locale={locale}
+            onMarkRead={(id) => familyGroupId && markOneRead.mutate(id)}
           />
           <NotifGroup
             title={t.notifikasi.groupOlder}
             items={older}
             t={t}
             locale={locale}
+            onMarkRead={(id) => familyGroupId && markOneRead.mutate(id)}
           />
         </>
       )}

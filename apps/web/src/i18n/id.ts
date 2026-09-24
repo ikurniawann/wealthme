@@ -2201,6 +2201,7 @@ export const id = {
     errorLoad: "Gagal memuat notifikasi. Silakan coba lagi.",
     emptyState: "Tidak ada notifikasi.",
     unreadBadge: "Baru",
+    markOneRead: "Tandai dibaca",
     // N3-B2 — the group-header badge counts unread items within that
     // group specifically ("3 belum dibaca"), distinct from `newCountSuffix`
     // which labels the page-level total.

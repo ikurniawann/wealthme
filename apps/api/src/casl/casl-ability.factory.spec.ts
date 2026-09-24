@@ -354,3 +354,19 @@ describe("CaslAbilityFactory — EPIC-030 page-derived grants", () => {
     expect(ab.can("manage", "Investment")).toBe(true);
   });
 });
+
+describe("CaslAbilityFactory — notifications can be marked read by every role", () => {
+  const factory = new CaslAbilityFactory();
+  it.each([
+    Role.owner,
+    Role.spouse,
+    Role.member,
+    Role.admin_staff,
+    Role.dependant,
+    Role.operational,
+  ])("%s may update (mark read) Notification", (role) => {
+    expect(
+      factory.createForMember({ role }).can("update", "Notification"),
+    ).toBe(true);
+  });
+});

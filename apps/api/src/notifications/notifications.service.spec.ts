@@ -19,6 +19,9 @@ function makePrisma() {
       count: jest.fn().mockResolvedValue(0),
       updateMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
+    notificationRead: {
+      createMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
   };
 }
 
@@ -101,18 +104,29 @@ describe("NotificationsService — visibility", () => {
     await service.getUnreadCount(FAMILY_GROUP_ID, VIEWER_ID, "dependant");
 
     expect(prisma.notification.count).toHaveBeenCalledWith({
-      where: { ...ROW_SCOPED_WHERE, isRead: false },
+      where: { ...ROW_SCOPED_WHERE, reads: { none: { userId: VIEWER_ID } } },
     });
   });
 
   it("keeps 'mark all read' inside what the caller can see", async () => {
+    prisma.notification.findMany.mockResolvedValue([
+      { id: "n1" },
+      { id: "n2" },
+    ]);
     await service.markRead(FAMILY_GROUP_ID, VIEWER_ID, "dependant", {});
 
     // Without the visibility clause a child pressing "Tandai semua dibaca"
     // would mark the whole family's notifications read.
-    expect(prisma.notification.updateMany).toHaveBeenCalledWith({
-      where: { ...ROW_SCOPED_WHERE, isRead: false },
-      data: { isRead: true },
+    expect(prisma.notification.findMany).toHaveBeenCalledWith({
+      where: { ...ROW_SCOPED_WHERE, reads: { none: { userId: VIEWER_ID } } },
+      select: { id: true },
+    });
+    expect(prisma.notificationRead.createMany).toHaveBeenCalledWith({
+      data: [
+        { notificationId: "n1", userId: VIEWER_ID },
+        { notificationId: "n2", userId: VIEWER_ID },
+      ],
+      skipDuplicates: true,
     });
   });
 
@@ -121,14 +135,64 @@ describe("NotificationsService — visibility", () => {
       ids: ["notif-belonging-to-someone-else"],
     });
 
-    expect(prisma.notification.updateMany).toHaveBeenCalledWith({
+    expect(prisma.notification.findMany).toHaveBeenCalledWith({
       where: {
         ...ROW_SCOPED_WHERE,
+        reads: { none: { userId: VIEWER_ID } },
         id: { in: ["notif-belonging-to-someone-else"] },
-        isRead: false,
       },
-      data: { isRead: true },
+      select: { id: true },
     });
+  });
+
+  // Per-member read state: marking read writes a receipt for THIS viewer
+  // only and never flips a shared flag other members would see.
+  it("marks read for the viewer only — never the shared row", async () => {
+    prisma.notification.findMany.mockResolvedValue([{ id: "n1" }]);
+    const res = await service.markRead(FAMILY_GROUP_ID, VIEWER_ID, "owner", {
+      ids: ["n1"],
+    });
+    expect(res).toEqual({ updated: 0 });
+    expect(prisma.notification.updateMany).not.toHaveBeenCalled();
+    expect(prisma.notificationRead.createMany).toHaveBeenCalledWith({
+      data: [{ notificationId: "n1", userId: VIEWER_ID }],
+      skipDuplicates: true,
+    });
+  });
+
+  it("reports isRead from the viewer's own receipt", async () => {
+    prisma.notification.findMany.mockResolvedValue([
+      {
+        id: "a",
+        title: "t",
+        body: "b",
+        icon: null,
+        createdAt: new Date("2026-09-25T00:00:00Z"),
+        reads: [{ userId: VIEWER_ID }],
+      },
+      {
+        id: "b",
+        title: "t",
+        body: "b",
+        icon: null,
+        createdAt: new Date("2026-09-25T00:00:00Z"),
+        reads: [],
+      },
+    ]);
+    const rows = await service.findAll(FAMILY_GROUP_ID, VIEWER_ID, "owner");
+    expect(rows.map((r) => [r.id, r.isRead])).toEqual([
+      ["a", true],
+      ["b", false],
+    ]);
+    expect(rows[0]).not.toHaveProperty("reads");
+  });
+
+  it("does nothing when there is nothing unread", async () => {
+    prisma.notification.findMany.mockResolvedValue([]);
+    await expect(
+      service.markRead(FAMILY_GROUP_ID, VIEWER_ID, "owner", {}),
+    ).resolves.toEqual({ updated: 0 });
+    expect(prisma.notificationRead.createMany).not.toHaveBeenCalled();
   });
 
   it("treats an unknown role as trusted-but-not-row-scoped rather than throwing", async () => {
