@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import type { AccessLevel, AccessPage } from "@wealthme/contracts";
 
 import { useLocale } from "@/hooks/use-locale";
@@ -36,6 +37,7 @@ export function PageAccessMatrix({
   disabled,
 }: PageAccessMatrixProps) {
   const { t } = useLocale();
+  const nameId = useId();
 
   const setGroup = (pages: AccessPage[], level: AccessLevel) =>
     pages.forEach((p) => onChange(p, level));
@@ -101,24 +103,30 @@ export function PageAccessMatrix({
                         </button>
                       )}
                     </div>
+                    {/* Native radios (visually a segmented control): one Tab
+                        stop per page, arrow keys move the choice. */}
                     <div
                       role="radiogroup"
                       aria-label={`Akses ${label}`}
                       className="segmented"
                     >
                       {LEVEL_OPTIONS.map((o) => (
-                        <button
+                        <label
                           key={o.level}
-                          type="button"
-                          role="radio"
-                          aria-checked={level === o.level}
                           title={LEVEL_HINT[o.level]}
-                          disabled={disabled}
-                          onClick={() => onChange(page, o.level)}
-                          className="segmented__item aria-checked:bg-card aria-checked:text-foreground aria-checked:shadow-[var(--shadow-card)] disabled:cursor-not-allowed"
+                          className="segmented__item has-[:checked]:bg-card has-[:checked]:text-foreground has-[:checked]:shadow-[var(--shadow-card)] has-[:disabled]:cursor-not-allowed has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/40"
                         >
+                          <input
+                            type="radio"
+                            className="sr-only"
+                            name={`${nameId}-${page}`}
+                            value={o.level}
+                            checked={level === o.level}
+                            disabled={disabled}
+                            onChange={() => onChange(page, o.level)}
+                          />
                           {o.label}
-                        </button>
+                        </label>
                       ))}
                     </div>
                   </li>

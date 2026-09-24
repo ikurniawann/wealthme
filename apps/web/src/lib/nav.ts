@@ -431,7 +431,15 @@ export function isRouteAllowedForAccess(
 export function mobileNavForAccess(
   access: EffectiveAccess | null | undefined,
 ): MobileNavItem[] {
-  if (!access || access.isMaster) return MOBILE_NAV;
+  if (access === undefined || access?.isMaster) return MOBILE_NAV;
+  if (access === null) {
+    return [
+      { id: "akses-saya", href: "/akses-saya", icon: UserCheck },
+      { id: "notifikasi", href: "/notifikasi", icon: Bell },
+      { id: "panduan", href: "/panduan", icon: HelpCircle },
+      MOBILE_NAV.find((i) => i.id === "akun")!,
+    ];
+  }
   const byId = new Map(MOBILE_NAV.map((i) => [i.id, i]));
   const picks: MobileNavItem[] = [];
   if (canAccessPage(access, "beranda")) picks.push(byId.get("beranda")!);

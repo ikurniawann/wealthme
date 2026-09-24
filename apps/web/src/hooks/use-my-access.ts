@@ -1,7 +1,11 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { EffectiveAccess } from "@wealthme/contracts";
+import {
+  resolveEffectiveAccess,
+  type EffectiveAccess,
+  type MemberRoleKey,
+} from "@wealthme/contracts";
 
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth-compat";
@@ -16,8 +20,11 @@ import { useMyRole } from "./use-my-role";
  * `access`:
  *  - `undefined` while anything is still resolving (callers stay permissive
  *    so a Master's menu never flickers shut — the API enforces regardless);
- *  - `null` when the user has no active family, or the lookup failed (fail
- *    closed: menu empty, routes send them to /akses-saya);
+ *  - `null` when the user has no active family (menu empty, routes send
+ *    them to /akses-saya);
+ *  - if the lookup itself fails, the built-in role's default access (a
+ *    Master stays a Master — a backend hiccup must not lock out the one
+ *    person who administers access; the API enforces the real grants);
  *  - otherwise the resolved map.
  */
 export function useMyAccess(): {
@@ -50,7 +57,14 @@ export function useMyAccess(): {
       ? { access: null, isLoading: false }
       : { access: undefined, isLoading: true };
   }
-  if (isError) return { access: null, isLoading: false };
+  if (isError) {
+    if (myRole === undefined) return { access: undefined, isLoading: true };
+    if (myRole === null) return { access: null, isLoading: false };
+    return {
+      access: resolveEffectiveAccess({ role: myRole as MemberRoleKey }),
+      isLoading: false,
+    };
+  }
   if (!data) return { access: undefined, isLoading: true };
   return { access: data, isLoading: false };
 }

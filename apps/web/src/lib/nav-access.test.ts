@@ -59,6 +59,12 @@ describe("EPIC-030 access-driven nav", () => {
     expect(visibleIds(null)).toEqual([]);
     expect(isRouteAllowedForAccess("/beranda", null)).toBe(false);
     expect(isRouteAllowedForAccess("/akses-saya", null)).toBe(true);
+    expect(mobileNavForAccess(null).map((i) => i.id)).toEqual([
+      "akses-saya",
+      "notifikasi",
+      "panduan",
+      "akun",
+    ]);
   });
 
   it("mobile bar always has four items and falls back to akses-saya", () => {
