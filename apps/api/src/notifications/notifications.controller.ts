@@ -42,7 +42,7 @@ export class NotificationsController {
     return this.notificationsService.findAll(
       familyGroupId,
       req.tenantContext!.userId,
-      req.tenantContext?.member?.role,
+      req.tenantContext?.member,
     );
   }
 
@@ -57,7 +57,7 @@ export class NotificationsController {
     return this.notificationsService.getUnreadCount(
       familyGroupId,
       req.tenantContext!.userId,
-      req.tenantContext?.member?.role,
+      req.tenantContext?.member,
     );
   }
 
@@ -79,7 +79,7 @@ export class NotificationsController {
     return this.notificationsService.markRead(
       familyGroupId,
       req.tenantContext!.userId,
-      req.tenantContext?.member?.role,
+      req.tenantContext?.member,
       dto,
     );
   }

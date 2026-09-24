@@ -110,4 +110,9 @@ next login).
   username shown for accounts without email).
 - Known limits: private-account visibility (`canSeePrivateItems`) stays tied to
   the built-in type; `/kalkulator` is not tenant-scoped, so it is hidden in the
-  UI only; large-transaction holds still follow the built-in type.
+  UI only; large-transaction holds and the GDPR self-export still follow the
+  built-in type.
+- Review fixes: notifications visibility and the transaction write-path
+  "own account only" check now use the effective data scope (security
+  review, proven by mutation); web no longer locks a Master out when
+  `access/me` fails; native radios in the access matrix.

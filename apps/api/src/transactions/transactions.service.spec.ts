@@ -2568,6 +2568,59 @@ describe("TransactionsService.create — row-scoped roles and createdByUserId (E
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
+  // EPIC-030 — the Master's effective data scope, not the built-in type.
+  it("DENIAL — a 'member' the Master scoped to own data cannot post on someone else's account", async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: OTHER_ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      ownerUserId: "user-someone-else",
+    });
+
+    await expect(
+      service.create(
+        FAMILY_GROUP_ID,
+        {
+          accountId: OTHER_ACCOUNT_ID,
+          amount: 50_000,
+          type: "expense",
+          occurredAt: new Date().toISOString(),
+        },
+        {
+          id: "member-adult",
+          userId: CHILD_USER_ID,
+          role: Role.member,
+          rowScoped: true,
+        },
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("a dependant the Master widened to family data may post on a shared account", async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: OTHER_ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      ownerUserId: null,
+    });
+
+    await service.create(
+      FAMILY_GROUP_ID,
+      {
+        accountId: OTHER_ACCOUNT_ID,
+        amount: 50_000,
+        type: "expense",
+        occurredAt: new Date().toISOString(),
+      },
+      {
+        id: "member-child",
+        userId: CHILD_USER_ID,
+        role: Role.dependant,
+        rowScoped: false,
+      },
+    );
+    expect(prisma.transaction.create).toHaveBeenCalled();
+  });
+
   it("an operational member CAN record a transaction on the account they own", async () => {
     prisma.account.findUnique.mockResolvedValue({
       id: ACCOUNT_ID,
