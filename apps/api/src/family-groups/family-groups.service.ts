@@ -34,6 +34,7 @@ import type { FamilyReligionResponseDto } from "./dto/family-religion-response.d
 import type { GoldPriceResponseDto } from "./dto/gold-price-response.dto";
 import type { InvitationResponseDto } from "./dto/invitation-response.dto";
 import type { MemberResponseDto } from "./dto/member-response.dto";
+import type { ResetMemberPasswordDto } from "./dto/reset-member-password.dto";
 import type { UpdateFamilyReligionDto } from "./dto/update-family-religion.dto";
 import type { UpdateGoldPriceDto } from "./dto/update-gold-price.dto";
 import type { UpdateMemberRoleDto } from "./dto/update-member-role.dto";
@@ -52,6 +53,23 @@ const INVITATION_TTL_DAYS = 7;
 // is `@unique`, so the transaction would simply fail closed (P2002) rather
 // than silently overwrite another account.
 const SYNTHETIC_EMAIL_DOMAIN = "members.internal.wealthme.invalid";
+
+/**
+ * A "managed login" is an account the head created from /iam (username +
+ * initial password, synthetic `.invalid` email). Only these can have their
+ * password set by a Master: the member has no mailbox, so email-based
+ * "Lupa Password" can never reach them. An account with a real email owns
+ * its own credential and recovers it through that email instead.
+ */
+function isManagedLogin(email: string): boolean {
+  return email.endsWith(`@${SYNTHETIC_EMAIL_DOMAIN}`);
+}
+
+const MEMBER_USER_SELECT = {
+  name: true,
+  email: true,
+  username: true,
+} as const satisfies Prisma.UserSelect;
 
 function withCode(
   message: string,
@@ -151,7 +169,7 @@ export class FamilyGroupsService {
     await this.assertMember(familyGroupId, requesterId);
     const members = await this.prisma.member.findMany({
       where: { familyGroupId },
-      include: { user: { select: { name: true, email: true } } },
+      include: { user: { select: MEMBER_USER_SELECT } },
       orderBy: { createdAt: "asc" },
     });
 
@@ -163,6 +181,8 @@ export class FamilyGroupsService {
       relationship: m.relationship,
       name: m.user.name,
       email: m.user.email,
+      username: m.user.username,
+      managedLogin: isManagedLogin(m.user.email),
       createdAt: m.createdAt.toISOString(),
       largeTxnThreshold: m.largeTxnThreshold?.toString() ?? null,
     }));
@@ -178,7 +198,7 @@ export class FamilyGroupsService {
 
     const member = await this.prisma.member.findFirst({
       where: { id: memberId, familyGroupId },
-      include: { user: { select: { name: true, email: true } } },
+      include: { user: { select: MEMBER_USER_SELECT } },
     });
     if (!member) throw new NotFoundException("Member not found");
 
@@ -241,7 +261,7 @@ export class FamilyGroupsService {
                 : BigInt(dto.largeTxnThreshold),
           }),
         },
-        include: { user: { select: { name: true, email: true } } },
+        include: { user: { select: MEMBER_USER_SELECT } },
       });
     });
 
@@ -253,6 +273,8 @@ export class FamilyGroupsService {
       relationship: updated.relationship,
       name: updated.user.name,
       email: updated.user.email,
+      username: updated.user.username,
+      managedLogin: isManagedLogin(updated.user.email),
       createdAt: updated.createdAt.toISOString(),
       largeTxnThreshold: updated.largeTxnThreshold?.toString() ?? null,
     };
@@ -307,6 +329,74 @@ export class FamilyGroupsService {
   }
 
   /**
+   * A Master sets a new password for a head-created (managed) login — the
+   * only recovery path those members have, since their synthetic email can
+   * never receive a "Lupa Password" link. Accounts with a real email are
+   * refused: they own their credential, and letting one owner silently take
+   * over another's email login would be an account-takeover primitive.
+   *
+   * The new password is final (mustChangePassword cleared, product decision)
+   * and every live session of the member is revoked so the old password's
+   * sessions cannot outlive the change.
+   */
+  async resetMemberPassword(
+    familyGroupId: string,
+    memberId: string,
+    requesterId: string,
+    dto: ResetMemberPasswordDto,
+  ): Promise<void> {
+    await this.assertOwner(familyGroupId, requesterId);
+
+    const member = await this.prisma.member.findFirst({
+      where: { id: memberId, familyGroupId },
+      include: { user: { select: { email: true } } },
+    });
+    if (!member) throw new NotFoundException("Member not found");
+
+    if (member.userId === requesterId) {
+      throw new BadRequestException(
+        withCode(
+          "Ganti password Anda sendiri lewat menu Akun → Keamanan",
+          "CANNOT_RESET_OWN_PASSWORD",
+        ),
+      );
+    }
+    if (!isManagedLogin(member.user.email)) {
+      throw new ForbiddenException(
+        withCode(
+          "Anggota ini login dengan email sendiri — minta dia memakai Lupa Password",
+          "MEMBER_MANAGES_OWN_PASSWORD",
+        ),
+      );
+    }
+
+    const passwordHash = await argon2.hash(dto.newPassword, {
+      type: argon2.argon2id,
+    });
+
+    await this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.baAccount.updateMany({
+        where: { userId: member.userId, providerId: "credential" },
+        data: { password: passwordHash },
+      });
+      if (count === 0) {
+        throw new NotFoundException(
+          withCode(
+            "Anggota ini tidak punya login password",
+            "NO_CREDENTIAL_LOGIN",
+          ),
+        );
+      }
+      await tx.user.update({
+        where: { id: member.userId },
+        data: { mustChangePassword: false },
+      });
+    });
+
+    await this.revokeSessions(member.userId);
+  }
+
+  /**
    * EPIC-027 A9 (D7) — a removed member may be holding a live session right
    * now. Soft-deleting the membership stops the NEXT request from resolving a
    * family group, but an already-issued access token keeps working until it
@@ -328,7 +418,7 @@ export class FamilyGroupsService {
       await this.prisma.baSession.deleteMany({ where: { userId } });
     } catch (err: unknown) {
       this.logger.error(
-        `Failed to revoke sessions for removed user ${userId}: ${
+        `Failed to revoke sessions for user ${userId}: ${
           err instanceof Error ? err.message : String(err)
         }`,
       );
@@ -370,7 +460,7 @@ export class FamilyGroupsService {
 
     const members = await this.prisma.member.findMany({
       where: { familyGroupId, deletedAt: { not: null } },
-      include: { user: { select: { name: true, email: true } } },
+      include: { user: { select: MEMBER_USER_SELECT } },
       orderBy: { deletedAt: "desc" },
     });
 
@@ -382,6 +472,8 @@ export class FamilyGroupsService {
       relationship: m.relationship,
       name: m.user.name,
       email: m.user.email,
+      username: m.user.username,
+      managedLogin: isManagedLogin(m.user.email),
       createdAt: m.createdAt.toISOString(),
       largeTxnThreshold: m.largeTxnThreshold?.toString() ?? null,
     }));
@@ -540,7 +632,7 @@ export class FamilyGroupsService {
           // EPIC-023 Task C (D1) — carried through from the invitation.
           relationship: invitation.relationship,
         },
-        include: { user: { select: { name: true, email: true } } },
+        include: { user: { select: MEMBER_USER_SELECT } },
       }),
       this.prisma.invitation.update({
         where: { token },
@@ -556,6 +648,8 @@ export class FamilyGroupsService {
       relationship: member.relationship,
       name: member.user.name,
       email: member.user.email,
+      username: member.user.username,
+      managedLogin: isManagedLogin(member.user.email),
       createdAt: member.createdAt.toISOString(),
       largeTxnThreshold: member.largeTxnThreshold?.toString() ?? null,
     };

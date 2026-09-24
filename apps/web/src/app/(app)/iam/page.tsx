@@ -27,6 +27,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AddMemberDialog } from "./_components/add-member-dialog";
+import {
+  ResetPasswordDialog,
+  type ResetPasswordTarget,
+} from "./_components/reset-password-dialog";
 
 /**
  * EPIC-027 group 1 (D1/D2) — these cards used to advertise a "Co-Master" role
@@ -134,9 +138,17 @@ const roleToneClass = {
  */
 type MemberRow = {
   id: string;
+  userId: string;
   name: string;
   role: string;
   relationship: string | null;
+  username: string | null;
+  /**
+   * Head-created username login — the only kind a Master may set a password
+   * for (incl. a Co-Master the head created). Real-email accounts use
+   * "Lupa Password" instead; the API refuses them.
+   */
+  managedLogin: boolean;
 };
 
 function RoleCard({
@@ -255,6 +267,12 @@ export default function IamRolesPage() {
 
   // ── Add member ────────────────────────────────────────────────────────
   const [addOpen, setAddOpen] = useState(false);
+
+  // ── Reset password (managed logins only, never your own) ──────────────
+  const [resettingPassword, setResettingPassword] =
+    useState<ResetPasswordTarget | null>(null);
+  const canResetPassword = (m: MemberRow) =>
+    m.managedLogin && m.userId !== session?.userId;
 
   // ── Change role ───────────────────────────────────────────────────────
   const [editing, setEditing] = useState<MemberRow | null>(null);
@@ -528,12 +546,31 @@ export default function IamRolesPage() {
                           row for an owner offers no destructive action here
                           rather than surfacing a button that always 400s. */}
                       {member.role === "owner" ? (
-                        <span className="t-muted t-xs">—</span>
+                        canResetPassword(member) ? (
+                          <button
+                            type="button"
+                            className="btn btn--ghost btn--sm"
+                            onClick={() => setResettingPassword(member)}
+                          >
+                            Ganti Password
+                          </button>
+                        ) : (
+                          <span className="t-muted t-xs">—</span>
+                        )
                       ) : (
                         <div
                           className="row"
                           style={{ justifyContent: "flex-end", gap: 6 }}
                         >
+                          {canResetPassword(member) && (
+                            <button
+                              type="button"
+                              className="btn btn--ghost btn--sm"
+                              onClick={() => setResettingPassword(member)}
+                            >
+                              Ganti Password
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="btn btn--ghost btn--sm"
@@ -636,6 +673,15 @@ export default function IamRolesPage() {
       <AddMemberDialog
         open={addOpen}
         onOpenChange={setAddOpen}
+        familyGroupId={familyGroupId ?? null}
+        token={token}
+      />
+
+      <ResetPasswordDialog
+        // Remount per member so typed passwords never carry over.
+        key={resettingPassword?.id ?? "none"}
+        member={resettingPassword}
+        onClose={() => setResettingPassword(null)}
         familyGroupId={familyGroupId ?? null}
         token={token}
       />
