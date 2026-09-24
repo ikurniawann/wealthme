@@ -248,7 +248,9 @@ export async function notifyTransaction(
       data: {
         familyGroupId,
         title: isBig ? `${label} besar` : label,
-        body: `${label} Rp ${amount.toString()} — ${catName}`,
+        // EPIC-032 de-slop + EPIC-033 p31: thousand separators, no em-dash;
+        // the title already carries the direction.
+        body: `Rp ${Number(amount).toLocaleString("id-ID")} · ${catName}`,
         icon: isIncome ? "📥" : "📤",
       },
     });

@@ -402,9 +402,6 @@ export default function MasterCoaPage() {
             >
               {t.mastercoa.pageTitle}
             </h1>
-            <div className="mt-1 text-[12.5px] text-muted-foreground">
-              {t.mastercoa.pageSubtitle}
-            </div>
           </div>
           <div className="flex gap-2">
             <button

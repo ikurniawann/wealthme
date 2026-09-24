@@ -195,7 +195,7 @@ describe("GdprService.exportUserData", () => {
           {
             id: "notif-owner",
             title: "Anggaran",
-            body: "Transaksi keluar Rp 2000000 — Belanja",
+            body: "Rp 2.000.000 · Belanja",
             createdAt: new Date("2026-06-01T00:00:00.000Z"),
             // Per-member read receipts (NotificationRead) — none for this user.
             reads: [],

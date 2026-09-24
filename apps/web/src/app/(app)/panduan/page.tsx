@@ -326,9 +326,6 @@ export default function PanduanPage() {
             >
               {t.panduan.pageTitle}
             </h1>
-            <div className="mt-1 text-[12.5px] text-muted-foreground">
-              {t.panduan.pageSubtitle}
-            </div>
           </div>
           <a
             href="#panduan-bantuan"

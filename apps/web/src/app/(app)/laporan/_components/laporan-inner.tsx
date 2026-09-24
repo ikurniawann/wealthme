@@ -542,9 +542,6 @@ export function LaporanInner() {
           <h1 className="border-l-4 border-primary pl-3 text-[20px] font-extrabold tracking-tight sm:text-[22px]">
             {t.laporan.header.title}
           </h1>
-          <p className="mt-1.5 max-w-xl pl-3 text-[13px] text-muted-foreground">
-            {t.laporan.header.subtitle}
-          </p>
         </div>
         <div className="flex shrink-0 gap-2">
           <button

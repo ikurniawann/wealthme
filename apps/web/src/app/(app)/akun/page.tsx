@@ -64,7 +64,7 @@ import {
 import { toast } from "sonner";
 
 import { CrudModal, type CrudModalState } from "@/components/crud";
-import { SectionCard, StatusBadge } from "@/components/wm";
+import { SectionCard, StatusBadge, InfoTip } from "@/components/wm";
 import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
@@ -3192,10 +3192,7 @@ export default function AkunPage() {
         }
       >
         {/* Direct-creation notice */}
-        <div className="mb-3 flex items-start gap-2 rounded-lg border border-primary/20 bg-accent px-3 py-2.5 text-[12px] text-muted-foreground">
-          <User className="mt-0.5 size-3.5 shrink-0 text-primary" />
-          <span>{t.akun.addDependant.dialogDesc}</span>
-        </div>
+        <InfoTip>{t.akun.addDependant.dialogDesc}</InfoTip>
         <div className="w-full overflow-x-auto">
           <table className="w-full min-w-[560px] text-[13px]">
             <thead>
@@ -3241,7 +3238,11 @@ export default function AkunPage() {
                               {m.name}
                             </div>
                             <div className="text-[11px] text-muted-foreground truncate max-w-[140px]">
-                              {m.email}
+                              {m.email.endsWith(
+                                "@members.internal.wealthme.invalid",
+                              )
+                                ? "-"
+                                : m.email}
                             </div>
                           </div>
                         </div>
@@ -3325,20 +3326,6 @@ export default function AkunPage() {
               )}
             </tbody>
           </table>
-        </div>
-        {/* Approval notice — prototype copy (akun.html), literal Indonesian */}
-        <div className="mt-3 flex items-start gap-2 rounded-lg border border-primary/20 bg-accent px-3 py-2.5 text-[12px] text-muted-foreground">
-          <ShieldHalf className="mt-0.5 size-3.5 shrink-0 text-primary" />
-          <span>
-            Persetujuan permintaan dana kini punya halamannya sendiri:{" "}
-            <button
-              onClick={() => router.push("/persetujuan")}
-              className="font-bold text-primary hover:underline"
-            >
-              buka halaman Persetujuan
-            </button>
-            .
-          </span>
         </div>
       </SectionCard>
 

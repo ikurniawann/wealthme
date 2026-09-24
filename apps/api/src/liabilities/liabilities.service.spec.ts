@@ -307,7 +307,7 @@ describe("LiabilitiesService", () => {
       expect(prisma.category.create).toHaveBeenCalledWith({
         data: {
           familyGroupId: "fg-1",
-          name: "Utang — KTA BNI (lid-new)",
+          name: "Utang: KTA BNI",
           kind: "expense",
           coaAccountId: "coa-5",
         },
@@ -942,7 +942,7 @@ describe("LiabilitiesService", () => {
       expect(prisma.category.create).toHaveBeenCalledWith({
         data: {
           familyGroupId: "fg-1",
-          name: "Utang — KTA BNI (lid-1)",
+          name: "Utang: KTA BNI",
           kind: "expense",
           coaAccountId: "coa-5",
         },

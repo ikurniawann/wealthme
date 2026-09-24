@@ -1,5 +1,7 @@
 "use client";
 
+import { Bell } from "lucide-react";
+
 import { useMemo, useState } from "react";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -127,7 +129,7 @@ function NotifRow({
       role={n.isRead ? undefined : "button"}
       tabIndex={n.isRead ? undefined : 0}
       aria-label={
-        n.isRead ? undefined : `${n.title} — ${t.notifikasi.markOneRead}`
+        n.isRead ? undefined : `${n.title}: ${t.notifikasi.markOneRead}`
       }
       onClick={markRead}
       onKeyDown={(e) => {
@@ -143,8 +145,8 @@ function NotifRow({
           : "cursor-pointer rounded-md transition-colors hover:bg-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
       )}
     >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-[18px]">
-        {n.icon ?? "🔔"}
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+        <Bell className="size-4" aria-hidden="true" />
       </div>
       <div className="flex-1">
         {/* N3-B2 (prototype notifikasi.html list-row) — title and body flow
@@ -218,17 +220,6 @@ export default function NotifikasiPage() {
   const token = session?.accessToken;
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<Filter>("semua");
-
-  // N3-B2 (prototype notifikasi.html page-lead subtitle) — real family
-  // group name for "Aktivitas keluarga {name}, ..."; only rendered once
-  // loaded so the subtitle never flashes a placeholder/undefined name.
-  const { data: myFamilyGroups } = useQuery<{ name: string }[]>({
-    queryKey: [...queryKeys.familyGroups.mine(), token],
-    queryFn: () =>
-      apiFetch<{ name: string }[]>("/family-groups/mine", { token }),
-    enabled: Boolean(token),
-  });
-  const familyName = myFamilyGroups?.[0]?.name;
 
   const {
     data: notifications,
@@ -357,13 +348,6 @@ export default function NotifikasiPage() {
           </h1>
           {/* N3-B2 — only rendered once the real family name has loaded;
               no placeholder/fabricated name shown while pending. */}
-          {familyName && (
-            <div className="mt-1 text-[13px] text-muted-foreground">
-              {t.notifikasi.subtitlePrefix}
-              {familyName}
-              {t.notifikasi.subtitleSuffix}
-            </div>
-          )}
         </div>
         <CardLink
           onClick={() => familyGroupId && markAllRead.mutate(familyGroupId)}

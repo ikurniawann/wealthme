@@ -64,6 +64,15 @@ export const DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT: Record<AssetTypeId, number> =
     lainnya: 0, // no assumption
   };
 
+/** EPIC-033 p14 — a document attached to a physical asset. */
+export interface AssetAttachmentDto {
+  id: string;
+  assetId: string;
+  mimeType: string;
+  size: number;
+  createdAt: string;
+}
+
 export interface AssetHistoryDto {
   id: string;
   assetId: string;
