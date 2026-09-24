@@ -152,6 +152,8 @@ export type EffectiveAccess = {
   dataScope: AccessDataScope;
   /** Where the base came from — shown on /iam. */
   source: "master" | "custom-role" | "legacy";
+  /** Member has at least one per-member override on top of the base. */
+  hasOverrides: boolean;
 };
 
 const LEVEL_RANK: Record<AccessLevel, number> = { none: 0, view: 1, manage: 2 };
@@ -179,6 +181,7 @@ export function resolveEffectiveAccess(input: {
       permissions: all("manage") as Record<AccessPage, AccessLevel>,
       dataScope: "all",
       source: "master",
+      hasOverrides: false,
     };
   }
   const base = input.accessRole ?? LEGACY_ACCESS_PRESETS[input.role];
@@ -193,6 +196,7 @@ export function resolveEffectiveAccess(input: {
     permissions,
     dataScope: base.dataScope,
     source: input.accessRole ? "custom-role" : "legacy",
+    hasOverrides: Object.keys(input.overrides ?? {}).length > 0,
   };
 }
 

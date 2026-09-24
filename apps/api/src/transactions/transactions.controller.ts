@@ -24,6 +24,7 @@ import { Throttle } from "@nestjs/throttler";
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 import { canSeePrivateItems } from "../common/utils/privacy.util";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -49,6 +50,7 @@ import type { Request, Response } from "express";
 
 @ApiTags("transactions")
 @ApiBearerAuth()
+@PageAccess("transactions")
 @Controller("family-groups/:familyGroupId/transactions")
 export class TransactionsController {
   private readonly logger = new Logger(TransactionsController.name);

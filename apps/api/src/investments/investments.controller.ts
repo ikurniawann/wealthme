@@ -25,6 +25,7 @@ import {
 import { type Request as ExpressRequest } from "express";
 
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateInvestmentTransactionDto } from "./dto/create-investment-transaction.dto";
@@ -39,6 +40,7 @@ import { InvestmentsService } from "./investments.service";
 
 @ApiTags("investments")
 @ApiBearerAuth()
+@PageAccess("investments")
 @Controller("family-groups/:familyGroupId/investments")
 export class InvestmentsController {
   constructor(private readonly investmentsService: InvestmentsService) {}

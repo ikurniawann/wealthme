@@ -25,6 +25,7 @@ import { memoryStorage } from "multer";
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 
 // AttachmentsService is injected by class reference — must stay a real
 // import (see the same note in attachments.service.ts).
@@ -42,6 +43,7 @@ const MAX_ATTACHMENT_FILE_BYTES = 5 * 1024 * 1024;
 
 @ApiTags("attachments")
 @ApiBearerAuth()
+@PageAccess("attachments")
 @Controller("family-groups/:familyGroupId/transactions/:txId/attachments")
 export class AttachmentsController {
   constructor(private readonly attachmentsService: AttachmentsService) {}

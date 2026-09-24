@@ -19,6 +19,7 @@ import {
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateTaxRecordDto } from "./dto/create-tax-record.dto";
@@ -30,6 +31,7 @@ import { TaxService } from "./tax.service";
 
 @ApiTags("tax")
 @ApiBearerAuth()
+@PageAccess("tax")
 @Controller("family-groups/:familyGroupId/tax")
 export class TaxController {
   constructor(private readonly taxService: TaxService) {}

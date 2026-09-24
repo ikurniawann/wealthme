@@ -19,6 +19,7 @@ import {
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AiKeyService } from "./ai-key.service";
@@ -38,6 +39,7 @@ import type { ProviderModel } from "./provider-models.util";
  */
 @ApiTags("ai-advisor")
 @ApiBearerAuth()
+@PageAccess("ai-key")
 @Controller("family-groups/:familyGroupId/ai-key")
 export class AiKeyController {
   constructor(private readonly aiKeyService: AiKeyService) {}

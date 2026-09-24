@@ -19,6 +19,7 @@ import {
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateInsuranceDto } from "./dto/create-insurance.dto";
@@ -35,6 +36,7 @@ import { InsurancesService } from "./insurances.service";
 
 @ApiTags("insurances")
 @ApiBearerAuth()
+@PageAccess("insurances")
 @Controller("family-groups/:familyGroupId/insurances")
 export class InsurancesController {
   constructor(private readonly insurancesService: InsurancesService) {}

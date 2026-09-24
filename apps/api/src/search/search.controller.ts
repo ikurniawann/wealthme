@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { SearchService } from "./search.service";
@@ -13,6 +14,7 @@ import type { Request } from "express";
 @ApiBearerAuth()
 @UseGuards(ThrottlerGuard)
 @Throttle({ default: { ttl: 60000, limit: 60 } })
+@PageAccess("search")
 @Controller("family-groups/:familyGroupId/search")
 export class SearchController {
   constructor(private readonly searchService: SearchService) {}

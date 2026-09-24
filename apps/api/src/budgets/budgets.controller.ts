@@ -18,6 +18,7 @@ import {
 } from "@nestjs/swagger";
 
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 import { canSeePrivateItems } from "../common/utils/privacy.util";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -32,6 +33,7 @@ import type { Request } from "express";
 
 @ApiTags("budgets")
 @ApiBearerAuth()
+@PageAccess("budgets")
 @Controller("family-groups/:familyGroupId/budgets")
 export class BudgetsController {
   constructor(private readonly budgets: BudgetsService) {}

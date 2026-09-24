@@ -10,6 +10,7 @@ import {
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 import {
   assertHouseholdWideReadAllowed,
   canSeePrivateItems,
@@ -61,6 +62,7 @@ function defaultMonthStartWib(now: Date): Date {
 
 @ApiTags("reports")
 @ApiBearerAuth()
+@PageAccess("reports")
 @Controller("family-groups/:familyGroupId/reports")
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}

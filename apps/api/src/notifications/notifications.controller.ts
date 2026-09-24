@@ -16,6 +16,7 @@ import {
 } from "@nestjs/swagger";
 
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { MarkReadDto } from "./dto/mark-read.dto";
@@ -26,6 +27,7 @@ import type { Request } from "express";
 
 @ApiTags("notifications")
 @ApiBearerAuth()
+@PageAccess("notifications")
 @Controller("family-groups/:familyGroupId/notifications")
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}

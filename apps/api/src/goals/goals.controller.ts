@@ -19,6 +19,7 @@ import {
 import { type Request as ExpressRequest } from "express";
 
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 import { CreateGoalDto } from "./dto/create-goal.dto";
@@ -28,6 +29,7 @@ import { GoalsService, GoalDto } from "./goals.service";
 
 @ApiTags("goals")
 @ApiBearerAuth()
+@PageAccess("goals")
 @Controller("family-groups/:familyGroupId/goals")
 export class GoalsController {
   constructor(private readonly goalsService: GoalsService) {}

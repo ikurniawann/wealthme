@@ -1747,6 +1747,8 @@ type EffectiveAccess = {
     dataScope: AccessDataScope;
     /** Where the base came from — shown on /iam. */
     source: "master" | "custom-role" | "legacy";
+    /** Member has at least one per-member override on top of the base. */
+    hasOverrides: boolean;
 };
 declare function levelAtLeast(have: AccessLevel, need: AccessLevel): boolean;
 /**

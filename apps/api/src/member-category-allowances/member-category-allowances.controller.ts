@@ -18,6 +18,7 @@ import { Role } from "@prisma/client";
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 
 import { MemberCategoryAllowanceResponseDto } from "./dto/member-category-allowance-response.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -29,6 +30,7 @@ import type { Request } from "express";
 
 @ApiTags("member-category-allowances")
 @ApiBearerAuth()
+@PageAccess("member-category-allowances")
 @Controller(
   "family-groups/:familyGroupId/members/:memberId/category-allowances",
 )

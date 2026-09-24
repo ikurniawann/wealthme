@@ -19,6 +19,7 @@ import {
 import { type Request as ExpressRequest } from "express";
 
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 import { AssetsService } from "./assets.service";
@@ -33,6 +34,7 @@ import type {
 
 @ApiTags("assets")
 @ApiBearerAuth()
+@PageAccess("assets")
 @Controller("family-groups/:familyGroupId/assets")
 export class AssetsController {
   constructor(private readonly assetsService: AssetsService) {}

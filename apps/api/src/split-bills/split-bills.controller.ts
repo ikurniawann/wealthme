@@ -20,6 +20,7 @@ import { Throttle } from "@nestjs/throttler";
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 import { Public } from "../common/decorators/public.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -37,6 +38,7 @@ import { UpdatePayoutAccountDto } from "./dto/update-payout-account.dto";
 import { SplitBillsService } from "./split-bills.service";
 
 @ApiTags("split-bills")
+@PageAccess("split-bills")
 @Controller()
 export class SplitBillsController {
   constructor(private readonly splitBillsService: SplitBillsService) {}

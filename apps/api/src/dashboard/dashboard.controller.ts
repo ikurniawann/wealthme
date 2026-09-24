@@ -15,6 +15,7 @@ import {
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 import {
   assertHouseholdWideReadAllowed,
   canSeePrivateItems,
@@ -27,6 +28,7 @@ import type { Request } from "express";
 
 @ApiTags("dashboard")
 @ApiBearerAuth()
+@PageAccess("dashboard")
 @Controller("family-groups/:familyGroupId/dashboard")
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}

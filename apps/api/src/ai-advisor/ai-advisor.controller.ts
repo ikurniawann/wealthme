@@ -17,6 +17,7 @@ import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 import { ExternalRequestTimeoutError } from "../common/utils/external-fetch.util";
 import { assertHouseholdWideReadAllowed } from "../common/utils/privacy.util";
 
@@ -42,6 +43,7 @@ import type { Request, Response } from "express";
 @ApiTags("ai-advisor")
 @ApiBearerAuth()
 @UseGuards(ThrottlerGuard)
+@PageAccess("ai-advisor")
 @Controller("family-groups/:familyGroupId/ai-advisor")
 export class AiAdvisorController {
   private readonly logger = new Logger(AiAdvisorController.name);

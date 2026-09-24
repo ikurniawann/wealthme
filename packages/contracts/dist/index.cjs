@@ -737,7 +737,8 @@ function resolveEffectiveAccess(input) {
       isMaster: true,
       permissions: all("manage"),
       dataScope: "all",
-      source: "master"
+      source: "master",
+      hasOverrides: false
     };
   }
   const base = input.accessRole ?? LEGACY_ACCESS_PRESETS[input.role];
@@ -751,7 +752,8 @@ function resolveEffectiveAccess(input) {
     isMaster: false,
     permissions,
     dataScope: base.dataScope,
-    source: input.accessRole ? "custom-role" : "legacy"
+    source: input.accessRole ? "custom-role" : "legacy",
+    hasOverrides: Object.keys(input.overrides ?? {}).length > 0
   };
 }
 function canAccessPage(access, page, need = "view") {

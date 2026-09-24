@@ -19,6 +19,7 @@ import { Role } from "@prisma/client";
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AllowanceRequestsService } from "./allowance-requests.service";
@@ -49,6 +50,7 @@ function requireMember(req: Request) {
 
 @ApiTags("allowance-requests")
 @ApiBearerAuth()
+@PageAccess("allowance-requests")
 @Controller("family-groups/:familyGroupId/allowance-requests")
 export class AllowanceRequestsController {
   constructor(
@@ -104,6 +106,7 @@ export class AllowanceRequestsController {
   }
 
   @Patch(":id/approve")
+  @PageAccess("allowance-requests.decide")
   @CheckAbility((ab: AppAbility) => ab.can("manage", "AllowanceRequest"))
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiParam({ name: "id", type: String })
@@ -128,6 +131,7 @@ export class AllowanceRequestsController {
   }
 
   @Patch(":id/reject")
+  @PageAccess("allowance-requests.decide")
   @CheckAbility((ab: AppAbility) => ab.can("manage", "AllowanceRequest"))
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiParam({ name: "id", type: String })

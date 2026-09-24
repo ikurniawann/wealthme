@@ -35,6 +35,19 @@ export class MemberResponseDto {
   @ApiProperty({ type: Boolean })
   managedLogin!: boolean;
 
+  // EPIC-030 — IAM assignment (only populated by the roster endpoint).
+  @ApiPropertyOptional({ type: String, nullable: true })
+  accessRoleId?: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  accessRoleName?: string | null;
+
+  @ApiPropertyOptional({
+    type: Object,
+    description: "Per-member page overrides (page → none|view|manage)",
+  })
+  accessOverrides?: Record<string, string>;
+
   // EPIC-023 Task D (D3/D9, US-FAM-14) — per-member large-transaction
   // threshold, as string (BigInt-safe). Null = no gate (every pre-existing
   // member, backward compatible). Only meaningful for a row-scoped role

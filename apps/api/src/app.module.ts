@@ -4,6 +4,7 @@ import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
 
+import { AccessModule } from "./access/access.module";
 import { AccountsModule } from "./accounts/accounts.module";
 import { AiAdvisorModule } from "./ai-advisor/ai-advisor.module";
 import { AllowanceRequestsModule } from "./allowance-requests/allowance-requests.module";
@@ -22,6 +23,7 @@ import { CoaAccountsModule } from "./coa-accounts/coa-accounts.module";
 import { CommonModule } from "./common/common.module";
 import { AbilitiesGuard } from "./common/guards/abilities.guard";
 import { ForcePasswordChangeGuard } from "./common/guards/force-password-change.guard";
+import { PageAccessGuard } from "./common/guards/page-access.guard";
 import { TenantGuard } from "./common/guards/tenant.guard";
 import { validateEnv } from "./config/env";
 import { CryptoModule } from "./crypto/crypto.module";
@@ -123,6 +125,7 @@ import type { IncomingMessage } from "node:http";
     AllowanceRequestsModule,
     MemberCategoryAllowancesModule,
     ReferenceItemsModule,
+    AccessModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
@@ -133,6 +136,8 @@ import type { IncomingMessage } from "node:http";
     // with `mustChangePassword: false` (every pre-existing user).
     { provide: APP_GUARD, useClass: ForcePasswordChangeGuard },
     { provide: APP_GUARD, useClass: TenantGuard },
+    // EPIC-030 — IAM page grants; needs tenantContext.access from TenantGuard.
+    { provide: APP_GUARD, useClass: PageAccessGuard },
     { provide: APP_GUARD, useClass: AbilitiesGuard },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],

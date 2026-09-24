@@ -19,6 +19,7 @@ import {
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateInheritanceAssetDto } from "./dto/create-inheritance-asset.dto";
@@ -30,6 +31,7 @@ import { InheritanceService } from "./inheritance.service";
 
 @ApiTags("inheritance")
 @ApiBearerAuth()
+@PageAccess("inheritance")
 @Controller("family-groups/:familyGroupId/inheritance")
 export class InheritanceController {
   constructor(private readonly inheritanceService: InheritanceService) {}
