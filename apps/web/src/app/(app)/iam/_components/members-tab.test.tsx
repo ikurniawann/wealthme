@@ -46,6 +46,7 @@ function setup() {
   const handlers = {
     onEditAccess: jest.fn(),
     onResetPassword: jest.fn(),
+    onEditEmail: jest.fn(),
     onRemove: jest.fn(),
   };
   render(
@@ -79,6 +80,36 @@ describe("IAM MembersTab", () => {
     expect(
       screen.queryByText(/members\.internal\.wealthme\.invalid/),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows both the family login and a real email when the member has both", () => {
+    render(
+      <MembersTab
+        members={[
+          {
+            ...child,
+            id: "m9",
+            userId: "u-9",
+            name: "Budi",
+            email: "budi@gmail.com",
+            username: "budi@arsandi",
+          },
+        ]}
+        isLoading={false}
+        roles={[]}
+        currentUserId="u-master"
+        onEditAccess={jest.fn()}
+        onResetPassword={jest.fn()}
+        onEditEmail={jest.fn()}
+        onRemove={jest.fn()}
+      />,
+    );
+    expect(screen.getByText("Username: budi@arsandi")).toBeInTheDocument();
+    expect(screen.getByText("budi@gmail.com")).toBeInTheDocument();
+    // Master-created with an email: still resettable by the Master.
+    expect(
+      screen.getByRole("button", { name: /Reset Password/ }),
+    ).toBeInTheDocument();
   });
 
   it("shows the assigned role, its overrides, and the data scope", () => {

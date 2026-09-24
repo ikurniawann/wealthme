@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Request,
 } from "@nestjs/common";
 import {
@@ -18,6 +19,7 @@ import {
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
+import { Throttle } from "@nestjs/throttler";
 import { type Request as ExpressRequest } from "express";
 
 import { type JwtPayload } from "../auth/strategies/jwt.strategy";
@@ -41,13 +43,22 @@ import { MemberResponseDto } from "./dto/member-response.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ResetMemberPasswordDto } from "./dto/reset-member-password.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import {
+  ConfirmMemberEmailDto,
+  SetMemberEmailDto,
+} from "./dto/set-member-email.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateFamilyReligionDto } from "./dto/update-family-religion.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateGoldPriceDto } from "./dto/update-gold-price.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { UpdateLoginHandleDto } from "./dto/update-login-handle.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateMemberRoleDto } from "./dto/update-member-role.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { FamilyGroupsService } from "./family-groups.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { MemberEmailService } from "./member-email.service";
 
 interface AuthRequest extends ExpressRequest {
   user: JwtPayload;
@@ -58,7 +69,10 @@ interface AuthRequest extends ExpressRequest {
 @PageAccess("family-groups")
 @Controller("family-groups")
 export class FamilyGroupsController {
-  constructor(private readonly familyGroupsService: FamilyGroupsService) {}
+  constructor(
+    private readonly familyGroupsService: FamilyGroupsService,
+    private readonly memberEmail: MemberEmailService,
+  ) {}
 
   @Get("mine")
   @ApiOperation({ summary: "List family groups the current user belongs to" })
@@ -144,7 +158,7 @@ export class FamilyGroupsController {
       "Create a dependant/operational member with a username + initial password (no email; forced password change at first login)",
   })
   @ApiResponse({ status: 201, type: DependantMemberResponseDto })
-  createDependantMember(
+  async createDependantMember(
     @Request() req: AuthRequest,
     @Param("familyGroupId") familyGroupId: string,
     @Body() dto: CreateDependantMemberDto,
@@ -158,9 +172,82 @@ export class FamilyGroupsController {
     if (!tenantFamilyGroupId || tenantFamilyGroupId !== familyGroupId) {
       throw new ForbiddenException("Access denied");
     }
-    return this.familyGroupsService.createDependantMember(
+    const created = await this.familyGroupsService.createDependantMember(
       tenantFamilyGroupId,
       dto,
+    );
+    // EPIC-031 — an email is only attached after its owner confirms it.
+    if (dto.email) {
+      await this.memberEmail.startConfirmation(created.userId, dto.email);
+      return { ...created, pendingEmail: dto.email.trim().toLowerCase() };
+    }
+    return created;
+  }
+
+  @Put(":familyGroupId/members/:memberId/email")
+  // Sends mail to an address the Master typed — keep it far below the global limit.
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Member"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "memberId", type: String })
+  @ApiOperation({
+    summary:
+      "Set (and email a confirmation link to) or clear a Master-created member's email (owner only)",
+  })
+  setMemberEmail(
+    @Request() req: AuthRequest,
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("memberId") memberId: string,
+    @Body() dto: SetMemberEmailDto,
+  ): Promise<{ pendingEmail: string | null }> {
+    return this.memberEmail.setForMember(
+      familyGroupId,
+      memberId,
+      req.user.sub,
+      dto.email ?? null,
+    );
+  }
+
+  /** Public — the mailbox owner confirms from the link in the email. */
+  @Public()
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @Post("member-email/confirm")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Confirm a member email from its emailed link" })
+  confirmMemberEmail(
+    @Body() dto: ConfirmMemberEmailDto,
+  ): Promise<{ email: string }> {
+    return this.memberEmail.confirm(dto.token);
+  }
+
+  // EPIC-031 — "kode keluarga" used in members' `username@kode` login IDs.
+  @Get(":familyGroupId/login-handle")
+  @CheckAbility((ab: AppAbility) => ab.can("read", "FamilyGroup"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiOperation({ summary: "The family's login handle (kode keluarga)" })
+  getLoginHandle(
+    @Request() req: AuthRequest,
+    @Param("familyGroupId") familyGroupId: string,
+  ): Promise<{ handle: string }> {
+    return this.familyGroupsService.getLoginHandle(familyGroupId, req.user.sub);
+  }
+
+  @Patch(":familyGroupId/login-handle")
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "FamilyGroup"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiOperation({
+    summary:
+      "Rename the kode keluarga; rewrites every Master-created login ID (owner only)",
+  })
+  updateLoginHandle(
+    @Request() req: AuthRequest,
+    @Param("familyGroupId") familyGroupId: string,
+    @Body() dto: UpdateLoginHandleDto,
+  ): Promise<{ handle: string }> {
+    return this.familyGroupsService.updateLoginHandle(
+      familyGroupId,
+      req.user.sub,
+      dto.handle,
     );
   }
 

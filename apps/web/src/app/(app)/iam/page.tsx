@@ -20,7 +20,9 @@ import { useSession } from "@/lib/auth-compat";
 import { queryKeys } from "@/lib/query-keys";
 
 import { AddMemberDialog } from "./_components/add-member-dialog";
+import { FamilyHandleCard } from "./_components/family-handle-card";
 import { MemberAccessDialog } from "./_components/member-access-dialog";
+import { MemberEmailDialog } from "./_components/member-email-dialog";
 import { MembersTab, type MemberRow } from "./_components/members-tab";
 import {
   ResetPasswordDialog,
@@ -124,6 +126,7 @@ export default function IamRolesPage() {
   const [resettingPassword, setResettingPassword] =
     useState<ResetPasswordTarget | null>(null);
   const [removing, setRemoving] = useState<MemberRow | null>(null);
+  const [editingEmail, setEditingEmail] = useState<MemberRow | null>(null);
   const [editingRole, setEditingRole] = useState<
     AccessRoleResponse | "new" | null
   >(null);
@@ -262,6 +265,10 @@ export default function IamRolesPage() {
         </p>
       </div>
 
+      {tab === "members" && (
+        <FamilyHandleCard familyGroupId={familyGroupId} token={token} />
+      )}
+
       {tab === "members" ? (
         <MembersTab
           members={members}
@@ -270,6 +277,7 @@ export default function IamRolesPage() {
           currentUserId={session?.userId}
           onEditAccess={setEditingAccess}
           onResetPassword={setResettingPassword}
+          onEditEmail={setEditingEmail}
           onRemove={setRemoving}
         />
       ) : (
@@ -354,6 +362,14 @@ export default function IamRolesPage() {
         key={resettingPassword?.id ?? "none"}
         member={resettingPassword}
         onClose={() => setResettingPassword(null)}
+        familyGroupId={familyGroupId}
+        token={token}
+      />
+
+      <MemberEmailDialog
+        key={`email-${editingEmail?.id ?? "none"}`}
+        member={editingEmail}
+        onClose={() => setEditingEmail(null)}
         familyGroupId={familyGroupId}
         token={token}
       />

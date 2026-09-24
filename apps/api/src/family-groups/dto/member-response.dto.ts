@@ -35,6 +35,11 @@ export class MemberResponseDto {
   @ApiProperty({ type: Boolean })
   managedLogin!: boolean;
 
+  // EPIC-031 — an email the Master entered that its owner has not confirmed
+  // yet (it cannot be used to sign in until then).
+  @ApiPropertyOptional({ type: String, nullable: true })
+  pendingEmail!: string | null;
+
   // EPIC-030 — IAM assignment (only populated by the roster endpoint).
   @ApiPropertyOptional({ type: String, nullable: true })
   accessRoleId?: string | null;

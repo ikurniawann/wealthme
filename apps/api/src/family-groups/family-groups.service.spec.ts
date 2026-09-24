@@ -1052,7 +1052,13 @@ describe("FamilyGroupsService.createDependantMember (EPIC-023 D1)", () => {
     };
     prisma = {
       $transaction: jest.fn(async (fn: (tx: unknown) => unknown) => fn(tx)),
-    };
+      // EPIC-031 — login IDs are `<username>@<kode keluarga>`.
+      familyGroup: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ handle: "arsandi", name: "Keluarga Arsandi" }),
+      },
+    } as unknown as { $transaction: jest.Mock };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -1128,13 +1134,13 @@ describe("FamilyGroupsService.createDependantMember (EPIC-023 D1)", () => {
     });
 
     expect(tx.user.findUnique).toHaveBeenCalledWith({
-      where: { username: "adit_01" },
+      where: { username: "adit_01@arsandi" },
       select: { id: true },
     });
     expect(tx.user.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          username: "adit_01",
+          username: "adit_01@arsandi",
           displayUsername: "Adit_01",
         }),
       }),
@@ -1185,11 +1191,11 @@ describe("FamilyGroupsService.createDependantMember (EPIC-023 D1)", () => {
   it("does not swallow an unrelated P2002 (e.g. on a different unique column)", async () => {
     tx.user.findUnique.mockResolvedValue(null);
     const unrelated = new Prisma.PrismaClientKnownRequestError(
-      "Unique constraint failed on the fields: (`email`)",
+      "Unique constraint failed on the fields: (`googleId`)",
       {
         code: "P2002",
         clientVersion: "6.19.3",
-        meta: { target: ["email"] },
+        meta: { target: ["googleId"] },
       },
     );
     tx.user.create.mockRejectedValue(unrelated);
@@ -1213,7 +1219,7 @@ describe("FamilyGroupsService.createDependantMember (EPIC-023 D1)", () => {
     expect(tx.user.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         name: "Adit Kecil",
-        username: "adit_01",
+        username: "adit_01@arsandi",
         displayUsername: "Adit_01",
         mustChangePassword: true,
         emailVerified: false,
@@ -1259,7 +1265,7 @@ describe("FamilyGroupsService.createDependantMember (EPIC-023 D1)", () => {
     expect(result).not.toHaveProperty("password");
     expect(result).not.toHaveProperty("initialPassword");
     expect(JSON.stringify(result)).not.toContain(baAccountArgs.data.password);
-    expect(result.username).toBe("adit_01");
+    expect(result.username).toBe("adit_01@arsandi");
   });
 
   // Adversarial-tier requirement: prove the created dependant can actually
@@ -1300,6 +1306,36 @@ describe("FamilyGroupsService.createDependantMember (EPIC-023 D1)", () => {
       false,
     );
   }, 15000);
+
+  // ── EPIC-031 — family login IDs + optional email ─────────────────────
+  it("stores the login as <username>@<kode keluarga> and marks the family as its manager", async () => {
+    mockCreatedRows();
+    const res = await service.createDependantMember(FAMILY_GROUP_ID, BASE_DTO);
+    expect(res.username).toBe("adit_01@arsandi");
+    expect(tx.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          username: "adit_01@arsandi",
+          displayUsername: "Adit_01",
+          managedByFamilyGroupId: FAMILY_GROUP_ID,
+        }),
+      }),
+    );
+  });
+
+  it("never writes a Master-typed email as the login email (it stays pending until confirmed)", async () => {
+    mockCreatedRows();
+    await service.createDependantMember(FAMILY_GROUP_ID, {
+      ...BASE_DTO,
+      email: "someone@gmail.com",
+    });
+    const data = tx.user.create.mock.calls[0][0].data as { email: string };
+    expect(data.email).toMatch(/@members\.internal\.wealthme\.invalid$/);
+    // No global email lookup either — nothing to enumerate.
+    expect(tx.user.findUnique).not.toHaveBeenCalledWith(
+      expect.objectContaining({ where: { email: "someone@gmail.com" } }),
+    );
+  });
 });
 
 // EPIC-024 A1 (D1) — istri = co-master: role owner is ONLY accepted paired
@@ -1338,7 +1374,13 @@ describe("FamilyGroupsService.createDependantMember — istri as second owner (E
     };
     prisma = {
       $transaction: jest.fn(async (fn: (tx: unknown) => unknown) => fn(tx)),
-    };
+      // EPIC-031 — login IDs are `<username>@<kode keluarga>`.
+      familyGroup: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ handle: "arsandi", name: "Keluarga Arsandi" }),
+      },
+    } as unknown as { $transaction: jest.Mock };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -1483,7 +1525,8 @@ describe("FamilyGroupsService.resetMemberPassword", () => {
   let prisma: ReturnType<typeof makePrisma>;
   let redis: ReturnType<typeof makeRedis>;
 
-  const MANAGED_EMAIL = "member-x@members.internal.wealthme.invalid";
+  // EPIC-031 — "managed" = created by THIS family's Master.
+  const MANAGED_USER = { managedByFamilyGroupId: FAMILY_GROUP_ID };
 
   beforeEach(async () => {
     prisma = makePrisma();
@@ -1529,16 +1572,21 @@ describe("FamilyGroupsService.resetMemberPassword", () => {
   it("refuses to reset the requester's own password", async () => {
     prisma.member.findFirst.mockResolvedValue({
       userId: REQUESTER_ID,
-      user: { email: MANAGED_EMAIL },
+      user: MANAGED_USER,
     });
     await expect(reset()).rejects.toBeInstanceOf(BadRequestException);
     expect(prisma.baAccount.updateMany).not.toHaveBeenCalled();
   });
 
-  it("refuses a member who signs in with a real email", async () => {
+  it("refuses a member this family's Master did not create", async () => {
     prisma.member.findFirst.mockResolvedValue({
       userId: MEMBER_USER_ID,
-      user: { email: "istri@gmail.com" },
+      user: { managedByFamilyGroupId: null },
+    });
+    await expect(reset()).rejects.toBeInstanceOf(ForbiddenException);
+    prisma.member.findFirst.mockResolvedValue({
+      userId: MEMBER_USER_ID,
+      user: { managedByFamilyGroupId: "another-family" },
     });
     await expect(reset()).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.baAccount.updateMany).not.toHaveBeenCalled();
@@ -1547,7 +1595,7 @@ describe("FamilyGroupsService.resetMemberPassword", () => {
   it("stores an argon2 hash of the temporary password and forces a change at next login", async () => {
     prisma.member.findFirst.mockResolvedValue({
       userId: MEMBER_USER_ID,
-      user: { email: MANAGED_EMAIL },
+      user: MANAGED_USER,
     });
     await reset();
 
@@ -1569,7 +1617,7 @@ describe("FamilyGroupsService.resetMemberPassword", () => {
   it("fails when the member has no credential login to update", async () => {
     prisma.member.findFirst.mockResolvedValue({
       userId: MEMBER_USER_ID,
-      user: { email: MANAGED_EMAIL },
+      user: MANAGED_USER,
     });
     prisma.baAccount.updateMany.mockResolvedValue({ count: 0 });
     await expect(reset()).rejects.toBeInstanceOf(NotFoundException);
@@ -1579,12 +1627,117 @@ describe("FamilyGroupsService.resetMemberPassword", () => {
   it("signs the member out everywhere after the change", async () => {
     prisma.member.findFirst.mockResolvedValue({
       userId: MEMBER_USER_ID,
-      user: { email: MANAGED_EMAIL },
+      user: MANAGED_USER,
     });
     await reset();
     expect(redis.del).toHaveBeenCalledWith(`refresh:${MEMBER_USER_ID}`);
     expect(prisma.baSession.deleteMany).toHaveBeenCalledWith({
       where: { userId: MEMBER_USER_ID },
     });
+  });
+});
+
+describe("FamilyGroupsService — kode keluarga (EPIC-031)", () => {
+  let service: FamilyGroupsService;
+  const tx = {
+    familyGroup: { update: jest.fn() },
+    user: {
+      findMany: jest.fn(),
+      update: jest.fn(),
+    },
+  };
+  const prisma = {
+    member: { findUnique: jest.fn() },
+    familyGroup: { findUnique: jest.fn(), updateMany: jest.fn() },
+    $transaction: jest.fn(async (fn: (t: unknown) => unknown) => fn(tx)),
+  };
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    prisma.member.findUnique.mockResolvedValue({ role: Role.owner });
+    prisma.familyGroup.findUnique.mockResolvedValue({
+      handle: "irfan-3f9a1c",
+      name: "Irfan Arsandi's Family",
+    });
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        FamilyGroupsService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { sendEmail: jest.fn() },
+        },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: RedisService, useValue: makeRedis() },
+      ],
+    }).compile();
+    service = module.get(FamilyGroupsService);
+  });
+
+  it("renames the code and rewrites every Master-created login ID", async () => {
+    tx.user.findMany.mockResolvedValue([
+      { id: "u1", username: "budi@irfan-3f9a1c" },
+      { id: "u2", username: "sari.w@irfan-3f9a1c" },
+    ]);
+    const res = await service.updateLoginHandle(
+      FAMILY_GROUP_ID,
+      REQUESTER_ID,
+      " Arsandi ",
+    );
+    expect(res.handle).toBe("arsandi");
+    expect(tx.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          managedByFamilyGroupId: FAMILY_GROUP_ID,
+          username: { endsWith: "@irfan-3f9a1c" },
+        },
+      }),
+    );
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id: "u1" },
+      data: { username: "budi@arsandi" },
+    });
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id: "u2" },
+      data: { username: "sari.w@arsandi" },
+    });
+  });
+
+  it.each(["ab", "has.dot", "-lead", "UPPER CASE", "x".repeat(25)])(
+    "rejects an invalid code %p",
+    async (handle) => {
+      await expect(
+        service.updateLoginHandle(FAMILY_GROUP_ID, REQUESTER_ID, handle),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    },
+  );
+
+  it("maps a code taken by another family to 409", async () => {
+    tx.familyGroup.update.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("dup", {
+        code: "P2002",
+        clientVersion: "x",
+      }),
+    );
+    await expect(
+      service.updateLoginHandle(FAMILY_GROUP_ID, REQUESTER_ID, "arsandi"),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("only the Master may rename it", async () => {
+    prisma.member.findUnique.mockResolvedValue({ role: Role.spouse });
+    await expect(
+      service.updateLoginHandle(FAMILY_GROUP_ID, REQUESTER_ID, "arsandi"),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("assigns a code lazily to a family created after the backfill", async () => {
+    prisma.familyGroup.findUnique.mockResolvedValueOnce({
+      handle: null,
+      name: "Christian Rizaldi's Family",
+    });
+    prisma.familyGroup.updateMany.mockResolvedValue({ count: 1 });
+    const handle = await service.ensureHandle(FAMILY_GROUP_ID);
+    expect(handle).toMatch(/^christian-[0-9a-f]{6}$/);
   });
 });

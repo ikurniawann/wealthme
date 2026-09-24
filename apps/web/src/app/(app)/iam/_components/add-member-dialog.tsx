@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Crown, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
@@ -61,6 +61,20 @@ export function AddMemberDialog({
   const fieldId = useId();
   const nameRef = useRef<HTMLInputElement>(null);
   const usernameRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  // EPIC-031 — the login ID is `<username>@<kode keluarga>`; show the suffix
+  // so the Master knows exactly what to hand over.
+  const { data: loginHandle } = useQuery<{ handle: string }>({
+    queryKey: queryKeys.familyGroups.loginHandle(familyGroupId ?? ""),
+    queryFn: ({ signal }) =>
+      apiFetch<{ handle: string }>(
+        `/family-groups/${familyGroupId}/login-handle`,
+        { token, signal },
+      ),
+    enabled: open && Boolean(token) && Boolean(familyGroupId),
+    staleTime: 60_000,
+  });
+  const handle = loginHandle?.handle;
   const passwordRef = useRef<HTMLInputElement>(null);
   // EPIC-024 A1 (D1) — "owner" is reachable ONLY through this dialog's
   // "Istri (Co-Master)" option (below), which forces `relationship: istri`
@@ -81,11 +95,12 @@ export function AddMemberDialog({
     mutationFn: (vars: {
       name: string;
       username: string;
+      email?: string;
       initialPassword: string;
       role: "dependant" | "operational" | "owner";
       relationship?: MemberRelationship;
     }) =>
-      apiFetch<{ username: string }>(
+      apiFetch<{ username: string; pendingEmail?: string | null }>(
         `/family-groups/${familyGroupId}/members/dependant`,
         {
           method: "POST",
@@ -107,7 +122,7 @@ export function AddMemberDialog({
         queryKey: queryKeys.familyGroups.members(familyGroupId ?? ""),
       });
       toast.success(t.akun.addDependant.toastCreated, {
-        description: `${t.akun.addDependant.toastCreatedDesc} (${created.username})`,
+        description: `${t.akun.addDependant.toastCreatedDesc} Login: ${created.username}${created.pendingEmail ? ` · Link konfirmasi dikirim ke ${created.pendingEmail}` : ""}`,
         duration: 10000,
       });
     },
@@ -121,6 +136,7 @@ export function AddMemberDialog({
   function handleCreate() {
     const name = nameRef.current?.value?.trim() ?? "";
     const username = usernameRef.current?.value?.trim() ?? "";
+    const email = emailRef.current?.value?.trim() ?? "";
     const initialPassword = passwordRef.current?.value ?? "";
     if (!name || !username || !initialPassword || !familyGroupId) return;
     // EPIC-024 A1 — the istri co-master path always sends
@@ -131,6 +147,7 @@ export function AddMemberDialog({
     createMember({
       name,
       username,
+      ...(email ? { email } : {}),
       initialPassword,
       role,
       ...(effectiveRelationship ? { relationship: effectiveRelationship } : {}),
@@ -212,14 +229,44 @@ export function AddMemberDialog({
             <label className="label" htmlFor={`${fieldId}-username`}>
               {t.akun.addDependant.usernameLabel}
             </label>
+            <div className="flex items-stretch">
+              <input
+                id={`${fieldId}-username`}
+                ref={usernameRef}
+                className="input rounded-r-none"
+                placeholder={t.akun.addDependant.usernamePlaceholder}
+                type="text"
+                autoCapitalize="none"
+                autoCorrect="off"
+                aria-describedby={`${fieldId}-username-hint`}
+              />
+              <span className="mono grid shrink-0 place-items-center rounded-r-[9px] border border-l-0 bg-secondary px-2.5 text-[12.5px] text-muted-foreground">
+                @{handle ?? "…"}
+              </span>
+            </div>
+            <p className="hint" id={`${fieldId}-username-hint`}>
+              Cukup unik di keluarga ini. Anggota login dengan{" "}
+              <span className="mono">nama@{handle ?? "kodekeluarga"}</span>.
+            </p>
+          </div>
+          <div className="field">
+            <label className="label" htmlFor={`${fieldId}-email`}>
+              Email (opsional)
+            </label>
             <input
-              id={`${fieldId}-username`}
-              ref={usernameRef}
+              id={`${fieldId}-email`}
+              ref={emailRef}
               className="input"
-              placeholder={t.akun.addDependant.usernamePlaceholder}
-              type="text"
+              placeholder="nama@gmail.com"
+              type="email"
+              autoComplete="off"
+              aria-describedby={`${fieldId}-email-hint`}
             />
-            <p className="hint">{t.akun.addDependant.usernameHint}</p>
+            <p className="hint" id={`${fieldId}-email-hint`}>
+              Kami kirim link konfirmasi ke email ini. Setelah dikonfirmasi
+              pemiliknya, anggota bisa login dengan email juga dan memakai Lupa
+              Password.
+            </p>
           </div>
           <div className="field">
             <label className="label" htmlFor={`${fieldId}-password`}>

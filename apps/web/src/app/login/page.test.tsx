@@ -108,3 +108,40 @@ describe("LoginPage — device gating", () => {
     expect(await screen.findByLabelText("Email")).toBeInTheDocument();
   });
 });
+
+// EPIC-031 — a family login ID typed into the Email tab is a username login.
+describe("LoginPage — family login IDs", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { authClient } = require("../../lib/auth-client");
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    jest.clearAllMocks();
+    authClient.$fetch.mockResolvedValue({ error: { message: "stop" } });
+    authClient.signIn.email.mockResolvedValue({ error: { message: "stop" } });
+  });
+
+  it("routes budi@arsandi to /sign-in/username, lowercased", async () => {
+    render(<LoginPage />);
+    await userEvent.type(await screen.findByLabelText("Email"), "Budi@Arsandi");
+    await userEvent.type(screen.getByLabelText("Password"), "rahasia123");
+    await userEvent.click(screen.getByRole("button", { name: /^Masuk$/ }));
+    expect(authClient.$fetch).toHaveBeenCalledWith("/sign-in/username", {
+      method: "POST",
+      body: { username: "budi@arsandi", password: "rahasia123" },
+    });
+    expect(authClient.signIn.email).not.toHaveBeenCalled();
+  });
+
+  it("keeps a real email on the email sign-in", async () => {
+    render(<LoginPage />);
+    await userEvent.type(
+      await screen.findByLabelText("Email"),
+      "budi@gmail.com",
+    );
+    await userEvent.type(screen.getByLabelText("Password"), "rahasia123");
+    await userEvent.click(screen.getByRole("button", { name: /^Masuk$/ }));
+    expect(authClient.signIn.email).toHaveBeenCalled();
+    expect(authClient.$fetch).not.toHaveBeenCalled();
+  });
+});

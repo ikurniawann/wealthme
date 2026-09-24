@@ -61,11 +61,19 @@ export default function LupaPasswordPage() {
               <div className="grid size-16 place-items-center rounded-full bg-success-soft text-success">
                 <Send className="size-[26px]" />
               </div>
-              <div className="text-[16px] font-extrabold">Email Terkirim!</div>
+              <div className="text-[16px] font-extrabold">Cek Email Anda</div>
+              {/* Honest copy: the server answers the same way whether or not
+                  the address has an account (so nobody can probe which emails
+                  are registered), so the page must not claim it was sent. */}
               <div className="text-[12.5px] text-muted-foreground">
-                Kami telah mengirim link reset password ke{" "}
-                <strong>{email}</strong>. Periksa kotak masuk atau folder spam
-                Anda.
+                Jika <strong>{email}</strong> terdaftar di WealthMe, link reset
+                password sudah kami kirim ke sana. Periksa kotak masuk atau
+                folder spam Anda.
+              </div>
+              <div className="mt-1 text-[11.5px] text-muted-foreground">
+                Tidak ada email masuk? Pastikan alamatnya sama persis dengan
+                yang dipakai saat mendaftar. Akun yang dibuatkan Master (login
+                <em> nama@kodekeluarga</em>) minta Master mereset password.
               </div>
               <div className="mt-1.5 text-[11.5px] text-muted-foreground">
                 Link berlaku 60 menit. Tidak menerima email?{" "}
