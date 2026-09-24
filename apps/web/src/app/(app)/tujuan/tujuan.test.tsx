@@ -71,6 +71,7 @@ function buildGoal(overrides: Partial<GoalDto> = {}): GoalDto {
     currentAmount: 1_000_000,
     targetDate: "2026-12-01",
     autoDebitAmount: null,
+    autoDebitDay: null,
     status: "on_track",
     progressPercent: 10,
     remainingAmount: 9_000_000,

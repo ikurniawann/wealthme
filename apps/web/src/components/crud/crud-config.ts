@@ -328,6 +328,13 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
           return `Saran: ${formatRupiah(Math.ceil(remaining / months))} / bulan · ${months} bulan tersisa`;
         },
       },
+      {
+        // EPIC-033 group 5 (p27) — day of month the auto-debit runs.
+        key: "autodebitDay",
+        label: "Tanggal Auto-debit (1-28)",
+        type: "number",
+        placeholder: "cth: 25",
+      },
     ],
   },
   // EPIC-024 A2 (D2, item 18) — the "member" entity (email invite-link UI)

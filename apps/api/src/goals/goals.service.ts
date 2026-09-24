@@ -22,6 +22,7 @@ export interface GoalDto {
   currentAmount: number;
   targetDate: string | null;
   autoDebitAmount: number | null;
+  autoDebitDay: number | null;
   status: GoalStatus;
   progressPercent: number;
   remainingAmount: number;
@@ -78,6 +79,7 @@ function toDto(
     currentAmount: bigint;
     targetDate: Date | null;
     autoDebitAmount: bigint | null;
+    autoDebitDay?: number | null;
     createdAt: Date;
   },
   now: Date = new Date(),
@@ -119,6 +121,7 @@ function toDto(
     targetDate: goal.targetDate ? goal.targetDate.toISOString() : null,
     autoDebitAmount:
       goal.autoDebitAmount !== null ? Number(goal.autoDebitAmount) : null,
+    autoDebitDay: goal.autoDebitDay ?? null,
     status: statusMap[status],
     progressPercent,
     remainingAmount,
@@ -166,6 +169,7 @@ export class GoalsService {
         currentAmount,
         targetDate,
         autoDebitAmount,
+        autoDebitDay: dto.autoDebitDay ?? null,
         status: computeStatus(
           currentAmount,
           targetAmount,
@@ -240,6 +244,10 @@ export class GoalsService {
         currentAmount,
         targetDate,
         autoDebitAmount,
+        autoDebitDay:
+          dto.autoDebitDay !== undefined
+            ? dto.autoDebitDay
+            : existing.autoDebitDay,
         status,
       },
     });

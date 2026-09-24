@@ -2168,6 +2168,20 @@ export type I18nDictionary = {
     trendRangeLabel6m: string;
     trendRangeLabel12m: string;
     trendRangeLabelAll: string;
+    trendRangeLabel1m: string;
+    trendRangeLabel3m: string;
+    trendRangeLabelYtd: string;
+    trendRangeLabelCustom: string;
+    trendCustomFromLabel: string;
+    trendCustomToLabel: string;
+    netWorthTrendTitle1m: string;
+    netWorthTrendTitle3m: string;
+    netWorthTrendTitleYtd: string;
+    netWorthTrendTitleCustom: string;
+    currencyGroupAriaLabel: string;
+    currencyIdr: string;
+    currencyUsd: string;
+    currencyGold: string;
     netWorthTrendTitle12m: string;
     netWorthTrendTitleAll: string;
     yoyUpPrefix: string;
@@ -2216,6 +2230,7 @@ export type I18nDictionary = {
     autoDebitPrefix: string;
     autoDebitSuffix: string;
     noAutoDebit: string;
+    autoDebitDayPrefix: string;
     toastSessionNotReady: string;
     toastUpdated: string;
     toastAdded: string;
@@ -2691,6 +2706,8 @@ export type I18nDictionary = {
     iconAriaLabelPrefix: string;
     fieldAmountLabel: string;
     fieldPeriodLabel: string;
+    fieldAutoDebitDayLabel: string;
+    autoDebitDayPrefix: string;
     savingLabel: string;
     saveCategoryButton: string;
     toastCategoryAddedPrefix: string;

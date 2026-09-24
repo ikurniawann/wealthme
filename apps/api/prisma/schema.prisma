@@ -861,6 +861,8 @@ model Budget {
   categoryId    String
   period        BudgetPeriod
   limitAmount   BigInt
+  // EPIC-033 group 5 — day of month (1-28) the auto-debit runs.
+  autoDebitDay  Int?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   // EPIC-023 E2 (D11) / group E retry (HIGH 4) — set on the FIXED budget
@@ -906,6 +908,8 @@ model Goal {
   currentAmount   BigInt      @default(0)
   targetDate      DateTime?
   autoDebitAmount BigInt?
+  // EPIC-033 group 5 — day of month (1-28) the auto-debit runs.
+  autoDebitDay    Int?
   lastAutoDebitAt DateTime?
   status          GoalStatus  @default(on_track)
   createdAt       DateTime    @default(now())

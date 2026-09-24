@@ -693,6 +693,7 @@ interface BudgetDto {
     categoryIcon: string | null;
     period: BudgetPeriod;
     limitAmount: number;
+    autoDebitDay: number | null;
     spentAmount: number;
     remainingAmount: number;
     usagePercent: number;
@@ -704,9 +705,11 @@ interface CreateBudgetDto {
     categoryId: string;
     period: BudgetPeriod;
     limitAmount: number;
+    autoDebitDay?: number;
 }
 interface UpdateBudgetDto {
     limitAmount?: number;
+    autoDebitDay?: number;
     period?: BudgetPeriod;
 }
 
@@ -719,6 +722,8 @@ interface GoalDto {
     currentAmount: number;
     targetDate: string | null;
     autoDebitAmount: number | null;
+    /** EPIC-033 group 5 — day of month (1-28) the auto-debit runs. */
+    autoDebitDay: number | null;
     status: GoalStatus;
     progressPercent: number;
     remainingAmount: number;
@@ -730,6 +735,7 @@ interface CreateGoalDto {
     currentAmount?: number;
     targetDate?: string;
     autoDebitAmount?: number;
+    autoDebitDay?: number;
 }
 interface UpdateGoalDto {
     name?: string;
@@ -738,6 +744,7 @@ interface UpdateGoalDto {
     currentAmount?: number;
     targetDate?: string;
     autoDebitAmount?: number;
+    autoDebitDay?: number;
 }
 
 interface NotificationDto {
