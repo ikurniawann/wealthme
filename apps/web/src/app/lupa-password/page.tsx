@@ -12,9 +12,8 @@ import { SectionCard } from "@/components/wm";
 // EPIC-025-N3-translation-table.md): brand above card, form state and
 // "sent" empty-state, "Link berlaku 60 menit" (better-auth's default reset
 // token expiry is 1 hour) and the outline "Kembali ke Login" button.
-// Per J2, only the true half of the prototype's hint is kept — the
-// "minta kepala keluarga menyetel ulang passwordnya" promise has zero
-// backend support today. Request logic is untouched.
+// The reset email goes out over SMTP from sysadmin@wit.id
+// (lib/reset-password-mailer.ts). Request logic is untouched.
 
 export default function LupaPasswordPage() {
   const [email, setEmail] = useState("");
@@ -123,13 +122,14 @@ export default function LupaPasswordPage() {
                 placeholder="nama@email.com"
                 className="w-full rounded-[9px] border bg-background px-3 py-[9px] text-[13.5px] text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-primary focus-visible:bg-card focus-visible:ring-[3px] focus-visible:ring-primary/20"
               />
-              {/* EPIC-025 N3-H3 (J2) — the prototype's hint also promises
-                  "minta kepala keluarga menyetel ulang passwordnya" (head
-                  resets a member's password). Zero backend support exists
-                  for that today, so only the true, backend-supported half
-                  of the hint is kept. */}
+              {/* The prototype's "minta kepala keluarga menyetel ulang
+                  passwordnya" half is now real: a Master can set a new
+                  password for a username (no-email) member from /iam
+                  (POST /family-groups/:id/members/:memberId/password). */}
               <div className="mt-[5px] text-[11.5px] text-muted-foreground">
-                Reset lewat email hanya untuk akun ber-email.
+                Reset lewat email hanya untuk akun ber-email. Login pakai
+                username? Minta Master keluarga mengganti password Anda dari
+                menu IAM Roles.
               </div>
 
               <button

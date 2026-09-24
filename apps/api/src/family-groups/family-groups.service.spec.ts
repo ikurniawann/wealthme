@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -36,6 +37,8 @@ function makePrisma() {
     account: { updateMany: jest.fn() },
     // EPIC-027 A9 — removal revokes better-auth sessions.
     baSession: { deleteMany: jest.fn() },
+    baAccount: { updateMany: jest.fn() },
+    user: { update: jest.fn() },
     familyGroup: { findUnique: jest.fn(), update: jest.fn() },
     invitation: {
       create: jest.fn(),
@@ -1472,5 +1475,116 @@ describe("FamilyGroupsService.createDependantMember — istri as second owner (E
 
     expect(tx.$queryRaw).not.toHaveBeenCalled();
     expect(tx.member.findFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe("FamilyGroupsService.resetMemberPassword", () => {
+  let service: FamilyGroupsService;
+  let prisma: ReturnType<typeof makePrisma>;
+  let redis: ReturnType<typeof makeRedis>;
+
+  const MANAGED_EMAIL = "member-x@members.internal.wealthme.invalid";
+
+  beforeEach(async () => {
+    prisma = makePrisma();
+    redis = makeRedis();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        FamilyGroupsService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { sendEmail: jest.fn() },
+        },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: RedisService, useValue: redis },
+      ],
+    }).compile();
+    service = module.get(FamilyGroupsService);
+    prisma.member.findUnique.mockResolvedValue({ role: "owner" });
+    prisma.baAccount.updateMany.mockResolvedValue({ count: 1 });
+  });
+
+  const reset = () =>
+    service.resetMemberPassword(FAMILY_GROUP_ID, MEMBER_ID, REQUESTER_ID, {
+      newPassword: "rahasia-baru-123",
+    });
+
+  it("rejects a non-owner requester", async () => {
+    prisma.member.findUnique.mockResolvedValue({ role: "dependant" });
+    await expect(reset()).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.baAccount.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("404s a member outside this family group", async () => {
+    prisma.member.findFirst.mockResolvedValue(null);
+    await expect(reset()).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.member.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: MEMBER_ID, familyGroupId: FAMILY_GROUP_ID },
+      }),
+    );
+  });
+
+  it("refuses to reset the requester's own password", async () => {
+    prisma.member.findFirst.mockResolvedValue({
+      userId: REQUESTER_ID,
+      user: { email: MANAGED_EMAIL },
+    });
+    await expect(reset()).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.baAccount.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("refuses a member who signs in with a real email", async () => {
+    prisma.member.findFirst.mockResolvedValue({
+      userId: MEMBER_USER_ID,
+      user: { email: "istri@gmail.com" },
+    });
+    await expect(reset()).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.baAccount.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("stores an argon2 hash of the new password and clears the forced change", async () => {
+    prisma.member.findFirst.mockResolvedValue({
+      userId: MEMBER_USER_ID,
+      user: { email: MANAGED_EMAIL },
+    });
+    await reset();
+
+    const call = prisma.baAccount.updateMany.mock.calls[0][0];
+    expect(call.where).toEqual({
+      userId: MEMBER_USER_ID,
+      providerId: "credential",
+    });
+    expect(call.data.password).not.toBe("rahasia-baru-123");
+    await expect(
+      argon2.verify(call.data.password, "rahasia-baru-123"),
+    ).resolves.toBe(true);
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: MEMBER_USER_ID },
+      data: { mustChangePassword: false },
+    });
+  });
+
+  it("fails when the member has no credential login to update", async () => {
+    prisma.member.findFirst.mockResolvedValue({
+      userId: MEMBER_USER_ID,
+      user: { email: MANAGED_EMAIL },
+    });
+    prisma.baAccount.updateMany.mockResolvedValue({ count: 0 });
+    await expect(reset()).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it("signs the member out everywhere after the change", async () => {
+    prisma.member.findFirst.mockResolvedValue({
+      userId: MEMBER_USER_ID,
+      user: { email: MANAGED_EMAIL },
+    });
+    await reset();
+    expect(redis.del).toHaveBeenCalledWith(`refresh:${MEMBER_USER_ID}`);
+    expect(prisma.baSession.deleteMany).toHaveBeenCalledWith({
+      where: { userId: MEMBER_USER_ID },
+    });
   });
 });

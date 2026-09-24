@@ -4,6 +4,7 @@ import { username } from "better-auth/plugins";
 import { PrismaClient } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
 import argon2 from "argon2";
+import { sendResetPasswordEmail } from "./reset-password-mailer";
 import {
   GENERIC_COA_CHART,
   buildReferenceItemSeed,
@@ -41,43 +42,19 @@ export const auth = betterAuth({
       verify: ({ hash, password }) =>
         argon2.verify(hash, password).catch(() => false),
     },
+    // SMTP (sysadmin@wit.id) → SendGrid → dev console; see
+    // reset-password-mailer.ts. A delivery failure is logged, never thrown:
+    // an error response here would reveal which emails have an account.
     sendResetPassword: async ({ user, url }) => {
-      const apiKey = process.env.SENDGRID_API_KEY;
-      const fromEmail =
-        process.env.NOTIFICATION_FROM_EMAIL ?? "noreply@wealthme.id";
-      if (!apiKey) {
-        // Dev-only escape hatch so a local run without SendGrid can still
-        // finish a reset. NEVER in production: this URL is a bearer
-        // credential — anyone who can read the container logs or the log
-        // aggregator could take over the account it belongs to, and the
-        // line leaked the account's email address alongside it.
-        if (process.env.NODE_ENV !== "production") {
-          console.log(`[reset-password] URL for ${user.email}: ${url}`);
-        } else {
-          console.error(
-            "[reset-password] SENDGRID_API_KEY is unset — no reset email was sent.",
-          );
-        }
-        return;
-      }
-      await fetch("https://api.sendgrid.com/v3/mail/send", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          personalizations: [{ to: [{ email: user.email, name: user.name }] }],
-          from: { email: fromEmail, name: "WealthMe" },
-          subject: "Reset Password WealthMe",
-          content: [
-            {
-              type: "text/html",
-              value: `<p>Halo ${user.name},</p><p>Klik link berikut untuk mereset password Anda:</p><p><a href="${url}">${url}</a></p><p>Link ini berlaku selama 1 jam.</p>`,
-            },
-          ],
-        }),
-      }).catch(console.error);
+      await sendResetPasswordEmail(
+        { email: user.email, name: user.name },
+        url,
+      ).catch((err: unknown) => {
+        console.error(
+          "[reset-password] Failed to send reset email:",
+          err instanceof Error ? err.message : err,
+        );
+      });
     },
   },
   socialProviders: {

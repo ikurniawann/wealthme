@@ -25,6 +25,16 @@ export class MemberResponseDto {
   @ApiProperty({ type: String })
   email!: string;
 
+  // Login username — set only for head-created accounts (see managedLogin).
+  @ApiPropertyOptional({ type: String, nullable: true })
+  username!: string | null;
+
+  // True when the head created this login from /iam (username + initial
+  // password, no real mailbox). Only such a member's password can be set by
+  // a Master — everyone else recovers theirs via "Lupa Password".
+  @ApiProperty({ type: Boolean })
+  managedLogin!: boolean;
+
   // EPIC-023 Task D (D3/D9, US-FAM-14) — per-member large-transaction
   // threshold, as string (BigInt-safe). Null = no gate (every pre-existing
   // member, backward compatible). Only meaningful for a row-scoped role

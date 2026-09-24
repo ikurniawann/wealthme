@@ -38,6 +38,8 @@ import { GoldPriceResponseDto } from "./dto/gold-price-response.dto";
 import { InvitationResponseDto } from "./dto/invitation-response.dto";
 import { MemberResponseDto } from "./dto/member-response.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { ResetMemberPasswordDto } from "./dto/reset-member-password.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateFamilyReligionDto } from "./dto/update-family-religion.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateGoldPriceDto } from "./dto/update-gold-price.dto";
@@ -220,6 +222,36 @@ export class FamilyGroupsController {
   ): Promise<MemberResponseDto> {
     return this.familyGroupsService.updateMemberRole(
       familyGroupId,
+      memberId,
+      req.user.sub,
+      dto,
+    );
+  }
+
+  @Post(":familyGroupId/members/:memberId/password")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  // Explicitly gated — AbilitiesGuard fails OPEN on an undecorated route.
+  // The service re-checks assertOwner and that the target is a managed login.
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Member"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "memberId", type: String })
+  @ApiOperation({
+    summary:
+      "Set a new password for a head-created (username) member (owner only)",
+  })
+  @ApiResponse({ status: 204 })
+  resetMemberPassword(
+    @Request() req: AuthRequest,
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("memberId") memberId: string,
+    @Body() dto: ResetMemberPasswordDto,
+  ): Promise<void> {
+    const tenantFamilyGroupId = req.tenantContext?.familyGroupId;
+    if (!tenantFamilyGroupId || tenantFamilyGroupId !== familyGroupId) {
+      throw new ForbiddenException("Access denied");
+    }
+    return this.familyGroupsService.resetMemberPassword(
+      tenantFamilyGroupId,
       memberId,
       req.user.sub,
       dto,
