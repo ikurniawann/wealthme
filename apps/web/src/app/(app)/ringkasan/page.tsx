@@ -38,15 +38,28 @@ import { TrendCompositionSection } from "./_components/trend-composition-section
 import { useRingkasanPrivacy } from "./_components/use-ringkasan-privacy";
 import {
   useRingkasanData,
+  type TrendCustomRange,
   type TrendRangeKey,
 } from "./_components/use-ringkasan-data";
+import type { DisplayCurrency } from "./_components/page-lead";
 
 export default function RingkasanPage() {
   const { t } = useLocale();
   const { data: session } = useSession();
   const { privacyOn, togglePrivacy } = useRingkasanPrivacy(session?.userId);
   const [trendRange, setTrendRange] = useState<TrendRangeKey>("12m");
-  const data = useRingkasanData(trendRange);
+  // EPIC-033 group 5 (p30) — custom date window + display currency.
+  const [customRange, setCustomRange] = useState<TrendCustomRange>(() => {
+    const to = new Date();
+    const from = new Date(to.getFullYear(), to.getMonth() - 3, to.getDate());
+    return {
+      from: from.toISOString().slice(0, 10),
+      to: to.toISOString().slice(0, 10),
+    };
+  });
+  const [displayCurrency, setDisplayCurrency] =
+    useState<DisplayCurrency>("IDR");
+  const data = useRingkasanData(trendRange, customRange);
 
   if (data.isError) {
     return (
@@ -71,11 +84,15 @@ export default function RingkasanPage() {
         todayLabel={data.todayLabel}
         trendRange={trendRange}
         onTrendRangeChange={setTrendRange}
+        customRange={customRange}
+        onCustomRangeChange={setCustomRange}
+        displayCurrency={displayCurrency}
+        onDisplayCurrencyChange={setDisplayCurrency}
         privacyOn={privacyOn}
         onTogglePrivacy={togglePrivacy}
       />
 
-      <HeroStatsSection data={data} />
+      <HeroStatsSection data={data} displayCurrency={displayCurrency} />
 
       {data.isIndicative && (
         <div className="t-xs t-muted">

@@ -23,6 +23,7 @@ type BudgetWithCategory = {
   categoryId: string;
   period: string;
   limitAmount: bigint;
+  autoDebitDay?: number | null;
   createdAt: Date;
   // EPIC-023 group E retry round 3 (MEDIUM 12 / CRITICAL 5) — used to tell
   // apart a liability's own principal category (whose spend is posted as
@@ -252,6 +253,7 @@ export class BudgetsService {
             categoryId: dto.categoryId,
             period: dto.period,
             limitAmount: BigInt(dto.limitAmount),
+            autoDebitDay: dto.autoDebitDay ?? null,
           },
           include: {
             category: {
@@ -314,6 +316,9 @@ export class BudgetsService {
           limitAmount: BigInt(dto.limitAmount),
         }),
         ...(dto.period !== undefined && { period: dto.period }),
+        ...(dto.autoDebitDay !== undefined && {
+          autoDebitDay: dto.autoDebitDay,
+        }),
       },
       include: {
         category: {
@@ -358,6 +363,7 @@ export class BudgetsService {
       categoryIcon: budget.category.icon,
       period: budget.period as BudgetPeriod,
       limitAmount: limit,
+      autoDebitDay: budget.autoDebitDay ?? null,
       spentAmount: spent,
       remainingAmount: Math.max(0, limit - spent),
       usagePercent: usagePct,

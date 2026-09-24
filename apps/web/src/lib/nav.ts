@@ -105,7 +105,15 @@ export const NAV_ITEM_IDS = [
 
 export type NavItemId = (typeof NAV_ITEM_IDS)[number];
 
-export const NAV_SECTION_HEADER_KEYS = ["keuangan", "alat"] as const;
+// EPIC-032 Task 2 — collapsible groups (client: "toggle ke pinggir, toggle ke
+// bawah"). The first section is ungrouped and always visible.
+export const NAV_SECTION_HEADER_KEYS = [
+  "perencanaan",
+  "kekayaan",
+  "kewajiban",
+  "alat",
+  "pengaturan",
+] as const;
 
 export type NavSectionHeaderKey = (typeof NAV_SECTION_HEADER_KEYS)[number];
 
@@ -241,6 +249,12 @@ export const NAV_SECTIONS: NavSection[] = [
       { id: "beranda", href: "/beranda", icon: Home },
       { id: "ringkasan", href: "/ringkasan", icon: PieChart },
       { id: "transaksi", href: "/transaksi", icon: ArrowUpDown },
+      { id: "notifikasi", href: "/notifikasi", icon: Bell },
+    ],
+  },
+  {
+    headerKey: "perencanaan",
+    items: [
       { id: "anggaran", href: "/anggaran", icon: ClipboardList },
       {
         id: "laporan",
@@ -249,11 +263,10 @@ export const NAV_SECTIONS: NavSection[] = [
         children: REPORT_TABS,
       },
       { id: "tujuan", href: "/tujuan", icon: Target },
-      { id: "notifikasi", href: "/notifikasi", icon: Bell },
     ],
   },
   {
-    headerKey: "keuangan",
+    headerKey: "kekayaan",
     items: [
       { id: "dana", href: "/dana", icon: Wallet },
       { id: "rekening", href: "/rekening", icon: Landmark },
@@ -261,6 +274,11 @@ export const NAV_SECTIONS: NavSection[] = [
       { id: "aset", href: "/aset", icon: Briefcase },
       { id: "liabilitas", href: "/liabilitas", icon: ReceiptText },
       { id: "asuransi", href: "/asuransi", icon: ShieldCheck },
+    ],
+  },
+  {
+    headerKey: "kewajiban",
+    items: [
       { id: "warisan", href: "/warisan", icon: Scroll },
       { id: "donation", href: "/donation", icon: HeartHandshake },
       { id: "tax", href: "/tax", icon: FileText },
@@ -280,6 +298,11 @@ export const NAV_SECTIONS: NavSection[] = [
       { id: "ai", href: "/ai", icon: Bot },
       { id: "kalkulator", href: "/kalkulator", icon: Calculator },
       { id: "quickinput", href: "/quickinput", icon: Zap },
+    ],
+  },
+  {
+    headerKey: "pengaturan",
+    items: [
       { id: "mastercoa", href: "/mastercoa", icon: BookOpen },
       { id: "masterdata", href: "/masterdata", icon: Database },
       { id: "iam", href: "/iam", icon: ShieldCheck, ownerOnly: true },

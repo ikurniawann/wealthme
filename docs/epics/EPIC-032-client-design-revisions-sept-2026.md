@@ -82,7 +82,8 @@ Files: `apps/web/src/app/(app)/donation/page.tsx`, `apps/web/src/i18n/{id,en}.ts
 
 Client: "toggle ke pinggir, toggle ke bawah" with reference screenshot; grouping left to us.
 
-- [ ] Group headers are `<button aria-expanded>` with icon, label, chevron on the right edge; children render below with a left rail.
+- [x] Group headers are `<button aria-expanded>` with label + chevron on the right edge; children render below on a hairline rail. Groups: ungrouped (Beranda, Ringkasan, Transaksi, Notifikasi) · Perencanaan · Kekayaan · Kewajiban & Keluarga · Alat · Pengaturan. Closed set persisted in `localStorage` (`wm.sidebarGroups`) via `useSyncExternalStore`; the group holding the active page never folds; the collapsed rail keeps every item. Files: `lib/nav.ts`, `components/shell/sidebar-sections.tsx`, `app/design-system.css` (reviewed foundation change).
+- [x] Task 4 (R1, istri = Co-Master): `DEFAULT_ROLE_BY_RELATIONSHIP.istri = "spouse"`; API `createDependantMember` accepts `spouse` + `istri` (never `owner`); migration `20260925170000_epic032_istri_co_master` moves existing `istri`+`owner` rows to `spouse` (the head is never flagged `istri`, so it is untouched); add-member dialog's "Istri (Co-Master)" posts `spouse`; hint copy rewritten.
 - [ ] Proposed groups (awaiting OK): ungrouped Beranda/Ringkasan/Transaksi/Notifikasi · Perencanaan (Anggaran, Laporan, Tujuan) · Kekayaan (Dana, Rekening, Investasi, Aset, Liabilitas, Asuransi) · Kewajiban & Keluarga (Warisan, Donasi, Tax, Persetujuan) · Alat (Split Bill, Rekonsiliasi, AI, Kalkulator, Quick Input) · Pengaturan (Master COA, Master Data, IAM, Panduan).
 - [ ] Group containing the active page auto-opens; open state persisted in localStorage; collapsed rail stays icon-only; mobile nav sheet follows; empty groups (after access filter) hidden; honors `prefers-reduced-motion`.
 

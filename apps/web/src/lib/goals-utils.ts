@@ -34,6 +34,11 @@ export function parseGoalFormValues(
   if (values.icon) payload.icon = values.icon;
   if (values.deadline) payload.targetDate = values.deadline;
   if (values.autodebit) payload.autoDebitAmount = parseAmount(values.autodebit);
+  // EPIC-033 group 5 — the day of month the auto-debit runs.
+  if (values.autodebitDay) {
+    const day = Number.parseInt(values.autodebitDay, 10);
+    if (day >= 1 && day <= 28) payload.autoDebitDay = day;
+  }
 
   const parsedCurrentAmount = parseAmount(values.terkumpul ?? "");
   if (

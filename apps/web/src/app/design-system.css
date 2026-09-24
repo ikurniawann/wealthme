@@ -4470,6 +4470,54 @@
     letter-spacing: 0.06em;
   }
 
+  /* EPIC-032 Task 2 — collapsible nav groups: header is a full-width
+     button, chevron flush right, children indented on a hairline rail. */
+  .sidebar__group-toggle {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    text-align: left;
+    border-radius: var(--radius-control);
+    transition: color var(--dur-fast) var(--ease-spring);
+  }
+  .sidebar__group-toggle:hover {
+    color: var(--foreground);
+  }
+  .sidebar__group-chevron {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    transition: transform var(--dur-base) var(--ease-spring);
+  }
+  .sidebar__group[data-open="true"] .sidebar__group-chevron {
+    transform: rotate(180deg);
+  }
+  .sidebar__group-items {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .sidebar__group > .sidebar__group-toggle + .sidebar__group-items {
+    margin-left: 8px;
+    padding-left: 6px;
+    border-left: 1px solid var(--border);
+  }
+  /* Collapsed rail: no headers, so nothing to fold; keep every item. */
+  .sidebar[data-collapsed="true"] .sidebar__group-items {
+    display: flex !important;
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
+  }
+  .sidebar[data-collapsed="true"] .sidebar__group-items[hidden] {
+    display: flex !important;
+  }
+
   /* Dialogs: settle in with mass, not a snap. */
   .dialog {
     border-radius: var(--radius-surface);

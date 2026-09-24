@@ -1343,7 +1343,7 @@ describe("FamilyGroupsService.createDependantMember (EPIC-023 D1)", () => {
 // EPIC-024 A1 (D1) — istri = co-master: role owner is ONLY accepted paired
 // with relationship istri, never gets her own family group, and a second
 // istri in the same group is refused — including under a concurrent race.
-describe("FamilyGroupsService.createDependantMember — istri as second owner (EPIC-024 A1)", () => {
+describe("FamilyGroupsService.createDependantMember — istri as Co-Master (EPIC-032 R1)", () => {
   let service: FamilyGroupsService;
   let tx: {
     user: { findUnique: jest.Mock; create: jest.Mock };
@@ -1357,7 +1357,7 @@ describe("FamilyGroupsService.createDependantMember — istri as second owner (E
     name: "Sari Wijaya",
     username: "sari_w",
     initialPassword: "changeMe123",
-    role: Role.owner,
+    role: Role.spouse,
     relationship: MemberRelationship.istri,
   } as const;
 
@@ -1422,7 +1422,7 @@ describe("FamilyGroupsService.createDependantMember — istri as second owner (E
     return userId;
   }
 
-  it("rejects role owner when relationship is NOT istri", async () => {
+  it("rejects role spouse when relationship is NOT istri", async () => {
     await expect(
       service.createDependantMember(FAMILY_GROUP_ID, {
         ...ISTRI_DTO,
@@ -1436,7 +1436,7 @@ describe("FamilyGroupsService.createDependantMember — istri as second owner (E
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it("accepts role owner paired with relationship istri: creates a Member row in the SAME family group, no new FamilyGroup", async () => {
+  it("accepts role spouse paired with relationship istri: creates a Member row in the SAME family group, no new FamilyGroup", async () => {
     const userId = mockCreatedRows();
 
     const result = await service.createDependantMember(
@@ -1457,11 +1457,11 @@ describe("FamilyGroupsService.createDependantMember — istri as second owner (E
       data: {
         userId,
         familyGroupId: FAMILY_GROUP_ID,
-        role: Role.owner,
+        role: Role.spouse,
         relationship: MemberRelationship.istri,
       },
     });
-    expect(result.role).toBe(Role.owner);
+    expect(result.role).toBe(Role.spouse);
     expect(result.relationship).toBe(MemberRelationship.istri);
   });
 

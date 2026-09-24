@@ -4,15 +4,39 @@
 // `.hero.gradient-wealth.bento-span-5` plus three `.card.stat` cells
 // (span-2 / span-2 / span-3 of the 12-column bento).
 
+import { useQuery } from "@tanstack/react-query";
 import { useLocale } from "@/hooks/use-locale";
+import { useGoldPrice } from "@/hooks/use-gold-price";
+import { apiFetch } from "@/lib/api-client";
 import type { RingkasanData } from "./use-ringkasan-data";
+import type { DisplayCurrency } from "./page-lead";
 
-export function HeroStatsSection({ data }: { data: RingkasanData }) {
+type FxRatesResponse = { base: string; rates: Record<string, number> };
+
+export function HeroStatsSection({
+  data,
+  displayCurrency = "IDR",
+}: {
+  data: RingkasanData;
+  displayCurrency?: DisplayCurrency;
+}) {
   const { t } = useLocale();
+  // EPIC-033 group 5 (p30) — the headline figures can be read in USD or
+  // gram-emas. Same FX cache key as ConsolidatedTotalCard; gold uses the
+  // family's own manually-entered price per gram.
+  const { data: fx } = useQuery<FxRatesResponse>({
+    queryKey: ["fx", "rates", "IDR"],
+    queryFn: () => apiFetch<FxRatesResponse>("/fx/rates?base=IDR"),
+    staleTime: 5 * 60_000,
+    enabled: displayCurrency === "USD",
+  });
+  const { pricePerGram } = useGoldPrice();
+  const usdRate = fx?.rates["USD"];
+  const gramPrice = pricePerGram ? Number(pricePerGram) : null;
   const {
     isLoading,
     isNetWorthLoading,
-    money,
+    money: moneyIdr,
     netWorth,
     monthNet,
     totalAssets,
@@ -21,6 +45,19 @@ export function HeroStatsSection({ data }: { data: RingkasanData }) {
     monthExpense,
     accountTypeCount,
   } = data;
+  const money = (v: number) => {
+    if (displayCurrency === "USD") {
+      return usdRate
+        ? `$ ${Math.round(v * usdRate).toLocaleString("en-US")}`
+        : "...";
+    }
+    if (displayCurrency === "GOLD") {
+      return gramPrice
+        ? `${(v / gramPrice).toLocaleString("id-ID", { maximumFractionDigits: 2 })} gr`
+        : "...";
+    }
+    return moneyIdr(v);
+  };
 
   return (
     <section className="bento-grid">

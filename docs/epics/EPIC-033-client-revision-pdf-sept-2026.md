@@ -61,9 +61,9 @@ are cross-referenced, not duplicated.
 
 ### 5. New features (p27, p29, p30)
 
-- [ ] Goals: autodebit date (p27).
-- [ ] Budget category: autodebit date (p29).
-- [ ] Ringkasan: currency filter; net-worth trend filter by date / month / year (p30).
+- [x] Goals: `autoDebitDay` (1-28) on create/edit + "tgl D" on the card (p27). Migration `20260925160000_epic033_autodebit_day`. `lib/goals-utils.ts` (protected) gained a 4-line passthrough, reviewed foundation change.
+- [x] Budget category: `autoDebitDay` (1-28) on add/edit + "autodebet tgl D" in the usage list (p29). Same migration.
+- [x] Ringkasan: display-currency segmented control (IDR / USD / Emas) on the headline figures, using the shared FX cache and the family's gold price; trend ranges now 1 Bln / 3 Bln / 6 Bln / 12 Bln / Tahun Ini / Semua / Kustom (from-to dates), cut client-side from the widest history fetch (p30).
 
 ## Acceptance Criteria
 
@@ -76,4 +76,5 @@ are cross-referenced, not duplicated.
 
 - 2026-09-25 — PDF digested into 26 items, grouped 1-5. R1-R4 confirmed by user. Starting group 1 locally.
 - 2026-09-25 — Group 1 done locally except p19 (not reproducible: buy 1 @ 900.000 → 201) and the display side of p31. Both migrations applied to the local DB only. Gates: web tsc/eslint clean, jest 773 passed; api jest 245 passed across family-groups, split-bills, assets, investments, reference-items. Verified in local browser: role select, 5 religions, COA toggle, reconciliation chips, warisan dialog/placeholders, asset save with Kendaraan. Not committed yet.
+- 2026-09-25 — Groups 3-5 done locally, driven by real-number scenarios run through the browser session against the API (`scenario*.js` in the session scratchpad): salary/expense/transfer balances, budget spend, card purchase + payment (found and fixed the limit-growth and annual/12 bugs), buy/sell with settlement (found the P&L gap), goal/budget autodebit days, asset valuation history (-2.50% entry attributed to the acting user), Ringkasan USD + custom range. Full suites: api 1638 passed, web 772 passed. EPIC-032 T2 (sidebar accordion) and T4 (istri = Co-Master) landed in the same branch.
 - 2026-09-25 — Group 2 done locally (R2, R3, R5). New shared `components/allowance/minta-dana-dialog.tsx`, `hooks/use-family-members.ts`. Gates: web jest 772 passed (one cash-on-rekening test retired), api allowance-requests 28 passed, security-check OK. End-to-end as test member `bidedetest@keluarga-seedfg` (local DB only): request 100.000 from Kas Tunai → Master approves with prefilled source → balances moved.

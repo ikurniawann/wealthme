@@ -252,6 +252,9 @@ function GoalCard({ goal, onEdit, onDelete, canManage }: GoalCardProps) {
               {t.tujuan.autoDebitPrefix}
               {formatRupiah(goal.autoDebitAmount)}
               {t.tujuan.autoDebitSuffix}
+              {goal.autoDebitDay != null
+                ? ` · ${t.tujuan.autoDebitDayPrefix}${goal.autoDebitDay}`
+                : ""}
             </span>
           ) : (
             <span className="text-muted-foreground">
@@ -368,6 +371,8 @@ export default function TujuanPage() {
         deadline: goal.targetDate ?? "",
         autodebit:
           goal.autoDebitAmount != null ? String(goal.autoDebitAmount) : "",
+        autodebitDay:
+          goal.autoDebitDay != null ? String(goal.autoDebitDay) : "",
       },
     });
   }

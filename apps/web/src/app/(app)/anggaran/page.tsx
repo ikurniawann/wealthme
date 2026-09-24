@@ -110,6 +110,7 @@ function budgetAmountsLabel(
 const ICON_OPTIONS = ["🎓", "🎨", "🎁", "🐶", "👶", "📚", "💪", "🙏"];
 
 function BudgetUsageList({ budgets }: { budgets: BudgetDto[] }) {
+  const { t } = useLocale();
   const maxSpent = Math.max(...budgets.map((budget) => budget.spentAmount), 1);
 
   return (
@@ -134,6 +135,9 @@ function BudgetUsageList({ budgets }: { budgets: BudgetDto[] }) {
                 </div>
                 <div className="mt-0.5 text-[11.5px] text-muted-foreground">
                   {usagePct}% dari {formatRupiah(budget.limitAmount)}
+                  {budget.autoDebitDay != null
+                    ? ` · ${t.anggaran.autoDebitDayPrefix}${budget.autoDebitDay}`
+                    : ""}
                 </div>
               </div>
               <div className="mono shrink-0 text-right text-[12.5px] font-semibold text-foreground">
@@ -809,11 +813,14 @@ export default function AnggaranPage() {
   const [icon, setIcon] = useState(ICON_OPTIONS[0] ?? "🎓");
   const [amount, setAmount] = useState("");
   const [period, setPeriod] = useState<BudgetPeriod>("monthly");
+  // EPIC-033 group 5 (p29) — day of month the auto-debit runs ("" = none).
+  const [autoDebitDay, setAutoDebitDay] = useState("");
   // EPIC-022 C2 — the API already exposed PATCH/DELETE for a budget;
   // `editing`/`deletingBudget` drive the two dialogs that finally reach them.
   const [editing, setEditing] = useState<BudgetDto | null>(null);
   const [editAmount, setEditAmount] = useState("");
   const [editPeriod, setEditPeriod] = useState<BudgetPeriod>("monthly");
+  const [editAutoDebitDay, setEditAutoDebitDay] = useState("");
   const [deletingBudget, setDeletingBudget] = useState<BudgetDto | null>(null);
   // A budget has no fields of its own beyond amount + period: the icon, the
   // kind and the COA mapping all live on the Category it belongs to, and this
@@ -906,6 +913,7 @@ export default function AnggaranPage() {
       icon: string;
       limitAmount: number;
       period: BudgetPeriod;
+      autoDebitDay?: number;
       kind: "income" | "expense";
       coaAccountId: string;
       isPrivate: boolean;
@@ -965,6 +973,7 @@ export default function AnggaranPage() {
         categoryId,
         period: payload.period,
         limitAmount: payload.limitAmount,
+        ...(payload.autoDebitDay ? { autoDebitDay: payload.autoDebitDay } : {}),
       };
       return apiFetch<BudgetDto>(`/family-groups/${familyGroupId}/budgets`, {
         method: "POST",
@@ -999,11 +1008,13 @@ export default function AnggaranPage() {
       id: string;
       limitAmount: number;
       period: BudgetPeriod;
+      autoDebitDay?: number;
     }) => {
       if (!familyGroupId) throw new Error("familyGroupId missing");
       const dto: UpdateBudgetDto = {
         limitAmount: payload.limitAmount,
         period: payload.period,
+        autoDebitDay: payload.autoDebitDay,
       };
       return apiFetch<BudgetDto>(
         `/family-groups/${familyGroupId}/budgets/${payload.id}`,
@@ -1029,6 +1040,9 @@ export default function AnggaranPage() {
     setEditing(budget);
     setEditAmount(formatAmountInput(String(budget.limitAmount)));
     setEditPeriod(budget.period);
+    setEditAutoDebitDay(
+      budget.autoDebitDay != null ? String(budget.autoDebitDay) : "",
+    );
   }
 
   function handleSaveEdit() {
@@ -1038,7 +1052,14 @@ export default function AnggaranPage() {
       toast.warning(t.anggaran.toastAmountInvalid);
       return;
     }
-    updateMutation.mutate({ id: editing.id, limitAmount, period: editPeriod });
+    const parsedEditDay = Number.parseInt(editAutoDebitDay, 10);
+    updateMutation.mutate({
+      id: editing.id,
+      limitAmount,
+      period: editPeriod,
+      autoDebitDay:
+        parsedEditDay >= 1 && parsedEditDay <= 28 ? parsedEditDay : undefined,
+    });
   }
 
   async function handleDeleteBudget() {
@@ -1092,11 +1113,13 @@ export default function AnggaranPage() {
       toast.error(t.anggaran.toastNoFamilyGroup);
       return;
     }
+    const parsedDay = Number.parseInt(autoDebitDay, 10);
     createMutation.mutate({
       name: name.trim(),
       icon,
       limitAmount,
       period,
+      autoDebitDay: parsedDay >= 1 && parsedDay <= 28 ? parsedDay : undefined,
       kind,
       coaAccountId,
       isPrivate,
@@ -1555,6 +1578,22 @@ export default function AnggaranPage() {
                   </option>
                 </select>
               </div>
+              <div className="field mt-0">
+                <label className="label" htmlFor="budget-autodebit-day">
+                  {t.anggaran.fieldAutoDebitDayLabel}
+                </label>
+                <input
+                  id="budget-autodebit-day"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={28}
+                  placeholder="25"
+                  value={autoDebitDay}
+                  onChange={(e) => setAutoDebitDay(e.target.value)}
+                  className="input mono"
+                />
+              </div>
             </div>
           </DialogBody>
           {/* EPIC-026 Wave 4 — prototype's `dialog__footer`: Batal +
@@ -1636,6 +1675,22 @@ export default function AnggaranPage() {
                       {t.anggaran.periodLabels.yearly}
                     </option>
                   </select>
+                </div>
+                <div className="field mt-0">
+                  <label className="label" htmlFor="budget-edit-autodebit-day">
+                    {t.anggaran.fieldAutoDebitDayLabel}
+                  </label>
+                  <input
+                    id="budget-edit-autodebit-day"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={28}
+                    placeholder="25"
+                    value={editAutoDebitDay}
+                    onChange={(e) => setEditAutoDebitDay(e.target.value)}
+                    className="input mono"
+                  />
                 </div>
               </div>
             </DialogBody>
