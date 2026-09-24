@@ -20,7 +20,6 @@ import {
   CheckCheck,
   ReceiptText,
   TriangleAlert,
-  Lock,
   Eye,
   EyeOff,
   Plus,
@@ -45,6 +44,7 @@ import {
   StatusBadge,
   ProgressBar,
   CardLink,
+  InfoTip,
 } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
 // EPIC-029 group 4 — client-side unlock of a password-protected statement.
@@ -2046,9 +2046,6 @@ export default function RekonsiliasiPage() {
             {t.rekonsiliasi.headerTitle}
           </div>
           <div className="h-[3px] w-9 rounded-full bg-primary" />
-          <div className="mt-2 text-[12.5px] text-muted-foreground">
-            {t.rekonsiliasi.headerSubtitle}
-          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           {canManageTemplates && (
@@ -2129,6 +2126,21 @@ export default function RekonsiliasiPage() {
             >
               <div className="mb-1 text-[15px] font-extrabold">
                 {t.rekonsiliasi.uploadTitle}
+                <InfoTip>
+                  <p>
+                    <strong>{t.rekonsiliasi.formatCalloutTitle}</strong>{" "}
+                    {t.rekonsiliasi.formatCalloutBody}
+                  </p>
+                  <p className="mt-2">
+                    <strong>{t.rekonsiliasi.protectedCalloutTitle}</strong>{" "}
+                    {t.rekonsiliasi.protectedCalloutBody}
+                  </p>
+                  <p className="mt-2">
+                    <strong>{t.rekonsiliasi.pdfCalloutTitle}</strong>{" "}
+                    {t.rekonsiliasi.pdfCalloutBody}{" "}
+                    {t.rekonsiliasi.pdfCalloutScanNote}
+                  </p>
+                </InfoTip>
               </div>
               <div className="mb-[18px] text-[12.5px] text-muted-foreground">
                 {t.rekonsiliasi.uploadSubtitle}
@@ -2186,44 +2198,6 @@ export default function RekonsiliasiPage() {
                   </span>
                 </div>
               </button>
-
-              {/* Format callouts — honest, non-decorative: the CSV/XLSX
-                  callout matches the parser's real minimum columns
-                  (reconciliation-parsers.ts), and the PDF callout explains
-                  the server's real, deliberate refusal
-                  (uploadErrorPdfUnsupported). */}
-              <div className="mt-3.5 rounded-lg border border-success/30 bg-success-soft px-3.5 py-3 text-[12px] text-emerald-800 dark:text-emerald-300">
-                <span className="font-bold">
-                  {t.rekonsiliasi.formatCalloutTitle}
-                </span>{" "}
-                {t.rekonsiliasi.formatCalloutBody}
-              </div>
-              {/* EPIC-029 group 4 — the password story, stated up front so a
-                  locked file does not look like a rejected one. The PDF
-                  callout below is deliberately untouched: group 1 owns it. */}
-              <div className="mt-2 flex items-start gap-2 rounded-lg border border-primary/30 bg-accent/50 px-3.5 py-3 text-[12px] text-primary-strong">
-                <Lock className="mt-0.5 size-3.5 shrink-0" />
-                <div>
-                  <span className="font-bold">
-                    {t.rekonsiliasi.protectedCalloutTitle}
-                  </span>{" "}
-                  {t.rekonsiliasi.protectedCalloutBody}
-                </div>
-              </div>
-              {/* EPIC-029 groups 1-3 — this used to be a red "PDF ditolak — ini
-                  disengaja" refusal. PDF works now, so the callout states the
-                  three things that decide whether it will work for THIS user:
-                  the text is read in the browser, it needs the family's own AI
-                  key, and a scan is still refused. */}
-              <div className="mt-2 rounded-lg border border-primary/30 bg-accent/50 px-3.5 py-3 text-[12px] text-primary-strong">
-                <span className="font-bold">
-                  {t.rekonsiliasi.pdfCalloutTitle}
-                </span>{" "}
-                {t.rekonsiliasi.pdfCalloutBody}
-                <div className="mt-1.5 text-muted-foreground">
-                  {t.rekonsiliasi.pdfCalloutScanNote}
-                </div>
-              </div>
             </SectionCard>
 
             {/* EPIC-029 E3c — the mandatory review screen. Nothing has been

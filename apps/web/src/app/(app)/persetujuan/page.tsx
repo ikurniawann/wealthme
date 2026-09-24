@@ -60,7 +60,12 @@ import { useMyAccess } from "@/hooks/use-my-access";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah } from "@/lib/format";
-import { SectionCard, StatusBadge, SummaryCard } from "@/components/wm";
+import {
+  SectionCard,
+  StatusBadge,
+  SummaryCard,
+  InfoTip,
+} from "@/components/wm";
 import {
   Dialog,
   DialogContent,
@@ -215,9 +220,9 @@ export default function PersetujuanPage() {
               </StatusBadge>
             )}
           </div>
-          <p className="mt-1 text-[12.5px] text-muted-foreground">
+          <InfoTip>
             {t.persetujuan.pageDesc} {t.persetujuan.approverRuleNotice}
-          </p>
+          </InfoTip>
         </div>
         <StatusBadge variant="purple" className="gap-1.5">
           <Crown className="size-[13px]" aria-hidden="true" />

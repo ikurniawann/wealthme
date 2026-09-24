@@ -358,9 +358,6 @@ export default function QuickInputPage() {
         >
           {t.quickinput.pageTitle}
         </h1>
-        <div className="mt-1 text-[12.5px] text-muted-foreground">
-          {t.quickinput.pageSubtitle}
-        </div>
       </section>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">

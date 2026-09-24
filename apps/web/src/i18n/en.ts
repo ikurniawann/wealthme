@@ -1831,6 +1831,16 @@ export const en = {
     toastHistorySaved: "Value history saved.",
     toastHistoryFailed: "Failed to save value history.",
     detailNotFound: "Asset not found.",
+    documentsTitle: "Documents",
+    documentsEmpty:
+      "No documents yet. Upload a certificate, BPKB, or policy (JPG, PNG, WEBP, PDF, max 5 MB).",
+    uploadDocumentButton: "Upload Document",
+    fieldDocumentLabel: "Document (optional)",
+    toastDocumentUploaded: "Document saved.",
+    toastDocumentFailed: "Failed to upload the document.",
+    toastDocumentDeleted: "Document deleted.",
+    deleteDocumentAria: "Delete document",
+    openDocumentAria: "Open document",
     totalAssetsSubtitlePrefix:
       "Cash & bank + investments + physical assets · as of ",
     statFromLastMonthSuffix: "vs last month",

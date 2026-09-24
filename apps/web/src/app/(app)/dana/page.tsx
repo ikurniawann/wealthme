@@ -492,9 +492,6 @@ export default function DanaPage() {
           <h1 className="text-[17px] font-extrabold tracking-tight">
             {t.shell.pageTitles.dana}
           </h1>
-          <p className="mt-1 text-[12.5px] text-muted-foreground">
-            {t.dana.pageSubtitle}
-          </p>
         </div>
         <div className="flex gap-2">
           <Button

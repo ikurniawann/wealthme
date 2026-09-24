@@ -417,7 +417,7 @@ describe("InsurancesService", () => {
       expect(prisma.category.create).toHaveBeenCalledWith({
         data: {
           familyGroupId: FAMILY_GROUP_ID,
-          name: "Premi Asuransi — Asuransi Jiwa (ins-1)",
+          name: "Premi Asuransi: Asuransi Jiwa",
           kind: "expense",
           coaAccountId: "coa-premium",
         },
@@ -467,7 +467,7 @@ describe("InsurancesService", () => {
       expect(prisma.category.create).toHaveBeenCalledWith({
         data: {
           familyGroupId: FAMILY_GROUP_ID,
-          name: "Asset & Other Insurance — Asuransi Jiwa (ins-1)",
+          name: "Asset & Other Insurance: Asuransi Jiwa",
           kind: "expense",
           coaAccountId: "coa-21104",
         },
@@ -1176,7 +1176,7 @@ describe("InsurancesService", () => {
       expect(prisma.category.create).toHaveBeenCalledWith({
         data: {
           familyGroupId: FAMILY_GROUP_ID,
-          name: "Premi Asuransi — Asuransi Jiwa (ins-1)",
+          name: "Premi Asuransi: Asuransi Jiwa",
           kind: "expense",
           coaAccountId: "coa-premium",
         },

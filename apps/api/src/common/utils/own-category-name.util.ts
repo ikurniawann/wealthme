@@ -13,5 +13,7 @@ export function ownCategoryName(
   obligationName: string,
   obligationId: string,
 ): string {
-  return `${label} — ${obligationName} (${obligationId.slice(0, 8)})`;
+  // EPIC-032 de-slop: no raw id in a name the user reads on every alert.
+  void obligationId;
+  return `${label}: ${obligationName}`;
 }

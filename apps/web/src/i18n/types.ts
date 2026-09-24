@@ -1760,6 +1760,15 @@ export type I18nDictionary = {
     toastHistorySaved: string;
     toastHistoryFailed: string;
     detailNotFound: string;
+    documentsTitle: string;
+    documentsEmpty: string;
+    uploadDocumentButton: string;
+    fieldDocumentLabel: string;
+    toastDocumentUploaded: string;
+    toastDocumentFailed: string;
+    toastDocumentDeleted: string;
+    deleteDocumentAria: string;
+    openDocumentAria: string;
     // EPIC-025 N3 fidelity follow-up (prototype parity): hero sub-line,
     // breakdown stat-card "vs last month" delta suffix, the Aset Fisik
     // card's neutral (non-delta) note, and account-row ownership segment

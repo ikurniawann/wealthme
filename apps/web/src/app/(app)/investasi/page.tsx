@@ -1540,9 +1540,6 @@ export default function InvestasiPage() {
           <h1 className="text-[17px] font-extrabold tracking-tight">
             {t.shell.pageTitles.investasi}
           </h1>
-          <p className="mt-1 text-[12.5px] text-muted-foreground">
-            {t.investasi.pageSubtitle}
-          </p>
         </div>
         <div className="flex gap-2">
           <Button

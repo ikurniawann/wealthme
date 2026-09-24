@@ -591,13 +591,11 @@ function ObligationRow({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5 text-[13.5px] font-semibold">
             <span>{obligation.name}</span>
-            <StatusBadge
-              variant={obligation.paidThisPeriod ? "success" : "gray"}
-            >
-              {obligation.paidThisPeriod
-                ? t.anggaran.obligationsPaidBadge
-                : t.anggaran.obligationsDueBadge}
-            </StatusBadge>
+            {obligation.paidThisPeriod && (
+              <StatusBadge variant="success">
+                {t.anggaran.obligationsPaidBadge}
+              </StatusBadge>
+            )}
           </div>
           <div className="mono text-[11.5px] text-muted-foreground">
             {formatRupiah(obligation.amountDue)}

@@ -764,6 +764,7 @@ export class InvestmentsService {
       } else {
         const pnl = BigInt((realizedPnl ?? new Decimal(0)).toFixed(0));
         const gain = pnl > BigInt(0) ? pnl : BigInt(0);
+        const loss = pnl < BigInt(0) ? -pnl : BigInt(0);
         await tx.account.update({
           where: { id: settleAccount.id },
           data: { balance: { increment: gross } },
@@ -774,11 +775,31 @@ export class InvestmentsService {
             accountId: null,
             toAccountId: settleAccount.id,
             type: "transfer",
-            amount: gross - gain,
+            amount: gross - gain + loss,
             description: `Jual ${label}`,
             occurredAt,
           },
         });
+        if (loss > BigInt(0)) {
+          // The cost portion transferred back exceeds the proceeds; the
+          // difference is a realised loss, booked as an expense so the P&L
+          // and the account balance agree.
+          const lossCategory = await this.resolveLossCategoryId(
+            tx,
+            familyGroupId,
+          );
+          await tx.transaction.create({
+            data: {
+              familyGroupId,
+              accountId: settleAccount.id,
+              categoryId: lossCategory,
+              type: "expense",
+              amount: loss,
+              description: `Rugi jual ${label}`,
+              occurredAt,
+            },
+          });
+        }
         if (gain > BigInt(0)) {
           const incomeCategory = await tx.category.findFirst({
             where: { familyGroupId, kind: "income", name: "Hasil Investasi" },
@@ -809,6 +830,36 @@ export class InvestmentsService {
         realizedPnl,
       },
     });
+  }
+
+  /**
+   * EPIC-033 p28 — "Rugi Investasi" expense category, created on first use
+   * against the family's catch-all expense COA account (20099) when missing.
+   */
+  private async resolveLossCategoryId(
+    tx: TxClient,
+    familyGroupId: string,
+  ): Promise<string | null> {
+    const existing = await tx.category.findFirst({
+      where: { familyGroupId, kind: "expense", name: "Rugi Investasi" },
+      select: { id: true },
+    });
+    if (existing) return existing.id;
+    const coa = await tx.coaAccount.findFirst({
+      where: { familyGroupId, code: "20099" },
+      select: { id: true },
+    });
+    if (!coa) return null;
+    const created = await tx.category.create({
+      data: {
+        familyGroupId,
+        name: "Rugi Investasi",
+        kind: "expense",
+        coaAccountId: coa.id,
+      },
+      select: { id: true },
+    });
+    return created.id;
   }
 
   /** EPIC-033 p18 — every recorded price for one holding, most recent first. */

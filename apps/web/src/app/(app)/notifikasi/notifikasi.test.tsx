@@ -100,7 +100,7 @@ describe("NotifikasiPage — mark one notification read", () => {
     render(<NotifikasiPage />);
 
     const unread = await screen.findByRole("button", {
-      name: /Tagihan KPR — Tandai dibaca/,
+      name: /Tagihan KPR: Tandai dibaca/,
     });
     expect(screen.getByText("Baru")).toBeInTheDocument();
 
@@ -141,7 +141,7 @@ describe("NotifikasiPage — mark one notification read", () => {
     render(<NotifikasiPage />);
     await user.click(
       await screen.findByRole("button", {
-        name: /Tagihan KPR — Tandai dibaca/,
+        name: /Tagihan KPR: Tandai dibaca/,
       }),
     );
     await waitFor(() =>

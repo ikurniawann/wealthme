@@ -47,6 +47,14 @@ export class AssetResponseDto {
   @ApiProperty() updatedAt!: string;
 }
 
+export class AssetAttachmentResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() assetId!: string;
+  @ApiProperty() mimeType!: string;
+  @ApiProperty() size!: number;
+  @ApiProperty() createdAt!: string;
+}
+
 export class AssetHistoryResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() assetId!: string;

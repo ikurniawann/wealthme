@@ -4,7 +4,7 @@ import { useId, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, FileText, Plus, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
@@ -24,7 +24,15 @@ import {
 } from "@/components/ui/dialog";
 import { SectionCard } from "@/components/wm";
 import { TrendChart } from "@/components/charts/apex-presets";
-import type { AssetDto, AssetHistoryDto } from "@wealthme/contracts";
+import type {
+  AssetAttachmentDto,
+  AssetDto,
+  AssetHistoryDto,
+} from "@wealthme/contracts";
+import {
+  openAssetDocument,
+  uploadAssetDocument,
+} from "@/lib/asset-attachments";
 
 /**
  * EPIC-033 group 3 (p16/p17) — one physical asset: its dated valuations
@@ -59,6 +67,48 @@ export default function AssetDetailPage() {
       ),
     enabled: !!token && !!familyGroupId && !!assetId,
   });
+
+  // EPIC-033 p14 — documents attached to this asset.
+  const { data: documents } = useQuery<AssetAttachmentDto[]>({
+    queryKey: [...queryKeys.assets.history(familyGroupId, assetId), "docs"],
+    queryFn: () =>
+      apiFetch<AssetAttachmentDto[]>(
+        `/family-groups/${familyGroupId}/assets/${assetId}/attachments`,
+        { token },
+      ),
+    enabled: !!token && !!familyGroupId && !!assetId,
+  });
+  const [uploading, setUploading] = useState(false);
+  async function invalidateDocs() {
+    await queryClient.invalidateQueries({
+      queryKey: [...queryKeys.assets.history(familyGroupId, assetId), "docs"],
+    });
+  }
+  async function handleUpload(file: File | null) {
+    if (!file) return;
+    setUploading(true);
+    try {
+      await uploadAssetDocument(familyGroupId, assetId, file, token);
+      toast.success(t.aset.toastDocumentUploaded);
+      await invalidateDocs();
+    } catch {
+      toast.error(t.aset.toastDocumentFailed);
+    } finally {
+      setUploading(false);
+    }
+  }
+  async function handleDeleteDoc(id: string) {
+    try {
+      await apiFetch(
+        `/family-groups/${familyGroupId}/assets/${assetId}/attachments/${id}`,
+        { method: "DELETE", token },
+      );
+      toast.success(t.aset.toastDocumentDeleted);
+      await invalidateDocs();
+    } catch {
+      toast.error(t.aset.toastDocumentFailed);
+    }
+  }
 
   const dateFmt = useMemo(
     () =>
@@ -168,6 +218,84 @@ export default function AssetDetailPage() {
                 height={260}
                 ariaLabel={`${t.aset.detailChartTitle}: ${asset?.name ?? ""}`}
               />
+            )}
+          </SectionCard>
+
+          {/* Documents (EPIC-033 p14) */}
+          <SectionCard
+            title={t.aset.documentsTitle}
+            action={
+              canManage ? (
+                <label className="btn btn--outline btn--sm cursor-pointer">
+                  <Upload className="size-3.5" />
+                  {t.aset.uploadDocumentButton}
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.webp,.pdf"
+                    className="sr-only"
+                    disabled={uploading}
+                    onChange={(e) => {
+                      void handleUpload(e.target.files?.[0] ?? null);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              ) : undefined
+            }
+            bodyClassName="pt-0"
+          >
+            {(documents ?? []).length === 0 ? (
+              <div className="py-3 text-[12.5px] text-muted-foreground">
+                {t.aset.documentsEmpty}
+              </div>
+            ) : (
+              <ul className="divide-y">
+                {(documents ?? []).map((d) => (
+                  <li
+                    key={d.id}
+                    className="flex items-center justify-between gap-2 py-2.5 text-[12.5px]"
+                  >
+                    <button
+                      type="button"
+                      className="flex min-w-0 items-center gap-2 text-left hover:underline"
+                      aria-label={t.aset.openDocumentAria}
+                      onClick={() =>
+                        void openAssetDocument(
+                          familyGroupId,
+                          assetId,
+                          d.id,
+                          token,
+                        )
+                      }
+                    >
+                      <FileText className="size-4 shrink-0 text-muted-foreground" />
+                      <span className="truncate">
+                        {d.mimeType
+                          .replace("image/", "")
+                          .replace("application/", "")
+                          .toUpperCase()}
+                        {" · "}
+                        {Math.max(1, Math.ceil(d.size / 1024)).toLocaleString(
+                          "id-ID",
+                        )}{" "}
+                        KB
+                        {" · "}
+                        {dateFmt.format(new Date(d.createdAt))}
+                      </span>
+                    </button>
+                    {canManage && (
+                      <button
+                        type="button"
+                        className="btn btn--ghost btn--icon text-destructive"
+                        aria-label={t.aset.deleteDocumentAria}
+                        onClick={() => void handleDeleteDoc(d.id)}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
             )}
           </SectionCard>
 

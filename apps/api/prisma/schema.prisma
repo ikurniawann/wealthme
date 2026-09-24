@@ -1019,6 +1019,23 @@ model Asset {
   @@index([familyGroupId])
   @@index([categoryId])
   @@map("assets")
+  attachments      AssetAttachment[]
+}
+
+// EPIC-033 p14 — documents attached to a physical asset (sertifikat, BPKB,
+// polis). Same storage contract as TransactionAttachment.
+model AssetAttachment {
+  id            String   @id @default(uuid())
+  assetId       String
+  familyGroupId String
+  path          String
+  mimeType      String
+  size          Int
+  createdAt     DateTime @default(now())
+  asset         Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId, familyGroupId])
+  @@map("asset_attachments")
 }
 
 model AssetHistory {

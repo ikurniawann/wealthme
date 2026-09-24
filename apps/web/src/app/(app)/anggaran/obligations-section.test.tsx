@@ -218,7 +218,9 @@ describe("ObligationsSection (EPIC-023 E2)", () => {
 
     await screen.findByText(DUE_LIABILITY.name);
     expect(screen.getByText(PAID_INSURANCE.name)).toBeInTheDocument();
-    expect(screen.getByText(t.obligationsDueBadge)).toBeInTheDocument();
+    // EPIC-032 de-slop: the section title already says "Belum Dibayar", so
+    // the unpaid pill is no longer repeated per row; only paid rows carry one.
+    expect(screen.queryByText(t.obligationsDueBadge)).not.toBeInTheDocument();
     expect(screen.getByText(t.obligationsPaidBadge)).toBeInTheDocument();
   });
 
